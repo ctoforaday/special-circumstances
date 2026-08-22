@@ -8,7 +8,7 @@ package fuzz
 //
 // COVERAGE CONTRACT. envelopeFor drives every eligible seat to exercise its whole verb surface,
 // not a happy path: lens (cite/finding/line of inquiry/friction), merge (position/closing/
-// mint/close incl. closed_with_regression/regrade any axis/
+// mint/close incl. repaired_with_regression/regrade any axis/
 // dispute-respond/spot-check/verdict/petition), blue (position/closing/dispute
 // across all four dimensions/manifest-row/line of inquiry/revision/retire/petition), bench
 // (opinion/outcome incl. --ended/certify/assemble/petition-rule). The
@@ -522,11 +522,11 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 		}
 	}
 	// A regression close carries lineage forward: it mints a successor and closes WITH it
-	// (record.go requires --successor for closed_with_regression). Only allowed on the first close
+	// (record.go requires --successor for repaired_with_regression). Only allowed on the first close
 	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
 	if allowReg && r.coin(25) {
 		if succ := r.mint(seatID); succ != "" {
-			if _, err := r.exec("close", "--seat-id", seatID, "--id", id, "--as", "closed_with_regression",
+			if _, err := r.exec("close", "--seat-id", seatID, "--id", id, "--as", "repaired_with_regression",
 				"--superseded-by", succ, "--reason", "fuzz regression close", "--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
 				return
 			}
@@ -541,7 +541,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// coverage line read as a driven verb.
 	if prior := r.closedGapIDs(); len(prior) > 0 && r.coin(30) {
 		carried := prior[r.rng.Intn(len(prior))]
-		carry := []string{"carry", "--seat-id", seatID, "--id", carried, "--as", "closed",
+		carry := []string{"carry", "--seat-id", seatID, "--id", carried, "--as", "repaired",
 			"--reason", "fuzz: carried from the prior round", "--carried-from", "1"}
 		// A carry names where the remainder went as often as a close does; the flag is on both
 		// verbs and was driven on neither once the two split. The successor is MINTED here for
@@ -556,7 +556,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	}
 	// THE WHOLE CLOSURE VOCABULARY, not just `closed`. #342 closed the set, so the
 	// enum-coverage sweep now demands every value be reached — and three of them
-	// (rebuttal_sustained, risk_accepted, routed_to_infrastructure) had never been driven by
+	// (not_a_defect, defect_accepted, defect_owed_elsewhere) had never been driven by
 	// anything, on either closing verb, in the tool's life.
 	//
 	// `amends_prior` takes --supersedes: it names a defect found BETWEEN two repairs that each
@@ -568,7 +568,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 			return
 		}
 	}
-	as := pick(r.rng, []string{"closed", "rebuttal_sustained", "risk_accepted", "routed_to_infrastructure"})
+	as := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere"})
 	_, _ = r.exec("close", "--seat-id", seatID, "--id", id, "--as", as, "--reason", "fuzz close as "+as,
 		"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec")
 }
@@ -1061,7 +1061,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// EVERY CLOSING DISPOSITION, not just `closed` (#342). The bench shares red's
 				// closure vocabulary now, and the sweep must reach all of it — bench opinion
 				// had driven exactly one closing word.
-				disp = pick(r.rng, []string{"closed", "rebuttal_sustained", "risk_accepted", "routed_to_infrastructure", "amends_prior"})
+				disp = pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
 				_, _ = r.exec("opinion", "--seat-id", seatID, "--id", id, "--as", disp,
 					"--principle", "correctness", "--tension", "cost", "--review-flag", "false", "--reason", "opinion-rationale-for-"+id)
 			}

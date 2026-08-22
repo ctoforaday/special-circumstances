@@ -701,8 +701,8 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 				return err
 			}
 		}
-		if p.Str("closure_class") == "closed_with_regression" && !p.Has("successor") {
-			return fmt.Errorf("record: closed_with_regression requires --superseded-by (lineage never drops)")
+		if p.Str("closure_class") == "repaired_with_regression" && !p.Has("successor") {
+			return fmt.Errorf("record: repaired_with_regression requires --superseded-by (lineage never drops)")
 		}
 		// THE NEAR MISS, refused as the typo it is.
 		//
@@ -711,8 +711,8 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// set and skips the successor check above, which is the opposite of "lineage
 		// never drops". Only spellings that differ in case or separator are caught: that
 		// is the whole typo class, and it cannot refuse a class somebody meant.
-		if cc := p.Str("closure_class"); cc != "closed_with_regression" && sameWord(cc, "closed_with_regression") {
-			return fmt.Errorf("record: %s is not a closure class — did you mean `closed_with_regression`? It is matched exactly, and it is the one class that requires --superseded-by, so a near-miss spelling would have closed the gap with its remainder dropped", jsonish(cc))
+		if cc := p.Str("closure_class"); cc != "repaired_with_regression" && sameWord(cc, "repaired_with_regression") {
+			return fmt.Errorf("record: %s is not a closure class — did you mean `repaired_with_regression`? It is matched exactly, and it is the one class that requires --superseded-by, so a near-miss spelling would have closed the gap with its remainder dropped", jsonish(cc))
 		}
 		// A closure is a claim, and the claim's substance is its argument: what was verified and
 		// why it holds. Checked after the verification triple so the more specific refusal (an

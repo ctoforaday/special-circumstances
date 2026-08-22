@@ -438,7 +438,7 @@ const RED_ENVELOPE = {
         required: ['id', 'class'],
         properties: {
           id: { type: 'string' },
-          class: { type: 'string', enum: ['closed', 'closed_with_regression', 'amends_prior', 'rebuttal_sustained', 'risk_accepted', 'routed_to_infrastructure'] },
+          class: { type: 'string', enum: ['repaired', 'repaired_with_regression', 'amends_prior', 'not_a_defect', 'defect_accepted', 'defect_owed_elsewhere'] },
         },
       },
     },
@@ -496,11 +496,11 @@ const JUDGE_ENVELOPE = {
           // grade; the next red-merge applies it and lists the delta.
           // moot: the gap's predicate expired — the claim or artifact it attached to is no
           // longer in the report. Moot adjudicates the gap out.
-          // routed_to_infrastructure (W1.9, run-5 judge-r2 friction): "valid finding, fix
-          // owned outside the debate" — R1-7 had to wear risk_accepted as the least-wrong
-          // fit. Leaves red's verdict pool like risk_accepted; collected as an infra debt
+          // defect_owed_elsewhere (W1.9, run-5 judge-r2 friction): "valid finding, fix
+          // owned outside the debate" — R1-7 had to wear defect_accepted as the least-wrong
+          // fit. Leaves red's verdict pool like defect_accepted; collected as an infra debt
           // the final envelope and assembly surface to the lead.
-          resolution: { type: 'string', enum: ['closed', 'rebuttal_sustained', 'risk_accepted', 'carried', 'unresolved', 'grade_adjusted', 'moot', 'routed_to_infrastructure'] },
+          resolution: { type: 'string', enum: ['repaired', 'not_a_defect', 'defect_accepted', 'carried', 'unresolved', 'grade_adjusted', 'moot', 'defect_owed_elsewhere'] },
           rationale: { type: 'string' },
         },
       },
@@ -685,14 +685,14 @@ let deadlocked = false
 // extend the run indefinitely one clearance at a time.
 let benchClearedOnce = false
 const allPriorGapIds = new Set() // every gap id from every prior round — the docket window is the whole debate, not one round
-const adjudicated = [] // judge-ruled gaps (closed / rebuttal_sustained / risk_accepted / routed) — out of red's verdict
-const infraDebts = [] // routed_to_infrastructure rulings (W1.9) — the lead's named debts, surfaced at assembly and in the final envelope
+const adjudicated = [] // judge-ruled gaps (closed / not_a_defect / defect_accepted / routed) — out of red's verdict
+const infraDebts = [] // defect_owed_elsewhere rulings (W1.9) — the lead's named debts, surfaced at assembly and in the final envelope
 
 // Carried-ruling persistence (run-4 §6.4 item 6 — the re-docket loop): a carried gap does
 // NOT re-docket every round it stays open. It re-dockets only when red's GRADE for it
 // changed (script-visible in redEnv) or a lineage successor names it — new evidence routes
 // through red re-raising under a successor id, the existing lineage path. This also closes
-// the carried->risk_accepted gate-erosion path (each re-docket was a fresh chance the
+// the carried->defect_accepted gate-erosion path (each re-docket was a fresh chance the
 // ruling drifted; a gap red keeps re-raising must not exit the gate by judge attrition).
 const carriedRulings = new Map() // gap_id -> { severity, likelihood, impact } snapshot at ruling
 const gradeSnapshot = (g) => ({ severity: g.severity, likelihood: g.likelihood, impact: g.impact })
@@ -780,7 +780,7 @@ DID BLUE ACTUALLY DO WHAT YOU ASKED? Put your prescription and blue's edits side
 
 LINEAGE IS NEVER DROPPED. A gap keeps its id across rounds; a successor names its ancestors; a closure that regressed says so, and the docket follows those chains. Where a defect turns up BETWEEN two repairs that each closed clean in an earlier round, it AMENDS both rather than arriving as this round's fresh closure — a late-discovered composition defect and a this-round closure are different events and the record must be able to tell them apart.
 
-THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. PASS only when every remaining unadjudicated gap is closed, rebuttal_sustained, or risk_accepted. Your recorded verdict is the ONE fact distinguishing "red passed" from "the bench closed the last gaps at the terminal sitting" — without it the run cannot say, from its own record, that it was ever verified.${adjudicated.length ? ` GAPS THE BENCH HAS ALREADY RULED, WITH THEIR FATES — excluded from your verdict, and the exclusion is ESTOPPEL, not amnesia: ${JSON.stringify(adjudicated.map(x => ({ gap_id: x.gap_id, resolution: x.resolution })))}. You were previously handed these as bare ids, so the bar was enforced by making them invisible — you could not tell a ruling you should respect from one you had simply lost track of, and you could not tell relitigating from a legitimate successor. The ruling STANDS and you do not re-raise it. If you hold genuinely new evidence the bench did not have, that is a lineage successor: mint it under a new id naming the ruled gap in supersedes, and say what the ruling did not account for. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, rather than inferring it from the word. A fate you never read is one you cannot honour or contest.` : ''}${gradeAdjustments.length ? ` GRADE ADJUSTMENTS RULED BY THE JUDGE last round — apply each, and list the delta in your round narrative: ${JSON.stringify(gradeAdjustments)}.` : ''}${pendingDisputes.length ? ` BLUE'S GRADE DISPUTES from last round (ROUTING REFS — blue's evidence is on the record, not here: read each dispute's argument before answering): ${JSON.stringify(pendingDisputes)}. You MUST answer EVERY one; an unaddressed dispute is treated as rejected and auto-docketed to the judge. Answer on the MOTION's own id, because blue may contest more than one grade on the same gap and an answer naming only the gap cannot be matched to the one it refuses. ACCEPTING A DISPUTE DOES NOT MOVE THE GRADE — SAYING SO IS NOT DOING IT: move it, on the axis that moved, with what changed your mind. A grade that moves with no recorded reason reads as though blue's dispute was answered by silence. AND list each in the envelope's dispute_responses as a ROUTING REF ONLY (gap_id, dimension, response — no prose: the rationale is on the record) so the docket routes it, and list each accepted delta (gap id, dimension, old -> new) in your round narrative, where blue, the judge and the operator watch for it.` : ''}
+THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. PASS only when every remaining unadjudicated gap is repaired, not_a_defect, or defect_accepted. Your recorded verdict is the ONE fact distinguishing "red passed" from "the bench closed the last gaps at the terminal sitting" — without it the run cannot say, from its own record, that it was ever verified.${adjudicated.length ? ` GAPS THE BENCH HAS ALREADY RULED, WITH THEIR FATES — excluded from your verdict, and the exclusion is ESTOPPEL, not amnesia: ${JSON.stringify(adjudicated.map(x => ({ gap_id: x.gap_id, resolution: x.resolution })))}. You were previously handed these as bare ids, so the bar was enforced by making them invisible — you could not tell a ruling you should respect from one you had simply lost track of, and you could not tell relitigating from a legitimate successor. The ruling STANDS and you do not re-raise it. If you hold genuinely new evidence the bench did not have, that is a lineage successor: mint it under a new id naming the ruled gap in supersedes, and say what the ruling did not account for. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, rather than inferring it from the word. A fate you never read is one you cannot honour or contest.` : ''}${gradeAdjustments.length ? ` GRADE ADJUSTMENTS RULED BY THE JUDGE last round — apply each, and list the delta in your round narrative: ${JSON.stringify(gradeAdjustments)}.` : ''}${pendingDisputes.length ? ` BLUE'S GRADE DISPUTES from last round (ROUTING REFS — blue's evidence is on the record, not here: read each dispute's argument before answering): ${JSON.stringify(pendingDisputes)}. You MUST answer EVERY one; an unaddressed dispute is treated as rejected and auto-docketed to the judge. Answer on the MOTION's own id, because blue may contest more than one grade on the same gap and an answer naming only the gap cannot be matched to the one it refuses. ACCEPTING A DISPUTE DOES NOT MOVE THE GRADE — SAYING SO IS NOT DOING IT: move it, on the axis that moved, with what changed your mind. A grade that moves with no recorded reason reads as though blue's dispute was answered by silence. AND list each in the envelope's dispute_responses as a ROUTING REF ONLY (gap_id, dimension, response — no prose: the rationale is on the record) so the docket routes it, and list each accepted delta (gap id, dimension, old -> new) in your round narrative, where blue, the judge and the operator watch for it.` : ''}
 
 YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is docket-bound — one you RE-RAISE from a prior round, a successor you mint, a dispute you REJECT — argue it in ~120 words: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far. The judge rules after blue responds, and overstatement the record does not support counts against you.${petitionClause(`red-merge-r${round}`)}${reliefFor('red')}${frictionClause(`red-merge-r${round}`, 'merge')}${speedClause}${recordClause(`red-merge-r${round}`, 'red-merge')} Return the red envelope.`,
     { ...judgment, label: `red-merge-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-auditor', schema: RED_ENVELOPE })
@@ -795,7 +795,7 @@ YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is do
     throw new Error(`red-merge round ${round} returned FAIL with an empty gaps array — degenerate merge, refusing to loop silently`)
   }
   // Lineage enforcement (row 23 step 4, per red's own R5-5 critique: self-declared lineage
-  // is hollow unless structurally checked): every closed_with_regression closure must have
+  // is hollow unless structurally checked): every repaired_with_regression closure must have
   // a successor gap naming it in supersedes — otherwise the chain is silently dropped and
   // the docket goes blind again.
   // THIS GUARD READS THE ENVELOPE, WHICH IS A LOSSY SUMMARY OF THE RECORD — so it may NOT kill
@@ -829,7 +829,7 @@ YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is do
   // over — the friction line below is the only trace it leaves, and friction is a report to a
   // human, not a gate.
   for (const c of redEnv.closures || []) {
-    if (c.class === 'closed_with_regression' && !redEnv.gaps.some(g => (g.supersedes || []).includes(c.id))) {
+    if (c.class === 'repaired_with_regression' && !redEnv.gaps.some(g => (g.supersedes || []).includes(c.id))) {
       const msg = `red-merge round ${round}: closed ${c.id} WITH REGRESSION and no successor in the ENVELOPE names it in supersedes. The envelope is a lossy summary, so this does not kill the run — but NOTHING downstream checks it either (#415), so if the record's lineage is genuinely absent it will not be caught: read the board.`
       friction.push(`red-merge-r${round}: ${msg}`)
       log(msg)
@@ -913,7 +913,7 @@ YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is do
   // dispatched ZERO times in the entire corpus). Detection is set arithmetic in the script;
   // the judgment belongs to the lead-judge. TRAFFIC CLASSES (run-4 friction, judge-r2): a
   // re-raised id has a blue response on record; a regression successor is FIRST-RAISE
-  // traffic — closed/rebuttal_sustained are structurally dead for it and the judge is told
+  // traffic — closed/not_a_defect are structurally dead for it and the judge is told
   // so instead of being handed a dead decision space.
   const contested = []
   for (const g of redEnv.gaps) {
@@ -1009,8 +1009,8 @@ Every docketed gap gets a written ruling: its fate, the principle you applied, t
       { ...judgment, label: `judge-r${round} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
     if (!judge) throw new Error(`judge round ${round} returned null (agent failed) — aborting cleanly`)
     for (const r of judge.resolutions) {
-      if (r.resolution === 'closed' || r.resolution === 'rebuttal_sustained' || r.resolution === 'risk_accepted' || r.resolution === 'moot' || r.resolution === 'routed_to_infrastructure') adjudicated.push(r)
-      if (r.resolution === 'routed_to_infrastructure') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, round })
+      if (r.resolution === 'repaired' || r.resolution === 'not_a_defect' || r.resolution === 'defect_accepted' || r.resolution === 'moot' || r.resolution === 'defect_owed_elsewhere') adjudicated.push(r)
+      if (r.resolution === 'defect_owed_elsewhere') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, round })
       if (r.resolution === 'carried') {
         const g = redEnv.gaps.find(x => x.id === r.gap_id)
         if (g) carriedRulings.set(r.gap_id, gradeSnapshot(g))
@@ -1023,7 +1023,7 @@ Every docketed gap gets a written ruling: its fate, the principle you applied, t
     //
     // MEASURED 2026-08-22, in the run that found it: red's round-2 merge refused PASS with two
     // gaps open ("Two gaps remain open; PASS is refused this round"); the bench then ruled BOTH
-    // in the same sitting (one closed, one routed_to_infrastructure), clearing the board to
+    // in the same sitting (one closed, one defect_owed_elsewhere), clearing the board to
     // zero; `break` fired here; the run stamped UNVERIFIED with ZERO gaps outstanding. The bench
     // wrote the defect into its own `certify` rather than banking the stamp: "'red owns
     // PASS/FAIL' is a stated tiebreaker this run's sequencing arguably sidesteps by letting the

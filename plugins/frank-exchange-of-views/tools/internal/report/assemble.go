@@ -649,7 +649,7 @@ func redFindings(board *record.Board) string {
 		} else {
 			cc := g.Closure.Str("closure_class")
 			if cc == "" {
-				cc = "closed"
+				cc = "repaired"
 			}
 			succ := g.Closure.Str("successor")
 			if succ == "" {

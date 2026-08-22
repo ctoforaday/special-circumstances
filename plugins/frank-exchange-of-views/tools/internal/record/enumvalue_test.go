@@ -22,8 +22,8 @@ func TestEveryEnumValueSaysWhatItIsFor(t *testing.T) {
 			t.Errorf("%s: no stated meaning for %s.\nA value with no meaning is one a seat has to guess at, and the guessing is measured: on a probe board a seat answered a computation-kind gap in prose and never reached `prove`.", where, strings.Join(missing, ", "))
 		}
 		for _, v := range vs {
-			// A meaning that merely restates the name teaches nothing. "closed" means "the
-			// repair was verified at the leaf"; it does not mean "closed".
+			// A meaning that merely restates the name teaches nothing. "repaired" means "the
+			// repair was verified at the leaf"; it does not mean "repaired".
 			if strings.EqualFold(strings.TrimSpace(v.Means), strings.ReplaceAll(v.Name, "_", " ")) {
 				t.Errorf("%s: %q's meaning restates its name — say what SITUATION it is for", where, v.Name)
 			}

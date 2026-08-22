@@ -37,7 +37,7 @@ import (
 //
 // BOTH CLOSURE SETS ARE NOW CLOSED (#342). This comment used to explain why they were not:
 // "`merge close`'s closure_class is likewise open, and its candidate values are not yet
-// consistent across the suite (the PASS refusal names `rebuttal_sustained`, the red-auditor
+// consistent across the suite (the PASS refusal names `not_a_defect`, the red-auditor
 // prompt names `evidence-rebutted`). Closing it before that is resolved would refuse honest
 // closures."
 //
@@ -60,16 +60,87 @@ const DispositionCarried = "carried"
 // to know which verb produced a closure before it could interpret the word, and four surfaces
 // spelled the same three outcomes six ways.
 var ClosureClasses = []EnumValue{
-	Ev("closed", "the repair was verified at the leaf and nothing regressed"),
-	Ev("closed_with_regression", "repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward"),
+	Ev("repaired", "the repair was verified at the leaf and nothing regressed"),
+	Ev("repaired_with_regression", "repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward"),
 	Ev("amends_prior", "a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit"),
-	Ev("rebuttal_sustained", "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be"),
-	Ev("risk_accepted", "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record"),
-	Ev("routed_to_infrastructure", "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped"),
+	Ev("not_a_defect", "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be"),
+	Ev("defect_accepted", "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record"),
+	Ev("defect_owed_elsewhere", "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped"),
 }
 
 // ClosureClassNames is the bare vocabulary, for the readers that only need the words.
 func ClosureClassNames() []string { return Names(ClosureClasses) }
+
+// ArtifactState is the SECOND AXIS a closure carries, and for a long time nothing could read it.
+//
+// A disposition answers "is this still contested". It does NOT answer "does the report still
+// carry a known defect", and those diverge: three of the six classes settle the dispute while
+// leaving a real defect in the shipped artifact. `open`/`closed` is the DOCKET axis, and every
+// consumer that read it as the artifact axis was wrong.
+//
+// MEASURED 2026-08-22, and it is the reason this exists. On the sqlite-schema run, at the same
+// moment, for the same gap R1-1:
+//
+//	the board          open: 0 — nothing outstanding
+//	assembly-screen    FAIL — "1 source(s) red found AGAINST are still cited in the report"
+//
+// Two gates, one run, flatly contradicting each other in English. Both were right under their
+// own definition, and only one of them knew there were two definitions.
+//
+// IT IS DERIVED, NOT STORED, and that is deliberate. The mapping is total, so a written field
+// would be a second hand-kept copy of a fact the disposition already determines — two writers of
+// one fact, which is the drift this codebase keeps finding. [[facts-are-fields]] says it
+// outright: prefer GENERATING the derived carrier over guarding two copies of it. A derivation
+// also cannot be FORGOTTEN, which a new required field demonstrably can — the friction channel
+// went unclosed in eighteen consecutive sittings until its empty case became assertable.
+//
+// The claim stays falsifiable: assembly-screen detects a live defect in the assembled report
+// from the artifact itself, so a wrong derivation here is catchable rather than merely asserted.
+type ArtifactState string
+
+const (
+	// ArtifactRepaired: the defect is gone and the repair was verified.
+	ArtifactRepaired ArtifactState = "repaired"
+	// ArtifactNoDefect: there was never a defect to fix — red was wrong.
+	ArtifactNoDefect ArtifactState = "no_defect"
+	// ArtifactDefectLive: the defect is REAL and the report ships carrying it. The dispute is
+	// over; the problem is not.
+	ArtifactDefectLive ArtifactState = "defect_live"
+	// ArtifactUnexamined: nobody reached the merits, so nothing is known either way. It must not
+	// collapse into "no defect" — an unasked question and an answered one are not the same.
+	ArtifactUnexamined ArtifactState = "unexamined"
+	// ArtifactUnknown: the class is not one this vocabulary knows — an older record written
+	// under a vocabulary that has since changed, which stays a valid record. Reported as itself,
+	// never folded into a healthy value.
+	ArtifactUnknown ArtifactState = "unknown"
+)
+
+// artifactByClass is the total part of the mapping. `amends_prior` is absent on purpose: it
+// inherits from the ruling it amends and needs a lookup, not a table row.
+var artifactByClass = map[string]ArtifactState{
+	"repaired":                 ArtifactRepaired,
+	"repaired_with_regression": ArtifactDefectLive, // repaired here, and a live successor carries the remainder
+	"not_a_defect":             ArtifactNoDefect,
+	"defect_accepted":          ArtifactDefectLive,
+	"defect_owed_elsewhere":    ArtifactDefectLive,
+	"moot":                     ArtifactUnexamined,
+	DispositionCarried:         ArtifactUnexamined, // still live; the question is open, not answered
+}
+
+// ArtifactStateOf answers what a closure class says about the ARTIFACT.
+//
+// `amends_prior` returns ok=false: it is defined relative to an earlier ruling, so this function
+// cannot answer alone and says so rather than guessing. The caller walks the lineage — and a
+// caller that cannot must report the miss, not substitute a plausible value.
+func ArtifactStateOf(class string) (ArtifactState, bool) {
+	if class == "amends_prior" {
+		return "", false
+	}
+	if s, ok := artifactByClass[class]; ok {
+		return s, true
+	}
+	return ArtifactUnknown, true
+}
 
 // benchDispositions is ClosureClasses plus the one word that does not close.
 var benchDispositions = append(append([]EnumValue{}, ClosureClasses...),
@@ -143,7 +214,7 @@ var EnumFields = map[string][]EnumField{
 		// the flag REQUIRED, and conflating them here would make several flags mandatory as a
 		// side effect. required.go owns requiredness.
 		Optional: true,
-		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on closed_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
+		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
 	}},
 	"opinion": {{
 		Key: "disposition", Flag: flags.As, Values: benchDispositions,
@@ -231,7 +302,7 @@ func MustEnum(typ, key string) EnumField {
 
 // sameWord reports whether two spellings differ only in case or in their separators —
 // the typo class, and nothing wider. `closed-with-regression` and `Closed_With_Regression`
-// are the same word; `closed` and `closed_with_regression` are not.
+// are the same word; `closed` and `repaired_with_regression` are not.
 func sameWord(a, b string) bool {
 	strip := func(s string) string {
 		return strings.ToLower(strings.NewReplacer("_", "", "-", "", " ", "").Replace(s))

@@ -392,8 +392,8 @@ type WorkGapJSON struct {
 // Every seat reads this list — `show work` is the projection each one is told to run first and
 // again before it stops — so it is already the carrier that reaches every board. But it carried
 // id, location and class and nothing else, which says a gap is GONE and cannot say it is BARRED.
-// Measured on the 2026-08-22 sqlite-schema run: R1-1 (routed_to_infrastructure — still broken,
-// merely not blue's to fix), R1-2 (closed clean) and R1-3 (closed_with_regression, whose live
+// Measured on the 2026-08-22 sqlite-schema run: R1-1 (defect_owed_elsewhere — still broken,
+// merely not blue's to fix), R1-2 (closed clean) and R1-3 (repaired_with_regression, whose live
 // successor R2-1 was still on the board) rendered as three identical three-field objects.
 //
 // The absent case and the healthy case were the same bytes AGAIN: a gap the bench had ruled and
@@ -415,6 +415,11 @@ type ClosedIndexJSON struct {
 	Fate string `json:"fate"`
 	// ClosedBy is "bench" or "red", and it is what makes the difference above legible.
 	ClosedBy string `json:"closed_by"`
+	// ArtifactState is the SECOND AXIS, derived from Fate — see record.ArtifactStateOf. The
+	// docket closing and the defect going away are different facts, and three of the six
+	// fates settle the first while leaving the second. Carried here so a seat reading its
+	// board can tell "fixed" from "shipping broken, knowingly" without decoding a word.
+	ArtifactState string `json:"artifact_state"`
 }
 
 // synopsisLimit is the rune budget for an open gap's problem synopsis in the work list — long
@@ -472,6 +477,15 @@ func WorkJSONOf(b *Board) WorkJSON {
 				if ci.Fate = g.Closure.Str("closure_class"); ci.Fate == "" {
 					ci.Fate = g.Closure.Str("disposition")
 				}
+			}
+			// The second axis, derived rather than stored. `amends_prior` cannot be answered
+			// from the class alone — it inherits from the ruling it amends — and it says so
+			// instead of guessing, because a wrong "repaired" here is exactly the plausible
+			// zero this field exists to remove.
+			if s, ok := ArtifactStateOf(ci.Fate); ok {
+				ci.ArtifactState = string(s)
+			} else {
+				ci.ArtifactState = "inherits:" + g.Closure.Str("supersedes")
 			}
 			out.ClosedIndex = append(out.ClosedIndex, ci)
 		}

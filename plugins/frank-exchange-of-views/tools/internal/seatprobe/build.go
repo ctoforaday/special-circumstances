@@ -130,7 +130,7 @@ func Build(runDir string, b Board, exec Exec) error {
 		// A CLOSED gap so the archive is not empty: `spot-check` against an empty one has nothing
 		// to sample, so a board that wants the duty exercised has to give it something.
 		if _, err := exec("close", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--id", gapID, "--as", "closed", "--verified-by", "L1", "--verified-with", "git show",
+			"--id", gapID, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
 			return fmt.Errorf("close %s: %w", gapID, err)
 		}

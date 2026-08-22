@@ -62,7 +62,7 @@ var referenceChecks = []struct {
 	{verb: []string{"close"}, flag: "--id", against: "the board", bogus: "R9-9",
 		extra: []string{"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
 	{verb: []string{"close"}, flag: "--superseded-by", against: "the board", bogus: "R9-9",
-		extra: []string{"--id", "R1-1", "--as", "closed_with_regression", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
+		extra: []string{"--id", "R1-1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
 	{verb: []string{"mint"}, flag: "--supersedes", against: "the board", bogus: "R9-9",
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	{verb: []string{"mint"}, flag: "--found-by", against: "the findings on the record", bogus: "L9-F9",

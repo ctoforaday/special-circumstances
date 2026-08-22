@@ -43,7 +43,7 @@ import (
 // This is the same defect for the third time, in each of the three places a seat learns:
 //
 //	--view names with no descriptions   (the views table's `desc` field was read NOWHERE)
-//	enum values with no meanings        (closed | risk_accepted | … under one shared sentence)
+//	enum values with no meanings        (closed | defect_accepted | … under one shared sentence)
 //	verb names with no meanings         (here — in the channel that turns out to be primary)
 
 // HelpText renders a command's full help to a string, so it can be embedded in a message rather

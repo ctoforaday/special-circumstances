@@ -92,7 +92,7 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 
 	// The bench rules the gap closed.
 	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
-		"--id", id, "--as", "closed",
+		"--id", id, "--as", "repaired",
 		"--principle", "the repair discharges the defect at the leaf",
 		"--tension", "thoroughness against ceremony",
 		"--review-flag", "no — the closure is mechanical and the anchor is checkable",
@@ -161,7 +161,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--as", "closed",
+		"--id", id, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
 		"--reason-file", prose); err != nil {
 		t.Fatalf("close: %v", err)

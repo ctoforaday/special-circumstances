@@ -45,7 +45,7 @@ import (
 // string back and watching a gate written to catch it pass anyway.
 //
 // The optional group admits a parenthesised gloss between the value and the pipe. `closed |
-// risk_accepted` still matches, so nothing this caught before stops being caught.
+// defect_accepted` still matches, so nothing this caught before stops being caught.
 var setInHelp = regexp.MustCompile(`[\w-]+(?: *\([^)]*\))? *\| *[\w-]+`)
 
 // exempt names the set-shaped flags that are NOT declared in record.EnumFields, each with
@@ -60,7 +60,7 @@ var setInHelp = regexp.MustCompile(`[\w-]+(?: *\([^)]*\))? *\| *[\w-]+`)
 //
 //	"opinion --as": the bench's resolution set is open by decision …
 //	"close --as":   closure_class is open, and its candidate values are not yet consistent
-//	                across the suite — the PASS refusal names `rebuttal_sustained`, the
+//	                across the suite — the PASS refusal names `not_a_defect`, the
 //	                red-auditor prompt names `evidence-rebutted` …
 //
 // The second was not a decision, it was a DEBT with its blocker written down: the words
@@ -144,7 +144,7 @@ const gradeParseTime = "enforced at PARSE time by flags.GradeValue (a pflag.Valu
 // failure names the site to fix.
 //
 // TWO WAYS TO ADVERTISE ONE NOW, and the second is the fix rather than a loophole. A flag used to
-// spell its set into its own usage string (`closed | risk_accepted | …`), which is what
+// spell its set into its own usage string (`closed | defect_accepted | …`), which is what
 // setInHelp looks for. Values with MEANINGS do not fit on a usage line, so an enumhelp-registered
 // flag carries them in the command's enumerated-values section instead and its usage line goes
 // short — invisible to the regex, and a gate that stopped seeing seven flags the day they got

@@ -41,7 +41,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		{"manifest-row --id", "no mint event created", []string{"manifest-row", "--seat-id", "blue-respond-r1",
 			"--id", "R9-9", "--reason", "r"}},
 		{"close --successor", "no mint event created", []string{"close", "--seat-id", "red-merge-r1",
-			"--id", real, "--as", "closed", "--verified-by", "L1", "--verified-with", "t",
+			"--id", real, "--as", "repaired", "--verified-by", "L1", "--verified-with", "t",
 			"--verified-against", "x", "--superseded-by", "R9-9"}},
 		{"mint --found-by", "no lens recorded", []string{"mint", "--seat-id", "red-merge-r1",
 			"--key", "k2", "--class", "reference-integrity", "--problem", "p",
@@ -83,7 +83,7 @@ func TestValidReferencesStillResolve(t *testing.T) {
 	for _, c := range [][]string{
 		{"opinion", "--seat-id", "judge-r1", "--id", first, "--as", "carried",
 			"--principle", "p", "--tension", "t", "--review-flag", "no", "--reason", "the ruling"},
-		{"close", "--seat-id", "red-merge-r1", "--id", first, "--as", "closed",
+		{"close", "--seat-id", "red-merge-r1", "--id", first, "--as", "repaired",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--superseded-by", second, "--reason", "verified"},
 	} {
 		// c[0] is the verb; the role that used to sit in front of it is gone, so only ONE
@@ -107,7 +107,7 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 	open := mintGap(t, runDir, "stays-open", "state-checks")
 	closed := mintGap(t, runDir, "gets-closed", "state-checks")
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", closed, "--as", "closed", "--verified-by", "L1", "--verified-with", "go test",
+		"--id", closed, "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test",
 		"--verified-against", "./x", "--reason", "closed"); err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 		args        []string
 	}{
 		{"close a gap twice", "double-counts closure history", []string{"close",
-			"--seat-id", "red-merge-r1", "--id", closed, "--as", "closed",
+			"--seat-id", "red-merge-r1", "--id", closed, "--as", "repaired",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x"}},
 		{"regrade a closed gap", "changes a number nobody reads", []string{"regrade",
 			"--seat-id", "red-merge-r1", "--id", closed, "--severity", "low", "--reason", "b"}},
@@ -129,7 +129,7 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 		{"spot-check an OPEN gap", "still OPEN", []string{"spot-check",
 			"--seat-id", "red-merge-r1", "--ids", open}},
 		{"carry residue into a closed gap", "already finished", []string{"close",
-			"--seat-id", "red-merge-r1", "--id", open, "--as", "closed",
+			"--seat-id", "red-merge-r1", "--id", open, "--as", "repaired",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
 			"--superseded-by", closed}},
 	} {
@@ -206,14 +206,14 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 
 	// KEEPING THE PROMISE clears it.
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", ancestor, "--as", "closed", "--superseded-by", successor,
+		"--id", ancestor, "--as", "repaired", "--superseded-by", successor,
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
 		"--reason", "replaced by its successor"); err != nil {
 		t.Fatal(err)
 	}
 	// The successor is now the live gap; PASS still requires it closed (the all-gaps guard).
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", successor, "--as", "closed",
+		"--id", successor, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./y",
 		"--reason", "successor resolved"); err != nil {
 		t.Fatal(err)

@@ -20,7 +20,7 @@ package record
 // distinction is deliberate and load-bearing (see flags/names.go): a payload key is the
 // event schema and a flag is a word a seat types, and they move on different schedules.
 //
-// ONLY UNCONDITIONAL REQUIREMENTS BELONG HERE. A rule like "closed_with_regression
+// ONLY UNCONDITIONAL REQUIREMENTS BELONG HERE. A rule like "repaired_with_regression
 // requires --successor" or "a declined line of inquiry requires --reason" depends on another
 // field's value, so it cannot be a static annotation and stays as logic in validate. Those
 // are documented in the flag's own description instead, where the condition can be stated.

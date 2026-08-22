@@ -94,7 +94,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"close unknown gap", []string{"close", "--id", "R7-7", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
 		{"close without id", []string{"close", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
 		{"close without anchor", []string{"close", "--id", "R1-1"}},
-		{"regression close without successor", []string{"close", "--id", "R1-1", "--as", "closed_with_regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
+		{"regression close without successor", []string{"close", "--id", "R1-1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
 		{"regrade without basis", []string{"regrade", "--id", "R1-1", "--severity", "high"}},
 		{"opinion missing fields", []string{"opinion", "--id", "R1-1", "--as", "carried"}},
 		// The closed sets. Each names what would have worked AND what the near-miss

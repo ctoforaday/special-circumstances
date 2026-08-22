@@ -126,7 +126,7 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:    "PASS is refused while a motion is unanswered",
-			setup:   []seatStep{mint, fileGrade, {"close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
+			setup:   []seatStep{mint, fileGrade, {"close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
 			act:     seatStep{"verdict", "--seat-id", "red-merge-r1", "--as", "PASS"},
 			refused: "filed and never ruled",
 			guards: "A probe walked a run to `verdict PASS` AND `outcome VERIFIED` with a grade " +
@@ -135,7 +135,7 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:  "PASS is allowed once every motion is answered",
-			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "rejected", "--reason", "the grade stands"}, {"close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
+			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "rejected", "--reason", "the grade stands"}, {"close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
 			act:   seatStep{"verdict", "--seat-id", "red-merge-r1", "--as", "PASS"},
 			guards: "The gate above must not become unpassable. A check that no legitimate run can " +
 				"satisfy is removed by the first person it blocks.",
@@ -165,7 +165,7 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:    "a grade motion is refused on a gap already disposed of",
-			setup:   []seatStep{mint, {"close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
+			setup:   []seatStep{mint, {"close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
 			act:     seatStep{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "contesting a settled grade"},
 			refused: "disposition has already been made",
 			guards:  "The other check lost in the replacement.",

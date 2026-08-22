@@ -71,13 +71,13 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 	closedByBench := mintGap(t, runDir, "bench-closes", "json-vs-markdown")
 
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", closedByRed, "--as", "closed",
+		"--id", closedByRed, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason", "the check passes"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
-		"--id", closedByBench, "--as", "closed", "--principle", "p", "--tension", "t",
+		"--id", closedByBench, "--as", "repaired", "--principle", "p", "--tension", "t",
 		"--review-flag", "no", "--reason", "closed on the merits"); err != nil {
 		t.Fatalf("bench opinion: %v", err)
 	}
@@ -108,7 +108,7 @@ func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "anchored", "anchor-as-fields")
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--as", "closed",
+		"--id", id, "--as", "repaired",
 		"--verified-by", "L4", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
 		"--reason", "re-read the cited source"); err != nil {
 		t.Fatalf("close: %v", err)
@@ -230,7 +230,7 @@ func TestBoardJSONSurfacesDroppedMutations(t *testing.T) {
 		"events-judge-r1-"+strings.TrimSpace(string(nonce))+".jsonl")
 	line := `{"seq":1,"ts":"2026-07-19T12:00:00.000000000Z","seatId":"judge-r1","nonce":"` +
 		strings.TrimSpace(string(nonce)) + `","round":1,` +
-		`"type":"opinion","key":"judge-r1:opinion:R9-9","payload":{"gap_id":"R9-9","disposition":"closed",` +
+		`"type":"opinion","key":"judge-r1:opinion:R9-9","payload":{"gap_id":"R9-9","disposition":"repaired",` +
 		`"principle":"p","tension":"t","review_flag":"no"}}` + "\n"
 	f, err := os.OpenFile(shard, os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
@@ -262,8 +262,8 @@ func TestBoardJSONSurfacesDroppedMutations(t *testing.T) {
 // its closed_index is the one carrier that reaches every board. It carried {id, location, class}
 // — enough to say a gap is GONE, and not enough to say it is BARRED.
 //
-// Measured on the 2026-08-22 sqlite-schema run: a bench routed_to_infrastructure ruling (still
-// broken, not blue's to fix), a clean red closure, and a closed_with_regression whose successor
+// Measured on the 2026-08-22 sqlite-schema run: a bench defect_owed_elsewhere ruling (still
+// broken, not blue's to fix), a clean red closure, and a repaired_with_regression whose successor
 // was still live all rendered as three identical three-field objects. A seat could not tell a
 // ruling it must not relitigate from one of its own closures it may reopen on new evidence —
 // and could not tell either from a gap nobody had ever raised, since all three are simply absent
@@ -274,13 +274,13 @@ func TestClosedIndexSaysWhoClosedItAndHow(t *testing.T) {
 	byBench := mintGap(t, runDir, "bench-rules-this", "cross-seat-visibility")
 
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", byRed, "--as", "closed",
+		"--id", byRed, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason", "the check passes"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
-		"--id", byBench, "--as", "routed_to_infrastructure", "--principle", "capability",
+		"--id", byBench, "--as", "defect_owed_elsewhere", "--principle", "capability",
 		"--tension", "correctness", "--review-flag", "yes",
 		"--reason", "no verb can perform this fix at any cost"); err != nil {
 		t.Fatalf("bench opinion: %v", err)
@@ -292,10 +292,11 @@ func TestClosedIndexSaysWhoClosedItAndHow(t *testing.T) {
 	}
 	var w struct {
 		ClosedIndex []struct {
-			ID       string `json:"id"`
-			Class    string `json:"class"`
-			Fate     string `json:"fate"`
-			ClosedBy string `json:"closed_by"`
+			ID            string `json:"id"`
+			Class         string `json:"class"`
+			Fate          string `json:"fate"`
+			ClosedBy      string `json:"closed_by"`
+			ArtifactState string `json:"artifact_state"`
 		} `json:"closed_index"`
 	}
 	if err := json.Unmarshal([]byte(out), &w); err != nil {
@@ -309,17 +310,32 @@ func TestClosedIndexSaysWhoClosedItAndHow(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("closed_index = %+v, want both closed gaps", w.ClosedIndex)
 	}
-	if g := got[byRed]; g[0] != "red" || g[1] != "closed" {
-		t.Errorf("red's own closure reads as {closed_by:%q fate:%q}, want {red closed} — red may reopen "+
+	if g := got[byRed]; g[0] != "red" || g[1] != "repaired" {
+		t.Errorf("red's own closure reads as {closed_by:%q fate:%q}, want {red repaired} — red may reopen "+
 			"its own closure on new evidence, and cannot know that from an entry that will not say who closed it", g[0], g[1])
 	}
-	if g := got[byBench]; g[0] != "bench" || g[1] != "routed_to_infrastructure" {
-		t.Errorf("the bench ruling reads as {closed_by:%q fate:%q}, want {bench routed_to_infrastructure} — "+
+	if g := got[byBench]; g[0] != "bench" || g[1] != "defect_owed_elsewhere" {
+		t.Errorf("the bench ruling reads as {closed_by:%q fate:%q}, want {bench defect_owed_elsewhere} — "+
 			"a bench ruling is ESTOPPED and re-raising it is relitigation, which a seat cannot avoid doing "+
 			"if the register will not distinguish it from red's own act", g[0], g[1])
 	}
 	// AND THE TWO MUST NOT COLLIDE. The whole defect was that they rendered identically.
 	if got[byRed] == got[byBench] {
 		t.Errorf("a red closure and a bench ruling render identically as %v — this is the defect, restored", got[byRed])
+	}
+
+	// THE SECOND AXIS. The docket closed on both, and the ARTIFACT did not: red verified a
+	// repair, while the bench ruled a real defect owed elsewhere. A board that cannot say that
+	// reports open:0 over a report still carrying the defect — measured, on this run.
+	art := map[string]string{}
+	for _, c := range w.ClosedIndex {
+		art[c.ID] = c.ArtifactState
+	}
+	if art[byRed] != "repaired" {
+		t.Errorf("a verified repair reads artifact_state %q, want repaired", art[byRed])
+	}
+	if art[byBench] != "defect_live" {
+		t.Errorf("defect_owed_elsewhere reads artifact_state %q, want defect_live — the dispute "+
+			"is over and the defect is not, which is the whole point of the axis", art[byBench])
 	}
 }
