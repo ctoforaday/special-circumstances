@@ -567,6 +567,26 @@ func Prose(c *cobra.Command) *cobra.Command {
 	return c
 }
 
+// ProseRequired registers the prose channel AND says so, for a verb whose argument is
+// unconditional even though the FIELD's is not.
+//
+// `merge close` is the case. `Close.prose` cannot carry `required: true` — that refuses before
+// validate runs and so refused a CARRY, which restates an argument an earlier round already made.
+// Dropping the annotation fixed the carry and silently unmarked close: cobra stopped refusing and
+// the help stopped saying REQUIRED, on a verb whose argument is the whole point. Marking it by
+// hand at the verb restored the refusal and NOT the marker, which is worse than either — a
+// requirement the parser holds and the help does not state is one a seat only meets by accident.
+//
+// Both halves here, so they cannot come apart again.
+func ProseRequired(c *cobra.Command) *cobra.Command {
+	c = Prose(c)
+	if f := c.Flags().Lookup(flags.Reason); f != nil {
+		f.Usage = "REQUIRED — " + f.Usage
+	}
+	c.MarkFlagsOneRequired(flags.Reason, flags.ReasonFile)
+	return c
+}
+
 // Reason resolves that channel through flags.ReadPayload — the ONE resolver: --reason
 // inline, --reason-file from disk, or `--reason-file -` from stdin, with both-given refused
 // and the trailing newline a shell heredoc leaves behind trimmed off.

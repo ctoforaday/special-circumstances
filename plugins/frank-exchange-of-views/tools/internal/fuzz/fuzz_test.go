@@ -309,10 +309,20 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 	return env
 }
 
+// exec runs one seat command. THE ERROR CARRIES WHAT THE TOOL SAID.
+//
+// It returned exec.ExitError verbatim — `exit status 2` — so every caller that kept its error
+// still learned nothing. The dispute oracle was instrumented to print the refusal and printed
+// "exit status 2"; the refusal itself was in the output the error did not mention. Six defects
+// this session were a discarded refusal, and the cost was always the distance between the
+// refusal and the symptom. Attaching it here shortens that distance for every call site at once.
 func (r *runner) exec(args ...string) (string, error) {
 	cmd := exec.Command(r.bin, append(args, "--run", r.runDir)...)
 	out, err := cmd.CombinedOutput()
 	noteExec(args, err)
+	if err != nil {
+		err = fmt.Errorf("%s: %w\n  %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+	}
 	return string(out), err
 }
 
@@ -324,7 +334,16 @@ func (r *runner) register(role, seatID string) {
 	_, _ = r.exec(role, "register", "--seat-id", seatID)
 }
 
-var grades = []string{"low", "low-medium", "medium", "medium-high", "high"}
+// UNDERSCORES, because that is what the grade enum spells. This was `low-medium` and
+// `medium-high`: two of five values refused at every site that generates a grade, which is
+// `--proposed` on a grade dispute and both axes of a regrade. Measured — `merge regrade=8(7
+// refused)`, `motion grade file=7(2 refused)`, and a scenario oracle three layers away reporting
+// `R1-1 has no dispute event` for a contest whose drive was fine.
+//
+// Sixth instance this session of one value spelled two ways across a boundary with one side
+// moved, and the third of them inside this fuzz. The others: the hyphenated direction rulings,
+// and five drives naming commands that do not exist.
+var grades = []string{"low", "low_medium", "medium", "medium_high", "high"}
 
 func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 
@@ -523,7 +542,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// A regression close carries lineage forward: it mints a successor and closes WITH it
 	// (record.go requires --successor for closed_with_regression). Only allowed on the first close
 	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
-	if allowReg && r.coin(25) {
+	if allowReg && r.coin(35) {
 		if succ := r.mint(seatID); succ != "" {
 			if _, err := r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "closed_with_regression",
 				"--superseded-by", succ, "--reason", "fuzz regression close", "--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
@@ -544,9 +563,13 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// carry` could not run without --reason at all, because `Close.prose` was annotated
 	// unconditionally required and refused before validate's carry exemption could execute. A
 	// documented invocation was broken for as long as the drive was too thin to say so.
-	if prior := r.closedGapIDs(); len(prior) > 0 {
+	// A PRIOR ROUND'S CLOSURE, which is the only thing a carry can restate. `--carried-from`
+	// names the round, and a close keys on gap_id, so carrying a gap closed in THIS sitting is a
+	// duplicate the record refuses.
+	if prior := r.closedInARoundBefore(record.RoundOf(seatID)); len(prior) > 0 {
 		carried := prior[r.rng.Intn(len(prior))]
-		carry := []string{"merge", "carry", "--seat-id", seatID, "--id", carried, "--carried-from", "1", "--as", "closed"}
+		carry := []string{"merge", "carry", "--seat-id", seatID, "--id", carried,
+			"--carried-from", strconv.Itoa(record.RoundOf(seatID) - 1), "--as", "closed"}
 		// THE EXEMPTION ITSELF, half the time. A carry restates a closure an earlier round already
 		// argued, so it owes no fresh argument — and nothing drove the no-reason form, which is
 		// how the annotation deleted it silently. Both shapes are legal and both are driven.
@@ -571,7 +594,9 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	//
 	// `amends_prior` takes --supersedes: it names a defect found BETWEEN two repairs that each
 	// closed clean earlier, so it needs a prior closure to amend.
-	if prior := r.closedGapIDs(); len(prior) > 0 && r.coin(20) {
+	// 20% ON TOP OF "a prior closure exists" left `close --as amends_prior` never driven across
+	// 60 runs. The precondition is already the rare part.
+	if prior := r.closedGapIDs(); len(prior) > 0 {
 		if _, err := r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "amends_prior",
 			"--supersedes", prior[r.rng.Intn(len(prior))], "--reason", "fuzz: found between two clean repairs",
 			"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
@@ -971,7 +996,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			}
 			switch {
 			case satisfied(d):
-				r.closeGap(seatID, id, r.coin(25)) // the regression-close variant is still sampled
+				// ONE COIN, NOT TWO. This was `r.coin(25)` here AND `r.coin(25)` inside closeGap,
+				// so the regression close needed 6.25% of one branch AND a successful mint — and
+				// `close --as closed_with_regression` was reported NEVER DRIVEN across 60 runs,
+				// alongside its `--superseded-by`. Coins that multiply read as "sampled" and
+				// behave as "off"; the sampling now happens in exactly one place.
+				r.closeGap(seatID, id, true)
 			case d == dirProve && r.reproduced[id]:
 				// THE REPRODUCTION EARNS THE CLOSE. Red does not take blue's word that a
 				// computation happened, and does not take its own: a lens re-ran the recorded

@@ -104,16 +104,33 @@ func unreachedEnumValues() []string {
 }
 
 // closedGapIDs returns the gaps a spot-check can legitimately sample.
-func (r *runner) closedGapIDs() []string {
+func (r *runner) closedGapIDs() []string { return r.closedInARoundBefore(0) }
+
+// closedInARoundBefore is the same list restricted to gaps closed BEFORE the given round, which
+// is what a CARRY needs. Round 0 means no restriction.
+//
+// A close keys on `gap_id` (keyFields puts it first), so a seat carrying a gap it closed in this
+// same sitting writes a duplicate key and is refused: "already recorded a close this sitting".
+// That is right — a carry restates an EARLIER round's closure, and a seat restating its own act
+// from ten seconds ago is recording the same thing twice. The drive picked from every closed gap
+// including its own, and in a single-round run those are the only ones there are, so `merge
+// carry` ran twice across 60 runs and was refused both times. A verb whose every invocation is
+// refused reports as DRIVEN in the tally, which is how the carry's own bug stayed invisible.
+func (r *runner) closedInARoundBefore(round int) []string {
 	b, err := record.BoardState(r.runDir)
 	if err != nil {
 		return nil
 	}
 	var out []string
 	for _, id := range b.GapOrder {
-		if g := b.Gaps[id]; g != nil && !g.Open {
-			out = append(out, id)
+		g := b.Gaps[id]
+		if g == nil || g.Open {
+			continue
 		}
+		if round > 0 && g.ClosedRound >= round {
+			continue
+		}
+		out = append(out, id)
 	}
 	return out
 }
