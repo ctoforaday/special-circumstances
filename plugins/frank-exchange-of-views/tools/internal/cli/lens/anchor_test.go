@@ -1,6 +1,7 @@
 package lens
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -268,9 +269,11 @@ func TestLocateEndFirstMatch(t *testing.T) {
 // research corpus is untracked, so a clean/CI checkout skips (the seeded real-sentence
 // cases in TestLocateEndSkipsAnnotations carry the invariant unconditionally).
 func TestLocateEndAgainstRealArtifact(t *testing.T) {
-	// package dir plugins/frank-exchange-of-views/tools/internal/cli/lens → repo root is 6 up.
-	path := filepath.Join("..", "..", "..", "..", "..", "..",
-		"research", "2026-08-02_finding-markers-validation-2", "blue", "report.md")
+	root, err := repotree.Root()
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "research", "2026-08-02_finding-markers-validation-2", "blue", "report.md")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Skipf("real artifact absent (%v) — seeded cases cover the invariant", err)

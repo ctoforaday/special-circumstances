@@ -31,6 +31,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 // cmd is one CLI invocation. Role selects the seat contract; the Go side takes it
@@ -50,14 +52,17 @@ type scenario struct {
 	seed map[string]string
 }
 
+// repoRoot used to count five `..` from this package's own directory, which made the depth a
+// property of where this file happened to live rather than of what it was looking for. Moving the
+// harness one package deeper would have pointed the build at plugins/ and failed with a message
+// about a missing main package.
 func repoRoot(t *testing.T) string {
 	t.Helper()
-	// .../plugins/frank-exchange-of-views/tools/internal/difftest -> up 5
-	wd, err := os.Getwd()
+	root, err := repotree.Root()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return filepath.Clean(filepath.Join(wd, "..", "..", "..", "..", ".."))
+	return root
 }
 
 func buildBinary(t *testing.T) string {
@@ -322,9 +327,16 @@ func seed(t *testing.T, runDir string, files map[string]string) {
 // contract about behaviour; a path naming a user, a home directory, or a temp
 // root is a contract about a laptop.
 func TestGoldensAreMachineIndependent(t *testing.T) {
+	// A MISSING testdata/ USED TO SKIP HERE, and a skip is green.
+	//
+	// This gate asserts a NEGATIVE over whatever it discovers — no golden carries a home
+	// directory — which is true of the empty set and of a directory that is not there. The one
+	// state it must never report as clean is the state where it read nothing, so both the
+	// missing directory and the empty one are failures now.
 	entries, err := os.ReadDir("testdata")
 	if err != nil {
-		t.Skip("no goldens yet")
+		t.Fatalf("cannot read testdata/ (%v) — this gate passes over an empty set, so a directory it "+
+			"cannot read is indistinguishable from a suite of clean goldens", err)
 	}
 	// Patterns that can only be true on the machine that recorded them.
 	machine := []string{`[A-Za-z]:\\Users\\`, `/home/[a-z]`, `/Users/[a-z]`, `AppData`, `/tmp/`, `\\Temp\\`}
@@ -332,10 +344,12 @@ func TestGoldensAreMachineIndependent(t *testing.T) {
 	for i, p := range machine {
 		res[i] = regexp.MustCompile(p)
 	}
+	checked := 0
 	for _, e := range entries {
 		if !strings.HasSuffix(e.Name(), ".golden") {
 			continue
 		}
+		checked++
 		b, err := os.ReadFile(filepath.Join("testdata", e.Name()))
 		if err != nil {
 			t.Fatal(err)
@@ -347,5 +361,9 @@ func TestGoldensAreMachineIndependent(t *testing.T) {
 					e.Name(), line, machine[i], strings.TrimSpace(string(b[max(0, loc[0]-40):loc[1]+20])))
 			}
 		}
+	}
+	if checked == 0 {
+		t.Fatal("testdata/ holds no .golden file — every assertion above just passed over nothing, in " +
+			"the same silence it would use for a suite that is genuinely portable")
 	}
 }

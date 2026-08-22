@@ -2,8 +2,8 @@ package cli
 
 import (
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -27,7 +27,11 @@ func TestRecordToolVersionMatchesTheManifest(t *testing.T) {
 	// .claude-plugin/plugin.json: that one has a published schema, and the extra
 	// field there made `claude plugin validate` warn on every single run. A
 	// permanently expected warning is how a validator stops being read.
-	b, err := os.ReadFile(filepath.Join("..", "..", "..", "requirements.json"))
+	req, err := repotree.Plugin("requirements.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(req)
 	if err != nil {
 		t.Fatalf("cannot read requirements.json, which is what setup preflights against: %v", err)
 	}
@@ -47,7 +51,11 @@ func TestRecordToolVersionMatchesTheManifest(t *testing.T) {
 
 	// The plugin manifest must NOT carry it as well. Two copies would drift, and the
 	// copy in the schema-checked file is the one that costs a validator warning.
-	pb, err := os.ReadFile(filepath.Join("..", "..", "..", ".claude-plugin", "plugin.json"))
+	manifest, err := repotree.Plugin(".claude-plugin", "plugin.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	pb, err := os.ReadFile(manifest)
 	if err != nil {
 		t.Fatalf("cannot read the plugin manifest: %v", err)
 	}
