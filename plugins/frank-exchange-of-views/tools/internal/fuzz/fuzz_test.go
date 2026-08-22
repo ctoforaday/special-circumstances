@@ -1999,8 +1999,16 @@ var reportExemptions = map[string]string{
 	"cite":      "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
 	"proof":     "resolved rather than rendered — weaveProofs splices the computation at its anchor",
 	"close":     "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
-	"outcome":   "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
-	"verdict":   "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
+	// The per-round review of the report against the lines on the record. Its READER IS A GATE,
+	// not the document: record.InquiryReviewDue asks whether this round's review exists and
+	// refuses the sitting until it does. Rendering it in the report would put a process check
+	// where the debate goes — the review says "I read the report against the record", and what
+	// a reader wants is the outcome of that reading, which arrives as an ordinary GAP when the
+	// treatment falls short. Named here rather than left silent, because the gate is right that
+	// an unclassified event type is how a report loses a whole exchange.
+	"inquiry_review": "read by record.InquiryReviewDue as a per-round duty gate, not rendered: a shortfall the review finds is minted as an ordinary gap, which is what reaches the reader",
+	"outcome":        "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
+	"verdict":        "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
 }
 
 // basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a
@@ -2394,16 +2402,26 @@ const (
 var inquiryFates = []string{avEndorse, avEndorse, avScope, avThin, avContest}
 
 // rulingFor maps a proposed line to the ruling red should give it.
+//
+// UNDERSCORES, because that is what the tool accepts. These were `out-of-scope` and `too-thin`,
+// and DirectionRuling spells `out_of_scope` / `too_thin` — so 17 of 27 rulings across 60 runs were
+// refused, and everything below a ruling starved with them: a contested line can only be appealed
+// after it is ruled, which is why `motion inquiry appeal` reported as an unreached path.
+//
+// Same family as `--as supports-with-bridge` advertised in help and refused by the write path: one
+// value spelled two ways across a boundary, with only one side moved. The refusals were discarded
+// by the drive, so the only thing that noticed was a coverage gate reporting a MISSING drive for a
+// path whose drive was fine.
 func rulingFor(line string) string {
 	switch {
 	case strings.HasPrefix(line, avEndorse):
 		return "endorsed"
 	case strings.HasPrefix(line, avScope):
-		return "out-of-scope"
+		return "out_of_scope"
 	case strings.HasPrefix(line, avThin):
-		return "too-thin"
+		return "too_thin"
 	case strings.HasPrefix(line, avContest):
-		return "out-of-scope"
+		return "out_of_scope"
 	}
 	return ""
 }
