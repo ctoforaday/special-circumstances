@@ -212,9 +212,10 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 		// reason the old read did: the pre-migration record had no outcome word for an absent
 		// outcome, and `unspecified` is a word no seat ever typed.
 		//
-		// CAVEAT, and it is not mine to fix: `supports-with-bridge` is spelled with a HYPHEN on
-		// every seat-facing surface (enums.go:173) while `Word` derives `supports_with_bridge`
-		// from the generated name. That one value crosses this boundary differently than it did.
+		// THE HYPHEN CAVEAT IS RESOLVED. `supports-with-bridge` was spelled with a hyphen on the
+		// seat-facing surfaces while `Word` derives `supports_with_bridge`, so the help offered a
+		// word the write path refused. The declared set carries the schema's spelling now, and
+		// enums_test asserts that every declared value is one the record can hold.
 		v := EvidenceVerificationJSON{
 			Claim:      vf.GetClaim(),
 			Anchor:     vf.GetAnchor(),

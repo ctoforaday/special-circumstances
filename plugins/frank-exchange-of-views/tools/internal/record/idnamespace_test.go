@@ -192,8 +192,14 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Avenue{Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("a line"), Reason: proto.String("r")})
 		return err
 	case "motion":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, "motion", NewPayload().
-			Set("motion_id", id).Set("subject", "petition").Set("reason", "b").Set("class", "safety"))
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Motion{
+			MotionId: proto.String(id),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
+			Basis:    proto.String("b"),
+			Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{
+				Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY),
+			}},
+		})
 		return err
 	case "finding":
 		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Finding{Location: proto.String("L"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})

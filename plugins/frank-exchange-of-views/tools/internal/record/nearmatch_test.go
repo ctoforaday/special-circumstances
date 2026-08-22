@@ -19,19 +19,26 @@ type gapSpec struct {
 func mintBoard(t *testing.T, runDir string, specs ...gapSpec) {
 	t.Helper()
 	const seat, nonce = "red-merge-r1", "aaaaaaaa"
-	var evs []Event
+	var evs []*Event
 	seq := 0
 	for _, s := range specs {
-		evs = append(evs, recordtest.At(t, seat, 1, seat+":mint:"+s.id, &recordpb.Mint{Problem: proto.String(s.problem), Location: proto.String(s.location), AcceptanceCheck: proto.String("check"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}))
+		evs = append(evs, recordtest.At(t, seat, 1, seat+":mint:"+s.id, &recordpb.Mint{
+			GapId: proto.String(s.id), Class: proto.String("overclaim"),
+			Problem: proto.String(s.problem), Location: proto.String(s.location),
+			AcceptanceCheck: proto.String("check"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_HIGH),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_HIGH),
+		}))
 		seq++
 	}
 	for _, s := range specs {
 		if !s.open {
-			evs = append(evs, recordtest.At(t, seat, 1, seat+":close:"+s.id, &recordpb.Close{}))
+			evs = append(evs, recordtest.At(t, seat, 1, seat+":close:"+s.id, &recordpb.Close{GapId: proto.String(s.id), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED), Prose: proto.String("verified at the leaf")}))
 			seq++
 		}
 	}
-	writeShard(t, runDir, seat, nonce, evs)
+	writeShard(t, runDir, evs)
 }
 
 // A near-duplicate of an existing gap must outrank an unrelated gap, and both open and

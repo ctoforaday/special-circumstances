@@ -69,7 +69,7 @@ func TestAppendedEventCarriesAStamp(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ev.TS == "" {
+	if ev.GetTs() == "" {
 		t.Fatal("an event carries no timestamp; replay would order it by seat name")
 	}
 }
@@ -100,7 +100,7 @@ func TestStampsStrictlyIncreaseUnderAFrozenClock(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		stamps = append(stamps, ev.TS)
+		stamps = append(stamps, ev.GetTs())
 	}
 	for i := 1; i < len(stamps); i++ {
 		if stamps[i] <= stamps[i-1] {
@@ -132,7 +132,7 @@ func TestStampsStrictlyIncreaseWhenTheClockRunsBackwards(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		stamps = append(stamps, ev.TS)
+		stamps = append(stamps, ev.GetTs())
 	}
 	for i := 1; i < len(stamps); i++ {
 		if stamps[i] <= stamps[i-1] {
@@ -163,23 +163,34 @@ func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ev.Round != 7 {
-		t.Errorf("the event must carry the round it was GIVEN, not the one its id looks like: got %d, want 7", ev.Round)
+	if ev.GetRound() != 7 {
+		t.Errorf("the event must carry the round it was GIVEN, not the one its id looks like: got %d, want 7", ev.GetRound())
 	}
-	// And the register the append triggered carries it too — both write sites take the seam.
-	evs, _, err := ReadShard(filepath.Join(dir, "records", "events-judge-terminal-"+ev.Nonce+".jsonl"))
+	// And every other event this seat wrote carries it too — both write sites take the seam. Read
+	// from the record rather than from a named shard file: there is no filename to compose, which
+	// is one fewer place for the test to encode where the events live.
+	m, err := MergedEvents(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, e := range evs {
-		if e.Round != 7 {
-			t.Errorf("%s event stamped round %d, want 7 — RegisterSeat must take the same seam as Append", e.Type, e.Round)
+	seen := 0
+	for _, e := range m.Events {
+		if e.GetSeatId() != "judge-terminal" {
+			continue
 		}
+		seen++
+		if e.GetRound() != 7 {
+			t.Errorf("%s event stamped round %d, want 7 — RegisterSeat must take the same seam as Append",
+				recordpb.Word(e.GetType()), e.GetRound())
+		}
+	}
+	if seen == 0 {
+		t.Fatal("the seat wrote nothing — an empty traversal passes the assertion above on every event")
 	}
 	// Party is NOT taken from the caller: it stays derived from the seat id, because the
 	// caller's Role answers which command group is running, not who is writing.
-	if ev.Role != "bench" {
-		t.Errorf("the party is the seat's, derived from its id: got %q, want bench", ev.Role)
+	if ev.GetRole() != "bench" {
+		t.Errorf("the party is the seat's, derived from its id: got %q, want bench", ev.GetRole())
 	}
 }
 
@@ -201,7 +212,7 @@ func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ev.Round != -1 {
-		t.Errorf("unknown must stay unknown on the record: got %d, want -1", ev.Round)
+	if ev.GetRound() != -1 {
+		t.Errorf("unknown must stay unknown on the record: got %d, want -1", ev.GetRound())
 	}
 }

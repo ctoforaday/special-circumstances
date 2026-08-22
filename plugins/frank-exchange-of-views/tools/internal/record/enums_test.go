@@ -2,7 +2,6 @@ package record
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
 
@@ -186,7 +185,16 @@ func schemaCarries(t *testing.T, typ, key, word string) bool {
 		// The one open set. Its vocabulary is enforced by checkOpenSets rather than by a type.
 		return true
 	}
-	_, found := recordpb.BySpelling(fd.Enum(), word)
+	if _, found := recordpb.BySpelling(fd.Enum(), word); found {
+		return true
+	}
+	// A CONVERTER MAY FOLD CASE, and two deliberately do. `merge verdict --as PASS` and `bench
+	// outcome --as VERIFIED` are the seat's words in capitals — that is the surface, and VerdictOf
+	// and RunOutcomeOf lowercase before resolving. BySpelling is exact by design (its own test
+	// pins that `PASS` does not resolve to `pass`), so the fold is checked here rather than
+	// weakened there. It is one-way: a declared word may be louder than the schema's, never
+	// different from it.
+	_, found := recordpb.BySpelling(fd.Enum(), strings.ToLower(word))
 	return found
 }
 

@@ -330,7 +330,7 @@ func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 // negative half is what this list exists to drive: `refutes` and `absent` are the outcomes that
 // make the assembly screen fire, and a fuzz that only ever generated supporting verdicts would
 // leave that whole path unexercised while the coverage gate read green.
-var verifyOutcomes = []string{"supports", "supports-with-bridge", "weak", "refutes", "absent", "unreachable"}
+var verifyOutcomes = []string{"supports", "supports_with_bridge", "weak", "refutes", "absent", "unreachable"}
 
 // verifyConfidence is the ORTHOGONAL axis: how sure red is of the outcome it just recorded.
 // Driven independently of the outcome, because the pairs that matter most — `refutes` at low

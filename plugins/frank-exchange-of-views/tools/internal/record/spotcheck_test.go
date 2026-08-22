@@ -9,7 +9,7 @@ import (
 import "testing"
 
 // board builds a Board with the gaps and events a spot-check audit reads.
-func spotBoard(gaps map[string]*Gap, evs ...Event) *Board {
+func spotBoard(gaps map[string]*Gap, evs ...*Event) *Board {
 	return &Board{Gaps: gaps, Events: evs}
 }
 

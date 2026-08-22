@@ -175,7 +175,10 @@ var EnumFields = map[string][]EnumField{
 		// tool accepted and the reader resolved by argument order.
 		Why: "the verdict stamp reads this to say HOW a non-pass ended; an unrecognized word decorates the stamp with nothing, which reads exactly like a run that ended for no stated reason",
 	}},
-	"line-of-inquiry": {{
+	// `avenue`, the schema's word. It was "line-of-inquiry" — an event type the schema does not
+	// declare — so this whole set was advertised against a body that does not exist, and nothing
+	// noticed because the key was only ever looked up by the same stale name.
+	"avenue": {{
 		Key: "status", Flag: flags.As, Values: InquiryStatuses,
 		Why: "the lines-of-inquiry projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
 	}},
@@ -224,7 +227,11 @@ var EnumFields = map[string][]EnumField{
 	"verify": {{
 		Key: "outcome", Flag: flags.As, Values: []EnumValue{
 			Ev("supports", "you read the source at the leaf and it says what the claim says"),
-			Ev("supports-with-bridge", "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"),
+			// UNDERSCORE, matching the schema. It was `supports-with-bridge` — the only hyphenated value in
+			// any set — so `--help` offered a word `SourceOutcomeOf` then refused: "not a source outcome
+			// this record can carry", for the value the tool had just told the seat to use. That is #342
+			// in miniature, and it survived because nothing compared the advertised set to the schema's.
+			Ev("supports_with_bridge", "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"),
 			Ev("weak", "it gestures at the claim, or is itself uncorroborated: thin support, not none"),
 			Ev("refutes", "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all"),
 			Ev("absent", "you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was"),

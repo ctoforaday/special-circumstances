@@ -126,6 +126,17 @@ type Merged struct {
 	Events []*Event
 }
 
+// THE MTIME TIE-BREAK IS GONE, and its test with it (winnertie_test.go).
+//
+// Two shards for one seat were resolved by file mtime, `s.mtime.After(winner.mtime)` — strictly
+// after — so a TIE left whichever shard os.ReadDir yielded first. Measured 2026-08-16: the audit
+// built on it passed on Linux and failed on Windows at the same commit, because two files written
+// back to back land on distinct mtimes under one and identical ones under the other's coarser
+// clock. The surviving sitting depended on the filesystem.
+//
+// There is no selection to make. Both sittings are rows, told apart by nothing that discards
+// either, and the order is the order they were written in.
+
 // MergedEvents reads the run's record.
 //
 // # The ordering hazard is gone, not managed

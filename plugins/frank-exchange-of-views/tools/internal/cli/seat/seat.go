@@ -345,7 +345,7 @@ func markTree(c *cobra.Command) {
 func RecordType(c *cobra.Command) string { return c.Annotations[recordsKey] }
 
 func markRequired(c *cobra.Command, verb string) {
-	for _, key := range record.RequiredFields[verb] {
+	for _, key := range record.RequiredFields(verb) {
 		f := c.Flags().Lookup(flags.ForPayloadKey(key))
 		if f == nil {
 			// The field is set by the verb rather than typed by the seat. Nothing to
