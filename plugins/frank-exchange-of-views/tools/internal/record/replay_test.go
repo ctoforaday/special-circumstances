@@ -6,8 +6,11 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -307,13 +310,20 @@ func TestAnAbsentGradeIsAccepted(t *testing.T) {
 	}
 }
 
-func TestValidateVerbContracts(t *testing.T) {
-	cases := []struct {
-		name    string
-		typ     recordpb.EventType
-		p       proto.Message
-		wantErr string // empty means it must be ACCEPTED
-	}{
+// validateContract is one write-path contract: a body, and what validate must say about it.
+type validateContract struct {
+	name    string
+	typ     recordpb.EventType
+	p       proto.Message
+	wantErr string // empty means it must be ACCEPTED
+}
+
+// validateContractCases is the shared table. Extracted from TestValidateVerbContracts so
+// TestNoRecordRefusalNamesAFlagASeatCannotType reads the SAME cases: a second hand-kept list of
+// incomplete bodies would drift from this one, and the drift would show up as a flag-word gate
+// that quietly stopped covering half the verbs.
+func validateContractCases() []validateContract {
+	return []validateContract{
 		{"mint without --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("x")}, "mint requires --check"},
 		{"mint with an empty --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("x"), AcceptanceCheck: proto.String("")}, "mint requires --check"},
 		{"mint without --class", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT)}, "mint requires --class"},
@@ -323,7 +333,12 @@ func TestValidateVerbContracts(t *testing.T) {
 		{"regrade without --basis", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{}, "regrade requires --reason"},
 		{"regrade complete", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Basis: proto.String("b")}, ""},
 
-		{"retire without --claim", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Reason: proto.String("r")}, "retire requires --claim"},
+		// `--quote`, NOT `--claim`: the field is `claim` and the flag a seat types is `--quote`,
+		// which is what the annotation now declares and what internal/cli/blue/retire.go registers.
+		// This expectation was the field name, so it passed while the message and the parser
+		// agreed with each other and disagreed with the test — a refusal naming a flag nobody can
+		// pass is the class this branch has found four times, and the test asserted it.
+		{"retire without --quote", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Reason: proto.String("r")}, "retire requires --quote"},
 		{"retire without --reason", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c")}, "retire requires --reason"},
 		{"retire complete", recordpb.EventType_EVENT_TYPE_RETIRE, &recordpb.Retire{Claim: proto.String("c"), Reason: proto.String("r")}, ""},
 
@@ -345,7 +360,10 @@ func TestValidateVerbContracts(t *testing.T) {
 		// AN UNKNOWN VERB IS UNREPRESENTABLE: the type is an enum and the body is a message, so there
 		// is no "no-such-verb" to pass. The arm that ignored it is gone with the string.
 	}
-	for _, tc := range cases {
+}
+
+func TestValidateVerbContracts(t *testing.T) {
+	for _, tc := range validateContractCases() {
 		t.Run(tc.name, func(t *testing.T) {
 			err := validate(t.TempDir(), "red-merge-r1", tc.typ, tc.p)
 			if tc.wantErr == "" {
@@ -843,5 +861,160 @@ func TestMASSKeysAreExactlyTheCanonicalGrades(t *testing.T) {
 		if got[i] != want[i] {
 			t.Fatalf("MASS grade set diverges from flags.Grades:\n got=%v\nwant=%v", got, want)
 		}
+	}
+}
+
+// refusalFlagToken matches a `--flag` reference in a refusal. The leading boundary keeps it out
+// of anchor tokens like `<!--proof:p-…-->`; Go's regexp has no lookbehind, so the NAME is group 1.
+var refusalFlagToken = regexp.MustCompile("(?:^|[\\s(\"'`])--([a-z][a-z0-9-]*)")
+
+// EVERY FLAG A RECORD-LAYER REFUSAL NAMES IS A WORD A SEAT CAN ACTUALLY TYPE.
+//
+// FOUR INSTANCES ON ONE BRANCH: `--as supports-with-bridge` advertised and refused;
+// `--id Q1 --as supported|…` left in help after the schema retired both flags; `retire requires
+// --claim`, which is the FIELD name where the flag is `--quote`; and the fuzz typing an enum's
+// underscore spelling at a hyphenated flag. Every one is two spellings of one fact across a
+// boundary with one side moved, and every one reads perfectly well.
+//
+// CHECKED HERE, not only in internal/cli, because these messages are UNREACHABLE from the command
+// line: cobra marks the same fields required and refuses first, so the CLI sweep never renders
+// them. Measured — renaming `--check-kind` to `--kind-of-check` in this file's subject left both
+// CLI gates green. A message no gate can see is exactly where a wrong flag word survives.
+//
+// The vocabulary is RequiredFields', which derives the word from the same annotation the write
+// path uses. A message naming something outside it is either a renamed flag whose message did not
+// move, or a field name where a seat types a flag word.
+func TestNoRecordRefusalNamesAFlagASeatCannotType(t *testing.T) {
+	// Flag words declared by the schema, across every event type.
+	known := map[string]bool{}
+	vals := recordpb.EventType(0).Descriptor().Values()
+	for i := 0; i < vals.Len(); i++ {
+		for _, rf := range RequiredFields(recordpb.Word(recordpb.EventType(vals.Get(i).Number()))) {
+			known[rf.Flag] = true
+		}
+	}
+	if len(known) < 10 {
+		t.Fatalf("only %d flag words derived from the schema — an empty vocabulary accepts every message forever", len(known))
+	}
+	// Words no `required` annotation can produce: prose and identity channels every verb shares,
+	// and the CONDITIONALLY required fields whose obligation depends on another field's value, so
+	// no unconditional annotation declares them. Listed rather than pattern-matched, so adding one
+	// is a decision someone makes on purpose.
+	for _, w := range []string{
+		"reason", "reason-file", "run", "seat-id", "json", "help", "id", "as",
+		"quote", "new", "line", "hypothesis", "method", "problem", "fix", "check",
+		"superseded-by", "supersedes", "ids", "none", "cites", "access-date", "relief", "class",
+	} {
+		known[w] = true
+	}
+
+	inspect := func(label string, err error) bool {
+		if err == nil {
+			return false
+		}
+		for _, m := range refusalFlagToken.FindAllStringSubmatch(err.Error(), -1) {
+			if !known[m[1]] {
+				t.Errorf("%s: the refusal names `--%s`, which is not a flag word any verb declares:\n\n%v\n\n"+
+					"A seat that obeys this is refused by cobra for a flag nobody accepts, and still does not know what it needed.", label, m[1], err)
+			}
+		}
+		return true
+	}
+
+	var seen int
+	// EVERY EVENT TYPE, driven with an EMPTY body, so whatever refuses first for that type is
+	// read. The first draft ran only the hand-written contract table and covered fourteen types —
+	// measured, `closing requires --id` could be renamed to a flag that does not exist and this
+	// gate stayed green, because no case in the table produced that message. A gate over a
+	// hand-kept list of cases inherits that list's blind spots.
+	for i := 0; i < vals.Len(); i++ {
+		typ := recordpb.EventType(vals.Get(i).Number())
+		if typ == 0 {
+			continue
+		}
+		word := recordpb.Word(typ)
+		md, ok := bodyDescriptor(word)
+		if !ok {
+			continue
+		}
+		if inspect(word+" (empty body)", validate(t.TempDir(), "red-merge-r1", typ, emptyBodyFor(t, md))) {
+			seen++
+		}
+	}
+	// AND the contract table on top, which reaches the SECOND and later refusals — the arms an
+	// empty body never gets past.
+	for _, tc := range validateContractCases() {
+		if tc.wantErr == "" {
+			continue
+		}
+		if inspect(tc.name, validate(t.TempDir(), "red-merge-r1", tc.typ, tc.p)) {
+			seen++
+		}
+	}
+	// Fourteen table cases plus one empty-body drive per event type. The floor sits below the
+	// real total so retiring a contract is an ordinary edit, and far enough above zero that a
+	// gutted table or a broken walk cannot leave this gate reading nothing and reporting clean.
+	if seen < 25 {
+		t.Fatalf("only %d refusals inspected — this gate reads refusals, so a case list that produces none passes it forever", seen)
+	}
+}
+
+// emptyBodyFor builds a zero-valued body of the CONCRETE generated type, so validate's type
+// switch matches it. A dynamicpb message carries the same descriptor and matches no arm at all,
+// which would make a gate over it pass by never reaching the code it audits.
+func emptyBodyFor(t *testing.T, md protoreflect.MessageDescriptor) proto.Message {
+	t.Helper()
+	mt, err := protoregistry.GlobalTypes.FindMessageByName(md.FullName())
+	if err != nil {
+		t.Fatalf("%s is not in the global type registry: %v", md.FullName(), err)
+	}
+	return mt.New().Interface()
+}
+
+// A CARRY NEEDS NO FRESH ARGUMENT, AND THE EXEMPTION MUST BE REACHABLE.
+//
+// `merge carry` restates a closure an earlier round already argued, so demanding the argument
+// again asks the same thing twice — validate says so and exempts it. `Close.prose` was then
+// annotated `required: true`, which refuses UNCONDITIONALLY and runs BEFORE the switch, so the
+// exemption could not execute: `merge carry --id R2-3 --carried-from 2`, the invocation the
+// verb's own help documents with --reason listed nowhere in it, was refused outright.
+//
+// The code read as live the whole time — present, commented, explaining itself, and unreachable.
+// That is the failure mode this test exists for, not the refusal itself.
+func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
+	carry := &recordpb.Close{
+		GapId:        proto.String("R1-1"),
+		CarriedFrom:  proto.String("1"),
+		AnchorSeat:   proto.String("L1"),
+		AnchorTool:   proto.String("Read"),
+		AnchorTarget: proto.String("blue/report.md"),
+	}
+	runDir := t.TempDir()
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}); err != nil {
+		t.Fatal(err)
+	}
+	// A real gap on the record, so the reference check passes and the ARGUMENT rule is what answers.
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}, &recordpb.Mint{
+		GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"),
+		Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
+		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_CLOSE, carry); err != nil &&
+		strings.Contains(err.Error(), "requires --reason") {
+		t.Errorf("a carry was refused for the argument it explicitly does not owe: %v", err)
+	}
+	// And an ORDINARY closure still owes one — the exemption is for the carry, not a hole.
+	ordinary := &recordpb.Close{
+		GapId:        proto.String("R1-1"),
+		AnchorSeat:   proto.String("L1"),
+		AnchorTool:   proto.String("Read"),
+		AnchorTarget: proto.String("blue/report.md"),
+	}
+	err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_CLOSE, ordinary)
+	if err == nil || !strings.Contains(err.Error(), "requires --reason") {
+		t.Errorf("a closure with no argument was accepted; the exemption widened into a hole: %v", err)
 	}
 }

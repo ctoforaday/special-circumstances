@@ -507,6 +507,19 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 	//
 	// The split is the one required.go always stated and could not enforce — "ONLY UNCONDITIONAL
 	// REQUIREMENTS BELONG HERE" — and the reason it could not is that it was a list somewhere else.
+	//
+	// TEN GUARDS BELOW WERE DELETED FOR RESTATING THIS ONE, and they could never run: an empty
+	// `problem`, `gap_id`, `text`, `basis`, `opinion`, `statement`, `prose`, `claim` or
+	// `rationale` is refused HERE, above, with the annotation's own words. The copies read as
+	// live — present, commented, explaining themselves — and one of them named `--claim` where
+	// the annotation declares the flag `--quote`, so the unreachable copy was also the wrong one.
+	//
+	// The dangerous variant is the eleventh, which was NOT a restatement: `close` exempts a carry
+	// from the closure argument, and `prose` was annotated required anyway, so the exemption was
+	// refused before it could run and `merge carry --id R2-3 --carried-from 2` — the invocation
+	// its own help documents — was rejected. That annotation is conditional now, like Avenue.line.
+	// The lesson is the ordering: anything an annotation makes UNCONDITIONAL is decided before a
+	// single line here executes, so a `required` marking silently deletes every exemption below.
 	if err := recordpb.CheckRequired(verbOf(typ), body); err != nil {
 		return err
 	}
@@ -566,11 +579,6 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 				return fmt.Errorf("record: mint requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g.flag)
 			}
 		}
-		// The defect the gap records. Checked after check/class/grades so those more
-		// specific refusals lead; --problem is structural and --reason fills it too.
-		if b.GetProblem() == "" {
-			return fmt.Errorf("record: mint requires --problem (what is wrong; --reason fills it too) — a gap with no stated problem cannot be repaired or re-audited")
-		}
 		if err := validateClass(runDir, b); err != nil {
 			return err
 		}
@@ -628,9 +636,6 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 			}
 		}
 	case *recordpb.Close:
-		if b.GetGapId() == "" {
-			return fmt.Errorf("record: close requires --id")
-		}
 		ids, err := allGapIDs(runDir)
 		if err != nil {
 			return err
@@ -726,9 +731,6 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		if err := requireGap(runDir, b.GetGapId(), "closing", "--id"); err != nil {
 			return err
 		}
-		if b.GetText() == "" {
-			return fmt.Errorf("record: closing requires --reason (the closing argument for this gap — the report renders it under the gap's docket)")
-		}
 	case *recordpb.ManifestRow:
 		if b.GetGapId() == "" {
 			return fmt.Errorf("record: %s requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)", "manifest-row")
@@ -791,9 +793,6 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 			"a grade only decides what happens NEXT to a gap, so moving one on a finished gap changes a number nobody reads"); err != nil {
 			return err
 		}
-		if b.GetBasis() == "" {
-			return fmt.Errorf("record: regrade requires --reason (grade movement is recorded with its reason)")
-		}
 	case *recordpb.Motion:
 		if b.Subject == nil || b.GetBasis() == "" {
 			return fmt.Errorf("record: a motion requires a subject and --reason (the ASK in the filer's words — a motion with no argument is a demand, and the ruler has nothing to rule on)")
@@ -854,15 +853,17 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 			return fmt.Errorf("record: %q is not a ruling on a %s motion — one of %s. The ruling is what BINDS the coming seats, and an unrecognized one reads as no ruling at all, so a refusal silently becomes permission",
 				w, recordpb.Word(b.GetSubject()), strings.Join(rulingNames(b.GetSubject()), " | "))
 		}
-	case *recordpb.Retire:
-		// A removal with no stated reason is the failure this verb exists to make
-		// visible, so it is refused at the tool rather than noticed at capture.
-		if b.GetClaim() == "" {
-			return fmt.Errorf("record: retire requires --claim (quote the claim as it stood — a removal nobody can identify is not on the record)")
-		}
-		if b.GetReason() == "" {
-			return fmt.Errorf("record: retire requires --reason (refuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recorded)")
-		}
+	// NO `case *recordpb.Retire` — BOTH ITS ARMS WERE DEAD, AND ONE WAS WRONG.
+	//
+	// `claim` and `reason` both carry `required: true` with the very `why` text these arms
+	// printed, so the annotation sweep refused first and neither line could run. The claim arm
+	// said `--claim`, the FIELD name, while the annotation declares the flag as `--quote` — so
+	// the copy that could never execute was also the copy that named a flag no verb accepts.
+	// A test asserted the dead spelling and passed, because it called validate directly.
+	//
+	// This is the argument for deriving the refusal rather than writing it beside the schema: two
+	// copies, and the unreachable one is the one that drifts, silently, in the direction nobody
+	// reads.
 	case *recordpb.RoundVerdict:
 		// The seat's terminal act is where completion duties belong: it is the last
 		// moment the seat is still there to discharge them.
@@ -941,16 +942,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 			return fmt.Errorf("record: inquiry-review requires --reason (what the report SAYS where it accounts for this run's research — quote it). Silence cannot clear this duty: an absent review reads exactly like a report read and found sound, which is why the explicit negative must still be said. Where a line's research is thin or missing, that is a GAP — mint it; this event records only that the read happened")
 		}
 	case *recordpb.Halt:
-		// The safety boundary reaches the human as the words the bench chose, relayed
-		// verbatim — so a halt with no written opinion cannot do its one job.
-		// --reason lands in Halt.opinion: the bench's written words, which capture relays verbatim.
-		if b.GetOpinion() == "" {
-			return fmt.Errorf("record: halt requires --reason (the written opinion capture relays verbatim — a halt nobody can read is a stop with no stated cause)")
-		}
 	case *recordpb.Certify:
-		if b.GetStatement() == "" {
-			return fmt.Errorf("record: certify requires --reason (what you would want a human to re-examine — the bench keeps no memory between runs, so this statement is its continuity)")
-		}
 	case *recordpb.Outcome:
 		// THE RUN'S TERMINAL ACT, and it carried no reasoning at all until a bench seat reached
 		// for --reason, found nothing, and filed the absence as friction (#375). Enforcement is
@@ -960,9 +952,6 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		// The verdict itself is derived and needs no defence. How the SITTING ended is not, and
 		// where a run ended by judged deadlock nothing else records it — DeriveVerdict says so
 		// itself, that the determination "is not on the record (#289)".
-		if b.GetProse() == "" {
-			return fmt.Errorf("record: outcome requires --reason (how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on a judged deadlock it is the only evidence that determination will ever have)")
-		}
 	case *recordpb.Verify:
 		// A VERIFICATION OF NOTHING WAS RECORDABLE. The bare verb — no flags at all — printed
 		// "source verified:" and appended an event that counted as red's audit volume. Enforced
@@ -974,17 +963,11 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		// citation exist?) and because "--anchor or --independent" is a shape this table cannot
 		// express. What is enforced here is that the row says something: which claim, what the
 		// source did for it, and the reading behind that verdict.
-		if b.GetClaim() == "" {
-			return fmt.Errorf("record: verify requires --claim (the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or counted)")
-		}
 		if b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED {
 			return fmt.Errorf("record: verify requires --as (what the source ACTUALLY DID for the claim: supports | supports_with_bridge | weak | refutes | absent | unreachable — the negative half is the point, and until 0.60.0 there was no field for it)")
 		}
 		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
 			return fmt.Errorf("record: verify requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
-		}
-		if b.GetText() == "" {
-			return fmt.Errorf("record: verify requires --reason (what the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replace)")
 		}
 	case *recordpb.Opinion:
 		if err := requireGap(runDir, b.GetGapId(), "opinion", "--id"); err != nil {
@@ -1007,9 +990,6 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 			if !f.present {
 				return fmt.Errorf("record: opinion requires --%s (opinions, not dispositions)", flags.ForPayloadKey(f.key))
 			}
-		}
-		if b.GetRationale() == "" {
-			return fmt.Errorf("record: opinion requires --reason (the ruling's rationale — a disposition with no stated reasoning is indistinguishable from a default)")
 		}
 		// A VERB THAT OWNS AN ACT MUST OWN IT — and this guard is now the type system's job.
 		//

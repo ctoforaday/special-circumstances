@@ -2753,6 +2753,17 @@ type Close struct {
 	Successor *string `protobuf:"bytes,7,opt,name=successor,proto3,oneof" json:"successor,omitempty"`
 	// prose is the closure's ARGUMENT: what was verified and why it holds. The report renders it
 	// and the re-audit reads it.
+	//
+	// NOT `required` — CONDITIONALLY required, like Avenue.line, and for the same kind of reason.
+	// `merge carry` restates a closure an earlier round already argued, so demanding a fresh
+	// argument asks the same thing twice; validate exempts a carry and requires it everywhere else.
+	// Marked unconditional here, the annotation refused a carry BEFORE that exemption could run,
+	// and `merge carry --id R2-3 --carried-from 2` — the invocation the verb's own help documents,
+	// with --reason listed nowhere in it — was refused outright. The exemption still read as live:
+	// the code was there, commented, and could not execute.
+	//
+	// An annotation cannot say "unless this other field is set", which is the split validate's
+	// header states: unconditional requirements on the field, everything conditional below.
 	Prose         *string `protobuf:"bytes,8,opt,name=prose,proto3,oneof" json:"prose,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5539,7 +5550,7 @@ const file_record_proto_rawDesc = "" +
 	"\x05_slugB\r\n" +
 	"\v_definitionB\v\n" +
 	"\t_neighborB\x10\n" +
-	"\x0e_distinguisher\"\xa7\a\n" +
+	"\x0e_distinguisher\"\xdb\b\n" +
 	"\x05Close\x12J\n" +
 	"\x06gap_id\x18\x01 \x01(\tB.\x82\xb5\x18*\b\x01\x12\x02id\x1a\x15which gap this closes\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\xb6\x01\n" +
 	"\rclosure_class\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBo\x82\xb5\x18k\x1aaa merge close asserts a repair; `carried` defers instead of closing and is the bench's word alone2\x06closesH\x01R\fclosureClass\x88\x01\x01\x12$\n" +
@@ -5549,9 +5560,10 @@ const file_record_proto_rawDesc = "" +
 	"anchorTool\x88\x01\x01\x12(\n" +
 	"\ranchor_target\x18\x05 \x01(\tH\x04R\fanchorTarget\x88\x01\x01\x12&\n" +
 	"\fcarried_from\x18\x06 \x01(\tH\x05R\vcarriedFrom\x88\x01\x01\x124\n" +
-	"\tsuccessor\x18\a \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x06R\tsuccessor\x88\x01\x01\x12\x99\x01\n" +
-	"\x05prose\x18\b \x01(\tB~\x82\xb5\x18z\b\x01\x12\x06reason\x1anthe closure's argument — what was verified and why it holds; the report renders it and the re-audit reads itH\aR\x05prose\x88\x01\x01:\xb0\x01\x92\xb5\x18\xab\x01\n" +
-	"F\"closure_class\" <> 'closed_with_regression' OR \"successor\" IS NOT NULL\x12aa closure that reports a regression must name the gap carrying it forward — lineage never dropsB\t\n" +
+	"\tsuccessor\x18\a \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x06R\tsuccessor\x88\x01\x01\x12\x97\x01\n" +
+	"\x05prose\x18\b \x01(\tB|\x82\xb5\x18x\x12\x06reason\x1anthe closure's argument — what was verified and why it holds; the report renders it and the re-audit reads itH\aR\x05prose\x88\x01\x01:\xe6\x02\x92\xb5\x18\xab\x01\n" +
+	"F\"closure_class\" <> 'closed_with_regression' OR \"successor\" IS NOT NULL\x12aa closure that reports a regression must name the gap carrying it forward — lineage never drops\x92\xb5\x18\xb1\x01\n" +
+	"1\"carried_from\" IS NOT NULL OR \"prose\" IS NOT NULL\x12|a closure states what was verified and why it holds; only a carry is exempt, because the round it restates already argued itB\t\n" +
 	"\a_gap_idB\x10\n" +
 	"\x0e_closure_classB\x0e\n" +
 	"\f_anchor_seatB\x0e\n" +

@@ -652,6 +652,18 @@ message Close {
     why: "a closure that reports a regression must name the gap carrying it forward — lineage never drops"
   };
 
+  // THE CLOSURE ARGUMENT, KEPT AS A WALL WHILE IT STOPPED BEING A FIELD RULE.
+  //
+  // `prose` was `required: true`, which is unconditional and therefore refused a CARRY before
+  // validate's exemption for one could run. Dropping the marking fixed the carry and made the
+  // column nullable — and that would have handed the database the state the tool refuses, which
+  // is exactly the hole the regression check above exists to close. Stated here instead, where a
+  // rule about two fields together belongs: everything that is not a carry owes an argument.
+  option (check) = {
+    expr: "\"carried_from\" IS NOT NULL OR \"prose\" IS NOT NULL"
+    why: "a closure states what was verified and why it holds; only a carry is exempt, because the round it restates already argued it"
+  };
+
   optional string gap_id = 1 [(sql) = {
     required: true
     flag: "id"
@@ -681,8 +693,18 @@ message Close {
 
   // prose is the closure's ARGUMENT: what was verified and why it holds. The report renders it
   // and the re-audit reads it.
+  //
+  // NOT `required` — CONDITIONALLY required, like Avenue.line, and for the same kind of reason.
+  // `merge carry` restates a closure an earlier round already argued, so demanding a fresh
+  // argument asks the same thing twice; validate exempts a carry and requires it everywhere else.
+  // Marked unconditional here, the annotation refused a carry BEFORE that exemption could run,
+  // and `merge carry --id R2-3 --carried-from 2` — the invocation the verb's own help documents,
+  // with --reason listed nowhere in it — was refused outright. The exemption still read as live:
+  // the code was there, commented, and could not execute.
+  //
+  // An annotation cannot say "unless this other field is set", which is the split validate's
+  // header states: unconditional requirements on the field, everything conditional below.
   optional string prose = 8 [(sql) = {
-    required: true
     flag: "reason"
     why: "the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it"
   }];

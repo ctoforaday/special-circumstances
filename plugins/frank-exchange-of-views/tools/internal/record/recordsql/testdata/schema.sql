@@ -371,9 +371,10 @@ CREATE TABLE "close" (
   "anchor_target" TEXT,
   "carried_from" TEXT,
   "successor" TEXT,
-  "prose" TEXT NOT NULL,
+  "prose" TEXT,
   CHECK ("closure_class" IS NULL OR "closure_class" IN ('amends_prior', 'closed', 'closed_with_regression', 'rebuttal_sustained', 'risk_accepted', 'routed_to_infrastructure')),
   CHECK ("closure_class" <> 'closed_with_regression' OR "successor" IS NOT NULL),
+  CHECK ("carried_from" IS NOT NULL OR "prose" IS NOT NULL),
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
   FOREIGN KEY ("closure_class") REFERENCES "enum_disposition"("value"),
   FOREIGN KEY ("successor") REFERENCES "mint"("gap_id")

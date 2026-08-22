@@ -73,16 +73,52 @@ type Result struct {
 func interpreterFor(path string) ([]string, error) {
 	switch strings.ToLower(filepath.Ext(path)) {
 	case ".py":
-		return []string{"python"}, nil
+		// `python3` FIRST, AND `python` ONLY AS A FALLBACK.
+		//
+		// This was `python` alone, which most current systems do not provide: Debian and Ubuntu
+		// ship `python3` and leave the unversioned name to an optional alias package, and macOS
+		// removed its `python` in 12.3. So `blue prove` on any .py script died with "executable
+		// file not found in $PATH" — on the machine this was written on, and on any consumer's.
+		// Two suites here were red on it and it read as a local environment quirk rather than as
+		// the tool being unable to run a whole extension it advertises.
+		//
+		// Resolved against PATH rather than returned blind, because the failure mode of guessing
+		// wrong is a confident error that reads exactly like a failed proof — the same reason an
+		// unknown extension is refused below rather than attempted.
+		return firstOnPath("python", "python3", "python")
 	case ".js", ".mjs":
-		return []string{"node"}, nil
+		return firstOnPath("node", "node")
 	case ".sh":
-		return []string{"bash"}, nil
+		return firstOnPath("bash", "bash")
 	case ".go":
+		if _, err := exec.LookPath("go"); err != nil {
+			return nil, missingInterpreter("go", []string{"go"})
+		}
 		return []string{"go", "run"}, nil
 	default:
 		return nil, fmt.Errorf("proof: %s has no known interpreter — a proof script must be .py, .js, .mjs, .sh or .go so the tool runs it the way you meant rather than guessing", filepath.Base(path))
 	}
+}
+
+// firstOnPath returns the first candidate that PATH actually resolves, so a script runs under a
+// name this machine has rather than under the one whoever wrote the mapping had.
+//
+// The miss is LOUD and names every candidate it tried. A proof that cannot run is not a proof
+// that failed, and the two must not arrive as the same message: `--basis` would otherwise grade a
+// missing interpreter as evidence about the claim.
+func firstOnPath(lang string, candidates ...string) ([]string, error) {
+	for _, c := range candidates {
+		if _, err := exec.LookPath(c); err == nil {
+			return []string{c}, nil
+		}
+	}
+	return nil, missingInterpreter(lang, candidates)
+}
+
+func missingInterpreter(lang string, tried []string) error {
+	return fmt.Errorf("proof: no %s interpreter on PATH (tried %s) — this is the tool being unable to RUN the script, "+
+		"not a result about the claim it makes; install one or write the proof in another supported language (.py, .js, .mjs, .sh, .go)",
+		lang, strings.Join(tried, ", "))
 }
 
 // Run executes the script TWICE and records it under <runDir>/proofs/<sha>/.
