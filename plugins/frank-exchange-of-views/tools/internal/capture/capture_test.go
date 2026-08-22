@@ -476,8 +476,22 @@ func TestHarvestPrecedents(t *testing.T) {
 	if !strings.Contains(body, "[PERSUASIVE]") || strings.Contains(body, "[AFFIRMED") {
 		t.Errorf("everything starts persuasive")
 	}
-	if !strings.Contains(body, "holding: risk_accepted") || !strings.Contains(body, "holding: granted") {
-		t.Errorf("holdings carry their disposition")
+	// A DISPOSITION IS NOT A HOLDING. This used to assert `holding: risk_accepted` and
+	// `holding: granted` — docket statuses in the field law/README.md reserves for "the rule
+	// applied". Nine rulings harvested across two real runs all read "holding: closed", which no
+	// later bench could apply to anything, and the reasoning sat unextracted in `rationale`.
+	for _, want := range []string{"disposition: risk_accepted", "disposition: granted"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("a docket ruling must state its disposition as one: missing %q", want)
+		}
+	}
+	if !strings.Contains(body, "holding: <reviewer: state the rule this ruling applied") {
+		t.Errorf("a docket ruling's holding must be a placeholder the reviewer fills — the harvest " +
+			"cannot synthesise the rule without inventing it")
+	}
+	// ...except a declaration, whose whole purpose is to state a holding.
+	if !strings.Contains(body, "holding: verified means an act of looking") {
+		t.Errorf("a declaration's text IS the holding and must not be replaced by a placeholder")
 	}
 	if !strings.Contains(body, "facts: <reviewer: fill from the cited record") {
 		t.Errorf("the harvest never invents facts")

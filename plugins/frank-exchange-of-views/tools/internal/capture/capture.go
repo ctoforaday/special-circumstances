@@ -1200,7 +1200,12 @@ func HarvestPrecedents(runDir string, results []map[string]any, lawDir string, b
 	_ = os.MkdirAll(filepath.Join(lawDir, "proposed"), 0o755)
 	out := filepath.Join(lawDir, "proposed", slug+".md")
 	var body []string
-	body = append(body, "# proposed holdings — "+slug+" [ALL PERSUASIVE — awaiting human review per law/README.md]", "")
+	body = append(body, "# proposed holdings — "+slug+" [ALL PERSUASIVE — awaiting human review per law/README.md]",
+		"",
+		"Each entry below is a RULING the bench recorded, not yet a holding. `facts`, `holding` and",
+		"`scope-limits` are the reviewer's to write from the cited record: the harvest states what it",
+		"observed and never invents the rule. A ruling promoted with its placeholders intact is not",
+		"citable — law/README.md: a holding without its factual predicate is not citable.", "")
 	for i, r := range rulings {
 		q := "disposition of " + r.gapID
 		src := slug + ", " + r.gapID
@@ -1208,16 +1213,42 @@ func HarvestPrecedents(runDir string, results []map[string]any, lawDir string, b
 			q = "petition by " + r.petitioner
 			src = slug + ", petition:" + r.petitioner
 		}
-		body = append(body, strings.Join([]string{
+		// A DISPOSITION IS NOT A HOLDING, and writing one into that field made every harvested
+		// ruling unpromotable while looking complete.
+		//
+		// law/README.md asks for `holding: <the rule applied>` and warns that a holding without
+		// its factual predicate is not citable. This wrote `holding: closed` — the docket STATUS
+		// — so nine harvested rulings across two runs all read "disposition of R1-n / closed",
+		// which tells a later bench nothing it could apply to a different gap. The rule the bench
+		// actually reasoned to was sitting in `rationale`, unextracted, one line below.
+		//
+		// The harvest cannot fix that by synthesising a rule: inventing the holding is exactly
+		// what it must not do. So it states the disposition as the disposition, and leaves the
+		// holding as a placeholder beside `facts` and `scope-limits` — the three things only a
+		// human reviewing the record can supply. An unpromotable ruling now LOOKS unpromotable.
+		//
+		// A `declare` is the exception and always was: that verb's whole purpose is to state a
+		// holding, so its text IS the rule and no placeholder is honest there.
+		holding := "<reviewer: state the rule this ruling applied — the harvest never invents; " +
+			"the reasoning is in `rationale` below>"
+		fields := []string{
 			"## " + slug + "-" + strconv.Itoa(i+1) + " [PERSUASIVE]",
 			"facts: <reviewer: fill from the cited record — the harvest never invents>",
 			"question: " + q,
-			"holding: " + r.disposition,
-			"rationale: " + r.rationale,
+		}
+		if r.kind == "declaration" {
+			fields = append(fields, "holding: "+r.rationale)
+		} else {
+			fields = append(fields,
+				"holding: "+holding,
+				"disposition: "+r.disposition,
+				"rationale: "+r.rationale)
+		}
+		fields = append(fields,
 			"scope-limits: <reviewer: state what this assumed>",
-			"source: " + src,
-			"",
-		}, "\n"))
+			"source: "+src,
+			"")
+		body = append(body, strings.Join(fields, "\n"))
 	}
 	if err := os.WriteFile(out, []byte(strings.Join(body, "\n")), 0o644); err != nil {
 		// This branch is a WRITE failure and must say so. Reusing the branch above's reason
