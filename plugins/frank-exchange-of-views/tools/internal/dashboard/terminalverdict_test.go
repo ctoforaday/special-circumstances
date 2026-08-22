@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
@@ -25,7 +26,7 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundOf("judge-terminal")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundOf("judge-terminal")}, &recordpb.Outcome{Prose: proto.String("ended on safety grounds")}); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundOf("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED), Prose: proto.String("ended on safety grounds")}); err != nil {
 		t.Fatal(err)
 	}
 	// The rendered artifact says something else. It is the derived carrier; the event is the fact.
