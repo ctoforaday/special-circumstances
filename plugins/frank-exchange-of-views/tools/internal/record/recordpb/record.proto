@@ -104,6 +104,19 @@ message Sql {
   // prose field IS; collapsing the seat's would make every verb's prose a different word to learn.
   optional string flag = 2;
 
+  // allow_empty says a required STRING field may be present and EMPTY.
+  //
+  // `required` means the seat SAID something, and for prose that means it said something with
+  // content: an acceptance check of "" is a contract that demands nothing, and a friction entry of
+  // "" is a duty discharged by silence — measured, and it took a seat from two outstanding duties
+  // to `complete: true` while the channel reported one entry saying nothing.
+  //
+  // The exception is real and narrow: `--review-flag false` is a legitimate ruling ("no, a human
+  // need not look at this"), so an empty answer there is an ANSWER. Presence-only requiredness is
+  // the exception and says so at the field, rather than being the silent default it briefly became
+  // when the Go table's two flavours collapsed into one annotation.
+  optional bool allow_empty = 7;
+
   // subset names a VALUE FACET this column's values must carry — `subset: "closes"` admits only
   // the values annotated `(closes) = true`. The generator expands it into a CHECK over the real
   // words from the descriptor, so the subset is DERIVED and there is no second list to keep.
@@ -734,14 +747,22 @@ message Opinion {
 
   optional string principle = 3 [(sql) = {
     required: true
+    // PRESENCE ONLY, matching what the Go table did before the annotation replaced it. The old
+    // rule was Has-not-empty for the opinion's five fields, with `rationale` the exception. Whether
+    // an empty principle should be refused — a ruling with no stated rule is what this verb exists
+    // to prevent — is a live question and a SEPARATE decision, not one to make inside a storage
+    // migration.
+    allow_empty: true
     why: "the rule you are applying, stated so a later sitting can apply it too"
   }];
   optional string tension = 4 [(sql) = {
     required: true
+    allow_empty: true
     why: "what pulls the other way — a ruling with no acknowledged counterweight is an assertion"
   }];
   optional string review_flag = 5 [(sql) = {
     required: true
+    allow_empty: true
     flag: "review-flag"
     why: "why a human should, or should not, look at this"
   }];
@@ -926,6 +947,7 @@ message Avenue {
   optional string method = 4;
   optional AvenueStatus status = 5 [(sql) = {
     required: true
+    flag: "as"
     why: "the line's fate; the lines-of-inquiry projection groups by it"
   }];
 

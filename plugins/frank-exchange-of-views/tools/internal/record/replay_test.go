@@ -152,7 +152,9 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 		if want := fmt.Sprintf("R1-%d", i); got != want {
 			t.Fatalf("MintGapID = %q, want %q", got, want)
 		}
-		if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Mint{AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+		// The MINTED id, not a fixed one: each pass records the gap it just reserved, which is
+		// what makes the ids sequential rather than one gap minted three times.
+		if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Mint{GapId: proto.String(got), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -178,7 +180,7 @@ func TestExistingMintByKey(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Mint{MintKey: proto.String("L1-F3"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Mint{GapId: proto.String("R1-1"), MintKey: proto.String("L1-F3"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -207,14 +209,16 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
-		recordtest.At(t, seatID, 1, seatID+":mint:R1-2", &recordpb.Mint{Problem: proto.String("p2"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, seatID, 1, seatID+":mint:R1-2", &recordpb.Mint{GapId: proto.String("R1-2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p2"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		// A regrade moves ONLY the keys it carries.
-		recordtest.At(t, seatID, 1, seatID+":regrade:R1-1", &recordpb.Regrade{Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), Basis: proto.String("new evidence")}),
-		recordtest.At(t, seatID, 1, seatID+":close:R1-2", &recordpb.Close{ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED)}),
-		// A regrade and a close of an UNKNOWN gap are ignored, not fatal.
-		recordtest.At(t, seatID, 1, seatID+":regrade:R9-9", &recordpb.Regrade{GapId: proto.String("R9-9"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW)}),
-		recordtest.At(t, seatID, 1, seatID+":close:R9-9", &recordpb.Close{GapId: proto.String("R9-9")}),
+		recordtest.At(t, seatID, 1, seatID+":regrade:R1-1", &recordpb.Regrade{GapId: proto.String("R1-1"), Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), Basis: proto.String("new evidence")}),
+		recordtest.At(t, seatID, 1, seatID+":close:R1-2", &recordpb.Close{GapId: proto.String("R1-2"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED), Prose: proto.String("verified at the leaf")}),
+		// A REGRADE AND A CLOSE OF AN UNKNOWN GAP USED TO BE SEEDED HERE, and the assertion was
+		// that the replay IGNORED them rather than failing. Both are foreign keys onto the mint
+		// now, so neither row can be written — the state is unrepresentable, and the replay's arm
+		// for it is a hard error rather than a skip (see missingGap). Seeding them would fail the
+		// fixture, not the assertion.
 	})
 	b, err := BoardState(runDir)
 	if err != nil {
@@ -245,6 +249,8 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	if g2.ComplexityCost != recordpb.Grade_GRADE_UNSPECIFIED {
 		t.Errorf("an unpassed grade became %v, want nil (it renders as \"undefined\")", g2.ComplexityCost)
 	}
+	// R9-9 was never minted, so it is not on the board — which is now true by construction rather
+	// than by the replay choosing to skip it.
 	if b.Gaps["R9-9"] != nil {
 		t.Error("an event about an unknown gap created one")
 	}
@@ -308,10 +314,10 @@ func TestValidateVerbContracts(t *testing.T) {
 		p       proto.Message
 		wantErr string // empty means it must be ACCEPTED
 	}{
-		{"mint without --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Class: proto.String("x")}, "mint requires --check"},
-		{"mint with an empty --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{Class: proto.String("x"), AcceptanceCheck: proto.String("")}, "mint requires --check"},
-		{"mint without --class", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT)}, "mint requires --class"},
-		{"mint complete", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}, ""},
+		{"mint without --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("x")}, "mint requires --check"},
+		{"mint with an empty --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("x"), AcceptanceCheck: proto.String("")}, "mint requires --check"},
+		{"mint without --class", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT)}, "mint requires --class"},
+		{"mint complete", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}, ""},
 
 		{"close without --id", recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{}, "close requires --id"},
 		{"regrade without --basis", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{}, "regrade requires --reason"},
@@ -377,7 +383,7 @@ func opinionRunDir(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Mint{GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Mint{AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
 	return runDir
@@ -454,7 +460,7 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1")}),
+		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("R1-1")}),
 	})
 	base := func(supersedes ...string) *recordpb.Mint {
 		return &recordpb.Mint{
@@ -490,8 +496,8 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 	// closed_with_regression names. A successor is a reference like any other and is
 	// now checked, so a fixture that names one has to create it.
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1")}),
-		recordtest.At(t, seatID, 2, seatID+":mint:R2-1", &recordpb.Mint{GapId: proto.String("R2-1")}),
+		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("R1-1")}),
+		recordtest.At(t, seatID, 2, seatID+":mint:R2-1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("R2-1")}),
 	})
 	anchored := func() *recordpb.Close {
 		return &recordpb.Close{
@@ -513,10 +519,15 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		p       proto.Message
 		wantErr string
 	}{
-		{"unknown gap", &recordpb.Close{GapId: proto.String("R9-9")}, "close of unknown gap"},
-		{"no anchor at all", &recordpb.Close{GapId: proto.String("R1-1")}, "requires the verification triple"},
-		{"a PARTIAL anchor is not an anchor", &recordpb.Close{GapId: proto.String("R1-1"), AnchorSeat: proto.String("L1")}, "requires the verification triple"},
-		{"anchor missing its target", &recordpb.Close{GapId: proto.String("R1-1"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show")}, "requires the verification triple"},
+		// EACH CASE CARRIES ITS PROSE, because the unconditional requirements are checked FIRST
+		// now — `CheckRequired` runs before any verb's own rules, from the annotation on the
+		// field. A fixture omitting --reason would be refused for that and never reach the rule
+		// it names. The ordering is a deliberate change: the old code ran requiredness LAST so
+		// the more specific refusal led, and this reverses it.
+		{"unknown gap", &recordpb.Close{GapId: proto.String("R9-9"), Prose: proto.String("verified")}, "close of unknown gap"},
+		{"no anchor at all", &recordpb.Close{GapId: proto.String("R1-1"), Prose: proto.String("verified")}, "requires the verification triple"},
+		{"a PARTIAL anchor is not an anchor", &recordpb.Close{GapId: proto.String("R1-1"), Prose: proto.String("verified"), AnchorSeat: proto.String("L1")}, "requires the verification triple"},
+		{"anchor missing its target", &recordpb.Close{GapId: proto.String("R1-1"), Prose: proto.String("verified"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show")}, "requires the verification triple"},
 		{"a full anchor", anchored(), ""},
 		// --carried-from remains the honest alternative to re-verifying, but it is a
 		// CLAIM ABOUT THE RECORD and is now checked like one. This gap has never been
@@ -524,7 +535,7 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		// laundering path: an unanchored first closure that scores as closed, which is
 		// exactly what anchored_closures_pct exists to detect. The genuine case (close
 		// with an anchor, then restate) is covered in required_test.go.
-		{"--carried-from cannot invent an earlier closure", &recordpb.Close{GapId: proto.String("R1-1"), CarriedFrom: proto.String("2")}, "no closure of it exists in the record"},
+		{"--carried-from cannot invent an earlier closure", &recordpb.Close{GapId: proto.String("R1-1"), Prose: proto.String("verified"), CarriedFrom: proto.String("2")}, "no closure of it exists in the record"},
 		{"closed_with_regression needs a successor", withClass(recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION, ""), "requires --superseded-by"},
 		{"closed_with_regression with a successor", withClass(recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION, "R2-1"), ""},
 	}
@@ -569,7 +580,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	}
 
 	t.Run("no registry staged is advisory, not strict", func(t *testing.T) {
-		if err := validate(t.TempDir(), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Class: proto.String("anything-at-all")})); err != nil {
+		if err := validate(t.TempDir(), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")})); err != nil {
 			t.Errorf("advisory mode refused a class: %v", err)
 		}
 	})
@@ -586,7 +597,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an unparseable registry is refused, not waved through", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, "{not json")
-		err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Class: proto.String("anything-at-all")}))
+		err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
 		if err == nil {
 			t.Fatal("a corrupt registry accepted an arbitrary class — every --class passes while it stays that way, and the run reads as validated")
 		}
@@ -598,7 +609,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a known slug passes", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, registry)
-		if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Class: proto.String("scope-creep")})); err != nil {
+		if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("scope-creep")})); err != nil {
 			t.Errorf("a registry slug was refused: %v", err)
 		}
 	})
@@ -606,7 +617,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an unknown slug is refused with a hint", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, registry)
-		err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Class: proto.String("invented")}))
+		err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
 		if err == nil {
 			t.Fatal("an unknown class was accepted")
 		}
@@ -671,7 +682,7 @@ func TestValidateClassRegistry(t *testing.T) {
 		writeShard(t, runDir, []*Event{
 			recordtest.At(t, seatID, 1, seatID+":class-new:x", &recordpb.ClassNew{Slug: proto.String("run-local-class")}),
 		})
-		if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Class: proto.String("run-local-class")})); err != nil {
+		if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("run-local-class")})); err != nil {
 			t.Errorf("a class minted in this run was refused: %v", err)
 		}
 		// And it is a valid neighbor for a further new class.
@@ -687,7 +698,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a registry with fewer than six slugs does not slice out of range", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, `{"classes":[{"slug":"only-one"}]}`)
-		err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Class: proto.String("invented")}))
+		err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
 		if err == nil {
 			t.Fatal("expected a refusal")
 		}
@@ -699,7 +710,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an EMPTY registry is still strict and does not panic", func(t *testing.T) {
 		runDir := t.TempDir()
 		writeRegistry(t, runDir, `{"classes":[]}`)
-		if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{Class: proto.String("invented")})); err == nil {
+		if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")})); err == nil {
 			t.Error("an empty registry accepted an invented class")
 		}
 	})
@@ -834,4 +845,3 @@ func TestMASSKeysAreExactlyTheCanonicalGrades(t *testing.T) {
 		}
 	}
 }
-

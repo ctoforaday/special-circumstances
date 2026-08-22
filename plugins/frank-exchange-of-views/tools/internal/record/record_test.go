@@ -74,70 +74,76 @@ func TestAppendedEventCarriesAStamp(t *testing.T) {
 	}
 }
 
-// MONOTONICITY IS GUARANTEED IN CODE, NOT BORROWED FROM THE HARDWARE.
+// THE ORDER IS A PROPERTY OF THE CODE, NOT OF THE MACHINE'S CLOCK — and the code that holds it
+// changed, so these two tests ask about the guarantee rather than about its old carrier.
 //
-// Precision only narrows the window in which two events can tie. Two seats can still stamp
-// the same instant, and a wall clock can step BACKWARDS under NTP and issue a stamp earlier
-// than one already written. Both produce a tie or an inversion in the ordering key, and the
-// sort then falls through to seat name — the defect that dropped the bench's closures.
+// They used to assert that STAMPS strictly increase under a frozen clock and under one running
+// backwards. That mattered because replay sorted by (TS, SeatID, Seq): a tie or an inversion in
+// the stamp fell through to seat NAME, which is the defect that dropped a whole sitting's bench
+// closures. A monotonic clock file existed for exactly that reason.
 //
-// These freeze or reverse the clock outright: conditions no precision can survive, and
-// exactly what a real clock does occasionally. The stamps must still strictly increase.
-func TestStampsStrictlyIncreaseUnderAFrozenClock(t *testing.T) {
-	orig := Now
-	defer func() { Now = orig }()
-	frozen := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
-	Now = func() time.Time { return frozen }
+// Order is `events.id` now — assigned by the thing doing the inserting — so `ts` is informational
+// and may tie or step backwards without consequence. The guarantee is unchanged and stronger, so
+// it is asserted directly: whatever the clock does, the record reads back in the order it was
+// written.
+func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		now  func() time.Time
+	}{
+		{"a frozen clock", func() func() time.Time {
+			frozen := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
+			return func() time.Time { return frozen }
+		}()},
+		{"a clock running backwards", func() func() time.Time {
+			base := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
+			var call int
+			return func() time.Time {
+				call++
+				return base.Add(-time.Duration(call) * time.Second)
+			}
+		}()},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			orig := Now
+			defer func() { Now = orig }()
+			Now = c.now
 
-	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}); err != nil {
-		t.Fatal(err)
-	}
+			runDir := t.TempDir()
+			id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}
+			if _, _, err := RegisterSeat(id); err != nil {
+				t.Fatal(err)
+			}
+			var wrote []string
+			for i := 0; i < 6; i++ {
+				label := string(rune('a' + i))
+				if _, err := Append(id, &recordpb.Observe{Label: proto.String(label)}); err != nil {
+					t.Fatal(err)
+				}
+				wrote = append(wrote, label)
+			}
 
-	var stamps []string
-	for i := 0; i < 10; i++ {
-		ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, &recordpb.Observe{Label: proto.String(string(rune('a' + i)))})
-		if err != nil {
-			t.Fatal(err)
-		}
-		stamps = append(stamps, ev.GetTs())
-	}
-	for i := 1; i < len(stamps); i++ {
-		if stamps[i] <= stamps[i-1] {
-			t.Fatalf("a frozen clock produced non-increasing stamps: %s then %s. Order must be a property of the CODE, not of the machine's clock", stamps[i-1], stamps[i])
-		}
-	}
-}
-
-// The nastier case: the clock runs BACKWARDS. A stamp must never be issued that would sort
-// before one already written, or replay reorders events that are already on disk.
-func TestStampsStrictlyIncreaseWhenTheClockRunsBackwards(t *testing.T) {
-	orig := Now
-	defer func() { Now = orig }()
-	base := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
-	var call int
-	Now = func() time.Time {
-		call++
-		return base.Add(-time.Duration(call) * time.Second) // each call earlier than the last
-	}
-
-	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}); err != nil {
-		t.Fatal(err)
-	}
-
-	var stamps []string
-	for i := 0; i < 6; i++ {
-		ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, &recordpb.Observe{Label: proto.String(string(rune('a' + i)))})
-		if err != nil {
-			t.Fatal(err)
-		}
-		stamps = append(stamps, ev.GetTs())
-	}
-	for i := 1; i < len(stamps); i++ {
-		if stamps[i] <= stamps[i-1] {
-			t.Fatalf("a backwards-running clock produced non-increasing stamps: %s then %s. The stamps may drift from wall time — that is the accepted trade — but they must never lie about WHAT CAME FIRST", stamps[i-1], stamps[i])
-		}
+			m, err := MergedEvents(runDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var read []string
+			for _, e := range m.Events {
+				if o, ok := recordpb.BodyAs[*recordpb.Observe](e); ok {
+					read = append(read, o.GetLabel())
+				}
+			}
+			if len(read) != len(wrote) {
+				t.Fatalf("%d observations read, %d written", len(read), len(wrote))
+			}
+			for i := range wrote {
+				if read[i] != wrote[i] {
+					t.Fatalf("under %s the record read back in a different order: %v, want %v.\n\n"+
+						"The stamps may tie or drift — that is what a real clock does — but the record "+
+						"must never lie about WHAT CAME FIRST", c.name, read, wrote)
+				}
+			}
+		})
 	}
 }
 

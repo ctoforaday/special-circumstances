@@ -32,10 +32,20 @@ func CheckRequired(verb string, body proto.Message) error {
 	for i := 0; i < md.Fields().Len(); i++ {
 		fd := md.Fields().Get(i)
 		o, _ := proto.GetExtension(fd.Options(), E_Sql).(*Sql)
-		if !o.GetRequired() || m.Has(fd) {
+		if !o.GetRequired() {
 			continue
 		}
-		return fmt.Errorf("record: %s requires --%s%s", verb, flagFor(fd, o), because(o))
+		if !m.Has(fd) {
+			return fmt.Errorf("record: %s requires --%s%s", verb, flagFor(fd, o), because(o))
+		}
+		// PRESENT IS NOT ENOUGH FOR PROSE. A required string that is EMPTY is a duty discharged by
+		// silence — an acceptance check demanding nothing, a friction entry saying nothing — and
+		// the check was presence-only for a while after the Go table's two flavours collapsed into
+		// one annotation. `allow_empty` is the narrow exception, declared at the field: a
+		// `--review-flag false` is a real ruling, so an empty answer there is an answer.
+		if fd.Kind() == protoreflect.StringKind && !o.GetAllowEmpty() && m.Get(fd).String() == "" {
+			return fmt.Errorf("record: %s requires --%s to say something%s", verb, flagFor(fd, o), because(o))
+		}
 	}
 	return nil
 }

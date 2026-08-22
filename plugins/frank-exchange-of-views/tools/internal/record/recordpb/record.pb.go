@@ -1298,6 +1298,18 @@ type Sql struct {
 	// seat types for all of them is `--reason`. Collapsing the schema's names would lose what each
 	// prose field IS; collapsing the seat's would make every verb's prose a different word to learn.
 	Flag *string `protobuf:"bytes,2,opt,name=flag,proto3,oneof" json:"flag,omitempty"`
+	// allow_empty says a required STRING field may be present and EMPTY.
+	//
+	// `required` means the seat SAID something, and for prose that means it said something with
+	// content: an acceptance check of "" is a contract that demands nothing, and a friction entry of
+	// "" is a duty discharged by silence — measured, and it took a seat from two outstanding duties
+	// to `complete: true` while the channel reported one entry saying nothing.
+	//
+	// The exception is real and narrow: `--review-flag false` is a legitimate ruling ("no, a human
+	// need not look at this"), so an empty answer there is an ANSWER. Presence-only requiredness is
+	// the exception and says so at the field, rather than being the silent default it briefly became
+	// when the Go table's two flavours collapsed into one annotation.
+	AllowEmpty *bool `protobuf:"varint,7,opt,name=allow_empty,json=allowEmpty,proto3,oneof" json:"allow_empty,omitempty"`
 	// subset names a VALUE FACET this column's values must carry — `subset: "closes"` admits only
 	// the values annotated `(closes) = true`. The generator expands it into a CHECK over the real
 	// words from the descriptor, so the subset is DERIVED and there is no second list to keep.
@@ -1364,6 +1376,13 @@ func (x *Sql) GetFlag() string {
 		return *x.Flag
 	}
 	return ""
+}
+
+func (x *Sql) GetAllowEmpty() bool {
+	if x != nil && x.AllowEmpty != nil {
+		return *x.AllowEmpty
+	}
+	return false
 }
 
 func (x *Sql) GetSubset() string {
@@ -5299,18 +5318,21 @@ const file_record_proto_rawDesc = "" +
 	"\x04expr\x18\x01 \x01(\tH\x00R\x04expr\x88\x01\x01\x12\x15\n" +
 	"\x03why\x18\x02 \x01(\tH\x01R\x03why\x88\x01\x01B\a\n" +
 	"\x05_exprB\x06\n" +
-	"\x04_why\"\xf8\x01\n" +
+	"\x04_why\"\xae\x02\n" +
 	"\x03Sql\x12\x1f\n" +
 	"\brequired\x18\x01 \x01(\bH\x00R\brequired\x88\x01\x01\x12\x17\n" +
-	"\x04flag\x18\x02 \x01(\tH\x01R\x04flag\x88\x01\x01\x12\x1b\n" +
-	"\x06subset\x18\x06 \x01(\tH\x02R\x06subset\x88\x01\x01\x12\x15\n" +
-	"\x03why\x18\x03 \x01(\tH\x03R\x03why\x88\x01\x01\x12#\n" +
+	"\x04flag\x18\x02 \x01(\tH\x01R\x04flag\x88\x01\x01\x12$\n" +
+	"\vallow_empty\x18\a \x01(\bH\x02R\n" +
+	"allowEmpty\x88\x01\x01\x12\x1b\n" +
+	"\x06subset\x18\x06 \x01(\tH\x03R\x06subset\x88\x01\x01\x12\x15\n" +
+	"\x03why\x18\x03 \x01(\tH\x04R\x03why\x88\x01\x01\x12#\n" +
 	"\n" +
-	"references\x18\x04 \x01(\tH\x04R\n" +
+	"references\x18\x04 \x01(\tH\x05R\n" +
 	"references\x88\x01\x01\x12\x1b\n" +
-	"\x06unique\x18\x05 \x01(\bH\x05R\x06unique\x88\x01\x01B\v\n" +
+	"\x06unique\x18\x05 \x01(\bH\x06R\x06unique\x88\x01\x01B\v\n" +
 	"\t_requiredB\a\n" +
-	"\x05_flagB\t\n" +
+	"\x05_flagB\x0e\n" +
+	"\f_allow_emptyB\t\n" +
 	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
@@ -5532,13 +5554,13 @@ const file_record_proto_rawDesc = "" +
 	"\x04none\x18\x03 \x01(\bH\x00R\x04none\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x04 \x01(\tH\x01R\x06reason\x88\x01\x01B\a\n" +
 	"\x05_noneB\t\n" +
-	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xc6\x06\n" +
+	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xcd\x06\n" +
 	"\aOpinion\x12P\n" +
 	"\x06gap_id\x18\x01 \x01(\tB4\x82\xb5\x180\b\x01\x12\x02id\x1a\x1bwhich gap is being ruled on\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\x9b\x01\n" +
-	"\vdisposition\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBW\x82\xb5\x18S\b\x01\x12\x02as\x1aKhow the gap ends, or `carried` to defer it with a stated research directionH\x01R\vdisposition\x88\x01\x01\x12p\n" +
-	"\tprinciple\x18\x03 \x01(\tBM\x82\xb5\x18I\b\x01\x1aEthe rule you are applying, stated so a later sitting can apply it tooH\x02R\tprinciple\x88\x01\x01\x12\x7f\n" +
-	"\atension\x18\x04 \x01(\tB`\x82\xb5\x18\\\b\x01\x1aXwhat pulls the other way — a ruling with no acknowledged counterweight is an assertionH\x03R\atension\x88\x01\x01\x12j\n" +
-	"\vreview_flag\x18\x05 \x01(\tBD\x82\xb5\x18@\b\x01\x12\vreview-flag\x1a/why a human should, or should not, look at thisH\x04R\n" +
+	"\vdisposition\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBW\x82\xb5\x18S\b\x01\x12\x02as\x1aKhow the gap ends, or `carried` to defer it with a stated research directionH\x01R\vdisposition\x88\x01\x01\x12r\n" +
+	"\tprinciple\x18\x03 \x01(\tBO\x82\xb5\x18K\b\x01\x1aEthe rule you are applying, stated so a later sitting can apply it too8\x01H\x02R\tprinciple\x88\x01\x01\x12\x81\x01\n" +
+	"\atension\x18\x04 \x01(\tBb\x82\xb5\x18^\b\x01\x1aXwhat pulls the other way — a ruling with no acknowledged counterweight is an assertion8\x01H\x03R\atension\x88\x01\x01\x12l\n" +
+	"\vreview_flag\x18\x05 \x01(\tBF\x82\xb5\x18B\b\x01\x12\vreview-flag\x1a/why a human should, or should not, look at this8\x01H\x04R\n" +
 	"reviewFlag\x88\x01\x01\x12\x98\x01\n" +
 	"\trationale\x18\x06 \x01(\tBu\x82\xb5\x18q\b\x01\x12\x06reason\x1aethe ruling's rationale — a disposition with no stated reasoning is indistinguishable from a defaultH\x05R\trationale\x88\x01\x01B\t\n" +
 	"\a_gap_idB\x0e\n" +
@@ -5680,15 +5702,15 @@ const file_record_proto_rawDesc = "" +
 	"\x05_note\"7\n" +
 	"\rInquiryReview\x12\x1b\n" +
 	"\x06reason\x18\x01 \x01(\tH\x00R\x06reason\x88\x01\x01B\t\n" +
-	"\a_reason\"\x8a\x04\n" +
+	"\a_reason\"\x8e\x04\n" +
 	"\x06Avenue\x12 \n" +
 	"\tavenue_id\x18\x01 \x01(\tH\x00R\bavenueId\x88\x01\x01\x12m\n" +
 	"\x04line\x18\x02 \x01(\tBT\x82\xb5\x18P\b\x01\x1aLwhat you are going to try — an unnamed avenue teaches a future run nothingH\x01R\x04line\x88\x01\x01\x12#\n" +
 	"\n" +
 	"hypothesis\x18\x03 \x01(\tH\x02R\n" +
 	"hypothesis\x88\x01\x01\x12\x1b\n" +
-	"\x06method\x18\x04 \x01(\tH\x03R\x06method\x88\x01\x01\x12\x80\x01\n" +
-	"\x06status\x18\x05 \x01(\x0e2\x1c.feov.record.v1.AvenueStatusBE\x82\xb5\x18A\b\x01\x1a=the line's fate; the lines-of-inquiry projection groups by itH\x04R\x06status\x88\x01\x01\x120\n" +
+	"\x06method\x18\x04 \x01(\tH\x03R\x06method\x88\x01\x01\x12\x84\x01\n" +
+	"\x06status\x18\x05 \x01(\x0e2\x1c.feov.record.v1.AvenueStatusBI\x82\xb5\x18E\b\x01\x12\x02as\x1a=the line's fate; the lines-of-inquiry projection groups by itH\x04R\x06status\x88\x01\x01\x120\n" +
 	"\x11supersedes_status\x18\x06 \x01(\tH\x05R\x10supersedesStatus\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\a \x01(\tH\x06R\x06reason\x88\x01\x01B\f\n" +
 	"\n" +

@@ -22,6 +22,15 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, merge, 1, merge+":position", &recordpb.Position{Text: proto.String("red r1")}),
+		// The gap must exist before anything speaks about it: `closing.gap_id` and the bench's
+		// opinion are both foreign keys onto the mint.
+		recordtest.At(t, merge, 1, merge+":mint:R1-1", &recordpb.Mint{
+			GapId: proto.String("R1-1"), Class: proto.String("overclaim"), Problem: proto.String("p"),
+			AcceptanceCheck: proto.String("the check runs"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}),
 		recordtest.At(t, merge, 1, merge+":closing:R1-1", &recordpb.Closing{GapId: proto.String("R1-1"), Text: proto.String("red closes r1")}),
 	})
 	writeShard(t, runDir, []*Event{
@@ -115,8 +124,8 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	m := "red-merge-r1"
 	longProblem := strings.Repeat("word ", 60) // ~300 chars, well over the 140-rune synopsis budget
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{Problem: proto.String(longProblem), Location: proto.String("§open"), RequiredFix: proto.String("SECRET_FIX_PROSE"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
-		recordtest.At(t, m, 1, m+":mint:R1-2", &recordpb.Mint{Problem: proto.String("a closed problem"), Location: proto.String("§closed"), RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk")}),
+		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String(longProblem), Location: proto.String("§open"), RequiredFix: proto.String("SECRET_FIX_PROSE"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, m, 1, m+":mint:R1-2", &recordpb.Mint{GapId: proto.String("R1-2"), Class: proto.String("overclaim"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("a closed problem"), Location: proto.String("§closed"), RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk")}),
 		recordtest.At(t, m, 1, m+":close:R1-2", &recordpb.Close{
 			GapId: proto.String("R1-2"),
 			// `class: "resolved"` before the schema — a key `merge close` never wrote (it writes
@@ -214,7 +223,7 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 		recordtest.At(t, s, 1, s+":finding:L1-F2", &recordpb.Finding{Label: proto.String("L1-F2"), Text: proto.String("never credited")}),
 	})
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, m, 1, m+":mint:k", &recordpb.Mint{GapId: proto.String("R1-1"), FoundBy: []string{"L1-F1"}}),
+		recordtest.At(t, m, 1, m+":mint:k", &recordpb.Mint{GapId: proto.String("k"), FoundBy: []string{"L1-F1"}}),
 	})
 	b, err := BoardState(runDir)
 	if err != nil {
