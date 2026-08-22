@@ -251,7 +251,7 @@ func TestAppendHealsATornFinalLine(t *testing.T) {
 		t.Fatalf("ReadShard recovered %d events, want 2 (the fragment must stay inert)", len(evs))
 	}
 	last := evs[len(evs)-1]
-	if last.Type != "finding" || last.Payload.Str("reason") != "intact" {
+	if last.GetType() != recordpb.EventType_EVENT_TYPE_FINDING || last.Payload.Str("reason") != "intact" {
 		t.Errorf("the event appended after a tear did not survive whole: %+v", last)
 	}
 	// A further append must not add a second heal: the file now ends in a newline.

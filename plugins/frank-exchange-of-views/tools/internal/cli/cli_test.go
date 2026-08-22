@@ -490,7 +490,7 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 	}
 	mints := 0
 	for _, e := range events(t, runDir) {
-		if e.Type == "mint" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_MINT {
 			mints++
 		}
 	}
@@ -690,7 +690,7 @@ func TestProseChannelResolution(t *testing.T) {
 		}
 		// The seat's own register event is expected; a POSITION event is not.
 		for _, e := range events(t, runDir) {
-			if e.Type == "position" {
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION {
 				t.Errorf("a refused position was still recorded: %+v", e)
 			}
 		}
@@ -1044,7 +1044,7 @@ func TestClosingIsKeyedPerGap(t *testing.T) {
 	}
 	closings := 0
 	for _, e := range events(t, runDir) {
-		if e.Type == "closing" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING {
 			closings++
 		}
 	}
@@ -1065,7 +1065,7 @@ func TestPositionIsASingletonPerSeat(t *testing.T) {
 	}
 	positions := 0
 	for _, e := range events(t, runDir) {
-		if e.Type == "position" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION {
 			positions++
 			if got := e.Payload.Str("reason"); got != "first" {
 				t.Errorf("the surviving position is %q, want the first", got)
@@ -1150,7 +1150,7 @@ func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
 			// AND NOTHING WAS WRITTEN. A refusal that still appends leaves a verdict on
 			// the record for every projection to read.
 			for _, e := range events(t, runDir) {
-				if e.Type == "verdict" {
+				if e.GetType() == recordpb.EventType_EVENT_TYPE_VERDICT {
 					t.Errorf("a refused verdict reached the log anyway: %+v", e.Payload)
 				}
 			}

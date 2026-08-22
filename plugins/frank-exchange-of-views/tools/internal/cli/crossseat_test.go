@@ -215,7 +215,7 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 
 	seen := map[string]bool{}
 	for _, e := range events(t, runDir) {
-		if e.Type == "finding" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
 			seen[e.Payload.Str("label")] = true
 		}
 	}

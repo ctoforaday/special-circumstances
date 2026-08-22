@@ -99,7 +99,7 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 		}
 	}
 	// A PASS on the record makes VERIFIED derivable, with a stated basis.
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, "verdict", &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, &recordpb.Verdict_{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}); err != nil {
 		t.Fatal(err)
 	}
 	c := NewCommand()
@@ -117,7 +117,7 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, e := range b.Events {
-		if e.Type != "outcome" {
+		if e.GetType() != recordpb.EventType_EVENT_TYPE_OUTCOME {
 			continue
 		}
 		if why := e.Payload.Str("verdict_why"); why == "" {

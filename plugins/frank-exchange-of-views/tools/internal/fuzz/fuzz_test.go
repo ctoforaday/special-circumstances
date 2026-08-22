@@ -1516,7 +1516,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	if board, err := record.BoardState(runDir); err == nil {
 		answered, disputed, proved := map[string]bool{}, map[string]bool{}, map[string]bool{}
 		for _, e := range board.Events {
-			if e.Type == "proof" && e.Payload.Str("answers") != "" {
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_PROOF && e.Payload.Str("answers") != "" {
 				proved[e.Payload.Str("answers")] = true
 			}
 			switch e.Type {
@@ -1595,7 +1595,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	if board, err := record.BoardState(runDir); err == nil {
 		contests := map[string]string{}
 		for _, e := range board.Events {
-			if e.Type == "motion-appeal" && e.Payload.Str("subject") == "inquiry" {
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_MOTION_APPEAL && e.Payload.Str("subject") == "inquiry" {
 				contests[e.Payload.Str("motion_id")] = "appealed"
 			}
 			// The PRE-#344 spelling, still read: a stored record carries it and the oracle runs
@@ -1639,7 +1639,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// scorecard's additive-integrity detector, so it must not pass unnoticed here either.
 	if board, err := record.BoardState(runDir); err == nil {
 		for _, e := range board.Events {
-			if e.Type == "retire" && e.Payload.Str("removal_basis") != record.RemovalVerified {
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_RETIRE && e.Payload.Str("removal_basis") != record.RemovalVerified {
 				res.err = "a retire recorded removal_basis=" + e.Payload.Str("removal_basis") +
 					" — nothing on the record shows that claim was ever in the report, and an unevidenced retirement cancels real claim loss in the additive-integrity detector"
 				return res
@@ -1660,7 +1660,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// exactly the thing that should be rare enough to notice.
 	if board, err := record.BoardState(runDir); err == nil {
 		for _, e := range board.Events {
-			if e.Type != "outcome" {
+			if e.GetType() != recordpb.EventType_EVENT_TYPE_OUTCOME {
 				continue
 			}
 			switch e.Payload.Str("verdict_basis") {
@@ -1691,7 +1691,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 		recorded := ""
 		for _, e := range board.Events {
-			if e.Type == "outcome" {
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_OUTCOME {
 				recorded = e.Payload.Str("verdict")
 			}
 		}
@@ -1747,13 +1747,13 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		res.citeAnchors = strings.Count(string(md), "<!--cite:")
 	}
 	for _, e := range board.Events {
-		if e.Type == "blue_edit" && e.Payload.Str("answers") != "" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_BLUE_EDIT && e.Payload.Str("answers") != "" {
 			res.editAnswers++
 		}
-		if e.Type == "mint" && e.Payload.Str("fix_basis") == "verified" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_MINT && e.Payload.Str("fix_basis") == "verified" {
 			res.verifiedBasis++
 		}
-		if e.Type == "blue_edit" && e.Payload.Bool("applied_verbatim") {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_BLUE_EDIT && e.Payload.Bool("applied_verbatim") {
 			res.verbatimApplied++
 		}
 	}
@@ -1862,7 +1862,7 @@ func TestFuzzHaltPath(t *testing.T) {
 	}
 	halts := 0
 	for _, e := range board.Events {
-		if e.Type == "halt" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_HALT {
 			halts++
 		}
 	}
@@ -2269,7 +2269,7 @@ func someReportAnchor(runDir string) string {
 		return ""
 	}
 	for _, e := range b.Events {
-		if e.Type == "finding" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
 			if id := e.Payload.Str("finding_id"); id != "" {
 				return id
 			}
@@ -2285,7 +2285,7 @@ func mintedGapIDs(runDir string) []string {
 	}
 	var out []string
 	for _, e := range b.Events {
-		if e.Type == "mint" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_MINT {
 			out = append(out, e.Payload.Str("gap_id"))
 		}
 	}
@@ -2316,7 +2316,7 @@ func (r *runner) recentlyEditedOut() string {
 	}
 	for i := len(b.Events) - 1; i >= 0; i-- {
 		e := b.Events[i]
-		if e.Type != "blue_edit" {
+		if e.GetType() != recordpb.EventType_EVENT_TYPE_BLUE_EDIT {
 			continue
 		}
 		old := e.Payload.Str("old")
@@ -2438,7 +2438,7 @@ func (r *runner) reproveOpenProofs(seatID string) {
 	}
 	proofFor := map[string]string{} // gap -> sha
 	for _, e := range b.Events {
-		if e.Type == "proof" && e.Payload.Str("answers") != "" && e.Payload.Str("sha256") != "" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_PROOF && e.Payload.Str("answers") != "" && e.Payload.Str("sha256") != "" {
 			proofFor[e.Payload.Str("answers")] = e.Payload.Str("sha256")
 		}
 	}
@@ -2584,7 +2584,7 @@ func (r *runner) someProposal() (string, string, string) {
 		return "", "", ""
 	}
 	for _, e := range b.Events {
-		if e.Type == "mint" && e.Payload.Str("fix_basis") == "verified" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_MINT && e.Payload.Str("fix_basis") == "verified" {
 			return e.Payload.Str("gap_id"), e.Payload.Str("location"), e.Payload.Str("fix_new")
 		}
 	}

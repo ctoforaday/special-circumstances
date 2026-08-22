@@ -151,7 +151,7 @@ func TestMergedEventsWinnerSelection(t *testing.T) {
 		}
 		var sawVerdict bool
 		for _, e := range m.Events {
-			if e.Type == "verdict" {
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_VERDICT {
 				sawVerdict = true
 			}
 		}
@@ -285,7 +285,7 @@ func TestMergedEventsDedupByKeyExceptRegister(t *testing.T) {
 	}
 	findings := 0
 	for _, e := range m.Events {
-		if e.Type == "finding" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
 			findings++
 			if e.Payload.Str("reason") != "first" {
 				t.Errorf("dedup kept the LATER duplicate: %q", e.Payload.Str("reason"))

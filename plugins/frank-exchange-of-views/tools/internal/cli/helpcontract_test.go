@@ -286,7 +286,7 @@ func seatRunForContracts(t *testing.T) string {
 		t.Fatal(err)
 	}
 	for _, e := range b.Events {
-		if e.Type == "proof" && e.Payload.Str("sha256") != "" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_PROOF && e.Payload.Str("sha256") != "" {
 			proofSHA = e.Payload.Str("sha256")
 		}
 	}

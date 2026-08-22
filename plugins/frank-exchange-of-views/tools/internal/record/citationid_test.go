@@ -59,7 +59,7 @@ func TestCiteProvenanceIsTwoEventTypes(t *testing.T) {
 	// The discriminator must not be recoverable from a payload field: a blue cite MISSING its
 	// label must still be a blue cite, which is exactly the case the old heuristic got wrong.
 	unlabelled := recordtest.Event(t, "", 0, &recordpb.Cite{Url: proto.String("https://x")})
-	if unlabelled.Type != "cite" {
+	if unlabelled.GetType() != recordpb.EventType_EVENT_TYPE_CITE {
 		t.Error("a cite without a label is still a cite — provenance is the type, not a field's emptiness")
 	}
 }

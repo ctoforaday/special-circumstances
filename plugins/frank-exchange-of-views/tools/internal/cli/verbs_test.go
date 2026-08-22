@@ -284,7 +284,7 @@ func TestSpotCheckIsASingleton(t *testing.T) {
 	}
 	n := 0
 	for _, e := range events(t, runDir) {
-		if e.Type == "spot-check" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_SPOT_CHECK {
 			n++
 		}
 	}

@@ -66,7 +66,7 @@ func TestConcurrentSeatsRace(t *testing.T) {
 	}
 	findings := 0
 	for _, e := range m.Events {
-		if e.Type == "finding" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
 			findings++
 		}
 	}
@@ -129,7 +129,7 @@ func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
 	}
 	got := 0
 	for _, e := range m.Events {
-		if e.Type == "finding" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
 			got++
 		}
 	}
