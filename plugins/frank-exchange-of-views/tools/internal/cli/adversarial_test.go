@@ -192,7 +192,13 @@ func adversarialCases() []adversarialCase {
 		{
 			name:    "a petition class outside the four is refused",
 			act:     seatStep{"motion", "petition", "file", "--seat-id", "red-lens-r1-L1", "--class", "aesthetic", "--relief", "halt", "--reason", "petitioning on a standard nobody wrote"},
-			refused: "--class must be one of ethical|safety|integrity|constitutional",
+			// THE ORDER IS THE SCHEMA'S, and this expectation used to carry a different one — from
+			// the hand-written table that listed four classes PetitionClass did not have. Two of
+			// the four were refused at the write for words the help advertised. The set is derived
+			// from the enum now, so its order follows declaration: integrity and safety kept their
+			// numbers (they were the two that worked), ethical and constitutional took fresh ones
+			// because the numbers they would have reused are reserved.
+			refused: "--class must be one of integrity|safety|ethical|constitutional",
 			guards: "The bench is convened PER CLASS; a fifth is a petition heard under whichever " +
 				"standard the ruling seat happened to imagine. Refused at PARSE now, with the " +
 				"four classes and what each is for — the seat learns the vocabulary from the refusal.",

@@ -113,6 +113,10 @@ type runner struct {
 	// reproduced records the PROVE gaps whose proof a lens re-ran and confirmed. Red closes on
 	// THIS, not on its own assertion that a computation happened.
 	reproduced map[string]bool
+	// disputeRefusals is why a grade filing was REFUSED, per gap. The scenario oracle reports a
+	// missing dispute event; without this it cannot distinguish a drive that never ran from one
+	// that ran and was told no, and those want opposite fixes.
+	disputeRefusals map[string]string
 	// #111: every model an agent() call carried, one per dispatch ("unset" if absent). The tier
 	// oracle asserts all equal the configured tier — map-free, needs no bulk-seat list here.
 	models []string
@@ -534,10 +538,21 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// is closing for the FIRST time — was refused every time, because a carry of a gap with no
 	// prior closure is a laundering path the record exists to refuse. 20 of 20 refused, and the
 	// coverage line read as a driven verb.
-	if prior := r.closedGapIDs(); len(prior) > 0 && r.coin(30) {
+	// UNCONDITIONAL WHEN THERE IS SOMETHING TO CARRY. Behind a 30% coin on a precondition that
+	// needs a PRIOR round's closure, this fired ONCE across 60 runs — and that one was refused,
+	// so the verb's real coverage was zero while the tally read 1. What it was hiding: `merge
+	// carry` could not run without --reason at all, because `Close.prose` was annotated
+	// unconditionally required and refused before validate's carry exemption could execute. A
+	// documented invocation was broken for as long as the drive was too thin to say so.
+	if prior := r.closedGapIDs(); len(prior) > 0 {
 		carried := prior[r.rng.Intn(len(prior))]
-		carry := []string{"merge", "carry", "--seat-id", seatID, "--id", carried, "--as", "closed",
-			"--reason", "fuzz: carried from the prior round", "--carried-from", "1"}
+		carry := []string{"merge", "carry", "--seat-id", seatID, "--id", carried, "--carried-from", "1", "--as", "closed"}
+		// THE EXEMPTION ITSELF, half the time. A carry restates a closure an earlier round already
+		// argued, so it owes no fresh argument — and nothing drove the no-reason form, which is
+		// how the annotation deleted it silently. Both shapes are legal and both are driven.
+		if r.coin(50) {
+			carry = append(carry, "--reason", "fuzz: carried from the prior round")
+		}
 		// A carry names where the remainder went as often as a close does; the flag is on both
 		// verbs and was driven on neither once the two split. The successor is MINTED here for
 		// the same reason the regression close mints one: it must be a real, still-open gap, and
@@ -1582,6 +1597,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64) outcome {
 			case dirDisputeWon, dirDisputeLost:
 				if !disputed[id] {
 					res.err = "scenario DISPUTE: " + id + " has no dispute event — the contest the scenario specified is absent from the record"
+					if why := r.disputeRefusals[id]; why != "" {
+						res.err += "\nthe filing was REFUSED, and this is what it said:\n  " + why
+					} else {
+						res.err += "\nno refusal was recorded for it either, so the drive never reached `motion grade file` at all"
+					}
 					return res
 				}
 			case dirProve, dirProveDrifts:
@@ -2602,6 +2622,17 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			proposed := r.g()
 			out, err := r.exec("--json", "motion", "grade", "file", "--seat-id", seatID, "--id", id,
 				"--dimension", dim, "--proposed", proposed, "--reason", "fuzz: contesting the grade on "+id)
+			// THE REFUSAL IS KEPT, because the oracle downstream reports its ABSENCE and cannot
+			// say why. `scenario DISPUTE: R1-1 has no dispute event` is what a discarded error
+			// looks like from the far end — a coverage report about a drive that ran fine, which
+			// is the same shape as the hyphenated ruling words that made `motion inquiry appeal`
+			// read as unreached. 2 of 7 filings were refused across 60 runs and nothing said so.
+			if err != nil {
+				if r.disputeRefusals == nil {
+					r.disputeRefusals = map[string]string{}
+				}
+				r.disputeRefusals[id] = err.Error()
+			}
 			if err == nil {
 				if mid := motionIDOf(out); mid != "" {
 					// The envelope ref keeps (gap_id, dimension) because debate.js routes the

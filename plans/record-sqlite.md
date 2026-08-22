@@ -402,3 +402,46 @@ that asserts a hand-written arm cannot shadow an annotation can never fail, beca
 annotation sweep always wins — the residue is dead code, not wrong behaviour. Each gate here
 was mutation-tested against the defect it was written for before being kept; the flag-word
 gate was broadened only after a mutation proved the narrow version green.
+
+### The one that was not a spelling: no granted petition could be recorded
+
+Found by chasing a fuzz refusal rate rather than a failure. The execution tally read
+`motion petition file=40(22 refused)` and `motion petition rule=18(8 refused)`, and the
+drives discarded both errors, so the only visible symptom was a scenario oracle three layers
+away reporting a missing event.
+
+`RulingBinds` carried `all | filer | none`. The flag's help, the table it renders from, the
+report's prose and debate.js's `PETITION_RULING` schema all say `blue | red | both`. Nothing
+overlapped — and `--binds` is set exactly when a petition is GRANTED. **The constitutional
+short-circuit's grant path could not be recorded at all.** `PetitionClass` was the same
+defect half-landed: `integrity | safety | process | scope` against an advertised
+`ethical | safety | integrity | constitutional`, so two classes worked and two were refused
+for words the seat had just read in `--help`.
+
+The engine was right and the schema was wrong — every other carrier agreed with every other
+carrier, and no Go code referenced `process`, `scope`, `all`, `filer` or `none`. The enums
+move to the vocabulary the system speaks, retired numbers RESERVED rather than renumbered:
+nothing could write a 3 or a 4, but a number back in service reinterprets any record that
+did, and that rule does not bend for values one is confident are unused.
+
+**The test that should have caught it asserted the opposite.**
+`TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach` said *"After #344 there is ONE
+table … the drift is not detected — it is unrepresentable"*, and it was counting the two
+tables it knew about while the write path resolved against a third. A test that names its
+own completeness is only as good as its census. `MotionFields` derives from the descriptors
+now, and the test checks both directions: nothing advertised that cannot be written, and
+nothing in the schema that no surface can produce — the arm that would have found `process`
+and `scope` sitting unreachable.
+
+### Standing pattern, stated once
+
+Six of the fifteen defects and both of the two above were found the same way: **a refusal
+somebody discarded**. `_, _ = r.exec(...)` in the fuzz, five times; a help string that
+outlived its flags; an annotation that pre-empted an exemption. The refusal was always
+correct and always right there. What made each invisible was that nothing kept it.
+
+Where a drive discards an error, the failure surfaces somewhere else entirely — as a
+coverage report about a path whose drive was fine (`motion inquiry appeal`), as a scenario
+oracle naming an absent event (`R1-1 has no dispute event`), as a derivation blamed for an
+`asserted` verdict it was never given the chance to derive. **The distance between the
+discarded refusal and the reported symptom is the whole cost.**
