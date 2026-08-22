@@ -68,11 +68,17 @@ refuted citation as a failure.
   corroboration records as evidence AND the seat owes a finding; the tool says so.
 - `unreachable` is neither: red could not read the source. Record-only.
 
-**Open sub-question, deliberately not decided here:** whether the finding should be written by
-the tool as a side effect of the negative corroboration, or demanded of the seat with a refusal.
-The first is a verb owning two acts; the second can be ignored. Leaning toward recording the
-corroboration and reporting a negative-with-no-finding as a duty gap, which is the shape
-`InquiryReviewDue` already uses.
+**SETTLED, on evidence rather than preference.** `Finding` carries severity, likelihood and
+impact, and `lens finding` demands all three — so the tool writing one on red's behalf would
+mean INVENTING three grades nobody chose, feeding the mass calculation that decides what a gap
+is worth. A fabricated grade reads exactly like a judged one. So the duty is REPORTED, not
+discharged: `UnansweredContradictions` blocks a PASS over a `refutes` or `absent` reading with
+no finding quoting that claim, naming the claim and naming the act that clears it. Red grades
+its own finding; the merge decides whether to raise it.
+
+The match is deliberately loose — any lens's finding quoting the claim answers it. A stricter
+join (same seat, same round) would refuse a contradiction one lens found and another raised,
+which is the collaboration the lens roles exist for.
 
 ## III. Carriers and consumers
 
@@ -89,9 +95,18 @@ corroboration and reporting a negative-with-no-finding as a duty gap, which is t
 
 ## IV. Risks
 
-- **Splicing into blue's document from a red seat.** The anchor is TOOL-placed for blue too, so
-  this is the tool citing on red's behalf rather than red editing prose. Still the sharpest edge
-  in this change: red has no edit verb by design, and this gives it a write into `report.md`.
+- ~~**Splicing into blue's document from a red seat.**~~ **NOT A RISK, and calling it "the
+  sharpest edge in this change" was wrong.** `lens finding` ALREADY splices invisible anchors
+  into `blue/report.md`, and `InsertAnchor` lives in the lens package, documented as "the shared
+  invisible-anchor placement behind lens finding and blue cite". A lens placing a tool-managed
+  marker is existing, deliberate behaviour. The boundary the system protects is red editing
+  blue's PROSE, and there is still no lens edit verb.
+- **Minting kills idempotency, and this one WAS real.** A fresh label every call means nothing
+  collides, so a crash-retry splices a second anchor and records a second event — precisely the
+  cost that made "drop `url` from keyFields" the wrong answer, reached by another route. Caught
+  by an existing test that asserted the retry was refused. `ExistingCorroborationLabel` restores
+  it on (source, claim), which is the act itself, rather than on a seat-supplied `--key`: a
+  retry should not need the seat to have anticipated it.
 - **The `--quote` span must exist in the live report**, as blue's cite requires. A corroboration
   of a claim blue has since edited away must be refused, not spliced blind.
 - **Double-counting.** `citations_checked` counts verify events; the bibliography counts labels.
@@ -117,3 +132,9 @@ All paths absolute; `export PATH=$PATH:/usr/local/go/bin`; `GOTOOLCHAIN=go1.25.0
 6. `cd tests/simulator && node --test` → 93+ pass, 0 fail.
 7. Still owed from the parent plan: `cd scripts && go run ./mutate` — attempted 2026-08-22 and
    INTERRUPTED before producing results (it restored `record.go` cleanly). Not yet run.
+
+**Result, 2026-08-22.** All of 1–6 green: tools 37 packages / 0 failures, fuzz 0/60 with the new
+gate and its remedy both driven, simulator 93 pass / 0 fail. The difftest goldens did not move
+(the help text did not change and the catalogue's probes do not reach the new refusal); the
+schema golden gained exactly one line, `"label" TEXT`. `qlty` is absent on this box, so the
+format/lint gate is SKIPPED rather than passed.
