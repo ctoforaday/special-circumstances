@@ -1,4 +1,4 @@
-prompt sha256: 8561dbb4d9ec84a9661e6ecdaeb509088d22ddb783ad1ea2f9e4ad4182ed7d0f
+prompt sha256: 82a5632622c1edf0344cfc22264d6b0d0662d2b7ebb6d482cfcdff9818dd7eda
 
 Blue lane 1 of 3 for topic: "the seat prompt contract".
 Read the frontier hypotheses from the RECORD — the `lines-of-inquiry` projection — where each carries an id and its hypothesis, and if research/2026-01-01_golden/inputs/red-gap-patterns.md exists (red's accumulated gap-pattern inventory, staged at run setup), read it too — yesterday's expensive red discovery is today's free checklist line.
@@ -14,9 +14,8 @@ This is not narration for the report: it is what makes "explore the alternatives
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
-YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read the scorecard for YOUR CHAIR (`blue`) through the tool — the operator command and the selector that names a chair are in the root --help — and read how this chair is doing on the question in front of you so far.
-It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding).
-Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.
+YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read how YOUR CHAIR is doing on the question in front of you so far.
+It is a projection of this run's record on your own surface, it needs no selector because your chair is the seat you registered as, and its own page says what the rows mean.
 SEAT_ID: blue-lane-1.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.

@@ -11,6 +11,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -149,6 +150,18 @@ var views = []struct {
 	{"evidence", "STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", ""},
 	{"lines-of-inquiry", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", ""},
 	{"telemetry", "STRUCTURED JSONL, one line per round: open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring", ""},
+	// YOUR OWN CHAIR, AND NOTHING TO SELECT. There is no --chair here on purpose: the chair is
+	// decided by the seat you registered as, so there is no way to read another party's numbers
+	// and no selector to go looking for. The operator command that takes --chair is for analytics
+	// across chairs and is not on this surface.
+	//
+	// MEASURED, AND IT IS WHY THIS EXISTS. Four seats across three runs filed friction saying the
+	// dispatch prompt told them to read their chair's scorecard "through the tool — the operator
+	// command and the selector that names a chair are in the root --help", and no such thing was
+	// on their surface. Two skipped it and reported the gap; one overrode --seat-id to `operator`
+	// and got the numbers, contradicting the help's own rule that --seat-id SELECTS this surface.
+	// A prompt that has to teach an escape hatch is describing a missing capability.
+	{"scorecard", "YOUR CHAIR'S IN-RUN SCORECARD — how the side you sit on is doing on THIS question, computed live from this run's record. Your own performance, not another party's: there is no selector, because your chair is the seat you registered as. A number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures, because a diagnostic gamed is itself a defect and a detector firing is a finding. Rows reading \"not computed\" are HONEST, not gaps to fill: the envelope-derived rows fill in at capture. Computed from the record, so no verb fills it", ""},
 }
 
 // ViewNames is the projection vocabulary — the single source behind the help text, the
@@ -444,6 +457,23 @@ func renderView(cmd *cobra.Command, want string) error {
 			return err
 		}
 		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	// The scorecard resolves its chair from the SEAT, so there is nothing to pass and nothing to
+	// get wrong. A role with no chair is refused by name rather than handed an empty card —
+	// operator is not a party to the debate and reads chairs explicitly.
+	if want == "scorecard" {
+		chair, ok := record.ChairOf(role)
+		if !ok {
+			return fmt.Errorf("%s show: no chair sits for role %q, so there is no scorecard that is yours — "+
+				"a scorecard grades a side of the debate, and this role is not one", role, role)
+		}
+		var board *record.Board
+		if b, err := record.BoardState(runDir); err == nil {
+			board = b
+		}
+		rows := scorecard.Compute(runDir, scorecard.ReadResults(runDir), board)[chair]
+		fmt.Fprint(cmd.OutOrStdout(), scorecard.RenderChair(chair, rows, "this run")+"\n")
 		return nil
 	}
 	// telemetry is JSONL by name — one line per round, the wire shape the stopping

@@ -1208,7 +1208,7 @@ test('priors-are-poison: the cross-run scorecard SEED is not injected into any c
   assert.ok(!world.calls.some((c) => /YOUR CHAIR'S SCORECARD/.test(c.prompt)), 'the seed clause is gone entirely')
 })
 
-test('priors-are-poison half-2 (binDir): the in-run self-read runs `feov-record scorecard`, gated on binDir, and takes no --bin (#121 slice 3/5)', async () => {
+test('priors-are-poison half-2: the in-run self-read names the ACT, not a command, and carries no chair selector', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, {
     ...ARGS,
@@ -1217,10 +1217,25 @@ test('priors-are-poison half-2 (binDir): the in-run self-read runs `feov-record 
   })
   const promptOf = (label) => world.calls.find((c) => c.opts.label.startsWith(label)).prompt
   const blue = promptOf('blue-synthesize')
-  // With binDir set, the self-read is the tool's own operator command rather than a script the
-  // prompt has to spell — the ACT is asserted, and which command performs it belongs to --help.
-  assert.ok(/YOUR IN-RUN SCORECARD/.test(blue) && /YOUR CHAIR \(`blue`\) through the tool/.test(blue), 'blue reads its own scorecard through the tool')
-  assert.ok(/YOUR CHAIR \(`red`\)/.test(promptOf('red-merge-r1')), 'the merge, a red chair, reads the red scorecard')
+  // The ACT is asserted and the command is not: which verb performs it belongs to --help, and
+  // promptverbs' catalogue gate pins debate.js at ZERO named commands.
+  //
+  // THE CHAIR NAME LEFT THE PROMPT TOO, and that is the fix rather than a regression. It used to
+  // interpolate `YOUR CHAIR (\`blue\`) through the tool — the operator command and the selector
+  // that names a chair are in the root --help`, which was false three ways: the seat's root
+  // --help is scoped to the seat and never listed that command, reaching it meant overriding
+  // --seat-id to `operator`, and the prompt was teaching a capability the surface lacked. Four
+  // seats across three runs filed friction about it. The chair is now resolved from the seat's
+  // own registration, so there is nothing for the prompt to name and nothing to select.
+  assert.ok(/YOUR IN-RUN SCORECARD/.test(blue), 'blue is told to read its own in-run scorecard')
+  assert.ok(/YOUR CHAIR/.test(blue) && /your own surface/.test(blue), 'it is on the seat\'s own surface')
+  // Asserted on the DEFECT's own phrasing, not on the bare words: the clause legitimately says
+  // the read "needs no selector", and an unrelated line elsewhere names the operator as a reader
+  // of red's narrative. A test that banned the words would fail on both and teach nothing.
+  assert.ok(!/the operator command/.test(blue), 'the prompt no longer teaches an operator escape hatch')
+  assert.ok(!/through the tool/.test(blue), 'nor the vague "through the tool" that named no verb and no page')
+  assert.ok(/the seat you registered as/.test(blue), 'the chair is resolved from the registration, so there is nothing to select')
+  assert.ok(/YOUR IN-RUN SCORECARD/.test(promptOf('red-merge-r1')), 'the merge, a red chair, gets the clause too')
   assert.ok(!blue.includes('scorecards.mjs'), 'the clause is binary-only — the node scorecards.mjs fallback is retired')
   assert.ok(!/--bin\b/.test(blue), 'the scorecard self-read takes no --bin')
   assert.ok(!blue.includes('repair_regression_ratio 0.63'), 'the cross-run seed is still not injected')
@@ -1235,7 +1250,7 @@ test('W2h: no scorecards arg -> the chair still gets its in-run scorecard, with 
   const chairs = world.calls.filter((c) => /YOUR IN-RUN SCORECARD/.test(c.prompt))
   assert.ok(chairs.length > 0, 'the clause does not depend on the scorecards arg')
   for (const c of chairs) {
-    assert.ok(/YOUR CHAIR \(`(blue|red|bench)`\) through the tool/.test(c.prompt), 'it is the tool that computes it')
+    assert.ok(/YOUR CHAIR/.test(c.prompt) && /projection of this run's record/.test(c.prompt), 'it is the tool that computes it, from THIS run')
     assert.ok(!/\d+\.\d\d/.test(c.prompt.match(/YOUR IN-RUN SCORECARD[^.]*\./)[0]), 'no prior number is seeded')
   }
 })

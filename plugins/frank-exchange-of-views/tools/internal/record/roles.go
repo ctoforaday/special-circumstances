@@ -49,6 +49,35 @@ var roleSeats = map[string][]string{
 	"bench":      {"judge-", "assemble"},
 }
 
+// chairOfRole maps a seat's ROLE to the CHAIR whose scorecard measures it.
+//
+// A chair is a side of the debate; a role is a seat's verb set. They are not the same axis —
+// `lens` and `merge` are two roles sitting in ONE chair, because a scorecard grades how RED is
+// doing on this question, not how one of red's two seats is. Only `operator` has no chair: it is
+// not a party to the debate, which is why the operator command takes an explicit --chair and a
+// seat's own read takes nothing at all.
+//
+// ONE COPY. debate.js carried a second, keyed on tool name (`{'red-lens':'red','red-merge':'red',
+// blue:'blue', bench:'bench'}`), whose only use was deciding whether to emit the scorecard clause
+// at all — a question that has one answer, since every role but operator has a chair. The engine
+// no longer needs to know: the seat asks the tool.
+var chairOfRole = map[string]string{
+	"lens":  "red",
+	"merge": "red",
+	"blue":  "blue",
+	"bench": "bench",
+}
+
+// ChairOf reports the chair a role sits in, and whether it has one at all.
+//
+// The two answers are kept apart rather than collapsed to "": operator having NO chair is a fact
+// about the run's structure, and a caller that cannot tell it from an unrecognised role would
+// print an empty scorecard for both.
+func ChairOf(role string) (string, bool) {
+	c, ok := chairOfRole[role]
+	return c, ok
+}
+
 // roleOfSeat reports which role a seat id belongs to, for the error message.
 func roleOfSeat(seatID string) string {
 	for role, prefixes := range roleSeats {

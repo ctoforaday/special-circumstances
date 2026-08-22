@@ -1,4 +1,4 @@
-prompt sha256: e13faaee4948da2171e2fc0aa6b4157897eddd37aff66dcaaa8d2fc22ff44c5c
+prompt sha256: 558006a90a531f5a2a0862856419104374d76b5bf422aa1bd76daafa9d4b9da0
 
 Red audit, round 2, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -29,9 +29,8 @@ KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction
 FRICTION (red-lens-r2-L1) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field.
 AND THE REASON OWES THE SURVEY: name the verbs you read in the tree and did NOT use, and why each was wrong for this sitting.
 A reason that lists only what you did is a receipt for the path you took and says nothing about the ones you rejected — and a seat that cannot name a single rejected option did not weigh any.
-YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read the scorecard for YOUR CHAIR (`red`) through the tool — the operator command and the selector that names a chair are in the root --help — and read how this chair is doing on the question in front of you so far.
-It is your OWN performance: a number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures (a diagnostic gamed is itself a defect; a detector firing is a finding).
-Rows reading "not computed" are honest, not gaps to fill — the envelope-derived rows fill in at capture.
+YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read how YOUR CHAIR is doing on the question in front of you so far.
+It is a projection of this run's record on your own surface, it needs no selector because your chair is the seat you registered as, and its own page says what the rows mean.
 SEAT_ID: red-lens-r2-L1.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
