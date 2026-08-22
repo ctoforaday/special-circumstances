@@ -5118,12 +5118,26 @@ var file_record_proto_extTypes = []protoimpl.ExtensionInfo{
 		Tag:           "bytes,50000,opt,name=sql",
 		Filename:      "record.proto",
 	},
+	{
+		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
+		ExtensionType: (*string)(nil),
+		Field:         50001,
+		Name:          "feov.record.v1.means",
+		Tag:           "bytes,50001,opt,name=means",
+		Filename:      "record.proto",
+	},
 }
 
 // Extension fields to descriptorpb.FieldOptions.
 var (
 	// optional feov.record.v1.Sql sql = 50000;
 	E_Sql = &file_record_proto_extTypes[0]
+)
+
+// Extension fields to descriptorpb.EnumValueOptions.
+var (
+	// optional string means = 50001;
+	E_Means = &file_record_proto_extTypes[1]
 )
 
 var File_record_proto protoreflect.FileDescriptor
@@ -5704,107 +5718,108 @@ const file_record_proto_rawDesc = "" +
 	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x12\x16\n" +
 	"\x12EVENT_TYPE_VERDICT\x10\x1e\x12\x15\n" +
 	"\x11EVENT_TYPE_VERIFY\x10\x1f\x12\x1d\n" +
-	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 *\xb6\x01\n" +
+	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 *\x8b\x05\n" +
 	"\x05Grade\x12\x15\n" +
-	"\x11GRADE_UNSPECIFIED\x10\x00\x12\x11\n" +
-	"\rGRADE_TRIVIAL\x10\x01\x12\r\n" +
-	"\tGRADE_LOW\x10\x02\x12\x14\n" +
-	"\x10GRADE_LOW_MEDIUM\x10\x03\x12\x10\n" +
-	"\fGRADE_MEDIUM\x10\x04\x12\x15\n" +
-	"\x11GRADE_MEDIUM_HIGH\x10\x05\x12\x0e\n" +
+	"\x11GRADE_UNSPECIFIED\x10\x00\x12J\n" +
+	"\rGRADE_TRIVIAL\x10\x01\x1a7\x8a\xb5\x183cosmetic; nothing downstream changes if it is wrong\x12\x18\n" +
+	"\tGRADE_LOW\x10\x02\x1a\t\x8a\xb5\x18\x05minor\x124\n" +
+	"\x10GRADE_LOW_MEDIUM\x10\x03\x1a\x1e\x8a\xb5\x18\x1abetween minor and material\x12\x1e\n" +
+	"\fGRADE_MEDIUM\x10\x04\x1a\f\x8a\xb5\x18\bmaterial\x127\n" +
+	"\x11GRADE_MEDIUM_HIGH\x10\x05\x1a \x8a\xb5\x18\x1cbetween material and serious\x12\x1b\n" +
 	"\n" +
-	"GRADE_HIGH\x10\x06\x12\x11\n" +
-	"\rGRADE_CERTAIN\x10\a\x12\x12\n" +
-	"\x0eGRADE_REALIZED\x10\b*F\n" +
+	"GRADE_HIGH\x10\x06\x1a\v\x8a\xb5\x18\aserious\x12\xa4\x01\n" +
+	"\rGRADE_CERTAIN\x10\a\x1a\x90\x01\x8a\xb5\x18\x8b\x01the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists\x12\xb1\x01\n" +
+	"\x0eGRADE_REALIZED\x10\b\x1a\x9c\x01\x8a\xb5\x18\x97\x01it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead*\xff\x01\n" +
 	"\aVerdict\x12\x17\n" +
-	"\x13VERDICT_UNSPECIFIED\x10\x00\x12\x10\n" +
-	"\fVERDICT_PASS\x10\x01\x12\x10\n" +
-	"\fVERDICT_FAIL\x10\x02*\x90\x01\n" +
+	"\x13VERDICT_UNSPECIFIED\x10\x00\x12{\n" +
+	"\fVERDICT_PASS\x10\x01\x1ai\x8a\xb5\x18eevery gap on the board is resolved — this is CHECKED against the open board, not taken on your word\x12^\n" +
+	"\fVERDICT_FAIL\x10\x02\x1aL\x8a\xb5\x18Hat least one gap is still open, or you are not satisfied it was answered*\xf7\x03\n" +
 	"\n" +
 	"RunOutcome\x12\x1b\n" +
-	"\x17RUN_OUTCOME_UNSPECIFIED\x10\x00\x12\x18\n" +
-	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x12\x17\n" +
-	"\x13RUN_OUTCOME_CEILING\x10\x02\x12\x16\n" +
-	"\x12RUN_OUTCOME_HALTED\x10\x03\x12\x1a\n" +
-	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04*s\n" +
+	"\x17RUN_OUTCOME_UNSPECIFIED\x10\x00\x12a\n" +
+	"\x14RUN_OUTCOME_VERIFIED\x10\x01\x1aG\x8a\xb5\x18Cred passed the board and the bench agrees the question was answered\x12\x89\x01\n" +
+	"\x13RUN_OUTCOME_CEILING\x10\x02\x1ap\x8a\xb5\x18lthe round ceiling was reached with work still open — NOT a judged failure to verify, and the stamp says so\x12f\n" +
+	"\x12RUN_OUTCOME_HALTED\x10\x03\x1aN\x8a\xb5\x18Jthe bench ended the run on a safety, ethics, consent or integrity boundary\x12u\n" +
+	"\x16RUN_OUTCOME_UNVERIFIED\x10\x04\x1aY\x8a\xb5\x18Uthe run ended without the question being answered, and no ceiling or halt explains it*\xd1\x05\n" +
 	"\tCheckKind\x12\x1a\n" +
-	"\x16CHECK_KIND_UNSPECIFIED\x10\x00\x12\x17\n" +
-	"\x13CHECK_KIND_DOCUMENT\x10\x01\x12\x1a\n" +
-	"\x16CHECK_KIND_COMPUTATION\x10\x02\x12\x15\n" +
-	"\x11CHECK_KIND_SOURCE\x10\x03*\x84\x02\n" +
+	"\x16CHECK_KIND_UNSPECIFIED\x10\x00\x12\x7f\n" +
+	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\x9a\x03\n" +
+	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xfd\x02\x8a\xb5\x18\xf8\x02RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind\x12\x89\x01\n" +
+	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\x9e\a\n" +
 	"\fClosureClass\x12\x1d\n" +
-	"\x19CLOSURE_CLASS_UNSPECIFIED\x10\x00\x12\x18\n" +
-	"\x14CLOSURE_CLASS_CLOSED\x10\x01\x12(\n" +
-	"$CLOSURE_CLASS_CLOSED_WITH_REGRESSION\x10\x02\x12\x1e\n" +
-	"\x1aCLOSURE_CLASS_AMENDS_PRIOR\x10\x03\x12$\n" +
-	" CLOSURE_CLASS_REBUTTAL_SUSTAINED\x10\x04\x12\x1f\n" +
-	"\x1bCLOSURE_CLASS_RISK_ACCEPTED\x10\x05\x12*\n" +
-	"&CLOSURE_CLASS_ROUTED_TO_INFRASTRUCTURE\x10\x06*\xe5\x01\n" +
+	"\x19CLOSURE_CLASS_UNSPECIFIED\x10\x00\x12W\n" +
+	"\x14CLOSURE_CLASS_CLOSED\x10\x01\x1a=\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x12\x9c\x01\n" +
+	"$CLOSURE_CLASS_CLOSED_WITH_REGRESSION\x10\x02\x1ar\x8a\xb5\x18nrepaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward\x12\x98\x01\n" +
+	"\x1aCLOSURE_CLASS_AMENDS_PRIOR\x10\x03\x1ax\x8a\xb5\x18ta defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit\x12\x94\x01\n" +
+	" CLOSURE_CLASS_REBUTTAL_SUSTAINED\x10\x04\x1an\x8a\xb5\x18jblue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be\x12\xb1\x01\n" +
+	"\x1bCLOSURE_CLASS_RISK_ACCEPTED\x10\x05\x1a\x8f\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x12\x90\x01\n" +
+	"&CLOSURE_CLASS_ROUTED_TO_INFRASTRUCTURE\x10\x06\x1ad\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped*\xec\a\n" +
 	"\rSourceOutcome\x12\x1e\n" +
-	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12\x1b\n" +
-	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x12'\n" +
-	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x12\x17\n" +
-	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x12\x1a\n" +
-	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x12\x19\n" +
-	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x12\x1e\n" +
-	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06*h\n" +
+	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12`\n" +
+	"\x17SOURCE_OUTCOME_SUPPORTS\x10\x01\x1aC\x8a\xb5\x18?you read the source at the leaf and it says what the claim says\x12\x9a\x01\n" +
+	"#SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE\x10\x02\x1aq\x8a\xb5\x18mit supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement\x12j\n" +
+	"\x13SOURCE_OUTCOME_WEAK\x10\x03\x1aQ\x8a\xb5\x18Mit gestures at the claim, or is itself uncorroborated: thin support, not none\x12\xa9\x01\n" +
+	"\x16SOURCE_OUTCOME_REFUTES\x10\x04\x1a\x8c\x01\x8a\xb5\x18\x87\x01you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all\x12\xd3\x01\n" +
+	"\x15SOURCE_OUTCOME_ABSENT\x10\x05\x1a\xb7\x01\x8a\xb5\x18\xb2\x01you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was\x12\xcd\x01\n" +
+	"\x1aSOURCE_OUTCOME_UNREACHABLE\x10\x06\x1a\xac\x01\x8a\xb5\x18\xa7\x01you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit*\x95\x04\n" +
 	"\n" +
 	"Confidence\x12\x1a\n" +
-	"\x16CONFIDENCE_UNSPECIFIED\x10\x00\x12\x13\n" +
-	"\x0fCONFIDENCE_HIGH\x10\x01\x12\x15\n" +
-	"\x11CONFIDENCE_MEDIUM\x10\x02\x12\x12\n" +
-	"\x0eCONFIDENCE_LOW\x10\x03*R\n" +
+	"\x16CONFIDENCE_UNSPECIFIED\x10\x00\x12i\n" +
+	"\x0fCONFIDENCE_HIGH\x10\x01\x1aT\x8a\xb5\x18Pyou read the source at the leaf and would defend this determination as it stands\x12\xad\x01\n" +
+	"\x11CONFIDENCE_MEDIUM\x10\x02\x1a\x95\x01\x8a\xb5\x18\x90\x01you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement\x12\xcf\x01\n" +
+	"\x0eCONFIDENCE_LOW\x10\x03\x1a\xba\x01\x8a\xb5\x18\xb5\x01your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further*\xb9\x02\n" +
 	"\tSoundness\x12\x19\n" +
-	"\x15SOUNDNESS_UNSPECIFIED\x10\x00\x12\x13\n" +
-	"\x0fSOUNDNESS_SOUND\x10\x01\x12\x15\n" +
-	"\x11SOUNDNESS_UNSOUND\x10\x02*\xb9\x01\n" +
+	"\x15SOUNDNESS_UNSPECIFIED\x10\x00\x12V\n" +
+	"\x0fSOUNDNESS_SOUND\x10\x01\x1aA\x8a\xb5\x18=you READ the script and it computes what it claims to compute\x12\xb8\x01\n" +
+	"\x11SOUNDNESS_UNSOUND\x10\x02\x1a\xa0\x01\x8a\xb5\x18\x9b\x01it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible*\x96\x06\n" +
 	"\fAvenueStatus\x12\x1d\n" +
-	"\x19AVENUE_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +
-	"\x16AVENUE_STATUS_PROPOSED\x10\x01\x12\x19\n" +
-	"\x15AVENUE_STATUS_PURSUED\x10\x02\x12\x1a\n" +
-	"\x16AVENUE_STATUS_DEFERRED\x10\x03\x12\x1a\n" +
-	"\x16AVENUE_STATUS_DECLINED\x10\x04\x12\x1b\n" +
-	"\x17AVENUE_STATUS_ABANDONED\x10\x05*\x84\x01\n" +
+	"\x19AVENUE_STATUS_UNSPECIFIED\x10\x00\x12p\n" +
+	"\x16AVENUE_STATUS_PROPOSED\x10\x01\x1aT\x8a\xb5\x18Pyou intend to follow this line; the tool assigns it an id and red may rule on it\x12[\n" +
+	"\x15AVENUE_STATUS_PURSUED\x10\x02\x1a@\x8a\xb5\x18<you took the line — what it produced belongs in the report\x12\x86\x02\n" +
+	"\x16AVENUE_STATUS_DEFERRED\x10\x03\x1a\xe9\x01\x8a\xb5\x18\xe4\x01not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet\x12\x85\x01\n" +
+	"\x16AVENUE_STATUS_DECLINED\x10\x04\x1ai\x8a\xb5\x18eyou considered it and chose not to. REQUIRES a reason — the road not taken is worthless without why\x12\x86\x01\n" +
+	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1ai\x8a\xb5\x18eyou started and stopped. REQUIRES a reason — what killed it is the part a future run actually needs*\x8c\x03\n" +
 	"\rMotionSubject\x12\x1e\n" +
-	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12\x18\n" +
-	"\x14MOTION_SUBJECT_GRADE\x10\x01\x12\x1b\n" +
-	"\x17MOTION_SUBJECT_PETITION\x10\x02\x12\x1c\n" +
-	"\x18MOTION_SUBJECT_DIRECTION\x10\x03*a\n" +
+	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12H\n" +
+	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a.\x8a\xb5\x18*you contest a gap's grade on one dimension\x12\x80\x01\n" +
+	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1ac\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\x12\x8d\x01\n" +
+	"\x18MOTION_SUBJECT_DIRECTION\x10\x03\x1ao\x8a\xb5\x18ka ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing*\xa3\x01\n" +
 	"\vGradeRuling\x12\x1c\n" +
-	"\x18GRADE_RULING_UNSPECIFIED\x10\x00\x12\x19\n" +
-	"\x15GRADE_RULING_ACCEPTED\x10\x01\x12\x19\n" +
-	"\x15GRADE_RULING_REJECTED\x10\x02*j\n" +
+	"\x18GRADE_RULING_UNSPECIFIED\x10\x00\x128\n" +
+	"\x15GRADE_RULING_ACCEPTED\x10\x01\x1a\x1d\x8a\xb5\x18\x19the proposed grade stands\x12<\n" +
+	"\x15GRADE_RULING_REJECTED\x10\x02\x1a!\x8a\xb5\x18\x1dthe grade on the board stands*\xc4\x01\n" +
 	"\x0ePetitionRuling\x12\x1f\n" +
-	"\x1bPETITION_RULING_UNSPECIFIED\x10\x00\x12\x1b\n" +
-	"\x17PETITION_RULING_GRANTED\x10\x01\x12\x1a\n" +
-	"\x16PETITION_RULING_DENIED\x10\x02*\x94\x01\n" +
+	"\x1bPETITION_RULING_UNSPECIFIED\x10\x00\x12@\n" +
+	"\x17PETITION_RULING_GRANTED\x10\x01\x1a#\x8a\xb5\x18\x1fthe relief asked for is ordered\x12O\n" +
+	"\x16PETITION_RULING_DENIED\x10\x02\x1a3\x8a\xb5\x18/the petition fails; the run continues as it was*\xa5\x02\n" +
 	"\x0fDirectionRuling\x12 \n" +
-	"\x1cDIRECTION_RULING_UNSPECIFIED\x10\x00\x12\x1d\n" +
-	"\x19DIRECTION_RULING_ENDORSED\x10\x01\x12!\n" +
-	"\x1dDIRECTION_RULING_OUT_OF_SCOPE\x10\x02\x12\x1d\n" +
-	"\x19DIRECTION_RULING_TOO_THIN\x10\x03*g\n" +
+	"\x1cDIRECTION_RULING_UNSPECIFIED\x10\x00\x12F\n" +
+	"\x19DIRECTION_RULING_ENDORSED\x10\x01\x1a'\x8a\xb5\x18#worth this run's time — pursue it\x12M\n" +
+	"\x1dDIRECTION_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12Y\n" +
+	"\x19DIRECTION_RULING_TOO_THIN\x10\x03\x1a:\x8a\xb5\x186in scope, but the hypothesis does not carry its budget*\x8d\x05\n" +
 	"\fFrictionKind\x12\x1d\n" +
-	"\x19FRICTION_KIND_UNSPECIFIED\x10\x00\x12\x1a\n" +
-	"\x16FRICTION_KIND_ESTOPPEL\x10\x01\x12\x1c\n" +
-	"\x18FRICTION_KIND_TOOL_ERROR\x10\x02*\xab\x01\n" +
+	"\x19FRICTION_KIND_UNSPECIFIED\x10\x00\x12\x8a\x02\n" +
+	"\x16FRICTION_KIND_ESTOPPEL\x10\x01\x1a\xed\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\x12\xd0\x02\n" +
+	"\x18FRICTION_KIND_TOOL_ERROR\x10\x02\x1a\xb1\x02\x8a\xb5\x18\xac\x02the TOOL failed internally — unparseable input, an undecodable row, a check that could not run. Recorded rather than printed or swallowed, because an error nobody learns about is one nothing improves on. Distinct from a seat's own friction so the counts an operator reads stay about capability gaps*\x94\x03\n" +
 	"\x0eGradeDimension\x12\x1f\n" +
-	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12\x1c\n" +
-	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x12\x1e\n" +
-	"\x1aGRADE_DIMENSION_LIKELIHOOD\x10\x02\x12\x1a\n" +
-	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x12\x1e\n" +
-	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04*\x9e\x01\n" +
+	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12;\n" +
+	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a\x1d\x8a\xb5\x18\x19how bad it is if it bites\x12\x86\x01\n" +
+	"\x1aGRADE_DIMENSION_LIKELIHOOD\x10\x02\x1af\x8a\xb5\x18bhow likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis\x12:\n" +
+	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x1a\x1e\x8a\xb5\x18\x1ahow far the damage reaches\x12_\n" +
+	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04\x1a?\x8a\xb5\x18;what the fix costs; it is what makes risk_accepted arguable*\xf7\x02\n" +
 	"\rPetitionClass\x12\x1e\n" +
-	"\x1aPETITION_CLASS_UNSPECIFIED\x10\x00\x12\x1c\n" +
-	"\x18PETITION_CLASS_INTEGRITY\x10\x01\x12\x19\n" +
-	"\x15PETITION_CLASS_SAFETY\x10\x02\x12\x1a\n" +
-	"\x16PETITION_CLASS_PROCESS\x10\x03\x12\x18\n" +
-	"\x14PETITION_CLASS_SCOPE\x10\x04*p\n" +
+	"\x1aPETITION_CLASS_UNSPECIFIED\x10\x00\x12P\n" +
+	"\x18PETITION_CLASS_INTEGRITY\x10\x01\x1a2\x8a\xb5\x18.the record or the process has been compromised\x12R\n" +
+	"\x15PETITION_CLASS_SAFETY\x10\x02\x1a7\x8a\xb5\x183a safety, ethics or consent boundary is in question\x12F\n" +
+	"\x16PETITION_CLASS_PROCESS\x10\x03\x1a*\x8a\xb5\x18&the mechanics are obstructing the work\x12X\n" +
+	"\x14PETITION_CLASS_SCOPE\x10\x04\x1a>\x8a\xb5\x18:the question being answered has drifted from the one asked*\x86\x02\n" +
 	"\vRulingBinds\x12\x1c\n" +
-	"\x18RULING_BINDS_UNSPECIFIED\x10\x00\x12\x14\n" +
-	"\x10RULING_BINDS_ALL\x10\x01\x12\x16\n" +
-	"\x12RULING_BINDS_FILER\x10\x02\x12\x15\n" +
-	"\x11RULING_BINDS_NONE\x10\x03:I\n" +
-	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01BlZjgithub.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpbb\x06proto3"
+	"\x18RULING_BINDS_UNSPECIFIED\x10\x00\x12F\n" +
+	"\x10RULING_BINDS_ALL\x10\x01\x1a0\x8a\xb5\x18,every seat from here is bound by this ruling\x129\n" +
+	"\x12RULING_BINDS_FILER\x10\x02\x1a!\x8a\xb5\x18\x1donly the filing seat is bound\x12V\n" +
+	"\x11RULING_BINDS_NONE\x10\x03\x1a?\x8a\xb5\x18;advisory — the ruling is on the record and obliges nobody:I\n" +
+	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:<\n" +
+	"\x05means\x12!.google.protobuf.EnumValueOptions\x18ц\x03 \x01(\tR\x05means\x88\x01\x01BlZjgithub.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpbb\x06proto3"
 
 var (
 	file_record_proto_rawDescOnce sync.Once
@@ -5821,69 +5836,70 @@ func file_record_proto_rawDescGZIP() []byte {
 var file_record_proto_enumTypes = make([]protoimpl.EnumInfo, 19)
 var file_record_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
 var file_record_proto_goTypes = []any{
-	(SchemaVersion)(0),                // 0: feov.record.v1.SchemaVersion
-	(EventType)(0),                    // 1: feov.record.v1.EventType
-	(Grade)(0),                        // 2: feov.record.v1.Grade
-	(Verdict)(0),                      // 3: feov.record.v1.Verdict
-	(RunOutcome)(0),                   // 4: feov.record.v1.RunOutcome
-	(CheckKind)(0),                    // 5: feov.record.v1.CheckKind
-	(ClosureClass)(0),                 // 6: feov.record.v1.ClosureClass
-	(SourceOutcome)(0),                // 7: feov.record.v1.SourceOutcome
-	(Confidence)(0),                   // 8: feov.record.v1.Confidence
-	(Soundness)(0),                    // 9: feov.record.v1.Soundness
-	(AvenueStatus)(0),                 // 10: feov.record.v1.AvenueStatus
-	(MotionSubject)(0),                // 11: feov.record.v1.MotionSubject
-	(GradeRuling)(0),                  // 12: feov.record.v1.GradeRuling
-	(PetitionRuling)(0),               // 13: feov.record.v1.PetitionRuling
-	(DirectionRuling)(0),              // 14: feov.record.v1.DirectionRuling
-	(FrictionKind)(0),                 // 15: feov.record.v1.FrictionKind
-	(GradeDimension)(0),               // 16: feov.record.v1.GradeDimension
-	(PetitionClass)(0),                // 17: feov.record.v1.PetitionClass
-	(RulingBinds)(0),                  // 18: feov.record.v1.RulingBinds
-	(*Sql)(nil),                       // 19: feov.record.v1.Sql
-	(*Event)(nil),                     // 20: feov.record.v1.Event
-	(*TelemetryLine)(nil),             // 21: feov.record.v1.TelemetryLine
-	(*NewMint)(nil),                   // 22: feov.record.v1.NewMint
-	(*SeverityTally)(nil),             // 23: feov.record.v1.SeverityTally
-	(*RepairRegression)(nil),          // 24: feov.record.v1.RepairRegression
-	(*EdgeDeltas)(nil),                // 25: feov.record.v1.EdgeDeltas
-	(*Mint)(nil),                      // 26: feov.record.v1.Mint
-	(*ClassNew)(nil),                  // 27: feov.record.v1.ClassNew
-	(*Close)(nil),                     // 28: feov.record.v1.Close
-	(*Closing)(nil),                   // 29: feov.record.v1.Closing
-	(*Regrade)(nil),                   // 30: feov.record.v1.Regrade
-	(*SpotCheck)(nil),                 // 31: feov.record.v1.SpotCheck
-	(*Opinion)(nil),                   // 32: feov.record.v1.Opinion
-	(*Finding)(nil),                   // 33: feov.record.v1.Finding
-	(*Observe)(nil),                   // 34: feov.record.v1.Observe
-	(*Anchor)(nil),                    // 35: feov.record.v1.Anchor
-	(*Cite)(nil),                      // 36: feov.record.v1.Cite
-	(*Verify)(nil),                    // 37: feov.record.v1.Verify
-	(*Proof)(nil),                     // 38: feov.record.v1.Proof
-	(*Reproduce)(nil),                 // 39: feov.record.v1.Reproduce
-	(*InquiryReview)(nil),             // 40: feov.record.v1.InquiryReview
-	(*Avenue)(nil),                    // 41: feov.record.v1.Avenue
-	(*BlueEdit)(nil),                  // 42: feov.record.v1.BlueEdit
-	(*Revision)(nil),                  // 43: feov.record.v1.Revision
-	(*Retire)(nil),                    // 44: feov.record.v1.Retire
-	(*ManifestRow)(nil),               // 45: feov.record.v1.ManifestRow
-	(*Friction)(nil),                  // 46: feov.record.v1.Friction
-	(*FrictionNone)(nil),              // 47: feov.record.v1.FrictionNone
-	(*Motion)(nil),                    // 48: feov.record.v1.Motion
-	(*GradeMotion)(nil),               // 49: feov.record.v1.GradeMotion
-	(*PetitionMotion)(nil),            // 50: feov.record.v1.PetitionMotion
-	(*DirectionMotion)(nil),           // 51: feov.record.v1.DirectionMotion
-	(*MotionRule)(nil),                // 52: feov.record.v1.MotionRule
-	(*MotionAppeal)(nil),              // 53: feov.record.v1.MotionAppeal
-	(*Register)(nil),                  // 54: feov.record.v1.Register
-	(*Verdict_)(nil),                  // 55: feov.record.v1.Verdict_
-	(*Outcome)(nil),                   // 56: feov.record.v1.Outcome
-	(*Position)(nil),                  // 57: feov.record.v1.Position
-	(*Halt)(nil),                      // 58: feov.record.v1.Halt
-	(*Certify)(nil),                   // 59: feov.record.v1.Certify
-	(*Declare)(nil),                   // 60: feov.record.v1.Declare
-	nil,                               // 61: feov.record.v1.NewMint.ByClassEntry
-	(*descriptorpb.FieldOptions)(nil), // 62: google.protobuf.FieldOptions
+	(SchemaVersion)(0),                    // 0: feov.record.v1.SchemaVersion
+	(EventType)(0),                        // 1: feov.record.v1.EventType
+	(Grade)(0),                            // 2: feov.record.v1.Grade
+	(Verdict)(0),                          // 3: feov.record.v1.Verdict
+	(RunOutcome)(0),                       // 4: feov.record.v1.RunOutcome
+	(CheckKind)(0),                        // 5: feov.record.v1.CheckKind
+	(ClosureClass)(0),                     // 6: feov.record.v1.ClosureClass
+	(SourceOutcome)(0),                    // 7: feov.record.v1.SourceOutcome
+	(Confidence)(0),                       // 8: feov.record.v1.Confidence
+	(Soundness)(0),                        // 9: feov.record.v1.Soundness
+	(AvenueStatus)(0),                     // 10: feov.record.v1.AvenueStatus
+	(MotionSubject)(0),                    // 11: feov.record.v1.MotionSubject
+	(GradeRuling)(0),                      // 12: feov.record.v1.GradeRuling
+	(PetitionRuling)(0),                   // 13: feov.record.v1.PetitionRuling
+	(DirectionRuling)(0),                  // 14: feov.record.v1.DirectionRuling
+	(FrictionKind)(0),                     // 15: feov.record.v1.FrictionKind
+	(GradeDimension)(0),                   // 16: feov.record.v1.GradeDimension
+	(PetitionClass)(0),                    // 17: feov.record.v1.PetitionClass
+	(RulingBinds)(0),                      // 18: feov.record.v1.RulingBinds
+	(*Sql)(nil),                           // 19: feov.record.v1.Sql
+	(*Event)(nil),                         // 20: feov.record.v1.Event
+	(*TelemetryLine)(nil),                 // 21: feov.record.v1.TelemetryLine
+	(*NewMint)(nil),                       // 22: feov.record.v1.NewMint
+	(*SeverityTally)(nil),                 // 23: feov.record.v1.SeverityTally
+	(*RepairRegression)(nil),              // 24: feov.record.v1.RepairRegression
+	(*EdgeDeltas)(nil),                    // 25: feov.record.v1.EdgeDeltas
+	(*Mint)(nil),                          // 26: feov.record.v1.Mint
+	(*ClassNew)(nil),                      // 27: feov.record.v1.ClassNew
+	(*Close)(nil),                         // 28: feov.record.v1.Close
+	(*Closing)(nil),                       // 29: feov.record.v1.Closing
+	(*Regrade)(nil),                       // 30: feov.record.v1.Regrade
+	(*SpotCheck)(nil),                     // 31: feov.record.v1.SpotCheck
+	(*Opinion)(nil),                       // 32: feov.record.v1.Opinion
+	(*Finding)(nil),                       // 33: feov.record.v1.Finding
+	(*Observe)(nil),                       // 34: feov.record.v1.Observe
+	(*Anchor)(nil),                        // 35: feov.record.v1.Anchor
+	(*Cite)(nil),                          // 36: feov.record.v1.Cite
+	(*Verify)(nil),                        // 37: feov.record.v1.Verify
+	(*Proof)(nil),                         // 38: feov.record.v1.Proof
+	(*Reproduce)(nil),                     // 39: feov.record.v1.Reproduce
+	(*InquiryReview)(nil),                 // 40: feov.record.v1.InquiryReview
+	(*Avenue)(nil),                        // 41: feov.record.v1.Avenue
+	(*BlueEdit)(nil),                      // 42: feov.record.v1.BlueEdit
+	(*Revision)(nil),                      // 43: feov.record.v1.Revision
+	(*Retire)(nil),                        // 44: feov.record.v1.Retire
+	(*ManifestRow)(nil),                   // 45: feov.record.v1.ManifestRow
+	(*Friction)(nil),                      // 46: feov.record.v1.Friction
+	(*FrictionNone)(nil),                  // 47: feov.record.v1.FrictionNone
+	(*Motion)(nil),                        // 48: feov.record.v1.Motion
+	(*GradeMotion)(nil),                   // 49: feov.record.v1.GradeMotion
+	(*PetitionMotion)(nil),                // 50: feov.record.v1.PetitionMotion
+	(*DirectionMotion)(nil),               // 51: feov.record.v1.DirectionMotion
+	(*MotionRule)(nil),                    // 52: feov.record.v1.MotionRule
+	(*MotionAppeal)(nil),                  // 53: feov.record.v1.MotionAppeal
+	(*Register)(nil),                      // 54: feov.record.v1.Register
+	(*Verdict_)(nil),                      // 55: feov.record.v1.Verdict_
+	(*Outcome)(nil),                       // 56: feov.record.v1.Outcome
+	(*Position)(nil),                      // 57: feov.record.v1.Position
+	(*Halt)(nil),                          // 58: feov.record.v1.Halt
+	(*Certify)(nil),                       // 59: feov.record.v1.Certify
+	(*Declare)(nil),                       // 60: feov.record.v1.Declare
+	nil,                                   // 61: feov.record.v1.NewMint.ByClassEntry
+	(*descriptorpb.FieldOptions)(nil),     // 62: google.protobuf.FieldOptions
+	(*descriptorpb.EnumValueOptions)(nil), // 63: google.protobuf.EnumValueOptions
 }
 var file_record_proto_depIdxs = []int32{
 	1,  // 0: feov.record.v1.Event.type:type_name -> feov.record.v1.EventType
@@ -5961,11 +5977,12 @@ var file_record_proto_depIdxs = []int32{
 	3,  // 72: feov.record.v1.Verdict_.verdict:type_name -> feov.record.v1.Verdict
 	4,  // 73: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
 	62, // 74: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	19, // 75: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	76, // [76:76] is the sub-list for method output_type
-	76, // [76:76] is the sub-list for method input_type
-	75, // [75:76] is the sub-list for extension type_name
-	74, // [74:75] is the sub-list for extension extendee
+	63, // 75: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	19, // 76: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	77, // [77:77] is the sub-list for method output_type
+	77, // [77:77] is the sub-list for method input_type
+	76, // [76:77] is the sub-list for extension type_name
+	74, // [74:76] is the sub-list for extension extendee
 	0,  // [0:74] is the sub-list for field type_name
 }
 
@@ -6064,7 +6081,7 @@ func file_record_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
 			NumEnums:      19,
 			NumMessages:   43,
-			NumExtensions: 1,
+			NumExtensions: 2,
 			NumServices:   0,
 		},
 		GoTypes:           file_record_proto_goTypes,

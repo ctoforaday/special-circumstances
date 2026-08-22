@@ -65,23 +65,14 @@ func TestEveryEnumValueHasADescription(t *testing.T) {
 	}
 }
 
-// AND THE MAP MUST NOT ROT THE OTHER WAY. A description naming a value that no longer exists is
-// dead weight that reads as coverage — the hand-kept-allowlist failure facts-are-fields warns
-// about, caught from the opposite direction.
-func TestNoDescriptionNamesAMissingValue(t *testing.T) {
-	live := map[string]bool{}
-	for _, e := range allEnums(t) {
-		for i := 0; i < e.Values().Len(); i++ {
-			live[string(e.Values().Get(i).FullName())] = true
-		}
-	}
-	for _, k := range sortedDocKeys() {
-		if !live[k] {
-			t.Errorf("descriptions.go documents %s, which the schema no longer declares — "+
-				"delete it, or the map silently drifts from the set it claims to cover", k)
-		}
-	}
-}
+// A DESCRIPTION CANNOT NAME A VALUE THE SCHEMA NO LONGER DECLARES, so the test that checked for it
+// is gone rather than retargeted.
+//
+// It walked a Go map keyed by full name and reported entries with no live value behind them — real
+// rot while the meanings lived one file away from the values. They now sit ON the value as
+// `[(means) = "…"]`, so deleting a value takes its meaning with it and the drift has nowhere to
+// happen. The test is recorded here as removed for that reason rather than deleted quietly: a gate
+// that disappears in a refactor looks identical to one somebody dropped.
 
 // Usage renders from the set itself, so the help a seat reads cannot drift from the check the
 // write path runs. This is the property enums.go named and the reason its table could not simply
