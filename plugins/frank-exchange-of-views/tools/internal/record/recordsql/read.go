@@ -27,7 +27,7 @@ import (
 // anomaly to report and no honest-zero problem — the absence of anomalies is now a fact rather than
 // a hope, which is why this signature has no place to put them.
 func Events(db *sql.DB) ([]*recordpb.Event, error) {
-	rows, err := db.Query(`SELECT id, seat_id, round, seq, nonce, ts, type, key FROM events ORDER BY id`)
+	rows, err := db.Query(`SELECT id, seat_id, round, ts, type, key FROM events ORDER BY id`)
 	if err != nil {
 		return nil, fmt.Errorf("recordsql: reading the record: %w", err)
 	}
@@ -37,25 +37,23 @@ func Events(db *sql.DB) ([]*recordpb.Event, error) {
 	var ids []int64
 	for rows.Next() {
 		var id int64
-		var seatID, nonce, ts, typ string
-		var round, seq int32
+		var seatID, ts, typ string
+		var round int32
 		var key *string
-		if err := rows.Scan(&id, &seatID, &round, &seq, &nonce, &ts, &typ, &key); err != nil {
+		if err := rows.Scan(&id, &seatID, &round, &ts, &typ, &key); err != nil {
 			return nil, err
 		}
 		t, ok := eventTypeOf(typ)
 		if !ok {
-			// A TYPE THE SCHEMA DOES NOT DECLARE IS NOT A ROW TO SKIP. The column has a foreign key
-			// to nothing — `events.type` is the one enum written before its vocabulary is known —
-			// so this is the one place a stored word can fail to resolve, and folding it into the
-			// zero would replay the act as an event of no type at all.
+			// A TYPE THE SCHEMA DOES NOT DECLARE IS NOT A ROW TO SKIP. `events.type` references
+			// `enum_event_type` now, so a word outside the vocabulary cannot be stored — reaching
+			// here means the record disagrees with its own schema, and folding that into the zero
+			// would replay the act as an event of no type at all.
 			return nil, fmt.Errorf("recordsql: event %d has type %q, which the schema does not declare", id, typ)
 		}
 		ev := &recordpb.Event{
 			SeatId: proto.String(seatID),
 			Round:  proto.Int32(round),
-			Seq:    proto.Int32(seq),
-			Nonce:  proto.String(nonce),
 			Ts:     proto.String(ts),
 			Type:   &t,
 		}

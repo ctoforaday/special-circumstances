@@ -148,13 +148,18 @@ type ObservationJSON struct {
 
 // BoardJSONOf projects the replayed board into the seat-facing shape.
 func BoardJSONOf(b *Board) BoardJSON {
+	// ANOMALIES ARE THIS PROJECTION'S OWN NOW. They used to be seeded from the board, which
+	// carried the replay's findings — torn shard lines, undecodable rows, mutations naming a gap
+	// that did not exist. None of those survive the record being a database: a transaction commits
+	// or does not, and a dangling gap_id is refused by a foreign key. So the seed is gone and what
+	// remains is what this function itself discovers: a body it could not render.
+	//
+	// The empty slice is deliberate and unchanged — `[]` and `null` are different answers in the
+	// artifact a seat reads, and "no anomalies" must not arrive as "the field is missing".
 	out := BoardJSON{
 		Open:      []GapJSON{},
 		Closed:    []GapJSON{},
-		Anomalies: b.Anomalies,
-	}
-	if out.Anomalies == nil {
-		out.Anomalies = []string{}
+		Anomalies: []string{},
 	}
 
 	for _, id := range b.GapOrder {

@@ -42,11 +42,9 @@ func Event(t *testing.T, seatID string, round int, body proto.Message) *recordpb
 
 // At is Event with the shard coordinates a replay-ordering test needs. Most fixtures do not care
 // about seq, nonce or key; the ones that are ABOUT ordering care about nothing else.
-func At(t *testing.T, seatID, nonce string, seq, round int, key string, body proto.Message) *recordpb.Event {
+func At(t *testing.T, seatID string, round int, key string, body proto.Message) *recordpb.Event {
 	t.Helper()
 	ev := Event(t, seatID, round, body)
-	ev.Seq = proto.Int32(int32(seq))
-	ev.Nonce = proto.String(nonce)
 	if key != "" {
 		ev.Key = proto.String(key)
 	}

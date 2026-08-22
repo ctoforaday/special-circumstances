@@ -528,7 +528,7 @@ func RequireUnruledMotion(runDir, id string) error {
 	}
 	for _, e := range m.Events {
 		if f, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && f.GetMotionId() == id {
-			return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — it replays as whichever the shard ordering favours, and the other disappears. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command",
+			return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command",
 				id, MotionRulingWord(f), e.GetSeatId())
 		}
 	}

@@ -17,8 +17,8 @@ func sample() *pb.Event {
 	et := pb.EventType_EVENT_TYPE_VERDICT
 	vd := pb.Verdict_VERDICT_PASS
 	return &pb.Event{
-		Seq: i(0), Ts: s("2026-08-17T10:00:00.000000000Z"), SeatId: s("red-merge-r1"),
-		Nonce: s("deadbeef"), Round: i(1), Role: s("red"), Type: &et,
+		Ts: s("2026-08-17T10:00:00.000000000Z"), SeatId: s("red-merge-r1"),
+		Round: i(1), Role: s("red"), Type: &et,
 		Key: s("red-merge-r1:verdict"), SchemaVersion: &sv,
 		Body: &pb.Event_Verdict{Verdict: &pb.RoundVerdict{Verdict: &vd}},
 	}
@@ -40,8 +40,12 @@ func marshal(t *testing.T, ev *pb.Event) string {
 // across builds of identical source. Only a pinned expectation catches a canonicalization that
 // stopped canonicalizing.
 func TestEventMarshalsToExactBytes(t *testing.T) {
-	const want = `seq: 0 ts: "2026-08-17T10:00:00.000000000Z" seat_id: "red-merge-r1" ` +
-		`nonce: "deadbeef" round: 1 role: "red" type: EVENT_TYPE_VERDICT ` +
+	// PINNED, and it moved because the ENVELOPE moved: `seq` and `nonce` are gone from the schema,
+	// not merely absent from this fixture. seq was a per-shard counter whose last reader was a sort
+	// that insertion order replaced; nonce named a shard file that no longer exists, and scoping the
+	// idempotency ordinal by it made a re-dispatched seat collide with its own earlier acts.
+	const want = `ts: "2026-08-17T10:00:00.000000000Z" seat_id: "red-merge-r1" ` +
+		`round: 1 role: "red" type: EVENT_TYPE_VERDICT ` +
 		`key: "red-merge-r1:verdict" schema_version: SCHEMA_VERSION_1 ` +
 		`verdict: { verdict: VERDICT_PASS }`
 	if got := marshal(t, sample()); got != want {
@@ -76,12 +80,25 @@ func TestEnumsRenderUnquoted(t *testing.T) {
 	}
 }
 
-// seq: 0 MUST SURVIVE. It is the register event's real sequence number, and difftest's rank key
-// reads it. This is what `optional` on the envelope buys: without explicit presence a zero is
-// indistinguishable from unset and vanishes from the line.
-func TestZeroSeqIsEmitted(t *testing.T) {
-	if !strings.Contains(marshal(t, sample()), "seq: 0") {
-		t.Error("seq: 0 was omitted — a zero without explicit presence vanishes from the record")
+// A MEANINGFUL ZERO MUST SURVIVE, and the carrier moved when its old one was retired.
+//
+// This was `seq: 0`, the register event's real sequence number. `seq` is gone — nothing read it —
+// but the property it demonstrated is the whole reason every field on this schema is `optional`:
+// without explicit presence, proto3 makes a zero indistinguishable from unset and it vanishes from
+// the line.
+//
+// `Proof.exit` is the better carrier and always was. Zero is the SUCCESS status of a script that
+// ran, so an implicit-presence encoding would drop exactly the case that says the proof worked, and
+// a reader would see a proof with no exit status at all — indistinguishable from one that never
+// ran.
+func TestAMeaningfulZeroIsEmitted(t *testing.T) {
+	ev := &pb.Event{}
+	if _, err := pb.SetBody(ev, &pb.Proof{Text: s("it ran clean"), Exit: i(0)}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(marshal(t, ev), "exit: 0") {
+		t.Error("exit: 0 was omitted — a proof that SUCCEEDED reads as a proof that never reported, " +
+			"which is what explicit presence on every field exists to prevent")
 	}
 }
 

@@ -1405,7 +1405,6 @@ func (x *Sql) GetUnique() bool {
 // on. Requiredness is a validate-time duty declared separately, never inferred from optionality.
 type Event struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	Seq   *int32                 `protobuf:"varint,1,opt,name=seq,proto3,oneof" json:"seq,omitempty"`
 	// ts is when the event happened, and it is what replay ORDERS BY.
 	//
 	// Without it, events merged by shard FILENAME, so every cross-seat reference was ordered by
@@ -1415,8 +1414,22 @@ type Event struct {
 	// hoped for from the hardware, because a wall clock can step backwards under NTP.
 	Ts     *string `protobuf:"bytes,2,opt,name=ts,proto3,oneof" json:"ts,omitempty"`
 	SeatId *string `protobuf:"bytes,3,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
-	Nonce  *string `protobuf:"bytes,4,opt,name=nonce,proto3,oneof" json:"nonce,omitempty"`
-	Round  *int32  `protobuf:"varint,5,opt,name=round,proto3,oneof" json:"round,omitempty"`
+	// `nonce` IS GONE, AND KILLING IT FIXED A BUG RATHER THAN TIDYING ONE.
+	//
+	// It named a SITTING — one dispatch of a seat — and it existed because the shard file was
+	// `events-<seat>-<nonce>.jsonl`. A re-dispatch rotated it, so a crash retry wrote into a fresh
+	// file and replay picked a winner between them.
+	//
+	// With one table there is no second file and no winner selection, and the nonce became actively
+	// harmful: the idempotency ordinal was counted PER SITTING while `events.key` carries a GLOBAL
+	// unique index, so a re-dispatched seat restarted at `#1` and collided with its own earlier
+	// acts. Measured through the binary — register, record, re-register, record: `UNIQUE constraint
+	// failed: events.key`. A re-dispatched seat could not record at all.
+	//
+	// The ordinal is scoped to the seat now, so its keys are monotonic across dispatches and the
+	// collision is unrepresentable. "Which dispatch was this" is still answerable — it is the count
+	// of that seat's register events at or before the row, which is what capture.go already does.
+	Round *int32 `protobuf:"varint,5,opt,name=round,proto3,oneof" json:"round,omitempty"`
 	// role is the seat's ROLE as a field. Readers used to recover it with
 	// strings.HasPrefix(seat_id, "red-merge") — including the branch deciding whether a position
 	// renders as RED or BLUE — so a seat id that failed to match its expected prefix rendered as
@@ -1494,13 +1507,6 @@ func (*Event) Descriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *Event) GetSeq() int32 {
-	if x != nil && x.Seq != nil {
-		return *x.Seq
-	}
-	return 0
-}
-
 func (x *Event) GetTs() string {
 	if x != nil && x.Ts != nil {
 		return *x.Ts
@@ -1511,13 +1517,6 @@ func (x *Event) GetTs() string {
 func (x *Event) GetSeatId() string {
 	if x != nil && x.SeatId != nil {
 		return *x.SeatId
-	}
-	return ""
-}
-
-func (x *Event) GetNonce() string {
-	if x != nil && x.Nonce != nil {
-		return *x.Nonce
 	}
 	return ""
 }
@@ -5315,17 +5314,15 @@ const file_record_proto_rawDesc = "" +
 	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
-	"\a_unique\"\xfa\x10\n" +
-	"\x05Event\x12\x15\n" +
-	"\x03seq\x18\x01 \x01(\x05H\x01R\x03seq\x88\x01\x01\x12\x13\n" +
-	"\x02ts\x18\x02 \x01(\tH\x02R\x02ts\x88\x01\x01\x12\x1c\n" +
-	"\aseat_id\x18\x03 \x01(\tH\x03R\x06seatId\x88\x01\x01\x12\x19\n" +
-	"\x05nonce\x18\x04 \x01(\tH\x04R\x05nonce\x88\x01\x01\x12\x19\n" +
-	"\x05round\x18\x05 \x01(\x05H\x05R\x05round\x88\x01\x01\x12\x17\n" +
-	"\x04role\x18\x06 \x01(\tH\x06R\x04role\x88\x01\x01\x122\n" +
-	"\x04type\x18\a \x01(\x0e2\x19.feov.record.v1.EventTypeH\aR\x04type\x88\x01\x01\x12\x15\n" +
-	"\x03key\x18\b \x01(\tH\bR\x03key\x88\x01\x01\x12I\n" +
-	"\x0eschema_version\x18\t \x01(\x0e2\x1d.feov.record.v1.SchemaVersionH\tR\rschemaVersion\x88\x01\x01\x126\n" +
+	"\a_unique\"\xb6\x10\n" +
+	"\x05Event\x12\x13\n" +
+	"\x02ts\x18\x02 \x01(\tH\x01R\x02ts\x88\x01\x01\x12\x1c\n" +
+	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x12\x19\n" +
+	"\x05round\x18\x05 \x01(\x05H\x03R\x05round\x88\x01\x01\x12\x17\n" +
+	"\x04role\x18\x06 \x01(\tH\x04R\x04role\x88\x01\x01\x122\n" +
+	"\x04type\x18\a \x01(\x0e2\x19.feov.record.v1.EventTypeH\x05R\x04type\x88\x01\x01\x12\x15\n" +
+	"\x03key\x18\b \x01(\tH\x06R\x03key\x88\x01\x01\x12I\n" +
+	"\x0eschema_version\x18\t \x01(\x0e2\x1d.feov.record.v1.SchemaVersionH\aR\rschemaVersion\x88\x01\x01\x126\n" +
 	"\bregister\x18\x14 \x01(\v2\x18.feov.record.v1.RegisterH\x00R\bregister\x128\n" +
 	"\averdict\x18\x15 \x01(\v2\x1c.feov.record.v1.RoundVerdictH\x00R\averdict\x123\n" +
 	"\aoutcome\x18\x16 \x01(\v2\x17.feov.record.v1.OutcomeH\x00R\aoutcome\x126\n" +
@@ -5360,12 +5357,10 @@ const file_record_proto_rawDesc = "" +
 	"\bfriction\x181 \x01(\v2\x18.feov.record.v1.FrictionH\x00R\bfriction\x12C\n" +
 	"\rfriction_none\x182 \x01(\v2\x1c.feov.record.v1.FrictionNoneH\x00R\ffrictionNone\x12F\n" +
 	"\x0einquiry_review\x183 \x01(\v2\x1d.feov.record.v1.InquiryReviewH\x00R\rinquiryReviewB\x06\n" +
-	"\x04bodyB\x06\n" +
-	"\x04_seqB\x05\n" +
+	"\x04bodyB\x05\n" +
 	"\x03_tsB\n" +
 	"\n" +
 	"\b_seat_idB\b\n" +
-	"\x06_nonceB\b\n" +
 	"\x06_roundB\a\n" +
 	"\x05_roleB\a\n" +
 	"\x05_typeB\x06\n" +

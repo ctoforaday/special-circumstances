@@ -109,10 +109,18 @@ func massSum(gaps []*record.Gap) float64 {
 
 // Counts returns the board's open/closed/anomaly tallies — the values the old
 // RenderResult carried, for verdict and any counts-only caller.
-func Counts(runDir string) (open, closed, anomalies int, err error) {
+// Counts is the board in two numbers.
+//
+// THE THIRD RETURN IS GONE. It was `len(b.Anomalies)`, and the board no longer has anomalies: the
+// replay-time producers were shard failures (a torn line, an undecodable row) and mutations naming
+// a gap that did not exist. A transaction commits or does not, and a dangling gap_id is refused by
+// a foreign key, so there is nothing left to count. Returning a constant 0 in its place would be
+// the worse outcome — every caller reading "0 anomalies" as a clean board, in the same words it
+// used when the number meant something.
+func Counts(runDir string) (open, closed int, err error) {
 	b, err := record.BoardState(runDir)
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, err
 	}
 	for _, id := range b.GapOrder {
 		if b.Gaps[id].Open {
@@ -121,7 +129,7 @@ func Counts(runDir string) (open, closed, anomalies int, err error) {
 			closed++
 		}
 	}
-	return open, closed, len(b.Anomalies), nil
+	return open, closed, nil
 }
 
 // Telemetry returns the per-round board-telemetry series, computed from the
@@ -236,14 +244,11 @@ func ledgerMD(b *record.Board) []byte {
 		}
 	}
 
+	// THE RENDER-ANOMALY FOOTER IS GONE with the anomalies it printed. It existed so a shard
+	// failure was never silently normalized away, and shard failures are not a thing that can
+	// happen to a database. An always-empty footer would say "nothing was dropped" on every render
+	// whether or not anything was, which is the shape it was built to prevent.
 	anomalyFooter := ""
-	if len(b.Anomalies) > 0 {
-		lines := make([]string, len(b.Anomalies))
-		for i, a := range b.Anomalies {
-			lines[i] = "- " + a
-		}
-		anomalyFooter = "\n## render anomalies (never silently normalized)\n\n" + strings.Join(lines, "\n") + "\n"
-	}
 	// UNCREDITED, not undisposed (#327). `observe` and `dispose` are retired: a finding is
 	// addressed by being named in some gap's found_by, and that is the only way. This footer
 	// is the merge's live work list of lens work it has neither minted nor credited — the same

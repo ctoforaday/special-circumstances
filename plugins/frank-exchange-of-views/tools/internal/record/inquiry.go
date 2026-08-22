@@ -355,7 +355,7 @@ func InquiryRuling(runDir, inquiryID string) string {
 	if err != nil {
 		return ""
 	}
-	// MOST RECENT WINS. Events are ordered by timestamp across shards, so "last one seen" is the
+	// MOST RECENT WINS. Events are ordered by insertion, so "last one seen" is the
 	// latest ruling. There was a second arm here for the pre-#344 `avenue-rule` spelling; nothing
 	// has written it since the motion collapse and the dual-read that justified reading it is gone.
 	ruling := ""

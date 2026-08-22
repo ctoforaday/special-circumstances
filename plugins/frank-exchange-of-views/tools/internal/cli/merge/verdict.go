@@ -38,7 +38,7 @@ func newVerdict() *cobra.Command {
 			if _, err := record.Append(s.Identity(), &recordpb.RoundVerdict{Verdict: &v}); err != nil {
 				return nil, err
 			}
-			open, closed, _, err := view.Counts(s.RunDir)
+			open, closed, err := view.Counts(s.RunDir)
 			if err != nil {
 				return nil, err
 			}

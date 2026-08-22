@@ -352,7 +352,18 @@ enum DirectionRuling {
 // schema_version could not distinguish "absent" from "0", which is the question the read rests
 // on. Requiredness is a validate-time duty declared separately, never inferred from optionality.
 message Event {
-  optional int32 seq = 1;
+  // `seq` WAS FIELD 1 AND IS GONE. It was the seat's position within its own shard file, and its
+  // last reader was replay's (TS, SeatID, Seq) tiebreak — a sort that existed because merging
+  // per-file had lost the real order. `ORDER BY id` is that order, so the tiebreak went, and with
+  // it the only thing that ever read this.
+  //
+  // Removing it removed a READ-BEFORE-WRITE from the write path: numbering an event meant counting
+  // the seat's existing rows first, which is the deferred-transaction upgrade SQLite refuses to
+  // apply busy_timeout to. A field nothing reads is not free; this one cost every write a query
+  // and an upgrade hazard.
+  //
+  // The number is still askable, and it is a `row_number() OVER (PARTITION BY seat_id, nonce)`
+  // away — computed when someone wants it rather than stamped on every row forever.
 
   // ts is when the event happened, and it is what replay ORDERS BY.
   //
@@ -364,7 +375,21 @@ message Event {
   optional string ts = 2;
 
   optional string seat_id = 3;
-  optional string nonce = 4;
+  // `nonce` IS GONE, AND KILLING IT FIXED A BUG RATHER THAN TIDYING ONE.
+  //
+  // It named a SITTING — one dispatch of a seat — and it existed because the shard file was
+  // `events-<seat>-<nonce>.jsonl`. A re-dispatch rotated it, so a crash retry wrote into a fresh
+  // file and replay picked a winner between them.
+  //
+  // With one table there is no second file and no winner selection, and the nonce became actively
+  // harmful: the idempotency ordinal was counted PER SITTING while `events.key` carries a GLOBAL
+  // unique index, so a re-dispatched seat restarted at `#1` and collided with its own earlier
+  // acts. Measured through the binary — register, record, re-register, record: `UNIQUE constraint
+  // failed: events.key`. A re-dispatched seat could not record at all.
+  //
+  // The ordinal is scoped to the seat now, so its keys are monotonic across dispatches and the
+  // collision is unrepresentable. "Which dispatch was this" is still answerable — it is the count
+  // of that seat's register events at or before the row, which is what capture.go already does.
   optional int32 round = 5;
 
   // role is the seat's ROLE as a field. Readers used to recover it with

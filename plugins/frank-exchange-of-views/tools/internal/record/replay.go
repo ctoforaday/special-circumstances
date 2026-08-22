@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"sort"
+
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // marshalEvent serializes a shard line: ONE canonical textproto record, no trailing newline.
@@ -120,249 +120,58 @@ type shardInfo struct {
 	events []*Event
 }
 
-// Merged is the deterministic replay: winner selection per seat, global ordering,
-// key-level dedup, and the anomalies that must never be silently normalized.
+// Merged is the record, in the order it happened.
+//
+// # What it stopped carrying, and why those fields are gone rather than empty
+//
+// It used to carry `Anomalies` and `Discarded` — the two channels the SHARD layout needed. Both
+// are deleted rather than left present and always empty, because a field nothing computes is the
+// exact shape this migration exists to remove: a caller gating on `len(m.Discarded) == 0` would
+// read "no loss detected" forever, in the same words it used when the check was real.
+//
+// `Discarded` told apart a healthy re-dispatch (the retry rewrites the same keys, the loser
+// contributes nothing) from one seat id used for two different sittings, where the losing shard
+// held work that existed nowhere downstream. There is no losing shard. Both sittings' events are
+// rows, told apart by `nonce`, and nothing selects a winner — so the loss it reported is not
+// merely absent, it is unrepresentable.
+//
+// `Anomalies` carried torn lines, undecodable rows and mutations naming a gap the replay had never
+// seen. A transaction commits or does not, so the first two have no analogue; the third is a
+// FOREIGN KEY now, refused at the write. The projection-time anomalies in viewjson.go are a
+// different producer and are untouched.
 type Merged struct {
-	Events    []*Event
-	Anomalies []string
-	// Discarded names every seat where losing shards carried events the winner does not.
-	//
-	// Multi-nonce is NORMAL: a register rotates the nonce so a crash re-dispatch is a fresh
-	// shard, measured at 8/50 in run 5. On a re-dispatch the retry rewrites the SAME keys, so
-	// the loser contributes nothing the winner lacks and this stays empty.
-	//
-	// It is NOT empty when one seat id was used for two different sittings, because then the
-	// losing shard holds work that happened and no longer exists anywhere downstream. The
-	// anomaly string said "multi-nonce seat X: 7 dispatches" for both cases — the healthy one
-	// and the lossy one, in the same words, and nothing gated on either (#394). This is the
-	// field that tells them apart.
-	Discarded []DiscardedShard
+	Events []*Event
 }
 
-// DiscardedShard is one seat's lost work: how many event keys existed in a losing shard and
-// survive nowhere. A COUNT, not a sentence — a caller decides with it instead of matching prose
-// (facts-are-fields).
-type DiscardedShard struct {
-	SeatID     string
-	Dispatches int
-	Winner     string
-	// Keys are the discarded event keys, in shard order. Bounded in practice by one sitting's
-	// output, and worth carrying whole: "which rulings vanished" is the actionable half.
-	Keys []string
-}
-
-// shardRe still matches `.jsonl`, and the extension is now a MISNOMER rather than a description:
-// the lines are canonical textproto. It is unchanged deliberately — the name is the join between
-// a run's files on disk and every reader of them, including runs already recorded, so renaming it
-// is a migration of its own and not a tidy-up to fold into this one.
-var shardRe = regexp.MustCompile(`^events-(.+)-([0-9a-f]{8})\.jsonl$`)
-
+// MergedEvents reads the run's record.
+//
+// # The ordering hazard is gone, not managed
+//
+// This used to list shard files, pick a winner per seat, concatenate, and sort by (TS, SeatID,
+// Seq) — and every one of those steps existed because the storage did not know what order things
+// happened in. Sorting by filename replayed an entire seat before the next seat began, which
+// dropped the bench's closures silently: the gap did not exist yet when the ruling replayed. The
+// nanosecond clock, the monotonic clock file and the (SeatID, Seq) tiebreak were all repairs to
+// that one defect.
+//
+// `ORDER BY id` is the insertion order, assigned by the thing doing the inserting. There is no key
+// to get wrong.
 func MergedEvents(runDir string) (Merged, error) {
-	// A RESOLUTION FAILURE IS NOT AN EMPTY RUN. The IsNotExist arm below is the honest zero —
-	// a run that exists and has recorded nothing yet — and it is exactly what an unreachable
-	// separated record would otherwise be flattened into. RecordsDir refuses instead, so the
-	// two stay distinguishable here, where every board projection begins.
-	dir, err := RecordsDir(runDir)
+	// A RESOLUTION FAILURE IS NOT AN EMPTY RUN. openRunForRead keeps the two apart: RecordsDir
+	// refuses an unreachable separated record, and a nil handle means the honest zero — a run that
+	// exists and has recorded nothing yet.
+	db, err := openRunForRead(runDir)
 	if err != nil {
 		return Merged{}, err
 	}
-	entries, err := os.ReadDir(dir)
+	if db == nil {
+		return Merged{}, nil
+	}
+	evs, err := recordsql.Events(db)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return Merged{}, nil
-		}
 		return Merged{}, err
 	}
-	var names []string
-	for _, e := range entries {
-		n := e.Name()
-		if strings.HasPrefix(n, "events-") && strings.HasSuffix(n, ".jsonl") {
-			names = append(names, n)
-		}
-	}
-	sort.Strings(names) // mirrors readdirSync(...).sort()
-
-	// Anomalies are collected from the READ before any merge anomaly, in shard-name order, so the
-	// footer reads file-by-file and then seat-by-seat. Corrupt lines had no representation here at
-	// all before the five-stage rule — they were dropped without a trace — so nothing that already
-	// renders moves.
-	var anomalies []string
-
-	// Insertion-ordered grouping: Go map iteration is randomized, and the oracle
-	// walks a JS Map in insertion order. Anomaly ORDER is part of the render output.
-	var seatOrder []string
-	bySeat := map[string][]shardInfo{}
-	for _, n := range names {
-		m := shardRe.FindStringSubmatch(n)
-		if m == nil {
-			continue
-		}
-		seatID, nonce := m[1], m[2]
-		full := filepath.Join(dir, n)
-		evs, shardAnomalies, err := ReadShard(full)
-		if err != nil {
-			return Merged{}, err
-		}
-		anomalies = append(anomalies, shardAnomalies...)
-		if _, seen := bySeat[seatID]; !seen {
-			seatOrder = append(seatOrder, seatID)
-		}
-		bySeat[seatID] = append(bySeat[seatID], shardInfo{nonce: nonce, file: full, events: evs})
-	}
-
-	var discarded []DiscardedShard
-	var winners []*Event
-	for _, seatID := range seatOrder {
-		shards := bySeat[seatID]
-		if len(shards) == 1 {
-			winners = append(winners, shards[0].events...)
-			continue
-		}
-		// Multi-nonce: the winner is the nonce whose shard carries the seat's
-		// TERMINAL event (verdict or revision — the last verb of a seat contract);
-		// with neither terminal, fall EXPLICITLY to the latest RECORDED event stamp.
-		var terminal []shardInfo
-		for _, s := range shards {
-			for _, e := range s.events {
-				if e.GetType() == recordpb.EventType_EVENT_TYPE_VERDICT ||
-					e.GetType() == recordpb.EventType_EVENT_TYPE_REVISION {
-					terminal = append(terminal, s)
-					break
-				}
-			}
-		}
-		pool := terminal
-		if len(pool) == 0 {
-			pool = shards
-		}
-		// THE RECORD'S OWN CLOCK DECIDES, NOT THE FILESYSTEM'S.
-		//
-		// This was `s.mtime.After(winner.mtime)` — the shard FILE's modification time — and it
-		// was wrong twice over.
-		//
-		// MEASURED 2026-08-16: TestDiscardedEventsAudit passed on ubuntu-latest and FAILED on
-		// windows-latest at the same commit, while main's own run was green. Two shards written
-		// back to back land on distinct mtimes under Linux and on IDENTICAL ones under Windows'
-		// coarser timestamp resolution, so nothing was ever `After` anything and pool[0] stood.
-		// Which sitting's work survived was decided by a clock the record does not own.
-		//
-		// AND NO BETTER CLOCK WOULD HAVE FIXED IT, because mtime is metadata about the CARRIER
-		// rather than a fact on the record. A `git checkout`, an rsync, a container copy or a
-		// restore from the recovery mirror all rewrite it, and every one of those would silently
-		// change which sitting won — on a filesystem with all the resolution in the world.
-		//
-		// The record already issues exactly the clock this needs. `nextStamp` takes a lock, reads
-		// `.clock`, and returns `prev + 1ns` whenever the wall clock has not advanced, so every
-		// event's TS is STRICTLY INCREASING across seats and processes within a run — built that
-		// way precisely because "wall clock from many short-lived processes is not monotonic and
-		// can go backwards" (see the global ordering below). stampLayout is fixed-width, zero-
-		// padded and UTC, so string order is time order.
-		//
-		// The nonce tie-break remains underneath, and is ARBITRARY AND STABLE rather than a claim
-		// about which sitting came later: nonces are random. nextStamp makes a tie unreachable
-		// within one run, so it is the answer to a corrupt or hand-written record, not to a race.
-		latest := func(s shardInfo) string {
-			out := ""
-			for _, e := range s.events {
-				if e.GetTs() > out {
-					out = e.GetTs()
-				}
-			}
-			return out
-		}
-		winner := pool[0]
-		for _, s := range pool[1:] {
-			switch a, b := latest(s), latest(winner); {
-			case a > b:
-				winner = s
-			case a == b && s.nonce > winner.nonce:
-				winner = s
-			}
-		}
-		tied := false
-		for _, s := range pool {
-			if s.nonce != winner.nonce && latest(s) == latest(winner) {
-				tied = true
-				break
-			}
-		}
-
-		nonces := make([]string, len(shards))
-		for i, s := range shards {
-			nonces[i] = s.nonce
-		}
-		by := "latest recorded event"
-		if len(terminal) > 0 {
-			by = "terminal event"
-		}
-
-		// WHAT DID THE LOSERS HOLD THAT THE WINNER DOES NOT? A crash re-dispatch rewrites the
-		// same idempotency keys, so the answer is normally nothing and this is silent. A seat id
-		// reused for a second SITTING has no overlap at all, and every key here is work that
-		// happened and survives nowhere.
-		//
-		// `register` IS EXCLUDED, and the check is worthless without that: its key is
-		// `<seat>:register:<nonce>` (record.go:227), so the loser's register can never match the
-		// winner's. Counting it would report one discarded event for every healthy crash
-		// re-dispatch — the signal firing on precisely the case it exists to permit.
-		kept := make(map[string]bool, len(winner.events))
-		for _, e := range winner.events {
-			kept[e.GetKey()] = true
-		}
-		var lost []string
-		for _, s := range shards {
-			if s.nonce == winner.nonce {
-				continue
-			}
-			for _, e := range s.events {
-				if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
-					continue
-				}
-				if !kept[e.GetKey()] {
-					lost = append(lost, e.GetKey())
-				}
-			}
-		}
-
-		if tied && len(terminal) == 0 {
-			by = "recorded stamps TIED, broken by nonce — no event separates these sittings"
-		}
-		note := fmt.Sprintf("multi-nonce seat %s: %d dispatches (%s); winner %s by %s",
-			seatID, len(shards), strings.Join(nonces, ", "), winner.nonce, by)
-		if len(lost) > 0 {
-			note += fmt.Sprintf(" — %d event(s) DISCARDED, surviving nowhere: %s", len(lost), strings.Join(lost, ", "))
-			discarded = append(discarded, DiscardedShard{
-				SeatID: seatID, Dispatches: len(shards), Winner: winner.nonce, Keys: lost,
-			})
-		}
-		anomalies = append(anomalies, note)
-		winners = append(winners, winner.events...)
-	}
-
-	// Deterministic global order. sort.SliceStable mirrors Array.prototype.sort's
-	// stability, which matters where round+seatId+seq collide across shards.
-	sort.SliceStable(winners, func(i, j int) bool {
-		a, b := winners[i], winners[j]
-		if a.GetRound() != b.GetRound() {
-			return a.GetRound() < b.GetRound()
-		}
-		if a.GetSeatId() != b.GetSeatId() {
-			return a.GetSeatId() < b.GetSeatId()
-		}
-		return a.GetSeq() < b.GetSeq()
-	})
-
-	seen := map[string]bool{}
-	events := make([]*Event, 0, len(winners))
-	for _, e := range winners {
-		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER && seen[e.GetKey()] {
-			anomalies = append(anomalies, fmt.Sprintf("duplicate key dedup'd: %s (nonce %s)", e.GetKey(), e.GetNonce()))
-			continue
-		}
-		seen[e.GetKey()] = true
-		events = append(events, e)
-	}
-	return Merged{Events: events, Anomalies: anomalies, Discarded: discarded}, nil
+	return Merged{Events: evs}, nil
 }
 
 // Gap is the replayed state of one board gap.
@@ -471,18 +280,25 @@ func benchClosesGap(d recordpb.Disposition) bool {
 	return recordpb.Closes(d)
 }
 
-// missingGap describes a mutation that referenced a gap the replay has never seen.
+// missingGap is a mutation that referenced a gap the record does not hold, AND IT IS NOW AN ERROR
+// RATHER THAN A NOTE.
 //
-// This used to be a bare `continue`, and that silence is what let the bench's closures
-// vanish for an entire run: the events were recorded correctly, the replay dropped them,
-// and every projection downstream reported a board that had never existed. Anomalies are
-// rendered into the projection and never silently normalized, so the same failure now
-// announces itself in the artifact a human reads.
+// It has been all three states, and the sequence is the point. It was a bare `continue`, and that
+// silence let the bench's closures vanish for an entire run: the events were recorded correctly,
+// the replay dropped them, every projection downstream reported a board that had never existed. It
+// became an anomaly, rendered into the artifact a human reads — better, and still a report about
+// something that had already happened.
+//
+// It cannot happen now. Every gap_id is a FOREIGN KEY onto `mint.gap_id`, so the row is refused at
+// the write. Reaching this point means the record contradicts its own schema, and a board built by
+// skipping the contradiction would be exactly the board that had never existed. So the read fails.
 //
 // The gap id is a PARAMETER rather than read off the event, because seven different body messages
 // carry a gap_id and the caller is already holding the typed one.
-func missingGap(verb string, e *Event, gapID string) string {
-	return fmt.Sprintf("%s by %s referenced unknown gap %s (event %s) — the mutation was DROPPED, not applied",
+func missingGap(verb string, e *Event, gapID string) error {
+	return fmt.Errorf("record: %s by %s references gap %s, which the record does not hold (event %s) — "+
+		"every gap_id is a foreign key onto the mint, so this state cannot be written; the record and its "+
+		"own schema disagree, and a board built by skipping the row would be a board that never existed",
 		verb, e.GetSeatId(), gapID, e.GetKey())
 }
 
@@ -544,12 +360,11 @@ type Observation struct {
 }
 
 // Board is the replayed board: gaps in mint order, observations in event order.
+//
+// `Anomalies` and `Discarded` are gone with the shards that produced them — see Merged for why
+// they are deleted rather than left present and always empty.
 type Board struct {
-	Events    []*Event
-	Anomalies []string
-	// Discarded is MergedEvents' loss report, carried onto the board so every consumer of a
-	// board can gate on it without re-running the replay.
-	Discarded    []DiscardedShard
+	Events       []*Event
 	GapOrder     []string
 	Gaps         map[string]*Gap
 	Observations []*Observation
@@ -560,31 +375,25 @@ func BoardState(runDir string) (*Board, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := &Board{Events: m.Events, Anomalies: m.Anomalies, Discarded: m.Discarded, Gaps: map[string]*Gap{}}
+	b := &Board{Events: m.Events, Gaps: map[string]*Gap{}}
 
-	// ORDERED BY WHEN IT HAPPENED, not by what the shard file is called.
+	// THE RECORD IS ALREADY IN ORDER, so there is no sort here any more.
 	//
-	// Events merge per shard, so before this an entire seat replayed before the next
-	// seat began, and every cross-seat reference was ordered by how seat names sort.
-	// The bench closing a gap red minted was dropped SILENTLY because the gap did not
-	// exist yet; the merge seat disposing a lens observation worked only because
-	// red-lens sorts before red-merge — one rename from the same failure.
+	// This block sorted by (TS, SeatID, Seq), and every part of that key was a repair to one defect:
+	// events merged per SHARD FILE, so an entire seat replayed before the next seat began, and the
+	// bench closing a gap red minted was dropped silently because the gap did not exist yet. The
+	// nanosecond timestamps, the monotonic clock file and the (SeatID, Seq) tiebreak all existed to
+	// reconstruct an order the storage had lost.
 	//
-	// (TS, SeatID, Seq) is the full key. Wall clock from many short-lived processes is
-	// not monotonic and can go backwards, so time alone is not enough; the tail makes
-	// ties and skew deterministic instead of arbitrary.
-	ordered := make([]*Event, len(m.Events))
-	copy(ordered, m.Events)
-	sort.SliceStable(ordered, func(i, j int) bool {
-		a, b := ordered[i], ordered[j]
-		if a.GetTs() != b.GetTs() {
-			return a.GetTs() < b.GetTs()
-		}
-		if a.GetSeatId() != b.GetSeatId() {
-			return a.GetSeatId() < b.GetSeatId()
-		}
-		return a.GetSeq() < b.GetSeq()
-	})
+	// `MergedEvents` returns `ORDER BY id` — insertion order, assigned by the thing doing the
+	// inserting. Re-sorting that by WALL CLOCK would be a step backwards, and the old comment said
+	// why in its own words: clocks from many short-lived processes are not monotonic and can go
+	// backwards. Sorting by them can only move an event away from where it actually happened.
+	//
+	// This is what retired `seq`. It was the seat's position within its own shard and its last
+	// reader was the tiebreak above, so the field is gone rather than stamped and never read — see
+	// record.proto, where removing it also removed a read-before-write from the write path.
+	ordered := m.Events
 
 	// THE SWITCH IS ON THE BODY, NOT ON THE TYPE FIELD. Every arm below reaches straight for a
 	// field the moment it matches, so binding the message and the type in one step removes the
@@ -597,10 +406,10 @@ func BoardState(runDir string) (*Board, error) {
 			// write before it ever reaches here (ClassifyLine stage 3), so this is reachable only
 			// from an event built in memory — and falling through in silence is the shape that let
 			// the bench's closures vanish. It is announced instead.
-			b.Anomalies = append(b.Anomalies, fmt.Sprintf(
-				"event %s by %s carries NO BODY — it was DROPPED, not replayed as an empty one",
-				e.GetKey(), e.GetSeatId()))
-			continue
+			return nil, fmt.Errorf(
+				"record: event %s by %s carries NO BODY — the write path refuses a bodyless event, so this "+
+					"record disagrees with the schema that produced it",
+				e.GetKey(), e.GetSeatId())
 		}
 		switch m := body.(type) {
 		case *recordpb.Mint:
@@ -619,8 +428,7 @@ func BoardState(runDir string) (*Board, error) {
 		case *recordpb.Regrade:
 			g := b.Gaps[m.GetGapId()]
 			if g == nil {
-				b.Anomalies = append(b.Anomalies, missingGap("regrade", e, m.GetGapId()))
-				continue
+				return nil, missingGap("regrade", e, m.GetGapId())
 			}
 			// Object.assign(g, pickGrades(payload)) — only the grade keys PRESENT move, and
 			// presence is the point: a regrade that names only --impact must not reset the other
@@ -643,8 +451,7 @@ func BoardState(runDir string) (*Board, error) {
 		case *recordpb.Close:
 			g := b.Gaps[m.GetGapId()]
 			if g == nil {
-				b.Anomalies = append(b.Anomalies, missingGap("close", e, m.GetGapId()))
-				continue
+				return nil, missingGap("close", e, m.GetGapId())
 			}
 			g.Open = false
 			g.Closure = m
@@ -662,8 +469,7 @@ func BoardState(runDir string) (*Board, error) {
 			// not close them itself without corrupting its own closure history.
 			g := b.Gaps[m.GetGapId()]
 			if g == nil {
-				b.Anomalies = append(b.Anomalies, missingGap("opinion", e, m.GetGapId()))
-				continue
+				return nil, missingGap("opinion", e, m.GetGapId())
 			}
 			if !benchClosesGap(m.GetDisposition()) {
 				continue

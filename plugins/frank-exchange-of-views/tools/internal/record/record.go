@@ -33,8 +33,7 @@
 package record
 
 import (
-	"crypto/rand"
-	"encoding/hex"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -49,6 +48,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // MassMappingVersion stamps every telemetry line (view.go) with WHICH mass mapping produced
@@ -111,19 +111,6 @@ func isGrade(s string) bool { return flags.IsGrade(s) }
 // absent grade contributes zero rather than erroring.
 func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS[impact] }
 
-// The path helpers take an ALREADY-RESOLVED record directory rather than a run directory.
-// Resolution can fail (see RecordsDir), and a helper that cannot report that failure would have
-// to fall back to <runDir>/records — writing a separated run's events into the very directory
-// the separation exists to keep them out of, silently. So the resolve happens once, at each
-// public entry point, where there is an error to return.
-func pointerPath(recDir, seatID string) string {
-	return filepath.Join(recDir, ".active-"+seatID)
-}
-
-func shardPath(recDir, seatID, nonce string) string {
-	return filepath.Join(recDir, fmt.Sprintf("events-%s-%s.jsonl", seatID, nonce))
-}
-
 var roundRe = regexp.MustCompile(`-r(\d+)`)
 
 // RoundOf returns the round an event belongs to.
@@ -175,18 +162,6 @@ func RoundOf(seatID string) int {
 
 var seatIDRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-]*$`)
 
-// nonceFn is indirected for the differential harness: both implementations accept
-// a test-only seed so nonces can be made comparable (R2g comparison policy 1).
-var nonceFn = randomNonce
-
-func randomNonce() string {
-	b := make([]byte, 4)
-	if _, err := rand.Read(b); err != nil {
-		panic("record: entropy unavailable: " + err.Error())
-	}
-	return hex.EncodeToString(b)
-}
-
 // Event IS the schema's event — `record.Event` and `recordpb.Event` are ONE TYPE, not two that
 // convert at a boundary.
 //
@@ -226,10 +201,10 @@ type Identity struct {
 // ROTATES the nonce: a re-dispatched seat writes its own shard and the stale
 // instance's shard stays inert. Two registers for one seatId are themselves an
 // event, visible to the join audit and the render anomaly footer.
-func RegisterSeat(id Identity) (nonce, shard string, err error) {
+func RegisterSeat(id Identity) (dispatch int, where string, err error) {
 	runDir, seatID := id.RunDir, id.SeatID
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
-		return "", "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
+		return 0, "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
 	}
 	// A SEAT RECORDS INTO A RUN THAT EXISTS. IT NEVER CREATES ONE.
 	//
@@ -238,64 +213,52 @@ func RegisterSeat(id Identity) (nonce, shard string, err error) {
 	// place, and the only honest answer is to say so.
 	//
 	// MEASURED, and it cost a run's worth of work (#358). The run directory reaches a seat as a
-	// path it resolves against its OWN working directory. During
-	// research/2026-08-10_dual-read-vs-migration a seat whose shell cwd was the `tools/` directory
-	// resolved `research/<slug>/` from there, and this MkdirAll obligingly built a second
-	// blackboard: a full duplicate tree with the lane's entire 13.7 KB draft, its own shards,
-	// clock and locks. The real run's `blue/candidates/` was empty for the whole run, and TWO
-	// shards of one seat class existed in both places — the resolution differed per invocation,
-	// not per seat.
-	//
-	// Nothing announced it. The seat was told `registered red-merge-r1`. A seat's work landing
-	// outside the run is indistinguishable from a seat that produced nothing, and the record
-	// simply has fewer events in it — the plausible zero, built by a helpful mkdir.
+	// path it resolves against its OWN working directory, and a helpful MkdirAll built a second
+	// blackboard: a full duplicate tree with the lane's entire draft, its own events, and the real
+	// run's `blue/candidates/` empty for the whole run. Nothing announced it — the seat was told
+	// `registered red-merge-r1`. A seat's work landing outside the run is indistinguishable from a
+	// seat that produced nothing.
 	//
 	// The check is CHEAP AND EXACT: does the run directory exist? It is not a guess about what a
-	// run should contain, so it cannot reject a legitimately sparse one, and it fires before any
-	// resolution or lock work.
+	// run should contain, so it cannot reject a legitimately sparse one.
 	if st, err := os.Stat(runDir); err != nil || !st.IsDir() {
 		abs, _ := filepath.Abs(runDir)
-		return "", "", feov.Errorf(feov.NotFound,
+		return 0, "", feov.Errorf(feov.NotFound,
 			"record: no run directory at %s (resolved to %s) — a seat records into a run `setup` already made and never creates one. A RELATIVE --run resolves against YOUR working directory, which is how a seat once built a second blackboard beside the real run and reported success; pass the absolute path the engine gave you",
 			runDir, abs)
 	}
 	// REGISTER IS WHERE A SEPARATION IS ADOPTED. It is every seat's first record action, so
 	// resolving here means the root is bound (and its pointer written) before any event exists.
-	recDir, err := RecordsDir(runDir)
+	db, err := openRun(runDir)
 	if err != nil {
-		return "", "", err
+		return 0, "", err
 	}
-	if err := os.MkdirAll(recDir, 0o755); err != nil {
-		return "", "", err
-	}
-	nonce = nonceFn()
-	// The pointer is a shared surface (two racing registers): lock per seatId.
-	var writeErr error
-	withLock(recDir, "ptr-"+seatID, func() {
-		// The pointer decides which shard every later verb writes to, so it is
-		// durable-written like the shards themselves: a half-written pointer would
-		// send a resumed seat to a shard that does not exist.
-		writeErr = durableWrite(pointerPath(recDir, seatID), []byte(nonce), pointerPath(recDir, seatID)+".tmp")
-	})
-	if writeErr != nil {
-		return "", "", writeErr
-	}
-	shard = shardPath(recDir, seatID, nonce)
-	// tool_version is stamped on the seat's FIRST act (R2g.2). The
-	// never-update-mid-run rule stands, but a run that somehow mixes binaries now
-	// says so in its own record instead of producing events whose difference
-	// nobody can explain afterwards.
+
+	// THERE IS NO POINTER FILE AND NO LOCK. Which sitting is live was a fact held in
+	// `.active-<seat>`, written under a per-seat lock because two registers race — a record
+	// standing outside the record, holding one fact the register events already carried. It is a
+	// query now (activeNonce), and the race it needed a lock for is the ordering SQLite already
+	// gives: the latest register row IS the answer.
 	ev := &Event{}
 	if _, err := recordpb.SetBody(ev, &recordpb.Register{ToolVersion: proto.String(ToolVersion)}); err != nil {
-		return "", "", err
+		return 0, "", err
 	}
-	// The register key is the ONE key deriveKey does not mint: it carries the NONCE, because two
-	// registers for one seat id are a legitimate event (a re-dispatch) and must not dedup into one.
-	envelope(ev, 0, nextStamp(recDir), seatID, nonce, id.Round, seatID+":register:"+nonce)
-	if err := appendLine(shard, ev); err != nil {
-		return "", "", err
+	// THE REGISTER IS NO LONGER A SPECIAL CASE. It used to be the one key deriveKey did not mint,
+	// because it carried the nonce — two registers for one seat are a legitimate re-dispatch and
+	// must not dedup into one. With the ordinal scoped to the seat, `red-merge-r1:register:#2` is
+	// what the general rule already produces, so the exception is gone rather than restated.
+	if err := insertNumbered(db, ev, seatID, id.Round, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister()); err != nil {
+		return 0, "", err
 	}
-	return nonce, shard, nil
+	if err := db.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
+		seatID).Scan(&dispatch); err != nil {
+		return 0, "", err
+	}
+	// WHAT THE TWO RETURNS ARE NOW. The first was a NONCE, an opaque sitting id a seat could do
+	// nothing with; it is the dispatch NUMBER, which is the thing that was actually being
+	// communicated ("this is your second dispatch"). The second was the shard path a seat wrote to
+	// — there is no shard, so it is the record's location.
+	return dispatch, dbName, nil
 }
 
 // envelope stamps the fields EVERY event carries whatever its body, in ONE place — so a second
@@ -308,11 +271,9 @@ func RegisterSeat(id Identity) (nonce, shard string, err error) {
 // ROLE IS SET ONLY WHEN THE SEAT ID RESOLVES TO ONE. The pre-schema struct carried
 // `json:"role,omitempty"`, so a seat matching no role had NO role field; presence keeps that fact
 // expressible, where proto.String("") would assert that its role is the empty string.
-func envelope(ev *Event, seq int, ts, seatID, nonce string, round int, key string) {
-	ev.Seq = proto.Int32(int32(seq))
+func envelope(ev *Event, ts, seatID string, round int, key string) {
 	ev.Ts = proto.String(ts)
 	ev.SeatId = proto.String(seatID)
-	ev.Nonce = proto.String(nonce)
 	ev.Round = proto.Int32(int32(round))
 	if r := roleOfSeat(seatID); r != "" {
 		ev.Role = proto.String(r)
@@ -321,28 +282,19 @@ func envelope(ev *Event, seq int, ts, seatID, nonce string, round int, key strin
 	ev.SchemaVersion = recordpb.CurrentSchemaVersion.Enum()
 }
 
-// activeNonce reads the seat pointer, implicitly registering when absent —
-// deliberately tolerant, matching the oracle.
-func activeNonce(id Identity, recDir string) (string, error) {
-	b, err := os.ReadFile(pointerPath(recDir, id.SeatID))
-	if err != nil {
-		if os.IsNotExist(err) {
-			n, _, rerr := RegisterSeat(id)
-			return n, rerr
-		}
-		return "", err
-	}
-	return strings.TrimSpace(string(b)), nil
-}
-
-// singleton verbs key on seat+verb; multi-instance verbs on their stable labels;
-// the rest on a per-shard ordinal.
+// singleton verbs key on seat+verb; multi-instance verbs on their stable labels; the rest on a
+// per-seat ordinal.
+//
+// REGISTER IS NOT ONE, and it never really was. It sat here and then had its key overridden in
+// RegisterSeat to carry the nonce, precisely because two registers for one seat are a legitimate
+// re-dispatch that must not collapse into one. The override is gone with the nonce, so the
+// exception is expressed where it belongs: a register is an ordinary numbered act, and a
+// re-dispatched seat gets `#2`.
 var singleton = map[recordpb.EventType]bool{
 	recordpb.EventType_EVENT_TYPE_POSITION:   true,
 	recordpb.EventType_EVENT_TYPE_REVISION:   true,
 	recordpb.EventType_EVENT_TYPE_VERDICT:    true,
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK: true,
-	recordpb.EventType_EVENT_TYPE_REGISTER:   true,
 }
 
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
@@ -357,21 +309,31 @@ var singleton = map[recordpb.EventType]bool{
 // the reason a name is only ever REMOVED from this list deliberately.
 var keyFields = []protoreflect.Name{"gap_id", "label", "id", "observation", "anchor", "url"}
 
-func deriveKey(seatID string, typ recordpb.EventType, body proto.Message, shardEvents []*Event) string {
+// deriveKey builds the idempotency key, and its ordinal arm COUNTS INSIDE THE WRITING
+// TRANSACTION.
+//
+// That arm used to walk the seat's own shard, which was correct only because one seat owned one
+// file. Counting in Go from a list read earlier is a read-then-write with a gap in it; counting in
+// the transaction that does the insert has no gap. The uniqueness of the result is no longer a
+// property of the counting either way — `events.key` carries a UNIQUE index, so a duplicate key is
+// refused rather than silently written twice.
+func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Message) (string, error) {
 	slug := recordpb.Word(typ)
 	if singleton[typ] {
-		return seatID + ":" + slug
+		return seatID + ":" + slug, nil
 	}
 	if v := keyLabel(body); v != "" {
-		return seatID + ":" + slug + ":" + v
+		return seatID + ":" + slug + ":" + v, nil
 	}
-	ordinal := 1
-	for _, e := range shardEvents {
-		if e.GetType() == typ {
-			ordinal++
-		}
+	var prior int
+	// SCOPED TO THE SEAT, NOT TO A SITTING. It was `seat_id AND nonce AND type`, which restarted the
+	// count on every re-dispatch while `events.key` carries a GLOBAL unique index — so a
+	// re-registered seat's first act collided with its own earlier one and was refused outright.
+	if err := tx.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = ?`,
+		seatID, slug).Scan(&prior); err != nil {
+		return "", fmt.Errorf("record: counting this seat's %s events: %w", slug, err)
 	}
-	return fmt.Sprintf("%s:%s:#%d", seatID, slug, ordinal)
+	return fmt.Sprintf("%s:%s:#%d", seatID, slug, prior+1), nil
 }
 
 // keyLabel is the first non-empty keyFields value this body carries, or "".
@@ -438,52 +400,6 @@ func ParseStamp(ts string) (time.Time, error) {
 	return time.Parse(stampLayout, strings.TrimSpace(ts))
 }
 
-// nextStamp issues a stamp that is STRICTLY GREATER than the last one issued for this run.
-//
-// Precision alone still leaves ordering to luck: it narrows the window in which two events
-// can tie, but two seats CAN stamp the same instant, and a wall clock can step backwards
-// under NTP and issue a stamp earlier than one already written. Both land in the same place
-// — a tie or an inversion in the ordering key — and the sort then falls through to seat
-// name, which is the defect that dropped the bench's closures.
-//
-// So monotonicity is GUARANTEED IN CODE rather than hoped for from the hardware. The last
-// issued stamp is kept in the run, and a stamp that would not advance is nudged to
-// last + 1ns. It is a logical clock wearing a timestamp's clothes: no schema change, the
-// field stays a time, and the ORDER is now a property of the code instead of a property of
-// the machine.
-//
-// THE TRADE, stated: under a backwards clock step the stamps stop tracking wall time and
-// become an ordinal sequence until real time catches up. That is the right way to lose —
-// this field's job is order, and a timestamp that is slightly wrong about WHEN is strictly
-// better than one that is wrong about WHAT CAME FIRST.
-//
-// Contention is survivable by the same rule withLock already uses: if the lock cannot be
-// taken, or the clock file is unreadable or corrupt, fall back to the raw clock. That
-// degrades to the previous behaviour — ties possible, tiebreak by (SeatID, Seq) — rather
-// than failing an append. An event is never lost to bookkeeping.
-func nextStamp(recDir string) string {
-	var out string
-	withLock(recDir, "clock", func() {
-		now := Now()
-		p := filepath.Join(recDir, ".clock")
-		if b, err := os.ReadFile(p); err == nil {
-			if prev, err := time.Parse(stampLayout, strings.TrimSpace(string(b))); err == nil && !now.After(prev) {
-				now = prev.Add(time.Nanosecond)
-			}
-		}
-		out = now.Format(stampLayout)
-		if err := os.WriteFile(p, []byte(out), 0o644); err != nil {
-			// The stamp already issued is still valid and strictly increasing for THIS
-			// event; only the next one loses the guarantee. Not worth failing a write.
-			return
-		}
-	})
-	if out == "" {
-		return stamp()
-	}
-	return out
-}
-
 // Append writes ONE typed body as an event. The body IS the type — there is no type argument to
 // disagree with it, which is the pair recordpb.SetBody exists to retire.
 //
@@ -498,20 +414,7 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	if err != nil {
 		return nil, err
 	}
-	recDir, err := RecordsDir(runDir)
-	if err != nil {
-		return nil, err
-	}
-	nonce, err := activeNonce(id, recDir)
-	if err != nil {
-		return nil, err
-	}
-	shard := shardPath(recDir, seatID, nonce)
-	// The anomalies are DELIBERATELY DROPPED HERE and not lost: a corrupt line in this seat's own
-	// shard is inert for the seq count, and it reaches the human through the render anomaly footer
-	// on the read path (viewjson.Anomalies). Failing an append over one would make a single torn
-	// byte silence the seat for the rest of the run — the outage recordpb.IsFatal exists to refuse.
-	events, _, err := ReadShard(shard)
+	db, err := openRun(runDir)
 	if err != nil {
 		return nil, err
 	}
@@ -519,61 +422,66 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	// id the moment it is recorded, so the only way to refer to it later is to have read
 	// it back — see findingid.go for what a guessable one cost.
 	//
-	// THE TEST IS PRESENCE, NOT EMPTINESS. `p.Has("finding_id")` asked whether the seat supplied
-	// one at all; `GetFindingId() != ""` would ask a different question and would overwrite a
-	// deliberately-empty id, which is the exact conflation this migration exists to remove.
+	// THE TEST IS PRESENCE, NOT EMPTINESS. `GetFindingId() != ""` would ask a different question
+	// and would overwrite a deliberately-empty id, which is the exact conflation this migration
+	// exists to remove.
 	if f, ok := body.(*recordpb.Finding); ok && f.FindingId == nil {
 		f.FindingId = proto.String(NewFindingID())
 	}
 	if err := validate(runDir, seatID, typ, body); err != nil {
 		return nil, err
 	}
-	envelope(ev, len(events), nextStamp(recDir), seatID, nonce, id.Round, deriveKey(seatID, typ, body, events))
-	if err := appendLine(shard, ev); err != nil {
-		return nil, err
-	}
-	return ev, nil
+	// SEQ AND THE INSERT ARE ONE TRANSACTION. The shard version read the file, counted the lines
+	// and appended — two steps with a gap, held together only by one seat owning one file.
+	return ev, insertNumbered(db, ev, seatID, id.Round, typ, body)
 }
 
-// appendLine performs the torn-line healing the oracle documents: a crash
-// mid-append can leave an unterminated fragment as the file's last bytes, and
-// appending straight onto it would destroy THIS event too. If the shard does not
-// end in a newline, terminate the fragment first — the fragment stays visibly
-// unparseable, the new event stays whole.
-func appendLine(shard string, ev *Event) error {
-	prefix := ""
-	if st, err := os.Stat(shard); err == nil && st.Size() > 0 {
-		f, err := os.Open(shard)
-		if err != nil {
-			return err
-		}
-		buf := make([]byte, 1)
-		_, rerr := f.ReadAt(buf, st.Size()-1)
-		f.Close()
-		if rerr != nil {
-			return rerr
-		}
-		if buf[0] != '\n' {
-			prefix = "\n"
-		}
-	}
-	line, err := marshalEvent(ev)
+// insertNumbered stamps the envelope and writes the event in ONE transaction.
+//
+// # The one read that is left, and why
+//
+// It used to make TWO queries before the insert: the seat's event count (for `seq`) and its
+// per-type count (for the idempotency key's ordinal). `seq` is gone — nothing read it — so only
+// the key's ordinal remains, and that is genuinely read: the key names the act in the artifact a
+// seat reads back, and `#3` has to know what came before it.
+//
+// A read followed by a write in one transaction is exactly the deferred-BEGIN upgrade SQLite
+// refuses to apply busy_timeout to, which is why the DSN takes the write lock at BEGIN. Measured
+// before that: 8 concurrent seat processes lost about half their acts to SQLITE_BUSY.
+func insertNumbered(db *sql.DB, ev *Event, seatID string, round int, typ recordpb.EventType, body proto.Message) error {
+	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
-	// DEFECT FIXED: this wrote the event with a bare OpenFile+WriteString, so the
-	// ONLY append path in the package bypassed both guarantees safety.go was
-	// written to provide. durableAppend was defined there, documented as the append
-	// path ("a seat that reports success has a record that survives the machine
-	// dying"), and never called — Go does not flag an unused function, so it
-	// compiled clean while every event was written unsynced and unguarded. Two
-	// consequences, both the ones that file's header claims are closed: an event
-	// was never fsynced, so a crash could leave a shard that GREW without its
-	// bytes reaching disk; and the write sat outside enterCritical, so a SIGINT
-	// landing mid-WriteString could tear the line it was appending — "the cost of
-	// an interrupted seat is now a missing event, never a corrupt one" was not
-	// true of the append path. Routing through durableAppend makes it true.
-	return durableAppend(shard, prefix+string(line)+"\n")
+	defer tx.Rollback()
+	key, err := deriveKey(tx, seatID, typ, body)
+	if err != nil {
+		return err
+	}
+	envelope(ev, Now().UTC().Format(stampLayout), seatID, round, key)
+	if _, err := recordsql.InsertTx(tx, ev); err != nil {
+		// A KEY COLLISION IS A SEAT REPEATING A ONCE-PER-SITTING ACT, and the raw constraint text
+		// teaches nothing about that. The shard record met this by DEDUPING — two events with one
+		// key, one of them silently discarded on read — so a seat that stated its position twice
+		// never learned that only one survived. Refusing is the better answer and it has to say
+		// what was refused.
+		if isDuplicateKey(err) {
+			return feov.Errorf(feov.Validation,
+				"record: %s has already recorded a %s this sitting, and it is a once-per-sitting act — "+
+					"the record keeps your first one rather than quietly replacing it. If the first was wrong, "+
+					"say so in the act that supersedes it; the record is append-only and both stay visible",
+				seatID, recordpb.Word(typ))
+		}
+		return err
+	}
+	return tx.Commit()
+}
+
+// insertEvent writes an event whose envelope is already stamped — the register, which opens the
+// sitting and so has nothing to count against.
+func insertEvent(db *sql.DB, ev *Event) error {
+	_, err := recordsql.Insert(db, ev)
+	return err
 }
 
 // validate mirrors the oracle's append-time checks: anchors, lineage existence, class registry,
@@ -1204,4 +1112,16 @@ func jsonish(v any) string {
 // command it never ran.
 func verbOf(typ recordpb.EventType) string {
 	return strings.ReplaceAll(recordpb.Word(typ), "_", " ")
+}
+
+// isDuplicateKey recognises the one constraint a SEAT can walk into, so it can be answered in the
+// seat's own terms rather than SQLite's.
+//
+// Matched on the driver's message because modernc.org/sqlite reports constraint violations as a
+// generic error rather than a typed one. That is a string match on a foreign library's prose and
+// it is the shape facts-are-fields warns about — so it FAILS SAFE: an unrecognised error is
+// returned unchanged rather than folded into this explanation, which means a miss shows the raw
+// constraint text instead of confidently mislabelling something else.
+func isDuplicateKey(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed: events.key")
 }

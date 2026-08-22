@@ -30,11 +30,11 @@ import (
 
 func Register(help string) *cobra.Command {
 	return New("register", help, func(s Context, _ *cobra.Command) (Result, error) {
-		nonce, _, err := record.RegisterSeat(s.Identity())
+		dispatch, _, err := record.RegisterSeat(s.Identity())
 		if err != nil {
 			return nil, err
 		}
-		return registerResult{SeatID: s.SeatID, Nonce: nonce}, nil
+		return registerResult{SeatID: s.SeatID, Dispatch: dispatch}, nil
 	})
 }
 
@@ -547,13 +547,23 @@ func join(names []string) string {
 
 // registerResult and closingResult are the shared-verb results: these verbs are built by
 // seat for every role, so their result types live beside them.
+// registerResult reports WHICH DISPATCH this is, not an opaque sitting id.
+//
+// It carried a `nonce` — eight hex characters naming the shard file the seat would write to. There
+// is no shard file, and the nonce is gone from the record entirely (it scoped the idempotency
+// ordinal per sitting while the key index is global, so a re-dispatched seat collided with its own
+// earlier acts and could not record at all). What a seat can actually use is the count: being told
+// this is dispatch 2 says a previous attempt exists.
 type registerResult struct {
-	SeatID string `json:"seat_id"`
-	Nonce  string `json:"nonce"`
+	SeatID   string `json:"seat_id"`
+	Dispatch int    `json:"dispatch"`
 }
 
 func (r registerResult) Human() string {
-	return "registered " + r.SeatID + " (shard nonce " + r.Nonce + ")"
+	if r.Dispatch > 1 {
+		return fmt.Sprintf("registered %s (dispatch %d — a previous dispatch of this seat is on the record)", r.SeatID, r.Dispatch)
+	}
+	return "registered " + r.SeatID
 }
 
 type closingResult struct {

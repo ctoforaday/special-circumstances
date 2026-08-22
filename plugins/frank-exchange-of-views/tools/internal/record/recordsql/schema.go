@@ -42,12 +42,12 @@ CREATE TABLE "events" (
   "id"      INTEGER PRIMARY KEY,
   "seat_id" TEXT    NOT NULL,
   "round"   INTEGER NOT NULL,
-  "seq"     INTEGER NOT NULL,
-  "nonce"   TEXT    NOT NULL,
   "ts"      TEXT    NOT NULL,
   "type"    TEXT    NOT NULL REFERENCES "enum_event_type"("value"),
-  "key"     TEXT,
-  UNIQUE ("seat_id", "nonce", "seq")
+  -- The key is the fact that has to be unique, and the partial index below enforces it globally.
+  -- This was UNIQUE (seat_id, nonce, seq): a counter nothing read, scoped by a sitting that no
+  -- longer exists. Both are gone.
+  "key"     TEXT
 ) STRICT;
 
 CREATE UNIQUE INDEX "events_key" ON "events" ("key") WHERE "key" IS NOT NULL;

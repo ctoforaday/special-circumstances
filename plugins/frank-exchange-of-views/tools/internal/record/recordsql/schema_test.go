@@ -5,8 +5,6 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"strings"
 	"testing"
-
-	_ "modernc.org/sqlite"
 )
 
 func open(t *testing.T) *sql.DB {
@@ -94,7 +92,7 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 	db := open(t)
 	seed := func(t *testing.T) int64 {
 		t.Helper()
-		res, err := db.Exec(`INSERT INTO events (seat_id, round, seq, nonce, ts, type) VALUES ('red-merge-r1', 1, ?, 'aaaaaaaa', '2026-01-01T00:00:00Z', 'mint')`, seq())
+		res, err := db.Exec(`INSERT INTO events (seat_id, round, key, ts, type) VALUES ('red-merge-r1', 1, 'red-merge-r1:mint:#' || ?, '2026-01-01T00:00:00Z', 'mint')`, seq())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -123,7 +121,7 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 	})
 
 	t.Run("a ruling cannot answer two subjects at once", func(t *testing.T) {
-		res, _ := db.Exec(`INSERT INTO events (seat_id, round, seq, nonce, ts, type) VALUES ('judge-r1', 1, ?, 'bbbbbbbb', '2026-01-01T00:00:01Z', 'motion_rule')`, seq())
+		res, _ := db.Exec(`INSERT INTO events (seat_id, round, key, ts, type) VALUES ('judge-r1', 1, 'judge-r1:motion_rule:#' || ?, '2026-01-01T00:00:01Z', 'motion_rule')`, seq())
 		id, _ := res.LastInsertId()
 		_, err := db.Exec(`INSERT INTO motion_rule (event_id, motion_id, subject, grade, petition) VALUES (?, 'M1', 'grade', 'accepted', 'granted')`, id)
 		if err == nil {
@@ -150,6 +148,8 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 	})
 }
 
+// The counter names each fixture act uniquely. It was a `seq` column; the record no longer keeps
+// a per-seat counter, and the key is the fact that has to be distinct.
 var seqN int
 
 func seq() int { seqN++; return seqN }
@@ -191,7 +191,7 @@ func TestAnEnumColumnStillRefusesAnUnknownWord(t *testing.T) {
 	db := open(t)
 	mk := func(t *testing.T, typ string) int64 {
 		t.Helper()
-		res, err := db.Exec(`INSERT INTO events (seat_id, round, seq, nonce, ts, type) VALUES ('red-merge-r1', 1, ?, 'cccccccc', '2026-01-01T00:00:00Z', ?)`, seq(), typ)
+		res, err := db.Exec(`INSERT INTO events (seat_id, round, key, ts, type) VALUES ('red-merge-r1', 1, 'red-merge-r1:act:#' || ?, '2026-01-01T00:00:00Z', ?)`, seq(), typ)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -2,6 +2,7 @@ package recordsql
 
 import (
 	"database/sql"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -20,14 +21,20 @@ func store(t *testing.T) *sql.DB {
 	return db
 }
 
-func event(t *testing.T, seq int32, typ recordpb.EventType, body proto.Message) *recordpb.Event {
+// event builds a fixture act.
+//
+// THE ORDINAL IS THE KEY NOW, not a `seq` field. It used to stamp `Event.Seq`, the seat's position
+// within its own shard — a counter whose last reader was replay's tiebreak sort, which insertion
+// order replaced. Keeping the parameter and dropping it on the floor would have left every call
+// site stating a number the record does not hold, so it names the act instead, which is a fact the
+// record does keep and a UNIQUE index enforces.
+func event(t *testing.T, ord int32, typ recordpb.EventType, body proto.Message) *recordpb.Event {
 	t.Helper()
 	ev := &recordpb.Event{
 		SeatId: proto.String("red-merge-r1"),
 		Round:  proto.Int32(1),
-		Seq:    proto.Int32(seq),
-		Nonce:  proto.String("aaaaaaaa"),
 		Ts:     proto.String("2026-01-01T00:00:00Z"),
+		Key:    proto.String(fmt.Sprintf("red-merge-r1:act:#%d", ord)),
 	}
 	got, err := recordpb.SetBody(ev, body)
 	if err != nil {

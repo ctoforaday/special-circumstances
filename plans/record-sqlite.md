@@ -49,3 +49,47 @@ forever (`filed > ruled` computing `0 > 0`).
 2. The store: open, append in a transaction, read back.
 3. Rewire `record.Append` and `BoardState` onto it; delete the shard/nonce/anomaly machinery.
 4. Replace the hand-written projections with queries, one at a time, each with its test.
+
+## The cutover (in progress)
+
+**The seam is `MergedEvents`.** 28 call sites inside `internal/record` take `Merged` and
+never touch a file. If `MergedEvents` returns events from SQLite, all 28 are untouched.
+That is the whole reason this is one change and not thirty.
+
+### What each piece becomes
+
+| Today | After | Why |
+|---|---|---|
+| `shardPath` + one JSONL file per (seat, nonce) | one `record.db` per run | The shard-per-seat layout existed to avoid write contention. WAL plus `busy_timeout` is the same guarantee, held by the storage rather than by the naming scheme. |
+| pointer file + `withLock` + `durableWrite` | the nonce of the seat's latest register row | A pointer file is a record standing outside the record. It needed a lock because two registers race; a query does not. |
+| `seq` from `len(ReadShard(shard))` | `count(*)` for (seat_id, nonce) inside the insert transaction | Read-then-write was two steps with a gap; now it is one statement under SQLite's writer serialization. |
+| `nextStamp` monotonic clock file | wall clock, informational | Ordering is `events.id`. The clock file existed because filename order was not event order — the bug that dropped a whole sitting's bench closures. |
+| `appendLine` torn-line healing | — | A torn line is a JSONL failure mode. A transaction either commits or does not. |
+| `ReadShard` + `ClassifyLine` stages | `recordsql.Events` | Undecodable-line classification has no analogue: a row is a row. |
+
+### Two channels that must NOT become plausible zeros
+
+- **`Merged.Discarded`** tells apart a healthy re-dispatch from one seat id used for two
+  sittings, where the losing shard held work that exists nowhere downstream. `capture.go`
+  gates a run on it. In SQLite BOTH sittings' events are rows: nothing is discarded, so the
+  loss is **unrepresentable**, not merely absent. DELETE the field and the gate, with the
+  reason recorded — leaving it always-empty is exactly the shape this migration exists to
+  remove, and it would read as "no loss detected" forever.
+- **`Merged.Anomalies`** has two producers. The replay-time ones (torn line, undecodable
+  row, missing gap) go away — the first two are unrepresentable, and `missingGap` is now a
+  foreign key. The **projection-time** ones in `viewjson.go` stay and are unrelated. So the
+  field survives, its replay-time producers do not, and `view.go:124`'s headline count
+  changes meaning: say so in the change.
+
+### Validation loop
+
+Re-arms on any edit under `internal/record/`:
+
+    (cd plugins/frank-exchange-of-views/tools && GOTOOLCHAIN=go1.25.0 go build -gcflags=-e ./... 2>&1 | grep -c '\.go:[0-9]')
+    (cd plugins/frank-exchange-of-views/tools && GOTOOLCHAIN=go1.25.0 go test ./internal/record/... ./internal/cli/...)
+    (cd plugins/frank-exchange-of-views/tools && UPDATE_GOLDENS=1 GOTOOLCHAIN=go1.25.0 go test ./internal/record/recordsql && git diff --stat)
+
+Known-red and NOT a regression: `internal/difftest`, `internal/flags`
+(`TestGradeValueSetRejections`), `internal/proof` — all three fail identically at HEAD,
+verified by stashing. The remaining build failures are the in-flight test-fixture
+conversion (capture, verify, view, fuzz, report, cli, record).

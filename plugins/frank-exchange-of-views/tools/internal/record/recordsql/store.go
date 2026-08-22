@@ -5,6 +5,14 @@ import (
 	"fmt"
 	"strings"
 
+	// THE DRIVER BELONGS TO THE PACKAGE THAT OPENS THE DATABASE, not to its tests.
+	//
+	// It lived in schema_test.go, so database/sql had a registered "sqlite" driver throughout the
+	// suite and none in the shipped binary. Every test passed and the first real `merge register`
+	// failed with `unknown driver "sqlite"`. A blank import is invisible to the compiler's unused
+	// check, which is exactly why the wrong file stayed good enough.
+	_ "modernc.org/sqlite"
+
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
@@ -25,7 +33,24 @@ import (
 //   - busy_timeout keeps a concurrent seat waiting rather than failing. Seats are dispatched in
 //     parallel and a lock contended for a few milliseconds is not an error to report to a human.
 func Open(path string) (*sql.DB, error) {
-	dsn := "file:" + path + "?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
+	// _txlock=immediate IS NOT A TUNING KNOB. IT IS THE DIFFERENCE BETWEEN WORKING AND NOT.
+	//
+	// A default `BEGIN` is DEFERRED: it takes no lock, acquires a READ lock at the first SELECT, and
+	// tries to UPGRADE to a write lock at the first INSERT. The write path counts the seat's existing
+	// events and then inserts, so it is exactly that shape — and SQLite deliberately does NOT apply
+	// busy_timeout to an upgrade, because two readers both waiting to upgrade would deadlock. It
+	// returns SQLITE_BUSY immediately instead.
+	//
+	// MEASURED, through the real binary: 8 concurrent seat processes writing 5 events each lost
+	// roughly half of them to `database is locked (5) (SQLITE_BUSY)`. Not a slow path — a REFUSED
+	// act, with the seat told its record failed. The shard layout had no contention by construction
+	// (one file per seat), so this is a hazard the storage change INTRODUCED and had to answer.
+	//
+	// `immediate` takes the write lock at BEGIN, before any read. busy_timeout then applies, because
+	// a writer waiting for a writer is a queue rather than a deadlock. It also fixes the correctness
+	// half: a deferred transaction's count could be read from a snapshot another writer has already
+	// moved past, which is what SQLITE_BUSY_SNAPSHOT exists to refuse.
+	dsn := "file:" + path + "?_txlock=immediate&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
@@ -65,10 +90,31 @@ func Insert(db *sql.DB, ev *recordpb.Event) (int64, error) {
 		return 0, err
 	}
 	defer tx.Rollback() //nolint:errcheck // the commit below is what matters; a rollback after it is a no-op
+	// THE ID COMES BACK FROM InsertTx, NOT FROM last_insert_rowid().
+	//
+	// The first split of this function asked SQLite for the last inserted rowid after InsertTx
+	// returned — which is the id of the LAST row written, and InsertTx writes the envelope, then
+	// the body, then a row per repeated value. For a mint with two `supersedes` entries it handed
+	// back the id of a `mint_supersedes` row, and every caller then looked up an event that was
+	// not there.
+	id, err := InsertTx(tx, ev)
+	if err != nil {
+		return 0, err
+	}
+	return id, tx.Commit()
+}
 
+// InsertTx writes one event inside a transaction the CALLER owns.
+//
+// The write path needs that: an event's seq and its idempotency ordinal are counted from the rows
+// already present, and a count in one transaction followed by an insert in another is a
+// read-then-write with a gap in it. Here the count, the derivation and the insert are one atomic
+// unit, which is a guarantee the shard layout got by giving each seat its own file and lost the
+// moment two processes shared one.
+func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 	res, err := tx.Exec(
-		`INSERT INTO events (seat_id, round, seq, nonce, ts, type, key) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		ev.GetSeatId(), ev.GetRound(), ev.GetSeq(), ev.GetNonce(), ev.GetTs(),
+		`INSERT INTO events (seat_id, round, ts, type, key) VALUES (?, ?, ?, ?, ?)`,
+		ev.GetSeatId(), ev.GetRound(), ev.GetTs(),
 		recordpb.Word(ev.GetType()), nullable(ev.GetKey()),
 	)
 	if err != nil {
@@ -83,10 +129,7 @@ func Insert(db *sql.DB, ev *recordpb.Event) (int64, error) {
 	if !ok {
 		return 0, fmt.Errorf("recordsql: event %d carries no body — every EventType names a body message", id)
 	}
-	if err := insertBody(tx, id, body.ProtoReflect()); err != nil {
-		return 0, err
-	}
-	return id, tx.Commit()
+	return id, insertBody(tx, id, body.ProtoReflect())
 }
 
 // insertBody writes one message into its table, and recurses for the message arms of a oneof.
