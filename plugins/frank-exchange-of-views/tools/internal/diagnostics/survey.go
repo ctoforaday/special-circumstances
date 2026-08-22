@@ -30,6 +30,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"sort"
 	"strings"
 )
 
@@ -79,6 +80,9 @@ type Survey struct {
 	// never return" shape run 5 measured.
 	LastHelpCall int `json:"lastHelpCall"`
 	TotalCalls   int `json:"totalCalls"`
+	// Traversal is how the seat MOVED across the top level of its own tree — the measurement
+	// behind "are the groupings leaky".
+	Traversal Traversal `json:"traversal"`
 	// BashCalls is every Bash call in the trajectory, whether or not it invoked the tool.
 	//
 	// IT EXISTS TO MAKE ONE FAILURE LOUD. Everything above is keyed on recognising the tool by its
@@ -86,6 +90,51 @@ type Survey struct {
 	// the report reads "this seat invoked nothing" — which is also what a seat that sat on its
 	// hands produces. BashCalls > 0 with TotalCalls == 0 can only be a name mismatch.
 	BashCalls int `json:"bashCalls"`
+}
+
+// Traversal is the seat's movement across the top level of its own tree, over the commands it
+// actually RAN — help reads are excluded, because surveying a surface is not an operation on it.
+//
+// THE QUESTION IT ANSWERS. A command tree groups verbs by what they are ABOUT, and the grouping
+// is only earning its keep if the work a seat actually does stays inside one group at a time. If
+// an ordinary operation has to hop `motion` -> `show` -> `motion` to complete, those two are
+// coupled in practice however they are filed, and the boundary is in the wrong place.
+//
+// ADJACENCY, NOT SESSIONS, AND THAT IS A REAL LIMIT. A trajectory does not say where one logical
+// operation ends and the next begins, so a crossing here is "the seat's next act was in a
+// different group", which over-counts a seat that simply finished one job and started another.
+// The number to read is not the raw total but the PAIRS: one pair dominating the crossings is a
+// coupling, an even spread is a seat working through its docket.
+type Traversal struct {
+	// Sequence is the top-level word of each invocation in order, with consecutive repeats
+	// collapsed — so `show show show motion` reads `show motion`. Legibility, not data; Pairs
+	// carries the countable half.
+	Sequence []string `json:"sequence"`
+	// Crossings and Stays split adjacent invocation pairs by whether the top-level word changed.
+	// Both are needed: 20 crossings means nothing without knowing whether the seat made 25 calls
+	// or 250.
+	Crossings int `json:"crossings"`
+	Stays     int `json:"stays"`
+	// Unclassified counts invocations the traversal could not place in any group, because
+	// CommandWords found no verb path in them.
+	//
+	// IT EXISTS BECAUSE ZERO CROSSINGS IS THE ANSWER TO TWO DIFFERENT QUESTIONS. A seat that
+	// worked entirely inside one group and a seat whose every command was unreadable both report
+	// 0 and 0, and the first time this ran over a real corpus it was the second: red-merge-r1
+	// made thirty recognised tool calls and one was classified, so the projection said "never
+	// left a group" about a seat it could not see. Read `crossings` only when this is small
+	// relative to them.
+	Unclassified int `json:"unclassified"`
+	// Pairs are the crossings by (from, to), most frequent first, then alphabetically so the
+	// order is stable across runs and a diff of two runs is readable.
+	Pairs []TraversalPair `json:"pairs"`
+}
+
+// TraversalPair is one ordered group-to-group move and how often the seat made it.
+type TraversalPair struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+	N    int    `json:"n"`
 }
 
 // ToolUnrecognised reports the one state that would otherwise pass as an idle sitting: the seat
@@ -131,7 +180,11 @@ type call struct {
 //
 // binName is the basename the tool was built under; a Bash call that does not invoke it is not a
 // command and cannot be a help read either.
-func ReadSurvey(trajectoryPath, binName string) (Survey, error) {
+// known is the set of TOP-LEVEL command words this seat's role actually offers. A traversal top
+// that is not in it is counted Unclassified rather than as a group the seat visited — see
+// traversalOf. Pass an empty set only where the caller genuinely has no tree to check against;
+// every top then falls to Unclassified, which is the honest reading of "I could not tell".
+func ReadSurvey(trajectoryPath, binName string, known map[string]bool) (Survey, error) {
 	var out Survey
 	f, err := os.Open(trajectoryPath)
 	if err != nil {
@@ -233,6 +286,7 @@ func ReadSurvey(trajectoryPath, binName string) (Survey, error) {
 			out.PagesNeverUsed++
 		}
 	}
+	out.Traversal = traversalOf(calls, known)
 	return out, nil
 }
 
@@ -287,4 +341,77 @@ func textOf(v any) string {
 		return b.String()
 	}
 	return ""
+}
+
+// traversalOf measures movement across the top level of the tree, over invocations only.
+//
+// A ROOT-LEVEL VERB IS ITS OWN TOP. `mint` and `show board` both contribute a top-level word —
+// `mint` and `show` — because the question is which part of the surface the seat was working in,
+// and a verb that sits at the root is a part of the surface. Filing them differently would make
+// a seat that never opens a group look like it never moved.
+func traversalOf(calls []call, known map[string]bool) Traversal {
+	// EMPTY IS `[]`, NOT `null`. A nil slice marshals as null, and a consumer that iterates the
+	// pairs of every seat then crashes on the first seat that never left one group — which is an
+	// ordinary sitting, not an error. Caught driving this over a real run: blue-synthesize
+	// returned null and the reader died on it.
+	t := Traversal{Sequence: []string{}, Pairs: []TraversalPair{}}
+	if known == nil {
+		known = map[string]bool{}
+	}
+	pairs := map[TraversalPair]int{}
+	prev := ""
+	for _, c := range calls {
+		if c.isHelp {
+			continue
+		}
+		if len(c.path) == 0 {
+			t.Unclassified++
+			continue
+		}
+		top := c.path[0]
+		// A TOP THE ROLE DOES NOT OFFER IS NOT A GROUP THE SEAT VISITED.
+		//
+		// CommandWords accepts any lowercase word, so prose escaping a `--reason` body arrives
+		// here looking like a verb: the first run over a real corpus produced crossings named
+		// `and -> names`, `edit -> returns` and `count-claims -> repository`, and those were 43%
+		// of everything not involving `show`. Checking the word against the seat's own verb set
+		// is the difference between "a lowercase word" and "a command this seat has".
+		//
+		// It lands in Unclassified rather than being dropped, because a token the tree does not
+		// recognise is exactly a call the traversal could not read.
+		if !known[top] {
+			t.Unclassified++
+			continue
+		}
+		if prev == "" {
+			t.Sequence = append(t.Sequence, top)
+			prev = top
+			continue
+		}
+		if top == prev {
+			t.Stays++
+			continue
+		}
+		t.Crossings++
+		pairs[TraversalPair{From: prev, To: top}]++
+		t.Sequence = append(t.Sequence, top)
+		prev = top
+	}
+	for p, n := range pairs {
+		p.N = n
+		t.Pairs = append(t.Pairs, p)
+	}
+	// MOST FREQUENT FIRST, THEN ALPHABETICAL. Map iteration order is random, and a projection
+	// whose rows move between identical runs cannot be diffed — which is the whole use for this.
+	sort.Slice(t.Pairs, func(i, j int) bool {
+		a, b := t.Pairs[i], t.Pairs[j]
+		if a.N != b.N {
+			return a.N > b.N
+		}
+		if a.From != b.From {
+			return a.From < b.From
+		}
+		return a.To < b.To
+	})
+	return t
 }

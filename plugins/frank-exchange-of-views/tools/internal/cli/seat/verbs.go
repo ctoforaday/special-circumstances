@@ -33,7 +33,23 @@ func Register() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		return registerResult{SeatID: s.SeatID, Nonce: nonce}, nil
+		r := registerResult{SeatID: s.SeatID, Nonce: nonce}
+		// A SECOND SITTING IS TOLD WHAT ITS FIRST ONE LOST, HERE, BECAUSE THIS IS THE ONLY
+		// MOMENT IT IS LISTENING FOR WHO IT IS.
+		//
+		// Read AFTER the register, deliberately: the rotation this call just performed is what
+		// makes the earlier shard a loser, so the discard does not exist until now.
+		//
+		// A read failure is NOT reported as "nothing was discarded". It leaves the field nil and
+		// the seat is told the check could not run — the alternative is a silence that means
+		// either "your predecessor lost nothing" or "nobody looked", which is the shape this
+		// whole warning exists to break.
+		if d, found, derr := record.DiscardedForSeat(s.RunDir, s.SeatID); derr != nil {
+			r.PriorSittingUnknown = derr.Error()
+		} else if found && len(d.Keys) > 0 {
+			r.PriorSitting = &priorSitting{Dispatches: d.Dispatches, DiscardedKeys: d.Keys}
+		}
+		return r, nil
 	})
 }
 
@@ -555,10 +571,85 @@ func join(names []string) string {
 type registerResult struct {
 	SeatID string `json:"seat_id"`
 	Nonce  string `json:"nonce"`
+	// PriorSitting is present ONLY when an earlier dispatch of this same seat left work that
+	// replay has dropped. Absent is the ordinary case.
+	PriorSitting *priorSitting `json:"prior_sitting,omitempty"`
+	// PriorSittingUnknown carries the reason the check could not run, so "not measured" never
+	// renders as "nothing lost".
+	PriorSittingUnknown string `json:"prior_sitting_unknown,omitempty"`
+}
+
+// priorSitting is the discarded work of an earlier dispatch of this seat — the keys, not a
+// count, because a `cite` key carries the anchor id and that is the half a seat can act on.
+type priorSitting struct {
+	Dispatches    int      `json:"dispatches"`
+	DiscardedKeys []string `json:"discarded_keys"`
 }
 
 func (r registerResult) Human() string {
-	return "registered " + r.SeatID + " (shard nonce " + r.Nonce + ")"
+	out := "registered " + r.SeatID + " (shard nonce " + r.Nonce + ")"
+	if r.PriorSittingUnknown != "" {
+		return out + "\n\nWHETHER AN EARLIER SITTING OF THIS SEAT LOST WORK COULD NOT BE CHECKED: " +
+			r.PriorSittingUnknown + ". Treat this as NOT MEASURED, not as a clean board."
+	}
+	if r.PriorSitting == nil {
+		return out
+	}
+	byType := map[string]int{}
+	var order []string
+	for _, k := range r.PriorSitting.DiscardedKeys {
+		t := k
+		if parts := strings.Split(k, ":"); len(parts) >= 2 {
+			t = parts[1]
+		}
+		if byType[t] == 0 {
+			order = append(order, t)
+		}
+		byType[t]++
+	}
+	var kinds []string
+	for _, t := range order {
+		kinds = append(kinds, fmt.Sprintf("%d %s", byType[t], t))
+	}
+	// THE GUIDANCE NAMES ONLY THE KINDS ACTUALLY LOST. The first draft listed `cite` and
+	// `blue_edit` unconditionally, and the golden corpus caught it immediately: a merge seat that
+	// lost one `mint` was being told what a dropped citation means. Advice about work a seat did
+	// not lose is noise, and noise in a warning is how the real line stops landing.
+	var notes []string
+	for _, t := range order {
+		if n, ok := discardNotes[t]; ok {
+			notes = append(notes, "  "+t+" — "+n)
+		}
+	}
+	guidance := "Re-do what still applies rather than assuming your predecessor's output survived it."
+	if len(notes) > 0 {
+		guidance = strings.Join(notes, "\n") + "\n\n" + guidance
+	}
+	return out + fmt.Sprintf(
+		"\n\nYOU ARE SITTING %d OF THIS SEAT, AND AN EARLIER SITTING'S WORK IS GONE. %d event(s) it "+
+			"recorded (%s) lost replay's winner selection and survive nowhere — not in the board, not "+
+			"in the report's evidence, not in any projection you are about to read. This is not a "+
+			"warning about the record being wrong; the record is correct and that work is simply "+
+			"absent.\n\n%s\n\n%s",
+		r.PriorSitting.Dispatches, len(r.PriorSitting.DiscardedKeys),
+		strings.Join(kinds, ", "), guidance,
+		strings.Join(r.PriorSitting.DiscardedKeys, "\n"))
+}
+
+// discardNotes says what losing one event of each kind COSTS, for the kinds a lost sitting can
+// plausibly carry. A kind with no note still appears in the count and the key list — the absence
+// of advice is not the absence of loss, and inventing a sentence per kind to look complete would
+// be worse than saying nothing about the ones whose consequence is simply "it is not there".
+var discardNotes = map[string]string{
+	"cite":            "a source was fetched and is no longer cited, so the report may make a claim nothing backs",
+	"prove":           "a computation was run and its proof anchor resolves to nothing",
+	"blue_edit":       "a change to the report has no event behind it, so `show changes` cannot explain how the text got that way",
+	"mint":            "a gap was raised and is not on the board — nobody is being asked to fix it",
+	"close":           "a closure was recorded and the gap it closed reads as still open",
+	"finding":         "a lens finding is gone, so the merge has nothing to coalesce from it",
+	"line-of-inquiry": "a direction was opened or disposed and reads as never asked",
+	"verify":          "a citation was judged and reads as unchecked",
+	"reproduce":       "a proof was re-run and reads as never re-run",
 }
 
 type closingResult struct {

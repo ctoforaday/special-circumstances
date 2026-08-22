@@ -202,7 +202,13 @@ func diagnose(runDir, traj, seatID string) (RunDiagnostic, error) {
 		if err != nil {
 			return out, err
 		}
-		sv, err := diagnostics.ReadSurvey(traj, toolName())
+		// The traversal is checked against the seat's OWN verb set, so a prose word that leaked
+		// out of a --reason body cannot be counted as a group the seat visited.
+		tops := map[string]bool{}
+		for _, a := range acts {
+			tops[strings.Fields(a)[0]] = true
+		}
+		sv, err := diagnostics.ReadSurvey(traj, toolName(), tops)
 		if err != nil {
 			return out, err
 		}
