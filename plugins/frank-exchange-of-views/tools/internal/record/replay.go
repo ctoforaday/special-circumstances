@@ -418,8 +418,6 @@ func BoardState(runDir string) (*Board, error) {
 	if err != nil {
 		return nil, err
 	}
-	b := &Board{Events: m.Events, Anomalies: m.Anomalies, Discarded: m.Discarded, Gaps: map[string]*Gap{}}
-
 	// ORDERED BY WHEN IT HAPPENED, not by what the shard file is called.
 	//
 	// Events merge per shard, so before this an entire seat replayed before the next
@@ -443,6 +441,24 @@ func BoardState(runDir string) (*Board, error) {
 		}
 		return a.Seq < b.Seq
 	})
+
+	// AND THE BOARD PUBLISHES THE ORDER IT REDUCED IN.
+	//
+	// The sort above landed; the publish did not. `Events` was assigned m.Events BEFORE this
+	// block ran, so the reduction below walked the corrected order while every CONSUMER of
+	// Board.Events kept reading (Round, SeatID, Seq) — the seat-name order this whole comment
+	// exists to replace. A fix applied to a local copy is a fix for one reader.
+	//
+	// FOUND 2026-08-22 BY A BLUE SEAT, mid-run, with a reproduction: seat `zulu` proposes at
+	// 10:00 and seat `alpha` abandons at 11:00, and because `alpha` < `zulu` the projection
+	// reports the line as `proposed`. It caught the defect biting its own sitting — six
+	// line-of-inquiry moves replayed before the frontier proposals they answered, so
+	// `show lines-of-inquiry` reported every line unmoved.
+	//
+	// The blast radius is every consumer that walks Board.Events rather than re-reducing:
+	// record.Inquiries (behind `show lines-of-inquiry`), report assembly, the scorecards and
+	// the graph renderer. They were reading a chronology assembled from filenames.
+	b := &Board{Events: ordered, Anomalies: m.Anomalies, Discarded: m.Discarded, Gaps: map[string]*Gap{}}
 
 	for _, e := range ordered {
 		switch e.Type {
