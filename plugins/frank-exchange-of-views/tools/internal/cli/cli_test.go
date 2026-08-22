@@ -1493,8 +1493,17 @@ func fieldText(t *testing.T, body proto.Message, name string) string {
 	m := body.ProtoReflect()
 	fd := m.Descriptor().Fields().ByName(protoreflect.Name(name))
 	if fd == nil {
-		t.Fatalf("%s has no field %q — the expectation names a field the schema does not carry, so it "+
-			"could never have matched", m.Descriptor().FullName(), name)
+		// THE SUBSTANCE MAY BE ON A ONEOF ARM. A motion's `proposed` grade lives on GradeMotion
+		// and a ruling's verdict on the MotionRule_Grade arm — that separation is what makes a
+		// ruling from the wrong subject's vocabulary unrepresentable. A seat thinks of them as
+		// fields of the act, so the lookup descends into whichever arm is set.
+		if arm, af := setArmField(m, name); af != nil {
+			m, fd = arm, af
+		}
+	}
+	if fd == nil {
+		t.Fatalf("%s has no field %q, on the message or on any set arm — the expectation names a "+
+			"field the schema does not carry, so it could never have matched", m.Descriptor().FullName(), name)
 	}
 	if !m.Has(fd) {
 		return ""
@@ -1504,4 +1513,29 @@ func fieldText(t *testing.T, body proto.Message, name string) string {
 		return recordpb.Spelling(fd.Enum().Values().ByNumber(v.Enum()))
 	}
 	return v.String()
+}
+
+
+// setArmField finds a field on whichever message-typed oneof arm is set.
+//
+// The record models a motion's substance on its subject's arm rather than flat on the message, so
+// "the motion proposed `low`" is GradeMotion.proposed. A test table states the fact the way a seat
+// would, and this is the one join between the two.
+func setArmField(m protoreflect.Message, name string) (protoreflect.Message, protoreflect.FieldDescriptor) {
+	md := m.Descriptor()
+	for i := 0; i < md.Oneofs().Len(); i++ {
+		od := md.Oneofs().Get(i)
+		if od.IsSynthetic() {
+			continue
+		}
+		set := m.WhichOneof(od)
+		if set == nil || set.Message() == nil {
+			continue
+		}
+		arm := m.Get(set).Message()
+		if fd := arm.Descriptor().Fields().ByName(protoreflect.Name(name)); fd != nil {
+			return arm, fd
+		}
+	}
+	return m, nil
 }

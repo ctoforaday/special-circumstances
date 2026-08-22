@@ -134,7 +134,11 @@ func verifyAxes(c *cobra.Command) {
 // distinguishes them — an anchor, or the source it read — into the payload.
 func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify) (seat.Result, error) {
 	body.Claim = proto.String(seat.Str(cmd, flags.Quote))
-	body.AccessDate = proto.String(seat.Str(cmd, flags.AccessDate))
+	// ABSENT IS NOT EMPTY. Set unconditionally, an unpassed --access-date landed as "" and read
+	// as "the seat dated this source to nothing" rather than "the seat did not date it" — the
+	// same defect that made `merge close` write `successor = ''` and fail every closure once the
+	// reference existed. Here nothing refuses it, so it simply reached every reader as a fact.
+	body.AccessDate = seat.OptStr(cmd, flags.AccessDate)
 	// BOTH WORDS ARE REFUSED RATHER THAN ZEROED. `refutes` and `absent` are the negative half this
 	// axis was widened to carry, and the zero is UNSPECIFIED — a mistyped verdict recorded as the
 	// zero is a citation nobody graded, which reads exactly like one nobody checked.

@@ -94,7 +94,10 @@ func TestVerbPayloads(t *testing.T) {
 			// The flag is --access-date; the payload key is access_date, and the
 			// citation render reads the payload key. --as lands under `outcome`.
 			want: map[string]string{"claim": "the claim", "url": "https://example.test/a", "title": "Example A",
-				"outcome": "supports", "confidence": "high", "reason": "read at the leaf", "access_date": "2026-07-18"},
+				// `text`, not `reason`: --reason is the flag, and a verify stores its reading as
+				// `text`. The old key named a field Verify does not carry, so the row asserted
+				// nothing until fieldText started failing on an unknown name.
+				"outcome": "supports", "confidence": "high", "text": "read at the leaf", "access_date": "2026-07-18"},
 			says: "corroborating source Example A verified: supports",
 		},
 		{
@@ -112,8 +115,12 @@ func TestVerbPayloads(t *testing.T) {
 			path: []string{"motion", "grade", "rule"}, seatID: "red-merge-r1",
 			args: []string{"--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
-			want: map[string]string{"motion_id": "M1", "subject": "grade", "ruling": "rejected",
-				"reason": "the evidence does not reach it"},
+			// THE RULING IS A ONEOF ARM, not a `ruling` field: `grade` carries GradeRuling,
+			// `petition` PetitionRuling, `direction` DirectionRuling. That separation is what
+			// makes a ruling from the wrong subject's vocabulary unrepresentable, and it is why
+			// the old key could never match. The ruler's argument is `opinion`.
+			want: map[string]string{"motion_id": "M1", "subject": "grade", "grade": "rejected",
+				"opinion": "the evidence does not reach it"},
 			says: "motion M1 ruled rejected",
 		},
 		{
@@ -122,7 +129,7 @@ func TestVerbPayloads(t *testing.T) {
 			args: []string{"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "§4 says otherwise"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION,
 			want: map[string]string{"gap_id": "R1-1", "dimension": "severity",
-				"proposed": "low", "reason": "§4 says otherwise", "subject": "grade"},
+				"proposed": "low", "basis": "§4 says otherwise", "subject": "grade"},
 			says: "filed (grade)",
 		},
 		{
@@ -159,7 +166,8 @@ func TestVerbPayloads(t *testing.T) {
 			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 			want: map[string]string{"motion_id": "M2", "subject": "petition",
-				"ruling": "granted", "reason": "the written opinion"},
+				// `opinion` is the ruler's argument — the one prose channel MotionRule carries.
+				"petition": "granted", "opinion": "the written opinion"},
 			says: "motion M2 ruled granted",
 		},
 		{
@@ -167,7 +175,7 @@ func TestVerbPayloads(t *testing.T) {
 			role: "bench", seatID: "judge-terminal",
 			args: []string{"--reason", "the run must stop, and here is why"},
 			typ:  recordpb.EventType_EVENT_TYPE_HALT,
-			want: map[string]string{"reason": "the run must stop, and here is why"},
+			want: map[string]string{"opinion": "the run must stop, and here is why"},
 			says: "JUDICIAL HALT recorded — capture relays this verbatim",
 		},
 		{
@@ -175,7 +183,7 @@ func TestVerbPayloads(t *testing.T) {
 			role: "bench", seatID: "assemble",
 			args: []string{"--reason", "what I would want a human to re-examine"},
 			typ:  recordpb.EventType_EVENT_TYPE_CERTIFY,
-			want: map[string]string{"reason": "what I would want a human to re-examine"},
+			want: map[string]string{"statement": "what I would want a human to re-examine"},
 			says: "certification recorded",
 		},
 	}
@@ -197,9 +205,10 @@ func TestVerbPayloads(t *testing.T) {
 			// `path`, as three already do.
 			path := tc.path
 			if path == nil {
-				// The verb word IS the event type's word for these cases; a case whose path
-				// differs states it in `path`, as three already do.
-				path = []string{tc.role, recordpb.Word(tc.typ)}
+				// The verb word is the event type's word with the schema's underscores rendered as
+				// the hyphens a COMMAND uses — `manifest_row` is typed `manifest-row`. A case
+				// whose path differs beyond that states it in `path`, as three already do.
+				path = []string{tc.role, strings.ReplaceAll(recordpb.Word(tc.typ), "_", "-")}
 			}
 			args := append(append([]string{}, path...), "--run", runDir, "--seat-id", tc.seatID)
 			args = append(args, tc.args...)
