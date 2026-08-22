@@ -354,8 +354,14 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "registered "+seatID) || !strings.Contains(out, "shard nonce") {
+	// "registered <seat>" and NOTHING ELSE on a first dispatch. It used to append "(shard nonce
+	// <8 hex>)" — an opaque id naming the file the seat would write to. There is no file and no
+	// nonce; a re-dispatch says which attempt it is, which is the part a seat can act on.
+	if !strings.Contains(out, "registered "+seatID) {
 		t.Errorf("register said %q", out)
+	}
+	if strings.Contains(out, "nonce") || strings.Contains(out, "dispatch") {
+		t.Errorf("a FIRST registration should say nothing beyond the seat: %q", out)
 	}
 
 	out, err = run(t, "lens", "finding", "--run", runDir, "--seat-id", seatID,

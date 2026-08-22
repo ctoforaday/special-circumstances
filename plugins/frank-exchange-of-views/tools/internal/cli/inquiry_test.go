@@ -125,7 +125,7 @@ func TestRedRulesOnAProposedInquiry(t *testing.T) {
 	// A direction motion joins on the LINE's own id: it has no `file` verb because the
 	// proposal IS the filing, which is why A1 works here and no M-number is minted.
 	if _, err := run(t, "motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", "Q1", "--as", "out-of-scope",
+		"--id", "Q1", "--as", "out_of_scope",
 		"--reason", "classical mathematics is the reference frame for this question"); err != nil {
 		t.Fatalf("rule: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestRedRulesOnAProposedInquiry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "RED RULED") || !strings.Contains(out, "out-of-scope") {
+	if !strings.Contains(out, "RED RULED") || !strings.Contains(out, "out_of_scope") {
 		t.Errorf("the ruling did not reach the projection blue reads:\n%s", out)
 	}
 }
@@ -146,7 +146,7 @@ func TestRulingRequiresAReason(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "merge", "line-of-inquiry-rule", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", "Q1", "--ruling", "too-thin"); err == nil {
+		"--id", "Q1", "--ruling", "too_thin"); err == nil {
 		t.Fatal("an unreasoned ruling was accepted — blue cannot contest what has no stated basis")
 	}
 }

@@ -149,7 +149,7 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:  "any seat may appeal, not only the filer",
-			setup: []seatStep{propose, {"motion", "inquiry", "rule", "--seat-id", "red-merge-r1", "--id", "Q1", "--as", "out-of-scope", "--reason", "not this question"}},
+			setup: []seatStep{propose, {"motion", "inquiry", "rule", "--seat-id", "red-merge-r1", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question"}},
 			act:   seatStep{"motion", "inquiry", "appeal", "--seat-id", "red-lens-r1-L1", "--id", "Q1", "--reason", "a lens presses a direction blue proposed"},
 			guards: "STANDING IS OPEN ON PURPOSE and this pins it. A motion belongs to the run, not " +
 				"to its filer — a lens files a safety petition and it is BLUE the granted relief " +

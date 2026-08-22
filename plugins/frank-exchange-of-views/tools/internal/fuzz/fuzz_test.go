@@ -702,11 +702,27 @@ func (r *runner) extras(role, seatID string, open []string) {
 	}
 	switch role {
 	case "lens":
+		// AN OBSERVATION WITH NO CLAIM ATTACHED. `lens observe` exists and nothing drove it across
+		// 60 runs — the coverage gate named it and was right. A lens that notices something it is
+		// not yet willing to grade has a channel for it, and a channel nothing exercises is one
+		// nobody finds out is broken.
+		r.maybe(30, func() {
+			r.do("lens", "observe", seatID).
+				set("--reason", "fuzz: the section reads oddly but I cannot yet say what is wrong").run()
+		})
 		// NO line of inquiry DRIVE HERE: the lens role has no line of inquiry verb (register/finding/
 		// cite/friction/show). This called it 183 times per sweep, every one refused, while
 		// the verb gate stayed green on blue's line of inquiry events — a dead drive that read as
 		// coverage. Found by the execution tally (lens line-of-inquiry: 183 of 183 refused).
 	case "merge":
+		// THE PER-ROUND REVIEW OF THE REPORT'S ACCOUNT OF ITS OWN RESEARCH. `merge inquiry-review`
+		// exists and nothing drove it — the second verb the coverage gate named. It names no line
+		// and casts no verdict: a shortfall in the body is an ordinary gap, so `--reason` is its
+		// whole payload.
+		r.maybe(40, func() {
+			r.do("merge", "inquiry-review", seatID).
+				set("--reason", "fuzz: read the report against the lines on the record; the treatment matches").run()
+		})
 		// ONE MOTION DRIVER, AND THERE WERE BRIEFLY TWO.
 		//
 		// The additive stage added a blue-files/merge-rules pair here beside the `blue dispute`
@@ -730,10 +746,10 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// It now models a seat that discharges the duty honestly: sample when there is something
 		// to sample, and claim emptiness only when the board agrees.
 		if closed := r.closedGapIDs(); len(closed) > 0 {
-			r.do("merge", "spot_check", seatID).set("--ids", closed[r.rng.Intn(len(closed))]).
+			r.do("merge", "spot-check", seatID).set("--ids", closed[r.rng.Intn(len(closed))]).
 				set("--reason", "fuzz: re-read the closure record; the anchor still resolves").run()
 		} else {
-			r.do("merge", "spot_check", seatID).bare("--none").
+			r.do("merge", "spot-check", seatID).bare("--none").
 				set("--reason", "fuzz: the archive was empty at round start").run()
 		}
 		// RED RULES ON BLUE'S DIRECTIONS (#246) — the verb red never had. Across six runs blue
@@ -887,7 +903,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// prompt asks for and what the scorecard counts, so the fake discharges it the way a
 		// compliant blue would: every gap it is repairing this round.
 		for _, id := range open {
-			r.do("blue", "manifest_row", seatID).set("--id", id).
+			r.do("blue", "manifest-row", seatID).set("--id", id).
 				set("--reason", "fuzz: figures recomputed, universals enumerated, acceptance check run — held").
 				on(50, "--reason", "fuzz: the receipt's argument").run()
 		}
@@ -2448,13 +2464,13 @@ func (r *runner) answerInquiryRulings(seatID string) {
 			// `contests_ruling` field is still exercised by the move below either way.
 			_, _ = r.exec("motion", "inquiry", "appeal", "--seat-id", seatID, "--id", a.ID,
 				"--reason", "fuzz: the scope call is wrong, this bears on the core claim")
-			r.do("blue", "avenue", seatID).set("--id", a.ID).set("--as", "pursued").
+			r.do("blue", "line-of-inquiry move", seatID).set("--id", a.ID).set("--as", "pursued").
 				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").run()
 		case ruling == "endorsed":
-			r.do("blue", "avenue", seatID).set("--id", a.ID).set("--as", "pursued").
+			r.do("blue", "line-of-inquiry move", seatID).set("--id", a.ID).set("--as", "pursued").
 				set("--reason", "fuzz: endorsed, taking it up").run()
 		default:
-			r.do("blue", "avenue", seatID).set("--id", a.ID).set("--as", "declined").
+			r.do("blue", "line-of-inquiry move", seatID).set("--id", a.ID).set("--as", "declined").
 				set("--reason", "fuzz: accepting the ruling").run()
 		}
 	}

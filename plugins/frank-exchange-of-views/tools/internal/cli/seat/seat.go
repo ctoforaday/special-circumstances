@@ -303,9 +303,16 @@ func annotate(c *cobra.Command, key, val string) {
 	c.Annotations[key] = val
 }
 
-// satisfiedByAnyOf are payload keys a seat may supply through MORE THAN ONE flag. Cobra's
-// per-flag required marking cannot express that — it would refuse the alternative — so these go
-// through MarkFlagsOneRequired instead.
+// satisfiedByAnyOf are FLAGS a seat may supply through more than one flag. Cobra's per-flag
+// required marking cannot express that — it would refuse the alternative — so these go through
+// MarkFlagsOneRequired instead.
+//
+// KEYED ON THE FLAG, NOT THE FIELD. It was keyed on payload keys, which worked while requiredness
+// came from a hand-written table that spoke in the seat's words ("reason"). It is derived from the
+// schema now and speaks in the schema's: a close stores `prose`, an opinion `rationale`, a halt
+// `opinion`, a certification `statement`. Keyed on fields this map would need an entry per prose
+// field and would go stale one field at a time; keyed on the flag it states the rule once, which
+// is what the rule actually is — the prose channel is ONE argument arriving three ways.
 var satisfiedByAnyOf = map[string][]string{
 	// The prose channel is one argument arriving three ways: inline, from a file, or from stdin
 	// via `--reason-file -`. The file forms exist for prose too large to type.
@@ -369,7 +376,7 @@ func markRequired(c *cobra.Command, verb string) {
 		// guards a different boundary, the one internal callers reach through record.Append
 		// without a command line. Cobra's is the SEAT's boundary, and it is the one that can
 		// refuse before an event exists and can say so in the help.
-		if alts := satisfiedByAnyOf[key]; len(alts) > 0 {
+		if alts := satisfiedByAnyOf[flags.ForPayloadKey(key)]; len(alts) > 0 {
 			var present []string
 			for _, a := range alts {
 				if c.Flags().Lookup(a) != nil {

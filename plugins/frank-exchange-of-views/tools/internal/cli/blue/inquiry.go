@@ -94,7 +94,7 @@ func newInquiryPropose() *cobra.Command {
 				return nil, err
 			}
 			return inquiryResult{ID: id, Status: "proposed", Line: body.GetLine()}, nil
-		}), "line-of-inquiry"))
+		}), "avenue"))
 
 	seat.Supplies(c, "status", "a proposal starts at `proposed` — the state the field exists to express, and the one a seat would not think to type. A MOVE requires it")
 	c.Flags().String(flags.Hypothesis, "", "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
@@ -135,7 +135,7 @@ func newInquiryMove() *cobra.Command {
 				return nil, err
 			}
 			return inquiryResult{ID: id, Status: recordpb.Word(body.GetStatus()), Moved: true}, nil
-		}), "line-of-inquiry"))
+		}), "avenue"))
 
 	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID, "the line of inquiry whose fate you are moving (A1, A2 …) — `show lines-of-inquiry` lists every one")
 	_ = c.MarkFlagRequired(flags.ID)

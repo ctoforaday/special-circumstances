@@ -2,8 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -217,61 +215,22 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 	}
 }
 
-// ANOMALIES REACH THE SEAT. A dropped mutation used to vanish; the 2026-07-18 run spent
-// three rounds on a board that was wrong by six gaps with nothing on the surface to say
-// so. A seat that can see an anomaly can petition about it.
-func TestBoardJSONSurfacesDroppedMutations(t *testing.T) {
-	runDir := seatRun(t)
+// A DANGLING REFERENCE IS REFUSED AT THE WRITE, and there is no longer a dropped mutation for the
+// seat to be told about.
+//
+// This test wrote a dangling opinion STRAIGHT INTO A SHARD — the CLI already refused one — to
+// prove that replay surfaced it rather than skipping in silence. That mattered because a run's
+// records carried twelve such events: accepted at write by an older binary, dropped at replay,
+// looking recorded and doing nothing. The 2026-07-18 run spent three rounds on a board that was
+// wrong by six gaps with nothing on the surface to say so.
+//
+// `opinion.gap_id` is a FOREIGN KEY onto `mint.gap_id` now. The row cannot be written — not by the
+// CLI, not by a fixture, not by anything writing SQL at the file — so there is no dangling
+// reference to surface, no anomaly channel to carry it, and the replay's arm for it is a hard
+// error rather than a note (see missingGap). The state moved from "detected after the fact" to
+// "unrepresentable", which is what the whole storage change was for.
+//
+// What survives is the write-path refusal, which has its own test: the CLI answers a `--id` naming
+// no mint with a message that says so. This one is deleted rather than pinned to a permanent zero,
+// because a green anomaly check for an anomaly that cannot occur reads as evidence and is not.
 
-	// WRITTEN STRAIGHT TO A SHARD, because the CLI now refuses to create one.
-	//
-	// This test first drove the dangling opinion through the CLI and asserted the write
-	// path let it through — "catching the dangling reference is the REPLAY's job". That
-	// was wrong, and it was wrong in the specific way that cost the 2026-07-18 run six
-	// gaps: an event accepted at write and dropped at replay looks recorded and does
-	// nothing, and the seat is long gone by the time anyone notices.
-	//
-	// The write path refuses it now. But shards like this EXIST — the run's own records
-	// carry twelve — so replay must still surface them rather than skip in silence, and
-	// that is what this asserts.
-	// APPENDED TO THE SEAT'S OWN SHARD, not a second one.
-	//
-	// The first version wrote events-judge-r1-deadbeef.jsonl beside the shard seatRun had
-	// already registered, which made judge-r1 multi-nonce and left the winner to mtime.
-	// It passed here and failed in CI, where the registered shard won and the dangling
-	// opinion never replayed at all — a test whose outcome depended on filesystem
-	// timestamp granularity, which is the exact defect this morning's golden fix removed.
-	// One shard, one nonce, no race.
-	nonce, err := os.ReadFile(filepath.Join(runDir, "records", ".active-judge-r1"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	shard := filepath.Join(runDir, "records",
-		"events-judge-r1-"+strings.TrimSpace(string(nonce))+".jsonl")
-	line := `{"seq":1,"ts":"2026-07-19T12:00:00.000000000Z","seatId":"judge-r1","nonce":"` +
-		strings.TrimSpace(string(nonce)) + `","round":1,` +
-		`"type":"opinion","key":"judge-r1:opinion:R9-9","payload":{"gap_id":"R9-9","disposition":"closed",` +
-		`"principle":"p","tension":"t","review_flag":"no"}}` + "\n"
-	f, err := os.OpenFile(shard, os.O_APPEND|os.O_WRONLY, 0o644)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.WriteString(line); err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
-
-	b := board(t, runDir, "merge", "red-merge-r1")
-	if b.Counts.Anomalies == 0 {
-		t.Fatal("a ruling on an unknown gap produced NO anomaly — this is the silent drop that let a board be wrong by six gaps for three rounds")
-	}
-	var found bool
-	for _, a := range b.Anomalies {
-		if strings.Contains(a, "R9-9") && strings.Contains(a, "DROPPED") {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("the anomaly must name the gap AND say the mutation was dropped, or a seat cannot tell what its board is missing: %v", b.Anomalies)
-	}
-}
