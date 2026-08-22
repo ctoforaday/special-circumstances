@@ -86,9 +86,23 @@ which is the collaboration the lens roles exist for.
 - `internal/cli/lens/verify.go` — `corroborate` mints, splices, and branches on outcome.
 - `internal/record/citationid.go` — `CitedSources` must include labelled corroborations; its
   comment about red being excluded is the thing being changed and must be rewritten, not left.
-- The `unbacked_citations` detector reads `CitedSources`' labels as its EXPECTED set — check it
-  does not now report red's anchors as unbacked.
-- `internal/record/evidenceview.go` — the `evidence` projection still shows both.
+- The `unbacked_citations` detector — **and this is where the carrier census earned its keep.**
+  It did NOT read `CitedSources`; it built its EXPECTED set with its own inline loop over `Cite`
+  events, a THIRD copy of the rule. Widening the other two left it on the old one, so blue
+  dropping a RED citation anchor would be caught by the hookgate lockdown and MISSED here — two
+  detectors for one protection, disagreeing, neither able to say so. Collapsed onto
+  `CitationLabelsOf`.
+- `hookgate.DefaultAnchorIDs` reads `CitationLabels`, so **red's citation anchors are IMMORTAL
+  now**, protected by the PostToolUse lockdown exactly as blue's are. Before this they were
+  spliced into the report and guarded by nothing. A gain that came with the change rather than
+  one it was designed for.
+- `requireCitation`'s refusal said "blue has cited %d source(s)" — true before, false after.
+- `internal/record/evidenceview.go` — the `evidence` projection still shows both, and gained
+  `unanswered_contradictions` plus the minted `label`. The duty is ENFORCED at the merge's PASS
+  gate, which is the right place to refuse; but a duty that surfaces only when someone else is
+  blocked at the end of the round is one the owing seat never sees. The empty array matters as
+  much as a full one — without the field, "nothing outstanding" and "nobody checked" are the
+  same absence.
 - Goldens: `internal/difftest` (help + error catalogue), `recordsql/testdata/schema.sql`,
   the simulator's prompt goldens if any prompt text moves.
 - `internal/fuzz` — drive corroborate on both arms, or the split is unexercised.
