@@ -155,6 +155,18 @@ cannot record the second reading. Three ways out, none obviously right:
 Pinned by `TestBoardCountsCiteEvents`, which asserts the refusal so the behaviour cannot
 change without someone editing the assertion and reading this.
 
+**A grade dispute may propose the grade already on the board, and is accepted.** Measured
+2026-08-22: with `severity: high` on `R1-1`, `motion grade file --dimension severity
+--proposed high` files cleanly. The motion then asks the merge to rule on a change that is
+not a change, and a `rejected` ruling on it is indistinguishable from a rejection on the
+merits — which is the shape the whole grade-dispute exchange exists to make legible.
+
+Refusing it is a one-line check against the gap's current grade at that dimension. It is
+NOT done here, deliberately: this is a judgement about what a dispute means, not about what
+the record can hold, and a storage migration is the wrong place to narrow a verb's contract.
+The counter-argument is real too — a seat re-affirming a contested grade at its current value
+is a legible act, and refusing it would force that argument into prose.
+
 **`--check ""` and friends.** Requiredness is present-and-non-empty again, with
 `allow_empty` on the three fields the old Go table treated as presence-only
 (`review_flag`, `principle`, `tension`). Whether `principle` and `tension` should be
