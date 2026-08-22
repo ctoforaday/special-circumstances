@@ -14,11 +14,15 @@
 package recordtest
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // Event is the common fixture: a seat, a round, and what it recorded.
@@ -66,4 +70,48 @@ func P[T any](v T) *T { return &v }
 func Stamped(ev *recordpb.Event, ts string) *recordpb.Event {
 	ev.Ts = proto.String(ts)
 	return ev
+}
+
+// Seed writes events straight into a run's record, for fixtures that need a board to exist before
+// the thing under test reads it.
+//
+// # Why fixtures need this at all
+//
+// They used to write a shard FILE — `events-<seat>-<nonce>.jsonl` — with a local helper copied
+// into each test package. That worked because the storage was a file format anyone could produce.
+// It is a database now, so a fixture that writes a file produces a run whose record is EMPTY, and
+// a test asserting on an empty board passes for entirely the wrong reason. That failure is silent
+// and it looks exactly like success, which is why the helper is here rather than re-copied.
+//
+// # Why not go through record.Append
+//
+// Append is the production write path: it validates, derives idempotency keys, and requires the
+// seat to have registered. A fixture that wants a gap already closed would have to perform the
+// whole debate to get one. Seed writes the state directly, which is what a fixture IS — and the
+// constraints still apply, so a fixture that seeds a closure for a gap it never minted is refused
+// by the foreign key rather than quietly producing a board nobody could have reached.
+func Seed(t *testing.T, runDir string, evs ...*recordpb.Event) {
+	t.Helper()
+	dir := filepath.Join(runDir, "records")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("recordtest: %v", err)
+	}
+	db, err := recordsql.Open(filepath.Join(dir, "record.db"))
+	if err != nil {
+		t.Fatalf("recordtest: opening the run's record: %v", err)
+	}
+	defer db.Close()
+	for i, ev := range evs {
+		if ev.Ts == nil {
+			// A STAMP EVERY EVENT, because `ts` is NOT NULL and several audits read it. The
+			// spacing is one second per event so a fixture that does not care about time still
+			// produces a plausible span rather than a burst — BackfillAudit reads exactly that
+			// shape, and zero-width spans would make every seeded run look like narration.
+			ev.Ts = proto.String(fmt.Sprintf("2026-01-01T00:%02d:%02dZ", i/60, i%60))
+		}
+		if _, err := recordsql.Insert(db, ev); err != nil {
+			t.Fatalf("recordtest: seeding event %d (%s by %s): %v",
+				i, recordpb.Word(ev.GetType()), ev.GetSeatId(), err)
+		}
+	}
 }

@@ -22,12 +22,12 @@ func mintBoard(t *testing.T, runDir string, specs ...gapSpec) {
 	var evs []Event
 	seq := 0
 	for _, s := range specs {
-		evs = append(evs, recordtest.At(t, seat, nonce, seq, 1, seat+":mint:"+s.id, &recordpb.Mint{Problem: proto.String(s.problem), Location: proto.String(s.location), AcceptanceCheck: proto.String("check"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}))
+		evs = append(evs, recordtest.At(t, seat, 1, seat+":mint:"+s.id, &recordpb.Mint{Problem: proto.String(s.problem), Location: proto.String(s.location), AcceptanceCheck: proto.String("check"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_HIGH), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}))
 		seq++
 	}
 	for _, s := range specs {
 		if !s.open {
-			evs = append(evs, recordtest.At(t, seat, nonce, seq, 1, seat+":close:"+s.id, &recordpb.Close{}))
+			evs = append(evs, recordtest.At(t, seat, 1, seat+":close:"+s.id, &recordpb.Close{}))
 			seq++
 		}
 	}

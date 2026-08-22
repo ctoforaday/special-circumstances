@@ -35,8 +35,8 @@ func TestAnMtimeTieResolvesDeterministically(t *testing.T) {
 		for _, nonce := range order {
 			var lines []string
 			for _, e := range []*Event{
-				recordtest.Stamped(recordtest.At(t, "judge-petition", nonce, 0, 0, "judge-petition:register:"+nonce, &recordpb.Register{}), "2026-01-01T00:00:00Z"),
-				recordtest.Stamped(recordtest.At(t, "judge-petition", nonce, 0, 0, "judge-petition:motion-rule:"+nonce, &recordpb.MotionRule{}), "2026-01-01T00:00:00Z"),
+				recordtest.Stamped(recordtest.At(t, "judge-petition", 0, "judge-petition:register:"+nonce, &recordpb.Register{}), "2026-01-01T00:00:00Z"),
+				recordtest.Stamped(recordtest.At(t, "judge-petition", 0, "judge-petition:motion-rule:"+nonce, &recordpb.MotionRule{}), "2026-01-01T00:00:00Z"),
 			} {
 				b, err := MarshalEvent(e)
 				if err != nil {

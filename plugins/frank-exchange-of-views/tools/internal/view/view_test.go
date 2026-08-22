@@ -243,10 +243,10 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	writeShard(t, runDir, seatID, "aaaaaaaa", []*record.Event{
-		recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":mint:R1-1", &recordpb.Mint{Problem: proto.String("an open problem"), Location: proto.String("§2"), RequiredFix: proto.String("do the thing"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
-		recordtest.At(t, seatID, "aaaaaaaa", 1, 1, seatID+":mint:R1-2", &recordpb.Mint{Problem: proto.String("a closed problem"), Location: proto.String("§3")}),
-		recordtest.At(t, seatID, "aaaaaaaa", 2, 1, seatID+":close:R1-2", &recordpb.Close{ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
-		recordtest.At(t, seatID, "aaaaaaaa", 3, 1, seatID+":mint:R1-3", &recordpb.Mint{Problem: proto.String("an unclassed problem"), Location: proto.String("§4")}),
+		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{Problem: proto.String("an open problem"), Location: proto.String("§2"), RequiredFix: proto.String("do the thing"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, seatID, 1, seatID+":mint:R1-2", &recordpb.Mint{Problem: proto.String("a closed problem"), Location: proto.String("§3")}),
+		recordtest.At(t, seatID, 1, seatID+":close:R1-2", &recordpb.Close{ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
+		recordtest.At(t, seatID, 1, seatID+":mint:R1-3", &recordpb.Mint{Problem: proto.String("an unclassed problem"), Location: proto.String("§4")}),
 	})
 	open, closed, _, err := Counts(runDir)
 	if err != nil {
@@ -297,8 +297,8 @@ func TestMarkdownArchiveShowsCarriedClosures(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r2"
 	writeShard(t, runDir, seatID, "aaaaaaaa", []*record.Event{
-		recordtest.At(t, seatID, "aaaaaaaa", 0, 2, seatID+":mint:R2-1", &recordpb.Mint{GapId: proto.String("R2-1"), Problem: proto.String("p")}),
-		recordtest.At(t, seatID, "aaaaaaaa", 1, 2, seatID+":close:R2-1", &recordpb.Close{CarriedFrom: proto.String("1")}),
+		recordtest.At(t, seatID, 2, seatID+":mint:R2-1", &recordpb.Mint{GapId: proto.String("R2-1"), Problem: proto.String("p")}),
+		recordtest.At(t, seatID, 2, seatID+":close:R2-1", &recordpb.Close{CarriedFrom: proto.String("1")}),
 	})
 	archive := md(t, runDir, "archive")
 	if !strings.Contains(archive, "verification anchor: CARRIED from round 1") {
@@ -313,10 +313,10 @@ func TestMarkdownSurfacesAnomaliesAndUncreditedFindings(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-r1-L1"
 	writeShard(t, runDir, lens, "aaaaaaaa", []*record.Event{
-		recordtest.At(t, lens, "aaaaaaaa", 0, 1, lens+":finding:F1", &recordpb.Finding{Text: proto.String(strings.Repeat("long prose ", 40))}),
+		recordtest.At(t, lens, 1, lens+":finding:F1", &recordpb.Finding{Text: proto.String(strings.Repeat("long prose ", 40))}),
 	})
 	writeShard(t, runDir, lens, "bbbbbbbb", []*record.Event{
-		recordtest.At(t, lens, "bbbbbbbb", 0, 1, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("short")}),
+		recordtest.At(t, lens, 1, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("short")}),
 	})
 	_, _, anomalies, err := Counts(runDir)
 	if err != nil {
@@ -350,12 +350,12 @@ func TestTelemetryIsComputed(t *testing.T) {
 	r1 := "red-merge-r1"
 	r2 := "red-merge-r2"
 	writeShard(t, runDir, r1, "aaaaaaaa", []*record.Event{
-		recordtest.At(t, r1, "aaaaaaaa", 0, 1, r1+":mint:R1-1", &recordpb.Mint{Problem: proto.String("p1"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
-		recordtest.At(t, r1, "aaaaaaaa", 1, 1, r1+":mint:R1-2", &recordpb.Mint{Problem: proto.String("p2"), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, r1, 1, r1+":mint:R1-1", &recordpb.Mint{Problem: proto.String("p1"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, r1, 1, r1+":mint:R1-2", &recordpb.Mint{Problem: proto.String("p2"), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
 	})
 	writeShard(t, runDir, r2, "bbbbbbbb", []*record.Event{
-		recordtest.At(t, r2, "bbbbbbbb", 0, 2, r2+":mint:R2-1", &recordpb.Mint{Problem: proto.String("p3"), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
-		recordtest.At(t, r2, "bbbbbbbb", 1, 2, r2+":close:R1-1", &recordpb.Close{GapId: proto.String("R1-1")}),
+		recordtest.At(t, r2, 2, r2+":mint:R2-1", &recordpb.Mint{Problem: proto.String("p3"), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, r2, 2, r2+":close:R1-1", &recordpb.Close{GapId: proto.String("R1-1")}),
 	})
 	raw, err := TelemetryJSONL(runDir)
 	if err != nil {
@@ -406,7 +406,7 @@ func TestTelemetryIsComputed(t *testing.T) {
 func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 	runDir := t.TempDir()
 	mint := func(seat, nonce, id, class string, i, round int) record.Event {
-		return recordtest.At(t, seat, nonce, i, round, seat+":mint:"+id, &recordpb.Mint{Problem: proto.String("p"), Class: proto.String(class), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)})
+		return recordtest.At(t, seat, round, seat+":mint:"+id, &recordpb.Mint{Problem: proto.String("p"), Class: proto.String(class), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)})
 	}
 	r1, r2 := "red-merge-r1", "red-merge-r2"
 	writeShard(t, runDir, r1, "aaaaaaaa", []*record.Event{
@@ -459,7 +459,7 @@ func TestTelemetryClasslessMintDoesNotBecomeAClass(t *testing.T) {
 	runDir := t.TempDir()
 	seat := "red-merge-r1"
 	writeShard(t, runDir, seat, "aaaaaaaa", []*record.Event{
-		recordtest.At(t, seat, "aaaaaaaa", 0, 1, seat+":mint:R1-1", &recordpb.Mint{Problem: proto.String("p"), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, seat, 1, seat+":mint:R1-1", &recordpb.Mint{Problem: proto.String("p"), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
 	})
 	raw, err := TelemetryJSONL(runDir)
 	if err != nil {
@@ -484,7 +484,7 @@ func TestTelemetryUndefinedSeverityKey(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	writeShard(t, runDir, seatID, "aaaaaaaa", []*record.Event{
-		recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p")}),
+		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p")}),
 	})
 	raw, err := TelemetryJSONL(runDir)
 	if err != nil {
@@ -509,12 +509,12 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	judge := "judge-r1"
 	lens := "red-lens-r1-L1"
 	writeShard(t, runDir, merge, "aaaaaaaa", []*record.Event{
-		recordtest.At(t, merge, "aaaaaaaa", 0, 1, merge+":position", &recordpb.Position{Text: proto.String("red says so")}),
-		recordtest.At(t, merge, "aaaaaaaa", 1, 1, merge+":closing:R1-1", &recordpb.Closing{GapId: proto.String("R1-1"), Text: proto.String("red closes")}),
+		recordtest.At(t, merge, 1, merge+":position", &recordpb.Position{Text: proto.String("red says so")}),
+		recordtest.At(t, merge, 1, merge+":closing:R1-1", &recordpb.Closing{GapId: proto.String("R1-1"), Text: proto.String("red closes")}),
 	})
 	writeShard(t, runDir, blue, "bbbbbbbb", []*record.Event{
-		recordtest.At(t, blue, "bbbbbbbb", 0, 1, blue+":position", &recordpb.Position{Text: proto.String("blue says otherwise")}),
-		recordtest.At(t, blue, "bbbbbbbb", 1, 1, blue+":revision", &recordpb.Revision{Text: proto.String("blue revised")}),
+		recordtest.At(t, blue, 1, blue+":position", &recordpb.Position{Text: proto.String("blue says otherwise")}),
+		recordtest.At(t, blue, 1, blue+":revision", &recordpb.Revision{Text: proto.String("blue revised")}),
 		ev(blue, "bbbbbbbb", 2, 1, "line-of-inquiry", blue+":line-of-inquiry:q1", record.NewPayload().
 			Set("inquiry_id", "Q1").Set("status", "abandoned").Set("line", "try the archive").
 			Set("method", "full-text search").Set("reason", "the archive is offline")),
@@ -522,11 +522,11 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 			Set("inquiry_id", "Q2").Set("status", "pursued").Set("line", "read the source")),
 	})
 	writeShard(t, runDir, judge, "cccccccc", []*record.Event{
-		recordtest.At(t, judge, "cccccccc", 0, 1, judge+":opinion:R1-1", &recordpb.Opinion{Disposition: proto.String("upheld"), Principle: proto.String("correctness first"), ReviewFlag: proto.String("none"), Rationale: proto.String("because")}),
+		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{Disposition: proto.String("upheld"), Principle: proto.String("correctness first"), ReviewFlag: proto.String("none"), Rationale: proto.String("because")}),
 	})
 	writeShard(t, runDir, lens, "dddddddd", []*record.Event{
-		recordtest.At(t, lens, "dddddddd", 0, 1, lens+":verify:https://x", &recordpb.Verify{Anchor: proto.String("c-abc"), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_MEDIUM), AccessDate: proto.String("2026-07-18")}),
-		recordtest.At(t, lens, "dddddddd", 1, 1, lens+":verify:https://y", &recordpb.Verify{}),
+		recordtest.At(t, lens, 1, lens+":verify:https://x", &recordpb.Verify{Anchor: proto.String("c-abc"), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_MEDIUM), AccessDate: proto.String("2026-07-18")}),
+		recordtest.At(t, lens, 1, lens+":verify:https://y", &recordpb.Verify{}),
 	})
 
 	debate := md(t, runDir, "debate")
@@ -560,7 +560,7 @@ func TestMarkdownDebateSkipsEmptyRounds(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-r3-L1"
 	writeShard(t, runDir, lens, "aaaaaaaa", []*record.Event{
-		recordtest.At(t, lens, "aaaaaaaa", 0, 3, lens+":friction:#1", &recordpb.Friction{Text: proto.String("not debate content")}),
+		recordtest.At(t, lens, 3, lens+":friction:#1", &recordpb.Friction{Text: proto.String("not debate content")}),
 	})
 	debate := md(t, runDir, "debate")
 	if strings.Contains(debate, "## Round 3") {
@@ -573,8 +573,8 @@ func TestMarkdownIsDeterministic(t *testing.T) {
 	runDir := t.TempDir()
 	seatID := "red-merge-r1"
 	writeShard(t, runDir, seatID, "aaaaaaaa", []*record.Event{
-		recordtest.At(t, seatID, "aaaaaaaa", 0, 1, seatID+":mint:R1-1", &recordpb.Mint{Problem: proto.String("p <with> & entities"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
-		recordtest.At(t, seatID, "aaaaaaaa", 1, 1, seatID+":mint:R1-2", &recordpb.Mint{Problem: proto.String("q"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{Problem: proto.String("p <with> & entities"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, seatID, 1, seatID+":mint:R1-2", &recordpb.Mint{Problem: proto.String("q"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW)}),
 	})
 	names := MarkdownViews()
 	first := map[string]string{}

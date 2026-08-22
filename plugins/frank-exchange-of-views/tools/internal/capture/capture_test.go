@@ -1,7 +1,6 @@
 package capture
 
 import (
-	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
@@ -18,23 +17,22 @@ import (
 func recordWithRounds(t *testing.T, n int) string {
 	t.Helper()
 	dir := t.TempDir()
-	recs := filepath.Join(dir, "records")
-	if err := os.MkdirAll(recs, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	var evs []*recordpb.Event
 	for r := 1; r <= n; r++ {
 		seat := "red-merge-r" + itoa(r)
-		// The shard filename's nonce must be exactly 8 hex chars (record's shardRe).
-		nonce := "0000000" + string("0123456789abcdef"[r%16])
-		e := recordtest.At(t, seat, nonce, 0, r, seat+":mint:R"+itoa(r)+"-1", &recordpb.Mint{GapId: proto.String("R" + itoa(r) + "-1"), Problem: proto.String("p"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
-		line, err := record.MarshalEvent(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(recs, "events-"+seat+"-"+nonce+".jsonl"), append(line, '\n'), 0o644); err != nil {
-			t.Fatal(err)
-		}
+		// Every field the record REQUIRES, because it now refuses a mint that omits one. The
+		// fixture used to name four; the other three were absent and nothing said so.
+		evs = append(evs, recordtest.At(t, seat, r, seat+":mint:R"+itoa(r)+"-1", &recordpb.Mint{
+			GapId:           proto.String("R" + itoa(r) + "-1"),
+			Class:           proto.String("scope-creep"),
+			Problem:         proto.String("p"),
+			AcceptanceCheck: proto.String("the check runs"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}))
 	}
+	recordtest.Seed(t, dir, evs...)
 	return dir
 }
 
@@ -177,8 +175,11 @@ func TestContextUse(t *testing.T) {
 // prose match does not come with it: the screen joins a source to the verifications OF THAT
 // SOURCE and asks whether the assembled report still points a reader at it.
 func TestAssemblyScreenFailsOnARefutedCitationStillInTheReport(t *testing.T) {
-	for _, outcome := range []string{"refutes", "absent"} {
-		t.Run(outcome, func(t *testing.T) {
+	for _, outcome := range []recordpb.SourceOutcome{
+		recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES,
+		recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT,
+	} {
+		t.Run(recordpb.Word(outcome), func(t *testing.T) {
 			dir := screenRun(t, outcome, "https://example.test/refuted")
 			// The assembled report still cites it.
 			write(t, filepath.Join(dir, "report.md"), "A claim, sourced.[^1]\n\n[^1]: https://example.test/refuted\n")
@@ -196,7 +197,7 @@ func TestAssemblyScreenFailsOnARefutedCitationStillInTheReport(t *testing.T) {
 
 // AND PASSES WHEN THE REPORT DROPPED IT — a real PASS, over a real comparison.
 func TestAssemblyScreenPassesWhenTheRefutedSourceIsGone(t *testing.T) {
-	dir := screenRun(t, "refutes", "https://example.test/refuted")
+	dir := screenRun(t, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES, "https://example.test/refuted")
 	write(t, filepath.Join(dir, "report.md"), "A claim, now sourced elsewhere.[^1]\n\n[^1]: https://example.test/other\n")
 
 	got := AssemblyScreen(dir)
@@ -213,7 +214,7 @@ func TestAssemblyScreenPassesWhenTheRefutedSourceIsGone(t *testing.T) {
 // A SUPPORTED CITATION IS NOT SCREENED OUT. `weak` is thin support, not contradiction, and
 // conflating them would turn a grading nuance into an assembly failure.
 func TestAssemblyScreenIgnoresSupportingVerdicts(t *testing.T) {
-	dir := screenRun(t, "weak", "https://example.test/thin")
+	dir := screenRun(t, recordpb.SourceOutcome_SOURCE_OUTCOME_WEAK, "https://example.test/thin")
 	write(t, filepath.Join(dir, "report.md"), "A claim.[^1]\n\n[^1]: https://example.test/thin\n")
 	if got := AssemblyScreen(dir); got.Verdict != "PASS" {
 		t.Errorf("verdict = %s on a `weak` verification, want PASS (%s)", got.Verdict, got.Detail)
@@ -226,7 +227,7 @@ func TestAssemblyScreenSkipsAreDistinct(t *testing.T) {
 	if got := AssemblyScreen(bare); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "nothing to screen") {
 		t.Errorf("no citations: want SKIP naming the empty set, got %s (%s)", got.Verdict, got.Detail)
 	}
-	unassembled := screenRun(t, "refutes", "https://example.test/refuted")
+	unassembled := screenRun(t, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES, "https://example.test/refuted")
 	got := AssemblyScreen(unassembled)
 	if got.Verdict != "SKIP" || !strings.Contains(got.Detail, "no assembled report.md") {
 		t.Errorf("pre-assembly: want SKIP naming the missing artifact, got %s (%s)", got.Verdict, got.Detail)
@@ -234,31 +235,23 @@ func TestAssemblyScreenSkipsAreDistinct(t *testing.T) {
 }
 
 // screenRun seeds a run with one blue citation and one red verification of it.
-func screenRun(t *testing.T, outcome, url string) string {
+func screenRun(t *testing.T, outcome recordpb.SourceOutcome, url string) string {
 	t.Helper()
 	dir := t.TempDir()
-	recs := filepath.Join(dir, "records")
-	if err := os.MkdirAll(recs, 0o755); err != nil {
-		t.Fatal(err)
+	// SEEDED INTO THE RUN'S RECORD, not hand-marshalled into a shard file. The old helper built an
+	// Event literal and appended a line; the literal's shape and the file are both gone, and a
+	// fixture that still wrote the file would leave this run's board EMPTY while every assertion
+	// below carried on passing.
+	seed := func(seat string, body proto.Message) {
+		recordtest.Seed(t, dir, recordtest.Event(t, seat, 1, body))
 	}
-	seed := func(seat, nonce string, seq int, typ string, p *record.Payload) {
-		e := record.Event{Seq: seq, SeatID: seat, Nonce: nonce, Round: 1, Type: typ,
-			Key: fmt.Sprintf("%s:%s:%d", seat, typ, seq), Payload: p}
-		line, err := record.MarshalEvent(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		f := filepath.Join(recs, "events-"+seat+"-"+nonce+".jsonl")
-		prior, _ := os.ReadFile(f)
-		write(t, f, string(prior)+string(line)+"\n")
-	}
-	seed("blue-r1", "40000000", 0, "cite",
+	seed("blue-r1",
 		&recordpb.Cite{Label: proto.String("c-1"), Url: proto.String(url), Title: proto.String("A Source")})
-	seed("red-lens-r1-L1", "30000000", 0, "verify",
+	seed("red-lens-r1-L1",
 		&recordpb.Verify{
 			Anchor:     proto.String("c-1"),
 			Claim:      proto.String("a claim"),
-			Outcome:    outcome,
+			Outcome:    &outcome,
 			Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
 			Text:       proto.String("read it at the leaf"),
 		})
@@ -271,20 +264,13 @@ func screenRun(t *testing.T, outcome, url string) string {
 // revision event from one of three eligible seats — see #268).
 func seedRevisions(t *testing.T, runDir string, rounds int) {
 	t.Helper()
-	recs := filepath.Join(runDir, "records")
-	if err := os.MkdirAll(recs, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	var evs []*recordpb.Event
 	for r := 1; r <= rounds; r++ {
 		seat := "blue-respond-r" + itoa(r)
-		nonce := "2000000" + string("0123456789abcdef"[r%16])
-		e := recordtest.At(t, seat, nonce, 0, r, seat+":revision", &recordpb.Revision{Text: proto.String("round " + itoa(r) + " edits")})
-		line, err := record.MarshalEvent(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		write(t, filepath.Join(recs, "events-"+seat+"-"+nonce+".jsonl"), string(line)+"\n")
+		evs = append(evs, recordtest.At(t, seat, r, seat+":revision",
+			&recordpb.Revision{Text: proto.String("round " + itoa(r) + " edits")}))
 	}
+	recordtest.Seed(t, runDir, evs...)
 }
 
 func TestRecordParityAudit(t *testing.T) {
@@ -360,23 +346,38 @@ func TestHarvestPrecedents(t *testing.T) {
 		t.Fatal("fixture must exceed the old 600-char cap")
 	}
 	board := &record.Board{Events: []*record.Event{
-		recordtest.Event(t, "judge-r2", 2, &recordpb.Opinion{Disposition: proto.String("risk_accepted")}),
+		recordtest.Event(t, "judge-r2", 2, &recordpb.Opinion{
+			GapId:       proto.String("R2-3"),
+			Disposition: recordpb.Disposition_DISPOSITION_RISK_ACCEPTED.Enum(),
+		}),
 		// The petition's FILER is on the motion event, not on the ruling — the ruling names
 		// only the motion. Harvesting the petitioner means joining the two.
-		{Round: 2, Type: "motion", SeatID: "blue-respond-r2", Payload: record.NewPayload().
-			Set("motion_id", "M4").Set("subject", "petition").Set("reason", "the demand buries a hazard")},
-		{Round: 2, Type: "motion-rule", SeatID: "judge-r2", Payload: record.NewPayload().
-			Set("motion_id", "M4").Set("subject", "petition").Set("ruling", "granted").
-			Set("reason", "scope narrowed to shipped artifacts")},
-		recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{Disposition: proto.String("carried"), Rationale: proto.String(longRationale)}),
+		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Motion{
+			MotionId: proto.String("M4"),
+			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
+			Basis:    proto.String("the demand buries a hazard"),
+			Filing:   &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}},
+		}),
+		recordtest.Event(t, "judge-r2", 2, &recordpb.MotionRule{
+			MotionId: proto.String("M4"),
+			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
+			Opinion:  proto.String("scope narrowed to shipped artifacts"),
+			Ruling:   &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_GRANTED},
+		}),
+		recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{Disposition: recordpb.Disposition_DISPOSITION_CARRIED.Enum(), Rationale: proto.String(longRationale)}),
 		// #361's verb. It moves no gap and has no envelope field, so it was unreachable by
 		// construction — the one verb whose whole purpose is stating a holding.
-		recordtest.Event(t, "judge-r2", 2, &recordpb.Declare{}),
+		recordtest.Event(t, "judge-r2", 2, &recordpb.Declare{
+			Holding: proto.String("verified means an act of looking"),
+		}),
 		// A grade ruling is deliberately NOT harvested: promoting it without the ask it
 		// answered would strip its scope. If this ever starts appearing, it was a decision.
-		{Round: 1, Type: "motion-rule", SeatID: "red-merge-r1", Payload: record.NewPayload().
-			Set("motion_id", "M1").Set("subject", "grade").Set("ruling", "refused").
-			Set("reason", "disclosure does not lower likelihood")},
+		recordtest.Event(t, "red-merge-r1", 1, &recordpb.MotionRule{
+			MotionId: proto.String("M1"),
+			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
+			Opinion:  proto.String("disclosure does not lower likelihood"),
+			Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
+		}),
 	}}
 
 	r := HarvestPrecedents(runDir, nil, filepath.Join(repo, "law"), board)
@@ -596,67 +597,15 @@ func TestStrayRecordsAuditFindsShardsOutsideAnyRun(t *testing.T) {
 	}
 }
 
-// #394: a run whose replay threw away recorded work must not report clean.
+// THE DISCARDED-EVENTS TEST IS GONE WITH THE AUDIT IT COVERED.
 //
-// The replay already reported "multi-nonce seat X: N dispatches" for BOTH a healthy crash
-// re-dispatch and a seat id used for two sittings, in the same words — and nothing gated on
-// either, so a run that lost a whole bench sitting finished with every audit green.
-func TestDiscardedEventsAudit(t *testing.T) {
-	shard := func(t *testing.T, runDir, name string, lines ...string) {
-		t.Helper()
-		write(t, filepath.Join(runDir, "records", name), strings.Join(lines, "\n")+"\n")
-	}
-	ev := func(seat, nonce, typ, key string) string {
-		e := record.Event{TS: "2026-01-01T00:00:00Z", SeatID: seat, Nonce: nonce, Type: typ, Key: key, Payload: record.NewPayload()}
-		b, err := record.MarshalEvent(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return string(b)
-	}
-
-	t.Run("two sittings under one seat id FAIL", func(t *testing.T) {
-		runDir := t.TempDir()
-		shard(t, runDir, "events-judge-petition-aaaaaaaa.jsonl",
-			ev("judge-petition", "aaaaaaaa", "register", "judge-petition:register:aaaaaaaa"),
-			ev("judge-petition", "aaaaaaaa", "motion-rule", "judge-petition:motion-rule:M1"))
-		shard(t, runDir, "events-judge-petition-bbbbbbbb.jsonl",
-			ev("judge-petition", "bbbbbbbb", "register", "judge-petition:register:bbbbbbbb"),
-			ev("judge-petition", "bbbbbbbb", "motion-rule", "judge-petition:motion-rule:M2"))
-
-		a := DiscardedEventsAudit(runDir)
-		if a.Verdict != "FAIL" {
-			t.Fatalf("lost work must FAIL the run record: %+v", a)
-		}
-		if !strings.Contains(a.Detail, "judge-petition") || !strings.Contains(a.Detail, "motion-rule:M1") {
-			t.Errorf("the detail must name the seat and the lost keys, so it is actionable: %q", a.Detail)
-		}
-	})
-
-	t.Run("a crash re-dispatch PASSES", func(t *testing.T) {
-		runDir := t.TempDir()
-		// Same work key in both shards; only the register nonce differs.
-		shard(t, runDir, "events-red-merge-r1-aaaaaaaa.jsonl",
-			ev("red-merge-r1", "aaaaaaaa", "register", "red-merge-r1:register:aaaaaaaa"),
-			ev("red-merge-r1", "aaaaaaaa", "mint", "red-merge-r1:mint:R1-1"))
-		shard(t, runDir, "events-red-merge-r1-bbbbbbbb.jsonl",
-			ev("red-merge-r1", "bbbbbbbb", "register", "red-merge-r1:register:bbbbbbbb"),
-			ev("red-merge-r1", "bbbbbbbb", "mint", "red-merge-r1:mint:R1-1"))
-
-		if a := DiscardedEventsAudit(runDir); a.Verdict != "PASS" {
-			t.Errorf("a retry is the case this audit must permit, not punish: %+v", a)
-		}
-	})
-
-	t.Run("a single-shard run PASSES", func(t *testing.T) {
-		runDir := t.TempDir()
-		shard(t, runDir, "events-blue-synthesize-aaaaaaaa.jsonl",
-			ev("blue-synthesize", "aaaaaaaa", "register", "blue-synthesize:register:aaaaaaaa"))
-		if a := DiscardedEventsAudit(runDir); a.Verdict != "PASS" {
-			t.Errorf("the ordinary run must stay quiet: %+v", a)
-		}
-	})
-}
+// It built two shard files under one seat id and asserted the audit FAILED the run, because the
+// losing shard's events survived nowhere. There are no shards: both sittings are rows in one
+// table, told apart by nothing that selects a winner, so the loss it detected is unrepresentable
+// rather than merely absent. capture.go records the same reasoning where the audit used to be.
+//
+// Deleting the test rather than pinning it to a permanent PASS is the same decision as deleting
+// the audit: a green check for a condition that cannot occur reads as evidence and is not.
 
 // #270: capture is the step that CLOSES a run, and it used to be silent about the one piece of
 // state that says the run is open.

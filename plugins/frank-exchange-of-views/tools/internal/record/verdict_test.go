@@ -47,7 +47,7 @@ func runWith(t *testing.T, maxRounds string, evs []Event) string {
 
 func vev(t *testing.T, seat string, round, seq int, body proto.Message) *Event {
 	t.Helper()
-	ev := recordtest.At(t, seat, "a0000000", seq, round, "", body)
+	ev := recordtest.At(t, seat, round, "", body)
 	// The key was seat+":"+type and the type is now derived from the body, so it is composed here
 	// from what the event actually says rather than from a word passed alongside it.
 	ev.Key = proto.String(seat + ":" + recordpb.Word(ev.GetType()))
