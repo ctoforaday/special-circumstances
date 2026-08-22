@@ -185,3 +185,43 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 		t.Errorf("a SUPPORTING corroboration blocked a PASS — only a contradiction owes a finding: %v", err)
 	}
 }
+
+// THE PROTECTED-ANCHOR SET IS ONE SET, and red's citations are in it.
+//
+// Two detectors guard the same property — the hookgate lockdown (via CitationLabels) and the
+// scorecard's unbacked_citations (via CitationLabelsOf). The scorecard used to build its
+// EXPECTED set with its own loop over `Cite` events, so when red's corroborations gained labels
+// and started splicing anchors, blue dropping a RED anchor would be caught by one and missed by
+// the other. Two detectors for one protection, disagreeing, and neither saying so.
+//
+// The gain is worth stating as well as the fix: red's citation anchors are IMMORTAL now, the
+// same as blue's. Before this they were spliced into the report and protected by nothing.
+func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
+	runDir := t.TempDir()
+	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
+	if _, _, err := RegisterSeat(id); err != nil {
+		t.Fatal(err)
+	}
+	label := NewCitationID()
+	if _, err := Append(id, corroboration(label, "https://example.org/red", "a claim", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
+		t.Fatal(err)
+	}
+
+	byRunDir, err := CitationLabels(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	byBoard := CitationLabelsOf(b.Events)
+
+	if len(byRunDir) != 1 || byRunDir[0] != label {
+		t.Errorf("CitationLabels = %v, want just %q — this is the lockdown's EXPECTED set, so a label missing here is an anchor nothing protects", byRunDir, label)
+	}
+	if strings.Join(byBoard, ",") != strings.Join(byRunDir, ",") {
+		t.Errorf("the two readers of the protected-anchor set disagree:\n  CitationLabels   = %v\n  CitationLabelsOf = %v\n"+
+			"One guards the PostToolUse lockdown and the other the unbacked_citations detector. Disagreeing, they protect different anchors and neither reports the gap.", byRunDir, byBoard)
+	}
+}

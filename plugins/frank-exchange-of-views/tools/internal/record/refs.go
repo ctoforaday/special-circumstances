@@ -125,7 +125,10 @@ func requireCitation(runDir, label, verb, flag string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("record: %s %s=%s names no citation on the record — blue has cited %d source(s), and `show evidence` lists them by anchor. Cite the method with `blue cite` first; a proof pointing at a citation that does not exist claims a provenance it does not have",
+	// "blue has cited" WAS TRUE AND IS NOT. The set now includes red's supporting
+	// corroborations, which mint a label of their own — so a count described as blue's would
+	// misstate what a seat is being compared against.
+	return fmt.Errorf("record: %s %s=%s names no citation on the record — %d source(s) are cited (blue's, and red's corroborations), and `show evidence` lists them by anchor. Cite the method with `blue cite` first; a proof pointing at a citation that does not exist claims a provenance it does not have",
 		verb, flag, label, len(known))
 }
 

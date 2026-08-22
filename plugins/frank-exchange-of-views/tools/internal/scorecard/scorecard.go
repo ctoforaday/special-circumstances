@@ -409,22 +409,20 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 	// EXPECTED = the cite events' labels; PRESENT = the c- ids in the current report. Under
 	// the cite⟺anchor bijection the two sets are equal; a mismatch means a hand-typed
 	// footnote or a tampered anchor — a real defect, keyed by id with no text match.
-	citeExpectedSet := map[string]bool{}
+	// THE EXPECTED SET COMES FROM THE RECORD PACKAGE, not from a loop here.
+	//
+	// This built it inline over `Cite` events. When red's supporting corroborations gained a
+	// label and started splicing anchors of their own, that loop stayed on the old rule — so
+	// blue dropping a RED citation anchor would be caught by the hookgate lockdown, which reads
+	// record.CitationLabels, and MISSED here. Two detectors for one protection, disagreeing.
+	var citeExpected []string
 	if board != nil {
-		for _, e := range board.Events {
-			if c, ok := recordpb.BodyAs[*recordpb.Cite](e); ok && c.GetLabel() != "" {
-				citeExpectedSet[c.GetLabel()] = true
-			}
-		}
-	}
-	citeExpected := make([]string, 0, len(citeExpectedSet))
-	for id := range citeExpectedSet {
-		citeExpected = append(citeExpected, id)
+		citeExpected = record.CitationLabelsOf(board.Events)
 	}
 	unbackedCitations := len(claimcount.MissingCitationAnchorIDs(citeExpected, string(md)))
 	rows = append(rows, Row{Clause: "TAMPER: unbacked citations", Metric: "unbacked_citations", Cls: "detector",
 		Value: unbackedCitations,
-		Note:  strconv.Itoa(len(citeExpectedSet)) + " citation(s) anchored, " + strconv.Itoa(unbackedCitations) + " missing from the report",
+		Note:  strconv.Itoa(len(citeExpected)) + " citation(s) anchored, " + strconv.Itoa(unbackedCitations) + " missing from the report",
 		Joint: "a citation the tool anchored that is gone from the report breaks the cite⟺anchor bijection — citations are tool-managed, so any absence is a hand-typed footnote or tampering"})
 
 	// lines_of_inquiry (object value, insertion-order byStatus)

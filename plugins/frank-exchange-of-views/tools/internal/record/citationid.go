@@ -137,10 +137,24 @@ func CitationLabels(runDir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	return citationLabelsOf(m.Events), nil
+}
+
+// CitationLabelsOf is CitationLabels over events already read — for a caller holding a board,
+// which would otherwise re-derive the set inline and become a second copy of the rule.
+//
+// It exists because one already had. internal/scorecard built the unbacked_citations detector's
+// EXPECTED set with its own loop over `Cite` events, so widening this function to include red's
+// labelled corroborations left that detector on the old rule: blue dropping a RED citation
+// anchor would be caught by the hookgate lockdown and MISSED by the scorecard, two detectors
+// disagreeing about one protection. That is the duplication this schema exists to remove.
+func CitationLabelsOf(events []*Event) []string { return citationLabelsOf(events) }
+
+func citationLabelsOf(events []*Event) []string {
 	seen := map[string]bool{}
 	var out []string
-	for i := range m.Events {
-		body, ok := recordpb.Body(m.Events[i])
+	for i := range events {
+		body, ok := recordpb.Body(events[i])
 		if !ok {
 			continue
 		}
@@ -149,7 +163,7 @@ func CitationLabels(runDir string) ([]string, error) {
 			out = append(out, src.Label)
 		}
 	}
-	return out, nil
+	return out
 }
 
 // ExistingCiteByKey returns the label of a prior blue cite this seat recorded under the
