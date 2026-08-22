@@ -110,6 +110,16 @@ func newFile(subject string, required []string) *cobra.Command {
 			c.Flags().String(f, "", "REQUIRED for a "+subject+" motion")
 		}
 	}
+	// THE RECORD TYPE, DECLARED. These verbs are built as raw cobra commands rather than through
+	// seat.New, so they carried no `records` annotation — and the contract gate joins commands to
+	// their declared requirements through exactly that. Three verbs sat outside it: nothing checked
+	// that a field the record requires is marked REQUIRED in their help, which is the one place a
+	// seat reads what it must supply.
+	seat.Records(c, "motion")
+	// THE MOTION ID IS ASSIGNED BY THE TOOL on a filing — a seat that chose its own would collide
+	// with another seat's, which is the join #312 exists to make reliable. Declared at the verb
+	// that does the assigning.
+	seat.Supplies(c, "motion_id", "the tool assigns it on filing; a ruling and an appeal name it with --id")
 	return c
 }
 
@@ -226,6 +236,8 @@ func newRule(subject, ruler string) *cobra.Command {
 	if be, ok := record.MotionFieldEnum(subject, "binds", flags.Binds); ok {
 		enumhelp.Flag(c, flags.Binds, be, "who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not")
 	}
+	// The record type, for the contract gate — see newFile.
+	seat.Records(c, "motion_rule")
 	return c
 }
 
@@ -278,6 +290,8 @@ func newAppeal(subject string) *cobra.Command {
 	}
 	seat.Prose(c)
 	c.Flags().String(flags.ID, "", refHelp(subject)+" — the motion being appealed, which must already have been ruled")
+	// The record type, for the contract gate — see newFile.
+	seat.Records(c, "motion_appeal")
 	return c
 }
 

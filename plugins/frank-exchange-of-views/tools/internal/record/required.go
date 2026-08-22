@@ -45,16 +45,28 @@ import (
 // The help is its one reader: seat.markRequired turns each key into the flag a seat types and
 // marks it REQUIRED, so a verb whose schema requires a field it does not offer a flag for is
 // simply not marked — which is correct, and stated where that happens.
-func RequiredFields(typ string) []string {
+func RequiredFields(typ string) []RequiredField {
 	md, ok := bodyDescriptor(typ)
 	if !ok {
 		return nil
 	}
-	var out []string
+	var out []RequiredField
 	for _, fd := range recordpb.RequiredOf(md) {
-		out = append(out, string(fd.Name()))
+		out = append(out, RequiredField{Key: string(fd.Name()), Flag: recordpb.FlagFor(fd)})
 	}
 	return out
+}
+
+// RequiredField is a required field and the word a SEAT TYPES for it — both off the one
+// annotation, because they are one declaration.
+//
+// The flag is not derivable from the key: a ruling's `motion_id` is typed `--id`, the word every
+// verb uses for the thing it is acting on, and a close's `prose` is typed `--reason`. Deriving it
+// by rule (`s/_/-/`) produced `--motion-id`, which no command registers — so the contract gate
+// read three verbs' requirements as invisible, and was right to.
+type RequiredField struct {
+	Key  string // the field the record holds
+	Flag string // the word a seat types
 }
 
 // bodyDescriptor resolves an event type's WORD to the body message the `body` oneof pairs it with

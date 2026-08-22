@@ -50,6 +50,11 @@ func CheckRequired(verb string, body proto.Message) error {
 	return nil
 }
 
+// FlagFor is the exported form: the word a seat types for a field, off the field's own
+// annotation. The help and the contract gate both need it, and deriving it by rule instead is
+// what put `--motion-id` in a refusal for a flag spelled `--id`.
+func FlagFor(fd protoreflect.FieldDescriptor) string { return flagFor(fd, nil) }
+
 // flagFor is the word a seat types. It is the field's own name unless the field says otherwise —
 // which only the prose fields do, because a close stores `prose` and an opinion `rationale` while
 // the word for both is `--reason`.

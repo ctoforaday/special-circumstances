@@ -165,11 +165,11 @@ func TestEveryRequiredFieldIsMarkedInTheHelp(t *testing.T) {
 		}
 		for _, c := range verbs {
 			path := c.CommandPath()
-			for _, key := range required {
+			for _, rf := range required {
+				key, flag := rf.Key, rf.Flag
 				if seat.Supplied(c, key) != "" {
 					continue
 				}
-				flag := flags.ForPayloadKey(key)
 				t.Run(path+"/"+flag, func(t *testing.T) {
 					f := c.Flags().Lookup(flag)
 					if f == nil {

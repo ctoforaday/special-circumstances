@@ -222,6 +222,12 @@ func newMint() *cobra.Command {
 	c.Flags().Var(&cx, flags.Complexity, "what fixing it costs, on the same scale")
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
 	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated lens findings that surfaced it (L5-F3,L6-F2)")
+	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
+	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
+	// the contract gate reads "mint declares gap_id required and registers no --id" and is right
+	// to: a requirement with no flag behind it is invisible to a seat unless something says the
+	// tool meets it.
+	seat.Supplies(c, "gap_id", "the tool assigns it (MintGapID), sequentially per round — a seat that chose its own would collide with another seat's")
 	return c
 }
 

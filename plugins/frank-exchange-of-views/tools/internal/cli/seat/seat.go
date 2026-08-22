@@ -352,8 +352,9 @@ func markTree(c *cobra.Command) {
 func RecordType(c *cobra.Command) string { return c.Annotations[recordsKey] }
 
 func markRequired(c *cobra.Command, verb string) {
-	for _, key := range record.RequiredFields(verb) {
-		f := c.Flags().Lookup(flags.ForPayloadKey(key))
+	for _, rf := range record.RequiredFields(verb) {
+		key := rf.Key
+		f := c.Flags().Lookup(rf.Flag)
 		if f == nil {
 			// The field is set by the verb rather than typed by the seat. Nothing to
 			// annotate, and nothing wrong: not every payload key has a flag.
@@ -376,7 +377,7 @@ func markRequired(c *cobra.Command, verb string) {
 		// guards a different boundary, the one internal callers reach through record.Append
 		// without a command line. Cobra's is the SEAT's boundary, and it is the one that can
 		// refuse before an event exists and can say so in the help.
-		if alts := satisfiedByAnyOf[flags.ForPayloadKey(key)]; len(alts) > 0 {
+		if alts := satisfiedByAnyOf[rf.Flag]; len(alts) > 0 {
 			var present []string
 			for _, a := range alts {
 				if c.Flags().Lookup(a) != nil {
@@ -594,8 +595,8 @@ func Str(cmd *cobra.Command, name string) string {
 // write path was throwing the distinction away on the way in.
 //
 // MEASURED, and the foreign keys are what found it: `merge close` set `successor` unconditionally,
-// so an ordinary closure stored `successor = ''` — and once successor referenced `mint.gap_id`,
-// every close in the tool failed with `FOREIGN KEY constraint failed`, because no gap is named ''.
+// so an ordinary closure stored `successor = ”` — and once successor referenced `mint.gap_id`,
+// every close in the tool failed with `FOREIGN KEY constraint failed`, because no gap is named ”.
 // Before the constraint existed the same rows were written and simply read as a closure whose
 // successor was the empty gap.
 //

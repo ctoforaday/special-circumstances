@@ -5644,9 +5644,9 @@ const file_record_proto_rawDesc = "" +
 	"\t_locationB\x0e\n" +
 	"\f_access_dateB\v\n" +
 	"\t_cite_keyB\a\n" +
-	"\x05_textJ\x04\b\b\x10\tR\x05claim\"\xcb\b\n" +
-	"\x06Verify\x12\xb6\x01\n" +
-	"\x05claim\x18\x01 \x01(\tB\x9a\x01\x82\xb5\x18\x95\x01\b\x01\x1a\x90\x01the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or countedH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
+	"\x05_textJ\x04\b\b\x10\tR\x05claim\"\xd2\b\n" +
+	"\x06Verify\x12\xbd\x01\n" +
+	"\x05claim\x18\x01 \x01(\tB\xa1\x01\x82\xb5\x18\x9c\x01\b\x01\x12\x05quote\x1a\x90\x01the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or countedH\x00R\x05claim\x88\x01\x01\x12\x15\n" +
 	"\x03url\x18\t \x01(\tH\x01R\x03url\x88\x01\x01\x12\x19\n" +
 	"\x05title\x18\n" +
 	" \x01(\tH\x02R\x05title\x88\x01\x01\x12\x1b\n" +
@@ -5749,9 +5749,9 @@ const file_record_proto_rawDesc = "" +
 	"\x11_applied_verbatim\",\n" +
 	"\bRevision\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
-	"\x05_text\"\x9b\x03\n" +
-	"\x06Retire\x12u\n" +
-	"\x05claim\x18\x01 \x01(\tBZ\x82\xb5\x18V\b\x01\x1aRquote the claim as it stood — a removal nobody can identify is not on the recordH\x00R\x05claim\x88\x01\x01\x12\x8c\x01\n" +
+	"\x05_text\"\xa2\x03\n" +
+	"\x06Retire\x12|\n" +
+	"\x05claim\x18\x01 \x01(\tBa\x82\xb5\x18]\b\x01\x12\x05quote\x1aRquote the claim as it stood — a removal nobody can identify is not on the recordH\x00R\x05claim\x88\x01\x01\x12\x8c\x01\n" +
 	"\x06reason\x18\x02 \x01(\tBo\x82\xb5\x18k\b\x01\x1agrefuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recordedH\x01R\x06reason\x88\x01\x01\x12(\n" +
 	"\rsuperseded_by\x18\x03 \x01(\tH\x02R\fsupersededBy\x88\x01\x01\x12(\n" +
 	"\rremoval_basis\x18\x04 \x01(\tH\x03R\fremovalBasis\x88\x01\x01B\b\n" +
@@ -5805,10 +5805,10 @@ const file_record_proto_rawDesc = "" +
 	"\x0fDirectionMotion\x12 \n" +
 	"\tavenue_id\x18\x01 \x01(\tH\x00R\bavenueId\x88\x01\x01B\f\n" +
 	"\n" +
-	"_avenue_id\"\xc1\x04\n" +
+	"_avenue_id\"\xc5\x04\n" +
 	"\n" +
-	"MotionRule\x12\xaf\x01\n" +
-	"\tmotion_id\x18\x01 \x01(\tB\x8c\x01\x82\xb5\x18\x87\x01\b\x01\x1a\x82\x01the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312H\x01R\bmotionId\x88\x01\x01\x12<\n" +
+	"MotionRule\x12\xb3\x01\n" +
+	"\tmotion_id\x18\x01 \x01(\tB\x90\x01\x82\xb5\x18\x8b\x01\b\x01\x12\x02id\x1a\x82\x01the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312H\x01R\bmotionId\x88\x01\x01\x12<\n" +
 	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x02R\asubject\x88\x01\x01\x12\x1d\n" +
 	"\aopinion\x18\x03 \x01(\tH\x03R\aopinion\x88\x01\x01\x123\n" +
 	"\x05grade\x18\n" +
@@ -5823,9 +5823,9 @@ const file_record_proto_rawDesc = "" +
 	"\b_subjectB\n" +
 	"\n" +
 	"\b_opinionB\b\n" +
-	"\x06_binds\"\xb0\x01\n" +
-	"\fMotionAppeal\x12 \n" +
-	"\tmotion_id\x18\x01 \x01(\tH\x00R\bmotionId\x88\x01\x01\x12<\n" +
+	"\x06_binds\"\xba\x01\n" +
+	"\fMotionAppeal\x12*\n" +
+	"\tmotion_id\x18\x01 \x01(\tB\b\x82\xb5\x18\x04\x12\x02idH\x00R\bmotionId\x88\x01\x01\x12<\n" +
 	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x01R\asubject\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x03 \x01(\tH\x02R\x06reason\x88\x01\x01B\f\n" +
 	"\n" +

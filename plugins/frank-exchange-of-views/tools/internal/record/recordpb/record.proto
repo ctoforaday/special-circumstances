@@ -826,6 +826,7 @@ message Cite {
 // Verify is red reading a source at the leaf.
 message Verify {
   optional string claim = 1 [(sql) = {
+    flag: "quote"
     required: true
     why: "the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or counted"
   }];
@@ -989,6 +990,7 @@ message Revision {
 // Retire removes substance from the report. Substance leaves ONLY with its reason recorded.
 message Retire {
   optional string claim = 1 [(sql) = {
+    flag: "quote"
     required: true
     why: "quote the claim as it stood — a removal nobody can identify is not on the record"
   }];
@@ -1128,6 +1130,10 @@ message MotionRule {
   // is simply unwritable.
   optional string motion_id = 1 [(sql) = {
     required: true
+    // `--id`, the word every verb uses for the thing it is acting on. Without it the flag was
+    // derived as `--motion-id`, which no command registers — so the contract gate read the
+    // requirement as invisible, and it was right.
+    flag: "id"
     // NO `references`, AND THE REASON IS THE DOMAIN RATHER THAN THE MECHANISM.
     //
     // It carried `references: "motion.motion_id"`, which reads right and is false for one subject
@@ -1176,7 +1182,7 @@ message MotionAppeal {
   // ruling's, and it was wrong in both places for the same third of cases.
   //
   // RequireMotionSubjectRef is the check, and it knows the subject.
-  optional string motion_id = 1;
+  optional string motion_id = 1 [(sql) = { flag: "id" }];
   optional MotionSubject subject = 2;
   optional string reason = 3;
 }
