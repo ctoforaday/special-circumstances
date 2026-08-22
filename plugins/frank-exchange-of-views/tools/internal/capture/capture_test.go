@@ -770,7 +770,7 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 	t.Run("removed", func(t *testing.T) {
 		cwd := t.TempDir()
 		write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runDir":"research/x"}`)
-		got := closeRunLiveMarker(cwd)
+		got := closeRunLiveMarker(cwd, "research/x")
 		if got != "run-live marker: removed" {
 			t.Errorf("got %q", got)
 		}
@@ -781,7 +781,7 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 
 	t.Run("absent is STATED, not silent", func(t *testing.T) {
 		cwd := t.TempDir()
-		got := closeRunLiveMarker(cwd)
+		got := closeRunLiveMarker(cwd, "research/x")
 		if got == "" {
 			t.Fatal("silence is the defect: it reads identically to a successful removal being omitted")
 		}
@@ -939,5 +939,36 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		if strings.HasPrefix(n, "cache/") {
 			t.Errorf("the fetched-source cache was archived (%s) — it is re-fetchable and dwarfs the record", n)
 		}
+	}
+}
+
+// A MARKER NAMING ANOTHER RUN IS NOT THIS RUN'S TO CLOSE.
+//
+// The marker is a singleton naming the one open run, and capture removed it by PATH without ever
+// asking which run it named. Capturing an abandoned run A while run B was live lifted B's marker
+// and reported "removed" — the words it uses when it did the right thing. B's verbs then infer no
+// run, and B's own capture reports nothing to close.
+//
+// Nearly done for real on 2026-08-22, eleven minutes into the next run's first round.
+func TestCaptureWillNotCloseADifferentRunsMarker(t *testing.T) {
+	cwd := t.TempDir()
+	write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runDir":"research/live-one"}`)
+
+	got := closeRunLiveMarker(cwd, "research/the-one-being-captured")
+	if !strings.Contains(got, "LEFT IN PLACE") {
+		t.Errorf("capture closed a marker naming a different run: %q", got)
+	}
+	if !strings.Contains(got, "research/live-one") {
+		t.Errorf("the refusal must name the run it protected: %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(cwd, ".claude", "run-live.json")); err != nil {
+		t.Error("the other run's marker must still be there")
+	}
+
+	// And a relative/absolute spelling of the SAME run still closes — the marker stores whatever
+	// it was given, so a string compare would refuse to close the run in progress.
+	write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runDir":"research/same"}`)
+	if got := closeRunLiveMarker(cwd, filepath.Join(cwd, "research", "same")); !strings.Contains(got, "removed") {
+		t.Errorf("the same run spelled absolutely was refused: %q", got)
 	}
 }

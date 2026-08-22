@@ -28,6 +28,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/setup"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -1051,8 +1052,25 @@ func orQ(s string) string {
 //
 // Capture is the step that CLOSES a run. It is the wrong place to be quiet about the one piece of
 // state that says the run is open.
-func closeRunLiveMarker(cwd string) string {
+func closeRunLiveMarker(cwd, runDir string) string {
 	marker := filepath.Join(cwd, ".claude", "run-live.json")
+	// AND IT MUST BE THIS RUN'S MARKER, which nothing checked.
+	//
+	// The marker is a singleton: one file naming the one open run. Capture removed it by PATH,
+	// never asking which run it named — so capturing run A while run B is live lifted B's
+	// marker and reported "removed", which reads exactly like the correct outcome. Every later
+	// un-flagged verb in B then infers no run at all, and B's own capture finds nothing to close
+	// and says so in the words it uses for a run that was already clean.
+	//
+	// NEARLY DONE, 2026-08-22: a discarded run was about to be captured for its evidence while
+	// the next run was eleven minutes into its first round. Caught by reading this function
+	// rather than by anything in it.
+	if m, ok := setup.ReadRunLiveMarker(cwd); ok && !sameRunDir(cwd, m.RunDir, runDir) {
+		return "run-live marker: LEFT IN PLACE — it names " + m.RunDir + ", not the run being " +
+			"captured (" + runDir + "). Removing it would have closed a DIFFERENT run, and that " +
+			"run's own capture would then report nothing to close. Capture the run it names, or " +
+			"clear it deliberately if that run is abandoned"
+	}
 	_, serr := os.Stat(marker)
 	switch {
 	case serr == nil:
@@ -1507,7 +1525,7 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		lines = append(lines, "precedent harvest: no rulings this run")
 	}
 
-	lines = append(lines, closeRunLiveMarker(cwd))
+	lines = append(lines, closeRunLiveMarker(cwd, runDir))
 
 	var out []string
 	out = append(out,
@@ -1651,4 +1669,21 @@ func ArchiveRecord(runDir, repoRoot string) (string, error) {
 		return "", err
 	}
 	return out, nil
+}
+
+// sameRunDir compares two run directories as PATHS, not as strings — the marker stores whatever
+// it was given (`research/x` from one invocation, an absolute path from another), so a string
+// compare would refuse to close the very run in progress. Mirrors setup.sameRun, which is
+// unexported and answers the same question at the other end of the run's life.
+func sameRunDir(projectDir, a, b string) bool {
+	abs := func(p string) string {
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(projectDir, p)
+		}
+		if r, err := filepath.Abs(filepath.Clean(p)); err == nil {
+			return r
+		}
+		return filepath.Clean(p)
+	}
+	return strings.EqualFold(abs(a), abs(b))
 }
