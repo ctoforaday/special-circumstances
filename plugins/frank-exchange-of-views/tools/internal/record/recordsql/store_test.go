@@ -294,3 +294,102 @@ func TestEventsReadBackInRecordOrder(t *testing.T) {
 		}
 	}
 }
+
+// THE FOLD IS A VIEW, AND THE BOARD IS A QUERY.
+//
+// "Which gaps are open" is a fold over the event stream, and in the file-backed record every
+// consumer folds it again with its own idea of what closing means — which is where `filed > ruled`
+// came to compute `0 > 0` forever and a dispute counter sat at zero through every run. A fold
+// nobody can see is a fold nobody checks.
+func TestTheBoardIsAQuery(t *testing.T) {
+	db := store(t)
+	mint := func(seq int32, id string) {
+		t.Helper()
+		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
+			GapId:           proto.String(id),
+			Class:           proto.String("c"),
+			Problem:         proto.String("p"),
+			AcceptanceCheck: proto.String("a"),
+			CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
+			Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
+			Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
+		})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mint(0, "R1-1")
+	mint(1, "R1-2")
+	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
+		GapId:        proto.String("R1-2"),
+		ClosureClass: recordpb.ClosureClass_CLOSURE_CLASS_RISK_ACCEPTED.Enum(),
+		Prose:        proto.String("the fix costs more than the defect"),
+	})); err != nil {
+		t.Fatal(err)
+	}
+
+	var open, closed int
+	if err := db.QueryRow(`SELECT open_gaps, closed_gaps FROM board_counts`).Scan(&open, &closed); err != nil {
+		t.Fatalf("the board does not count: %v", err)
+	}
+	if open != 1 || closed != 1 {
+		t.Errorf("board_counts = (%d open, %d closed), want (1, 1)", open, closed)
+	}
+
+	// The closure's reason travels with the gap, so the closure index is a SELECT rather than a
+	// second walk that has to agree with the first about what closed means.
+	var class, why string
+	if err := db.QueryRow(`
+		SELECT g."closure_class", v."means"
+		FROM "gap" g JOIN "enum_closure_class" v ON v."value" = g."closure_class"
+		WHERE g."gap_id" = 'R1-2'`).Scan(&class, &why); err != nil {
+		t.Fatalf("a closed gap does not join to why it closed: %v", err)
+	}
+	if class != "risk_accepted" || why == "" {
+		t.Errorf("closure = (%q, %q)", class, why)
+	}
+
+	// And an open gap reports no closure rather than an empty one — the distinction a fold that
+	// defaults to "" cannot make.
+	var cc *string
+	if err := db.QueryRow(`SELECT "closure_class" FROM "gap" WHERE "gap_id" = 'R1-1'`).Scan(&cc); err != nil {
+		t.Fatal(err)
+	}
+	if cc != nil {
+		t.Errorf("an open gap reports closure_class %q", *cc)
+	}
+}
+
+// AN UNRULED MOTION IS VISIBLE WITHOUT REPLAYING ANYTHING.
+//
+// `sitting.go` refuses a seat's PASS while a motion it rules is unanswered, and it computes that by
+// folding the stream. Here it is a column, and the filing/ruling join comes with it.
+func TestAnUnruledMotionIsAColumn(t *testing.T) {
+	db := store(t)
+	file := func(seq int32, id, gap string) {
+		t.Helper()
+		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+			MotionId: proto.String(id),
+			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
+			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String(gap)}},
+		})); err != nil {
+			t.Fatal(err)
+		}
+	}
+	file(0, "M1", "R1-1")
+	file(1, "M2", "R1-2")
+	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
+		MotionId: proto.String("M1"),
+		Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
+		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
+	})); err != nil {
+		t.Fatal(err)
+	}
+
+	var id, gap string
+	if err := db.QueryRow(`SELECT motion_id, gap_id FROM motion_state WHERE unruled`).Scan(&id, &gap); err != nil {
+		t.Fatalf("the unruled motion is not visible: %v", err)
+	}
+	if id != "M2" || gap != "R1-2" {
+		t.Errorf("unruled = (%q, %q), want (M2, R1-2)", id, gap)
+	}
+}

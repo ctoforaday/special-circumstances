@@ -45,6 +45,10 @@ func Open(path string) (*sql.DB, error) {
 			db.Close()
 			return nil, fmt.Errorf("recordsql: applying the schema to %s: %w", path, err)
 		}
+		if _, err := db.Exec(ViewsDDL); err != nil {
+			db.Close()
+			return nil, fmt.Errorf("recordsql: applying the projections to %s: %w", path, err)
+		}
 	}
 	return db, nil
 }
