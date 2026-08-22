@@ -160,3 +160,43 @@ change without someone editing the assertion and reading this.
 (`review_flag`, `principle`, `tension`). Whether `principle` and `tension` should be
 tightened — a ruling with no stated rule is what `bench opinion` exists to prevent — is a
 live question, deliberately not answered inside a storage migration.
+
+## Presence for repeated fields: measured, not reasoned
+
+**The question.** A repeated field lands in a child table, so "does this gap supersede
+anything" needs a join. Could an insert hook on the child set a boolean on the parent, so
+presence comes for free with the row?
+
+**The mechanism works.** An `AFTER INSERT` trigger on the child updating the parent does
+what you would expect — measured: parent with a child reads 1, parent without reads 0.
+
+**It cannot recover the distinction that bit us.** An explicitly-empty list and an absent
+one are lost ABOVE SQL. Measured on the real messages:
+
+    unset             Has=false  len=0  nil=true
+    explicitly empty  Has=false  len=0  nil=false
+    one entry         Has=true   len=1  nil=false
+    wire bytes identical: true
+
+`protoreflect` reports no presence for either, and the two marshal to the same bytes. By
+the time a writer reaches the storage there is nothing left to tell apart, so no trigger
+can recover it.
+
+**Three costs, one of them fatal to the strongest use.**
+
+1. It is a **second copy** of a fact the child table already holds — derivable by `EXISTS`,
+   which is what `facts-are-fields` says to prefer generating over guarding.
+2. It **cannot be used by a CHECK.** The parent row is written before any child, so a
+   `CHECK (has_kids = 1)` fails at the moment the parent is inserted. Measured:
+   `CHECK constraint failed: has_kids = 1`. That was the one thing a stored column could do
+   that a view cannot, and it does not work.
+3. It requires an **UPDATE on an append-only record.** Measured: the same guard that
+   protects `events` refuses it (`constraint failed: append-only`).
+
+**What was done instead.** The `gap` view carries `supersedes_count` and `found_by_count`.
+Free, derived, cannot disagree with the rows it counts, and it answers the join several
+readers were writing for themselves.
+
+**Where the fact is a CLAIM rather than a consequence,** the schema already has the right
+shape and it is a field the WRITER sets: `SpotCheck.none` — a bool with real presence,
+meaning "I checked nothing, deliberately". Derived where derivable; declared where claimed.

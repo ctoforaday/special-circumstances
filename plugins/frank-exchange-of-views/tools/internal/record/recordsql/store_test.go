@@ -690,3 +690,64 @@ func TestTheSqliteDriverIsRegistered(t *testing.T) {
 		"the package that opens the database, and the binary will fail at the first write while the "+
 		"suite stays green", sql.Drivers())
 }
+
+// A REPEATED FIELD'S PRESENCE IS A QUESTION FOR THE VIEW, NOT A COLUMN ON THE PARENT.
+//
+// # What this does and does not recover
+//
+// A gap's lineage and its credited findings live in child tables, so "does this gap supersede
+// anything" is a join. The view answers it once, which is the point: several readers were writing
+// that join themselves.
+//
+// It does NOT recover the distinction that actually bit us — an explicitly-empty list from an
+// absent one. That is lost ABOVE SQL: protoreflect reports `Has=false` for both, and the two
+// marshal to identical bytes, so by the time a writer reaches the storage there is nothing left to
+// tell apart. No amount of SQL can recover a fact the value no longer carries.
+//
+// # Why a count in a view rather than a boolean on the parent
+//
+// A `has_lineage` column maintained by an AFTER INSERT trigger on the child works — measured — and
+// costs three things. It is a second copy of a fact the child table already holds. It cannot be
+// used by a CHECK, because the parent row is written before any child and the constraint fails at
+// that moment. And it requires an UPDATE on a record whose whole design is append-only: the same
+// guard that protects `events` would refuse it.
+//
+// Where the fact is a CLAIM rather than a consequence — a seat saying "I checked nothing,
+// deliberately" — the schema already has the right shape, and it is a field the WRITER sets:
+// SpotCheck.none, a bool with real presence. Derived where derivable, declared where claimed.
+func TestAGapsListsAreCountedByTheView(t *testing.T) {
+	db := store(t)
+	mintGap(t, db, 0, "R0-9")
+	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
+		GapId:           proto.String("R1-1"),
+		Class:           proto.String("overclaim"),
+		Problem:         proto.String("p"),
+		AcceptanceCheck: proto.String("a"),
+		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
+		Likelihood:      recordpb.Grade_GRADE_MEDIUM.Enum(),
+		Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
+		Supersedes:      []string{"R0-9"},
+		FoundBy:         []string{"L1-F1", "L2-F3"},
+	})); err != nil {
+		t.Fatal(err)
+	}
+
+	var lineage, credits int
+	if err := db.QueryRow(`SELECT "supersedes_count", "found_by_count" FROM "gap" WHERE "gap_id" = 'R1-1'`).
+		Scan(&lineage, &credits); err != nil {
+		t.Fatal(err)
+	}
+	if lineage != 1 || credits != 2 {
+		t.Errorf("gap R1-1 counts = (%d lineage, %d credits), want (1, 2)", lineage, credits)
+	}
+
+	// And a gap with neither reads ZERO rather than NULL — the count is over rows that are simply
+	// not there, which is the honest answer and the one a reader can act on.
+	if err := db.QueryRow(`SELECT "supersedes_count", "found_by_count" FROM "gap" WHERE "gap_id" = 'R0-9'`).
+		Scan(&lineage, &credits); err != nil {
+		t.Fatal(err)
+	}
+	if lineage != 0 || credits != 0 {
+		t.Errorf("a gap with no lineage counts = (%d, %d), want (0, 0)", lineage, credits)
+	}
+}

@@ -595,7 +595,17 @@ SELECT
   be."seat_id"                                 AS "bench_closed_by",
   be."round"                                   AS "bench_closed_round",
   COALESCE(MIN(ce."round", be."round"), ce."round", be."round") AS "closed_round",
-  (c."event_id" IS NULL AND bc."event_id" IS NULL)              AS "open"
+  (c."event_id" IS NULL AND bc."event_id" IS NULL)              AS "open",
+  -- THE REPEATED FIELDS, ANSWERED HERE RATHER THAN STORED. A gap's lineage and its credited
+  -- findings live in child tables, so "does this gap supersede anything" is a join every reader
+  -- would otherwise write for itself — and several did, differently.
+  --
+  -- Derived rather than denormalised, deliberately: a has_lineage column on mint, maintained by
+  -- an insert trigger on the child, is a second copy of a fact the child table already holds, and
+  -- it would have to be UPDATEd into a record that is append-only. The count is free here and
+  -- cannot disagree with the rows it counts.
+  (SELECT count(*) FROM "mint_supersedes" s WHERE s."event_id" = m."event_id") AS "supersedes_count",
+  (SELECT count(*) FROM "mint_found_by"   f WHERE f."event_id" = m."event_id") AS "found_by_count"
 FROM "mint" m
 JOIN "events" e ON e."id" = m."event_id"
 LEFT JOIN "close" c ON c."gap_id" = m."gap_id"
