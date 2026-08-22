@@ -150,3 +150,60 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 var seqN int
 
 func seq() int { seqN++; return seqN }
+
+// THE VOCABULARY IS IN THE DATABASE, WITH ITS MEANINGS.
+//
+// A `CHECK (x IN (…))` enforces the same set and keeps only the words. descriptions.go exists to
+// stop precisely that — "A VALUE CARRIES ITS OWN MEANING, OR THE SET IS A LIST OF NOUNS" — and the
+// meanings had already been lost once, sitting in source comments no seat could read. Putting only
+// the words into the schema would lose them again at the layer that IS the record.
+func TestEnumVocabulariesAreQueryableWithTheirMeanings(t *testing.T) {
+	db := open(t)
+
+	var means string
+	err := db.QueryRow(`SELECT means FROM enum_closure_class WHERE value = 'risk_accepted'`).Scan(&means)
+	if err != nil {
+		t.Fatalf("the closure classes are not in the database: %v", err)
+	}
+	if !strings.Contains(means, "risk") {
+		t.Errorf("risk_accepted means %q — the row carries a word and not what it is FOR", means)
+	}
+
+	// Every vocabulary row must say something. A blank means is a value with no meaning, which is
+	// the state the docs table refuses at the Go layer and which must not reappear here.
+	var blank int
+	if err := db.QueryRow(`SELECT count(*) FROM enum_closure_class WHERE trim(means) = ''`).Scan(&blank); err != nil {
+		t.Fatal(err)
+	}
+	if blank != 0 {
+		t.Errorf("%d closure classes carry an empty meaning", blank)
+	}
+}
+
+// THE FOREIGN KEY DOES THE WORK THE CHECK USED TO.
+//
+// Swapping a CHECK for a lookup table is only safe if the refusal survives the swap, so it is
+// driven rather than assumed: an unknown word must still be refused, and a known one still accepted.
+func TestAnEnumColumnStillRefusesAnUnknownWord(t *testing.T) {
+	db := open(t)
+	mk := func(t *testing.T, typ string) int64 {
+		t.Helper()
+		res, err := db.Exec(`INSERT INTO events (seat_id, round, seq, nonce, ts, type) VALUES ('red-merge-r1', 1, ?, 'cccccccc', '2026-01-01T00:00:00Z', ?)`, seq(), typ)
+		if err != nil {
+			t.Fatal(err)
+		}
+		id, _ := res.LastInsertId()
+		return id
+	}
+
+	id := mk(t, "close")
+	if _, err := db.Exec(`INSERT INTO close (event_id, gap_id, closure_class, prose) VALUES (?, 'R1-1', 'evidence-rebutted', 'x')`, id); err == nil {
+		t.Fatal("`evidence-rebutted` was accepted as a closure class — it is not one, and a graph fixture " +
+			"asserted against it for months while the counters read zero")
+	}
+
+	id = mk(t, "close")
+	if _, err := db.Exec(`INSERT INTO close (event_id, gap_id, closure_class, prose) VALUES (?, 'R1-2', 'risk_accepted', 'x')`, id); err != nil {
+		t.Fatalf("a real closure class was refused: %v — the vocabulary table is a wall rather than a gate", err)
+	}
+}

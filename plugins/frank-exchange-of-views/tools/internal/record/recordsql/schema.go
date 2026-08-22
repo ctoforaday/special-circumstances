@@ -70,6 +70,14 @@ func Schema() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// THE VOCABULARIES COME FIRST, because every enum column points at one. Emitting them in a
+	// stable order keeps the DDL byte-identical across runs; a map walk here would make every
+	// derivation a different string for the same schema.
+	vocab, err := enumTables(bodies)
+	if err != nil {
+		return "", err
+	}
+	b.WriteString(vocab)
 	for _, body := range bodies {
 		ddl, err := tableFor(body)
 		if err != nil {
@@ -139,6 +147,9 @@ func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 		if fk != "" {
 			fks = append(fks, fk)
 		}
+		if fd.Kind() == protoreflect.EnumKind {
+			fks = append(fks, fmt.Sprintf("FOREIGN KEY (%q) REFERENCES %q(\"value\")", fd.Name(), EnumTableName(fd.Enum())))
+		}
 	}
 
 	// REAL oneofs, which proto3 `optional` also uses under the hood — IsSynthetic tells them apart,
@@ -195,9 +206,8 @@ func column(fd protoreflect.FieldDescriptor) (col, check string, err error) {
 	if o.GetUnique() {
 		col += " UNIQUE"
 	}
-	if fd.Kind() == protoreflect.EnumKind {
-		check = fmt.Sprintf("%q IS NULL OR %q IN (%s)", name, name, enumLiterals(fd.Enum()))
-	}
+	// NO `IN (…)` CHECK. An enum column points at its VOCABULARY TABLE instead — same enforcement,
+	// and the meanings come with it. See enumTable.
 	return col, check, nil
 }
 
@@ -233,18 +243,66 @@ func sqlType(fd protoreflect.FieldDescriptor) (string, error) {
 	return "", fmt.Errorf("recordsql: %s has no SQL type for kind %s", fd.FullName(), fd.Kind())
 }
 
-func enumLiterals(ed protoreflect.EnumDescriptor) string {
-	var out []string
+// enumTable is one vocabulary, as rows.
+//
+// # Why a table and not a CHECK
+//
+// `CHECK (x IN ('closed', 'risk_accepted', …))` enforces the same set and throws away everything
+// about it. descriptions.go exists to stop exactly that: "A VALUE CARRIES ITS OWN MEANING, OR THE
+// SET IS A LIST OF NOUNS" — the meanings were already lost once, sitting in source comments where
+// no seat could read them, and putting only the words into the schema would lose them again at the
+// layer that is supposed to be the record.
+//
+// As a table the vocabulary is IN the database: a human reading the record can join a closure class
+// to what it means without leaving SQL, and the foreign key gives the same refusal the CHECK did.
+//
+// # The two enums nobody documents
+//
+// EventType and SchemaVersion are stamped by the tool and no seat ever chooses one, so
+// descriptions.go declines to document them and says so. That is a decision, not an omission — but
+// a SINGLE undocumented value in an otherwise documented set IS an omission, and the difference
+// matters, so the two are told apart rather than both waved through.
+func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
+	type row struct{ word, means string }
+	var rows []row
+	documented, undocumented := 0, 0
 	for i := 0; i < ed.Values().Len(); i++ {
-		w := recordpb.Word(dummyEnum{ed, ed.Values().Get(i).Number()})
+		v := ed.Values().Get(i)
+		w := recordpb.Word(dummyEnum{ed, v.Number()})
 		if w == "" {
 			continue // the UNSPECIFIED zero is absence, and absence is NULL here
 		}
-		out = append(out, "'"+w+"'")
+		means, err := recordpb.EnumValueDoc(v)
+		if err != nil {
+			undocumented++
+			means = "stamped by the tool; no seat chooses it"
+		} else {
+			documented++
+		}
+		rows = append(rows, row{w, means})
 	}
-	sort.Strings(out)
-	return strings.Join(out, ", ")
+	if documented > 0 && undocumented > 0 {
+		return "", fmt.Errorf("recordsql: %s documents %d of its values and not %d — a set that is "+
+			"partly described is worse than one that is not, because the gap reads as a value with no meaning",
+			ed.FullName(), documented, documented+undocumented)
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].word < rows[j].word })
+
+	name := EnumTableName(ed)
+	var b strings.Builder
+	fmt.Fprintf(&b, "\nCREATE TABLE %q (\n  \"value\" TEXT PRIMARY KEY,\n  \"means\" TEXT NOT NULL\n) STRICT;\n", name)
+	for _, r := range rows {
+		fmt.Fprintf(&b, "INSERT INTO %q (\"value\", \"means\") VALUES ('%s', '%s');\n", name, r.word, escape(r.means))
+	}
+	return b.String(), nil
 }
+
+// EnumTableName is the vocabulary table for an enum: `enum_` plus its own name in snake_case.
+func EnumTableName(ed protoreflect.EnumDescriptor) string {
+	return "enum_" + snake(string(ed.Name()))
+}
+
+func escape(s string) string { return strings.ReplaceAll(s, "'", "''") }
 
 // listTable keeps a repeated field JOINABLE. Flattening it to a comma string would put a list back
 // inside a value, which is where `supersedes` lived before the schema and is the shape that made a
@@ -348,4 +406,41 @@ func snake(s string) string {
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+// enumTables emits one vocabulary table per enum any column uses, once each and in a stable order.
+func enumTables(bodies []protoreflect.MessageDescriptor) (string, error) {
+	var order []protoreflect.EnumDescriptor
+	seen := map[protoreflect.FullName]bool{}
+	var walk func(md protoreflect.MessageDescriptor)
+	walk = func(md protoreflect.MessageDescriptor) {
+		for i := 0; i < md.Fields().Len(); i++ {
+			fd := md.Fields().Get(i)
+			if m := fd.Message(); m != nil {
+				walk(m) // the oneof's message arms get their own tables, and their enums too
+				continue
+			}
+			if fd.Kind() != protoreflect.EnumKind {
+				continue
+			}
+			ed := fd.Enum()
+			if seen[ed.FullName()] {
+				continue
+			}
+			seen[ed.FullName()] = true
+			order = append(order, ed)
+		}
+	}
+	for _, md := range bodies {
+		walk(md)
+	}
+	var b strings.Builder
+	for _, ed := range order {
+		t, err := enumTable(ed)
+		if err != nil {
+			return "", err
+		}
+		b.WriteString(t)
+	}
+	return b.String(), nil
 }
