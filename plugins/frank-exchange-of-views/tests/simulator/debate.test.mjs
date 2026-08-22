@@ -653,7 +653,13 @@ test('GRADE enum carries compound grades and the pinned mass mapping is total ov
   await world.run(script, ARGS)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
   const en = merge.opts.schema.properties.gaps.items.properties.likelihood.enum
-  assert.deepEqual(en, ['low', 'low-medium', 'medium', 'medium-high', 'high', 'certain', 'realized', 'trivial'])
+  // UNDERSCORES. debate.js's GRADE enum has spelled `low_medium` and `medium_high` since the
+  // record's grade vocabulary moved; this assertion kept the hyphens, and nothing ran it — the
+  // simulator was on the "owed before PR2 closes" list, so a carrier still speaking the old
+  // model sat green-by-absence for the whole migration. Seventh instance of one value spelled
+  // two ways across a boundary with one side moved, and the only one where the JS was the
+  // stale half: the engine and the tool agreed, and the test between them did not.
+  assert.deepEqual(en, ['low', 'low_medium', 'medium', 'medium_high', 'high', 'certain', 'realized', 'trivial'])
   // The mass mapping no longer rides in the prompt — the tool computes telemetry, and the
   // Go MASS table (record.go) is total over this enum, asserted by the record package tests.
   assert.ok(!/pinned mapping \{/.test(merge.prompt), 'the MASS json no longer bloats the merge prompt (retired with the hand-written telemetry line)')
