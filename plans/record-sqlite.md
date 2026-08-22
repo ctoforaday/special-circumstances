@@ -433,9 +433,27 @@ now, and the test checks both directions: nothing advertised that cannot be writ
 nothing in the schema that no surface can produce — the arm that would have found `process`
 and `scope` sitting unreachable.
 
+### The check nobody ran, and what it was hiding
+
+The simulator (`tests/simulator`, `node --test`) sits on the plan's "owed before PR2 closes"
+list, so it had not run once during the migration. Running it produced two more instances of
+the same family — and both were **green by absence**, which is worse than red, because an
+unrun gate reads as coverage:
+
+- `debate.test.mjs` asserted the grade enum as `low-medium | medium-high`. `debate.js` and the
+  tool both spell them with underscores. The engine and the tool agreed with each other; the
+  test between them did not.
+- `prompt-frontier.golden` and `prompt-red-merge-r1.golden` recorded prompts telling seats to
+  type `too-thin` and `out-of-scope`. The prompts themselves say `too_thin` and `out_of_scope`.
+  The golden that exists to catch exactly this drift was the thing carrying it.
+
+**A gate's value is its last run, not its existence.** Six months of "we have a golden for that"
+is worth nothing if the golden has not been compared. Where a check is expensive enough to end
+up on an "owed" list, that is the check most likely to be stale when it finally runs.
+
 ### Standing pattern, stated once
 
-Six of the fifteen defects and both of the two above were found the same way: **a refusal
+Eight instances now, and six of the defects below them were found the same way: **a refusal
 somebody discarded**. `_, _ = r.exec(...)` in the fuzz, five times; a help string that
 outlived its flags; an annotation that pre-empted an exemption. The refusal was always
 correct and always right there. What made each invisible was that nothing kept it.
