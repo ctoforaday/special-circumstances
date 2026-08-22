@@ -670,6 +670,38 @@ func withdrawnClaims(evs []*record.Event) string {
 	return "## Claims withdrawn\n\n_Substance leaves this report only through the `retire` verb, which records the claim as it stood and why it went. These were argued and then removed; the reasoning is part of what the debate decided._\n\n" + strings.Join(rows, "\n")
 }
 
+// provenance renders which lens findings surfaced a gap, IN THE FINDING'S OWN WORDS.
+//
+// This was `surfaced by: L5-F1, L6-F2` — labels and nothing else. Nothing in the report defines
+// those labels: unmintedFindings renders a finding's text only when NO gap claims it, so the
+// instant the merge acted on a finding, the leaf-level evidence that produced it left the
+// document and the citation dangled.
+//
+// It is the wrong half to drop. A gap's `problem` is the merge's RESTATEMENT; the finding is what
+// red actually observed at the leaf, and the two sitting together is what lets a reader see a
+// restatement drift from its evidence. Unresolvable labels are kept as bare labels rather than
+// silently dropped — an unresolvable citation is itself worth seeing.
+func provenance(m *recordpb.Mint, findings map[string]*recordpb.Finding) string {
+	fb := m.GetFoundBy()
+	if len(fb) == 0 {
+		return ""
+	}
+	var lines []string
+	for _, lbl := range fb {
+		f := findings[lbl]
+		if f == nil {
+			lines = append(lines, "- "+lbl+": (no finding with this label is on the record)")
+			continue
+		}
+		loc := f.GetLocation()
+		if loc != "" {
+			loc = " (" + loc + ")"
+		}
+		lines = append(lines, fmt.Sprintf("- %s%s: %s", lbl, loc, f.GetText()))
+	}
+	return "\nsurfaced by:\n" + strings.Join(lines, "\n")
+}
+
 // redFindings composes the full findings from the board's gaps: every open gap with its
 // grades and required fix, then the closure index. This is the ledger's content, drawn from
 // the replayed board rather than read back from the projection file.
@@ -702,22 +734,7 @@ func redFindings(board *record.Board) string {
 			// what lets a reader see a restatement drift from its evidence. Unresolvable labels
 			// (a found_by naming no finding on the record) are kept as bare labels rather than
 			// silently dropped — an unresolvable citation is itself worth seeing.
-			foundBy := ""
-			if fb := g.Mint.GetFoundBy(); len(fb) > 0 {
-				var lines []string
-				for _, lbl := range fb {
-					if f := findings[lbl]; f != nil {
-						loc := f.GetLocation()
-						if loc != "" {
-							loc = " (" + loc + ")"
-						}
-						lines = append(lines, fmt.Sprintf("- %s%s: %s", lbl, loc, f.GetText()))
-						continue
-					}
-					lines = append(lines, "- "+lbl+": (no finding with this label is on the record)")
-				}
-				foundBy = "\nsurfaced by:\n" + strings.Join(lines, "\n")
-			}
+			foundBy := provenance(g.Mint, findings)
 			// `class` is a registry SLUG, not a grade — it goes through `grade` only for that
 			// helper's em-dash-when-empty arm, exactly as it did before.
 			open = append(open, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s%s\nacceptance_check: %s%s",
@@ -745,7 +762,13 @@ func redFindings(board *record.Board) string {
 			if succ == "" {
 				succ = "-"
 			}
-			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s", g.ID, cc, g.Mint.GetProblem(), succ, regradeHistory(g)))
+			// THE EVIDENCE TRAVELS WITH THE CLOSED ENTRY TOO. This was scoped out on the argument
+			// that a closed gap's open question is how it was settled — but the finding's text
+			// then reached NO reader at all, because unmintedFindings skips anything a gap
+			// claimed. A run where every finding was minted and every gap closed printed red's
+			// leaf-level words nowhere. The closure answers what happened; it does not restate
+			// what was observed, and an audit of a closure needs both.
+			closed = append(closed, fmt.Sprintf("- %s | %s | %s | successor %s%s%s", g.ID, cc, g.Mint.GetProblem(), succ, regradeHistory(g), provenance(g.Mint, findings)))
 		}
 	}
 	var b strings.Builder

@@ -1,7 +1,7 @@
 $ merge register --run {RUN} --seat-id red-merge-r2
 exit 0
 stdout:
-registered red-merge-r2 (shard nonce NONCE001)
+registered red-merge-r2
 
 $ merge mint --run {RUN} --seat-id red-merge-r2 --class scope-creep --check-kind document --check reread --severity medium --likelihood medium --impact medium --problem carried case
 exit 0
@@ -11,45 +11,9 @@ minted R2-1
 $ merge carry --run {RUN} --seat-id red-merge-r2 --id R2-1 --carried-from 1
 exit 2
 stderr:
-feov-record: at least one of the flags in the group [reason reason-file] is required
-
-restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
-
-Usage:
-  {TOOL} carry [flags]
-
-Flags:
-      --as as-value            HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
-      --carried-from string    the round whose closure this restates
-  -h, --help                   help for carry
-      --id gap-id              REQUIRED — the gap id
-      --reason string          REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
-      --reason-file -          read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --superseded-by gap-id   the gap id carrying the unresolved remainder forward
-
-Enumerated values:
-  --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+feov-record: merge: record: carry claims gap R2-1 was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `merge close` with --verified-by/--verified-with/--verified-against
 
 ═══ EVENTS ═══
--- events-red-merge-r2-NONCE001.jsonl
-{"key":"red-merge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.72.0"},"role":"merge","round":2,"seatId":"red-merge-r2","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r2:mint:R2-1","nonce":"NONCE001","payload":{"acceptance_check":"reread","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R2-1","impact":"medium","likelihood":"medium","problem":"carried case","severity":"medium","supersedes":[]},"role":"merge","round":2,"seatId":"red-merge-r2","seq":1,"ts":1,"type":"mint"}
 
 ═══ RENDERS ═══
 -- debate

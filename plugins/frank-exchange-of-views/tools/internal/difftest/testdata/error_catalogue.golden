@@ -28,7 +28,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -72,7 +72,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -116,7 +116,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -160,7 +160,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -204,7 +204,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -220,7 +220,7 @@ Global Flags:
 
 ── mint with bad grade
 exit 2
-feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low-medium | medium | medium-high | high | certain | realized | trivial
+feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low_medium | medium | medium_high | high | certain | realized | trivial
 
 mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
 
@@ -248,7 +248,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -292,7 +292,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -308,42 +308,7 @@ Global Flags:
 
 ── close unknown gap
 exit 2
-feov-record: at least one of the flags in the group [reason reason-file] is required
-
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>"
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
-
-Usage:
-  {TOOL} close [flags]
-
-Flags:
-      --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
-  -h, --help                      help for close
-      --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
-      --reason-file -             read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the exact file, ref or URL read
-      --verified-by string        WHO verified it — the seat that read the evidence
-      --verified-with string      WITH WHAT — the tool or command that showed it
-
-Enumerated values:
-  --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+feov-record: merge: record: the --id names gap R7-7, which no mint event created — a dangling reference is accepted here and DROPPED at replay, which is how eight judicial closures vanished from a board that went on reporting them open
 
 ── close without id
 exit 2
@@ -363,7 +328,7 @@ Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason string             your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -             read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
@@ -373,8 +338,8 @@ Flags:
 Enumerated values:
   --as
     closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -402,7 +367,7 @@ Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason string             your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -             read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
@@ -412,8 +377,8 @@ Flags:
 Enumerated values:
   --as
     closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -425,42 +390,7 @@ Global Flags:
 
 ── regression close without successor
 exit 2
-feov-record: at least one of the flags in the group [reason reason-file] is required
-
-close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>"
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
-
-Usage:
-  {TOOL} close [flags]
-
-Flags:
-      --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
-  -h, --help                      help for close
-      --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
-      --reason-file -             read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --superseded-by gap-id      the gap id carrying the unresolved remainder forward
-      --verified-against string   AGAINST WHAT — the exact file, ref or URL read
-      --verified-by string        WHO verified it — the seat that read the evidence
-      --verified-with string      WITH WHAT — the tool or command that showed it
-
-Enumerated values:
-  --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+feov-record: merge: record: closed_with_regression requires --superseded-by (lineage never drops)
 
 ── regrade without basis
 exit 2
@@ -484,7 +414,7 @@ Flags:
       --likelihood grade   how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them
       --reason string      REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -      read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade     how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade     how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
 
 Global Flags:
       --json             emit a structured JSON result (and structured errors) instead of human text
@@ -495,7 +425,7 @@ Global Flags:
 exit 2
 feov-record: required flag(s) "principle", "review-flag", "tension" not set
 
-a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
+a ruling as an OPINION: --id R3-2 --as <disposition> --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -506,7 +436,7 @@ Usage:
   {TOOL} opinion [flags]
 
 Flags:
-      --as carried           REQUIRED — REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
+      --as as-value          REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
   -h, --help                 help for opinion
       --id gap-id            REQUIRED — the gap being ruled on
       --principle string     REQUIRED — the principle applied — a ruling is an OPINION, not a disposition
@@ -518,8 +448,8 @@ Flags:
 Enumerated values:
   --as
     closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -612,7 +542,7 @@ Usage:
   {TOOL} outcome [flags]
 
 Flags:
-      --as as-value              the run's terminal verdict
+      --as as-value              REQUIRED — the run's terminal verdict
       --ended deadlock|ceiling   what STOPPED the run, when it was not a pass — a judgement or a ceiling
   -h, --help                     help for outcome
       --reason string            REQUIRED — REQUIRED — how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on a judged deadlock it is the only evidence the determination ever had
@@ -640,13 +570,41 @@ feov-record: invalid argument "halt" for "--as" flag: --as must be one of grante
     granted  the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow
     denied   the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest
 
+rule on a petition motion (the bench seat's)
+
+Usage:
+  feov-record motion petition rule [flags]
+
+Flags:
+      --as granted|denied     REQUIRED — your ruling
+      --binds blue|red|both   who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not
+  -h, --help                  help for rule
+      --id string             REQUIRED — the motion id (M1, M2 …)
+      --reason string         your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -         read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+
+Enumerated values:
+  --as
+    granted  the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow
+    denied   the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest
+
+  --binds
+    blue  the relief binds the response seat — what blue must do, or must not, in the coming round
+    red   it binds the audit seats: the lenses and the merge
+    both  it binds the whole exchange, and every dispatched seat carries it
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+
 ── closure class near-miss
 exit 2
 feov-record: invalid argument "closed-with-regression" for "--as" flag: --as must be one of closed|closed_with_regression|amends_prior|rebuttal_sustained|risk_accepted|routed_to_infrastructure (got "closed-with-regression") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on closed_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
 
     closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -665,7 +623,7 @@ Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
   -h, --help                      help for close
       --id gap-id                 REQUIRED — the gap id
-      --reason string             REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason string             your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -             read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
       --superseded-by gap-id      the gap id carrying the unresolved remainder forward
       --verified-against string   AGAINST WHAT — the exact file, ref or URL read
@@ -675,8 +633,8 @@ Flags:
 Enumerated values:
   --as
     closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -694,6 +652,31 @@ feov-record: invalid argument "banana" for "--dimension" flag: --dimension must 
     likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them
     impact      how bad the consequence is if it lands
     complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
+
+file a grade motion — the tool assigns its id
+
+Usage:
+  feov-record motion grade file [flags]
+
+Flags:
+      --dimension dimension-value   REQUIRED for a grade motion
+  -h, --help                        help for file
+      --id string                   REQUIRED for a grade motion
+      --proposed grade              REQUIRED — the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --reason string               your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -               read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+
+Enumerated values:
+  --dimension
+    severity    how bad the defect is in itself
+    likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them
+    impact      how bad the consequence is if it lands
+    complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
+
+Global Flags:
+      --json             emit a structured JSON result (and structured errors) instead of human text
+      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 ── verification outcome outside the set
 exit 2
@@ -722,7 +705,7 @@ Flags:
 Enumerated values:
   --as
     supports              you read the source at the leaf and it says what the claim says
-    supports-with-bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
+    supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
     weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
     refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all
     absent                you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was
@@ -765,7 +748,7 @@ Flags:
 Enumerated values:
   --as
     supports              you read the source at the leaf and it says what the claim says
-    supports-with-bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
+    supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
     weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
     refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all
     absent                you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was
@@ -808,7 +791,7 @@ Flags:
 Enumerated values:
   --as
     supports              you read the source at the leaf and it says what the claim says
-    supports-with-bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
+    supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
     weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
     refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all
     absent                you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was
@@ -851,7 +834,7 @@ Flags:
 Enumerated values:
   --as
     supports              you read the source at the leaf and it says what the claim says
-    supports-with-bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
+    supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
     weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
     refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all
     absent                you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was
@@ -985,7 +968,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -1106,7 +1089,7 @@ Available Commands:
   declare     state a holding that binds how the record is READ without moving any gap: --reason "<the construction, correction or holding>"
   friction    a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
   halt        the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>
-  opinion     a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
+  opinion     a ruling as an OPINION: --id R3-2 --as <disposition> --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
   outcome     record the run's terminal verdict as a fact: --as VERIFIED|CEILING|HALTED|UNVERIFIED --reason "<how the run ended, in your words>" [--ended deadlock|ceiling]
   register    FIRST ACTION at the sitting: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
   show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
@@ -1146,7 +1129,7 @@ Available Commands:
   close           close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>"
   closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
   friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
-  inquiry-support your per-round verdict that the REPORT still carries a line of inquiry: --id Q1 --as supported|weakened|unsupported|absent --reason "<what the report says for it, quoted>". Read the report ONCE this round and vote every line against that read
+  inquiry-support your per-round read of the REPORT against the lines of inquiry on the record: --reason "<what the report says at those lines>". Read the report ONCE, cover every line in the one act — and where a line's treatment is thin, missing or unsupported by the text, MINT A GAP for it. This event records only that the read happened; the shortfalls it finds are ordinary defects. A PASS is refused until it exists.
   mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
   near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
   position        the round's ### RED section (prose via --reason)

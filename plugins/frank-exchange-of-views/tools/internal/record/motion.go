@@ -80,12 +80,11 @@ var MotionFields = map[string]map[string][]EnumValue{
 		Ev("complexity", "what fixing it costs — the axis to contest when the fix is worth more than the defect"),
 	}},
 	"petition": {
-		"class": {
-			Ev("ethical", "proceeding would require acting against the interests of someone the run affects"),
-			Ev("safety", "proceeding would create or conceal a hazard"),
-			Ev("integrity", "proceeding would require asserting what you believe false, or burying a real finding"),
-			Ev("constitutional", "the instruction itself conflicts with the rules the run is bound by"),
-		},
+		// FROM THE SCHEMA, not typed here. These four words were hand-listed while PetitionClass
+		// carried a different four, and the write path resolves against the enum — so `ethical`
+		// and `constitutional` were advertised in --help and REFUSED at the write, 22 of 40 times
+		// in the fuzz. Derived, the two cannot disagree.
+		"class": EvsOf(recordpb.PetitionClass(0).Descriptor()),
 		// WHO THE GRANTED RELIEF BINDS. Set on the RULING, not the filing: what a petitioner asks
 		// for and what the bench orders are different facts, and only the second binds anyone.
 		//
@@ -94,11 +93,10 @@ var MotionFields = map[string]map[string][]EnumValue{
 		// knowing it has no carrier". The engine threaded relief into exactly ONE prompt — blue's
 		// — so relief addressed to red reached nothing. Routing needs an addressee, and there was
 		// no field for one.
-		"binds": {
-			Ev("blue", "the relief binds the response seat — what blue must do, or must not, in the coming round"),
-			Ev("red", "it binds the audit seats: the lenses and the merge"),
-			Ev("both", "it binds the whole exchange, and every dispatched seat carries it"),
-		},
+		// AND THE WORSE HALF: the table said `blue | red | both`, RulingBinds said
+		// `all | filer | none`, NOTHING overlapped, and --binds is set exactly when a petition is
+		// GRANTED — so no granted petition could be recorded at all.
+		"binds": EvsOf(recordpb.RulingBinds(0).Descriptor()),
 	},
 }
 

@@ -1,7 +1,7 @@
 $ merge register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
-registered red-merge-r1 (shard nonce NONCE001)
+registered red-merge-r1
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --problem no check given
 exit 2
@@ -34,7 +34,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -79,7 +79,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -96,7 +96,7 @@ Global Flags:
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check run it --severity catastrophic --problem bad grade
 exit 2
 stderr:
-feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low-medium | medium | medium-high | high | certain | realized | trivial
+feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low_medium | medium | medium_high | high | certain | realized | trivial
 
 mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
 
@@ -124,7 +124,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -169,7 +169,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -189,9 +189,6 @@ stdout:
 minted R1-1
 
 ═══ EVENTS ═══
--- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.72.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"grep the sites","check_kind":"document","class":"scope-creep","class_new":false,"complexity_cost":"low","fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"high","problem":"a real one","severity":"high","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"mint"}
 
 ═══ RENDERS ═══
 -- debate

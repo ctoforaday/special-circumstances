@@ -115,10 +115,10 @@ CREATE TABLE "enum_petition_class" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_petition_class" ("value", "means") VALUES ('integrity', 'the record or the process has been compromised');
-INSERT INTO "enum_petition_class" ("value", "means") VALUES ('process', 'the mechanics are obstructing the work');
-INSERT INTO "enum_petition_class" ("value", "means") VALUES ('safety', 'a safety, ethics or consent boundary is in question');
-INSERT INTO "enum_petition_class" ("value", "means") VALUES ('scope', 'the question being answered has drifted from the one asked');
+INSERT INTO "enum_petition_class" ("value", "means") VALUES ('constitutional', 'the instruction itself conflicts with the rules the run is bound by');
+INSERT INTO "enum_petition_class" ("value", "means") VALUES ('ethical', 'proceeding would require acting against the interests of someone the run affects');
+INSERT INTO "enum_petition_class" ("value", "means") VALUES ('integrity', 'proceeding would require asserting what you believe false, or burying a real finding');
+INSERT INTO "enum_petition_class" ("value", "means") VALUES ('safety', 'proceeding would create or conceal a hazard');
 
 CREATE TABLE "enum_grade_ruling" (
   "value" TEXT PRIMARY KEY,
@@ -146,9 +146,9 @@ CREATE TABLE "enum_ruling_binds" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('all', 'every seat from here is bound by this ruling');
-INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('filer', 'only the filing seat is bound');
-INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('none', 'advisory — the ruling is on the record and obliges nobody');
+INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('blue', 'the relief binds the response seat — what blue must do, or must not, in the coming round');
+INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('both', 'it binds the whole exchange, and every dispatched seat carries it');
+INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('red', 'it binds the audit seats: the lenses and the merge');
 
 CREATE TABLE "enum_check_kind" (
   "value" TEXT PRIMARY KEY,

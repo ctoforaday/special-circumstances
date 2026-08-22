@@ -1,14 +1,14 @@
 $ bench register --run {RUN} --seat-id judge-r2
 exit 0
 stdout:
-registered judge-r2 (shard nonce NONCE001)
+registered judge-r2
 
 $ bench opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as closed
 exit 2
 stderr:
 feov-record: required flag(s) "principle", "review-flag", "tension" not set
 
-a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
+a ruling as an OPINION: --id R3-2 --as <disposition> --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -19,7 +19,7 @@ Usage:
   {TOOL} opinion [flags]
 
 Flags:
-      --as carried           REQUIRED — REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
+      --as as-value          REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
   -h, --help                 help for opinion
       --id gap-id            REQUIRED — the gap being ruled on
       --principle string     REQUIRED — the principle applied — a ruling is an OPINION, not a disposition
@@ -31,8 +31,8 @@ Flags:
 Enumerated values:
   --as
     closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -48,7 +48,7 @@ exit 2
 stderr:
 feov-record: required flag(s) "review-flag" not set
 
-a ruling as an OPINION: --id R3-2 --as carried|closed|... --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
+a ruling as an OPINION: --id R3-2 --as <disposition> --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -59,7 +59,7 @@ Usage:
   {TOOL} opinion [flags]
 
 Flags:
-      --as carried           REQUIRED — REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
+      --as as-value          REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
   -h, --help                 help for opinion
       --id gap-id            REQUIRED — the gap being ruled on
       --principle string     REQUIRED — the principle applied — a ruling is an OPINION, not a disposition
@@ -71,8 +71,8 @@ Flags:
 Enumerated values:
   --as
     closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -84,8 +84,6 @@ Global Flags:
       --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
 
 ═══ EVENTS ═══
--- events-judge-r2-NONCE001.jsonl
-{"key":"judge-r2:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.72.0"},"role":"bench","round":2,"seatId":"judge-r2","seq":0,"ts":0,"type":"register"}
 
 ═══ RENDERS ═══
 -- debate

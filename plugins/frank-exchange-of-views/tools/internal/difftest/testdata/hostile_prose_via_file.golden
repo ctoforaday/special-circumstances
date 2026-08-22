@@ -1,7 +1,7 @@
 $ merge register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
-registered red-merge-r1 (shard nonce NONCE001)
+registered red-merge-r1
 
 $ merge position --run {RUN} --seat-id red-merge-r1 --reason-file {RUN}/prose.md
 exit 0
@@ -19,14 +19,6 @@ stdout:
 finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
 ═══ EVENTS ═══
--- events-red-lens-r1-L5-NONCE002.jsonl
-{"key":"red-lens-r1-L5:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.72.0"},"role":"lens","round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":3,"type":"register"}
-{"key":"red-lens-r1-L5:finding:L5-F1","nonce":"NONCE002","payload":{"finding_id":"FINDING001","finding_key":"F1","impact":"low","label":"L5-F1","likelihood":"low","location":"## S2","reason":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","severity":"low"},"role":"lens","round":1,"seatId":"red-lens-r1-L5","seq":1,"ts":4,"type":"finding"}
-{"key":"red-lens-r1-L5:anchor:FINDING001","nonce":"NONCE002","payload":{"id":"FINDING001","location":"## S2"},"role":"lens","round":1,"seatId":"red-lens-r1-L5","seq":2,"ts":5,"type":"anchor"}
--- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.72.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"reason":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"position"}
-{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"medium","problem":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","severity":"medium","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
 
 ═══ RENDERS ═══
 -- debate
@@ -161,7 +153,8 @@ Computed by replaying the event record, not reported by any seat. These are the 
 - **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
 - **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
 - **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
-- **ok** — `register-before-append` — every seat registered before it wrote
+- **FAIL** — `register-before-append` — a seat emitted an event before registering
+    - red-lens-r1-L5 (first event was finding)
 - **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
 
-**6 held · 1 did not apply · 0 violated.** An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.
+**5 held · 1 did not apply · 1 violated.** A violated invariant is a record-integrity finding: the report's content may still be sound, but the record it was assembled from contradicts itself, so treat every count derived from it as suspect until the violation is explained. An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

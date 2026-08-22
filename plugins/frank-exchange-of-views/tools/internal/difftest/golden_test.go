@@ -219,7 +219,12 @@ func compareGolden(t *testing.T, name, got string) {
 	}
 	want := strings.ReplaceAll(string(wantBytes), "\r\n", "\n")
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("%s differs from its golden (-want +got).\nIf this change is INTENTIONAL, regenerate with -update and justify it in the commit.\n%s",
+		// `UPDATE_GOLDENS=1`, NOT `-update`. The comment at the top of this file exists because
+		// someone already wrote `-update` there and no such flag is declared — and this message,
+		// the one a reader actually hits, went on saying it anyway. Instructions that name a
+		// mechanism nobody implements are the same defect as a refusal naming a flag no verb
+		// registers; this one had its own correction written thirty lines above it.
+		t.Errorf("%s differs from its golden (-want +got).\nIf this change is INTENTIONAL, regenerate with UPDATE_GOLDENS=1 go test ./internal/difftest and justify the diff in the commit.\n%s",
 			name, diff)
 	}
 }

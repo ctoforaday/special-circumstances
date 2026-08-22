@@ -2,6 +2,7 @@ package record
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"slices"
 	"strings"
 	"testing"
 
@@ -51,6 +52,47 @@ func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
 	}
 	if len(MotionFields["petition"]["class"]) == 0 {
 		t.Error("MotionFields lost the petition classes — the one source the filing and the ruling both read")
+	}
+	// AND THE CENSUS ABOVE WAS INCOMPLETE, WHICH IS WHY THIS BLOCK EXISTS.
+	//
+	// This test asserted "there is ONE table … the drift is not detected, it is unrepresentable"
+	// while counting only the two tables it knew about. The WRITE PATH resolves against the proto
+	// ENUM, a third source it never looked at — and the three disagreed. MotionFields listed
+	// `ethical | safety | integrity | constitutional`; PetitionClass carried
+	// `integrity | safety | process | scope`. Half the advertised classes were refused at the
+	// write for a value the seat had just read in --help. `binds` overlapped in NOTHING, and
+	// --binds is set exactly when a petition is granted, so no granted petition could be recorded.
+	//
+	// A test that names its own completeness is only as good as its census. This one now checks
+	// the source it missed: every word the help offers must be a word the write path resolves.
+	for _, tc := range []struct {
+		subject, key string
+		ed           protoreflect.EnumDescriptor
+	}{
+		{"petition", "class", recordpb.PetitionClass(0).Descriptor()},
+		{"petition", "binds", recordpb.RulingBinds(0).Descriptor()},
+		{"grade", "dimension", recordpb.GradeDimension(0).Descriptor()},
+	} {
+		for _, v := range MotionFields[tc.subject][tc.key] {
+			if _, ok := recordpb.BySpelling(tc.ed, v.Name); !ok {
+				t.Errorf("%s --%s advertises %q and the write path cannot resolve it against %s — "+
+					"a seat that reads the help and types the word is REFUSED, which teaches that the help lies rather than what to pass",
+					tc.subject, tc.key, v.Name, tc.ed.FullName())
+			}
+		}
+		// And the other direction: a schema value the help never offers is a word nothing can
+		// choose, which is how `process` and `scope` sat in the enum unreachable for releases.
+		vals := tc.ed.Values()
+		for i := 0; i < vals.Len(); i++ {
+			if vals.Get(i).Number() == 0 {
+				continue
+			}
+			w := recordpb.Spelling(vals.Get(i))
+			if !slices.Contains(Names(MotionFields[tc.subject][tc.key]), w) {
+				t.Errorf("%s carries %q and %s --%s never offers it — a value no surface can produce is dead vocabulary, and it reads as a richer set than the one that works",
+					tc.ed.FullName(), w, tc.subject, tc.key)
+			}
+		}
 	}
 	if len(MotionVerdicts["petition"]) == 0 {
 		t.Error("MotionVerdicts lost the petition rulings")

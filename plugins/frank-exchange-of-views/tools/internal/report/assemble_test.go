@@ -532,10 +532,10 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 	board := &record.Board{
 		GapOrder: []string{"R1-1"},
 		Gaps: map[string]*record.Gap{
-			// OPEN, which is where a gap states itself in full. The closed index is one line per
-			// gap by design and carries no provenance — a deliberate scope, stated here so it is
-			// a decision rather than an omission: a closed gap's question is how it was settled,
-			// and the closure's own anchor and prose answer that.
+			// OPEN here; the CLOSED case is covered below. Scoping provenance to open gaps was
+			// the first answer and it was wrong: unmintedFindings skips anything a gap claimed,
+			// so a run where every finding was minted and every gap closed printed red's words
+			// nowhere at all. The fuzz found one.
 			"R1-1": {ID: "R1-1", Open: true, Mint: &recordpb.Mint{
 				Problem: proto.String("the merge's restatement"),
 				FoundBy: []string{"L5-F1", "L9-F9"},
@@ -565,6 +565,22 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 	// It stays out of the un-minted section either way: the gap is where it is rendered.
 	if strings.Contains(got, "Lens findings not raised to a gap") {
 		t.Errorf("a claimed finding must not ALSO be listed as un-raised:\n%s", got)
+	}
+
+	// AND A CLOSED GAP CARRIES IT TOO. The closure says how the gap was settled; it does not
+	// restate what was observed, and an audit of a closure needs both.
+	closedBoard := &record.Board{
+		GapOrder: []string{"R1-1"},
+		Gaps: map[string]*record.Gap{
+			"R1-1": {ID: "R1-1", Open: false, Mint: &recordpb.Mint{
+				Problem: proto.String("the merge's restatement"),
+				FoundBy: []string{"L5-F1"},
+			}},
+		},
+		Events: board.Events,
+	}
+	if got := redFindings(closedBoard); !strings.Contains(got, "what red actually observed at the leaf") {
+		t.Errorf("a CLOSED gap dropped the evidence it was minted from, and nothing else renders it:\n%s", got)
 	}
 }
 

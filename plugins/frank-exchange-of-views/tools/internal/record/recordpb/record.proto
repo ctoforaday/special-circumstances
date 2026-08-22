@@ -1139,12 +1139,27 @@ message PetitionMotion {
   optional PetitionClass class = 1;
 }
 
+// THE PETITION CLASSES, AND THIS ENUM WAS NEVER MIGRATED TO THEM.
+//
+// It carried `integrity | safety | process | scope` while the help, debate.js's PETITIONS schema,
+// the report and internal/cli/motion's own Short line all said `ethical | safety | integrity |
+// constitutional`. Two of four overlapped, so half the filings worked and half were refused with
+// "X is not a petition class" — for a value the seat had just read in `--help`. Measured in the
+// fuzz: 22 of 40 `motion petition file` invocations refused.
+//
+// `process` and `scope` are RESERVED rather than renumbered. No Go code ever referenced them and
+// no surface could produce them, so nothing has written a 3 or a 4 — but a number back in service
+// silently reinterprets any record that did, and that rule does not bend for values one is
+// confident are unused. 1 and 2 keep their numbers because they are the two that worked.
 enum PetitionClass {
+  reserved 3, 4;
+  reserved "PETITION_CLASS_PROCESS", "PETITION_CLASS_SCOPE";
+
   PETITION_CLASS_UNSPECIFIED = 0;
-  PETITION_CLASS_INTEGRITY = 1 [(means) = "the record or the process has been compromised"];
-  PETITION_CLASS_SAFETY = 2 [(means) = "a safety, ethics or consent boundary is in question"];
-  PETITION_CLASS_PROCESS = 3 [(means) = "the mechanics are obstructing the work"];
-  PETITION_CLASS_SCOPE = 4 [(means) = "the question being answered has drifted from the one asked"];
+  PETITION_CLASS_INTEGRITY = 1 [(means) = "proceeding would require asserting what you believe false, or burying a real finding"];
+  PETITION_CLASS_SAFETY = 2 [(means) = "proceeding would create or conceal a hazard"];
+  PETITION_CLASS_ETHICAL = 5 [(means) = "proceeding would require acting against the interests of someone the run affects"];
+  PETITION_CLASS_CONSTITUTIONAL = 6 [(means) = "the instruction itself conflicts with the rules the run is bound by"];
 }
 
 // DirectionMotion rules on a line of inquiry blue proposed. The id is the AVENUE's own — a
@@ -1199,11 +1214,30 @@ message MotionRule {
   optional RulingBinds binds = 4;
 }
 
+// WHO GRANTED RELIEF BINDS, AND NOT ONE OF ITS OLD VALUES COULD EVER BE PASSED.
+//
+// It carried `all | filer | none` — a generic "how binding is this" — while the flag's help, the
+// hand-written table it renders from, and debate.js all say `blue | red | both`. ZERO overlap, so
+// `--binds` was refused for every value a seat could read, and since `--binds` is set exactly
+// when a petition is GRANTED, **no granted petition could be recorded at all**. The safety
+// short-circuit's grant path did not work. Measured in the fuzz: 8 of 18 `motion petition rule`
+// invocations refused, which is the granted half of a 50/50 coin.
+//
+// The vocabulary here is an ADDRESSEE, not a strength, and that is the point #360 measured: a
+// bench granted relief for the coming round and recorded in its own friction that it had "issued
+// a direction to red knowing it has no carrier", because the engine threaded relief into exactly
+// one prompt. Routing needs someone to route TO. `all | filer | none` cannot say that.
+//
+// Reserved rather than renumbered, for the reason PetitionClass states: nothing could write these
+// numbers, and a number back in service reinterprets any record that did.
 enum RulingBinds {
+  reserved 1, 2, 3;
+  reserved "RULING_BINDS_ALL", "RULING_BINDS_FILER", "RULING_BINDS_NONE";
+
   RULING_BINDS_UNSPECIFIED = 0;
-  RULING_BINDS_ALL = 1 [(means) = "every seat from here is bound by this ruling"];
-  RULING_BINDS_FILER = 2 [(means) = "only the filing seat is bound"];
-  RULING_BINDS_NONE = 3 [(means) = "advisory — the ruling is on the record and obliges nobody"];
+  RULING_BINDS_BLUE = 4 [(means) = "the relief binds the response seat — what blue must do, or must not, in the coming round"];
+  RULING_BINDS_RED = 5 [(means) = "it binds the audit seats: the lenses and the merge"];
+  RULING_BINDS_BOTH = 6 [(means) = "it binds the whole exchange, and every dispatched seat carries it"];
 }
 
 // MotionAppeal records that a party pressed a ruling — whether or not it also complied. Arguing

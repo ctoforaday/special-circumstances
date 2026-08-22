@@ -1121,14 +1121,26 @@ func (GradeDimension) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{16}
 }
 
+// THE PETITION CLASSES, AND THIS ENUM WAS NEVER MIGRATED TO THEM.
+//
+// It carried `integrity | safety | process | scope` while the help, debate.js's PETITIONS schema,
+// the report and internal/cli/motion's own Short line all said `ethical | safety | integrity |
+// constitutional`. Two of four overlapped, so half the filings worked and half were refused with
+// "X is not a petition class" — for a value the seat had just read in `--help`. Measured in the
+// fuzz: 22 of 40 `motion petition file` invocations refused.
+//
+// `process` and `scope` are RESERVED rather than renumbered. No Go code ever referenced them and
+// no surface could produce them, so nothing has written a 3 or a 4 — but a number back in service
+// silently reinterprets any record that did, and that rule does not bend for values one is
+// confident are unused. 1 and 2 keep their numbers because they are the two that worked.
 type PetitionClass int32
 
 const (
-	PetitionClass_PETITION_CLASS_UNSPECIFIED PetitionClass = 0
-	PetitionClass_PETITION_CLASS_INTEGRITY   PetitionClass = 1
-	PetitionClass_PETITION_CLASS_SAFETY      PetitionClass = 2
-	PetitionClass_PETITION_CLASS_PROCESS     PetitionClass = 3
-	PetitionClass_PETITION_CLASS_SCOPE       PetitionClass = 4
+	PetitionClass_PETITION_CLASS_UNSPECIFIED    PetitionClass = 0
+	PetitionClass_PETITION_CLASS_INTEGRITY      PetitionClass = 1
+	PetitionClass_PETITION_CLASS_SAFETY         PetitionClass = 2
+	PetitionClass_PETITION_CLASS_ETHICAL        PetitionClass = 5
+	PetitionClass_PETITION_CLASS_CONSTITUTIONAL PetitionClass = 6
 )
 
 // Enum value maps for PetitionClass.
@@ -1137,15 +1149,15 @@ var (
 		0: "PETITION_CLASS_UNSPECIFIED",
 		1: "PETITION_CLASS_INTEGRITY",
 		2: "PETITION_CLASS_SAFETY",
-		3: "PETITION_CLASS_PROCESS",
-		4: "PETITION_CLASS_SCOPE",
+		5: "PETITION_CLASS_ETHICAL",
+		6: "PETITION_CLASS_CONSTITUTIONAL",
 	}
 	PetitionClass_value = map[string]int32{
-		"PETITION_CLASS_UNSPECIFIED": 0,
-		"PETITION_CLASS_INTEGRITY":   1,
-		"PETITION_CLASS_SAFETY":      2,
-		"PETITION_CLASS_PROCESS":     3,
-		"PETITION_CLASS_SCOPE":       4,
+		"PETITION_CLASS_UNSPECIFIED":    0,
+		"PETITION_CLASS_INTEGRITY":      1,
+		"PETITION_CLASS_SAFETY":         2,
+		"PETITION_CLASS_ETHICAL":        5,
+		"PETITION_CLASS_CONSTITUTIONAL": 6,
 	}
 )
 
@@ -1176,28 +1188,44 @@ func (PetitionClass) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{17}
 }
 
+// WHO GRANTED RELIEF BINDS, AND NOT ONE OF ITS OLD VALUES COULD EVER BE PASSED.
+//
+// It carried `all | filer | none` — a generic "how binding is this" — while the flag's help, the
+// hand-written table it renders from, and debate.js all say `blue | red | both`. ZERO overlap, so
+// `--binds` was refused for every value a seat could read, and since `--binds` is set exactly
+// when a petition is GRANTED, **no granted petition could be recorded at all**. The safety
+// short-circuit's grant path did not work. Measured in the fuzz: 8 of 18 `motion petition rule`
+// invocations refused, which is the granted half of a 50/50 coin.
+//
+// The vocabulary here is an ADDRESSEE, not a strength, and that is the point #360 measured: a
+// bench granted relief for the coming round and recorded in its own friction that it had "issued
+// a direction to red knowing it has no carrier", because the engine threaded relief into exactly
+// one prompt. Routing needs someone to route TO. `all | filer | none` cannot say that.
+//
+// Reserved rather than renumbered, for the reason PetitionClass states: nothing could write these
+// numbers, and a number back in service reinterprets any record that did.
 type RulingBinds int32
 
 const (
 	RulingBinds_RULING_BINDS_UNSPECIFIED RulingBinds = 0
-	RulingBinds_RULING_BINDS_ALL         RulingBinds = 1
-	RulingBinds_RULING_BINDS_FILER       RulingBinds = 2
-	RulingBinds_RULING_BINDS_NONE        RulingBinds = 3
+	RulingBinds_RULING_BINDS_BLUE        RulingBinds = 4
+	RulingBinds_RULING_BINDS_RED         RulingBinds = 5
+	RulingBinds_RULING_BINDS_BOTH        RulingBinds = 6
 )
 
 // Enum value maps for RulingBinds.
 var (
 	RulingBinds_name = map[int32]string{
 		0: "RULING_BINDS_UNSPECIFIED",
-		1: "RULING_BINDS_ALL",
-		2: "RULING_BINDS_FILER",
-		3: "RULING_BINDS_NONE",
+		4: "RULING_BINDS_BLUE",
+		5: "RULING_BINDS_RED",
+		6: "RULING_BINDS_BOTH",
 	}
 	RulingBinds_value = map[string]int32{
 		"RULING_BINDS_UNSPECIFIED": 0,
-		"RULING_BINDS_ALL":         1,
-		"RULING_BINDS_FILER":       2,
-		"RULING_BINDS_NONE":        3,
+		"RULING_BINDS_BLUE":        4,
+		"RULING_BINDS_RED":         5,
+		"RULING_BINDS_BOTH":        6,
 	}
 )
 
@@ -6027,18 +6055,18 @@ const file_record_proto_rawDesc = "" +
 	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a\x1d\x8a\xb5\x18\x19how bad it is if it bites\x12\x86\x01\n" +
 	"\x1aGRADE_DIMENSION_LIKELIHOOD\x10\x02\x1af\x8a\xb5\x18bhow likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis\x12:\n" +
 	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x1a\x1e\x8a\xb5\x18\x1ahow far the damage reaches\x12_\n" +
-	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04\x1a?\x8a\xb5\x18;what the fix costs; it is what makes risk_accepted arguable*\xf7\x02\n" +
+	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04\x1a?\x8a\xb5\x18;what the fix costs; it is what makes risk_accepted arguable*\x8b\x04\n" +
 	"\rPetitionClass\x12\x1e\n" +
-	"\x1aPETITION_CLASS_UNSPECIFIED\x10\x00\x12P\n" +
-	"\x18PETITION_CLASS_INTEGRITY\x10\x01\x1a2\x8a\xb5\x18.the record or the process has been compromised\x12R\n" +
-	"\x15PETITION_CLASS_SAFETY\x10\x02\x1a7\x8a\xb5\x183a safety, ethics or consent boundary is in question\x12F\n" +
-	"\x16PETITION_CLASS_PROCESS\x10\x03\x1a*\x8a\xb5\x18&the mechanics are obstructing the work\x12X\n" +
-	"\x14PETITION_CLASS_SCOPE\x10\x04\x1a>\x8a\xb5\x18:the question being answered has drifted from the one asked*\x86\x02\n" +
+	"\x1aPETITION_CLASS_UNSPECIFIED\x10\x00\x12v\n" +
+	"\x18PETITION_CLASS_INTEGRITY\x10\x01\x1aX\x8a\xb5\x18Tproceeding would require asserting what you believe false, or burying a real finding\x12J\n" +
+	"\x15PETITION_CLASS_SAFETY\x10\x02\x1a/\x8a\xb5\x18+proceeding would create or conceal a hazard\x12p\n" +
+	"\x16PETITION_CLASS_ETHICAL\x10\x05\x1aT\x8a\xb5\x18Pproceeding would require acting against the interests of someone the run affects\x12j\n" +
+	"\x1dPETITION_CLASS_CONSTITUTIONAL\x10\x06\x1aG\x8a\xb5\x18Cthe instruction itself conflicts with the rules the run is bound by\"\x04\b\x03\x10\x03\"\x04\b\x04\x10\x04*\x16PETITION_CLASS_PROCESS*\x14PETITION_CLASS_SCOPE*\x99\x03\n" +
 	"\vRulingBinds\x12\x1c\n" +
-	"\x18RULING_BINDS_UNSPECIFIED\x10\x00\x12F\n" +
-	"\x10RULING_BINDS_ALL\x10\x01\x1a0\x8a\xb5\x18,every seat from here is bound by this ruling\x129\n" +
-	"\x12RULING_BINDS_FILER\x10\x02\x1a!\x8a\xb5\x18\x1donly the filing seat is bound\x12V\n" +
-	"\x11RULING_BINDS_NONE\x10\x03\x1a?\x8a\xb5\x18;advisory — the ruling is on the record and obliges nobody:I\n" +
+	"\x18RULING_BINDS_UNSPECIFIED\x10\x00\x12u\n" +
+	"\x11RULING_BINDS_BLUE\x10\x04\x1a^\x8a\xb5\x18Zthe relief binds the response seat — what blue must do, or must not, in the coming round\x12L\n" +
+	"\x10RULING_BINDS_RED\x10\x05\x1a6\x8a\xb5\x182it binds the audit seats: the lenses and the merge\x12\\\n" +
+	"\x11RULING_BINDS_BOTH\x10\x06\x1aE\x8a\xb5\x18Ait binds the whole exchange, and every dispatched seat carries it\"\x04\b\x01\x10\x01\"\x04\b\x02\x10\x02\"\x04\b\x03\x10\x03*\x10RULING_BINDS_ALL*\x12RULING_BINDS_FILER*\x11RULING_BINDS_NONE:I\n" +
 	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:<\n" +
 	"\x05means\x12!.google.protobuf.EnumValueOptions\x18ц\x03 \x01(\tR\x05means\x88\x01\x01:>\n" +
 	"\x06closes\x12!.google.protobuf.EnumValueOptions\x18ӆ\x03 \x01(\bR\x06closes\x88\x01\x01:A\n" +

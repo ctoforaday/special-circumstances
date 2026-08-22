@@ -770,8 +770,23 @@ A PROOF IS AUDITED BY RE-RUNNING IT, NOT BY READING IT, and the proof is named b
   // Degenerate-shape guard (retrospective §3 row 20, decided R4-2: throw, never soft-convert):
   // FAIL with zero gaps is evidence of a broken merge, not a clean report — looping on it
   // burns maxRounds silently and returns a self-contradictory UNVERIFIED/0-gaps verdict.
-  if (redEnv.verdict === 'FAIL' && redEnv.gaps.length === 0) {
+  //
+  // A PETITION IS THE ONE HONEST WAY TO FAIL WITH A CLEAN BOARD, and this guard predates the
+  // tool gate that made it reachable. `verdict --as PASS` is refused while any motion is
+  // unruled; a PETITION is the BENCH's to rule, not the merge's, and the merge files one in the
+  // same envelope that carries its verdict — so the bench has not sat yet. The seat cannot pass
+  // (the tool refuses) and could not fail either (this threw), which is no legal verdict at all.
+  // Measured: 4 of 60 fuzz runs died here, and the merge was behaving correctly in every one.
+  //
+  // Scoped to the envelope's own petitions deliberately. A petition BLUE filed dispatches a
+  // bench sitting before the next scheduled seat, so it is already ruled by the time red sits;
+  // what this exempts is the case red itself created, which is the case red cannot resolve.
+  const petitioned = Array.isArray(redEnv.petitions) && redEnv.petitions.length > 0
+  if (redEnv.verdict === 'FAIL' && redEnv.gaps.length === 0 && !petitioned) {
     throw new Error(`red-merge round ${round} returned FAIL with an empty gaps array — degenerate merge, refusing to loop silently`)
+  }
+  if (redEnv.verdict === 'FAIL' && redEnv.gaps.length === 0) {
+    log(`round ${round}: red FAILed on a clean board — ${redEnv.petitions.length} petition(s) outstanding for the bench, which is not a defect on the board`)
   }
   // Lineage enforcement (row 23 step 4, per red's own R5-5 critique: self-declared lineage
   // is hollow unless structurally checked): every closed_with_regression closure must have

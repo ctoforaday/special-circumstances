@@ -1,7 +1,10 @@
 package record
 
 import (
+	"google.golang.org/protobuf/reflect/protoreflect"
+
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"sort"
 	"strings"
 
@@ -150,4 +153,41 @@ func Refuse(flag, got string, vs []EnumValue, why string) error {
 	fmt.Fprintf(&b, "--%s must be one of %s (got %q) — %s%s\n\n%s",
 		flag, strings.Join(Names(vs), "|"), got, detail, why, Menu(vs))
 	return fmt.Errorf("%s", strings.TrimRight(b.String(), "\n"))
+}
+
+// EvsOf builds the value list for an enum FROM ITS DESCRIPTOR, so a hand-written table stops
+// being a second vocabulary and becomes a view of the schema's.
+//
+// THE DRIFT THIS ENDS WAS REAL AND SILENT. MotionFields listed the petition classes as
+// `ethical | safety | integrity | constitutional` — the words the help renders, debate.js's
+// envelope schema enumerates, and the report's prose names — while PetitionClass carried
+// `integrity | safety | process | scope`. The WRITE PATH resolves against the enum, so two of the
+// four advertised classes were refused with "X is not a petition class" for a value the seat had
+// just read in --help. `binds` was worse: the table said `blue | red | both`, the enum said
+// `all | filer | none`, nothing overlapped, and since --binds is set exactly when a petition is
+// GRANTED, no granted petition could be recorded at all.
+//
+// TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach asserted "there is ONE table … the
+// drift is not detected, it is unrepresentable" the whole time. It was counting the two tables it
+// knew about. A test that names its own completeness is only as good as its census.
+//
+// UNSPECIFIED IS SKIPPED: it is the absence of a choice, not one of them, and offering it in help
+// invites a seat to pass the zero value.
+func EvsOf(ed protoreflect.EnumDescriptor) []EnumValue {
+	vals := ed.Values()
+	out := make([]EnumValue, 0, vals.Len())
+	for i := 0; i < vals.Len(); i++ {
+		v := vals.Get(i)
+		if v.Number() == 0 {
+			continue
+		}
+		means, err := recordpb.EnumValueDoc(v)
+		if err != nil {
+			// LOUD, not blank. An unannotated value would otherwise render as a word with no
+			// meaning, which reads as a value nobody documented rather than one nobody decided.
+			means = "UNDOCUMENTED — " + err.Error()
+		}
+		out = append(out, Ev(recordpb.Spelling(v), means))
+	}
+	return out
 }

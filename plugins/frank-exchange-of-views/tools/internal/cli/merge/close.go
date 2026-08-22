@@ -75,7 +75,21 @@ func newClose() *cobra.Command {
 	// unanchored one that spent the seat's turn before saying so.
 	c.MarkFlagsRequiredTogether(flags.VerifiedBy, flags.VerifiedWith, flags.VerifiedAgainst)
 	_ = c.MarkFlagRequired(flags.VerifiedBy)
-	return seat.Prose(c)
+	// THE ARGUMENT IS UNCONDITIONAL FOR THIS VERB, AND CONDITIONAL FOR THE MESSAGE — the same
+	// split `blue line-of-inquiry propose` makes for --reason, and for the same reason.
+	//
+	// `Close.prose` carried `required: true`, which refuses unconditionally and therefore refused
+	// a CARRY — a carry restates a closure an earlier round already argued. Making it conditional
+	// fixed the carry and cost THIS verb its REQUIRED marker, so `merge close --help` stopped
+	// saying the argument was mandatory while the write path still refused without it. Marked
+	// here, where the fact is true, so the refusal arrives from cobra with the help attached
+	// rather than from the record after the seat has spent its turn.
+	//
+	// AFTER seat.Prose, which is what REGISTERS --reason: cobra panics marking a flag that does
+	// not exist yet, so the order here is load-bearing rather than stylistic.
+	c = seat.Prose(c)
+	c.MarkFlagsOneRequired(flags.Reason, flags.ReasonFile)
+	return c
 }
 
 // carry: restate a closure made in an earlier round.
