@@ -399,7 +399,14 @@ test('contested docket: a re-raised gap goes to the judge; adjudicated gaps leav
   assert.ok(judgeCalls[0].prompt.includes('"R1-1"'))
   assert.ok(!judgeCalls[0].prompt.includes('"R1-2"'), 'un-recurred gap is not on the docket')
   const merge3 = world.calls.find((c) => c.opts.label.startsWith('red-merge-r3'))
-  assert.ok(merge3.prompt.includes('EXCLUDED from your verdict: ["R1-1"]'))
+  // THE FATE TRAVELS WITH THE ID, and that is the assertion. Red used to be handed bare ids, so
+  // the bar was enforced by making the gap invisible — indistinguishable, from red's side, from a
+  // gap nobody ever raised. `closed` and `rebuttal_sustained` and `risk_accepted` estop red from
+  // completely different propositions, and it cannot honour a bar whose grounds it cannot see.
+  assert.ok(merge3.prompt.includes('{"gap_id":"R1-1","resolution":"closed"}'),
+    'red must be told the FATE of an adjudicated gap, not merely its id')
+  assert.ok(merge3.prompt.includes('ESTOPPEL'),
+    'the exclusion must be named as estoppel — red may reopen its OWN closure, but not a bench ruling')
 })
 
 test('deadlock: judge deadlock=true ends the debate UNVERIFIED with the deadlock stamp', async () => {
@@ -753,7 +760,10 @@ test('moot: a predicate-expired ruling adjudicates the gap out of red verdict sc
   }))
   const out = await world.run(script, { ...ARGS, maxRounds: 3 })
   const m3 = world.calls.find(c => c.opts.label.startsWith('red-merge-r3'))
-  assert.ok(m3.prompt.includes('EXCLUDED from your verdict: ["R1-1"]'), 'moot gap leaves red scope')
+  // `moot` is the fate that most needs to travel: the predicate expired, so NOBODY decided the
+  // merits. A seat told only that R1-1 is excluded would read a live question as a settled one.
+  assert.ok(m3.prompt.includes('{"gap_id":"R1-1","resolution":"moot"}'),
+    'a moot gap leaves red scope AND says it went moot — the merits were never reached')
   assert.equal(out.verdict, 'VERIFIED')
 })
 

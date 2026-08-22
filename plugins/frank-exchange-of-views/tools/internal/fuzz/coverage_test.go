@@ -43,7 +43,7 @@ var flagExemptions = map[string]string{
 
 // enumExemptions are enum values no sweep can reach, each with its reason.
 var enumExemptions = map[string]string{
-	"outcome --as HALTED":      "a halt reshapes every downstream oracle, so it is driven by TestFuzzHaltPath rather than the random sweep (the same reason `bench halt` is exempt from the command-path gate)",
+	"outcome --as HALTED": "a halt reshapes every downstream oracle, so it is driven by TestFuzzHaltPath rather than the random sweep (the same reason `bench halt` is exempt from the command-path gate)",
 	// `outcome --as UNVERIFIED` and `outcome --ended deadlock` were exempted here on the claim
 	// that "the engine has no path to" them. It was a claim about THIS FILE'S OWN FAKE — the
 	// fuzz bench returned a literal `deadlock: false` — dressed as a claim about debate.js, and
