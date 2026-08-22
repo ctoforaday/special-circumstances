@@ -50,7 +50,7 @@ forever (`filed > ruled` computing `0 > 0`).
 3. Rewire `record.Append` and `BoardState` onto it; delete the shard/nonce/anomaly machinery.
 4. Replace the hand-written projections with queries, one at a time, each with its test.
 
-## The cutover (in progress)
+## The cutover (done — see status at the end of this file)
 
 **The seam is `MergedEvents`.** 28 call sites inside `internal/record` take `Merged` and
 never touch a file. If `MergedEvents` returns events from SQLite, all 28 are untouched.
@@ -276,3 +276,32 @@ none" by accident.
 nobody states is the cost facts-are-fields warns about. If a bench ever needs "red
 considered lineage and found none" as distinct from "red did not address lineage", that is
 the moment — and it is one field.
+
+## Status (2026-08-22)
+
+**The cutover is done and driven.** The record is one SQLite database per run, verified
+through `cmd/feov-record` rather than only through the library: register → record →
+re-register → record, plus a once-per-sitting refusal and a full close.
+
+**Green:** `record`, `recordsql`, `recordpb`, `capture`, `verify`, `view`, `report`,
+`cli/bench`, `cli/merge`, `cli`. Production build at 0 errors.
+
+**Known-red, and NOT a regression** — both fail identically before this work, on this
+machine only, because `python` is not on PATH: `TestEveryProbeBoardStillBuilds`,
+`TestEveryRequiredFlagIsActuallyRefused`. `internal/difftest`, `internal/flags` and
+`internal/proof` were also red at the session's start (verified by stashing); difftest's
+goldens will need regenerating against the new envelope, which is a deliberate act and not
+this change's to make silently.
+
+### Still owed
+
+- **The fuzz suite's coverage gate is honest and unfinished.** Five of its drives named
+  commands that do not exist and are fixed; two verbs had no drive and now do. What remains
+  unexplained: `mint` fired 6 times across 60 runs, which makes every gap-dependent verb
+  rare downstream. The seeded report does carry the sentence the mint quotes, so the cause
+  is elsewhere and has not been found. **Do not read a low tally as a quiet run** — that is
+  the exact mistake the gate's own comment records from the last time.
+- **`certify` tallied 0** while `declare`, driven at a LOWER rate in the same block, tallied
+  3. Structurally identical, and `bench certify` succeeds when driven by hand from both
+  `judge-r1` and `assemble`. Unexplained.
+- **The re-verification decision** (above) is the operator's.
