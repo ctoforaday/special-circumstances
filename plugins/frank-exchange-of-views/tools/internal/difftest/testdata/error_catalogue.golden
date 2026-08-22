@@ -393,12 +393,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -436,12 +436,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -479,12 +479,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -522,12 +522,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -739,14 +739,14 @@ feov-record: a petition motion is ruled by the bench seat, so `rule` is not on y
 
 ── closure class near-miss
 exit 2
-feov-record: invalid argument "closed-with-regression" for "--as" flag: --as must be one of closed|closed_with_regression|amends_prior|rebuttal_sustained|risk_accepted|routed_to_infrastructure (got "closed-with-regression") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on closed_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
+feov-record: invalid argument "closed-with-regression" for "--as" flag: --as must be one of repaired|repaired_with_regression|amends_prior|not_a_defect|defect_accepted|defect_owed_elsewhere (got "closed-with-regression") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
 
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 close a gap with the verification you did THIS round, naming what you checked it against
 
@@ -775,12 +775,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -1180,12 +1180,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text

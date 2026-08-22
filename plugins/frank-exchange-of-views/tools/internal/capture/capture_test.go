@@ -444,7 +444,7 @@ func TestHarvestPrecedents(t *testing.T) {
 	}
 	board := &record.Board{Events: []record.Event{
 		{Round: 2, Type: "opinion", SeatID: "judge-r2", Payload: record.NewPayload().
-			Set("gap_id", "R2-3").Set("disposition", "risk_accepted").
+			Set("gap_id", "R2-3").Set("disposition", "defect_accepted").
 			Set("reason", "complexity exceeds bounded likelihood x impact")},
 		// The petition's FILER is on the motion event, not on the ruling — the ruling names
 		// only the motion. Harvesting the petitioner means joining the two.
@@ -478,11 +478,11 @@ func TestHarvestPrecedents(t *testing.T) {
 	if !strings.Contains(body, "[PERSUASIVE]") || strings.Contains(body, "[AFFIRMED") {
 		t.Errorf("everything starts persuasive")
 	}
-	// A DISPOSITION IS NOT A HOLDING. This used to assert `holding: risk_accepted` and
+	// A DISPOSITION IS NOT A HOLDING. This used to assert `holding: defect_accepted` and
 	// `holding: granted` — docket statuses in the field law/README.md reserves for "the rule
 	// applied". Nine rulings harvested across two real runs all read "holding: closed", which no
 	// later bench could apply to anything, and the reasoning sat unextracted in `rationale`.
-	for _, want := range []string{"disposition: risk_accepted", "disposition: granted"} {
+	for _, want := range []string{"disposition: defect_accepted", "disposition: granted"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("a docket ruling must state its disposition as one: missing %q", want)
 		}
@@ -527,7 +527,7 @@ func TestHarvestPrecedents(t *testing.T) {
 func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
 	runDir := filepath.Join(t.TempDir(), "2026-08-15_divergence")
 	claimed := []map[string]any{
-		{"resolutions": []any{map[string]any{"gap_id": "R1-1", "resolution": "closed", "reason": "fixed"}}},
+		{"resolutions": []any{map[string]any{"gap_id": "R1-1", "resolution": "repaired", "reason": "fixed"}}},
 		{"rulings": []any{map[string]any{"petitioner": "blue", "ruling": "denied", "reason": "no"}}},
 	}
 

@@ -65,7 +65,7 @@ func TestBenchCarriedLeavesTheGapOpenWhileClosedDoesNot(t *testing.T) {
 
 	for _, c := range []struct{ id, as, principle string }{
 		{carried, "carried", "the repair is unverified at the leaf; it needs another round"},
-		{closed, "closed", "the repair discharges the defect and the anchor is checkable"},
+		{closed, "repaired", "the repair discharges the defect and the anchor is checkable"},
 	} {
 		if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
 			"--id", c.id, "--as", c.as, "--principle", c.principle,
@@ -231,7 +231,7 @@ func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 	next := mintGap(t, runDir, "the-residue", "residue-carrying")
 
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", first, "--as", "closed",
+		"--id", first, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/parser",
 		"--superseded-by", next,
 		"--reason", "the named site is repaired; the same class survives at the sibling site"); err != nil {

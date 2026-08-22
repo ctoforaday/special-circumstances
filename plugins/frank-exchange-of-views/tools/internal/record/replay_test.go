@@ -497,7 +497,7 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 		ev(seatID, "aaaaaaaa", 2, 1, "regrade", seatID+":regrade:R1-1", NewPayload().
 			Set("gap_id", "R1-1").Set("severity", "certain").Set("reason", "new evidence")),
 		ev(seatID, "aaaaaaaa", 3, 1, "close", seatID+":close:R1-2", NewPayload().
-			Set("gap_id", "R1-2").Set("closure_class", "closed")),
+			Set("gap_id", "R1-2").Set("closure_class", "repaired")),
 		// A regrade and a close of an UNKNOWN gap are ignored, not fatal.
 		ev(seatID, "aaaaaaaa", 4, 1, "regrade", seatID+":regrade:R9-9", NewPayload().Set("gap_id", "R9-9").Set("severity", "low")),
 		ev(seatID, "aaaaaaaa", 5, 1, "close", seatID+":close:R9-9", NewPayload().Set("gap_id", "R9-9")),
@@ -744,7 +744,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 	}
 	p.Set("reason", "the ruling's reasoning")
 	// disposition is a CLOSED set since #342 — a placeholder is no longer a legal value.
-	p.Set("disposition", "closed")
+	p.Set("disposition", "repaired")
 	if err := validate(complete, "judge-r1", "opinion", p); err != nil {
 		t.Errorf("a complete opinion was refused: %v", err)
 	}
@@ -798,7 +798,7 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-merge-r1"
 	// BOTH gaps are minted: R1-1 is the one being closed, R2-1 the successor a
-	// closed_with_regression names. A successor is a reference like any other and is
+	// repaired_with_regression names. A successor is a reference like any other and is
 	// now checked, so a fixture that names one has to create it.
 	writeShard(t, runDir, seatID, "aaaaaaaa", []Event{
 		ev(seatID, "aaaaaaaa", 0, 1, "mint", seatID+":mint:R1-1", NewPayload().Set("gap_id", "R1-1")),
@@ -826,8 +826,8 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		// exactly what anchored_closures_pct exists to detect. The genuine case (close
 		// with an anchor, then restate) is covered in required_test.go.
 		{"--carried-from cannot invent an earlier closure", NewPayload().Set("gap_id", "R1-1").Set("carried_from", "2"), "no closure of it exists in the record"},
-		{"closed_with_regression needs a successor", anchored().Set("closure_class", "closed_with_regression"), "requires --superseded-by"},
-		{"closed_with_regression with a successor", anchored().Set("closure_class", "closed_with_regression").Set("successor", "R2-1"), ""},
+		{"repaired_with_regression needs a successor", anchored().Set("closure_class", "repaired_with_regression"), "requires --superseded-by"},
+		{"repaired_with_regression with a successor", anchored().Set("closure_class", "repaired_with_regression").Set("successor", "R2-1"), ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

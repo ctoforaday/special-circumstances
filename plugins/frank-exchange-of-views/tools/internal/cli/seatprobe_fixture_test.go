@@ -111,7 +111,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		// nothing to sample, so a board that wants the duty exercised has to give it something.
 		id := fmt.Sprintf("R1-%d", i+1)
 		if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--id", id, "--as", "closed", "--verified-by", "L1", "--verified-with", "git show",
+			"--id", id, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
 			t.Fatalf("close %s: %v", id, err)
 		}

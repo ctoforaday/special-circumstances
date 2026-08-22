@@ -796,12 +796,12 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "closed R1-1 (closed)") {
+	if !strings.Contains(out, "closed R1-1 (repaired)") {
 		t.Errorf("close said %q", out)
 	}
 	ev := lastOfType(t, runDir, "close")
-	if got := ev.Payload.Str("closure_class"); got != "closed" {
-		t.Errorf("closure_class = %q, want the default \"closed\"", got)
+	if got := ev.Payload.Str("closure_class"); got != "repaired" {
+		t.Errorf("closure_class = %q, want the default \"repaired\"", got)
 	}
 
 	// Closing an unknown gap is refused before anything is written.
@@ -841,9 +841,9 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 	}
 	base := []string{"close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
 		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
-		"--reason", "verified", "--as", "closed_with_regression"}
+		"--reason", "verified", "--as", "repaired_with_regression"}
 	if _, err := run(t, base...); err == nil {
-		t.Fatal("closed_with_regression was accepted without a successor — lineage dropped")
+		t.Fatal("repaired_with_regression was accepted without a successor — lineage dropped")
 	}
 	if _, err := run(t, append(base, "--superseded-by", successor)...); err != nil {
 		t.Fatalf("a successor'd regression close was refused: %v", err)
@@ -1152,7 +1152,7 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 	}
 	for _, id := range []string{"R1-1", "R1-2"} {
 		if _, err := run(t, "close", "--run", runDir, "--seat-id", seatID,
-			"--id", id, "--as", "closed",
+			"--id", id, "--as", "repaired",
 			"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "resolved"); err != nil {
 			t.Fatal(err)
 		}
@@ -1211,7 +1211,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	// A PASS is refused over an open gap, so close it first (the guard is exercised in its
 	// own test); this test is about render + checkpoint on a legitimate PASS.
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", seatID,
-		"--id", "R1-1", "--as", "closed",
+		"--id", "R1-1", "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "resolved"); err != nil {
 		t.Fatal(err)
 	}
@@ -1448,7 +1448,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	// pressure would use it, and why the carry is now checked against a real earlier
 	// closure rather than accepted on its say-so.
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--as", "closed",
+		"--id", id, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason-file", prose); err != nil {
 		t.Fatalf("--file must work on close, as it does on every other prose verb: %v", err)

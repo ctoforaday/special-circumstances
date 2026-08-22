@@ -29,7 +29,7 @@
 
 | Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
 |---|---|---|---|---|
-| <risk> | low/med/high | low/med/high | low/med/high | <mitigation, or `risk_accepted` + rationale> |
+| <risk> | low/med/high | low/med/high | low/med/high | <mitigation, or `defect_accepted` + rationale> |
 
 ## The expansions                       <!-- [RECORD] lines of inquiry PURSUED — a research topic followed, and what it yielded -->
 

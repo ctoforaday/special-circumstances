@@ -50,7 +50,7 @@ func seedReferents(t *testing.T, runDir string) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", "R1-3", "--as", "closed", "--verified-by", "L1", "--verified-with", "go test",
+		"--id", "R1-3", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test",
 		"--verified-against", "./x", "--reason", "closed so the archive is not empty"); err != nil {
 		t.Fatal(err)
 	}

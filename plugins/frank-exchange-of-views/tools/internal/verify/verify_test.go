@@ -34,10 +34,10 @@ func TestGapsDisposedAcceptsBothClosureFields(t *testing.T) {
 	b := &record.Board{
 		GapOrder: []string{"C1", "C2", "OPEN", "TORN"},
 		Gaps: map[string]*record.Gap{
-			"C1":   {ID: "C1", Open: false, Closure: p("closure_class", "closed")},           // merge close
-			"C2":   {ID: "C2", Open: false, Closure: p("disposition", "rebuttal_sustained")}, // bench opinion
-			"OPEN": {ID: "OPEN", Open: true},                                                 // ignored
-			"TORN": {ID: "TORN", Open: false, Closure: p("something", "else")},               // no reason
+			"C1":   {ID: "C1", Open: false, Closure: p("closure_class", "closed")},     // merge close
+			"C2":   {ID: "C2", Open: false, Closure: p("disposition", "not_a_defect")}, // bench opinion
+			"OPEN": {ID: "OPEN", Open: true},                                           // ignored
+			"TORN": {ID: "TORN", Open: false, Closure: p("something", "else")},         // no reason
 		},
 	}
 	c := find(t, Run(b), "gaps-disposed")

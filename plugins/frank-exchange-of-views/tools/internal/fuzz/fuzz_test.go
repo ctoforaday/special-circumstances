@@ -8,7 +8,7 @@ package fuzz
 //
 // COVERAGE CONTRACT. envelopeFor drives every eligible seat to exercise its whole verb surface,
 // not a happy path: lens (cite/finding/line of inquiry/friction), merge (position/closing/
-// mint/close incl. closed_with_regression/regrade any axis/
+// mint/close incl. repaired_with_regression/regrade any axis/
 // dispute-respond/spot-check/verdict/petition), blue (position/closing/dispute
 // across all four dimensions/manifest-row/line of inquiry/revision/retire/petition), bench
 // (opinion/outcome incl. --ended/certify/assemble/petition-rule). The
@@ -522,11 +522,11 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 		}
 	}
 	// A regression close carries lineage forward: it mints a successor and closes WITH it
-	// (record.go requires --successor for closed_with_regression). Only allowed on the first close
+	// (record.go requires --successor for repaired_with_regression). Only allowed on the first close
 	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
 	if allowReg && r.coin(25) {
 		if succ := r.mint(seatID); succ != "" {
-			if _, err := r.exec("close", "--seat-id", seatID, "--id", id, "--as", "closed_with_regression",
+			if _, err := r.exec("close", "--seat-id", seatID, "--id", id, "--as", "repaired_with_regression",
 				"--superseded-by", succ, "--reason", "fuzz regression close", "--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
 				return
 			}
@@ -541,7 +541,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// coverage line read as a driven verb.
 	if prior := r.closedGapIDs(); len(prior) > 0 && r.coin(30) {
 		carried := prior[r.rng.Intn(len(prior))]
-		carry := []string{"carry", "--seat-id", seatID, "--id", carried, "--as", "closed",
+		carry := []string{"carry", "--seat-id", seatID, "--id", carried, "--as", "repaired",
 			"--reason", "fuzz: carried from the prior round", "--carried-from", "1"}
 		// A carry names where the remainder went as often as a close does; the flag is on both
 		// verbs and was driven on neither once the two split. The successor is MINTED here for
@@ -556,7 +556,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	}
 	// THE WHOLE CLOSURE VOCABULARY, not just `closed`. #342 closed the set, so the
 	// enum-coverage sweep now demands every value be reached — and three of them
-	// (rebuttal_sustained, risk_accepted, routed_to_infrastructure) had never been driven by
+	// (not_a_defect, defect_accepted, defect_owed_elsewhere) had never been driven by
 	// anything, on either closing verb, in the tool's life.
 	//
 	// `amends_prior` takes --supersedes: it names a defect found BETWEEN two repairs that each
@@ -568,7 +568,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 			return
 		}
 	}
-	as := pick(r.rng, []string{"closed", "rebuttal_sustained", "risk_accepted", "routed_to_infrastructure"})
+	as := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere"})
 	_, _ = r.exec("close", "--seat-id", seatID, "--id", id, "--as", as, "--reason", "fuzz close as "+as,
 		"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec")
 }
@@ -1061,13 +1061,35 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// EVERY CLOSING DISPOSITION, not just `closed` (#342). The bench shares red's
 				// closure vocabulary now, and the sweep must reach all of it — bench opinion
 				// had driven exactly one closing word.
-				disp = pick(r.rng, []string{"closed", "rebuttal_sustained", "risk_accepted", "routed_to_infrastructure", "amends_prior"})
+				disp = pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
 				_, _ = r.exec("opinion", "--seat-id", seatID, "--id", id, "--as", disp,
 					"--principle", "correctness", "--tension", "cost", "--review-flag", "false", "--reason", "opinion-rationale-for-"+id)
 			}
 			res = append(res, map[string]any{"gap_id": id, "resolution": disp, "reason": "fuzz"})
 		}
-		return map[string]any{"resolutions": res, "deadlock": false, "friction": arr()}
+		// THE DEADLOCK ARM HAD NEVER BEEN DRIVEN, and the exemptions said so as though it were
+		// a property of the engine rather than of this fake. `deadlock` was the literal `false`
+		// here, so `outcome --as UNVERIFIED` and `--ended deadlock` were both unreachable, both
+		// exempted, and the whole judged-termination path — including the assembler's stamp for
+		// it — went unfuzzed. A real run produced one on 2026-08-22 (verdict_basis `asserted`,
+		// ended `deadlock`), which is what falsified the premise.
+		//
+		// It is not a coin, for the same reason nothing else here is: the bench rules on what
+		// happened. The engine's own precondition is "no gap remains carried" — a carry is the
+		// bench saying the material needs another round, which is the opposite of stuck — so
+		// deadlock falls out of the dispositions this sitting actually made.
+		//
+		// This drives BOTH arms of the cleared-board branch: where every open gap got a closing
+		// disposition the board empties and the engine must grant red its further sitting, and
+		// where gaps remain unruled it must terminate.
+		deadlock := true
+		for _, x := range res {
+			if x.(map[string]any)["resolution"] == "carried" {
+				deadlock = false
+				break
+			}
+		}
+		return map[string]any{"resolutions": res, "deadlock": deadlock, "friction": arr()}
 
 	case strings.HasPrefix(seatID, "assemble"):
 		r.register("bench", seatID)
@@ -1090,12 +1112,20 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// `bench outcome` refused on every seed, which this sweep reports as a false green.
 		oargs := []string{"outcome", "--seat-id", seatID, "--as", verd,
 			"--reason", "fuzz: the run reached " + verd + " and the bench recorded how it ended"}
-		// the terminal-outcome modifiers — a non-VERIFIED end may be by safety ceiling or deadlock
-		// (not on a halt, whose outcome stands alone).
-		if !r.forceHalt && verd != "VERIFIED" && r.coin(40) {
+		// THE TERMINAL MODIFIER IS NOT A COIN, for the same reason the bench's dispositions are
+		// not: it is a fact about what happened, and debate.js states it in this very prompt
+		// ("by judged deadlock" / "by safety ceiling"). It WAS two 40% coins, and the deadlock
+		// arm went undriven across 60 runs because UNVERIFIED now occurs about once in sixty —
+		// a cleared docket grants red a further sitting instead of terminating — so a 40% coin
+		// on a 1-in-60 verdict is a value the sweep reports as reachable and never reaches.
+		//
+		// The verdict itself is already read from the prompt, three lines up. Same channel, same
+		// determinism. debate.js makes the two mutually exclusive (ceilingUnaudited requires
+		// !deadlocked), so at most one lands.
+		if !r.forceHalt && strings.Contains(prompt, "by safety ceiling") {
 			oargs = append(oargs, "--ended", "ceiling")
 		}
-		if !r.forceHalt && verd == "UNVERIFIED" && r.coin(40) {
+		if !r.forceHalt && strings.Contains(prompt, "by judged deadlock") {
 			oargs = append(oargs, "--ended", "deadlock")
 		}
 		_, _ = r.exec(oargs...)
@@ -1659,17 +1689,22 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 	}
 
-	// EVERY VERDICT IS DERIVABLE TODAY, and this is the tripwire on that fact.
+	// AN ASSERTED VERDICT IS EITHER A JUDGED DEADLOCK OR A BROKEN DERIVATION, and this is the
+	// tripwire that keeps the second from hiding behind the first.
 	//
 	// The tool refuses an --as that contradicts the record (#308), so a recorded verdict is
 	// either DERIVED or came from the one case the record cannot decide: a judged deadlock.
-	// debate.js cannot currently produce one — `deadlock` is hardcoded false whenever red
-	// raised anything new (#289) — so an `asserted` basis anywhere in a fuzz run means the
-	// derivation stopped working, not that a deadlock happened.
 	//
-	// When #289 gives the bench a real stopping call, this WILL fail, loudly and correctly, and
-	// the right response is to update it rather than to widen it: an asserted verdict is
-	// exactly the thing that should be rare enough to notice.
+	// THIS USED TO ASSERT THAT NO DEADLOCK COULD EXIST — "debate.js cannot produce one,
+	// `deadlock` is hardcoded false" — and treated every asserted basis as derivation failure.
+	// That premise was false by the time anyone checked it: the 2026-08-22 sqlite-schema run
+	// stamped `verdict_basis: asserted` / `ended: deadlock` off a real bench call. The comment
+	// predicted its own obsolescence and said the right response was to update rather than
+	// widen it, so that is what this is — the assertion now turns on whether the RECORD shows a
+	// deadlock, not on a claim about what the engine can reach.
+	//
+	// An asserted verdict with `ended: deadlock` is the sanctioned case and passes. An asserted
+	// verdict WITHOUT one still means the derivation stopped working, and still fails here.
 	if board, err := record.BoardState(runDir); err == nil {
 		for _, e := range board.Events {
 			if e.Type != "outcome" {
@@ -1681,7 +1716,11 @@ func runOne(wrapped, bin string, seed int64) outcome {
 				res.err = "the outcome event carries no verdict_basis — the field that says whether the verdict was computed or claimed has gone missing"
 				return res
 			default:
-				res.err = "the run recorded an ASSERTED verdict (" + e.Payload.Str("verdict") + "), which today can only mean the derivation failed: debate.js cannot produce a judged deadlock while it is hardcoded false (#289)"
+				if e.Payload.Str("ended") == "deadlock" {
+					continue // a judged deadlock is the one thing the record cannot derive
+				}
+				res.err = "the run recorded an ASSERTED verdict (" + e.Payload.Str("verdict") +
+					") that did NOT end in a judged deadlock — the only case the record cannot decide for itself, so this means the derivation stopped working"
 				return res
 			}
 		}

@@ -65,9 +65,9 @@ func scenarios() []scenario {
 				base("close", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--id", "R1-1"),
 				base("close", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--id", "R9-9", "--verified-by", "L1",
 					"--verified-with", "git show", "--verified-against", "7bc501e:x"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "closed_with_regression",
+				base("close", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "repaired_with_regression",
 					"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:x"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "closed",
+				base("close", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "repaired",
 					"--verified-by", "L1", "--verified-with", "WebFetch", "--verified-against", "https://example.invalid/spec#s3",
 					"--reason", "refetched; the source now resolves and supports the claim"),
 			},
@@ -197,8 +197,8 @@ func scenarios() []scenario {
 			name: "opinion_requires_all_five_fields", // oracle: opinions, not dispositions
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "judge-r2"),
-				base("opinion", "--run", "{RUN}", "--seat-id", "judge-r2", "--id", "R2-1", "--as", "closed"),
-				base("opinion", "--run", "{RUN}", "--seat-id", "judge-r2", "--id", "R2-1", "--as", "closed",
+				base("opinion", "--run", "{RUN}", "--seat-id", "judge-r2", "--id", "R2-1", "--as", "repaired"),
+				base("opinion", "--run", "{RUN}", "--seat-id", "judge-r2", "--id", "R2-1", "--as", "repaired",
 					"--principle", "p", "--tension", "t"),
 			},
 		},

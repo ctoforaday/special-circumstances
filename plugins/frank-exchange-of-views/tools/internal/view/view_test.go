@@ -248,7 +248,7 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 		ev(seatID, "aaaaaaaa", 1, 1, "mint", seatID+":mint:R1-2", record.NewPayload().
 			Set("gap_id", "R1-2").Set("problem", "a closed problem").Set("location", "§3")),
 		ev(seatID, "aaaaaaaa", 2, 1, "close", seatID+":close:R1-2", record.NewPayload().
-			Set("gap_id", "R1-2").Set("closure_class", "closed_with_regression").
+			Set("gap_id", "R1-2").Set("closure_class", "repaired_with_regression").
 			Set("successor", "R2-1").
 			Set("anchor_seat", "L1").Set("anchor_tool", "git show").Set("anchor_target", "7bc501e:f")),
 		ev(seatID, "aaaaaaaa", 3, 1, "mint", seatID+":mint:R1-3", record.NewPayload().
@@ -283,7 +283,7 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 	if !strings.Contains(ledger, "class scope-creep") {
 		t.Errorf("a gap WITH a class must render it:\n%s", ledger)
 	}
-	if !strings.Contains(ledger, "R1-2 | closed_with_regression | a closed problem | R2-1") {
+	if !strings.Contains(ledger, "R1-2 | repaired_with_regression | a closed problem | R2-1") {
 		t.Errorf("closure index row is wrong:\n%s", ledger)
 	}
 

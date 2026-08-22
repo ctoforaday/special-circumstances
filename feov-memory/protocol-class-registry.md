@@ -54,7 +54,7 @@ An enum is widened for the traffic already observed rather than the traffic it
 will meet, so the next unmodelled case is silently rounded into a wrong value.
 - **Instances**: compound grades widened, then the mass mapping conflated
   existence with harm; the judge resolution enum lacking
-  `routed_to_infrastructure` and a moot class, forcing `risk_accepted` as
+  `defect_owed_elsewhere` and a moot class, forcing `defect_accepted` as
   "least-wrong"; no verdict class for a ceiling-terminated run.
 - **Sweep question**: what traffic exists that this enum still cannot express,
   and what does a seat do when it meets it?
@@ -264,7 +264,7 @@ how much to trust each surface, and an audit counts checks.
   - `found_by`: the red-merge prompt said *"verify checks each names a recorded
     finding"*. `requireFindings` refuses it AT THE WRITE, in the seat's face.
     Enforcer real, credited to the wrong component.
-  - `supersedes`: the engine declined to fail a `closed_with_regression` closure
+  - `supersedes`: the engine declined to fail a `repaired_with_regression` closure
     with no successor, stating *"`verify`'s supersedes-resolve runs over the board
     at capture"*. Wrong twice — nothing runs it at capture, and
     supersedes-resolve asks whether a NAMED ancestor exists, not whether anything

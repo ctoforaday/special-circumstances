@@ -23,7 +23,7 @@ import (
 // "required flag not set" cannot. They are carried verbatim from validate(), because every one
 // of them was written in response to something that actually went wrong.
 //
-// ONLY UNCONDITIONAL REQUIREMENTS BELONG HERE. "closed_with_regression requires a successor" and
+// ONLY UNCONDITIONAL REQUIREMENTS BELONG HERE. "repaired_with_regression requires a successor" and
 // "a declined avenue requires a reason" depend on ANOTHER FIELD'S VALUE, so they cannot be a
 // static annotation and stay as logic in validate. They are documented on the field itself in
 // record.proto, where the condition can be stated.

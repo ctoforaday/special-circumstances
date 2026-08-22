@@ -73,7 +73,7 @@ td, th { font-variant-numeric: tabular-nums; }
 <h2>Judiciary (rulings, disputes, and how long arguments actually run)</h2>
 <table>
 <tr><td>judge sittings</td><td>1</td></tr>
-<tr><td>rulings by type</td><td>carried: 2 · closed: 1 <span class="muted">(a carried-dominated bench is routing, not deciding — the closing-arguments ordering predicts this diversifies)</span></td></tr>
+<tr><td>rulings by type</td><td>carried: 2 · repaired: 1 <span class="muted">(a carried-dominated bench is routing, not deciding — the closing-arguments ordering predicts this diversifies)</span></td></tr>
 <tr><td>grade disputes</td><td>raised 2 · accepted 1 · rejected 1</td></tr>
 <tr><td>argument chains (supersedes-aware)</td><td>3 chains · by rounds alive: 2×1r · 1×2r</td></tr>
 <tr><td>grade migration on multi-round chains</td><td>down 1 · up 0 · flat 0 <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>

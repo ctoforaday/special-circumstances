@@ -173,11 +173,11 @@ test('lineage: a successor gap with supersedes arms the docket even under a fres
       redEnv({ gaps: [gap('R1-1')] }),
       redEnv({
         gaps: [gap('R2-1', { supersedes: ['R1-1'] })],
-        closures: [{ id: 'R1-1', class: 'closed_with_regression' }],
+        closures: [{ id: 'R1-1', class: 'repaired_with_regression' }],
       }),
       redEnv({ verdict: 'PASS' }),
     ],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R2-1', resolution: 'closed', rationale: 'chain resolved' }] })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'R2-1', resolution: 'repaired', rationale: 'chain resolved' }] })],
   }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'VERIFIED')
@@ -199,7 +199,7 @@ test('lineage: an envelope missing supersedes REPORTS and continues — the reco
       redEnv({ gaps: [gap('R1-1')] }),
       redEnv({
         gaps: [gap('R2-1')], // fresh id, NO supersedes in the ENVELOPE — the lossy-report shape
-        closures: [{ id: 'R1-1', class: 'closed_with_regression' }],
+        closures: [{ id: 'R1-1', class: 'repaired_with_regression' }],
       }),
       redEnv({ verdict: 'PASS' }),
     ],
@@ -219,7 +219,7 @@ test('docket window is the whole debate: an id re-raised after skipping a round 
       redEnv({ gaps: [gap('R1-1')] }),          // R1-1 re-raised two rounds later
       redEnv({ verdict: 'PASS' }),
     ],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'risk_accepted', rationale: 'tradeoff' }] })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'defect_accepted', rationale: 'tradeoff' }] })],
   }))
   await world.run(script, ARGS)
   const judgeCalls = world.calls.filter((c) => c.opts.label.startsWith('judge'))
@@ -389,7 +389,7 @@ test('contested docket: a re-raised gap goes to the judge; adjudicated gaps leav
       redEnv({ gaps: [gap('R1-1')] }),                       // round 2: R1-1 re-raised -> contested
       redEnv({ verdict: 'PASS' }),                           // round 3
     ],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'closed', rationale: 'blue fixed it' }] })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'repaired', rationale: 'blue fixed it' }] })],
   }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'VERIFIED')
@@ -399,7 +399,14 @@ test('contested docket: a re-raised gap goes to the judge; adjudicated gaps leav
   assert.ok(judgeCalls[0].prompt.includes('"R1-1"'))
   assert.ok(!judgeCalls[0].prompt.includes('"R1-2"'), 'un-recurred gap is not on the docket')
   const merge3 = world.calls.find((c) => c.opts.label.startsWith('red-merge-r3'))
-  assert.ok(merge3.prompt.includes('EXCLUDED from your verdict: ["R1-1"]'))
+  // THE FATE TRAVELS WITH THE ID, and that is the assertion. Red used to be handed bare ids, so
+  // the bar was enforced by making the gap invisible — indistinguishable, from red's side, from a
+  // gap nobody ever raised. `repaired` and `not_a_defect` and `defect_accepted` estop red from
+  // completely different propositions, and it cannot honour a bar whose grounds it cannot see.
+  assert.ok(merge3.prompt.includes('{"gap_id":"R1-1","resolution":"repaired"}'),
+    'red must be told the FATE of an adjudicated gap, not merely its id')
+  assert.ok(merge3.prompt.includes('ESTOPPEL'),
+    'the exclusion must be named as estoppel — red may reopen its OWN closure, but not a bench ruling')
 })
 
 test('deadlock: judge deadlock=true ends the debate UNVERIFIED with the deadlock stamp', async () => {
@@ -638,7 +645,7 @@ test('closing arguments: judge sits AFTER blue, both sides file closings, ruling
     red: [redEnv({ gaps: [gap('R1-1'), gap('R1-2')] }),
           redEnv({
             gaps: [gap('R1-2'), gap('R2-1', { supersedes: ['R1-1'] })],
-            closures: [{ id: 'R1-1', class: 'closed_with_regression' }],
+            closures: [{ id: 'R1-1', class: 'repaired_with_regression' }],
           })],
   }))
   await world.run(script, { ...ARGS, maxRounds: 2 })
@@ -753,7 +760,10 @@ test('moot: a predicate-expired ruling adjudicates the gap out of red verdict sc
   }))
   const out = await world.run(script, { ...ARGS, maxRounds: 3 })
   const m3 = world.calls.find(c => c.opts.label.startsWith('red-merge-r3'))
-  assert.ok(m3.prompt.includes('EXCLUDED from your verdict: ["R1-1"]'), 'moot gap leaves red scope')
+  // `moot` is the fate that most needs to travel: the predicate expired, so NOBODY decided the
+  // merits. A seat told only that R1-1 is excluded would read a live question as a settled one.
+  assert.ok(m3.prompt.includes('{"gap_id":"R1-1","resolution":"moot"}'),
+    'a moot gap leaves red scope AND says it went moot — the merits were never reached')
   assert.equal(out.verdict, 'VERIFIED')
 })
 
@@ -855,12 +865,12 @@ test('W1.8: empty spot-checks are EXEMPT when the archive entered the round with
   assert.equal(result.verdict, 'VERIFIED', 'run completes — the spot-check floor gate is RETIRED, so empty spot-checks never abort')
 })
 
-test('W1.9: routed_to_infrastructure leaves red verdict pool and ships as a named infra debt', async () => {
+test('W1.9: defect_owed_elsewhere leaves red verdict pool and ships as a named infra debt', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')] }),
           redEnv({ gaps: [gap('R1-1')] }), // re-raise -> dockets
           redEnv({ verdict: 'PASS' })],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'routed_to_infrastructure', rationale: 'pin validation is setup tooling, owed by the lead' }] })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'defect_owed_elsewhere', rationale: 'pin validation is setup tooling, owed by the lead' }] })],
   }))
   const result = await world.run(script, { ...ARGS, maxRounds: 4 })
   assert.equal(result.infra_debts.length, 1)
@@ -872,7 +882,7 @@ test('W1.9: routed_to_infrastructure leaves red verdict pool and ships as a name
   // thing neither states: that this fate routes the work OUT of the debate rather than ending it,
   // and that the debt must be NAMED or it is simply dropped.
   const judgePrompt = world.calls.find((c) => c.opts.label.startsWith('judge-r'))
-  assert.ok(judgePrompt.opts.schema.properties.resolutions.items.properties.resolution.enum.includes('routed_to_infrastructure'),
+  assert.ok(judgePrompt.opts.schema.properties.resolutions.items.properties.resolution.enum.includes('defect_owed_elsewhere'),
     'the disposition is offered in the resolution set the bench is handed')
   assert.ok(/NAMED infrastructure debt/.test(judgePrompt.prompt), 'the bench is told a routed finding must be named as a debt, not merely disposed of')
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))

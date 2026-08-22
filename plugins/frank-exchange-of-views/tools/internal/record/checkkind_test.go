@@ -158,7 +158,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 
 	// A CLOSED gap owes nothing, whatever its kind: the debt is what blue can still act on.
 	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "close", NewPayload().
-		Set("gap_id", "R1-2").Set("disposition", "risk_accepted").
+		Set("gap_id", "R1-2").Set("disposition", "defect_accepted").
 		Set("anchor_seat", "L1").Set("anchor_tool", "Read").Set("anchor_target", "x").
 		Set("reason", "the demand outweighed the defect")); err != nil {
 		t.Fatal(err)

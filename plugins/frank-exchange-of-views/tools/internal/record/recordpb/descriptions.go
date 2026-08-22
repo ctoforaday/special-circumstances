@@ -43,12 +43,12 @@ var enumValueDoc = map[protoreflect.FullName]string{
 	"feov.record.v1.CHECK_KIND_SOURCE":      "verifying an external source settles it — the claim stands or falls on what the cited material actually says",
 
 	// ClosureClass — how a gap ended.
-	"feov.record.v1.CLOSURE_CLASS_CLOSED":                   "the repair was verified at the leaf and nothing regressed",
-	"feov.record.v1.CLOSURE_CLASS_CLOSED_WITH_REGRESSION":   "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward",
+	"feov.record.v1.CLOSURE_CLASS_REPAIRED":                 "the repair was verified at the leaf and nothing regressed",
+	"feov.record.v1.CLOSURE_CLASS_REPAIRED_WITH_REGRESSION": "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward",
 	"feov.record.v1.CLOSURE_CLASS_AMENDS_PRIOR":             "a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit",
-	"feov.record.v1.CLOSURE_CLASS_REBUTTAL_SUSTAINED":       "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be",
-	"feov.record.v1.CLOSURE_CLASS_RISK_ACCEPTED":            "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record",
-	"feov.record.v1.CLOSURE_CLASS_ROUTED_TO_INFRASTRUCTURE": "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped",
+	"feov.record.v1.CLOSURE_CLASS_NOT_A_DEFECT":             "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be",
+	"feov.record.v1.CLOSURE_CLASS_DEFECT_ACCEPTED":          "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record",
+	"feov.record.v1.CLOSURE_CLASS_DEFECT_OWED_ELSEWHERE":    "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped",
 
 	// SourceOutcome — what the source DID for the claim.
 	"feov.record.v1.SOURCE_OUTCOME_SUPPORTS":             "you read the source at the leaf and it says what the claim says",
@@ -112,7 +112,7 @@ var enumValueDoc = map[protoreflect.FullName]string{
 	"feov.record.v1.GRADE_DIMENSION_SEVERITY":        "how bad it is if it bites",
 	"feov.record.v1.GRADE_DIMENSION_LIKELIHOOD":      "how likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis",
 	"feov.record.v1.GRADE_DIMENSION_IMPACT":          "how far the damage reaches",
-	"feov.record.v1.GRADE_DIMENSION_COMPLEXITY_COST": "what the fix costs; it is what makes risk_accepted arguable",
+	"feov.record.v1.GRADE_DIMENSION_COMPLEXITY_COST": "what the fix costs; it is what makes defect_accepted arguable",
 
 	// PetitionClass — what kind of intervention is asked for.
 	"feov.record.v1.PETITION_CLASS_INTEGRITY": "the record or the process has been compromised",
@@ -166,7 +166,7 @@ func Usage(e protoreflect.EnumDescriptor) (string, error) {
 }
 
 // Spelling is the word a seat types: the enum value's name with its type prefix removed and
-// lowercased, so CLOSURE_CLASS_RISK_ACCEPTED reads as `risk_accepted`.
+// lowercased, so CLOSURE_CLASS_DEFECT_ACCEPTED reads as `defect_accepted`.
 func Spelling(v protoreflect.EnumValueDescriptor) string {
 	prefix := enumPrefix(v.Parent().(protoreflect.EnumDescriptor))
 	return strings.ToLower(strings.TrimPrefix(string(v.Name()), prefix))
@@ -197,7 +197,7 @@ func BySpelling(e protoreflect.EnumDescriptor, word string) (protoreflect.EnumVa
 
 // SameWord reports whether two spellings differ only in case or separators — the typo class, and
 // nothing wider. `closed-with-regression` and `Closed_With_Regression` are the same word;
-// `closed` and `closed_with_regression` are not. Carried over from enums.go, where it exists
+// `closed` and `repaired_with_regression` are not. Carried over from enums.go, where it exists
 // because closure_class gates an invariant and a near-miss silently took the other branch.
 func SameWord(a, b string) bool {
 	strip := func(s string) string {

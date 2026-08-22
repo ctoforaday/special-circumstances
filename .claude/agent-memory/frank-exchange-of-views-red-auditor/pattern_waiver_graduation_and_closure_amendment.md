@@ -25,7 +25,7 @@ faithful in isolation, be closed CLEAN, and only a later round's re-derivation s
 not compose ([[pattern_sibling_repair_composition]] — here R1-12's hardened arm vs R1-17's
 registered prediction, caught one full round after both closed clean). The closure taxonomy
 has no amendment class, so the mechanics are: mint the successor with `supersedes` naming BOTH
-ancestors, record them in this round's `closures` array as closed_with_regression
+ancestors, record them in this round's `closures` array as repaired_with_regression
 (reclassification), and annotate the closure ledger + status table with an explicit
 "amended round N" note. Filed as friction too — the schema wants closures to be this-round
 events.

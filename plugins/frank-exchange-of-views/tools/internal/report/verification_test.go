@@ -27,7 +27,7 @@ func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 		},
 		GapOrder: []string{"R1-1"},
 		Gaps: map[string]*record.Gap{
-			"R1-1": {ID: "R1-1", Open: false, Closure: pl("closure_class", "closed")},
+			"R1-1": {ID: "R1-1", Open: false, Closure: pl("closure_class", "repaired")},
 		},
 	}
 	got := recordVerification(b)

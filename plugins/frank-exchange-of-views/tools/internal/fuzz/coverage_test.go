@@ -43,9 +43,12 @@ var flagExemptions = map[string]string{
 
 // enumExemptions are enum values no sweep can reach, each with its reason.
 var enumExemptions = map[string]string{
-	"outcome --as HALTED":      "a halt reshapes every downstream oracle, so it is driven by TestFuzzHaltPath rather than the random sweep (the same reason `bench halt` is exempt from the command-path gate)",
-	"outcome --as UNVERIFIED":  "reachable only on a judged deadlock, which debate.js cannot produce while `deadlock` is hardcoded false (#289) — the value exists for a terminal state the engine has no path to",
-	"outcome --ended deadlock": "the same terminal state from the other side: `--ended deadlock` says HOW an UNVERIFIED run ended, and UNVERIFIED is itself unreachable (above). It was two booleans until the flag audit, and the exemption travelled with the fact rather than with the spelling",
+	"outcome --as HALTED": "a halt reshapes every downstream oracle, so it is driven by TestFuzzHaltPath rather than the random sweep (the same reason `bench halt` is exempt from the command-path gate)",
+	// `outcome --as UNVERIFIED` and `outcome --ended deadlock` were exempted here on the claim
+	// that "the engine has no path to" them. It was a claim about THIS FILE'S OWN FAKE — the
+	// fuzz bench returned a literal `deadlock: false` — dressed as a claim about debate.js, and
+	// a real run falsified it on 2026-08-22. Both are driven now; if either stops being
+	// reachable the sweep should say so rather than an exemption explaining why it never was.
 }
 
 func unreachedFlags() []string {

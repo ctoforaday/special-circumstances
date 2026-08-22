@@ -110,7 +110,7 @@ func closureFlags(c *cobra.Command) {
 func closurePayload(cmd *cobra.Command) (*record.Payload, error) {
 	class := seat.Str(cmd, flags.As)
 	if class == "" {
-		class = "closed"
+		class = "repaired"
 	}
 	p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
 	p.Set("closure_class", class)

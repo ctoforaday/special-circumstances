@@ -290,7 +290,7 @@ func ledgerMD(b *record.Board) []byte {
 	for _, g := range closed {
 		cc := g.Closure.Str("closure_class")
 		if cc == "" {
-			cc = "closed"
+			cc = "repaired"
 		}
 		succ := g.Closure.Str("successor")
 		if succ == "" {
@@ -314,7 +314,7 @@ func archiveMD(b *record.Board) []byte {
 	for _, g := range closed {
 		cc := g.Closure.Str("closure_class")
 		if cc == "" {
-			cc = "closed"
+			cc = "repaired"
 		}
 		anchor := fmt.Sprintf("%s | %s | %s", undefStr(g.Closure, "anchor_seat"), undefStr(g.Closure, "anchor_tool"), undefStr(g.Closure, "anchor_target"))
 		if g.Closure.Has("carried_from") {
