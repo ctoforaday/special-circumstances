@@ -120,7 +120,11 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 		if e.GetType() != recordpb.EventType_EVENT_TYPE_OUTCOME {
 			continue
 		}
-		if why := e.Payload.Str("verdict_why"); why == "" {
+		o, ok := recordpb.BodyAs[*recordpb.Outcome](e)
+		if !ok {
+			t.Fatal("an outcome event carries no Outcome body")
+		}
+		if why := o.GetVerdictWhy(); why == "" {
 			t.Fatal("the outcome records no verdict_why — the report stamps a verdict it cannot explain")
 		} else if !strings.Contains(why, "PASS") {
 			t.Errorf("verdict_why = %q, want it to name what decided the verdict", why)
