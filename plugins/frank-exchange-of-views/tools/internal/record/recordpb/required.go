@@ -72,7 +72,13 @@ var required = map[protoreflect.FullName]Requirement{
 	"feov.record.v1.Halt.opinion":      {"reason", "the written opinion capture relays verbatim — a halt nobody can read is a stop with no stated cause"},
 	"feov.record.v1.Certify.statement": {"reason", "what you would want a human to re-examine — the bench keeps no memory between runs, so this statement is its continuity"},
 
-	"feov.record.v1.Outcome.prose": {"reason", "how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on a judged deadlock it is the only evidence that determination will ever have"},
+	// THE VERDICT ITSELF WAS NOT REQUIRED, and the omission is not theoretical: a fixture appended
+	// an Outcome carrying prose and no verdict, and the dashboard read "" where the run had HALTED.
+	// The zero of RunOutcome is UNSPECIFIED, so a terminal act with no verdict is indistinguishable
+	// from a run that never reached one — the plausible zero this schema exists to make impossible.
+	// `bench outcome --as` was already required at the CLI; nothing said so at the WRITE.
+	"feov.record.v1.Outcome.verdict": {"as", "the run's terminal verdict — an outcome event without one records that the run ENDED and not how, and every reader downstream sees a run that never reached a verdict"},
+	"feov.record.v1.Outcome.prose":   {"reason", "how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on a judged deadlock it is the only evidence that determination will ever have"},
 
 	// verify — a verification of NOTHING was recordable before these four.
 	"feov.record.v1.Verify.claim":      {"claim", "the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or counted"},
