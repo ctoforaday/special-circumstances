@@ -205,24 +205,26 @@ const (
 	OutcomeRewrite
 )
 
-// feovToken matches `feov-record` in COMMAND POSITION — at the start of the command, or
-// immediately after a separator (`&&`, `||`, `;`, `|`, or a newline), optionally quoted and
-// optionally path-prefixed.
+// THERE IS NO MATCHER, AND THAT IS THE POINT.
 //
-// POSITION, NOT SUBSTRING, and the difference is the whole safety argument. A mention is not
-// an invocation: `grep -rn "feov-record" plugins/`, a heredoc documenting a verb, a `--reason`
-// quoting a command that failed — all contain the token, and a `strings.Contains` rule would
-// have prefixed an `export` onto documentation writes and friction messages. The two are
-// indistinguishable to any matcher that does not look at where the token sits.
-// COMMAND SUBSTITUTION AND SUBSHELLS ARE COMMAND POSITION TOO, and leaving them out cost
-// judge-r2 its identity in the same run the heredoc bail cost blue-respond-r1 its
-// bibliography: `evidence_cites=$("…/feov-record" show evidence | grep …)` matched nothing,
-// so nothing was injected and the tool told a registered seat it had never registered.
+// Injection used to be gated on recognising `feov-record` in command position. That gate was a
+// pattern standing in for a schema — "does this command invoke our tool" recovered from string
+// shape — and its miss was silent: no injection, no error, and a seat's identity simply absent,
+// which is byte-identical to a main-session call. The shape was widened three times, each time
+// after a run had already paid: the heredoc bail cost blue-respond-r1 its bibliography,
+// command substitution cost judge-r2 its identity, and `RB="…/feov-record"; $RB …` — a seat
+// aliasing the long path, which the matcher could never see — cost 21 of 65 registers across
+// six runs their agent_id (#510).
 //
-// `$(`, a backtick and a bare `(` all open a context where the next word is a command. The
-// asymmetry that settles the trade: a false positive prepends a harmless export to a command
-// that does not use the tool; a false negative destroys a seat's identity and its work.
-var feovToken = regexp.MustCompile("(?:^|&&|\\|\\||;|\\||\\n|\\$\\(|`|\\()\\s*['\"]?[^\\s'\";|&]*\\bfeov-record\\b")
+// THE HARM THE MATCHER GUARDED AGAINST CANNOT OCCUR. Its stated justification was that a
+// `strings.Contains` rule "would have prefixed an export onto documentation writes and friction
+// messages". Injection PREPENDS — `prefix + command` below — so `echo "run feov-record next"
+// >> notes.md` writes the same bytes either way. This file already caught that misdescription
+// once, in the heredoc comment, and fixed only the half in front of it.
+//
+// So the decision is now: a live run directory and a Bash call, and every such command carries
+// the run and the identity. A needless `export` on a command that does not use the tool is
+// inert. A missing one destroys a seat's work.
 
 // PreOutcome is the SINGLE entry point for the PreToolUse decision, and the ordering is
 // structural rather than a convention someone has to remember.
@@ -268,8 +270,9 @@ func PreOutcome(in Input, runDir string) (Outcome, string) {
 	return OutcomeRewrite, rewritten
 }
 
-// injectEnv prefixes `export VAR='value'; ` for each variable a command does not already
-// carry, to a command that invokes feov-record.
+// injectEnv prefixes `export VAR='value'; ` for each variable a command does not already carry.
+// EVERY Bash command in a live run, not only the ones that look like they invoke the tool — see
+// the note above PreOutcome for why there is no longer anything to look at.
 //
 // `export …;` and NOT the inline `VAR=x cmd` form. Measured: blue's real command was
 // `cd C:/… && "…/feov-record" blue manifest-row …`, where an inline prefix binds to `cd` and
@@ -286,45 +289,10 @@ func PreOutcome(in Input, runDir string) (Outcome, string) {
 // injection idempotent on one variable would have silently skipped the other — the plausible
 // zero, one layer down: identity absent, and the absence looking exactly like a main-session call.
 func injectEnv(command string, vars [][2]string) (string, bool) {
-	// HEREDOCS ARE A BLIND SPOT, so the whole command is left alone when one is present.
-	//
-	// A newline counts as a command separator — multi-line scripts are ordinary — but inside a
-	// heredoc body a newline introduces DATA, not a command, and telling the two apart needs a
-	// shell parser rather than a matcher. Caught by the test that writes a heredoc documenting
-	// a verb: it was rewritten, which would have injected an export into the middle of a
-	// document a seat was writing. Bailing costs only the injection (the seat still has
-	// --run); guessing corrupts the seat's output.
-	// A heredoc BODY is data, so it is removed before the match — but the command is no longer
-	// abandoned because it contains one.
-	//
-	// MEASURED 2026-08-22, and it cost a run its bibliography. The bail here read
-	// `strings.Contains(command, "<<") -> return "", false`, justified as: "Bailing costs only
-	// the injection (the seat still has --run)." That was true when FEOV_RUN was the only
-	// passenger. FEOV_AGENT_ID joined this same channel eleven days later and the sentence was
-	// never revisited — so the cost quietly became THE SEAT'S IDENTITY.
-	//
-	// What happened: blue-respond-r1 ran `position --reason-file - <<'EOF'`, the hook bailed, no
-	// FEOV_AGENT_ID reached the tool, and the tool answered "this agent has not registered" —
-	// FALSE, it had registered fifty calls earlier. The seat believed the refusal and
-	// re-registered, which rotates the shard nonce; replay winner selection then kept the newer,
-	// thinner shard and orphaned 26 events: 10 citations, 4 report edits, 7 manifest rows. The
-	// report still carried the anchors, so its bibliography renders ten
-	// "(unresolved citation c-… — no source on the record)" lines. 7 of 8 such refusals that run
-	// were heredoc commands, across three seats.
-	//
-	// AND THE OLD JUSTIFICATION MISDESCRIBED ITS OWN MECHANISM: "it was rewritten, which would
-	// have injected an export into the middle of a document a seat was writing". Injection
-	// PREPENDS — `prefix + command`, below — so a heredoc body is byte-identical either way. The
-	// document could not have been touched.
-	//
-	// THE RISK PROFILE IS WHY THIS IS SAFE. Stripping heredocs by matcher rather than by shell
-	// parser can be wrong, and being wrong costs at most a decision about whether to prepend a
-	// harmless export. It can never corrupt output, because nothing is ever inserted INTO the
-	// command. Against that: a missed injection destroys a seat's identity and its work. The
-	// matcher should lean toward injecting, and now does.
-	if !feovToken.MatchString(stripHeredocBodies(command)) {
-		return "", false
-	}
+	// NOTHING IS EVER INSERTED INTO THE COMMAND. The prefix is prepended, whole, in front of
+	// whatever the seat wrote — heredoc bodies, quoted prose, documentation being written to a
+	// file, all byte-identical afterwards. That is the property that lets this run unconditionally
+	// instead of guessing which commands "really" invoke the tool.
 	var prefix strings.Builder
 	for _, kv := range vars {
 		name, value := kv[0], kv[1]
@@ -423,47 +391,4 @@ func DefaultAnchorIDs(runDir string) ([]string, error) {
 		return nil, err
 	}
 	return append(findings, cites...), nil
-}
-
-// heredocStart matches a heredoc redirection and captures its delimiter: `<<EOF`, `<<-EOF`,
-// `<<'EOF'`, `<<"EOF"`. The delimiter ends the body when it appears alone on a line (indented
-// too, for the `<<-` form).
-var heredocStart = regexp.MustCompile(`<<-?\s*(['"]?)([A-Za-z_][A-Za-z0-9_]*)(['"]?)`)
-
-// stripHeredocBodies blanks the BODY of every heredoc in a command, leaving the surrounding
-// shell intact, so a command-position match cannot be satisfied by a line of DATA.
-//
-// A heredoc body is the one place where a leading newline introduces text rather than a command,
-// which is the whole reason feovToken cannot be trusted on a raw command containing one: a
-// document whose line begins `feov-record blue cite …` looks exactly like an invocation.
-//
-// THIS IS A MATCHER, NOT A SHELL PARSER, and it is allowed to be one because of where it sits.
-// Its answer decides only whether a harmless `export` is PREPENDED to the command; it never
-// edits the command's interior. A mis-parse therefore costs an unnecessary export or a missed
-// one — never a corrupted document. Nesting, delimiters carrying quotes, and parameter expansion
-// in the delimiter are out of scope and fail toward treating the text as a body.
-func stripHeredocBodies(command string) string {
-	lines := strings.Split(command, "\n")
-	var out []string
-	i := 0
-	for i < len(lines) {
-		line := lines[i]
-		out = append(out, line)
-		m := heredocStart.FindStringSubmatch(line)
-		i++
-		if m == nil {
-			continue
-		}
-		// An unterminated heredoc swallows the rest, which is what the shell would do too.
-		delim := m[2]
-		for i < len(lines) && strings.TrimSpace(lines[i]) != delim {
-			out = append(out, "") // the body, blanked — length preserved for nothing, clarity for readers
-			i++
-		}
-		if i < len(lines) {
-			out = append(out, lines[i]) // the terminator line itself is shell, not data
-			i++
-		}
-	}
-	return strings.Join(out, "\n")
 }

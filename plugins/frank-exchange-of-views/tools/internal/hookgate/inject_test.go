@@ -38,18 +38,33 @@ func TestTheExportCrossesTheAndAndSeparator(t *testing.T) {
 	}
 }
 
-// A MENTION IS NOT AN INVOCATION. Every one of these contains the token and none of them runs
-// it; a `strings.Contains` rule would have prefixed an export onto documentation writes and
-// friction messages, which is the failure this matcher exists to avoid.
-func TestMentionsAreNotRewritten(t *testing.T) {
+// A MENTION IS NOT AN INVOCATION — AND IT NO LONGER HAS TO BE TOLD APART.
+//
+// This test used to assert that none of these was rewritten, on the stated grounds that a
+// `strings.Contains` rule "would have prefixed an export onto documentation writes and friction
+// messages". That reasoning described a harm the mechanism cannot produce: injection PREPENDS.
+// `echo "run feov-record next" >> notes.md` writes the same bytes to notes.md whether or not an
+// export ran first. The matcher was guarding prose it could never have touched, and paid for the
+// guard in seats whose identity it silently dropped (#510).
+//
+// So the same inputs stay, and the assertion becomes the property that actually matters: the
+// command the seat wrote survives verbatim as the tail of whatever runs.
+func TestAMentionIsPrefixedAndNeverModified(t *testing.T) {
 	for _, cmd := range []string{
 		`grep -rn "feov-record" plugins/`,
 		`echo "run feov-record blue edit next" >> notes.md`,
 		`git commit -m "feov-record blue edit now records provenance"`,
 		"cat <<'END' > doc.md\nfeov-record blue cite --url ...\nEND",
+		// and a command with no mention at all, which now also carries the identity
+		`ls -la research/`,
 	} {
-		if out, _ := PreOutcome(bash(t, cmd), liveRun); out == OutcomeRewrite {
-			t.Errorf("a mention was rewritten, which mutates prose the seat is writing:\n%s", cmd)
+		out, payload := PreOutcome(bash(t, cmd), liveRun)
+		if out != OutcomeRewrite {
+			t.Errorf("outcome %v, want rewrite — every Bash call in a live run carries the run and the identity:\n%s", out, cmd)
+			continue
+		}
+		if !strings.HasSuffix(payload, cmd) {
+			t.Errorf("the command body was modified, not merely prefixed:\ngot:  %q\nwant suffix: %q", payload, cmd)
 		}
 	}
 }
@@ -166,18 +181,37 @@ func TestTheHeredocFormTheToolTeachesKeepsItsIdentity(t *testing.T) {
 	}
 }
 
-// And a body that merely DOCUMENTS a verb still must not be treated as an invocation — the case
-// the old bail was really protecting, now handled by blanking the body rather than by giving up.
-func TestAHeredocBodyIsStillNotAnInvocation(t *testing.T) {
-	cmd := "cat <<'END' > doc.md\nfeov-record blue cite --url ...\nEND"
-	if out, _ := PreOutcome(bash(t, cmd), liveRun); out == OutcomeRewrite {
-		t.Errorf("a heredoc BODY was read as command position:\n%s", cmd)
+// THE SEAT THAT ALIASES THE BINARY — the shape that cost 21 of 65 registers their agent_id
+// across six runs (#510). No matcher that reads the command text can see `$RB` as an
+// invocation, which is why none is consulted any more.
+func TestAnAliasedBinaryStillCarriesTheIdentity(t *testing.T) {
+	for _, cmd := range []string{
+		"RB=\"/tmp/x/runbin/feov-record\"\n$RB --seat-id blue-lane-1 register",
+		"RB=/tmp/x/runbin/feov-record\n$RB --seat-id blue-lane-1 line-of-inquiry propose --hypothesis h",
+		"export RB=/tmp/x/feov-record\n\"$RB\" show board",
+		"alias fr='/tmp/x/feov-record'\nfr verify",
+	} {
+		in := bash(t, cmd)
+		in.AgentID = "a241ffe401fe7ebba"
+		out, payload := PreOutcome(in, liveRun)
+		if out != OutcomeRewrite {
+			t.Errorf("an aliased invocation lost its identity, which is the whole of #510:\n%s", cmd)
+			continue
+		}
+		if !strings.Contains(payload, "export FEOV_AGENT_ID='") {
+			t.Errorf("no identity in the prefix:\n%s", payload)
+		}
+		if !strings.HasSuffix(payload, cmd) {
+			t.Errorf("the command body was modified, not merely prefixed:\ngot: %q", payload)
+		}
 	}
 }
 
-// judge-r2's command, verbatim in shape: the invocation sits inside $( ), which the matcher did
-// not count as command position. Same run, same false "you never registered", different opener.
-func TestCommandSubstitutionIsCommandPosition(t *testing.T) {
+// judge-r2's command, verbatim in shape: the invocation sits inside $( ), which the old matcher
+// did not count as command position — one of the three shapes that cost a seat its identity
+// before the matcher was removed outright. Kept as a regression fixture: these are real commands
+// from real runs, and they must keep carrying the run and the identity.
+func TestTheShapesThatOnceLostTheirIdentity(t *testing.T) {
 	for _, cmd := range []string{
 		"\n# comment\nevidence=$(\"/scratch/runbin/feov-record\" show evidence | grep x)\necho \"$evidence\"",
 		"cites=`feov-record show evidence`",

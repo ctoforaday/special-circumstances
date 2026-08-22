@@ -1,5 +1,11 @@
 # FEOV_RUN injection — the seat stops typing the run directory
 
+> **SUPERSEDED IN PART, 2026-08-22 (#510).** The position matcher this plan designs was removed:
+> injection is now unconditional on every Bash command in a live run, and it carries `FEOV_AGENT_ID`
+> as well as `FEOV_RUN`. The mention-vs-invocation reasoning below describes a harm the mechanism
+> cannot produce — injection prepends — and the matcher's silent miss cost 21 of 65 registers their
+> identity across six runs. `hookgate.PreOutcome` is the current contract.
+
 > **Rev 6.** Rev 1/2 failed on scope; rev 3 failed on nine specifics. Fixed here: the goal is
 > restated to what this scope can deliver, the version surface is decided, the census is
 > re-run against the **real** API (`PreDecision`, not the `Decide` I named without checking),
