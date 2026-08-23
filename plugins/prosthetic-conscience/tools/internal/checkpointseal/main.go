@@ -422,7 +422,7 @@ func seal(projectDir, note string, now time.Time, event string, in hookInput, st
 	// NOTE rather than the stamped file — the stamp carries a timestamp, so hashing
 	// the snapshot would make every seal differ and the drift check meaningless.
 	age := freshness.Of(projectDir, in.TranscriptPath, string(body),
-		freshness.BranchWork(checkpoint.Parse(string(body)).Get("head")))
+		freshness.BranchWork(checkpoint.Parse(string(body)).Get("head")), now)
 	appendSealRow(dir, body, now, event, occ, in, stderr, age, checkpoint.Parse(string(body)).Get("written_at"))
 
 	entries, err := os.ReadDir(dir)

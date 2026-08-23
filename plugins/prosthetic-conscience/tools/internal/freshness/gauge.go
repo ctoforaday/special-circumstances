@@ -24,7 +24,7 @@ import (
 // the seal itself holds. Dropping the row because one measurement failed would lose the
 // boundary from the baseline entirely — and the baseline is a distribution over
 // boundaries, so a missing one is not a missing number, it is a missing observation.
-func Of(projectDir, transcriptPath, note string, branch Branch) Measures {
+func Of(projectDir, transcriptPath, note string, branch Branch, now time.Time) Measures {
 	n := checkpoint.Parse(note)
 	writtenAt, err := time.Parse(time.RFC3339, n.Get("written_at"))
 	if err != nil {
@@ -37,7 +37,7 @@ func Of(projectDir, transcriptPath, note string, branch Branch) Measures {
 
 	stPath := filepath.Join(projectDir, ".claude", "checkpoints", "freshness.json")
 	st := readState(stPath)
-	st, justStamped := ObserveAndSay(st, writtenAt, m)
+	st, justStamped := ObserveAndSay(st, writtenAt, m, now)
 	writeState(stPath, st)
 
 	// justStamped suppresses growth on this row: the reading it would measure against
@@ -60,12 +60,41 @@ func readState(path string) State {
 	return st
 }
 
+// writeState replaces the state file ATOMICALLY: temp file, then rename.
+//
+// FOUR binaries write this file — sc-precompact, sc-sessionend, sc-subagentstop and
+// sc-postcompact-observe — and the client runs an event's hooks in PARALLEL (measured,
+// hook-surface-spike.md §4b), while two seats can return at once. A plain os.WriteFile
+// truncates and then writes, so a concurrent reader sees an empty or half-written file,
+// decodes the zero State, and RE-STAMPS tokens_at_write at the current count. Growth
+// then measures the interval since the tear, reported as measured, confident and wrong.
+//
+// rename(2) is atomic within a directory, so a reader sees either the old file or the
+// new one. It does not order two concurrent writers — last writer wins — but both are
+// writing a reading of the same note, so either is correct; the failure this prevents is
+// reading a file that is neither.
 func writeState(path string, st State) {
 	b, err := json.Marshal(st)
 	if err != nil {
 		return
 	}
-	_ = os.WriteFile(path, b, 0o644)
+	tmp, err := os.CreateTemp(filepath.Dir(path), ".freshness-*.tmp")
+	if err != nil {
+		return
+	}
+	name := tmp.Name()
+	if _, err := tmp.Write(b); err != nil {
+		tmp.Close()
+		_ = os.Remove(name)
+		return
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(name)
+		return
+	}
+	if err := os.Rename(name, path); err != nil {
+		_ = os.Remove(name)
+	}
 }
 
 // branchWork counts commits on THIS BRANCH'S line since the note's head.
