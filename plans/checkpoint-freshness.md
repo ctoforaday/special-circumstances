@@ -375,9 +375,18 @@ which is spike §3b's *surviving* claim: "the hook adds no imperative of its own
 
 `commitsSince` gains `--first-parent` and the surrounding prose changes from "commits ago" to
 "commits on this branch". This is a **correctness fix to shipped behaviour**, evidenced in §II
-(109 vs 24), and it stands independently of everything else here. The restore digest additionally
-carries the gauge — `SessionStart` is the verified channel, and this is where a resumed session
-already reads its own provenance.
+(109 vs 24), and it stands independently of everything else here. **The restore digest carries the BRANCH measure only, and that is a payload fact rather than a
+choice.** `SessionStart`'s stdin is `{session_id, cwd, hook_event_name, source}` — measured, spike
+§9a — **with no `transcript_path`**. Turns and growth both need the transcript, so at this event they
+cannot be computed at all. What the digest can say about age it already says: `staleness()` renders
+the branch count, which needs only git. The other two ride the seal record, where the sealing events
+do carry a transcript path.
+
+Deriving the transcript path from `session_id` and `cwd` was considered and **refused**: that recovers
+a path by assembling a string, which is the shape this suite is named after, and it breaks silently
+the moment the projects-directory convention moves. Recorded here so a later author finds the refusal
+rather than re-deriving it — an earlier draft of this section assumed the digest could carry the whole
+gauge, and building it is what found the payload.
 
 **Consumer census for the digest TEXT** — the rendered line is injected at `SessionStart`, so it is a
 contract, not a log message. `git grep -n "commits\? ago" -- plugins/`:

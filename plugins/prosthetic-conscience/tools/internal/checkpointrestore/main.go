@@ -294,6 +294,19 @@ func staleness(head string, since func(string) (int, bool)) string {
 	return fmt.Sprintf("written %d commits ago on this branch (%s)", n, head)
 }
 
+// THE DIGEST CANNOT CARRY THE FULL GAUGE, and this is a payload fact rather than a
+// choice. SessionStart's stdin is {session_id, cwd, hook_event_name, source} — MEASURED,
+// hook-surface-spike.md §9a — with no transcript_path. Turns and growth both need the
+// transcript, so at this event they cannot be computed at all.
+//
+// What the digest can say about age, it already says: staleness() renders the branch
+// measure, which needs only git. The remaining two ride the seal record instead, where
+// the sealing events do carry a transcript path.
+//
+// Deriving the transcript path from session_id and cwd was considered and refused: that
+// recovers a path by assembling a string, which is the shape this suite is named after,
+// and it would break silently the moment the projects-directory convention moved.
+
 // commitsSince counts commits on THIS BRANCH'S OWN LINE from a recorded head to HEAD, reporting
 // whether the commit is reachable at all. Best-effort: no git, no repo, or an unknown ref all mean
 // "unreachable", and the restore hook must never fail over provenance.

@@ -83,6 +83,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/transcript"
 )
@@ -420,7 +421,8 @@ func seal(projectDir, note string, now time.Time, event string, in hookInput, st
 	// The record, beside the snapshot: fields a reader cannot mis-parse, hashing the
 	// NOTE rather than the stamped file — the stamp carries a timestamp, so hashing
 	// the snapshot would make every seal differ and the drift check meaningless.
-	age := gaugeAge(projectDir, in.TranscriptPath, string(body), branchWork(checkpoint.Parse(string(body)).Get("head")))
+	age := freshness.Of(projectDir, in.TranscriptPath, string(body),
+		freshness.BranchWork(checkpoint.Parse(string(body)).Get("head")))
 	appendSealRow(dir, body, now, event, occ, in, stderr, age)
 
 	entries, err := os.ReadDir(dir)
