@@ -3,6 +3,7 @@ package recordsql
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"strings"
 
 	// THE DRIVER BELONGS TO THE PACKAGE THAT OPENS THE DATABASE, not to its tests.
@@ -33,26 +34,27 @@ import (
 //   - busy_timeout keeps a concurrent seat waiting rather than failing. Seats are dispatched in
 //     parallel and a lock contended for a few milliseconds is not an error to report to a human.
 //
-// uriPath escapes a filesystem path for the URI half of a DSN.
+// dsnFor builds the DSN, and it uses net/url rather than escaping the path by hand.
 //
-// THE `file:` PREFIX MAKES THIS A URI, AND A URI HAS SYNTAX. `#` opens a fragment and `?` opens
-// the query, so a path containing either is TRUNCATED at that character — silently, and to a
-// path that is still openable. Two different runs then share one database, or a run opens a
-// database that is not its own, and nothing anywhere reports it: the writes succeed.
+// WE ARE THE ONES BUILDING A URI. `_txlock=immediate` is a DRIVER setting — it changes how BEGIN
+// is issued and cannot be an Exec'd pragma — so the query-string form is not optional, and having
+// chosen a URI, escaping the path into it is this function's obligation. It was `"file:" + path`,
+// which is a filesystem path spliced into a grammar that reserves `?` and `#`: a run directory
+// containing either was TRUNCATED there, silently, to a path that still opens. Two runs then share
+// one database, or a run opens one that is not its own, and every write reports success.
 //
-// MEASURED 2026-08-23, by accident. A Go subtest whose name repeats gets `#01` appended, t.TempDir
-// builds the directory from the test name, and the second of two identically-named cases opened
-// the FIRST one's database — surfacing as "this seat has already recorded a mint this sitting" in
-// a run that had recorded nothing. The test was right and the storage was wrong.
-//
-// It is reachable outside a test: run directories are named from the topic, and a topic like
-// "C# concurrency" or one carrying a `%` produces exactly this path.
-//
-// Percent-encoding is SQLite's own answer (see its URI filename documentation), and `%` must be
-// escaped first or it would corrupt the escapes that follow it.
-func uriPath(path string) string {
-	r := strings.NewReplacer("%", "%25", "#", "%23", "?", "%3f")
-	return r.Replace(path)
+// A HAND-ROLLED ESCAPE GOT THE THREE RESERVED CHARACTERS AND STOPPED THERE. url.URL escapes the
+// same three and everything else the grammar needs, in the right order, and it also handles the
+// one case percent-encoding cannot: a path beginning `//` would parse as an AUTHORITY, and
+// url.URL emits an explicit empty authority (`file:////server/share`) so the path survives whole.
+// RawQuery is written verbatim, which is what keeps `busy_timeout(5000)`'s parentheses intact.
+func dsnFor(path string) string {
+	u := url.URL{
+		Scheme:   "file",
+		Path:     path,
+		RawQuery: "_txlock=immediate&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)",
+	}
+	return u.String()
 }
 
 func Open(path string) (*sql.DB, error) {
@@ -73,8 +75,7 @@ func Open(path string) (*sql.DB, error) {
 	// a writer waiting for a writer is a queue rather than a deadlock. It also fixes the correctness
 	// half: a deferred transaction's count could be read from a snapshot another writer has already
 	// moved past, which is what SQLITE_BUSY_SNAPSHOT exists to refuse.
-	dsn := "file:" + uriPath(path) + "?_txlock=immediate&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
-	db, err := sql.Open("sqlite", dsn)
+	db, err := sql.Open("sqlite", dsnFor(path))
 	if err != nil {
 		return nil, err
 	}

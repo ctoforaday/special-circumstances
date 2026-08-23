@@ -1896,7 +1896,22 @@ func runOne(t *testing.T, wrapped, bin string, seed int64) (res outcome) {
 				res.err = "the outcome event carries no verdict_basis — the field that says whether the verdict was computed or claimed has gone missing"
 				return res
 			default:
-				res.err = "the run recorded an ASSERTED verdict (" + recordpb.Word(o.GetVerdict()) + "), which today can only mean the derivation failed: debate.js cannot produce a judged deadlock while it is hardcoded false (#289)"
+				// THE SANCTIONED CASE, WHICH THE COMMENT ABOVE ALREADY DESCRIBED AND THE CODE NEVER
+				// CHECKED. DeriveVerdict reports "cannot answer" on a judged DEADLOCK by design —
+				// that is a real answer, not a gap to paper over — so the bench asserts the outcome
+				// and stamps `ended: deadlock` to say why. This arm fired on it anyway.
+				//
+				// IT PASSED FOR YEARS BECAUSE THE ARM WAS UNREACHABLE. Its own message says
+				// "debate.js cannot produce a judged deadlock while it is hardcoded false (#289)",
+				// and that was true when it was written. The stub judge now derives deadlock from
+				// the dispositions it actually made, precisely so both arms of the cleared-board
+				// branch are driven — and the moment deadlock became reachable, this gate started
+				// failing the healthy outcome. A premise that expires without the assertion
+				// noticing is the shape this suite exists to catch, met in the suite itself.
+				if o.GetEnded() == "deadlock" {
+					continue
+				}
+				res.err = "the run recorded an ASSERTED verdict (" + recordpb.Word(o.GetVerdict()) + ") and did NOT stamp `ended: deadlock` — a judged deadlock is the one case the record cannot derive a verdict for, and without it an asserted verdict means the derivation stopped working"
 				return res
 			}
 		}
