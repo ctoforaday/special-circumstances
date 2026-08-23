@@ -182,3 +182,50 @@ func TestVersion(t *testing.T) {
 		t.Errorf("version: code=%d stdout=%q", code, stdout)
 	}
 }
+
+// The compaction row carries the same three age figures as the seal row, and for a
+// different question: the seal asks how stale the note was at a boundary, this asks
+// what the note looked like when the summary was built. Criterion 6's falsification
+// reads nudge_enabled from here.
+func TestObservationCarriesTheNotesAge(t *testing.T) {
+	dir := t.TempDir()
+	note := "---\nschema: 3\nwritten_at: 2026-08-23T00:10:00Z\n---\n## Validation loop\n1. x\n"
+	if err := os.MkdirAll(filepath.Join(dir, ".claude", "checkpoints"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), []byte(note), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tpath := filepath.Join(dir, "t.jsonl")
+	lines := `{"type":"assistant","timestamp":"2026-08-23T00:05:00Z","message":{"usage":{"input_tokens":1,"cache_read_input_tokens":10,"cache_creation_input_tokens":0}}}
+{"type":"assistant","timestamp":"2026-08-23T00:20:00Z","message":{"usage":{"input_tokens":2,"cache_read_input_tokens":40,"cache_creation_input_tokens":0}}}
+`
+	if err := os.WriteFile(tpath, []byte(lines), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	in := `{"session_id":"s1","transcript_path":"` + tpath + `","trigger":"auto","compact_summary":"a summary"}`
+	var out, errb bytes.Buffer
+	run(nil, strings.NewReader(in), &out, &errb, dir, time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC))
+
+	b, err := os.ReadFile(filepath.Join(dir, ".claude", "checkpoints", "compaction-observations.jsonl"))
+	if err != nil {
+		t.Fatalf("no observation row written: %v (stderr: %s)", err, errb.String())
+	}
+	var row map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(b), &row); err != nil {
+		t.Fatal(err)
+	}
+	if row["note_age_turns"] != float64(1) {
+		t.Errorf("note_age_turns = %v, want 1", row["note_age_turns"])
+	}
+	if row["turns_measured"] != true {
+		t.Errorf("turns_measured = %v", row["turns_measured"])
+	}
+	// Phase 1 ships no nudge, and the falsification compares rows written with it live
+	// against rows written without. A row that does not say which it was cannot be put
+	// in either population.
+	if row["nudge_enabled"] != false {
+		t.Errorf("nudge_enabled = %v, want false in Phase 1", row["nudge_enabled"])
+	}
+}
