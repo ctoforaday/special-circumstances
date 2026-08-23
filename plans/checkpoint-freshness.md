@@ -203,7 +203,7 @@ enough", not a number. Widening to 1 MB happens first; past that the miss is sta
 `Unknown` is a case the type forces every caller to handle. It is never defaulted, never
 substituted, never a zero. This is clause 3 made structural rather than remembered.
 
-### `[NEW] internal/freshness` — the gauge
+### `[NEW] internal/freshness` — the gauge · **BUILT**
 
 Three measures, independent because they fail independently: a session can burn 400k tokens in
 twelve turns of bulk reading, or take 300 turns without moving the token count.
@@ -214,6 +214,19 @@ twelve turns of bulk reading, or take 300 turns without moving the token count.
 | **Turns** | assistant turns since the note was written | no |
 | **Branch work** | `git rev-list --count --first-parent <note.head>..HEAD` | no |
 | *Proximity* | `Tokens / Ceiling` — **emitted only when `Ceiling` is known**, with its basis named | yes |
+
+**Built.** `Gauge` is arithmetic over readings the caller already holds — it re-reads nothing, so it
+stays callable on a tick — and `Observe` stamps the write-time reading **once per note**, keyed on
+`written_at`. Once per note and not once per tick is the whole of it: re-stamping would move the
+reference point to the present on every call, and growth would report the interval since the last
+tick rather than since the note. That measure is always near zero and always looks healthy.
+
+`Branch` is passed IN rather than computed here, because it costs a git subprocess (p50 33 ms, p95
+170 ms measured on this repository) — one to two orders of magnitude above the transcript budget, so
+the caller owns the per-`HEAD` cache and this package stays cheap.
+
+**No thresholds and no bands are built.** Phase 1 collects the distribution they are supposed to come
+from; a package that shipped a default would be laundering the guess §III refuses.
 
 **Growth needs a write-time reading, and no record held one.** "Tokens now − tokens when the note
 was written" was never computable: `ctxusage` returns the current figure, the note carries no token
