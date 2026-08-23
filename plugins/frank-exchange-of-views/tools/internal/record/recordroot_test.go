@@ -220,7 +220,7 @@ func TestTwoRunsCannotShareOneRoot(t *testing.T) {
 func TestARunWithEventsInPlaceRefusesToSeparate(t *testing.T) {
 	isolate(t)
 	run := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	t.Setenv(RecordRootEnv, filepath.Join(t.TempDir(), "elsewhere"))
@@ -250,7 +250,7 @@ func TestASeparatedRunKeepsNoEventsUnderTheRun(t *testing.T) {
 	run, root := t.TempDir(), filepath.Join(t.TempDir(), "elsewhere")
 	t.Setenv(RecordRootEnv, root)
 
-	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	if _, err := Append(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}, "friction", NewPayload().Set("reason", "the verb I wanted was not there")); err != nil {
@@ -292,7 +292,7 @@ func TestADeletedRootRefusesInsteadOfReadingAsAnEmptyRun(t *testing.T) {
 	isolate(t)
 	run, root := t.TempDir(), filepath.Join(t.TempDir(), "elsewhere")
 	t.Setenv(RecordRootEnv, root)
-	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	t.Setenv(RecordRootEnv, "")
@@ -374,7 +374,7 @@ func TestRegisterRefusesToCreateARunDirectory(t *testing.T) {
 	parent := t.TempDir()
 	missing := filepath.Join(parent, "research", "no-such-run")
 
-	_, _, err := RegisterSeat(Identity{RunDir: missing, SeatID: "red-merge-r1", Round: RoundIn(missing)("red-merge-r1")})
+	_, _, err := RegisterSeat(Identity{RunDir: missing, SeatID: "red-merge-r1", Round: RoundIn(missing)("red-merge-r1")}, "")
 	if err == nil {
 		t.Fatal("a seat created a run directory from nothing and reported success — the exact failure that produced a second blackboard beside a live run")
 	}
@@ -393,7 +393,7 @@ func TestRegisterRefusesToCreateARunDirectory(t *testing.T) {
 	if err := os.MkdirAll(real, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := RegisterSeat(Identity{RunDir: real, SeatID: "red-merge-r1", Round: RoundIn(real)("red-merge-r1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: real, SeatID: "red-merge-r1", Round: RoundIn(real)("red-merge-r1")}, ""); err != nil {
 		t.Errorf("an existing run directory was refused: %v", err)
 	}
 }

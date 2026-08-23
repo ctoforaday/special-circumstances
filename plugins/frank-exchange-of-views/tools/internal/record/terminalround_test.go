@@ -14,7 +14,7 @@ import "testing"
 func TestATerminalSeatIsRecordedAfterTheRoundsRatherThanBeforeThem(t *testing.T) {
 	runDir := newRun(t)
 	for _, s := range []string{"red-merge-r1", "red-merge-r2", "red-merge-r3"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -32,7 +32,7 @@ func TestATerminalSeatIsRecordedAfterTheRoundsRatherThanBeforeThem(t *testing.T)
 // before the round loop, so 0 is exact — and the fix must not turn a correct 0 into an unknown.
 func TestSynthesisSeatsAreRoundZeroByRule(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r4", Round: 4}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r4", Round: 4}, ""); err != nil {
 		t.Fatal(err)
 	}
 	for _, s := range []string{"frontier", "blue-synthesize", "blue-lane-2"} {
