@@ -286,3 +286,70 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 		t.Errorf("unanswered_contradictions = %v after the finding was raised, want empty", got)
 	}
 }
+
+// THE TWO GUARDS A MUTATION SWEEP FOUND UNTESTED, asserted as the pairs they are.
+//
+// Both survived a sweep with `||`/`&&` flipped, which means each half of each conjunction was
+// only ever satisfied together with the other. That is the shape this branch kept finding in
+// production code and it was sitting in code written the same day.
+func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
+	runDir := t.TempDir()
+	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
+	if _, _, err := RegisterSeat(id); err != nil {
+		t.Fatal(err)
+	}
+	label := NewCitationID()
+	if _, err := Append(id, corroboration(label, "https://example.org/s", "the claim", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
+		t.Fatal(err)
+	}
+
+	// ExistingCorroborationLabel bails on EITHER half being empty, not only on both. A blank url
+	// or a blank claim cannot identify an act, so scanning for one would match on the other alone
+	// — returning some unrelated corroboration's label as "this one's retry".
+	for _, tc := range []struct{ name, url, claim string }{
+		{"no url", "", "the claim"},
+		{"no claim", "https://example.org/s", ""},
+		{"neither", "", ""},
+	} {
+		got, err := ExistingCorroborationLabel(runDir, "red-lens-r1-L1", tc.url, tc.claim)
+		if err != nil {
+			t.Fatalf("%s: %v", tc.name, err)
+		}
+		if got != "" {
+			t.Errorf("%s: returned %q — an incomplete pair identifies no act, so it must match nothing rather than match on the half it has", tc.name, got)
+		}
+	}
+	// And the complete pair DOES find it, or the guard above would pass by never matching at all.
+	if got, err := ExistingCorroborationLabel(runDir, "red-lens-r1-L1", "https://example.org/s", "the claim"); err != nil || got != label {
+		t.Errorf("the complete pair returned %q (err %v), want %q — the negative cases above prove nothing if the positive never matches", got, err, label)
+	}
+}
+
+// AN EMPTY REOPENED ID NEVER ENTERS THE PROTECTED SET.
+//
+// `citationLabelsOf` feeds the blue-report lockdown's EXPECTED anchors. An empty string entering
+// it makes the lockdown expect an anchor that cannot exist in any document, so every subsequent
+// check reports a dropped citation that was never there. The guard is `id != "" && !seen[id]`,
+// and a sweep showed neither half was tested alone.
+func TestAnEmptyReopenedIDNeverReachesTheProtectedSet(t *testing.T) {
+	runDir := t.TempDir()
+	id := Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: 1}
+	if _, _, err := RegisterSeat(id); err != nil {
+		t.Fatal(err)
+	}
+	// An edit whose reopened list carries a blank alongside a real id, and the real id twice.
+	if _, err := Append(id, &recordpb.BlueEdit{
+		Old: proto.String("before"), New: proto.String("after"), Text: proto.String("why"),
+		Reopened: []string{"", "c-real", "c-real", ""},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := ReopenedAnchors(b)
+	if len(got) != 1 || got[0] != "c-real" {
+		t.Errorf("ReopenedAnchors = %#v, want exactly [c-real] — a blank would make the lockdown expect an anchor no document can carry, and a duplicate would count one reopening twice", got)
+	}
+}

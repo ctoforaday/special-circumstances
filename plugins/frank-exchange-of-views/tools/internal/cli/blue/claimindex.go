@@ -30,7 +30,7 @@ func newClaimIndex() *cobra.Command {
 		Use:   "claim-index",
 		Short: "locate every site of each FOOTNOTED claim in your report (read-only)",
 		Long: "claim-index reads <run>/blue/report.md and prints, per footnote label, every site " +
-			"that claim appears: {label, occurrences:[{heading, line, sentence_hash}]}. WHEN to use " +
+			"that claim appears: {label, occurrences:[{heading, line}]}. WHEN to use " +
 			"it: you are correcting a claim and must propagate the fix to ALL its sites — query the " +
 			"label for its occurrences instead of re-reading the whole report to find them. WHAT it " +
 			"is NOT: a replacement for the report-wide string/figure sweep — an unfootnoted " +
