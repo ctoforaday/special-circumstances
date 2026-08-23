@@ -247,9 +247,15 @@ the guess lives. If the distribution turns out to make these percentiles absurd 
 within two turns of each other), that is a **finding to report and re-decide with the human**, not a
 licence to pick different percentiles quietly.
 
-**Render:** one line, ≤ 200 bytes — the measure, the number, the note's path. No instruction. Spike
-§3b twice observed an injected directive treated as a suspected prompt injection; the line reads
-as the session's own recovered state.
+**Render:** one line, ≤ 200 bytes — the measure, the number, the note's path. **No instruction**,
+which is spike §3b's *surviving* claim: "the hook adds no imperative of its own".
+
+> An earlier draft justified this with §3b's other sentence — that a digest asserting content the
+> session cannot recognise is "treated as hostile", so the line should read as the session's own
+> recovered state. **That sentence is struck through in §3b**, superseded 2026-07-29 by building it
+> and measuring: *"The mitigation does not work, and the constraint as written was untestable."*
+> Citing a retracted claim to support a live rule is how a withdrawal gets un-withdrawn by a reader
+> who never opened the source.
 
 ### `[MODIFY] internal/checkpointrestore` — the `--first-parent` defect
 
@@ -286,7 +292,7 @@ machine-read fact to live in a field.
 | `live_handles` | count of `background_tasks` entries with `type != "subagent"`, plus `session_crons` — **only when measurable**. Seats are excluded deliberately: at a `seat_return` seal the returning seat appears in the parent's own list (§12), and counting it reads high by exactly one while answering a different question from "did this note miss some background work" |
 | `handles_measured` | `false` when the payload carries no `background_tasks` key |
 | `nudge_enabled` | whether the nudge was live when this seal was written — criterion 6's falsification groups on it, and it must be recorded per row rather than inferred from dates |
-| `nudge_answered` | whether the band that fired was answered — the note rewritten, or a "still accurate" judgement recorded in `updated:`. Without it the skill clause is an `unobservable-duty` and criterion 6 cannot tell a session that answered from one that ignored (§III, `SKILL.md`) |
+| `nudge_answered` | `rewritten` \| `reaffirmed` \| `ignored` — **three values, not a boolean, and the distinction is load-bearing** (§III, `SKILL.md`) |
 | `emissions_this_session` | copied from `freshness.json`'s monotone counter at seal time, and `emission_bytes_max` beside it — **criterion 4's budget is stated as "counted in the observation row rather than intended", and until this field existed nothing counted it**. The debounce file already holds the number; the seal row is where it becomes checkable after the fact |
 
 **`handles_measured` is not defensive padding; it is the whole of the column's honesty.** Measured
@@ -479,10 +485,23 @@ time. Staleness has nothing to do with a tool failing.
 sweep question for that class is *"what artifact would a reviewer look at to tell whether this was
 done?"* — and for a spoken "still accurate" the answer is **nothing**. The duty would be discharged
 into the conversation and leave no trace, so criterion 6's falsification could not distinguish a
-session that answered the nudge from one that ignored it. **The seal row therefore carries
-`nudge_answered`** — set when the note is rewritten after a band fires, or when the agent records the
-"still accurate" judgement in the note's `updated:` line. An unobservable duty is a rule that reads
-as enforcement and measures nothing.
+session that answered the nudge from one that ignored it. **The seal row therefore carries `nudge_answered`** — and it MUST be three-valued.
+
+> **A boolean here would have broken criterion 6, and audit caught it rather than Phase 3.** The age
+> reference point is `CHECKPOINT.md`'s mtime. A "still accurate" re-affirmation moves that mtime
+> **exactly as a real rewrite does**, so both reset note-age to ~0 and a boolean marks both `true`.
+> Criterion 6 — *median note-age-at-seal falls* — could then not distinguish **"the nudge made notes
+> fresher"** from **"the nudge trained agents to touch the note"**, and would report success for the
+> second. F6's `updated:`-vs-mtime cross-check does not catch it: the two agree, and only the
+> *content* is unchanged. The kill switch would have been disarmed by the mechanism it polices.
+
+The value goes in the **seal row**, a record with fields — not into `updated:`, which is `<UTC ISO>`
+under schema 2 and parsed by a deliberately flat-scalar reader, so a judgement composed into it would
+be the exact shape §III indicts elsewhere. An earlier draft said the judgement was "recorded in
+`updated:`"; that field cannot hold it.
+
+**Which population criterion 6 is computed over is a DECISION, not an editing fix**, and is left open
+in §VI-c rather than chosen quietly.
 
 **Consumer census** — `git grep -ln "context-checkpointing" -- plugins/ scripts/ docs/`, full output,
 every hit adjudicated:
@@ -528,7 +547,7 @@ editing L or I.
 | F7 | **Short sessions get lectured.** | M×L×L | Gauge arms only above a floor (a note exists, or the session crossed a turn/token floor). Below it, silent. | Ph. 3 |
 | F8 | **Age is read as truth.** A fresh note is not a correct note. | M×M×L | The skill clause says so; the render states a measure, never a verdict. gray-area's `/audit-checkpoint` remains the instrument for the note's *claims*, and the two are deliberately different tools. | Ph. 3 |
 | **F10** | **`Stop` injection loops** — measured, not theorised, and **worse on the current client**: 9 firings / 1,186 output tokens on 2.1.235, **16 firings / 35 assistant entries / 4,326 output tokens on 2.1.240** (spike §13). The cap is undocumented and moved between two patch versions. | **H×H×L** · residual after mitigation **L×M** | Write-before-emit; `stop_hook_active` as an independent second brake; a loop regression test asserting the empty emission on a spent band. §III. | Ph. 2 |
-| F9 | **Hook-surface churn** (R9, realised **three times**: `SubagentStop` changed behaviour between 2.1.220 and 2.1.240, and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` stopped working entirely). | M×M×M | Channels are measured per client and each row says which: §8 on **2.1.235**, §9–§11 on **2.1.240**. `Stop` injection has NOT been re-run on 2.1.240 — Phase 2 re-confirms the attachment at build time rather than assuming it. Inertness does not cover an event that fires *differently*, and no mitigation here does. | all |
+| F9 | **Hook-surface churn** (R9, realised **four times**: `SubagentStop` changed behaviour between 2.1.220 and 2.1.240; `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` stopped working entirely; and the `Stop` loop's cost went 9 firings/1,186 tokens → **16/4,326** between 2.1.235 and 2.1.240). | M×M×M | Channels are measured per client and each row says which: §8 on **2.1.235**; **§9–§13 on 2.1.240**. `Stop` injection **has** been re-run on 2.1.240 — 16 attachments (§13); an earlier draft of this cell still said it had not, after §13 measured it. Phase 2 re-confirms at build time as **version-drift insurance**, not because the channel is unmeasured: this row's own history is four surprises across three client versions. | all |
 
 ---
 
@@ -643,6 +662,18 @@ jq -s 'map(select(.nudge_enabled)) | {sessions: (group_by(.session_id) | length)
 `worst_count > 4` or `worst_bytes > 200` fails Phase 2. A criterion whose number appears only in §I is
 an intention; this is the query that makes it a check.
 
+**Did the duty get discharged, and which way** — the artifact that keeps the `SKILL.md` clause out
+of the `unobservable-duty` class. A field no check reads leaves the class alive one level up:
+
+```bash
+jq -s '[.[] | select(.nudge_answered)] | group_by(.nudge_answered)
+       | map({outcome: .[0].nudge_answered, n: length})' .claude/checkpoints/seals.jsonl
+```
+
+A high `ignored` rate means the nudge is wallpaper (F1) whatever the age medians say. A high
+`reaffirmed` rate with falling age medians is the failure criterion 6 must not report as success —
+which is why Phase 3 segments on this field rather than aggregating over it.
+
 **Registration parity — and what it does NOT cover:**
 
 ```bash
@@ -659,10 +690,22 @@ registered on `Stop`, and that no other event's matcher moved. Written down as a
 naming a gate that does not check the thing is worse than admitting there is no gate — the run goes
 green either way, and only one of the two tells you why.
 
-**The loop gate comes first, because it is the one that burns tokens.** Reproduce spike §8's null
-control against the real binary: a scratch project, one prompt, band already spent → **exactly one
-`Stop` firing and ≤ 4 assistant entries**. Then band unspent → **exactly two firings** (the
-emission, and the boundary of the turn it creates), never more.
+**The loop gate comes first, because it is the one that burns tokens** — and it asserts a
+**relation, not a constant**. An earlier draft required "≤ 4 assistant entries", which is §8's clean
+control **on 2.1.235**; §13 then measured this channel's counts moving 3.6× between two patch
+versions. A constant copied from one client's run is the same mistake §V already refuses for the git
+range and spike §11 earned for compaction boundaries.
+
+Run **both arms in one harness**, same project, same prompt, same model:
+
+| Arm | Assertion |
+|---|---|
+| nudge disabled (control) | record `stop_firings` and `assistant_entries`; these are the baseline, **measured, not quoted** |
+| band already spent | **exactly equal** to the control on both counts |
+| band unspent | `stop_firings` = control + 1, `assistant_entries` ≤ control + 1 — the single turn the emission is *intended* to create, and no more |
+
+That is criterion 5 stated as criterion 5 states it. Any absolute number in this gate is a number
+that will be wrong on the next client.
 
 Injection is re-confirmed rather than assumed — the attachment is the leaf:
 
@@ -691,8 +734,10 @@ the boundary, and assert the negative: a short session below the F7 floor emits 
 Twenty more boundaries with the nudge live.
 
 ```bash
-jq -s '{before:[.[]|select(.nudge_enabled==false)|.note_age_turns]|sort,
-        after: [.[]|select(.nudge_enabled==true )|.note_age_turns]|sort}' \
+jq -s '{before:      [.[]|select(.nudge_enabled==false)|.note_age_turns]|sort,
+        after_all:   [.[]|select(.nudge_enabled==true )|.note_age_turns]|sort,
+        after_rewritten: [.[]|select(.nudge_enabled==true and .nudge_answered=="rewritten")|.note_age_turns]|sort,
+        after_reaffirmed:[.[]|select(.nudge_enabled==true and .nudge_answered=="reaffirmed")|.note_age_turns]|sort}' \
    .claude/checkpoints/seals.jsonl
 ```
 
@@ -745,6 +790,24 @@ what keeps this from being a scope increase wearing a census as justification.
 | **#507** | **OBSERVATION ONLY — refuted as a nudge channel** | `SubagentStop` fires at the parent and names both transcripts (§9d), so it can *record*. It cannot *tell*: **9 firings, marker delivered nowhere**, against a live positive control (§10). Worse, the emission re-arms the **seat's** turn — 9 assistant entries for a one-word answer — so an injector here costs exactly what `Stop`'s loop costs and delivers nothing. | **Free as a stamp, unavailable as a nudge.** Sealing/gauging at a seat's return needs no injection and can ride Phase 1. Anything that wants to *reach the model* when a seat returns has no channel, and no threshold data either. |
 | **#508** | **SPLIT — four fire, three refuted, six unreachable** | Fire with usable payloads: `ConfigChange` `{source, file_path}`, `InstructionsLoaded` `{file_path, memory_type, load_reason}`, `CwdChanged` `{old_cwd, new_cwd}`, `FileChanged` `{file_path, event}`. Refuted for the shapes tested: `StopFailure` (hook exit 1), `PermissionRequest`/`PermissionDenied` (hook-issued deny). Not reachable in a headless harness: `Elicitation`/`ElicitationResult`, `Setup`, `TeammateIdle`, `WorktreeCreate`/`WorktreeRemove`, `DirectoryAdded`, `UserPromptExpansion` (§9b). | **Hard, and mostly not worth it.** Four usable signals, each invalidating a *named* part of the note — but each is one more emission path competing for the same ≤ 4-per-session budget that F1 already calls the main risk. |
 | **#509** | **CLOSED, negatively** | `SessionStart`'s payload has no model field at all; `message.model` reads `claude-opus-5` on a live `claude-opus-5[1m]` session; no `*limit*` field exists anywhere in a transcript (§9e). | **Nothing to fold in.** F2's tri-state `Ceiling` with `Unknown` is not a conservative choice pending better data — it is the only correct one, and `compactMetadata.preTokens` remains the sole denominator. |
+
+### VI-c. OPEN DECISION for the human: what criterion 6 is computed over
+
+Criterion 6 is the kill switch — *median note-age-at-seal falls, or the nudge comes out*. `reaffirmed`
+and `rewritten` **both** move `CHECKPOINT.md`'s mtime, so both reset the age to ~0. Which population
+the median is taken over therefore decides what the falsification can even detect:
+
+| Option | Criterion 6 computed over | What it rewards | What it misses |
+|---|---|---|---|
+| **A — rewrites only** | `nudge_answered == "rewritten"` | notes that actually changed | a nudge whose whole effect is re-affirmation scores as no effect, even where re-affirming was correct |
+| **B — all answered** | `rewritten` + `reaffirmed` | any response to the band | **cannot distinguish a fresher note from a touched one** — the failure the three-valued field exists to expose |
+| **C — segmented, no single verdict** | both reported side by side, kill-switch fires only if *neither* falls | honest about the ambiguity | no single number; the human reads two |
+
+**This is not an editing fix and it is not the auditor's to make.** It decides what "the nudge
+worked" means, before any data exists to argue about — which is exactly the preregistration
+discipline criterion 6 imposes on everything else. **Recommendation: C**, because A and B each answer
+a question the other needs, and the whole reason `nudge_answered` is three-valued is that collapsing
+them is what a boolean already did wrong.
 
 ### VI-b. Blocked: the note has no field for its handles
 
