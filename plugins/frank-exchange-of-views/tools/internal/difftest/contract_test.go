@@ -68,15 +68,15 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 
 	// One valid gap first, so close/regrade refusals are about the refusal under
 	// test rather than about an empty board.
-	capture(command(bin, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	capture(command(bin, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
 		"--impact", "low", "--problem", "a valid gap"))
 	// And one real finding, so a case that references it refuses on the MISSING
 	// DISPOSITION rather than an unknown observation. It did the latter for as long as
 	// this case has existed: the case was named for a refusal it never reached, and the
 	// golden recorded the wrong message without anything noticing.
-	capture(command(bin, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"))
-	capture(command(bin, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	capture(command(bin, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"))
+	capture(command(bin, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 		"--key", "F1", "--severity", "low", "--likelihood", "low", "--impact", "low",
 		"--quote", "somewhere", "--reason", "a valid finding"))
 
@@ -84,51 +84,51 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		name string
 		argv []string
 	}{
-		{"mint without acceptance check", []string{"merge", "mint", "--class", "scope-creep", "--problem", "p"}},
-		{"mint without class", []string{"merge", "mint", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"mint with unknown class", []string{"merge", "mint", "--class", "invented", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"class-new missing definition", []string{"merge", "mint", "--class", "novel", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"class-new unknown neighbor", []string{"merge", "mint", "--class", "novel", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"mint with bad grade", []string{"merge", "mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "catastrophic", "--problem", "p"}},
-		{"mint with dangling supersedes", []string{"merge", "mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--supersedes", "R7-7", "--problem", "p"}},
-		{"close unknown gap", []string{"merge", "close", "--id", "R7-7", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
-		{"close without id", []string{"merge", "close", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
-		{"close without anchor", []string{"merge", "close", "--id", "R1-1"}},
-		{"regression close without successor", []string{"merge", "close", "--id", "R1-1", "--as", "closed_with_regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
-		{"regrade without basis", []string{"merge", "regrade", "--id", "R1-1", "--severity", "high"}},
-		{"opinion missing fields", []string{"bench", "opinion", "--id", "R1-1", "--as", "carried"}},
+		{"mint without acceptance check", []string{"mint", "--class", "scope-creep", "--problem", "p"}},
+		{"mint without class", []string{"mint", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"mint with unknown class", []string{"mint", "--class", "invented", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"class-new missing definition", []string{"mint", "--class", "novel", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"class-new unknown neighbor", []string{"mint", "--class", "novel", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"mint with bad grade", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "catastrophic", "--problem", "p"}},
+		{"mint with dangling supersedes", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--supersedes", "R7-7", "--problem", "p"}},
+		{"close unknown gap", []string{"close", "--id", "R7-7", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
+		{"close without id", []string{"close", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
+		{"close without anchor", []string{"close", "--id", "R1-1"}},
+		{"regression close without successor", []string{"close", "--id", "R1-1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t"}},
+		{"regrade without basis", []string{"regrade", "--id", "R1-1", "--severity", "high"}},
+		{"opinion missing fields", []string{"opinion", "--id", "R1-1", "--as", "carried"}},
 		// The closed sets. Each names what would have worked AND what the near-miss
 		// would have done, because the near-miss is the case that used to be recorded
 		// silently rather than refused.
-		{"verdict in the wrong case", []string{"merge", "verdict", "--as", "pass"}},
-		{"verdict outside the set", []string{"merge", "verdict", "--as", "banana"}},
-		{"outcome in the wrong case", []string{"bench", "outcome", "--as", "ceiling"}},
+		{"verdict in the wrong case", []string{"verdict", "--as", "pass"}},
+		{"verdict outside the set", []string{"verdict", "--as", "banana"}},
+		{"outcome in the wrong case", []string{"outcome", "--as", "ceiling"}},
 		// These two pinned "no verb `petition-rule` exists" and "no verb `dispute` exists" — the
 		// generic unknown-verb refusal — while claiming to pin a value outside a closed set. The
 		// verbs were retired by the motion collapse and the entries were never moved, so the
 		// catalogue froze the wrong refusal and this test went on passing. That is the exact
 		// failure the catalogue exists to catch, in the catalogue itself.
 		{"petition ruling outside the set", []string{"motion", "petition", "rule", "--id", "M1", "--as", "halt", "--reason", "r"}},
-		{"closure class near-miss", []string{"merge", "close", "--id", "R1-1", "--as", "closed-with-regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "r"}},
+		{"closure class near-miss", []string{"close", "--id", "R1-1", "--as", "closed-with-regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "r"}},
 		// The class sweep found five more set-shaped flags past --as. Each is here for
 		// the same reason as the rest of this catalogue: the refusal is the seat's
 		// teacher, and a refactor that turns a teaching message into a bare rejection
 		// would otherwise pass every other test in the suite.
 		{"grade motion dimension outside the set", []string{"motion", "grade", "file", "--id", "R1-1", "--dimension", "banana", "--proposed", "low", "--reason", "r"}},
-		{"verification outcome outside the set", []string{"lens", "verify", "--quote", "c", "--title", "r", "--independent", "--as", "banana", "--confidence", "high"}},
+		{"verification outcome outside the set", []string{"verify", "--quote", "c", "--title", "r", "--independent", "--as", "banana", "--confidence", "high"}},
 		// The two cases that used to be unstatable: a verification that does not say WHICH
 		// citation it checked, and one with no verdict at all. Both were accepted — the bare verb
 		// recorded an event and printed "source verified:".
-		{"verification names no citation", []string{"lens", "verify", "--quote", "c", "--as", "supports", "--confidence", "high", "--reason", "read it"}},
+		{"verification names no citation", []string{"verify", "--quote", "c", "--as", "supports", "--confidence", "high", "--reason", "read it"}},
 		// The axis I collapsed and had to restore: a determination with no stated confidence.
-		{"verification with no stated confidence", []string{"lens", "verify", "--independent", "--quote", "c", "--as", "refutes", "--reason", "the paper says the opposite"}},
-		{"verification of nothing", []string{"lens", "verify"}},
+		{"verification with no stated confidence", []string{"verify", "--independent", "--quote", "c", "--as", "refutes", "--reason", "the paper says the opposite"}},
+		{"verification of nothing", []string{"verify"}},
 		{"blue confidence outside the set", []string{"blue", "confidence", "--quote", "c", "--confidence", "banana"}},
 		{"petition class outside the set", []string{"blue", "petition", "--class", "banana", "--relief", "x", "--reason", "r"}},
-		{"invalid seat id", []string{"merge", "mint", "--seat-id", "not a seat id", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"verb outside the lens role", []string{"lens", "mint", "--class", "scope-creep"}},
-		{"verb outside the blue role", []string{"blue", "close", "--id", "R1-1"}},
-		{"verb outside the bench role", []string{"bench", "mint", "--class", "scope-creep"}},
+		{"invalid seat id", []string{"mint", "--seat-id", "not a seat id", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--problem", "p"}},
+		{"verb outside the lens role", []string{"mint", "--class", "scope-creep"}},
+		{"verb outside the blue role", []string{"close", "--id", "R1-1"}},
+		{"verb outside the bench role", []string{"mint", "--class", "scope-creep"}},
 		{"unknown verb", []string{"merge", "frobnicate"}},
 		{"unknown role", []string{"nonsuch", "mint"}},
 	}

@@ -23,6 +23,7 @@ func newSetup() *cobra.Command {
 		topic, model, judgmentModel string
 		maxRounds, lanes            string
 		binDir, memoryDir           string
+		runID, scriptPath           string
 		cites                       []string
 	)
 	c := &cobra.Command{
@@ -49,6 +50,8 @@ func newSetup() *cobra.Command {
 				Lanes:         lanes,
 				BinDir:        binDir,
 				MemoryDir:     memoryDir,
+				RunID:         runID,
+				ScriptPath:    scriptPath,
 				Cwd:           cwd,
 				Home:          home,
 				ProjectDir:    os.Getenv("CLAUDE_PROJECT_DIR"),
@@ -62,12 +65,19 @@ func newSetup() *cobra.Command {
 	}
 	f := c.Flags()
 	f.StringVar(&topic, flags.Topic, "", "the run's research topic (goes in every stub header)")
-	f.StringVar(&model, flags.Model, "", "REQUIRED — the bulk tier (frontier, blue lanes, red lenses, blue responses)")
-	f.StringVar(&judgmentModel, flags.JudgmentModel, "", "REQUIRED — the judgment tier (blue-synthesize, red-merge, judge, assemble)")
+	f.StringVar(&model, flags.Model, "", "the bulk tier (frontier, blue lanes, red lenses, blue responses)")
+	f.StringVar(&judgmentModel, flags.JudgmentModel, "", "the judgment tier (blue-synthesize, red-merge, judge, assemble)")
 	f.StringArrayVar(&cites, flags.Cite, nil, "a cited path, optionally pinned: <path>[@<commit>] (repeatable)")
 	f.StringVar(&maxRounds, flags.MaxRounds, "", "the round ceiling (recorded in run-config.json for post-hoc readers)")
 	f.StringVar(&lanes, flags.Lanes, "", "the frontier lane count (recorded in run-config.json)")
 	f.StringVar(&binDir, flags.BinDir, "", "where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss")
 	f.StringVar(&memoryDir, flags.MemoryDir, "", "override the gap-pattern memory source (default: promoted corpus, then raw accrual)")
+	// THE MARKER OUTLIVES THE WORKFLOW THAT WROTE IT, so it has to name how to continue.
+	// A workflow killed by an idle SIGTERM never lifts .claude/run-live.json — it cannot, it is
+	// gone — and a marker naming only a directory tells a later reader that something WAS running
+	// here, not what to do about it. Optional because a launcher may not know them; absent stays
+	// absent rather than becoming an empty string on the record.
+	f.StringVar(&runID, flags.RunID, "", "the orchestrator's run id, recorded in the .run-live marker so a run found STALE can be resumed rather than only noticed")
+	f.StringVar(&scriptPath, flags.ScriptPath, "", "the orchestrator script this run was launched from, recorded in the .run-live marker beside --run-id")
 	return c
 }

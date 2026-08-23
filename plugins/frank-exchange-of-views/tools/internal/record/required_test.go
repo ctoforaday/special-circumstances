@@ -35,8 +35,8 @@ func seatFor(typ string) string {
 
 func runWithGap(t *testing.T) string {
 	t.Helper()
-	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
+	runDir := newRun(t)
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	id, err := MintGapID(runDir, 1)
@@ -71,8 +71,8 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 // clothes, counted as closed by every projection and by anchored_closures_pct. The help
 // offers it exactly where a seat that cannot produce an anchor will read it.
 func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
-	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
+	runDir := newRun(t)
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	id, err := MintGapID(runDir, 1)
@@ -108,8 +108,8 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 
 // And a GENUINE carry still works: close once with an anchor, then restate it.
 func TestAGenuineCarryIsStillAccepted(t *testing.T) {
-	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
+	runDir := newRun(t)
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	id, err := MintGapID(runDir, 1)

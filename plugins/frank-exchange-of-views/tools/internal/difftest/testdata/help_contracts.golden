@@ -3,6 +3,8 @@ exit 2
 stderr:
 feov-record: you named no command, so nothing ran. The commands below are the whole surface.
 
+--seat-id IS REQUIRED HERE, because nothing identified you: this agent has not registered, so the record cannot say which seat it holds, and no --seat-id was given. The surface is scoped to whoever is asking, so there is no tree to show until you say who that is — a seat id, or `operator`. You type it ONCE, at `register`; after that the binding is on the record and every later call resolves it for you.
+
 feov-record — the seat-side record runtime (the verb set IS the role boundary)
 
 A lens structurally cannot mint or close a board gap: no such verb exists in its
@@ -10,39 +12,21 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
   feov-record [flags]
-  feov-record [command]
-
-Available Commands:
-  bench        the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
-  blue         blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
-  capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
-  completion   Generate the autocompletion script for the specified shell
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  dashboard    render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction     read the run's friction channel (operator; every capability gap a seat reported, and every seat that reported none)
-  graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
-  help         Help about any command
-  hook         PreToolUse/PostToolUse backends for the blue-report lockdown (invoked by hooks.json, not a seat verb)
-  lens         red lens seats — findings, source verification and corroboration, proof re-runs. Cannot mint or close a gap: that is the merge's.
-  merge        the red merge seat — the board's only writer.
-  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  scorecard    print a chair's scorecard for this run (operator, not a seat verb — a seat's own read is `<role> show`)
-  setup        build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)
-  verify       cross-check a run's record against its invariants, and tally it (read-only)
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-  -v, --version          version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 $ feov-record help
-exit 0
-stdout:
+exit 2
+stderr:
+feov-record: a command was named and the surface is scoped to whoever is asking.
+
+--seat-id IS REQUIRED HERE, because nothing identified you: this agent has not registered, so the record cannot say which seat it holds, and no --seat-id was given. The surface is scoped to whoever is asking, so there is no tree to show until you say who that is — a seat id, or `operator`. You type it ONCE, at `register`; after that the binding is on the record and every later call resolves it for you.
+
 feov-record — the seat-side record runtime (the verb set IS the role boundary)
 
 A lens structurally cannot mint or close a board gap: no such verb exists in its
@@ -50,35 +34,13 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
   feov-record [flags]
-  feov-record [command]
-
-Available Commands:
-  bench        the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
-  blue         blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
-  capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
-  completion   Generate the autocompletion script for the specified shell
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  dashboard    render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction     read the run's friction channel (operator; every capability gap a seat reported, and every seat that reported none)
-  graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
-  help         Help about any command
-  hook         PreToolUse/PostToolUse backends for the blue-report lockdown (invoked by hooks.json, not a seat verb)
-  lens         red lens seats — findings, source verification and corroboration, proof re-runs. Cannot mint or close a gap: that is the merge's.
-  merge        the red merge seat — the board's only writer.
-  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  scorecard    print a chair's scorecard for this run (operator, not a seat verb — a seat's own read is `<role> show`)
-  setup        build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)
-  verify       cross-check a run's record against its invariants, and tally it (read-only)
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-  -v, --version          version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 $ feov-record --help
 exit 0
@@ -90,86 +52,47 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
   feov-record [flags]
-  feov-record [command]
-
-Available Commands:
-  bench        the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
-  blue         blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
-  capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
-  completion   Generate the autocompletion script for the specified shell
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  dashboard    render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction     read the run's friction channel (operator; every capability gap a seat reported, and every seat that reported none)
-  graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
-  help         Help about any command
-  hook         PreToolUse/PostToolUse backends for the blue-report lockdown (invoked by hooks.json, not a seat verb)
-  lens         red lens seats — findings, source verification and corroboration, proof re-runs. Cannot mint or close a gap: that is the merge's.
-  merge        the red merge seat — the board's only writer.
-  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  scorecard    print a chair's scorecard for this run (operator, not a seat verb — a seat's own read is `<role> show`)
-  setup        build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)
-  verify       cross-check a run's record against its invariants, and tally it (read-only)
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-  -v, --version          version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 $ feov-record lens help
-exit 0
-stdout:
-red lens seats — findings, source verification and corroboration, proof re-runs. Cannot mint or close a gap: that is the merge's.
+exit 2
+stderr:
+feov-record: a command was named and the surface is scoped to whoever is asking.
 
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.
+--seat-id IS REQUIRED HERE, because nothing identified you: this agent has not registered, so the record cannot say which seat it holds, and no --seat-id was given. The surface is scoped to whoever is asking, so there is no tree to show until you say who that is — a seat id, or `operator`. You type it ONCE, at `register`; after that the binding is on the record and every later call resolves it for you.
 
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+feov-record — the seat-side record runtime (the verb set IS the role boundary)
+
+A lens structurally cannot mint or close a board gap: no such verb exists in its
+namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
-  feov-record lens [flags]
-  feov-record lens [command]
-
-Available Commands:
-  corroborate corroborate a claim from a source YOU found — one blue never cited, so there is no anchor: --url <u> --title <t> --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". To adjudicate a citation blue DID author, use `verify` instead: it names the citation by its anchor.
-  finding     a lens finding (the tool assigns the L{role}-F{N} label): --key <your local F1> --severity <g> --likelihood <g> --impact <g> --reason "..." --quote "<the exact sentence, quoted from the report and nothing else>". THE CHANNEL FOR ANY DEFECT IN THE TEXT, including the ones the evidence verbs cannot reach: a claim resting on NO citation and no proof, an assertion whose source you cannot obtain, a figure with no derivation. `verify` and `reproduce` judge evidence that EXISTS; this raises the claim that has none.
-  friction    a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
-  register    FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
-  reproduce   re-RUN a proof AND READ IT: --id <sha256> --as sound|unsound --reason "<what the script actually computes>" — the tool records whether it REPRODUCED; you judge whether it PROVES the claim
-  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  verify      adjudicate ONE citation blue authored: --anchor c-<hex> (from `show evidence`) --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `absent` — `absent` means you read the source and the claim is not in it. An UNEVIDENCED claim is a finding: raise it with `finding`, which is the channel for "this assertion rests on nothing", exactly as it is for any other defect in the text.
+  feov-record [flags]
 
 Flags:
-  -h, --help   help for lens
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-
-Use "feov-record lens [command] --help" for more information about a command.
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 $ feov-record merge help
-exit 0
-stdout:
-the red merge seat — the board's only writer.
+exit 2
+stderr:
+feov-record: a command was named and the surface is scoped to whoever is asking.
 
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.
+--seat-id IS REQUIRED HERE, because nothing identified you: this agent has not registered, so the record cannot say which seat it holds, and no --seat-id was given. The surface is scoped to whoever is asking, so there is no tree to show until you say who that is — a seat id, or `operator`. You type it ONCE, at `register`; after that the binding is on the record and every later call resolves it for you.
 
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+feov-record — the seat-side record runtime (the verb set IS the role boundary)
+
+A lens structurally cannot mint or close a board gap: no such verb exists in its
+namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
   feov-record merge [flags]
@@ -192,28 +115,23 @@ Available Commands:
   verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
 
 Flags:
-  -h, --help   help for merge
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-
-Use "feov-record merge [command] --help" for more information about a command.
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 $ feov-record blue help
-exit 0
-stdout:
-blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
+exit 2
+stderr:
+feov-record: a command was named and the surface is scoped to whoever is asking.
 
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.
+--seat-id IS REQUIRED HERE, because nothing identified you: this agent has not registered, so the record cannot say which seat it holds, and no --seat-id was given. The surface is scoped to whoever is asking, so there is no tree to show until you say who that is — a seat id, or `operator`. You type it ONCE, at `register`; after that the binding is on the record and every later call resolves it for you.
 
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+feov-record — the seat-side record runtime (the verb set IS the role boundary)
+
+A lens structurally cannot mint or close a board gap: no such verb exists in its
+namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
   feov-record blue [flags]
@@ -235,28 +153,23 @@ Available Commands:
   show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
 
 Flags:
-  -h, --help   help for blue
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-
-Use "feov-record blue [command] --help" for more information about a command.
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 $ feov-record bench help
-exit 0
-stdout:
-the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
+exit 2
+stderr:
+feov-record: a command was named and the surface is scoped to whoever is asking.
 
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.
+--seat-id IS REQUIRED HERE, because nothing identified you: this agent has not registered, so the record cannot say which seat it holds, and no --seat-id was given. The surface is scoped to whoever is asking, so there is no tree to show until you say who that is — a seat id, or `operator`. You type it ONCE, at `register`; after that the binding is on the record and every later call resolves it for you.
 
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+feov-record — the seat-side record runtime (the verb set IS the role boundary)
+
+A lens structurally cannot mint or close a board gap: no such verb exists in its
+namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
   feov-record bench [flags]
@@ -274,14 +187,11 @@ Available Commands:
   show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
 
 Flags:
-  -h, --help   help for bench
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-
-Use "feov-record bench [command] --help" for more information about a command.
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 $ feov-record --version
 exit 0
@@ -291,7 +201,9 @@ feov-record version 0.72.0
 $ feov-record nonsuch help
 exit 2
 stderr:
-feov-record: no command named "nonsuch" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+feov-record: a command was named and the surface is scoped to whoever is asking.
+
+--seat-id IS REQUIRED HERE, because nothing identified you: this agent has not registered, so the record cannot say which seat it holds, and no --seat-id was given. The surface is scoped to whoever is asking, so there is no tree to show until you say who that is — a seat id, or `operator`. You type it ONCE, at `register`; after that the binding is on the record and every later call resolves it for you.
 
 feov-record — the seat-side record runtime (the verb set IS the role boundary)
 
@@ -300,33 +212,11 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
   feov-record [flags]
-  feov-record [command]
-
-Available Commands:
-  bench        the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.
-  blue         blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
-  capture      run /research's post-hoc capture auditor (operator; nine audits + cost.md/tarball/scorecards)
-  completion   Generate the autocompletion script for the specified shell
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  dashboard    render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction     read the run's friction channel (operator; every capability gap a seat reported, and every seat that reported none)
-  graph        render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)
-  help         Help about any command
-  hook         PreToolUse/PostToolUse backends for the blue-report lockdown (invoked by hooks.json, not a seat verb)
-  lens         red lens seats — findings, source verification and corroboration, proof re-runs. Cannot mint or close a gap: that is the merge's.
-  merge        the red merge seat — the board's only writer.
-  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  scorecard    print a chair's scorecard for this run (operator, not a seat verb — a seat's own read is `<role> show`)
-  setup        build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)
-  verify       cross-check a run's record against its invariants, and tally it (read-only)
 
 Flags:
-  -h, --help             help for feov-record
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-  -v, --version          version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 

@@ -327,7 +327,7 @@ func ledgerMD(b *record.Board) []byte {
 		// to the bare word `closed`.
 		cc := g.ClosureReason()
 		if cc == "" {
-			cc = "closed"
+			cc = "repaired"
 		}
 		succ := g.Closure.GetSuccessor()
 		if succ == "" {
@@ -352,7 +352,7 @@ func archiveMD(b *record.Board) []byte {
 		// The same join as the ledger's closure index — see the comment there.
 		cc := g.ClosureReason()
 		if cc == "" {
-			cc = "closed"
+			cc = "repaired"
 		}
 		// A BENCH-CLOSED GAP CARRIES NO `close` BODY. Closure and BenchClosure are separate
 		// messages now, so every field of the anchor triple is ABSENT for one — which is exactly
@@ -379,12 +379,39 @@ func archiveMD(b *record.Board) []byte {
 // telemetryLines computes the board-telemetry series as JSONL lines (the compute
 // that was inline in render.go), the shared source Telemetry decodes.
 func telemetryLines(b *record.Board) ([]string, error) {
-	var rounds []int
+	// THE SERIES IS DENSE OVER THE RUN'S ROUNDS, and it was keyed on MINT rounds alone.
+	//
+	// MEASURED 2026-08-22 on research/2026-08-22_is-7-prime. All five gaps were minted at round 1
+	// and THREE OF THEM CLOSED AT ROUND 2 — "zero new gaps were raised in R2", which is what
+	// convergence looks like. Round 2 never entered this list, so the closed-at-round-r arm below
+	// computed its three closures and emitted nothing. The series lost the round that did most of
+	// the disposing, and the loss was silent: a round missing from "board mass by round" reads
+	// exactly like a round that did not happen.
+	//
+	// It cost more than a chart. TelemetryAudit asks whether the series covers every RED round, so
+	// a converged round made capture FAIL — the gate firing on the healthy outcome, which is the
+	// expensive direction because it teaches a reader to discount the audit. And
+	// scorecard.go's repair_regression_ratio reports "no telemetry rounds with closures", which is
+	// this defect wearing the name of a metric.
+	//
+	// Dense rather than mint-∪-close, because a round where red sat and the board did NOT move is
+	// itself the convergence signal: a zero row says "nothing moved", a missing row says nothing
+	// at all. Dense also makes the audit's premise true by construction rather than by luck.
 	seenRound := map[int]bool{}
+	for r := 1; r <= record.CurrentRound(b); r++ {
+		seenRound[r] = true
+	}
+	// Defensive: a gap minted or closed outside the event round span still gets its row.
 	for _, id := range b.GapOrder {
-		r := b.Gaps[id].Round
-		if !seenRound[r] {
-			seenRound[r] = true
+		g := b.Gaps[id]
+		seenRound[g.Round] = true
+		if g.HasClosed {
+			seenRound[g.ClosedRound] = true
+		}
+	}
+	var rounds []int
+	for r := range seenRound {
+		if r > 0 {
 			rounds = append(rounds, r)
 		}
 	}
@@ -615,7 +642,7 @@ func debateMD(b *record.Board) []byte {
 				ops = append(ops, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
 					// recordpb.Word, NOT the enum's own String(). A generated enum prints its Go
 					// constant name — a seat reading the debate would be shown
-					// `DISPOSITION_CLOSED` where the vocabulary's word belongs. The typing made
+					// `DISPOSITION_REPAIRED` where the vocabulary's word belongs. The typing made
 					// this a rendering bug that no longer announces itself as a type error.
 					t.GetGapId(), recordpb.Word(t.GetDisposition()), t.GetPrinciple(),
 					t.GetTension(), t.GetReviewFlag(), t.GetRationale()))

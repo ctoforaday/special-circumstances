@@ -30,7 +30,7 @@ func TestStripFindingMarkers(t *testing.T) {
 // (here a mint's problem text, rendered into the findings/risk section) must still be
 // stripped — the earlier blue-only strip missed exactly this path.
 func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -38,8 +38,8 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# Title\n\nClean prose.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, s := range []string{"red-merge-r1", "blue-r1", "judge-terminal"} {
-		if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: s, Round: record.RoundOf(s)}); err != nil {
+	for _, s := range []string{"red-merge-r1", "blue-respond-r1", "judge-terminal"} {
+		if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: s, Round: record.RoundIn(runDir)(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -5,6 +5,27 @@ constraints; two did not survive review and are struck below. What survives rule
 *Postgres/framework* store but not an *embedded SQLite* one — which is now the leading
 target, with the #62 concurrency work as its trigger.
 
+> **EVIDENCE ADDED 2026-08-23.** Two findings from the record-store debate and this session's
+> work, both bearing on what a SQL backend has to be responsible for.
+>
+> **The cross-run authority question was argued and answered.** The
+> `2026-08-22_record-store-authority` run — 5 lanes, opus judgment, 2 rounds, both red verdicts
+> FAIL, $74.07 — concluded: *the log is a disposable per-run cache today, but the binary is the
+> wrong shape, because cross-run authority already exists downstream in human-reviewed
+> `law/precedents.md`.* So the store is not being asked to become the authority; the authority
+> has a home and it is reviewed by a person. That narrows what indexing has to serve.
+>
+> **A whole class of cross-run machinery is built and has never executed.** No archived run has
+> ever reached round 3, and the bench sits at the END of a round, so `adjudicated` is empty at
+> every seat in all four captured runs. The estoppel delivery on both sides (#499, #517, #524) is
+> correct in code and unexercised in the record. If a backend changes what a run can read across
+> runs, that becomes a live question rather than a settled one — and the first run to reach round
+> 3 is what proves the existing half either way.
+>
+> **Adjacent, landed since this plan was written:** the run-live marker is now a LIST
+> (#529/#530), so more than one run can be open at once and `internal/runlive` owns the file.
+> Any store that assumes one live run per project is assuming something that stopped being true.
+
 ## TL;DR of the correction
 
 - Git commits a `.db` fine → **provenance never required plain text**; only the *projections*

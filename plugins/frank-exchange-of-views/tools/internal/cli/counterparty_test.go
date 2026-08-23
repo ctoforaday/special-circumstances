@@ -22,7 +22,7 @@ import (
 func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	read := func(t *testing.T, runDir string) record.CounterpartyJSON {
 		t.Helper()
-		out, err := run(t, "merge", "show", "work", "--run", runDir, "--seat-id", "red-merge-r1")
+		out, err := run(t, "show", "work", "--run", runDir, "--seat-id", "red-merge-r1")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -41,14 +41,14 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	// fixture itself has blue act once while staging the board, so "a board blue has not touched"
 	// was not true of any board. That is worth knowing about the probe — scaffolding acts are
 	// attributed to the party that performs them — and it is not what this test is about.
-	quiet := t.TempDir()
+	quiet := newRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
-	for _, s := range []struct{ role, id string }{{"merge", "red-merge-r1"}, {"blue", "blue-respond-r1"}} {
-		if _, err := run(t, s.role, "register", "--run", quiet, "--seat-id", s.id); err != nil {
+	for _, id := range []string{"red-merge-r1", "blue-respond-r1"} {
+		if _, err := run(t, "register", "--run", quiet, "--seat-id", id); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := run(t, "merge", "mint", "--run", quiet, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", quiet, "--seat-id", "red-merge-r1",
 		"--key", "g1", "--class", "metric-conflation", "--problem", "two figures disagree",
 		"--fix", "reconcile them", "--check", "no section contradicts another", "--check-kind", "document",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
@@ -58,7 +58,7 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	silent := read(t, quiet)
 
 	// The same run after blue records something substantive.
-	if _, err := run(t, "blue", "position", "--run", quiet, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "position", "--run", quiet, "--seat-id", "blue-respond-r1",
 		"--reason", "I have read the board and am working the first gap"); err != nil {
 		t.Fatal(err)
 	}

@@ -20,7 +20,7 @@ import (
 // reaches the projection, and the duties that depend on it. A test for only the first would pass a
 // tree where the role arrives and nothing reads it.
 func TestTheRoleSurvivesTheShowGroup(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 	board := seatprobe.Boards()["audit"]
 	exec := func(args ...string) (string, error) { return run(t, args...) }
@@ -28,7 +28,7 @@ func TestTheRoleSurvivesTheShowGroup(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := run(t, "merge", "show", "work", "--run", runDir, "--seat-id", "red-merge-r1")
+	out, err := run(t, "show", "work", "--run", runDir, "--seat-id", "red-merge-r1")
 	if err != nil {
 		t.Fatal(err)
 	}

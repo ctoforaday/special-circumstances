@@ -87,19 +87,14 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, s := range []struct{ role, id string }{
-		{"lens", "red-lens-r1-L1"},
-		{"merge", "red-merge-r1"},
-		{"blue", "blue-respond-r1"},
-		{"bench", "judge-r1"},
-	} {
-		if _, err := run(t, s.role, "register", "--run", runDir, "--seat-id", s.id); err != nil {
-			t.Fatalf("register %s: %v", s.id, err)
+	for _, id := range []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
+			t.Fatalf("register %s: %v", id, err)
 		}
 	}
 
 	for i, g := range b.Gaps {
-		args := []string{"merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		args := []string{"mint", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--key", g.Key, "--class", g.Class,
 			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
@@ -115,15 +110,15 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		// A CLOSED gap so the archive is not empty. spot-check against an empty archive has
 		// nothing to sample, so a board that wants the duty exercised has to give it something.
 		id := fmt.Sprintf("R1-%d", i+1)
-		if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--id", id, "--as", "closed", "--verified-by", "L1", "--verified-with", "git show",
+		if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
+			"--id", id, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
 			t.Fatalf("close %s: %v", id, err)
 		}
 	}
 
 	for i, a := range b.Inquiries {
-		if _, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
+		if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
 			"--reason", a.Line, "--hypothesis", a.Hypothesis); err != nil {
 			t.Fatalf("line of inquiry %d: %v", i, err)
 		}
@@ -173,7 +168,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		if err := os.WriteFile(script, []byte(pr.Script+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		args := []string{"blue", "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
+		args := []string{"prove", "--run", runDir, "--seat-id", "blue-respond-r1",
 			"--quote", pr.Location, "--script", script,
 			"--reason", "the computation behind this sentence"}
 		if pr.Answers != "" {
@@ -197,7 +192,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		//
 		// The url is a real, reachable one because `cite` FETCHES and caches: an unreachable
 		// source is refused and logged as friction, which is correct behaviour and useless here.
-		if _, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", "blue-respond-r1",
+		if _, err := run(t, "cite", "--run", runDir, "--seat-id", "blue-respond-r1",
 			"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
 			"--title", "the pinned source", "--url", "https://example.com/",
 			"--reason", "the source this claim rests on"); err != nil {

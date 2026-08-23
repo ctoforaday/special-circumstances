@@ -1,24 +1,44 @@
-$ merge register --run {RUN} --seat-id red-merge-r1
+$ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
 registered red-merge-r1
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check a --severity low --likelihood low --impact low --problem from the stale dispatch
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
+$ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check a --severity low --likelihood low --impact low --problem from the stale dispatch
 exit 0
 stdout:
 minted R1-1
 
-$ merge register --run {RUN} --seat-id red-merge-r1
+$ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
 registered red-merge-r1 (dispatch 2 — a previous dispatch of this seat is on the record)
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check b --severity high --likelihood high --impact high --problem from the live dispatch
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
+YOU ARE SITTING 2 OF THIS SEAT, AND AN EARLIER SITTING'S WORK IS GONE. 1 event(s) it recorded (1 mint) lost replay's winner selection and survive nowhere — not in the board, not in the report's evidence, not in any projection you are about to read. This is not a warning about the record being wrong; the record is correct and that work is simply absent.
+
+  mint — a gap was raised and is not on the board — nobody is being asked to fix it
+
+Re-do what still applies rather than assuming your predecessor's output survived it.
+
+red-merge-r1:mint:R1-1
+
+$ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check b --severity high --likelihood high --impact high --problem from the live dispatch
 exit 0
 stdout:
 minted R1-2
 
-$ merge verdict --run {RUN} --seat-id red-merge-r1 --as FAIL
+$ verdict --run {RUN} --seat-id red-merge-r1 --as FAIL
 exit 0
 stdout:
 verdict FAIL (2 open, 0 closed) and checkpointed to {MIRROR}

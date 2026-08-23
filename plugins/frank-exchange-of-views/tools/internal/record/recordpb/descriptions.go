@@ -75,7 +75,7 @@ func Usage(e protoreflect.EnumDescriptor) (string, error) {
 }
 
 // Spelling is the word a seat types: the enum value's name with its type prefix removed and
-// lowercased, so CLOSURE_CLASS_RISK_ACCEPTED reads as `risk_accepted`.
+// lowercased, so CLOSURE_CLASS_DEFECT_ACCEPTED reads as `defect_accepted`.
 func Spelling(v protoreflect.EnumValueDescriptor) string {
 	prefix := enumPrefix(v.Parent().(protoreflect.EnumDescriptor))
 	return strings.ToLower(strings.TrimPrefix(string(v.Name()), prefix))
@@ -106,7 +106,7 @@ func BySpelling(e protoreflect.EnumDescriptor, word string) (protoreflect.EnumVa
 
 // SameWord reports whether two spellings differ only in case or separators — the typo class, and
 // nothing wider. `closed-with-regression` and `Closed_With_Regression` are the same word;
-// `closed` and `closed_with_regression` are not. Carried over from enums.go, where it exists
+// `closed` and `repaired_with_regression` are not. Carried over from enums.go, where it exists
 // because closure_class gates an invariant and a near-miss silently took the other branch.
 func SameWord(a, b string) bool {
 	strip := func(s string) string {

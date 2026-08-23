@@ -46,7 +46,7 @@ func TestPreDecisionAllowlist(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			deny, reason := PreDecision(mkInput(t, c.agent, c.tool, c.ti))
+			deny, reason := PreDecision(mkInput(t, c.agent, c.tool, c.ti), "/r/x")
 			if deny != c.wantDeny {
 				t.Errorf("deny=%v, want %v (reason %q)", deny, c.wantDeny, reason)
 			}
@@ -123,7 +123,7 @@ func TestUnreadableToolInputFailsClosed(t *testing.T) {
 
 	// THE GATE DENIES. Before this it returned false here (FilePath empty reads as "not the
 	// report"), so unreadable input walked straight through the blue-report lockdown.
-	deny, reason := PreDecision(bad)
+	deny, reason := PreDecision(bad, "/x")
 	if !deny {
 		t.Error("unreadable tool_input was ALLOWED — a gate bypassed by input it cannot read " +
 			"is not a gate")
@@ -140,7 +140,7 @@ func TestUnreadableToolInputFailsClosed(t *testing.T) {
 	// AND THE AUTHOR IS NOT EXEMPT, which is the cost this decision accepts. The allowlist is
 	// checked AFTER readability, because an unreadable payload cannot prove who is calling.
 	author := Input{AgentType: AuthorAgentType, ToolName: "Write", ToolInput: []byte(`{"file_path": `)}
-	if deny, _ := PreDecision(author); !deny {
+	if deny, _ := PreDecision(author, "/x"); !deny {
 		t.Error("the author was exempted from the unreadable-input denial — the exemption is " +
 			"read from a payload that did not parse")
 	}
@@ -153,15 +153,15 @@ func TestReadableInputIsUnaffected(t *testing.T) {
 	if InputUnreadable(report) {
 		t.Fatal("well-formed input reported unreadable — this would deny every call")
 	}
-	if deny, _ := PreDecision(report); !deny {
+	if deny, _ := PreDecision(report, "/x"); !deny {
 		t.Error("a non-author write to blue/report.md must still be denied")
 	}
 	authored := Input{AgentType: AuthorAgentType, ToolName: "Write", ToolInput: []byte(`{"file_path":"/x/blue/report.md"}`)}
-	if deny, _ := PreDecision(authored); deny {
+	if deny, _ := PreDecision(authored, "/x"); deny {
 		t.Error("the allowlisted author must still be permitted")
 	}
 	other := Input{ToolName: "Write", ToolInput: []byte(`{"file_path":"/x/notes.md"}`)}
-	if deny, _ := PreDecision(other); deny {
+	if deny, _ := PreDecision(other, "/x"); deny {
 		t.Error("a write to another file must still draw no opinion")
 	}
 }

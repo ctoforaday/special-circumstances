@@ -4,8 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/diagnostics"
 )
 
 // WHAT THE RECORD CANNOT WITNESS.
@@ -76,6 +77,34 @@ func Attempted(trajectoryPath, binName string, sf Surface, role string) (map[str
 	return out, sc.Err()
 }
 
+// commandWords and binFields are the SHARED tokeniser, not copies of it.
+//
+// They lived here and now live in internal/diagnostics, because the survey measure needs the same
+// parse and a second copy beside the first is how the previous duplicate went stale silently — a
+// role-prefixed regex that stopped matching and reported "no projection opened at all" while seats
+// were opening projections fourteen times a sitting. One resolver, called from both.
+func commandWords(fields []string) []string { return diagnostics.CommandWords(fields) }
+
+func binFields(command, binName string) []string {
+	return diagnostics.BinFields(command, binName)
+}
+
+// ShowViewIn answers which projection a command opened: the view name, "work" for the bare form
+// (every role's default), or "" when the command is not a show at all.
+func ShowViewIn(command, binName string) (string, bool) {
+	words := commandWords(binFields(command, binName))
+	for i, w := range words {
+		if w != "show" {
+			continue
+		}
+		if i+1 < len(words) {
+			return words[i+1], true
+		}
+		return "work", true
+	}
+	return "", false
+}
+
 // verbIn finds the verb a shell command invokes, or "".
 //
 // THE LONGEST MATCHING PREFIX WINS, and that is not fussiness: `motion grade file` and `motion`
@@ -83,16 +112,8 @@ func Attempted(trajectoryPath, binName string, sf Surface, role string) (map[str
 // is written against. The same shortcut in the fuzzer's trajectory reader once reported all seven
 // motion verbs as never invoked while 35 motion events sat in the record.
 func verbIn(command, binName string, verbs map[string]bool) string {
-	fields := strings.Fields(strings.NewReplacer("\"", " ", "'", " ").Replace(command))
-	start := -1
-	for i, f := range fields {
-		base := strings.TrimSuffix(strings.ToLower(filepath.Base(f)), ".exe")
-		if base == strings.TrimSuffix(strings.ToLower(binName), ".exe") {
-			start = i + 1
-			break
-		}
-	}
-	if start < 0 {
+	fields := binFields(command, binName)
+	if fields == nil {
 		return ""
 	}
 	// THE VERB IS NOT ALWAYS THE FIRST TOKEN, and assuming it was cost this counter a whole
@@ -104,27 +125,7 @@ func verbIn(command, binName string, verbs map[string]bool) string {
 	// calls as having reached for no verb at all. Which is precisely the reading this file exists
 	// to eliminate, one level up, in the instrument written to eliminate it.
 	//
-	// A token following a flag is that flag's VALUE and can never be the verb. Dropping those is
-	// what stops `--seat-id red-lens-r1-L1` and `--reason "close it"` from nominating one.
-	var cand []string
-	value := false
-	for _, f := range fields[start:] {
-		if strings.HasPrefix(f, "-") {
-			value = true
-			continue
-		}
-		if value {
-			value = false // a flag's argument
-			continue
-		}
-		// The role is not part of the verb: the surface names verbs role-relatively (`show`,
-		// not `blue show`), because that is how an expectation is written.
-		switch f {
-		case "blue", "lens", "merge", "bench":
-			continue
-		}
-		cand = append(cand, f)
-	}
+	cand := commandWords(fields)
 	for i := range cand {
 		for n := min(3, len(cand)-i); n >= 1; n-- {
 			if v := strings.Join(cand[i:i+n], " "); verbs[v] {

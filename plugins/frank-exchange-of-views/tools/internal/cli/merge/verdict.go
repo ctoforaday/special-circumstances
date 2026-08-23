@@ -28,32 +28,30 @@ import (
 // events survive the working tree. Projections are regenerated on read from the
 // mirror, so the frozen snapshot is the source, not a materialized cache.
 func newVerdict() *cobra.Command {
-	c := seat.New("verdict",
-		"the seat's terminal act: --as "+record.MustEnum("verdict", "verdict").Spelling()+" — checkpoints records/ to the recovery mirror",
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			v, ok := record.VerdictOf(seat.Str(cmd, flags.As))
-			if !ok {
-				// THE REFUSAL NAMES WHAT WOULD HAVE WORKED. `%q is not a verdict` tells a seat it
-				// was wrong and not what to type — and this is the terminal act of the round, so
-				// a seat that cannot get past it has nowhere to go. The set is rendered from the
-				// same declaration the help renders, so the two cannot say different things.
-				return nil, feov.Errorf(feov.Validation,
-					"merge verdict: --%s must be one of %s (got %q) — the verdict is the round's terminal act and every later reader switches on it",
-					flags.As, record.MustEnum("verdict", "verdict").Spelling(), seat.Str(cmd, flags.As))
-			}
-			if _, err := record.Append(s.Identity(), &recordpb.RoundVerdict{Verdict: &v}); err != nil {
-				return nil, err
-			}
-			open, closed, err := view.Counts(s.RunDir)
-			if err != nil {
-				return nil, err
-			}
-			mirror, err := checkpoint(s.RunDir)
-			if err != nil {
-				return nil, err
-			}
-			return verdictResult{Verdict: seat.Str(cmd, flags.As), Open: open, Closed: closed, Checkpoint: mirror}, nil
-		})
+	c := seat.New("verdict", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		v, ok := record.VerdictOf(seat.Str(cmd, flags.As))
+		if !ok {
+			// THE REFUSAL NAMES WHAT WOULD HAVE WORKED. `%q is not a verdict` tells a seat it
+			// was wrong and not what to type — and this is the terminal act of the round, so
+			// a seat that cannot get past it has nowhere to go. The set is rendered from the
+			// same declaration the help renders, so the two cannot say different things.
+			return nil, feov.Errorf(feov.Validation,
+				"merge verdict: --%s must be one of %s (got %q) — the verdict is the round's terminal act and every later reader switches on it",
+				flags.As, record.MustEnum("verdict", "verdict").Spelling(), seat.Str(cmd, flags.As))
+		}
+		if _, err := record.Append(s.Identity(), &recordpb.RoundVerdict{Verdict: &v}); err != nil {
+			return nil, err
+		}
+		open, closed, err := view.Counts(s.RunDir)
+		if err != nil {
+			return nil, err
+		}
+		mirror, err := checkpoint(s.RunDir)
+		if err != nil {
+			return nil, err
+		}
+		return verdictResult{Verdict: seat.Str(cmd, flags.As), Open: open, Closed: closed, Checkpoint: mirror}, nil
+	})
 
 	enumhelp.Flag(c, flags.As, record.MustEnum("verdict", "verdict"), ("the seat's terminal act"))
 	return c

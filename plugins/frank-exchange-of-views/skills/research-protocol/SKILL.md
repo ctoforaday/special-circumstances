@@ -9,10 +9,10 @@ Research that survives an adversary.
 
 ## Protocol
 
-- BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as a LINE OF INQUIRY (`blue line-of-inquiry propose --reason "<the approach>" --hypothesis "<what would be true if it pays off>"`); searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the round-0 hypotheses are the ones that shape the entire run.
+- BEFORE searching, YOU MUST formulate 3–5 frontier hypotheses — what would be true if each candidate answer were right — and record each one as a LINE OF INQUIRY on the record — the approach, and what would be true if it paid off; searches then test hypotheses instead of wandering. On the record rather than in a file, because a hypothesis red cannot rule `too-thin` or `out-of-scope` is one nobody can contest — and the round-0 hypotheses are the ones that shape the entire run.
 - During research, YOU MUST search to **saturation**: stop only when new searches return already-seen sources (typically 20–30 searches for a deep topic).
 - During research, YOU MUST spend at least one search in five hunting **disconfirming** evidence against your current position. This is a drafting floor, not the verification: it keeps confirmation bias out of the draft; systematic disconfirmation is red's entire job.
-- During writing, YOU MUST add every citation with the TOOL — `blue cite --quote "<the exact sentence>" --url <u> --title <t>` — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected and logged as friction.
+- During writing, YOU MUST add every citation with the TOOL, against the exact sentence it backs — never by hand. The tool fetches the source once into the run cache, then splices an INVISIBLE, IMMORTAL `<!--cite:c-…-->` anchor at that sentence; assembly weaves the anchors into the visible `[^N]` footnotes and composes the `## Bibliography`. A hand-typed `[^label]` is not a citation: nothing backs it, the claim counter does not see it, and the unbacked-citations detector flags it. An unreachable source is unusable — the cite is rejected and logged as friction.
 - **The bibliography is BOTH teams'.** Red's `lens corroborate` — a source red went and found for a
   claim blue made — mints an anchor and joins the footnotes the same way when it SUPPORTS the
   claim. A reader cares that the text has appropriate references, not which seat inserted them.
@@ -60,11 +60,11 @@ research/<date>_<slug>/
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/round
 ├── blue/
 │                      # (the opening hypotheses are LINES OF INQUIRY on the record, not a file — read
-│                      #  them with `show lines-of-inquiry`. A hypothesis in a file is one red
+│                      #  read them as the `lines-of-inquiry` projection. A hypothesis in a file is one red
 │                      #  cannot rule too-thin or out-of-scope, and the round-0 ones shape the
 │                      #  whole run)
 │   ├── report.md      # blue's LIVING report — grows every round, never summarized away.
-│   │                  #   Authored prose, but every EDIT after round 0 goes through `blue edit`
+│   │                  #   Authored prose, but every EDIT after round 0 goes through the `edit` verb
 │   └── candidates/    # best-of-N method-lens lane drafts, preserved (authored)
 └── cost.md            # measured tokens + dollars per seat-round (feov-record cost)
 
@@ -110,8 +110,7 @@ There is no search index, and there are two access modes:
    go blind. This clause outranks any token saving.
 2. **Leaf-node fetch for verification** — a citation is checked against its source, never against a
    summary. For a source BLUE CITED, read the exact bytes blue read from the run cache
-   (`fetch --url <the cited url>` — a cache hit, so you audit the same artifact, not a page that may
-   have drifted since). For a source you discover yourself, pull it verbatim (Bash `curl`, PDF MCPs).
+   (a cache hit, so you audit the same artifact, not a page that may have drifted since). For a source you discover yourself, pull it verbatim (Bash `curl`, PDF MCPs).
    WebFetch is not used: it returns a summary, not the source.
 
 To find text inside the run's own artifacts, use `Grep` — the terms you want are the terms you
@@ -140,4 +139,4 @@ A subagent's only voice is its return value — so capability complaints travel 
 - AFTER any task where a missing tool, denied permission, or capability gap impeded you, YOU MUST report it in the envelope's `friction` field: name the capability and what you would have done with it.
 - AFTER any task where the material did not fit the shape you were given — a template section that made no sense for the topic, a protocol step that fought the work, an envelope field you had nothing honest to put in, content with no home — YOU MUST report the misfit as friction: name the template/step/field and what shape the work actually wanted.
 - YOU MUST NOT silently work around a capability gap — the workaround destroys the signal that would get you retooled.
-- Friction is recorded on the RECORD via the friction verb — every seat WRITES it, and the read is the OPERATOR's (`feov-record friction --run <dir>`, beside `verify` and `scorecard`), because a capability gap is a report to the human who can retool the seat, not material for the debate; capture reconciles every envelope's `friction` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.
+- Friction is recorded on the RECORD via the friction verb — every seat WRITES it, and the read is the OPERATOR's, on the operator's own surface and not on yours, because a capability gap is a report to the human who can retool the seat, not material for the debate; capture reconciles every envelope's `friction` field against it, and the self-improvement loop consumes it. Complaints are how the system learns what its agents actually need.

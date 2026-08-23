@@ -14,9 +14,9 @@ import (
 // all a seat could ever learn: no read verb, no projection. A probed merge seat blocked here
 // searched six views and three help pages, then ruled `rejected` on an argument it had not read.
 func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	for _, s := range []string{"blue-respond-r1", "red-merge-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundOf(s)}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -87,9 +87,9 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 // The PASS refusal must say how to unblock. Handing a seat an id with no read is what produced
 // the fabricated ruling in the first place.
 func TestThePassRefusalNamesTheRead(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	for _, sid := range []string{"blue-respond-r1", "red-merge-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: sid, Round: RoundOf(sid)}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: sid, Round: RoundIn(runDir)(sid)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}

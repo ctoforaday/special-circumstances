@@ -14,7 +14,7 @@ import (
 // two-round fixture and checks the structured view against the markdown render, section for
 // section, so the two readings of one replay are proven not to drift.
 func TestDebateJSONMirrorsRenderSections(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	merge := "red-merge-r1"
 	blue := "blue-lane-1"
 	judge := "judge-r1"
@@ -120,7 +120,7 @@ func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 // found_by, but NOT required_fix/acceptance_check), and closed gaps collapsed to a prose-free
 // {id, location, class} index. This is the once-per-turn read the full board is not.
 func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	m := "red-merge-r1"
 	longProblem := strings.Repeat("word ", 60) // ~300 chars, well over the 140-rune synopsis budget
 	writeShard(t, runDir, []*Event{
@@ -198,7 +198,7 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 // object that ALSO re-stated every top-level field, so each gap carried its prose twice. They are
 // now first-class and the nested object is gone — one copy, and nothing a reader needs is buried.
 func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	m := "red-merge-r1"
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{
@@ -242,7 +242,7 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 // which is the exact shape this codebase keeps finding. A finding is addressed by coalescence,
 // so the honest question is whether it was ever credited in a gap's found_by.
 func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	s := "red-lens-r1-L1"
 	m := "red-merge-r1"
 	writeShard(t, runDir, []*Event{

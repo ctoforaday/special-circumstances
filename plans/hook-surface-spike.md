@@ -134,6 +134,27 @@ agent_type  general-purpose
 Matched on `agent_type`, returns `additionalContext` to the subagent. Per-seat injection confirmed
 available.
 
+> **RE-MEASURED 2026-08-23 (#500).** Registered for real from a gitignored `settings.local.json`
+> and the payload captured whole. Three results:
+>
+> **The full key set is:** `agent_id`, `agent_type`, `cwd`, `hook_event_name`, `prompt_id`,
+> `session_id`, `transcript_path`. The section above listed the two that mattered at the time; the
+> rest matter now, and one absence matters most.
+>
+> **Nothing the workflow supplies reaches the hook.** The probe agent's prompt carried a unique
+> sentinel and it appears nowhere in the payload. So a dispatcher cannot hand `SubagentStart` a
+> token, and the hook can learn the run only the way `PreToolUse` already does — from the
+> singleton marker via `cwd`, which is identical for every agent.
+>
+> **`agent_type` is a ROLE and cannot discriminate a seat.** `debate.js` maps four types onto
+> every seat in a run: `red-auditor` covers every `red-lens-*` *and* `red-merge-rN`; `lead-judge`
+> covers `judge-rN`, `judge-petition-*`, `judge-terminal` *and* `assemble`. Thirteen seats, four
+> types. A hook cannot know which seat it is looking at.
+>
+> **Injection is EXERCISED, not merely available.** A hook emitting
+> `{"hookSpecificOutput":{"hookEventName":"SubagentStart","additionalContext":"…"}}` produced a
+> subagent that returned the marker verbatim from its own context with no tools used.
+
 ### `PreCompact` / `PostCompact`
 
 ```
@@ -374,7 +395,7 @@ writer consolidation is the fix; a lock would be the alternative.
 | `PostCompact` receives the summary | **VERIFIED** — 3 summaries, 692–11,882 chars |
 | **`PostCompact` can inject that summary back into context** | **REFUTED** — absent from the output union; stdout goes to the user; marker `NOT-SEEN` end-to-end (§3a) |
 | **`SessionStart(source=compact)` injects into the post-compaction context** | **VERIFIED** — `hook_additional_context` attachment, transcript line 42 (§3a) |
-| `SubagentStart` can inject per-seat context | Event and fields verified; injection not exercised |
+| `SubagentStart` can inject per-seat context | **VERIFIED 2026-08-23** — marker returned verbatim by the subagent (#500). The payload carries nothing workflow-supplied, and `agent_type` names a ROLE, not a seat |
 | `PostToolUseFailure` carries what a strike counter needs | **VERIFIED**, plus `is_interrupt` |
 | **`PostToolUseFailure` can inject the count into the model's context** | **VERIFIED** — `hook_additional_context` attachment under headless `claude -p`, against a `SessionStart` positive control (§2a) |
 | **Multiple hooks on one event run in parallel** | **VERIFIED** — overlapping intervals on `SessionStart` and `PostToolUse`; wall clock is the max, not the sum (§4b) |

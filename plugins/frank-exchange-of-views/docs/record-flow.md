@@ -46,7 +46,7 @@ flowchart TB
 
 ## Invariants the diagram encodes
 
-- **Findings are events, not files.** A lens records each finding through `feov-record lens
+- **Findings are events, not files.** A lens records each finding through `feov-record
   finding --key <local F1>`; the tool assigns the run-unique label `L{role}-F{N}` (role from
   the seat id). `red/candidates/*.md` is retired — nothing writes or reads it.
 - **The merge reads the findings VIEW**, structured JSON, and coalesces findings into gaps.

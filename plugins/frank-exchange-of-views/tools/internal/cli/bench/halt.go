@@ -15,16 +15,14 @@ import (
 // grade of ruling — and capture relays the written opinion VERBATIM, never
 // smoothed, so a halt reaches the human in the words the bench chose.
 func newHalt() *cobra.Command {
-	return seat.Prose(seat.New("halt",
-		"the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>",
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
-			if _, err := record.Append(s.Identity(), &recordpb.Halt{Opinion: proto.String(text)}); err != nil {
-				return nil, err
-			}
-			return seat.Msg{Message: "JUDICIAL HALT recorded — capture relays this verbatim"}, nil
-		}))
+	return seat.Prose(seat.New("halt", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		text, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := record.Append(s.Identity(), &recordpb.Halt{Opinion: proto.String(text)}); err != nil {
+			return nil, err
+		}
+		return seat.Msg{Message: "JUDICIAL HALT recorded — capture relays this verbatim"}, nil
+	}))
 }

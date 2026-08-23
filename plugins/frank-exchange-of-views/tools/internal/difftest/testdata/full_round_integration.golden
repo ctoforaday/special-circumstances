@@ -1,14 +1,24 @@
-$ lens register --run {RUN} --seat-id red-lens-r1-L1
+$ register --run {RUN} --seat-id red-lens-r1-L1
 exit 0
 stdout:
 registered red-lens-r1-L1
 
-$ lens verify --run {RUN} --seat-id red-lens-r1-L1 --quote claim one --title https://example.invalid/a --trust high --access-date 2026-07-18
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
+$ verify --run {RUN} --seat-id red-lens-r1-L1 --quote claim one --title https://example.invalid/a --trust high --access-date 2026-07-18
 exit 2
 stderr:
 feov-record: unknown flag: --title
 
-adjudicate ONE citation blue authored: --anchor c-<hex> (from `show evidence`) --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `absent` — `absent` means you read the source and the claim is not in it. An UNEVIDENCED claim is a finding: raise it with `finding`, which is the channel for "this assertion rests on nothing", exactly as it is for any other defect in the text.
+judge a citation blue authored, when the anchor exists and you have read what it points at
+
+THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `absent` — `absent` means you read blue's source and the claim is not in it.
+
+An unevidenced claim is not this verb's, and it is not automatically a finding either: if a source exists and you can reach it, `corroborate` is how you go and get it, and it answers whether the claim is true in the WORLD. `finding` is for when there is nothing to fetch, and answers whether the TEXT stands up.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -16,17 +26,17 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} verify [flags]
+  feov-record verify [flags]
 
 Flags:
-      --access-date YYYY-MM-DD     YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:c-…-->   the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `lens show evidence`
-      --as refutes                 REQUIRED — REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and `absent` are findings, not failures to grade
-      --confidence refutes         REQUIRED — REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: refutes you would defend and `refutes` you are unsure of are different facts
-  -h, --help                       help for verify
-      --quote string               REQUIRED — REQUIRED — the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs (the claim you are checking)
-      --reason string              REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
-      --reason-file -              read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
+      --anchor <!--cite:c-…-->     the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `lens show evidence`
+      --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade
+      --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
+  -h, --help                         help for verify
+      --quote string                 REQUIRED — the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs (the claim you are checking)
+      --reason string                REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -                read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
 
 Enumerated values:
   --as
@@ -43,41 +53,53 @@ Enumerated values:
     low     your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ lens finding --run {RUN} --seat-id red-lens-r1-L1 --key F1 --severity medium --likelihood medium --impact high --quote ## S2 --reason citation does not support
+$ finding --run {RUN} --seat-id red-lens-r1-L1 --key F1 --severity medium --likelihood medium --impact high --quote ## S2 --reason citation does not support
 exit 0
 stdout:
 finding recorded: L1-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
-$ lens register --run {RUN} --seat-id red-lens-r1-L5
+$ register --run {RUN} --seat-id red-lens-r1-L5
 exit 0
 stdout:
 registered red-lens-r1-L5
 
-$ lens finding --run {RUN} --seat-id red-lens-r1-L5 --key F1 --severity high --likelihood high --impact high --quote ## S4 --reason a leap of faith
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
+$ finding --run {RUN} --seat-id red-lens-r1-L5 --key F1 --severity high --likelihood high --impact high --quote ## S4 --reason a leap of faith
 exit 0
 stdout:
 finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
-$ merge register --run {RUN} --seat-id red-merge-r1
+$ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
 registered red-merge-r1
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class citation-drift --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote ## S2 --found-by L1-F1,L5-F1 --problem the cited source does not say this
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
+$ mint --run {RUN} --seat-id red-merge-r1 --class citation-drift --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote ## S2 --found-by L1-F1,L5-F1 --problem the cited source does not say this
 exit 0
 stdout:
 minted R1-1
 
-$ merge position --run {RUN} --seat-id red-merge-r1 --reason round one: FAIL
+$ position --run {RUN} --seat-id red-merge-r1 --reason round one: FAIL
 exit 0
 stdout:
 position recorded
 
-$ merge verdict --run {RUN} --seat-id red-merge-r1 --as FAIL
+$ verdict --run {RUN} --seat-id red-merge-r1 --as FAIL
 exit 0
 stdout:
 verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}

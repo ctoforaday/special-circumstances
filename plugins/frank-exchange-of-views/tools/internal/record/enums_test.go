@@ -108,14 +108,14 @@ func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
 // case and separator differences and NOTHING wider — a wider match would refuse a closure
 // class somebody meant, in an enum that is deliberately open.
 func TestSameWordCatchesTyposAndNothingWider(t *testing.T) {
-	same := []string{"closed-with-regression", "Closed_With_Regression", "CLOSEDWITHREGRESSION", "closed with regression"}
+	same := []string{"repaired-with-regression", "Repaired_With_Regression", "REPAIREDWITHREGRESSION", "repaired with regression"}
 	for _, s := range same {
-		if !sameWord(s, "closed_with_regression") {
+		if !sameWord(s, "repaired_with_regression") {
 			t.Errorf("sameWord(%q) missed a typo", s)
 		}
 	}
-	for _, s := range []string{"closed", "closed_with_regressions", "evidence-rebutted", "", "regression"} {
-		if sameWord(s, "closed_with_regression") {
+	for _, s := range []string{"repaired", "repaired_with_regressions", "evidence-rebutted", "", "regression"} {
+		if sameWord(s, "repaired_with_regression") {
 			t.Errorf("sameWord(%q) matched something that is a different word", s)
 		}
 	}
@@ -254,4 +254,69 @@ func bodyDescriptorFor(typ string) (protoreflect.MessageDescriptor, bool) {
 		}
 	}
 	return nil, false
+}
+
+// THE DOCKET AXIS AND THE ARTIFACT AXIS ARE DIFFERENT, and for a long time one word carried both.
+//
+// Measured 2026-08-22 on the sqlite-schema run: the board said open:0 while assembly-screen
+// reported a source red had found AGAINST still cited in the shipped report. Two gates, one run,
+// contradicting each other in English — because "closed" answers whether the DISPUTE ended, and
+// three of the six classes end the dispute while leaving a live defect in the artifact.
+func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
+	for _, c := range []struct {
+		class string
+		want  ArtifactState
+	}{
+		{"repaired", ArtifactRepaired},
+		{"not_a_defect", ArtifactNoDefect},
+		{"defect_accepted", ArtifactDefectLive},
+		{"defect_owed_elsewhere", ArtifactDefectLive},
+		{"repaired_with_regression", ArtifactDefectLive},
+		{DispositionCarried, ArtifactUnexamined},
+	} {
+		got, ok := ArtifactStateOf(c.class)
+		if !ok {
+			t.Errorf("%s: ArtifactStateOf reported it cannot answer, but only amends_prior may", c.class)
+			continue
+		}
+		if got != c.want {
+			t.Errorf("%s -> %s, want %s", c.class, got, c.want)
+		}
+	}
+
+	// THE THREE THAT SHIP A LIVE DEFECT must not be readable as repaired. This is the assertion
+	// the board could not make before, and the one the run needed.
+	for _, class := range []string{"defect_accepted", "defect_owed_elsewhere", "repaired_with_regression"} {
+		if got, _ := ArtifactStateOf(class); got == ArtifactRepaired || got == ArtifactNoDefect {
+			t.Errorf("%s reads as %s — a settled dispute is being reported as a sound artifact, "+
+				"which is how a board says open:0 while the report ships a defect red found against", class, got)
+		}
+	}
+
+	// AMENDS_PRIOR REFUSES TO ANSWER rather than guessing. It is defined relative to an earlier
+	// ruling, so a table row for it would be a fabricated value wearing a derived one's authority.
+	if _, ok := ArtifactStateOf("amends_prior"); ok {
+		t.Error("amends_prior answered from the class alone — it inherits from the ruling it amends, " +
+			"and a plausible answer here is worse than an honest refusal")
+	}
+
+	// A WORD OUTSIDE THE VOCABULARY REPORTS ITSELF. No record can carry one — the schema's CHECK
+	// is generated from the same enum artifactByClass is checked against below — so this pins the
+	// behaviour for input that reached the function without passing the schema. `moot` is the
+	// live example: the engine still offers it as a bench resolution and the record refuses it.
+	if got, ok := ArtifactStateOf("moot"); !ok || got != ArtifactUnknown {
+		t.Errorf("a word the schema does not carry read as %q/%v, want unknown — it must not "+
+			"fold into a healthy value", got, ok)
+	}
+
+	// EVERY class in the live vocabulary is covered, so adding one without deciding its artifact
+	// meaning fails here rather than defaulting to unknown in a projection nobody re-reads.
+	for _, name := range ClosureClassNames() {
+		if name == "amends_prior" {
+			continue
+		}
+		if got, _ := ArtifactStateOf(name); got == ArtifactUnknown {
+			t.Errorf("closure class %q has no artifact meaning — decide it here, not at the read", name)
+		}
+	}
 }

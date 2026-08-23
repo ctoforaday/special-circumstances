@@ -16,21 +16,32 @@ import (
 //
 // It is NOT the seat's work list, and its Short used to call it "the seat's in-run self-read"
 // three lines under a comment saying "Not a seat verb". That contradiction is how a third name
-// for one thing gets built: scorecard measures how the run is GOING, `show` says what is LEFT. Ported from
+// for one thing gets built: scorecard measures how the run is GOING, `show` says what is LEFT.
+//
+// THE SEAT-FACING READ IS NOW `show scorecard`, and this command kept only the job it alone can
+// do: read a chair OTHER than your own. --chair exists here because an operator is not a party
+// and has no chair of its own; a seat has exactly one and passes nothing. The dispatch prompt
+// used to send seats HERE, by telling them to override --seat-id to `operator` and find "the
+// selector that names a chair" — four seats across three runs filed friction saying no such
+// thing was on their surface, and the one that obeyed contradicted the rule that --seat-id
+// selects your surface. Ported from
 // scorecards.mjs's CLI. It reads the record IN-PROCESS (BoardState → board/findings/debate
 // projections) instead of self-spawning `merge show`, plus the journal envelopes + telemetry;
 // mid-run the envelope-derived rows read "not computed". Not a seat verb.
 func newScorecard() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "scorecard --run <dir> --chair blue|red|bench",
-		Short:         "print a chair's scorecard for this run (operator, not a seat verb — a seat's own read is `<role> show`)",
+		Short:         "print a chair's scorecard for this run — OPERATOR ANALYTICS ACROSS CHAIRS. A seat reads its OWN chair with `show scorecard`, which takes no --chair because the chair is the seat it registered as",
 		Long:          "scorecard computes the given chair's scorecard rows from the run's record (board/findings/debate, read in-process), its journal envelopes, and its board telemetry, and prints the markdown section — the same numbers the dashboard and the human see. Ported from scorecards.mjs. The envelope-derived rows read \"not computed\" until capture assembles the journal.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// Resolved so the injected run reaches reads too, not only writes.
-			runDir := seat.Of(cmd).RunDir
+			runDir, rerr := seat.Of(cmd).RequireRun("scorecard")
+			if rerr != nil {
+				return rerr
+			}
 			chair, _ := cmd.Flags().GetString(flags.Chair)
 			cards := map[string]bool{"blue": true, "red": true, "bench": true}
 			if runDir == "" || !cards[chair] {

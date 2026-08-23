@@ -31,17 +31,29 @@ import "fmt"
 
 // ElicitPrompt is the sitting a seat is asked to reason about rather than perform.
 //
-// It deliberately keeps the board's own Task, so the situation is identical to the acting probe
-// and the two are comparable: the same seat, at the same board, asked to do versus asked to
-// weigh.
-func ElicitPrompt(role, seatID, runDir, bin string, b Board) string {
+// `sitting` is the prompt debate.js would have dispatched — passed in rather than composed here,
+// so the acting arm and this one put the seat in the SAME situation and differ only in what they
+// ask of it. Composing a second description of the situation is how the two arms would start
+// measuring different boards while reporting one comparison.
+//
+// AND THE IDENTITY CONTRACT IS NOT RESTATED HERE. This wrapper used to carry its own paragraph
+// about --seat-id, written when the situation was a two-line task. The situation is now
+// debate.js's own prompt, which states the contract itself — and the two statements had already
+// drifted apart: the wrapper said to pass --seat-id on every read, production says to state it
+// once at register and never again. A seat handed both is being told to disobey one of them, and
+// whichever it picks is scored as its judgement.
+func ElicitPrompt(role, seatID, runDir, bin, sitting string) string {
 	return fmt.Sprintf(`You are the %s seat in a frank-exchange-of-views run. Your seat id is %s.
 
 Run directory: %s — use this ABSOLUTE path when you read files under it.
-The record tool is %s. Your identity and run are INJECTED (%s): do not pass --run or --seat-id.
+
+The record tool is the EXECUTABLE at %s. Invoke it by that absolute path, exactly as written — it is
+a file, not a directory: do not cd into it, do not look for a binary inside it, and do not shorten
+it.
 
 DO NOT ACT. Record nothing, change nothing, write no files. This sitting is a question about
-judgement, not a task — nothing you say here goes on the record.
+judgement, not a task — nothing you say here goes on the record. Everything below THE SITUATION is
+the sitting you would have been given; read it as the situation, not as work to carry out.
 
 First, read whatever you need in order to understand what is in front of you: the board, the
 artifact under audit, your own available commands and their --help. Take as long as you need.
@@ -63,5 +75,5 @@ list of everything available.
 
 THE SITUATION:
 
-%s`, role, seatID, runDir, bin, seatID, b.Sitting())
+%s`, role, seatID, runDir, bin, sitting)
 }

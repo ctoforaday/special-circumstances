@@ -39,7 +39,7 @@ extend google.protobuf.FieldOptions {
 // A VALUE'S MEANING BELONGS ON THE VALUE.
 //
 // The seat-facing sets are closed, and a closed set delivered as bare words leaves a seat to guess
-// which situation warrants which — `--as closed | rebuttal_sustained | risk_accepted` is six words
+// which situation warrants which — `--as repaired | not_a_defect | defect_accepted` is six words
 // and one shared sentence. The meanings existed all along as SOURCE COMMENTS, written for a Go
 // reader and delivered to no seat, which is the shape enumvalue.go was created to end.
 //
@@ -76,7 +76,7 @@ extend google.protobuf.EnumValueOptions {
 
 // A CONSTRAINT THAT DEPENDS ON ANOTHER FIELD BELONGS ON THE MESSAGE.
 //
-// `required` is a property of ONE field and lives on it. "closed_with_regression requires a
+// `required` is a property of ONE field and lives on it. "repaired_with_regression requires a
 // successor" is not: it is a rule about two fields together, and no annotation on either can say
 // it. Those rules were hand-written `if` blocks in validate — the app refusing what the database
 // would happily store, which for a record that is EVIDENCE is a real gap: anything writing SQL
@@ -271,12 +271,12 @@ enum CheckKind {
 // them disagree, because every set was open.
 enum Disposition {
   DISPOSITION_UNSPECIFIED = 0;
-  DISPOSITION_CLOSED = 1 [(means) = "the repair was verified at the leaf and nothing regressed", (closes) = true];
-  DISPOSITION_CLOSED_WITH_REGRESSION = 2 [(means) = "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward", (closes) = true];
+  DISPOSITION_REPAIRED = 1 [(means) = "the repair was verified at the leaf and nothing regressed", (closes) = true];
+  DISPOSITION_REPAIRED_WITH_REGRESSION = 2 [(means) = "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward", (closes) = true];
   DISPOSITION_AMENDS_PRIOR = 3 [(means) = "a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit", (closes) = true];
-  DISPOSITION_REBUTTAL_SUSTAINED = 4 [(means) = "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be", (closes) = true];
-  DISPOSITION_RISK_ACCEPTED = 5 [(means) = "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record", (closes) = true];
-  DISPOSITION_ROUTED_TO_INFRASTRUCTURE = 6 [(means) = "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped", (closes) = true];
+  DISPOSITION_NOT_A_DEFECT = 4 [(means) = "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be", (closes) = true];
+  DISPOSITION_DEFECT_ACCEPTED = 5 [(means) = "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record", (closes) = true];
+  DISPOSITION_DEFECT_OWED_ELSEWHERE = 6 [(means) = "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped", (closes) = true];
 
   // THE ONE WORD THAT DOES NOT CLOSE, and the reason this enum carries `closes` at all.
   //
@@ -648,7 +648,7 @@ message Close {
   // resolved nothing. It was an `if` in validate, which left the DATABASE willing to store the very
   // state the tool refused.
   option (check) = {
-    expr: "\"closure_class\" <> 'closed_with_regression' OR \"successor\" IS NOT NULL"
+    expr: "\"closure_class\" <> 'repaired_with_regression' OR \"successor\" IS NOT NULL"
     why: "a closure that reports a regression must name the gap carrying it forward — lineage never drops"
   };
 
@@ -751,6 +751,26 @@ message SpotCheck {
 
 // Opinion is the bench ruling on a gap.
 message Opinion {
+  // ONE QUESTION, TWO ASSERTABLE ANSWERS — the `friction --none` shape.
+  //
+  // "What would reopen this?" has a real answer of "nothing", and that answer must be POSITIVE.
+  // Left as an empty `reopens_on` it is indistinguishable from a bench that skipped the field,
+  // which is the defect the friction channel carried for eighteen consecutive sittings until
+  // `--none` made the empty case sayable.
+  option (check) = {
+    expr: "\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
+    why: "a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round"
+  };
+
+  // REFUSED TOGETHER rather than silently preferring one: a ruling that says both "this is final"
+  // and "here is what would undo it" has not decided, and picking for it would record a decision
+  // nobody made. It is a rule about two fields, so it lives here rather than in one verb's parse
+  // — the CLI is not the only writer, and the database was willing to store the contradiction.
+  option (check) = {
+    expr: "\"reopens_on\" IS NULL OR \"final\" IS NULL"
+    why: "--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one"
+  };
+
   optional string gap_id = 1 [(sql) = {
     required: true
     flag: "id"
@@ -807,6 +827,25 @@ message Opinion {
     flag: "reason"
     why: "the ruling's rationale — a disposition with no stated reasoning is indistinguishable from a default"
   }];
+
+  // THE PROPOSITION NOW BARRED. A finding is a claim, its evidence and its demand; a fate says
+  // which of the three fell only to whoever wrote it. Presence-only for the same reason `tension`
+  // is: demanding prose here would produce a restatement of the disposition, which reads as
+  // reasoning and is worse than an honest blank.
+  optional string settled = 7 [(sql) = {
+    required: true
+    allow_empty: true
+    why: "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition"
+  }];
+
+  optional string reopens_on = 8 [(sql) = {
+    flag: "reopens-on"
+    why: "the evidence or condition that would make this worth raising again"
+  }];
+
+  // Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the
+  // check above is what makes "neither" unrepresentable.
+  optional bool final = 9;
 }
 
 // Finding is a lens observation. The label is TOOL-assigned (L{lens}-F{n}); an unlabelled
@@ -1170,7 +1209,7 @@ enum GradeDimension {
   GRADE_DIMENSION_SEVERITY = 1 [(means) = "how bad it is if it bites"];
   GRADE_DIMENSION_LIKELIHOOD = 2 [(means) = "how likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis"];
   GRADE_DIMENSION_IMPACT = 3 [(means) = "how far the damage reaches"];
-  GRADE_DIMENSION_COMPLEXITY = 4 [(means) = "what the fix costs; it is what makes risk_accepted arguable"];
+  GRADE_DIMENSION_COMPLEXITY = 4 [(means) = "what the fix costs; it is what makes defect_accepted arguable"];
 }
 
 // PetitionMotion is the constitutional short-circuit: any party seat may petition the bench.
@@ -1300,6 +1339,29 @@ message Register {
   // tool_version is stamped on the seat's first act, so a run that somehow mixes binaries says
   // so in its own record instead of producing events whose difference nobody can explain.
   optional string tool_version = 1;
+
+  // THE BINDING BETWEEN A HARNESS AGENT AND A SEAT, WRITTEN HERE AND NOWHERE ELSE.
+  //
+  // register is every seat's stated first action, which makes it the one moment the mapping is
+  // knowable: the hook supplies the agent id — the only payload field that discriminates one
+  // seat from another — and the seat supplies which seat it is. Recording their join is what
+  // turns self-asserted identity into a fact later calls can be held to.
+  //
+  // A FIELD, NOT A SIDE TABLE. The alternative was a JSON map the hook keeps, keyed on a seat id
+  // recovered by parsing the seat's own command — a fact read back out of prose, whose miss is
+  // indistinguishable from an honest absence.
+  //
+  // ABSENT IS NOT "". A run whose hook never fired carries no agent_id on any register event, and
+  // that stays legible as NOT MEASURED rather than reading as an agent whose handle is empty.
+  optional string agent_id = 2;
+
+  // run_via says which path supplied the run directory. A run whose seats all resolve by
+  // INFERENCE is a run the PreToolUse hook is not reaching, and nothing else records that.
+  //
+  // Absent on an IMPLICIT register, and that absence is the honest answer: that path fires when a
+  // seat writes before registering, so nothing observed how the run directory was resolved, and a
+  // guess would put a fact on the record nobody measured.
+  optional string run_via = 3;
 }
 
 // RoundVerdict carries red's terminal gate on a round.

@@ -22,25 +22,23 @@ import (
 func newSpotCheck() *cobra.Command {
 	var ids flags.CSV
 
-	c := seat.New("spot-check",
-		`the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			none := seat.Given(cmd, flags.None)
-			body := &recordpb.SpotCheck{
-				Ids:    ids.Value(),
-				Reason: proto.String(seat.Str(cmd, flags.Reason)),
-			}
-			if none {
-				body.None = proto.Bool(true)
-			}
-			if _, err := record.Append(s.Identity(), body); err != nil {
-				return nil, err
-			}
-			if none {
-				return spotCheckResult{}, nil
-			}
-			return spotCheckResult{Sampled: ids.Value()}, nil
-		})
+	c := seat.New("spot-check", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		none := seat.Given(cmd, flags.None)
+		body := &recordpb.SpotCheck{
+			Ids:    ids.Value(),
+			Reason: proto.String(seat.Str(cmd, flags.Reason)),
+		}
+		if none {
+			body.None = proto.Bool(true)
+		}
+		if _, err := record.Append(s.Identity(), body); err != nil {
+			return nil, err
+		}
+		if none {
+			return spotCheckResult{}, nil
+		}
+		return spotCheckResult{Sampled: ids.Value()}, nil
+	})
 
 	c.Flags().Var(&ids, flags.IDs, "comma-separated archived closures you re-verified this round")
 	// AN HONESTLY-EMPTY ROUND IS A DISCHARGE, NOT A SKIP.
@@ -57,7 +55,6 @@ func newSpotCheck() *cobra.Command {
 	// empty at round start, floor not applicable" from "the seat skipped its duty".
 	// --none --reason says which, and the bare form keeps working.
 	c.Flags().Bool(flags.None, false, "the archive was empty at round start, so there was nothing to sample")
-	c.Flags().String(flags.Reason, "", "what the sample showed — or, with --none, why there was nothing to sample. ONE prose channel: it was two flags (--notes and --reason) filled by different branches of one verb, so what a spot-check found and why it found nothing were the same fact under two names")
 	// COBRA SAYS THIS, not the handler. Both rules were hand-written refusals inside RunE, which
 	// means neither could be read from `--help` and neither fired until after the seat had
 	// composed the whole invocation.
@@ -67,7 +64,10 @@ func newSpotCheck() *cobra.Command {
 	// so "the archive was empty at round start" and "the seat skipped its duty" were the same
 	// event. Cobra has no one-way "--none needs --reason", and it does not need one: BOTH forms
 	// owe a reason.
-	_ = c.MarkFlagRequired(flags.Reason)
+	// REQUIRED, THROUGH EITHER SPELLING, and stated once by the channel itself rather than by a
+	// group this verb has to remember to declare. MarkFlagRequired names one flag and would refuse
+	// the file form, which is what the hand-registered --reason here used to do.
+	seat.ProseRequired(c)
 	return c
 }
 

@@ -27,7 +27,7 @@ func seedReferents(t *testing.T, runDir string) {
 	// broken rather than as the fixture being a placeholder.
 	seedBlueReport(t, runDir)
 	for i := 0; i < 2; i++ {
-		if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--key", fmt.Sprintf("seed-%d", i), "--class", "x", "--check-kind", "document", "--check", "c",
 			"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
@@ -50,13 +50,13 @@ func seedReferents(t *testing.T, runDir string) {
 		"--reason", "the seeded petition this fixture answers"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "seed-archived", "--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", "R1-3", "--as", "closed", "--verified-by", "L1", "--verified-with", "go test",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "R1-3", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test",
 		"--verified-against", "./x", "--reason", "closed so the archive is not empty"); err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func seedReferents(t *testing.T, runDir string) {
 	// nothing in the run, and the lens's presence used to come from a seeded `observe` — retired
 	// with #327. `friction` is the lens verb with no referents of its own, so it seeds presence
 	// without seeding state any case then has to work around.
-	if _, err := run(t, "lens", "friction", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "friction", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 		"--reason", "seeded so the lens seat has sat"); err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "lens corroborate without an access date leaves the key absent",
-			path: []string{"lens", "corroborate"}, seatID: "red-lens-r1-L1",
+			path: []string{"corroborate"}, seatID: "red-lens-r1-L1",
 			args: []string{"--quote", "c", "--url", "https://example.test/b", "--title", "Example B",
 				"--as", "weak", "--confidence", "low", "--reason", "it gestures at it"},
 			typ:    recordpb.EventType_EVENT_TYPE_VERIFY,
@@ -161,7 +161,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "blue line of inquiry propose records the direction and its hypothesis",
-			path: []string{"blue", "line-of-inquiry", "propose"}, seatID: "blue-lane-1",
+			path: []string{"line-of-inquiry", "propose"}, seatID: "blue-lane-1",
 			args: []string{"--reason", "search the offline archive", "--method", "full-text search",
 				"--hypothesis", "the 1997 proceedings are scanned"},
 			typ: recordpb.EventType_EVENT_TYPE_AVENUE,
@@ -172,7 +172,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "motion petition rule records the ruling and its opinion",
-			path: []string{"motion", "petition", "rule"}, seatID: "judge-petition",
+			path: []string{"motion", "petition", "rule"}, seatID: "judge-petition-red-merge-r1",
 			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 			want: map[string]string{"motion_id": "M2", "subject": "petition",
@@ -200,7 +200,7 @@ func TestVerbPayloads(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			runDir := t.TempDir()
+			runDir := newRun(t)
 			seedReferents(t, runDir)
 			// THE VERB COMES FROM `typ`, NOT FROM THE TEST'S PROSE NAME.
 			//
@@ -256,9 +256,9 @@ func TestVerbPayloads(t *testing.T) {
 // same "lineage none, not lineage unknown" rule the mint lists follow.
 func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	t.Run("with ids", func(t *testing.T) {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		seedReferents(t, runDir)
-		out, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+		out, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--ids", "R1-3", "--reason", "it still holds")
 		if err != nil {
 			t.Fatal(err)
@@ -323,7 +323,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 // verb twice learned nothing about which sample stood. `events.key` is UNIQUE now, so the second
 // write fails and the seat is told why.
 func TestSpotCheckIsASingleton(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seedReferents(t, runDir)
 	if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", "R1-3",
 		"--reason", "re-read the closure record"); err != nil {
@@ -350,14 +350,14 @@ func TestSpotCheckIsASingleton(t *testing.T) {
 
 // regrade moves only the grades it carries, and refuses without its basis.
 func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seatID := "red-merge-r1"
-	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", seatID,
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "merge", "regrade", "--run", runDir, "--seat-id", seatID,
+	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", seatID,
 		"--id", "R1-1", "--severity", "certain", "--reason", "new evidence in §4"); err != nil {
 		t.Fatal(err)
 	}
@@ -410,10 +410,10 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 	}
 	body := "a multi-line payload\nwith unicode — ✓ 日本語\nand <angle> & entities\n"
 	for _, tc := range cases {
-		t.Run(tc.role+"/"+tc.verb, func(t *testing.T) {
-			runDir := t.TempDir()
+		t.Run(tc.seatID+"/"+tc.verb, func(t *testing.T) {
+			runDir := newRun(t)
 			seedReferents(t, runDir)
-			args := append([]string{tc.role, tc.verb, "--run", runDir, "--seat-id", tc.seatID,
+			args := append([]string{tc.verb, "--run", runDir, "--seat-id", tc.seatID,
 				"--reason-file", writeTemp(t, body)}, tc.extra...)
 			if _, err := run(t, args...); err != nil {
 				t.Fatal(err)

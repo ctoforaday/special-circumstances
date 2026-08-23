@@ -14,10 +14,10 @@ import (
 
 const role = "blue"
 
-func NewCommand() *cobra.Command {
-	return seat.Role(role,
-		"blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.",
-		seat.Register("FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed"),
+// Verbs is this seat's surface, mounted at the ROOT of its own tree. See seat.RoleVerbs.
+func Verbs() []*cobra.Command {
+	return seat.RoleVerbs(role,
+		seat.Register(),
 		newEdit(),
 		newCite(),
 		newProve(),
@@ -26,8 +26,8 @@ func NewCommand() *cobra.Command {
 		newInquiry(),
 		newManifestRow(),
 		newClaimIndex(),
-		seat.Position("the round's ### BLUE section (prose via --reason)"),
-		seat.Closing("a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>"),
-		seat.Friction("a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason \"<what you reached for and found>\" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused"),
+		seat.Position("position-blue"),
+		seat.Closing("closing-blue"),
+		seat.Friction(),
 	)
 }

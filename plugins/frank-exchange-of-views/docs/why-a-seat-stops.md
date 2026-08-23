@@ -99,6 +99,19 @@ The #474 split is semantically sound and the seat walked to it perfectly when as
 because the two neighbouring help texts each say "that's a finding" without qualifying which question
 they are answering.
 
+> **FIXED.** All three Shorts now name the question they answer — `finding` the TEXT, `corroborate`
+> the WORLD, `verify` blue's own source — and each routes to the others at the boundary. `finding`
+> also states the asymmetry the seat identified rather than leaving it to act: *"this verb cannot
+> fail, needing no fetch and risking no `absent`, and the evidence verbs can."*
+>
+> The gate that would have caught it is derived rather than written for this case:
+> `TestSplitVerbsNameEachOtherInTheirHelp` pairs verbs by the event type they WRITE — a
+> `seat.Records(c, <type>)` annotation means a verb was given a different required-field contract and
+> told to write the original's type, which is exactly what a split is — and requires each half to
+> name the other. Run against the tree it found a second instance nobody had reported: **`merge close`
+> never named `carry`**, so a merge seat that could not produce a verification triple for work an
+> earlier round did had no pointer to the verb that exists for precisely that. Now fixed too.
+
 **It converted a question it could answer into a task it assigned.** F2's required fix demands blue
 *"cite the withdrawal notice with its date"* — a public document the lens had a verb for. And it
 caught itself in the circularity: *"the claim names nothing, so there's nothing to look up, and

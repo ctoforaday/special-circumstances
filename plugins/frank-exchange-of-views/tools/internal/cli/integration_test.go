@@ -25,15 +25,10 @@ import (
 func seatRun(t *testing.T) string {
 	t.Helper()
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
-	runDir := t.TempDir()
-	for _, s := range []struct{ role, id string }{
-		{"lens", "red-lens-r1-L1"},
-		{"merge", "red-merge-r1"},
-		{"blue", "blue-respond-r1"},
-		{"bench", "judge-r1"},
-	} {
-		if _, err := run(t, s.role, "register", "--run", runDir, "--seat-id", s.id); err != nil {
-			t.Fatalf("register %s: %v", s.id, err)
+	runDir := newRun(t)
+	for _, id := range []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
+			t.Fatalf("register %s: %v", id, err)
 		}
 	}
 	// A lens finding is now anchored into blue/report.md and rejected unless its
@@ -52,7 +47,7 @@ func seatRun(t *testing.T) string {
 // exercise it passes its own quote.
 func mintGap(t *testing.T, runDir, key, class string) string {
 	t.Helper()
-	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", key, "--class", class, "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low")
@@ -97,11 +92,11 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 	id := mintGap(t, runDir, "bench-closes-this", "cross-seat-visibility")
 
 	// The bench rules the gap closed.
-	if _, err := run(t, "bench", "opinion", "--run", runDir, "--seat-id", "judge-r1",
-		"--id", id, "--as", "closed",
+	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
+		"--id", id, "--as", "repaired",
 		"--principle", "the repair discharges the defect at the leaf",
 		"--tension", "thoroughness against ceremony",
-		"--review-flag", "no — the closure is mechanical and the anchor is checkable",
+		"--review-flag", "no — the closure is mechanical and the anchor is checkable", "--settled", "the proposition this ruling bars", "--final",
 		"--reason", "closed at the bench, not by red"); err != nil {
 		// NEVER skip here. A skip would excuse exactly the defect this test exists to
 		// catch, and a suite that excuses its own subject is how the projection shipped
@@ -166,8 +161,8 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	if err := os.WriteFile(prose, []byte("re-read the cited source; the digits match the arm the claim names"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--as", "closed",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", id, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
 		"--reason-file", prose); err != nil {
 		t.Fatalf("close: %v", err)
@@ -191,13 +186,13 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 // were invisible to the others, every cross-seat duty in the protocol would be unverifiable.
 func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 		"--key", "F1", "--quote", "§2", "--reason", "a finding",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
 	mintGap(t, runDir, "shared-record", "one-record")
-	if _, err := run(t, "blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--reason", "considered rewriting the parser", "--as", "declined",
 		"--reason", "the input grammar is not stable enough to justify it this round"); err != nil {
 		t.Logf("blue line of inquiry shape rejected: %v", err)

@@ -23,46 +23,49 @@ import (
 // a judge — and a disposition with no stated principle is indistinguishable from
 // a default. Requiring the reasoning is what makes the difference visible.
 func newOpinion() *cobra.Command {
-	c := seat.Prose(seat.New("opinion",
-		// The Use line named two of the seven dispositions and trailed off in an ellipsis. A
-		// partial vocabulary is worse than none: a seat that reads `carried|closed|...` has been
-		// given enough to act on and not enough to choose well, which is how a bench came to rule
-		// `carried` on 64 of 65 items. The set, with what each value is FOR, is one `--help` away
-		// and is rendered from the record's own vocabulary.
-		`a ruling as an OPINION: --id R3-2 --as <disposition> --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
-			// The word resolves through the ONE vocabulary both closing verbs share. A miss is
-			// refused here rather than recorded as the unspecified zero, because an unset
-			// disposition reads downstream as a gap the bench never ruled on — which is a
-			// quieter, worse outcome than a typo that gets told no.
-			as, ok := record.DispositionOf(seat.Str(cmd, flags.As))
-			if !ok {
-				return nil, feov.Errorf(feov.Validation,
-					"bench opinion: %q is not a disposition — the word is what every later reader switches on, and one the record does not know leaves the gap ruled by nobody. Run `feov-record bench opinion --help` for the set and what each value is for", seat.Str(cmd, flags.As))
-			}
-			body := &recordpb.Opinion{
-				GapId:       proto.String(seat.Str(cmd, flags.ID)),
-				Disposition: &as,
-				Principle:   proto.String(seat.Str(cmd, flags.Principle)),
-				Tension:     proto.String(seat.Str(cmd, flags.Tension)),
-				ReviewFlag:  proto.String(seat.Str(cmd, flags.ReviewFlag)),
-				Rationale:   proto.String(text),
-			}
-			if _, err := record.Append(s.Identity(), body); err != nil {
-				return nil, err
-			}
-			return opinionResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
-		}))
+	c := seat.Prose(seat.New("opinion", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		text, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		// The word resolves through the ONE vocabulary both closing verbs share. A miss is
+		// refused here rather than recorded as the unspecified zero, because an unset
+		// disposition reads downstream as a gap the bench never ruled on — which is a
+		// quieter, worse outcome than a typo that gets told no.
+		as, ok := record.DispositionOf(seat.Str(cmd, flags.As))
+		if !ok {
+			return nil, feov.Errorf(feov.Validation,
+				"bench opinion: %q is not a disposition — the word is what every later reader switches on, and one the record does not know leaves the gap ruled by nobody. Run `feov-record bench opinion --help` for the set and what each value is for", seat.Str(cmd, flags.As))
+		}
+		body := &recordpb.Opinion{
+			GapId:       proto.String(seat.Str(cmd, flags.ID)),
+			Disposition: &as,
+			Principle:   proto.String(seat.Str(cmd, flags.Principle)),
+			Tension:     proto.String(seat.Str(cmd, flags.Tension)),
+			ReviewFlag:  proto.String(seat.Str(cmd, flags.ReviewFlag)),
+			Rationale:   proto.String(text),
+		}
+		if _, err := record.Append(s.Identity(), body); err != nil {
+			return nil, err
+		}
+		return opinionResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
+	}))
 
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap being ruled on")
 	enumhelp.Flag(c, flags.As, record.MustEnum("opinion", "disposition"), dispositionHelp())
 	c.Flags().String(flags.Principle, "", "the principle applied — a ruling is an OPINION, not a disposition")
 	c.Flags().String(flags.Tension, "", "the values in tension (e.g. correctness vs economy)")
 	c.Flags().String(flags.ReviewFlag, "", "why a human should, or should not, look at this")
+	c.Flags().String(flags.Settled, "",
+		"THE PROPOSITION NOW BARRED, as one sentence — not the gap id, and not the disposition. "+
+			"A finding is a claim, its evidence and its demand; a fate says which of the three fell only "+
+			"to whoever wrote it. Say what the losing party may no longer assert")
+	c.Flags().String(flags.ReopensOn, "",
+		"what would change this outcome — the evidence or condition that would make it worth raising again. "+
+			"If nothing would, pass --final instead: that is a different answer, not a missing one")
+	c.Flags().Bool(flags.Final, false,
+		"nothing would reopen this: settled on the merits, and more evidence cannot change it. "+
+			"The assertable form of an empty --reopens-on, so a decided question is distinguishable from a skipped field")
 	return c
 }
 

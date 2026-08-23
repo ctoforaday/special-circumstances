@@ -15,16 +15,14 @@ import (
 // continuity, which is why the certification is an event rather than a closing
 // remark in prose that capture might or might not carry forward.
 func newCertify() *cobra.Command {
-	return seat.Prose(seat.New("certify",
-		`the run-end certification statement ("what I would want a human to re-examine"): --reason <statement>`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
-			if _, err := record.Append(s.Identity(), &recordpb.Certify{Statement: proto.String(text)}); err != nil {
-				return nil, err
-			}
-			return seat.Msg{Message: "certification recorded"}, nil
-		}))
+	return seat.Prose(seat.New("certify", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		text, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := record.Append(s.Identity(), &recordpb.Certify{Statement: proto.String(text)}); err != nil {
+			return nil, err
+		}
+		return seat.Msg{Message: "certification recorded"}, nil
+	}))
 }

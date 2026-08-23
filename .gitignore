@@ -21,6 +21,12 @@ Thumbs.db
 # session's own tool calls verbatim, so it is never repo content. It went unlisted because the
 # hook binaries were absent for weeks — the file only exists when the counter actually runs.
 .claude/strikes.json
+# The live-run marker, written by `feov-record setup` and lifted by `capture`. Machine-local
+# session state naming a directory on THIS disk — the hook guards consult it to decide whether a
+# run is in progress, and it means nothing in another checkout. It went unlisted for the same
+# reason strikes.json did: the file only exists while a run is actually live, and none had been
+# launched in this repository, so `git status` never once mentioned it.
+.claude/run-live.json
 .claude/spike/
 .claude/*.log
 
@@ -74,3 +80,15 @@ plugins/*/tools/*
 # See feov-memory/red-gap-patterns/README.md.
 .claude/agent-memory/
 .claude/gray-area/
+
+# A RESEARCH RUN DIRECTORY IS RAW ACCRUAL TOO, and the same promotion rule applies: the run is
+# working state, the corpus is what somebody decided to keep. `/research` seeds research/ with a
+# live blackboard — records, shards, a marker, a dashboard regenerated every 20 seconds — and
+# CLAUDE.md already calls the directory a working corpus that starts empty.
+#
+# THIS ONE HAS A COMMIT BEHIND IT, not a preference. ffc4bf4 deleted a tracked research corpus
+# with the reason "it was test data being read as evidence" — a smoke run and a keeper are
+# byte-identical in shape, so once one is committed nothing downstream can tell which it is
+# reading. Ignoring the run directories makes keeping one a deliberate `git add -f`, which is the
+# same shape as the .claude/agent-memory -> feov-memory promotion directly above.
+research/*/

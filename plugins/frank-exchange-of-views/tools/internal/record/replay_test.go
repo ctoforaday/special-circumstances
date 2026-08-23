@@ -51,7 +51,7 @@ func TestMergedEventsOnAnEmptyOrAbsentRun(t *testing.T) {
 		t.Errorf("absent run produced state: %+v", m)
 	}
 
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if err := os.MkdirAll(recordsDirT(runDir), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -70,32 +70,58 @@ func TestMergedEventsOnAnEmptyOrAbsentRun(t *testing.T) {
 	}
 }
 
+// THE ROUND, AND WHETHER THE NAME ANSWERS IT AT ALL.
+//
+// This used to assert a bare int, so `assemble` and `judge-terminal` pinned to 0 — the same value
+// `red-lens-r0-L1` pins to, and 0 is SYNTHESIS, a real round with real events. The two cases were
+// indistinguishable by construction, and that is #327: a bench closure at run END read as a
+// closure BEFORE round 1, put a phantom entry in the archive, and made the W1.8 spot-check floor
+// demand samples from rounds whose seats had done nothing wrong.
+//
+// The three answers are now distinct: a round the name states, round 0 stated by a seat that
+// genuinely runs in synthesis, and NOT ANSWERED.
 func TestRoundOf(t *testing.T) {
 	cases := []struct {
-		in   string
-		want int
+		in    string
+		want  int
+		known bool
 	}{
-		{"red-lens-r3-L5", 3},
-		{"red-merge-r12", 12},
-		{"judge-r1", 1},
-		{"blue-respond-r7", 7},
-		{"frontier", 0},
-		{"blue-synthesize", 0},
-		{"assemble", 0},
-		{"judge-petition", 0},
-		{"", 0},
-		{"no-round-here", 0},
-		{"red-lens-r0-L1", 0},
-		{"first-r2-then-r9", 2}, // the FIRST match wins, not the last
-		// The round marker is a HYPHEN-DELIMITED segment of an engine-assigned seat
-		// id, so a bare "r5" is round 0 — there is no seat named that, and matching
-		// it would also make "frontier" round 0 by accident rather than by rule.
-		{"r5", 0},
-		{"red-lens-rX-L1", 0},
+		// The name states it.
+		{"red-lens-r3-L5", 3, true},
+		{"red-merge-r12", 12, true},
+		{"judge-r1", 1, true},
+		{"blue-respond-r7", 7, true},
+		{"red-lens-r0-L1", 0, true},
+		{"first-r2-then-r9", 2, true}, // the FIRST match wins, not the last
+		// A petition sitting is named for its petitioner, so it inherits that seat's round —
+		// which is why the bare `judge-petition` was retired (#394).
+		{"judge-petition-red-merge-r1", 1, true},
+		// Round 0 BY RULE rather than by accident: these are dispatched before the round loop
+		// (debate.js puts `let round = 0` after them), so synthesis is exactly where they act.
+		{"frontier", 0, true},
+		{"blue-synthesize", 0, true},
+		{"blue-lane-2", 0, true},
+		// The name cannot answer. These act AFTER the last round, and answering 0 said the
+		// opposite of the truth.
+		{"assemble", 0, false},
+		{"judge-terminal", 0, false},
+		// Not a debate seat, and not a seat id at all.
+		{"operator", 0, false},
+		{"", 0, false},
+		{"no-round-here", 0, false},
+		// The round marker is a HYPHEN-DELIMITED segment of an engine-assigned seat id, so a
+		// bare "r5" does not answer — there is no seat named that, and matching it would also
+		// make "frontier" round 0 by accident rather than by rule.
+		{"r5", 0, false},
+		{"red-lens-rX-L1", 0, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.in, func(t *testing.T) {
-			if got := RoundOf(tc.in); got != tc.want {
+			got, known := RoundOf(tc.in)
+			if known != tc.known {
+				t.Fatalf("RoundOf(%q) known = %v, want %v — a name that cannot answer must say so, not answer 0", tc.in, known, tc.known)
+			}
+			if known && got != tc.want {
 				t.Errorf("RoundOf(%q) = %d, want %d", tc.in, got, tc.want)
 			}
 		})
@@ -142,9 +168,9 @@ func TestGapMassAndGradeStr(t *testing.T) {
 // Ids are minted tool-side and sequentially PER ROUND: the collision class that
 // produced four different "R5-1"s cannot recur.
 func TestMintGapIDIsSequentialPerRound(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seatID := "red-merge-r1"
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, ""); err != nil {
 		t.Fatal(err)
 	}
 	for i := 1; i <= 3; i++ {
@@ -163,7 +189,7 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 	}
 	// A new round restarts the counter; the id namespace is per-round.
 	seat2 := "red-merge-r2"
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seat2, Round: RoundOf(seat2)}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seat2, Round: RoundIn(runDir)(seat2)}, ""); err != nil {
 		t.Fatal(err)
 	}
 	got, err := MintGapID(runDir, 2)
@@ -178,9 +204,9 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 // --key makes a retried mint idempotent: a seat whose message died after a
 // successful mint must get the EXISTING id, not a second gap.
 func TestExistingMintByKey(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seatID := "red-merge-r1"
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Mint{GapId: proto.String("R1-1"), MintKey: proto.String("L1-F3"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
@@ -209,7 +235,7 @@ func TestExistingMintByKey(t *testing.T) {
 }
 
 func TestBoardStateReplaysGapLifecycle(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seatID := "red-merge-r1"
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
@@ -267,7 +293,7 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 // What must still hold is that every finding lands on the board with its identity intact, since
 // the credit join is keyed on exactly that.
 func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	lens := "red-lens-r1-L1"
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, lens, 1, lens+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("first")}),
@@ -365,7 +391,7 @@ func validateContractCases() []validateContract {
 func TestValidateVerbContracts(t *testing.T) {
 	for _, tc := range validateContractCases() {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validate(t.TempDir(), "red-merge-r1", tc.typ, tc.p)
+			err := validate(newRun(t), "red-merge-r1", tc.typ, tc.p)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validate = %v, want accepted", err)
@@ -393,8 +419,8 @@ func TestValidateVerbContracts(t *testing.T) {
 // test can be about the missing FIELD rather than the missing gap.
 func opinionRunDir(t *testing.T) string {
 	t.Helper()
-	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
+	runDir := newRun(t)
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	id, err := MintGapID(runDir, 1)
@@ -414,6 +440,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 		"principle":   "--principle",
 		"tension":     "--tension",
 		"review_flag": "--review-flag",
+		"settled":     "--settled",
 	}
 	// EACH FIELD CLEARED IN TURN, on a body that is otherwise complete. Clearing is `nil`, which
 	// is what "the seat never passed it" means — a `proto.String("")` would SATISFY the
@@ -480,7 +507,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 // Lineage is never dangling: a mint that supersedes an id no mint created is
 // refused, because the supersedes chain is what the whole analysis reads.
 func TestValidateRefusesDanglingLineage(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seatID := "red-merge-r1"
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("R1-1")}),
@@ -513,10 +540,10 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 }
 
 func TestValidateCloseAnchorContract(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seatID := "red-merge-r1"
 	// BOTH gaps are minted: R1-1 is the one being closed, R2-1 the successor a
-	// closed_with_regression names. A successor is a reference like any other and is
+	// repaired_with_regression names. A successor is a reference like any other and is
 	// now checked, so a fixture that names one has to create it.
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("R1-1")}),
@@ -614,11 +641,11 @@ func TestValidateClassRegistry(t *testing.T) {
 	// behaviour stayed: a corrupt file turning off the gate that keeps the class vocabulary
 	// honest, with nothing saying so.
 	//
-	// ABSENT stays advisory (the case above): a run with no registry has nothing to validate
-	// against. PRESENT-BUT-BROKEN is different in kind — somebody staged it, so somebody meant it
-	// to bind.
+	// BOTH SHAPES REFUSE NOW, and they still say different things: absent means the run was never
+	// configured, present-but-broken means somebody staged it and the file is damaged. The seat
+	// needs to know which, because the fixes are not the same.
 	t.Run("an unparseable registry is refused, not waved through", func(t *testing.T) {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		writeRegistry(t, runDir, "{not json")
 		err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
 		if err == nil {
@@ -630,7 +657,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	})
 
 	t.Run("a known slug passes", func(t *testing.T) {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		writeRegistry(t, runDir, registry)
 		if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("scope-creep")})); err != nil {
 			t.Errorf("a registry slug was refused: %v", err)
@@ -638,7 +665,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	})
 
 	t.Run("an unknown slug is refused with a hint", func(t *testing.T) {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		writeRegistry(t, runDir, registry)
 		err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
 		if err == nil {
@@ -652,7 +679,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	// COINING IS ITS OWN EVENT, so its contract is checked against a `class-new` payload rather
 	// than against a mint that happened to carry four extra fields.
 	t.Run("coining requires its full triple", func(t *testing.T) {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		writeRegistry(t, runDir, registry)
 		complete := func() *recordpb.ClassNew {
 			return &recordpb.ClassNew{
@@ -683,7 +710,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	})
 
 	t.Run("coining needs a REAL neighbor", func(t *testing.T) {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		writeRegistry(t, runDir, registry)
 		n := &recordpb.ClassNew{
 			Slug: proto.String("brand-new"), Definition: proto.String("d"),
@@ -699,7 +726,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	})
 
 	t.Run("a class minted earlier in the run extends the registry", func(t *testing.T) {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		writeRegistry(t, runDir, registry)
 		seatID := "red-merge-r1"
 		writeShard(t, runDir, []*Event{
@@ -719,7 +746,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	})
 
 	t.Run("a registry with fewer than six slugs does not slice out of range", func(t *testing.T) {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		writeRegistry(t, runDir, `{"classes":[{"slug":"only-one"}]}`)
 		err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
 		if err == nil {
@@ -731,7 +758,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	})
 
 	t.Run("an EMPTY registry is still strict and does not panic", func(t *testing.T) {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		writeRegistry(t, runDir, `{"classes":[]}`)
 		if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")})); err == nil {
 			t.Error("an empty registry accepted an invented class")
@@ -1159,5 +1186,64 @@ func TestEveryGradeDimensionCanBeReadFromAGap(t *testing.T) {
 	}
 	if checked < 4 {
 		t.Errorf("only %d dimensions swept — the four axes are the set this check exists over", checked)
+	}
+}
+
+// THE BOARD MUST PUBLISH THE ORDER IT REDUCED IN.
+//
+// BoardState sorted a LOCAL COPY by (TS, SeatID, Seq) and published m.Events, which is
+// (Round, SeatID, Seq). So the reduction saw the corrected chronology and every consumer that
+// walks Board.Events — record.Inquiries behind `show lines-of-inquiry`, report assembly, the
+// scorecards, the graph renderer — read events ordered by how SEAT NAMES SORT.
+//
+// FOUND 2026-08-22 BY A BLUE SEAT mid-run, with this reproduction: `zulu` acts first in time,
+// `alpha` acts second, and alphabetical order silently reverses them. The seat then caught the
+// defect biting its own sitting — its line-of-inquiry moves replayed before the frontier
+// proposals they answered, so the projection reported every line unmoved.
+func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
+	runDir := newRun(t)
+	// zulu proposes FIRST in wall-clock; alpha moves it SECOND. Alphabetically alpha < zulu.
+	writeShard(t, runDir, "zulu", "aaaaaaaa", []Event{
+		func() Event {
+			e := ev("zulu", "aaaaaaaa", 0, 1, "line-of-inquiry", "zulu:line-of-inquiry:#1",
+				NewPayload().Set("inquiry_id", "Q1").Set("status", "proposed").Set("reason", "opened"))
+			e.TS = "2026-08-22T10:00:00.000000000Z"
+			return e
+		}(),
+	})
+	writeShard(t, runDir, "alpha", "bbbbbbbb", []Event{
+		func() Event {
+			e := ev("alpha", "bbbbbbbb", 0, 1, "line-of-inquiry", "alpha:line-of-inquiry:#1",
+				NewPayload().Set("inquiry_id", "Q1").Set("status", "abandoned").Set("reason", "died"))
+			e.TS = "2026-08-22T11:00:00.000000000Z"
+			return e
+		}(),
+	})
+
+	b, err := BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The published slice must be in TIME order, not seat-name order.
+	if len(b.Events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(b.Events))
+	}
+	if b.Events[0].SeatID != "zulu" || b.Events[1].SeatID != "alpha" {
+		t.Errorf("Board.Events = [%s, %s], want [zulu, alpha] — zulu acted an hour EARLIER, and a "+
+			"board published in seat-name order hands every consumer a chronology assembled from filenames",
+			b.Events[0].SeatID, b.Events[1].SeatID)
+	}
+
+	// AND THE CONSUMER THAT READS IT AGREES. This is the half that shipped broken: the reduction
+	// was already correct, so only a consumer walking Board.Events could see the defect.
+	inq := Inquiries(b)
+	if len(inq) != 1 {
+		t.Fatalf("expected one line of inquiry, got %d", len(inq))
+	}
+	if got := inq[0].Status; got != "abandoned" {
+		t.Errorf("Q1 status = %q, want abandoned — the later event must win. %q means the projection "+
+			"replayed alpha's move BEFORE zulu's proposal because alpha sorts first, which is the "+
+			"defect: a line reported as never moved when it was moved an hour later", got, got)
 	}
 }

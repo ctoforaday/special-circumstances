@@ -65,61 +65,9 @@ type Result struct {
 	Drift  string `json:"drift,omitempty"` // what moved on the second run, when something did
 }
 
-// interpreterFor maps a script to how it runs.
-//
-// BY EXTENSION, deliberately: a shebang does not work on Windows and this suite runs there.
-// An unknown extension is REFUSED rather than guessed, because running a file under the wrong
-// interpreter produces a confident error that reads exactly like a failed proof.
-func interpreterFor(path string) ([]string, error) {
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".py":
-		// `python3` FIRST, AND `python` ONLY AS A FALLBACK.
-		//
-		// This was `python` alone, which most current systems do not provide: Debian and Ubuntu
-		// ship `python3` and leave the unversioned name to an optional alias package, and macOS
-		// removed its `python` in 12.3. So `blue prove` on any .py script died with "executable
-		// file not found in $PATH" — on the machine this was written on, and on any consumer's.
-		// Two suites here were red on it and it read as a local environment quirk rather than as
-		// the tool being unable to run a whole extension it advertises.
-		//
-		// Resolved against PATH rather than returned blind, because the failure mode of guessing
-		// wrong is a confident error that reads exactly like a failed proof — the same reason an
-		// unknown extension is refused below rather than attempted.
-		return firstOnPath("python", "python3", "python")
-	case ".js", ".mjs":
-		return firstOnPath("node", "node")
-	case ".sh":
-		return firstOnPath("bash", "bash")
-	case ".go":
-		if _, err := exec.LookPath("go"); err != nil {
-			return nil, missingInterpreter("go", []string{"go"})
-		}
-		return []string{"go", "run"}, nil
-	default:
-		return nil, fmt.Errorf("proof: %s has no known interpreter — a proof script must be .py, .js, .mjs, .sh or .go so the tool runs it the way you meant rather than guessing", filepath.Base(path))
-	}
-}
-
-// firstOnPath returns the first candidate that PATH actually resolves, so a script runs under a
-// name this machine has rather than under the one whoever wrote the mapping had.
-//
-// The miss is LOUD and names every candidate it tried. A proof that cannot run is not a proof
-// that failed, and the two must not arrive as the same message: `--basis` would otherwise grade a
-// missing interpreter as evidence about the claim.
-func firstOnPath(lang string, candidates ...string) ([]string, error) {
-	for _, c := range candidates {
-		if _, err := exec.LookPath(c); err == nil {
-			return []string{c}, nil
-		}
-	}
-	return nil, missingInterpreter(lang, candidates)
-}
-
-func missingInterpreter(lang string, tried []string) error {
-	return fmt.Errorf("proof: no %s interpreter on PATH (tried %s) — this is the tool being unable to RUN the script, "+
-		"not a result about the claim it makes; install one or write the proof in another supported language (.py, .js, .mjs, .sh, .go)",
-		lang, strings.Join(tried, ", "))
-}
+// interpreterFor and its PATH resolution live in interpreter.go, which generalises what stood
+// here: per-extension candidate lists, the Windows `py -3` launcher, and a miss that names which
+// interpreters this environment DOES have rather than only saying no.
 
 // Run executes the script TWICE and records it under <runDir>/proofs/<sha>/.
 //
@@ -248,7 +196,17 @@ func Reproduce(runDir, sha string) (matches bool, got, want string, err error) {
 	// needs only the bytes to compare against.
 	recorded, err := os.ReadFile(filepath.Join(dir, "output"))
 	if err != nil {
-		return false, "", "", fmt.Errorf("proof: no recorded proof %s in this run: %w", sha, err)
+		// THE REFUSAL NAMES THE REFERENCE, NOT THE FILESYSTEM. Every other unknown-reference
+		// refusal in this tool says what the id was and what it means that nothing carries it —
+		// "no gap R9-99 on the board", "--id names motion M99, which no filing created". This one
+		// wrapped the raw os error, so a seat that mistyped a sha was handed a path under the
+		// record root and an `open … no such file or directory`: a filesystem problem to chase,
+		// on a run whose record directory is deliberately not where the seat can look.
+		//
+		// A refusal that describes the tool's plumbing instead of the seat's mistake is the same
+		// misdirection as a refusal naming a flag that does not exist. The seat believes it.
+		return false, "", "", fmt.Errorf("proof: no recorded proof %s in this run — --id takes the sha256 "+
+			"of a proof a `prove` call recorded, and the evidence projection lists every one under `proofs`", sha)
 	}
 	rec := Result{Output: string(recorded)}
 	entries, err := os.ReadDir(dir)

@@ -168,10 +168,29 @@ func AnchorsTransitUnchanged(verb, oldSpan, newText string) error {
 	}
 	for id, got := range n {
 		if o[id] == 0 {
-			return fmt.Errorf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by `lens finding` and `blue cite`, never typed into a replacement (got %d occurrence(s))", verb, anchor.Label(id), got)
+			return &ErrAnchorIntroduced{Verb: verb, ID: id, Count: got}
 		}
 	}
 	return nil
+}
+
+// ErrAnchorIntroduced names the anchor a replacement invented.
+//
+// IT IS TYPED BECAUSE THE GENERIC MESSAGE SENDS A SEAT IN A CIRCLE. Reproducing an anchor is
+// mandatory when it sits INSIDE the replaced span and refused when it sits just outside, and a
+// seat cannot see which: a quote's trailing punctuation is trimmed before the span is located,
+// so the anchor before a sentence's final period — 40 of the 43 in the archived corpus — falls
+// outside a span whose quote appeared to contain it. A seat that meets one refusal and follows
+// its instruction meets the other. A caller holding the surrounding document can tell the two
+// apart and say so; this type is what lets it.
+type ErrAnchorIntroduced struct {
+	Verb  string
+	ID    string
+	Count int
+}
+
+func (e *ErrAnchorIntroduced) Error() string {
+	return fmt.Sprintf("%s: your replacement introduces %s, which was not in the span it replaces — anchors are placed by `lens finding` and `blue cite`, never typed into a replacement (got %d occurrence(s))", e.Verb, anchor.Label(e.ID), e.Count)
 }
 
 // MaxProposalGrowth bounds how much longer a CONCRETE proposed fix may be than the span it

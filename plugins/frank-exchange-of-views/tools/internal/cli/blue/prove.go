@@ -37,77 +37,75 @@ import (
 // `observed`, still evidence but of a system in motion (a live call measures what an API
 // actually does, which beats its documentation), and the report must not read the two alike.
 func newProve() *cobra.Command {
-	c := seat.Prose(seat.New("prove",
-		`settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			location, script := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.Script)
-			if strings.TrimSpace(location) == "" {
-				return nil, fmt.Errorf("blue prove requires --quote: the EXACT sentence in blue/report.md this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
-			}
-			if strings.TrimSpace(script) == "" {
-				return nil, fmt.Errorf("blue prove requires --script: the path (under the run directory) of the program that settles it")
-			}
+	c := seat.Prose(seat.New("prove", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		location, script := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.Script)
+		if strings.TrimSpace(location) == "" {
+			return nil, fmt.Errorf("blue prove requires --quote: the EXACT sentence in blue/report.md this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
+		}
+		if strings.TrimSpace(script) == "" {
+			return nil, fmt.Errorf("blue prove requires --script: the path (under the run directory) of the program that settles it")
+		}
 
-			// Crash-retry: a committed proof for this key is already recorded.
-			if prior, err := record.ExistingProofByKey(s.RunDir, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
-				return nil, err
-			} else if prior != "" {
-				return proveResult{SHA: prior, Idempotent: true}, nil
-			}
+		// Crash-retry: a committed proof for this key is already recorded.
+		if prior, err := record.ExistingProofByKey(s.RunDir, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
+			return nil, err
+		} else if prior != "" {
+			return proveResult{SHA: prior, Idempotent: true}, nil
+		}
 
-			res, err := proof.Run(s.RunDir, script)
-			if err != nil {
-				// A proof that will not run is not evidence, and the failure is a capability
-				// signal — the same treatment `blue cite` gives an unreachable source.
-				msg := err.Error()
-				if _, ferr := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(msg)}); ferr != nil {
-					return nil, ferr
-				}
-				return nil, err
+		res, err := proof.Run(s.RunDir, script)
+		if err != nil {
+			// A proof that will not run is not evidence, and the failure is a capability
+			// signal — the same treatment `blue cite` gives an unreachable source.
+			msg := err.Error()
+			if _, ferr := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(msg)}); ferr != nil {
+				return nil, ferr
 			}
+			return nil, err
+		}
 
-			label := record.NewProofID()
-			marker := "<!--proof:" + label + "-->"
-			// Spliced under the report lock at the quoted sentence, by the SAME machinery a
-			// citation anchor uses: one immortal-anchor mechanism, three classes.
-			if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
-				next, aerr := lens.InsertAnchor(old, location, marker)
-				if aerr != nil {
-					return nil, aerr
-				}
-				return next, nil
-			}); err != nil {
-				return nil, err
+		label := record.NewProofID()
+		marker := "<!--proof:" + label + "-->"
+		// Spliced under the report lock at the quoted sentence, by the SAME machinery a
+		// citation anchor uses: one immortal-anchor mechanism, three classes.
+		if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
+			next, aerr := lens.InsertAnchor(old, location, marker)
+			if aerr != nil {
+				return nil, aerr
 			}
+			return next, nil
+		}); err != nil {
+			return nil, err
+		}
 
-			// `location` and `output` do not survive onto the event, and neither is a silent drop.
-			// The output stays in the proof cache addressed by proof_sha — content is not a fact
-			// about the debate, and the census records that reasoning against the key. The anchor
-			// is spliced into the report at `location`, and no reader ever read it back off the
-			// proof event: report/proofs.go renders script, exit, basis and drift.
-			body := &recordpb.Proof{
-				ProofId:    proto.String(label),
-				ProofSha:   proto.String(res.SHA),
-				ProofBasis: proto.String(res.Basis),
-				Script:     proto.String(res.Script),
-				Exit:       proto.Int32(int32(res.Exit)),
-				ProofKey:   proto.String(seat.Str(cmd, flags.Key)),
-				Answers:    proto.String(seat.Str(cmd, flags.Answers)),
-				Cites:      proto.String(seat.Str(cmd, flags.Cites)),
-			}
-			if res.Drift != "" {
-				body.Drift = proto.String(res.Drift)
-			}
-			why, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
-			body.Text = proto.String(why)
-			if _, err := record.Append(s.Identity(), body); err != nil {
-				return nil, err
-			}
-			return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift}, nil
-		}))
+		// `location` and `output` do not survive onto the event, and neither is a silent drop.
+		// The output stays in the proof cache addressed by proof_sha — content is not a fact
+		// about the debate, and the census records that reasoning against the key. The anchor
+		// is spliced into the report at `location`, and no reader ever read it back off the
+		// proof event: report/proofs.go renders script, exit, basis and drift.
+		body := &recordpb.Proof{
+			ProofId:    proto.String(label),
+			ProofSha:   proto.String(res.SHA),
+			ProofBasis: proto.String(res.Basis),
+			Script:     proto.String(res.Script),
+			Exit:       proto.Int32(int32(res.Exit)),
+			ProofKey:   proto.String(seat.Str(cmd, flags.Key)),
+			Answers:    proto.String(seat.Str(cmd, flags.Answers)),
+			Cites:      proto.String(seat.Str(cmd, flags.Cites)),
+		}
+		if res.Drift != "" {
+			body.Drift = proto.String(res.Drift)
+		}
+		why, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		body.Text = proto.String(why)
+		if _, err := record.Append(s.Identity(), body); err != nil {
+			return nil, err
+		}
+		return proveResult{Label: label, SHA: res.SHA, Basis: res.Basis, Exit: res.Exit, Drift: res.Drift}, nil
+	}))
 
 	c.Flags().String(flags.Quote, "", "REQUIRED — "+flags.DescQuote+". The proof anchor is spliced there")
 	c.Flags().String(flags.Script, "", "REQUIRED — path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)")

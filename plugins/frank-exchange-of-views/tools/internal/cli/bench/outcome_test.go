@@ -47,13 +47,15 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := t.TempDir()
-			if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "judge-r1", Round: record.RoundOf("judge-r1")}); err != nil {
+			// Identity comes from the injection, as it does in a real run: the hook exports the
+			// agent handle, `register` binds it to this seat, and every later call resolves the
+			// seat from that binding rather than from a flag. So the handle is set BEFORE the
+			// register that writes it — afterwards there would be nothing to bind.
+			t.Setenv(seatenv.AgentVar, "agent_bench")
+			if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "judge-r1", Round: record.RoundIn(runDir)("judge-r1")}, ""); err != nil {
 				t.Fatal(err)
 			}
-			// Identity comes from the injection, as it does in a real run: --run and --seat-id
-			// are root persistent flags this subtree does not own, and the engine supplies both.
 			t.Setenv(seatenv.Var, runDir)
-			t.Setenv(seatenv.SeatVar, "judge-r1")
 			args := []string{"outcome", "--as", "UNVERIFIED"}
 			if tc.deadlocked {
 				args = append(args, "--ended", "deadlock")
@@ -61,7 +63,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 			if tc.reason != "" {
 				args = append(args, "--reason", tc.reason)
 			}
-			c := NewCommand()
+			c := testRoot()
 			c.SetArgs(args)
 			c.SetOut(&strings.Builder{})
 			c.SetErr(&strings.Builder{})
@@ -93,8 +95,12 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 // report could stamp a verdict and never say why it was that one.
 func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 	runDir := t.TempDir()
-	for _, s := range []string{"judge-r1", "red-merge-r1"} {
-		if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: s, Round: record.RoundOf(s)}); err != nil {
+	// The bench's own handle is the one that must resolve; the merge is registered here only so
+	// its verdict has a seat to hang on, and it binds a different agent for the same reason a run
+	// does — two seats are two agents.
+	t.Setenv(seatenv.AgentVar, "agent_merge")
+	for _, s := range []string{"red-merge-r1"} {
+		if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: s, Round: record.RoundIn(runDir)(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -102,9 +108,12 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}); err != nil {
 		t.Fatal(err)
 	}
-	c := NewCommand()
+	t.Setenv(seatenv.AgentVar, "agent_bench")
+	if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "judge-r1", Round: record.RoundIn(runDir)("judge-r1")}, ""); err != nil {
+		t.Fatal(err)
+	}
+	c := testRoot()
 	t.Setenv(seatenv.Var, runDir)
-	t.Setenv(seatenv.SeatVar, "judge-r1")
 	c.SetArgs([]string{"outcome", "--as", "VERIFIED", "--reason", "red passed and no gap survived it"})
 	c.SetOut(&strings.Builder{})
 	c.SetErr(&strings.Builder{})
@@ -132,4 +141,12 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 		return
 	}
 	t.Fatal("no outcome event was recorded")
+}
+
+// testRoot mounts this seat's verbs on a bare root — what the CLI now does for a dispatched bench
+// seat. The role GROUP this replaced no longer exists: the tree is scoped to the injected role.
+func testRoot() *cobra.Command {
+	c := &cobra.Command{Use: "bench", SilenceUsage: true, SilenceErrors: true}
+	c.AddCommand(Verbs()...)
+	return c
 }

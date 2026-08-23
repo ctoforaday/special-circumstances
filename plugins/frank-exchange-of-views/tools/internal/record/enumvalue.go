@@ -18,8 +18,8 @@ import (
 // The sets were declared once and enforced once — that part was right, and enums.go argues it at
 // length. What no surface carried was what each value MEANS. A seat read:
 //
-//	--as closed | closed_with_regression | amends_prior | rebuttal_sustained | risk_accepted |
-//	     routed_to_infrastructure — the closure class
+//	--as repaired | repaired_with_regression | amends_prior | not_a_defect | defect_accepted |
+//	     defect_owed_elsewhere — the closure class
 //
 // six words and one shared sentence, and then had to decide which situation warranted which. The
 // meanings existed the whole time, as SOURCE COMMENTS beside the values in enums.go: "repaired,
@@ -48,7 +48,7 @@ import (
 type EnumValue struct {
 	Name string
 	// Means is the situation this value is FOR, in the words a seat needs to choose it. Not a
-	// gloss of the name: "closed" means nothing to a reader who does not already know, and
+	// gloss of the name: "repaired" means nothing to a reader who does not already know, and
 	// "the repair was verified at the leaf" means everything.
 	Means string
 }

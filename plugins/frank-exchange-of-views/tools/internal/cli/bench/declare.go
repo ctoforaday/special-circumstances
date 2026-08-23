@@ -48,19 +48,17 @@ import (
 // worse than an unread finding: an unread finding costs a reader, an undelivered ruling costs
 // compliance, and nothing reports that it was not delivered.
 func newDeclare() *cobra.Command {
-	return seat.Prose(seat.New("declare",
-		`state a holding that binds how the record is READ without moving any gap: --reason "<the construction, correction or holding>"`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
-			if text == "" {
-				return nil, feov.Errorf(feov.MissingField, "bench declare requires --reason: the declaration IS the reasoning. A holding with no stated content binds nothing and teaches nobody, and this verb exists because the alternative was prose on a channel nothing reads")
-			}
-			if _, err := record.Append(s.Identity(), &recordpb.Declare{Holding: proto.String(text)}); err != nil {
-				return nil, err
-			}
-			return seat.Msg{Message: "declaration recorded — it renders under ### LEAD in `show debate`, where both seats read it"}, nil
-		}))
+	return seat.Prose(seat.New("declare", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		text, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		if text == "" {
+			return nil, feov.Errorf(feov.MissingField, "bench declare requires --reason: the declaration IS the reasoning. A holding with no stated content binds nothing and teaches nobody, and this verb exists because the alternative was prose on a channel nothing reads")
+		}
+		if _, err := record.Append(s.Identity(), &recordpb.Declare{Holding: proto.String(text)}); err != nil {
+			return nil, err
+		}
+		return seat.Msg{Message: "declaration recorded — it renders under ### LEAD in `show debate`, where both seats read it"}, nil
+	}))
 }

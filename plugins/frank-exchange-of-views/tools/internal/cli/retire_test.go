@@ -13,10 +13,10 @@ import (
 // — the rule the verb's own doc calls "strictly stronger than the prose rule it replaces" —
 // rested entirely on the seat's word.
 func TestRetireRefusesAClaimStillInTheReport(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent approaches agree.\n")
 
-	_, err := run(t, "blue", "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
+	_, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--quote", "Five independent approaches agree.", "--reason", "overclaim")
 	if err == nil {
 		t.Fatal("a claim still present in the report was retired — the record now says it left while it sits there")
@@ -31,15 +31,15 @@ func TestRetireRefusesAClaimStillInTheReport(t *testing.T) {
 // A CLAIM THE RECORD CAN SHOW LEAVING is `verified`: absent now, and present in the old span
 // of a recorded edit.
 func TestRemovalIsVerifiedWhenAnEditTookItOut(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent approaches agree.\n")
 	mintGap(t, runDir, "G1", "overclaim")
-	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--quote", "Five independent approaches agree.", "--new", "Two approaches agree.",
 		"--answers", "R1-1", "--reason", "narrow the claim"); err != nil {
 		t.Fatalf("edit refused: %v", err)
 	}
-	if _, err := run(t, "blue", "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--quote", "Five independent approaches agree.", "--reason", "the independence was never established"); err != nil {
 		t.Fatalf("retiring a claim an edit removed was refused: %v", err)
 	}
@@ -56,10 +56,10 @@ func TestRemovalIsVerifiedWhenAnEditTookItOut(t *testing.T) {
 // that was never there subtracts from the accounted side and cancels REAL loss — blinding the
 // one detector built to catch silent deletion.
 func TestAPhantomRetireIsMarkedAsserted(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSomething entirely else.\n")
 
-	if _, err := run(t, "blue", "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--quote", "a claim that was never in this report", "--reason", "fuzz"); err != nil {
 		t.Fatalf("retire refused: %v", err)
 	}

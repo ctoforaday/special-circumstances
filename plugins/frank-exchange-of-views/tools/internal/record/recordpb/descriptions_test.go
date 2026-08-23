@@ -90,7 +90,7 @@ func TestUsageRendersEveryValue(t *testing.T) {
 	}
 }
 
-// Spelling turns CLOSURE_CLASS_RISK_ACCEPTED into `risk_accepted` — the word a seat types. The
+// Spelling turns CLOSURE_CLASS_DEFECT_ACCEPTED into `defect_accepted` — the word a seat types. The
 // prefix derivation is mechanical, so it is checked against the awkward cases rather than the
 // easy ones.
 func TestSpellingStripsTheGeneratedPrefix(t *testing.T) {
@@ -116,13 +116,13 @@ func TestNearMissFindsTheTypoClassAndNothingWider(t *testing.T) {
 	e := Disposition_DISPOSITION_CLOSED.Descriptor()
 	for _, typo := range []string{"closed-with-regression", "Closed_With_Regression", "CLOSED_WITH_REGRESSION"} {
 		got, ok := NearMiss(e, typo)
-		if !ok || got != "closed_with_regression" {
-			t.Errorf("NearMiss(%q) = %q,%v — want closed_with_regression,true", typo, got, ok)
+		if !ok || got != "repaired_with_regression" {
+			t.Errorf("NearMiss(%q) = %q,%v — want repaired_with_regression,true", typo, got, ok)
 		}
 	}
 	// A different word is NOT a near miss. Matching more widely would refuse a class somebody meant.
-	if got, ok := NearMiss(e, "closed"); ok {
-		t.Errorf("NearMiss(\"closed\") matched %q — `closed` is a real value, not a typo", got)
+	if got, ok := NearMiss(e, "not_a_defect"); ok {
+		t.Errorf("NearMiss(\"not_a_defect\") matched %q — it is a real value, not a typo", got)
 	}
 	if _, ok := NearMiss(e, "banana"); ok {
 		t.Error("NearMiss matched an unrelated word — the typo class is case and separators, nothing wider")

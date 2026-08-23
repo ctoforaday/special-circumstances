@@ -19,8 +19,8 @@ import "testing"
 // to demand it. One seat summed twelve integers inside its own reasoning, wrote the answer, and
 // was satisfied. The answer was right, which is why nothing caught it.
 func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
-	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
+	runDir := newRun(t)
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	// THE ID AND THE KIND ARE THE SUBJECT OF THIS TEST, and the earlier conversion dropped both
@@ -72,8 +72,8 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 
 // AN EMPTY FRICTION LOG IS TWO DIFFERENT RUNS, and only one of them is fine.
 func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
-	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}); err != nil {
+	runDir := newRun(t)
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := BoardState(runDir)
@@ -111,9 +111,9 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 // learns something about the gap; it does not learn that IT owes a program, and only the second
 // changes what the sitting produces.
 func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	for _, s := range []string{"red-merge-r1", "blue-respond-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundOf(s)}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}

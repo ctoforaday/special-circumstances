@@ -1,5 +1,5 @@
 <!--
-  report.md is ASSEMBLED FROM THE RECORD by `feov-record bench assemble`. Nothing is
+  report.md is ASSEMBLED FROM THE RECORD by the bench seat's assemble verb. Nothing is
   authored at assembly. Two ownership classes, marked per section below:
 
     [BLUE] — authored by blue INSIDE blue/report.md, audited by red every round (red
@@ -29,7 +29,7 @@
 
 | Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
 |---|---|---|---|---|
-| <risk> | low/med/high | low/med/high | low/med/high | <mitigation, or `risk_accepted` + rationale> |
+| <risk> | low/med/high | low/med/high | low/med/high | <mitigation, or `defect_accepted` + rationale> |
 
 ## The expansions                       <!-- [RECORD] lines of inquiry PURSUED — a research topic followed, and what it yielded -->
 

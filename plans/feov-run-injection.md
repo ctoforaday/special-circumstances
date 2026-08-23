@@ -1,5 +1,25 @@
 # FEOV_RUN injection — the seat stops typing the run directory
 
+> **SUPERSEDED IN PART, 2026-08-22 (#510).** The position matcher this plan designs was removed:
+> injection is now unconditional on every Bash command in a live run, and it carries `FEOV_AGENT_ID`
+> as well as `FEOV_RUN`. The mention-vs-invocation reasoning below describes a harm the mechanism
+> cannot produce — injection prepends — and the matcher's silent miss cost 21 of 65 registers their
+> identity across six runs. `hookgate.PreOutcome` is the current contract.
+
+> **SUPERSEDED AGAIN, 2026-08-23 (#526).** Injection is no longer the primary carrier of the run
+> directory. `setup` now writes a per-run wrapper — `<runDir>/.bin/feov-record`, execing the real
+> binary with `FEOV_RUN_FROM_WRAPPER` set — and prints its directory as the `binDir` the workflow
+> hands every seat. The dispatcher bakes the run in **before the run starts**, where injection
+> re-derives it per call from a marker that can move; the wrapper cannot go stale and the marker
+> can. Injection remains, and is now the SECOND carrier with a live gate between them: hook and
+> wrapper disagreeing is refused as *"the engine's live-run marker has moved since this run
+> started"*, which is exactly the run-3 `assemble` incident (#500) that nothing could see while
+> there was one carrier and it was the one that had moved.
+>
+> Measured on a live smoke run: 249 commands through the wrapper, **0** containing `--run`, 13/13
+> seats identified. On a healthy run the wrapper is invisible — the hook sets `FEOV_RUN`, which
+> outranks it.
+
 > **Rev 6.** Rev 1/2 failed on scope; rev 3 failed on nine specifics. Fixed here: the goal is
 > restated to what this scope can deliver, the version surface is decided, the census is
 > re-run against the **real** API (`PreDecision`, not the `Decide` I named without checking),

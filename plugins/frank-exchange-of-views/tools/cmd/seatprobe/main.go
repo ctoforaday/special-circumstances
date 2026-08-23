@@ -15,9 +15,14 @@
 //
 //	--print --output-format stream-json --verbose   the full trajectory, as events
 //	--model haiku                                   the instrument (see below)
-//	--system-prompt-file <constitution>             the seat's real constitution
-//	--allowedTools "Bash Read Write Edit Grep Glob" the tools a seat actually has
+//	--agent frank-exchange-of-views:<agent>         the definition production dispatches, with
+//	                                                its skills and its declared tools
+//	--allowedTools <the agent's own tools: line>    PERMISSION, not availability — nobody is at
+//	                                                the keyboard to answer an approval prompt
 //	--add-dir <runDir>                              access to the board
+//
+// The PROMPT is not written here at all: internal/debatejs runs the shipped debate.js and the
+// probe dispatches what it hands the board's seat, verbatim.
 //
 // AND IT CARRIES THINKING. Verified rather than assumed: a stream-json run emits `thinking` blocks
 // alongside `text` and `tool_use`, so the harness can log what the seat was reasoning about when
@@ -74,6 +79,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/setup"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
 func main() {
@@ -86,26 +93,48 @@ func main() {
 		parallel   = flag.Int("parallel", 2, "how many boards to run at once")
 		reportOnly = flag.Bool("report-only", false, "skip build and dispatch; report on what is already there")
 		keep       = flag.Bool("keep", false, "keep an existing board directory instead of rebuilding it")
+		buildOnly  = flag.Bool("build-only", false, "stage the board and STOP — no seat is dispatched and nothing is scored. For a harness that drives its own dispatch (the interview) and needs the same fixture. NOT -report-only, which skips the build and reports on whatever is already there")
+		printSit   = flag.Bool("print-sitting", false, "print the named board's SITTING text and exit — the situation a seat is dispatched into. For a harness that drives the dispatch itself (the interview) and must hand the seat the same situation this probe would")
 		ask        = flag.Bool("ask", false, "do not dispatch a seat to ACT — ask it to ENUMERATE and ASSESS its options instead. A verb used zero times cannot say whether the seat never perceived it, weighed it and declined, or wanted it and could not reach it; this asks")
 		inRun      = flag.Bool("records-in-run", false, "leave the event record under the run directory, where the seat can read it without the tool — the CONTROL arm, for measuring what the separation changes")
-		patterns   = flag.String("patterns", "none", "red's gap-pattern memory: `none`, `file` (staged at inputs/red-gap-patterns.md — the MOUNTED FILE form), or `duty` (staged AND named in the prompt, selected by the classes of this board's gaps — the DUTY form)")
-		naming     = flag.String("naming", string(seatprobe.NamingNone), "how much of the verb surface the constitution states: `none` (THE SHIPPED CONFIGURATION — the constitutions name no verb, and redaction is a belt-and-braces pass over them), `partial` (a CONSTRUCTED few-verb list, the shape a hand-kept list in a constitution had), or `complete` (the whole surface, generated from the tree)")
-		directive  = flag.Bool("help-directive", false, "append production's `read --help before your first act` instruction, which debate.js carries and the probe prompt never has")
+		memoryDir  = flag.String("memory", "", "directory holding red's accumulated gap patterns, staged into inputs/red-gap-patterns.md as run-setup stages it (default: the repo's feov-memory/red-gap-patterns, located by searching upward for the repository rather than by counting up from the working directory — pass this to stage a corpus from somewhere else)")
+		debatePath = flag.String("debate", "", "path to the shipped debate.js the probe takes its prompts from (default: the plugin's skills/research-protocol/scripts/debate.js)")
 	)
 	flag.Parse()
 
-	arm, err := seatprobe.ParseNaming(*naming)
-	if err != nil {
-		fail("%v", err)
-	}
-	// A TYPO HERE WOULD RUN THE SHIPPED ARM AND REPORT THE ONE YOU ASKED FOR. record's own
-	// resolver falls back to shipped on purpose (an unrecognised value must not empty a real
-	// seat's work list), so the probe validates the spelling itself rather than inheriting a
-	// fallback that is correct for production and silent for an experiment.
-	switch *patterns {
-	case "none", "file", "duty":
-	default:
-		fail("no patterns arm %q — one of none, file, duty", *patterns)
+	// THE SITTING TEXT, FOR A CALLER THAT DRIVES ITS OWN DISPATCH. The interview harness holds a
+	// session open across turns, which this binary does not do — but it must put the seat in the
+	// SAME situation, and the situation lives here. Printing it is how the two stay one fixture
+	// rather than two that drift.
+	if *printSit {
+		b, ok := seatprobe.Boards()[*board]
+		if !ok {
+			fail("no board %q", *board)
+		}
+		// THE SITTING IS debate.js's, NOT THIS BINARY'S. It embeds the run directory and the
+		// tool path, so both are required here — a prompt rendered against a placeholder would
+		// tell the seat to read a directory that does not exist, and the interview would be
+		// measuring a seat that cannot see its own board.
+		if *dir == "" || *bin == "" {
+			fail("-print-sitting renders the prompt debate.js hands the seat, which names the run directory and the tool: pass -dir and -bin (the same values the -build-only staging used)")
+		}
+		d, err := seatprobe.ProductionPrompt(debateScript(*debatePath), b, filepath.Join(*dir, b.Name), filepath.Dir(*bin), *model, *model)
+		if err != nil {
+			fail("%v", err)
+		}
+		// THE SAME CHECK AS THE DISPATCH PATH. This renders the identical prompt for a harness
+		// that drives its own dispatch, so a -bin the prompt does not name sends THAT harness's
+		// seat to a different file just as silently — and the interview, which is what this flag
+		// exists for, would then interview a seat about a sitting it did with another build.
+		// Measured within an hour of the dispatch-path fix: the interview harness still pointed
+		// at `feov-record8`, the seat ran the stale `feov-record` beside it, and only
+		// `show diagnostics` refusing ("21 shell calls and none of them invoke feov-record8")
+		// stopped six questions being asked about it.
+		if err := promptNamesTheBinary(b.Name, d.Prompt, *bin); err != nil {
+			fail("%v", err)
+		}
+		fmt.Print(d.Prompt)
+		return
 	}
 
 	if *dir == "" {
@@ -148,7 +177,7 @@ func main() {
 			defer wg.Done()
 			sem <- struct{}{}
 			defer func() { <-sem }()
-			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, *reportOnly, *keep, *inRun, *ask, surface, arm, *directive, *patterns)
+			out, err := probe(boards[name], filepath.Join(*dir, name), *bin, *constDir, *model, debateScript(*debatePath), *memoryDir, *reportOnly, *keep, *inRun, *ask, *buildOnly, surface)
 			if err != nil {
 				results[i] = fmt.Sprintf("## %s — FAILED\n\n%v\n", name, err)
 				failed[i] = true
@@ -161,7 +190,7 @@ func main() {
 
 	fmt.Println("# Seat probe")
 	fmt.Println()
-	fmt.Printf("%d board(s), model %s, naming arm %s, help-directive %t. What each seat CHOSE, of what its role offers.\n\n", len(names), *model, arm, *directive)
+	fmt.Printf("%d board(s), model %s, the SHIPPED constitution. What each seat CHOSE, of what its role offers.\n\n", len(names), *model)
 	for _, r := range results {
 		fmt.Println(r)
 	}
@@ -200,7 +229,7 @@ func main() {
 //
 // A read failure is NOT MEASURED rather than zero: "0 names survived" and "I could not open the
 // constitution" are different facts, and only one of them means the treatment worked.
-func namingTreatment(role, constDir string, sf seatprobe.Surface, arm seatprobe.Naming, directive bool) string {
+func namingTreatment(role, constDir string, sf seatprobe.Surface) string {
 	src, err := constitutionFor(role, constDir)
 	if err != nil {
 		return "NOT MEASURED (no constitution for " + role + ": " + err.Error() + ")"
@@ -209,26 +238,20 @@ func namingTreatment(role, constDir string, sf seatprobe.Surface, arm seatprobe.
 	if err != nil {
 		return "NOT MEASURED (cannot read " + src + ": " + err.Error() + ")"
 	}
-	before := len(seatprobe.NamesSurviving(string(b), sf))
-	after := len(seatprobe.NamesSurviving(string(seatprobe.Constitution(b, sf, role, arm, directive)), sf))
-	count := fmt.Sprintf("%d distinct verb name(s) in the shipped %s constitution -> %d under arm %s", before, role, after, arm)
-	if arm == seatprobe.NamingNone {
-		// Subtractive arm: it is supposed to end at zero.
-		if before == 0 {
-			return count + " — the shipped constitution already names none, so this arm removes nothing and is the shipped bytes"
-		}
-		if after == before {
-			return count + " — THE REDACTOR REMOVED NOTHING. This `none` arm is the shipped constitution wearing another label; do not compare it"
-		}
-		return count
+	named := seatprobe.NamesSurviving(string(b), sf)
+	if len(named) == 0 {
+		return fmt.Sprintf("the shipped %s constitution names 0 verbs — which is the claim the strip rests on, checked here rather than assumed", role)
 	}
-	// Additive arms: `partial` appends a short list, `complete` the generated surface. Ending
-	// where it started means the appended block never landed, which is the arm collapse the
-	// dispatch bug produced — reported here as a defect rather than averaged into a finding.
-	if after <= before {
-		return count + fmt.Sprintf(" — THE %s ARM ADDED NOTHING. It is the `none` arm wearing another label; do not compare it", strings.ToUpper(string(arm)))
+	// A SURVIVING NAME IS A DEFECT, NOT AN ARM. There were three arms that varied this on purpose;
+	// there are none now, so a constitution that names a verb is a regression in the shipped
+	// bytes and the run says so rather than averaging it into a finding.
+	var names []string
+	for v := range named {
+		names = append(names, v)
 	}
-	return count
+	sort.Strings(names)
+	return fmt.Sprintf("THE SHIPPED %s CONSTITUTION NAMES %d VERB(S): %s — the strip has regressed, and a seat handed a partial list stops looking",
+		strings.ToUpper(role), len(names), strings.Join(names, ", "))
 }
 
 // trajectoryPath keeps the capture OUT of the run directory.
@@ -237,11 +260,31 @@ func namingTreatment(role, constDir string, sf seatprobe.Surface, arm seatprobe.
 // did: the docket seat found the harness's own recording of the docket seat and tried to execute
 // it, producing 149 "command not found" lines in a single turn. A probe that leaves its
 // instrument inside the thing it measures is measuring itself.
+// agentFor maps a seat role to the agent definition production dispatches for it — the same
+// mapping debate.js makes with agentType.
+// NO DEFAULT. A role that fell through would dispatch under ANOTHER SEAT'S constitution and the run
+// would report it as its own role — a seat measured against duties it was never given, reported as
+// a finding about that role. An unknown role is a programming error and says so.
+func agentFor(role string) string {
+	switch role {
+	case "lens":
+		return "red-auditor"
+	case "merge":
+		return "red-auditor"
+	case "blue":
+		return "blue-researcher"
+	case "bench":
+		return "lead-judge"
+	}
+	fail("no agent definition for role %q — the probe will not dispatch a seat under another seat's constitution", role)
+	return ""
+}
+
 func trajectoryPath(runDir string) string {
 	return filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
 }
 
-func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, keep, recordsInRun, ask bool, surface seatprobe.Surface, arm seatprobe.Naming, directive bool, patterns string) (string, error) {
+func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDir string, reportOnly, keep, recordsInRun, ask, buildOnly bool, surface seatprobe.Surface) (string, error) {
 	recordRoot := ""
 	if !reportOnly {
 		if !keep {
@@ -283,20 +326,43 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 			}
 			out, err := cmd.CombinedOutput()
 			if err != nil {
-				return string(out), fmt.Errorf("%s: %s", strings.Join(args[:min(3, len(args))], " "), strings.TrimSpace(string(out)))
+				// THE err GOES IN THE MESSAGE, and it is not decoration. Reporting only the tool's
+				// output describes a tool that RAN and refused. A process that never started —
+				// wrong path, missing execute bit, an extensionless binary on Windows — produces
+				// no output at all, so the board fails with a blank reason and the operator has
+				// nothing to chase. Measured on the first Windows run of the sibling gate: nine
+				// boards, nine empty failures.
+				return string(out), fmt.Errorf("%s: %v: %s", strings.Join(args[:min(3, len(args))], " "), err, strings.TrimSpace(string(out)))
 			}
 			return string(out), nil
 		}
 		if err := seatprobe.Build(runDir, b, run); err != nil {
 			return "", fmt.Errorf("build: %w", err)
 		}
-		if patterns != "none" {
-			// THE MOUNTED FILE, exactly as run-setup stages it for a real run.
-			if r := setup.MirrorGapPatterns(memoryDirs(), runDir); !r.Written {
-				return "", fmt.Errorf("patterns arm %q: the corpus did not stage (%s) — a run that reports on memory it never delivered is the defect this arm exists to test", patterns, r.Reason)
-			}
+		// RED'S MEMORY, STAGED AS run-setup STAGES IT. This used to be an arm — `none` mounted
+		// nothing — and an arm is no longer available: debate.js's prompt names
+		// inputs/red-gap-patterns.md in blue's very first batched read, unconditionally, because
+		// every real run has the file. A probe that withheld it would hand the seat a prompt whose
+		// opening instruction fails, and score what it did next.
+		mem, err := memoryDirs(memoryDir)
+		if err != nil {
+			return "", err
 		}
-		if err := dispatch(b, runDir, bin, constDir, model, ask, arm, directive, surface, patterns, b); err != nil {
+		if r := setup.MirrorGapPatterns(mem, runDir); !r.Written {
+			return "", fmt.Errorf("red's gap-pattern corpus did not stage (%s) — the dispatched prompt names the file in its first instruction, so a run without it is measuring a broken read", r.Reason)
+		}
+		// THE FIXTURE, AND NOTHING ELSE. A caller driving its own dispatch — the interview, which
+		// holds a session open across turns — needs the board this probe would have built, staged
+		// the same way, and then needs this binary to stop. Scoring a sitting that never happened
+		// would print "reached for 0" and mean nothing: the plausible zero, manufactured.
+		//
+		// It returns HERE rather than through a second staging function, so there is one build
+		// path. A copy would drift the first time a board changed, and then the interview and the
+		// probe would be asking about different fixtures while reporting on one.
+		if buildOnly {
+			return "", nil
+		}
+		if err := dispatch(b, runDir, bin, constDir, model, debateScript(debatePath), ask); err != nil {
 			return "", fmt.Errorf("dispatch: %w", err)
 		}
 	}
@@ -335,13 +401,12 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 	// THE ARM, ON THE RESULT. A choice report that does not say which treatment produced it is a
 	// number waiting to be compared against a number from a different condition — which is how the
 	// "4 of 14" figure came to be cited as a fact about seats rather than about one arm.
-	report += fmt.Sprintf("\n**arm**: naming=%s help-directive=%t\n", arm, directive)
 	// THE TREATMENT, MEASURED RATHER THAN ASSUMED. naming.go's type doc says this count "is
 	// printed with the result" and nothing printed it, so an arm whose redactor had stopped
 	// matching would produce a `none` run byte-identical to `partial`, both arms would report the
 	// same behaviour, and the experiment would conclude "naming does not matter" — a null result
 	// manufactured by the instrument and wearing the clothes of a finding.
-	report += "**naming treatment**: " + namingTreatment(role, constDir, surface, arm, directive) + "\n"
+	report += "**naming treatment**: " + namingTreatment(role, constDir, surface) + "\n"
 	if hu, err := seatprobe.ReadHelpUse(trajectoryPath(runDir), filepath.Base(bin)); err == nil {
 		report += fmt.Sprintf("**help use**: %s\n", hu.Line())
 	} else {
@@ -369,7 +434,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model string, reportOnly, k
 }
 
 // dispatch runs one seat at the board through the `claude` CLI.
-func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, arm seatprobe.Naming, directive bool, sf seatprobe.Surface, patterns string, board seatprobe.Board) error {
+func dispatch(b seatprobe.Board, runDir, bin, constDir, model, debatePath string, ask bool) error {
 	role := ""
 	for _, s := range seatprobe.Seats {
 		if s.ID == b.Seat {
@@ -386,19 +451,34 @@ func dispatch(b seatprobe.Board, runDir, bin, constDir, model string, ask bool, 
 	// THE ARM IS APPLIED TO A COPY, NEVER TO THE SHIPPED FILE. An experiment that edits the
 	// artifact it measures cannot be run a second time, and the second run is the one that says
 	// whether the first was variance.
-	constitution, err = armConstitution(constitution, runDir, sf, role, arm, directive)
+	// THE PROMPT IS debate.js's, RENDERED BY RUNNING IT.
+	//
+	// What stood here was a paraphrase written in this file: ~950 characters against production's
+	// 12,800–24,000. It said the same THINGS in different words, which is the worst case — the
+	// probe reported help-reading counts, verb-reach counts and a friction rate for a seat that
+	// was never given production's instructions, and every one of those numbers was published as
+	// a finding about seats. There is no fallback and no substitute: a board whose seat debate.js
+	// does not dispatch fails here rather than being handed something written locally.
+	d, err := seatprobe.ProductionPrompt(debatePath, b, runDir, filepath.Dir(bin), model, model)
 	if err != nil {
 		return err
 	}
+	if d.AgentType != "frank-exchange-of-views:"+agentFor(role) {
+		return fmt.Errorf("board %q: debate.js dispatches %s under %q, and this harness maps its %s role to %q — the probe would run the seat under the wrong constitution",
+			b.Name, b.Seat, d.AgentType, role, "frank-exchange-of-views:"+agentFor(role))
+	}
 
-	prompt := fmt.Sprintf(`You are the %s seat in a frank-exchange-of-views run. Your seat id is %s.
-
-Run directory: %s — use this ABSOLUTE path when you read files under it.
-The record tool is %s. Your identity and run are INJECTED (%s): do not pass --run or --seat-id.
-
-Read the board and the artifact under audit, then do your sitting's work. Decide and act; do not ask me what to do.
-
-%s`, role, b.Seat, runDir, bin, b.Seat, b.Sitting())
+	if err := promptNamesTheBinary(b.Name, d.Prompt, bin); err != nil {
+		return err
+	}
+	prompt := d.Prompt
+	if !strings.Contains(prompt, bin) {
+		return fmt.Errorf("board %q: the dispatched prompt does not name %s.\n\n"+
+			"debate.js builds the tool path from the DIRECTORY it is given, so the seat will run a\n"+
+			"different file in %s — silently, if one happens to be there. Name the binary the way\n"+
+			"production names it, or the run measures whatever else is in that directory.",
+			b.Name, bin, filepath.Dir(bin))
+	}
 
 	// THE ELICITATION ARM. Same board, same constitution, same identity — the seat is asked what
 	// it thinks its options are instead of being watched to see which it takes.
@@ -407,42 +487,95 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 	// seat would cheat, but because an answer about judgement should not leave board state
 	// behind: the run directory has to stay comparable to the acting arm's, or the two probes
 	// are measuring different boards.
-	tools := "Bash Read Write Edit Grep Glob"
+	// SUBTRACTIVE, NOT A REPLACEMENT LIST. The elicitation arm must not leave board state behind —
+	// an answer about judgement that records events is measuring a different sitting — but stating
+	// the tool set here is what removed WebSearch and ToolSearch from every probed seat. The agent
+	// definition supplies the set; this only takes the two write verbs off it.
+	var deny []string
 	if ask {
-		prompt = seatprobe.ElicitPrompt(role, b.Seat, runDir, bin, b)
-		if patterns == "duty" {
-			prompt += patternDuty(board)
-		}
-		tools = "Bash Read Grep Glob"
+		prompt = seatprobe.ElicitPrompt(role, b.Seat, runDir, bin, d.Prompt)
+		deny = []string{"Write", "Edit"}
 	}
+	// THE BOARD'S OWN WITHHOLDING, on both arms. `blocked` is a sitting about an unreachable
+	// source, and it is only that sitting if the source is actually unreachable.
+	deny = append(deny, b.Deny...)
 
+	// DISPATCH THE PRODUCTION AGENT, NOT A CONSTITUTION FILE.
+	//
+	// This passed --system-prompt-file <constitution> and an --allowedTools list written here. Both
+	// were wrong, and wrong in the direction that flatters the instrument:
+	//
+	//   SKILLS  the constitution declares `skills: [research-protocol, critical-stance,
+	//           terse-communication]`, and a raw system-prompt file loads NONE of them. The probed
+	//           seat did not have the protocol it operates under.
+	//   TOOLS   the constitution declares WebSearch and ToolSearch. The hand-written list had
+	//           neither — so `corroborate`, which is the verb for a source the seat goes and FINDS,
+	//           was unmeetable, and the board scored the seat UNMET on it across every run.
+	//
+	// --agent resolves the same definition production resolves, with its skills and its declared
+	// tools. It requires the plugin to be INSTALLED, which is also what production requires.
 	args := []string{
 		"-p", prompt,
 		"--model", model,
 		"--output-format", "stream-json",
 		"--verbose",
-		"--system-prompt-file", constitution,
+		"--agent", "frank-exchange-of-views:" + agentFor(role),
 		"--add-dir", runDir,
-		"--allowedTools", tools,
 		"--max-turns", "60",
+	}
+	// THE PERMISSION GRANT, TAKEN FROM THE AGENT'S OWN `tools:` LINE. Nobody is at the keyboard,
+	// and an ungranted Bash call comes back "This command requires approval" — measured: the seat's
+	// first two calls, both `--seat-id … --help` and exactly the act under test, were refused; it
+	// concluded the record tool was not responding and spent the sitting reasoning about a blocker
+	// the harness had created. `--permission-mode auto` and `dontAsk` do not help; both still refuse
+	// the record binary.
+	//
+	// Passing this alongside --agent does NOT narrow the seat's tools — measured, an agent
+	// dispatched with `--allowedTools Bash` still lists WebSearch and ToolSearch as its own. The
+	// old defect was a hand-written list passed with --system-prompt-file, where the list was the
+	// only tool source. Reading the declaration is what keeps the grant from becoming that list
+	// again.
+	granted, err := seatprobe.GrantedTools(constitution)
+	if err != nil {
+		return fmt.Errorf("board %q: %w", b.Name, err)
+	}
+	args = append(args, "--allowedTools")
+	args = append(args, granted...)
+	if len(deny) > 0 {
+		args = append(args, "--disallowedTools")
+		args = append(args, deny...)
 	}
 	cmd := exec.Command("claude", args...)
 	cmd.Dir = runDir
-	// THE IDENTITY IS INJECTED, BECAUSE THAT IS WHAT PRODUCTION DOES. The PreToolUse hook
-	// prefixes a seat's feov-record calls with FEOV_RUN, and #348 extended the same treatment to
-	// identity — ResolveSeat prefers the injected seat over --seat-id and REFUSES a flag that
-	// disagrees, because "omitting --seat-id is correct and always right".
+	// THE RUN IS INJECTED BECAUSE PRODUCTION INJECTS IT. The PreToolUse hook prefixes a seat's
+	// feov-record calls with FEOV_RUN (#281), and the probe does not load the plugin's hooks —
+	// so without this it told seats to type an absolute path on every call: a HARDER surface
+	// than any real run presents, and every mistyped path it measured was friction production
+	// had already designed away.
 	//
-	// The probe does not load the plugin's hooks, so without this it was telling seats to type
-	// both on every call: a HARDER surface than any real run presents, and every mistyped path
-	// or seat id it measured was friction production had already designed away.
+	// THE IDENTITY IS INJECTED AS AN AGENT HANDLE, which is what production injects — and it
+	// arrives UNBOUND. Build registers the fixture's seats as the harness, without this handle, so
+	// nothing on the record ties it to a seat until the seat itself calls `register`.
+	//
+	// THAT IS THE POINT, AND IT USED TO BE THE DIVERGENCE. Build bound the handle in advance, so a
+	// seat arrived already registered and `register` stopped being its first act. The 2026-08-20
+	// run measured the cost: one seat in nine never called it, made 22 tool calls, and recorded
+	// events anyway — a first write production would have refused. An instrument that satisfies
+	// the guard it is measuring cannot tell a compliant seat from an untested guard.
+	//
+	// What remains uncontrolled is smaller and is stated here rather than left to be discovered:
+	// production's dispatcher never learns an agent handle at all (Workflow's agent() returns a
+	// result, not one), so the handle a production seat carries is minted by the hook rather than
+	// by the caller. The BINDING path is now identical; only the handle's provenance differs.
 	cmd.Env = append(os.Environ(),
 		seatenv.Var+"="+runDir,
-		seatenv.SeatVar+"="+b.Seat,
-		// Every board is a single round-1 sitting. Injected rather than inferred: the regex
-		// fallback over a seat id cannot tell "round 0" from "no round in this name", which is
-		// the defect #348 put this variable here to end.
-		seatenv.RoundVar+"=1",
+		seatenv.AgentVar+"="+seatprobe.ProbeAgentID(b.Seat),
+		// THE ROUND IS NO LONGER INJECTED, because it is no longer a guess. Every probe seat id
+		// carries its round (see seatprobe.Seats — three sit round 1, and the bench sits round 2,
+		// which is the first round a judge can sit at all), so the derivation answers it. FEOV_ROUND
+		// existed because the old derivation could not tell "round 0" from "no round in this name";
+		// it can now, and the variable is gone rather than left set to a value the tool would
+		// compute anyway.
 	)
 	// The directory is created HERE, by the function that owns the path, rather than by the
 	// caller. Moving the trajectory out of the run directory and leaving its mkdir behind in
@@ -473,50 +606,20 @@ Read the board and the artifact under audit, then do your sitting's work. Decide
 	return nil
 }
 
-// armConstitution writes the arm's constitution beside the trajectory and returns its path.
-//
-// It lands OUTSIDE the run directory, for the same reason the trajectory does: a seat that can read
-// the treatment applied to it is a seat reading the experiment rather than the board.
-//
-// EVERY ARM IS RENDERED. There was a short-circuit here — `partial` with no directive returned the
-// shipped file untouched — and it was correct exactly as long as `partial` MEANT the shipped file.
-// It stopped meaning that when the constitutions stopped naming verbs: `partial` became a
-// constructed treatment, and the short-circuit went on returning the shipped bytes, so the arm
-// dispatched was byte-identical to `none`. Two arms, one treatment, and a difference of zero
-// between them that reads as a finding about naming.
-//
-// Caught mid-experiment, by reading the path rather than by any test: TestTheThreeArmsDiffer
-// exercises Constitution(), and the bug lived in the caller that decides whether to call it. The
-// test below now covers this function, which is the one the probe actually takes.
-func armConstitution(src, runDir string, sf seatprobe.Surface, role string, arm seatprobe.Naming, directive bool) (string, error) {
-	b, err := os.ReadFile(src)
-	if err != nil {
-		return "", err
-	}
-	out := seatprobe.Constitution(b, sf, role, arm, directive)
-	dir := filepath.Dir(trajectoryPath(runDir))
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-	p := filepath.Join(dir, fmt.Sprintf("%s-constitution-%s.md", filepath.Base(runDir), arm))
-	if err := os.WriteFile(p, out, 0o644); err != nil {
-		return "", err
-	}
-	return p, nil
-}
-
 // constitutionFor finds the agent definition a seat actually runs under.
 //
 // THE REAL ONE, NOT A PARAPHRASE. The probe exists to test whether the constitution teaches the
 // surface; handing the seat a summary written for the harness would test the summary.
 func constitutionFor(role, dir string) (string, error) {
 	if dir == "" {
-		// tools/cmd/seatprobe -> tools -> the plugin root.
-		wd, err := os.Getwd()
-		if err != nil {
+		// ANCHORED TO THE REPOSITORY, NOT TO THE WORKING DIRECTORY. This used to be
+		// `filepath.Join(wd, "..", "agents")`, correct only when the probe was launched from the
+		// tools module — and the same directory was reached by three different `..` counts in
+		// this one file, each right for its own launch point and wrong everywhere else.
+		var err error
+		if dir, err = repotree.Plugin("agents"); err != nil {
 			return "", err
 		}
-		dir = filepath.Join(wd, "..", "agents")
 	}
 	name := map[string]string{
 		"lens":  "red-auditor.md",
@@ -631,40 +734,76 @@ func readAnswer(path string) string {
 }
 
 // memoryDirs is where red's accumulated gap patterns live, as run-setup reads them.
-func memoryDirs() []string {
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil
+//
+// THE DEFAULT USED TO BE RELATIVE TO THE WORKING DIRECTORY, and that was a real constraint rather
+// than a detail: it walked up four levels on the assumption the probe had been launched from the
+// tools module. Run from anywhere else, the corpus did not stage — which fails the board loudly
+// (the dispatched prompt names inputs/red-gap-patterns.md in blue's first instruction, so a run
+// without it is measuring a broken read) but tells the caller nothing about how to fix it. The
+// interview harness, running from its own scratch directory, hit exactly that; the -memory flag
+// was the workaround. It is now an override rather than a requirement.
+func memoryDirs(flagValue string) ([]string, error) {
+	if flagValue != "" {
+		return []string{flagValue}, nil
 	}
-	// tools/ -> plugin -> plugins -> repo root
-	return []string{filepath.Join(wd, "..", "..", "..", "feov-memory", "red-gap-patterns")}
+	root, err := repotree.Root()
+	if err != nil {
+		// NAMED, NOT SWALLOWED. Returning nil here reached MirrorGapPatterns as "no memory dir",
+		// which is what an EMPTY corpus also says — the operator saw a board fail and no reason
+		// to look at where the probe was launched from.
+		return nil, fmt.Errorf("cannot locate the repository to find red's gap-pattern corpus (%w) — "+
+			"pass -memory with the directory to stage", err)
+	}
+	return []string{filepath.Join(root, "feov-memory", "red-gap-patterns")}, nil
 }
 
-// patternDuty renders the DUTY form: the entries whose class matches a gap on THIS board, tied to
-// the gap in front of the seat rather than mounted as a file to read.
+// debateScript resolves the orchestrator the probe takes its prompts from.
 //
-// It mirrors debate.js's patternDutyClause deliberately. The claim under test — stated in red's
-// constitution and in blue's, both as "measured" — is that this form changes behaviour where the
-// mounted file does not: "duty-embedded patterns caught both warned classes in round 1; the mounted
-// file prevented nothing" against "lanes verifiably read the gap-pattern file and committed both
-// warned patterns anyway". Both sentences rest on one run apiece.
-func patternDuty(b seatprobe.Board) string {
-	idx := setup.BuildPatternIndex(memoryDirs())
-	var lines []string
-	seen := map[string]bool{}
-	for _, g := range b.Gaps {
-		for _, e := range idx.ByClass[g.Class] {
-			if seen[e.File] {
-				continue
-			}
-			seen[e.File] = true
-			lines = append(lines, fmt.Sprintf("  [%s] %s — %s", g.Class, e.Title, e.Hook))
-		}
+// ONE FILE, NOT A COPY OF ONE. The prompt a seat is dispatched with is rendered by executing this
+// script, so an edit to a clause reaches the probe on the next run. The default mirrors
+// constitutionFor's — both go through repotree, which finds the plugin tree by searching for it,
+// so the probe no longer has to be launched from the tools module for its defaults to land. A
+// missing file is a hard failure at the point of use: a probe that fell back to a written prompt
+// would be the defect this whole route removed.
+func debateScript(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
 	}
-	if len(lines) == 0 {
-		return "\n\nPATTERN DUTY: none of this board's gap classes has an entry in red's memory."
+	// One address for the shipped script, shared with the three gates that parse it — see
+	// repotree.DebateJS. The old form joined `..` onto the working directory and so was only
+	// correct when the probe was launched from the tools module.
+	p, err := repotree.DebateJS()
+	if err != nil {
+		return ""
 	}
-	return "\n\nPATTERN DUTY (red's accumulated memory, selected BY THE CLASS of the gaps in front of you — not the whole corpus).\n" +
-		"These are defects red has already caught in THIS class of gap:\n\n" + strings.Join(lines, "\n") +
-		"\n\nCheck any repair you would propose against each one before you would claim the gap closed."
+	return p
+}
+
+// promptNamesTheBinary refuses a prompt that sends the seat somewhere other than the binary this
+// harness was given, and this is checked against the RENDERED prompt rather than against a second
+// copy of debate.js's spelling kept here.
+//
+// debate.js builds the tool path itself, from the DIRECTORY it is handed: `${binDir}/feov-record`.
+// The probe passes filepath.Dir(bin), so a -bin whose basename is anything else tells the seat to
+// run a DIFFERENT FILE in that directory — and says nothing, because neither side is wrong on its
+// own terms.
+//
+// MEASURED 2026-08-21, and it is the reason this exists. A run was driven with
+// `-bin <scratch>/feov-record8`; the seats were told to run `<scratch>/feov-record`, which existed,
+// because a build from four days earlier was still lying in that directory. Nine boards dispatched,
+// every seat worked, the record filled up, and the report was a measurement of a binary the
+// operator had not built — one still carrying the role-prefixed surface the tool had since retired.
+// The only symptom was a denominator: `help×0 of 0 tool calls`.
+//
+// A stale artifact is what made it silent. With nothing at that path the seats would have failed
+// loudly on their first call; with something there, the miss returned a plausible run.
+func promptNamesTheBinary(board, prompt, bin string) error {
+	if strings.Contains(prompt, bin) {
+		return nil
+	}
+	return fmt.Errorf("board %q: the dispatched prompt does not name %s.\n\n"+
+		"debate.js builds the tool path from the DIRECTORY it is given, so the seat will run a\n"+
+		"different file in %s — silently, if one happens to be there. Name the binary the way\n"+
+		"production names it, or the run measures whatever else is in that directory.",
+		board, bin, filepath.Dir(bin))
 }

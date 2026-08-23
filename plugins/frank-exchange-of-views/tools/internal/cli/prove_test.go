@@ -16,7 +16,7 @@ func proveSeat(t *testing.T, runDir, body string) string {
 	t.Helper()
 	writeReport(t, runDir, body)
 	const seat = "blue-respond-r1"
-	if _, err := run(t, "blue", "register", "--run", runDir, "--seat-id", seat); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", seat); err != nil {
 		t.Fatal(err)
 	}
 	return seat
@@ -32,11 +32,11 @@ func script(t *testing.T, runDir, name, body string) string {
 
 // A computation settles the claim, anchors at the sentence it backs, and leaves an artifact.
 func TestProveAnchorsAndRecordsTheComputation(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seat := proveSeat(t, runDir, "# H\n\nNine is composite, so the protocol rejects a false claim.\n")
 	s := script(t, runDir, "nine.js", "let d=[];for(let i=2;i<9;i++)if(9%i===0)d.push(i);console.log('divisors:',d.join(','));")
 
-	out, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", seat,
+	out, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
 		"--quote", "Nine is composite, so the protocol rejects a false claim.",
 		"--script", s, "--reason", "trial division settles it")
 	if err != nil {
@@ -73,16 +73,16 @@ func TestProveAnchorsAndRecordsTheComputation(t *testing.T) {
 // edit may carry it across but never drop it. Evidence a seat produced by RUNNING something
 // must not be removable by rewriting a sentence.
 func TestBlueEditCannotDropAProofAnchor(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	// Text FOLLOWS the anchored sentence so the anchor sits MID-span: it splices after the
 	// quoted sentence, so a span ending at that sentence never crosses it.
 	seat := proveSeat(t, runDir, "# H\n\nNine is composite by trial division. The protocol therefore rejects it.\n")
 	s := script(t, runDir, "n.js", "console.log('composite');")
-	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", seat,
+	if _, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
 		"--quote", "Nine is composite by trial division.", "--script", s, "--reason", "r"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", seat,
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", seat,
 		"--key", "E1", "--quote", "by trial division. The protocol therefore rejects it",
 		"--new", "by trial division. The protocol rejects it", "--reason", "shorter")
 	if err == nil {
@@ -95,10 +95,10 @@ func TestBlueEditCannotDropAProofAnchor(t *testing.T) {
 
 // RED RE-RUNS RATHER THAN RE-READS. This is the audit no citation can offer.
 func TestRedReproducesAProof(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seat := proveSeat(t, runDir, "# H\n\nSeven has no divisor between two and six.\n")
 	s := script(t, runDir, "seven.js", "console.log('no divisors in 2..6');")
-	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", seat,
+	if _, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
 		"--quote", "Seven has no divisor between two and six.", "--script", s, "--reason", "r"); err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestRedReproducesAProof(t *testing.T) {
 
 	// --as and --reason are REQUIRED (#343): re-running measures DETERMINISM, and a script that
 	// prints "7 is prime" reproduces forever. The soundness verdict is red's, from reading it.
-	out, err := run(t, "lens", "reproduce", "--run", runDir, "--seat-id", "red-lens-r1-L1", "--id", sha,
+	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-r1-L1", "--id", sha,
 		"--as", "sound", "--reason", "trial division to sqrt(n); it computes primality rather than asserting it")
 	if err != nil {
 		t.Fatalf("reproduce: %v", err)
@@ -123,11 +123,11 @@ func TestRedReproducesAProof(t *testing.T) {
 // A MOVING RESULT IS RECORDED AS A MEASUREMENT, not refused and not laundered as a proof.
 // The network choice makes this the routine case.
 func TestAMovingProofIsGradedObserved(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seat := proveSeat(t, runDir, "# H\n\nThe sampled value varies between runs.\n")
 	s := script(t, runDir, "moves.js", "console.log(Math.random());")
 
-	out, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", seat,
+	out, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
 		"--quote", "The sampled value varies between runs.", "--script", s, "--reason", "sampling a live system")
 	if err != nil {
 		t.Fatalf("a non-deterministic computation was refused; it is a measurement, not an error: %v", err)
@@ -140,11 +140,11 @@ func TestAMovingProofIsGradedObserved(t *testing.T) {
 // A proof that cannot run is not evidence, and the failure is a capability signal — the same
 // treatment `blue cite` gives an unreachable source.
 func TestAnUnrunnableProofIsRefusedAndLogsFriction(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seat := proveSeat(t, runDir, "# H\n\nA sentence to anchor to.\n")
 	s := script(t, runDir, "mystery.rb", "puts 1")
 
-	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", seat,
+	if _, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
 		"--quote", "A sentence to anchor to.", "--script", s, "--reason", "r"); err == nil {
 		t.Fatal("a script with no known interpreter was accepted as evidence")
 	}
@@ -158,10 +158,10 @@ func TestAnUnrunnableProofIsRefusedAndLogsFriction(t *testing.T) {
 
 // A proof must anchor to text that is actually there — the same rule a citation follows.
 func TestProveRefusesAMisquotedLocation(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seat := proveSeat(t, runDir, "# H\n\nA sentence to anchor to.\n")
 	s := script(t, runDir, "ok.js", "console.log('x');")
-	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", seat,
+	if _, err := run(t, "prove", "--run", runDir, "--seat-id", seat,
 		"--quote", "a sentence that is not in the report", "--script", s, "--reason", "r"); err == nil {
 		t.Fatal("a proof anchored to text the report does not contain was accepted")
 	}

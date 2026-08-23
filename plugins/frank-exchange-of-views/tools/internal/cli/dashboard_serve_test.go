@@ -104,7 +104,7 @@ func TestHostIPv4sSkipsLoopbackAndLinkLocal(t *testing.T) {
 // protocol registry calls co-resident-rules-disagree. A golden pins the STRING; nothing pinned the
 // AGREEMENT, so a reviewer regenerating a golden would not notice a security claim flip.
 func TestServeHelpMatchesTheTransport(t *testing.T) {
-	h := help(t, "dashboard", "--help")
+	h := help(t, "dashboard", "--help", "--seat-id", "operator")
 	if !strings.Contains(h, "HTTPS") {
 		t.Error("--serve help does not say HTTPS, but serveDashboard uses ListenAndServeTLS")
 	}
@@ -144,9 +144,9 @@ func TestServeRefusesWhenTheRunIsNotLive(t *testing.T) {
 // regenerating a dead run, forever.
 func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 	// A live run: marker present, no outcome on the record. Neither watcher may exit.
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	marker := filepath.Join(t.TempDir(), "run-live.json")
-	if err := os.WriteFile(marker, []byte(`{"runDir":"x"}`), 0o644); err != nil {
+	if err := os.WriteFile(marker, []byte(`{"runs":[{"runDir":"x"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if ended, why := runHasEnded(marker, runDir); ended {

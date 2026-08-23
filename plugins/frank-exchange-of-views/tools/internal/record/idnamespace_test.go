@@ -87,7 +87,7 @@ func TestNoIDKindCanBeReadAsAnother(t *testing.T) {
 	// that minted `A10` while another minted `A1` followed by `0` would not.
 	minted := map[string][]string{}
 	for _, k := range kinds {
-		runDir := t.TempDir()
+		runDir := newRun(t)
 		if err := writeSeat(t, runDir); err != nil {
 			t.Fatal(err)
 		}
@@ -177,7 +177,7 @@ func TestEveryIDKindHasADistinctPrefixLetter(t *testing.T) {
 // writeSeat registers the seat every minter counts events from.
 func writeSeat(t *testing.T, runDir string) error {
 	t.Helper()
-	_, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")})
+	_, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "")
 	return err
 }
 

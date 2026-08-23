@@ -19,25 +19,23 @@ import (
 func newRegrade() *cobra.Command {
 	var severity, likelihood, impact, cx flags.GradeValue
 
-	c := seat.New("regrade",
-		`same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			body := &recordpb.Regrade{GapId: proto.String(seat.Str(cmd, flags.ID))}
-			body.Severity = seat.GradeOrNil(&severity)
-			body.Likelihood = seat.GradeOrNil(&likelihood)
-			body.Impact = seat.GradeOrNil(&impact)
-			body.ComplexityCost = seat.GradeOrNil(&cx)
-			// Flag word --reason (the one prose word), payload key stays basis.
-			basis, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
-			body.Basis = proto.String(basis)
-			if _, err := record.Append(s.Identity(), body); err != nil {
-				return nil, err
-			}
-			return regradeResult{GapID: seat.Str(cmd, flags.ID)}, nil
-		})
+	c := seat.New("regrade", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		body := &recordpb.Regrade{GapId: proto.String(seat.Str(cmd, flags.ID))}
+		body.Severity = seat.GradeOrNil(&severity)
+		body.Likelihood = seat.GradeOrNil(&likelihood)
+		body.Impact = seat.GradeOrNil(&impact)
+		body.ComplexityCost = seat.GradeOrNil(&cx)
+		// Flag word --reason (the one prose word), payload key stays basis.
+		basis, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		body.Basis = proto.String(basis)
+		if _, err := record.Append(s.Identity(), body); err != nil {
+			return nil, err
+		}
+		return regradeResult{GapID: seat.Str(cmd, flags.ID)}, nil
+	})
 
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id")
 	c.Flags().Var(&severity, flags.Severity, flags.GradeUsage("how bad this is"))

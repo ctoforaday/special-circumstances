@@ -34,9 +34,10 @@ type boardJSON struct {
 	Anomalies []string `json:"anomalies"`
 }
 
-func board(t *testing.T, runDir, seatRole, seatID string) boardJSON {
+// THE ROLE LEFT THE ARGS: the seat id selects the tree.
+func board(t *testing.T, runDir, seatID string) boardJSON {
 	t.Helper()
-	out, err := run(t, seatRole, "show", "--run", runDir, "--seat-id", seatID, "board")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", seatID, "board")
 	if err != nil {
 		t.Fatalf("show board: %v", err)
 	}
@@ -66,19 +67,19 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 	closedByRed := mintGap(t, runDir, "red-closes", "json-vs-markdown")
 	closedByBench := mintGap(t, runDir, "bench-closes", "json-vs-markdown")
 
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", closedByRed, "--as", "closed",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", closedByRed, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason", "the check passes"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
-	if _, err := run(t, "bench", "opinion", "--run", runDir, "--seat-id", "judge-r1",
-		"--id", closedByBench, "--as", "closed", "--principle", "p", "--tension", "t",
-		"--review-flag", "no", "--reason", "closed on the merits"); err != nil {
+	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
+		"--id", closedByBench, "--as", "repaired", "--principle", "p", "--tension", "t",
+		"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "closed on the merits"); err != nil {
 		t.Fatalf("bench opinion: %v", err)
 	}
 
-	b := board(t, runDir, "merge", "red-merge-r1")
+	b := board(t, runDir, "red-merge-r1")
 	if got := ids(b.Open); len(got) != 1 || got[0] != open1 {
 		t.Errorf("JSON board open = %v, want [%s]", got, open1)
 	}
@@ -103,14 +104,14 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "anchored", "anchor-as-fields")
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", id, "--as", "closed",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", id, "--as", "repaired",
 		"--verified-by", "L4", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
 		"--reason", "re-read the cited source"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 
-	b := board(t, runDir, "merge", "red-merge-r1")
+	b := board(t, runDir, "red-merge-r1")
 	if len(b.Closed) != 1 {
 		t.Fatalf("closed = %v, want one gap", ids(b.Closed))
 	}
@@ -131,18 +132,18 @@ func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 // red/candidates/*.md files — label (tool-assigned), role from the seat id, grades, text.
 func TestFindingsViewProjectsLensFindings(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 		"--key", "F1", "--quote", "§1", "--reason", "first", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "lens", "register", "--run", runDir, "--seat-id", "red-lens-r1-L5"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L5"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "lens", "finding", "--run", runDir, "--seat-id", "red-lens-r1-L5",
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L5",
 		"--key", "F1", "--quote", "§2", "--reason", "second", "--severity", "high", "--likelihood", "high", "--impact", "high"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "merge", "show", "--run", runDir, "--seat-id", "red-merge-r1", "findings")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1", "findings")
 	if err != nil {
 		t.Fatalf("show findings: %v", err)
 	}

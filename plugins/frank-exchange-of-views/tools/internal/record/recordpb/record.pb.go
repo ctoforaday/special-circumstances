@@ -491,12 +491,12 @@ type Disposition int32
 
 const (
 	Disposition_DISPOSITION_UNSPECIFIED              Disposition = 0
-	Disposition_DISPOSITION_CLOSED                   Disposition = 1
-	Disposition_DISPOSITION_CLOSED_WITH_REGRESSION   Disposition = 2
+	Disposition_DISPOSITION_REPAIRED                 Disposition = 1
+	Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION Disposition = 2
 	Disposition_DISPOSITION_AMENDS_PRIOR             Disposition = 3
-	Disposition_DISPOSITION_REBUTTAL_SUSTAINED       Disposition = 4
-	Disposition_DISPOSITION_RISK_ACCEPTED            Disposition = 5
-	Disposition_DISPOSITION_ROUTED_TO_INFRASTRUCTURE Disposition = 6
+	Disposition_DISPOSITION_NOT_A_DEFECT             Disposition = 4
+	Disposition_DISPOSITION_DEFECT_ACCEPTED          Disposition = 5
+	Disposition_DISPOSITION_DEFECT_OWED_ELSEWHERE    Disposition = 6
 	// THE ONE WORD THAT DOES NOT CLOSE, and the reason this enum carries `closes` at all.
 	//
 	// `carried` is reachable by the BENCH only: a merge closing a gap is asserting a repair, and
@@ -509,22 +509,22 @@ const (
 var (
 	Disposition_name = map[int32]string{
 		0: "DISPOSITION_UNSPECIFIED",
-		1: "DISPOSITION_CLOSED",
-		2: "DISPOSITION_CLOSED_WITH_REGRESSION",
+		1: "DISPOSITION_REPAIRED",
+		2: "DISPOSITION_REPAIRED_WITH_REGRESSION",
 		3: "DISPOSITION_AMENDS_PRIOR",
-		4: "DISPOSITION_REBUTTAL_SUSTAINED",
-		5: "DISPOSITION_RISK_ACCEPTED",
-		6: "DISPOSITION_ROUTED_TO_INFRASTRUCTURE",
+		4: "DISPOSITION_NOT_A_DEFECT",
+		5: "DISPOSITION_DEFECT_ACCEPTED",
+		6: "DISPOSITION_DEFECT_OWED_ELSEWHERE",
 		7: "DISPOSITION_CARRIED",
 	}
 	Disposition_value = map[string]int32{
 		"DISPOSITION_UNSPECIFIED":              0,
-		"DISPOSITION_CLOSED":                   1,
-		"DISPOSITION_CLOSED_WITH_REGRESSION":   2,
+		"DISPOSITION_REPAIRED":                 1,
+		"DISPOSITION_REPAIRED_WITH_REGRESSION": 2,
 		"DISPOSITION_AMENDS_PRIOR":             3,
-		"DISPOSITION_REBUTTAL_SUSTAINED":       4,
-		"DISPOSITION_RISK_ACCEPTED":            5,
-		"DISPOSITION_ROUTED_TO_INFRASTRUCTURE": 6,
+		"DISPOSITION_NOT_A_DEFECT":             4,
+		"DISPOSITION_DEFECT_ACCEPTED":          5,
+		"DISPOSITION_DEFECT_OWED_ELSEWHERE":    6,
 		"DISPOSITION_CARRIED":                  7,
 	}
 )
@@ -3114,10 +3114,19 @@ type Opinion struct {
 	// opposite argument: not every ruling has two values in conflict and most need no human to
 	// look, so demanding them would produce INVENTED tension and pro-forma flags, which read as
 	// reasoning and are worse than an honest blank.
-	Principle     *string `protobuf:"bytes,3,opt,name=principle,proto3,oneof" json:"principle,omitempty"`
-	Tension       *string `protobuf:"bytes,4,opt,name=tension,proto3,oneof" json:"tension,omitempty"`
-	ReviewFlag    *string `protobuf:"bytes,5,opt,name=review_flag,json=reviewFlag,proto3,oneof" json:"review_flag,omitempty"`
-	Rationale     *string `protobuf:"bytes,6,opt,name=rationale,proto3,oneof" json:"rationale,omitempty"`
+	Principle  *string `protobuf:"bytes,3,opt,name=principle,proto3,oneof" json:"principle,omitempty"`
+	Tension    *string `protobuf:"bytes,4,opt,name=tension,proto3,oneof" json:"tension,omitempty"`
+	ReviewFlag *string `protobuf:"bytes,5,opt,name=review_flag,json=reviewFlag,proto3,oneof" json:"review_flag,omitempty"`
+	Rationale  *string `protobuf:"bytes,6,opt,name=rationale,proto3,oneof" json:"rationale,omitempty"`
+	// THE PROPOSITION NOW BARRED. A finding is a claim, its evidence and its demand; a fate says
+	// which of the three fell only to whoever wrote it. Presence-only for the same reason `tension`
+	// is: demanding prose here would produce a restatement of the disposition, which reads as
+	// reasoning and is worse than an honest blank.
+	Settled   *string `protobuf:"bytes,7,opt,name=settled,proto3,oneof" json:"settled,omitempty"`
+	ReopensOn *string `protobuf:"bytes,8,opt,name=reopens_on,json=reopensOn,proto3,oneof" json:"reopens_on,omitempty"`
+	// Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the
+	// check above is what makes "neither" unrepresentable.
+	Final         *bool `protobuf:"varint,9,opt,name=final,proto3,oneof" json:"final,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3192,6 +3201,27 @@ func (x *Opinion) GetRationale() string {
 		return *x.Rationale
 	}
 	return ""
+}
+
+func (x *Opinion) GetSettled() string {
+	if x != nil && x.Settled != nil {
+		return *x.Settled
+	}
+	return ""
+}
+
+func (x *Opinion) GetReopensOn() string {
+	if x != nil && x.ReopensOn != nil {
+		return *x.ReopensOn
+	}
+	return ""
+}
+
+func (x *Opinion) GetFinal() bool {
+	if x != nil && x.Final != nil {
+		return *x.Final
+	}
+	return false
 }
 
 // Finding is a lens observation. The label is TOOL-assigned (L{lens}-F{n}); an unlabelled
@@ -4985,7 +5015,28 @@ type Register struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// tool_version is stamped on the seat's first act, so a run that somehow mixes binaries says
 	// so in its own record instead of producing events whose difference nobody can explain.
-	ToolVersion   *string `protobuf:"bytes,1,opt,name=tool_version,json=toolVersion,proto3,oneof" json:"tool_version,omitempty"`
+	ToolVersion *string `protobuf:"bytes,1,opt,name=tool_version,json=toolVersion,proto3,oneof" json:"tool_version,omitempty"`
+	// THE BINDING BETWEEN A HARNESS AGENT AND A SEAT, WRITTEN HERE AND NOWHERE ELSE.
+	//
+	// register is every seat's stated first action, which makes it the one moment the mapping is
+	// knowable: the hook supplies the agent id — the only payload field that discriminates one
+	// seat from another — and the seat supplies which seat it is. Recording their join is what
+	// turns self-asserted identity into a fact later calls can be held to.
+	//
+	// A FIELD, NOT A SIDE TABLE. The alternative was a JSON map the hook keeps, keyed on a seat id
+	// recovered by parsing the seat's own command — a fact read back out of prose, whose miss is
+	// indistinguishable from an honest absence.
+	//
+	// ABSENT IS NOT "". A run whose hook never fired carries no agent_id on any register event, and
+	// that stays legible as NOT MEASURED rather than reading as an agent whose handle is empty.
+	AgentId *string `protobuf:"bytes,2,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`
+	// run_via says which path supplied the run directory. A run whose seats all resolve by
+	// INFERENCE is a run the PreToolUse hook is not reaching, and nothing else records that.
+	//
+	// Absent on an IMPLICIT register, and that absence is the honest answer: that path fires when a
+	// seat writes before registering, so nothing observed how the run directory was resolved, and a
+	// guess would put a fact on the record nobody measured.
+	RunVia        *string `protobuf:"bytes,3,opt,name=run_via,json=runVia,proto3,oneof" json:"run_via,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5023,6 +5074,20 @@ func (*Register) Descriptor() ([]byte, []int) {
 func (x *Register) GetToolVersion() string {
 	if x != nil && x.ToolVersion != nil {
 		return *x.ToolVersion
+	}
+	return ""
+}
+
+func (x *Register) GetAgentId() string {
+	if x != nil && x.AgentId != nil {
+		return *x.AgentId
+	}
+	return ""
+}
+
+func (x *Register) GetRunVia() string {
+	if x != nil && x.RunVia != nil {
+		return *x.RunVia
 	}
 	return ""
 }
@@ -5635,7 +5700,7 @@ const file_record_proto_rawDesc = "" +
 	"\x05_slugB\r\n" +
 	"\v_definitionB\v\n" +
 	"\t_neighborB\x10\n" +
-	"\x0e_distinguisher\"\xdb\b\n" +
+	"\x0e_distinguisher\"\xdd\b\n" +
 	"\x05Close\x12J\n" +
 	"\x06gap_id\x18\x01 \x01(\tB.\x82\xb5\x18*\b\x01\x12\x02id\x1a\x15which gap this closes\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\xb6\x01\n" +
 	"\rclosure_class\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBo\x82\xb5\x18k\x1aaa merge close asserts a repair; `carried` defers instead of closing and is the bench's word alone2\x06closesH\x01R\fclosureClass\x88\x01\x01\x12$\n" +
@@ -5646,8 +5711,8 @@ const file_record_proto_rawDesc = "" +
 	"\ranchor_target\x18\x05 \x01(\tH\x04R\fanchorTarget\x88\x01\x01\x12&\n" +
 	"\fcarried_from\x18\x06 \x01(\tH\x05R\vcarriedFrom\x88\x01\x01\x124\n" +
 	"\tsuccessor\x18\a \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x06R\tsuccessor\x88\x01\x01\x12\x97\x01\n" +
-	"\x05prose\x18\b \x01(\tB|\x82\xb5\x18x\x12\x06reason\x1anthe closure's argument — what was verified and why it holds; the report renders it and the re-audit reads itH\aR\x05prose\x88\x01\x01:\xe6\x02\x92\xb5\x18\xab\x01\n" +
-	"F\"closure_class\" <> 'closed_with_regression' OR \"successor\" IS NOT NULL\x12aa closure that reports a regression must name the gap carrying it forward — lineage never drops\x92\xb5\x18\xb1\x01\n" +
+	"\x05prose\x18\b \x01(\tB|\x82\xb5\x18x\x12\x06reason\x1anthe closure's argument — what was verified and why it holds; the report renders it and the re-audit reads itH\aR\x05prose\x88\x01\x01:\xe8\x02\x92\xb5\x18\xad\x01\n" +
+	"H\"closure_class\" <> 'repaired_with_regression' OR \"successor\" IS NOT NULL\x12aa closure that reports a regression must name the gap carrying it forward — lineage never drops\x92\xb5\x18\xb1\x01\n" +
 	"1\"carried_from\" IS NOT NULL OR \"prose\" IS NOT NULL\x12|a closure states what was verified and why it holds; only a carry is exempt, because the round it restates already argued itB\t\n" +
 	"\a_gap_idB\x10\n" +
 	"\x0e_closure_classB\x0e\n" +
@@ -5683,7 +5748,7 @@ const file_record_proto_rawDesc = "" +
 	"\x04none\x18\x03 \x01(\bH\x00R\x04none\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x04 \x01(\tH\x01R\x06reason\x88\x01\x01B\a\n" +
 	"\x05_noneB\t\n" +
-	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xcb\x06\n" +
+	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\x8d\r\n" +
 	"\aOpinion\x12P\n" +
 	"\x06gap_id\x18\x01 \x01(\tB4\x82\xb5\x180\b\x01\x12\x02id\x1a\x1bwhich gap is being ruled on\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\x9b\x01\n" +
 	"\vdisposition\x18\x02 \x01(\x0e2\x1b.feov.record.v1.DispositionBW\x82\xb5\x18S\b\x01\x12\x02as\x1aKhow the gap ends, or `carried` to defer it with a stated research directionH\x01R\vdisposition\x88\x01\x01\x12p\n" +
@@ -5691,7 +5756,14 @@ const file_record_proto_rawDesc = "" +
 	"\atension\x18\x04 \x01(\tBb\x82\xb5\x18^\b\x01\x1aXwhat pulls the other way — a ruling with no acknowledged counterweight is an assertion8\x01H\x03R\atension\x88\x01\x01\x12l\n" +
 	"\vreview_flag\x18\x05 \x01(\tBF\x82\xb5\x18B\b\x01\x12\vreview-flag\x1a/why a human should, or should not, look at this8\x01H\x04R\n" +
 	"reviewFlag\x88\x01\x01\x12\x98\x01\n" +
-	"\trationale\x18\x06 \x01(\tBu\x82\xb5\x18q\b\x01\x12\x06reason\x1aethe ruling's rationale — a disposition with no stated reasoning is indistinguishable from a defaultH\x05R\trationale\x88\x01\x01B\t\n" +
+	"\trationale\x18\x06 \x01(\tBu\x82\xb5\x18q\b\x01\x12\x06reason\x1aethe ruling's rationale — a disposition with no stated reasoning is indistinguishable from a defaultH\x05R\trationale\x88\x01\x01\x12\x90\x01\n" +
+	"\asettled\x18\a \x01(\tBq\x82\xb5\x18m\b\x01\x1agwhat the losing party may no longer assert, as one sentence — not the gap id, and not the disposition8\x01H\x06R\asettled\x88\x01\x01\x12x\n" +
+	"\n" +
+	"reopens_on\x18\b \x01(\tBT\x82\xb5\x18P\x12\n" +
+	"reopens-on\x1aBthe evidence or condition that would make this worth raising againH\aR\treopensOn\x88\x01\x01\x12\x19\n" +
+	"\x05final\x18\t \x01(\bH\bR\x05final\x88\x01\x01:\xf2\x03\x92\xb5\x18\xb4\x02\n" +
+	"/\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL\x12\x80\x02a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round\x92\xb5\x18\xb4\x01\n" +
+	"'\"reopens_on\" IS NULL OR \"final\" IS NULL\x12\x88\x01--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly oneB\t\n" +
 	"\a_gap_idB\x0e\n" +
 	"\f_dispositionB\f\n" +
 	"\n" +
@@ -5700,7 +5772,11 @@ const file_record_proto_rawDesc = "" +
 	"\b_tensionB\x0e\n" +
 	"\f_review_flagB\f\n" +
 	"\n" +
-	"_rationale\"\xb6\x03\n" +
+	"_rationaleB\n" +
+	"\n" +
+	"\b_settledB\r\n" +
+	"\v_reopens_onB\b\n" +
+	"\x06_final\"\xb6\x03\n" +
 	"\aFinding\x12\"\n" +
 	"\n" +
 	"finding_id\x18\x01 \x01(\tH\x00R\tfindingId\x88\x01\x01\x12$\n" +
@@ -5952,10 +6028,15 @@ const file_record_proto_rawDesc = "" +
 	"_motion_idB\n" +
 	"\n" +
 	"\b_subjectB\t\n" +
-	"\a_reason\"C\n" +
+	"\a_reason\"\x9a\x01\n" +
 	"\bRegister\x12&\n" +
-	"\ftool_version\x18\x01 \x01(\tH\x00R\vtoolVersion\x88\x01\x01B\x0f\n" +
-	"\r_tool_version\"R\n" +
+	"\ftool_version\x18\x01 \x01(\tH\x00R\vtoolVersion\x88\x01\x01\x12\x1e\n" +
+	"\bagent_id\x18\x02 \x01(\tH\x01R\aagentId\x88\x01\x01\x12\x1c\n" +
+	"\arun_via\x18\x03 \x01(\tH\x02R\x06runVia\x88\x01\x01B\x0f\n" +
+	"\r_tool_versionB\v\n" +
+	"\t_agent_idB\n" +
+	"\n" +
+	"\b_run_via\"R\n" +
 	"\fRoundVerdict\x126\n" +
 	"\averdict\x18\x01 \x01(\x0e2\x17.feov.record.v1.VerdictH\x00R\averdict\x88\x01\x01B\n" +
 	"\n" +
@@ -6053,15 +6134,15 @@ const file_record_proto_rawDesc = "" +
 	"\x16CHECK_KIND_UNSPECIFIED\x10\x00\x12\x7f\n" +
 	"\x13CHECK_KIND_DOCUMENT\x10\x01\x1af\x8a\xb5\x18breading a shipped artifact settles it — the check is answered by prose that quotes what is there\x12\x9a\x03\n" +
 	"\x16CHECK_KIND_COMPUTATION\x10\x02\x1a\xfd\x02\x8a\xb5\x18\xf8\x02RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind\x12\x89\x01\n" +
-	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xb2\b\n" +
+	"\x11CHECK_KIND_SOURCE\x10\x03\x1ar\x8a\xb5\x18nverifying an external source settles it — the claim stands or falls on what the cited material actually says*\xaf\b\n" +
 	"\vDisposition\x12\x1b\n" +
-	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12Y\n" +
-	"\x12DISPOSITION_CLOSED\x10\x01\x1aA\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x98\xb5\x18\x01\x12\x9e\x01\n" +
-	"\"DISPOSITION_CLOSED_WITH_REGRESSION\x10\x02\x1av\x8a\xb5\x18nrepaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward\x98\xb5\x18\x01\x12\x9a\x01\n" +
-	"\x18DISPOSITION_AMENDS_PRIOR\x10\x03\x1a|\x8a\xb5\x18ta defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit\x98\xb5\x18\x01\x12\x96\x01\n" +
-	"\x1eDISPOSITION_REBUTTAL_SUSTAINED\x10\x04\x1ar\x8a\xb5\x18jblue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be\x98\xb5\x18\x01\x12\xb3\x01\n" +
-	"\x19DISPOSITION_RISK_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x92\x01\n" +
-	"$DISPOSITION_ROUTED_TO_INFRASTRUCTURE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x88\x01\n" +
+	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12[\n" +
+	"\x14DISPOSITION_REPAIRED\x10\x01\x1aA\x8a\xb5\x189the repair was verified at the leaf and nothing regressed\x98\xb5\x18\x01\x12\xa0\x01\n" +
+	"$DISPOSITION_REPAIRED_WITH_REGRESSION\x10\x02\x1av\x8a\xb5\x18nrepaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward\x98\xb5\x18\x01\x12\x9a\x01\n" +
+	"\x18DISPOSITION_AMENDS_PRIOR\x10\x03\x1a|\x8a\xb5\x18ta defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit\x98\xb5\x18\x01\x12\x90\x01\n" +
+	"\x18DISPOSITION_NOT_A_DEFECT\x10\x04\x1ar\x8a\xb5\x18jblue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be\x98\xb5\x18\x01\x12\xb5\x01\n" +
+	"\x1bDISPOSITION_DEFECT_ACCEPTED\x10\x05\x1a\x93\x01\x8a\xb5\x18\x8a\x01the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record\x98\xb5\x18\x01\x12\x8f\x01\n" +
+	"!DISPOSITION_DEFECT_OWED_ELSEWHERE\x10\x06\x1ah\x8a\xb5\x18`a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped\x98\xb5\x18\x01\x12\x88\x01\n" +
 	"\x13DISPOSITION_CARRIED\x10\a\x1ao\x8a\xb5\x18gNOT a closure: the gap survives to the next round with a stated research direction the coming seat owes\x98\xb5\x18\x00*\xec\a\n" +
 	"\rSourceOutcome\x12\x1e\n" +
 	"\x1aSOURCE_OUTCOME_UNSPECIFIED\x10\x00\x12`\n" +
@@ -6109,13 +6190,13 @@ const file_record_proto_rawDesc = "" +
 	"\fFrictionKind\x12\x1d\n" +
 	"\x19FRICTION_KIND_UNSPECIFIED\x10\x00\x12\x8a\x02\n" +
 	"\x16FRICTION_KIND_ESTOPPEL\x10\x01\x1a\xed\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\x12\xd0\x02\n" +
-	"\x18FRICTION_KIND_TOOL_ERROR\x10\x02\x1a\xb1\x02\x8a\xb5\x18\xac\x02the TOOL failed internally — unparseable input, an undecodable row, a check that could not run. Recorded rather than printed or swallowed, because an error nobody learns about is one nothing improves on. Distinct from a seat's own friction so the counts an operator reads stay about capability gaps*\x94\x03\n" +
+	"\x18FRICTION_KIND_TOOL_ERROR\x10\x02\x1a\xb1\x02\x8a\xb5\x18\xac\x02the TOOL failed internally — unparseable input, an undecodable row, a check that could not run. Recorded rather than printed or swallowed, because an error nobody learns about is one nothing improves on. Distinct from a seat's own friction so the counts an operator reads stay about capability gaps*\x96\x03\n" +
 	"\x0eGradeDimension\x12\x1f\n" +
 	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12;\n" +
 	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a\x1d\x8a\xb5\x18\x19how bad it is if it bites\x12\x86\x01\n" +
 	"\x1aGRADE_DIMENSION_LIKELIHOOD\x10\x02\x1af\x8a\xb5\x18bhow likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis\x12:\n" +
-	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x1a\x1e\x8a\xb5\x18\x1ahow far the damage reaches\x12_\n" +
-	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04\x1a?\x8a\xb5\x18;what the fix costs; it is what makes risk_accepted arguable*\x8b\x04\n" +
+	"\x16GRADE_DIMENSION_IMPACT\x10\x03\x1a\x1e\x8a\xb5\x18\x1ahow far the damage reaches\x12a\n" +
+	"\x1aGRADE_DIMENSION_COMPLEXITY\x10\x04\x1aA\x8a\xb5\x18=what the fix costs; it is what makes defect_accepted arguable*\x8b\x04\n" +
 	"\rPetitionClass\x12\x1e\n" +
 	"\x1aPETITION_CLASS_UNSPECIFIED\x10\x00\x12v\n" +
 	"\x18PETITION_CLASS_INTEGRITY\x10\x01\x1aX\x8a\xb5\x18Tproceeding would require asserting what you believe false, or burying a real finding\x12J\n" +

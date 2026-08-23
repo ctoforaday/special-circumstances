@@ -45,7 +45,7 @@ import (
 // string back and watching a gate written to catch it pass anyway.
 //
 // The optional group admits a parenthesised gloss between the value and the pipe. `closed |
-// risk_accepted` still matches, so nothing this caught before stops being caught.
+// defect_accepted` still matches, so nothing this caught before stops being caught.
 var setInHelp = regexp.MustCompile(`[\w-]+(?: *\([^)]*\))? *\| *[\w-]+`)
 
 // exempt names the set-shaped flags that are NOT declared in record.EnumFields, each with
@@ -60,7 +60,7 @@ var setInHelp = regexp.MustCompile(`[\w-]+(?: *\([^)]*\))? *\| *[\w-]+`)
 //
 //	"opinion --as": the bench's resolution set is open by decision …
 //	"close --as":   closure_class is open, and its candidate values are not yet consistent
-//	                across the suite — the PASS refusal names `rebuttal_sustained`, the
+//	                across the suite — the PASS refusal names `not_a_defect`, the
 //	                red-auditor prompt names `evidence-rebutted` …
 //
 // The second was not a decision, it was a DEBT with its blocker written down: the words
@@ -85,8 +85,9 @@ var enforcedElsewhere = map[string]string{
 	// form. `graph` was already correct. `show board --format` was NOT: it tested for markdown and
 	// fell through to JSON for everything else at exit 0, so a typo and the default were the same
 	// bytes. That one is fixed at the site rather than excused here.
-	"graph --format": "refused in graph's own RunE default arm — a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
-	"board --format": "refused in the show-board arm of seat.Show — same reason as graph: a rendering choice, not a payload field. It was NOT refused until this gate could see it",
+	"graph --format":       "refused in graph's own RunE default arm — a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
+	"diagnostics --format": "refused in show diagnostics' own RunE default arm — a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
+	"board --format":       "refused in the show-board arm of seat.Show — same reason as graph: a rendering choice, not a payload field. It was NOT refused until this gate could see it",
 
 	// The motion verdicts are keyed on (SUBJECT, ruling), which record.EnumFields cannot express:
 	// it keys by event TYPE, and one `motion-rule` carries granted|denied for a petition and
@@ -147,7 +148,7 @@ const gradeParseTime = "enforced at PARSE time by flags.GradeValue (a pflag.Valu
 // failure names the site to fix.
 //
 // TWO WAYS TO ADVERTISE ONE NOW, and the second is the fix rather than a loophole. A flag used to
-// spell its set into its own usage string (`closed | risk_accepted | …`), which is what
+// spell its set into its own usage string (`closed | defect_accepted | …`), which is what
 // setInHelp looks for. Values with MEANINGS do not fit on a usage line, so an enumhelp-registered
 // flag carries them in the command's enumerated-values section instead and its usage line goes
 // short — invisible to the regex, and a gate that stopped seeing seven flags the day they got
@@ -181,7 +182,9 @@ func setFlags(c *cobra.Command, out map[string]string) {
 
 func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 	found := map[string]string{}
-	setFlags(newRoot(), found)
+	for _, r := range AllRoots() {
+		setFlags(r, found)
+	}
 
 	if len(found) == 0 {
 		t.Fatal("walked the command tree and found no set-shaped flag at all — the walk is broken, and a broken walk would pass this test silently forever")
@@ -256,7 +259,9 @@ func boolCount(bs ...bool) int {
 // that looks present and is dead.
 func TestEveryDeclaredSetBelongsToARealFlag(t *testing.T) {
 	found := map[string]string{}
-	setFlags(newRoot(), found)
+	for _, r := range AllRoots() {
+		setFlags(r, found)
+	}
 	for typ, fields := range record.EnumFields {
 		for _, e := range fields {
 			if _, ok := found[typ+" --"+e.Flag]; !ok {
@@ -316,7 +321,9 @@ func TestNoEnumhelpFlagAlsoSpellsItsSetInItsUsage(t *testing.T) {
 			walk(sub)
 		}
 	}
-	walk(newRoot())
+	for _, r := range AllRoots() {
+		walk(r)
+	}
 	if checked == 0 {
 		t.Fatal("no enumhelp-registered flags were examined — the walk found nothing, which is the silent pass this gate exists to avoid")
 	}

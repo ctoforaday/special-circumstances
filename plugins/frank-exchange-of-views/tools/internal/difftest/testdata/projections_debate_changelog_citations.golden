@@ -1,39 +1,45 @@
-$ merge register --run {RUN} --seat-id red-merge-r1
+$ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
 registered red-merge-r1
 
-$ merge position --run {RUN} --seat-id red-merge-r1 --reason-file {RUN}/red.md
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
+$ position --run {RUN} --seat-id red-merge-r1 --reason-file {RUN}/red.md
 exit 0
 stdout:
 position recorded
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
+$ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
 exit 0
 stdout:
 minted R1-1
 
-$ merge closing --run {RUN} --seat-id red-merge-r1 --id R1-1 --reason red's closing
+$ closing --run {RUN} --seat-id red-merge-r1 --id R1-1 --reason red's closing
 exit 0
 stdout:
 closing filed for R1-1
 
-$ blue position --run {RUN} --seat-id blue-respond-r1 --reason-file {RUN}/blue.md
+$ position --run {RUN} --seat-id blue-respond-r1 --reason-file {RUN}/blue.md
 exit 0
 stdout:
 position recorded
 
-$ blue closing --run {RUN} --seat-id blue-respond-r1 --id R1-1 --reason blue's closing
+$ closing --run {RUN} --seat-id blue-respond-r1 --id R1-1 --reason blue's closing
 exit 0
 stdout:
 closing filed for R1-1
 
-$ blue revision --run {RUN} --seat-id blue-respond-r1 --reason repairs landed
+$ revision --run {RUN} --seat-id blue-respond-r1 --reason repairs landed
 exit 0
 stdout:
 revision recorded — the round is on the record
 
-$ blue manifest-row --run {RUN} --seat-id blue-respond-r1 --id R1-1 --reason figures recomputed; check run: pass
+$ manifest-row --run {RUN} --seat-id blue-respond-r1 --id R1-1 --reason figures recomputed; check run: pass
 exit 0
 stdout:
 manifest row recorded for R1-1
@@ -41,13 +47,9 @@ manifest row recorded for R1-1
 $ blue dispute --run {RUN} --seat-id blue-respond-r1 --id R1-1 --dimension likelihood --proposed low --reason the harm needs two failures
 exit 2
 stderr:
-feov-record: no verb "dispute" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `blue friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: no command named "blue" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
 
-blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
-
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.
+feov-record — blue seats — revisions, manifest rows, directions. No board verbs at all.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -55,44 +57,34 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} [flags]
-  {TOOL} [command]
+  feov-record [flags]
+  feov-record [command]
 
 Available Commands:
-  cite            cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --quote "<the exact sentence, verbatim from the report>" --url <u> --title <t> [--key <your C1>]
+  cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
   closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
   edit            replace an exact span in blue/report.md: --key <your F1> --quote "<the span EXACTLY as `show report` prints it, anchors included>" --new "<replacement, carrying those anchors through unchanged>" --reason "...". ANCHORS ARE PART OF THE TEXT. `show report` prints every `<!--fx:…-->`, `<!--cite:…-->` and `<!--proof:…-->` as it is; quote what you see and copy each token into --new the way you copy every other character. A quote that stops just short of an anchor on the sentence it rewrites is REFUSED, and the refusal prints the token to carry — otherwise the reference is left beside prose it was never placed against. To change words around an anchor and leave it where it is, quote a FRAGMENT that does not reach it.
   friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  manifest-row    one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
-  position        the round's ### BLUE section (prose via --reason)
-  prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
-  retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
-  revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
-  -h, --help   help for blue
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-
-Use "{TOOL} [command] --help" for more information about a command.
+Use "feov-record [command] --help" for more information about a command.
 
 $ blue confidence --run {RUN} --seat-id blue-respond-r1 --quote C7 --confidence medium
 exit 2
 stderr:
-feov-record: no verb "confidence" exists on any seat — not this role's, and not another's, so there is no role to switch to. If you needed the capability it names, record that with `blue friction --reason "..."` rather than working around it. The verbs below are yours, and each one's own `--help` carries its flags.
+feov-record: no command named "blue" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
 
-blue seats — revisions, manifest rows, directions. No board verbs at all. To contest a grade or petition the bench, see `motion`.
-
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.
+feov-record — blue seats — revisions, manifest rows, directions. No board verbs at all.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -100,40 +92,38 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} [flags]
-  {TOOL} [command]
+  feov-record [flags]
+  feov-record [command]
 
 Available Commands:
-  cite            cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --quote "<the exact sentence, verbatim from the report>" --url <u> --title <t> [--key <your C1>]
+  cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
   closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
   edit            replace an exact span in blue/report.md: --key <your F1> --quote "<the span EXACTLY as `show report` prints it, anchors included>" --new "<replacement, carrying those anchors through unchanged>" --reason "...". ANCHORS ARE PART OF THE TEXT. `show report` prints every `<!--fx:…-->`, `<!--cite:…-->` and `<!--proof:…-->` as it is; quote what you see and copy each token into --new the way you copy every other character. A quote that stops just short of an anchor on the sentence it rewrites is REFUSED, and the refusal prints the token to carry — otherwise the reference is left beside prose it was never placed against. To change words around an anchor and leave it where it is, quote a FRAGMENT that does not reach it.
   friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  manifest-row    one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
-  position        the round's ### BLUE section (prose via --reason)
-  prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
-  retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
-  revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
-  -h, --help   help for blue
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+Use "feov-record [command] --help" for more information about a command.
 
-Use "{TOOL} [command] --help" for more information about a command.
-
-$ lens verify --run {RUN} --seat-id red-lens-r1-L1 --quote throughput doubled --title https://example.invalid/paper --trust high --access-date 2026-07-18
+$ verify --run {RUN} --seat-id red-lens-r1-L1 --quote throughput doubled --title https://example.invalid/paper --trust high --access-date 2026-07-18
 exit 2
 stderr:
 feov-record: unknown flag: --title
 
-adjudicate ONE citation blue authored: --anchor c-<hex> (from `show evidence`) --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `absent` — `absent` means you read the source and the claim is not in it. An UNEVIDENCED claim is a finding: raise it with `finding`, which is the channel for "this assertion rests on nothing", exactly as it is for any other defect in the text.
+judge a citation blue authored, when the anchor exists and you have read what it points at
+
+THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `absent` — `absent` means you read blue's source and the claim is not in it.
+
+An unevidenced claim is not this verb's, and it is not automatically a finding either: if a source exists and you can reach it, `corroborate` is how you go and get it, and it answers whether the claim is true in the WORLD. `finding` is for when there is nothing to fetch, and answers whether the TEXT stands up.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -141,17 +131,17 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} verify [flags]
+  feov-record verify [flags]
 
 Flags:
-      --access-date YYYY-MM-DD     YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
-      --anchor <!--cite:c-…-->   the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `lens show evidence`
-      --as refutes                 REQUIRED — REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and `absent` are findings, not failures to grade
-      --confidence refutes         REQUIRED — REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: refutes you would defend and `refutes` you are unsure of are different facts
-  -h, --help                       help for verify
-      --quote string               REQUIRED — REQUIRED — the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs (the claim you are checking)
-      --reason string              REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
-      --reason-file -              read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --access-date YYYY-MM-DD       YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger
+      --anchor <!--cite:c-…-->     the c-<hex> of the citation you checked, from the report's <!--cite:c-…--> token — resolve it with `lens show evidence`
+      --as as-value                  REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade
+      --confidence high|medium|low   REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts
+  -h, --help                         help for verify
+      --quote string                 REQUIRED — the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs (the claim you are checking)
+      --reason string                REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -                read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
 
 Enumerated values:
   --as
@@ -168,21 +158,27 @@ Enumerated values:
     low     your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ bench register --run {RUN} --seat-id judge-r1
+$ register --run {RUN} --seat-id judge-r1
 exit 0
 stdout:
 registered judge-r1
 
-$ bench opinion --run {RUN} --seat-id judge-r1 --id R1-1 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --reason the rationale body
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
+$ opinion --run {RUN} --seat-id judge-r1 --id R1-1 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --final --reason the rationale body
 exit 0
 stdout:
 opinion recorded: R1-1 carried
 
-$ bench certify --run {RUN} --seat-id judge-r1 --reason what a human should re-examine
+$ certify --run {RUN} --seat-id judge-r1 --reason what a human should re-examine
 exit 0
 stdout:
 certification recorded

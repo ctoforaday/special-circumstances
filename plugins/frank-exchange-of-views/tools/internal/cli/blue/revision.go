@@ -25,29 +25,27 @@ func newRevision() *cobra.Command {
 	// the live path — the round narrative is a position event and the round record was
 	// hand-written in a file (retired, #251). #70 moved the count to the deterministic `count-claims` command and
 	// dropped this flag, so there is exactly one way the number is produced.
-	return seat.Prose(seat.New("revision",
-		"the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land",
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
-			if _, err := record.Append(s.Identity(), &recordpb.Revision{Text: proto.String(text)}); err != nil {
-				return nil, err
-			}
-			// THE DEBT IS NAMED WHERE THE SITTING ENDS. `revision` is emitted after blue's
-			// edits land, so it is the last moment blue can still act on an unanswered
-			// computation demand — and the merge's refusal, which is excellent, arrives a seat
-			// and a round later, when blue has gone.
-			//
-			// It REPORTS and does not refuse. Blue's legitimate answer to a computation demand
-			// it thinks is wrong is to argue against the gap, and there is no verb for
-			// contesting a check_kind — so a gate here would trap a seat that disagreed. What
-			// was measured is not defiance but not-noticing: making `check_kind` visible moved
-			// `prove` from 0 uses in eighteen sittings to 1 in nine, which says a seat reading
-			// a property still does not read a debt.
-			return revisionResult{Owed: record.GapsAwaitingProof(s.RunDir)}, nil
-		}))
+	return seat.Prose(seat.New("revision", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		text, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := record.Append(s.Identity(), &recordpb.Revision{Text: proto.String(text)}); err != nil {
+			return nil, err
+		}
+		// THE DEBT IS NAMED WHERE THE SITTING ENDS. `revision` is emitted after blue's
+		// edits land, so it is the last moment blue can still act on an unanswered
+		// computation demand — and the merge's refusal, which is excellent, arrives a seat
+		// and a round later, when blue has gone.
+		//
+		// It REPORTS and does not refuse. Blue's legitimate answer to a computation demand
+		// it thinks is wrong is to argue against the gap, and there is no verb for
+		// contesting a check_kind — so a gate here would trap a seat that disagreed. What
+		// was measured is not defiance but not-noticing: making `check_kind` visible moved
+		// `prove` from 0 uses in eighteen sittings to 1 in nine, which says a seat reading
+		// a property still does not read a debt.
+		return revisionResult{Owed: record.GapsAwaitingProof(s.RunDir)}, nil
+	}))
 }
 
 type revisionResult struct {

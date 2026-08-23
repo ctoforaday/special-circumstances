@@ -79,16 +79,11 @@ import (
 // hand-written validation where nothing can refuse it at parse. As two verbs, each marks what it
 // genuinely requires and cobra refuses the nonsense before the handler runs.
 func newVerify() *cobra.Command {
-	c := seat.Prose(seat.New("verify",
-		`adjudicate ONE citation blue authored: --anchor c-<hex> (from `+"`show evidence`"+`) --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". `+
-			`THIS VERB JUDGES A CITATION THAT EXISTS. A claim carrying NO citation at all is not verified as `+"`absent`"+` — `+
-			"`absent` means you read the source and the claim is not in it. An UNEVIDENCED claim is a finding: raise it with `finding`, "+
-			`which is the channel for "this assertion rests on nothing", exactly as it is for any other defect in the text.`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			return writeVerify(s, cmd, &recordpb.Verify{
-				Anchor: proto.String(strings.TrimSpace(seat.Str(cmd, flags.Anchor))),
-			}, adjudates)
-		}))
+	c := seat.Prose(seat.New("verify", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		return writeVerify(s, cmd, &recordpb.Verify{
+			Anchor: proto.String(strings.TrimSpace(seat.Str(cmd, flags.Anchor))),
+		}, adjudates)
+	}))
 
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Anchor, "the c-<hex> of the citation you checked, from the report's `<!--cite:c-…-->` token — resolve it with `lens show evidence`")
 	_ = c.MarkFlagRequired(flags.Anchor)
@@ -102,16 +97,13 @@ func newVerify() *cobra.Command {
 // this — so the source is named the way every source in this system is named, by --url and
 // --title, and both are required here because nothing else identifies what red read.
 func newCorroborate() *cobra.Command {
-	c := seat.Prose(seat.Records(seat.New("corroborate",
-		`corroborate a claim from a source YOU found — one blue never cited, so there is no anchor: --url <u> --title <t> --quote "..." --as supports|refutes|absent|… --confidence high|medium|low --reason "<what the source actually says>". `+
-			`To adjudicate a citation blue DID author, use `+"`verify`"+` instead: it names the citation by its anchor.`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			return writeVerify(s, cmd, &recordpb.Verify{
-				Independent: proto.Bool(true),
-				Url:         proto.String(seat.Str(cmd, flags.URL)),
-				Title:       proto.String(seat.Str(cmd, flags.Title)),
-			}, cites)
-		}), "verify"))
+	c := seat.Prose(seat.Records(seat.New("corroborate", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		return writeVerify(s, cmd, &recordpb.Verify{
+			Independent: proto.Bool(true),
+			Url:         proto.String(seat.Str(cmd, flags.URL)),
+			Title:       proto.String(seat.Str(cmd, flags.Title)),
+		}, cites)
+	}), "verify"))
 
 	c.Flags().String(flags.URL, "", flags.DescURL)
 	c.Flags().String(flags.Title, "", flags.DescTitle)
@@ -125,9 +117,9 @@ func newCorroborate() *cobra.Command {
 // is of that, and when it was read. Registered from one place so the two verbs cannot drift into
 // describing the same four fields differently — which is how this vocabulary got into trouble.
 func verifyAxes(c *cobra.Command) {
-	c.Flags().String(flags.Quote, "", "REQUIRED — "+flags.DescQuote+" (the claim you are checking)")
-	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "REQUIRED — what the source ACTUALLY DID for the claim. It has a negative half: `refutes` and `absent` are findings, not failures to grade")
-	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "REQUIRED — how sure you are of THAT determination, whichever it was. A separate question from --as: `refutes` you would defend and `refutes` you are unsure of are different facts")
+	c.Flags().String(flags.Quote, "", flags.DescQuote+" (the claim you are checking)")
+	enumhelp.Flag(c, flags.As, record.MustEnum("verify", "outcome"), "what the source ACTUALLY DID for the claim. It has a negative half: refutes and absent are findings, not failures to grade")
+	enumhelp.Flag(c, flags.Confidence, record.MustEnum("verify", "confidence"), "how sure you are of THAT determination, whichever it was. A separate question from --as: a refutation you would defend and one you are unsure of are different facts")
 	c.Flags().Var(&flags.DateValue{}, flags.AccessDate, "YYYY-MM-DD you actually read it; drives the staleness re-fetch trigger")
 }
 

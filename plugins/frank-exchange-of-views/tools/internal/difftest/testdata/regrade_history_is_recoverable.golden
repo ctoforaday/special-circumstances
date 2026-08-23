@@ -1,19 +1,31 @@
-$ merge register --run {RUN} --seat-id red-merge-r1
+$ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
 registered red-merge-r1
 
-$ merge mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check a --severity high --likelihood high --impact high --complexity high --problem graded high at mint
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
+$ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check a --severity high --likelihood high --impact high --complexity high --problem graded high at mint
 exit 0
 stdout:
 minted R1-1
 
-$ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium
+$ regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium
 exit 2
 stderr:
 feov-record: at least one of the flags in the group [reason reason-file] is required
 
-same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
+move a grade on a gap that already exists, with the reason it moved
+
+Same-id grade movement, recorded with the reason it moved: the gap keeps its identity and its history rather than being closed and re-minted.
+
+Likelihood grades the CONSEQUENCE — how likely the harm is to land, never how likely the defect is to BE there.
+
+The regrade and its reason render in the report beside the gap, so a grade argued down over three rounds shows the argument rather than only the final number.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -21,7 +33,7 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} regrade [flags]
+  feov-record regrade [flags]
 
 Flags:
       --complexity grade   what fixing it costs, on the same scale
@@ -34,11 +46,11 @@ Flags:
       --severity grade     how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium --likelihood low --reason blue narrowed the scope; consequence shrank
+$ regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium --likelihood low --reason blue narrowed the scope; consequence shrank
 exit 0
 stdout:
 regraded R1-1

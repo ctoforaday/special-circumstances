@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"os"
 	"path/filepath"
 
@@ -46,21 +47,45 @@ do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.`
 
-// MotionFooter points at the one group a seat uses that is NOT under its role.
+// RoleKey carries the seat's ROLE on the root command.
 //
-// Every other verb a seat needs is listed by `<role> --help`. Motions are not: the group sits at
-// the ROOT, because any seat may FILE one and exactly one role RULES each subject, so mounting it
-// per role would either duplicate it four times or misreport who may rule.
+// It replaces roleOf's walk up the tree, and the walk is worth remembering. Role used to be read
+// from a verb's POSITION — a verb's parent was its role node — which was true only while every
+// verb's parent WAS its role. `show` became a group, so `blue show board`'s parent became `show`,
+// and every projection read reported its role as the string "show". record.SittingOf switches on
+// the role to decide what a seat owes; the switch matched nothing, and for weeks the only duty any
+// seat received was the friction line that sits above it. Nothing reported it, because a switch
+// that matches nothing falls through silently: absent duties and an honestly empty duty list are
+// the same bytes.
 //
-// That was survivable while a duty handed over a full invocation. It is not now: the work list
-// says "motion M1 was filed and never ruled — PASS is refused while it stands", and a merge seat
-// reading its own role help finds no motion verb, no motion group, and no pointer to either. The
-// duty names a thing the help does not reach, which is the one shape this contract cannot have if
-// the help page is the only page that instructs.
-const MotionFooter = `
-MOTIONS ARE AT THE ROOT, not under your role: any seat may file one, and exactly
-one role rules each subject. Run 'motion --help' for the subjects and who rules
-them; read the ones open against you with '<role> show motions'.`
+// The role is not a fact about the tree. It is a fact about WHO WAS DISPATCHED — bound at
+// `register` and read back from the record — and the tool derives the tree FROM it rather than
+// recovering it from a path the seat had to type correctly.
+const RoleKey = "feov.seat-role"
+
+// SeatKey carries the resolved seat ID beside its role, for refusals that must name the party.
+const SeatKey = "feov.seat-id"
+
+// SetRole stamps the resolved identity on the root, where every verb can reach it.
+//
+// Read from HERE and not from the environment: the tests drive cobra in-process with SetArgs, so
+// os.Args carries nothing, and a refusal that read the env would name an empty seat in exactly the
+// runs that check it names the right one.
+func SetRole(root *cobra.Command, role, seatID string) {
+	if root.Annotations == nil {
+		root.Annotations = map[string]string{}
+	}
+	root.Annotations[RoleKey] = role
+	root.Annotations[SeatKey] = seatID
+}
+
+// DispatchedAs is the seat id this tree was built for.
+func DispatchedAs(c *cobra.Command) string {
+	if c == nil {
+		return ""
+	}
+	return c.Root().Annotations[SeatKey]
+}
 
 // Context is what every verb needs and no verb should re-derive.
 type Context struct {
@@ -71,6 +96,25 @@ type Context struct {
 	// seat id (#348). -1 means unknown, which is NOT round 0: round 0 is synthesis, and
 	// conflating the two is what produced the phantom-archive bug in #327.
 	Round int
+	// RunVia says which of the three paths supplied RunDir — the hook's injection, the seat's
+	// own --run, or the tool's inference from the marker. `register` records it, because a run
+	// whose seats all resolve by INFERENCE is a run the hook is not reaching, and nothing else
+	// distinguishes that from a healthy one (#512).
+	RunVia seatenv.RunSource
+
+	// RunErr is the resolution's REFUSAL, carried rather than encoded as an empty RunDir.
+	//
+	// MEASURED, on the first real exercise of the wrapper (#526). Of() returned the flag's own
+	// value when resolution failed, so `show board --run "<typo>"` printed a board for a
+	// directory nobody had dispatched — the 2026-08-05 failure this whole mechanism exists to
+	// prevent, still live on every READ verb because only Begin honoured the refusal.
+	//
+	// Returning an empty RunDir instead does not fix it: five readers answer "" with
+	// `runDir = seat.InferRunDir("")`, so the refusal would be swallowed a second time, one
+	// layer down, and resolve quietly to the real run. "" already means "nothing supplied one";
+	// making it also mean "you were refused" is the same collapse the record keeps paying for —
+	// two states, one byte, and the healthy one wins by default.
+	RunErr error
 }
 
 // Identity is what a record write needs to know about who is writing: the run, the seat, and the
@@ -88,70 +132,100 @@ func (c Context) Identity() record.Identity {
 // It stays error-free by design: the resolution that CAN fail (an injected run directory
 // disagreeing with a typed --run) is surfaced by Begin, which already has an error to return.
 // Threading one through Of would have changed every caller for a case only Begin acts on.
+// requireBound refuses an act by an agent that has not registered.
+//
+// THE ASYMMETRY IS THE MECHANISM. `register` is the one verb that may run unbound, because it is
+// what CREATES the binding; every other verb is refused until it has. Without this the binding is
+// advisory — a seat could skip register, keep typing --seat-id, and file events under any id the
+// tree will build, which is the self-asserted identity this replaces.
+//
+// IT FIRES ONLY WHERE THE MECHANISM EXISTS. No agent handle means no hook, which means a test, an
+// operator at a shell, or a harness with no PreToolUse — none of them can bind, and refusing them
+// would be demanding a mechanism their environment does not have. The check is therefore keyed on
+// the handle's PRESENCE, and its absence falls back to the flag exactly as before.
+//
+// COBRA ANSWERS --help WITHOUT REACHING RunE, so reading a surface is structurally exempt and needs
+// no arm here: an unregistered seat can still discover what it is about to register for.
+func requireBound(cmd *cobra.Command, s Context) error {
+	agent := seatenv.AgentID()
+	if agent == "" || cmd == nil || cmd.Name() == "register" {
+		return nil
+	}
+	bound, found, err := record.SeatOfAgent(s.RunDir, agent)
+	if err != nil {
+		return err
+	}
+	if found && bound != "" {
+		return nil
+	}
+	return feov.Errorf(feov.Validation,
+		"`register` is your first act and it has not happened: nothing on the record binds this agent to a seat, "+
+			"so %q is a claim rather than an identity. Run `register --seat-id %s` — it records who you are, and every "+
+			"call after it resolves your seat from that binding instead of trusting the flag. This is the ONE call that "+
+			"needs you to type your seat id.",
+		s.SeatID, s.SeatID)
+}
+
+// BoundSeat resolves this process's agent handle to the seat it registered as, against a run.
+//
+// It is a closure rather than a value because BOTH call sites need it at a moment when the run
+// directory has just been resolved and nothing has read the record yet — and because a nil one is
+// the honest way to say "there is no run to look in", which is a different state from "this agent
+// has not registered".
+func BoundSeat(runDir string) func() (string, error) {
+	if runDir == "" || seatenv.AgentID() == "" {
+		return nil
+	}
+	return func() (string, error) {
+		seat, _, err := record.SeatOfAgent(runDir, seatenv.AgentID())
+		return seat, err
+	}
+}
+
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
-	resolved, err := seatenv.Resolve(runDir, func() string { return InferRunDir("") })
-	if err == nil {
-		runDir = resolved
+	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string { return InferRunDir("") })
+	if err != nil {
+		// NO RUN DIRECTORY LEAVES HERE. A caller holding one it was refused is a caller that
+		// will use it, and every reader below this point trusts what it is handed.
+		return Context{RunErr: err, Role: roleOf(cmd), RunVia: seatenv.RunUnresolved}
 	}
+	runDir = resolved
 	// Identity resolves the same way (#348): injected wins, a disagreeing flag is refused by
 	// Begin, and the ROUND arrives as a field rather than being read back out of the id.
 	seatID, _ := cmd.Flags().GetString(flags.SeatID)
 	round := -1
-	if id, rerr := seatenv.ResolveSeat(seatID, record.RoundOf); rerr == nil {
+	if id, rerr := seatenv.ResolveSeat(seatID, BoundSeat(runDir), record.RoundIn(runDir)); rerr == nil {
 		seatID, round = id.ID, id.Round
 	}
-	return Context{RunDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd)}
+	return Context{RunDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd), RunVia: via}
 }
 
-// roleOf reads the role from the command's POSITION in the tree: a verb's parent is its
-// role node (Role sets the node's Use to the role name), so `merge mint`'s role is `merge`
-// without anyone threading the string. Role is structure, not an argument.
-// roleOf answers WHICH SEAT is running this command, by walking up to the nearest ancestor that is
-// a role.
+// roleOf answers WHICH SEAT is running this command, from the identity the engine injected.
 //
-// IT WAS `cmd.Parent().Name()`, AND THAT WAS TRUE ONLY WHILE EVERY VERB'S PARENT WAS ITS ROLE.
-// `show` became a GROUP, so the parent of `blue show work list` is `show` — and every projection
-// read has since reported its role as the string "show".
+// See RoleKey for what this replaced and what that cost.
+// RequireRun is the one way a verb turns a Context into a run directory it may act on.
 //
-// MEASURED 2026-08-15, and it is a live defect rather than a cosmetic one. record.SittingOf
-// switches on the role to decide what a seat still owes. With "show" arriving, the switch matched
-// NOTHING, so the only duty any seat has received since the group landed is the friction line —
-// which sits above the switch. Blue was never told about a computation gap it had not proved or a
-// round record it had not filed; the merge was never told about an open gap or an unruled motion;
-// the bench was never told about an unruled petition.
-//
-// And the second half is worse than the first. `complete` is `len(Outstanding) == 0`, so once a
-// seat filed friction the work list told it `complete: true` — while `verdict --as PASS` went on
-// refusing it over the open gaps the same view had just declined to mention. That is precisely the
-// failure sitting.go's own doctrine names: "a seat told it was finished by one surface and refused
-// by another learns to trust neither."
-//
-// Nothing reported it because a role string is read for a SWITCH, and a switch that matches nothing
-// falls through silently. The absent duties and an honestly empty duty list are the same bytes.
+// It answers the two failures separately, because their remedies are opposite: a REFUSED
+// resolution is the seat's own contradicting --run (drop the flag), and an EMPTY one is nothing
+// having supplied a run at all (the engine is not dispatching you). Collapsing them into
+// "--run is required" tells a seat that DID pass --run to pass it, which is the message that
+// sends it looking in the wrong place.
+func (c Context) RequireRun(verb string) (string, error) {
+	if c.RunErr != nil {
+		return "", c.RunErr
+	}
+	if c.RunDir == "" {
+		return "", feov.Errorf(feov.MissingField, "%s: --run <runDir> is required", verb)
+	}
+	return c.RunDir, nil
+}
+
 func roleOf(cmd *cobra.Command) string {
-	for c := cmd.Parent(); c != nil; c = c.Parent() {
-		if isRoleName(c.Name()) {
-			return c.Name()
-		}
+	if cmd == nil {
+		return ""
 	}
-	// The nearest parent, as before, for anything mounted outside a role group — the operator
-	// commands have no seat and must not be reported as one of the four.
-	if p := cmd.Parent(); p != nil {
-		return p.Name()
-	}
-	return ""
-}
-
-// isRoleName is the party set as the tree mounts it. It is stated here rather than imported
-// because internal/record derives roles from SEAT IDS, which is a different question with a
-// different answer, and reaching for that one would bind two vocabularies that only look alike.
-func isRoleName(s string) bool {
-	switch s {
-	case "lens", "merge", "blue", "bench":
-		return true
-	}
-	return false
+	return cmd.Root().Annotations[RoleKey]
 }
 
 // InferRunDir answers "which run am I in?" from the live-run marker instead of
@@ -181,11 +255,21 @@ func InferRunDir(start string) string {
 	}
 	for i := 0; dir != "" && i < 12; i++ {
 		marker := filepath.Join(dir, ".claude", "run-live.json")
-		if b, err := os.ReadFile(marker); err == nil {
-			var m struct {
-				RunDir string `json:"runDir"`
-			}
-			if json.Unmarshal(b, &m) == nil && m.RunDir != "" {
+		if _, err := os.Stat(marker); err == nil {
+			// THROUGH THE PACKAGE THAT OWNS THE FILE, never a private decode of it.
+			//
+			// This used to unmarshal its own `struct{ RunDir string }` — a second reader of a
+			// shape stated elsewhere, which is the defect RunLiveMarker's own comment names.
+			// It broke the moment the marker became a list (#529): the private decoder found no
+			// `runDir` key, inference stopped resolving anything, and the LIVE symptom was a
+			// verb asking for --run — which is exactly what it asks when no run is open, so the
+			// regression read as correct behaviour. Five tests caught it; driving it by hand did
+			// not, and would not have.
+			//
+			// ok=false now also covers MORE THAN ONE run open, which is the answer inference
+			// should give there: with two runs live there is no single run to infer, and the
+			// marker's own rule for an unusable state is to say nothing rather than guess.
+			if m, ok := runlive.ReadRunLiveMarker(dir); ok {
 				resolved := m.RunDir
 				if !filepath.IsAbs(resolved) {
 					resolved = filepath.Join(dir, resolved)
@@ -278,7 +362,7 @@ func Supplied(c *cobra.Command, key string) string { return c.Annotations[suppli
 // Supplies marks a record field this verb fills ITSELF, with why.
 //
 // A REQUIRED FIELD IS NOT A REQUIRED FLAG, and conflating them produced help that contradicted
-// itself in one line: `--status` read "REQUIRED — proposed (put forward, undecided — the
+// itself in one line: `--status` read "proposed (put forward, undecided — the
 // default)". Required, and also the default. A seat reading that supplies a value it did not
 // need to choose, and the one state the field exists to express is the one it is least likely
 // to type.
@@ -366,6 +450,10 @@ func markRequired(c *cobra.Command, verb string) {
 			// "default" in the same sentence.
 			continue
 		}
+		// THE ONE WRITER OF THIS WORD. A dozen call sites also hand-wrote "REQUIRED — " at the
+		// front of their own usage, so the rendered line read "REQUIRED — REQUIRED — what the
+		// source ACTUALLY DID" on every flag that had both. Two copies of a fact the mechanism
+		// already supplies, and the seat reading it twice cannot tell which one is authoritative.
 		f.Usage = "REQUIRED — " + f.Usage
 
 		// AND COBRA ENFORCES IT. This only ever rewrote the usage string, so the help said
@@ -411,7 +499,7 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	// fact a seat must not be able to get wrong; every found_by, estoppel and parity check
 	// reads it, and this is the guarantee #348 shipped a message for and no code behind.
 	seatFlag, _ := cmd.Flags().GetString(flags.SeatID)
-	if _, err := seatenv.ResolveSeat(seatFlag, record.RoundOf); err != nil {
+	if _, err := seatenv.ResolveSeat(seatFlag, BoundSeat(Of(cmd).RunDir), record.RoundIn(Of(cmd).RunDir)); err != nil {
 		return Of(cmd), err
 	}
 	s := Of(cmd)
@@ -419,9 +507,21 @@ func Begin(cmd *cobra.Command) (Context, error) {
 		return s, feov.Errorf(feov.MissingField, "--run <runDir> is required")
 	}
 	if s.SeatID == "" {
-		return s, feov.Errorf(feov.MissingField, "--seat-id is required (the engine assigns it; it is in your prompt)")
+		return s, feov.Errorf(feov.MissingField, "--seat-id is required (state it once at `register`; after that it is bound and read back for you)")
 	}
-	if err := record.CheckSeatRole(s.Role, s.SeatID); err != nil {
+	if err := requireBound(cmd, s); err != nil {
+		return s, err
+	}
+	// THE ROLE CHECK IS GONE BECAUSE THERE IS NOTHING LEFT TO RECONCILE. It compared the role in
+	// the command PATH against the seat id, which was a real guard while a seat typed both: two
+	// copies of one fact, and a seat could type them to disagree. The tree is built FROM the seat
+	// id now, so s.Role is READ OUT OF that id — the check could only ever compare a value with
+	// itself and pass. Keeping it would be the reconciliation of a fork that no longer exists.
+	//
+	// The half that still means something is that the seat is one the engine created, and it is
+	// enforced where it can be: NewRootFor gives an unrecognised id no tree at all, so a verb
+	// cannot be reached under an invented identity.
+	if err := record.RequireDispatchedSeat(s.SeatID); err != nil {
 		return s, err
 	}
 	if err := CheckFlagReferences(cmd, s.RunDir); err != nil {
@@ -525,11 +625,39 @@ func Emit(cmd *cobra.Command, res Result, err error) error {
 // wires the ONE hook-free RunE that shape holds: Begin (preconditions) -> the work -> Emit
 // (render). No PreRunE, no PostRunE — nothing chains, and a precondition failure renders
 // through the same Emit as any other error.
-func New(name, help string, run Handler) *cobra.Command {
+// New builds a seat verb.
+//
+// TWO FIELDS, BECAUSE THEY ARE TWO JOBS, and they live in help/<name>.md rather than here. `## menu`
+// is the line a seat reads in a listing, while it is deciding and has not chosen yet: what this
+// verb is FOR, and when to reach for it rather than its neighbour. `## detail` is the page it reads
+// once it has chosen: the flags, the sibling comparison, the measured history.
+//
+// IT WAS ONE STRING, SET INTO BOTH, and that is why the listing became unreadable. Everything a
+// verb had to say went into Short — flag enumerations, sibling discriminators, the arguments from
+// past runs — and cobra prints Short IN FULL in the parent's Available Commands block. `finding`
+// alone ran to 961 characters there. A menu whose entries are each a paragraph is not a menu, and
+// a seat facing one reads the first clause, which was the mechanics, and stops.
+//
+// The reverse cost was the same defect from the other side: Long was `help` again, so the page a
+// seat opens after choosing told it nothing the listing had not already said. Both positions
+// carried one string and neither did its own job.
+func New(name string, run Handler) *cobra.Command { return NewKeyed(name, name, run) }
+
+// NewKeyed is New for a verb whose help is not keyed by its own name — the shared verbs, where the
+// same command means something different in each chair. `position` is a RED section for the merge
+// and a BLUE one for blue, so those are two documents; `register` and `friction` mean exactly the
+// same thing everywhere and are one.
+//
+// THEY WERE FOUR COPIES. Each role passed its own literal, under a comment saying the guidance
+// differs by role — and register's and friction's were byte-identical at every call site but one,
+// where the difference was the word "seat" against "sitting". Four hand-kept copies of one
+// paragraph, which is the shape that goes stale in three places and nobody notices.
+func NewKeyed(name, key string, run Handler) *cobra.Command {
+	d := helpFor(key)
 	c := &cobra.Command{
 		Use:          name,
-		Short:        help,
-		Long:         help + "\n" + FrictionFooter,
+		Short:        d.menu,
+		Long:         d.menu + "\n\n" + d.detail + "\n" + FrictionFooter,
 		Args:         cobra.NoArgs,
 		SilenceUsage: true, // a validation refusal is a teaching message, not a usage dump
 		Annotations:  map[string]string{recordsKey: name},
@@ -703,4 +831,43 @@ func SetSame(cmd *cobra.Command, p *record.Payload, names ...string) *record.Pay
 		Set(cmd, p, n, n)
 	}
 	return p
+}
+
+// GroupTitles are the two headings a seat's root help renders its surface under.
+//
+// WHY THE SPLIT EXISTS. Cobra lists every child under one "Available Commands:" heading, and a
+// command holding subcommands looks exactly like one that does not — same line, same shape. So the
+// root page of a seat surface silently understated itself: `motion` reads as a verb, and the three
+// commands inside it are not on any page the seat has opened.
+//
+// The prompt used to carry the missing half, in a sentence appended to step 1 of the tree walk:
+// "Some of those entries are GROUPS, holding commands this page does not show you." That is the
+// tool describing its own output format to the reader, in the prompt, because the output would not
+// describe itself — and it is exactly the shape this pass is removing. A page that cannot say what
+// it is hiding needs fixing, not narrating.
+const (
+	GroupVerbs  = "verbs"
+	GroupGroups = "groups"
+)
+
+// SplitGroups sorts a root's children into the two headings. Called AFTER every AddCommand, since
+// it reads HasSubCommands to decide — a group assigned before its children are attached would
+// classify itself as a leaf.
+func SplitGroups(root *cobra.Command) {
+	root.AddGroup(
+		&cobra.Group{ID: GroupVerbs, Title: "Available Commands:"},
+		&cobra.Group{ID: GroupGroups, Title: "Command groups — each holds commands THIS page does not list:"},
+	)
+	for _, sub := range root.Commands() {
+		if sub.HasSubCommands() {
+			sub.GroupID = GroupGroups
+			continue
+		}
+		sub.GroupID = GroupVerbs
+	}
+	// `help` and `completion` are cobra's, added lazily at execute time; without these they land
+	// under an "Additional Commands:" heading of their own, which reads as a third category of
+	// seat surface rather than as the shell plumbing they are.
+	root.SetHelpCommandGroupID(GroupVerbs)
+	root.SetCompletionCommandGroupID(GroupVerbs)
 }

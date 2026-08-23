@@ -475,71 +475,6 @@ func ValidatePins(cites []string, head string, git GitFunc) PinValidation {
 	return PinValidation{Checked: len(cites), Missing: missing}
 }
 
-// ---- run-live marker ----
-
-// RunLiveMarker is the marker as a READ value. The writer's struct was anonymous, so every reader
-// re-declared its own subset — seat.InferRunDir reads only RunDir, and the shape has never been
-// stated in one place a new reader can find (#270).
-type RunLiveMarker struct {
-	RunDir      string   `json:"runDir"`
-	PinnedPaths []string `json:"pinnedPaths"`
-	Started     string   `json:"started"`
-}
-
-// ReadRunLiveMarker reports the open run, if the marker names one usably.
-//
-// ok=false covers absent, unreadable, unparseable and empty-runDir alike, and that is deliberate
-// at THIS call site: setup's gate must refuse only when it can name the other run in its error.
-// A marker it cannot read is not evidence of an open run — it is evidence of a broken file, and
-// blocking a new run on one would trade a silent hazard for a stuck operator.
-func ReadRunLiveMarker(projectDir string) (RunLiveMarker, bool) {
-	b, err := os.ReadFile(filepath.Join(projectDir, ".claude", "run-live.json"))
-	if err != nil {
-		return RunLiveMarker{}, false
-	}
-	var m RunLiveMarker
-	if json.Unmarshal(b, &m) != nil || strings.TrimSpace(m.RunDir) == "" {
-		return RunLiveMarker{}, false
-	}
-	return m, true
-}
-
-// sameRun compares two run directories as PATHS, not as strings. The marker stores whatever it
-// was given — `research/x` from one invocation, an absolute path from another — so a string
-// compare would refuse a re-setup of the very run in progress, which is ordinary and must stay
-// idempotent.
-func sameRun(projectDir, a, b string) bool {
-	abs := func(p string) string {
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(projectDir, p)
-		}
-		if r, err := filepath.Abs(filepath.Clean(p)); err == nil {
-			return r
-		}
-		return filepath.Clean(p)
-	}
-	return strings.EqualFold(abs(a), abs(b))
-}
-
-// WriteRunLiveMarker writes projectDir/.claude/run-live.json (commitment-as-state).
-// `now` is injected so the sole non-deterministic field is controllable in tests.
-func WriteRunLiveMarker(projectDir, runDir string, pinnedPaths []string, now time.Time) string {
-	dir := filepath.Join(projectDir, ".claude")
-	os.MkdirAll(dir, 0o755)
-	p := filepath.Join(dir, "run-live.json")
-	if pinnedPaths == nil {
-		pinnedPaths = []string{}
-	}
-	marker := struct {
-		RunDir      string   `json:"runDir"`
-		PinnedPaths []string `json:"pinnedPaths"`
-		Started     string   `json:"started"`
-	}{runDir, pinnedPaths, now.UTC().Format("2006-01-02T15:04:05.000Z07:00")}
-	b, _ := marshalJSON(marker)
-	os.WriteFile(p, b, 0o644)
-	return p
-}
-
 // ---- purge, preflight, version ----
 
 // PurgeStaleMirrors removes checkpoint mirrors older than maxAgeDays (default 30).
@@ -762,11 +697,17 @@ func scorecardFiles(dir string) []string {
 // Staging the file is what makes the key shared. A class not in it is UNDECLARED rather than
 // forbidden: `--class-new` introduces one with its definition, neighbour and distinguisher,
 // which is how the taxonomy is supposed to grow.
+//
+// AND A FAILURE HERE NOW STOPS THE RUN RATHER THAN LOOSENING IT. The advisory branch is gone
+// (record.knownClasses), so an unstaged registry no longer means "--class accepts any string"
+// — it means every mint is REFUSED. That is the right way round: a run that cannot name its
+// own vocabulary produces a board nobody can interpret afterwards, and the reasons below say
+// which of the two failures the operator is looking at.
 func StageClassRegistry(repoMemoryDir, runDir string) MirrorResult {
 	src := filepath.Join(repoMemoryDir, "class-registry.json")
 	b, err := os.ReadFile(src)
 	if err != nil {
-		return MirrorResult{Written: false, Reason: "no class-registry.json — `--class` will accept ANY string this run (#299)"}
+		return MirrorResult{Written: false, Reason: "no class-registry.json in " + repoMemoryDir + " — nothing constrains `--class`, so every mint this run will be REFUSED rather than waved through (#299)"}
 	}
 	var reg struct {
 		Classes []struct {
@@ -774,13 +715,15 @@ func StageClassRegistry(repoMemoryDir, runDir string) MirrorResult {
 		} `json:"classes"`
 	}
 	if json.Unmarshal(b, &reg) != nil || len(reg.Classes) == 0 {
-		return MirrorResult{Written: false, Reason: "class-registry.json is unreadable or declares no classes — `--class` will accept ANY string this run (#299)"}
+		return MirrorResult{Written: false, Reason: "class-registry.json is unreadable or declares no classes — nothing constrains `--class`, so every mint this run will be REFUSED rather than waved through (#299)"}
 	}
 	// RESOLVED, NOT JOINED — and this is the same bug as the one documented above, one
 	// separation later. `loadRegistry` reads the record directory the RESOLVER returns; a
 	// hard-wired <runDir>/records here would stage the registry where a separated run never
-	// looks, `validateClass` would take its advisory branch again, and `--class` would go back
-	// to accepting any string on exactly the runs the seat probe is built to measure.
+	// looks, and `loadRegistry` would find nothing on exactly the runs the seat probe is built
+	// to measure. That used to mean `--class` silently accepted any string; it now means the
+	// seat cannot mint at all. Loud either way is the improvement, but the resolver still has
+	// to agree with the reader or the run is broken.
 	recDir, err := record.RecordsDir(runDir)
 	if err != nil {
 		return MirrorResult{Written: false, Reason: "cannot resolve the record directory: " + err.Error()}

@@ -8,8 +8,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
 
 // recordWithRounds writes a minimal run whose board carries one minted gap per round, so the
@@ -117,20 +120,104 @@ func TestTelemetryAudit(t *testing.T) {
 	}
 }
 
-func TestFrictionAudit(t *testing.T) {
-	env := []string{"red-merge-r1: needed a PDF extractor for X"}
-	if got := FrictionAudit(env, env).Verdict; got != "PASS" {
-		t.Errorf("friction on record: want PASS, got %s", got)
+// frictionRun writes a run whose seats registered (optionally binding an agent handle) and
+// optionally opened the friction channel.
+func frictionRun(t *testing.T, seat, agentID string, wrote string) string {
+	t.Helper()
+	dir := t.TempDir()
+	recs := filepath.Join(dir, "records")
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
 	}
-	got := FrictionAudit(env, []string{})
+	var lines [][]byte
+	reg := record.NewPayload().Set("tool_version", "test")
+	if agentID != "" {
+		reg = reg.Set("agent_id", agentID)
+	}
+	add := func(e record.Event) {
+		b, err := record.MarshalEvent(e)
+		if err != nil {
+			t.Fatal(err)
+		}
+		lines = append(lines, append(b, '\n'))
+	}
+	add(record.Event{SeatID: seat, Nonce: "0000000a", Round: 1, Type: "register",
+		Key: seat + ":register:0000000a", Payload: reg})
+	if wrote != "" {
+		add(record.Event{SeatID: seat, Nonce: "0000000a", Round: 1, Type: wrote,
+			Key:     seat + ":" + wrote + ":1",
+			Payload: record.NewPayload().Set("reason", "the seat's own words, recorded")})
+	}
+	var all []byte
+	for _, l := range lines {
+		all = append(all, l...)
+	}
+	if err := os.WriteFile(filepath.Join(recs, "events-"+seat+"-0000000a.jsonl"), all, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+func recordFriction(t *testing.T, runDir string) []record.FrictionEntryJSON {
+	t.Helper()
+	b, err := record.BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fj := record.FrictionJSONOf(b)
+	return append(append([]record.FrictionEntryJSON{}, fj.Friction...), fj.NothingBlocked...)
+}
+
+// THE CASE THAT FAILED 5 OUT OF 5 IN PRODUCTION: a seat writes its friction to the record and then
+// PARAPHRASES it into its return envelope. Comparing prose to prose called that a missing record.
+func TestASeatThatParaphrasesItselfStillReconciles(t *testing.T) {
+	run := frictionRun(t, "blue-synthesize", "a24445d32ad697bd4", "friction")
+	env := []EnvelopeFriction{{AgentID: "a24445d32ad697bd4",
+		Text: "blue-synthesize: citation-hygiene: entirely different wording from the record"}}
+	got := FrictionAudit(run, env, recordFriction(t, run))
+	if got.Verdict != "PASS" {
+		t.Errorf("the seat opened the channel; the envelope is a re-worded copy, not a second duty.\ngot %s: %s", got.Verdict, got.Detail)
+	}
+}
+
+// AND THE REAL GAP STILL FAILS: a seat that reported friction to the harness and never opened the
+// channel on the record.
+func TestASeatThatToldOnlyTheHarnessIsAFinding(t *testing.T) {
+	run := frictionRun(t, "red-merge-r1", "a78f5dfdc4aa2ea54", "")
+	env := []EnvelopeFriction{{AgentID: "a78f5dfdc4aa2ea54", Text: "needed a PDF extractor for X"}}
+	got := FrictionAudit(run, env, recordFriction(t, run))
 	if got.Verdict != "FAIL" {
-		t.Errorf("friction the record never got: want FAIL, got %s", got.Verdict)
+		t.Fatalf("friction the record never got: want FAIL, got %s (%s)", got.Verdict, got.Detail)
 	}
-	if !strings.Contains(got.Detail, "needed a PDF extractor") {
-		t.Errorf("the missing entry must be named: %s", got.Detail)
+	for _, want := range []string{"red-merge-r1", "needed a PDF extractor"} {
+		if !strings.Contains(got.Detail, want) {
+			t.Errorf("the finding must name %q: %s", want, got.Detail)
+		}
 	}
-	if !strings.Contains(got.Detail, "never reached the record") {
-		t.Errorf("the finding must state the pipeline gap: %s", got.Detail)
+}
+
+// `friction-none` is the attested empty case — a seat closing the channel honestly has used it.
+func TestTheAttestedEmptyCaseCountsAsOpeningTheChannel(t *testing.T) {
+	run := frictionRun(t, "judge-r2", "a7e42caf6c06aec62", "friction-none")
+	env := []EnvelopeFriction{{AgentID: "a7e42caf6c06aec62", Text: "No capability gaps encountered."}}
+	if got := FrictionAudit(run, env, recordFriction(t, run)); got.Verdict != "PASS" {
+		t.Errorf("a filed friction-none IS the channel being used; got %s: %s", got.Verdict, got.Detail)
+	}
+}
+
+// NOT JOINED IS NOT A FINDING. A run whose PreToolUse hook never fired carries no agent_id on any
+// register event, deliberately — so the entry cannot be attributed, and an audit that cannot see
+// something must say so rather than accuse.
+func TestAnUnjoinableEntryIsReportedRatherThanBlamed(t *testing.T) {
+	run := frictionRun(t, "blue-respond-r2", "", "")
+	env := []EnvelopeFriction{{AgentID: "", Text: "Friction channel closed: no capability gaps."}}
+	got := FrictionAudit(run, env, recordFriction(t, run))
+	if got.Verdict == "FAIL" {
+		t.Errorf("an entry with no agent binding is unmeasurable, not a duty skipped.\ngot %s: %s", got.Verdict, got.Detail)
+	}
+	if !strings.Contains(got.Detail, "COULD NOT BE JOINED") {
+		t.Errorf("the unjoinable entries must be counted out loud, or an audit that saw nothing "+
+			"reads as a clean board:\n%s", got.Detail)
 	}
 }
 
@@ -392,8 +479,22 @@ func TestHarvestPrecedents(t *testing.T) {
 	if !strings.Contains(body, "[PERSUASIVE]") || strings.Contains(body, "[AFFIRMED") {
 		t.Errorf("everything starts persuasive")
 	}
-	if !strings.Contains(body, "holding: risk_accepted") || !strings.Contains(body, "holding: granted") {
-		t.Errorf("holdings carry their disposition")
+	// A DISPOSITION IS NOT A HOLDING. This used to assert `holding: defect_accepted` and
+	// `holding: granted` — docket statuses in the field law/README.md reserves for "the rule
+	// applied". Nine rulings harvested across two real runs all read "holding: closed", which no
+	// later bench could apply to anything, and the reasoning sat unextracted in `rationale`.
+	for _, want := range []string{"disposition: defect_accepted", "disposition: granted"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("a docket ruling must state its disposition as one: missing %q", want)
+		}
+	}
+	if !strings.Contains(body, "holding: <reviewer: state the rule this ruling applied") {
+		t.Errorf("a docket ruling's holding must be a placeholder the reviewer fills — the harvest " +
+			"cannot synthesise the rule without inventing it")
+	}
+	// ...except a declaration, whose whole purpose is to state a holding.
+	if !strings.Contains(body, "holding: verified means an act of looking") {
+		t.Errorf("a declaration's text IS the holding and must not be replaced by a placeholder")
 	}
 	if !strings.Contains(body, "facts: <reviewer: fill from the cited record") {
 		t.Errorf("the harvest never invents facts")
@@ -427,7 +528,7 @@ func TestHarvestPrecedents(t *testing.T) {
 func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
 	runDir := filepath.Join(t.TempDir(), "2026-08-15_divergence")
 	claimed := []map[string]any{
-		{"resolutions": []any{map[string]any{"gap_id": "R1-1", "resolution": "closed", "reason": "fixed"}}},
+		{"resolutions": []any{map[string]any{"gap_id": "R1-1", "resolution": "repaired", "reason": "fixed"}}},
 		{"rulings": []any{map[string]any{"petitioner": "blue", "ruling": "denied", "reason": "no"}}},
 	}
 
@@ -617,8 +718,8 @@ func TestStrayRecordsAuditFindsShardsOutsideAnyRun(t *testing.T) {
 func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 	t.Run("removed", func(t *testing.T) {
 		cwd := t.TempDir()
-		write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runDir":"research/x"}`)
-		got := closeRunLiveMarker(cwd)
+		write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runs":[{"runDir":"research/x"}]}`)
+		got := closeRunLiveMarker(cwd, "research/x")
 		if got != "run-live marker: removed" {
 			t.Errorf("got %q", got)
 		}
@@ -629,7 +730,7 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 
 	t.Run("absent is STATED, not silent", func(t *testing.T) {
 		cwd := t.TempDir()
-		got := closeRunLiveMarker(cwd)
+		got := closeRunLiveMarker(cwd, "research/x")
 		if got == "" {
 			t.Fatal("silence is the defect: it reads identically to a successful removal being omitted")
 		}
@@ -644,4 +745,191 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 			t.Errorf("the line must name the path it looked at, or the operator cannot check it: %q", got)
 		}
 	})
+}
+
+// ---- liveness ----
+
+// writeRun lays down one shard of `n` events `gap` apart, ending at `last`. `outcome` adds a
+// bench `outcome` event as the final one, which is what separates a finished run from a killed
+// one — see LivenessAudit.
+func writeRunForLiveness(t *testing.T, n int, gap time.Duration, last time.Time, outcome bool) string {
+	t.Helper()
+	dir := t.TempDir()
+	recs := filepath.Join(dir, "records")
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	for i := 0; i < n; i++ {
+		ts := last.Add(-time.Duration(n-1-i) * gap).UTC().Format("2006-01-02T15:04:05.000000000Z07:00")
+		typ, payload := "finding", `{"label":"L1-F1"}`
+		if outcome && i == n-1 {
+			typ, payload = "outcome", `{"verdict":"CEILING"}`
+		}
+		fmt.Fprintf(&b, `{"seq":%d,"ts":%q,"seatId":"red-lens-r1-L1","nonce":"aaaaaaaa","round":1,"role":"lens","type":%q,"key":"k%d","payload":%s}`+"\n",
+			i, ts, typ, i, payload)
+	}
+	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-r1-L1-aaaaaaaa.jsonl"), []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return dir
+}
+
+// THE PAIR IS THE POINT. Both runs are equally silent; only one of them finished. This audit's
+// own first draft looked at silence alone and failed BOTH of the day's real runs — a gate firing
+// on the healthy case, which is the defect class it was written to catch.
+func TestLivenessSeparatesFinishedFromTerminatedAtEqualSilence(t *testing.T) {
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	captureAt := now.Add(41 * time.Minute)
+
+	killed := LivenessAudit(writeRunForLiveness(t, 10, 20*time.Second, now, false), captureAt)
+	if killed.Verdict != "FAIL" {
+		t.Errorf("a run with no terminal outcome, silent 41m, audited %s — want FAIL:\n%s", killed.Verdict, killed.Detail)
+	}
+	if !strings.Contains(killed.Detail, "TERMINATED") {
+		t.Errorf("the FAIL does not say the run was terminated:\n%s", killed.Detail)
+	}
+
+	finished := LivenessAudit(writeRunForLiveness(t, 10, 20*time.Second, now, true), captureAt)
+	if finished.Verdict != "PASS" {
+		t.Errorf("a run that recorded its outcome and was captured 41m later audited %s — a finished "+
+			"run is quiet BECAUSE it finished, and silence must not convict it:\n%s", finished.Verdict, finished.Detail)
+	}
+}
+
+// Captured while seats are still writing: unusual, the operator's call, and not a finding.
+func TestLivenessDoesNotConvictACaptureMidRun(t *testing.T) {
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	a := LivenessAudit(writeRunForLiveness(t, 10, 20*time.Second, now, false), now.Add(15*time.Second))
+	if a.Verdict != "PASS" {
+		t.Errorf("captured 15s after the last event audited %s — want PASS:\n%s", a.Verdict, a.Detail)
+	}
+	if !strings.Contains(a.Detail, "mid-run") {
+		t.Errorf("the PASS does not say it was captured mid-run:\n%s", a.Detail)
+	}
+}
+
+// Too thin to judge reports itself. A capture over a record it cannot age must not tell a reader
+// the run finished cleanly.
+func TestLivenessReportsNotMeasuredRatherThanPassing(t *testing.T) {
+	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
+	a := LivenessAudit(writeRunForLiveness(t, 3, time.Minute, now, false), now.Add(3*time.Hour))
+	if a.Verdict != "SKIP" {
+		t.Errorf("a 3-event record audited %s — want SKIP:\n%s", a.Verdict, a.Detail)
+	}
+}
+
+// ---- record archive ----
+
+func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
+	repo := t.TempDir()
+	run := filepath.Join(repo, "research", "2026-08-22_x")
+	recs := filepath.Join(run, "records")
+	if err := os.MkdirAll(filepath.Join(run, "proofs", "abc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// AN EMPTY RECORD IS REFUSED, because an archive preserving nothing is indistinguishable
+	// from a preserved run once it is sitting in run-archive/.
+	if _, err := ArchiveRecord(run, repo); err == nil {
+		t.Fatal("ArchiveRecord wrote an archive for a run with no shards")
+	}
+
+	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-r1-L1-aaaaaaaa.jsonl"),
+		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-r1-L1","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(run, "proofs", "abc", "script.py"), []byte("print(7)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := ArchiveRecord(run, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filepath.Base(out) != "2026-08-22_x.tar.gz" {
+		t.Errorf("archive named %q — it must be findable by the run slug", filepath.Base(out))
+	}
+	if filepath.Dir(out) != filepath.Join(repo, "run-archive") {
+		t.Errorf("archive landed in %q — it must sit OUTSIDE research/, which is gitignored and so "+
+			"does not survive the container", filepath.Dir(out))
+	}
+
+	// And it holds what the audits re-read.
+	f, err := os.Open(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]bool{}
+	tr := tar.NewReader(gz)
+	for {
+		h, err := tr.Next()
+		if err != nil {
+			break
+		}
+		names[h.Name] = true
+	}
+	for _, want := range []string{"records/events-red-lens-r1-L1-aaaaaaaa.jsonl", "proofs/abc/script.py"} {
+		if !names[want] {
+			t.Errorf("archive is missing %q — it holds %v", want, names)
+		}
+	}
+	// The cache is deliberately absent: 7.3 MB for a real run, re-fetchable, and every source's
+	// sha256 is on the record so its integrity stays checkable without it.
+	for n := range names {
+		if strings.HasPrefix(n, "cache/") {
+			t.Errorf("the fetched-source cache was archived (%s) — it is re-fetchable and dwarfs the record", n)
+		}
+	}
+}
+
+// CAPTURING ONE RUN MUST NOT CLOSE ANOTHER, and the guarantee is now STRUCTURAL.
+//
+// It used to be a path comparison standing between capture and the wrong marker: the file was a
+// singleton naming the one open run, capture removed it by PATH without asking which run it
+// named, and a guard was added after capturing an abandoned run A nearly lifted live run B's
+// marker on 2026-08-22, eleven minutes into B's first round.
+//
+// Per-run rows remove the class rather than guard it (#529): the row this capture owns is the
+// only one it can take. The guarantee is asserted here in its stronger form — BOTH runs listed,
+// one captured, the other still live afterwards — because a class that can no longer occur is
+// still a class that must be shown not to occur.
+func TestCapturingOneRunLeavesTheOthersOpen(t *testing.T) {
+	cwd := t.TempDir()
+	marker := filepath.Join(cwd, ".claude", "run-live.json")
+	write(t, marker, `{"runs":[{"runDir":"research/live-one"},{"runDir":"research/the-one-being-captured"}]}`)
+
+	got := closeRunLiveMarker(cwd, "research/the-one-being-captured")
+	if !strings.Contains(got, "1 other run") {
+		t.Errorf("capture did not say another run is still open: %q", got)
+	}
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("the marker file must survive while another run is live")
+	}
+	left := runlive.ReadRunLive(cwd)
+	if len(left) != 1 || left[0].RunDir != "research/live-one" {
+		t.Errorf("after capturing one run the marker holds %+v, want only research/live-one", left)
+	}
+
+	// A relative/absolute spelling of the SAME run still closes it — the marker stores whatever
+	// it was given, so a string compare would refuse to close the run in progress.
+	write(t, marker, `{"runs":[{"runDir":"research/same"}]}`)
+	if got := closeRunLiveMarker(cwd, filepath.Join(cwd, "research", "same")); !strings.Contains(got, "removed") {
+		t.Errorf("the same run spelled absolutely was refused: %q", got)
+	}
+
+	// AND A FILE NAMING NOTHING IS NOT A CLEAN CLOSE. An unreadable marker looks exactly like
+	// this from here, and reporting "nothing to remove" would let it pass for an absent one.
+	write(t, marker, `{"runs":[]}`)
+	if got := closeRunLiveMarker(cwd, "research/x"); !strings.Contains(got, "names NO open run") {
+		t.Errorf("a marker present but naming nothing was reported as an ordinary miss: %q", got)
+	}
 }

@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -95,7 +96,11 @@ type Model struct {
 	Config          Config
 	TerminalVerdict string
 	Terminal        bool
-	Generated       string
+	// Live is the run's PULL-BASED liveness — see record.Liveness. The board used to answer
+	// "is this running" from the presence of a marker that a killed workflow can never lift,
+	// so a dead run rendered as live forever, ETA and all.
+	Live      record.Liveness
+	Generated string
 }
 
 func jsonl(path string) []map[string]any {
@@ -337,12 +342,29 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 	}
 	eta := projectCompletion(seats, nowMs)
 
+	terminalVerdict := record.TerminalVerdict(runDir)
 	return Model{
 		RunDir: runDir, Telemetry: telemetry, Latest: latest, Seats: seats,
 		Cost: costTotal, CostRows: costRows, APIRounds: apiRounds, Agents: agents, Friction: friction,
 		Shards: shards, BlueClaims: blueClaims, Steps: steps, Rates: rates,
 		Judiciary: jud, Eta: eta, Config: merged,
-		TerminalVerdict: readTerminalVerdict(runDir), Terminal: fileExists(filepath.Join(runDir, "report.md")),
+		// ONE READ, TWO USES, so the pair cannot disagree — and Terminal now answers from the
+		// record like its neighbour instead of from a filename.
+		//
+		// It was `fileExists(runDir/report.md)`. setup.go's skeleton CREATES report.md (its own
+		// comment documents that file as `bench assemble`'s output and stubs it anyway), so
+		// Terminal was true from the moment setup ran, before a seat was dispatched, for the
+		// entire life of every run. Measured 2026-08-22: the dashboard rendered "run complete —
+		// the assembler wrote the report" while blue-lane-1 was visibly live in the very next
+		// section, and went on saying it for 55 minutes.
+		//
+		// The essay on readTerminalVerdict below is about precisely this shape — a fact the record
+		// holds, recovered from the prose or the filename it was rendered into. It was written one
+		// line above the field that did it.
+		TerminalVerdict: terminalVerdict, Terminal: terminalVerdict != "",
+		// ASSESSED AT THE INJECTED CLOCK, not time.Now(), so a test can put the record in the
+		// past and watch this flip.
+		Live:      record.Assess(runDir, time.UnixMilli(int64(nowMs)).UTC(), terminalVerdict != ""),
 		Generated: nowISO(nowMs),
 	}
 }

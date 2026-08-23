@@ -48,6 +48,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
@@ -111,54 +112,14 @@ func isGrade(s string) bool { return flags.IsGrade(s) }
 // absent grade contributes zero rather than erroring.
 func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS[impact] }
 
-var roundRe = regexp.MustCompile(`-r(\d+)`)
-
-// RoundOf returns the round an event belongs to.
+// RoundOf, RoundIn and LastRoundOn live in round.go now.
 //
-// THE INJECTED ROUND WINS, AND THE REGEX IS THE FALLBACK (#348). The dispatcher knows the round
-// as a fact — it is inherited from the agent that was dispatched — so it is read from the
-// environment first. The pattern match over the seat id remains only for callers nothing
-// injected for: the tests, and any pre-#348 binary path.
-//
-// WHY THE FALLBACK IS DANGEROUS AND STAYS ANYWAY. `judge-terminal` carries no round, so the
-// regex returns 0 — and a bench closure at run END then looks like a closure BEFORE ROUND 1.
-// That put a phantom entry in the archive and made the W1.8 spot-check floor demand samples from
-// rounds whose seats had done nothing wrong (found at 1 seed in 60, by luck, in #327). The regex
-// cannot distinguish "round 0" from "no round in this name", which is the whole defect; the
-// injected value can, because it is a fact rather than a shape.
-//
-// Deleting the fallback outright would make every un-injected caller round 0 silently, which is
-// the same failure with fewer witnesses. It goes when the hook injects on every path (#290).
-//
-// STATE OF THAT CONDITION, 2026-08-15. Read this before assuming the injected branch ever runs:
-// NOTHING in this repository sets FEOV_ROUND or FEOV_SEAT. A whole-tree sweep across Go, JS, JSON,
-// shell and Markdown finds only readers and comments. So in production the fallback is not a
-// fallback — it is the ONLY path, and judge-terminal still stamps round 0 on every append (#396).
-//
-// What DID change: #290's gate is no longer unmeasured. PreToolUse carries agent_id — 9 of 9
-// subagent calls across three tool types, stable within an agent, distinct across concurrent ones,
-// and byte-identical to the id that agent reports at SubagentStop (plans/hook-surface-spike.md §7).
-// Since session_id and prompt_id are IDENTICAL across the main session and every concurrent
-// subagent, agent_id is the only field that can namespace a seat at all. The mechanism to inject
-// on every path is therefore measured rather than hoped for; it is still unbuilt.
-func RoundOf(seatID string) int {
-	if raw := strings.TrimSpace(os.Getenv("FEOV_ROUND")); raw != "" {
-		if n, err := strconv.Atoi(raw); err == nil && n >= 0 {
-			return n
-		}
-		// A malformed injected round is a DISPATCH bug. Falling through to the regex would
-		// answer a question nobody asked correctly; the caller sees the guess for what it is.
-	}
-	m := roundRe.FindStringSubmatch(seatID)
-	if m == nil {
-		return 0
-	}
-	n, err := strconv.Atoi(m[1])
-	if err != nil {
-		return 0
-	}
-	return n
-}
+// What stood here returned a bare int and read FEOV_ROUND first — an injected branch nothing in
+// the repository ever set, so in production the regex was not a fallback but the only path, and
+// `judge-terminal` stamped round 0 on every append (#396). round.go answers the question the regex
+// structurally cannot: a terminal seat's round is derived from the RECORD (the highest round any
+// seat stamped), and "this name says nothing about a round" is a second return value rather than a
+// zero indistinguishable from round 0.
 
 var seatIDRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-]*$`)
 
@@ -201,10 +162,20 @@ type Identity struct {
 // ROTATES the nonce: a re-dispatched seat writes its own shard and the stale
 // instance's shard stays inert. Two registers for one seatId are themselves an
 // event, visible to the join audit and the render anomaly footer.
-func RegisterSeat(id Identity) (dispatch int, where string, err error) {
+// runVia says which path supplied the run directory — see seatenv.RunSource. It is recorded on
+// the register event because a run whose seats all resolve by INFERENCE is a run the PreToolUse
+// hook is not reaching, and the hook records that nowhere (#512).
+func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err error) {
 	runDir, seatID := id.RunDir, id.SeatID
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
 		return 0, "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
+	}
+	// THE ROSTER GATE, AND IT BELONGS HERE RATHER THAN AT EVERY VERB. Register is the one call
+	// that takes a seat's word for who it is; everything after it reads the binding this call
+	// writes. So this is where an id no dispatch could have produced has to be refused — after
+	// it, the wrong id is not a claim any more, it is the record.
+	if err := RequireDispatchableSeat(seatID); err != nil {
+		return 0, "", err
 	}
 	// A SEAT RECORDS INTO A RUN THAT EXISTS. IT NEVER CREATES ONE.
 	//
@@ -240,7 +211,17 @@ func RegisterSeat(id Identity) (dispatch int, where string, err error) {
 	// query now (activeNonce), and the race it needed a lock for is the ordering SQLite already
 	// gives: the latest register row IS the answer.
 	ev := &Event{}
-	if _, err := recordpb.SetBody(ev, &recordpb.Register{ToolVersion: proto.String(ToolVersion)}); err != nil {
+	// agent_id and run_via are ENGINE-OBSERVED, never typed by the seat. Both are set only when
+	// actually observed: an absent field says "not measured", which is the honest answer for a run
+	// whose hook never fired, and is a different fact from an agent whose handle is empty.
+	reg := &recordpb.Register{ToolVersion: proto.String(ToolVersion)}
+	if agent := seatenv.AgentID(); agent != "" {
+		reg.AgentId = proto.String(agent)
+	}
+	if runVia != "" {
+		reg.RunVia = proto.String(runVia)
+	}
+	if _, err := recordpb.SetBody(ev, reg); err != nil {
 		return 0, "", err
 	}
 	// THE REGISTER IS NO LONGER A SPECIAL CASE. It used to be the one key deriveKey did not mint,
@@ -723,8 +704,8 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 				return err
 			}
 		}
-		if b.GetClosureClass() == recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION && b.Successor == nil {
-			return fmt.Errorf("record: closed_with_regression requires --superseded-by (lineage never drops)")
+		if b.GetClosureClass() == recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION && b.Successor == nil {
+			return fmt.Errorf("record: repaired_with_regression requires --superseded-by (lineage never drops)")
 		}
 		// THE NEAR-MISS CHECK IS GONE BECAUSE THE OPEN SET IS GONE, not because it stopped
 		// mattering. It refused `closed-with-regression` and `Closed_With_Regression`: spellings
@@ -770,7 +751,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		// nothing for it, which is worth less than no row: the row is what makes "unaudited
 		// repair" countable, so a blank one flatters the count it feeds.
 		if b.GetRow() == "" {
-			return fmt.Errorf("record: manifest-row requires --row (what you checked and what it showed — an empty receipt still counts as a repair audited)")
+			return fmt.Errorf("record: manifest-row requires --%s (what you checked and what it showed — an empty receipt still counts as a repair audited)", flags.ForPayloadKey("row"))
 		}
 	// A DUTY DISCHARGED BY NOTHING IS THE DUTY'S OWN DEFEAT.
 	//
@@ -946,7 +927,19 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		// A MOVE (--id) carries only the new status and its reason; the substance lives on
 		// the proposal it moves, so requiring --line here would make a move impossible.
 		if b.GetSupersedesStatus() == "" && b.GetLine() == "" {
-			return fmt.Errorf("record: line-of-inquiry requires --line (what you are going to try — an unnamed line teaches a future run nothing)")
+			// THE FLAG NAME IS DERIVED, NOT SPELLED. The payload key is `line`; the flag that fills
+			// it is --reason, because prose reaches every verb through one channel. This message
+			// said "requires --line" for its whole life — a flag that appears on no surface and
+			// cannot be typed.
+			//
+			// MEASURED 2026-08-21: a blue seat hit it, believed it (the tool said so), invented
+			// `--line`, was refused again as an unknown flag, gave up after four attempts, and
+			// filed friction reporting "the tool requires an undocumented --line flag". The seat
+			// was right that something was wrong and wrong about what — because the refusal
+			// pointed it at a flag that does not exist. A refusal naming something the seat cannot
+			// type is worse than a bare "invalid": it is a false lead with the tool's authority
+			// behind it.
+			return fmt.Errorf("record: line-of-inquiry requires --%s (what you are going to try — an unnamed line teaches a future run nothing)", flags.ForPayloadKey("line"))
 		}
 		// A declined or abandoned line of inquiry with no reason is the decoration this verb
 		// exists to prevent: the road not taken is worthless without why.
@@ -1013,23 +1006,37 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		if err := requireGap(runDir, b.GetGapId(), "opinion", "--id"); err != nil {
 			return err
 		}
-		// PRESENCE, IN DECLARATION ORDER — the old loop asked `p.Has(f)` alone, so a field
-		// supplied EMPTY satisfied it, and that is the rule being carried across rather than
-		// tightened. The payload keys are kept as the loop's subject because flags.ForPayloadKey
-		// is the mapping from key to the flag a seat types, and it is the seat that reads this.
-		for _, f := range []struct {
-			key     string
-			present bool
-		}{
-			{"gap_id", b.GapId != nil},
-			{"disposition", b.Disposition != nil},
-			{"principle", b.Principle != nil},
-			{"tension", b.Tension != nil},
-			{"review_flag", b.ReviewFlag != nil},
-		} {
-			if !f.present {
-				return fmt.Errorf("record: opinion requires --%s (opinions, not dispositions)", flags.ForPayloadKey(f.key))
-			}
+		// THE PRESENCE LOOP THAT STOOD HERE WAS THE TWELFTH RESTATEMENT, and like the other ten
+		// it could never run. It asked presence for gap_id, disposition, principle, tension and
+		// review_flag — every one of them annotated `required` — so CheckRequired refused all five
+		// above, with the annotation's own words, before this switch was entered. It read as live
+		// because it was commented and explained itself; that is the whole failure mode.
+		//
+		// WHAT REMAINS IS CONDITIONAL, which is the test for belonging below rather than above.
+
+		// WHAT WOULD REOPEN THIS, ANSWERED ONE WAY OR THE OTHER (#502).
+		//
+		// A losing party's three questions are which proposition fell, what still stands, and what
+		// would change the outcome. `settled` answers the first (annotated, refused above); this
+		// answers the third; the second is derivable from the first plus the artifact state
+		// (ArtifactStateOf) and is deliberately not stored, because a derivable field stored is a
+		// second hand-kept copy.
+		//
+		// EITHER FIELD SATISFIES IT. `final: true` says nothing would reopen it, which is a real
+		// answer and not an omission — the `friction --none` shape, and for the same measured
+		// reason: an empty channel that cannot assert its own emptiness goes unclosed.
+		//
+		// THE SCHEMA CARRIES THIS TOO, as a (check) on Opinion, and the pair is not a restatement
+		// of the kind deleted above: that one duplicated an UNCONDITIONAL annotation which runs
+		// first and makes the copy unreachable. This is the `Close` pattern — the tool refuses in
+		// words a bench can act on, and the database refuses independently of the tool, because a
+		// CHECK's `why` does not currently reach the seat (its violation arrives as raw driver
+		// text). Close that and this guard becomes the restatement it is not yet.
+		if b.ReopensOn == nil && b.Final == nil {
+			return fmt.Errorf("record: opinion requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round")
+		}
+		if b.ReopensOn != nil && b.Final != nil {
+			return fmt.Errorf("record: --final says nothing would reopen this and --reopens-on names what would. They are opposite answers to one question; pass exactly one")
 		}
 		// A VERB THAT OWNS AN ACT MUST OWN IT — and this guard is now the type system's job.
 		//

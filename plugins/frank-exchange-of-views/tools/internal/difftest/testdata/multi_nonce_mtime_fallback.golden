@@ -1,17 +1,38 @@
-$ lens register --run {RUN} --seat-id red-lens-r1-L1
+$ register --run {RUN} --seat-id red-lens-r1-L1
 exit 0
 stdout:
 registered red-lens-r1-L1
 
-$ lens finding --run {RUN} --seat-id red-lens-r1-L1 --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason older shard
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
+$ finding --run {RUN} --seat-id red-lens-r1-L1 --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason older shard
 exit 0
 stdout:
 finding recorded: L1-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
-$ lens register --run {RUN} --seat-id red-lens-r1-L1
+$ register --run {RUN} --seat-id red-lens-r1-L1
 exit 0
 stdout:
 registered red-lens-r1-L1 (dispatch 2 — a previous dispatch of this seat is on the record)
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
+YOU ARE SITTING 2 OF THIS SEAT, AND AN EARLIER SITTING'S WORK IS GONE. 2 event(s) it recorded (1 finding, 1 anchor) lost replay's winner selection and survive nowhere — not in the board, not in the report's evidence, not in any projection you are about to read. This is not a warning about the record being wrong; the record is correct and that work is simply absent.
+
+  finding — a lens finding is gone, so the merge has nothing to coalesce from it
+
+Re-do what still applies rather than assuming your predecessor's output survived it.
+
+red-lens-r1-L1:finding:L1-F1
+red-lens-r1-L1:anchor:FINDING001
 
 $ lens finding --run {RUN} --seat-id red-lens-r1-L1 --key F2 --severity low --likelihood low --impact low --quote ## S2 --reason newer shard
 exit 0

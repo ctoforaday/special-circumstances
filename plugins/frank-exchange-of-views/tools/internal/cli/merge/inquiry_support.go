@@ -48,29 +48,25 @@ import (
 // since been cut. Two questions, two records, and collapsing them would lose the one that says the
 // document drifted from its own account of itself.
 func newInquirySupport() *cobra.Command {
-	c := seat.Prose(seat.New("inquiry-support",
-		`your per-round read of the REPORT against the lines of inquiry on the record: --reason "<what the report says at those lines>". `+
-			`Read the report ONCE, cover every line in the one act — and where a line's treatment is thin, missing or unsupported by the text, MINT A GAP for it. `+
-			`This event records only that the read happened; the shortfalls it finds are ordinary defects. A PASS is refused until it exists.`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			text, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
-			// THE SCHEMA COLLAPSED THIS EVENT AND THE VERB HAS NOT CAUGHT UP. InquiryReview
-			// carries `reason` alone: the per-line grade is retired because "a line is treated
-			// thinly" is a DEFECT IN THE REPORT, which the schema says belongs on the board as a
-			// minted gap with the lifecycle, the blue duty, the grade and the PASS gate every
-			// other gap has — "a second vocabulary for the same fact is exactly the aliasing this
-			// schema exists to remove".
-			//
-			// So --id and --as no longer reach the record. That is the schema's decision, not a
-			// conversion slip: the flags are gone from the surface and from the help,
-			if _, err := record.Append(s.Identity(), &recordpb.InquiryReview{Reason: proto.String(text)}); err != nil {
-				return nil, err
-			}
-			return inquiryReviewResult{}, nil
-		}))
+	c := seat.Prose(seat.New("inquiry-support", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		text, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		// THE SCHEMA COLLAPSED THIS EVENT AND THE VERB HAS NOT CAUGHT UP. InquiryReview
+		// carries `reason` alone: the per-line grade is retired because "a line is treated
+		// thinly" is a DEFECT IN THE REPORT, which the schema says belongs on the board as a
+		// minted gap with the lifecycle, the blue duty, the grade and the PASS gate every
+		// other gap has — "a second vocabulary for the same fact is exactly the aliasing this
+		// schema exists to remove".
+		//
+		// So --id and --as no longer reach the record. That is the schema's decision, not a
+		// conversion slip: the flags are gone from the surface and from the help,
+		if _, err := record.Append(s.Identity(), &recordpb.InquiryReview{Reason: proto.String(text)}); err != nil {
+			return nil, err
+		}
+		return inquiryReviewResult{}, nil
+	}))
 
 	// NO --id AND NO --as, AND THE ABSENCE IS THE RULING.
 	//

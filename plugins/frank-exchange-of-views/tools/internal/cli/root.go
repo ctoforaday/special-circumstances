@@ -10,6 +10,7 @@ package cli
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -22,6 +23,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/bench"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/blue"
@@ -29,7 +32,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/merge"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/motion"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // The CHANGELOG THAT WAS HERE IS GONE (#407). 70 entries, ~1000 lines, 96% of this file,
@@ -75,7 +77,90 @@ func InvokedAs() string {
 	return n
 }
 
+// seatRoles maps a resolved role to its surface and its one-line description. Built here rather
+// than in each package so the root can answer "which seat am I" once.
+func seatVerbs(role string) ([]*cobra.Command, string) {
+	switch role {
+	case "lens":
+		return lens.Verbs(), "red lens seats — findings, source verification and corroboration, proof re-runs. Cannot mint or close a gap: that is the merge's."
+	case "merge":
+		return merge.Verbs(), "the red merge seat — the board's only writer."
+	case "blue":
+		return blue.Verbs(), "blue seats — revisions, manifest rows, directions. No board verbs at all."
+	case "bench":
+		return bench.Verbs(), "the bench — opinions, halt, certification. Never originates."
+	}
+	return nil, ""
+}
+
+// RoleOfSeat resolves the dispatched role from a seat id, or "" for no seat.
+func RoleOfSeat(seatID string) string {
+	if strings.TrimSpace(seatID) == "" {
+		return ""
+	}
+	for _, r := range []string{"lens", "merge", "blue", "bench", record.OperatorRole} {
+		if record.CheckSeatRole(r, seatID) == nil {
+			return r
+		}
+	}
+	return ""
+}
+
+// noSeatNote explains an OPERATOR surface to something that expected a seat's.
+//
+// THIS IS THE COST OF SCOPING THE TREE, PAID RATHER THAN HIDDEN. A seat verb is now absent from a
+// process with no identity, so "mint" answers "no such command" where it used to answer "--seat-id
+// is required". That is the failure requireRuler's own comment named — under a scoped surface "not
+// yours" reads as "does not exist", and a seat handed an unavailable verb logs friction and works
+// around it, losing the capability for the run. The surface cannot carry the verb (it does not know
+// which seat's), so the REFUSAL has to carry the reason.
+func noSeatNote(seatID string) string {
+	if strings.TrimSpace(seatID) == "" {
+		return "\n\n--seat-id IS REQUIRED HERE, because nothing identified you: this agent has not " +
+			"registered, so the record cannot say which seat it holds, and no --seat-id was given. The " +
+			"surface is scoped to whoever is asking, so there is no tree to show until you say who that " +
+			"is — a seat id, or `" + record.OperatorRole + "`. You type it ONCE, at `register`; after that " +
+			"the binding is on the record and every later call resolves it for you."
+	}
+	if RoleOfSeat(seatID) == "" {
+		return "\n\n" + seatID + " does not belong to any role namespace, so it selects no surface. The engine " +
+			"assigns seat ids; a hand-invented one identifies nobody, and a record written under it would be " +
+			"attributed to an identity no dispatch created."
+	}
+	return ""
+}
+
+// newRoot builds the tree for whoever is running it — see NewRootFor.
 func newRoot() *cobra.Command {
+	return NewRootFor(dispatchedSeat())
+}
+
+// dispatchedSeat answers who is running this process, BEFORE cobra parses anything.
+//
+// The run directory is resolved the way the seat's own verbs resolve it — injected FEOV_RUN
+// first, then the live-run marker — because that is what the hook actually supplies, and a
+// pre-parse scan of os.Args for --run would be a second flag parser guessing at the same fact.
+// Where no run resolves there is no record to ask, so the answer is the flag or nothing.
+func dispatchedSeat() string {
+	runDir, err := seatenv.Resolve("", func() string { return seat.InferRunDir("") })
+	if err != nil {
+		return seatenv.Dispatched(nil)
+	}
+	return seatenv.Dispatched(seat.BoundSeat(runDir))
+}
+
+// NewRootFor builds THIS SEAT'S surface at the root, or the operator's when no seat was dispatched.
+//
+// THE ROLE LEVEL IS GONE. It used to be four groups under the root, so a merge seat typed
+// `feov-record merge mint` — restating a fact the tool could already look up, with CheckSeatRole
+// reconciling the two copies and refusing a disagreement. The tool's own refusal message said the
+// principle it was breaking: you do not retype your identity. A merge seat now runs `mint`; a lens
+// seat running `mint` gets an unknown command, which is the same boundary drawn by the only fact
+// that decides it.
+//
+// The operator tree is the one with no seat: setup, capture, dashboard and the rest have no role
+// to scope to, and a human running them is not a seat.
+func NewRootFor(seatID string) *cobra.Command {
 	root := &cobra.Command{
 		Use:   InvokedAs(),
 		Short: "the seat-side record runtime (the verb set IS the role boundary)",
@@ -91,8 +176,8 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// The two flags EVERY verb needs, declared once and inherited. Persistent
 	// flags are the mechanism the first cut of this CLI re-implemented by
 	// re-declaring --run and --seat-id on all sixteen verbs.
-	root.PersistentFlags().String(flags.Run, "", "the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed")
-	root.PersistentFlags().String(flags.SeatID, "", "your seat id, assigned by the engine and bound to this role's namespace")
+	root.PersistentFlags().String(flags.Run, "", "the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed")
+	root.PersistentFlags().String(flags.SeatID, "", "your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at `register`, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed")
 	// --json makes every mutating verb emit a structured result and every failure a
 	// structured error, so a machine consumer parses fields instead of prose. On READS the
 	// format is primarily view-selected: board/findings/friction are JSON by name, the rest
@@ -101,23 +186,62 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// markdown view with no JSON form, so there is exactly one way to reach each form.
 	root.PersistentFlags().Bool(flags.JSON, false, "emit a structured JSON result (and structured errors) instead of human text")
 
-	root.AddCommand(
-		lens.NewCommand(),
-		merge.NewCommand(),
-		motion.NewCommand(),
-		blue.NewCommand(),
-		bench.NewCommand(),
-		newVerify(),      // operator cross-check, not a seat role — read-only over the record
-		newGraph(),       // operator: render a run's actual behaviour from the record
-		newCountClaims(), // operator/blue: deterministic claim_count over blue/report.md
-		newFriction(),    // operator: the friction channel — seats write it, the human reads it
-		newFetch(),       // operator: cached, hash-verified web read (replaces WebFetch) — feeds the run source cache
-		newSetup(),       // operator: build a research run's blackboard (ported from setup-research-run.mjs)
-		newScorecard(),   // operator: a chair's in-run self-read scorecard (ported from scorecards.mjs)
-		newDashboard(),   // operator: the live run dashboard.html (ported from render-run-dashboard.mjs)
-		newCapture(),     // operator: the post-hoc capture auditor (ported from capture-research-run.mjs)
-		newHook(),        // hook backend: the blue-report lockdown PreToolUse/PostToolUse gates (invoked by hooks.json)
-	)
+	// A SEAT IS NOT AN OPERATOR, and the two sets are disjoint by construction rather than by
+	// anyone remembering. Promoting the seat's verbs to the root put them beside the operator
+	// commands, and two names collide outright: `friction` is a seat's write verb AND the
+	// operator's read of the channel; `verify` is a lens's citation adjudication AND the
+	// operator's whole-record cross-check. One tree cannot hold both meanings, and picking a
+	// winner would hand some seat a verb that does the other thing.
+	//
+	// So the split is total. `fetch` and `count-claims` cross it because seats genuinely run them
+	// — a lens reads blue's cached source bytes, and blue's claim_count is defined as what
+	// count-claims prints — and neither name collides.
+	// NO IDENTITY IS NOT A MODE. It used to fall through to the operator surface, which made
+	// "nobody said who I am" a way of selecting a tree — and a tree nobody selects is one nobody
+	// can be refused from. The surface is scoped to whoever is asking, so there is nothing to show
+	// until that is answered; `--seat-id operator` is how an operator answers it.
+	switch role := RoleOfSeat(seatID); {
+	case role == "":
+		// NO VERBS FOR AN IDENTITY NOBODY RECOGNISES, and that covers two cases with one rule:
+		// nothing was given, or what was given belongs to no namespace. An invented seat id used
+		// to fall through to the OPERATOR surface, which is a claim about the caller that nothing
+		// checked — it is not the operator, it is unidentified. noSeatNote says which of the two
+		// it met. refuseUnknownCommandFirst answers the identity question before cobra parses
+		// anything, so `mint --check c` is not answered with "unknown flag: --check" — a complaint
+		// about the third word of a command that could not have run. `--version` and `--help` are
+		// left to cobra: they are answerable without knowing who is asking, and the setup
+		// preflight runs `--version` against a binary it has not identified itself to.
+	case role != "" && role != record.OperatorRole:
+		verbs, short := seatVerbs(role)
+		seat.SetRole(root, role, seatID)
+		root.Short = short
+		// THE FRICTION FOOTER MOVED WITH THE VERBS, not away with the group. It hung on the role
+		// group's Long, and deleting the group would have dropped it silently — a seat would stop
+		// being told that a capability it cannot find is a finding about the tooling rather than
+		// something to work around. Caught by TestRoleHelpCarriesTheFrictionFooter.
+		root.Long = InvokedAs() + " — " + short + "\n" + seat.FrictionFooter
+		root.AddCommand(verbs...)
+		root.AddCommand(motion.NewCommand())
+		root.AddCommand(newFetch())       // a lens reads the EXACT bytes blue read, from the run cache
+		root.AddCommand(newCountClaims()) // blue's claim_count is defined as what this prints
+		// AFTER every AddCommand: the split reads HasSubCommands, so a group registered before
+		// its children were attached would file itself under the leaves.
+		seat.SplitGroups(root)
+	default:
+		root.AddCommand(
+			newVerify(),          // operator cross-check, not a seat role — read-only over the record
+			newGraph(),           // operator: render a run's actual behaviour from the record
+			newShowDiagnostics(), // operator: did the seats find their surface — exposure and use, as fields
+			newCountClaims(),     // operator/blue: deterministic claim_count over blue/report.md
+			newFriction(),        // operator: the friction channel — seats write it, the human reads it
+			newFetch(),           // operator: cached, hash-verified web read — feeds the run source cache
+			newSetup(),           // operator: build a research run's blackboard
+			newScorecard(),       // operator: a chair's in-run self-read scorecard
+			newDashboard(),       // operator: the live run dashboard.html
+			newCapture(),         // operator: the post-hoc capture auditor
+		)
+	}
+
 	// THE HELP TEMPLATE CARRIES WHAT COBRA HAS NO MODEL FOR: an enum's per-value meanings.
 	// Cobra's help is rich about commands and flags; a flag's VALUE-SPACE is neither, so every
 	// vocabulary here had nowhere to put its semantics and they went into source comments.
@@ -130,9 +254,9 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	root.Args = cobra.ArbitraryArgs
 	root.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
-			return seat.RefuseAndTeach(cmd, "you named no command, so nothing ran. The commands below are the whole surface.")
+			return seat.RefuseAndTeach(cmd, "you named no command, so nothing ran. The commands below are the whole surface."+noSeatNote(seatID))
 		}
-		return seat.RefuseAndTeach(cmd, unknownCommandRefusal(cmd.Root(), args[0]))
+		return seat.RefuseAndTeach(cmd, unknownCommandRefusal(cmd.Root(), args[0])+noSeatNote(seatID))
 	}
 
 	enumhelp.Install(root)
@@ -160,15 +284,13 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 // It searches one level under each role group, which is where seat verbs live. `motion <subject>
 // <verb>` is deliberately not searched: `rule` and `file` are generic enough that pointing at all
 // three subjects would be noise rather than an answer.
-func whereItLives(root *cobra.Command, name string) []string {
+func whereItLives(_ *cobra.Command, name string) []string {
 	var out []string
-	for _, group := range root.Commands() {
-		if !group.HasSubCommands() {
-			continue
-		}
-		for _, verb := range group.Commands() {
-			if verb.Name() == name || verb.HasAlias(name) {
-				out = append(out, group.Name()+" "+verb.Name())
+	for role, r := range AllRoots() {
+		for _, c := range r.Commands() {
+			if c.Name() == name || c.HasAlias(name) {
+				out = append(out, role)
+				break
 			}
 		}
 	}
@@ -176,14 +298,17 @@ func whereItLives(root *cobra.Command, name string) []string {
 	return out
 }
 
-// unknownCommandRefusal is the ONE statement of what a bare unknown name is told, so the two sites
-// that answer it cannot drift into saying different things about the same miss.
 func unknownCommandRefusal(root *cobra.Command, name string) string {
+	// A VERB THAT EXISTS SOMEWHERE ELSE IS NOT A MISSING CAPABILITY, and the difference decides
+	// what the seat does next. It used to end "run it with its role in front", which was the fix
+	// while the tree had a role level; that advice is now wrong, and wrong advice at a refusal is
+	// worse than none — it sends a seat to type something that cannot work.
 	if at := whereItLives(root, name); len(at) > 0 {
-		return fmt.Sprintf("%q is not a top-level command — it is a SEAT verb, and it exists at: %s. "+
-			"That is a wrong-address error, not a missing capability: run it with its role in front "+
-			"(`%s --help`). The commands below are the whole top-level surface.",
-			name, strings.Join(at, ", "), at[0])
+		return fmt.Sprintf("%q is not on your surface — it is the %s seat's verb. That is a "+
+			"wrong-SEAT error, not a missing capability, so do not work around it: if the act is "+
+			"yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that "+
+			"holds it is named here. The commands below are everything you can run.",
+			name, strings.Join(at, " and "))
 	}
 	return fmt.Sprintf(
 		"no command named %q exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.", name)
@@ -208,7 +333,9 @@ func unknownCommandRefusal(root *cobra.Command, name string) string {
 // cobra's error text would make this depend on the shape of a string another library owns —
 // which is the failure mode this repo keeps finding. Position 1 cannot be a flag value, because
 // nothing precedes it.
-func refuseUnknownCommandFirst(root *cobra.Command, argv []string) error {
+// seatID is passed rather than read from the environment: the tests drive cobra in-process with
+// an args slice that never reaches os.Args, so a check reading the env would refuse every call.
+func refuseUnknownCommandFirst(root *cobra.Command, argv []string, seatID string) error {
 	if len(argv) < 2 {
 		return nil
 	}
@@ -222,16 +349,46 @@ func refuseUnknownCommandFirst(root *cobra.Command, argv []string) error {
 	root.InitDefaultHelpFlag()
 	root.InitDefaultVersionFlag()
 
-	name := argv[1]
-	if name == "" || strings.HasPrefix(name, "-") {
-		return nil // a flag, or help/version: cobra's own handling is right for those
+	// THE COMMAND IS THE FIRST NON-FLAG WORD, not argv[1]. `--json mint …` put a flag there, so
+	// the pre-check saw one and stood aside, and cobra then complained about `--class` — a flag on
+	// a command it had not found. The root's own flags are a knowable set: two take a value, the
+	// rest are booleans.
+	name := ""
+	for i := 1; i < len(argv); i++ {
+		a := argv[i]
+		switch {
+		case a == "--run" || a == "--seat-id":
+			i++ // and its value
+		case strings.HasPrefix(a, "-"):
+			// --json, --help, --version, and any --flag=value form: no separate value to skip.
+		default:
+			name = a
+		}
+		if name != "" {
+			break
+		}
+	}
+	if name == "" {
+		return nil // flags only: cobra's own handling is right for --help and --version
+	}
+	// NOBODY SAID WHO IS ASKING, so there is no surface to look this up in. Answered here rather
+	// than after parsing, because the flags belong to a command that could not have been found.
+	if RoleOfSeat(seatID) == "" {
+		return seat.RefuseAndTeach(root, "a command was named and the surface is scoped to whoever is asking."+noSeatNote(seatID))
 	}
 	for _, c := range root.Commands() {
 		if c.Name() == name || c.HasAlias(name) {
 			return nil
 		}
 	}
-	return seat.RefuseAndTeach(root, unknownCommandRefusal(root, name))
+	// A WRONG-SEAT ERROR KEEPS ITS CODE. `--json` consumers branch on the KIND of failure, and
+	// this one is a role violation however the tree came to lack the verb; flattening it to a
+	// plain message makes "you are the wrong seat" indistinguishable from a typo.
+	taught := seat.RefuseAndTeach(root, unknownCommandRefusal(root, name)+noSeatNote(seatID))
+	if len(whereItLives(root, name)) > 0 {
+		return feov.Errorf(feov.RoleViolation, "%s", taught.Error())
+	}
+	return taught
 }
 
 // Execute runs the CLI. Abort-safety is armed first: a seat killed mid-command
@@ -240,8 +397,13 @@ func Execute() {
 	defer record.InstallSignalGuard()()
 
 	root := newRoot()
-	if err := refuseUnknownCommandFirst(root, os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %v\n", InvokedAs(), err)
+	if err := refuseUnknownCommandFirst(root, os.Args, dispatchedSeat()); err != nil {
+		// THROUGH THE SAME EMITTER AS EVERY OTHER TOP-LEVEL REFUSAL. This branch printed a bare
+		// sentence, so `--json` callers got prose from the one path that answers before cobra —
+		// a channel whose entire contract is that it is machine-readable.
+		if !EmitTopLevelError(os.Stdout, os.Args, err) {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", InvokedAs(), err)
+		}
 		os.Exit(2)
 	}
 	if err := ExecuteRoot(root); err != nil {
@@ -304,11 +466,20 @@ func EmitTopLevelError(w io.Writer, argv []string, err error) bool {
 	if !jsonRequested(argv) {
 		return false
 	}
+	// THE CODE IS THE ERROR'S OWN WHERE IT HAS ONE. Validation was hardcoded because everything
+	// reaching here was a parse refusal; a wrong-SEAT refusal now arrives here too, and it carries
+	// role_violation. A consumer branching on the kind of failure would otherwise be told a
+	// dispatch error is a typo.
+	code := feov.Validation
+	var coded *feov.Error
+	if errors.As(err, &coded) && coded.Code != "" {
+		code = coded.Code
+	}
 	_ = json.NewEncoder(w).Encode(struct {
 		OK    bool   `json:"ok"`
 		Code  string `json:"code"`
 		Error string `json:"error"`
-	}{OK: false, Code: string(feov.Validation), Error: err.Error()})
+	}{OK: false, Code: string(code), Error: err.Error()})
 	return true
 }
 

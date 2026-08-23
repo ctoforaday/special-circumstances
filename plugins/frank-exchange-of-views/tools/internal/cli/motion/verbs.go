@@ -22,6 +22,13 @@ func newFile(subject string, required []string) *cobra.Command {
 		Short: "file a " + subject + " motion — the tool assigns its id",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
+			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
+			// on the other axis: Begin is not on this path, so the run refusal is not either, and
+			// these verbs WRITE — a motion filed against a contradicted run directory is the
+			// attribution failure the check exists for, one field over.
+			if s.RunErr != nil {
+				return s.RunErr
+			}
 			// THE FILER MUST BE A SEAT THE ENGINE CREATED. These verbs read the context with
 			// seat.Of, which only parses flags — seat.Begin, which runs the identity checks, is
 			// never on this path. Measured: `motion grade file --seat-id totally-invented`
@@ -101,7 +108,7 @@ func newFile(subject string, required []string) *cobra.Command {
 		switch {
 		case f == flags.Proposed:
 			p := new(flags.GradeValue)
-			c.Flags().Var(p, f, flags.GradeUsage("REQUIRED — the grade you say it should be"))
+			c.Flags().Var(p, f, flags.GradeUsage("the grade you say it should be"))
 		default:
 			if e, ok := record.MotionFieldEnum(subject, payloadKey(f), f); ok {
 				enumhelp.Flag(c, f, e, "REQUIRED for a "+subject+" motion")
@@ -154,6 +161,13 @@ func newRule(subject, ruler string) *cobra.Command {
 		Short: "rule on a " + subject + " motion (the " + ruler + " seat's)",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
+			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
+			// on the other axis: Begin is not on this path, so the run refusal is not either, and
+			// these verbs WRITE — a motion filed against a contradicted run directory is the
+			// attribution failure the check exists for, one field over.
+			if s.RunErr != nil {
+				return s.RunErr
+			}
 			// THE FILER MUST BE A SEAT THE ENGINE CREATED. These verbs read the context with
 			// seat.Of, which only parses flags — seat.Begin, which runs the identity checks, is
 			// never on this path. Measured: `motion grade file --seat-id totally-invented`
@@ -172,9 +186,10 @@ func newRule(subject, ruler string) *cobra.Command {
 			if err := record.RequireSubjectMatches(s.RunDir, subject, id); err != nil {
 				return err
 			}
-			if err := requireRuler(subject, ruler, s.SeatID); err != nil {
-				return err
-			}
+			// NO requireRuler HERE ANY MORE. This verb only exists in the gavel-holder's tree, so
+			// a seat that cannot rule this subject cannot name the command — the same boundary the
+			// verb set draws everywhere else, instead of a runtime comparison of two copies of the
+			// acting role.
 			// A motion is answered ONCE; pressing it is an appeal, which keeps both positions.
 			if err := record.RequireUnruledMotion(s.RunDir, id); err != nil {
 				return err
@@ -232,7 +247,7 @@ func newRule(subject, ruler string) *cobra.Command {
 	}
 	seat.Prose(c)
 	c.Flags().String(flags.ID, "", refHelp(subject))
-	enumhelp.Flag(c, flags.As, e, "REQUIRED — your ruling")
+	enumhelp.Flag(c, flags.As, e, "your ruling")
 	if be, ok := record.MotionFieldEnum(subject, "binds", flags.Binds); ok {
 		enumhelp.Flag(c, flags.Binds, be, "who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not")
 	}
@@ -259,6 +274,13 @@ func newAppeal(subject string) *cobra.Command {
 		Short: "press a " + subject + " motion after a ruling — a ruling is an argument, not a command",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
+			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
+			// on the other axis: Begin is not on this path, so the run refusal is not either, and
+			// these verbs WRITE — a motion filed against a contradicted run directory is the
+			// attribution failure the check exists for, one field over.
+			if s.RunErr != nil {
+				return s.RunErr
+			}
 			// THE FILER MUST BE A SEAT THE ENGINE CREATED. These verbs read the context with
 			// seat.Of, which only parses flags — seat.Begin, which runs the identity checks, is
 			// never on this path. Measured: `motion grade file --seat-id totally-invented`
@@ -301,9 +323,9 @@ func newAppeal(subject string) *cobra.Command {
 // verb — losing the capability for the run rather than reporting a wrong flag.
 func refHelp(subject string) string {
 	if subject == "inquiry" {
-		return "REQUIRED — the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
+		return "the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
 	}
-	return "REQUIRED — the motion id (M1, M2 …)"
+	return "the motion id (M1, M2 …)"
 }
 
 type filed struct {

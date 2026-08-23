@@ -16,25 +16,23 @@ import (
 // anyone else: an unmanifested repair is unchecked by blue's OWN standard, which
 // is a stronger thing to be able to say than "we think it was checked".
 func newManifestRow() *cobra.Command {
-	c := seat.Prose(seat.New("manifest-row",
-		`one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			// --reason IS the row. `--row` was a second word for the same prose on the one
-			// verb whose payload key happened to share its name, and the verb already fell back
-			// to the prose channel when it was absent — two spellings, one value.
-			text, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
-			body := &recordpb.ManifestRow{
-				GapId: proto.String(seat.Str(cmd, flags.ID)),
-				Row:   proto.String(text),
-			}
-			if _, err := record.Append(s.Identity(), body); err != nil {
-				return nil, err
-			}
-			return manifestRowResult{GapID: seat.Str(cmd, flags.ID)}, nil
-		}))
+	c := seat.Prose(seat.New("manifest-row", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		// --reason IS the row. `--row` was a second word for the same prose on the one
+		// verb whose payload key happened to share its name, and the verb already fell back
+		// to the prose channel when it was absent — two spellings, one value.
+		text, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		body := &recordpb.ManifestRow{
+			GapId: proto.String(seat.Str(cmd, flags.ID)),
+			Row:   proto.String(text),
+		}
+		if _, err := record.Append(s.Identity(), body); err != nil {
+			return nil, err
+		}
+		return manifestRowResult{GapID: seat.Str(cmd, flags.ID)}, nil
+	}))
 
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap id this receipt covers")
 	return c

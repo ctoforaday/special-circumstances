@@ -29,7 +29,7 @@ import (
 // contests R1-1's severity, is refused, and contests it again on new grounds; the two filings are
 // separate motions with separate ids, and a ruling on one leaves the other open.
 func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nA claim.\n")
 	mintGap(t, runDir, "G1", "overclaim")
 
@@ -59,7 +59,7 @@ func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
 // AN ANSWER TO A QUESTION NOBODY ASKED IS REFUSED — the dangling-reference rule this codebase
 // applies to gap ids, applied to the other side of the conversation.
 func TestARulingOnAnUnfiledMotionIsRefused(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nA claim.\n")
 	mintGap(t, runDir, "G1", "overclaim")
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
@@ -84,7 +84,7 @@ func TestARulingOnAnUnfiledMotionIsRefused(t *testing.T) {
 // pressing on AFTER an answer; against no answer the event would replay as a motion both unruled
 // and appealed, which the report has no honest sentence for.
 func TestAnAppealAgainstNoRulingIsRefused(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nA claim.\n")
 	mintGap(t, runDir, "G1", "overclaim")
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",

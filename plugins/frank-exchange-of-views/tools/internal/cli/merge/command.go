@@ -13,10 +13,10 @@ import (
 
 const role = "merge"
 
-func NewCommand() *cobra.Command {
-	return seat.Role(role,
-		"the red merge seat — the board's only writer.",
-		seat.Register("FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed"),
+// Verbs is this seat's surface, mounted at the ROOT of its own tree. See seat.RoleVerbs.
+func Verbs() []*cobra.Command {
+	return seat.RoleVerbs(role,
+		seat.Register(),
 		newMint(),
 		newClass(),
 		newClose(),
@@ -25,9 +25,9 @@ func NewCommand() *cobra.Command {
 		newSpotCheck(),
 		newInquirySupport(),
 		newNearMatch(),
-		seat.Position("the round's ### RED section (prose via --reason)"),
-		seat.Closing("a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>"),
+		seat.Position("position-red"),
+		seat.Closing("closing-red"),
 		newVerdict(),
-		seat.Friction("a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason \"<what you reached for and found>\" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused"),
+		seat.Friction(),
 	)
 }

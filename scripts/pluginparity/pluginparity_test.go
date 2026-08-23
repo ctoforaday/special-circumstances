@@ -100,7 +100,11 @@ func TestDevOnlyMarkerIsHonouredByBothReaders(t *testing.T) {
 
 	// And the marker has to be on something: a marker nothing carries is a check that passes
 	// by describing an empty set, which is how this class of guard usually dies.
-	hits, _ := filepath.Glob(filepath.Join("..", "..", "plugins", "*", "tools", "cmd", "*", "DEV-ONLY"))
+	root, err := gitx.Root()
+	if err != nil {
+		t.Skipf("not a git checkout: %v", err)
+	}
+	hits, _ := filepath.Glob(filepath.Join(root, "plugins", "*", "tools", "cmd", "*", "DEV-ONLY"))
 	if len(hits) == 0 {
 		t.Fatal("no cmd/ directory carries a DEV-ONLY marker — if the last dev harness was " +
 			"promoted or deleted, delete this mechanism too rather than leaving it passing vacuously")
@@ -119,8 +123,8 @@ func TestDevOnlyMarkerIsHonouredByBothReaders(t *testing.T) {
 // This builds a throwaway repository so the check runs against a tree whose contents are the
 // test's own, rather than against whatever happens to be tracked here.
 func TestCommittedBinariesSeesOutsidePlugins(t *testing.T) {
-	if _, err := os.Stat(filepath.Join("..", "..", ".git")); err != nil {
-		t.Skip("not a git checkout")
+	if _, err := gitx.Root(); err != nil {
+		t.Skipf("not a git checkout: %v", err)
 	}
 	root := t.TempDir()
 	run := func(args ...string) {

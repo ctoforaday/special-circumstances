@@ -29,7 +29,7 @@ func writeScript(t *testing.T, runDir, name, body string) {
 
 func mintComputation(t *testing.T, runDir, key string) {
 	t.Helper()
-	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", key, "--class", "unverified-arithmetic",
 		"--problem", "the primality claim is asserted, not computed",
 		"--check-kind", "computation", "--check", "trial division over 2..6 returns no divisor",
@@ -42,12 +42,12 @@ func mintComputation(t *testing.T, runDir, key string) {
 // R1-2 asked blue to test a false claim, blue ASSERTED the test had happened, and red's R2-2
 // correctly refused it — a full round for something three lines settle.
 func TestAComputationCheckCannotBeClosedWithoutAProof(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintComputation(t, runDir, "G1")
 
-	_, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r2",
-		"--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "read",
+	_, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r2",
+		"--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
 		"--verified-against", "blue/report.md", "--reason", "blue says it checked; looks right to me")
 	if err == nil {
 		t.Fatal("a computation gap closed with no proof — red accepted the one kind of evidence it declared insufficient")
@@ -62,18 +62,18 @@ func TestAComputationCheckCannotBeClosedWithoutAProof(t *testing.T) {
 // A proof that NAMES the gap closes it. The join is a field, not a gap id mentioned in prose
 // — the convention blue_edit's --answers replaced after measuring 73% reliable.
 func TestAProofAnsweringTheGapClosesIt(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintComputation(t, runDir, "G1")
 	writeScript(t, runDir, "seven.js", "console.log([2,3,4,5,6].filter(n=>7%n===0).length===0);")
 
-	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--quote", "Seven is prime.", "--script", "seven.js", "--answers", "R1-1",
 		"--reason", "trial division settles it"); err != nil {
 		t.Fatalf("prove refused: %v", err)
 	}
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r2",
-		"--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "lens reproduce",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r2",
+		"--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "lens reproduce",
 		"--verified-against", "proofs/", "--reason", "re-ran the proof; same bytes"); err != nil {
 		t.Fatalf("a proved computation gap would not close: %v", err)
 	}
@@ -83,19 +83,19 @@ func TestAProofAnsweringTheGapClosesIt(t *testing.T) {
 // anywhere in the run would satisfy every computation check, which is the join being
 // decorative.
 func TestAProofForAnotherGapDoesNotClose(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\nNine is composite.\n")
 	mintComputation(t, runDir, "G1")
 	mintComputation(t, runDir, "G2")
 	writeScript(t, runDir, "nine.js", "console.log(9%3===0);")
 
-	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--quote", "Nine is composite.", "--script", "nine.js", "--answers", "R1-2",
 		"--reason", "settles the second claim"); err != nil {
 		t.Fatalf("prove refused: %v", err)
 	}
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r2",
-		"--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "read",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r2",
+		"--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
 		"--verified-against", "x", "--reason", "there is a proof in this run"); err == nil {
 		t.Error("a proof answering R1-2 closed R1-1 — the --answers join is not being read")
 	}
@@ -104,12 +104,12 @@ func TestAProofForAnotherGapDoesNotClose(t *testing.T) {
 // A DOCUMENT check is unaffected. The guard is scoped to the kind that declared prose
 // insufficient; making every closure need a proof would be a different (and wrong) rule.
 func TestADocumentCheckStillClosesOnProse(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintGap(t, runDir, "G1", "overclaim")
 
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r2",
-		"--id", "R1-1", "--as", "closed", "--verified-by", "L1", "--verified-with", "read",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r2",
+		"--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
 		"--verified-against", "blue/report.md", "--reason", "the section no longer claims it"); err != nil {
 		t.Fatalf("a document check was blocked by the computation guard: %v", err)
 	}
@@ -118,12 +118,12 @@ func TestADocumentCheckStillClosesOnProse(t *testing.T) {
 // --answers is checked against the board like every other reference. A dangling one is
 // refused at the write, not accepted and dropped at replay.
 func TestProveRefusesAnUnknownGap(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintComputation(t, runDir, "G1")
 	writeScript(t, runDir, "seven.js", "console.log(true);")
 
-	if _, err := run(t, "blue", "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--quote", "Seven is prime.", "--script", "seven.js", "--answers", "R9-9",
 		"--reason", "x"); err == nil {
 		t.Error("prove --answers accepted a gap no mint created")
@@ -133,9 +133,9 @@ func TestProveRefusesAnUnknownGap(t *testing.T) {
 // The kind is a CLOSED set: a near-miss must fail rather than record a word every downstream
 // comparison will silently miss.
 func TestCheckKindIsEnforcedAsAnEnum(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
-	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "G1", "--class", "x",
 		"--problem", "p",
 		"--check-kind", "compute", "--check", "c",

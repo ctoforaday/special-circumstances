@@ -56,13 +56,13 @@ const blueSeat = "blue-respond-r2"
 
 func registerBlue(t *testing.T, runDir string) {
 	t.Helper()
-	if _, err := run(t, "blue", "register", "--run", runDir, "--seat-id", blueSeat); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", blueSeat); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	// A trailing finding-marker after "time"; a footnote after "grows".
 	writeReport(t, runDir, "# Findings\n\nThe cost is high and rising over time<!--fx:f-abc123-->. Volume grows[^v] steadily.\n")
 	registerBlue(t, runDir)
@@ -102,11 +102,11 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 }
 
 func TestBlueEditRejectsMarkerSpanningEdit(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe value is context<!--fx:f-1-->: important here.\n")
 	registerBlue(t, runDir)
 
-	out, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "context: important", "--new", "context: vital", "--reason", "x")
 	if err == nil {
 		t.Fatalf("expected a reject; out %q", out)
@@ -127,11 +127,11 @@ func TestBlueEditRejectsMarkerSpanningEdit(t *testing.T) {
 }
 
 func TestBlueEditRejectsAbsentOld(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe scheduler is preemptive.\n")
 	registerBlue(t, runDir)
 
-	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "the scheduler is cooperative", "--new", "x", "--reason", "y")
 	if err == nil {
 		t.Fatal("a mis-quote must be rejected")
@@ -142,10 +142,10 @@ func TestBlueEditRejectsAbsentOld(t *testing.T) {
 }
 
 func TestBlueEditIdempotentRetry(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe cost is rising fast.\n")
 	registerBlue(t, runDir)
-	args := []string{"blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	args := []string{"edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "rising fast.", "--new", "climbing fast.", "--reason", "r"}
 	if _, err := run(t, args...); err != nil {
 		t.Fatal(err)
@@ -170,7 +170,7 @@ func TestBlueEditIdempotentRetry(t *testing.T) {
 // on the stack but the report still holds `old`. A retry under the same key reconciles
 // FORWARD — applies the write — and appends no second op. No wedge.
 func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe cost is rising fast.\n")
 	registerBlue(t, runDir)
 	// Simulate the crash window: the intent event exists, the write never happened.
@@ -184,7 +184,7 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Retry with the same key → reconcile forward.
-	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "rising fast.", "--new", "climbing fast.", "--reason", "r"); err != nil {
 		t.Fatalf("reconcile retry errored: %v", err)
 	}
@@ -200,12 +200,12 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 
 // The happy path: --answers lands on the event as the join key every #267 measurement reads.
 func TestBlueEditRecordsTheGapItAnswers(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
 	gap := mintGap(t, runDir, "G1", "overclaimed-independence")
 	registerBlue(t, runDir)
 
-	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "Five independent verification", "--new", "Five verification",
 		"--answers", gap, "--reason", "drop the independence claim"); err != nil {
 		t.Fatalf("blue edit --answers: %v", err)
@@ -218,12 +218,12 @@ func TestBlueEditRecordsTheGapItAnswers(t *testing.T) {
 // A gap no mint created is refused HERE, while the seat is still there to fix it. An
 // unchecked reference is accepted at write time and DROPPED at replay (refs.go).
 func TestBlueEditRefusesAnUnknownGap(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSome text to change here.\n")
 	mintGap(t, runDir, "G1", "overclaimed-independence")
 	registerBlue(t, runDir)
 
-	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
 		"--answers", "R9-99", "--reason", "why")
 	if err == nil {
@@ -243,12 +243,12 @@ func TestBlueEditRefusesAnUnknownGap(t *testing.T) {
 // THE CONVENTION IS REFUSED, NOT DEPRECATED. 19 of 26 smoke edits opened --reason with the
 // gap id and 7 did not; a 73% link looks like a key and is not one.
 func TestBlueEditRefusesAGapIDHidingInTheReason(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSome text to change here.\n")
 	gap := mintGap(t, runDir, "G1", "overclaimed-independence")
 	registerBlue(t, runDir)
 
-	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
 		"--reason", gap+": acknowledge the shared definition")
 	if err == nil {
@@ -265,12 +265,12 @@ func TestBlueEditRefusesAGapIDHidingInTheReason(t *testing.T) {
 // The guard matches the BOARD, not a pattern: prose that merely looks id-shaped, or names
 // a gap this run never minted, is blue's business and passes.
 func TestBlueEditAllowsProseThatNamesNoRealGap(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSome text to change here.\n")
 	mintGap(t, runDir, "G1", "overclaimed-independence")
 	registerBlue(t, runDir)
 
-	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
 		"--reason", "tightened per R9-99 and section 3-2 of the style note"); err != nil {
 		t.Fatalf("prose naming no real gap was refused: %v", err)
@@ -283,12 +283,12 @@ func TestBlueEditAllowsProseThatNamesNoRealGap(t *testing.T) {
 // An edit that answers no gap — blue's own authorial work, or the punctuation repair that
 // was 6 of the smoke's 26 edits — stays legal with --answers absent.
 func TestBlueEditWithoutAnswersIsStillLegal(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSome text to change here.\n")
 	mintGap(t, runDir, "G1", "overclaimed-independence")
 	registerBlue(t, runDir)
 
-	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
 		"--reason", "clearer phrasing, self-directed"); err != nil {
 		t.Fatalf("a self-directed edit was refused: %v", err)
@@ -301,7 +301,7 @@ func TestBlueEditWithoutAnswersIsStillLegal(t *testing.T) {
 // The help IS the seat's contract (contract_test.go's premise). A flag whose description
 // drifts out of the help teaches nothing, and the seat's only teacher is what it can read.
 func TestBlueEditHelpTeachesTheProvenanceFlag(t *testing.T) {
-	h := help(t, "blue", "edit", "--help")
+	h := help(t, "edit", "--help", "--seat-id", "blue-respond-r1")
 	if !strings.Contains(h, "--answers ") {
 		t.Fatalf("blue edit --help never names --answers, so the join key is undiscoverable:\n%s", h)
 	}
@@ -317,7 +317,7 @@ func TestBlueEditHelpTeachesTheProvenanceFlag(t *testing.T) {
 // Prose alone stays legal and is honestly labelled `proposed`. This is the substantive
 // channel — "research X", "enumerate the residual risks" — and it must not be second-class.
 func TestMintWithoutAConcreteProposalIsBasisProposed(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
 	mintGap(t, runDir, "G1", "overclaim")
 
@@ -330,9 +330,9 @@ func TestMintWithoutAConcreteProposalIsBasisProposed(t *testing.T) {
 // A validated pair EARNS `verified`. The basis is computed from the check passing, so red
 // cannot assert it: there is no flag to type.
 func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
-	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "G1", "--class", "overclaim",
 		"--quote", "Five independent verification approaches agree.", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims independence",
@@ -352,9 +352,9 @@ func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
 // There is NO --fix-basis flag. A seat asked to self-report verified|proposed reports the
 // flattering one; the whole axis depends on the basis being unclaimable.
 func TestThereIsNoWayToClaimAVerifiedBasis(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSome text.\n")
-	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--likelihood", "medium", "--impact", "medium", "--fix-basis", "verified")
 	if err == nil {
@@ -374,9 +374,9 @@ func TestThereIsNoWayToClaimAVerifiedBasis(t *testing.T) {
 // A proposal red could not have written without reading the document is the point of the
 // axis; one quoting text that is not there proves the opposite, and is refused.
 func TestAProposalAgainstTextThatIsNotThereIsRefused(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
-	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--likelihood", "medium", "--impact", "medium",
 		"--quote", "a sentence the report never contained", "--new", "anything")
@@ -395,7 +395,7 @@ const prescribedText = "Five verification approaches agree, all sharing one defi
 // mintWithProposal mints a gap carrying a concrete proposal and returns its id.
 func mintWithProposal(t *testing.T, runDir, key, fixOld, fixNew string) string {
 	t.Helper()
-	out, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", key, "--class", "overclaim", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims it",
 		"--likelihood", "medium", "--impact", "medium",
@@ -416,7 +416,7 @@ func seedProposalApplied(t *testing.T, runDir string) string {
 	mintGap(t, runDir, "G0", "overclaim")
 	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
 	registerBlue(t, runDir)
-	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--answers", gap,
 		"--quote", "Five independent verification approaches agree", "--new", prescribedText,
 		"--reason", "applying red's proposed text verbatim"); err != nil {
@@ -427,7 +427,7 @@ func seedProposalApplied(t *testing.T, runDir string) string {
 
 // Applying red's exact text is recorded by the TOOL comparing bytes — never claimed.
 func TestApplyingRedsProposalVerbatimIsRecorded(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seedProposalApplied(t, runDir)
 	if !lastBody(t, runDir, &recordpb.BlueEdit{}).GetAppliedVerbatim() {
 		t.Error("an edit identical to red's proposal was not recorded as verbatim, so nothing estops red")
@@ -437,12 +437,12 @@ func TestApplyingRedsProposalVerbatimIsRecorded(t *testing.T) {
 // A counter-edit does NOT set the flag: blue's right to disagree stays real, and the text it
 // authored stays auditable.
 func TestACounterEditIsNotRecordedAsVerbatim(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
 	mintGap(t, runDir, "G0", "overclaim")
 	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
 	registerBlue(t, runDir)
-	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--answers", gap,
 		"--quote", "Five independent verification approaches agree", "--new", "Five approaches agree, on one shared definition",
 		"--reason", "red's wording overstates it; mine is tighter"); err != nil {
@@ -457,7 +457,7 @@ func TestACounterEditIsNotRecordedAsVerbatim(t *testing.T) {
 // refused, and the refusal is LOGGED AS FRICTION so the pathology is countable rather than
 // silently prevented.
 func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	prior := seedProposalApplied(t, runDir)
 
 	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
@@ -485,10 +485,10 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 // RED IS NOT SILENCED. Declaring the lineage IS the amendment the guard asks for, so a mint
 // naming the estopping gap in --supersedes goes through.
 func TestEstoppelLetsAnAmendmentThroughWhenLineageIsDeclared(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	prior := seedProposalApplied(t, runDir)
 
-	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r2",
 		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "my own fix turned out to contradict §3", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium",
@@ -499,10 +499,10 @@ func TestEstoppelLetsAnAmendmentThroughWhenLineageIsDeclared(t *testing.T) {
 
 // Text blue authored is auditable normally — the guard is not a shield over the report.
 func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	seedProposalApplied(t, runDir)
 
-	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r2",
 		// UNRELATED, but PRESENT. Since 0.63.0 a mint's --quote is matched against the report,
 		// so "text the guard should not cover" can no longer mean "text that does not exist".
 		"--key", "G2", "--class", "overclaim", "--quote", "Sieve costs grow with the bound.",

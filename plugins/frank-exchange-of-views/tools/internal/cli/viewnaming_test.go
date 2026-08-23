@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"regexp"
@@ -53,7 +54,10 @@ var viewWriters = map[string][]string{
 	"evidence":         {"cite", "prove", "verify", "reproduce"},
 	"lines-of-inquiry": {"line-of-inquiry", "propose"},
 	"telemetry":        {},
-	"board":            {"mint", "close", "regrade", "retire"},
+	// Computed from the record at read time, not written by any verb — same as telemetry. The
+	// description says so in as many words, so a seat cannot go looking for a `scorecard` verb.
+	"scorecard": {},
+	"board":     {"mint", "close", "regrade", "retire"},
 }
 
 // EVERY VIEW'S HELP NAMES THE VERB THAT FILLS IT.
@@ -63,9 +67,11 @@ var viewWriters = map[string][]string{
 // failing twice, or — the expensive case — decides the capability is missing and works around it
 // in prose, which is a capability lost for the whole run and reported nowhere.
 func TestEveryViewNamesTheVerbThatFillsIt(t *testing.T) {
-	help, err := run(t, "blue", "show", "--help")
+	// ASKED OF A SEAT, because `show` only exists inside one. Any seat will do: the view table is
+	// shared, and this gate is about the DESCRIPTIONS, which do not vary by role.
+	help, err := run(t, "show", "--help", "--seat-id", record.SampleSeatOf("blue"))
 	if err != nil {
-		t.Fatalf("blue show --help: %v", err)
+		t.Fatalf("show --help: %v", err)
 	}
 
 	names := ViewNames()
@@ -139,7 +145,9 @@ func TestNoHelpOrErrorNamesAViewThatDoesNotExist(t *testing.T) {
 			walkAll(sub)
 		}
 	}
-	walkAll(newRoot())
+	for _, r := range AllRoots() {
+		walkAll(r)
+	}
 
 	named := regexp.MustCompile(`--view\s+([a-z][a-z-]*)`)
 	seen := map[string]bool{}

@@ -18,7 +18,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/dashboard"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // serveDashboard hosts the dashboard over HTTPS as an EPHEMERAL, CAPABILITY-GATED, self-tearing
@@ -201,7 +201,7 @@ func runHasEnded(marker, runDir string) (bool, string) {
 	if _, err := os.Stat(marker); err != nil {
 		return true, "run-live marker gone"
 	}
-	if v := dashboard.TerminalVerdict(runDir); v != "" {
+	if v := record.TerminalVerdict(runDir); v != "" {
 		return true, "the record shows this run ended (" + v + ") while the run-live marker is still present — capture has not run"
 	}
 	return false, ""

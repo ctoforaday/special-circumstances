@@ -756,7 +756,7 @@ func redFindings(board *record.Board) string {
 			// (an Opinion payload has no `closure_class` key). Behaviour held.
 			cc := recordpb.Word(g.Closure.GetClosureClass())
 			if cc == "" {
-				cc = "closed"
+				cc = "repaired"
 			}
 			succ := g.Closure.GetSuccessor()
 			if succ == "" {

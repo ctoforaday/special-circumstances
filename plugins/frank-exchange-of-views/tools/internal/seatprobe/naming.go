@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -54,176 +53,31 @@ import (
 // manufactured by the instrument. That is this repository's recurring shape, and it would arrive
 // here wearing the clothes of a finding. So the count is printed with the result, and the tests
 // refuse a redaction that removed nothing from an input that named something.
-type Naming string
 
-const (
-	// NamingPartial names a HANDFUL of the role's verbs and stops — the shape a hand-kept list in
-	// a constitution has.
-	//
-	// IT WAS THE STATUS QUO AND IS NOW A TREATMENT, because the finding landed: the constitutions
-	// and the orchestrator's prompts name no verbs at all, so "the constitution exactly as it
-	// ships" IS the `none` arm and drawing `partial` from the same bytes would make the two
-	// identical. Constructing it keeps the experiment re-runnable as a regression check on the
-	// result rather than retiring it into a claim nobody can re-measure.
-	NamingPartial Naming = "partial"
-	// NamingNone withholds every verb NAME while keeping every situation that calls for one. It is
-	// the shipped configuration, and Redact is a belt-and-braces pass over it rather than the
-	// treatment it once was.
-	NamingNone Naming = "none"
-	// NamingComplete states the whole role surface, GENERATED from the command tree.
-	NamingComplete Naming = "complete"
-)
-
-// NamingArms is every arm, in ladder order — none, partial, complete — which is the order the
-// report reads in and the order the hypothesis is stated in.
-var NamingArms = []Naming{NamingNone, NamingPartial, NamingComplete}
-
-// ParseNaming resolves an arm name, listing the real ones on a miss rather than defaulting
-// silently: an unrecognised arm that quietly ran as `partial` would report a treatment that never
-// happened.
-func ParseNaming(s string) (Naming, error) {
-	for _, a := range NamingArms {
-		if Naming(s) == a {
-			return a, nil
-		}
-	}
-	var have []string
-	for _, a := range NamingArms {
-		have = append(have, string(a))
-	}
-	return "", fmt.Errorf("no naming arm %q — one of %s", s, strings.Join(have, ", "))
-}
-
-// HelpDirective is the instruction production carries and the probe never did.
+// Constitution is the seat's system prompt: THE SHIPPED BYTES, unmodified.
 //
-// THE SECOND UNCONTROLLED DIFFERENCE. skills/research-protocol/scripts/debate.js tells every seat
-// "YOUR CONTRACT IS `feov-record <role> --help` and each verb's own --help … READ THAT LIST BEFORE
-// YOUR FIRST ACT, EVERY SITTING". The probe's acting prompt says nothing of the kind. So the
-// configuration that was measured exists in no real run, and the configuration that ships has never
-// been probed. Making the directive a flag rather than folding it into the arms keeps the two
-// questions separable: does NAMING carry the surface, and does the DIRECTIVE carry it.
-const HelpDirective = `
-BEFORE YOUR FIRST ACT, run the record tool with --help for your role and read the whole list, then
-each verb's own --help before you use it. What is listed you may do; what is not listed does not
-exist for you. A name you did not read in the help this sitting is a guess.
-`
-
-// generatedHeading opens the complete arm's block. It is matched on to keep the arms composable
-// (a complete arm is built from the partial text, so the block must be identifiable).
-const generatedHeading = "YOUR COMPLETE VERB SURFACE"
-
-// Constitution renders one arm's system prompt from the shipped constitution.
+// It used to assemble one of three arms — withhold the verb names, name a handful, name them all
+// — plus a fourth axis that added or removed the surface-discovery directive. Those are gone. The
+// question they answered is settled: the constitutions name no verb and carry the directive, and
+// keeping the alternatives dispatchable made the probe an instrument for re-litigating a decision
+// instead of one for measuring what ships.
 //
-// `src` is the real file's bytes; the caller writes the result to a temp file and passes it as
-// --system-prompt-file. The shipped file is never modified: an experiment that edits the artifact
-// it is measuring cannot be run twice.
-func Constitution(src []byte, sf Surface, role string, arm Naming, directive bool) []byte {
-	text := string(src)
-	switch arm {
-	case NamingNone:
-		text = Redact(text, sf)
-	case NamingPartial:
-		text += "\n\n" + PartialSurfaceBlock(sf, role)
-	case NamingComplete:
-		text += "\n\n" + CompleteSurfaceBlock(sf, role)
-	}
-	if directive {
-		text += "\n" + HelpDirective
-	}
-	return []byte(text)
-}
+// The shipped file is never modified, and that still matters: an experiment that edits the
+// artifact it is measuring cannot be run twice.
+func Constitution(src []byte) []byte { return src }
 
-// CompleteSurfaceBlock is the whole role surface, GENERATED.
+// NamesSurviving counts the role verbs a constitution NAMES, and it is the gate behind the claim
+// that they name none.
 //
-// Generated rather than written, and that is the point of the arm: if stating the complete surface
-// works as well as or better than the partial hand-kept naming, the answer is not a gate over two
-// hand-written copies but a carrier produced from the tree — which is what [[facts-are-fields]]
-// says to prefer, and it would retire TestEveryRecordingVerbIsNamedInAPrompt rather than repair it.
-func CompleteSurfaceBlock(sf Surface, role string) string {
-	verbs := sf.Verbs(role)
-	var b strings.Builder
-	fmt.Fprintf(&b, "%s (generated from the tool's command tree — these %d are the whole set):\n\n", generatedHeading, len(verbs))
-	for _, v := range verbs {
-		fmt.Fprintf(&b, "  %s %s\n", role, v)
-	}
-	b.WriteString("\nEach verb's own `--help` carries its flags and what it is for. Nothing outside this list exists for you.\n")
-	return b.String()
-}
-
-// PartialNamed is how many verbs the partial arm names.
+// ONE RULE NOW, WHERE THERE WERE TWO. A name in a GENERATED block used to be counted structurally,
+// because the arms rendered one verb per indented line under their own heading. No arm renders
+// anything any more, so that half read a shape nothing produces.
 //
-// THREE, because that is the size the hand-kept lists actually were when they existed: measured
-// over the four dispatched constitutions, 2 of 18 reachable for blue, 2 of 11 for the bench, 4 of
-// 16 for the merge and 1 of 9 for a lens. The arm reproduces the SHAPE of the defect — a few names
-// in front of the seat and the rest unmentioned — not any particular historical list.
-const PartialNamed = 3
-
-// PartialSurfaceBlock names the first few of the role's verbs and stops, which is what a hand-kept
-// list in a constitution does.
-//
-// TAKEN FROM THE TREE IN ITS OWN ORDER, so the arm cannot drift from the surface it is a subset
-// of. Which three is arbitrary and stated as arbitrary: the treatment under test is the PARTIALITY
-// — a plausible answer to the question --help answers completely — not the identity of the verbs.
-func PartialSurfaceBlock(sf Surface, role string) string {
-	verbs := sf.Verbs(role)
-	if len(verbs) > PartialNamed {
-		verbs = verbs[:PartialNamed]
-	}
-	var b strings.Builder
-	b.WriteString("THE VERBS YOU WILL MOSTLY NEED:\n\n")
-	for _, v := range verbs {
-		fmt.Fprintf(&b, "  %s %s\n", role, v)
-	}
-	return b.String()
-}
-
-// Redact removes verb NAMES while leaving the situations that call for them.
-//
-// WHAT IT REACHES, STATED SO THE GAP IS NOT MISTAKEN FOR COVERAGE:
-//
-//	`<role> <verb>`   the invocation form, with or without the binary in front of it
-//	`motion <subject> <verb>`   the motion paths, which carry their subject
-//	`` `<verb>` ``    the backticked bare name — code voice, which is how a constitution teaches
-//	                  a name outside an invocation ("A grade moves through `regrade`")
-//
-// WHAT IT DELIBERATELY DOES NOT REACH: the bare word in prose. Most verb names are ordinary
-// English — position, close, verify, observe — and redacting every occurrence would rewrite the
-// document's argument rather than withhold its vocabulary, which is a different treatment wearing
-// this one's name. The residue is reported by NamesSurviving instead of being assumed to be zero.
-func Redact(text string, sf Surface) string {
-	// Longest first, so `motion grade file` is redacted whole rather than leaving `grade file`
-	// behind as debris that still names the act.
-	var verbs []string
-	seen := map[string]bool{}
-	for _, role := range Roles {
-		for _, v := range sf.Verbs(role) {
-			if !seen[v] {
-				seen[v] = true
-				verbs = append(verbs, v)
-			}
-		}
-	}
-	sort.Slice(verbs, func(i, j int) bool { return len(verbs[i]) > len(verbs[j]) })
-
-	const withheld = "⟨verb withheld⟩"
-	for _, v := range verbs {
-		q := regexp.QuoteMeta(v)
-		// The invocation form: `blue prove`, `"…/feov-record" merge regrade`, `} bench opinion`.
-		text = regexp.MustCompile(`\b(lens|merge|blue|bench)\s+`+q+`\b`).ReplaceAllString(text, "$1 "+withheld)
-		// The motion paths carry their subject rather than a role.
-		if strings.HasPrefix(v, "motion ") {
-			text = regexp.MustCompile(`\b`+q+`\b`).ReplaceAllString(text, "motion "+withheld)
-			continue
-		}
-		// The backticked bare name — code voice teaching a name outside an invocation.
-		text = regexp.MustCompile("`"+q+"`").ReplaceAllString(text, "`"+withheld+"`")
-	}
-	return text
-}
-
-// NamesSurviving counts live verb names still present, so an arm's treatment is a measurement
-// rather than a claim. See the type doc: a redactor that matched nothing would manufacture a null
-// result and report it as a finding.
+// A name WRITTEN INTO PROSE has to be marked as an invocation by something or it cannot be told
+// from English: `close`, `verify`, `position`, `finding` and `show` are ordinary words, and making
+// the role prefix optional once took the bench constitution from 0 surviving names to 11, every one
+// of them prose. The role in front is that mark, and it stays required even though a seat no longer
+// types it — this counts the SPELLING a hand-written catalogue uses, not an invocation.
 func NamesSurviving(text string, sf Surface) map[string]int {
 	out := map[string]int{}
 	seen := map[string]bool{}
@@ -233,13 +87,7 @@ func NamesSurviving(text string, sf Surface) map[string]int {
 				continue
 			}
 			seen[v] = true
-			q := regexp.QuoteMeta(v)
-			n := len(regexp.MustCompile(`\b(lens|merge|blue|bench)\s+`+q+`\b`).FindAllString(text, -1))
-			if strings.HasPrefix(v, "motion ") {
-				n = len(regexp.MustCompile(`\b`+q+`\b`).FindAllString(text, -1))
-			} else {
-				n += len(regexp.MustCompile("`"+q+"`").FindAllString(text, -1))
-			}
+			n := len(regexp.MustCompile(`\b(lens|merge|blue|bench)\s+`+regexp.QuoteMeta(v)+`\b`).FindAllString(text, -1))
 			if n > 0 {
 				out[v] = n
 			}
@@ -369,10 +217,6 @@ type ViewReads struct {
 	Work, Board, Total int
 }
 
-// showCall matches a projection read. The bare form (`<role> show` with flags or nothing after it)
-// is the seat's pending work — the work list — so a token starting with a dash is not a view name.
-var showCall = regexp.MustCompile(`(?:lens|merge|blue|bench)\s+show(?:\s+([a-z][a-z-]*))?`)
-
 // ReadViewReads extracts which projections were opened, from a captured trajectory.
 func ReadViewReads(trajectoryPath, binName string) (ViewReads, error) {
 	v := ViewReads{ByView: map[string]int{}}
@@ -408,16 +252,15 @@ func ReadViewReads(trajectoryPath, binName string) (ViewReads, error) {
 			if !invokesBin(cmd, want) {
 				continue
 			}
-			m := showCall.FindStringSubmatch(cmd)
-			if m == nil {
+			// THROUGH THE SHARED RESOLVER, not a second regex of its own. This used to match
+			// `(?:lens|merge|blue|bench)\s+show` — and when the role level went away it matched
+			// nothing, so every sitting reported "no projection opened at all" while seats were
+			// opening projections up to fourteen times. The bare form is the role default, which
+			// is the work list for every role; counting it as unknown would undercount the one
+			// channel this measurement exists for.
+			view, ok := ShowViewIn(cmd, want)
+			if !ok {
 				continue
-			}
-			view := m[1]
-			if view == "" {
-				// The bare form is the role default, and that default is the work list for
-				// every role. Counting it as "unknown" would undercount the one channel this
-				// measurement exists for.
-				view = "work"
 			}
 			v.ByView[view]++
 			v.Total++

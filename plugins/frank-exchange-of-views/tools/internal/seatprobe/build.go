@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // BUILDING A BOARD, THROUGH WHATEVER RUNS THE TOOL.
@@ -29,13 +31,19 @@ import (
 // Exec runs one tool invocation and returns its stdout.
 type Exec func(args ...string) (string, error)
 
+// ProbeAgentID is the harness handle the probe uses for a seat, at both ends of the binding: the
+// register the build writes, and the environment the seat is dispatched with. Derived from the
+// seat id so the two cannot drift, and prefixed so a probe record is never mistaken for a
+// production agent handle.
+func ProbeAgentID(seatID string) string { return "probe-" + seatID }
+
 // Seats are registered on every board: a motion names its filer, a ruling names its ruler, and an
 // unregistered seat is refused before any board state exists.
 var Seats = []struct{ Role, ID string }{
 	{"lens", "red-lens-r1-L1"},
 	{"merge", "red-merge-r1"},
 	{"blue", "blue-respond-r1"},
-	{"bench", "judge-r1"},
+	{"bench", "judge-r2"},
 }
 
 // Build materialises a board into runDir.
@@ -46,14 +54,51 @@ func Build(runDir string, b Board, exec Exec) error {
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
 		return err
 	}
+	// THE BUILD REGISTERS THESE SEATS AS THE HARNESS, NOT AS THE AGENT THAT WILL HOLD THEM.
+	//
+	// Staging a board needs registered seats — a motion names its filer, a ruling names its ruler,
+	// and an unregistered seat is refused before any board state exists — so these registers have
+	// to happen. What must NOT happen is binding them to the handle the seat is later dispatched
+	// with: that hands the seat a binding it did not create, and `register` stops being its first
+	// act because the guard is already satisfied by work the harness did.
+	//
+	// MEASURED, WHICH IS WHY THIS CHANGED. In the 2026-08-20 run one seat in nine — judge-r1 on
+	// the sitting board — never called `register` at all, made 22 tool calls, and recorded events
+	// anyway. In production its first write would have been refused with "register is your first
+	// act and it has not happened". The probe could not see that, because the probe had already
+	// registered it. An instrument that satisfies the guard it is measuring reports the guard as
+	// untested and the seat as compliant, and those look identical from the outside.
+	//
+	// No handle is set here, so these registers carry no agent_id — which is exactly right: the
+	// harness staging a fixture is not a seat, and the record says so by the field's absence.
 	for _, s := range Seats {
-		if _, err := exec(s.Role, "register", "--run", runDir, "--seat-id", s.ID); err != nil {
+		if _, err := exec("register", "--run", runDir, "--seat-id", s.ID); err != nil {
 			return fmt.Errorf("register %s: %w", s.ID, err)
 		}
 	}
 
+	// THE BOARD DECLARES ITS CLASS VOCABULARY, because a real run does and this fixture stands in
+	// for one. `run-setup` stages the registry on a production run; the probe does not go through
+	// setup, so it stages its own.
+	//
+	// AFTER THE REGISTERS, AND THAT ORDER IS LOAD-BEARING. The probe separates a run's records to a
+	// temp root so the seat cannot read the board off disk, and it does that by handing the record
+	// ROOT to the tool subprocess in its environment — which this function does not carry. Staged
+	// before the first register, `RecordsDir` resolves in THIS process, finds no separation marker,
+	// and creates <runDir>/records; the first register subprocess then refuses to separate a run
+	// that already keeps events locally. Staged here, the marker exists and the registry lands
+	// where the tool will read it.
+	//
+	// MEASURED TWICE, both loudly. The advisory branch going strict stopped 8 of 9 boards on their
+	// first mint; fixing that in the wrong place stopped 9 of 9 on their first register. The probe
+	// refused to score either one ("this run is not a result"), which is the only reason both were
+	// five-minute diagnoses rather than runs reported with a thinner board.
+	if err := record.StageForRun(runDir, BoardClasses...); err != nil {
+		return fmt.Errorf("stage the class registry: %w", err)
+	}
+
 	for i, g := range b.Gaps {
-		if _, err := exec("merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		if _, err := exec("mint", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--key", g.Key, "--class", g.Class,
 			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
@@ -62,16 +107,41 @@ func Build(runDir string, b Board, exec Exec) error {
 			"--reason", g.Problem+" (baits "+g.Baits+": "+g.Why+")"); err != nil {
 			return fmt.Errorf("mint %s: %w", g.Key, err)
 		}
+		// THE CLOSINGS, WHERE THE BOARD CARRIES THEM. The bench's prompt states its ruling basis
+		// is "the two closings, the transcript, and the final state" and that both sides have
+		// already filed — so a bench board without them hands the seat a docket it cannot rule on
+		// the way it is told to. Measured 2026-08-20 by the seat: the boundary bench filed friction
+		// naming the null closings, ruled on artifact state instead, and asked for a human check.
+		gapID := fmt.Sprintf("R1-%d", i+1)
+		for _, c := range []struct{ seat, text string }{
+			{"red-merge-r1", g.RedClosing}, {"blue-respond-r1", g.BlueClosing},
+		} {
+			if c.text == "" {
+				continue
+			}
+			if _, err := exec("closing", "--run", runDir, "--seat-id", c.seat,
+				"--id", gapID, "--reason", c.text); err != nil {
+				return fmt.Errorf("closing %s by %s: %w", gapID, c.seat, err)
+			}
+		}
 		if !g.Closed {
 			continue
 		}
 		// A CLOSED gap so the archive is not empty: `spot-check` against an empty one has nothing
 		// to sample, so a board that wants the duty exercised has to give it something.
-		id := fmt.Sprintf("R1-%d", i+1)
-		if _, err := exec("merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--id", id, "--as", "closed", "--verified-by", "L1", "--verified-with", "git show",
+		if _, err := exec("close", "--run", runDir, "--seat-id", "red-merge-r1",
+			"--id", gapID, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
-			return fmt.Errorf("close %s: %w", id, err)
+			return fmt.Errorf("close %s: %w", gapID, err)
+		}
+	}
+
+	// RED'S ROUND-1 NARRATIVE, so the transcript blue is sent to read exists. Filed AFTER the gaps
+	// it accounts for and BEFORE anything that answers it, which is the order a real round has.
+	if b.RedNarrative != "" {
+		if _, err := exec("position", "--run", runDir, "--seat-id", "red-merge-r1",
+			"--reason", b.RedNarrative); err != nil {
+			return fmt.Errorf("red narrative: %w", err)
 		}
 	}
 
@@ -85,7 +155,7 @@ func Build(runDir string, b Board, exec Exec) error {
 		// reports a failed board as a harness fault rather than as a fixture speaking a retired
 		// model. That is `facts-are-fields` in a fixture — the record MINTS the id and says so on
 		// stdout, and composing it from a loop index is a hope about someone else's counter.
-		out, err := exec("blue", "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
+		out, err := exec("line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
 			"--reason", a.Line, "--hypothesis", a.Hypothesis)
 		if err != nil {
 			return fmt.Errorf("line of inquiry %d: %w", i+1, err)
@@ -120,7 +190,7 @@ func Build(runDir string, b Board, exec Exec) error {
 		if m.Ruled == "" {
 			continue
 		}
-		ruler := map[string]string{"grade": "red-merge-r1", "petition": "judge-r1"}[m.Subject]
+		ruler := map[string]string{"grade": "red-merge-r1", "petition": "judge-r2"}[m.Subject]
 		if _, err := exec("motion", m.Subject, "rule", "--run", runDir, "--seat-id", ruler,
 			"--id", fmt.Sprintf("M%d", i+1), "--as", m.Ruled,
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {
@@ -133,7 +203,7 @@ func Build(runDir string, b Board, exec Exec) error {
 		if err := os.WriteFile(script, []byte(pr.Script+"\n"), 0o644); err != nil {
 			return err
 		}
-		args := []string{"blue", "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
+		args := []string{"prove", "--run", runDir, "--seat-id", "blue-respond-r1",
 			"--quote", pr.Location, "--script", script,
 			"--reason", "the computation behind this sentence"}
 		if pr.Answers != "" {
@@ -147,7 +217,7 @@ func Build(runDir string, b Board, exec Exec) error {
 	for i, claim := range b.Claims {
 		// A REACHABLE url, because `cite` FETCHES and caches. An unreachable one is refused and
 		// logged as friction, which is correct behaviour and useless here.
-		if _, err := exec("blue", "cite", "--run", runDir, "--seat-id", "blue-respond-r1",
+		if _, err := exec("cite", "--run", runDir, "--seat-id", "blue-respond-r1",
 			"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
 			"--title", "the pinned source", "--url", "https://example.com/",
 			"--reason", "the source this claim rests on"); err != nil {
@@ -186,3 +256,16 @@ func mintedInquiryID(out string) string {
 }
 
 var mintedID = regexp.MustCompile(`\b(Q\d+)\b`)
+
+// BoardClasses is the gap-class vocabulary the staged boards mint under.
+//
+// Every entry is a slug from the shipped registry (feov-memory/class-registry.json), not a
+// placeholder: a board is a fixture for a REAL sitting, and a seat that opens `class` should find
+// the taxonomy its gaps are actually filed under rather than a set invented for the harness.
+var BoardClasses = []string{
+	"citation-status-drift", "claim-contradicts-own-record", "cross-section-contradiction",
+	"derivation-status-overclaim", "doctrine-vs-implementation", "false-universal",
+	"figure-recount-fails", "incomplete-repair-propagation", "metric-conflation",
+	"risk-coverage-omission", "self-attestation", "unverified-composition",
+	"verification-scope-blindspot",
+}

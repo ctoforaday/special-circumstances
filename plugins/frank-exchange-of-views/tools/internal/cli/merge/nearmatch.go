@@ -2,7 +2,6 @@ package merge
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -21,18 +20,21 @@ import (
 // never decides: it ranks, the seat reopens-or-mints.
 const nearMatchTopN = 5
 
+// The help document renders this number rather than restating it: help/near-match.md names
+// {{.NearMatchTopN}}, so the sentence a seat reads and the rank cut this file applies cannot
+// disagree.
+func init() { seat.HelpValues["NearMatchTopN"] = nearMatchTopN }
+
 func newNearMatch() *cobra.Command {
-	c := seat.New("near-match",
-		`screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top `+strconv.Itoa(nearMatchTopN)+` gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			cand := strings.TrimSpace(seat.Str(cmd, flags.Problem))
-			b, err := record.BoardState(s.RunDir)
-			if err != nil {
-				return nil, err
-			}
-			matches := record.NearMatch(b, cand, seat.Str(cmd, flags.Quote), nearMatchTopN)
-			return nearMatchResult{Matches: matches}, nil
-		})
+	c := seat.New("near-match", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		cand := strings.TrimSpace(seat.Str(cmd, flags.Problem))
+		b, err := record.BoardState(s.RunDir)
+		if err != nil {
+			return nil, err
+		}
+		matches := record.NearMatch(b, cand, seat.Str(cmd, flags.Quote), nearMatchTopN)
+		return nearMatchResult{Matches: matches}, nil
+	})
 	// THE SAME TWO WORDS `mint` TAKES. This verb screens what that one would file, and it spelled
 	// the identical two facts --candidate and --location — so a seat learned one vocabulary to ask
 	// the question and a different one to act on the answer.

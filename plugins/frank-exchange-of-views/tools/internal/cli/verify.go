@@ -29,7 +29,13 @@ func newVerify() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// Resolved so the injected run reaches reads too, not only writes.
-			runDir := seat.Of(cmd).RunDir
+			sc := seat.Of(cmd)
+			// BEFORE the inference fallback, never after: falling back on a REFUSED resolution
+			// resolves quietly to the real run and hides the contradiction the seat needs to see.
+			if sc.RunErr != nil {
+				return sc.RunErr
+			}
+			runDir := sc.RunDir
 			if runDir == "" {
 				runDir = seat.InferRunDir("")
 			}

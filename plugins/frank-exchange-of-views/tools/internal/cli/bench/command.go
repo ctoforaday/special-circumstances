@@ -13,16 +13,16 @@ import (
 
 const role = "bench"
 
-func NewCommand() *cobra.Command {
-	return seat.Role(role,
-		"the bench — opinions, halt, certification. Never originates. It rules petitions through `motion petition rule`.",
-		seat.Register("FIRST ACTION at the sitting: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed"),
+// Verbs is this seat's surface, mounted at the ROOT of its own tree. See seat.RoleVerbs.
+func Verbs() []*cobra.Command {
+	return seat.RoleVerbs(role,
+		seat.Register(),
 		newOpinion(),
 		newHalt(),
 		newCertify(),
 		newDeclare(),
 		newOutcome(),
 		newAssemble(),
-		seat.Friction("a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason \"<what you reached for and found>\" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused"),
+		seat.Friction(),
 	)
 }

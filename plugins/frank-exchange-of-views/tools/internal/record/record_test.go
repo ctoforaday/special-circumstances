@@ -62,8 +62,8 @@ func TestEventStampsResolveSubMillisecondEvents(t *testing.T) {
 
 // And the whole path, end to end: an appended event carries a stamp at all.
 func TestAppendedEventCarriesAStamp(t *testing.T) {
-	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}); err != nil {
+	runDir := newRun(t)
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, &recordpb.Observe{Label: proto.String("L1-O1")})
@@ -150,20 +150,21 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 
 // #396: THE ROUND IS CARRIED TO THE WRITE, NOT RECOVERED AT IT.
 //
-// `Append` used to stamp `Round: RoundOf(seatID)` — a regex over the seat id, 0 on a miss —
+// `Append` used to stamp `Round: RoundIn(runDir)(seatID)` — a regex over the seat id, 0 on a miss —
 // while the caller had already resolved the round as a field and `Begin` had already refused an
 // unresolvable seat. The fact was in hand and thrown away one frame later.
 //
 // This is the regression guard for that seam: if the write ever goes back to deriving, the
-// injected round stops arriving and this fails. `judge-terminal` is the right probe because it
-// carries no `-r<N>`, so the two answers are distinguishable — the derivation says 0.
+// carried round stops arriving and this fails. `judge-terminal` is the right probe because it
+// carries no `-r<N>` at all, so the two answers are distinguishable — the name cannot answer,
+// and anything that shows up in the event must therefore have come from the caller.
 func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if RoundOf("judge-terminal") != 0 {
-		t.Fatal("fixture assumption: the seat id derivation answers 0 for judge-terminal")
+	if _, known := RoundOf("judge-terminal"); known {
+		t.Fatal("fixture assumption: judge-terminal's NAME cannot answer which round it is in")
 	}
 
 	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: 7}, &recordpb.Friction{Text: proto.String("a capability gap")})

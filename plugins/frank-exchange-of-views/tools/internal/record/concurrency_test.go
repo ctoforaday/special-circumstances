@@ -23,7 +23,7 @@ import (
 // six shards (single-writer each, so no shard race) contending on the SHARED
 // surfaces — the seat pointer and the projection files.
 func TestConcurrentSeatsRace(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	const seats = 6
 	const perSeat = 4
 
@@ -34,7 +34,7 @@ func TestConcurrentSeatsRace(t *testing.T) {
 		go func(s int) {
 			defer wg.Done()
 			seatID := fmt.Sprintf("red-lens-r1-L%d", s)
-			if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}); err != nil {
+			if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, ""); err != nil {
 				errs <- err
 				return
 			}
@@ -108,11 +108,11 @@ func TestConcurrentSeatsRace(t *testing.T) {
 // guess about with a ten-second staleness timeout, and could get wrong in both
 // directions.
 func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	// An empty lock file for the per-seat pointer lock an append acquires, as a crashed

@@ -187,7 +187,7 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 					args = append(args, "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "report.md#S1")
 				}
 				if rng.Intn(4) == 0 {
-					args = append(args, "--as", "closed_with_regression")
+					args = append(args, "--as", "repaired_with_regression")
 				}
 			case 4:
 				args = []string{"regrade", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs),
@@ -231,7 +231,7 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 			}
 		case "bench":
 			args = []string{"reason", "--run", "{RUN}", "--seat-id", s, "--id", pick(rng, fuzzIDs),
-				"--as", "carried", "--principle", "p", "--tension", "t", "--reason", "the ruling", "--review-flag", "r"}
+				"--as", "carried", "--principle", "p", "--tension", "t", "--reason", "the ruling", "--review-flag", "r", "--settled", "the proposition this ruling bars", "--final"}
 			if rng.Intn(4) == 0 {
 				args = args[:len(args)-2] // drop the review flag: the validation path
 			}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
 // AuthorAgentType is the ONE agent_type on the report.md write allowlist — the round-0
@@ -30,7 +31,16 @@ func PreDenyReason() string { return denyReason }
 
 // Input is the subset of the hook stdin JSON the gate reads.
 type Input struct {
-	AgentType string          `json:"agent_type"`
+	AgentType string `json:"agent_type"`
+	// AgentID is the harness's handle for the subagent making this call, and it is the ONLY
+	// field on the payload that discriminates one seat from another: session_id and prompt_id
+	// are byte-identical across the main session and every concurrent subagent
+	// (plans/hook-surface-spike.md §7). Measured present on 9 of 9 subagent calls across three
+	// tool types, stable within an agent, distinct across concurrent ones.
+	//
+	// It is ABSENT on a main-session call, and that absence is meaningful rather than missing
+	// data: the main session is not a seat. An empty AgentID injects nothing.
+	AgentID   string          `json:"agent_id"`
 	ToolName  string          `json:"tool_name"`
 	ToolInput json.RawMessage `json:"tool_input"`
 }
@@ -56,10 +66,47 @@ var bashWriteRes = []*regexp.Regexp{
 	regexp.MustCompile(`\b(?:truncate|ed|ex)\b[^|&;]*\s` + blueReportPath.String()), // truncate/ed/ex file
 }
 
-// isBlueReport reports whether a resolved file path targets a run's blue/report.md.
+// isBlueReport reports whether a resolved file path targets a blue/report.md BY SHAPE.
+//
+// Shape alone is not the question the lockdown asks — see insideRun, which is the half that was
+// documented from the first commit and implemented in none of them.
 func isBlueReport(p string) bool {
 	p = filepath.ToSlash(p)
 	return strings.HasSuffix(p, "/blue/report.md") || p == "blue/report.md"
+}
+
+// insideRun reports whether a path lies within the live run directory.
+//
+// THIS IS THE CHECK THAT WAS ALWAYS DESCRIBED AND NEVER WRITTEN. Every doc comment on this gate
+// said "a run's blue/report.md"; the code matched a path SUFFIX and consulted no run at all.
+// PreOutcome has held a resolved runDir since the first commit in this file's history and passed
+// it only to the injection arm — the lockdown decision sat one line above it and never took it.
+//
+// What that cost: any file named blue/report.md anywhere on disk was locked, in any session, run
+// or no run — a finished run under research/, a scratch copy, a fixture. The gate was meant to be
+// a no-op outside a live run and never was.
+//
+// An empty runDir means no live run was resolvable, and the answer there is no opinion rather
+// than a guess: matching InferRunDir's "say nothing rather than guess".
+func insideRun(path, runDir string) bool {
+	if runDir == "" || path == "" {
+		return false
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	root, err := filepath.Abs(runDir)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(root, abs)
+	if err != nil {
+		return false
+	}
+	rel = filepath.ToSlash(rel)
+	// ".." leading means the path climbed OUT of the run, which is not inside it.
+	return rel != ".." && !strings.HasPrefix(rel, "../")
 }
 
 // writesBlueReport resolves whether a tool call WRITES a run's blue/report.md. For the
@@ -74,7 +121,7 @@ func InputUnreadable(in Input) bool {
 	return json.Unmarshal(in.ToolInput, &ti) != nil
 }
 
-func writesBlueReport(in Input) bool {
+func writesBlueReport(in Input, runDir string) bool {
 	var ti toolInput
 	// A GATE THAT CANNOT READ ITS INPUT MUST LEAVE A TRACE. Swallowing the parse failure leaves
 	// ti.FilePath empty, makes this return false for the structured-tool arm, and makes Decide
@@ -87,11 +134,16 @@ func writesBlueReport(in Input) bool {
 	_ = json.Unmarshal(in.ToolInput, &ti) // reported via InputUnreadable; see above
 	switch in.ToolName {
 	case "Write", "Edit", "MultiEdit", "NotebookEdit":
-		return isBlueReport(ti.FilePath)
+		return isBlueReport(ti.FilePath) && insideRun(ti.FilePath, runDir)
 	case "Bash":
+		// The Bash arm recovers the path from the command, so the run test is applied to what it
+		// recovered rather than to the command string. A write position that names no path inside
+		// the run is not this gate's business, for the same reason a Write to one is not.
 		for _, re := range bashWriteRes {
-			if re.MatchString(ti.Command) {
-				return true
+			if m := re.FindString(ti.Command); m != "" {
+				if p := blueReportPath.FindString(m); p != "" && insideRun(p, runDir) {
+					return true
+				}
 			}
 		}
 	}
@@ -101,7 +153,16 @@ func writesBlueReport(in Input) bool {
 // PreDecision decides a PreToolUse call: (deny, reason). It denies a write to a run's
 // blue/report.md by any agent_type other than the author; a non-report target or an author
 // write returns (false, ""). Default-DENY by allowlist: only the author is permitted.
-func PreDecision(in Input) (bool, string) {
+func PreDecision(in Input, runDir string) (bool, string) {
+	// OUTSIDE A LIVE RUN THIS GATE HAS NO OPINION, WHICH IS WHAT IT ALWAYS SAID IT DID. The
+	// lockdown protects a run's working report; with no run resolvable there is no report to
+	// protect, and every path is somebody else's file. This guard comes FIRST — ahead of the
+	// fail-closed readability check below — because an unreadable payload outside a run cannot be
+	// a write to a run's report either, and denying it was how this gate came to refuse writes to
+	// arbitrary files in sessions that had nothing to do with a debate.
+	if runDir == "" {
+		return false, ""
+	}
 	// FAIL CLOSED ON INPUT THIS GATE CANNOT READ. A gate bypassed by input it cannot parse is not
 	// a gate: an unreadable tool_input leaves FilePath empty, which reads as "not the report" and
 	// lets the write through — the one outcome an allowlist must never produce by accident.
@@ -115,8 +176,8 @@ func PreDecision(in Input) (bool, string) {
 	if InputUnreadable(in) {
 		return true, unreadableReason
 	}
-	if !writesBlueReport(in) {
-		return false, "" // not a report.md write → no opinion
+	if !writesBlueReport(in, runDir) {
+		return false, "" // not a write to THIS run's report.md → no opinion
 	}
 	if in.AgentType == AuthorAgentType {
 		return false, "" // the allowlisted author may write directly
@@ -144,16 +205,26 @@ const (
 	OutcomeRewrite
 )
 
-// feovToken matches `feov-record` in COMMAND POSITION — at the start of the command, or
-// immediately after a separator (`&&`, `||`, `;`, `|`, or a newline), optionally quoted and
-// optionally path-prefixed.
+// THERE IS NO MATCHER, AND THAT IS THE POINT.
 //
-// POSITION, NOT SUBSTRING, and the difference is the whole safety argument. A mention is not
-// an invocation: `grep -rn "feov-record" plugins/`, a heredoc documenting a verb, a `--reason`
-// quoting a command that failed — all contain the token, and a `strings.Contains` rule would
-// have prefixed an `export` onto documentation writes and friction messages. The two are
-// indistinguishable to any matcher that does not look at where the token sits.
-var feovToken = regexp.MustCompile(`(?:^|&&|\|\||;|\||\n)\s*['"]?[^\s'";|&]*\bfeov-record\b`)
+// Injection used to be gated on recognising `feov-record` in command position. That gate was a
+// pattern standing in for a schema — "does this command invoke our tool" recovered from string
+// shape — and its miss was silent: no injection, no error, and a seat's identity simply absent,
+// which is byte-identical to a main-session call. The shape was widened three times, each time
+// after a run had already paid: the heredoc bail cost blue-respond-r1 its bibliography,
+// command substitution cost judge-r2 its identity, and `RB="…/feov-record"; $RB …` — a seat
+// aliasing the long path, which the matcher could never see — cost 21 of 65 registers across
+// six runs their agent_id (#510).
+//
+// THE HARM THE MATCHER GUARDED AGAINST CANNOT OCCUR. Its stated justification was that a
+// `strings.Contains` rule "would have prefixed an export onto documentation writes and friction
+// messages". Injection PREPENDS — `prefix + command` below — so `echo "run feov-record next"
+// >> notes.md` writes the same bytes either way. This file already caught that misdescription
+// once, in the heredoc comment, and fixed only the half in front of it.
+//
+// So the decision is now: a live run directory and a Bash call, and every such command carries
+// the run and the identity. A needless `export` on a command that does not use the tool is
+// inert. A missing one destroys a seat's work.
 
 // PreOutcome is the SINGLE entry point for the PreToolUse decision, and the ordering is
 // structural rather than a convention someone has to remember.
@@ -173,7 +244,7 @@ var feovToken = regexp.MustCompile(`(?:^|&&|\|\||;|\||\n)\s*['"]?[^\s'";|&]*\bfe
 //
 // PreDecision stays exported for its existing callers and cannot emit a rewrite.
 func PreOutcome(in Input, runDir string) (Outcome, string) {
-	if deny, reason := PreDecision(in); deny {
+	if deny, reason := PreDecision(in, runDir); deny {
 		return OutcomeDeny, reason
 	}
 	if runDir == "" || in.ToolName != "Bash" {
@@ -183,50 +254,79 @@ func PreOutcome(in Input, runDir string) (Outcome, string) {
 	if json.Unmarshal(in.ToolInput, &ti) != nil || ti.Command == "" {
 		return OutcomeNone, ""
 	}
-	rewritten, ok := injectRunDir(ti.Command, runDir)
+	rewritten, ok := injectEnv(ti.Command, [][2]string{
+		{seatenv.Var, runDir},
+		// THE IDENTITY, WHICH IS THE HALF THAT WAS MISSING. FEOV_SEAT had readers and no
+		// writer, because nothing in the system could produce a seat id: only `register`
+		// knows which agent holds which seat, and that is downstream of the first call. What
+		// the harness CAN hand over is agent_id, so that is what travels — and the record
+		// resolves it to a seat, where the mapping is a field somebody wrote rather than a
+		// value recovered from a command string.
+		{seatenv.AgentVar, in.AgentID},
+	})
 	if !ok {
 		return OutcomeNone, ""
 	}
 	return OutcomeRewrite, rewritten
 }
 
-// injectRunDir prefixes `export FEOV_RUN='<runDir>'; ` to a command that invokes feov-record.
+// injectEnv prefixes `export VAR='value'; ` for each variable a command does not already carry.
+// EVERY Bash command in a live run, not only the ones that look like they invoke the tool — see
+// the note above PreOutcome for why there is no longer anything to look at.
 //
 // `export …;` and NOT the inline `VAR=x cmd` form. Measured: blue's real command was
 // `cd C:/… && "…/feov-record" blue manifest-row …`, where an inline prefix binds to `cd` and
 // never crosses the `&&`. An export is a statement; it applies to everything after it.
 //
-// QUOTING IS A SECURITY BOUNDARY, not formatting. The value is single-quoted with `'` escaped
-// as `'\”`, and a value carrying a control character is REFUSED — returned unmodified —
+// QUOTING IS A SECURITY BOUNDARY, not formatting. Each value is single-quoted with `'` escaped
+// as `'\”`, and a value carrying a control character is REFUSED — that variable is dropped —
 // because a newline inside the emitted prefix would end the export statement and turn the
-// remainder into a command. The run directory comes from a file on disk, and a file on disk is
-// not a trusted input just because we wrote it once.
-func injectRunDir(command, runDir string) (string, bool) {
-	// HEREDOCS ARE A BLIND SPOT, so the whole command is left alone when one is present.
-	//
-	// A newline counts as a command separator — multi-line scripts are ordinary — but inside a
-	// heredoc body a newline introduces DATA, not a command, and telling the two apart needs a
-	// shell parser rather than a matcher. Caught by the test that writes a heredoc documenting
-	// a verb: it was rewritten, which would have injected an export into the middle of a
-	// document a seat was writing. Bailing costs only the injection (the seat still has
-	// --run); guessing corrupts the seat's output.
-	if strings.Contains(command, "<<") {
+// remainder into a command. The run directory comes from a file on disk, and the agent id comes
+// off the wire; neither is a trusted input just because we read it ourselves.
+//
+// PER-VARIABLE, NOT ALL-OR-NOTHING. A command already carrying FEOV_RUN still gets FEOV_AGENT_ID,
+// which is what a seat that copied an earlier rewritten command produces. Making the whole
+// injection idempotent on one variable would have silently skipped the other — the plausible
+// zero, one layer down: identity absent, and the absence looking exactly like a main-session call.
+func injectEnv(command string, vars [][2]string) (string, bool) {
+	// NOTHING IS EVER INSERTED INTO THE COMMAND. The prefix is prepended, whole, in front of
+	// whatever the seat wrote — heredoc bodies, quoted prose, documentation being written to a
+	// file, all byte-identical afterwards. That is the property that lets this run unconditionally
+	// instead of guessing which commands "really" invoke the tool.
+	var prefix strings.Builder
+	for _, kv := range vars {
+		name, value := kv[0], kv[1]
+		// An empty value is NOT injected as an empty string. `export FEOV_AGENT_ID='';` would
+		// make "the main session, which has no agent id" indistinguishable from "an agent whose
+		// id is the empty string" at every reader downstream.
+		if value == "" {
+			continue
+		}
+		// Idempotent per variable, so a double hook invocation (or a seat that copied a
+		// rewritten command) cannot stack prefixes.
+		if strings.Contains(command, "export "+name+"=") {
+			continue
+		}
+		if hasControl(value) {
+			continue
+		}
+		prefix.WriteString("export " + name + "='" + strings.ReplaceAll(value, `'`, `'\''`) + "'; ")
+	}
+	if prefix.Len() == 0 {
 		return "", false
 	}
-	if !feovToken.MatchString(command) {
-		return "", false
-	}
-	// Idempotent: a command already carrying the export is returned untouched, so a double
-	// hook invocation (or a seat that copied a rewritten command) cannot stack prefixes.
-	if strings.Contains(command, "export FEOV_RUN=") {
-		return "", false
-	}
-	for _, r := range runDir {
+	return prefix.String() + command, true
+}
+
+// hasControl reports whether a value carries a byte that would break out of the single-quoted
+// export statement it is about to be spliced into.
+func hasControl(v string) bool {
+	for _, r := range v {
 		if r < 0x20 || r == 0x7f {
-			return "", false
+			return true
 		}
 	}
-	return "export FEOV_RUN='" + strings.ReplaceAll(runDir, `'`, `'\''`) + "'; " + command, true
+	return false
 }
 
 // reportPathFrom extracts a blue/report.md path token referenced by the tool call (a

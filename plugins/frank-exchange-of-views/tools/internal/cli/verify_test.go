@@ -34,7 +34,7 @@ import (
 func TestVerifyRendersItsReportAndSucceedsOnASoundRun(t *testing.T) {
 	runDir := seatRun(t)
 
-	out, err := run(t, "verify", "--run", runDir)
+	out, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--seat-id", "operator")
 	if err != nil {
 		t.Fatalf("verify on a sound run: %v\n%s", err, out)
 	}
@@ -48,7 +48,7 @@ func TestVerifyRendersItsReportAndSucceedsOnASoundRun(t *testing.T) {
 // An unrecorded verdict must render as a WORD, not as an empty gap in the line. This is what
 // nonEmpty exists for, and it was at 0.0%.
 func TestVerifyNamesAnUnrecordedVerdictRatherThanLeavingItBlank(t *testing.T) {
-	out, err := run(t, "verify", "--run", seatRun(t))
+	out, err := run(t, "verify", "--seat-id", "operator", "--run", seatRun(t))
 	if err != nil {
 		t.Fatalf("verify: %v\n%s", err, out)
 	}
@@ -60,7 +60,7 @@ func TestVerifyNamesAnUnrecordedVerdictRatherThanLeavingItBlank(t *testing.T) {
 // The JSON form is the one a machine would gate on, so it must carry the same answer.
 func TestVerifyJSONCarriesTheSameVerdictAsTheReport(t *testing.T) {
 	runDir := seatRun(t)
-	out, err := run(t, "verify", "--run", runDir, "--json")
+	out, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--json", "--seat-id", "operator")
 	if err != nil {
 		t.Fatalf("verify --json: %v\n%s", err, out)
 	}
@@ -86,11 +86,11 @@ func TestVerifyJSONCarriesTheSameVerdictAsTheReport(t *testing.T) {
 // verify writes NOTHING. It is the one property that makes it safe to point at a live run.
 func TestVerifyIsReadOnly(t *testing.T) {
 	runDir := seatRun(t)
-	before, err := run(t, "verify", "--run", runDir, "--json")
+	before, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--json", "--seat-id", "operator")
 	if err != nil {
 		t.Fatal(err)
 	}
-	after, err := run(t, "verify", "--run", runDir, "--json")
+	after, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--json", "--seat-id", "operator")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestVerifyIsReadOnly(t *testing.T) {
 // looked at nothing is the failure mode the whole verb is aimed at.
 func TestVerifyRefusesWithoutARun(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
-	out, err := run(t, "verify")
+	out, err := run(t, "verify", "--seat-id", "operator")
 	if err == nil {
 		t.Fatalf("verify with no run must refuse rather than report an empty board:\n%s", out)
 	}
@@ -141,7 +141,7 @@ func TestNonEmptyFallsBackOnlyOnEmpty(t *testing.T) {
 // ---- the two sibling operator verbs, which had ZERO test references ----
 
 func TestGraphRendersARunsBehaviour(t *testing.T) {
-	out, err := run(t, "graph", "--run", seatRun(t))
+	out, err := run(t, "graph", "--seat-id", "operator", "--run", seatRun(t))
 	if err != nil {
 		t.Fatalf("graph: %v\n%s", err, out)
 	}
@@ -176,7 +176,7 @@ func TestCountClaimsRefusesWhenThereIsNoReport(t *testing.T) {
 func TestVerifyExitsNonZeroWhenAnInvariantFails(t *testing.T) {
 	runDir := seatRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
-	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "G1", "--class", "overclaim",
 		"--quote", "Five independent verification approaches agree.",
 		"--problem", "the defect", "--fix", "drop the independence claim",
@@ -196,7 +196,7 @@ func TestVerifyExitsNonZeroWhenAnInvariantFails(t *testing.T) {
 	recordtest.Seed(t, runDir, recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:verdict",
 		&recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}))
 
-	out, err := run(t, "verify", "--run", runDir)
+	out, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--seat-id", "operator")
 	if err == nil {
 		t.Fatalf("verify returned SUCCESS on a record whose PASS left a gap open. The doc comment "+
 			"promises CI a non-zero exit; without it the verb is a report wearing a gate's "+

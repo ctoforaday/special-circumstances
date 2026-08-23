@@ -16,6 +16,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -88,9 +89,9 @@ func jsSlice(s string, n int) string {
 // ---- journal ----
 
 // ReadJournal walks journal.jsonl tolerantly: every result object and the friction arrays inside.
-func ReadJournal(transcriptDir string) (results []map[string]any, friction []string) {
+func ReadJournal(transcriptDir string) (results []map[string]any, friction []EnvelopeFriction) {
 	results = []map[string]any{}
-	friction = []string{}
+	friction = []EnvelopeFriction{}
 	b, err := os.ReadFile(filepath.Join(transcriptDir, "journal.jsonl"))
 	if err != nil {
 		return results, friction
@@ -111,8 +112,12 @@ func ReadJournal(transcriptDir string) (results []map[string]any, friction []str
 		}
 		results = append(results, r)
 		if fr, ok := r["friction"].([]any); ok {
+			// THE AGENT HANDLE TRAVELS WITH THE TEXT. It is the only thing on this line that can
+			// be joined to a seat, and dropping it here is what left the parity check comparing
+			// prose to prose. See FrictionAudit.
+			agent := jsString(j["agentId"])
 			for _, f := range fr {
-				friction = append(friction, jsString(f))
+				friction = append(friction, EnvelopeFriction{AgentID: agent, Text: jsString(f)})
 			}
 		}
 	}
@@ -140,6 +145,48 @@ func jsString(v any) string {
 }
 
 // ---- AUDIT 1: telemetry presence ----
+
+// LivenessAudit records whether the run reached capture UNDER ITS OWN POWER or was terminated.
+//
+// THE TWO ARE OPPOSITE FACTS AND WERE THE SAME OUTPUT. "UNVERIFIED by judged deadlock" means the
+// debate ran its course; "UNVERIFIED because the process was killed at round 1" means it never
+// got to. Both rendered as an ordinary capture, so the run record could not tell a reader which
+// one it was holding — and neither could a later run reading the corpus.
+//
+// Capture is allowed to proceed on a terminated run: the events are real and the report assembled
+// from them is worth having. What is not allowed is for the artifact to be silent about it. A
+// STALE record at capture time means the last seat stopped writing long before anyone ran this,
+// which is the signature of a workflow that died rather than finished.
+func LivenessAudit(runDir string, now time.Time) Audit {
+	// QUIET IS NOT THE SIGNAL — a finished run is quiet BECAUSE it finished, and the first draft
+	// of this audit failed both of the day's real runs for exactly that. Silence separates
+	// nothing; what separates them is whether the bench ever recorded an outcome.
+	//
+	//	quiet + an outcome on the record  -> it ran its course and was captured later
+	//	still moving, no outcome yet      -> captured mid-run, unusual but the operator's call
+	//	quiet + NO outcome                -> it stopped without finishing: TERMINATED
+	verdict := record.TerminalVerdict(runDir)
+	l := record.Assess(runDir, now, verdict != "")
+	if verdict != "" {
+		return Audit{Check: "liveness", Verdict: "PASS", Detail: fmt.Sprintf(
+			"the run reached a terminal outcome on the record (%s) — it finished under its own power", verdict)}
+	}
+	switch l.State {
+	case record.StateStale:
+		return Audit{Check: "liveness", Verdict: "FAIL", Detail: fmt.Sprintf(
+			"NO terminal outcome on the record, and it went quiet %s before this capture (last: %s, %s) — "+
+				"past the %s this run's own cadence implies. This run was TERMINATED, not finished, and its "+
+				"verdict must be read that way: an idle SIGTERM kills the workflow, which then cannot lift its "+
+				"own marker, so every other instrument goes on reporting a run in flight. %s",
+			l.Age.Round(time.Second), l.Last.Seat, l.Last.Type, l.Threshold.Round(time.Second), l.Basis)}
+	case record.StateUnmeasured:
+		return Audit{Check: "liveness", Verdict: "SKIP", Detail: "cannot tell whether this run finished or was terminated — " + l.Basis}
+	default:
+		return Audit{Check: "liveness", Verdict: "PASS", Detail: fmt.Sprintf(
+			"no terminal outcome yet and the record was still moving %s before capture (last: %s) — captured mid-run",
+			l.Age.Round(time.Second), l.Last.Seat)}
+	}
+}
 
 // TelemetryAudit checks one telemetry round per red round. redRounds comes from the debate view
 // (rounds with a red sitting), read in-process. Telemetry is now DERIVED from the record via the
@@ -194,32 +241,72 @@ func TelemetryAudit(runDir string, redRounds int) Audit {
 
 // FrictionAudit checks every envelope-self-reported friction reached the record. onRecord is the
 // friction view's texts, read in-process. 60-char tolerant match in either direction.
-func FrictionAudit(envelopeFriction, onRecord []string) Audit {
-	present := func(f string) bool {
-		for _, t := range onRecord {
-			if strings.Contains(t, jsSlice(f, 60)) || strings.Contains(f, jsSlice(t, 60)) {
-				return true
-			}
-		}
-		return false
+// EnvelopeFriction is one friction entry as a seat reported it in its RETURN ENVELOPE, carrying
+// the harness agent that wrote it — the only handle on that line a record can be joined to.
+type EnvelopeFriction struct {
+	AgentID, Text string
+}
+
+// FrictionAudit checks that every seat which reported friction in its envelope also opened the
+// channel on the record. It joins on the SEAT, through the agent binding `register` writes.
+//
+// IT COMPARED PROSE TO PROSE, and reported 5 failures out of 5 on a run where every one of them
+// was on the record. Measured 2026-08-22, research/2026-08-22_is-7-prime:
+//
+//	envelope   "blue-synthesize: citation-hygiene: candidate draft lane-1 provides authoritative
+//	            source names (…) but lacks full URLs with coordinates required by research protocol"
+//	record     "Citation-URL resolution: candidate draft lane-1 provides source names (…) but not
+//	            full URLs with coordinates required by citation protocol"
+//
+// Same complaint, different wording — a seat that did its duty and then paraphrased itself into
+// its return value. The other four were the empty case ("no capability gaps encountered"), also
+// present, also reworded. A seat behaving correctly tripped this every time.
+//
+// The record carries seat_id as a FIELD. The envelope side glues the seat name onto the front of
+// the prose ("blue-synthesize: …") when it remembers to, so the join had to be recovered by
+// splitting a string — and could not be, so the check fell back to a 60-character substring
+// comparison in either direction. record.SeatOfAgent already existed for exactly this, and its
+// own doc comment is an argument against what this function was doing.
+//
+// WHEN THE JOIN IS ABSENT, SAY SO. A run whose PreToolUse hook never fired carries no agent_id on
+// any register event — deliberately, so "not measured" stays legible rather than reading as an
+// agent whose handle is the empty string. Those entries are counted out loud and are NOT findings:
+// an unjoinable entry is a thing this audit cannot see, not a duty a seat skipped.
+func FrictionAudit(runDir string, envelope []EnvelopeFriction, onRecord []record.FrictionEntryJSON) Audit {
+	wroteToRecord := map[string]bool{}
+	for _, fr := range onRecord {
+		wroteToRecord[fr.SeatID] = true
 	}
-	var missing []string
-	for _, f := range envelopeFriction {
-		if !present(f) {
-			missing = append(missing, f)
+	var silent, unjoinable []string
+	for _, e := range envelope {
+		seat, found, err := record.SeatOfAgent(runDir, e.AgentID)
+		if err != nil || !found || seat == "" {
+			unjoinable = append(unjoinable, jsSlice(e.Text, 90))
+			continue
+		}
+		if !wroteToRecord[seat] {
+			silent = append(silent, seat+": "+jsSlice(e.Text, 90))
 		}
 	}
-	if len(missing) > 0 {
-		lines := make([]string, len(missing))
-		for i, m := range missing {
-			lines[i] = "    - " + jsSlice(m, 120)
-		}
+	note := ""
+	if len(unjoinable) > 0 {
+		note = fmt.Sprintf("\n    %d envelope entr%s COULD NOT BE JOINED to a seat and %s not judged "+
+			"(no agent_id on the record — this run's PreToolUse hook did not fire, so the binding "+
+			"`register` writes was never supplied):\n    - %s",
+			len(unjoinable), plural(len(unjoinable), "y", "ies"), plural(len(unjoinable), "was", "were"),
+			strings.Join(unjoinable, "\n    - "))
+	}
+	if len(silent) > 0 {
 		return Audit{Check: "friction-parity", Verdict: "FAIL",
-			Detail: fmt.Sprintf("%d envelope friction entr%s never reached the record (should have been recorded via the friction verb during the run):\n%s",
-				len(missing), plural(len(missing), "y", "ies"), strings.Join(lines, "\n"))}
+			Detail: fmt.Sprintf("%d seat(s) reported friction in the envelope and opened no channel on the record "+
+				"(it should have been recorded via the friction verb during the run):\n    - %s%s",
+				len(silent), strings.Join(silent, "\n    - "), note)}
 	}
+	judged := len(envelope) - len(unjoinable)
 	return Audit{Check: "friction-parity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d envelope friction entr%s all present on the record", len(envelopeFriction), plural(len(envelopeFriction), "y", "ies"))}
+		Detail: fmt.Sprintf("%d envelope entr%s joined to a seat, and every one of those seats is on the record "+
+			"(%d friction entr%s recorded in total)%s",
+			judged, plural(judged, "y", "ies"), len(onRecord), plural(len(onRecord), "y", "ies"), note)}
 }
 
 func plural(n int, one, many string) string {
@@ -753,37 +840,63 @@ func AttestationAudit(runDir, transcriptDir string, agentFiles []string, sampleF
 		}
 	}
 	sampled := sampleClaims(claims, sampleFloor)
-	var unreconciled []Claim
+	var unreconciled, unmeasured []Claim
 	for _, c := range sampled {
-		needle := mostDistinctive(c.Target)
-		if needle == "" {
-			c.Why = "anchor target too vague to reconcile"
-			unreconciled = append(unreconciled, c)
+		needles, byID := needlesFor(c)
+		if len(needles) == 0 {
+			// NOT MEASURED IS NOT A FINDING, and folding it into one is how this audit came to
+			// accuse honest seats. See needlesFor.
+			c.Why = "no anchor id in the tool and no distinctive fragment in the target — nothing to reconcile AGAINST"
+			unmeasured = append(unmeasured, c)
 			continue
 		}
-		found := false
-		for _, k := range calls {
-			if strings.Contains(k, needle) {
-				found = true
+		missing := ""
+		for _, n := range needles {
+			found := false
+			for _, k := range calls {
+				if strings.Contains(k, n) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				missing = n
 				break
 			}
 		}
-		if !found {
-			c.Why = "no tool call in any transcript touches " + needle
+		if missing != "" {
+			if byID {
+				c.Why = "the closure cites " + missing + " but no tool call in any transcript carries it"
+			} else {
+				c.Why = "no tool call in any transcript touches " + missing
+			}
 			unreconciled = append(unreconciled, c)
 		}
+	}
+	// THE UNMEASURED ARE COUNTED OUT LOUD, in every verdict, because the alternative is the
+	// failure this audit is for one level up: a sample of 3 where 2 could not be measured reads
+	// as "1/1 reconciled" unless the other 2 are on the page.
+	note := ""
+	if len(unmeasured) > 0 {
+		ml := make([]string, len(unmeasured))
+		for i, u := range unmeasured {
+			ml[i] = fmt.Sprintf("    - %s (%s | %s): %s", u.ID, u.Seat, u.Tool, u.Why)
+		}
+		note = fmt.Sprintf("\n    %d of the %d sampled could NOT BE MEASURED either way (not a finding against them):\n%s",
+			len(unmeasured), len(sampled), strings.Join(ml, "\n"))
 	}
 	if len(unreconciled) > 0 {
 		ul := make([]string, len(unreconciled))
 		for i, u := range unreconciled {
 			ul[i] = fmt.Sprintf("    - %s (%s | %s): %s", u.ID, u.Seat, u.Tool, u.Why)
 		}
-		detail := fmt.Sprintf("%d/%d sampled closure(s) NOT reconcilable against the trajectories — a claimed act with no matching tool call:\n%s\n    This rules on whether the RECORD IS HONEST, never on the merits of the gap.",
-			len(unreconciled), len(sampled), strings.Join(ul, "\n"))
+		detail := fmt.Sprintf("%d/%d sampled closure(s) NOT reconcilable against the trajectories — a claimed act with no matching tool call:\n%s\n    This rules on whether the RECORD IS HONEST, never on the merits of the gap.%s",
+			len(unreconciled), len(sampled), strings.Join(ul, "\n"), note)
 		return Audit{Check: "attestation-integrity", Verdict: "FAIL", Detail: detail, Unreconciled: unreconciled}
 	}
 	return Audit{Check: "attestation-integrity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d/%d anchored closure(s) sampled and reconciled against actual tool calls", len(sampled), len(claims))}
+		Detail: fmt.Sprintf("%d/%d anchored closure(s) sampled and reconciled against actual tool calls%s",
+			len(sampled)-len(unmeasured), len(claims), note)}
 }
 
 // sampleClaims mirrors JS: all when ≤ floor, else index i where i % ceil(n/floor) === 0.
@@ -804,6 +917,44 @@ func sampleClaims(claims []Claim, floor int) []Claim {
 func ceilDiv(a, b int) int { return (a + b - 1) / b }
 
 var reNonToken = regexp.MustCompile(`[\s|]+`)
+
+// anchorID matches the record's OWN identifiers — a citation, finding, proof or anchor id, each
+// unique by construction rather than assembled from words.
+//
+// MEASURED 2026-08-22, and it is the whole reason needlesFor exists. Two closures anchored
+// `report text at line 103` and `report text at line 62` — precise, human-meaningful, naming the
+// exact line. mostDistinctive found no fragment longer than six characters in either (`report` is
+// exactly six), returned "", and both were filed as claims with no matching tool call, under an
+// audit whose own message says "This rules on whether the RECORD IS HONEST". The third sampled
+// closure reconciled only because its target happened to contain the ten-letter word
+// `projection`. Honesty was being decided by word length.
+//
+// The record was carrying the answer the whole time: anchor_tool reads
+// `show report --anchor f-0dd40334`, and that id is exact. Prose is what a human reads; the id is
+// what a machine joins on — see [[facts-are-fields]] clause 5, "never re-derive from the assembled
+// form what the record could simply carry".
+var anchorID = regexp.MustCompile(`\b[a-z]{1,2}-[0-9a-f]{8}\b`)
+
+// needlesFor returns the tokens a claim can be reconciled by, and whether they came from the
+// record's identifiers or from prose.
+//
+// EVERY CITED ID MUST APPEAR, not merely one: a seat naming an id it never touched is exactly the
+// dishonesty this audit looks for, and ids are exact enough that requiring all of them cannot
+// produce the false accusations the prose path did.
+//
+// The prose fallback keeps its six-character floor deliberately. Lowering it to admit `report`
+// would make the needle match every `show report` call in the run — turning a false FAIL into a
+// false PASS, which is the worse direction for an honesty check. Prose that yields no needle is
+// reported as NOT MEASURED instead.
+func needlesFor(c Claim) (needles []string, fromID bool) {
+	if ids := anchorID.FindAllString(c.Tool, -1); len(ids) > 0 {
+		return ids, true
+	}
+	if n := mostDistinctive(c.Target); n != "" {
+		return []string{n}, false
+	}
+	return nil, false
+}
 
 // mostDistinctive mirrors JS: split target on /[\s|]+/, keep fragments longer than 6, longest first.
 func mostDistinctive(target string) string {
@@ -888,22 +1039,61 @@ func orQ(s string) string {
 //
 // Capture is the step that CLOSES a run. It is the wrong place to be quiet about the one piece of
 // state that says the run is open.
-func closeRunLiveMarker(cwd string) string {
+func closeRunLiveMarker(cwd, runDir string) string {
 	marker := filepath.Join(cwd, ".claude", "run-live.json")
-	_, serr := os.Stat(marker)
-	switch {
-	case serr == nil:
-		if rerr := os.Remove(marker); rerr != nil {
-			return "run-live marker: FOUND at " + marker + " and could NOT be removed: " + rerr.Error() +
-				" — the run still reads as live to every verb that infers its run directory"
+	// THIS RUN'S ROW, AND ONLY THIS RUN'S.
+	//
+	// The marker was a singleton: one file naming the one open run. Capture removed it by PATH,
+	// never asking which run it named — so capturing run A while run B was live lifted B's
+	// marker and reported "removed", which reads exactly like the correct outcome. Every later
+	// un-flagged verb in B then inferred no run at all, and B's own capture found nothing to
+	// close and said so in the words it uses for a run that was already clean.
+	//
+	// NEARLY DONE, 2026-08-22: a discarded run was about to be captured for its evidence while
+	// the next run was eleven minutes into its first round. Caught by reading this function
+	// rather than by anything in it.
+	//
+	// A path comparison guarded that. Per-run rows REMOVE it: the row this capture owns is the
+	// only one it can take, so there is no longer a case where taking the wrong one is possible
+	// and a check is what stands between (#529).
+	if _, err := os.Stat(marker); err != nil {
+		if os.IsNotExist(err) {
+			return "run-live marker: none at " + marker +
+				" — either it was already cleared, or capture is running from a directory that is not the project root, in which case the real marker is still there"
 		}
-		return "run-live marker: removed"
-	case os.IsNotExist(serr):
-		return "run-live marker: none at " + marker +
-			" — either it was already cleared, or capture is running from a directory that is not the project root, in which case the real marker is still there"
-	default:
-		return "run-live marker: could not be read at " + marker + ": " + serr.Error()
+		return "run-live marker: could not be read at " + marker + ": " + err.Error()
 	}
+	before := len(runlive.ReadRunLive(cwd))
+	found, remaining := runlive.RemoveRunLiveEntry(cwd, runDir)
+	switch {
+	case !found && remaining > 0:
+		// The file is there and does not mention this run. Not an error and not a clean close:
+		// something else is open and this run was never registered in it.
+		return "run-live marker: this run has no entry — " + otherRuns(remaining) +
+			" still open, and none of them is " + runDir +
+			". Nothing was removed; the open run(s) are unaffected"
+	case !found && before == 0:
+		// PRESENT AND NAMING NOTHING is its own answer, and it must not read like a clean close.
+		// It is what an unreadable marker looks like from here, and reporting "nothing to
+		// remove" would let a file that no reader can parse pass for an absent one — the same
+		// bytes for a broken state and a healthy one.
+		return "run-live marker: the file at " + marker + " exists but names NO open run — it is " +
+			"empty or unreadable, so nothing could be removed and no verb can infer a run from it. " +
+			"Delete it if it is residue"
+	case !found:
+		return "run-live marker: this run had no entry to remove"
+	case remaining > 0:
+		return "run-live marker: this run's entry removed — " + otherRuns(remaining) + " still open, so the marker file remains"
+	default:
+		return "run-live marker: removed"
+	}
+}
+
+// otherRuns names how many OTHER runs remain open, for a message that has to read naturally
+// either way. The package's own plural() takes two literals; this is the one place where the
+// count itself has to appear inside them.
+func otherRuns(n int) string {
+	return fmt.Sprintf("%d other run%s", n, plural(n, "", "s"))
 }
 
 // ---- precedent harvest ----
@@ -1051,7 +1241,12 @@ func HarvestPrecedents(runDir string, results []map[string]any, lawDir string, b
 	_ = os.MkdirAll(filepath.Join(lawDir, "proposed"), 0o755)
 	out := filepath.Join(lawDir, "proposed", slug+".md")
 	var body []string
-	body = append(body, "# proposed holdings — "+slug+" [ALL PERSUASIVE — awaiting human review per law/README.md]", "")
+	body = append(body, "# proposed holdings — "+slug+" [ALL PERSUASIVE — awaiting human review per law/README.md]",
+		"",
+		"Each entry below is a RULING the bench recorded, not yet a holding. `facts`, `holding` and",
+		"`scope-limits` are the reviewer's to write from the cited record: the harvest states what it",
+		"observed and never invents the rule. A ruling promoted with its placeholders intact is not",
+		"citable — law/README.md: a holding without its factual predicate is not citable.", "")
 	for i, r := range rulings {
 		q := "disposition of " + r.gapID
 		src := slug + ", " + r.gapID
@@ -1059,16 +1254,42 @@ func HarvestPrecedents(runDir string, results []map[string]any, lawDir string, b
 			q = "petition by " + r.petitioner
 			src = slug + ", petition:" + r.petitioner
 		}
-		body = append(body, strings.Join([]string{
+		// A DISPOSITION IS NOT A HOLDING, and writing one into that field made every harvested
+		// ruling unpromotable while looking complete.
+		//
+		// law/README.md asks for `holding: <the rule applied>` and warns that a holding without
+		// its factual predicate is not citable. This wrote `holding: closed` — the docket STATUS
+		// — so nine harvested rulings across two runs all read "disposition of R1-n / closed",
+		// which tells a later bench nothing it could apply to a different gap. The rule the bench
+		// actually reasoned to was sitting in `rationale`, unextracted, one line below.
+		//
+		// The harvest cannot fix that by synthesising a rule: inventing the holding is exactly
+		// what it must not do. So it states the disposition as the disposition, and leaves the
+		// holding as a placeholder beside `facts` and `scope-limits` — the three things only a
+		// human reviewing the record can supply. An unpromotable ruling now LOOKS unpromotable.
+		//
+		// A `declare` is the exception and always was: that verb's whole purpose is to state a
+		// holding, so its text IS the rule and no placeholder is honest there.
+		holding := "<reviewer: state the rule this ruling applied — the harvest never invents; " +
+			"the reasoning is in `rationale` below>"
+		fields := []string{
 			"## " + slug + "-" + strconv.Itoa(i+1) + " [PERSUASIVE]",
 			"facts: <reviewer: fill from the cited record — the harvest never invents>",
 			"question: " + q,
-			"holding: " + r.disposition,
-			"rationale: " + r.rationale,
+		}
+		if r.kind == "declaration" {
+			fields = append(fields, "holding: "+r.rationale)
+		} else {
+			fields = append(fields,
+				"holding: "+holding,
+				"disposition: "+r.disposition,
+				"rationale: "+r.rationale)
+		}
+		fields = append(fields,
 			"scope-limits: <reviewer: state what this assumed>",
-			"source: " + src,
-			"",
-		}, "\n"))
+			"source: "+src,
+			"")
+		body = append(body, strings.Join(fields, "\n"))
 	}
 	if err := os.WriteFile(out, []byte(strings.Join(body, "\n")), 0o644); err != nil {
 		// This branch is a WRITE failure and must say so. Reusing the branch above's reason
@@ -1208,7 +1429,9 @@ func perSeatRoundTable(costMd string) string {
 // audits, the report string, and whether any audit FAILed (exit 2). cwd-rooted side effects
 // (feov-memory, law, .claude/run-live.json) resolve from os.Getwd(), exactly as the JS used
 // process.cwd().
-func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail bool, err error) {
+// `now` is injected so the one non-deterministic input — how long ago the record stopped moving —
+// is controllable in a test, the same way WriteRunLiveMarker takes its clock.
+func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report string, exitFail bool, err error) {
 	var lines []string
 
 	// Mechanics: journal copy, transcript tarball, cost.md.
@@ -1224,6 +1447,22 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 		lines = append(lines, "tarball: FAILED — "+jsSlice(terr.Error(), 200))
 	} else {
 		lines = append(lines, fmt.Sprintf("tarball: %d transcript(s)", len(agentFiles)))
+	}
+	// THE RECORD ITSELF, to the one place that outlives the container. Reported either way: an
+	// archive that silently did not happen is a run whose evidence is gone the next time the
+	// container is reclaimed, and nothing would have said so.
+	if arc, aerr := ArchiveRecord(runDir, repoRootOf(runDir)); aerr != nil {
+		lines = append(lines, "record archive: FAILED — "+jsSlice(aerr.Error(), 200))
+	} else {
+		rel := arc
+		if r, rerr := filepath.Rel(repoRootOf(runDir), arc); rerr == nil {
+			rel = r
+		}
+		if st, serr := os.Stat(arc); serr == nil {
+			lines = append(lines, fmt.Sprintf("record archive: %s (%d KB) — the raw record, which research/ does not keep", rel, st.Size()/1024))
+		} else {
+			lines = append(lines, "record archive: "+rel)
+		}
 	}
 
 	costF, cerr := os.Create(filepath.Join(runDir, "cost.md"))
@@ -1250,7 +1489,7 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 	// Record-backed reads, in-process (the JS spawned `merge show` views).
 	board, _ := record.BoardState(runDir)
 	redRounds, blueBlocks := 0, 0
-	onRecord := []string{}
+	onRecord := []record.FrictionEntryJSON{}
 	if board != nil {
 		dj := record.DebateJSONOf(board)
 		for _, r := range dj.Rounds {
@@ -1261,14 +1500,18 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 				blueBlocks++
 			}
 		}
-		for _, fr := range record.FrictionJSONOf(board).Friction {
-			onRecord = append(onRecord, fr.Text)
-		}
+		// BOTH ARMS OF THE CHANNEL COUNT AS OPENING IT. `friction-none` is the attested empty
+		// case — "nothing blocked me", which is a seat closing the channel honestly — and a seat
+		// that files one has used the channel exactly as the duty asks.
+		fj := record.FrictionJSONOf(board)
+		onRecord = append(onRecord, fj.Friction...)
+		onRecord = append(onRecord, fj.NothingBlocked...)
 	}
 
 	audits = []Audit{
+		LivenessAudit(runDir, now),
 		TelemetryAudit(runDir, redRounds),
-		FrictionAudit(friction, onRecord),
+		FrictionAudit(runDir, friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(runDir),
 		StrayRecordsAudit(repoRootOf(runDir), runDir),
@@ -1304,7 +1547,21 @@ func Run(runDir, transcriptDir string) (audits []Audit, report string, exitFail 
 		lines = append(lines, "precedent harvest: no rulings this run")
 	}
 
-	lines = append(lines, closeRunLiveMarker(cwd))
+	// THE CLASS HARVEST, beside the precedent one and for the same reason: a run's coinage that
+	// reaches nothing outside the run directory is a run's coinage lost (#515).
+	cls := HarvestClasses(runDir, filepath.Join(cwd, "law"), board)
+	switch {
+	case cls.Written:
+		lines = append(lines, fmt.Sprintf("class harvest: %d class(es) -> %s (PROPOSED, not staged into any run until adopted)", cls.Count, cls.Path))
+	case cls.Count > 0:
+		lines = append(lines, fmt.Sprintf("class harvest: %d class(es), %s", cls.Count, cls.Reason))
+	case cls.Reason != "":
+		lines = append(lines, "class harvest: "+cls.Reason)
+	default:
+		lines = append(lines, "class harvest: no classes coined this run")
+	}
+
+	lines = append(lines, closeRunLiveMarker(cwd, runDir))
 
 	var out []string
 	out = append(out,
@@ -1357,4 +1614,198 @@ func listAgentFiles(dir string) ([]string, error) {
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+// ---- record archive ----
+
+// ArchiveRecord writes the run's RAW RECORD to run-archive/<slug>.tar.gz at the repository root,
+// which is the only part of a run that outlives the container.
+//
+// THE EVIDENCE WAS THE ONE THING NOT BEING KEPT. `research/*/` is gitignored — deliberately, and
+// with a commit behind it (ffc4bf4 deleted a tracked research corpus because seats were reading
+// test data as prior work). So a run directory survives a SIGTERM and a fast resume, because the
+// disk does, and does NOT survive the container being reclaimed. What survived that was only what
+// capture promoted: cost.md, the scorecards, the law harvest. Every one of those is a DERIVED
+// artifact. The record they were derived from — the thing each audit re-reads, and the only thing
+// that can answer a question nobody has thought of yet — was left behind.
+//
+// WHAT IS IN IT, AND WHAT IS NOT. records/ and proofs/: 49 KB gzipped for a fifteen-seat run, so
+// keeping every run costs about a megabyte per twenty. NOT cache/ — 7.3 MB of fetched source
+// bytes for the same run, re-fetchable, and content-addressed by a sha256 the citation events
+// already carry, so its integrity stays checkable without it. NOT the agent transcripts: they are
+// an order of magnitude larger than the record and answer a different question (what a seat DID
+// rather than what it RECORDED); keeping them is a separate decision and is named here rather
+// than made quietly.
+//
+// It does not reintroduce ffc4bf4's hazard: seats read their own run directory and the inputs
+// mirrored into it, never run-archive/, and a gzipped tar is not prose a glob can wander into.
+func ArchiveRecord(runDir, repoRoot string) (string, error) {
+	recs, err := record.RecordsDir(runDir)
+	if err != nil {
+		return "", err
+	}
+	var files []struct {
+		name string
+		path string
+	}
+	add := func(root, prefix string) error {
+		return filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() {
+				return nil // a missing proofs/ is ordinary; a missing records/ is caught below
+			}
+			rel, rerr := filepath.Rel(root, p)
+			if rerr != nil {
+				return rerr
+			}
+			files = append(files, struct{ name, path string }{prefix + filepath.ToSlash(rel), p})
+			return nil
+		})
+	}
+	if err := add(recs, "records/"); err != nil {
+		return "", err
+	}
+	shards := len(files)
+	_ = add(filepath.Join(runDir, "proofs"), "proofs/")
+	// AN EMPTY ARCHIVE IS A REFUSAL, not a small file. A tarball with no shards in it is exactly
+	// what a run whose record never resolved would produce, and it would sit in run-archive/
+	// looking like a kept run forever.
+	if shards == 0 {
+		return "", fmt.Errorf("no event shards under %s — refusing to write an archive that would "+
+			"preserve nothing while looking like a preserved run", recs)
+	}
+	outDir := filepath.Join(repoRoot, "run-archive")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return "", err
+	}
+	out := filepath.Join(outDir, filepath.Base(filepath.Clean(runDir))+".tar.gz")
+	f, err := os.Create(out)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	gz := gzip.NewWriter(f)
+	tw := tar.NewWriter(gz)
+	sort.Slice(files, func(i, j int) bool { return files[i].name < files[j].name })
+	for _, fl := range files {
+		b, rerr := os.ReadFile(fl.path)
+		if rerr != nil {
+			return "", rerr
+		}
+		if err := tw.WriteHeader(&tar.Header{Name: fl.name, Mode: 0o644, Size: int64(len(b))}); err != nil {
+			return "", err
+		}
+		if _, err := tw.Write(b); err != nil {
+			return "", err
+		}
+	}
+	if err := tw.Close(); err != nil {
+		return "", err
+	}
+	if err := gz.Close(); err != nil {
+		return "", err
+	}
+	return out, nil
+}
+
+// ---- gap-class harvest ----
+
+// coinedClass is one class a seat minted this run, and where it was first used.
+type coinedClass struct {
+	slug, definition, neighbor, distinguisher string
+	seatID, firstGap                          string
+}
+
+// classesFromRecord reads the classes THE RECORD holds, for the same reason rulingsFromRecord
+// does: `class new` refuses a coinage missing its definition, neighbour or distinguisher
+// (validateClassNew), so what arrives here is well-formed by construction rather than by hope.
+//
+// FirstGap is the join a reviewer needs and the record already holds: a class exists to
+// discriminate, and the gap it was first minted against is the concrete case that motivated it.
+// Empty means coined and never used, which is itself worth seeing on the proposal.
+func classesFromRecord(board *record.Board) []coinedClass {
+	if board == nil {
+		return nil
+	}
+	var out []coinedClass
+	for _, e := range board.Events {
+		cn := e.GetClassNew()
+		if cn == nil {
+			continue
+		}
+		c := coinedClass{
+			slug: cn.GetSlug(), definition: cn.GetDefinition(),
+			neighbor: cn.GetNeighbor(), distinguisher: cn.GetDistinguisher(),
+			seatID: e.GetSeatId(),
+		}
+		for _, m := range board.Events {
+			if mint := m.GetMint(); mint != nil && mint.GetClass() == c.slug {
+				c.firstGap = mint.GetGapId()
+				break
+			}
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// HarvestClasses promotes every class a run coined into law/proposed, and NEVER into the registry.
+//
+// WHY PROPOSED AND NOT ADOPTED (#515). feov-memory/class-registry.json is what every `--class` is
+// validated against, and the whole value of that gate is that a mint is REFUSED rather than waved
+// through. A class nobody reviewed, validating a future mint, is the registry losing the only
+// thing it means. So this mirrors the precedent flow exactly: the harvest states what the run
+// coined, and adoption is a human act.
+//
+// WHY IT EXISTS AT ALL. Before this, a coined class lived in exactly two places — the run's event
+// record and the run's staged copy of the registry — both inside a gitignored run directory. It
+// reached run-archive/*.tar.gz and nothing read that back. Measured 2026-08-22: red coined
+// `silent-no-match-probe` mid-run, with a sharper distinguisher than anything already registered,
+// and the next run would have staged the same 38 classes and made red discover it again.
+//
+// ONE FILE PER CLASS PER RUN, keyed on both. Two runs coining the same slug with different
+// definitions then land as two files a reviewer sees side by side, rather than one silently
+// overwriting the other — the collision has an arbiter, and the arbiter is a person.
+func HarvestClasses(runDir string, lawDir string, board *record.Board) HarvestResult {
+	slug := slugOf(runDir)
+	classes := classesFromRecord(board)
+	if len(classes) == 0 {
+		return HarvestResult{Written: false, Count: 0}
+	}
+	if _, err := os.Stat(lawDir); err != nil {
+		return HarvestResult{Written: false, Count: len(classes), Reason: "no law/ dir at repo root"}
+	}
+	if err := os.MkdirAll(filepath.Join(lawDir, "proposed"), 0o755); err != nil {
+		return HarvestResult{Written: false, Count: len(classes), Reason: err.Error()}
+	}
+	var written []string
+	for _, c := range classes {
+		out := filepath.Join(lawDir, "proposed", "class-"+c.slug+"--"+slug+".md")
+		used := c.firstGap
+		if used == "" {
+			used = "(coined and not minted against this run — the class has no worked case yet)"
+		}
+		body := strings.Join([]string{
+			"# proposed gap class — `" + c.slug + "` [PROPOSED — not in the registry until adopted]",
+			"",
+			"Coined by `" + c.seatID + "` during `" + slug + "`. It is NOT staged into any later run:",
+			"an unreviewed class validating a future `--class` is the registry losing the only thing it",
+			"means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand.",
+			"",
+			"- **definition**: " + c.definition,
+			"- **neighbour**: `" + c.neighbor + "`",
+			"- **distinguisher**: " + c.distinguisher,
+			"- **first used on**: " + used,
+			"",
+			"The three fields above are the seat's own words, refused at the write if any were missing",
+			"(`record.validateClassNew`), so this proposal is well-formed by construction. What a",
+			"reviewer decides is whether it DISCRIMINATES — whether the distinguisher actually separates",
+			"it from its neighbour on a case where both are arguable.",
+			"",
+		}, "\n")
+		if err := os.WriteFile(out, []byte(body), 0o644); err != nil {
+			return HarvestResult{Written: len(written) > 0, Count: len(classes), Reason: err.Error()}
+		}
+		written = append(written, out)
+	}
+	return HarvestResult{Written: true, Count: len(classes), Path: filepath.Join(lawDir, "proposed")}
 }

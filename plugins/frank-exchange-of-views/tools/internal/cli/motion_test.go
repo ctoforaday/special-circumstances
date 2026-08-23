@@ -90,10 +90,10 @@ func TestOnlyTheRulingSeatMayRule(t *testing.T) {
 // A PETITION HAS NO APPEAL, expressed by ABSENCE rather than a runtime refusal: it is heard
 // before the debate continues, so there is nothing to escalate to.
 func TestAPetitionHasNoAppealVerb(t *testing.T) {
-	if h := help(t, "motion", "petition", "--help"); strings.Contains(h, "appeal") {
+	if h := help(t, "motion", "petition", "--help", "--seat-id", "judge-r1"); strings.Contains(h, "appeal") {
 		t.Error("a petition grew an appeal verb; it is heard BEFORE the debate continues, so there is nothing to appeal to")
 	}
-	if h := help(t, "motion", "grade", "--help"); !strings.Contains(h, "appeal") {
+	if h := help(t, "motion", "grade", "--help", "--seat-id", "red-merge-r1"); !strings.Contains(h, "appeal") {
 		t.Error("a grade motion must be appealable — a rejected dispute goes to the bench")
 	}
 }

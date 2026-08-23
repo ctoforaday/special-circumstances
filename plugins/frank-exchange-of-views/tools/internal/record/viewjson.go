@@ -341,8 +341,8 @@ func bodyMap(m proto.Message) (map[string]any, error) {
 
 // gradeWord adds PRESENCE to GradeStr, and nothing else.
 //
-// The vocabulary join is GradeStr's — the seat types `low-medium` while recordpb.Word derives
-// `low_medium` from the generated name, and GradeStr's own header carries why that is not a general
+// The vocabulary is GradeStr's — one spelling now, `low_medium`, after flags.Grade converged on
+// the schema's word; GradeStr's own header carries what the join was and why it was not a general
 // rule. This function must never re-implement it: a second copy of that mapping is how MASS lookups
 // silently return 0, which is the same number an ungraded gap reports.
 //
@@ -504,10 +504,40 @@ type WorkGapJSON struct {
 // ClosedIndexJSON is a closed gap reduced to what a near-match screen needs — id, location,
 // class — with NO prose. The full closure record (with anchors and the problem) is behind
 // --view archive for the seat that has to audit a specific closure.
+//
+// IT IS ALSO THE ESTOPPEL REGISTER, and it could not express estoppel.
+//
+// Every seat reads this list — `show work` is the projection each one is told to run first and
+// again before it stops — so it is already the carrier that reaches every board. But it carried
+// id, location and class and nothing else, which says a gap is GONE and cannot say it is BARRED.
+// Measured on the 2026-08-22 sqlite-schema run: R1-1 (defect_owed_elsewhere — still broken,
+// merely not blue's to fix), R1-2 (closed clean) and R1-3 (repaired_with_regression, whose live
+// successor R2-1 was still on the board) rendered as three identical three-field objects.
+//
+// The absent case and the healthy case were the same bytes AGAIN: a gap the bench had ruled and
+// a gap nobody ever raised both arrive as "not in your open set". Both facts were already on the
+// replayed Gap — Closure carries the fate, and ClosedByBench exists precisely because, in its own
+// words, "the projection has to record WHO closed it, not merely that it is closed." This
+// projection dropped both.
+//
+// WHO closed it is not decoration: red may reopen its own closure on new evidence, while a bench
+// ruling is estopped and re-raising it is relitigation. A seat that cannot tell them apart cannot
+// obey either rule.
 type ClosedIndexJSON struct {
 	ID       string `json:"id"`
 	Location string `json:"location"`
 	Class    string `json:"class"`
+	// Fate is the disposition that ended it — red's `close --as` (closure_class) or the
+	// bench's `opinion --as` (disposition). One vocabulary since #342, so a reader does not
+	// have to know which verb produced the word before it can interpret it.
+	Fate string `json:"fate"`
+	// ClosedBy is "bench" or "red", and it is what makes the difference above legible.
+	ClosedBy string `json:"closed_by"`
+	// ArtifactState is the SECOND AXIS, derived from Fate — see record.ArtifactStateOf. The
+	// docket closing and the defect going away are different facts, and three of the six
+	// fates settle the first while leaving the second. Carried here so a seat reading its
+	// board can tell "fixed" from "shipping broken, knowingly" without decoding a word.
+	ArtifactState string `json:"artifact_state"`
 }
 
 // synopsisLimit is the rune budget for an open gap's problem synopsis in the work list — long
@@ -552,10 +582,37 @@ func WorkJSONOf(b *Board) WorkJSON {
 			}
 			out.Open = append(out.Open, wg)
 		} else {
-			ci := ClosedIndexJSON{ID: g.ID}
+			ci := ClosedIndexJSON{ID: g.ID, ClosedBy: "red"}
+			if g.ClosedByBench {
+				ci.ClosedBy = "bench"
+			}
 			if g.Mint != nil {
 				ci.Location = g.Mint.GetLocation()
 				ci.Class = g.Mint.GetClass()
+			}
+			// ONE VOCABULARY, TWO WRITERS. Red closes with `closure_class`, the bench disposes
+			// with `disposition`; both are the same Disposition enum, and which verb wrote it is
+			// not the reader's problem. They are separate FIELDS here rather than one payload key
+			// read twice, so the fallback is a nil test on a typed body instead of a string miss.
+			if g.Closure != nil {
+				ci.Fate = recordpb.Word(g.Closure.GetClosureClass())
+			}
+			if ci.Fate == "" && g.BenchClosure != nil {
+				ci.Fate = recordpb.Word(g.BenchClosure.GetDisposition())
+			}
+			// The second axis, derived rather than stored. `amends_prior` cannot be answered
+			// from the class alone — it inherits from the ruling it amends — and it says so
+			// instead of guessing, because a wrong "repaired" here is exactly the plausible
+			// zero this field exists to remove.
+			if s, ok := ArtifactStateOf(ci.Fate); ok {
+				ci.ArtifactState = string(s)
+			} else {
+				// THE LINEAGE IS ON THE MINT, not on the closure. `amends_prior` means this gap
+				// amends earlier ones, and the gap names its ancestors where every other reader
+				// finds them — `Mint.supersedes`, always present and empty when there are none.
+				// The payload record read a `supersedes` key off the CLOSE event; there is no
+				// such field, so that read would have been an empty string on every closure.
+				ci.ArtifactState = "inherits:" + strings.Join(g.Mint.GetSupersedes(), ",")
 			}
 			out.ClosedIndex = append(out.ClosedIndex, ci)
 		}

@@ -13,6 +13,8 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -24,17 +26,50 @@ import (
 // copies to drift apart, and the drift would be silent because each copy would
 // still pass its own tests.
 //
-// Each role still supplies its OWN help text, because the contract is shared
-// while the guidance is not: a lens is told what its friction entries are for,
-// the bench is told the same verb from the other side.
+// The help lives in help/<key>.md. `register` and `friction` mean the same thing in every chair and
+// are ONE document each; `position` and `closing` genuinely differ — a RED section is not a BLUE one
+// — and are keyed by role.
 
-func Register(help string) *cobra.Command {
-	return New("register", help, func(s Context, _ *cobra.Command) (Result, error) {
-		dispatch, _, err := record.RegisterSeat(s.Identity())
+func Register() *cobra.Command {
+	return New("register", func(s Context, _ *cobra.Command) (Result, error) {
+		dispatch, _, err := record.RegisterSeat(s.Identity(), string(s.RunVia))
 		if err != nil {
 			return nil, err
 		}
-		return registerResult{SeatID: s.SeatID, Dispatch: dispatch}, nil
+		r := registerResult{SeatID: s.SeatID, Dispatch: dispatch, RunVia: string(s.RunVia)}
+		// THE IDENTITY DID NOT ARRIVE, AND THE SEAT IS THE ONLY PARTY THAT CAN STILL ACT ON IT.
+		//
+		// register is where the agent->seat binding is written, so it is also the first and only
+		// place that can see the binding was never possible. The record already handles this
+		// correctly at the write — absent is recorded as absent — and capture already reports it
+		// hours later. What nothing did was tell the SEAT, while the sitting it affects is still
+		// running.
+		//
+		// MEASURED, and it is the whole of #512. In research/2026-08-22_is-7-prime all FOURTEEN
+		// registers carry no agent_id: the hook never fired for that run at all, so every later
+		// call was refused "this agent has not registered" whatever shape it took. Across the
+		// session that message was returned 92 times and was FALSE every single time — zero of
+		// them were a seat that had genuinely not registered.
+		//
+		// A WARNING, NOT A REFUSAL. Refusing here would wedge a run whose only fault is a hook
+		// that did not fire, and the seat can work perfectly well by passing --seat-id.
+		if seatenv.AgentID() == "" && s.SeatID != record.OperatorRole {
+			r.IdentityAbsent = true
+		}
+		// THE HOOK IS NOT REACHING THIS RUN — a bigger fact than a missing identity, and one the
+		// hook itself records nowhere. It injects FEOV_RUN on every Bash call in a live run, so
+		// a run directory that arrived any OTHER way means the hook declined, was never invoked,
+		// or found no marker from the payload's cwd.
+		//
+		// THE WRAPPER MAKES THIS A CLEAN READING ON ITS OWN. `setup` bakes the run into
+		// <runDir>/.bin/feov-record, and the hook — when it fires — sets FEOV_RUN, which
+		// outranks it. So resolving by WRAPPER is a direct statement that the hook did not
+		// inject, needing no pairing with a missing identity to mean it. Inference still needs
+		// the pair, because a seat that simply typed --run looks identical from the run alone.
+		if s.RunVia == seatenv.RunFromWrapper || (r.IdentityAbsent && s.RunVia == seatenv.RunFromInference) {
+			r.HookAbsent = true
+		}
+		return r, nil
 	})
 }
 
@@ -55,8 +90,8 @@ func Register(help string) *cobra.Command {
 //
 // The shape is `spot-check --none --reason`, already in this tree for the same reason: a duty
 // whose empty case must be ASSERTED rather than inferred from silence.
-func Friction(help string) *cobra.Command {
-	c := Prose(New("friction", help, func(s Context, cmd *cobra.Command) (Result, error) {
+func Friction() *cobra.Command {
+	c := Prose(New("friction", func(s Context, cmd *cobra.Command) (Result, error) {
 		none, _ := cmd.Flags().GetBool(flags.None)
 		text, err := Reason(cmd)
 		if err != nil {
@@ -81,8 +116,8 @@ func Friction(help string) *cobra.Command {
 	return c
 }
 
-func Position(help string) *cobra.Command {
-	return Prose(New("position", help, func(s Context, cmd *cobra.Command) (Result, error) {
+func Position(key string) *cobra.Command {
+	return Prose(NewKeyed("position", key, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -94,8 +129,8 @@ func Position(help string) *cobra.Command {
 	}))
 }
 
-func Closing(help string) *cobra.Command {
-	c := Prose(New("closing", help, func(s Context, cmd *cobra.Command) (Result, error) {
+func Closing(key string) *cobra.Command {
+	c := Prose(NewKeyed("closing", key, func(s Context, cmd *cobra.Command) (Result, error) {
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -125,33 +160,19 @@ func Closing(help string) *cobra.Command {
 // THREE VIEWS ALSO CLAIMED "merge" AND THE LAST ONE SILENTLY WON, because the resolution loop
 // keeps overwriting. A default decided by slice order is a default nobody chose.
 var views = []struct {
-	name, desc, defaultFor string
+	name, short, long, defaultFor string
 }{
-	// EVERY DESCRIPTION NAMES THE VERB THAT FILLS THE VIEW, and that is a contract
-	// (viewnaming_test.go), not a convention. A seat navigates by what the tool PRINTS: measured
-	// on a probe, one read `--view lines-of-inquiry` and then typed `blue line-of-inquiry`, a verb
-	// that does not exist, because nothing in the projection it had just read said `line of inquiry`. It
-	// found the right verb by failing twice. The next seat may instead conclude the capability is
-	// missing and write prose, which loses it for the whole run and is reported nowhere.
-	// THE ARTIFACT THE WHOLE DEBATE IS ABOUT, and the last thing a seat still opened by hand.
-	// The event record was moved out of reach so `show` became the only way to the board;
-	// report.md stayed behind as the one file a seat had to know the layout to find.
-	// --anchor IS NAMED HERE, IN THE GROUP LISTING, and that placement is the measurement rather
-	// than a preference. Across 18 elicitation sittings (2026-08-17, two naming arms), seats
-	// invoked `show board` 26 times and `show report` 7, and ran `show report --help` ZERO times:
-	// the bare form succeeds, so nothing ever sends a seat one level deeper. A flag on a
-	// subcommand whose bare form works is not a discoverable capability. `changes` already names
-	// its --id the same way, for the same reason.
-	{"report", "THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`", ""},
-	{"board", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. STRUCTURED JSON by default (the form a seat acts on); `--format markdown` gives the human-verification rendering, open gaps then the closure archive with its prose. Written by `mint`, `close`, `regrade` and `retire`", ""},
-	{"findings", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", ""},
-	{"work", "**RUN THIS FIRST AND RUN IT AGAIN BEFORE YOU STOP.** STRUCTURED JSON: EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item — each with `blocks`, saying whether it is what is stopping you closing — and `sitting.complete` is true exactly when nothing blocking is left. An item with `blocks: false` is work this board affords you that nobody will refuse you for skipping: a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK. `complete: true` with items open means the gates are satisfied, NOT that there is nothing to do. Carries the shrinking working set too — OPEN gaps only (grades, class, location, a problem synopsis, found_by) plus a prose-free closed_index (id, location, class). Bare `show` defaults here for every role. Written by `mint` and `close`", "*"},
-	{"motions", "STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", ""},
-	{"debate", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", ""},
-	{"changes", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", ""},
-	{"evidence", "STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", ""},
-	{"lines-of-inquiry", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", ""},
-	{"telemetry", "STRUCTURED JSONL, one line per round: open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring", ""},
+	{"report", "THE DOCUMENT UNDER AUDIT, as it stands now — read it through the tool, not off disk. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`", "THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`", ""},
+	{"board", "EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by `mint`, `close`, `regrade` and `retire`", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. STRUCTURED JSON by default (the form a seat acts on); `--format markdown` gives the human-verification rendering, open gaps then the closure archive with its prose. Written by `mint`, `close`, `regrade` and `retire`", ""},
+	{"findings", "THE RAW LENS FINDINGS, BEFORE the merge coalesces them into gaps — several findings can become one gap, and this is where you see which. Written by `finding`", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", ""},
+	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `opinion`", "**RUN THIS FIRST AND RUN IT AGAIN BEFORE YOU STOP.** STRUCTURED JSON: EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item — each with `blocks`, saying whether it is what is stopping you closing — and `sitting.complete` is true exactly when nothing blocking is left. An item with `blocks: false` is work this board affords you that nobody will refuse you for skipping: a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK. `complete: true` with items open means the gates are satisfied, NOT that there is nothing to do. Carries the shrinking working set too — OPEN gaps only (grades, class, location, a problem synopsis, found_by). AND `closed_index`, WHICH IS NOT DEBRIS: it is the ESTOPPEL REGISTER, and this description used to call it a shrinking working set, which reads as `done, ignore it` and is the opposite of what it is for. Each entry carries id, location, class, the `fate` that ended it, and `closed_by` — `bench` or `red`. THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. If you hold new evidence against a bench-ruled gap, it is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for. A `fate` of defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind any fate is on the record, not here: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose. Read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `opinion`", "*"},
+	{"motions", "WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`", "STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", ""},
+	{"debate", "WHAT EACH SIDE ARGUED, round by round — the transcript, in order. Written by `position`, `closing` and `opinion`", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", ""},
+	{"changes", "HOW THE REPORT GOT THAT WAY — every edit in round order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", ""},
+	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`", "STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", ""},
+	{"lines-of-inquiry", "WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", ""},
+	{"telemetry", "HOW THE NUMBERS MOVED ACROSS ROUNDS — a trend, not a snapshot: one line per round, and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "STRUCTURED JSONL, one line per round: open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring", ""},
+	{"scorecard", "HOW YOUR CHAIR IS DOING ON THIS QUESTION — your own side's performance, this run only. No selector: your chair is the seat you registered as. Computed from the record, so no verb fills it", "YOUR CHAIR'S IN-RUN SCORECARD — how the side you sit on is doing on THIS question, computed live from this run's record. Your own performance, not another party's: there is no selector, because your chair is the seat you registered as. A number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures, because a diagnostic gamed is itself a defect and a detector firing is a finding. Rows reading \"not computed\" are HONEST, not gaps to fill: the envelope-derived rows fill in at capture. Computed from the record, so no verb fills it", ""},
 }
 
 // ViewNames is the projection vocabulary — the single source behind the help text, the
@@ -206,8 +227,14 @@ func ViewNames() []string {
 // rather than a flag-parse error naming the value.
 func Show() *cobra.Command {
 	c := &cobra.Command{
-		Use:          "show",
-		Short:        "read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: " + strings.Join(ViewNames(), " | "),
+		Use: "show",
+		// THE NAME LIST CAME OFF THIS LINE when the root page started marking which entries hold
+		// commands. Ten projection names in a parent's listing is a slice of the surface handed
+		// out where the seat cannot yet see what any of them is FOR — and a seat that reads a
+		// name here and never opens the page has learned a word, which is how one of them typed a
+		// projection name as a verb. The group heading now says this page hides commands; each
+		// projection says what it is for on its own page, which is where the choosing happens.
+		Short:        "read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		// Its bare form is the seat's pending work — a capability, not a refusal.
@@ -215,8 +242,7 @@ func Show() *cobra.Command {
 	}
 	// An unknown projection gets the SURFACE, not a parse error. Cobra's default answers
 	// `unknown command "x" for "feov-record blue show"` and stops — at the one moment a seat is
-	// definitively looking for what exists, which is the same argument that made the root and
-	// the role groups teach.
+	// definitively looking for what exists, which is the same argument that makes the root teach.
 	c.Args = cobra.ArbitraryArgs
 	c.RunE = func(cmd *cobra.Command, args []string) error {
 		if len(args) > 0 {
@@ -226,18 +252,43 @@ func Show() *cobra.Command {
 		// The seat's own default — its pending work and whether the sitting is finished.
 		return renderView(cmd, "")
 	}
+	// --id LIVES ON THE GROUP so the refusal below it can fire.
+	//
+	// It was registered on `changes` alone, which meant `show telemetry --id R1-1` never reached
+	// renderView: cobra rejected an unknown flag first and answered `unknown flag: --id`. The
+	// refusal written for that case — naming `changes` as the one view --id scopes — was
+	// unreachable, and the message a seat actually got did not say where --id does work. A
+	// carefully argued error nobody can reach is the same as no error at all.
+	c.PersistentFlags().String(flags.ID, "",
+		"scope `show changes` to one gap — red's required_fix beside the edits answering it. No other projection has a scoped form")
 	for _, v := range views {
 		v := v
 		sub := &cobra.Command{
-			Use:          v.name,
-			Short:        v.desc,
+			Use: v.name,
+			// SHORT IS THE MENU, LONG IS THE INSTRUCTION, and they are separate fields because a
+			// seat reads them at two different moments.
+			//
+			// They were ONE string. Cobra prints Short in the parent's listing and, with no Long
+			// set, prints it AGAIN as the whole body of the leaf page — so `show --help` carried
+			// all eleven essays (6,615 bytes, the largest page in the system) and every
+			// `show <view> --help` beneath it repeated one of them verbatim. A seat that read the
+			// group page had already read every leaf page, which is why `pagesNeverUsed` came back
+			// at 11 of 13 for a seat that opened its whole tree: the pages beneath held nothing new.
+			//
+			// SHORT IS WRITTEN TO BE READ AS A SET, not alone. Eleven of them arrive on one page
+			// and the seat's question there is which ONE to open, so each says what question it
+			// answers and how it differs from its neighbours — `work` narrows `board`, `changes`
+			// explains `report`, `motions` is what was disputed where `debate` is what was argued.
+			// Each still names the verb that fills it: viewnaming_test asks that of `show --help`,
+			// which renders Short, and a projection whose writer is unnamed teaches a name that
+			// does not work.
+			Short:        v.short,
+			Long:         v.long,
 			Args:         cobra.NoArgs,
 			SilenceUsage: true,
 			RunE:         func(cmd *cobra.Command, _ []string) error { return renderView(cmd, v.name) },
 		}
-		if v.name == "changes" {
-			sub.Flags().String(flags.ID, "", "scope to one gap — put red's required_fix and the edits answering it side by side")
-		}
+
 		// ONE COMMAND, BOTH FORMS. `ledger` and `archive` were markdown-only views of data the
 		// board JSON already carries whole — three names for one projection, which is the alias
 		// problem this vocabulary bans everywhere else. --format is the flag `graph` already
@@ -268,9 +319,22 @@ func renderView(cmd *cobra.Command, want string) error {
 	// could record all round and then be told its board did not exist. Measured with the
 	// identity injected: register, friction and revision all succeeded; `show` and
 	// `claim-index` demanded the flag.
-	runDir := Of(cmd).RunDir
-	if runDir == "" {
-		return fmt.Errorf("%s: --run <runDir> is required", role)
+	runDir, rerr := Of(cmd).RequireRun(role)
+	if rerr != nil {
+		return rerr
+	}
+	// --id SCOPES a view that supports scoping, and is an ERROR on one that does not
+	// ([[one-way-no-aliases]]: a wrong guess fails loudly rather than being ignored). Silently
+	// dropping it is the worse failure — a seat that asked for one gap's edits and received
+	// every edit would read the answer as the answer to its question.
+	//
+	// CHECKED FIRST, BEFORE ANY VIEW DISPATCH, and that placement is the whole fix. It used to
+	// sit at the BOTTOM of this function, after every early-returning handler — so `show
+	// telemetry --id R1-1` reached the telemetry writer, printed the unscoped series and exited
+	// 0, which is precisely the failure the paragraph above describes. A guard is only a guard
+	// at the point the request arrives.
+	if scope := Str(cmd, flags.ID); scope != "" && want != "changes" && want != "" {
+		return fmt.Errorf("%s show: --id scopes `show changes` and nothing else; `show %s` has no scoped form, and answering it unscoped would hand you a different question's answer", role, want)
 	}
 	if want == "" {
 		// FIRST MATCH WINS, not last. The loop used to keep overwriting, so three views
@@ -303,12 +367,16 @@ func renderView(cmd *cobra.Command, want string) error {
 			}
 			cmd.OutOrStdout().Write(b)
 			return nil
-		case "board", "findings", "friction", "motions", "work", "telemetry", "evidence":
+		// `friction` WAS NAMED HERE AND IS NOT A PROJECTION. `show friction` is refused —
+		// the friction reader is the OPERATOR command (cli/friction.go), never a seat view — so
+		// this case could not fire and the default's message below advertised it to seats by
+		// name. A seat that read it learned a projection it cannot open.
+		case "board", "findings", "motions", "work", "telemetry", "evidence":
 			return fmt.Errorf("%s show: show %s is already JSON by name — drop --json (it is the single way to that projection's JSON)", role, want)
 		case "":
 			return RefuseAndTeach(showGroup(cmd), fmt.Sprintf("%s show: name a projection. Each below names the verb that fills it", role))
 		default:
-			return fmt.Errorf("%s show: show %s has no --json form (only 'debate' does; board/findings/friction/motions/work list are JSON by name)", role, want)
+			return fmt.Errorf("%s show: show %s has no --json form (only 'debate' does; board/findings/motions/work/telemetry/evidence are JSON by name)", role, want)
 		}
 	}
 
@@ -424,14 +492,6 @@ func renderView(cmd *cobra.Command, want string) error {
 		cmd.OutOrStdout().Write(b)
 		return nil
 	}
-	if want == "friction" {
-		b, err := record.FrictionJSONBytes(runDir)
-		if err != nil {
-			return err
-		}
-		cmd.OutOrStdout().Write(b)
-		return nil
-	}
 	// work is JSON by name too — the seat ACTS on it (scans the open set, screens candidates),
 	// so it reads structured fields, not prose. It is the shrinking once-per-turn read that the
 	// full board JSON is not, and it is the ONE command a seat is told to run: everything open
@@ -442,6 +502,23 @@ func renderView(cmd *cobra.Command, want string) error {
 			return err
 		}
 		cmd.OutOrStdout().Write(b)
+		return nil
+	}
+	// The scorecard resolves its chair from the SEAT, so there is nothing to pass and nothing to
+	// get wrong. A role with no chair is refused by name rather than handed an empty card —
+	// operator is not a party to the debate and reads chairs explicitly.
+	if want == "scorecard" {
+		chair, ok := record.ChairOf(role)
+		if !ok {
+			return fmt.Errorf("%s show: no chair sits for role %q, so there is no scorecard that is yours — "+
+				"a scorecard grades a side of the debate, and this role is not one", role, role)
+		}
+		var board *record.Board
+		if b, err := record.BoardState(runDir); err == nil {
+			board = b
+		}
+		rows := scorecard.Compute(runDir, scorecard.ReadResults(runDir), board)[chair]
+		fmt.Fprint(cmd.OutOrStdout(), scorecard.RenderChair(chair, rows, "this run")+"\n")
 		return nil
 	}
 	// telemetry is JSONL by name — one line per round, the wire shape the stopping
@@ -473,14 +550,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		return RefuseAndTeach(showGroup(cmd), fmt.Sprintf("%s show: unknown view %q. Each below names the verb that fills it", role, want))
 	}
 
-	// --id SCOPES a view that supports scoping, and is an ERROR on one that does not
-	// ([[one-way-no-aliases]]: a wrong guess fails loudly rather than being ignored).
-	// Silently dropping it is the worse failure here — a seat that asked for one gap's
-	// edits and received every edit would read the answer as the answer to its question.
 	scope := Str(cmd, flags.ID)
-	if scope != "" && want != "changes" {
-		return fmt.Errorf("%s show: --id scopes `show changes` and nothing else; `show %s` has no scoped form, and answering it unscoped would hand you a different question's answer", role, want)
-	}
 
 	b, err := view.Markdown(runDir, want, scope)
 	if err != nil {
@@ -490,55 +560,27 @@ func renderView(cmd *cobra.Command, want string) error {
 	return nil
 }
 
-func Role(role, short string, verbs ...*cobra.Command) *cobra.Command {
-	c := &cobra.Command{
-		Use:   role,
-		Short: short,
-		Long:  short + "\n" + MotionFooter + "\n" + FrictionFooter,
-		// ArbitraryArgs with flag parsing off at the ROLE level so an unrecognised
-		// verb reaches RunE instead of failing on a flag the role does not own:
-		// `lens mint --run x` must answer "the lens has no mint verb", not
-		// "unknown flag: --run". Subcommand resolution happens before flag
-		// parsing, so each verb still parses and validates its own flags strictly.
-		Args:               cobra.ArbitraryArgs,
-		DisableFlagParsing: true,
-		SilenceUsage:       true,
-	}
-	names := make([]string, 0, len(verbs)+1)
+// RoleVerbs is the seat's verb set, ready to mount at the ROOT of that seat's tree.
+//
+// It used to build a `<role>` command GROUP and the root mounted all four. The role level is gone:
+// the seat is bound at `register`, the tool derives the role from that binding, and the root IS the
+// seat's surface. A merge seat runs `mint`; a lens seat running `mint` gets an unknown command,
+// which is the same boundary the role group drew and is now drawn by the only fact that decides it.
+//
+// The seat therefore no longer types a word the tool can already look up. ResolveSeat has always
+// refused a --seat-id that disagrees with the identity — while the tree required the role DERIVED
+// from that identity to be typed correctly, with CheckSeatRole reconciling the two copies. There is
+// one copy now, and it is on the record.
+func RoleVerbs(role string, verbs ...*cobra.Command) []*cobra.Command {
+	out := make([]*cobra.Command, 0, len(verbs)+1)
 	for _, v := range verbs {
-		// Applied HERE rather than in each verb: a verb that had to remember to mark its
-		// own required flags is a verb that can forget, and the forgetting is silent —
-		// the help simply looks like everything is optional. Every role passes through
-		// this loop, so every verb is annotated by construction.
+		// Applied HERE rather than in each verb: a verb that had to remember to mark its own
+		// required flags is a verb that can forget, and the forgetting is silent — the help
+		// simply looks like everything is optional.
 		markTree(v)
-		names = append(names, v.Name())
-		c.AddCommand(v)
+		out = append(out, v)
 	}
-	c.AddCommand(Show())
-	names = append(names, "show")
-
-	c.RunE = func(cmd *cobra.Command, args []string) error {
-		for _, a := range args {
-			if a == "--help" || a == "-h" || a == "help" {
-				return cmd.Help()
-			}
-		}
-		// A FLAG IS NOT A VERB. DisableFlagParsing means `blue --run x` arrives here with
-		// "--run" as args[0], and the first draft answered `verb "--run" is outside this seat's
-		// role` — which is false twice over: it is not a verb, and it is not out of role. A seat
-		// told that looks for a permissions problem that does not exist.
-		if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
-			return RefuseUnknownVerb(cmd, role, args[0])
-		}
-		if len(args) > 0 {
-			return RefuseAndTeach(cmd, fmt.Sprintf(
-				"%s: %q is a flag, not a verb — you named a role and its flags with no verb between them, so nothing was recorded. A verb is required; pick one below and pass the flags to it.", role, args[0]))
-		}
-		// A role invoked with no verb is a usage error, not a no-op: silently
-		// succeeding would let a mis-scripted seat believe it recorded something.
-		return RequireVerb(cmd, role)
-	}
-	return c
+	return append(out, Show())
 }
 
 func join(names []string) string {
@@ -557,13 +599,61 @@ func join(names []string) string {
 type registerResult struct {
 	SeatID   string `json:"seat_id"`
 	Dispatch int    `json:"dispatch"`
+	// IdentityAbsent is true when a DISPATCHED seat registered with no agent id — the hook did
+	// not reach this call, so nothing on the record can bind this agent to this seat.
+	IdentityAbsent bool `json:"identity_absent,omitempty"`
+	// RunVia says which path supplied the run directory: injected | flag | wrapper | inferred.
+	RunVia string `json:"run_via,omitempty"`
+	// HookAbsent says the hook is not reaching the RUN, rather than only the identity being
+	// missing — every seat in it is affected, not just this one.
+	HookAbsent bool `json:"hook_absent,omitempty"`
+}
+
+// hookAbsentSource names the carrier that stood in for the hook, so the operator reading a
+// friction event knows which of the two shapes this run was in — a wrapper doing its job, or
+// nothing but the marker and a lucky cwd.
+func (r registerResult) hookAbsentSource() string {
+	if r.RunVia == string(seatenv.RunFromWrapper) {
+		return "this run's own wrapper, which setup baked the run into"
+	}
+	return "the tool's own search for the run marker"
 }
 
 func (r registerResult) Human() string {
+	out := "registered " + r.SeatID
 	if r.Dispatch > 1 {
-		return fmt.Sprintf("registered %s (dispatch %d — a previous dispatch of this seat is on the record)", r.SeatID, r.Dispatch)
+		out = fmt.Sprintf("registered %s (dispatch %d — a previous dispatch of this seat is on the record)", r.SeatID, r.Dispatch)
 	}
-	return "registered " + r.SeatID
+	if r.IdentityAbsent {
+		// THE SECOND CONSEQUENCE IS NOT THE ONE THE SHARD RECORD CARRIED. That warning ended
+		// "re-registering rotates your shard nonce and replay then discards everything the first
+		// sitting recorded" — true of shards, and false here: both sittings' events are rows and
+		// nothing selects a winner, so a second register costs you a dispatch count and no work.
+		// Copying the sentence across would have been a seat-facing threat about a mechanism that
+		// no longer exists, which is worse than no warning: it teaches a false model of the record.
+		out += "\n\nYOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent " +
+			"to this seat. You are registered and your events are recorded; what is missing is the " +
+			"binding that lets a LATER call resolve who you are without being told.\n\n" +
+			"TWO CONSEQUENCES:\n" +
+			"  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking " +
+			"and will refuse you.\n" +
+			"  REGISTERING AGAIN WILL NOT FIX IT. If a later call says \"this agent has not " +
+			"registered\", it is THIS, not a lost registration — and a second register cannot supply " +
+			"an agent id the hook never sent. Your work is safe either way; the record is " +
+			"append-only and keeps both sittings."
+	}
+	if r.HookAbsent {
+		// SEPARATE FROM THE IDENTITY BLOCK, and readable without it: under a wrapper this fires
+		// on its own, and the seat reading it may have no other symptom at all.
+		out += "\n\nTHE ENGINE'S HOOK IS NOT REACHING THIS RUN, so EVERY seat in it is affected, not " +
+			"just you. The run directory reached this tool from " + r.hookAbsentSource() + ", and not " +
+			"from the hook — which injects it on every call when it is working.\n\n" +
+			"YOUR WORK IS NOT AT RISK FROM THIS. The run directory is correct and your events are " +
+			"recorded against it. What is lost is the identity binding, and the fix for that is " +
+			"above. Record the hook's absence ONCE with the friction verb — you are the first party " +
+			"that can see it, and the run leaves no other trace of it."
+	}
+	return out
 }
 
 type closingResult struct {

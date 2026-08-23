@@ -17,7 +17,7 @@ import (
 // are lifted verbatim, and the verdict, findings, inquiries and debate are composed from the
 // event log. It is the driveable check the unit tests around each composer cannot give.
 func TestAssembleEndToEnd(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 
 	blue := strings.Join([]string{
 		"# Whether the cache is coherent — research report",

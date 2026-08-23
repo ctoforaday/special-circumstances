@@ -553,6 +553,19 @@ verb it may NOT run naming the seat that owns it, so the boundary stays legible.
 depends on #290 and must not start before it: detection is the load-bearing half, and
 identity-scoped surfaces on top of self-asserted identity would be the worst of both.
 
+> **STATUS: both stages shipped, IN THE ORDER THIS PARAGRAPH WARNED AGAINST.** Stage 6 landed
+> first (#480), so the tree was scoped to a seat id nothing verified — exactly the "worst of
+> both" named above, and it held for one merge. #290 followed: the PreToolUse hook exports the
+> harness agent handle, `register` binds it to a seat as a field on its own event, and identity
+> is read back from the record. The ordering hazard was real and is now closed; what it cost was
+> a window, not a rebuild, because the scoped tree turned out to need no change — only the thing
+> underneath it did.
+>
+> The `SeatPermissions` table above was NOT built and is not needed: the seat's verb set IS its
+> tree, so the boundary is drawn by which commands exist rather than by a table consulted at the
+> write. The "line for each verb it may not run" is carried by the refusal instead — see
+> `unknownCommandRefusal`, which names the seat that owns the verb.
+
 **Stage 7 (#346) — `[MODIFY]` documentation.** The final stage, and it is not optional cleanup:
 `debate.js` prompts, all four constitutions, `docs/seat-command-triggers.md`,
 `docs/record-flow.md`, `references/report_template.md`, and this plan's own status. Every

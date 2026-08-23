@@ -71,7 +71,9 @@ type setupRun struct {
 
 func runSetup(t *testing.T, bin, cwd string, args ...string) setupRun {
 	t.Helper()
-	c := exec.Command(bin, append([]string{"setup"}, args...)...)
+	// THE OPERATOR SAYS SO. The surface is scoped to whoever is asking, and `setup` is the
+	// operator's; without an identity there is no tree to find it in.
+	c := exec.Command(bin, append([]string{"setup", "--seat-id", "operator"}, args...)...)
 	c.Dir = cwd
 	// Hermetic: no CLAUDE_PROJECT_DIR leaking a live run's memory into the fixture.
 	c.Env = append(os.Environ(), "CLAUDE_PROJECT_DIR="+t.TempDir())

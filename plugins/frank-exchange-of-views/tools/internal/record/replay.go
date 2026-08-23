@@ -317,24 +317,23 @@ func missingGap(verb string, e *Event, gapID string) error {
 		verb, e.GetSeatId(), gapID, e.GetKey())
 }
 
-// GradeStr is a grade as the SEAT TYPES IT and the MASS TABLE KEYS ON IT, and the hyphen is the
-// whole reason this function is not a call to recordpb.Word.
+// GradeStr is a grade as the SEAT TYPES IT and the MASS TABLE KEYS ON IT.
 //
-// TWO VOCABULARIES, DIFFERING IN TWO OF EIGHT VALUES. `flags.Grade` — what a seat passes to
-// --severity, what validate accepted, and what every pre-migration shard and golden contains — is
-// `low-medium` and `medium-high`, HYPHENATED. recordpb.Spelling derives its word from the
-// generated constant name, so GRADE_LOW_MEDIUM becomes `low_medium`, UNDERSCORED, and a test pins
-// that. Both spellings are correct for their own surface; they are not interchangeable.
+// THE TWO VOCABULARIES HAVE CONVERGED, AND THIS COMMENT USED TO DENY IT. It read: "the hyphen is
+// the whole reason this function is not a call to recordpb.Word" — sitting directly above a body
+// that is exactly that call. `flags.Grade` spelled `low-medium` and `medium-high` when that was
+// written; it spells `low_medium` and `medium_high` now (flags/grade.go), MASS keys on the
+// underscored words (record.go), and the fuzz corpus that generates VALID grades says so in its
+// own header. One spelling, one surface, no join.
 //
-// The cost of getting it wrong is silent and total: record.MASS keys on `low-medium`, so an
-// underscored word looks up to 0, and GapMass multiplies likelihood by impact — one wrong
-// separator zeroes the mass of every gap graded on either of those two points, and a mass of zero
-// is exactly what an ungraded gap reports. The miss and the honest zero are the same number.
+// WHAT THE HAZARD WAS, KEPT BECAUSE THE SHAPE RECURS: while the two differed, a wrong separator
+// looked up to 0 in MASS, and GapMass multiplies likelihood by impact — so one character zeroed
+// the mass of every gap graded on either point, and a mass of zero is exactly what an ungraded gap
+// reports. The miss and the honest zero were the same number.
 //
-// The join is DERIVED, not a fourth hand-written list: the seat-facing grade vocabulary is the
-// schema spelling with underscores as hyphens, for all eight values. It is not a general rule and
-// must not be applied to other enums — ClosureClass really is `risk_accepted` on the seat's
-// surface, and a test treats `risk-accepted` as a typo of it.
+// NOT A GENERAL RULE ABOUT SEPARATORS, then or now. Disposition really is `defect_accepted` on the
+// seat's surface, DirectionRuling really is `out_of_scope` (inquiry.go checked it), and a test
+// treats the hyphenated forms as typos of them.
 //
 // "" for the unspecified zero, matching what `p.Str("severity")` returned when the key was absent,
 // which is what MASS lookups and every caller's rendering already handle.
@@ -590,10 +589,16 @@ type classRegistry struct {
 // recurring shape: the miss and the honest zero produce the same output, and a corrupt file turns
 // off the gate that keeps the class vocabulary honest without anything saying so.
 //
-// An ABSENT registry stays advisory. That is a deliberate, narrower tolerance: a run set up
-// before the registry existed, or one deliberately run without one, has nothing to validate
-// against, and refusing every mint would make those runs unusable. A registry that IS there and
-// cannot be read is different in kind — somebody staged it, so somebody meant it to bind.
+// AN ABSENT REGISTRY IS NO LONGER ADVISORY. The tolerance read: "a run set up before the registry
+// existed, or one deliberately run without one, has nothing to validate against". Two halves, and
+// they are different in kind. The first is backwards compatibility for runs that no longer exist.
+// The second is real — the fuzz, the seat probe and the tests build runs by hand — but the answer
+// to it is to STAGE a registry, not to exempt the run from the check: StageForRun does that in one
+// call, and a harness that mints against a vocabulary it never declared is not a run anybody can
+// interpret afterwards.
+//
+// A registry that IS there and cannot be read stays its own error — somebody staged it, so somebody
+// meant it to bind.
 //
 // IT IS STILL JSON, and that is not an oversight of this migration: the registry is a STAGED
 // CORPUS a human writes and setup.StageClassRegistry copies in, not a record the tool appends to.
@@ -609,17 +614,17 @@ func loadRegistry(runDir string) (*classRegistry, error) {
 	p := filepath.Join(recDir, "class-registry.json")
 	b, err := os.ReadFile(p)
 	if err != nil {
-		return nil, nil // absent — advisory, see above
+		return nil, nil // absent — knownClasses turns this into a refusal, see above
 	}
 	var reg classRegistry
 	if err := json.Unmarshal(b, &reg); err != nil {
-		return nil, fmt.Errorf("record: the class registry at %s is staged but unreadable (%v) — every --class would be accepted while it stays that way, so this is refused rather than waved through. Fix the file, or remove it to run without a registry deliberately", p, err)
+		return nil, fmt.Errorf("record: the class registry at %s is staged but unreadable (%v) — every --class would be accepted while it stays that way, so this is refused rather than waved through. Fix the file — removing it does NOT loosen the check any more, it refuses every mint instead", p, err)
 	}
 	return &reg, nil
 }
 
 // knownClasses is the registry as it stands for this run: the staged corpus plus every slug the
-// run has coined. nil means no registry is staged — advisory mode, where any slug is accepted.
+// run has coined. An absent registry is an ERROR, not a licence — see below.
 func knownClasses(runDir string) (map[string]bool, []string, error) {
 	reg, err := loadRegistry(runDir)
 	if err != nil {
@@ -635,8 +640,17 @@ func knownClasses(runDir string) (map[string]bool, []string, error) {
 			coined[c.GetSlug()] = true
 		}
 	}
+	// NO ADVISORY MODE. This returned nil,nil,nil when no registry was staged — "R1 tolerance; R4
+	// makes it strict" — and R4 never came. A check that silently no-ops when its input is absent
+	// is the plausible zero in its purest form: `mint --class anything-at-all` succeeded and the
+	// gap reached the board carrying a slug nothing recognised, while the help said the registry
+	// constrained it. The tolerance was the only thing standing between the two.
+	//
+	// An absent registry is a MISCONFIGURED RUN, not permission. run-setup stages it on every real
+	// run (setup.StageClassRegistry); a run without one has lost the file, and accepting every
+	// slug is the worst of the three available answers.
 	if reg == nil {
-		return nil, nil, nil // advisory mode (R1 tolerance; R4 makes it strict)
+		return nil, nil, fmt.Errorf("record: no gap-class registry is staged for this run — every --class would be accepted, so a mint is refused rather than waved through. run-setup stages it from feov-memory/class-registry.json; if this run was built by hand, stage one or coin the classes it needs with `class new`")
 	}
 	known, slugs := map[string]bool{}, []string(nil)
 	for _, c := range reg.Classes {
@@ -647,6 +661,32 @@ func knownClasses(runDir string) (map[string]bool, []string, error) {
 		known[s] = true
 	}
 	return known, slugs, nil
+}
+
+// StageForRun writes a gap-class registry holding exactly these slugs, for a run built by hand.
+//
+// The fuzz, the seat probe and the tests construct runs without going through run-setup, and a mint
+// names a class. Before this they were exempted from the class check by an absent-registry
+// tolerance, which is how `--class anything-at-all` reached the board with nothing objecting. They
+// declare their vocabulary now, which is both the honest fixture and the thing that makes the check
+// mean something in the runs that matter.
+func StageForRun(runDir string, slugs ...string) error {
+	recDir, err := RecordsDir(runDir)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(recDir, 0o755); err != nil {
+		return err
+	}
+	var reg classRegistry
+	for _, s := range slugs {
+		reg.Classes = append(reg.Classes, registryClass{Slug: s})
+	}
+	b, err := json.Marshal(reg)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(recDir, "class-registry.json"), b, 0o644)
 }
 
 // ClassCoinedInRun reports whether this run coined the slug, rather than inheriting it from the

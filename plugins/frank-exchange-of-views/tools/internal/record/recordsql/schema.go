@@ -206,7 +206,7 @@ func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 	}
 
 	// THE RULES THAT SPAN FIELDS, from the message's own annotation. `required` is a property of one
-	// field; "closed_with_regression requires a successor" is a rule about two, and no annotation on
+	// field; "repaired_with_regression requires a successor" is a rule about two, and no annotation on
 	// either can say it.
 	for _, c := range MessageChecks(md) {
 		if c.GetExpr() == "" {
@@ -306,7 +306,7 @@ func sqlType(fd protoreflect.FieldDescriptor) (string, error) {
 //
 // # Why a table and not a CHECK
 //
-// `CHECK (x IN ('closed', 'risk_accepted', …))` enforces the same set and throws away everything
+// `CHECK (x IN ('repaired', 'defect_accepted', …))` enforces the same set and throws away everything
 // about it. descriptions.go exists to stop exactly that: "A VALUE CARRIES ITS OWN MEANING, OR THE
 // SET IS A LIST OF NOUNS" — the meanings were already lost once, sitting in source comments where
 // no seat could read them, and putting only the words into the schema would lose them again at the

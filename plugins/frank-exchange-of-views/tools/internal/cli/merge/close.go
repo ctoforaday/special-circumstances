@@ -31,40 +31,38 @@ import (
 // the seat that could not produce them found `--carried-from` offered in the same help as the
 // easier way out. Two verbs, and each requires what it actually requires.
 func newClose() *cobra.Command {
-	c := seat.New("close",
-		`close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>"`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			p, err := closurePayload(cmd)
-			if err != nil {
-				return nil, err
+	c := seat.New("close", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		p, err := closurePayload(cmd)
+		if err != nil {
+			return nil, err
+		}
+		p.AnchorSeat = proto.String(seat.Str(cmd, flags.VerifiedBy))
+		p.AnchorTool = proto.String(seat.Str(cmd, flags.VerifiedWith))
+		p.AnchorTarget = proto.String(seat.Str(cmd, flags.VerifiedAgainst))
+		// A COMPUTATION CHECK CANNOT BE CLOSED BY PROSE.
+		//
+		// This is what makes --check-kind a demand rather than a label. Red asked for a
+		// computation; a closure with no proof answering the gap would be red accepting
+		// prose for the one class of check it declared prose cannot settle — which is
+		// exactly the round the 2026-08-05 smoke spent: R1-2 asked blue to "test it on a
+		// false claim", blue answered by ASSERTING the test had happened, and red's R2-2
+		// correctly refused it as "no evidence shown". A full round, for something three
+		// lines of trial division settle while leaving an artifact red can re-run.
+		//
+		// The guard reads the board, like the estoppel guard above it. A run whose board
+		// cannot be read does not block the closure: refusing on infrastructure would
+		// strand a round, and the check is a demand, not a safety property.
+		if kind, gerr := computationGapKind(s.RunDir, seat.Str(cmd, flags.ID)); gerr == nil && kind {
+			if !record.ProofAnswers(s.RunDir, seat.Str(cmd, flags.ID)) {
+				return nil, fmt.Errorf("merge close: %s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. Blue settles it with `blue prove --location \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
+					seat.Str(cmd, flags.ID), seat.Str(cmd, flags.ID))
 			}
-			p.AnchorSeat = proto.String(seat.Str(cmd, flags.VerifiedBy))
-			p.AnchorTool = proto.String(seat.Str(cmd, flags.VerifiedWith))
-			p.AnchorTarget = proto.String(seat.Str(cmd, flags.VerifiedAgainst))
-			// A COMPUTATION CHECK CANNOT BE CLOSED BY PROSE.
-			//
-			// This is what makes --check-kind a demand rather than a label. Red asked for a
-			// computation; a closure with no proof answering the gap would be red accepting
-			// prose for the one class of check it declared prose cannot settle — which is
-			// exactly the round the 2026-08-05 smoke spent: R1-2 asked blue to "test it on a
-			// false claim", blue answered by ASSERTING the test had happened, and red's R2-2
-			// correctly refused it as "no evidence shown". A full round, for something three
-			// lines of trial division settle while leaving an artifact red can re-run.
-			//
-			// The guard reads the board, like the estoppel guard above it. A run whose board
-			// cannot be read does not block the closure: refusing on infrastructure would
-			// strand a round, and the check is a demand, not a safety property.
-			if kind, gerr := computationGapKind(s.RunDir, seat.Str(cmd, flags.ID)); gerr == nil && kind {
-				if !record.ProofAnswers(s.RunDir, seat.Str(cmd, flags.ID)) {
-					return nil, fmt.Errorf("merge close: %s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. Blue settles it with `blue prove --location \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
-						seat.Str(cmd, flags.ID), seat.Str(cmd, flags.ID))
-				}
-			}
-			if _, err := record.Append(s.Identity(), p); err != nil {
-				return nil, err
-			}
-			return closeResult{GapID: seat.Str(cmd, flags.ID), Class: recordpb.Word(p.GetClosureClass())}, nil
-		})
+		}
+		if _, err := record.Append(s.Identity(), p); err != nil {
+			return nil, err
+		}
+		return closeResult{GapID: seat.Str(cmd, flags.ID), Class: recordpb.Word(p.GetClosureClass())}, nil
+	})
 
 	closureFlags(c)
 	c.Flags().String(flags.VerifiedBy, "", "WHO verified it — the seat that read the evidence")
@@ -93,20 +91,17 @@ func newClose() *cobra.Command {
 // prior closure is refused, because otherwise it is a laundering path for exactly the seat that
 // could not produce a verification triple.
 func newCarry() *cobra.Command {
-	c := seat.Records(seat.New("carry",
-		`restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. `+
-			`It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			p, err := closurePayload(cmd)
-			if err != nil {
-				return nil, err
-			}
-			p.CarriedFrom = proto.String(seat.Str(cmd, flags.CarriedFrom))
-			if _, err := record.Append(s.Identity(), p); err != nil {
-				return nil, err
-			}
-			return closeResult{GapID: seat.Str(cmd, flags.ID), Class: recordpb.Word(p.GetClosureClass()), Carried: true}, nil
-		}), "close")
+	c := seat.Records(seat.New("carry", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		p, err := closurePayload(cmd)
+		if err != nil {
+			return nil, err
+		}
+		p.CarriedFrom = proto.String(seat.Str(cmd, flags.CarriedFrom))
+		if _, err := record.Append(s.Identity(), p); err != nil {
+			return nil, err
+		}
+		return closeResult{GapID: seat.Str(cmd, flags.ID), Class: recordpb.Word(p.GetClosureClass()), Carried: true}, nil
+	}), "close")
 
 	closureFlags(c)
 	c.Flags().String(flags.CarriedFrom, "", "the round whose closure this restates")

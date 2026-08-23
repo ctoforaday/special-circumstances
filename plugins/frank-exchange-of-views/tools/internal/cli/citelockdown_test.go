@@ -16,12 +16,12 @@ import (
 // TestBlueEditRejectsSpanContainingCitation pins the spanMarker site: an --quote span that
 // straddles a "<!--cite:-->" anchor is refused, and the message names it as a citation.
 func TestBlueEditRejectsSpanContainingCitation(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	// A citation anchor sits between "value" and "is".
 	writeReport(t, runDir, "# H\n\nThe value<!--cite:c-abc123--> is stable over time.\n")
 	registerBlue(t, runDir)
 
-	_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "value is stable", "--new", "value is steady", "--reason", "wording")
 	if err == nil {
 		t.Fatal("an edit straddling a citation anchor was accepted")
@@ -38,7 +38,7 @@ func TestBlueEditRejectsSpanContainingCitation(t *testing.T) {
 // TestCiteAnchorBijection drives real cites + an edit and asserts the cite-event label set
 // equals the citation-anchor set in the document — the record shows exactly what is cited.
 func TestCiteAnchorBijection(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nAlpha holds under load. Beta holds under load too.\n")
 	registerBlue(t, runDir)
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{
@@ -46,11 +46,11 @@ func TestCiteAnchorBijection(t *testing.T) {
 		"https://b": []byte("source b"),
 	}})
 
-	if _, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", blueSeat,
+	if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat,
 		"--quote", `"Alpha holds under load."`, "--url", "https://a", "--title", "A"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "blue", "cite", "--run", runDir, "--seat-id", blueSeat,
+	if _, err := run(t, "cite", "--run", runDir, "--seat-id", blueSeat,
 		"--quote", `"Beta holds under load too."`, "--url", "https://b", "--title", "B"); err != nil {
 		t.Fatal(err)
 	}
@@ -109,11 +109,11 @@ func TestBlueEditRejectsAnchorInNewText(t *testing.T) {
 		{"citation anchor", "<!--cite:c-abc123-->", "citation anchor"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			runDir := t.TempDir()
+			runDir := newRun(t)
 			writeReport(t, runDir, "# H\n\nThe value is stable over time. A second sentence"+c.anchor+" is anchored.\n")
 			registerBlue(t, runDir)
 
-			_, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+			_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 				"--key", "E1", "--quote", "The value is stable", "--new", "The value is steady"+c.anchor,
 				"--reason", "pasting an anchor into the replacement")
 			if err == nil {

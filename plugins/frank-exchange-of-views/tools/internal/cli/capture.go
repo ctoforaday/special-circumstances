@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -28,7 +29,7 @@ func newCapture() *cobra.Command {
 				fmt.Fprintln(cmd.ErrOrStderr(), "usage: "+InvokedAs()+" capture <runDir> <workflow-transcript-dir>")
 				os.Exit(1)
 			}
-			audits, report, exitFail, err := capture.Run(args[0], args[1])
+			audits, report, exitFail, err := capture.Run(args[0], args[1], time.Now())
 			if err != nil {
 				return err
 			}

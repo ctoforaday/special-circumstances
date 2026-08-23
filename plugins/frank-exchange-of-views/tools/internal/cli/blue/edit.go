@@ -37,95 +37,90 @@ import (
 // mis-quote never lands a phantom op), then the write is applied; a crash between leaves the
 // event durable and the write reconciled idempotently on retry — no wedge, no phantom op.
 func newEdit() *cobra.Command {
-	c := seat.Prose(seat.New("edit",
-		`replace an exact span in blue/report.md: --key <your F1> --quote "<the span EXACTLY as `+"`show report`"+` prints it, anchors included>" --new "<replacement, carrying those anchors through unchanged>" --reason "...". `+
-			`ANCHORS ARE PART OF THE TEXT. `+"`show report`"+` prints every `+"`<!--fx:…-->`"+`, `+"`<!--cite:…-->`"+` and `+"`<!--proof:…-->`"+` as it is; quote what you see and copy each token into --new the way you copy every other character. `+
-			`A quote that stops just short of an anchor on the sentence it rewrites is REFUSED, and the refusal prints the token to carry — otherwise the reference is left beside prose it was never placed against. `+
-			`To change words around an anchor and leave it where it is, quote a FRAGMENT that does not reach it.`,
-		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-			reason, err := seat.Reason(cmd)
-			if err != nil {
-				return nil, err
-			}
-			if strings.TrimSpace(reason) == "" {
-				return nil, fmt.Errorf("blue edit requires --reason: why this change (the argument red re-audits against)")
-			}
-			oldStr := seat.Str(cmd, flags.Quote)
-			newStr := seat.Str(cmd, flags.New)
-			if oldStr == "" {
-				return nil, fmt.Errorf("blue edit requires --quote: the EXACT current span to replace (matched across the invisible marker layer, like the Edit tool)")
-			}
-			if oldStr == newStr {
-				return nil, fmt.Errorf("blue edit: --old and --new are identical — no change to make")
-			}
-			key := seat.Str(cmd, flags.Key)
+	c := seat.Prose(seat.New("edit", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		reason, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(reason) == "" {
+			return nil, fmt.Errorf("blue edit requires --reason: why this change (the argument red re-audits against)")
+		}
+		oldStr := seat.Str(cmd, flags.Quote)
+		newStr := seat.Str(cmd, flags.New)
+		if oldStr == "" {
+			return nil, fmt.Errorf("blue edit requires --quote: the EXACT current span to replace (matched across the invisible marker layer, like the Edit tool)")
+		}
+		if oldStr == newStr {
+			return nil, fmt.Errorf("blue edit: --old and --new are identical — no change to make")
+		}
+		key := seat.Str(cmd, flags.Key)
 
-			// Crash-retry: a committed blue_edit for this key means the op is already on the
-			// stack — reconcile the write idempotently, do NOT append a second op.
-			prior, err := record.ExistingBlueEditByKey(s.RunDir, s.SeatID, key)
-			if err != nil {
-				return nil, err
-			}
-			if prior {
-				if err := applyEdit(s.RunDir, oldStr, newStr); err != nil {
-					return nil, err
-				}
-				return editResult{Idempotent: true}, nil
-			}
-
-			// FRESH: validate against a consistent snapshot BEFORE committing the event, so a
-			// mis-quote or a marker-spanning edit never lands a phantom stack op.
-			peek, err := record.ReadBlueReport(s.RunDir)
-			if err != nil {
-				return nil, err
-			}
-			planned, err := validateEdit(string(peek), oldStr, newStr)
-			if err != nil {
-				return nil, err
-			}
-
-			// Event-first: commit the diff-stack op, then apply the write.
-			body := &recordpb.BlueEdit{
-				EditKey: proto.String(seat.Str(cmd, flags.Key)),
-				Answers: proto.String(seat.Str(cmd, flags.Answers)),
-				Old:     proto.String(oldStr),
-				New:     proto.String(newStr),
-				Text:    proto.String(reason),
-				// WHAT THIS EDIT REOPENED. An anchor is never lost — that is enforced above and
-				// holds — but one that SURVIVES onto rewritten prose is a citation backing a
-				// sentence nobody read, and nothing said so. Text moves through this verb alone,
-				// so the no-loss proof and the requires-review mark belong on this one channel.
-				//
-				// Computed from the SNAPSHOT the validation used, not from a re-read: the write
-				// has not happened yet, and a second read could see a different document.
-				Reopened: bluedoc.ReopenedAnchors(string(peek), planned),
-			}
-			// ESTOPPEL, RECORDED BY THE TOOL COMPARING BYTES (#267 stage 4).
-			//
-			// If blue applied red's own proposed text EXACTLY, there is nothing left for red to
-			// complain about at this site BY CONSTRUCTION, not by good behaviour. The fact is
-			// computed here — never claimed by either seat — and `merge mint` reads it to refuse
-			// a fresh gap relitigating text red itself prescribed.
-			//
-			// Blue is not obliged to reach this state: a counter-edit simply does not set the
-			// flag, and record.DeclineStats counts that as blue exercising its right to disagree.
-			if gapID := seat.Str(cmd, flags.Answers); gapID != "" {
-				verbatim, err := record.ProposalAppliedVerbatim(s.RunDir, gapID, oldStr, newStr)
-				if err != nil {
-					return nil, err
-				}
-				if verbatim {
-					body.AppliedVerbatim = proto.Bool(true)
-				}
-			}
-			if _, err := record.Append(s.Identity(), body); err != nil {
-				return nil, err
-			}
+		// Crash-retry: a committed blue_edit for this key means the op is already on the
+		// stack — reconcile the write idempotently, do NOT append a second op.
+		prior, err := record.ExistingBlueEditByKey(s.RunDir, s.SeatID, key)
+		if err != nil {
+			return nil, err
+		}
+		if prior {
 			if err := applyEdit(s.RunDir, oldStr, newStr); err != nil {
 				return nil, err
 			}
-			return editResult{}, nil
-		}))
+			return editResult{Idempotent: true}, nil
+		}
+
+		// FRESH: validate against a consistent snapshot BEFORE committing the event, so a
+		// mis-quote or a marker-spanning edit never lands a phantom stack op.
+		peek, err := record.ReadBlueReport(s.RunDir)
+		if err != nil {
+			return nil, err
+		}
+		planned, err := validateEdit(string(peek), oldStr, newStr)
+		if err != nil {
+			return nil, err
+		}
+
+		// Event-first: commit the diff-stack op, then apply the write.
+		body := &recordpb.BlueEdit{
+			EditKey: proto.String(seat.Str(cmd, flags.Key)),
+			Answers: proto.String(seat.Str(cmd, flags.Answers)),
+			Old:     proto.String(oldStr),
+			New:     proto.String(newStr),
+			Text:    proto.String(reason),
+			// WHAT THIS EDIT REOPENED. An anchor is never lost — that is enforced above and
+			// holds — but one that SURVIVES onto rewritten prose is a citation backing a
+			// sentence nobody read, and nothing said so. Text moves through this verb alone,
+			// so the no-loss proof and the requires-review mark belong on this one channel.
+			//
+			// Computed from the SNAPSHOT the validation used, not from a re-read: the write
+			// has not happened yet, and a second read could see a different document.
+			Reopened: bluedoc.ReopenedAnchors(string(peek), planned),
+		}
+		// ESTOPPEL, RECORDED BY THE TOOL COMPARING BYTES (#267 stage 4).
+		//
+		// If blue applied red's own proposed text EXACTLY, there is nothing left for red to
+		// complain about at this site BY CONSTRUCTION, not by good behaviour. The fact is
+		// computed here — never claimed by either seat — and `merge mint` reads it to refuse
+		// a fresh gap relitigating text red itself prescribed.
+		//
+		// Blue is not obliged to reach this state: a counter-edit simply does not set the
+		// flag, and record.DeclineStats counts that as blue exercising its right to disagree.
+		if gapID := seat.Str(cmd, flags.Answers); gapID != "" {
+			verbatim, err := record.ProposalAppliedVerbatim(s.RunDir, gapID, oldStr, newStr)
+			if err != nil {
+				return nil, err
+			}
+			if verbatim {
+				body.AppliedVerbatim = proto.Bool(true)
+			}
+		}
+		if _, err := record.Append(s.Identity(), body); err != nil {
+			return nil, err
+		}
+		if err := applyEdit(s.RunDir, oldStr, newStr); err != nil {
+			return nil, err
+		}
+		return editResult{}, nil
+	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
 	c.Flags().String(flags.Quote, "", "REQUIRED — "+flags.DescQuote+". It is matched ACROSS the invisible anchor layer, and rejected if it contains a finding-marker or a citation anchor")
