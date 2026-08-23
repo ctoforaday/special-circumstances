@@ -267,7 +267,9 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
-		recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED), Principle: proto.String("correctness"), Tension: proto.String("cost"), ReviewFlag: proto.String("false"), Rationale: proto.String("needs a probe")}),
+		recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED), Principle: proto.String("correctness"), Tension: proto.String("cost"), ReviewFlag: proto.String("false"), Settled: proto.String("the claim as it stood may not be re-asserted"),
+			Final:     proto.Bool(true),
+			Rationale: proto.String("needs a probe")}),
 		// A petition is a MOTION now — the retired `petition` event type has no arm in the schema,
 		// so the fixture could only ever have described a state nothing writes.
 		recordtest.Event(t, "blue-r1", 1, &recordpb.Motion{

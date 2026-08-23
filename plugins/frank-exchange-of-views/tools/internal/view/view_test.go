@@ -263,7 +263,7 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 	if !strings.Contains(ledger, "class overclaim") {
 		t.Errorf("a gap's class must be rendered:\n%s", ledger)
 	}
-	if !strings.Contains(ledger, "R1-2 | closed_with_regression | a closed problem | R1-3") {
+	if !strings.Contains(ledger, "R1-2 | repaired_with_regression | a closed problem | R1-3") {
 		t.Errorf("closure index row is wrong:\n%s", ledger)
 	}
 
@@ -532,7 +532,9 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 		}),
 	})
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Principle: proto.String("correctness first"), Tension: proto.String("speed against certainty"), ReviewFlag: proto.String("none"), Rationale: proto.String("because")}),
+		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Principle: proto.String("correctness first"), Tension: proto.String("speed against certainty"), ReviewFlag: proto.String("none"), Settled: proto.String("the claim as it stood may not be re-asserted"),
+			Final:     proto.Bool(true),
+			Rationale: proto.String("because")}),
 	})
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, lens, 1, lens+":verify:https://x", &recordpb.Verify{Claim: proto.String("the source says so"), Anchor: proto.String("c-abc"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_MEDIUM), Text: proto.String("read at the leaf"), AccessDate: proto.String("2026-07-18")}),
@@ -541,7 +543,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 
 	debate := md(t, runDir, "debate")
 	for _, want := range []string{"## Round 1", "### RED\nred says so", "### BLUE\nblue says otherwise",
-		"### RED CLOSING (round 1) — R1-1", "### LEAD", "closed — principle: correctness first"} {
+		"### RED CLOSING (round 1) — R1-1", "### LEAD", "repaired — principle: correctness first"} {
 		if !strings.Contains(debate, want) {
 			t.Errorf("debate is missing %q:\n%s", want, debate)
 		}

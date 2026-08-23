@@ -89,19 +89,21 @@ func TestAssembleEndToEnd(t *testing.T) {
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
 	add("red-merge-r1", &recordpb.Position{Text: proto.String("gap R1-1 stands until the race is shown impossible")})
-	add("blue-r1", &recordpb.Position{Text: proto.String("R1-1 is repaired by ordering the invalidation before the store")})
-	add("blue-r1", &recordpb.Avenue{
+	add("blue-respond-r1", &recordpb.Position{Text: proto.String("R1-1 is repaired by ordering the invalidation before the store")})
+	add("blue-respond-r1", &recordpb.Avenue{
 		AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED),
 		Line: proto.String("model-check the two-writer interleaving"), Method: proto.String("TLA+"),
 	})
-	add("blue-r1", &recordpb.Avenue{
+	add("blue-respond-r1", &recordpb.Avenue{
 		AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED),
 		Line: proto.String("rewrite the cache lock-free"), Reason: proto.String("cost exceeds the benefit at this scale"),
 	})
 	add("judge-r1", &recordpb.Opinion{
 		GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
 		Principle: proto.String("correctness"), Tension: proto.String("cost vs certainty"),
-		ReviewFlag: proto.String("false"), Rationale: proto.String("a model-check is owed before this closes"),
+		ReviewFlag: proto.String("false"), Settled: proto.String("the claim as it stood may not be re-asserted"),
+		Final:     proto.Bool(true),
+		Rationale: proto.String("a model-check is owed before this closes"),
 	})
 	add("judge-terminal", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),

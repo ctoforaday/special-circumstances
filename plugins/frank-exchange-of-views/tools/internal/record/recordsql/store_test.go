@@ -152,7 +152,7 @@ func TestAnAbsentFieldIsNull(t *testing.T) {
 
 // A RULE THAT SPANS TWO FIELDS IS ENFORCED BY THE DATABASE, not only by the tool.
 //
-// "closed_with_regression requires a successor" cannot be NOT NULL — the column must stay nullable
+// "repaired_with_regression requires a successor" cannot be NOT NULL — the column must stay nullable
 // for every other closure class — so it lived as an `if` in validate. That left the DATABASE
 // willing to store the exact state the tool refused, and for a record that is EVIDENCE the gap is
 // real: anything writing SQL directly could create it, and the row would look legitimate.

@@ -742,29 +742,35 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 
 // ---- liveness ----
 
-// writeRun lays down one shard of `n` events `gap` apart, ending at `last`. `outcome` adds a
-// bench `outcome` event as the final one, which is what separates a finished run from a killed
-// one — see LivenessAudit.
+// writeRunForLiveness lays down `n` events `gap` apart, ending at `last`. `outcome` makes the last
+// one a bench `outcome`, which is what separates a finished run from a killed one — see
+// LivenessAudit.
+//
+// SEEDED THROUGH THE STORE. This hand-wrote an `events-<seat>-<nonce>.jsonl` line at a time with
+// Fprintf. There are no shards, so it produced a run whose record was EMPTY and LivenessAudit
+// answered "no events in this run" for every case — a fixture failing in a way that reads like the
+// audit having an opinion.
 func writeRunForLiveness(t *testing.T, n int, gap time.Duration, last time.Time, outcome bool) string {
 	t.Helper()
 	dir := t.TempDir()
-	recs := filepath.Join(dir, "records")
-	if err := os.MkdirAll(recs, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	var b strings.Builder
+	stamp := "2006-01-02T15:04:05.000000000Z07:00"
+	evs := make([]*recordpb.Event, 0, n)
 	for i := 0; i < n; i++ {
-		ts := last.Add(-time.Duration(n-1-i) * gap).UTC().Format("2006-01-02T15:04:05.000000000Z07:00")
-		typ, payload := "finding", `{"label":"L1-F1"}`
+		ts := last.Add(-time.Duration(n-1-i) * gap).UTC().Format(stamp)
 		if outcome && i == n-1 {
-			typ, payload = "outcome", `{"verdict":"CEILING"}`
+			evs = append(evs, recordtest.Stamped(recordtest.At(t, "judge-terminal", 1, "judge-terminal:outcome:#1", &recordpb.Outcome{
+				Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
+				Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
+			}), ts))
+			continue
 		}
-		fmt.Fprintf(&b, `{"seq":%d,"ts":%q,"seatId":"red-lens-r1-L1","nonce":"aaaaaaaa","round":1,"role":"lens","type":%q,"key":"k%d","payload":%s}`+"\n",
-			i, ts, typ, i, payload)
+		evs = append(evs, recordtest.Stamped(recordtest.At(t, "red-lens-r1-L1", 1, fmt.Sprintf("red-lens-r1-L1:finding:k%d", i), &recordpb.Finding{
+			FindingId: proto.String(fmt.Sprintf("F%d", i)),
+			Label:     proto.String(fmt.Sprintf("L1-F%d", i)),
+			Text:      proto.String("a finding"),
+		}), ts))
 	}
-	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-r1-L1-aaaaaaaa.jsonl"), []byte(b.String()), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	recordtest.Seed(t, dir, evs...)
 	return dir
 }
 
