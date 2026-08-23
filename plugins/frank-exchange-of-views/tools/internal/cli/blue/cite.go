@@ -106,9 +106,9 @@ func newCite() *cobra.Command {
 		return citeResult{Label: label, URL: url, Sha256: sha}, nil
 	}))
 
-	c.Flags().String(flags.Quote, "", "REQUIRED — "+flags.DescQuote+". The invisible citation anchor is spliced here, so a mis-quote is rejected rather than guessed at")
-	c.Flags().String(flags.URL, "", "REQUIRED — "+flags.DescURL)
-	c.Flags().String(flags.Title, "", "REQUIRED — "+flags.DescTitle)
+	c.Flags().String(flags.Quote, "", flags.DescQuote+". The invisible citation anchor is spliced here, so a mis-quote is rejected rather than guessed at")
+	c.Flags().String(flags.URL, "", flags.DescURL)
+	c.Flags().String(flags.Title, "", flags.DescTitle)
 	c.Flags().String(flags.Key, "", flags.DescKey+"; the TOOL assigns the c-<hex> label")
 	return c
 }

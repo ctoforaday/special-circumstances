@@ -106,7 +106,21 @@ func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
 	if m == nil || m[0] != 0 {
 		return end, nil
 	}
-	tok := after[m[0]:m[1]]
+	// THE RUN, NOT THE FIRST TOKEN. Two lenses anchoring one sentence is an ordinary corpus shape
+	// — `verification<!--fx:f-e4bc25ec--><!--fx:f-73a56bd3-->` is from a real report — and this
+	// consumed one token deep. The seat then quoted the sentence exactly as `show report` prints
+	// it, carried BOTH markers into --new as instructed, and was told the second one was an
+	// INVENTION: it sat past the extended span, so AnchorsTransitUnchanged saw it appear from
+	// nowhere. Following its own instruction was the thing that got it refused.
+	run := m[1]
+	for {
+		next := anyAnchorToken.FindStringIndex(after[run:])
+		if next == nil || next[0] != 0 {
+			break
+		}
+		run += next[1]
+	}
+	tok := after[:run]
 
 	// THE SEAT QUOTED IT: EXTEND THE SPAN TO COVER IT.
 	//
@@ -118,7 +132,7 @@ func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
 	// terminator goes with the replacement instead of being stranded past the marker — which is
 	// what produced `now.<!--cite:c-…-->.`
 	if strings.Contains(quoted, tok) {
-		return end + (len(tail) - len(after)) + m[1], nil
+		return end + (len(tail) - len(after)) + run, nil
 	}
 
 	// IT DID NOT: refuse, and print the token to carry.
