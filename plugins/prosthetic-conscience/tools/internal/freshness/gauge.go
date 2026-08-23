@@ -37,10 +37,12 @@ func Of(projectDir, transcriptPath, note string, branch Branch) Measures {
 
 	stPath := filepath.Join(projectDir, ".claude", "checkpoints", "freshness.json")
 	st := readState(stPath)
-	st = Observe(st, writtenAt, m)
+	st, justStamped := ObserveAndSay(st, writtenAt, m)
 	writeState(stPath, st)
 
-	return Gauge(st, m, branch)
+	// justStamped suppresses growth on this row: the reading it would measure against
+	// was taken in this same call, so the answer would be a manufactured zero.
+	return GaugeAfter(st, m, branch, justStamped)
 }
 
 // readState returns the zero State for anything it cannot read. A corrupt or absent

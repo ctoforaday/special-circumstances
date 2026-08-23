@@ -40,6 +40,12 @@ type sealRow struct {
 	SealTrigger string `json:"seal_trigger"`
 	BodySHA     string `json:"body_sha"`
 
+	// WrittenAt is the note's OWN claim about when its body last changed, recorded
+	// beside the hash so F6 is computable FROM THE RECORD: a written_at that advanced
+	// between two rows while body_sha did not is a note claiming to be fresh when it is
+	// not. Without this field the hash had no comparable and no reader.
+	WrittenAt string `json:"written_at,omitempty"`
+
 	// LiveHandles is a POINTER so that "the event cannot tell me" and "there was no
 	// background work" stay different answers. PreCompact and SessionEnd carry no
 	// background_tasks key at all (hook-surface-spike.md §12); only SubagentStop and
@@ -66,6 +72,13 @@ type sealRow struct {
 	// compaction. Recorded as its own fact so the baseline can say how often it is
 	// absent rather than leaving that to be inferred.
 	CeilingKnown bool `json:"ceiling_known"`
+
+	// NudgeEnabled says whether the nudge was live when this row was written. Criterion
+	// 6 compares the two populations, and Phase 1 rows are the "before" half — a row
+	// that does not carry the key at all makes `select(.nudge_enabled==false)` return
+	// nothing, so the kill switch would compare a real "after" against an empty
+	// "before" and report whatever it liked.
+	NudgeEnabled bool `json:"nudge_enabled"`
 
 	// NudgeAnswered is derived by the SEALER, never self-reported by an agent. In
 	// Phase 1 no nudge exists, so every row carries "n/a" — which is a value, not an
@@ -131,7 +144,7 @@ func countHandles(tasks, crons *json.RawMessage) (n int, measured bool) {
 // hook path costs a session its restore over a lost observation. (The nudge is the
 // opposite — it fails CLOSED — because a lost row costs one measurement while an
 // unrecorded emission costs a loop.)
-func appendSealRow(dir string, body []byte, now time.Time, event, occ string, in hookInput, stderr io.Writer, age Measures) {
+func appendSealRow(dir string, body []byte, now time.Time, event, occ string, in hookInput, stderr io.Writer, age Measures, writtenAt string) {
 	sum := sha256.Sum256(body)
 	n, measured := countHandles(in.BackgroundTasks, in.SessionCrons)
 	row := sealRow{
@@ -143,11 +156,14 @@ func appendSealRow(dir string, body []byte, now time.Time, event, occ string, in
 		SealTrigger:     sealTriggers[event],
 		BodySHA:         hex.EncodeToString(sum[:]),
 		HandlesMeasured: measured,
-		NudgeAnswered:   "n/a",
-		TurnsMeasured:   age.TurnsMeasured,
-		GrowthMeasured:  age.GrowthKnown,
-		BranchMeasured:  age.BranchKnown,
-		CeilingKnown:    age.ProximityKnown,
+		WrittenAt:       writtenAt,
+		// Phase 1 ships no nudge. This becomes a real reading when stopnudge exists.
+		NudgeEnabled:   false,
+		NudgeAnswered:  "n/a",
+		TurnsMeasured:  age.TurnsMeasured,
+		GrowthMeasured: age.GrowthKnown,
+		BranchMeasured: age.BranchKnown,
+		CeilingKnown:   age.CeilingKnown,
 	}
 	if measured {
 		row.LiveHandles = &n

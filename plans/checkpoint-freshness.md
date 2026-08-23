@@ -114,9 +114,9 @@ clause 3 governs: **a percentage we cannot compute must not be printed.**
 
 ### Work done is a branch-line count, not a HEAD distance — measured
 
-The shipped restore computes staleness as `git rev-list --count <note-head>..HEAD`
-(`internal/checkpointrestore/main.go:293`). That counts every commit reachable from HEAD and not
-from the note — which is dominated by *other people's work arriving*, not by work this session
+The restore **used to** compute staleness as `git rev-list --count <note-head>..HEAD`
+(`internal/checkpointrestore/main.go`, fixed in `2eeebc7`). That counted every commit reachable from
+HEAD and not from the note — which is dominated by *other people's work arriving*, not by work this session
 did. On this repository, from the merge-base with `main` to `HEAD`:
 
 ```
@@ -125,8 +125,10 @@ git rev-list --count --first-parent <merge-base>..HEAD   →   24
 ```
 
 **85 of those 109 are merged-in side branches.** A note written before a routine `main` merge
-would be reported as 100+ commits stale having done nothing. `--first-parent` walks this branch's
-own line and answers the question that matters: how much work landed *here* since the note.
+was reported as 100+ commits stale having done nothing. `--first-parent` walks this branch's own line
+and answers the question that matters: how much work landed *here* since the note. **Fixed and
+tested** — `commitsSince` had no test against a real repository at all, since `staleness` was tested
+through an injected counter and the shelling-out half was never exercised.
 
 **Do not filter by author.** Re-measured 2026-08-22 across the same range in two worktrees, which
 agree: `--author=$(git config user.email)` (`gblock+agent@ctoforaday.com`) returns **1** of 109 —
@@ -222,8 +224,16 @@ reference point to the present on every call, and growth would report the interv
 tick rather than since the note. That measure is always near zero and always looks healthy.
 
 `Branch` is passed IN rather than computed here, because it costs a git subprocess (p50 33 ms, p95
-170 ms measured on this repository) — one to two orders of magnitude above the transcript budget, so
-the caller owns the per-`HEAD` cache and this package stays cheap.
+170 ms measured on this repository) — one to two orders of magnitude above the transcript budget.
+
+**Who owns the cache, and when there is one to own.** In Phase 1 there is no cache and none is
+needed: the callers are the two record writers, which run at a **seal** and at a **compaction** —
+events that happen a handful of times per session, where a 33 ms subprocess is invisible. The cache
+becomes necessary only when something calls the gauge on a **turn boundary**, and that something is
+`cmd/sc-stop` in Phase 2. **`sc-stop` owns it**, in `freshness.json`, as `branch_head_seen` +
+`branch_commits_seen`: recomputed only when `HEAD` moves. Criterion 3's 200 ms branch budget and §V's
+repeat-call gate are Phase 2 gates for that reason — an earlier draft placed the requirement with no
+owner named, which is a gate over a component the spec never assigned.
 
 **No thresholds and no bands are built.** Phase 1 collects the distribution they are supposed to come
 from; a package that shipped a default would be laundering the guess §III refuses.
@@ -298,7 +308,7 @@ the note claims about itself.
 `tools/` cannot return its own table's rows**:
 
 ```bash
-git grep -l "schema: 2"      -- plugins/          # 11 files
+git grep -l "schema: 3"      -- plugins/          # 13 files (11 migrated + 2 added by the build)
 git grep -n -w "updated"     -- plugins/          # every reader of the retired field
 git grep -n 'Get("schema")'  -- plugins/          # 1 hit
 ```
@@ -313,7 +323,7 @@ git grep -n 'Get("schema")'  -- plugins/          # 1 hit
 | `internal/checkpointseal` | computes `body_sha` from the snapshot it already takes, into the seal row |
 | `internal/postcompactobserve`, `internal/filechangedrearm`, `internal/sessionstart` | read the note; additive fields, no behaviour change |
 | `gray-area/tools/internal/claims/claims_test.go:18` | a `schema: 2` fixture — **outside `prosthetic-conscience` entirely**, which is why the census must be plugin-wide |
-| **`schema: 2` fixtures — 11 files**: the two above plus `checkpoint_test.go`, `checkpointrestore/{compose,main}_test.go`, `checkpointseal/{drift,hook,main}_test.go`, `filechangedrearm/main_test.go`, `postcompactobserve/main_test.go`, `sessionstart/main_test.go` | inline string literals, not `testdata` — there is no such directory |
+| **`schema: 3` fixtures — 13 files**: the two above plus `checkpoint_test.go`, `checkpointrestore/{compose,main}_test.go`, `checkpointseal/{drift,hook,main}_test.go`, `filechangedrearm/main_test.go`, `postcompactobserve/main_test.go`, `sessionstart/main_test.go` | inline string literals, not `testdata` — there is no such directory |
 
 Everything else `git grep -n -w "updated"` returns is `frank-exchange-of-views` prose using the
 English word, and `hookcmd.go`'s `updatedInput` local — adjudicated as unrelated rather than left
@@ -329,12 +339,14 @@ tri-state discipline `Ceiling` already uses, applied to the field this design tu
 
 | Field | Why |
 |---|---|
-| `bands_spent` | which of NOTICE/WARN/URGENT have fired, **reset when the note is ANSWERED** — i.e. when `written_at` OR `reaffirmed_at` moves. Bands close on an answer; age tracks content. The skill clause makes a reasoned "still accurate" a valid answer, so it must close the band while leaving the age alone |
-| `emissions_this_session` | a monotone counter, **NOT reset by an answer** — criterion 4's cap is per session, and a counter that resets cannot enforce it |
-| `emission_bytes_max` | the largest render emitted, for criterion 4's ≤ 200 bytes |
-| `tokens_at_write` | context tokens when the current `written_at` was first observed — **the growth measure's other term**, which no record held before |
-| `dropped_at_write` | `cumulativeDroppedTokens` at that same moment, so growth stays monotone across a compaction |
-| `answered_at_seen` | the latest of `written_at`/`reaffirmed_at` this file has observed — what the band reset is keyed on. A field, so a filesystem timestamp is not load-bearing anywhere in the mechanism |
+| Field | Built? | Why |
+|---|---|---|
+| `written_at_seen` | **yes** | the note's `written_at` as last observed — the key deciding whether the reading below still belongs to this note |
+| `tokens_at_write`, `dropped_at_write` | **yes** | growth's other term, which no record held. Both, so growth stays monotone across a compaction |
+| `has_write_reading` | **yes** | separates "stamped at zero" from "never stamped". This is the mechanism behind the "absent → `Unmeasured`, never 0" promise; without it a note first seen before this shipped reports its whole context as growth |
+| `bands_spent` | Phase 2 | which of NOTICE/WARN/URGENT have fired, **reset when the note is ANSWERED** — `written_at` OR `reaffirmed_at` moving. Bands close on an answer; age tracks content |
+| `emissions_this_session`, `emission_bytes_max` | Phase 2 | criterion 4's cap, counted rather than intended. **Not** reset by an answer |
+| `answered_at_seen` | Phase 2 | the later of `written_at`/`reaffirmed_at` at the moment a band was spent — what `nudge_answered`'s derivation compares against. It does not exist yet, and `nudge_answered` is `n/a` on every Phase 1 row for exactly that reason |
 
 **The hard cap is here, and it is separate from the band policy.** Bands are "at most once per band
 per session, reset on write" — which permits three emissions per note-write cycle, so two checkpoint
@@ -376,8 +388,8 @@ which is spike §3b's *surviving* claim: "the hook adds no imperative of its own
 `commitsSince` gains `--first-parent` and the surrounding prose changes from "commits ago" to
 "commits on this branch". This is a **correctness fix to shipped behaviour**, evidenced in §II
 (109 vs 24), and it stands independently of everything else here. **The restore digest carries the BRANCH measure only, and that is a payload fact rather than a
-choice.** `SessionStart`'s stdin is `{session_id, cwd, hook_event_name, source}` — measured, spike
-§9a — **with no `transcript_path`**. Turns and growth both need the transcript, so at this event they
+choice.** `SessionStart`'s stdin is `{session_id, cwd, hook_event_name, source}` — measured, spike **§9e correction 3** —
+**with no `transcript_path`**. Turns and growth both need the transcript, so at this event they
 cannot be computed at all. What the digest can say about age it already says: `staleness()` renders
 the branch count, which needs only git. The other two ride the seal record, where the sealing events
 do carry a transcript path.
@@ -413,8 +425,8 @@ at=%s -->` (`internal/checkpointseal/main.go:397-405`) — in a directory pruned
 
 So the first change is a **record**: `.claude/checkpoints/seals.jsonl`, append-only, one JSON object per
 seal, written by `internal/checkpointseal` and therefore by all three sealing commands
-(`sc-precompact`, `sc-sessionend`, `sc-subagentstop`). **BUILT** — `sealrow.go`, with the seal-side
-fields below; the age fields wait on `internal/freshness`, which is not built yet. Not pruned — a row is ~200 bytes and the
+(`sc-precompact`, `sc-sessionend`, `sc-subagentstop`). **BUILT** — `sealrow.go`, carrying the seal-side fields,
+the three age figures and their measured flags, `written_at`, `nudge_enabled` and `nudge_answered`. Not pruned — a row is ~200 bytes and the
 baseline needs history. The markdown snapshot and its comment stamp stay exactly as they are: they
 serve human recovery, and [[facts-are-fields]] does not ask for prose to be stripped, only for the
 machine-read fact to live in a field.
@@ -729,9 +741,17 @@ range — not either number.
 `.claude/checkpoints/seals.jsonl`, written by `internal/checkpointseal` on all three sealing events:
 
 ```bash
-jq -s 'map(select(.note_age_turns)) | {n:length,
-        turns:(map(.note_age_turns)|sort), growth:(map(.note_growth_tokens)|sort),
-        commits:(map(.note_branch_commits)|sort)}' .claude/checkpoints/seals.jsonl
+# Each distribution filters on ITS OWN measured flag. Filtering once on turns and then
+# building all three arrays lets rows with turns measured but growth absent contribute
+# null, which sort places first and which moves the median index.
+jq -s '{n: length,
+        turns:   ([.[] | select(.turns_measured)  | .note_age_turns]    | sort),
+        growth:  ([.[] | select(.growth_measured) | .note_growth_tokens]| sort),
+        commits: ([.[] | select(.branch_measured) | .note_branch_commits] | sort),
+        measured: {turns:  ([.[] | select(.turns_measured)]  | length),
+                   growth: ([.[] | select(.growth_measured)] | length),
+                   branch: ([.[] | select(.branch_measured)] | length)}}' \
+   .claude/checkpoints/seals.jsonl
 ```
 
 And the two folded-in observations. **Both queries filter on measurability first**, because the

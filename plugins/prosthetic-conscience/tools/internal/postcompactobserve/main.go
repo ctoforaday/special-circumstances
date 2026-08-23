@@ -231,7 +231,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		TurnsMeasured:  age.TurnsMeasured,
 		GrowthMeasured: age.GrowthKnown,
 		BranchMeasured: age.BranchKnown,
-		CeilingKnown:   age.ProximityKnown,
+		CeilingKnown:   age.CeilingKnown,
 		// Phase 1 ships no nudge. This becomes a real reading when stopnudge exists.
 		NudgeEnabled: false,
 	}

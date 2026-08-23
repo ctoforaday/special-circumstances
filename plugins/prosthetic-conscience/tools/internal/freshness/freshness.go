@@ -67,6 +67,22 @@ type Measures struct {
 	// context window, so the only ceiling is this session's own first compaction.
 	Proximity      float64
 	ProximityKnown bool
+
+	// CeilingKnown is whether a compaction trigger point was found AT ALL. It is not
+	// the same fact as ProximityKnown, which also needs a token reading — a row that
+	// let proximity stand in for it would report "no ceiling" for a session that had
+	// compacted twice but whose transcript tail was unreadable.
+	CeilingKnown bool
+}
+
+// GaugeAfter is Gauge with the stamping flag from ObserveAndSay: when this call created
+// the write-time reading, growth has no interval behind it and is reported unmeasured.
+func GaugeAfter(st State, m ctxusage.Measure, b Branch, justStamped bool) Measures {
+	out := Gauge(st, m, b)
+	if justStamped {
+		out.Growth, out.GrowthKnown = 0, false
+	}
+	return out
 }
 
 // Gauge composes the readings into the measures. Nothing here re-reads anything: it is
@@ -98,6 +114,7 @@ func Gauge(st State, m ctxusage.Measure, b Branch) Measures {
 		out.Growth, out.GrowthKnown = now-then, true
 	}
 
+	out.CeilingKnown = m.CeilingKnown
 	if m.TokensKnown && m.CeilingKnown && m.Ceiling > 0 {
 		out.Proximity, out.ProximityKnown = float64(m.Tokens)/float64(m.Ceiling), true
 	}
@@ -112,6 +129,24 @@ func Gauge(st State, m ctxusage.Measure, b Branch) Measures {
 // rather than since the note — a measure that is always near zero and always looks
 // healthy.
 func Observe(st State, writtenAt time.Time, m ctxusage.Measure) State {
+	out, _ := ObserveAndSay(st, writtenAt, m)
+	return out
+}
+
+// ObserveAndSay is Observe, and it also reports whether THIS call created the reading.
+//
+// The caller needs to know, because a gauge run in the same breath as the stamping
+// would compare the current figure against itself and report growth 0 as MEASURED. For
+// a note written long before its first seal that zero is manufactured, and it lands in
+// criterion 1's distribution looking exactly like a genuinely fresh note.
+func ObserveAndSay(st State, writtenAt time.Time, m ctxusage.Measure) (State, bool) {
+	before := st
+	st = observe(st, writtenAt, m)
+	stamped := st.HasWriteReading && (!before.HasWriteReading || !before.WrittenAtSeen.Equal(st.WrittenAtSeen))
+	return st, stamped
+}
+
+func observe(st State, writtenAt time.Time, m ctxusage.Measure) State {
 	if writtenAt.IsZero() {
 		return st
 	}

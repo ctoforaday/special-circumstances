@@ -296,7 +296,7 @@ func staleness(head string, since func(string) (int, bool)) string {
 
 // THE DIGEST CANNOT CARRY THE FULL GAUGE, and this is a payload fact rather than a
 // choice. SessionStart's stdin is {session_id, cwd, hook_event_name, source} — MEASURED,
-// hook-surface-spike.md §9a — with no transcript_path. Turns and growth both need the
+// hook-surface-spike.md §9e correction 3 — with no transcript_path. Turns and growth both need the
 // transcript, so at this event they cannot be computed at all.
 //
 // What the digest can say about age, it already says: staleness() renders the branch

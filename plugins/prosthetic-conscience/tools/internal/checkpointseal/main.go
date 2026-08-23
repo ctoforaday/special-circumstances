@@ -423,7 +423,7 @@ func seal(projectDir, note string, now time.Time, event string, in hookInput, st
 	// the snapshot would make every seal differ and the drift check meaningless.
 	age := freshness.Of(projectDir, in.TranscriptPath, string(body),
 		freshness.BranchWork(checkpoint.Parse(string(body)).Get("head")))
-	appendSealRow(dir, body, now, event, occ, in, stderr, age)
+	appendSealRow(dir, body, now, event, occ, in, stderr, age, checkpoint.Parse(string(body)).Get("written_at"))
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
