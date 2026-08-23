@@ -204,7 +204,16 @@ func TestObservationCarriesTheNotesAge(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	in := `{"session_id":"s1","transcript_path":"` + tpath + `","trigger":"auto","compact_summary":"a summary"}`
+	// MARSHALLED, not concatenated: a Windows path in a JSON string literal turns \t into a
+	// TAB, the transcript is not found, and turns_measured comes back false. CI caught
+	// exactly that on this test.
+	inb, err := json.Marshal(map[string]any{
+		"session_id": "s1", "transcript_path": tpath, "trigger": "auto", "compact_summary": "a summary",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := string(inb)
 	var out, errb bytes.Buffer
 	run(nil, strings.NewReader(in), &out, &errb, dir, time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC))
 
