@@ -83,7 +83,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "blue-synthesize", Round: record.RoundIn(runDir)("blue-synthesize")}); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "blue-synthesize", Round: record.RoundIn(runDir)("blue-synthesize")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	cite := record.NewPayload().

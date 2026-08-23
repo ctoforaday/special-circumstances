@@ -111,7 +111,7 @@ func newEdit() *cobra.Command {
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
-	c.Flags().String(flags.Quote, "", flags.DescQuote+". It is matched ACROSS the invisible anchor layer, and rejected if it contains a finding-marker or a citation anchor")
+	c.Flags().String(flags.Quote, "", flags.DescQuote+". It is matched ACROSS the invisible anchor layer, so an anchor inside your span is carried into the replacement rather than blocking the edit — reproduce it there verbatim")
 	c.Flags().String(flags.New, "", "the text that span should become")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to (R1-4) — the provenance join key; omit only for an edit that answers no gap")
 	return c
@@ -145,6 +145,15 @@ func planEdit(report, old, new string) (string, error) {
 	// 71% of anchored quotes in the smoke had their anchor mid-span, so this is the common shape,
 	// not a corner.
 	if err := bluedoc.AnchorsTransitUnchanged("blue edit", report[start:end], new); err != nil {
+		// THE ADJACENT CASE IS NOT AN INVENTION, and saying so is the difference between a
+		// seat proceeding and a seat looping. The span stops before the sentence's trimmed
+		// punctuation, so an anchor sitting at `end` was never inside it — the seat quoted
+		// text that appeared to contain it and is being told it invented one (#525).
+		var intro *bluedoc.ErrAnchorIntroduced
+		if errors.As(err, &intro) && anchor.SkipRun(report, end) > end &&
+			strings.Contains(report[end:anchor.SkipRun(report, end)], anchor.Token(intro.ID)) {
+			return "", fmt.Errorf("blue edit: %s sits just OUTSIDE the span you matched, not inside it — a quote's trailing punctuation is trimmed before the span is located, so an anchor before a sentence's final period is not part of what you are replacing. It is preserved with no action from you: leave it out of the replacement", anchor.Label(intro.ID))
+		}
 		return "", err
 	}
 	next := report[:start] + new + report[end:]

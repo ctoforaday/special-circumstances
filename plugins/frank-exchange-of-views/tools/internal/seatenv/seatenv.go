@@ -47,12 +47,44 @@ const Var = "FEOV_RUN"
 // runs on those can be genuinely different paths, and a guess here attaches a seat's events
 // to the wrong run, which is the outcome this whole mechanism exists to prevent.
 func Resolve(flagRun string, infer func() string) (string, error) {
+	dir, _, err := ResolveWithSource(flagRun, infer)
+	return dir, err
+}
+
+// RunSource says WHICH of Resolve's three paths supplied the run directory.
+//
+// The order alone cannot answer it afterwards, and the difference is diagnostic. A run whose
+// seats all resolve by INFERENCE is a run the PreToolUse hook is not reaching — it injects
+// FEOV_RUN on every Bash call in a live run, so inference winning means the hook declined, was
+// never invoked, or found no marker from the payload's cwd. Those are three states the hook
+// records nowhere, and 2026-08-22_is-7-prime spent an entire run in one of them: fourteen seats,
+// zero agent_id, no stderr, and no way to tell a day later which (#512).
+//
+// Recording the source at `register` is what makes the next one diagnosable. It is a field on
+// the record, refusable at the write, rather than a fact recovered afterwards from what is
+// missing.
+type RunSource string
+
+const (
+	// RunFromEnv — the hook injected it. The healthy path.
+	RunFromEnv RunSource = "injected"
+	// RunFromFlag — the seat typed --run. Legitimate, and the operator path.
+	RunFromFlag RunSource = "flag"
+	// RunFromInference — the TOOL found the marker itself. The seat's call worked, and the hook
+	// did not supply it, which is the state worth seeing.
+	RunFromInference RunSource = "inferred"
+	// RunUnresolved — nothing supplied one. The caller raises its own "--run is required".
+	RunUnresolved RunSource = "unresolved"
+)
+
+// ResolveWithSource is Resolve, and says which path won.
+func ResolveWithSource(flagRun string, infer func() string) (string, RunSource, error) {
 	env := os.Getenv(Var)
 	if env != "" && flagRun != "" && !sameDir(env, flagRun) {
 		// Conflict, not Validation: the value is well-formed, it simply contradicts the
 		// dispatch. A consumer branching on the code should treat it as "two sources
 		// disagree", which is what it is.
-		return "", feov.Errorf(feov.Conflict,
+		return "", RunUnresolved, feov.Errorf(feov.Conflict,
 			"--run %q disagrees with the run this seat was dispatched into (%q). "+
 				"The engine injects the run directory; you do not type it. If the flag is a typo, drop it — "+
 				"omitting --run is correct and always right. If you believe the injected value is wrong, "+
@@ -60,15 +92,17 @@ func Resolve(flagRun string, infer func() string) (string, error) {
 			flagRun, env)
 	}
 	if env != "" {
-		return env, nil
+		return env, RunFromEnv, nil
 	}
 	if flagRun != "" {
-		return flagRun, nil
+		return flagRun, RunFromFlag, nil
 	}
 	if infer != nil {
-		return infer(), nil
+		if d := infer(); d != "" {
+			return d, RunFromInference, nil
+		}
 	}
-	return "", nil
+	return "", RunUnresolved, nil
 }
 
 // sameDir compares two directory paths, ignoring only a trailing separator.

@@ -21,7 +21,7 @@ func writeRun(t *testing.T, events []struct {
 	seen := map[string]bool{}
 	for _, e := range events {
 		if !seen[e.seat] {
-			if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: e.seat, Round: record.RoundIn(runDir)(e.seat)}); err != nil {
+			if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: e.seat, Round: record.RoundIn(runDir)(e.seat)}, ""); err != nil {
 				t.Fatal(err)
 			}
 			seen[e.seat] = true

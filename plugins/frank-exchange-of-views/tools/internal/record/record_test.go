@@ -60,7 +60,7 @@ func TestEventStampsResolveSubMillisecondEvents(t *testing.T) {
 // And the whole path, end to end: an appended event carries a stamp at all.
 func TestAppendedEventCarriesAStamp(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, "observe", NewPayload().Set("label", "L1-O1"))
@@ -88,7 +88,7 @@ func TestStampsStrictlyIncreaseUnderAFrozenClock(t *testing.T) {
 	Now = func() time.Time { return frozen }
 
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -120,7 +120,7 @@ func TestStampsStrictlyIncreaseWhenTheClockRunsBackwards(t *testing.T) {
 	}
 
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 

@@ -14,7 +14,7 @@ import "testing"
 // was satisfied. The answer was right, which is why nothing caught it.
 func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	for id, kind := range map[string]string{"R1-1": "computation", "R1-2": "document"} {
@@ -54,7 +54,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 // AN EMPTY FRICTION LOG IS TWO DIFFERENT RUNS, and only one of them is fine.
 func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := BoardState(runDir)
@@ -95,7 +95,7 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	runDir := newRun(t)
 	for _, s := range []string{"red-merge-r1", "blue-respond-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}

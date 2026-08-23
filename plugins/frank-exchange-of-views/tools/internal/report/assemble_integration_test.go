@@ -59,7 +59,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	add := func(seatID, typ string, kv ...string) {
 		t.Helper()
 		if !seen[seatID] {
-			if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: seatID, Round: record.RoundIn(runDir)(seatID)}); err != nil {
+			if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: seatID, Round: record.RoundIn(runDir)(seatID)}, ""); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)
 			}
 			seen[seatID] = true

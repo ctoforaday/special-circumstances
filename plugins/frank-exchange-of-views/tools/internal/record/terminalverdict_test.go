@@ -21,7 +21,7 @@ import (
 func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	runDir := t.TempDir()
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "judge-terminal", Round: RoundIn(runDir)("judge-terminal")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "judge-terminal", Round: RoundIn(runDir)("judge-terminal")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{RunDir: runDir, SeatID: "judge-terminal", Round: RoundIn(runDir)("judge-terminal")}, "outcome",

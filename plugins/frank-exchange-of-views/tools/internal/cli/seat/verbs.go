@@ -30,11 +30,11 @@ import (
 
 func Register() *cobra.Command {
 	return New("register", func(s Context, _ *cobra.Command) (Result, error) {
-		nonce, _, err := record.RegisterSeat(s.Identity())
+		nonce, _, err := record.RegisterSeat(s.Identity(), string(s.RunVia))
 		if err != nil {
 			return nil, err
 		}
-		r := registerResult{SeatID: s.SeatID, Nonce: nonce}
+		r := registerResult{SeatID: s.SeatID, Nonce: nonce, RunVia: string(s.RunVia)}
 		// A SECOND SITTING IS TOLD WHAT ITS FIRST ONE LOST, HERE, BECAUSE THIS IS THE ONLY
 		// MOMENT IT IS LISTENING FOR WHO IT IS.
 		//
@@ -70,6 +70,18 @@ func Register() *cobra.Command {
 		// not registered" — rotates its shard and orphans its work.
 		if seatenv.AgentID() == "" && s.SeatID != record.OperatorRole {
 			r.IdentityAbsent = true
+		}
+		// THE HOOK IS NOT REACHING THIS RUN, which is a bigger fact than a missing identity and
+		// is only visible from the two together.
+		//
+		// The hook injects FEOV_RUN on every Bash call in a live run. If the run directory
+		// arrived by INFERENCE instead, the hook declined, was never invoked, or found no marker
+		// from the payload's cwd — and it records none of those. 2026-08-22_is-7-prime spent an
+		// entire run in one of them: fourteen seats, zero agent_id, no stderr, and no way to tell
+		// a day later which. The identity's absence alone could not say it, because a seat that
+		// simply typed --run looks identical (#512).
+		if r.IdentityAbsent && s.RunVia == seatenv.RunFromInference {
+			r.HookAbsent = true
 		}
 		return r, nil
 	})
@@ -602,6 +614,11 @@ type registerResult struct {
 	// IdentityAbsent is true when a DISPATCHED seat registered with no agent id — the hook did
 	// not reach this call, so nothing on the record can bind this agent to this seat.
 	IdentityAbsent bool `json:"identity_absent,omitempty"`
+	// RunVia says which path supplied the run directory: injected | flag | inferred.
+	RunVia string `json:"run_via,omitempty"`
+	// HookAbsent is IdentityAbsent AND an inferred run directory — the pair that says the hook
+	// itself is not reaching this run, rather than only the identity being missing.
+	HookAbsent bool `json:"hook_absent,omitempty"`
 }
 
 // priorSitting is the discarded work of an earlier dispatch of this seat — the keys, not a
@@ -623,6 +640,13 @@ func (r registerResult) Human() string {
 			"  DO NOT REGISTER AGAIN. If a later call says \"this agent has not registered\", it is " +
 			"THIS, not a lost registration — re-registering rotates your shard nonce and replay " +
 			"then discards everything the first sitting recorded."
+	}
+	if r.HookAbsent {
+		out += "\n\nAND IT IS NOT ONLY YOUR IDENTITY: the run directory reached this tool by " +
+			"INFERENCE, not from the engine. Both facts together say the engine's hook is not " +
+			"reaching this run at all, so EVERY seat in it will be missing its identity, not just " +
+			"you. Record it once with the friction verb — you are the first party that can see it, " +
+			"and the run itself leaves no other trace of it."
 	}
 	if r.PriorSittingUnknown != "" {
 		return out + "\n\nWHETHER AN EARLIER SITTING OF THIS SEAT LOST WORK COULD NOT BE CHECKED: " +

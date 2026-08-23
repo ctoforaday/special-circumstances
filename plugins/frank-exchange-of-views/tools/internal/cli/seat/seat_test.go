@@ -1,6 +1,9 @@
 package seat
 
 import (
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -47,7 +50,7 @@ func TestBeginRefusesASeatIdThatContradictsTheDispatch(t *testing.T) {
 	run := t.TempDir()
 	t.Setenv(seatenv.Var, run)
 	t.Setenv(seatenv.AgentVar, "agent_01")
-	if _, _, err := record.RegisterSeat(record.Identity{RunDir: run, SeatID: "blue-respond-r1", Round: 1}); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{RunDir: run, SeatID: "blue-respond-r1", Round: 1}, ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,4 +77,66 @@ func TestBeginRefusesASeatIdThatContradictsTheDispatch(t *testing.T) {
 	if _, err := Begin(c); err != nil {
 		t.Fatalf("a --seat-id AGREEING with the dispatch was refused: %v", err)
 	}
+}
+
+// WHICH PATH SUPPLIED THE RUN DIRECTORY TRAVELS WITH IT, because the directory alone cannot say.
+//
+// A run whose seats resolve by INFERENCE is a run the hook is not reaching: it injects FEOV_RUN
+// on every Bash call in a live run, so the tool finding the marker by itself means the hook
+// declined, was never invoked, or saw no marker from the payload's cwd. In
+// research/2026-08-22_is-7-prime that was the whole failure and nothing recorded it — the source
+// is carried here so `register` can write it as a field (#512).
+func TestTheContextCarriesWhichPathSuppliedTheRun(t *testing.T) {
+	newCmd := func() *cobra.Command {
+		c := &cobra.Command{Use: "show"}
+		c.Flags().String(flags.Run, "", "")
+		c.Flags().String(flags.SeatID, "", "")
+		return c
+	}
+
+	t.Run("injected", func(t *testing.T) {
+		run := t.TempDir()
+		t.Setenv(seatenv.Var, run)
+		if got := Of(newCmd()).RunVia; got != seatenv.RunFromEnv {
+			t.Errorf("Of().RunVia = %q with FEOV_RUN set, want %q", got, seatenv.RunFromEnv)
+		}
+	})
+
+	t.Run("flag", func(t *testing.T) {
+		run := t.TempDir()
+		t.Setenv(seatenv.Var, "")
+		c := newCmd()
+		if err := c.Flags().Set(flags.Run, run); err != nil {
+			t.Fatal(err)
+		}
+		if got := Of(c).RunVia; got != seatenv.RunFromFlag {
+			t.Errorf("Of().RunVia = %q with only --run, want %q", got, seatenv.RunFromFlag)
+		}
+	})
+
+	// THE STATE #512 EXISTS TO MAKE VISIBLE: no injection, no flag, and the tool locates the run
+	// from the project marker on its own.
+	t.Run("inferred", func(t *testing.T) {
+		project := t.TempDir()
+		run := filepath.Join(project, "research", "r1")
+		if err := os.MkdirAll(filepath.Join(project, ".claude"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(run, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		marker := filepath.Join(project, ".claude", "run-live.json")
+		if err := os.WriteFile(marker, []byte(`{"runDir":`+strconv.Quote(run)+`}`), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		t.Setenv(seatenv.Var, "")
+		t.Setenv("CLAUDE_PROJECT_DIR", project)
+		c := Of(newCmd())
+		if c.RunVia != seatenv.RunFromInference {
+			t.Errorf("Of().RunVia = %q with neither injection nor flag, want %q", c.RunVia, seatenv.RunFromInference)
+		}
+		if c.RunDir != run {
+			t.Errorf("Of().RunDir = %q, want the inferred %q", c.RunDir, run)
+		}
+	})
 }

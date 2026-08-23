@@ -208,7 +208,10 @@ type Identity struct {
 // ROTATES the nonce: a re-dispatched seat writes its own shard and the stale
 // instance's shard stays inert. Two registers for one seatId are themselves an
 // event, visible to the join audit and the render anomaly footer.
-func RegisterSeat(id Identity) (nonce, shard string, err error) {
+// runVia says which path supplied the run directory — see seatenv.RunSource. It is recorded on
+// the register event because a run whose seats all resolve by INFERENCE is a run the PreToolUse
+// hook is not reaching, and the hook records that nowhere (#512).
+func RegisterSeat(id Identity, runVia string) (nonce, shard string, err error) {
 	runDir, seatID := id.RunDir, id.SeatID
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
 		return "", "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
@@ -293,7 +296,8 @@ func RegisterSeat(id Identity) (nonce, shard string, err error) {
 	ev := Event{
 		Seq: 0, TS: nextStamp(recDir), SeatID: seatID, Nonce: nonce, Round: id.Round, Role: roleOfSeat(seatID),
 		Type: "register", Key: seatID + ":register:" + nonce,
-		Payload: NewPayload().Set("tool_version", ToolVersion).SetIf(agent != "", "agent_id", agent),
+		Payload: NewPayload().Set("tool_version", ToolVersion).SetIf(agent != "", "agent_id", agent).
+			SetIf(runVia != "", "run_via", runVia),
 	}
 	if err := appendLine(shard, ev); err != nil {
 		return "", "", err
@@ -307,7 +311,11 @@ func activeNonce(id Identity, recDir string) (string, error) {
 	b, err := os.ReadFile(pointerPath(recDir, id.SeatID))
 	if err != nil {
 		if os.IsNotExist(err) {
-			n, _, rerr := RegisterSeat(id)
+			// NO run_via ON AN IMPLICIT REGISTER, and the absence is the honest answer. This
+			// path fires when a seat writes before registering, so nothing here observed how the
+			// run directory was resolved — recording a guess would put a fact on the record that
+			// nobody measured, which is worse than the field being absent.
+			n, _, rerr := RegisterSeat(id, "")
 			return n, rerr
 		}
 		return "", err

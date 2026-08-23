@@ -117,3 +117,34 @@ func TestAnArrivedIdentitySaysNothing(t *testing.T) {
 		t.Errorf("a healthy register grew an advisory:\n%s", h)
 	}
 }
+
+// THE HOOK IS NOT REACHING THIS RUN AT ALL — a bigger fact than a missing identity, and only
+// visible from the identity's absence and an INFERRED run directory together.
+//
+// #512 is that this fact had no carrier. In research/2026-08-22_is-7-prime fourteen seats
+// registered with no agent id, no stderr was written, and a day later nothing on the record could
+// say whether the hook declined, was never invoked, or found no marker — three states and one
+// silence. The seat is the first party that can see the pair, and the only one still running.
+func TestASeatSeesThatTheHookIsMissingFromTheWholeRun(t *testing.T) {
+	h := registerResult{SeatID: "red-lens-r1-L1", Nonce: "7a6b912e", IdentityAbsent: true, RunVia: "inferred", HookAbsent: true}.Human()
+	for _, want := range []string{
+		"YOUR IDENTITY DID NOT REACH THE TOOL", // the seat's own consequence still comes first
+		"AND IT IS NOT ONLY YOUR IDENTITY",
+		"EVERY seat in it will be missing its identity",
+		"friction verb", // the one channel that carries it out of the run
+	} {
+		if !strings.Contains(h, want) {
+			t.Errorf("the advisory does not carry %q:\n%s", want, h)
+		}
+	}
+}
+
+// A MISSING IDENTITY ALONE IS NOT A MISSING HOOK. A seat that typed --run on a healthy run looks
+// identical on the identity alone, and telling it the whole run is broken would be a false
+// diagnosis handed to the one party positioned to report it.
+func TestAMissingIdentityAloneDoesNotAccuseTheHook(t *testing.T) {
+	h := registerResult{SeatID: "red-lens-r1-L1", Nonce: "7a6b912e", IdentityAbsent: true, RunVia: "flag"}.Human()
+	if strings.Contains(h, "NOT ONLY YOUR IDENTITY") {
+		t.Errorf("a seat that typed --run is told the hook is absent:\n%s", h)
+	}
+}

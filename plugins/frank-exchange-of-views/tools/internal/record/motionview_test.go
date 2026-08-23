@@ -13,7 +13,7 @@ import (
 func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	runDir := newRun(t)
 	for _, s := range []string{"blue-respond-r1", "red-merge-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -80,7 +80,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 func TestThePassRefusalNamesTheRead(t *testing.T) {
 	runDir := newRun(t)
 	for _, sid := range []string{"blue-respond-r1", "red-merge-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: sid, Round: RoundIn(runDir)(sid)}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: sid, Round: RoundIn(runDir)(sid)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}

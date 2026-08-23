@@ -36,7 +36,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, s := range []string{"red-merge-r1", "blue-respond-r1", "judge-terminal"} {
-		if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: s, Round: record.RoundIn(runDir)(s)}); err != nil {
+		if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: s, Round: record.RoundIn(runDir)(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}

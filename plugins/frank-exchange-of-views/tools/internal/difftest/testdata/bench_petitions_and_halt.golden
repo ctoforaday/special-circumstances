@@ -107,5 +107,5 @@ JUDICIAL HALT recorded — capture relays this verbatim
 
 ═══ EVENTS ═══
 -- events-judge-petition-red-merge-r1-NONCE001.jsonl
-{"key":"judge-petition-red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"tool_version":"0.72.0"},"role":"bench","round":1,"seatId":"judge-petition-red-merge-r1","seq":0,"ts":0,"type":"register"}
+{"key":"judge-petition-red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"run_via":"flag","tool_version":"0.72.0"},"role":"bench","round":1,"seatId":"judge-petition-red-merge-r1","seq":0,"ts":0,"type":"register"}
 {"key":"judge-petition-red-merge-r1:halt:#1","nonce":"NONCE001","payload":{"reason":"continuing would compromise the consent gate"},"role":"bench","round":1,"seatId":"judge-petition-red-merge-r1","seq":1,"ts":1,"type":"halt"}

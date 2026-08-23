@@ -94,6 +94,11 @@ type Context struct {
 	// seat id (#348). -1 means unknown, which is NOT round 0: round 0 is synthesis, and
 	// conflating the two is what produced the phantom-archive bug in #327.
 	Round int
+	// RunVia says which of the three paths supplied RunDir — the hook's injection, the seat's
+	// own --run, or the tool's inference from the marker. `register` records it, because a run
+	// whose seats all resolve by INFERENCE is a run the hook is not reaching, and nothing else
+	// distinguishes that from a healthy one (#512).
+	RunVia seatenv.RunSource
 }
 
 // Identity is what a record write needs to know about who is writing: the run, the seat, and the
@@ -163,7 +168,7 @@ func BoundSeat(runDir string) func() (string, error) {
 
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
-	resolved, err := seatenv.Resolve(runDir, func() string { return InferRunDir("") })
+	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string { return InferRunDir("") })
 	if err == nil {
 		runDir = resolved
 	}
@@ -174,7 +179,7 @@ func Of(cmd *cobra.Command) Context {
 	if id, rerr := seatenv.ResolveSeat(seatID, BoundSeat(runDir), record.RoundIn(runDir)); rerr == nil {
 		seatID, round = id.ID, id.Round
 	}
-	return Context{RunDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd)}
+	return Context{RunDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd), RunVia: via}
 }
 
 // roleOf answers WHICH SEAT is running this command, from the identity the engine injected.

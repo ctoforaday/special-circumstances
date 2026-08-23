@@ -27,7 +27,7 @@ import (
 func TestAppendEntersACriticalSection(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-lens-r1-L1"
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, ""); err != nil {
 		t.Fatal(err)
 	}
 	before, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
@@ -207,7 +207,7 @@ func TestCriticalSectionsNest(t *testing.T) {
 func TestAppendHealsATornFinalLine(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-lens-r1-L1"
-	nonce, shard, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)})
+	nonce, shard, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -267,7 +267,7 @@ func TestAppendHealsATornFinalLine(t *testing.T) {
 func TestAppendAssignsGapFreePerShardSequence(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-lens-r1-L1"
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, ""); err != nil {
 		t.Fatal(err)
 	}
 	for i := 0; i < 5; i++ {
@@ -293,14 +293,14 @@ func TestAppendAssignsGapFreePerShardSequence(t *testing.T) {
 func TestRegisterRotatesTheNonceAndRepointsTheSeat(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-merge-r1"
-	n1, s1, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)})
+	n1, s1, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "position", NewPayload().Set("reason", "first instance")); err != nil {
 		t.Fatal(err)
 	}
-	n2, s2, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)})
+	n2, s2, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -393,7 +393,7 @@ func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := newRun(t)
-			_, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: tc.id, Round: RoundIn(runDir)(tc.id)})
+			_, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: tc.id, Round: RoundIn(runDir)(tc.id)}, "")
 			if err == nil {
 				t.Fatalf("RegisterSeat accepted %q — the id becomes a FILENAME", tc.id)
 			}
@@ -419,7 +419,7 @@ func TestRegisterSeatAcceptsTheEngineAssignedShapes(t *testing.T) {
 		"frontier", "judge-r1", "judge-terminal", "judge-petition-red-merge-r1", "assemble", "operator",
 	} {
 		runDir := newRun(t)
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: id, Round: RoundIn(runDir)(id)}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: id, Round: RoundIn(runDir)(id)}, ""); err != nil {
 			t.Errorf("RegisterSeat(%q) = %v, want accepted", id, err)
 		}
 	}
@@ -443,7 +443,7 @@ func TestRegisterSeatRefusesAnIdNoDispatchProduces(t *testing.T) {
 		"Red-Merge-R1",                  // the right shape in the wrong case
 	} {
 		runDir := newRun(t)
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: id, Round: 1}); err == nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: id, Round: 1}, ""); err == nil {
 			t.Errorf("RegisterSeat(%q) was accepted; it binds for the whole run and no dispatch created it", id)
 		}
 	}
@@ -578,7 +578,7 @@ func TestConcurrentWriteAtomicNeverPublishesAPartialFile(t *testing.T) {
 func TestReleaseHeldLocksIsSafeWhenNothingIsHeld(t *testing.T) {
 	releaseHeldLocks()
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	releaseHeldLocks()

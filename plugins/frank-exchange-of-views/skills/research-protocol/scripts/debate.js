@@ -205,8 +205,16 @@ const scorecardClause = () => (
   ` YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read how YOUR CHAIR is doing on the question in front of you so far. It is a projection of this run's record on your own surface, it needs no selector because your chair is the seat you registered as, and its own page says what the rows mean.`
 )
 
+// HOLDINGS RIDE recordClause BECAUSE IT IS THE ONE CLAUSE EVERY SEAT RECEIVES.
+//
+// A holding binds every seat, so threading it per-prompt would be a dozen insertion points and
+// a dozen chances to miss one — which is exactly how relief reached a single hardcoded site and
+// bound nobody else it was written for (#360). One carrier, no seat exempt.
+//
+// It renders to the empty string while no holding exists, which is every run until a bench
+// declares one, so the ordinary prompt is unchanged.
 const recordClause = (seatId) =>
-  `${scorecardClause()} SEAT_ID: ${seatId}. THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "${binDir}/feov-record", and the tool's own board is the ONLY source of truth for status. Routing around it into markdown is the failure this contract exists to prevent.
+  `${holdingsClause()}${scorecardClause()} SEAT_ID: ${seatId}. THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "${binDir}/feov-record", and the tool's own board is the ONLY source of truth for status. Routing around it into markdown is the failure this contract exists to prevent.
 
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, not for when you are stuck, and not once per run. READ THE WHOLE TREE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED. Steps 1 and 2 happen ONCE, TOGETHER, IMMEDIATELY AFTER \`register\` — before you have decided what to do, because deciding first is what makes the reading pointless. Step 3 happens per act.
 
@@ -278,6 +286,10 @@ const PETITION_RULING = {
   required: ['rulings'],
   properties: {
     friction: { type: 'array', items: { type: 'string' } },
+    // A PETITION SITTING CAN LAY DOWN A HOLDING TOO, and #361 was filed from exactly there: the
+    // bench had a construction both parties needed and put it in a petition ruling's opinion
+    // text, where red never read it. Routing it needs it on this envelope as well (#503).
+    holdings: { type: 'array', items: { type: 'string' } },
     rulings: {
       type: 'array',
       items: {
@@ -485,6 +497,10 @@ const JUDGE_ENVELOPE = {
   required: ['deadlock', 'resolutions'],
   properties: {
     deadlock: { type: 'boolean' },
+    // HOLDINGS THE BENCH LAID DOWN THIS SITTING, carried so the engine can route them. debate.js
+    // reads no record, so a holding recorded through `bench declare` reaches the other seats only
+    // if it travels here — the same reason `relief` is on the petition envelope (#503).
+    holdings: { type: 'array', items: { type: 'string' } },
     friction: { type: 'array', items: { type: 'string' } },
     resolutions: {
       type: 'array',
@@ -596,6 +612,21 @@ async function ensureRoundRecord(env, who, owed, opts) {
   return false
 }
 const petitionLog = []
+// HOLDINGS BIND EVERY SEAT AND NEVER EXPIRE, which is what makes them different from relief.
+//
+// `bench declare` exists because the bench sometimes states a CONSTRUCTION rather than disposing
+// of a gap — how a term is to be read, for the rest of the run, by both parties. The verb
+// shipped, the render shipped, the law harvest shipped, and the DELIVERY never did: a holding
+// laid down in round 2 changed how the record should be read in rounds 3 and 4 and neither red
+// nor blue was ever told (#503).
+//
+// That is the same defect the verb was created to fix, moved one carrier along. #361 was "the
+// bench had no way to say it"; this was "the bench can say it and nobody hears it" — and relief
+// had the identical failure before `reliefFor` (#360), so this is the same repair.
+//
+// ACCUMULATING, NOT ROUND-SCOPED. Relief is granted on a petition and operative for a sitting;
+// a construction of a term holds until the run ends, so this list only grows.
+const holdingsInEffect = []
 const reliefInEffect = []
 
 // reliefFor renders the relief that binds ONE party, for that party's prompt.
@@ -608,6 +639,16 @@ const reliefInEffect = []
 // The bench is this system's ethical and safety boundary. A boundary whose orders cannot reach
 // the seat they bind is decoration — and worse than an unread finding, because an unread finding
 // costs a reader while an undelivered order costs compliance, with nothing reporting the failure.
+// holdingsClause renders every holding in effect, for EVERY seat, as routing refs.
+//
+// The text is the bench's own words because a construction is operative — a seat cannot act on a
+// pointer to a construction it has not read — but the REASONING stays on the record, which is
+// where the seat is sent for it.
+const holdingsClause = () => {
+  if (!holdingsInEffect.length) return ''
+  return ` BENCH HOLDINGS IN EFFECT, BINDING ON EVERY SEAT FOR THE REST OF THE RUN: ${JSON.stringify(holdingsInEffect)}. A holding construes how the record is READ; it disposes of nothing and it does not expire with the round. Read the bench's reasoning for any holding you rely on or work around.`
+}
+
 const reliefFor = (party) => {
   const mine = reliefInEffect.filter((r) => r.binds === party || r.binds === 'both')
   if (!mine.length) return ''
@@ -657,6 +698,7 @@ async function hearPetitions(env, who) {
       reliefInEffect.push({ petitioner: who, relief: r.relief, binds: r.binds || 'both' })
     }
   }
+  for (const h of sitting.holdings || []) holdingsInEffect.push(h)
   // A halt arrives on its OWN channel, not as a ruling value (#329) — the bench records it
   // through `bench halt`, and this only tells the engine to stop.
   if (sitting.halt && sitting.halt.opinion) { halted = true; haltOpinion = sitting.halt.opinion }
@@ -1023,6 +1065,7 @@ YOUR RULING BASIS IS CONFINED TO THREE THINGS: the two sides' closings, the full
 Every docketed gap gets a written ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring, and what would reopen it. Only you know either; the verb's help says what each is for. A bare fate teaches the next round nothing. Two fates are worth naming because they route work OUT of the debate rather than ending it: a gap you CARRY stays live and owes blue a stated research direction, and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the lead — leaves red's verdict pool and ships as a NAMED infrastructure debt, recorded and never dropped. deadlock is true only if no gap is carried AND ${hasNew ? 'false (new gaps were raised this round)' : 'no new gaps were raised this round (none were)'}. AND DEADLOCK IS A FACT ABOUT THE PARTIES, NOT ABOUT YOUR OWN PRODUCTIVITY: if disposing this docket leaves NOTHING open they did not deadlock, they converged in your hands, and red — who owns PASS/FAIL — has not yet passed an empty docket. Are the parties stuck, or did you just finish the work? Say deadlock only for the first.${frictionClause(`judge-r${round}`, 'bench')}${speedClause}${recordClause(`judge-r${round}`)} Return the judge envelope.`,
       { ...judgment, label: `judge-r${round} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
     if (!judge) throw new Error(`judge round ${round} returned null (agent failed) — aborting cleanly`)
+    for (const h of judge.holdings || []) holdingsInEffect.push(h)
     for (const r of judge.resolutions) {
       if (r.resolution === 'repaired' || r.resolution === 'not_a_defect' || r.resolution === 'defect_accepted' || r.resolution === 'moot' || r.resolution === 'defect_owed_elsewhere') adjudicated.push(r)
       if (r.resolution === 'defect_owed_elsewhere') infraDebts.push({ gap_id: r.gap_id, owed_fix: r.rationale, round })
