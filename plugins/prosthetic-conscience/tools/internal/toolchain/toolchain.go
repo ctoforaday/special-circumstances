@@ -48,6 +48,19 @@ type Tool struct {
 	// A tool that is merely uninstalled — qlty in a fresh container — stays
 	// a real DEGRADED, because installing it is a real remedy.
 	NotApplicableIn []string `json:"not_applicable_in,omitempty"`
+	// MinVersion is the lowest version of this tool that can do the job, as dotted numbers
+	// ("1.25"). Declaring it is what turns CheckCmd from a label into a check — see version.go.
+	// Absent means presence is the whole question, which is true of most tools and is why this
+	// is opt-in rather than required.
+	MinVersion string `json:"min_version,omitempty"`
+	// CheckDir is where CheckCmd must run, relative to the manifest, when the answer depends on
+	// it. MEASURED, on the first real run of this check (#521): `go version` reports go1.24.7 at
+	// this repository's root and go1.25.0 inside `tools/`, because GOTOOLCHAIN=auto selects a
+	// toolchain PER MODULE from that module's own `go` directive. Asked from the wrong place the
+	// check declared BLOCKED on a machine where every gate passes — a real number from a
+	// location that made it meaningless. Empty means the answer does not depend on where you
+	// stand, which is true of every other tool declared here.
+	CheckDir string `json:"check_dir,omitempty"`
 }
 
 // AppliesIn reports whether this tool is expected to exist in the given environment.
@@ -69,6 +82,19 @@ type Status struct {
 	// happens to be on PATH still reports Found, because the table must not claim
 	// a tool is missing when it is sitting right there.
 	NotApplicable bool
+
+	// VersionLine is the check command's first output line, kept so the table can render what
+	// the tool actually said rather than re-running the command to ask again.
+	VersionLine string
+	// Version is the number parsed out of it, "" when no minimum was declared or none was found.
+	Version string
+	// TooOld means a minimum was declared, a version was read, and it is below the line. It is
+	// its own state and not a flavour of missing: the remedy is upgrade, not install.
+	TooOld bool
+	// VersionUnmeasured carries WHY a declared minimum could not be checked. Non-empty is never
+	// a pass — the alternative is a tool whose version could not be read reporting ✓, which is
+	// the same bytes as a tool that met the bar.
+	VersionUnmeasured string
 }
 
 // Present reports whether the named executable resolves on PATH.
@@ -85,18 +111,29 @@ func Probe(tools []Tool) []Status {
 
 // ProbeIn is Probe with the environment passed in, so a test's verdict does not
 // depend on where the test happens to run.
-func ProbeIn(tools []Tool, env string) []Status {
+func ProbeIn(tools []Tool, env string) []Status { return ProbeInDir(tools, env, "") }
+
+// ProbeInDir is ProbeIn with the manifest's own directory, which a tool declaring CheckDir
+// needs in order to be asked its question in the right place.
+func ProbeInDir(tools []Tool, env, baseDir string) []Status {
 	out := make([]Status, 0, len(tools))
 	for _, t := range tools {
 		name := t.Name
 		if f := firstField(t.CheckCmd); f != "" {
 			name = f
 		}
-		out = append(out, Status{
+		st := Status{
 			Tool:          t,
 			Found:         Present(name),
 			NotApplicable: !t.AppliesIn(env),
-		})
+		}
+		// A tool that does not apply here is not interrogated about its version: the manifest
+		// has already said its absence is not a defect, so a minimum it cannot meet is not one
+		// either.
+		if !st.NotApplicable {
+			measure(&st, baseDir)
+		}
+		out = append(out, st)
 	}
 	return out
 }
