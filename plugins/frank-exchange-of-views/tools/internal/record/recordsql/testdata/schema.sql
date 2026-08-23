@@ -93,7 +93,7 @@ CREATE TABLE "enum_grade_dimension" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('complexity', 'what the fix costs; it is what makes risk_accepted arguable');
+INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('complexity', 'what the fix costs; it is what makes defect_accepted arguable');
 INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('impact', 'how far the damage reaches');
 INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('likelihood', 'how likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis');
 INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('severity', 'how bad it is if it bites');
@@ -165,11 +165,11 @@ CREATE TABLE "enum_disposition" (
 ) STRICT;
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('amends_prior', 'a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('carried', 'NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes', 0);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('closed', 'the repair was verified at the leaf and nothing regressed', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('closed_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('rebuttal_sustained', 'blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('risk_accepted', 'the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('routed_to_infrastructure', 'a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_accepted', 'the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_owed_elsewhere', 'a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defect', 'blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
 
 CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
@@ -216,7 +216,9 @@ INSERT INTO "enum_friction_kind" ("value", "means") VALUES ('tool_error', 'the T
 
 CREATE TABLE "register" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "tool_version" TEXT
+  "tool_version" TEXT,
+  "agent_id" TEXT,
+  "run_via" TEXT
 ) STRICT;
 
 CREATE TABLE "round_verdict" (
@@ -372,8 +374,8 @@ CREATE TABLE "close" (
   "carried_from" TEXT,
   "successor" TEXT,
   "prose" TEXT,
-  CHECK ("closure_class" IS NULL OR "closure_class" IN ('amends_prior', 'closed', 'closed_with_regression', 'rebuttal_sustained', 'risk_accepted', 'routed_to_infrastructure')),
-  CHECK ("closure_class" <> 'closed_with_regression' OR "successor" IS NOT NULL),
+  CHECK ("closure_class" IS NULL OR "closure_class" IN ('amends_prior', 'defect_accepted', 'defect_owed_elsewhere', 'not_a_defect', 'repaired', 'repaired_with_regression')),
+  CHECK ("closure_class" <> 'repaired_with_regression' OR "successor" IS NOT NULL),
   CHECK ("carried_from" IS NOT NULL OR "prose" IS NOT NULL),
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
   FOREIGN KEY ("closure_class") REFERENCES "enum_disposition"("value"),
@@ -424,6 +426,12 @@ CREATE TABLE "opinion" (
   "tension" TEXT NOT NULL,
   "review_flag" TEXT NOT NULL,
   "rationale" TEXT NOT NULL,
+  "settled" TEXT NOT NULL,
+  "reopens_on" TEXT,
+  "final" INTEGER,
+  CHECK ("final" IS NULL OR "final" IN (0, 1)),
+  CHECK ("reopens_on" IS NOT NULL OR "final" IS NOT NULL),
+  CHECK ("reopens_on" IS NULL OR "final" IS NULL),
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
   FOREIGN KEY ("disposition") REFERENCES "enum_disposition"("value")
 ) STRICT;

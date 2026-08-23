@@ -44,6 +44,7 @@ func TestAnEmptyValueTheSeatPassedSatisfiesTheRequirement(t *testing.T) {
 		Principle:   proto.String("p"),
 		Tension:     proto.String("t"),
 		ReviewFlag:  proto.String(""), // said, and said to be nothing
+		Settled:     proto.String("the claim as it stood may not be re-asserted"),
 		Rationale:   proto.String("r"),
 	}
 	if err := CheckRequired("bench opinion", body); err != nil {

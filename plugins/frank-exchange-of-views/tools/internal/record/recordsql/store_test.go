@@ -417,6 +417,8 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 				Principle:   proto.String("correctness over economy"),
 				Tension:     proto.String("the repair costs a round"),
 				ReviewFlag:  proto.String("no"),
+				Settled:     proto.String("the claim as it stood may not be re-asserted"),
+				Final:       proto.Bool(true),
 				Rationale:   proto.String("stated"),
 			})); err != nil {
 				t.Fatalf("the record refused a disposition the bench is instructed to use: %v", err)
@@ -555,6 +557,8 @@ func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
 			Principle:   proto.String("p"),
 			Tension:     proto.String("t"),
 			ReviewFlag:  proto.String("no"),
+			Settled:     proto.String("the claim as it stood may not be re-asserted"),
+			Final:       proto.Bool(true),
 			Rationale:   proto.String("r"),
 		}, recordpb.EventType_EVENT_TYPE_OPINION},
 		{"contested by a grade motion", &recordpb.Motion{

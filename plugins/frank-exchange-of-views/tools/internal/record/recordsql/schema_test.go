@@ -164,12 +164,12 @@ func TestEnumVocabulariesAreQueryableWithTheirMeanings(t *testing.T) {
 	db := open(t)
 
 	var means string
-	err := db.QueryRow(`SELECT means FROM enum_disposition WHERE value = 'risk_accepted'`).Scan(&means)
+	err := db.QueryRow(`SELECT means FROM enum_disposition WHERE value = 'defect_accepted'`).Scan(&means)
 	if err != nil {
 		t.Fatalf("the closure classes are not in the database: %v", err)
 	}
 	if !strings.Contains(means, "risk") {
-		t.Errorf("risk_accepted means %q — the row carries a word and not what it is FOR", means)
+		t.Errorf("defect_accepted means %q — the row carries a word and not what it is FOR", means)
 	}
 
 	// Every vocabulary row must say something. A blank means is a value with no meaning, which is
@@ -220,7 +220,7 @@ func TestAnEnumColumnStillRefusesAnUnknownWord(t *testing.T) {
 	}
 
 	id = mk(t, "close")
-	if _, err := db.Exec(`INSERT INTO close (event_id, gap_id, closure_class, prose) VALUES (?, 'R1-2', 'risk_accepted', 'x')`, id); err != nil {
+	if _, err := db.Exec(`INSERT INTO close (event_id, gap_id, closure_class, prose) VALUES (?, 'R1-2', 'defect_accepted', 'x')`, id); err != nil {
 		t.Fatalf("a real closure class was refused: %v — the vocabulary table is a wall rather than a gate", err)
 	}
 }
