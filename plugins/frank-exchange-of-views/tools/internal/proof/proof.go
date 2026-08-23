@@ -66,26 +66,6 @@ type Result struct {
 	Drift  string `json:"drift,omitempty"` // what moved on the second run, when something did
 }
 
-// interpreterFor maps a script to how it runs.
-//
-// BY EXTENSION, deliberately: a shebang does not work on Windows and this suite runs there.
-// An unknown extension is REFUSED rather than guessed, because running a file under the wrong
-// interpreter produces a confident error that reads exactly like a failed proof.
-func interpreterFor(path string) ([]string, error) {
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".py":
-		return []string{"python"}, nil
-	case ".js", ".mjs":
-		return []string{"node"}, nil
-	case ".sh":
-		return []string{"bash"}, nil
-	case ".go":
-		return []string{"go", "run"}, nil
-	default:
-		return nil, fmt.Errorf("proof: %s has no known interpreter — a proof script must be .py, .js, .mjs, .sh or .go so the tool runs it the way you meant rather than guessing", filepath.Base(path))
-	}
-}
-
 // Run executes the script TWICE and records it under <runDir>/proofs/<sha>/.
 //
 // Twice is the whole mechanism. One run cannot tell a computation from a coin flip, and the
