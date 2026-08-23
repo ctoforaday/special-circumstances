@@ -154,3 +154,54 @@ func TestRowsAccumulateAcrossSeals(t *testing.T) {
 		t.Errorf("got %d rows after 3 seals, want 3", len(got))
 	}
 }
+
+// Criterion 1: every seal record carries the note's age in three units. Without these
+// the baseline is a count of boundaries, and the plan's whole argument — that nothing
+// records how stale a seal was — is still true after shipping.
+func TestSealRowCarriesTheNotesAge(t *testing.T) {
+	dir := t.TempDir()
+	// A note written at a known time, and a transcript with turns on both sides of it.
+	note := "---\nschema: 3\nwritten_at: 2026-08-23T00:10:00Z\nhead: deadbee\n---\n## Validation loop\n1. x\n"
+	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), note)
+
+	tpath := filepath.Join(dir, "t.jsonl")
+	lines := []string{
+		`{"type":"assistant","timestamp":"2026-08-23T00:05:00Z","message":{"usage":{"input_tokens":1,"cache_read_input_tokens":10,"cache_creation_input_tokens":0}}}`,
+		`{"type":"assistant","timestamp":"2026-08-23T00:20:00Z","message":{"usage":{"input_tokens":2,"cache_read_input_tokens":40,"cache_creation_input_tokens":0}}}`,
+		`{"type":"assistant","timestamp":"2026-08-23T00:30:00Z","message":{"usage":{"input_tokens":3,"cache_read_input_tokens":90,"cache_creation_input_tokens":0}}}`,
+	}
+	if err := os.WriteFile(tpath, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	call(t, input(t, hookInput{SessionID: "s1", HookEventName: evPreCompact, TranscriptPath: tpath}),
+		dir, time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC), "-event", evPreCompact)
+
+	r := rows(t, dir)[0]
+	if r["note_age_turns"] != float64(2) {
+		t.Errorf("note_age_turns = %v, want 2 (assistant entries at or after written_at)", r["note_age_turns"])
+	}
+	if r["turns_measured"] != true {
+		t.Errorf("turns_measured = %v on a transcript the window covers entirely", r["turns_measured"])
+	}
+	if r["ceiling_known"] != false {
+		t.Errorf("ceiling_known = %v with no compact boundary in the transcript", r["ceiling_known"])
+	}
+}
+
+// A seal with no transcript to read must still write its row — the trigger, the time
+// and the handles are facts the seal itself holds. Dropping the row because one
+// measurement failed would lose the boundary from the baseline entirely.
+func TestASealWithNoTranscriptStillWritesARowWithTheAgeUnmeasured(t *testing.T) {
+	dir := sealWith(t, hookInput{SessionID: "s1", HookEventName: evPreCompact}, evPreCompact)
+	r := rows(t, dir)[0]
+	if r["seal_trigger"] != "precompact" {
+		t.Fatalf("row missing its trigger: %v", r)
+	}
+	if r["turns_measured"] != false {
+		t.Errorf("turns_measured = %v with no transcript", r["turns_measured"])
+	}
+	if _, present := r["note_age_turns"]; present {
+		t.Errorf("note_age_turns present (%v) with nothing to measure it from; it must be omitted", r["note_age_turns"])
+	}
+}

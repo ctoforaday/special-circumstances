@@ -413,7 +413,7 @@ machine-read fact to live in a field.
 | Field | Meaning |
 |---|---|
 | `at`, `event`, `occasion`, `session_id`, `agent_id` | the stamp's five facts, as fields this time — **built** |
-| `note_age_turns`, `note_growth_tokens`, `note_branch_commits`, `ceiling_known` | criterion 1 |
+| `note_age_turns`, `note_growth_tokens`, `note_branch_commits`, `ceiling_known` | criterion 1 — **built**, each with its own `*_measured` flag and **omitted when unmeasured**: a zero meaning "could not tell" would pull every median toward fresh |
 | `seal_trigger` | `precompact` \| `sessionend` \| `seat_return` — which event sealed — **built** |
 | `live_handles` | count of `background_tasks` entries with `type != "subagent"`, plus `session_crons` — **only when measurable**. Seats are excluded deliberately: at a `seat_return` seal the returning seat appears in the parent's own list (§12), and counting it reads high by exactly one while answering a different question from "did this note miss some background work" |
 | `handles_measured` | `false` when the payload carries no `background_tasks` key |
