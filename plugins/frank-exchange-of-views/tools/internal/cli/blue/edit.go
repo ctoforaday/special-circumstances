@@ -148,7 +148,7 @@ var errMisQuote = bluedoc.ErrMisQuote
 // part only blue does: the SPLICE. The crash-reconcile and the lock live in applyEdit; the
 // validation peek reuses this via validateEdit. Fuzzed directly (edit_fuzz_test.go).
 func planEdit(report, old, new string) (string, error) {
-	start, end, err := bluedoc.LocateUnique("blue edit", report, old)
+	start, end, err := bluedoc.LocateUniqueReplacing("blue edit", report, old)
 	if err != nil {
 		return "", err
 	}

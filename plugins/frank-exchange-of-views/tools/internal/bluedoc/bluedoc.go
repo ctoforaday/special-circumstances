@@ -56,7 +56,22 @@ func LocateUnique(verb, report, old string) (int, int, error) {
 	if !spanBoundaryOK(report, start, end) {
 		return 0, 0, fmt.Errorf("%s: your span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record", verb)
 	}
-	end, err := settleAbuttingAnchor(verb, report, old, end)
+	return start, end, nil
+}
+
+// LocateUniqueReplacing is LocateUnique for a caller that intends to REPLACE the span it finds.
+//
+// THE ANCHOR RULE BELONGS TO REPLACEMENT, NOT TO LOCATION. Baked into LocateUnique it also fired
+// on `merge mint --quote`, which names the sentence a defect LIVES AT and rewrites nothing — so
+// minting a gap about any already-anchored sentence was refused, with a message that spoke of
+// "the text you are replacing". Caught by reading a regenerated golden that had recorded
+// `minted R1-1` turning into `exit 2`, which is what the read-every-diff rule is for.
+func LocateUniqueReplacing(verb, report, old string) (int, int, error) {
+	start, end, err := LocateUnique(verb, report, old)
+	if err != nil {
+		return 0, 0, err
+	}
+	end, err = settleAbuttingAnchor(verb, report, old, end)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -195,7 +210,9 @@ func ValidateProposal(verb, report, old, new string) error {
 	if old == new {
 		return fmt.Errorf("%s: the proposed old and new text are identical — there is no change to propose", verb)
 	}
-	start, end, err := LocateUnique(verb, report, old)
+	// REPLACING: red's proposal is text blue will apply verbatim, so it owes the same duty an
+	// edit does — carry the anchors on the span it rewrites.
+	start, end, err := LocateUniqueReplacing(verb, report, old)
 	if err != nil {
 		return err
 	}

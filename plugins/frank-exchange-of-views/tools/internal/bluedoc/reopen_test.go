@@ -64,7 +64,7 @@ func TestAQuoteMayNotStopShortOfTheAnchorItIsRewriting(t *testing.T) {
 	report := "# H\n\nThe sky is blue and the grass is green" + tok + ".\n\nA second sentence with no anchor.\n"
 
 	// Quoting the sentence WITHOUT its anchor is refused, and the refusal names the token to carry.
-	_, _, err := LocateUnique("blue edit", report, "The sky is blue and the grass is green.")
+	_, _, err := LocateUniqueReplacing("blue edit", report, "The sky is blue and the grass is green.")
 	if err == nil {
 		t.Fatal("a quote that stops just before the anchor on its own sentence was accepted — the marker would be stranded beside rewritten prose")
 	}
@@ -73,19 +73,19 @@ func TestAQuoteMayNotStopShortOfTheAnchorItIsRewriting(t *testing.T) {
 	}
 
 	// Quoting it WITH the anchor, as `show report` prints it, locates normally.
-	if _, _, err := LocateUnique("blue edit", report, "The sky is blue and the grass is green"+tok+"."); err != nil {
+	if _, _, err := LocateUniqueReplacing("blue edit", report, "The sky is blue and the grass is green"+tok+"."); err != nil {
 		t.Errorf("the sentence quoted AS PRINTED was refused: %v", err)
 	}
 
 	// A FRAGMENT that does not reach the anchor is still allowed — that is the class of edit the
 	// strict rule would otherwise cost, and the anchor keeps its position while `reopened` records
 	// that its sentence moved.
-	if _, _, err := LocateUnique("blue edit", report, "The sky is blue"); err != nil {
+	if _, _, err := LocateUniqueReplacing("blue edit", report, "The sky is blue"); err != nil {
 		t.Errorf("a fragment edit that does not touch the anchored text was refused: %v", err)
 	}
 
 	// And a sentence with no anchor is unaffected.
-	if _, _, err := LocateUnique("blue edit", report, "A second sentence with no anchor."); err != nil {
+	if _, _, err := LocateUniqueReplacing("blue edit", report, "A second sentence with no anchor."); err != nil {
 		t.Errorf("an unanchored sentence was refused: %v", err)
 	}
 }
