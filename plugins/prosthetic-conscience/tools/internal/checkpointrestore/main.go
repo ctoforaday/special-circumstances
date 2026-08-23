@@ -207,8 +207,16 @@ func digest(raw, path, source string, rearm checkpoint.RearmState) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Recovered operational state for this session, from the checkpoint it wrote itself.\n")
 	fmt.Fprintf(&b, "Source: %s · file: %s", source, path)
-	if u := n.Get("updated"); u != "" {
-		fmt.Fprintf(&b, " · written: %s", u)
+	// SCHEMA 3 SPLIT `updated:` IN TWO, because "something happened" was not a useful
+	// fact. written_at moves when the BODY changes; reaffirmed_at moves when a session
+	// judged the note still accurate without changing it. Rendering only the first
+	// would make a re-affirmed note indistinguishable from an untouched one; rendering
+	// them as one field is what schema 2 did.
+	if w := n.Get("written_at"); w != "" {
+		fmt.Fprintf(&b, " · written: %s", w)
+	}
+	if r := n.Get("reaffirmed_at"); r != "" && r != "null" {
+		fmt.Fprintf(&b, " · reaffirmed: %s", r)
 	}
 	if age := staleness(n.Get("head"), commitsSince); age != "" {
 		fmt.Fprintf(&b, " · %s", age)

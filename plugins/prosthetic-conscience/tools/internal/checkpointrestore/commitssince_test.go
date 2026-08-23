@@ -4,6 +4,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 )
 
 // git runs a command in dir and fails the test on error, because a fixture that
@@ -80,5 +82,46 @@ func TestCommitsSinceReportsUnreachableRatherThanZero(t *testing.T) {
 
 	if n, ok := commitsSince("0000000"); ok {
 		t.Errorf("commitsSince(unknown ref) = (%d, true); want reachable=false", n)
+	}
+}
+
+// Schema 3 splits `updated:` — "something happened" — into two facts that mean
+// different things. The digest must render the one that answers "how old is this
+// note", and must say when a note was only RE-AFFIRMED, because that is the case
+// where the file moved and the content did not.
+func TestDigestRendersWrittenAtAndReaffirmedAt(t *testing.T) {
+	const n3 = `---
+schema: 3
+written_at: 2026-08-23T04:00:00Z
+reaffirmed_at: 2026-08-23T06:30:00Z
+session_id: sess-abc
+objective: "prove the provenance line speaks schema 3"
+---
+## Next intended steps
+1. anything
+`
+	got := digest(n3, "CHECKPOINT.md", "startup", checkpoint.RearmState{})
+	if !strings.Contains(got, "written: 2026-08-23T04:00:00Z") {
+		t.Errorf("digest does not carry written_at:\n%s", got)
+	}
+	if !strings.Contains(got, "reaffirmed: 2026-08-23T06:30:00Z") {
+		t.Errorf("digest drops reaffirmed_at, so a note that was touched but not changed "+
+			"reads exactly like one that was rewritten:\n%s", got)
+	}
+}
+
+// A note with no re-affirmation must not grow an empty field: absent is a state, and
+// rendering "reaffirmed: " for it spends the budget on nothing.
+func TestDigestOmitsReaffirmedWhenAbsent(t *testing.T) {
+	const n3 = `---
+schema: 3
+written_at: 2026-08-23T04:00:00Z
+objective: "no re-affirmation here"
+---
+## Next intended steps
+1. anything
+`
+	if got := digest(n3, "CHECKPOINT.md", "startup", checkpoint.RearmState{}); strings.Contains(got, "reaffirmed") {
+		t.Errorf("digest rendered a re-affirmation that never happened:\n%s", got)
 	}
 }

@@ -11,7 +11,7 @@ import (
 )
 
 const note = `---
-schema: 2
+schema: 3
 session_id: sess-abc
 ---
 ## Validation loop
@@ -148,7 +148,7 @@ func TestRowsAccumulate(t *testing.T) {
 // Empty sections are skipped, not scored as absent: "nothing to measure" and
 // "measured as absent" are different facts.
 func TestEmptySectionsAreNotScored(t *testing.T) {
-	got := overlap("---\nschema: 2\n---\n## Validation loop\n\n## Next intended steps\n1. do the thing properly\n", "unrelated")
+	got := overlap("---\nschema: 3\n---\n## Validation loop\n\n## Next intended steps\n1. do the thing properly\n", "unrelated")
 	for _, s := range got {
 		if s.Heading == "Validation loop" {
 			t.Error("scored a section with no content")
