@@ -6,7 +6,17 @@ import (
 )
 
 // FuzzPlanEdit proves the core lockdown invariant: whenever `blue edit` accepts a span
-// replacement, it PRESERVES every finding-marker. It splices a marker into a clean body,
+// replacement, it PRESERVES every finding-marker.
+//
+// THE ID MUST BE HEX, and for most of this fuzzer's life it was not. The seed marker read
+// `f-seed01`, and an anchor id is `f-[0-9a-f]+` — "s" is not a hex digit, so findingMarkerRe
+// never matched the token this test splices in. droppedMarker therefore returned "" on every
+// input, for every reason, and the set-membership assertion below asserted nothing at all.
+// The literal Contains check was the only live one, which is why the hole surfaced as
+// "marker token mangled" rather than as the dropped-marker failure it is.
+//
+// Same class the registry calls silent-no-match-probe, and its own distinguisher applies: if
+// deleting the probe would change nothing a reader sees, it is this class. It splices a marker into a clean body,
 // draws an arbitrary old span from the body, and asserts that a SUCCESSFUL planEdit never
 // drops the marker (a marker-spanning or absent span must instead be rejected). A failure
 // is a real hole in the span/marker interplay, not a bad input.
@@ -27,7 +37,7 @@ func FuzzPlanEdit(f *testing.F) {
 			}
 		}
 		mp := int(markerPos) % (len(body) + 1)
-		report := body[:mp] + "<!--fx:f-seed01-->" + body[mp:]
+		report := body[:mp] + "<!--fx:f-5eed01-->" + body[mp:]
 
 		os := int(oldStart) % len(body)
 		ol := int(oldLen) % (len(body) - os + 1)
@@ -41,7 +51,7 @@ func FuzzPlanEdit(f *testing.F) {
 		if droppedMarker(report, next) != "" {
 			t.Fatalf("planEdit succeeded but dropped a marker\n report=%q\n old=%q\n next=%q", report, old, next)
 		}
-		if !strings.Contains(next, "<!--fx:f-seed01-->") {
+		if !strings.Contains(next, "<!--fx:f-5eed01-->") {
 			t.Fatalf("marker token mangled\n report=%q\n old=%q\n next=%q", report, old, next)
 		}
 	})

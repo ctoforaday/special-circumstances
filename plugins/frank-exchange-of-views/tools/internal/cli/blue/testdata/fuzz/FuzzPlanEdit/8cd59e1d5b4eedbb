@@ -1,0 +1,5 @@
+go test fuzz v1
+string("0 000000")
+uint(94)
+uint(1)
+uint(15)
