@@ -64,7 +64,9 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 		typ  recordpb.EventType
 		args []string
 	}{
-		{"merge regrade", "basis", recordpb.EventType_EVENT_TYPE_REGRADE, []string{"merge", "regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
+		// NO ROLE SEGMENT: the surface is the seat's, so `regrade` sits at the root of the merge
+		// tree. `motion …` below keeps its path because motion is a real subgroup within it.
+		{"merge regrade", "basis", recordpb.EventType_EVENT_TYPE_REGRADE, []string{"regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
 		{"motion grade rule", "opinion", recordpb.EventType_EVENT_TYPE_MOTION_RULE, []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted"}},
 		{"motion grade file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
 		{"motion petition file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--class", "safety", "--relief", "halt"}},

@@ -121,7 +121,11 @@ func closureFlags(c *cobra.Command) {
 func closurePayload(cmd *cobra.Command) (*recordpb.Close, error) {
 	word := seat.Str(cmd, flags.As)
 	if word == "" {
-		word = "closed"
+		// THE DEFAULT IS THE PLAIN REPAIR, and it is spelled from the schema rather than typed.
+		// It was the literal "closed", which stopped being a word this vocabulary carries when the
+		// values were renamed to name the DEFECT's state rather than the paperwork — so every
+		// close that omitted --as was refused by its own default.
+		word = recordpb.Word(recordpb.Disposition_DISPOSITION_REPAIRED)
 	}
 	class, ok := record.DispositionOf(word)
 	if !ok {

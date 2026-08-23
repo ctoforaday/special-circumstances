@@ -221,7 +221,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 		// something to work around. Caught by TestRoleHelpCarriesTheFrictionFooter.
 		root.Long = InvokedAs() + " — " + short + "\n" + seat.FrictionFooter
 		root.AddCommand(verbs...)
-		root.AddCommand(motion.NewCommand())
+		root.AddCommand(motion.NewCommandFor(role))
 		root.AddCommand(newFetch())       // a lens reads the EXACT bytes blue read, from the run cache
 		root.AddCommand(newCountClaims()) // blue's claim_count is defined as what this prints
 		// AFTER every AddCommand: the split reads HasSubCommands, so a group registered before

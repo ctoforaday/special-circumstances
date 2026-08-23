@@ -92,7 +92,7 @@ func TestVerbPayloads(t *testing.T) {
 	}{
 		{
 			name: "lens corroborate records the access date under its payload name",
-			path: []string{"lens", "corroborate"}, seatID: "red-lens-r1-L1",
+			path: []string{"corroborate"}, seatID: "red-lens-r1-L1",
 			// THE QUOTE IS A REAL SPAN of the seeded report. A supporting corroboration splices a
 			// citation anchor at the claim, so the claim must be in the live document — the same
 			// rule blue's cite is held to. `"the claim"` was a placeholder and is now refused.
@@ -218,7 +218,11 @@ func TestVerbPayloads(t *testing.T) {
 				// The verb word is the event type's word with the schema's underscores rendered as
 				// the hyphens a COMMAND uses — `manifest_row` is typed `manifest-row`. A case
 				// whose path differs beyond that states it in `path`, as three already do.
-				path = []string{tc.role, strings.ReplaceAll(recordpb.Word(tc.typ), "_", "-")}
+				// NO ROLE SEGMENT. The surface is scoped to the seat, so a verb sits at the ROOT
+				// of its own tree; prefixing the role reproduces the old grouped path and is
+				// answered with "no command named \"bench\" exists". `tc.role` still selects
+				// which surface the case belongs to; it is not part of what a seat types.
+				path = []string{strings.ReplaceAll(recordpb.Word(tc.typ), "_", "-")}
 			}
 			args := append(append([]string{}, path...), "--run", runDir, "--seat-id", tc.seatID)
 			args = append(args, tc.args...)

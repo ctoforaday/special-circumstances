@@ -52,7 +52,11 @@ func TestBothProseChannelsProduceTheSameRecord(t *testing.T) {
 		{blueSeat, []string{"position"}},
 		{blueSeat, []string{"revision"}},
 		{blueSeat, []string{"friction"}},
-		{"red-merge-r1", []string{"position"}},
+		// A SEAT THE STAGED BOARD HAS NOT ALREADY USED. The docket board records a `position` for
+		// red-merge-r1, and a position is a once-per-sitting act the record REFUSES to repeat
+		// rather than dedup — so this case was failing on the fixture's own write, not on the
+		// prose channel it is testing.
+		{"red-merge-r2", []string{"position"}},
 		{"red-merge-r1", []string{"friction"}},
 		{"judge-r2", []string{"certify"}},
 		{"judge-r2", []string{"declare"}},
@@ -101,18 +105,26 @@ func recordOnce(t *testing.T, seatID string, args []string, prose func(dir strin
 	return payloadOfLast(t, runDir, recordTypeOf(t, args))
 }
 
-// recordTypeOf is the event a verb writes, RESOLVED OFF THE SCHEMA rather than hand-kept.
+// recordTypeOf is the event a verb writes.
 //
-// This was a switch mapping verb to event-type string, with a comment defending it as "hand-kept
-// and SMALL on purpose". The schema carries the spelling of every event type, so the table is the
-// second list the migration exists to collapse — and a miss here now fails at the resolve, naming
-// the word it could not find, instead of failing later as "no <type> event in the log".
+// SMALL, AND CHECKED — which is the part that was missing either way. It began as a hand-kept
+// switch defended as "SMALL on purpose". I replaced it with a bare schema lookup on the verb name,
+// on the argument that the table was a second list beside the descriptor. That was wrong: a verb
+// and the event it writes are DIFFERENT NAMES, deliberately — `line-of-inquiry` writes an `avenue`
+// — so the lookup resolved nothing and the test asserted against a word the schema does not carry.
+//
+// The mapping is real and irreducible, so it stays; what it now does is RESOLVE through the
+// descriptor, so a stale entry fails here naming the word it could not find rather than passing
+// on a miss. See [[facts-are-fields]] clause 4: find every reader before removing an encoding.
 func recordTypeOf(t *testing.T, args []string) recordpb.EventType {
 	t.Helper()
 	word := args[0]
-	vd, ok := recordpb.BySpelling(recordpb.EventType(0).Descriptor(), word)
+	if w, ok := map[string]string{"line-of-inquiry": "avenue"}[word]; ok {
+		word = w
+	}
+	vd, ok := recordpb.BySpelling(recordpb.EventType(0).Descriptor(), strings.ReplaceAll(word, "-", "_"))
 	if !ok {
-		t.Fatalf("%q is not an event type the schema declares, so this test is asserting against a word nothing can write", word)
+		t.Fatalf("%q maps to %q, which is not an event type the schema declares — the verb->event mapping above is stale", args[0], word)
 	}
 	return recordpb.EventType(vd.Number())
 }
