@@ -52,7 +52,9 @@ absent case and the healthy case are the same bytes. No blocking — every path 
    observation row rather than intended.
 5. **Zero extra turns.** A session with the nudge live shows no more assistant entries than the
    same session without it, beyond the one turn a single emission is intended to create. The
-   control in §II is the baseline (4 entries clean, 20 looping).
+   control is the **in-harness arm measured at the time**, never a quoted constant: spike §8 read 4
+   entries clean / 20 looping on 2.1.235 and §13 read 35 on 2.1.240, so any number written here is
+   already wrong for some client.
 6. **The falsification.** After the nudge ships, median note-age-at-seal falls against criterion
    1's baseline. If it does not, the nudge comes out — stated before the data so the outcome
    cannot be reinterpreted after it.
@@ -239,28 +241,30 @@ note, reportable as an error rather than a disagreement someone has to adjudicat
 that comparison are computed by the machine, from snapshots it already takes** — neither is a value
 the note claims about itself.
 
-**Carriers of the schema bump**, censused 2026-08-23, commands and full output:
+**Carriers of the schema bump**, censused 2026-08-23 — **plugin-wide, because a census scoped to
+`tools/` cannot return its own table's rows**:
 
 ```bash
-git grep -c "schema: 2" -- plugins/prosthetic-conscience/tools/
-git grep -n 'Get("schema")' -- plugins/prosthetic-conscience/tools/
-git grep -n 'Get("updated")' -- plugins/prosthetic-conscience/tools/
+git grep -l "schema: 2"      -- plugins/          # 11 files
+git grep -n -w "updated"     -- plugins/          # every reader of the retired field
+git grep -n 'Get("schema")'  -- plugins/          # 1 hit
 ```
 
 | Carrier | Change |
 |---|---|
-| `skills/context-checkpointing/SKILL.md` | `schema: 3`; **`updated:` removed**; `written_at`, `reaffirmed_at` added; and the re-affirmation contract — a re-affirmation sets `reaffirmed_at` and touches nothing else, not `head`, not `written_at` |
-| `commands/checkpoint.md` | writes them; this is where "still accurate" becomes an artifact |
-| `internal/checkpoint` | no parser change — flat scalars — plus an accessor per field. **`checkpoint_test.go:17` hard-asserts `Get("schema") == "2"`** and must move with the bump: "nothing consumes the key" was true of production code and false of the suite |
-| `internal/checkpointseal` | **computes `body_sha` from the snapshot it already takes** and writes it to the seal row |
-| `internal/checkpointrestore` | `main.go:210` renders `Get("updated")`; re-point it at `written_at`, and render `reaffirmed_at` beside it when set |
-| `internal/postcompactobserve`, `internal/filechangedrearm`, `internal/sessionstart` | read the note; additive fields, no behaviour change. **`sessionstart` was missing from the earlier list** |
-| `gray-area/tools/internal/claims` | reads a sealed note's body — unaffected |
-| **`schema: 2` fixtures — 35 across 9 files** (`checkpoint_test.go` 4, `checkpointrestore/compose_test.go` 8, `checkpointrestore/main_test.go` 7, `checkpointseal/{drift,hook,main}_test.go` 4/3/1, `filechangedrearm/main_test.go` 5, `postcompactobserve/main_test.go` 2, `sessionstart/main_test.go` 1) | an earlier draft said "goldens under `internal/checkpoint*/testdata`" — **no such directory exists**; the fixtures are inline string literals, and a glob naming a path that is not there is a carrier list that cannot be re-run |
+| `skills/context-checkpointing/SKILL.md:16-17` | `schema: 3`; **`updated:` removed**; `written_at`, `reaffirmed_at` added; and the contract that a re-affirmation sets `reaffirmed_at` and touches nothing else — not `head`, not `written_at` |
+| `commands/checkpoint.md` | writes the new fields; this is where "still accurate" becomes an artifact |
+| **`commands/resume.md:13`** | *"Report the seam: the note's `updated` timestamp…"* — **a prompt contracted on the deleted field.** Becomes `written_at`, and reports `reaffirmed_at` beside it when set, since a note re-affirmed by another session is exactly the seam this step exists to surface |
+| `internal/checkpointrestore` | `main.go:210` renders `Get("updated")` → re-point at `written_at`, render `reaffirmed_at` beside it; **3 `updated:` fixtures** in `main_test.go:16,149,193` |
+| `internal/checkpoint` | no parser change (flat scalars), one accessor per field. **`checkpoint_test.go:17` hard-asserts `Get("schema") == "2"`** — the only consumer of the key anywhere, and it must move with the bump |
+| `internal/checkpointseal` | computes `body_sha` from the snapshot it already takes, into the seal row |
+| `internal/postcompactobserve`, `internal/filechangedrearm`, `internal/sessionstart` | read the note; additive fields, no behaviour change |
+| `gray-area/tools/internal/claims/claims_test.go:18` | a `schema: 2` fixture — **outside `prosthetic-conscience` entirely**, which is why the census must be plugin-wide |
+| **`schema: 2` fixtures — 11 files**: the two above plus `checkpoint_test.go`, `checkpointrestore/{compose,main}_test.go`, `checkpointseal/{drift,hook,main}_test.go`, `filechangedrearm/main_test.go`, `postcompactobserve/main_test.go`, `sessionstart/main_test.go` | inline string literals, not `testdata` — there is no such directory |
 
-**`updated:` is retired.** `written_at` and `reaffirmed_at` replace it — two facts that mean
-different things, where `updated:` meant "something happened". No alias is kept: one fact, one field,
-and `checkpointrestore`'s digest starts telling the truth about re-affirmations.
+Everything else `git grep -n -w "updated"` returns is `frank-exchange-of-views` prose using the
+English word, and `hookcmd.go`'s `updatedInput` local — adjudicated as unrelated rather than left
+unmentioned, because a census that lists only its hits cannot be checked against a re-run.
 
 **Schema 2 notes must not read as age zero.** Nothing consumes the `schema:` key today (verified: it
 appears in comments and fixtures only), so the bump costs no migration — but a note without
@@ -543,7 +547,6 @@ session that answered the nudge from one that ignored it. **The seal row therefo
 The value goes in the **seal row**, a record with fields — never composed into a timestamp field,
 which is the shape §III indicts elsewhere.
 
-**Which population criterion 6 is computed over is a DECISION, not an editing fix**, and is left open
 in §VI-c rather than chosen quietly.
 
 **Consumer census** — `git grep -ln "context-checkpointing" -- plugins/ scripts/ docs/`, full output,
@@ -552,7 +555,7 @@ every hit adjudicated:
 | Hit | Relationship | Changes? |
 |---|---|---|
 | `skills/context-checkpointing/SKILL.md` | the surface itself | **YES** — the clause above |
-| `commands/checkpoint.md`, `commands/resume.md` | invoke the skill; `checkpoint.md` enumerates the note's sections | **YES for `checkpoint.md`** — it must write `nudge_answered`'s trigger; `resume.md` unchanged |
+| `commands/checkpoint.md`, `commands/resume.md` | invoke the skill; `checkpoint.md` enumerates the note's sections; `resume.md:13` reports the seam from `updated` | **YES, both** — `checkpoint.md` writes `nudge_answered`'s trigger; `resume.md` reports `written_at` in place of the retired `updated` |
 | `skills/validation-loop/SKILL.md`, `skills/project-memory/SKILL.md`, `skills/complete-the-concept/SKILL.md` | sibling rules that cite `[[context-checkpointing]]` | **No** — swept (below), none carries a rival nudge duty |
 | `README.md` | describes the skill | **YES** — one line, if the nudge ships |
 | `internal/checkpoint/checkpoint.go`, `checkpointrestore/{main,main_test}.go`, `checkpointseal/main.go`, `filechangedrearm/main.go` | reference the skill in comments; parse the note | **No** — none reads the clause; the note's schema is unchanged by it |
@@ -589,7 +592,8 @@ editing L or I.
 | F7 | **Short sessions get lectured.** | M×L×L | Gauge arms only above a floor (a note exists, or the session crossed a turn/token floor). Below it, silent. | Ph. 3 |
 | F8 | **Age is read as truth.** A fresh note is not a correct note. | M×M×L | The skill clause says so; the render states a measure, never a verdict. gray-area's `/audit-checkpoint` remains the instrument for the note's *claims*, and the two are deliberately different tools. | Ph. 3 |
 | **F10** | **`Stop` injection loops** — measured, not theorised, and **worse on the current client**: 9 firings / 1,186 output tokens on 2.1.235, **16 firings / 35 assistant entries / 4,326 output tokens on 2.1.240** (spike §13). The cap is undocumented and moved between two patch versions. | **H×H×L** · residual after mitigation **L×M** | Write-before-emit; `stop_hook_active` as an independent second brake; a loop regression test asserting the empty emission on a spent band. §III. | Ph. 2 |
-| F9 | **Hook-surface churn** (R9, realised **four times**: `SubagentStop` changed behaviour between 2.1.220 and 2.1.240; `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` stopped working entirely; the `Stop` loop's cost went 9 firings/1,186 tokens → **16/4,326** between 2.1.235 and 2.1.240; and tool events were found to fire **without** a `matcher` key, refuting an inference drawn one client earlier). | M×M×M | Channels are measured per client and each row says which: §8 on **2.1.235**; **§9–§13 on 2.1.240**. `Stop` injection **has** been re-run on 2.1.240 — 16 attachments (§13); an earlier draft of this cell still said it had not, after §13 measured it. Phase 2 re-confirms at build time as **version-drift insurance**, not because the channel is unmeasured: this row's own history is four surprises across three client versions. | all |
+| F11 | **`seals.jsonl` grows without bound** — deliberately not pruned, reversing the `keepSnapshots = 10` precedent beside it, whose comment cites a resource problem this repository already hit once. | L×L×L | A row is ~200 bytes and the file is gitignored: 20 boundaries ≈ 4 KB, a year of heavy use is single-digit MB. **Pruning is what made the old seal unusable as a record** (§III) — the baseline needs history. Phase 3 sets a retirement point if the measured row size exceeds the estimate. | Ph. 3 |
+| F9 | **Hook-surface churn** (R9, realised **three times across three client versions**: `SubagentStop` changed behaviour between 2.1.220 and 2.1.240; `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` went inert; and the `Stop` loop's cost went 9 firings/1,186 tokens → 16/4,326 between 2.1.235 and 2.1.240). | M×M×M | Channels are measured per client and each row says which: §8 on **2.1.235**; §9–§13 on **2.1.240**. Phase 2 re-confirms at build time as version-drift insurance. **Not counted here:** the `matcher`-key finding (§9e correction 1) is a measurement artifact on a single client — a dead driver blamed on a missing matcher — and folding it into a churn count would inflate the risk this row exists to size. | all |
 
 ---
 
@@ -711,6 +715,21 @@ jq -s 'map(select(.nudge_enabled)) | {sessions: (group_by(.session_id) | length)
 
 `worst_count > 4` or `worst_bytes > 200` fails Phase 2. A criterion whose number appears only in §I is
 an intention; this is the query that makes it a check.
+
+**It is a lower bound, and must be reported as one.** These rows exist only for sessions that
+**sealed** — and `SessionEnd` fired in 0 of 2 runs that ended with live background work (§III). A
+session that emitted five nudges and never sealed produces the same output as one that emitted three,
+so the absent case and the honest pass are again the same bytes. Report the denominator beside it:
+
+```bash
+# emitting sessions observed, against sessions that started at all
+jq -s '{sealed_sessions: (group_by(.session_id) | length),
+        emitting: ([.[] | select(.emissions_this_session > 0)] | group_by(.session_id) | length)}' \
+   .claude/checkpoints/seals.jsonl
+```
+
+If the sealed count is far below the sessions actually run, `worst_count` is measuring the sessions
+that ended tidily, which are not the ones the budget is protecting against.
 
 **Did the duty get discharged, and which way** — the artifact that keeps the `SKILL.md` clause out
 of the `unobservable-duty` class. A field no check reads leaves the class alive one level up:
