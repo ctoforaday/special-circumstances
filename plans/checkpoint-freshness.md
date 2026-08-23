@@ -203,13 +203,31 @@ forget to update. The `updated:` frontmatter is read as a cross-check and a disa
 the two is itself reportable, but mtime is the authority. **No new record is created to hold "when
 we last checkpointed"**; the note and the transcript already hold it.
 
-**One new file, holding only debounce:** `.claude/checkpoints/freshness.json`, keyed by
-`(session_id, agent_id)` — subagents share the parent's session id and two seats would otherwise
-silence each other (R10, a defect in the original design). Deleting it costs at most one duplicate
-emission. Bands are `NOTICE → WARN → URGENT`, at most once per band per session, all reset when
-the note's mtime moves. **Thresholds are set from the Phase 1 baseline and ship as `TBD`**; a
-threshold chosen before the distribution is known is a guess, and this plan will not launder one
-as a default.
+**One new file, and its fields are specified because a query reads them:**
+`.claude/checkpoints/freshness.json`, holding
+
+| Field | Why |
+|---|---|
+| `bands_spent` | which of NOTICE/WARN/URGENT have fired, **reset when the note's mtime moves** |
+| `emissions_this_session` | a monotone counter, **NOT reset by an mtime move** — criterion 4's cap is per session, and a counter that resets cannot enforce it |
+| `emission_bytes_max` | the largest render emitted, for criterion 4's ≤ 200 bytes |
+| `note_mtime_seen` | what the band reset is keyed on |
+
+**The hard cap is here, and it is separate from the band policy.** Bands are "at most once per band
+per session, reset on write" — which permits three emissions per note-write cycle, so two checkpoint
+writes in one session would exceed criterion 4's ≤ 4 by design. **`emissions_this_session >= 4`
+therefore suppresses unconditionally, whatever the bands say**, and the seal row copies both counters
+so the budget is *counted* rather than intended. An earlier draft stated the budget in §I, described
+the file as "holding only debounce", and left nothing to enforce or read it.
+
+**Keyed on `session_id` alone.** An earlier draft keyed it on `(session_id, agent_id)` with F5
+covering "two seats would otherwise silence each other" — **that scenario cannot occur in this
+design.** `sc-stop` is the only writer, and `Stop`'s payload carries no `agent_*` fields at all
+(spike §13, §12): the seat-bearing channel is `SubagentStop`, which cannot emit anything (§10). A
+composite key would have made `agent_id` permanently empty and the promised "R10 regression test"
+would have asserted a fiction over a constant. **F5 is retired**, and the reason is recorded here
+rather than the row being deleted quietly — it was a real risk for a design that had a per-seat
+emitter, and it stops being one at the moment that emitter was cut.
 
 **The number is deferred; the RULE is not, and is fixed here before any data is collected.** Each of
 the three measures gets its own distribution from the Phase 1 baseline — `note_age_turns`,
@@ -268,7 +286,8 @@ machine-read fact to live in a field.
 | `live_handles` | count of `background_tasks` entries with `type != "subagent"`, plus `session_crons` — **only when measurable**. Seats are excluded deliberately: at a `seat_return` seal the returning seat appears in the parent's own list (§12), and counting it reads high by exactly one while answering a different question from "did this note miss some background work" |
 | `handles_measured` | `false` when the payload carries no `background_tasks` key |
 | `nudge_enabled` | whether the nudge was live when this seal was written — criterion 6's falsification groups on it, and it must be recorded per row rather than inferred from dates |
-| `emissions_this_session` | how many nudges this session has emitted at the time of the seal, and `emission_bytes_max` beside it — **criterion 4's budget is stated as "counted in the observation row rather than intended", and until this field existed nothing counted it**. The debounce file already holds the number; the seal row is where it becomes checkable after the fact |
+| `nudge_answered` | whether the band that fired was answered — the note rewritten, or a "still accurate" judgement recorded in `updated:`. Without it the skill clause is an `unobservable-duty` and criterion 6 cannot tell a session that answered from one that ignored (§III, `SKILL.md`) |
+| `emissions_this_session` | copied from `freshness.json`'s monotone counter at seal time, and `emission_bytes_max` beside it — **criterion 4's budget is stated as "counted in the observation row rather than intended", and until this field existed nothing counted it**. The debounce file already holds the number; the seal row is where it becomes checkable after the fact |
 
 **`handles_measured` is not defensive padding; it is the whole of the column's honesty.** Measured
 per event 2026-08-23 on 2.1.240 and recorded as `hook-surface-spike.md` **§12** — key sets read from
@@ -398,8 +417,10 @@ looped nine times and burned 1,186 output tokens on filler. Therefore:
   emission at all** — silence is a missed nudge; emitting on an unrecorded band is the nine-firing
   loop measured in spike §8. The loop regression test asserts the failure path explicitly, not just
   the spent-band path.
-- **`stop_hook_active`** is present in the payload (spike §2) and is checked as a second,
-  independent brake: if the turn is already a Stop-hook continuation, emit nothing regardless of
+- **`stop_hook_active`** is checked as a second, independent brake — **measured on `Stop` itself
+  (spike §13: `false` on the first firing, `true` on all fifteen re-entries).** An earlier draft
+  cited spike §2 for this, which is a `SubagentStop` payload table; the property now has evidence on
+  the channel the design uses: if the turn is already a Stop-hook continuation, emit nothing regardless of
   band state. Belt and braces, because the two failure modes have different causes — one is our
   state file, one is the client's own re-entry.
 - A **loop regression test** asserts the null case: given a band already spent, the emission is
@@ -454,7 +475,39 @@ time. Staleness has nothing to do with a tool failing.
 >   last turn changed the objective. Silence is the failure this mechanism exists to remove; a
 >   reasoned "still accurate" closes the band and is a valid answer.
 
----
+**This clause is `unobservable-duty`, and naming its class is what exposed the hole.** The registry's
+sweep question for that class is *"what artifact would a reviewer look at to tell whether this was
+done?"* — and for a spoken "still accurate" the answer is **nothing**. The duty would be discharged
+into the conversation and leave no trace, so criterion 6's falsification could not distinguish a
+session that answered the nudge from one that ignored it. **The seal row therefore carries
+`nudge_answered`** — set when the note is rewritten after a band fires, or when the agent records the
+"still accurate" judgement in the note's `updated:` line. An unobservable duty is a rule that reads
+as enforcement and measures nothing.
+
+**Consumer census** — `git grep -ln "context-checkpointing" -- plugins/ scripts/ docs/`, full output,
+every hit adjudicated:
+
+| Hit | Relationship | Changes? |
+|---|---|---|
+| `skills/context-checkpointing/SKILL.md` | the surface itself | **YES** — the clause above |
+| `commands/checkpoint.md`, `commands/resume.md` | invoke the skill; `checkpoint.md` enumerates the note's sections | **YES for `checkpoint.md`** — it must write `nudge_answered`'s trigger; `resume.md` unchanged |
+| `skills/validation-loop/SKILL.md`, `skills/project-memory/SKILL.md`, `skills/complete-the-concept/SKILL.md` | sibling rules that cite `[[context-checkpointing]]` | **No** — swept (below), none carries a rival nudge duty |
+| `README.md` | describes the skill | **YES** — one line, if the nudge ships |
+| `internal/checkpoint/checkpoint.go`, `checkpointrestore/{main,main_test}.go`, `checkpointseal/main.go`, `filechangedrearm/main.go` | reference the skill in comments; parse the note | **No** — none reads the clause; the note's schema is unchanged by it |
+
+**Rule-Class and sibling sweep, for the commit that lands this** — `rulesweep` is a mandatory
+pull-request gate (`.github/workflows/hooks.yml:204`) and its protocol-surface list includes both
+`/skills/[^/]+/SKILL\.md$` and `/hooks/hooks\.json$`, which this plan modifies. The implementation
+commit MUST carry:
+
+```
+Rule-Class: unobservable-duty
+Sibling-Sweep: checked validation-loop, project-memory, complete-the-concept and commands/{checkpoint,resume}.md —
+  none carries a rival post-nudge duty; checkpoint.md gains the artifact that makes this one observable
+```
+
+The gate rejects prose *describing* the trailers rather than carrying them (`sweep.go:97`), so this
+block is a specification of the commit, not a substitute for it.
 
 ## IV. Risk & Mitigation
 
@@ -470,11 +523,11 @@ editing L or I.
 | F2 | **Fabricated denominator.** | M×H×L | `Ceiling` tri-state with `Unknown` as a value callers must handle; criterion 2 is a test over the render. | Ph. 1 |
 | F3 | **Commit count reads other people's work as mine.** | H×M×L | `--first-parent`; no author filter (§II measured both). | Ph. 1 |
 | F4 | **Gauge cost on a hot path.** | M×M×L | Bounded tail; skip entirely when note mtime is unchanged and the band is current; criterion 3 is a measured gate. | Ph. 2 |
-| F5 | **Concurrent seats share `session_id`.** | M×M×L | Debounce keyed on `(session_id, agent_id)`; R10 regression test. | Ph. 2 |
+| ~~F5~~ | ~~**Concurrent seats share `session_id`.**~~ **RETIRED** — no per-seat emitter exists: `sc-stop` is the only writer and `Stop` carries no `agent_*` fields (spike §12/§13); the only seat-bearing channel cannot emit (§10). Left in place rather than deleted, because it was a live risk until the `PostToolUse` tick was cut. | — | — | — |
 | F6 | **mtime lies** — a tool touches the note without rewriting it. | L×H×M | `updated:` cross-check; disagreement is reported rather than resolved silently. | Ph. 1 |
 | F7 | **Short sessions get lectured.** | M×L×L | Gauge arms only above a floor (a note exists, or the session crossed a turn/token floor). Below it, silent. | Ph. 3 |
 | F8 | **Age is read as truth.** A fresh note is not a correct note. | M×M×L | The skill clause says so; the render states a measure, never a verdict. gray-area's `/audit-checkpoint` remains the instrument for the note's *claims*, and the two are deliberately different tools. | Ph. 3 |
-| **F10** | **`Stop` injection loops** — measured, not theorised: 9 firings, 8 filler turns, 1,186 wasted tokens from one unguarded emission. | **H×H×L** · residual after mitigation **L×M** | Write-before-emit; `stop_hook_active` as an independent second brake; a loop regression test asserting the empty emission on a spent band. §III. | Ph. 2 |
+| **F10** | **`Stop` injection loops** — measured, not theorised, and **worse on the current client**: 9 firings / 1,186 output tokens on 2.1.235, **16 firings / 35 assistant entries / 4,326 output tokens on 2.1.240** (spike §13). The cap is undocumented and moved between two patch versions. | **H×H×L** · residual after mitigation **L×M** | Write-before-emit; `stop_hook_active` as an independent second brake; a loop regression test asserting the empty emission on a spent band. §III. | Ph. 2 |
 | F9 | **Hook-surface churn** (R9, realised **three times**: `SubagentStop` changed behaviour between 2.1.220 and 2.1.240, and `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` stopped working entirely). | M×M×M | Channels are measured per client and each row says which: §8 on **2.1.235**, §9–§11 on **2.1.240**. `Stop` injection has NOT been re-run on 2.1.240 — Phase 2 re-confirms the attachment at build time rather than assuming it. Inertness does not cover an event that fires *differently*, and no mitigation here does. | all |
 
 ---
@@ -566,6 +619,17 @@ correctness change and the stamping is pure observation.
 Thresholds from Phase 1, at §III's preregistered percentiles. **Two cost gates, not one** (criterion
 3): the transcript read p95 over 100 invocations **fails above 5 ms**; branch work p95 **fails above
 200 ms** and must be served from the per-`HEAD` cache on a repeat call.
+
+**The protocol-rule gate, which the implementation commit fails without:**
+
+```bash
+(cd scripts && go run ./rulesweep -base origin/main)
+```
+
+`rulesweep` is a mandatory pull-request gate and its protocol surfaces include
+`/skills/*/SKILL.md` and `/hooks/hooks.json` — this plan touches both. The commit carries
+`Rule-Class: unobservable-duty` and a `Sibling-Sweep:` trailer naming the surfaces checked (§III).
+Prose describing the trailers does not satisfy it.
 
 **Criterion 4's budget, counted rather than intended:**
 

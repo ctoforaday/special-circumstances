@@ -414,6 +414,8 @@ writer consolidation is the fix; a lock would be the alternative.
 | **`PreCompact` stdout becomes custom compact instructions** | **VERIFIED** — marker survived 2/2 |
 | **`UserPromptSubmit` / `PostToolUse` / `PostToolBatch` / `Stop` can inject** | **VERIFIED** — all four, against a `SessionStart` control (§8) |
 | **`Stop` injection re-invokes the model** | **VERIFIED** — 9 firings vs 1 on a null control, 8 filler turns (§8). Hazard and feature are one mechanism |
+| **`stop_hook_active` flips on a `Stop` re-entry** | **VERIFIED on 2.1.240 (§13)** — `false` on the 1st firing, `true` on all 15 that followed. A guard can detect its own loop with no state |
+| **The `Stop` loop's SIZE is client-specific** | **MEASURED** — 9 firings / 1,186 output tokens on 2.1.235; **16 / 4,326 on 2.1.240** (§13). Read §8's figures as that client's, not as the hazard's |
 | **`Stop` carries in-flight handles** | **VERIFIED** — `background_tasks[]` with `{id,type,status,description,command}` and `session_crons[]`, on a live task (§9c) |
 | **Which events carry `background_tasks`** | **MEASURED per event (§12)** — `Stop` and `SubagentStop` carry and populate it; **`PreCompact` and `SessionEnd` do not carry the key at all**. Two of the three SEALING events therefore cannot measure handles |
 | **`background_tasks` includes subagents** | **VERIFIED** — a live seat appears as `{type:"subagent", agent_type:…}` in the parent's list (§12) |
@@ -1050,3 +1052,46 @@ close, so "the session did not end the way the hook counts as ending" is not exc
 because the case it touches is the one a checkpoint design cares most about** — a session going away
 with work still running is exactly when the sealed note matters — and because a seal that silently
 never fires is indistinguishable from a seal that fired and found nothing.
+
+---
+
+## 13. `stop_hook_active` measured on `Stop`, and the loop is 3.6× worse on 2.1.240 (2026-08-23)
+
+§8 measured the `Stop` injection loop on **2.1.235** and recorded `stop_hook_active`'s presence from
+`SubagentStop`'s payload table. Two things were therefore never verified on the channel the design
+actually uses: whether the flag flips on a `Stop` **re-entry**, and whether §8's numbers still hold.
+Both now measured on **2.1.240**, same method as §8 — unguarded `Stop` hook emitting
+`additionalContext`, `SessionStart` positive control, one prompt forcing a tool call.
+
+### The brake is real
+
+| Firing | `stop_hook_active` |
+|---|---|
+| 1st | **`false`** |
+| 2nd–16th | **`true`** — all fifteen |
+
+The client marks every re-entry. A guard reading this flag can refuse to emit inside a loop it
+caused, **on the channel that matters**, with no state of its own and nothing to write. That closes
+the second of F10's two brakes in `checkpoint-freshness.md`, which until now cited a `SubagentStop`
+table for a `Stop` property.
+
+### The loop got worse, and F9 gains its fourth instance
+
+| | 2.1.235 (§8) | **2.1.240 (here)** |
+|---|---|---|
+| `Stop` firings | 9 | **16** |
+| assistant entries | 20 | **35** |
+| output tokens burned | 1,186 | **4,326** |
+
+Same shape, **3.6× the cost**. Whatever caps the run at 9 or 16 is not a documented constant and
+moved between two patch versions; neither run produced a cap message on stderr. **An unguarded
+injector is more expensive on the current client than this record's headline figure**, so §8's
+numbers must be read as that client's, not as the hazard's size.
+
+Injection itself re-verified here: **16 `hook_additional_context` attachments**, one per firing,
+alongside the `SessionStart` control — `Stop` injection was measured on 2.1.235 and had not been
+re-run on 2.1.240 until now.
+
+**The design consequence is unchanged and better founded.** Guard on `stop_hook_active` first — it is
+the authority's own flag, needs no file, and cannot be lost — with the debounce record for band
+policy, which is a different question from cycle detection.
