@@ -3,6 +3,12 @@ exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE001)
 
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
 $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check a --severity low --likelihood low --impact low --problem from the stale dispatch
 exit 0
 stdout:
@@ -12,6 +18,12 @@ $ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE002)
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
 
 YOU ARE SITTING 2 OF THIS SEAT, AND AN EARLIER SITTING'S WORK IS GONE. 1 event(s) it recorded (1 mint) lost replay's winner selection and survive nowhere — not in the board, not in the report's evidence, not in any projection you are about to read. This is not a warning about the record being wrong; the record is correct and that work is simply absent.
 
