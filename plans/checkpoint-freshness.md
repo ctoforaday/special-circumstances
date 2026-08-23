@@ -132,10 +132,6 @@ the single commit `13332bc` — against `noreply@anthropic.com` (85) and `gblock
 (23). The configured identity is not the identity the branch's work was committed under, and the
 filter reports 1 for a branch that this pair did all 109 commits of.
 
-> An earlier draft of this paragraph said the filter returns **0**. It does not, and did not: the
-> range yields 1 in the worktree the original measurement was taken in. The claim is corrected
-> rather than quietly restated — a number in this record that fails on re-run is the defect the
-> record exists to prevent.
 
 Near-zero rather than zero makes the case worse, not better: it is a plausible *number*, not even a
 suspicious blank. Clause 3 governs — the miss and the honest "did no work" are the same bytes.
@@ -200,9 +196,7 @@ twelve turns of bulk reading, or take 300 turns without moving the token count.
 
 ### The reference point is a FIELD, not the file's mtime — schema 3
 
-An earlier draft made **mtime the authority** — "a fact the filesystem holds, that no writer can
-forget to update" — with `updated:` as a cross-check. That is the wrong authority, and the audit's
-criterion-6 finding is what exposed it: **mtime records that the file was TOUCHED, and the design
+**mtime records that the file was TOUCHED, and the design
 needs to know when its CONTENT last changed.** A "still accurate" re-affirmation moves mtime exactly
 as a rewrite does, so an age measured from mtime resets either way, and the kill switch cannot tell a
 fresher note from a touched one. Mitigating that downstream (three-valued `nudge_answered`,
@@ -216,8 +210,7 @@ segmented medians, F6's cross-check) was treating the symptom: the fact was neve
 | `reaffirmed_at` | `<UTC ISO\|null>` | when it was last confirmed still accurate without changing |
 | `head` | `<short sha\|null>` | **existing field, with a new rule: it moves only when `written_at` moves.** A re-affirmation leaves it alone — see below |
 
-**`body_sha` is NOT among them, and that is the correction round 6 forced.** An earlier draft put a
-body hash in the frontmatter. **Nothing could have written it**: `CHECKPOINT.md` is agent-authored
+**`body_sha` is deliberately NOT among them.** `CHECKPOINT.md` is agent-authored
 prose (`commands/checkpoint.md`), so the only named writer would be typing a hex digest of the bytes
 it is in the middle of typing, and a wrong digest is bytes-identical to a right one —
 [[design-by-contract]]'s rule that a script must do what a script can do, inverted. **The hash belongs
@@ -246,8 +239,7 @@ note, reportable as an error rather than a disagreement someone has to adjudicat
 that comparison are computed by the machine, from snapshots it already takes** — neither is a value
 the note claims about itself.
 
-**Carriers of the schema bump.** An earlier draft hand-wrote this list with no command — the exact
-defect §III indicts two sections later. Censused 2026-08-23, commands and full output:
+**Carriers of the schema bump**, censused 2026-08-23, commands and full output:
 
 ```bash
 git grep -c "schema: 2" -- plugins/prosthetic-conscience/tools/
@@ -257,22 +249,18 @@ git grep -n 'Get("updated")' -- plugins/prosthetic-conscience/tools/
 
 | Carrier | Change |
 |---|---|
-| `skills/context-checkpointing/SKILL.md` | `schema: 3`, the three new fields, and the re-affirmation contract (`reaffirmed_at` only — not `head`, not `written_at`) |
+| `skills/context-checkpointing/SKILL.md` | `schema: 3`; **`updated:` removed**; `written_at`, `reaffirmed_at` added; and the re-affirmation contract — a re-affirmation sets `reaffirmed_at` and touches nothing else, not `head`, not `written_at` |
 | `commands/checkpoint.md` | writes them; this is where "still accurate" becomes an artifact |
 | `internal/checkpoint` | no parser change — flat scalars — plus an accessor per field. **`checkpoint_test.go:17` hard-asserts `Get("schema") == "2"`** and must move with the bump: "nothing consumes the key" was true of production code and false of the suite |
 | `internal/checkpointseal` | **computes `body_sha` from the snapshot it already takes** and writes it to the seal row |
-| `internal/checkpointrestore` | `main.go:210` renders `Get("updated")` as the note's "written:" line — **see the open decision below** |
+| `internal/checkpointrestore` | `main.go:210` renders `Get("updated")`; re-point it at `written_at`, and render `reaffirmed_at` beside it when set |
 | `internal/postcompactobserve`, `internal/filechangedrearm`, `internal/sessionstart` | read the note; additive fields, no behaviour change. **`sessionstart` was missing from the earlier list** |
 | `gray-area/tools/internal/claims` | reads a sealed note's body — unaffected |
 | **`schema: 2` fixtures — 35 across 9 files** (`checkpoint_test.go` 4, `checkpointrestore/compose_test.go` 8, `checkpointrestore/main_test.go` 7, `checkpointseal/{drift,hook,main}_test.go` 4/3/1, `filechangedrearm/main_test.go` 5, `postcompactobserve/main_test.go` 2, `sessionstart/main_test.go` 1) | an earlier draft said "goldens under `internal/checkpoint*/testdata`" — **no such directory exists**; the fixtures are inline string literals, and a glob naming a path that is not there is a carrier list that cannot be re-run |
 
-**OPEN DECISION for the human — the fate of `updated:`.** After schema 3, `updated:` and `written_at`
-are two age facts on one record that can disagree, and `checkpointrestore/main.go:210` renders the
-older one as the note's provenance. Three ways: **retire `updated:`** and re-point the digest at
-`written_at` (recommended — one fact, one field, and the digest starts telling the truth about
-re-affirmations); **redefine it** as an alias written on both events (compatible, but keeps two names
-for one thing); or **keep both** with distinct meanings and state them (most churn, least benefit).
-Recorded rather than chosen, because it changes a shipped output surface.
+**`updated:` is retired.** `written_at` and `reaffirmed_at` replace it — two facts that mean
+different things, where `updated:` meant "something happened". No alias is kept: one fact, one field,
+and `checkpointrestore`'s digest starts telling the truth about re-affirmations.
 
 **Schema 2 notes must not read as age zero.** Nothing consumes the `schema:` key today (verified: it
 appears in comments and fixtures only), so the bump costs no migration — but a note without
@@ -293,12 +281,9 @@ tri-state discipline `Ceiling` already uses, applied to the field this design tu
 per session, reset on write" — which permits three emissions per note-write cycle, so two checkpoint
 writes in one session would exceed criterion 4's ≤ 4 by design. **`emissions_this_session >= 4`
 therefore suppresses unconditionally, whatever the bands say**, and the seal row copies both counters
-so the budget is *counted* rather than intended. An earlier draft stated the budget in §I, described
-the file as "holding only debounce", and left nothing to enforce or read it.
+so the budget is *counted* rather than intended.
 
-**Keyed on `session_id` alone.** An earlier draft keyed it on `(session_id, agent_id)` with F5
-covering "two seats would otherwise silence each other" — **that scenario cannot occur in this
-design.** `sc-stop` is the only writer, and `Stop`'s payload carries no `agent_*` fields at all
+**Keyed on `session_id` alone**, because no per-seat emitter exists. `sc-stop` is the only writer, and `Stop`'s payload carries no `agent_*` fields at all
 (spike §13, §12): the seat-bearing channel is `SubagentStop`, which cannot emit anything (§10). A
 composite key would have made `agent_id` permanently empty and the promised "R10 regression test"
 would have asserted a fiction over a constant. **F5 is retired**, and the reason is recorded here
@@ -326,12 +311,6 @@ licence to pick different percentiles quietly.
 **Render:** one line, ≤ 200 bytes — the measure, the number, the note's path. **No instruction**,
 which is spike §3b's *surviving* claim: "the hook adds no imperative of its own".
 
-> An earlier draft justified this with §3b's other sentence — that a digest asserting content the
-> session cannot recognise is "treated as hostile", so the line should read as the session's own
-> recovered state. **That sentence is struck through in §3b**, superseded 2026-07-29 by building it
-> and measuring: *"The mitigation does not work, and the constraint as written was untestable."*
-> Citing a retracted claim to support a live rule is how a withdrawal gets un-withdrawn by a reader
-> who never opened the source.
 
 ### `[MODIFY] internal/checkpointrestore` — the `--first-parent` defect
 
@@ -382,12 +361,6 @@ raw hook stdin:
 | `PreCompact` | **NO — the key is absent from the payload entirely** (4/4 firings) |
 | `SessionEnd` | **NO — the key is absent** (payload: `cwd, hook_event_name, prompt_id, reason, session_id, transcript_path`) |
 
-> An earlier draft of this table cited §9c/§11 for the `PreCompact` result. **Those sections do not
-> contain it** — §9c is the `Stop` payload, §11 records only firing counts — and it claimed
-> `SubagentStop` was measured "populated on a live task" when the only recorded `SubagentStop` payload
-> (§9d) shows an empty array from a run with nothing running. The claims turned out true; the
-> citations did not exist, which made them assertions wearing a reference. §12 is the measurement,
-> taken afterwards.
 
 **Two of the three sealing events cannot measure handles at all**, so `live_handles` is a real column
 only on `seat_return` rows — `Stop` carries it and does not seal. #506 is therefore answerable in
@@ -501,9 +474,7 @@ looped nine times and burned 1,186 output tokens on filler. Therefore:
   loop measured in spike §8. The loop regression test asserts the failure path explicitly, not just
   the spent-band path.
 - **`stop_hook_active`** is checked as a second, independent brake — **measured on `Stop` itself
-  (spike §13: `false` on the first firing, `true` on all fifteen re-entries).** An earlier draft
-  cited spike §2 for this, which is a `SubagentStop` payload table; the property now has evidence on
-  the channel the design uses: if the turn is already a Stop-hook continuation, emit nothing regardless of
+  (spike §13: `false` on the first firing, `true` on all fifteen re-entries).** — evidence on the channel the design uses: if the turn is already a Stop-hook continuation, emit nothing regardless of
   band state. Belt and braces, because the two failure modes have different causes — one is our
   state file, one is the client's own re-entry.
 - A **loop regression test** asserts the null case: given a band already spent, the emission is
@@ -533,8 +504,7 @@ one registration. `sc-posttooluse` is untouched by this plan.
 | `requirements.json` `_hook_binaries.binaries[]` | `sc-stop` added | `pluginparity` (`main.go:120-169`, names against `cmd/` dirs) |
 | `docs/setup-script.md:99` | "15 at the time of writing" → 16 | `pluginparity` (`main.go:130-138`) |
 
-**An earlier draft of this table said `pluginparity` "fails on any one going stale". That is false,
-and the false part is the row that matters.** `grep -c "hooks.json" scripts/pluginparity/main.go`
+**Nothing gates hook registration.** `grep -c "hooks.json" scripts/pluginparity/main.go`
 returns **0**: it gates the marketplace/bootstrap/docs plugin lists, the docs binary count, and
 `requirements.json` binary *names* — never registration. The only `hooks.json` check in CI
 (`.github/workflows/hooks.yml:428-455`) tests bootstrap-guard degradation, not registration or
@@ -564,22 +534,14 @@ done?"* — and for a spoken "still accurate" the answer is **nothing**. The dut
 into the conversation and leave no trace, so criterion 6's falsification could not distinguish a
 session that answered the nudge from one that ignored it. **The seal row therefore carries `nudge_answered`** — and it MUST be three-valued.
 
-> **A boolean here would have broken criterion 6 — and chasing that is what exposed the real defect.**
-> The age reference point *was* `CHECKPOINT.md`'s mtime (it is now `written_at`, §III). A "still accurate" re-affirmation moves that mtime
-> **exactly as a real rewrite does**, so both reset note-age to ~0 and a boolean marks both `true`.
-> Criterion 6 — *median note-age-at-seal falls* — could then not distinguish **"the nudge made notes
-> fresher"** from **"the nudge trained agents to touch the note"**, and would report success for the
-> second. F6's `updated:`-vs-mtime cross-check does not catch it: the two agree, and only the
-> *content* is unchanged. The kill switch would have been disarmed by the mechanism it polices.
->
-> **Schema 3 removes the cause**, so this three-valued field is no longer load-bearing for criterion
-> 6 — it survives as the diagnostic that says *how* the duty was discharged (§VI-c), and because an
-> `ignored` rate is F1's wallpaper signal whatever the medians do.
+> **Three values, because two of them are indistinguishable from the outside.** `rewritten` and
+> `reaffirmed` are both legitimate answers to a band, and only the note's author knows which one
+> happened — the age fields record *when*, this records *which*. `ignored` is the one the mechanism
+> exists to make visible: it is F1's wallpaper signal, and without it a band that fires into silence
+> looks identical to one that was answered.
 
-The value goes in the **seal row**, a record with fields — not into `updated:`, which is `<UTC ISO>`
-under schema 2 and parsed by a deliberately flat-scalar reader, so a judgement composed into it would
-be the exact shape §III indicts elsewhere. An earlier draft said the judgement was "recorded in
-`updated:`"; that field cannot hold it.
+The value goes in the **seal row**, a record with fields — never composed into a timestamp field,
+which is the shape §III indicts elsewhere.
 
 **Which population criterion 6 is computed over is a DECISION, not an editing fix**, and is left open
 in §VI-c rather than chosen quietly.
@@ -622,9 +584,8 @@ editing L or I.
 | F1 | **The nudge becomes wallpaper** — and a context-pressure warning that costs context is self-defeating at exactly the moment it matters. | H×H×M | Bands, once per band; ≤ 200 bytes; reset on write; **criterion 6 removes it** if the baseline median does not fall. | Ph. 3 |
 | F2 | **Fabricated denominator.** | M×H×L | `Ceiling` tri-state with `Unknown` as a value callers must handle; criterion 2 is a test over the render. | Ph. 1 |
 | F3 | **Commit count reads other people's work as mine.** | H×M×L | `--first-parent`; no author filter (§II measured both). | Ph. 1 |
-| F4 | **Gauge cost on a hot path.** | M×M×L | Bounded tail; **cache the PARSED NOTE keyed on mtime** — re-read the file only when mtime moves. An earlier draft said "skip entirely when mtime is unchanged", which is incoherent under schema 3: growth, turns and branch work all advance while the file sits untouched, so that predicate suppressed the gauge for the whole life of an un-rewritten note — exactly the case the design exists to catch. mtime can save a *parse*; it cannot save the transcript read, which is the cost criterion 3 actually budgets. | Ph. 2 |
-| ~~F5~~ | ~~**Concurrent seats share `session_id`.**~~ **RETIRED** — no per-seat emitter exists: `sc-stop` is the only writer and `Stop` carries no `agent_*` fields (spike §12/§13); the only seat-bearing channel cannot emit (§10). Left in place rather than deleted, because it was a live risk until the `PostToolUse` tick was cut. | — | — | — |
-| F6 | ~~**mtime lies** — a tool touches the note without rewriting it.~~ **LARGELY RETIRED**: age reads `written_at`, not mtime (§III, schema 3), so a touch no longer resets it. What remains is a **writer** that advances `written_at` without changing the body — caught by comparing `body_sha` across consecutive **seal rows**, where the machine computes both sides. | L×M×L | Successive-row comparison in `checkpointseal`; reported as an error, not adjudicated. mtime demoted to a cache key (F4). | Ph. 1 |
+| F4 | **Gauge cost on a hot path.** | M×M×L | Bounded tail; **cache the PARSED NOTE keyed on mtime** — re-read the file only when mtime moves. mtime can save a *parse*; it cannot save the transcript read, which is the cost criterion 3 budgets, and it must never gate the MEASUREMENT: growth, turns and branch work all advance while the file sits untouched, which is the case this design exists to catch. | Ph. 2 |
+| F6 | **A writer advances `written_at` without changing the body** — the note claims to be fresh and is not. | L×M×L | `checkpointseal` computes `body_sha` from the snapshot it already takes; a `written_at` that advanced between two seals while the hash did not is reported as an **error**. Both sides are computed by the machine — neither is a value the note claims about itself. | Ph. 1 |
 | F7 | **Short sessions get lectured.** | M×L×L | Gauge arms only above a floor (a note exists, or the session crossed a turn/token floor). Below it, silent. | Ph. 3 |
 | F8 | **Age is read as truth.** A fresh note is not a correct note. | M×M×L | The skill clause says so; the render states a measure, never a verdict. gray-area's `/audit-checkpoint` remains the instrument for the note's *claims*, and the two are deliberately different tools. | Ph. 3 |
 | **F10** | **`Stop` injection loops** — measured, not theorised, and **worse on the current client**: 9 firings / 1,186 output tokens on 2.1.235, **16 firings / 35 assistant entries / 4,326 output tokens on 2.1.240** (spike §13). The cap is undocumented and moved between two patch versions. | **H×H×L** · residual after mitigation **L×M** | Write-before-emit; `stop_hook_active` as an independent second brake; a loop regression test asserting the empty emission on a spent band. §III. | Ph. 2 |
@@ -665,14 +626,12 @@ this repository today is schema 2, so a run against "a real `CHECKPOINT.md`" exe
 3. the token figure hand-checked against `tail -c 200000 … | jq '.message.usage'` on a live multi-MB
    transcript.
 
-An earlier draft required only (3), which was the check that survived from before the reference point
-moved — the driveable check no longer touched the primary measure.
+
 Then, in this repository:
 
 ```bash
 # Pinned to a fixed range: these numbers move with every commit, and an expectation
 # that re-arms on each commit fails for reasons unrelated to the defect it guards.
-# (An earlier draft hardcoded "expect 24, not 109"; by the next commit it was 25 and 110.)
 R=24f8fc63622f39797e5b4103c003f5aa1465138b..1105a02
 test "$(git rev-list --count --first-parent $R)" -lt "$(git rev-list --count $R)" || echo FAIL
 ```
@@ -782,10 +741,7 @@ naming a gate that does not check the thing is worse than admitting there is no 
 green either way, and only one of the two tells you why.
 
 **The loop gate comes first, because it is the one that burns tokens** — and it asserts a
-**relation, not a constant**. An earlier draft required "≤ 4 assistant entries", which is §8's clean
-control **on 2.1.235**; §13 then measured this channel's counts moving 3.6× between two patch
-versions. A constant copied from one client's run is the same mistake §V already refuses for the git
-range and spike §11 earned for compaction boundaries.
+**relation, not a constant**. A constant copied from one client's run would be wrong on the next: §13 measured this channel's counts moving 3.6× between two patch versions.
 
 Run **both arms in one harness**, same project, same prompt, same model:
 
@@ -848,31 +804,12 @@ and the version moves at a release boundary.
 
 ## VI. Deliberately not in this plan
 
-Filed as issues, not built here. Each needs either an unverified event or a behavioural claim no
-measurement supports yet; carrying them in the plan would let unverified work ride an approved
-document.
+Filed as issues, not built here. Every one has been **measured** — `hook-surface-spike.md` §9–§13,
+30 events, 16 headless sessions — so what follows is a verdict on evidence, not a deferral pending it.
+**#505 is answered and folded in**: four channels inject, `Stop` is the one worth having, and its loop
+hazard is F10 with a test rather than a discovery waiting to happen in Phase 2.
 
-> **Superseded in part, 2026-08-22.** All four have since been measured (§VI-a). The table below is
-> kept as written — it is the reason each item was deferred, and a deferral whose stated reason has
-> expired is worth seeing next to what replaced it. Read §VI-a for the current verdicts. None of
-> them has been folded into §III.
-
-**#505 was answered before this plan was audited, and folded in** — all four candidate channels
-inject, `Stop` is the one worth having, and its loop hazard is now a named risk (F10) with a test
-rather than a discovery waiting to happen in Phase 2. Evidence: `hook-surface-spike.md` §8.
-
-| Filed | Why it is out |
-|---|---|
-| **#506** — `TaskCreated` / `TaskCompleted` → "In-flight handles" is provably wrong | The best semantic trigger in the catalogue — the note's section is not merely old, it is false. The event never fired in the spike and its injection is unverified. |
-| **#507** — `SubagentStop` at the **parent** | A seat returned a large result and the lead is about to decide on it. The seat's own note is sealed; the parent's is not. |
-| **#508** — remaining catalogue signals: `StopFailure`, `PermissionDenied`, `CwdChanged`/`WorktreeCreate`, `ConfigChange`, `InstructionsLoaded`, `FileChanged`-armed-but-not-re-run | Each invalidates a named part of the note. Enumerated so the omission is stated; none measured. |
-| **#509** — model → context-window table for the denominator | Would answer F2 cheaply **if** `SessionStart`'s `model` field distinguishes `[1m]`, which is unmeasured. A hand-kept model→window table is a maintained copy of someone else's record, and the cost is not paid silently. |
-
-### VI-a. The whole docket, measured — census of all 30 events on 2.1.240
-
-The table above holds the reasons each item was deferred; **every one of those reasons was "not
-measured", and all four are now measured.** Evidence: `hook-surface-spike.md` §9 and §10 — 30 events
-registered, 16 headless sessions, four passes.
+### VI-a. The docket, decided on measurement
 
 **What was folded in, and what was not.** Two observation-only fields reached §III — `live_handles`
 and `seal_trigger`, both reads of a payload the sealing binaries already receive. **Nothing reached
@@ -887,40 +824,22 @@ what keeps this from being a scope increase wearing a census as justification.
 | **#508** | **SPLIT — four fire, three refuted, six unreachable** | Fire with usable payloads: `ConfigChange` `{source, file_path}`, `InstructionsLoaded` `{file_path, memory_type, load_reason}`, `CwdChanged` `{old_cwd, new_cwd}`, `FileChanged` `{file_path, event}`. Refuted for the shapes tested: `StopFailure` (hook exit 1), `PermissionRequest`/`PermissionDenied` (hook-issued deny). Not reachable in a headless harness: `Elicitation`/`ElicitationResult`, `Setup`, `TeammateIdle`, `WorktreeCreate`/`WorktreeRemove`, `DirectoryAdded`, `UserPromptExpansion` (§9b). | **Hard, and mostly not worth it.** Four usable signals, each invalidating a *named* part of the note — but each is one more emission path competing for the same ≤ 4-per-session budget that F1 already calls the main risk. |
 | **#509** | **CLOSED, negatively** | `SessionStart`'s payload has no model field at all; `message.model` reads `claude-opus-5` on a live `claude-opus-5[1m]` session; no `*limit*` field exists anywhere in a transcript (§9e). | **Nothing to fold in.** F2's tri-state `Ceiling` with `Unknown` is not a conservative choice pending better data — it is the only correct one, and `compactMetadata.preTokens` remains the sole denominator. |
 
-### VI-c. Criterion 6's ambiguity — resolved by removing its cause, not by choosing a population
+### VI-c. Criterion 6 needs no population choice
 
-This section previously offered the human three ways to compute criterion 6's median, because
-`rewritten` and `reaffirmed` both moved `CHECKPOINT.md`'s mtime and the age therefore reset either
-way. All three were workarounds for a measurement taken from the wrong place.
+Age is `now − written_at`, which moves only when the body changes. A re-affirmation sets
+`reaffirmed_at` and leaves the age alone, so criterion 6's median is computed over **every seal** and
+a touched note cannot score as a fresher one.
 
-**Resolved instead by putting the fact in a field** (§III, schema 3): age is `now − written_at`,
-which moves only when the **body** changes. A re-affirmation sets `reaffirmed_at` and leaves the age
-alone, so criterion 6's median is computed over **every seal**, with no population choice to make and
-nothing for a "touched" note to score.
-
-| Was | Now |
-|---|---|
-| A — rewrites only | unnecessary: re-affirmation no longer inflates the median |
-| B — all answered | unnecessary: a touched note is not a fresher note by construction |
-| C — segmented, report both | **kept, but as a diagnostic rather than the verdict** — `nudge_answered`'s three values still say *how* the duty was discharged, and a high `ignored` rate is F1's wallpaper signal whatever the medians do |
-
-**The lesson is worth more than the fix.** Three rounds of audit hardened a measurement built on
-mtime — a three-valued field, a segmented median, a cross-check, a risk row — and none of them
-questioned the reference point. The plan's own §I says a fact another party acts on belongs in a
-field on a record; the age reference was a fact recovered from a filesystem timestamp, and the
-document arguing that principle did not apply it to its own primary measure.
+`nudge_answered`'s three values remain as a **diagnostic**, not a second verdict: they say *how* the
+duty was discharged, and a high `ignored` rate is F1's wallpaper signal whatever the medians do.
 
 ### VI-b. Blocked: the note has no field for its handles
 
-> **Narrowed by §III's schema-3 change.** This section is about `handles:`, a **list**, and its
-> objection is about SHAPE: `internal/checkpoint.Parse` is deliberately not a YAML parser. It is not
-> an argument against frontmatter, and it does not reach the flat scalars `written_at`,
-> `reaffirmed_at` and `head`, which the existing parser reads unchanged (`body_sha` is not a
-> frontmatter field at all — the machine computes it into the seal row, §III). What follows stands for
-> lists; it never stood for scalars, and an earlier draft let it read as a blanket refusal.
 
 #506's strong claim — *the note's "In-flight handles" section is provably wrong* — needs handle ids
-the note does not carry. `CHECKPOINT.md` **already is structured data**: versioned frontmatter
+the note does not carry. **This section is about a LIST**, and its objection is about shape:
+`internal/checkpoint.Parse` is deliberately not a YAML parser. It does not reach the flat scalars
+§III adds. `CHECKPOINT.md` **already is structured data**: versioned frontmatter
 (`schema: 2`) with `updated`, `head`, `session_id`, `agent_id`, `objective`, `plan`, `beyond_plan`,
 `status`, read by one parser (`internal/checkpoint.Parse`) and four binaries. `head` is the
 precedent — it exists precisely to make the note's age falsifiable. Handles are the same kind of
@@ -938,7 +857,7 @@ scalars, where a skipped line loses one fact. For handles it **fabricates "no in
 the precise claim the check turns on, with the miss and the honest zero identical, which is clause 3
 head-on. A comma-joined string in one scalar reproduces the same defect inside the field.
 
-So the strong form costs: `schema: 3`, a `Parse` that can report a parse failure instead of skipping,
+So the strong form costs, **on top of the schema-3 change §III already makes**: a `Parse` that can report a parse failure instead of skipping,
 and carriers at `context-checkpointing/SKILL.md`, the four consumers, gray-area's `claims`/`manifest`
 readers, and the goldens. **That is a project, not a field**, and Phase 1's `live_handles` column
 exists to say whether it is worth starting.
