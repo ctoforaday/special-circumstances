@@ -189,10 +189,10 @@ func TestStaleness(t *testing.T) {
 	if got := staleness("abc1234", reachable(0)); got != "" {
 		t.Errorf("a current note must say nothing, got %q", got)
 	}
-	if got := staleness("abc1234", reachable(1)); got != "written 1 commit ago (abc1234)" {
+	if got := staleness("abc1234", reachable(1)); got != "written 1 commit ago on this branch (abc1234)" {
 		t.Errorf("singular commit: %q", got)
 	}
-	if got := staleness("abc1234", reachable(12)); got != "written 12 commits ago (abc1234)" {
+	if got := staleness("abc1234", reachable(12)); got != "written 12 commits ago on this branch (abc1234)" {
 		t.Errorf("plural commits: %q", got)
 	}
 	// A commit that no longer exists is a STRONGER signal than a count — rebased away,

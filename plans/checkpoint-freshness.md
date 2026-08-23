@@ -174,12 +174,21 @@ plugins/prosthetic-conscience/tools/
 
 ### `[NEW] internal/ctxusage` — the measurement
 
-Bounded backward scan of the last N KB of `transcript_path` for the most recent `type:"assistant"`
-entry and any `subtype:"compact_boundary"`. Widen once if no assistant entry is found, then report
+Bounded backward scan of the last **256 KB** of `transcript_path` — the number is fixed here because
+"N KB" is not a specification — for the most recent `type:"assistant"` entry and any
+`subtype:"compact_boundary"`. Widen **once**, to 1 MB, if no assistant entry is found, then report
 `Unmeasured` — a hook must not read 13 MB on a tick, and must not hang on a rotated or truncated
-file. Returns `Tokens` (exact), `Turns` (assistant entries after a given time), and `Ceiling`,
+file. Returns `Tokens` (exact), `Turns`, and `Ceiling`,
 which is `compactMetadata.preTokens` from **this session's own** most recent boundary or the
 distinct value `Unknown`.
+
+**`Turns` is `Unmeasured` whenever the window does not reach `written_at`, and NEVER a partial
+count.** This is the failure mode the whole design exists to catch, inverted: a 300-turn-old note is
+precisely the one whose earliest turns fall outside a bounded scan, so a truncated count would report
+the stalest notes as the freshest — and a small number is indistinguishable from an honestly small
+one. The scan therefore checks whether it reached back past `written_at` before it reports at all:
+if the oldest entry in the window is newer than `written_at`, the answer is "I could not see far
+enough", not a number. Widening to 1 MB happens first; past that the miss is stated.
 
 `Unknown` is a case the type forces every caller to handle. It is never defaulted, never
 substituted, never a zero. This is clause 3 made structural rather than remembered.
@@ -191,10 +200,31 @@ twelve turns of bulk reading, or take 300 turns without moving the token count.
 
 | Measure | Definition | Needs ceiling? |
 |---|---|---|
-| **Growth** | context tokens now − context tokens when the note was written | no |
+| **Growth** | `(tokens_now + dropped_now) − (tokens_at_write + dropped_at_write)` | no |
 | **Turns** | assistant turns since the note was written | no |
 | **Branch work** | `git rev-list --count --first-parent <note.head>..HEAD` | no |
 | *Proximity* | `Tokens / Ceiling` — **emitted only when `Ceiling` is known**, with its basis named | yes |
+
+**Growth needs a write-time reading, and no record held one.** "Tokens now − tokens when the note
+was written" was never computable: `ctxusage` returns the current figure, the note carries no token
+count (an agent cannot read its own context size any more than it can hash its own bytes), and
+`freshness.json` held only band state. **`freshness.json` therefore gains `tokens_at_write` and
+`dropped_at_write`**, stamped by the gauge the first time it observes a `written_at` it has not seen
+before. The note stays prose the agent writes; the numbers stay facts the machine reads.
+
+**Growth must survive a compaction, and the naive subtraction goes NEGATIVE across one.** §II's own
+measurement shows the counter resetting 1,001,875 → 12,823 at a boundary, so a note spanning one
+would report growth of −989,052 and read as the freshest note in the file. `compactMetadata`
+carries `cumulativeDroppedTokens`, which makes the true figure recoverable:
+
+```
+growth = (tokens_now + cumulative_dropped_now) − (tokens_at_write + cumulative_dropped_at_write)
+```
+
+Both terms are monotone, so growth is monotone. If either dropped-figure is unavailable — a session
+that has never compacted has no boundary to read — both are 0 and the identity still holds. **If
+`tokens_at_write` is absent** (a note first seen before this shipped), growth is `Unmeasured` and
+**never zero**, which would read as "no work since the note".
 
 ### The reference point is a FIELD, not the file's mtime — schema 3
 
@@ -253,7 +283,7 @@ git grep -n 'Get("schema")'  -- plugins/          # 1 hit
 | Carrier | Change |
 |---|---|
 | `skills/context-checkpointing/SKILL.md:16-17` | `schema: 3`; **`updated:` removed**; `written_at`, `reaffirmed_at` added; and the contract that a re-affirmation sets `reaffirmed_at` and touches nothing else — not `head`, not `written_at` |
-| `commands/checkpoint.md` | writes the new fields; this is where "still accurate" becomes an artifact |
+| `commands/checkpoint.md` | writes `written_at`/`body`-changes, or `reaffirmed_at` alone — that write IS the artifact; the sealer derives `nudge_answered` from which one moved, so no agent is asked to self-report whether it complied |
 | **`commands/resume.md:13`** | *"Report the seam: the note's `updated` timestamp…"* — **a prompt contracted on the deleted field.** Becomes `written_at`, and reports `reaffirmed_at` beside it when set, since a note re-affirmed by another session is exactly the seam this step exists to surface |
 | `internal/checkpointrestore` | `main.go:210` renders `Get("updated")` → re-point at `written_at`, render `reaffirmed_at` beside it; **3 `updated:` fixtures** in `main_test.go:16,149,193` |
 | `internal/checkpoint` | no parser change (flat scalars), one accessor per field. **`checkpoint_test.go:17` hard-asserts `Get("schema") == "2"`** — the only consumer of the key anywhere, and it must move with the bump |
@@ -279,6 +309,8 @@ tri-state discipline `Ceiling` already uses, applied to the field this design tu
 | `bands_spent` | which of NOTICE/WARN/URGENT have fired, **reset when the note is ANSWERED** — i.e. when `written_at` OR `reaffirmed_at` moves. Bands close on an answer; age tracks content. The skill clause makes a reasoned "still accurate" a valid answer, so it must close the band while leaving the age alone |
 | `emissions_this_session` | a monotone counter, **NOT reset by an answer** — criterion 4's cap is per session, and a counter that resets cannot enforce it |
 | `emission_bytes_max` | the largest render emitted, for criterion 4's ≤ 200 bytes |
+| `tokens_at_write` | context tokens when the current `written_at` was first observed — **the growth measure's other term**, which no record held before |
+| `dropped_at_write` | `cumulativeDroppedTokens` at that same moment, so growth stays monotone across a compaction |
 | `answered_at_seen` | the latest of `written_at`/`reaffirmed_at` this file has observed — what the band reset is keyed on. A field, so a filesystem timestamp is not load-bearing anywhere in the mechanism |
 
 **The hard cap is here, and it is separate from the band policy.** Bands are "at most once per band
@@ -324,6 +356,17 @@ which is spike §3b's *surviving* claim: "the hook adds no imperative of its own
 carries the gauge — `SessionStart` is the verified channel, and this is where a resumed session
 already reads its own provenance.
 
+**Consumer census for the digest TEXT** — the rendered line is injected at `SessionStart`, so it is a
+contract, not a log message. `git grep -n "commits\? ago" -- plugins/`:
+
+| Hit | Adjudication |
+|---|---|
+| `internal/checkpointrestore/main.go:284,286` | the two writers — **change** |
+| `internal/checkpointrestore/compose_test.go:192,195` | hard-assert `"written 1 commit ago (abc1234)"` and `"written 12 commits ago (abc1234)"` — **change**; two shipped assertions that break on this edit, which an earlier draft called independently shippable without naming them |
+
+No other reader: nothing greps the digest, and the injected text has no machine consumer.
+
+
 ### `[MODIFY] internal/checkpointseal` — the gauge becomes a record, and the record has to exist first
 
 **There is no seal record today, and this plan previously assumed one.** A seal is currently an HTML
@@ -351,7 +394,7 @@ machine-read fact to live in a field.
 | `live_handles` | count of `background_tasks` entries with `type != "subagent"`, plus `session_crons` — **only when measurable**. Seats are excluded deliberately: at a `seat_return` seal the returning seat appears in the parent's own list (§12), and counting it reads high by exactly one while answering a different question from "did this note miss some background work" |
 | `handles_measured` | `false` when the payload carries no `background_tasks` key |
 | `nudge_enabled` | whether the nudge was live when this seal was written — criterion 6's falsification groups on it, and it must be recorded per row rather than inferred from dates |
-| `nudge_answered` | `rewritten` \| `reaffirmed` \| `ignored` — **three values, not a boolean, and the distinction is load-bearing** (§III, `SKILL.md`) |
+| `nudge_answered` | `rewritten` \| `reaffirmed` \| `ignored` \| **`n/a`** — three values plus the Phase 1 case, **derived by the sealer, not written by an agent**: if `bands_spent` is empty the value is `n/a` (Phase 1 ships with no nudge, so every row carries this); otherwise compare the note's `written_at` and `reaffirmed_at` against `freshness.json`'s `answered_at_seen` at the moment the band was spent — `written_at` newer → `rewritten`, `reaffirmed_at` newer → `reaffirmed`, neither → `ignored` |
 | `body_sha` | hash of the note's body, **computed here** from the snapshot this package already writes — not read from the note. Drift is a comparison between consecutive seal rows, which needs no prior value held anywhere else |
 | `emissions_this_session` | copied from `freshness.json`'s monotone counter at seal time, and `emission_bytes_max` beside it — **criterion 4's budget is stated as "counted in the observation row rather than intended", and until this field existed nothing counted it**. The debounce file already holds the number; the seal row is where it becomes checkable after the fact |
 
@@ -547,7 +590,6 @@ session that answered the nudge from one that ignored it. **The seal row therefo
 The value goes in the **seal row**, a record with fields — never composed into a timestamp field,
 which is the shape §III indicts elsewhere.
 
-in §VI-c rather than chosen quietly.
 
 **Consumer census** — `git grep -ln "context-checkpointing" -- plugins/ scripts/ docs/`, full output,
 every hit adjudicated:
@@ -608,7 +650,11 @@ editing L or I.
 
 Coverage must include the negatives, which are the point: a tail containing **no** assistant entry;
 a truncated final line; a session with **no** compact boundary → `Ceiling: Unknown` **and no
-percentage in the render**; two boundaries → most recent wins; **a schema-2 note lacking `written_at` → `Unmeasured`, NOT age zero**; `written_at`
+percentage in the render**; two boundaries → most recent wins; **a schema-2 note lacking `written_at` → `Unmeasured`, NOT age zero**; **a `written_at` older than
+the scan window → `Turns: Unmeasured`, never a partial count** (the stalest-note case, asserted
+against a fixture whose note predates the window); **`tokens_at_write` absent → growth `Unmeasured`,
+never 0**; **a transcript with a compact boundary between write and now → growth positive, computed
+through `cumulativeDroppedTokens`**; `written_at`
 moved while `body_sha` did not → reported as an **error**, not adjudicated; a note head that is
 unreachable; a branch whose history contains merges → first-parent and plain
 counts differ; **a payload with no `background_tasks` key → `handles_measured: false` and NO
@@ -823,8 +869,9 @@ and the version moves at a release boundary.
 
 ## VI. Deliberately not in this plan
 
-Filed as issues, not built here. Every one has been **measured** — `hook-surface-spike.md` §9–§13,
-30 events, 16 headless sessions — so what follows is a verdict on evidence, not a deferral pending it.
+Filed as issues, not built here. Every one has been **measured** — `hook-surface-spike.md` §9 (the 30-event
+catalogue census, 15 sessions), §10, §12 and §13 — so what follows is a verdict on evidence, not a
+deferral pending it.
 **#505 is answered and folded in**: four channels inject, `Stop` is the one worth having, and its loop
 hazard is F10 with a test rather than a discovery waiting to happen in Phase 2.
 
@@ -886,9 +933,7 @@ stated residual of `L×M`** (§IV, where the table's pre-mitigation convention i
 earlier draft of this paragraph announced a re-rating to `L×M×L`, which would have made F10 the one
 row not comparable with the others). The measurement is undisturbed — 9 firings and 1,186 wasted
 tokens stand. What is low is the **residual**, because the hazard is cycle detection and two
-independent brakes are already specified: `stop_hook_active` is a
-field the client sets on every re-entry (false on the first firing, true on the eight that followed,
-on `Stop` and `SubagentStop` alike), needing no state and no write, and the debounce file carries
+independent brakes are already specified: `stop_hook_active` is a field the client sets on every re-entry — measured on `Stop` itself (§13: `false` on the 1st firing, `true` on all **fifteen** that followed), needing no state and no write, and the debounce file carries
 band policy, whose worst failure is one duplicate emission. The original rating priced an *unguarded*
 injector, which nothing here proposes. The mitigations and the regression test are unchanged.
 
