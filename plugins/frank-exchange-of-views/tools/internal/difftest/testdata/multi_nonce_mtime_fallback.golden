@@ -5,9 +5,9 @@ registered red-lens-r1-L1
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ finding --run {RUN} --seat-id red-lens-r1-L1 --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason older shard
 exit 0
@@ -21,23 +21,50 @@ registered red-lens-r1-L1 (dispatch 2 — a previous dispatch of this seat is on
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
-
-YOU ARE SITTING 2 OF THIS SEAT, AND AN EARLIER SITTING'S WORK IS GONE. 2 event(s) it recorded (1 finding, 1 anchor) lost replay's winner selection and survive nowhere — not in the board, not in the report's evidence, not in any projection you are about to read. This is not a warning about the record being wrong; the record is correct and that work is simply absent.
-
-  finding — a lens finding is gone, so the merge has nothing to coalesce from it
-
-Re-do what still applies rather than assuming your predecessor's output survived it.
-
-red-lens-r1-L1:finding:L1-F1
-red-lens-r1-L1:anchor:FINDING001
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ lens finding --run {RUN} --seat-id red-lens-r1-L1 --key F2 --severity low --likelihood low --impact low --quote ## S2 --reason newer shard
-exit 0
-stdout:
-finding recorded: L1-F2 — the run-unique label a gap's found_by names (id FINDING001)
+exit 2
+stderr:
+feov-record: no command named "lens" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+
+feov-record — red lens seats — findings, source verification and corroboration, proof re-runs. Cannot mint or close a gap: that is the merge's.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record [flags]
+  feov-record [command]
+
+Available Commands:
+  completion   Generate the autocompletion script for the specified shell
+  corroborate  go and find a source blue never cited, when the claim has no anchor but the source is obtainable
+  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
+  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  finding      a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
+  friction     a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
+  help         Help about any command
+  register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
+  verify       judge a citation blue authored, when the anchor exists and you have read what it points at
+
+Command groups — each holds commands THIS page does not list:
+  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
+
+Flags:
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
+
+Use "feov-record [command] --help" for more information about a command.
 
 ═══ EVENTS ═══
 
@@ -122,17 +149,13 @@ _(none open)_
 
 _(nothing closed)_
 
-### Lens findings not raised to a gap (2)
+### Lens findings not raised to a gap (1)
 
 Red's leaf audit that the merge weighed but did not mint — kept for the record, not a gate on the verdict.
 
 ### L1-F1 — ## S2
 severity low | low x low | red-lens-r1-L1
 older shard
-
-### L1-F2 — ## S2
-severity low | low x low | red-lens-r1-L1
-newer shard
 
 ## The debate
 

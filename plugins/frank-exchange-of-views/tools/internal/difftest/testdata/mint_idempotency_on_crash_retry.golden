@@ -5,9 +5,9 @@ registered red-merge-r3
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
 exit 0

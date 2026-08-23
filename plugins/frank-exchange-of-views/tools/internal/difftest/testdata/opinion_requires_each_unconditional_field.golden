@@ -1,13 +1,13 @@
 $ register --run {RUN} --seat-id judge-r2
 exit 0
 stdout:
-registered judge-r2 (shard nonce NONCE001)
+registered judge-r2
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as repaired
 exit 2
@@ -31,7 +31,7 @@ Usage:
   feov-record opinion [flags]
 
 Flags:
-      --as carried           REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
+      --as as-value          REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
       --final                nothing would reopen this: settled on the merits, and more evidence cannot change it. The assertable form of an empty --reopens-on, so a decided question is distinguishable from a skipped field
   -h, --help                 help for opinion
       --id gap-id            REQUIRED — the gap being ruled on
@@ -46,8 +46,8 @@ Flags:
 Enumerated values:
   --as
     repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -80,7 +80,7 @@ Usage:
   feov-record opinion [flags]
 
 Flags:
-      --as carried           REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
+      --as as-value          REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
       --final                nothing would reopen this: settled on the merits, and more evidence cannot change it. The assertable form of an empty --reopens-on, so a decided question is distinguishable from a skipped field
   -h, --help                 help for opinion
       --id gap-id            REQUIRED — the gap being ruled on
@@ -95,8 +95,8 @@ Flags:
 Enumerated values:
   --as
     repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -108,5 +108,102 @@ Global Flags:
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ═══ EVENTS ═══
--- events-judge-r2-NONCE001.jsonl
-{"key":"judge-r2:register:NONCE001","nonce":"NONCE001","payload":{"run_via":"flag","tool_version":"0.72.0"},"role":"bench","round":2,"seatId":"judge-r2","seq":0,"ts":0,"type":"register"}
+
+═══ RENDERS ═══
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
+
+
+═══ REPORT ═══
+# _(blue/report.md has no title — not authored here)_
+
+**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
+
+## Read this first
+
+_(no open gaps remain — nothing outstanding to re-examine)_
+
+## TL;DR
+
+_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
+
+## The Catechism
+
+_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
+
+## Technical foundations
+
+_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
+
+## Analysis
+
+_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
+
+## Risk matrix
+
+| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
+|---|---|---|---|---|
+| _(no open gaps)_ |  |  |  |  |
+
+The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
+
+## Research areas
+
+_(none on the record)_
+
+## Future research directions
+
+_(none on the record)_
+
+## Alternatives considered
+
+_(none on the record)_
+
+## Open questions
+
+_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
+
+## Blue team report (sections not composed above)
+
+## S2
+
+A claim sits under S2.
+
+## S4
+
+A claim sits under S4.
+
+## Red team findings (in full)
+
+### Open gaps (0)
+
+_(none open)_
+
+### Closure index (0)
+
+_(nothing closed)_
+
+## The debate
+
+_(no debate on the record)_
+
+## Record verification
+
+Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
+
+- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
+- **ok** — `found-by-resolves` — every found_by credit names a real finding
+- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
+- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
+- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
+- **ok** — `register-before-append` — every seat registered before it wrote
+- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
+
+**6 held · 1 did not apply · 0 violated.** An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

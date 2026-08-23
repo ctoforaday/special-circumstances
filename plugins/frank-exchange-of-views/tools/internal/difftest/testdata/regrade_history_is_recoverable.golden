@@ -5,9 +5,9 @@ registered red-merge-r1
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check a --severity high --likelihood high --impact high --complexity high --problem graded high at mint
 exit 0
@@ -55,7 +55,7 @@ exit 0
 stdout:
 regraded R1-1
 
-$ merge regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --impact low --reason second movement, same id
+$ regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --impact low --reason second movement, same id
 exit 2
 stderr:
 feov-record: merge: record: red-merge-r1 has already recorded a regrade this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. If the first was wrong, say so in the act that supersedes it; the record is append-only and both stay visible

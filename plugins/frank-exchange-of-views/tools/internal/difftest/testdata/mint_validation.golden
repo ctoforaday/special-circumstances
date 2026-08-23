@@ -5,9 +5,9 @@ registered red-merge-r1
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --problem no check given
 exit 2
@@ -35,7 +35,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -88,7 +88,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -141,7 +141,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -194,7 +194,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)

@@ -23,7 +23,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -75,7 +75,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -127,7 +127,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -179,7 +179,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -231,7 +231,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -283,7 +283,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -335,7 +335,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -393,12 +393,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -436,12 +436,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -479,12 +479,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -522,12 +522,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -573,7 +573,7 @@ Global Flags:
 exit 2
 feov-record: "opinion" is not on your surface — it is the bench seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
 
-a ruling as an OPINION: --id R3-2 --as <disposition> --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
+feov-record — the red merge seat — the board's only writer.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -608,29 +608,13 @@ Command groups — each holds commands THIS page does not list:
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
-      --as as-value          REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
-  -h, --help                 help for opinion
-      --id gap-id            REQUIRED — the gap being ruled on
-      --principle string     REQUIRED — the principle applied — a ruling is an OPINION, not a disposition
-      --reason string        REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
-      --reason-file -        read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --review-flag string   REQUIRED — why a human should, or should not, look at this
-      --tension string       REQUIRED — the values in tension (e.g. correctness vs economy)
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
-Enumerated values:
-  --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-    carried                   NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+Use "feov-record [command] --help" for more information about a command.
 
 ── verdict in the wrong case
 exit 2
@@ -741,10 +725,11 @@ Command groups — each holds commands THIS page does not list:
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
-      --as as-value              REQUIRED — the run's terminal verdict
-      --ended deadlock|ceiling   what STOPPED the run, when it was not a pass — a judgement or a ceiling
-  -h, --help                     help for outcome
-      --reason string            REQUIRED — REQUIRED — how this run ended, in your words. The verdict itself is derived from the record; this is the bench's account of the sitting, and on a judged deadlock it is the only evidence the determination ever had
+  -h, --help               help for feov-record
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+  -v, --version            version for feov-record
 
 Use "feov-record [command] --help" for more information about a command.
 
@@ -752,44 +737,16 @@ Use "feov-record [command] --help" for more information about a command.
 exit 2
 feov-record: a petition motion is ruled by the bench seat, so `rule` is not on your surface; you are red-merge-r1 (merge). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
 
-rule on a petition motion (the bench seat's)
-
-Usage:
-  feov-record motion petition rule [flags]
-
-Flags:
-      --as granted|denied     REQUIRED — your ruling
-      --binds blue|red|both   who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not
-  -h, --help                  help for rule
-      --id string             REQUIRED — the motion id (M1, M2 …)
-      --reason string         your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
-      --reason-file -         read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-
-Enumerated values:
-  --as
-    granted  the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow
-    denied   the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest
-
-  --binds
-    blue  the relief binds the response seat — what blue must do, or must not, in the coming round
-    red   it binds the audit seats: the lenses and the merge
-    both  it binds the whole exchange, and every dispatched seat carries it
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-
 ── closure class near-miss
 exit 2
 feov-record: invalid argument "closed-with-regression" for "--as" flag: --as must be one of repaired|repaired_with_regression|amends_prior|not_a_defect|defect_accepted|defect_owed_elsewhere (got "closed-with-regression") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
 
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 close a gap with the verification you did THIS round, naming what you checked it against
 
@@ -818,12 +775,12 @@ Flags:
 
 Enumerated values:
   --as
-    closed                    the repair was verified at the leaf and nothing regressed
-    closed_with_regression    repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    repaired                  the repair was verified at the leaf and nothing regressed
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
     amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
-    rebuttal_sustained        blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    risk_accepted             the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    routed_to_infrastructure  a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
+    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
+    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
+    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -839,7 +796,11 @@ feov-record: invalid argument "banana" for "--dimension" flag: --dimension must 
     impact      how bad the consequence is if it lands
     complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
 
-file a grade motion — the tool assigns its id
+file a grade motion — the tool assigns its id.
+
+THREE SUBJECTS, ONE EVENT, DIFFERENT CONTRACTS. `motion grade file` disputes a gap's grade and is ruled by the merge; `motion petition file` raises an ethical, safety, integrity or constitutional objection and is ruled by the BENCH, before the debate continues; a direction needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
+
+Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.
 
 Usage:
   feov-record motion grade file [flags]
@@ -848,7 +809,7 @@ Flags:
       --dimension dimension-value   REQUIRED for a grade motion
   -h, --help                        help for file
       --id string                   REQUIRED for a grade motion
-      --proposed grade              REQUIRED — the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --reason string               your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -               read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
 
@@ -860,9 +821,9 @@ Enumerated values:
     complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
 
 Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── verification outcome outside the set
 exit 2
@@ -909,24 +870,7 @@ Flags:
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 
-Enumerated values:
-  --as
-    supports              you read the source at the leaf and it says what the claim says
-    supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
-    weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
-    refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all
-    absent                you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was
-    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit
-
-  --confidence
-    high    you read the source at the leaf and would defend this determination as it stands
-    medium  you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement
-    low     your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+Use "feov-record [command] --help" for more information about a command.
 
 ── verification names no citation
 exit 2
@@ -973,24 +917,7 @@ Flags:
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 
-Enumerated values:
-  --as
-    supports              you read the source at the leaf and it says what the claim says
-    supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
-    weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
-    refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all
-    absent                you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was
-    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit
-
-  --confidence
-    high    you read the source at the leaf and would defend this determination as it stands
-    medium  you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement
-    low     your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+Use "feov-record [command] --help" for more information about a command.
 
 ── verification with no stated confidence
 exit 2
@@ -1037,24 +964,7 @@ Flags:
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 
-Enumerated values:
-  --as
-    supports              you read the source at the leaf and it says what the claim says
-    supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
-    weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
-    refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all
-    absent                you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was
-    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit
-
-  --confidence
-    high    you read the source at the leaf and would defend this determination as it stands
-    medium  you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement
-    low     your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+Use "feov-record [command] --help" for more information about a command.
 
 ── verification of nothing
 exit 2
@@ -1101,24 +1011,7 @@ Flags:
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 
-Enumerated values:
-  --as
-    supports              you read the source at the leaf and it says what the claim says
-    supports_with_bridge  it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement
-    weak                  it gestures at the claim, or is itself uncorroborated: thin support, not none
-    refutes               you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all
-    absent                you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was
-    unreachable           you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried "unable to corroborate" is an incomplete audit
-
-  --confidence
-    high    you read the source at the leaf and would defend this determination as it stands
-    medium  you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement
-    low     your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
+Use "feov-record [command] --help" for more information about a command.
 
 ── blue confidence outside the set
 exit 2
@@ -1138,9 +1031,21 @@ Usage:
 Available Commands:
   cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  edit            replace an exact span in blue/report.md: --key <your F1> --quote "<the span EXACTLY as `show report` prints it, anchors included>" --new "<replacement, carrying those anchors through unchanged>" --reason "...". ANCHORS ARE PART OF THE TEXT. `show report` prints every `<!--fx:…-->`, `<!--cite:…-->` and `<!--proof:…-->` as it is; quote what you see and copy each token into --new the way you copy every other character. A quote that stops just short of an anchor on the sentence it rewrites is REFUSED, and the refusal prints the token to carry — otherwise the reference is left beside prose it was never placed against. To change words around an anchor and leave it where it is, quote a FRAGMENT that does not reach it.
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
+  completion      Generate the autocompletion script for the specified shell
+  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  edit            change the report — the only path into report.md, and how every repair lands
+  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
+  help            Help about any command
+  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
+  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  retire          take a claim out of the report, when it cannot stand and no edit will save it
+  revision        the round record — what changed this round, once, after your edits have landed
+
+Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
@@ -1172,9 +1077,21 @@ Usage:
 Available Commands:
   cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  edit            replace an exact span in blue/report.md: --key <your F1> --quote "<the span EXACTLY as `show report` prints it, anchors included>" --new "<replacement, carrying those anchors through unchanged>" --reason "...". ANCHORS ARE PART OF THE TEXT. `show report` prints every `<!--fx:…-->`, `<!--cite:…-->` and `<!--proof:…-->` as it is; quote what you see and copy each token into --new the way you copy every other character. A quote that stops just short of an anchor on the sentence it rewrites is REFUSED, and the refusal prints the token to carry — otherwise the reference is left beside prose it was never placed against. To change words around an anchor and leave it where it is, quote a FRAGMENT that does not reach it.
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
+  completion      Generate the autocompletion script for the specified shell
+  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  edit            change the report — the only path into report.md, and how every repair lands
+  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
+  help            Help about any command
+  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
+  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  retire          take a claim out of the report, when it cannot stand and no edit will save it
+  revision        the round record — what changed this round, once, after your edits have landed
+
+Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
@@ -1234,7 +1151,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -1277,23 +1194,7 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} [flags]
-  {TOOL} [command]
-
-Available Commands:
-  cite            cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --quote "<the exact sentence, verbatim from the report>" --url <u> --title <t> [--key <your C1>]
-  claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  edit            replace an exact span in blue/report.md: --key <your F1> --quote "<the span EXACTLY as `show report` prints it, anchors included>" --new "<replacement, carrying those anchors through unchanged>" --reason "...". ANCHORS ARE PART OF THE TEXT. `show report` prints every `<!--fx:…-->`, `<!--cite:…-->` and `<!--proof:…-->` as it is; quote what you see and copy each token into --new the way you copy every other character. A quote that stops just short of an anchor on the sentence it rewrites is REFUSED, and the refusal prints the token to carry — otherwise the reference is left beside prose it was never placed against. To change words around an anchor and leave it where it is, quote a FRAGMENT that does not reach it.
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
-  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  manifest-row    one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
-  position        the round's ### BLUE section (prose via --reason)
-  prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
-  retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
-  revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+  feov-record close [flags]
 
 Flags:
       --as as-value               HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
@@ -1309,8 +1210,8 @@ Flags:
 Enumerated values:
   --as
     repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -1340,24 +1241,12 @@ needed and what you would have done with your role's 'friction' verb — a missi
 capability is a finding about the tooling, and that channel is how it gets fixed.
 
 Usage:
-  {TOOL} [flags]
-  {TOOL} [command]
-
-Available Commands:
-  assemble    assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
-  certify     the run-end certification statement ("what I would want a human to re-examine"): --reason <statement>
-  declare     state a holding that binds how the record is READ without moving any gap: --reason "<the construction, correction or holding>"
-  friction    a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
-  halt        the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>
-  opinion     a ruling as an OPINION: --id R3-2 --as <disposition> --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
-  outcome     record the run's terminal verdict as a fact: --as VERIFIED|CEILING|HALTED|UNVERIFIED --reason "<how the run ended, in your words>" [--ended deadlock|ceiling]
-  register    FIRST ACTION at the sitting: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
-  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+  feov-record mint [flags]
 
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -1370,7 +1259,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -1394,45 +1283,6 @@ If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
 needed and what you would have done with your role's 'friction' verb — a missing
 capability is a finding about the tooling, and that channel is how it gets fixed.
-
-Usage:
-  {TOOL} [flags]
-  {TOOL} [command]
-
-Available Commands:
-  carry           restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
-  class           the gap-class registry: what KINDS of defect this run recognises
-  close           close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>"
-  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
-  inquiry-support your per-round read of the REPORT against the lines of inquiry on the record: --reason "<what the report says at those lines>". Read the report ONCE, cover every line in the one act — and where a line's treatment is thin, missing or unsupported by the text, MINT A GAP for it. This event records only that the read happened; the shortfalls it finds are ordinary defects. A PASS is refused until it exists.
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
-  near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
-  position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
-  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
-  verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
-
-Flags:
-  -h, --help   help for merge
-
-Global Flags:
-      --json             emit a structured JSON result (and structured errors) instead of human text
-      --run string       the run directory. REQUIRED unless the engine injected it — it does in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id string   your seat id, assigned by the engine and bound to this role's namespace
-
-Use "{TOOL} [command] --help" for more information about a command.
-
-── unknown role
-exit 2
-feov-record: no command named "nonsuch" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
-
-feov-record — the seat-side record runtime (the verb set IS the role boundary)
-
-A lens structurally cannot mint or close a board gap: no such verb exists in its
-namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
   feov-record [flags]

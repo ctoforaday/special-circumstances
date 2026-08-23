@@ -95,24 +95,7 @@ A lens structurally cannot mint or close a board gap: no such verb exists in its
 namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
-  feov-record merge [flags]
-  feov-record merge [command]
-
-Available Commands:
-  carry           restate a closure from an earlier round: --id R2-3 --carried-from <round> [--as closed|...] [--superseded-by R3-1]. It makes no fresh claim, so it needs no --verified-by triple — but the record must already hold a closure of this gap, or the carry is refused.
-  class           the gap-class registry: what KINDS of defect this run recognises
-  close           close a gap WITH its verification: --id R2-3 --as closed|closed_with_regression|... --verified-by L1 --verified-with "git show" --verified-against "7bc501e:path" [--superseded-by R3-1] --reason "<what was verified and why it holds>"
-  closing         a ### RED CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
-  inquiry-support your per-round read of the REPORT against the lines of inquiry on the record: --reason "<what the report says at those lines>". Read the report ONCE, cover every line in the one act — and where a line's treatment is thin, missing or unsupported by the text, MINT A GAP for it. This event records only that the read happened; the shortfalls it finds are ordinary defects. A PASS is refused until it exists.
-  mint            mint a board gap (id is TOOL-assigned; --key <stable-label> makes retries idempotent): --class <slug> --quote "<the exact sentence it lives at>" --problem "..."|--reason --fix "..." --check "<acceptance check red runs at re-audit>" --severity/--likelihood/--impact/--complexity <grade> [--supersedes R1-2,R1-7] [--found-by L5-F3,L6-F2]
-  near-match      screen a candidate against the board before minting: --problem "<what is wrong>" [--quote "<the sentence it lives at>"] — returns the top 5 gaps (open AND closed) by lexical overlap, so a near-duplicate surfaces as a reopen (mint --supersedes <id>) rather than a fresh gap. The tool SCREENS and ranks; you decide reopen-or-new. Read-only: it records nothing.
-  position        the round's ### RED section (prose via --reason)
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
-  regrade         same-id grade movement, recorded with its reason: --id R2-5 [--severity/--likelihood/--impact/--complexity <grade>] --reason "..."
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
-  spot-check      the round archive spot-check record (W1.8 duty): --ids R1-4,R2-7 --reason "<what the sample showed>" | --none --reason "<why there was nothing to sample>" when the archive was empty at round start
-  verdict         the seat's terminal act: --as PASS|FAIL — checkpoints records/ to the recovery mirror
+  feov-record [flags]
 
 Flags:
   -h, --help               help for feov-record
@@ -134,23 +117,7 @@ A lens structurally cannot mint or close a board gap: no such verb exists in its
 namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
-  feov-record blue [flags]
-  feov-record blue [command]
-
-Available Commands:
-  cite            cite a source at a quoted sentence — the tool fetches, caches, and splices an invisible immortal anchor; you never type a footnote: --quote "<the exact sentence, verbatim from the report>" --url <u> --title <t> [--key <your C1>]
-  claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  edit            replace an exact span in blue/report.md: --key <your F1> --quote "<the span EXACTLY as `show report` prints it, anchors included>" --new "<replacement, carrying those anchors through unchanged>" --reason "...". ANCHORS ARE PART OF THE TEXT. `show report` prints every `<!--fx:…-->`, `<!--cite:…-->` and `<!--proof:…-->` as it is; quote what you see and copy each token into --new the way you copy every other character. A quote that stops just short of an anchor on the sentence it rewrites is REFUSED, and the refusal prints the token to carry — otherwise the reference is left beside prose it was never placed against. To change words around an anchor and leave it where it is, quote a FRAGMENT that does not reach it.
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
-  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  manifest-row    one correctness-manifest receipt per repaired gap: --id R2-3 --row "figures recomputed; acceptance check run: pass; sites swept: S2,S4"
-  position        the round's ### BLUE section (prose via --reason)
-  prove           settle a claim by COMPUTING it: --quote "<the exact sentence>" --script <path under the run dir> [--cites <the method's citation label>] — the tool runs it twice, caches the script and its output, and splices an invisible proof anchor at that sentence
-  register        FIRST ACTION at the seat: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
-  retire          remove a claim from the report, on the record: --quote "<the claim, quoted from the report as it stood>" --reason "..." [--new "<the claim that replaces it>"]
-  revision        the round record itself (--reason carries what changed this round) — singleton per seat-round; emit AFTER your report edits land
-  show            read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+  feov-record [flags]
 
 Flags:
   -h, --help               help for feov-record
@@ -172,19 +139,7 @@ A lens structurally cannot mint or close a board gap: no such verb exists in its
 namespace. Blue has no board verbs at all. The bench rules and never originates.
 
 Usage:
-  feov-record bench [flags]
-  feov-record bench [command]
-
-Available Commands:
-  assemble    assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
-  certify     the run-end certification statement ("what I would want a human to re-examine"): --reason <statement>
-  declare     state a holding that binds how the record is READ without moving any gap: --reason "<the construction, correction or holding>"
-  friction    a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
-  halt        the safety boundary: --reason <written opinion — capture relays it like a FAIL, never smoothed>
-  opinion     a ruling as an OPINION: --id R3-2 --as <disposition> --principle "..." --tension "correctness vs economy" --review-flag "why a human should look" --reason <rationale>
-  outcome     record the run's terminal verdict as a fact: --as VERIFIED|CEILING|HALTED|UNVERIFIED --reason "<how the run ended, in your words>" [--ended deadlock|ceiling]
-  register    FIRST ACTION at the sitting: `register`, with no flags — the engine injects your run and your identity, and a --run or --seat-id that disagrees with the dispatch is refused rather than obeyed
-  show        read a projection on STDOUT (the tool is the read path; the .md files are for human verification). With no projection named, you get YOUR PENDING WORK: report | board | findings | work | motions | debate | changes | evidence | lines-of-inquiry | telemetry
+  feov-record [flags]
 
 Flags:
   -h, --help               help for feov-record

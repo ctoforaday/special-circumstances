@@ -5,9 +5,9 @@ registered red-merge-r1
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ position --run {RUN} --seat-id red-merge-r1 --reason-file {RUN}/red.md
 exit 0
@@ -63,9 +63,21 @@ Usage:
 Available Commands:
   cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  edit            replace an exact span in blue/report.md: --key <your F1> --quote "<the span EXACTLY as `show report` prints it, anchors included>" --new "<replacement, carrying those anchors through unchanged>" --reason "...". ANCHORS ARE PART OF THE TEXT. `show report` prints every `<!--fx:…-->`, `<!--cite:…-->` and `<!--proof:…-->` as it is; quote what you see and copy each token into --new the way you copy every other character. A quote that stops just short of an anchor on the sentence it rewrites is REFUSED, and the refusal prints the token to carry — otherwise the reference is left beside prose it was never placed against. To change words around an anchor and leave it where it is, quote a FRAGMENT that does not reach it.
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
+  completion      Generate the autocompletion script for the specified shell
+  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  edit            change the report — the only path into report.md, and how every repair lands
+  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
+  help            Help about any command
+  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
+  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  retire          take a claim out of the report, when it cannot stand and no edit will save it
+  revision        the round record — what changed this round, once, after your edits have landed
+
+Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
@@ -98,9 +110,21 @@ Usage:
 Available Commands:
   cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
   claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         a ### BLUE CLOSING entry per docketed gap: --id <gap> --reason <prose>
-  edit            replace an exact span in blue/report.md: --key <your F1> --quote "<the span EXACTLY as `show report` prints it, anchors included>" --new "<replacement, carrying those anchors through unchanged>" --reason "...". ANCHORS ARE PART OF THE TEXT. `show report` prints every `<!--fx:…-->`, `<!--cite:…-->` and `<!--proof:…-->` as it is; quote what you see and copy each token into --new the way you copy every other character. A quote that stops just short of an anchor on the sentence it rewrites is REFUSED, and the refusal prints the token to carry — otherwise the reference is left beside prose it was never placed against. To change words around an anchor and leave it where it is, quote a FRAGMENT that does not reach it.
-  friction        a capability gap or protocol misfit, as an event that survives aborts: --reason. CLOSE THIS CHANNEL EVERY SITTING: --none --reason "<what you reached for and found>" says nothing blocked you, which silence cannot say — an empty friction log reads the same whether the sitting was clean or the channel went unused
+  closing         your closing argument on one docketed gap, when the bench is about to rule on it
+  completion      Generate the autocompletion script for the specified shell
+  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  edit            change the report — the only path into report.md, and how every repair lands
+  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
+  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
+  help            Help about any command
+  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
+  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
+  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
+  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
+  retire          take a claim out of the report, when it cannot stand and no edit will save it
+  revision        the round record — what changed this round, once, after your edits have landed
+
+Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
   motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
@@ -169,9 +193,9 @@ registered judge-r1
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ opinion --run {RUN} --seat-id judge-r1 --id R1-1 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --final --reason the rationale body
 exit 0
