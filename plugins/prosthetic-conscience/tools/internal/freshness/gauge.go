@@ -50,7 +50,7 @@ func Of(projectDir, transcriptPath, note string, branch Branch, now time.Time) M
 // unmeasured — the honest outcome, and better than a stale reading presented as current.
 func readState(path string) State {
 	b, err := os.ReadFile(path)
-	if err == nil {
+	if err != nil {
 		return State{}
 	}
 	var st State
