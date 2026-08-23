@@ -44,7 +44,15 @@ type hookOutput struct {
 // the seal record otherwise.
 func configured() Thresholds { return Thresholds{} }
 
-func run(stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time) int {
+// run takes its thresholds as an ARGUMENT rather than reading configured() directly, so
+// the emission path can be driven in a test.
+//
+// That is not test scaffolding for its own sake. Thresholds are unset today, so with a
+// hardcoded source the ONLY reachable path is the silent one — and the branch that would
+// go untested is the one that composes the response the client actually reads. A hook
+// whose emit path has never run is a hook whose first real emission is its first
+// execution of that code.
+func run(stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, th Thresholds) int {
 	raw, _ := io.ReadAll(stdin)
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
@@ -69,7 +77,7 @@ func run(stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.
 	m := freshness.Of(projectDir, in.TranscriptPath, string(body),
 		freshness.BranchWork(n.Get("head")), now)
 
-	d := Decide(projectDir, in.SessionID, in.StopHookActive, m, notePath, newest(n), configured(), now)
+	d := Decide(projectDir, in.SessionID, in.StopHookActive, m, notePath, newest(n), th, now)
 	if d.Emit == "" {
 		return 0
 	}
@@ -105,5 +113,5 @@ func Main() int {
 		return 0
 	}
 	wd, _ := os.Getwd()
-	return run(os.Stdin, os.Stdout, os.Stderr, wd, time.Now())
+	return run(os.Stdin, os.Stdout, os.Stderr, wd, time.Now(), configured())
 }

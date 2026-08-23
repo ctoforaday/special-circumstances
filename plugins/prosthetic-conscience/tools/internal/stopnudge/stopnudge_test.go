@@ -236,3 +236,38 @@ func TestGrowthAloneCanCrossABand(t *testing.T) {
 		t.Errorf("Band = %q, want URGENT — the highest edge any measure crosses", d.Band)
 	}
 }
+
+// Band selection is the policy, so every edge is asserted from both measures. ANY-OF
+// taking the MAX: the measures fail independently, so whichever is worse decides, and a
+// reading that crosses two bands reports the higher one rather than the first matched.
+func TestEveryBandEdgeFromEitherMeasure(t *testing.T) {
+	th := bands() // turns 30/60/120, growth 100k/300k/600k
+	for _, tc := range []struct {
+		name string
+		m    freshness.Measures
+		want Band
+		any  bool
+	}{
+		{"below every edge", freshness.Measures{Turns: 29, TurnsMeasured: true}, "", false},
+		{"turns at NOTICE", freshness.Measures{Turns: 30, TurnsMeasured: true}, BandNotice, true},
+		{"turns at WARN", freshness.Measures{Turns: 60, TurnsMeasured: true}, BandWarn, true},
+		{"turns at URGENT", freshness.Measures{Turns: 120, TurnsMeasured: true}, BandUrgent, true},
+		{"growth at NOTICE", freshness.Measures{Growth: 100_000, GrowthKnown: true}, BandNotice, true},
+		{"growth at WARN", freshness.Measures{Growth: 300_000, GrowthKnown: true}, BandWarn, true},
+		{"growth at URGENT", freshness.Measures{Growth: 600_000, GrowthKnown: true}, BandUrgent, true},
+		// The lopsided case three measures exist for: few turns, enormous growth. An
+		// all-of rule would call this fresh.
+		{"few turns, huge growth", freshness.Measures{
+			Turns: 5, TurnsMeasured: true, Growth: 700_000, GrowthKnown: true,
+		}, BandUrgent, true},
+		// And the mirror: many turns, no growth measured at all.
+		{"many turns, growth unmeasured", freshness.Measures{Turns: 200, TurnsMeasured: true}, BandUrgent, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, ok := highestBand(tc.m, th)
+			if ok != tc.any || got != tc.want {
+				t.Errorf("highestBand = (%q, %v), want (%q, %v)", got, ok, tc.want, tc.any)
+			}
+		})
+	}
+}
