@@ -95,17 +95,14 @@ func TestTurnsCountsAssistantEntriesAfterTheNote(t *testing.T) {
 	}
 }
 
-// Ceiling is a TRI-STATE. A session that has never compacted has no trigger point to
-// report, and defaulting it to a guess prints a confident percentage of a denominator
-// nobody measured.
-func TestCeilingIsUnknownUntilTheSessionHasCompacted(t *testing.T) {
+// The compaction boundary is read ONLY for its cumulative dropped figure, which growth
+// needs to stay monotone. preTokens is deliberately not read: it was the sole available
+// denominator for a percentage, and this design renders none.
+func TestDroppedIsUnknownUntilTheSessionHasCompacted(t *testing.T) {
 	p := transcript(t, assistant(1, 1, 1, 1))
 	m, err := Read(p, at(0))
 	if err != nil {
 		t.Fatal(err)
-	}
-	if m.CeilingKnown {
-		t.Errorf("CeilingKnown on a session with no compact_boundary (got %d)", m.Ceiling)
 	}
 	if m.DroppedKnown {
 		t.Errorf("DroppedKnown with no boundary (got %d)", m.Dropped)
@@ -121,9 +118,6 @@ func TestMostRecentBoundaryWins(t *testing.T) {
 	m, err := Read(p, at(0))
 	if err != nil {
 		t.Fatal(err)
-	}
-	if !m.CeilingKnown || m.Ceiling != 120_000 {
-		t.Errorf("Ceiling = %d (known=%v), want 120000 from the most recent boundary", m.Ceiling, m.CeilingKnown)
 	}
 	if !m.DroppedKnown || m.Dropped != 194_000 {
 		t.Errorf("Dropped = %d, want 194000 — growth is monotone only if this is the cumulative figure", m.Dropped)
@@ -169,7 +163,7 @@ func TestAMissingTranscriptIsUnmeasuredNotAnError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("missing transcript returned an error: %v", err)
 	}
-	if m.TokensKnown || m.TurnsMeasured || m.CeilingKnown {
+	if m.TokensKnown || m.TurnsMeasured || m.DroppedKnown {
 		t.Errorf("missing transcript reported something as measured: %+v", m)
 	}
 }

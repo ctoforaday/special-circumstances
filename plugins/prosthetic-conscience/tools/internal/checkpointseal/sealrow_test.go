@@ -184,8 +184,11 @@ func TestSealRowCarriesTheNotesAge(t *testing.T) {
 	if r["turns_measured"] != true {
 		t.Errorf("turns_measured = %v on a transcript the window covers entirely", r["turns_measured"])
 	}
-	if r["ceiling_known"] != false {
-		t.Errorf("ceiling_known = %v with no compact boundary in the transcript", r["ceiling_known"])
+	// No percentage is rendered anywhere, so no row carries a denominator or a flag for
+	// one. The design measures absolutes; a reader wanting a ratio supplies the window
+	// knowingly rather than receiving a guess.
+	if _, present := r["ceiling_known"]; present {
+		t.Errorf("row carries ceiling_known (%v); percentages were removed from the design", r["ceiling_known"])
 	}
 }
 

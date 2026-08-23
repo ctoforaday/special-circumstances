@@ -67,12 +67,6 @@ type sealRow struct {
 	NoteBranchCommits *int `json:"note_branch_commits,omitempty"`
 	BranchMeasured    bool `json:"branch_measured"`
 
-	// CeilingKnown says whether a proximity figure was computable AT ALL — there is no
-	// context-window field anywhere, so the only ceiling is this session's own first
-	// compaction. Recorded as its own fact so the baseline can say how often it is
-	// absent rather than leaving that to be inferred.
-	CeilingKnown bool `json:"ceiling_known"`
-
 	// NudgeEnabled says whether the nudge was live when this row was written. Criterion
 	// 6 compares the two populations, and Phase 1 rows are the "before" half — a row
 	// that does not carry the key at all makes `select(.nudge_enabled==false)` return
@@ -163,7 +157,6 @@ func appendSealRow(dir string, body []byte, now time.Time, event, occ string, in
 		TurnsMeasured:  age.TurnsMeasured,
 		GrowthMeasured: age.GrowthKnown,
 		BranchMeasured: age.BranchKnown,
-		CeilingKnown:   age.CeilingKnown,
 	}
 	if measured {
 		row.LiveHandles = &n

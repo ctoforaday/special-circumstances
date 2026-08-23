@@ -6,6 +6,13 @@
 // token count, or land a day's commits with the note untouched. Any single measure
 // reports one of those as fresh.
 //
+// NO PERCENTAGES, and that is a decision rather than a limitation to work around. A
+// fraction-of-window needs a window, nothing in any payload or transcript carries one,
+// and the only obtainable denominator — this session's own first compaction — exists
+// on some sessions and not others. So the design does not compute one at all: the
+// measures are absolute, and a reader who wants a ratio has to supply the denominator
+// knowingly rather than receive a guess dressed as a measurement.
+//
 // Every measure is a tri-state, and that is the package's whole discipline. An
 // unmeasured figure is NEVER rendered as zero: "no work since the note" and "I could
 // not tell" are different claims, and a reader cannot distinguish them once one has
@@ -61,18 +68,6 @@ type Measures struct {
 
 	BranchCommits int
 	BranchKnown   bool
-
-	// Proximity is Tokens/Ceiling, and it is the one figure with a denominator this
-	// design cannot always obtain: no payload and no transcript field carries the
-	// context window, so the only ceiling is this session's own first compaction.
-	Proximity      float64
-	ProximityKnown bool
-
-	// CeilingKnown is whether a compaction trigger point was found AT ALL. It is not
-	// the same fact as ProximityKnown, which also needs a token reading — a row that
-	// let proximity stand in for it would report "no ceiling" for a session that had
-	// compacted twice but whose transcript tail was unreadable.
-	CeilingKnown bool
 }
 
 // GaugeAfter is Gauge with the stamping flag from ObserveAndSay: when this call created
@@ -114,10 +109,6 @@ func Gauge(st State, m ctxusage.Measure, b Branch) Measures {
 		out.Growth, out.GrowthKnown = now-then, true
 	}
 
-	out.CeilingKnown = m.CeilingKnown
-	if m.TokensKnown && m.CeilingKnown && m.Ceiling > 0 {
-		out.Proximity, out.ProximityKnown = float64(m.Tokens)/float64(m.Ceiling), true
-	}
 	return out
 }
 
@@ -182,11 +173,6 @@ func Render(m Measures, notePath string) string {
 	}
 	if m.BranchKnown {
 		parts = append(parts, fmt.Sprintf("%d commits", m.BranchCommits))
-	}
-	// Proximity rides only with its basis named, so the number cannot be read as a
-	// fraction of some assumed window.
-	if m.ProximityKnown {
-		parts = append(parts, fmt.Sprintf("%.0f%% of this session's compaction point", m.Proximity*100))
 	}
 	if len(parts) == 0 {
 		return "checkpoint age not measurable this session — " + notePath

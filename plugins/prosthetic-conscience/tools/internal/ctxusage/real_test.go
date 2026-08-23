@@ -36,8 +36,8 @@ func TestAgainstARealTranscript(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Read: %v", err)
 	}
-	t.Logf("%s (%d bytes)\n  Tokens=%d known=%v\n  Turns=%d measured=%v\n  Ceiling=%d known=%v\n  Dropped=%d known=%v",
-		path, st.Size(), m.Tokens, m.TokensKnown, m.Turns, m.TurnsMeasured, m.Ceiling, m.CeilingKnown, m.Dropped, m.DroppedKnown)
+	t.Logf("%s (%d bytes)\n  Tokens=%d known=%v\n  Turns=%d measured=%v\n  Dropped=%d known=%v",
+		path, st.Size(), m.Tokens, m.TokensKnown, m.Turns, m.TurnsMeasured, m.Dropped, m.DroppedKnown)
 
 	if !m.TokensKnown {
 		t.Error("no token figure from a live transcript — the tail holds assistant entries by construction")
