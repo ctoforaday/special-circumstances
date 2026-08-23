@@ -23,20 +23,17 @@ func naiveWrite(path string, st State) {
 	_ = os.WriteFile(path, b, 0o644)
 }
 
-// hammer runs writers and readers against one path and reports how many reads came back
-// as the zero state AFTER at least one write had completed.
+// hammer runs writers and readers against one path and reports what the readers saw.
 //
-// That count is the whole measurement. os.WriteFile truncates and then writes, so a
-// concurrent reader can see a file that exists and is empty, decode nothing, and get the
-// zero State — which readState cannot distinguish from "never stamped". Downstream that
-// means Of() RE-STAMPS tokens_at_write at the current count, and growth silently starts
-// measuring the interval since the tear.
-func hammer(t *testing.T, write func(string, State)) (torn int) {
+//	empty   — readState returned (zero, ok=true): an HONEST EMPTY STATE, which after a
+//	          write has landed is a LIE. This is the dangerous outcome: Of() would stamp
+//	          over a reading it could not see, and growth would measure from that moment.
+//	unread  — readState returned ok=false: "the record exists and I could not read it".
+//	          Costly but SAFE — Of() refuses to stamp, and one growth figure is lost.
+func hammer(t *testing.T, write func(string, State)) (empty, unread int) {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")
-
-	// Seed, so every subsequent read has something valid to find.
 	write(path, State{TokensAtWrite: 1, HasWriteReading: true})
 
 	const writers, readers, rounds = 4, 4, 200
@@ -57,40 +54,73 @@ func hammer(t *testing.T, write func(string, State)) (torn int) {
 		go func() {
 			defer wg.Done()
 			for range rounds {
-				if got, ok := readState(path); !ok || !got.HasWriteReading {
-					mu.Lock()
-					torn++
-					mu.Unlock()
+				got, ok := readState(path)
+				mu.Lock()
+				switch {
+				case !ok:
+					unread++
+				case !got.HasWriteReading:
+					empty++
 				}
+				mu.Unlock()
 			}
 		}()
 	}
 	wg.Wait()
-	return torn
+	return empty, unread
 }
 
-// FOUR BINARIES WRITE freshness.json — sc-precompact, sc-sessionend, sc-subagentstop and
-// sc-postcompact-observe — the client runs an event's hooks in PARALLEL (measured,
-// hook-surface-spike.md §4b), and two seats can return at once. So concurrent writes are
-// the expected case, not an edge one.
-func TestConcurrentWritersNeverProduceATornRead(t *testing.T) {
-	if torn := hammer(t, writeState); torn != 0 {
-		t.Errorf("%d reads saw a torn or empty state file; each one would RE-STAMP "+
-			"tokens_at_write at the current count and make growth measure the interval "+
-			"since the tear", torn)
+// THE SAFETY PROPERTY, and it is portable: a read must NEVER report an honest empty state
+// once a write has landed.
+//
+// This is the one that protects the measurement. "Nothing has been stamped yet" and "I
+// could not read what was stamped" lead to opposite actions — the first says stamp now,
+// the second says do not touch it — so a reader that confuses them re-stamps
+// tokens_at_write at the current count and growth silently measures from there.
+//
+// It must hold for BOTH writers, which is why it is asserted against both: the truncating
+// writer is unsafe for a different reason, and this property is not the one that
+// distinguishes them.
+func TestNoReaderEverSeesAnHonestEmptyStateAfterAWrite(t *testing.T) {
+	for _, w := range []struct {
+		name  string
+		write func(string, State)
+	}{{"atomic", writeState}, {"truncating", naiveWrite}} {
+		t.Run(w.name, func(t *testing.T) {
+			empty, _ := hammer(t, w.write)
+			if empty != 0 {
+				t.Errorf("%d reads reported an EMPTY state after a write had landed; each one "+
+					"would re-stamp tokens_at_write and make growth measure from that moment", empty)
+			}
+		})
 	}
 }
 
-// THE CONTROL. The naive writer must fail the same harness, or the test above is not
-// observing atomicity — it is observing a race that did not happen to occur.
+// WHAT ATOMICITY ACTUALLY BUYS, stated as a comparison because an absolute is not portable.
 //
-// If this ever stops failing, do not delete it: it means the harness stopped exercising
-// the window, and the test above has quietly become decorative.
-func TestTheNaiveWriterFailsTheSameHarness(t *testing.T) {
-	if torn := hammer(t, naiveWrite); torn == 0 {
-		t.Skip("the truncating writer produced no torn read on this machine — the harness is " +
-			"not exercising the window, so TestConcurrentWritersNeverProduceATornRead is " +
-			"currently proving nothing about atomicity")
+// An earlier version of this test asserted that the atomic writer produces ZERO unreadable
+// reads. That is true on Linux and false on Windows — rename is atomic for the FILE, but a
+// concurrent open can still hit a sharing violation while it lands, and CI measured 21 of
+// 800, then 3 of 800 once the read retried. Neither is a defect: an unreadable read is
+// safe, it just costs one measurement.
+//
+// So the claim is relative, and it is the claim worth making: truncating writes are
+// unreadable far more often than atomic ones. If that stops being true, either the write
+// stopped being atomic or the harness stopped exercising the window — and both are worth a
+// failure.
+func TestAtomicWritesAreReadableFarMoreOftenThanTruncatingOnes(t *testing.T) {
+	atomicEmpty, atomicUnread := hammer(t, writeState)
+	naiveEmpty, naiveUnread := hammer(t, naiveWrite)
+	t.Logf("atomic: %d empty, %d unreadable | truncating: %d empty, %d unreadable",
+		atomicEmpty, atomicUnread, naiveEmpty, naiveUnread)
+
+	if naiveUnread == 0 {
+		t.Skip("the truncating writer produced no unreadable read on this machine — the harness " +
+			"is not exercising the window, so this comparison proves nothing")
+	}
+	if atomicUnread*4 > naiveUnread {
+		t.Errorf("atomic writes were unreadable %d times against the truncating writer's %d; "+
+			"atomicity should make this rare, not merely less common", atomicUnread, naiveUnread)
 	}
 }
 
