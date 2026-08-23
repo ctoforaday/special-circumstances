@@ -95,7 +95,6 @@ type observation struct {
 	GrowthMeasured    bool `json:"growth_measured"`
 	NoteBranchCommits *int `json:"note_branch_commits,omitempty"`
 	BranchMeasured    bool `json:"branch_measured"`
-	CeilingKnown      bool `json:"ceiling_known"`
 
 	// NudgeEnabled says whether the nudge was live when this row was written.
 	// Criterion 6 compares the two populations, and a row that does not say which it
@@ -231,7 +230,6 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		TurnsMeasured:  age.TurnsMeasured,
 		GrowthMeasured: age.GrowthKnown,
 		BranchMeasured: age.BranchKnown,
-		CeilingKnown:   age.CeilingKnown,
 		// Phase 1 ships no nudge. This becomes a real reading when stopnudge exists.
 		NudgeEnabled: false,
 	}

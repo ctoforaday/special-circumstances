@@ -66,30 +66,10 @@ func TestGrowthWithoutAWriteTimeReadingIsUnmeasured(t *testing.T) {
 	}
 }
 
-// Proximity is the one figure that needs a denominator, and the denominator exists only
-// after this session has compacted once. Everything else must survive without it.
-func TestProximityOnlyWhenTheCeilingIsKnown(t *testing.T) {
-	without := Gauge(baseState(), ctxusage.Measure{Tokens: 140_000, TokensKnown: true}, Branch{})
-	if without.ProximityKnown {
-		t.Errorf("ProximityKnown with no ceiling (got %v)", without.Proximity)
-	}
-	with := Gauge(baseState(), ctxusage.Measure{
-		Tokens: 140_000, TokensKnown: true,
-		Ceiling: 200_000, CeilingKnown: true,
-	}, Branch{})
-	if !with.ProximityKnown {
-		t.Fatal("ceiling known but proximity is not")
-	}
-	if with.Proximity != 0.7 {
-		t.Errorf("Proximity = %v, want 0.7", with.Proximity)
-	}
-}
-
 // The render is injected into a session's context, so its budget is real: 200 bytes.
 func TestRenderFitsTheBudget(t *testing.T) {
 	m := Gauge(baseState(), ctxusage.Measure{
 		Tokens: 987_654, TokensKnown: true, Turns: 412, TurnsMeasured: true,
-		Ceiling: 1_000_000, CeilingKnown: true,
 	}, Branch{Commits: 137, Known: true})
 	got := Render(m, "research/some-fairly-long-slug/CHECKPOINT.md")
 	if len(got) > 200 {
@@ -101,11 +81,20 @@ func TestRenderFitsTheBudget(t *testing.T) {
 }
 
 // A percentage of a window nobody measured is a confident number with no denominator.
-func TestRenderNeverPrintsAPercentageWithoutACeiling(t *testing.T) {
-	m := Gauge(baseState(), ctxusage.Measure{Tokens: 140_000, TokensKnown: true}, Branch{})
-	got := Render(m, "CHECKPOINT.md")
-	if strings.Contains(got, "%") {
-		t.Errorf("render printed a percentage with no ceiling measured:\n%s", got)
+// NO PERCENTAGE, EVER — not "none without a ceiling". A fraction needs a window,
+// nothing carries one, and the only obtainable denominator exists on some sessions and
+// not others. The design renders absolute figures and lets a reader supply a
+// denominator knowingly rather than receive a guess dressed as a measurement.
+func TestRenderNeverPrintsAPercentage(t *testing.T) {
+	for _, m := range []Measures{
+		Gauge(baseState(), ctxusage.Measure{Tokens: 140_000, TokensKnown: true}, Branch{}),
+		Gauge(baseState(), ctxusage.Measure{
+			Tokens: 990_000, TokensKnown: true, Dropped: 400_000, DroppedKnown: true,
+		}, Branch{Commits: 9, Known: true}),
+	} {
+		if got := Render(m, "CHECKPOINT.md"); strings.Contains(got, "%") {
+			t.Errorf("render printed a percentage:\n%s", got)
+		}
 	}
 }
 
@@ -190,19 +179,5 @@ func TestGrowthIsUnmeasuredOnTheObservationThatCreatedTheReading(t *testing.T) {
 	m2 := GaugeAfter(st2, ctxusage.Measure{Tokens: 180_000, TokensKnown: true}, Branch{}, fresh2)
 	if !m2.GrowthKnown || m2.Growth != 80_000 {
 		t.Errorf("Growth = %d (known=%v), want 80000 on the second observation", m2.Growth, m2.GrowthKnown)
-	}
-}
-
-// ceiling_known and proximity_known are different facts. A session that has compacted
-// twice HAS a ceiling even if this read could not get a token figure, and a row that
-// let proximity stand in for it would report "never compacted" for "could not read the
-// tail" — two states with different meanings and the same bytes.
-func TestCeilingKnownIsNotProximityKnown(t *testing.T) {
-	m := Gauge(baseState(), ctxusage.Measure{Ceiling: 200_000, CeilingKnown: true}, Branch{})
-	if !m.CeilingKnown {
-		t.Error("CeilingKnown false when a boundary was found")
-	}
-	if m.ProximityKnown {
-		t.Error("ProximityKnown true with no token reading to divide")
 	}
 }

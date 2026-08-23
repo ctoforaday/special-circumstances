@@ -36,8 +36,11 @@ absent case and the healthy case are the same bytes. No blocking — every path 
 1. **Gauge before nudge.** Every seal record carries the note's age in three units — context
    tokens grown, assistant turns, and commits landed on this branch. Baseline over ≥ 20 real
    boundaries **before any threshold is chosen**.
-2. **No fabricated denominator.** Zero emissions containing a percentage-of-window on a session
-   where the window is not known. Asserted as a test over the render, not as an intention.
+2. **No percentages at all.** Not "none without a denominator" — none. A fraction needs a window,
+   nothing in any payload or transcript carries one, and the only obtainable denominator exists on
+   some sessions and not others. Every figure this design reports is absolute. Asserted as a test
+   over the render, not as an intention.
+
 3. **Cost, budgeted per source because they differ by an order of magnitude.**
    - **Transcript read: ≤ 5 ms p95** on a 13 MB transcript (the size measured in §II).
    - **Branch work: ≤ 200 ms p95, and cached per `HEAD`** — recomputed only when `HEAD` moves, never
@@ -95,22 +98,24 @@ are the same mechanism.** A guarded single emission hands the model exactly one 
 to act on what it was told. No other event does that: `PostToolUse` injects into a turn already
 committed to its next action; `Stop` injects at a boundary and then creates a turn.
 
-### The numerator is exact; the denominator is not available
+### The numerator is exact, and there is no denominator — so nothing is divided
 
-Measured 2026-08-22 on a live 13 MB / 7,308-line transcript, client 2.1.235:
+Context size is exact: `usage.input_tokens + cache_read_input_tokens + cache_creation_input_tokens`
+on the last `type:"assistant"` entry, measured against `jq` on a live transcript.
 
-| Question | Answer | How |
-|---|---|---|
-| Current context size | `usage.input_tokens + cache_read_input_tokens + cache_creation_input_tokens` on the last `type:"assistant"` entry — **913,789** | `tail -c 200000 <t> \| grep '"usage"' \| tail -1` |
-| Cost to read it | **14 ms** in shell; a Go seek of the last 200 KB is well under | `time` |
-| The context window | **Absent from every field.** `message.model` is `claude-opus-5` on a session whose model is `claude-opus-5[1m]` — the string does not distinguish the 1M variant from the 200k one | `jq -r '.message.model' \| sort -u` |
-| Any `*limit*` field | **none** | `grep -o '"[a-zA-Z_]*[Ll]imit[a-zA-Z_]*"'` |
-| Where compaction fired | `type:"system", subtype:"compact_boundary"` → `compactMetadata.{trigger,preTokens,postTokens,cumulativeDroppedTokens}`; here **preTokens 1,001,875 → postTokens 12,823** | `jq -c 'select(.compactMetadata)'` |
+**The window is not available and the design stops looking for one.** No payload and no transcript
+field carries it; `message.model` reads `claude-opus-5` on a session that is `claude-opus-5[1m]`;
+`SessionStart`'s payload may carry a model name on some clients, which would still be a name and not
+a size. A session's own `compactMetadata.preTokens` is the one real number in reach, and it exists
+only after that session has compacted — so a percentage would be available on some sessions and
+absent on others, which is the worst of both: a figure that looks comparable and is not.
 
-So the fraction-of-window cannot be computed until a session has compacted once — after which
-`preTokens` gives that session's trigger point exactly. A hardcoded 1M denominator would print
-91% on one session and 457% on another, both rendered as confident numbers. `facts-are-fields`
-clause 3 governs: **a percentage we cannot compute must not be printed.**
+**So: no percentages.** The measures are absolute — tokens grown, turns taken, commits landed — and a
+reader who wants a ratio supplies the window knowingly. That is a smaller claim than this section
+used to make, and it costs nothing the design was actually using: `preTokens` is no longer read at
+all, and `cumulativeDroppedTokens` from the same boundary is kept, because growth needs it to stay
+monotone across a compaction (**1,001,875 → 12,823** measured at one boundary — the raw counter
+resets, so the naive difference goes negative and the stalest note reads as the freshest).
 
 ### Work done is a branch-line count, not a HEAD distance — measured
 
@@ -178,13 +183,25 @@ plugins/prosthetic-conscience/tools/
 
 Bounded backward scan of the last **256 KB** of `transcript_path` — the number is fixed here because
 "N KB" is not a specification — for the most recent `type:"assistant"` entry and any
-`subtype:"compact_boundary"`. Widen **once**, to 1 MB, if no assistant entry is found, then report
-`Unmeasured` — a hook must not read 13 MB on a tick, and must not hang on a rotated or truncated
+`subtype:"compact_boundary"`. Widen **once**, to 1 MB, if no assistant entry is found — **and only for that miss**, never for an
+unmeasured turn count: for a genuinely old note a wider window does not reach back either, so the
+second read cannot change the answer. Measured, when it did widen for turns: **p95 160 ms against a
+5 ms budget** with a 2 ms floor; probing first still put p50 at 5.9 ms, because it is a second file
+open on every call. Past one widen, report `Unmeasured` — a hook must not read 13 MB on a tick, and must not hang on a rotated or truncated
 file. Returns `Tokens` (exact), `Turns`, and `Ceiling`,
 which is `compactMetadata.preTokens` from **this session's own** most recent boundary or the
 distinct value `Unknown`.
 
-**Built, with one thing the spec did not anticipate: a prefilter is required to meet criterion 3.**
+**Built, with two things the spec did not anticipate, both found by the cost gate.**
+
+**Reachability is decided BEFORE the parse.** If the window does not reach back past `written_at` the
+turn count will be discarded, so counting it is work whose result is thrown away — and on a real
+transcript that is most of the parsing. In that case only the newest usage figure is needed, found by
+scanning backward and stopping at the first hit. Measured on a live transcript: **p50 5.9 ms → 1.4 ms
+against a raw-read floor of 1.3 ms**, i.e. measuring now costs about 0.1 ms over the read it cannot
+avoid.
+
+**And a prefilter is required to meet criterion 3.**
 Unmarshalling every line in the window cost **p50 19 ms / p95 203 ms** on a live 3.1 MB transcript —
 4× to 40× over budget. Parsing only lines that can carry a figure brings it to **p50 3.0 ms / p95
 3.9 ms** against a raw-read floor of 1.3 ms. The prefilter is a performance device only: every line
@@ -210,12 +227,11 @@ substituted, never a zero. This is clause 3 made structural rather than remember
 Three measures, independent because they fail independently: a session can burn 400k tokens in
 twelve turns of bulk reading, or take 300 turns without moving the token count.
 
-| Measure | Definition | Needs ceiling? |
-|---|---|---|
-| **Growth** | `(tokens_now + dropped_now) − (tokens_at_write + dropped_at_write)` | no |
-| **Turns** | assistant turns since the note was written | no |
-| **Branch work** | `git rev-list --count --first-parent <note.head>..HEAD` | no |
-| *Proximity* | `Tokens / Ceiling` — **emitted only when `Ceiling` is known**, with its basis named | yes |
+| Measure | Definition |
+|---|---|
+| **Growth** | `(tokens_now + dropped_now) − (tokens_at_write + dropped_at_write)` |
+| **Turns** | assistant turns since the note was written |
+| **Branch work** | `git rev-list --count --first-parent <note.head>..HEAD` |
 
 **Built.** `Gauge` is arithmetic over readings the caller already holds — it re-reads nothing, so it
 stays callable on a tick — and `Observe` stamps the write-time reading **once per note**, keyed on
@@ -434,7 +450,7 @@ machine-read fact to live in a field.
 | Field | Meaning |
 |---|---|
 | `at`, `event`, `occasion`, `session_id`, `agent_id` | the stamp's five facts, as fields this time — **built** |
-| `note_age_turns`, `note_growth_tokens`, `note_branch_commits`, `ceiling_known` | criterion 1 — **built**, each with its own `*_measured` flag and **omitted when unmeasured**: a zero meaning "could not tell" would pull every median toward fresh |
+| `note_age_turns`, `note_growth_tokens`, `note_branch_commits` | criterion 1 — **built**, each with its own `*_measured` flag and **omitted when unmeasured**: a zero meaning "could not tell" would pull every median toward fresh |
 | `seal_trigger` | `precompact` \| `sessionend` \| `seat_return` — which event sealed — **built** |
 | `live_handles` | count of `background_tasks` entries with `type != "subagent"`, plus `session_crons` — **only when measurable**. Seats are excluded deliberately: at a `seat_return` seal the returning seat appears in the parent's own list (§12), and counting it reads high by exactly one while answering a different question from "did this note miss some background work" |
 | `handles_measured` | `false` when the payload carries no `background_tasks` key |
@@ -672,7 +688,6 @@ editing L or I.
 | # | Risk | L×I×C | Mitigation | Step |
 |---|---|---|---|---|
 | F1 | **The nudge becomes wallpaper** — and a context-pressure warning that costs context is self-defeating at exactly the moment it matters. | H×H×M | Bands, once per band; ≤ 200 bytes; reset on write; **criterion 6 removes it** if the baseline median does not fall. | Ph. 3 |
-| F2 | **Fabricated denominator.** | M×H×L | `Ceiling` tri-state with `Unknown` as a value callers must handle; criterion 2 is a test over the render. | Ph. 1 |
 | F3 | **Commit count reads other people's work as mine.** | H×M×L | `--first-parent`; no author filter (§II measured both). | Ph. 1 |
 | F4 | **Gauge cost on a hot path.** | M×M×L | Bounded tail; **cache the PARSED NOTE keyed on mtime** — re-read the file only when mtime moves. mtime can save a *parse*; it cannot save the transcript read, which is the cost criterion 3 budgets, and it must never gate the MEASUREMENT: growth, turns and branch work all advance while the file sits untouched, which is the case this design exists to catch. | Ph. 2 |
 | F6 | **A writer advances `written_at` without changing the body** — the note claims to be fresh and is not. | L×M×L | `checkpointseal` computes `body_sha` from the snapshot it already takes; a `written_at` that advanced between two seals while the hash did not is reported as an **error**. Both sides are computed by the machine — neither is a value the note claims about itself. | Ph. 1 |
@@ -694,8 +709,10 @@ editing L or I.
 ```
 
 Coverage must include the negatives, which are the point: a tail containing **no** assistant entry;
-a truncated final line; a session with **no** compact boundary → `Ceiling: Unknown` **and no
-percentage in the render**; two boundaries → most recent wins; **a schema-2 note lacking `written_at` → `Unmeasured`, NOT age zero**; **a `written_at` older than
+a truncated final line; a session with **no** compact boundary → `Dropped: Unknown` (growth then computed from the raw
+counter alone, which is correct when nothing has been dropped); two boundaries → most recent wins;
+**the render contains no `%` on any input** — asserted over a fully-measured gauge, not just an
+empty one; **a schema-2 note lacking `written_at` → `Unmeasured`, NOT age zero**; **a `written_at` older than
 the scan window → `Turns: Unmeasured`, never a partial count** (the stalest-note case, asserted
 against a fixture whose note predates the window); **`tokens_at_write` absent → growth `Unmeasured`,
 never 0**; **a transcript with a compact boundary between write and now → growth positive, computed
