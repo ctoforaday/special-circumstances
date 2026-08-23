@@ -129,13 +129,39 @@ func TestASeatSeesThatTheHookIsMissingFromTheWholeRun(t *testing.T) {
 	h := registerResult{SeatID: "red-lens-r1-L1", Nonce: "7a6b912e", IdentityAbsent: true, RunVia: "inferred", HookAbsent: true}.Human()
 	for _, want := range []string{
 		"YOUR IDENTITY DID NOT REACH THE TOOL", // the seat's own consequence still comes first
-		"AND IT IS NOT ONLY YOUR IDENTITY",
-		"EVERY seat in it will be missing its identity",
+		"THE ENGINE'S HOOK IS NOT REACHING THIS RUN",
+		"EVERY seat in it is affected",
+		"the tool's own search for the run marker", // WHICH carrier stood in, so the operator can tell the two shapes apart
 		"friction verb", // the one channel that carries it out of the run
 	} {
 		if !strings.Contains(h, want) {
 			t.Errorf("the advisory does not carry %q:\n%s", want, h)
 		}
+	}
+}
+
+// UNDER A WRAPPER THE SAME FACT IS READABLE ON ITS OWN, and it must not read as alarming.
+//
+// setup bakes the run into <runDir>/.bin/feov-record, and the hook — when it fires — sets
+// FEOV_RUN, which outranks it. So resolving by WRAPPER says the hook did not inject, with no
+// pairing needed. The seat's work is fine in that state: the run directory is correct, which is
+// the whole point of the wrapper, and telling a seat otherwise would spend a round on a
+// non-problem.
+func TestUnderAWrapperTheHookAbsenceIsStatedWithoutAlarm(t *testing.T) {
+	h := registerResult{SeatID: "blue-lane-1", Nonce: "b647e93a", IdentityAbsent: true, RunVia: "wrapper", HookAbsent: true}.Human()
+	for _, want := range []string{
+		"THE ENGINE'S HOOK IS NOT REACHING THIS RUN",
+		"this run's own wrapper",
+		"YOUR WORK IS NOT AT RISK",
+		"friction verb",
+	} {
+		if !strings.Contains(h, want) {
+			t.Errorf("the advisory does not carry %q:\n%s", want, h)
+		}
+	}
+	// It must not tell a wrapped seat the tool went looking for the marker — it did not.
+	if strings.Contains(h, "own search for the run marker") {
+		t.Errorf("a wrapped seat is told the run was inferred:\n%s", h)
 	}
 }
 

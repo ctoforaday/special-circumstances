@@ -285,6 +285,10 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		pinnedPaths = append(pinnedPaths, p)
 	}
 	marker := WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now, cfg.RunID, cfg.ScriptPath)
+	// Written AFTER the marker deliberately: the wrapper is the carrier that does not move when
+	// the marker does, and writing it second makes the ordering obvious to anyone reading for
+	// which of the two is derived from the other. Neither is — that is the point.
+	wrapper := WriteRunWrapper(absRun, recordBin)
 
 	fmt.Fprintf(stdout, "run-setup: %s\n", cfg.RunDir)
 	fmt.Fprintf(stdout, "  skeleton: %d created, %d pre-staged (kept)\n", len(skel.Created), len(skel.Skipped))
@@ -367,6 +371,20 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "  record binary: %s %s\n", recordBin, v)
 	fmt.Fprintf(stdout, "  run-live marker: %s\n", marker)
+	// THE binDir LINE IS AN INSTRUCTION, not a report, so it says what to do with the path.
+	// Handing the workflow the raw binary directory instead of this one is silent: the run
+	// works, and every seat is back to typing --run.
+	if wrapper.BinDir != "" {
+		fmt.Fprintln(stdout, `  binDir arg: pass THIS path as the workflow's "binDir" arg (not the record binary's directory)`)
+		fmt.Fprintf(stdout, "    %s\n", wrapper.BinDir)
+		fmt.Fprintln(stdout, "    It wraps the binary with this run baked in, so no seat types --run and a mistyped")
+		fmt.Fprintln(stdout, "    path fails at the shell instead of filing work against nothing.")
+	} else {
+		// NOT SILENT ON THE MISS. Without this line the summary looks identical to a healthy
+		// one and the operator hands over the raw directory believing it is the wrapper.
+		fmt.Fprintf(stdout, "  binDir arg: NO WRAPPER WRITTEN — %s\n", wrapper.Skipped)
+		fmt.Fprintln(stdout, "    Pass the record binary's own directory, and expect seats to carry --run themselves.")
+	}
 	return 0
 }
 
