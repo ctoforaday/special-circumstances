@@ -1,6 +1,8 @@
 package freshness
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -179,5 +181,63 @@ func TestGrowthIsUnmeasuredOnTheObservationThatCreatedTheReading(t *testing.T) {
 	m2 := GaugeAfter(st2, ctxusage.Measure{Tokens: 180_000, TokensKnown: true}, Branch{}, fresh2)
 	if !m2.GrowthKnown || m2.Growth != 80_000 {
 		t.Errorf("Growth = %d (known=%v), want 80000 on the second observation", m2.Growth, m2.GrowthKnown)
+	}
+}
+
+// THE ASYMMETRY. Growth adds the CURRENT dropped figure only when it is known, but
+// always subtracts the stamped one — so a note stamped after a compaction (when
+// cumulativeDroppedTokens was visible) and gauged later from a window that no longer
+// contains a boundary computes 13,000 − 1,000,000 and reports −987,000 as MEASURED.
+//
+// That is "the stalest note reads as the freshest", which is the failure §II gives as
+// the reason for the whole design, arriving through the arithmetic meant to prevent it.
+// The original test could not see it: its baseline had DroppedAtWrite: 0.
+func TestGrowthIsUnmeasuredWhenTheDroppedTermsAreNotComparable(t *testing.T) {
+	stamped := State{
+		WrittenAtSeen: ts(10), TokensAtWrite: 13_000,
+		DroppedAtWrite: 1_000_000, HasWriteReading: true,
+	}
+	// Later read: no boundary in the window, so DroppedKnown is false.
+	m := Gauge(stamped, ctxusage.Measure{Tokens: 400_000, TokensKnown: true}, Branch{})
+	if m.GrowthKnown {
+		t.Errorf("growth reported as measured (%d) from incomparable terms: the stamped side "+
+			"carries a dropped figure and the current side does not", m.Growth)
+	}
+}
+
+// Growth cannot be negative — both terms are monotone by construction. A negative result
+// is proof the two sides are not comparable, whatever the flags say, so it is reported
+// as unmeasured rather than rendered.
+func TestNegativeGrowthIsNeverReported(t *testing.T) {
+	st := State{WrittenAtSeen: ts(10), TokensAtWrite: 900_000, DroppedAtWrite: 500_000, HasWriteReading: true}
+	m := Gauge(st, ctxusage.Measure{
+		Tokens: 12_000, TokensKnown: true, Dropped: 100_000, DroppedKnown: true,
+	}, Branch{})
+	if m.GrowthKnown {
+		t.Errorf("negative growth reported as measured: %d", m.Growth)
+	}
+}
+
+// A note with no written_at — schema 2, or one written wrong — has no reference point,
+// so it has no age. Every measure comes back unmeasured and NONE comes back zero.
+//
+// §V lists this as required Phase 1 coverage and nothing exercised it: Of's early
+// return was reachable only through a real project directory, which no test built.
+func TestANoteWithoutWrittenAtIsUnmeasuredNotAgeZero(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".claude", "checkpoints"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const schema2 = "---\nschema: 2\nupdated: 2026-08-23T00:10:00Z\n---\n## Validation loop\n1. x\n"
+	m := Of(dir, "", schema2, Branch{})
+	if m.GrowthKnown || m.TurnsMeasured || m.BranchKnown {
+		t.Errorf("a note with no written_at reported something as measured: %+v", m)
+	}
+	if m.Growth != 0 || m.Turns != 0 || m.BranchCommits != 0 {
+		t.Errorf("unmeasured figures carry numbers: %+v", m)
+	}
+	// And it must not have written a state file for a note it could not place in time.
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "checkpoints", "freshness.json")); err == nil {
+		t.Error("state file written for a note with no reference point")
 	}
 }
