@@ -142,11 +142,25 @@ func Refuse(flag, got string, vs []EnumValue, why string) error {
 	case strings.TrimSpace(got) == "":
 		detail = "nothing was passed, and "
 	default:
+		// THE NEAR MISS IS NAMED, AND THE SEPARATOR HALF WAS MISSING. Case was detected and said
+		// so; a hyphen for an underscore — `too-thin` for `too_thin`, `defect-accepted` for
+		// `defect_accepted` — got the bare set with no hint that the word was RIGHT and only its
+		// punctuation wrong. Flag names take dashes and values take the schema's underscores, so
+		// this is the mistake the surface's own two conventions invite, and it is the one the
+		// refusal had nothing to say about.
+		//
+		// recordpb.SameWord already decides exactly this class (case and separators, nothing
+		// wider) and is what NearMiss uses. The machinery to say it was here; the sentence was not.
 		for _, want := range vs {
-			if strings.EqualFold(got, want.Name) {
+			switch {
+			case strings.EqualFold(got, want.Name):
 				detail = fmt.Sprintf("%q differs from %q only in case, and ", got, want.Name)
-				break
+			case recordpb.SameWord(got, want.Name):
+				detail = fmt.Sprintf("%q is %q with different punctuation — flags take dashes, values take the schema's underscores — and ", got, want.Name)
+			default:
+				continue
 			}
+			break
 		}
 	}
 	var b strings.Builder
