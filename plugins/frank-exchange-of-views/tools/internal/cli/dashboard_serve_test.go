@@ -144,7 +144,7 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 	// A live run: marker present, no outcome on the record. Neither watcher may exit.
 	runDir := newRun(t)
 	marker := filepath.Join(t.TempDir(), "run-live.json")
-	if err := os.WriteFile(marker, []byte(`{"runDir":"x"}`), 0o644); err != nil {
+	if err := os.WriteFile(marker, []byte(`{"runs":[{"runDir":"x"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if ended, why := runHasEnded(marker, runDir); ended {

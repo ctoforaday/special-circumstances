@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
 
 // recordWithRounds writes a minimal run whose board carries one minted gap per round, so the
@@ -769,7 +771,7 @@ func TestDiscardedEventsAudit(t *testing.T) {
 func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 	t.Run("removed", func(t *testing.T) {
 		cwd := t.TempDir()
-		write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runDir":"research/x"}`)
+		write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runs":[{"runDir":"research/x"}]}`)
 		got := closeRunLiveMarker(cwd, "research/x")
 		if got != "run-live marker: removed" {
 			t.Errorf("got %q", got)
@@ -942,33 +944,45 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 	}
 }
 
-// A MARKER NAMING ANOTHER RUN IS NOT THIS RUN'S TO CLOSE.
+// CAPTURING ONE RUN MUST NOT CLOSE ANOTHER, and the guarantee is now STRUCTURAL.
 //
-// The marker is a singleton naming the one open run, and capture removed it by PATH without ever
-// asking which run it named. Capturing an abandoned run A while run B was live lifted B's marker
-// and reported "removed" — the words it uses when it did the right thing. B's verbs then infer no
-// run, and B's own capture reports nothing to close.
+// It used to be a path comparison standing between capture and the wrong marker: the file was a
+// singleton naming the one open run, capture removed it by PATH without asking which run it
+// named, and a guard was added after capturing an abandoned run A nearly lifted live run B's
+// marker on 2026-08-22, eleven minutes into B's first round.
 //
-// Nearly done for real on 2026-08-22, eleven minutes into the next run's first round.
-func TestCaptureWillNotCloseADifferentRunsMarker(t *testing.T) {
+// Per-run rows remove the class rather than guard it (#529): the row this capture owns is the
+// only one it can take. The guarantee is asserted here in its stronger form — BOTH runs listed,
+// one captured, the other still live afterwards — because a class that can no longer occur is
+// still a class that must be shown not to occur.
+func TestCapturingOneRunLeavesTheOthersOpen(t *testing.T) {
 	cwd := t.TempDir()
-	write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runDir":"research/live-one"}`)
+	marker := filepath.Join(cwd, ".claude", "run-live.json")
+	write(t, marker, `{"runs":[{"runDir":"research/live-one"},{"runDir":"research/the-one-being-captured"}]}`)
 
 	got := closeRunLiveMarker(cwd, "research/the-one-being-captured")
-	if !strings.Contains(got, "LEFT IN PLACE") {
-		t.Errorf("capture closed a marker naming a different run: %q", got)
+	if !strings.Contains(got, "1 other run") {
+		t.Errorf("capture did not say another run is still open: %q", got)
 	}
-	if !strings.Contains(got, "research/live-one") {
-		t.Errorf("the refusal must name the run it protected: %q", got)
+	if _, err := os.Stat(marker); err != nil {
+		t.Fatal("the marker file must survive while another run is live")
 	}
-	if _, err := os.Stat(filepath.Join(cwd, ".claude", "run-live.json")); err != nil {
-		t.Error("the other run's marker must still be there")
+	left := runlive.ReadRunLive(cwd)
+	if len(left) != 1 || left[0].RunDir != "research/live-one" {
+		t.Errorf("after capturing one run the marker holds %+v, want only research/live-one", left)
 	}
 
-	// And a relative/absolute spelling of the SAME run still closes — the marker stores whatever
+	// A relative/absolute spelling of the SAME run still closes it — the marker stores whatever
 	// it was given, so a string compare would refuse to close the run in progress.
-	write(t, filepath.Join(cwd, ".claude", "run-live.json"), `{"runDir":"research/same"}`)
+	write(t, marker, `{"runs":[{"runDir":"research/same"}]}`)
 	if got := closeRunLiveMarker(cwd, filepath.Join(cwd, "research", "same")); !strings.Contains(got, "removed") {
 		t.Errorf("the same run spelled absolutely was refused: %q", got)
+	}
+
+	// AND A FILE NAMING NOTHING IS NOT A CLEAN CLOSE. An unreadable marker looks exactly like
+	// this from here, and reporting "nothing to remove" would let it pass for an absent one.
+	write(t, marker, `{"runs":[]}`)
+	if got := closeRunLiveMarker(cwd, "research/x"); !strings.Contains(got, "names NO open run") {
+		t.Errorf("a marker present but naming nothing was reported as an ordinary miss: %q", got)
 	}
 }

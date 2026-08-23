@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"io"
 	"os"
 	"path/filepath"
@@ -97,31 +98,25 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	// Gate: an OPEN run that is not this one. Before anything is built (#270).
+	// ANOTHER OPEN RUN IS REPORTED, NOT REFUSED (#529).
 	//
-	// The marker is commitment-as-state, and its only retraction is `capture`, which is optional:
-	// a run that is killed, throws, or is simply never captured leaves it behind. Nothing noticed,
-	// because WriteRunLiveMarker below overwrites unconditionally — self-healing and SILENT, so
-	// the operator never learned that the previous run was never closed.
+	// The marker is commitment-as-state and its only retraction is `capture`, which is optional:
+	// a run that is killed, throws, or is simply never captured leaves its row behind. That is
+	// still worth telling a human at the one moment one is present, and it is collected here so
+	// the summary can say it.
 	//
-	// Silence is the wrong answer here for a specific reason: between the abandoned run and this
-	// setup, the stale marker is what seat.InferRunDir hands to every verb invoked without --run.
-	// That is #358's failure (a seat recording into the wrong place) reached by a different road.
-	//
-	// This is the one moment a human is present and can act, so it is where the state is made
-	// loud. Idempotent for the SAME run: re-running setup on a run in progress is ordinary.
-	if prev, ok := ReadRunLiveMarker(cfg.Cwd); ok && !sameRun(cfg.Cwd, prev.RunDir, cfg.RunDir) {
-		fmt.Fprintln(stderr, "run-setup: A RUN IS ALREADY OPEN — refusing to create the run:")
-		fmt.Fprintf(stderr, "  .claude/run-live.json says %s is live (started %s).\n", prev.RunDir, prev.Started)
-		fmt.Fprintln(stderr, "  Its capture never ran, so nothing closed it. Until it is closed, every verb")
-		fmt.Fprintln(stderr, "  invoked without --run infers THAT run directory, not this one.")
-		fmt.Fprintln(stderr, "  remedies: close it properly —")
-		fmt.Fprintf(stderr, "    feov-record capture %s <its transcript dir>\n", prev.RunDir)
-		fmt.Fprintln(stderr, "  — which writes its run record and clears the marker; or, if that run is")
-		fmt.Fprintln(stderr, "  genuinely abandoned and you do not want its record, delete .claude/run-live.json.")
-		fmt.Fprintln(stderr, "  Setup will NOT overwrite it silently: that is how a run stayed open for the")
-		fmt.Fprintln(stderr, "  lifetime of the next one with nobody told.")
-		return 2
+	// It USED to refuse, for a reason its own comment gave: the stale marker was what
+	// seat.InferRunDir handed to every verb invoked without --run. #526 removed that — setup
+	// bakes the run into <runDir>/.bin/feov-record, so a seat carries its run in its own
+	// environment and never has to ask — and ReadRunLiveMarker now answers "no single run" when
+	// more than one is open, so inference declines rather than guesses. With the misdirection
+	// gone, refusing only forced the operator to defeat the guard by hand, which is how an
+	// operator learns to reach for `rm` on the one file that says a run is open.
+	var alsoLive []runlive.RunLiveMarker
+	for _, m := range runlive.ReadRunLive(cfg.Cwd) {
+		if !runlive.SameRun(cfg.Cwd, m.RunDir, cfg.RunDir) {
+			alsoLive = append(alsoLive, m)
+		}
 	}
 
 	// Gate: pins validated before anything is built.
@@ -284,7 +279,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		p, _ := splitPin(c)
 		pinnedPaths = append(pinnedPaths, p)
 	}
-	marker := WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now, cfg.RunID, cfg.ScriptPath)
+	marker := runlive.WriteRunLiveMarker(cfg.Cwd, cfg.RunDir, pinnedPaths, cfg.Now, cfg.RunID, cfg.ScriptPath)
 	// Written AFTER the marker deliberately: the wrapper is the carrier that does not move when
 	// the marker does, and writing it second makes the ordering obvious to anyone reading for
 	// which of the two is derived from the other. Neither is — that is the point.
@@ -371,6 +366,17 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	fmt.Fprintf(stdout, "  record binary: %s %s\n", recordBin, v)
 	fmt.Fprintf(stdout, "  run-live marker: %s\n", marker)
+	// LOUD, AND ACTIONABLE PER RUN. A notice that only said "something else is open" would be
+	// the skimmable version of the refusal it replaces; each row names its own capture command.
+	for _, m := range alsoLive {
+		fmt.Fprintf(stdout, "  ALSO OPEN: %s (started %s) — its capture never ran, so nothing closed it.\n", m.RunDir, m.Started)
+		fmt.Fprintf(stdout, "    close it with:  feov-record capture %s <its transcript dir>\n", m.RunDir)
+	}
+	if len(alsoLive) > 0 {
+		fmt.Fprintln(stdout, "    Both runs proceed: each seat carries its own run in its wrapper, so neither can")
+		fmt.Fprintln(stdout, "    file work against the other. A verb invoked with NO run directory now resolves")
+		fmt.Fprintln(stdout, "    nothing rather than guessing between them.")
+	}
 	// THE binDir LINE IS AN INSTRUCTION, not a report, so it says what to do with the path.
 	// Handing the workflow the raw binary directory instead of this one is silent: the run
 	// works, and every seat is back to typing --run.

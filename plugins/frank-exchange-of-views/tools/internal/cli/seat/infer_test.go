@@ -17,7 +17,7 @@ func TestInferRunDirReadsTheLiveMarker(t *testing.T) {
 	run := filepath.Join(proj, "research", "2026-07-18_topic")
 	mustMkdir(t, run)
 	mustMkdir(t, filepath.Join(proj, ".claude"))
-	writeMarker(t, proj, `{"runDir":"research/2026-07-18_topic"}`)
+	writeMarker(t, proj, `{"runs":[{"runDir":"research/2026-07-18_topic"}]}`)
 
 	if got := InferRunDir(proj); got != run {
 		t.Fatalf("InferRunDir(%q) = %q, want %q", proj, got, run)
@@ -30,7 +30,7 @@ func TestInferRunDirWalksUpFromASubdirectory(t *testing.T) {
 	run := filepath.Join(proj, "research", "r")
 	mustMkdir(t, run)
 	mustMkdir(t, filepath.Join(proj, ".claude"))
-	writeMarker(t, proj, `{"runDir":"research/r"}`)
+	writeMarker(t, proj, `{"runs":[{"runDir":"research/r"}]}`)
 
 	deep := filepath.Join(proj, "plugins", "x", "y")
 	mustMkdir(t, deep)
@@ -43,7 +43,7 @@ func TestInferRunDirWalksUpFromASubdirectory(t *testing.T) {
 // an unusable marker yields nothing and the caller's --run error stands.
 func TestInferRunDirRefusesAnUnusableMarker(t *testing.T) {
 	for _, tc := range []struct{ name, body string }{
-		{"run directory does not exist", `{"runDir":"research/gone"}`},
+		{"run directory does not exist", `{"runs":[{"runDir":"research/gone"}]}`},
 		{"no runDir field", `{"started":"2026-07-19T00:00:00Z"}`},
 		{"not json at all", `this is not json`},
 	} {
@@ -69,7 +69,7 @@ func TestInferRunDirHonoursAnAbsoluteRunDir(t *testing.T) {
 	proj := t.TempDir()
 	elsewhere := t.TempDir()
 	mustMkdir(t, filepath.Join(proj, ".claude"))
-	writeMarker(t, proj, `{"runDir":`+quote(elsewhere)+`}`)
+	writeMarker(t, proj, `{"runs":[{"runDir":`+quote(elsewhere)+`}]}`)
 	if got := InferRunDir(proj); got != elsewhere {
 		t.Fatalf("got %q, want %q", got, elsewhere)
 	}
