@@ -207,7 +207,11 @@ func newMint() *cobra.Command {
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
-	c.Flags().String(flags.Class, "", "the gap's class slug — what KIND of defect this is. A slug the registry has; coin a missing one first with `merge class new`")
+	// THE BACKTICKS ARE COBRA'S PLACEHOLDER SYNTAX, not emphasis — it takes the first backquoted
+	// word as the flag's value shape. They sat around a COMMAND, so `--class` advertised its value
+	// as "merge class new": a phrase from the prose offered to a seat as the thing to type. The
+	// command is named without them, and the placeholder is the shape actually wanted.
+	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb")
 	c.Flags().String(flags.Quote, "", flags.DescQuote+". For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission")
 	c.Flags().String(flags.Problem, "", "what is wrong (or pass it via --reason)")
 	c.Flags().String(flags.Fix, "", "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")

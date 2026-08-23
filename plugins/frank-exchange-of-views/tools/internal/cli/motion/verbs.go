@@ -20,6 +20,20 @@ func newFile(subject string, required []string) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "file",
 		Short: "file a " + subject + " motion — the tool assigns its id",
+		// EACH SUBJECT'S `file` SAYS WHERE THE BOUNDARY IS. The three subjects write ONE event
+		// type with different required flags and different gavels, so a seat that opens the wrong
+		// one meets a refusal about a flag rather than about the subject it should have named.
+		//
+		// The tree knowing about the split is not the same as the seat knowing: this page is what
+		// a seat actually reads, and it was blank. It went unnoticed because `motion` sat at the
+		// ROOT until the surface became seat-scoped, so the sibling gate never reached it.
+		Long: "file a " + subject + " motion — the tool assigns its id.\n\n" +
+			"THREE SUBJECTS, ONE EVENT, DIFFERENT CONTRACTS. `motion grade file` disputes a gap's " +
+			"grade and is ruled by the merge; `motion petition file` raises an ethical, safety, " +
+			"integrity or constitutional objection and is ruled by the BENCH, before the debate " +
+			"continues; a direction needs no file verb at all — proposing the line of inquiry IS " +
+			"the filing, and only its ruling is a motion.\n\n" +
+			"Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
 			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
@@ -159,6 +173,15 @@ func newRule(subject, ruler string) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "rule",
 		Short: "rule on a " + subject + " motion (the " + ruler + " seat's)",
+		// THE THIRD PAGE THAT HAD TO SAY WHICH SUBJECT IT IS — `file` and `appeal` carry one for
+		// the same reason. `rule` differs from those two in that it is not on every seat's
+		// surface at all, so the page a seat CAN open should also say which ones it cannot.
+		Long: "rule on a " + subject + " motion — this verb is the " + ruler + " seat's, and it " +
+			"appears only on that surface.\n\n" +
+			"THREE SUBJECTS, THREE GAVELS. A grade dispute and a direction are ruled by the MERGE; " +
+			"a petition is ruled by the BENCH, before the debate continues. A motion is filed by " +
+			"any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it " +
+			"is why `rule` is missing from the surfaces that do not hold the gavel.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
 			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
@@ -272,6 +295,16 @@ func newAppeal(subject string) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "appeal",
 		Short: "press a " + subject + " motion after a ruling — a ruling is an argument, not a command",
+		// SAME EVENT, TWO SUBJECTS, AND THE PAGE HAS TO SAY WHICH IS WHICH — the reason `file`
+		// carries one, for the same reason: a seat picks between them by opening one of them.
+		Long: "press a " + subject + " motion after a ruling — a ruling is an ARGUMENT, not a " +
+			"command, so the losing side may answer it on the record.\n\n" +
+			"TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge " +
+			"rejected; `motion inquiry appeal` presses a line of inquiry red ruled out-of-scope or " +
+			"too-thin, and it is filed whether or not blue also pursues the line — separating the " +
+			"argument from the act is the whole point of the verb.\n\n" +
+			"A PETITION HAS NO APPEAL, and that absence is the design rather than an omission: it " +
+			"is heard by the bench BEFORE the debate continues, so there is nothing to escalate to.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
 			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,

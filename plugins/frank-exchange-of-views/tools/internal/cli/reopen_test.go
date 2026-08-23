@@ -16,8 +16,8 @@ import (
 // text to "The sky is green and the grass is on fire", silently.
 func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 	runDir := t.TempDir()
-	for _, s := range []struct{ role, id string }{{"lens", "red-lens-r1-L1"}, {"blue", "blue-respond-r1"}} {
-		if _, err := run(t, s.role, "register", "--run", runDir, "--seat-id", s.id); err != nil {
+	for _, id := range []string{"red-lens-r1-L1", "blue-respond-r1"} {
+		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatal(err)
 		}
 	}

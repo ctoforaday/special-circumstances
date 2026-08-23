@@ -497,7 +497,9 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 // the guarantee this test was always about, asked where it can still be answered — and where it
 // would fail if someone dropped the seeding.
 func TestListFieldsAreAlwaysRenderedEvenWhenEmpty(t *testing.T) {
-	runDir := t.TempDir()
+	// newRun, not a bare TempDir: a run stages its gap-class vocabulary, and a mint against a run
+	// with no registry is refused rather than waved through.
+	runDir := newRun(t)
 	seatID := "red-merge-r1"
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {

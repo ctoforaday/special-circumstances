@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -202,7 +203,11 @@ func runHasEnded(marker, runDir string) (bool, string) {
 		return true, "run-live marker gone"
 	}
 	if v := record.TerminalVerdict(runDir); v != "" {
-		return true, "the record shows this run ended (" + v + ") while the run-live marker is still present — capture has not run"
+		// IN THE SEAT'S OWN SPELLING. RunOutcome is stored as the schema's word (`unverified`) and
+		// typed by the bench in capitals (`--as UNVERIFIED`); this line is read by an OPERATOR
+		// looking for the state a seat recorded, so it shouts the word the seat used rather than
+		// the one the column happens to hold.
+		return true, "the record shows this run ended (" + strings.ToUpper(v) + ") while the run-live marker is still present — capture has not run"
 	}
 	return false, ""
 }

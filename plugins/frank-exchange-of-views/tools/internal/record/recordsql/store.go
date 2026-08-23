@@ -32,6 +32,29 @@ import (
 //     paid for with an ordering problem.
 //   - busy_timeout keeps a concurrent seat waiting rather than failing. Seats are dispatched in
 //     parallel and a lock contended for a few milliseconds is not an error to report to a human.
+//
+// uriPath escapes a filesystem path for the URI half of a DSN.
+//
+// THE `file:` PREFIX MAKES THIS A URI, AND A URI HAS SYNTAX. `#` opens a fragment and `?` opens
+// the query, so a path containing either is TRUNCATED at that character — silently, and to a
+// path that is still openable. Two different runs then share one database, or a run opens a
+// database that is not its own, and nothing anywhere reports it: the writes succeed.
+//
+// MEASURED 2026-08-23, by accident. A Go subtest whose name repeats gets `#01` appended, t.TempDir
+// builds the directory from the test name, and the second of two identically-named cases opened
+// the FIRST one's database — surfacing as "this seat has already recorded a mint this sitting" in
+// a run that had recorded nothing. The test was right and the storage was wrong.
+//
+// It is reachable outside a test: run directories are named from the topic, and a topic like
+// "C# concurrency" or one carrying a `%` produces exactly this path.
+//
+// Percent-encoding is SQLite's own answer (see its URI filename documentation), and `%` must be
+// escaped first or it would corrupt the escapes that follow it.
+func uriPath(path string) string {
+	r := strings.NewReplacer("%", "%25", "#", "%23", "?", "%3f")
+	return r.Replace(path)
+}
+
 func Open(path string) (*sql.DB, error) {
 	// _txlock=immediate IS NOT A TUNING KNOB. IT IS THE DIFFERENCE BETWEEN WORKING AND NOT.
 	//
@@ -50,7 +73,7 @@ func Open(path string) (*sql.DB, error) {
 	// a writer waiting for a writer is a queue rather than a deadlock. It also fixes the correctness
 	// half: a deferred transaction's count could be read from a snapshot another writer has already
 	// moved past, which is what SQLITE_BUSY_SNAPSHOT exists to refuse.
-	dsn := "file:" + path + "?_txlock=immediate&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
+	dsn := "file:" + uriPath(path) + "?_txlock=immediate&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err

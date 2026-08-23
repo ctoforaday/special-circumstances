@@ -104,12 +104,23 @@ func TestConcurrentSeatsRecordDistinctAgents(t *testing.T) {
 			t.Fatalf("register %s: %v", seat, err)
 		}
 	}
+	// THE LATEST REGISTER PER SEAT, which is what the binding IS. seatRun already registered
+	// red-lens-r1-L1 with no agent, and this loop asserted over EVERY register event — so it
+	// failed on the fixture's own earlier sitting rather than on the binding under test.
+	//
+	// Taking the last one is not a way around that: it is the rule agentbinding.go states. A
+	// re-dispatch writes a fresh register, both stay on the record because it is append-only, and
+	// the binding is the most recent claim. Asserting over all of them would refuse every resume.
+	bound := map[string]string{}
 	for _, ev := range events(t, runDir) {
 		if ev.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
 			continue
 		}
-		if want, ok := seats[ev.GetSeatId()]; ok && ev.GetRegister().GetAgentId() != want {
-			t.Errorf("seat %s bound to %q, want %q — the handles crossed", ev.GetSeatId(), ev.GetRegister().GetAgentId(), want)
+		bound[ev.GetSeatId()] = ev.GetRegister().GetAgentId()
+	}
+	for seat, want := range seats {
+		if bound[seat] != want {
+			t.Errorf("seat %s bound to %q, want %q — the handles crossed", seat, bound[seat], want)
 		}
 	}
 }
