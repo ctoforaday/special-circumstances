@@ -381,16 +381,17 @@ at=%s -->` (`internal/checkpointseal/main.go:397-405`) — in a directory pruned
 
 So the first change is a **record**: `.claude/checkpoints/seals.jsonl`, append-only, one JSON object per
 seal, written by `internal/checkpointseal` and therefore by all three sealing commands
-(`sc-precompact`, `sc-sessionend`, `sc-subagentstop`). Not pruned — a row is ~200 bytes and the
+(`sc-precompact`, `sc-sessionend`, `sc-subagentstop`). **BUILT** — `sealrow.go`, with the seal-side
+fields below; the age fields wait on `internal/freshness`, which is not built yet. Not pruned — a row is ~200 bytes and the
 baseline needs history. The markdown snapshot and its comment stamp stay exactly as they are: they
 serve human recovery, and [[facts-are-fields]] does not ask for prose to be stripped, only for the
 machine-read fact to live in a field.
 
 | Field | Meaning |
 |---|---|
-| `at`, `event`, `occasion`, `session_id`, `agent_id` | the stamp's five facts, as fields this time |
+| `at`, `event`, `occasion`, `session_id`, `agent_id` | the stamp's five facts, as fields this time — **built** |
 | `note_age_turns`, `note_growth_tokens`, `note_branch_commits`, `ceiling_known` | criterion 1 |
-| `seal_trigger` | `precompact` \| `sessionend` \| `seat_return` — which event sealed |
+| `seal_trigger` | `precompact` \| `sessionend` \| `seat_return` — which event sealed — **built** |
 | `live_handles` | count of `background_tasks` entries with `type != "subagent"`, plus `session_crons` — **only when measurable**. Seats are excluded deliberately: at a `seat_return` seal the returning seat appears in the parent's own list (§12), and counting it reads high by exactly one while answering a different question from "did this note miss some background work" |
 | `handles_measured` | `false` when the payload carries no `background_tasks` key |
 | `nudge_enabled` | whether the nudge was live when this seal was written — criterion 6's falsification groups on it, and it must be recorded per row rather than inferred from dates |
@@ -465,7 +466,7 @@ acts on cannot be checked against a re-run:
 | Hit | Reads what | Changes? |
 |---|---|---|
 | `cmd/sc-precompact`, `cmd/sc-sessionend`, `cmd/sc-subagentstop` | call the sealer | **YES** — each now also writes a `seals.jsonl` row |
-| `internal/checkpointseal/{main.go,main_test.go,drift_test.go,hook_test.go}` | the package | **YES** — new writer plus tests |
+| `internal/checkpointseal/{main.go,main_test.go,drift_test.go,hook_test.go}` | the package | **YES** — new writer plus tests. **`hook_test.go`'s `snapshots()` helper listed the whole directory**, so it counted `seals.jsonl` as a seal and broke five unrelated assertions the moment the record appeared. Scoped to `*.md`, the same rule `prune()` uses — a helper that measures more than the code manages is a carrier, and this census did not name it until the build hit it |
 | `commands/resume.md:7` | `--seals` tells the agent to list snapshots "with their sealed-at stamp, trigger and agent" — a **prompt-side contract against the comment string** | **No** — the stamp is unchanged. This is the carrier that makes the stamp load-bearing; retiring it starts here |
 | `internal/checkpoint/checkpoint.go:239` (`NoteLoopProblems`) + `checkpoint_test.go:101` | the note body. The test fixture contains `<!-- sealed: trigger=auto -->` — **a stamp shape the writer never emits** (it writes `event=`/`occasion=`) | **No** — `Parse` strips scaffolding and never reads the stamp's keys. Flagged because a fixture asserting a format nothing writes is how a format's real readers get miscounted |
 | `gray-area/tools/internal/claims/claims.go` + its tests | *"reads a sealed checkpoint note as a set of DECLARED CLAIMS"* — the note body | **No** — snapshot format unchanged |
