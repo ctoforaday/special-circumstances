@@ -281,16 +281,22 @@ func staleness(head string, since func(string) (int, bool)) string {
 	case 0:
 		return "" // current; saying so would spend a line on "nothing has changed"
 	case 1:
-		return "written 1 commit ago (" + head + ")"
+		return "written 1 commit ago on this branch (" + head + ")"
 	}
-	return fmt.Sprintf("written %d commits ago (%s)", n, head)
+	return fmt.Sprintf("written %d commits ago on this branch (%s)", n, head)
 }
 
-// commitsSince counts commits from a recorded head to HEAD, reporting whether the commit is
-// reachable at all. Best-effort: no git, no repo, or an unknown ref all mean "unreachable",
-// and the restore hook must never fail over provenance.
+// commitsSince counts commits on THIS BRANCH'S OWN LINE from a recorded head to HEAD, reporting
+// whether the commit is reachable at all. Best-effort: no git, no repo, or an unknown ref all mean
+// "unreachable", and the restore hook must never fail over provenance.
+//
+// --first-parent IS THE WHOLE POINT, and it was missing. A plain count answers "how many commits
+// are reachable from HEAD and not from the note", which on any branch that has merged is dominated
+// by OTHER PEOPLE'S WORK ARRIVING. Measured on this repository: 109 reachable against 24 on the
+// branch's own line — 85 of them merged-in side branches. A note written before a routine merge
+// was reported 100+ commits stale having done nothing, which teaches a reader to ignore the number.
 func commitsSince(head string) (int, bool) {
-	out, err := exec.Command("git", "rev-list", "--count", head+"..HEAD").Output()
+	out, err := exec.Command("git", "rev-list", "--count", "--first-parent", head+"..HEAD").Output()
 	if err != nil {
 		return 0, false
 	}
