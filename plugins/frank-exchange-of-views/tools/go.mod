@@ -1,6 +1,6 @@
 module github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools
 
-go 1.25.0
+go 1.25.14
 
 require (
 	github.com/dop251/goja v0.0.0-20260723142020-b4aef50fa347
