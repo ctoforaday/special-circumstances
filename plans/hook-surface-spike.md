@@ -415,6 +415,8 @@ writer consolidation is the fix; a lock would be the alternative.
 | **`UserPromptSubmit` / `PostToolUse` / `PostToolBatch` / `Stop` can inject** | **VERIFIED** — all four, against a `SessionStart` control (§8) |
 | **`Stop` injection re-invokes the model** | **VERIFIED** — 9 firings vs 1 on a null control, 8 filler turns (§8). Hazard and feature are one mechanism |
 | **`Stop` carries in-flight handles** | **VERIFIED** — `background_tasks[]` with `{id,type,status,description,command}` and `session_crons[]`, on a live task (§9c) |
+| **Which events carry `background_tasks`** | **MEASURED per event (§12)** — `Stop` and `SubagentStop` carry and populate it; **`PreCompact` and `SessionEnd` do not carry the key at all**. Two of the three SEALING events therefore cannot measure handles |
+| **`background_tasks` includes subagents** | **VERIFIED** — a live seat appears as `{type:"subagent", agent_type:…}` in the parent's list (§12) |
 | **`SubagentStop` fires at the PARENT, carrying both transcripts** | **VERIFIED on 2.1.240** — parent `session_id`/`transcript_path` plus `agent_transcript_path`, `agent_id`, `agent_type`, `last_assistant_message` (§9d). **Disagrees with §7a's 2.1.220 reading — re-measure per client** |
 | **Tool events need a `matcher` key to fire** | **REFUTED** — 15/15 and 12/12 matched pairs, NOMATCHER alongside STAR (§9e) |
 | **`TaskCreated` / `TaskCompleted` fire for a background task or a subagent** | **REFUTED** for both shapes, the task proven live in the `Stop` payload (§9b) |
@@ -997,3 +999,54 @@ distinguishes "the compaction was handled" from "no compaction ever happened."
 So: **a test that forces compaction MUST assert the boundary from the transcript**
 (`select(.subtype=="compact_boundary")`), never infer it from a clean exit and never from hook
 silence. Both are what a disconnected lever looks like.
+
+---
+
+## 12. Which events carry `background_tasks` — the key sets, measured (2026-08-23, client 2.1.240)
+
+§2 spotted `background_tasks`/`session_crons` on `SubagentStop` and §9c confirmed `Stop` populates
+them on a live task. **Neither says anything about the other sealing events**, and a design that
+stamps in-flight handles at a seal needs to know per event, not in general. `checkpoint-freshness.md`
+briefly cited §9c/§11 for a `PreCompact` result those sections do not contain; this section is that
+measurement, taken rather than inferred.
+
+**Method.** One `claude -p` run that launches a background shell task and then a subagent, so a seat
+returns while a task is live; plus a clean run for the events the first cannot reach. Raw hook stdin,
+keys read directly.
+
+| Event | Seals? | `background_tasks` | Full key set |
+|---|---|---|---|
+| `PreCompact` | **yes** | **ABSENT** (4/4 firings) | `custom_instructions, cwd, hook_event_name, prompt_id, session_id, transcript_path, trigger` |
+| `SessionEnd` | **yes** | **ABSENT** | `cwd, hook_event_name, prompt_id, reason, session_id, transcript_path` |
+| `SubagentStop` | **yes** | **PRESENT, populated** | + `agent_id, agent_type, agent_transcript_path, background_tasks, effort, last_assistant_message, permission_mode, session_crons, stop_hook_active` |
+| `Stop` | no | **PRESENT, populated** | as `SubagentStop`, minus the `agent_*` fields |
+
+**Two of the three sealing events cannot measure handles at all.** Only `SubagentStop` can — so a
+`live_handles` column stamped at a `PreCompact` or `SessionEnd` seal is not a measurement, and a `0`
+written there is manufactured. The absent key and the honest empty list must be kept distinct by the
+decoder, not by the field's zero value.
+
+### `background_tasks` includes subagents, not just shells
+
+With a shell task and a seat both in flight, `SubagentStop` carried **two** entries:
+
+```json
+[{"id":"bqpl0vjaw","type":"shell","status":"running",
+  "description":"sleep 120; echo late","command":"sleep 120; echo late"},
+ {"id":"ae91554853e3a83aa","type":"subagent","status":"running",
+  "description":"Reply with hello","agent_type":"general-purpose"}]
+```
+
+`type` discriminates, and a seat appears in the parent's own handle list while it runs. Anything
+counting "in-flight work" gets subagents for free and must decide whether it wants them — a count
+that silently includes the seat whose return triggered the seal will read high by exactly one.
+
+### `SessionEnd` did not fire in either run that ended with live background work
+
+**0 of 2** runs ending with a `sleep 120` still running produced a `SessionEnd`; it fired in **14 of
+15** census sessions, all of which ended clean, and in the clean control here. Two observations are a
+pattern, not a finding, and the confound is named: both live-task runs also hit the driver's pipe
+close, so "the session did not end the way the hook counts as ending" is not excluded. **Recorded
+because the case it touches is the one a checkpoint design cares most about** — a session going away
+with work still running is exactly when the sealed note matters — and because a seal that silently
+never fires is indistinguishable from a seal that fired and found nothing.

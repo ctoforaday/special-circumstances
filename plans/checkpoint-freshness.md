@@ -211,9 +211,18 @@ the note's mtime moves. **Thresholds are set from the Phase 1 baseline and ship 
 threshold chosen before the distribution is known is a guess, and this plan will not launder one
 as a default.
 
-**The number is deferred; the RULE is not, and is fixed here before any data is collected.** Bands are
-percentiles of the Phase 1 distribution of `note_age_turns`, per measure:
-`NOTICE = P50`, `WARN = P75`, `URGENT = P90`. Deferring the number without fixing the rule leaves the
+**The number is deferred; the RULE is not, and is fixed here before any data is collected.** Each of
+the three measures gets its own distribution from the Phase 1 baseline — `note_age_turns`,
+`note_growth_tokens`, `note_branch_commits` — and its own band edges at the **same** percentiles of
+**its own** distribution: `NOTICE = P50`, `WARN = P75`, `URGENT = P90`. Naming one field while
+claiming three would leave the choice of field open, which is the freedom this paragraph exists to
+close.
+
+**Combinator, fixed here too: ANY-OF, taking the MAX band.** A session that burned 400k tokens in
+twelve turns and one that took 300 turns without moving the token count are both stale, and §III's own
+argument for three measures is that they fail independently — an all-of rule would silence exactly the
+lopsided cases the measures were chosen to catch. The cost is a higher emission rate, which is
+budgeted (≤ 4 per session) and falsified in Phase 3. Deferring the number without fixing the rule leaves the
 bands free to be chosen after seeing the data, which is precisely the post-hoc freedom criterion 6
 forecloses for the falsification — and a plan that guards one and not the other has only moved where
 the guess lives. If the distribution turns out to make these percentiles absurd (e.g. P50 and P90
@@ -261,19 +270,52 @@ machine-read fact to live in a field.
 | `nudge_enabled` | whether the nudge was live when this seal was written — criterion 6's falsification groups on it, and it must be recorded per row rather than inferred from dates |
 
 **`handles_measured` is not defensive padding; it is the whole of the column's honesty.** Measured
-2026-08-22 on 2.1.240 (`hook-surface-spike.md` §9c, §11):
+per event 2026-08-23 on 2.1.240 and recorded as `hook-surface-spike.md` **§12** — key sets read from
+raw hook stdin:
 
 | Sealing event | carries `background_tasks`? |
 |---|---|
-| `SubagentStop` | **yes** — populated on a live task |
-| `PreCompact` | **NO — the key is absent**, 4/4 firings |
-| `SessionEnd` | **unresolved**, and see below |
+| `SubagentStop` | **yes, and populated** — measured with a shell task AND a seat in flight |
+| `PreCompact` | **NO — the key is absent from the payload entirely** (4/4 firings) |
+| `SessionEnd` | **NO — the key is absent** (payload: `cwd, hook_event_name, prompt_id, reason, session_id, transcript_path`) |
 
-`Stop` carries it, but `Stop` does not seal. So on the event that produces most seals, a naive
-`live_handles` would write `0` for "the payload cannot tell me", which is indistinguishable from "no
-background work" — clause 3, on the exact column #506's verdict turns on. **`live_handles` MUST be
-omitted, and `handles_measured: false` written, whenever the key is absent. A zero is never
-substituted.** The Phase 1 query must therefore filter on `handles_measured`, not on `live_handles > 0`.
+> An earlier draft of this table cited §9c/§11 for the `PreCompact` result. **Those sections do not
+> contain it** — §9c is the `Stop` payload, §11 records only firing counts — and it claimed
+> `SubagentStop` was measured "populated on a live task" when the only recorded `SubagentStop` payload
+> (§9d) shows an empty array from a run with nothing running. The claims turned out true; the
+> citations did not exist, which made them assertions wearing a reference. §12 is the measurement,
+> taken afterwards.
+
+**Two of the three sealing events cannot measure handles at all**, so `live_handles` is a real column
+only on `seat_return` rows — `Stop` carries it and does not seal. #506 is therefore answerable in
+Phase 1 **only over seat returns**, which the total-vs-measured query reports explicitly rather than
+leaving it to be inferred from a small `n`.
+
+**`live_handles` MUST be omitted, and `handles_measured: false` written, whenever the key is absent.
+A zero is never substituted.** The Phase 1 query filters on `handles_measured`, never on
+`live_handles > 0`.
+
+**This forces the decoder's shape, and the shape is the mechanism.** `checkpointseal`'s `hookInput`
+has no `background_tasks` field today, and a plain `[]Task` decodes **absent** and **`[]`** to the
+same nil — collapsing "the event cannot tell me" into "there was no background work". The field MUST
+be a pointer or `json.RawMessage`, so presence is observable independently of contents:
+
+| Payload | `handles_measured` | `live_handles` |
+|---|---|---|
+| key absent (`PreCompact`, `SessionEnd`) | `false` | **omitted** |
+| `background_tasks: []` — a seat return with nothing else running | **`true`** | `0` |
+| `background_tasks: [...]` | `true` | count |
+
+The middle row is what a `[]Task` decode gets wrong, and it is not a corner case: it is the **normal**
+`seat_return`, since §9d's measured payload is exactly `background_tasks: []`. A test covering only
+the absent case passes for an implementation that cannot tell the two apart — and the only trigger
+able to measure handles would be silently dropped from the baseline.
+
+**A count must also decide about seats.** `background_tasks` includes subagents —
+`{"type":"subagent","agent_type":"general-purpose","status":"running"}` (§12) — so at a `seat_return`
+seal the returning seat can appear in its own handle list. `live_handles` counts entries with
+`type != "subagent"` plus `session_crons`; a seat-inclusive figure answers a different question from
+"did this note miss some background work", and reads high by exactly one.
 
 > **A loose end, recorded rather than smoothed:** in a run ending with a background task still
 > running, **`SessionEnd` did not fire at all** (0/1; it fired in 14 of 15 census sessions, all of
@@ -281,16 +323,34 @@ substituted.** The Phase 1 query must therefore filter on `handles_measured`, no
 > cares about, so Phase 1 MUST count `sessionend` rows against sessions rather than assume one each.
 
 **Consumer census — of the RECORD's readers, not of the package's importers.** The previous census
-here ran `grep -rn "checkpointseal" --include=*.go plugins/` and concluded "no external reader"; that
-enumerates Go files that import the package, which is a different question, and the conclusion was
-false. Re-run 2026-08-23 against what actually reads a seal:
+ran `grep -rn "checkpointseal" --include=*.go plugins/` and concluded "no external reader": that
+enumerates Go files importing the package, a different question, and the conclusion was false. It also
+pasted **no command**, so the standard's completion test — re-running surfaces nothing the list omits
+— could not be applied by anyone, including its author. Both commands and their full output,
+2026-08-23:
 
-| Reader | What it reads | Changes? |
+```bash
+git grep -ln "sealed:\|--seals\|checkpointseal\|snapshotName" -- plugins/ scripts/ docs/
+git grep -ln "CHECKPOINT\.md\|checkpoints/"                    -- plugins/ scripts/ docs/
+```
+
+Every hit adjudicated, including the ones that do not change — a census that lists only the hits it
+acts on cannot be checked against a re-run:
+
+| Hit | Reads what | Changes? |
 |---|---|---|
-| `gray-area/tools/internal/claims/claims.go` | a sealed note's body | **No** — snapshot format unchanged |
-| `gray-area/commands/audit-checkpoint.md` | the note's claims, agent-side | **No** |
-| `prosthetic-conscience/commands/resume.md:7` | `--seals` tells the agent to parse "the sealed-at stamp, trigger and agent" — a **prompt-side contract against the comment string** | **No** today; but this is the carrier that makes the stamp load-bearing, and any later move to retire the stamp MUST come here first |
-| `internal/checkpoint/checkpoint.go:239` + its test | the note itself | **No** |
+| `cmd/sc-precompact`, `cmd/sc-sessionend`, `cmd/sc-subagentstop` | call the sealer | **YES** — each now also writes a `seals.jsonl` row |
+| `internal/checkpointseal/{main,drift,hook,main_test}.go` | the package | **YES** — new writer plus tests |
+| `commands/resume.md:7` | `--seals` tells the agent to list snapshots "with their sealed-at stamp, trigger and agent" — a **prompt-side contract against the comment string** | **No** — the stamp is unchanged. This is the carrier that makes the stamp load-bearing; retiring it starts here |
+| `internal/checkpoint/checkpoint.go:239` (`NoteLoopProblems`) + `checkpoint_test.go:101` | the note body. The test fixture contains `<!-- sealed: trigger=auto -->` — **a stamp shape the writer never emits** (it writes `event=`/`occasion=`) | **No** — `Parse` strips scaffolding and never reads the stamp's keys. Flagged because a fixture asserting a format nothing writes is how a format's real readers get miscounted |
+| `gray-area/tools/internal/claims/claims.go` + its tests | *"reads a sealed checkpoint note as a set of DECLARED CLAIMS"* — the note body | **No** — snapshot format unchanged |
+| `gray-area/commands/audit-checkpoint.md`, `gray-area/README.md` | the note's claims, agent-side | **No** |
+| `internal/checkpointrestore/*`, `internal/filechangedrearm/*`, `sessionstart`/`transcript`/`postcompactobserve` tests | the live note or the checkpoints directory | **No** — none reads a seal |
+| `commands/checkpoint.md`, `skills/{context-checkpointing,project-memory,validation-loop}/SKILL.md`, `README.md`, `requirements.json` | the note's path and schema, agent-side prose | **No** — `seals.jsonl` is machine-only; no agent must read it |
+| `frank-exchange-of-views/.../durability_test.go` | its own record; matched on the word "sealed" | **No** — unrelated |
+
+`keepSnapshots = 10` prunes `*.md` only, so an append-only `.jsonl` beside them is safe;
+`.gitignore:19` already covers `.claude/checkpoints/`.
 
 ### `[MODIFY] internal/postcompactobserve` — the compaction row keeps its own job
 
@@ -350,14 +410,18 @@ looped nine times and burned 1,186 output tokens on filler. Therefore:
 
 | Carrier | What changes | Gate |
 |---|---|---|
-| `plugins/prosthetic-conscience/hooks/hooks.json` | a **new `Stop` registration** for `sc-stop`; the existing `PostToolUse` entry's matcher is `Write\|Edit` today and the gauge tick widens that union | `pluginparity` |
+| `plugins/prosthetic-conscience/hooks/hooks.json` | a **new `Stop` registration** for `sc-stop`; `PostToolUse`'s matcher goes from `Write\|Edit` to **`Write\|Edit\|Read\|Bash`** | `pluginparity` |
 | `requirements.json` `_hook_binaries.binaries[]` | `sc-stop` added | `pluginparity` |
 | `docs/setup-script.md:99` | reads "15 at the time of writing"; a new `cmd/` directory makes it 16 | `pluginparity` `main.go:130-138` |
 | `hooks.json` `_comment` on `PostToolUse` | states the union policy this widens — the prose is the policy's only statement | review |
 
-The matcher widening is not a detail: that `_comment` records that each unit "still checks its own
-applicability so merging cannot widen what it acts on", and the gauge tick must honour it rather than
-quietly become a hook that runs on every tool call.
+**The matcher value is stated because a matcher is a contract, not an intention.** `Write|Edit|Read|Bash`
+is chosen as the smallest set that tracks context growth: `Read` and `Bash` are what actually move the
+token count, `Write|Edit` are already registered for the quality gate. It is deliberately **not** `*` —
+the `_comment` at `hooks.json:18` records that each unit "still checks its own applicability so merging
+cannot widen what it acts on", and criterion 3's ≤ 5 ms p95 is a **per-invocation** budget, so the
+matcher is also the sizing input for it. A tick on every tool call would multiply that budget by the
+tool count and could not be reviewed against a set nobody wrote down.
 
 The parent plan's Phase 5 preferred `PostToolUseFailure`. That is now demoted to a fallback and
 was, on the evidence, the wrong instinct for a good reason: it was the only injector known at the
@@ -383,7 +447,7 @@ editing L or I.
 
 | # | Risk | L×I×C | Mitigation | Step |
 |---|---|---|---|---|
-| F1 | **The nudge becomes wallpaper** — and a context-pressure warning that costs context is self-defeating at exactly the moment it matters. | H×H×M | Bands, once per band; ≤ 200 bytes; reset on write; **criterion 5 removes it** if the baseline median does not fall. | Ph. 3 |
+| F1 | **The nudge becomes wallpaper** — and a context-pressure warning that costs context is self-defeating at exactly the moment it matters. | H×H×M | Bands, once per band; ≤ 200 bytes; reset on write; **criterion 6 removes it** if the baseline median does not fall. | Ph. 3 |
 | F2 | **Fabricated denominator.** | M×H×L | `Ceiling` tri-state with `Unknown` as a value callers must handle; criterion 2 is a test over the render. | Ph. 1 |
 | F3 | **Commit count reads other people's work as mine.** | H×M×L | `--first-parent`; no author filter (§II measured both). | Ph. 1 |
 | F4 | **Gauge cost on a hot path.** | M×M×L | Bounded tail; skip entirely when note mtime is unchanged and the band is current; criterion 3 is a measured gate. | Ph. 2 |
@@ -602,14 +666,21 @@ and carriers at `context-checkpointing/SKILL.md`, the four consumers, gray-area'
 readers, and the goldens. **That is a project, not a field**, and Phase 1's `live_handles` column
 exists to say whether it is worth starting.
 
-**What the census changes about the plan's own risks.** **F10 has been re-rated H×H×L → L×M×L.**
-Not because the measurement changed — 9 firings and 1,186 wasted tokens stand — but because the
+**What the census changes about the plan's own risks.** **F10 keeps its `H×H×L` rating and gains a
+stated residual of `L×M`** (§IV, where the table's pre-mitigation convention is now written down; an
+earlier draft of this paragraph announced a re-rating to `L×M×L`, which would have made F10 the one
+row not comparable with the others). The residual is low — 9 firings and 1,186 wasted tokens stand — but because the
 hazard is cycle detection, and two independent brakes are already specified: `stop_hook_active` is a
 field the client sets on every re-entry (false on the first firing, true on the eight that followed,
 on `Stop` and `SubagentStop` alike), needing no state and no write, and the debounce file carries
 band policy, whose worst failure is one duplicate emission. The original rating priced an *unguarded*
-injector, which nothing here proposes. The mitigations and the regression test are unchanged; a
-likelihood term that survives its own mitigation is a rating that never comes down. **F9 gains a measured instance rather than a theoretical one:** `SubagentStop`'s behaviour
+injector, which nothing here proposes. The mitigations and the regression test are unchanged.
+
+**Why the rating stays H×H×L anyway:** the table is pre-mitigation throughout (F3 is `H×M×L` for a
+defect present in shipped code and fixed in its own row), so lowering F10's terms would have priced
+its mitigation twice — once in the rating and once in the mitigation column — and made it the only
+row not comparable with the rest. The reduction is real and belongs in the residual, which is where
+it now is. **F9 gains a measured instance rather than a theoretical one:** `SubagentStop`'s behaviour
 on 2.1.240 contradicts this record's own 2.1.220 reading (§9e correction 2), so "each binary is
 inert rather than broken when its event never fires" now has a case where the event fires
 *differently* — inertness does not cover that, and no mitigation here does either.
