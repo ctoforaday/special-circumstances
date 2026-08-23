@@ -44,7 +44,11 @@ func snapshots(t *testing.T, projectDir string) []string {
 	}
 	var out []string
 	for _, e := range entries {
-		if e.Name() != "CHECKPOINT.md" {
+		// SNAPSHOTS ONLY. The directory also holds the live note and seals.jsonl, the
+		// append-only record; matching everything made this helper report the record as
+		// a seal and every count in these tests wrong by one. prune() uses the same
+		// rule, so the helper now measures what the code manages.
+		if strings.HasSuffix(e.Name(), ".md") && e.Name() != "CHECKPOINT.md" {
 			out = append(out, e.Name())
 		}
 	}
