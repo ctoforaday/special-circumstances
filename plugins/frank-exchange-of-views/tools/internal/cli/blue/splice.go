@@ -2,6 +2,8 @@ package blue
 
 import (
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
 // SPLICE HYGIENE — the punctuation a tool should own, not a debate round.
@@ -19,8 +21,21 @@ import (
 // space that a splice orphaned in front of one.
 //
 // NOT collapsed, on purpose: "..." (an ellipsis is content), "!!"/"??" (emphasis a human may
-// intend), anything inside an anchor token — the seams are checked positionally, so a
-// "<!--fx:…-->" is never in range.
+// intend), anything INSIDE an anchor token — a "<!--fx:…-->" is never itself in range.
+//
+// BUT AN ANCHOR BETWEEN TWO MARKS IS NOT CONTENT BETWEEN THEM, and reading it as content is
+// how this pass came to be a no-op in the only shape the corpus has. `normalizeQuote` trims a
+// quote's trailing punctuation, so the located span stops before the sentence's period and
+// that period survives at report[end:]. In 40 of the 43 anchors across the four archived runs
+// the anchor sits immediately after the last WORD — before that period — so what a replacement
+// ending in "." abuts is "<!--fx:…-->." and the two marks are never adjacent. Measured through
+// the real command: "The cost is falling.<!--fx:f-abc123-->. Volume grows steadily." — a
+// doubled period AND red's marker displaced out of the sentence it annotates. The comment at
+// the foot of this file already names why that is the common case rather than a corner:
+// red anchors exactly the sentences blue is asked to repair.
+//
+// So the seam is checked positionally STILL, and the position is found by stepping over the
+// anchor layer rather than stopping at it.
 
 // dupPunct are the marks a splice can duplicate where the duplicate is always an artifact.
 const dupPunct = ".,:;"
@@ -58,6 +73,35 @@ func tidySeam(s string, at int) (string, bool) {
 		b = append(b[:i], b[i+1:]...)
 		changed = true
 		i--
+	}
+	// "M<!--fx:…-->M" → "<!--fx:…-->M" : the same doubled mark as above, with the anchor layer
+	// between the two. The mark from --new goes and the report's stays, which is what puts the
+	// anchor back INSIDE its sentence instead of stranding it after the new sentence's period.
+	if j := anchor.SkipRun(string(b), at); j > at && j < len(b) && at > 0 {
+		if c := b[at-1]; strings.IndexByte(dupPunct, c) >= 0 && b[j] == c {
+			b = append(b[:at-1], b[at:]...)
+			changed = true
+		}
+	}
+	// A TERMINAL MARK LEFT BY A DELETION, with nothing in front of it. The quote's trailing
+	// punctuation is trimmed before the span is located, so it is never part of what a deletion
+	// removes: replacing a whole sentence with "" leaves its period behind, at a line start or
+	// against the preceding space. Measured with NO anchor present, so this half is independent
+	// of the rule above — it is the existing " ." rule, which encodes the same principle and
+	// only ever handled a literal space.
+	if k := anchor.SkipRun(string(b), at); k < len(b) && strings.IndexByte(dupPunct, b[k]) >= 0 {
+		if at == 0 || b[at-1] == '\n' || b[at-1] == ' ' || b[at-1] == '\t' {
+			cut := k + 1
+			// And the space the mark was holding open — but ONLY when no anchor was stepped
+			// over. An anchor is spliced flush against content, so if one now sits where the
+			// deleted sentence began, that space is the only thing keeping it off the next
+			// word: eating it yields "<!--fx:f-abc123-->Volume".
+			if k == at && cut < len(b) && b[cut] == ' ' {
+				cut++
+			}
+			b = append(b[:k], b[cut:]...)
+			changed = true
+		}
 	}
 	return string(b), changed
 }
