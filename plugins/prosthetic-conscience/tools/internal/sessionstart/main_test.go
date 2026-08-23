@@ -129,7 +129,7 @@ func TestRealUnitsRestoreANote(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "tools"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	note := "---\nschema: 2\nobjective: finish the merge\n---\n" +
+	note := "---\nschema: 3\nobjective: finish the merge\n---\n" +
 		"## Validation loop\n1. `go test ./...`  → ok  · re-armed by: tools/\n   last run: pass\n"
 	if err := os.WriteFile(filepath.Join(cp, "CHECKPOINT.md"), []byte(note), 0o644); err != nil {
 		t.Fatal(err)

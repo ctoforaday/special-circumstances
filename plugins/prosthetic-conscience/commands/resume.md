@@ -10,7 +10,7 @@ Apply [[context-checkpointing]]. The restore hook injects a **digest**; this pri
 
 1. Locate the note — active `projects/<name>/` or `research/<slug>/`, else `.claude/checkpoints/CHECKPOINT.md`. If none exists, say so in one line and stop. Do not reconstruct one from the transcript; an invented checkpoint is trusted exactly as much as a real one.
 2. Print it verbatim.
-3. Report the seam: the note's `updated` timestamp, its `session_id`/`agent_id`, and whether they match this session. A note written by a *different* session is still useful and MUST be labelled as such — it is someone else's claim about a shared tree.
+3. Report the seam: the note's `written_at` timestamp — and its `reaffirmed_at` when set, because a note that was confirmed but not rewritten is a different claim from one that was rewritten — its `session_id`/`agent_id`, and whether they match this session. A note written by a *different* session is still useful and MUST be labelled as such — it is someone else's claim about a shared tree.
 4. **Verify before acting, in this order.** The note is a claim written before the seam, not an observation of now:
    - Re-run the validation loop rather than trusting its recorded `last run`. Reproduce each check; YOU MUST NOT act on a paraphrase of what a gate wanted (see [[validation-loop]]).
    - Check each in-flight handle still exists — background ids, open pull requests, running processes. A handle that died during the seam is the failure this section exists to catch.

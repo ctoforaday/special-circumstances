@@ -83,6 +83,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/transcript"
 )
@@ -107,6 +108,15 @@ type hookInput struct {
 	AgentType           string `json:"agent_type"` // SubagentStop
 	Reason              string `json:"reason"`     // SessionEnd: clear|logout|prompt_input_exit|other
 	HookEventName       string `json:"hook_event_name"`
+
+	// BackgroundTasks and SessionCrons are POINTERS on purpose. Measured
+	// (hook-surface-spike.md §12): SubagentStop carries these keys and populates them,
+	// while PreCompact and SessionEnd do not carry them AT ALL. Decoding into a plain
+	// slice maps "absent" and "[]" to the same nil, which would report "no background
+	// work" for an event that cannot answer the question. A pointer keeps the two
+	// apart, and countHandles turns that into handles_measured.
+	BackgroundTasks *json.RawMessage `json:"background_tasks"`
+	SessionCrons    *json.RawMessage `json:"session_crons"`
 }
 
 // The events this binary is registered on.
@@ -407,6 +417,13 @@ func seal(projectDir, note string, now time.Time, event string, in hookInput, st
 		fmt.Fprintln(stderr, "sc-checkpoint-seal: cannot write snapshot:", err)
 		return
 	}
+
+	// The record, beside the snapshot: fields a reader cannot mis-parse, hashing the
+	// NOTE rather than the stamped file — the stamp carries a timestamp, so hashing
+	// the snapshot would make every seal differ and the drift check meaningless.
+	age := freshness.Of(projectDir, in.TranscriptPath, string(body),
+		freshness.BranchWork(checkpoint.Parse(string(body)).Get("head")), now)
+	appendSealRow(dir, body, now, event, occ, in, stderr, age, checkpoint.Parse(string(body)).Get("written_at"))
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {

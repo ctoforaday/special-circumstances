@@ -13,7 +13,7 @@ import (
 )
 
 const note = `---
-schema: 2
+schema: 3
 status: in-progress
 ---
 ## Validation loop
@@ -159,7 +159,7 @@ func TestChangesUnderDotClaudeAreIgnored(t *testing.T) {
 // its own write re-triggers it, attributes it to the check watching that directory, and
 // re-arms forever. Both halves of the condition get their own firing.
 func TestDotClaudeExclusionIsLoadBearing(t *testing.T) {
-	selfWatching := "---\nschema: 2\nstatus: in-progress\n---\n" +
+	selfWatching := "---\nschema: 3\nstatus: in-progress\n---\n" +
 		"## Validation loop\n" +
 		"1. `go test ./...`  → all ok  · re-armed by: .claude/checkpoints/\n" +
 		"   last run: pass\n" +
@@ -367,7 +367,7 @@ func TestAnUnparsableNoteDeletesNothing(t *testing.T) {
 		t.Fatal("setup: want one record")
 	}
 
-	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), "---\nschema: 2\n---\n## Notes\nnothing here\n")
+	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), "---\nschema: 3\n---\n## Notes\nnothing here\n")
 	fire(t, dir, filepath.Join(dir, "tools", "internal", "x.go"), "change")
 
 	if got := stateOf(t, dir).Rearmed; len(got) != 1 {
@@ -383,7 +383,7 @@ func TestAnUnmatchedChangeReportsWhatTheParserDropped(t *testing.T) {
 	dir := project(t)
 	// Entry 2b. names .qlty/ and opens no check, so a .qlty change re-arms nothing.
 	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), `---
-schema: 2
+schema: 3
 ---
 ## Validation loop
 1. `+"`go test ./...`"+`  → ok  · re-armed by: any .go edit under tools/
@@ -436,7 +436,7 @@ func TestAMatchedChangeStaysQuietEvenWithAMalformedLoop(t *testing.T) {
 func TestALoopThatOpensNoChecksSaysSo(t *testing.T) {
 	dir := project(t)
 	write(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), `---
-schema: 2
+schema: 3
 ---
 ## Validation loop
 1a. `+"`go test ./...`"+`  → ok  · re-armed by: any .go edit under tools/

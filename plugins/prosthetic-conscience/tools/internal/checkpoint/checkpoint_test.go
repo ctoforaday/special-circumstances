@@ -8,13 +8,13 @@ import (
 )
 
 func TestParseFrontmatterAndSections(t *testing.T) {
-	n := Parse("---\nschema: 2\nobjective: \"ship the restore hook\"\nagent_id: null\n---\n" +
+	n := Parse("---\nschema: 3\nobjective: \"ship the restore hook\"\nagent_id: null\n---\n" +
 		"## Validation loop\n1. go test\n2. go vet\n## Open threads\n- none\n")
 
 	if got := n.Get("objective"); got != "ship the restore hook" {
 		t.Errorf("objective = %q — quotes must be stripped", got)
 	}
-	if got := n.Get("schema"); got != "2" {
+	if got := n.Get("schema"); got != "3" {
 		t.Errorf("schema = %q", got)
 	}
 	if got := n.Get("missing"); got != "" {
@@ -694,7 +694,7 @@ func TestPruneOrphansNeedsAParsedLoop(t *testing.T) {
 // list in the schema, so handing the whole note to LoopProblems reports every step after
 // the first as a label disagreeing with its ordinal — confidently, about the wrong section.
 func TestNoteLoopProblemsReadsOnlyTheLoopSection(t *testing.T) {
-	note := "---\nschema: 2\n---\n" +
+	note := "---\nschema: 3\n---\n" +
 		"## Validation loop\n1. `go test ./...` → ok · re-armed by: tools/\n" +
 		"## Next intended steps\n1. file the issue\n2. take the issue\n3. close the issue\n" +
 		"## Open threads\n1. the other thing\n"
@@ -709,7 +709,7 @@ func TestNoteLoopProblemsReadsOnlyTheLoopSection(t *testing.T) {
 	}
 
 	// And a real problem inside the loop still surfaces through the wrapper.
-	bad := "---\nschema: 2\n---\n" +
+	bad := "---\nschema: 3\n---\n" +
 		"## Validation loop\n1. `a` · re-armed by: tools/\n7b. `b` · re-armed by: tools/\n" +
 		"## Next intended steps\n1. only one step\n"
 	got := NoteLoopProblems(bad)
@@ -719,7 +719,7 @@ func TestNoteLoopProblemsReadsOnlyTheLoopSection(t *testing.T) {
 
 	// No loop section is not a loop problem — an absent loop is a different complaint,
 	// raised where something can be done about it.
-	if got := NoteLoopProblems("---\nschema: 2\n---\n## Open threads\n1. a\n2. b\n"); got != nil {
+	if got := NoteLoopProblems("---\nschema: 3\n---\n## Open threads\n1. a\n2. b\n"); got != nil {
 		t.Errorf("NoteLoopProblems = %v; a note with no loop has no loop problems to report", got)
 	}
 }
