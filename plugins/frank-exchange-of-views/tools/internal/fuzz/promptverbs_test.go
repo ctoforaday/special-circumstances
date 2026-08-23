@@ -234,10 +234,24 @@ func agentFacingFiles(t *testing.T) []string {
 	// still return files, the total is non-zero, and the constitutions silently stop being
 	// checked for the verb names this gate exists to catch. The set that arrives is the set the
 	// gate believes in, so every pattern has to answer for itself.
+	//
+	// THE GUARD IS `repotree.Glob`, NOT A CHECK IN THIS LOOP, and that is worth saying because
+	// the sentence above reads as though one lives here. Glob REFUSES an empty match — "a gate
+	// that scans an empty set and asserts a negative over it passes on every run" — so the
+	// `t.Fatal(err)` below is the per-pattern assertion. I added a redundant `len(m) == 0` check
+	// here before driving it, and it was dead code: Glob had already errored. Verified by moving
+	// references/*.md out of the tree and watching this fail, then restoring them.
 	var out []string
 	for _, glob := range [][]string{
 		{"skills", "research-protocol", "scripts", "*.js"},
 		{"skills", "research-protocol", "*.md"},
+		// THE REFERENCE TEMPLATES, which blue writes the report FROM.
+		//
+		// `skills/research-protocol/*.md` reaches SKILL.md and stops there — references/ is a
+		// directory below it and was matched by nothing, while `rulesweep` has always counted
+		// `references/*.md` as a protocol surface. One gate treated them as agent-facing and the
+		// other never opened them. They are clean today; they were simply unwatched.
+		{"skills", "research-protocol", "references", "*.md"},
 		{"agents", "*.md"},
 		{"commands", "*.md"},
 		// THE RENDERED PROMPTS, which are what a seat actually receives.

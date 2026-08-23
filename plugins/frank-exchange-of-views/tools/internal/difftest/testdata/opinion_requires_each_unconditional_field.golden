@@ -3,10 +3,16 @@ exit 0
 stdout:
 registered judge-r2 (shard nonce NONCE001)
 
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
 $ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as repaired
 exit 2
 stderr:
-feov-record: required flag(s) "principle", "review-flag", "tension" not set
+feov-record: required flag(s) "principle", "review-flag", "settled", "tension" not set
 
 dispose of one contested gap with a written ruling — the bench's answer to a docketed item
 
@@ -26,12 +32,15 @@ Usage:
 
 Flags:
       --as carried           REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
+      --final                nothing would reopen this: settled on the merits, and more evidence cannot change it. The assertable form of an empty --reopens-on, so a decided question is distinguishable from a skipped field
   -h, --help                 help for opinion
       --id gap-id            REQUIRED — the gap being ruled on
       --principle string     REQUIRED — the principle applied — a ruling is an OPINION, not a disposition
       --reason string        REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -        read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --reopens-on string    what would change this outcome — the evidence or condition that would make it worth raising again. If nothing would, pass --final instead: that is a different answer, not a missing one
       --review-flag string   REQUIRED — why a human should, or should not, look at this
+      --settled string       REQUIRED — THE PROPOSITION NOW BARRED, as one sentence — not the gap id, and not the disposition. A finding is a claim, its evidence and its demand; a fate says which of the three fell only to whoever wrote it. Say what the losing party may no longer assert
       --tension string       REQUIRED — the values in tension (e.g. correctness vs economy)
 
 Enumerated values:
@@ -52,7 +61,7 @@ Global Flags:
 $ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as repaired --principle p --tension t
 exit 2
 stderr:
-feov-record: required flag(s) "review-flag" not set
+feov-record: required flag(s) "review-flag", "settled" not set
 
 dispose of one contested gap with a written ruling — the bench's answer to a docketed item
 
@@ -72,12 +81,15 @@ Usage:
 
 Flags:
       --as carried           REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
+      --final                nothing would reopen this: settled on the merits, and more evidence cannot change it. The assertable form of an empty --reopens-on, so a decided question is distinguishable from a skipped field
   -h, --help                 help for opinion
       --id gap-id            REQUIRED — the gap being ruled on
       --principle string     REQUIRED — the principle applied — a ruling is an OPINION, not a disposition
       --reason string        REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -        read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --reopens-on string    what would change this outcome — the evidence or condition that would make it worth raising again. If nothing would, pass --final instead: that is a different answer, not a missing one
       --review-flag string   REQUIRED — why a human should, or should not, look at this
+      --settled string       REQUIRED — THE PROPOSITION NOW BARRED, as one sentence — not the gap id, and not the disposition. A finding is a claim, its evidence and its demand; a fate says which of the three fell only to whoever wrote it. Say what the losing party may no longer assert
       --tension string       REQUIRED — the values in tension (e.g. correctness vs economy)
 
 Enumerated values:

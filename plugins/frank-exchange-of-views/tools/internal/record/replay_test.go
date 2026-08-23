@@ -704,8 +704,9 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 		"principle":   "--principle",
 		"tension":     "--tension",
 		"review_flag": "--review-flag",
+		"settled":     "--settled",
 	}
-	all := []string{"gap_id", "disposition", "principle", "tension", "review_flag"}
+	all := []string{"gap_id", "disposition", "principle", "tension", "review_flag", "settled"}
 	for _, missing := range all {
 		t.Run("missing "+missing, func(t *testing.T) {
 			// The gap must EXIST and be NAMED CORRECTLY: references are checked at
@@ -745,6 +746,11 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 	p.Set("reason", "the ruling's reasoning")
 	// disposition is a CLOSED set since #342 — a placeholder is no longer a legal value.
 	p.Set("disposition", "repaired")
+	// reopens_on is required CONDITIONALLY — --final answers the same question the other way —
+	// so it is not in `all` (which drives the missing-field subtests above, and every entry
+	// there must be unconditionally required). It still has to be present for a payload to be
+	// complete, and this line is the test noticing that (#502).
+	p.Set("final", true)
 	if err := validate(complete, "judge-r1", "opinion", p); err != nil {
 		t.Errorf("a complete opinion was refused: %v", err)
 	}
@@ -756,6 +762,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 		q.Set(f, "")
 	}
 	q.Set("reason", "the ruling's reasoning")
+	q.Set("reopens_on", "") // the OTHER answer, and empty-but-present satisfies it like the rest
 	// DISPOSITION IS THE EXCEPTION TO THE EXCEPTION (#342). The Has-not-empty rule exists for
 	// fields like --review-flag, where "false" is a legitimate ruling. It never applied to the
 	// disposition: an EMPTY disposition rules nothing, and it was only ever accepted because

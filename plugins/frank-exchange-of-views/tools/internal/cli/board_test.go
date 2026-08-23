@@ -78,7 +78,7 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 	}
 	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
 		"--id", closedByBench, "--as", "repaired", "--principle", "p", "--tension", "t",
-		"--review-flag", "no", "--reason", "closed on the merits"); err != nil {
+		"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "closed on the merits"); err != nil {
 		t.Fatalf("bench opinion: %v", err)
 	}
 
@@ -281,7 +281,7 @@ func TestClosedIndexSaysWhoClosedItAndHow(t *testing.T) {
 	}
 	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
 		"--id", byBench, "--as", "defect_owed_elsewhere", "--principle", "capability",
-		"--tension", "correctness", "--review-flag", "yes",
+		"--tension", "correctness", "--review-flag", "yes", "--settled", "the proposition this ruling bars", "--final",
 		"--reason", "no verb can perform this fix at any cost"); err != nil {
 		t.Fatalf("bench opinion: %v", err)
 	}

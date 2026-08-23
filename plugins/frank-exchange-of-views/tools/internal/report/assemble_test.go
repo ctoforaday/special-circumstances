@@ -240,7 +240,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
-		{Round: 1, Type: "opinion", SeatID: "judge-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").Set("principle", "correctness").Set("tension", "cost").Set("review_flag", "false").Set("reason", "needs a probe")},
+		{Round: 1, Type: "opinion", SeatID: "judge-r1", Payload: record.NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").Set("principle", "correctness").Set("tension", "cost").Set("review_flag", "false").Set("settled", "the proposition this ruling bars").Set("final", true).Set("reason", "needs a probe")},
 		{Round: 1, Type: "petition", SeatID: "blue", Payload: record.NewPayload().Set("class", "integrity").Set("reason", "the instruction would require asserting what I believe false").Set("relief", "strike the demand from the docket")},
 		{Round: 0, Type: "halt", SeatID: "judge-terminal", Payload: record.NewPayload().Set("reason", "safety gate tripped")},
 		{Round: 0, Type: "certify", SeatID: "judge-terminal", Payload: record.NewPayload().Set("reason", "re-examine the cost model")},

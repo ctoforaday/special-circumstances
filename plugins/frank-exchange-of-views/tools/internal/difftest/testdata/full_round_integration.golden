@@ -3,6 +3,12 @@ exit 0
 stdout:
 registered red-lens-r1-L1 (shard nonce NONCE001)
 
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
 $ verify --run {RUN} --seat-id red-lens-r1-L1 --quote claim one --title https://example.invalid/a --trust high --access-date 2026-07-18
 exit 2
 stderr:
@@ -61,6 +67,12 @@ exit 0
 stdout:
 registered red-lens-r1-L5 (shard nonce NONCE002)
 
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+
 $ finding --run {RUN} --seat-id red-lens-r1-L5 --key F1 --severity high --likelihood high --impact high --quote ## S4 --reason a leap of faith
 exit 0
 stdout:
@@ -70,6 +82,12 @@ $ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
 registered red-merge-r1 (shard nonce NONCE003)
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
 
 $ mint --run {RUN} --seat-id red-merge-r1 --class citation-drift --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote ## S2 --found-by L1-F1,L5-F1 --problem the cited source does not say this
 exit 0

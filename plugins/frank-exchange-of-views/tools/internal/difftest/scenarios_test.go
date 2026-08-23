@@ -178,7 +178,7 @@ func scenarios() []scenario {
 				base("register", "--run", "{RUN}", "--seat-id", "judge-r1"),
 				base("opinion", "--run", "{RUN}", "--seat-id", "judge-r1", "--id", "R1-1", "--as", "carried",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
-					"--review-flag", "the figure was never recomputed", "--reason", "the rationale body"),
+					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--final", "--reason", "the rationale body"),
 				base("certify", "--run", "{RUN}", "--seat-id", "judge-r1", "--reason", "what a human should re-examine"),
 			},
 		},
@@ -194,7 +194,7 @@ func scenarios() []scenario {
 			},
 		},
 		{
-			name: "opinion_requires_all_five_fields", // oracle: opinions, not dispositions
+			name: "opinion_requires_each_unconditional_field", // oracle: opinions, not dispositions
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "judge-r2"),
 				base("opinion", "--run", "{RUN}", "--seat-id", "judge-r2", "--id", "R2-1", "--as", "repaired"),

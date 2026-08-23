@@ -1525,6 +1525,20 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		lines = append(lines, "precedent harvest: no rulings this run")
 	}
 
+	// THE CLASS HARVEST, beside the precedent one and for the same reason: a run's coinage that
+	// reaches nothing outside the run directory is a run's coinage lost (#515).
+	cls := HarvestClasses(runDir, filepath.Join(cwd, "law"), board)
+	switch {
+	case cls.Written:
+		lines = append(lines, fmt.Sprintf("class harvest: %d class(es) -> %s (PROPOSED, not staged into any run until adopted)", cls.Count, cls.Path))
+	case cls.Count > 0:
+		lines = append(lines, fmt.Sprintf("class harvest: %d class(es), %s", cls.Count, cls.Reason))
+	case cls.Reason != "":
+		lines = append(lines, "class harvest: "+cls.Reason)
+	default:
+		lines = append(lines, "class harvest: no classes coined this run")
+	}
+
 	lines = append(lines, closeRunLiveMarker(cwd, runDir))
 
 	var out []string
@@ -1686,4 +1700,106 @@ func sameRunDir(projectDir, a, b string) bool {
 		return filepath.Clean(p)
 	}
 	return strings.EqualFold(abs(a), abs(b))
+}
+
+// ---- gap-class harvest ----
+
+// coinedClass is one class a seat minted this run, and where it was first used.
+type coinedClass struct {
+	slug, definition, neighbor, distinguisher string
+	seatID, firstGap                          string
+}
+
+// classesFromRecord reads the classes THE RECORD holds, for the same reason rulingsFromRecord
+// does: `class new` refuses a coinage missing its definition, neighbour or distinguisher
+// (validateClassNew), so what arrives here is well-formed by construction rather than by hope.
+//
+// FirstGap is the join a reviewer needs and the record already holds: a class exists to
+// discriminate, and the gap it was first minted against is the concrete case that motivated it.
+// Empty means coined and never used, which is itself worth seeing on the proposal.
+func classesFromRecord(board *record.Board) []coinedClass {
+	if board == nil {
+		return nil
+	}
+	var out []coinedClass
+	for _, e := range board.Events {
+		if e.Type != "class-new" {
+			continue
+		}
+		c := coinedClass{
+			slug: e.Payload.Str("slug"), definition: e.Payload.Str("definition"),
+			neighbor: e.Payload.Str("neighbor"), distinguisher: e.Payload.Str("distinguisher"),
+			seatID: e.SeatID,
+		}
+		for _, m := range board.Events {
+			if m.Type == "mint" && m.Payload.Str("class") == c.slug {
+				c.firstGap = m.Payload.Str("gap_id")
+				break
+			}
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// HarvestClasses promotes every class a run coined into law/proposed, and NEVER into the registry.
+//
+// WHY PROPOSED AND NOT ADOPTED (#515). feov-memory/class-registry.json is what every `--class` is
+// validated against, and the whole value of that gate is that a mint is REFUSED rather than waved
+// through. A class nobody reviewed, validating a future mint, is the registry losing the only
+// thing it means. So this mirrors the precedent flow exactly: the harvest states what the run
+// coined, and adoption is a human act.
+//
+// WHY IT EXISTS AT ALL. Before this, a coined class lived in exactly two places — the run's event
+// record and the run's staged copy of the registry — both inside a gitignored run directory. It
+// reached run-archive/*.tar.gz and nothing read that back. Measured 2026-08-22: red coined
+// `silent-no-match-probe` mid-run, with a sharper distinguisher than anything already registered,
+// and the next run would have staged the same 38 classes and made red discover it again.
+//
+// ONE FILE PER CLASS PER RUN, keyed on both. Two runs coining the same slug with different
+// definitions then land as two files a reviewer sees side by side, rather than one silently
+// overwriting the other — the collision has an arbiter, and the arbiter is a person.
+func HarvestClasses(runDir string, lawDir string, board *record.Board) HarvestResult {
+	slug := slugOf(runDir)
+	classes := classesFromRecord(board)
+	if len(classes) == 0 {
+		return HarvestResult{Written: false, Count: 0}
+	}
+	if _, err := os.Stat(lawDir); err != nil {
+		return HarvestResult{Written: false, Count: len(classes), Reason: "no law/ dir at repo root"}
+	}
+	if err := os.MkdirAll(filepath.Join(lawDir, "proposed"), 0o755); err != nil {
+		return HarvestResult{Written: false, Count: len(classes), Reason: err.Error()}
+	}
+	var written []string
+	for _, c := range classes {
+		out := filepath.Join(lawDir, "proposed", "class-"+c.slug+"--"+slug+".md")
+		used := c.firstGap
+		if used == "" {
+			used = "(coined and not minted against this run — the class has no worked case yet)"
+		}
+		body := strings.Join([]string{
+			"# proposed gap class — `" + c.slug + "` [PROPOSED — not in the registry until adopted]",
+			"",
+			"Coined by `" + c.seatID + "` during `" + slug + "`. It is NOT staged into any later run:",
+			"an unreviewed class validating a future `--class` is the registry losing the only thing it",
+			"means. Adopting it means adding the slug to `feov-memory/class-registry.json` by hand.",
+			"",
+			"- **definition**: " + c.definition,
+			"- **neighbour**: `" + c.neighbor + "`",
+			"- **distinguisher**: " + c.distinguisher,
+			"- **first used on**: " + used,
+			"",
+			"The three fields above are the seat's own words, refused at the write if any were missing",
+			"(`record.validateClassNew`), so this proposal is well-formed by construction. What a",
+			"reviewer decides is whether it DISCRIMINATES — whether the distinguisher actually separates",
+			"it from its neighbour on a case where both are arguable.",
+			"",
+		}, "\n")
+		if err := os.WriteFile(out, []byte(body), 0o644); err != nil {
+			return HarvestResult{Written: len(written) > 0, Count: len(classes), Reason: err.Error()}
+		}
+		written = append(written, out)
+	}
+	return HarvestResult{Written: true, Count: len(classes), Path: filepath.Join(lawDir, "proposed")}
 }

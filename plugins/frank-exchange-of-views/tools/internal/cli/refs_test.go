@@ -29,7 +29,7 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		args        []string
 	}{
 		{"opinion --id", "no mint event created", []string{"opinion", "--seat-id", "judge-r1",
-			"--id", "R9-9", "--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "no"}},
+			"--id", "R9-9", "--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--final"}},
 		{"motion grade file --id", "no mint event created", []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1",
 			"--id", "R9-9", "--dimension", "severity", "--proposed", "low", "--reason", "b"}},
 		{"motion grade rule --id", "which no filing created", []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1",
@@ -82,7 +82,7 @@ func TestValidReferencesStillResolve(t *testing.T) {
 
 	for _, c := range [][]string{
 		{"opinion", "--seat-id", "judge-r1", "--id", first, "--as", "carried",
-			"--principle", "p", "--tension", "t", "--review-flag", "no", "--reason", "the ruling"},
+			"--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "the ruling"},
 		{"close", "--seat-id", "red-merge-r1", "--id", first, "--as", "repaired",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--superseded-by", second, "--reason", "verified"},
 	} {

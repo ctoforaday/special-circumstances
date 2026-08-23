@@ -201,7 +201,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 			"--reason", "what changed this round"}, "blue: --run <runDir> is required"},
 		{"opinion with no identity at all", []string{"opinion", "--run", "X",
 			"--id", "R1-1", "--as", "carried", "--principle", "p", "--tension", "t",
-			"--review-flag", "no", "--reason", "r"}, "--seat-id IS REQUIRED HERE"},
+			"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "r"}, "--seat-id IS REQUIRED HERE"},
 		{"register is not exempt", []string{"register", "--run", "X"}, "--seat-id IS REQUIRED HERE"},
 	}
 	for _, tc := range cases {
@@ -970,7 +970,7 @@ func TestBlueVerbContracts(t *testing.T) {
 
 // The bench rules with reasons or it does not rule: every one of the five
 // fields is required, and the refusal names the missing flag.
-func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
+func TestBenchOpinionRequiresEachUnconditionalField(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "judge-r1"
 	// The gap must EXIST: --id is a reference and is checked at write time, so without
@@ -981,9 +981,14 @@ func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
+	// EVERY ENTRY HERE IS UNCONDITIONALLY REQUIRED, because the loop below omits each in turn
+	// and asserts the refusal names it. --reopens-on is NOT unconditional (--final answers the
+	// same question the other way), so it is supplied separately for the complete call and is
+	// not a subtest of its own (#502).
 	full := map[string]string{
 		"id": "R1-1", "as": "carried", "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
+		"settled": "blue must repair c-65ca0a9e",
 	}
 	for missing := range full {
 		t.Run("missing --"+missing, func(t *testing.T) {
@@ -1006,7 +1011,8 @@ func TestBenchOpinionRequiresAllFiveFields(t *testing.T) {
 			}
 		})
 	}
-	args := []string{"opinion", "--run", runDir, "--seat-id", seatID, "--reason-file", writeTemp(t, "the rationale")}
+	args := []string{"opinion", "--run", runDir, "--seat-id", seatID,
+		"--reason-file", writeTemp(t, "the rationale"), "--reopens-on", "a reproduction on a clean tree"}
 	for k, v := range full {
 		args = append(args, "--"+k, v)
 	}
@@ -1465,4 +1471,52 @@ func inquiryIDOf(out string) string {
 		return ""
 	}
 	return m[1]
+}
+
+// ONE QUESTION, TWO ANSWERS, AND NEVER BOTH — the conditional half of #502's contract.
+//
+// "What would reopen this?" has a real answer of "nothing", and that answer has to be POSITIVE:
+// left as an empty --reopens-on it is indistinguishable from a bench that skipped the field,
+// which is the defect the friction channel carried for eighteen consecutive sittings until
+// --none made the empty case sayable.
+//
+// THE BOTH-FLAGS CASE IS REFUSED RATHER THAN RESOLVED. A ruling that says both "this is final"
+// and "here is what would undo it" has not decided, and preferring one would record a decision
+// nobody made.
+//
+// Written here, with a real minted gap, because the reference check fires FIRST: my first
+// attempt at this lived in a difftest scenario ruling on a gap no mint had created, so both
+// commands were refused for the wrong reason and the golden proved nothing about this contract.
+func TestOpinionTakesEitherReopensOnOrFinalAndNeverBoth(t *testing.T) {
+	runDir := newRun(t)
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--key", "k", "--class", "x", "--check-kind", "document", "--check", "c",
+		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge-r1"); err != nil {
+		t.Fatal(err)
+	}
+	base := []string{"opinion", "--run", runDir, "--seat-id", "judge-r1", "--id", "R1-1",
+		"--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "no",
+		"--settled", "blue must repair c-65ca0a9e", "--reason", "the rationale"}
+
+	if _, err := run(t, append(append([]string{}, base...), "--final")...); err != nil {
+		t.Errorf("--final alone was refused, so a bench cannot say a question is settled: %v", err)
+	}
+	if _, err := run(t, append(append([]string{}, base...), "--reopens-on", "a clean-tree reproduction")...); err != nil {
+		t.Errorf("--reopens-on alone was refused: %v", err)
+	}
+	_, err := run(t, append(append([]string{}, base...), "--final", "--reopens-on", "a clean-tree reproduction")...)
+	if err == nil {
+		t.Fatal("a ruling claiming both finality and a reopening condition was accepted; one of the two answers was silently dropped")
+	}
+	if !strings.Contains(err.Error(), "opposite answers") {
+		t.Errorf("the refusal does not explain that these are opposite answers to one question: %v", err)
+	}
+
+	// AND NEITHER IS REFUSED, which is the whole point of making the empty case assertable.
+	if _, err := run(t, base...); err == nil {
+		t.Error("a ruling answering neither was accepted, so a skipped field is indistinguishable from a decided one")
+	}
 }

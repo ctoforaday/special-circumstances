@@ -1054,7 +1054,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// enum-coverage gate found it the moment #342 closed the disposition set.
 			if r.scenarioOf(id) != dirDisputeLost {
 				_, _ = r.exec("opinion", "--seat-id", seatID, "--id", id, "--as", "carried",
-					"--principle", "thoroughness", "--tension", "cost", "--review-flag", "false",
+					"--principle", "thoroughness", "--tension", "cost", "--review-flag", "false", "--settled", "the proposition this ruling bars", "--final",
 					"--reason", "fuzz: carried with a stated direction for "+id)
 			}
 			if r.scenarioOf(id) == dirDisputeLost {
@@ -1063,7 +1063,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// had driven exactly one closing word.
 				disp = pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
 				_, _ = r.exec("opinion", "--seat-id", seatID, "--id", id, "--as", disp,
-					"--principle", "correctness", "--tension", "cost", "--review-flag", "false", "--reason", "opinion-rationale-for-"+id)
+					"--principle", "correctness", "--tension", "cost", "--review-flag", "false", "--settled", "the proposition this ruling bars", "--final", "--reason", "opinion-rationale-for-"+id)
 			}
 			res = append(res, map[string]any{"gap_id": id, "resolution": disp, "reason": "fuzz"})
 		}

@@ -12,6 +12,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -48,6 +49,27 @@ func Register() *cobra.Command {
 			r.PriorSittingUnknown = derr.Error()
 		} else if found && len(d.Keys) > 0 {
 			r.PriorSitting = &priorSitting{Dispatches: d.Dispatches, DiscardedKeys: d.Keys}
+		}
+		// THE IDENTITY DID NOT ARRIVE, AND THE SEAT IS THE ONLY PARTY THAT CAN STILL ACT ON IT.
+		//
+		// register is where the agent->seat binding is written, so it is also the first and only
+		// place that can see the binding was never possible. The record already handles this
+		// correctly at the write — absent is recorded as absent — and capture already reports it
+		// hours later. What nothing did was tell the SEAT, while the sitting it affects is still
+		// running.
+		//
+		// MEASURED, and it is the whole of #512. In research/2026-08-22_is-7-prime all FOURTEEN
+		// registers carry no agent_id: the hook never fired for that run at all, so every later
+		// call was refused "this agent has not registered" whatever shape it took. Across the
+		// session that message was returned 92 times and was FALSE every single time — zero of
+		// them were a seat that had genuinely not registered.
+		//
+		// A WARNING, NOT A REFUSAL. Refusing here would wedge a run whose only fault is a hook
+		// that did not fire, and the seat can work perfectly well by passing --seat-id. What it
+		// cannot do is guess that, or know that re-registering — the obvious reading of "you have
+		// not registered" — rotates its shard and orphans its work.
+		if seatenv.AgentID() == "" && s.SeatID != record.OperatorRole {
+			r.IdentityAbsent = true
 		}
 		return r, nil
 	})
@@ -577,6 +599,9 @@ type registerResult struct {
 	// PriorSittingUnknown carries the reason the check could not run, so "not measured" never
 	// renders as "nothing lost".
 	PriorSittingUnknown string `json:"prior_sitting_unknown,omitempty"`
+	// IdentityAbsent is true when a DISPATCHED seat registered with no agent id — the hook did
+	// not reach this call, so nothing on the record can bind this agent to this seat.
+	IdentityAbsent bool `json:"identity_absent,omitempty"`
 }
 
 // priorSitting is the discarded work of an earlier dispatch of this seat — the keys, not a
@@ -588,6 +613,17 @@ type priorSitting struct {
 
 func (r registerResult) Human() string {
 	out := "registered " + r.SeatID + " (shard nonce " + r.Nonce + ")"
+	if r.IdentityAbsent {
+		out += "\n\nYOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent " +
+			"to this seat. You are registered and your events are recorded; what is missing is the " +
+			"binding that lets a LATER call resolve who you are without being told.\n\n" +
+			"TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:\n" +
+			"  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking " +
+			"and will refuse you.\n" +
+			"  DO NOT REGISTER AGAIN. If a later call says \"this agent has not registered\", it is " +
+			"THIS, not a lost registration — re-registering rotates your shard nonce and replay " +
+			"then discards everything the first sitting recorded."
+	}
 	if r.PriorSittingUnknown != "" {
 		return out + "\n\nWHETHER AN EARLIER SITTING OF THIS SEAT LOST WORK COULD NOT BE CHECKED: " +
 			r.PriorSittingUnknown + ". Treat this as NOT MEASURED, not as a clean board."
