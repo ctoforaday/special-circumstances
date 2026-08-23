@@ -24,8 +24,8 @@ package fuzz
 // in verbsWithEvents must fire at least once (a regression that silently drops one fails loudly).
 // `halt` terminates the run, so it is covered by the dedicated TestFuzzHaltPath, not the sweep.
 //
-// Run: go test ./internal/fuzz -run TestFuzzDebate -count=1   (respects -short by shrinking N).
-// Confidence sweep: FUZZ_N=1000 go test ./internal/fuzz -run TestFuzzDebate -timeout 1200s.
+// Run: go test ./integration/fuzz -run TestFuzzDebate -count=1   (respects -short by shrinking N).
+// Confidence sweep: FUZZ_N=1000 go test ./integration/fuzz -run TestFuzzDebate -timeout 1200s.
 // FUZZ_C overrides concurrency (runs are subprocess-bound, so the default oversubscribes cores).
 
 import (
@@ -2308,7 +2308,7 @@ func TestFuzzDebate(t *testing.T) {
 
 	// CI runs `go test ./...` (no -short) on four jobs, so the DEFAULT is a modest smoke that
 	// proves the harness and catches gross regressions in ~15s. The full 1000-run confidence
-	// sweep is on demand: FUZZ_N=1000 go test ./internal/fuzz -run TestFuzzDebate -timeout 600s.
+	// sweep is on demand: FUZZ_N=1000 go test ./integration/fuzz -run TestFuzzDebate -timeout 600s.
 	n := 60
 	if testing.Short() {
 		n = 15

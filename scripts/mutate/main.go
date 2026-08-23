@@ -194,24 +194,69 @@ func goFiles(moduleDir string) ([]string, error) {
 	return out, err
 }
 
-// suiteFor is the narrowest package covering a file. A cmd/ mutant cannot affect another
-// cmd/, and running one package instead of the module is most of the speed here; an
-// internal/ mutant can affect anything, so it gets ./...
+// suiteFor is the package OWNING a file — the first suite a mutant is tried against.
 func suiteFor(rel string) string {
-	parts := strings.Split(filepath.ToSlash(rel), "/")
-	if parts[0] == "cmd" && len(parts) > 1 {
-		return "./cmd/" + parts[1] + "/"
+	dir := filepath.ToSlash(filepath.Dir(rel))
+	if dir == "." {
+		return "./"
 	}
-	return "./..."
+	return "./" + dir + "/"
 }
 
-// runSuite reports whether the mutant passed, and whether it failed to build (a
-// non-compiling mutant is not behavioural and is discarded rather than counted).
+// TWO STAGES, AND THE FIRST ONE IS WHY THIS TOOL CAN BE RUN AT ALL.
+//
+// Every `internal/` mutant used to run `go test ./...` — the whole module — on the argument
+// that "an internal/ mutant can affect anything". The argument is TRUE and the cost made the
+// tool unusable for exactly the packages worth auditing: the module suite is ~15 minutes here,
+// most of it an integration sweep running 60 debate simulations, so a single flipped operator
+// cost a quarter of an hour and a 200-site file would take fifty. Measured: two hours of
+// sweeping `internal/record` completed about eight mutants and produced no output at all.
+//
+// The fix keeps the correctness argument and drops the bill. A mutant is tried against its OWN
+// package first, where nearly all of them die in milliseconds; only a SURVIVOR — a mutant its
+// own tests did not notice — is worth asking the rest of the module about. The verdict is
+// identical, because a mutant killed locally would have been killed by the wider run too.
+//
+// The wide stage runs `-short` and skips ./integration/... : the integration suite shrinks under
+// -short by design, and it exists to exercise whole debates rather than to notice a one-operator
+// flip. Excluding it is the difference between a wide stage that costs a minute and one nobody
+// waits for.
 func runSuite(moduleDir, pkg string) (passed, broke bool) {
-	cmd := exec.Command("go", "test", pkg)
+	if passed, broke := runOne(moduleDir, "go", "test", pkg); broke || !passed {
+		return passed, broke
+	}
+	// Survived its own package. Ask the rest of the module before believing it.
+	pkgs, err := widePackages(moduleDir)
+	if err != nil || len(pkgs) == 0 {
+		return true, false
+	}
+	return runOne(moduleDir, append([]string{"go", "test", "-short"}, pkgs...)...)
+}
+
+func runOne(moduleDir string, argv ...string) (passed, broke bool) {
+	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Dir = moduleDir
 	out, err := cmd.CombinedOutput()
 	return err == nil, strings.Contains(string(out), "build failed")
+}
+
+// widePackages lists the module's packages EXCEPT the integration suite, which is a whole-system
+// exercise rather than a unit oracle and dominates the runtime.
+func widePackages(moduleDir string) ([]string, error) {
+	cmd := exec.Command("go", "list", "./...")
+	cmd.Dir = moduleDir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	var keep []string
+	for _, p := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if p == "" || strings.Contains(p, "/integration/") {
+			continue
+		}
+		keep = append(keep, p)
+	}
+	return keep, nil
 }
 
 type result struct {
