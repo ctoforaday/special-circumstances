@@ -4092,8 +4092,25 @@ type BlueEdit struct {
 	// applied_verbatim marks text taken unchanged from red's own --fix-new. Estoppel is enforced
 	// on it: red may not open a clean slate against its own words.
 	AppliedVerbatim *bool `protobuf:"varint,6,opt,name=applied_verbatim,json=appliedVerbatim,proto3,oneof" json:"applied_verbatim,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// reopened are the anchors whose SENTENCE this edit changed — the citations, findings and
+	// proofs whose referent moved under them.
+	//
+	// THE ANCHOR AND ITS REFERENT ARE TWO CONCERNS AND ONLY ONE WAS ENFORCED. An anchor is never
+	// lost: `droppedMarker` refuses any edit that would drop one, and that promise holds — measured.
+	// But an anchor that SURVIVES onto rewritten text is a citation backing a sentence nobody read,
+	// and nothing said so. Measured: blue cited "The sky is blue and the grass is green", rewrote it
+	// to "The sky is green and the grass is on fire", and the citation followed the inversion.
+	//
+	// Text moves through exactly ONE path — `blue edit` — so the no-loss proof and the
+	// requires-review mark belong on that one channel rather than being inferred later by a reader
+	// comparing documents it no longer has.
+	//
+	// It is a REOPENING, not an invalidation: the reference stands, and what changed is that its
+	// referent needs looking at again. A verification of a reopened anchor is stale rather than
+	// wrong, which is a different fact and gets a different word.
+	Reopened      []string `protobuf:"bytes,7,rep,name=reopened,proto3" json:"reopened,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BlueEdit) Reset() {
@@ -4166,6 +4183,13 @@ func (x *BlueEdit) GetAppliedVerbatim() bool {
 		return *x.AppliedVerbatim
 	}
 	return false
+}
+
+func (x *BlueEdit) GetReopened() []string {
+	if x != nil {
+		return x.Reopened
+	}
+	return nil
 }
 
 type Revision struct {
@@ -5827,14 +5851,15 @@ const file_record_proto_rawDesc = "" +
 	"\a_methodB\t\n" +
 	"\a_statusB\x14\n" +
 	"\x12_supersedes_statusB\t\n" +
-	"\a_reason\"\x87\x02\n" +
+	"\a_reason\"\xa3\x02\n" +
 	"\bBlueEdit\x12\x1e\n" +
 	"\bedit_key\x18\x01 \x01(\tH\x00R\aeditKey\x88\x01\x01\x12\x1d\n" +
 	"\aanswers\x18\x02 \x01(\tH\x01R\aanswers\x88\x01\x01\x12\x15\n" +
 	"\x03old\x18\x03 \x01(\tH\x02R\x03old\x88\x01\x01\x12\x15\n" +
 	"\x03new\x18\x04 \x01(\tH\x03R\x03new\x88\x01\x01\x12\x17\n" +
 	"\x04text\x18\x05 \x01(\tH\x04R\x04text\x88\x01\x01\x12.\n" +
-	"\x10applied_verbatim\x18\x06 \x01(\bH\x05R\x0fappliedVerbatim\x88\x01\x01B\v\n" +
+	"\x10applied_verbatim\x18\x06 \x01(\bH\x05R\x0fappliedVerbatim\x88\x01\x01\x12\x1a\n" +
+	"\breopened\x18\a \x03(\tR\breopenedB\v\n" +
 	"\t_edit_keyB\n" +
 	"\n" +
 	"\b_answersB\x06\n" +

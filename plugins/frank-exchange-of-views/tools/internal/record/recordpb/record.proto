@@ -1035,6 +1035,24 @@ message BlueEdit {
   // applied_verbatim marks text taken unchanged from red's own --fix-new. Estoppel is enforced
   // on it: red may not open a clean slate against its own words.
   optional bool applied_verbatim = 6;
+
+  // reopened are the anchors whose SENTENCE this edit changed — the citations, findings and
+  // proofs whose referent moved under them.
+  //
+  // THE ANCHOR AND ITS REFERENT ARE TWO CONCERNS AND ONLY ONE WAS ENFORCED. An anchor is never
+  // lost: `droppedMarker` refuses any edit that would drop one, and that promise holds — measured.
+  // But an anchor that SURVIVES onto rewritten text is a citation backing a sentence nobody read,
+  // and nothing said so. Measured: blue cited "The sky is blue and the grass is green", rewrote it
+  // to "The sky is green and the grass is on fire", and the citation followed the inversion.
+  //
+  // Text moves through exactly ONE path — `blue edit` — so the no-loss proof and the
+  // requires-review mark belong on that one channel rather than being inferred later by a reader
+  // comparing documents it no longer has.
+  //
+  // It is a REOPENING, not an invalidation: the reference stands, and what changed is that its
+  // referent needs looking at again. A verification of a reopened anchor is stale rather than
+  // wrong, which is a different fact and gets a different word.
+  repeated string reopened = 7;
 }
 
 message Revision {

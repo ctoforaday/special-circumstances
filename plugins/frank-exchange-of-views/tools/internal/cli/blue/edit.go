@@ -38,7 +38,10 @@ import (
 // event durable and the write reconciled idempotently on retry — no wedge, no phantom op.
 func newEdit() *cobra.Command {
 	c := seat.Prose(seat.New("edit",
-		`replace an exact span in blue/report.md, preserving red's finding-markers: --key <your F1> --quote "<exact current span>" --new "<replacement>" --reason "..."`,
+		`replace an exact span in blue/report.md: --key <your F1> --quote "<the span EXACTLY as `+"`show report`"+` prints it, anchors included>" --new "<replacement, carrying those anchors through unchanged>" --reason "...". `+
+			`ANCHORS ARE PART OF THE TEXT. `+"`show report`"+` prints every `+"`<!--fx:…-->`"+`, `+"`<!--cite:…-->`"+` and `+"`<!--proof:…-->`"+` as it is; quote what you see and copy each token into --new the way you copy every other character. `+
+			`A quote that stops just short of an anchor on the sentence it rewrites is REFUSED, and the refusal prints the token to carry — otherwise the reference is left beside prose it was never placed against. `+
+			`To change words around an anchor and leave it where it is, quote a FRAGMENT that does not reach it.`,
 		func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 			reason, err := seat.Reason(cmd)
 			if err != nil {
@@ -76,7 +79,8 @@ func newEdit() *cobra.Command {
 			if err != nil {
 				return nil, err
 			}
-			if err := validateEdit(string(peek), oldStr, newStr); err != nil {
+			planned, err := validateEdit(string(peek), oldStr, newStr)
+			if err != nil {
 				return nil, err
 			}
 
@@ -87,6 +91,14 @@ func newEdit() *cobra.Command {
 				Old:     proto.String(oldStr),
 				New:     proto.String(newStr),
 				Text:    proto.String(reason),
+				// WHAT THIS EDIT REOPENED. An anchor is never lost — that is enforced above and
+				// holds — but one that SURVIVES onto rewritten prose is a citation backing a
+				// sentence nobody read, and nothing said so. Text moves through this verb alone,
+				// so the no-loss proof and the requires-review mark belong on this one channel.
+				//
+				// Computed from the SNAPSHOT the validation used, not from a re-read: the write
+				// has not happened yet, and a second read could see a different document.
+				Reopened: bluedoc.ReopenedAnchors(string(peek), planned),
 			}
 			// ESTOPPEL, RECORDED BY THE TOOL COMPARING BYTES (#267 stage 4).
 			//
@@ -165,10 +177,11 @@ func planEdit(report, old, new string) (string, error) {
 }
 
 // validateEdit rejects a mis-quote or a marker-spanning edit against a snapshot, WITHOUT
-// mutating — so no event is recorded for an edit that cannot apply.
-func validateEdit(report, old, new string) error {
-	_, err := planEdit(report, old, new)
-	return err
+// mutating — so no event is recorded for an edit that cannot apply. It RETURNS the planned
+// document so the caller can record what this edit reopens, computed from the same snapshot the
+// validation used rather than from a re-read that may have moved.
+func validateEdit(report, old, new string) (string, error) {
+	return planEdit(report, old, new)
 }
 
 // applyEdit performs the span replacement under the blue-report flock. IDEMPOTENT: on a

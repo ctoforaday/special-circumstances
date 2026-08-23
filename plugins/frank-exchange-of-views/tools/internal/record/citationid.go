@@ -479,3 +479,36 @@ func contradicts(o recordpb.SourceOutcome) bool {
 	return o == recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES ||
 		o == recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT
 }
+
+// ReopenedAnchors returns the anchors whose text has moved since they were placed — every id any
+// `blue edit` reported reopening, in first-seen order.
+//
+// THE REFERENCE STANDS; ITS REFERENT MOVED. That is deliberately not the same as the citation
+// being wrong: a source still says what it says. What changed is the sentence it was placed
+// against, so a verification of it is STALE rather than refuted, and a reader who cannot tell
+// those apart will either re-check everything or trust everything.
+//
+// Read from the BlueEdit events rather than recomputed by diffing documents, because the
+// documents are gone: `blue/report.md` holds only its current state, and the before-image an
+// edit replaced exists nowhere else. The one channel that text moves through is the only place
+// this fact can be captured at the moment it becomes true.
+func ReopenedAnchors(b *Board) []string {
+	if b == nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, e := range b.Events {
+		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
+		if !ok {
+			continue
+		}
+		for _, id := range ed.GetReopened() {
+			if id != "" && !seen[id] {
+				seen[id] = true
+				out = append(out, id)
+			}
+		}
+	}
+	return out
+}

@@ -176,6 +176,11 @@ type EvidenceJSON struct {
 	// sources, because "checked something blue did not cite" and "checked a citation" answer
 	// different questions and only one of them is about the report's own backing.
 	Independent []EvidenceVerificationJSON `json:"independent"`
+	// Reopened are the anchors whose text has MOVED since they were placed — a citation whose
+	// sentence blue has since rewritten. The reference stands and its referent changed, so a
+	// verification of it is STALE rather than refuted; red re-reads these first, and a reader who
+	// cannot tell stale from refuted either re-checks everything or trusts everything.
+	Reopened []string `json:"reopened"`
 	// UnansweredContradictions are the claims where red read a source that CONTRADICTS or does
 	// not support the report, and no finding was ever raised about it.
 	//
@@ -209,6 +214,9 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 	}
 	if out.UnansweredContradictions = UnansweredContradictions(b); out.UnansweredContradictions == nil {
 		out.UnansweredContradictions = []string{}
+	}
+	if out.Reopened = ReopenedAnchors(b); out.Reopened == nil {
+		out.Reopened = []string{}
 	}
 
 	// Red's verifications, split by whether they name a citation. The anchored ones are indexed

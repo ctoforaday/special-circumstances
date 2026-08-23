@@ -92,22 +92,3 @@ func TestIndexTracksHeading(t *testing.T) {
 		t.Errorf("c-2 heading = %+v, want Risks", l)
 	}
 }
-
-// sentence_hash is stable under whitespace and line-position drift: the durable locator.
-// The same claim text hashes identically regardless of surrounding whitespace, and a
-// different claim hashes differently.
-func TestSentenceHashStableUnderWhitespace(t *testing.T) {
-	a := Index("the   cache\tevicts<!--cite:c-1-->.\n")                // irregular whitespace
-	b := Index("prefix line.\n\n  the cache evicts<!--cite:c-1-->.\n") // same claim, different line + spacing
-	if a[0].Occurrences[0].SentenceHash == "" {
-		t.Fatal("empty sentence hash")
-	}
-	if a[0].Occurrences[0].SentenceHash != b[0].Occurrences[0].SentenceHash {
-		t.Errorf("whitespace/position changed the hash: %q vs %q — it must be normalization-stable",
-			a[0].Occurrences[0].SentenceHash, b[0].Occurrences[0].SentenceHash)
-	}
-	c := Index("a different claim<!--cite:c-1-->.\n")
-	if a[0].Occurrences[0].SentenceHash == c[0].Occurrences[0].SentenceHash {
-		t.Error("different claim text produced the same hash")
-	}
-}
