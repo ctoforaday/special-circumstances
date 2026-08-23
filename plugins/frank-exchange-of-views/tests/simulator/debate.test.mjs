@@ -1510,3 +1510,60 @@ test('W2e: the declare capability is on the bench surface, and no prompt re-teac
       `${c.opts.label} teaches the declare verb in prose — the bench's own help page is where that lives now`)
   }
 })
+
+// A HOLDING REACHES EVERY SEAT THAT COMES AFTER IT (#503).
+//
+// `bench declare` exists because the bench sometimes states a CONSTRUCTION rather than disposing
+// of a gap — how a term is READ, for the rest of the run, by both parties. The verb shipped, the
+// render shipped, the law harvest shipped, and the delivery never did: measured on the
+// 2026-08-22 sqlite run, the one holding the bench issued construed the deadlock test at the
+// level of defect CLASS rather than raw mint count — the construction that let the run terminate
+// — and no seat that followed it was told it existed.
+//
+// The same defect relief had before reliefFor (#360), and the same repair.
+test('W2j: a bench holding binds every seat that follows it, and does not expire with the round', async () => {
+  const world = makeWorld(makeResponder({
+    // RE-RAISED, which is what docketes a gap and makes the bench sit at all. My first fixture
+    // raised a fresh id each round, no docket was ever contested, the judge never sat — and the
+    // test then asserted nothing about delivery while appearing to.
+    // FOUR RED SITTINGS, because the bench first sits in round 2 (a gap must be RE-RAISED to be
+    // docketed) and blue must respond at least once AFTER that for the both-parties claim below
+    // to be testable at all.
+    red: [
+      redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] }),
+      redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' }),
+    ],
+    judge: [
+      judgeEnv({
+        resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }],
+        holdings: ['"new this round" is measured by defect CLASS, not by raw mint count'],
+      }),
+      judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'still owed' }] }),
+      judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'repaired', rationale: 'now fixed' }] }),
+    ],
+  }))
+  await world.run(script, ARGS)
+  assert.ok(world.calls.some((c) => c.opts.label.startsWith('judge')), 'the bench never sat, so no holding was ever laid down')
+
+  const judgedAt = world.calls.findIndex((c) => c.opts.label.startsWith('judge'))
+  const after = world.calls.slice(judgedAt + 1).filter((c) => /blue-|red-/.test(c.opts.label))
+  assert.ok(after.length > 0, 'the fixture produced no round-2 seats, so this asserts nothing')
+  for (const c of after) {
+    assert.ok(c.prompt.includes('BENCH HOLDINGS IN EFFECT'),
+      `${c.opts.label} was not told a holding binds it`)
+    assert.ok(c.prompt.includes('defect CLASS'),
+      `${c.opts.label} got the heading without the holding's own words`)
+  }
+  // BOTH PARTIES, not one. Relief is addressed and can bind a single side; a construction of a
+  // term cannot — red reading it one way and blue the other is the disagreement it exists to end.
+  assert.ok(after.some((c) => /blue-/.test(c.opts.label)), 'no blue seat in the sample')
+  assert.ok(after.some((c) => /red-/.test(c.opts.label)), 'no red seat in the sample')
+
+  // AND IT DID NOT REACH THE SEATS THAT PRECEDED IT, which is not a nicety: a holding rendered
+  // into round 1 would be the engine asserting the bench had ruled before it sat.
+  const before = world.calls.slice(0, judgedAt)
+  for (const c of before) {
+    assert.ok(!c.prompt.includes('BENCH HOLDINGS IN EFFECT'),
+      `${c.opts.label} carried a holding laid down after it sat`)
+  }
+})
