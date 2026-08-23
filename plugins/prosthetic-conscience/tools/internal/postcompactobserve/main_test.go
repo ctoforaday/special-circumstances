@@ -238,3 +238,68 @@ func TestObservationCarriesTheNotesAge(t *testing.T) {
 		t.Errorf("nudge_enabled = %v, want false in Phase 1", row["nudge_enabled"])
 	}
 }
+
+// A PostCompact hook must ALWAYS exit 0, whatever it finds. It runs at the moment a
+// session has just lost most of its context; a non-zero exit there risks wedging the
+// compaction itself, and the observation this hook exists to record is worth strictly
+// less than the compaction completing.
+//
+// Every failure shape it can actually meet, asserted on the exit code rather than on the
+// absence of a panic — "did not crash" and "reported success" are different claims.
+func TestTheObserverAlwaysExitsZero(t *testing.T) {
+	noteDir := func(t *testing.T) string {
+		t.Helper()
+		d := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(d, ".claude", "checkpoints"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(d, ".claude", "checkpoints", "CHECKPOINT.md"),
+			[]byte("---\nschema: 3\nwritten_at: 2026-08-23T00:00:00Z\n---\n## Validation loop\n1. x\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return d
+	}
+
+	for _, tc := range []struct {
+		name    string
+		dir     func(*testing.T) string
+		payload string
+	}{
+		{"no note at all", func(t *testing.T) string { return t.TempDir() }, `{"session_id":"s1","trigger":"auto"}`},
+		{"empty payload", noteDir, ``},
+		{"malformed payload", noteDir, `{`},
+		{"note present, transcript missing", noteDir, `{"session_id":"s1","transcript_path":"/nope/none.jsonl","trigger":"auto"}`},
+		{"unwritable checkpoints dir", func(t *testing.T) string {
+			d := noteDir(t)
+			cp := filepath.Join(d, ".claude", "checkpoints")
+			if err := os.Chmod(cp, 0o500); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.Chmod(cp, 0o755) })
+			return d
+		}, `{"session_id":"s1","trigger":"auto","compact_summary":"x"}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := tc.dir(t)
+			var out, errb bytes.Buffer
+			code := run(nil, strings.NewReader(tc.payload), &out, &errb,
+				dir, time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC))
+			if code != 0 {
+				t.Errorf("exit = %d, want 0 — a failing PostCompact hook risks the compaction itself\nstderr: %s", code, errb.String())
+			}
+		})
+	}
+}
+
+// A compaction with no note writes NO row. The baseline is a distribution over notes'
+// ages, so a row with no note behind it is not a zero-age observation — it is not an
+// observation, and counting it would pull every median toward fresh.
+func TestNoNoteMeansNoRow(t *testing.T) {
+	dir := t.TempDir()
+	var out, errb bytes.Buffer
+	run(nil, strings.NewReader(`{"session_id":"s1","trigger":"auto"}`), &out, &errb,
+		dir, time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC))
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "checkpoints", "compaction-observations.jsonl")); err == nil {
+		t.Error("wrote an observation row with no note to observe")
+	}
+}

@@ -116,7 +116,7 @@ func Gauge(st State, m ctxusage.Measure, b Branch) Measures {
 	// resets at a compaction — 1,001,875 to 12,823, measured — so the naive difference
 	// goes negative across one and the stalest note in the file reads as the freshest.
 	// Both terms are monotone, so their difference is too.
-	if st.HasWriteReading && m.TokensKnown && comparable(st, m) {
+	if st.HasWriteReading || m.TokensKnown && comparable(st, m) {
 		now := m.Tokens
 		if m.DroppedKnown {
 			now += m.Dropped
