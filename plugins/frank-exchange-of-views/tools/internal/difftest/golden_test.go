@@ -225,11 +225,11 @@ func compareGolden(t *testing.T, name, got string) {
 	}
 	wantBytes, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("missing golden %s (run with -update): %v", path, err)
+		t.Fatalf("missing golden %s (regenerate with UPDATE_GOLDENS=1): %v", path, err)
 	}
 	want := strings.ReplaceAll(string(wantBytes), "\r\n", "\n")
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("%s differs from its golden (-want +got).\nIf this change is INTENTIONAL, regenerate with -update and justify it in the commit.\n%s",
+		t.Errorf("%s differs from its golden (-want +got).\nIf this change is INTENTIONAL, regenerate with UPDATE_GOLDENS=1 and justify it in the commit.\n%s",
 			name, diff)
 	}
 }
