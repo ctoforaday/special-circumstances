@@ -39,7 +39,9 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 		// section is carried by its position, which is what this test reads.
 	})
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{Tension: proto.String("speed against certainty"), ReviewFlag: proto.String("no"), Rationale: proto.String("because"), GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Principle: proto.String("correctness first")}),
+		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{Tension: proto.String("speed against certainty"), ReviewFlag: proto.String("no"), Settled: proto.String("the claim as it stood may not be re-asserted"),
+			Final:     proto.Bool(true),
+			Rationale: proto.String("because"), GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Principle: proto.String("correctness first")}),
 	})
 	// Round 2: red positions again, blue does not (a red-only round — its Red is non-empty,
 	// its Blue is the empty array a consumer counts as zero, never a null).

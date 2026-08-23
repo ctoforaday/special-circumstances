@@ -373,7 +373,12 @@ func validateContractCases() []validateContract {
 		{"a line of inquiry with no status at all", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Line: proto.String("l")}, "requires --as"},
 		{"a line of inquiry with no id", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("l")}, "requires an id"},
 		{"a deferred line of inquiry needs a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED), Line: proto.String("l")}, "requires --reason"},
-		{"a line of inquiry without --line", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED)}, "requires --line"},
+		// THE REFUSAL NAMES --reason, NOT --line. The payload key is `line`; the flag that fills it
+		// is --reason, because prose reaches every verb through one channel. This expected "--line"
+		// for its whole life — a flag on no surface — and a seat believed it, invented the flag,
+		// was refused again as unknown, and filed friction about an undocumented --line (measured
+		// 2026-08-21). The refusal derives the flag name now.
+		{"a line of inquiry without --line", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED)}, "requires --reason"},
 		{"a declined line of inquiry needs a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("l")}, "requires --reason"},
 		{"an abandoned line of inquiry needs a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("l")}, "requires --reason"},
 		{"a PURSUED line of inquiry does not need a reason", recordpb.EventType_EVENT_TYPE_AVENUE, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("l")}, ""},
@@ -452,6 +457,8 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 			Principle:   proto.String("x"),
 			Tension:     proto.String("x"),
 			ReviewFlag:  proto.String("x"),
+			Settled:     proto.String("the claim as it stood may not be re-asserted"),
+			Final:       proto.Bool(true),
 			Rationale:   proto.String("the ruling's reasoning"),
 		}
 	}
@@ -629,9 +636,25 @@ func TestValidateClassRegistry(t *testing.T) {
 		return m
 	}
 
-	t.Run("no registry staged is advisory, not strict", func(t *testing.T) {
-		if err := validate(t.TempDir(), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")})); err != nil {
-			t.Errorf("advisory mode refused a class: %v", err)
+	// NO REGISTRY IS A MISCONFIGURED RUN, NOT A LICENCE. This subtest asserted the opposite for
+	// its whole life — "no registry staged is advisory, not strict" — and the tolerance it pinned
+	// was the only thing standing between `--class`'s help, which says the registry constrains the
+	// value, and the behaviour, which accepted any string on every run there has ever been. The
+	// comment carrying it read "R1 tolerance; R4 makes it strict". R4 never came.
+	//
+	// It is the plausible zero in its purest form: a check that no-ops when its input is absent
+	// returns exactly what a passing check returns. Measured downstream, the cost was not a tidy-
+	// taxonomy complaint — red's accumulated gap patterns are delivered CLASS-INDEXED, and across
+	// both record-era runs the seats coined 10 and 14 classes with ZERO overlap with the 37 the
+	// corpus is indexed by. The corpus was built, the index was written, and the join never once
+	// delivered a pattern.
+	t.Run("no registry staged is refused, not waved through", func(t *testing.T) {
+		err := validate(t.TempDir(), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
+		if err == nil {
+			t.Fatal("a run with no staged registry accepted an arbitrary class — every --class passes, and the board ships a vocabulary nothing recognises")
+		}
+		if !strings.Contains(err.Error(), "no gap-class registry") {
+			t.Errorf("the refusal must name the missing REGISTRY, or a seat re-reads its own --class looking for the typo: %v", err)
 		}
 	})
 
@@ -1021,7 +1044,7 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 		AnchorTool:   proto.String("Read"),
 		AnchorTarget: proto.String("blue/report.md"),
 	}
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -1067,11 +1090,13 @@ func TestTheOpinionDemandsARuleButNotAnInventedTension(t *testing.T) {
 			Principle:   proto.String("a claim rests on its weakest citation"),
 			Tension:     proto.String("correctness vs economy"),
 			ReviewFlag:  proto.String("no human review needed"),
+			Settled:     proto.String("the claim as it stood may not be re-asserted"),
+			Final:       proto.Bool(true),
 			Rationale:   proto.String("the repair holds at the leaf"),
 		}
 	}
 	// A REAL GAP on the record, so the reference check passes and the FIELD rules are what answer.
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -1120,7 +1145,7 @@ func TestTheOpinionDemandsARuleButNotAnInventedTension(t *testing.T) {
 // exchange built to make that distinction legible. Measured 2026-08-22 — with severity already
 // `high`, `--dimension severity --proposed high` filed cleanly.
 func TestAGradeMotionThatMovesNothingIsRefused(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := newRun(t)
 	for _, s := range []string{"red-merge-r1", "blue-respond-r1"} {
 		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: 1}, ""); err != nil {
 			t.Fatal(err)

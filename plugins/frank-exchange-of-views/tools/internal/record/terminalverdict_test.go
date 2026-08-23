@@ -35,8 +35,13 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 		[]byte("# report\n\n**Verdict:** VERIFIED — **derived from the record**, not claimed.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := TerminalVerdict(runDir); got != "HALTED" {
-		t.Errorf("readTerminalVerdict = %q, want \"HALTED\" — the record holds the verdict as a field and the report is a rendering of it", got)
+	// THE SPELLING COMES FROM THE SCHEMA, not from a literal. The point here is that the RECORD
+	// beats the rendered prose — report.md above says VERIFIED — and the casing is incidental to
+	// it: a hardcoded "HALTED" was really asserting how the payload record happened to store the
+	// seat's uppercase word.
+	want := recordpb.Word(recordpb.RunOutcome_RUN_OUTCOME_HALTED)
+	if got := TerminalVerdict(runDir); got != want {
+		t.Errorf("readTerminalVerdict = %q, want %q — the record holds the verdict as a field and the report is a rendering of it", got, want)
 	}
 }
 

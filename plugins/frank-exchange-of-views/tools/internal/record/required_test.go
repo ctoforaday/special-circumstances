@@ -59,7 +59,9 @@ func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 	o := &recordpb.Opinion{
 		GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
 		Principle: proto.String("p"), Tension: proto.String("t"),
-		ReviewFlag: proto.String("false"), Rationale: proto.String("r"),
+		ReviewFlag: proto.String("false"), Settled: proto.String("the claim as it stood may not be re-asserted"),
+		Final:     proto.Bool(true),
+		Rationale: proto.String("r"),
 	}
 	if err := validate(runWithGap(t), "judge-r1", recordpb.EventType_EVENT_TYPE_OPINION, o); err != nil {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
@@ -152,12 +154,12 @@ func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 	} {
 		m := base()
 		c.clear(m)
-		if err := validate(t.TempDir(), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, m); err == nil {
+		if err := validate(newRun(t), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, m); err == nil {
 			t.Errorf("mint without --%s was accepted; its mass computes to ZERO and the gap sinks to the bottom of every ranking as though it were harmless", c.name)
 		}
 	}
 	// Severity and cx remain optional: absent, they are SHOWN absent.
-	if err := validate(t.TempDir(), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, base()); err != nil {
+	if err := validate(newRun(t), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, base()); err != nil {
 		t.Errorf("severity and cx must stay optional — their absence is visible, not silently zero: %v", err)
 	}
 	if GapMass("", "medium") != 0 {
