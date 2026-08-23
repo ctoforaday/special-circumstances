@@ -162,3 +162,47 @@ func TestObserveDoesNotStampAnUnmeasuredReading(t *testing.T) {
 		t.Errorf("stamped a write reading from an unmeasured transcript: %+v", st)
 	}
 }
+
+// THE MANUFACTURED ZERO. Of() stamps the write-time reading and gauges in the same
+// call, so the FIRST seal after a note appears would compute growth against a reading
+// taken moments earlier and report 0 as MEASURED.
+//
+// For a note written long before its first seal that zero is invented, and it enters
+// criterion 1's growth distribution indistinguishable from a genuinely fresh note —
+// the precise effect the "omitted when unmeasured" rule exists to prevent, arriving
+// through the door that rule was built to guard.
+func TestGrowthIsUnmeasuredOnTheObservationThatCreatedTheReading(t *testing.T) {
+	var st State // nothing seen yet
+	st, fresh := ObserveAndSay(st, ts(10), ctxusage.Measure{Tokens: 100_000, TokensKnown: true})
+	if !fresh {
+		t.Fatal("first sight of a note must report that it stamped")
+	}
+	m := GaugeAfter(st, ctxusage.Measure{Tokens: 100_000, TokensKnown: true}, Branch{}, fresh)
+	if m.GrowthKnown {
+		t.Errorf("growth reported as measured (%d) on the observation that created its own baseline", m.Growth)
+	}
+
+	// The NEXT boundary has a real interval behind it.
+	st2, fresh2 := ObserveAndSay(st, ts(10), ctxusage.Measure{Tokens: 180_000, TokensKnown: true})
+	if fresh2 {
+		t.Fatal("an unchanged note must not re-stamp")
+	}
+	m2 := GaugeAfter(st2, ctxusage.Measure{Tokens: 180_000, TokensKnown: true}, Branch{}, fresh2)
+	if !m2.GrowthKnown || m2.Growth != 80_000 {
+		t.Errorf("Growth = %d (known=%v), want 80000 on the second observation", m2.Growth, m2.GrowthKnown)
+	}
+}
+
+// ceiling_known and proximity_known are different facts. A session that has compacted
+// twice HAS a ceiling even if this read could not get a token figure, and a row that
+// let proximity stand in for it would report "never compacted" for "could not read the
+// tail" — two states with different meanings and the same bytes.
+func TestCeilingKnownIsNotProximityKnown(t *testing.T) {
+	m := Gauge(baseState(), ctxusage.Measure{Ceiling: 200_000, CeilingKnown: true}, Branch{})
+	if !m.CeilingKnown {
+		t.Error("CeilingKnown false when a boundary was found")
+	}
+	if m.ProximityKnown {
+		t.Error("ProximityKnown true with no token reading to divide")
+	}
+}

@@ -41,7 +41,15 @@ in the run triggered them. Absence here is "not exercised", not "does not exist"
 
 ## 2. Payloads that matter
 
-Every event carries `session_id`, `transcript_path`, `cwd`, and most carry `prompt_id`.
+Every event carries `session_id` and `cwd`, and most carry `prompt_id`.
+
+> **`transcript_path` is NOT universal, and this line said it was.** Measured key sets (§12):
+> `SessionEnd` carries it, `PreCompact` carries it, `SubagentStop` carries it and a per-seat one
+> besides — but **`SessionStart` does not** (§9e correction 3: its stdin is
+> `{session_id, cwd, hook_event_name, source}`). The exception matters more than the rule, because
+> `SessionStart` is the verified injection channel: a design that reads the transcript at restore
+> has no path to read. Corrected here rather than only where it was discovered, since this sentence
+> is what a reader checks first.
 
 ### `SubagentStop` — the capture point for Gray Area
 

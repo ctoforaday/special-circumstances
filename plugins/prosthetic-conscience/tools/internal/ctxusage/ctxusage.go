@@ -109,11 +109,15 @@ func Read(path string, noteWrittenAt time.Time) (Measure, error) {
 	if err != nil {
 		return Measure{}, nil
 	}
-	// Widen ONCE. A transcript whose tail is one enormous tool result can push every
-	// assistant entry out of a 256 KB view; beyond a megabyte the answer is that we
-	// could not measure it, not that we should keep reading.
-	if !m.TokensKnown {
-		if wider, err := readWindow(path, noteWrittenAt, widenBytes); err == nil && wider.TokensKnown {
+	// Widen ONCE, for EITHER miss. A transcript whose tail is one enormous tool result
+	// can push every assistant entry out of a 256 KB view; and a note a few hundred
+	// turns old is exactly the case where the window does not reach back far enough to
+	// count them — which is the note this whole design exists to catch, so giving up a
+	// window early is giving up on the primary case. Beyond a megabyte the answer is
+	// that we could not measure it, not that we should keep reading.
+	if !m.TokensKnown || !m.TurnsMeasured {
+		if wider, err := readWindow(path, noteWrittenAt, widenBytes); err == nil &&
+			(wider.TokensKnown || wider.TurnsMeasured) {
 			return wider, nil
 		}
 	}
