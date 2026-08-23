@@ -141,6 +141,23 @@ func verdict(tools []toolchain.Status, bins []binStatus) string {
 			if t.Tier == "recommended" {
 				degraded = true
 			}
+			continue
+		}
+		// PRESENT AND UNUSABLE COUNTS THE SAME AS ABSENT, because the work it gates cannot run
+		// either way. A required tool below its minimum is BLOCKED — that is the whole point of
+		// declaring the minimum, and a verdict that said READY over it would be the presence
+		// probe again, one field along.
+		if t.TooOld {
+			if t.Tier == "required" {
+				return "BLOCKED"
+			}
+			degraded = true
+		}
+		// An unverifiable minimum is NOT READY. It may well be fine; the run cannot say so, and
+		// "we could not tell" belongs on the degraded side of a preflight whose whole job is to
+		// make readiness legible before work starts.
+		if t.VersionUnmeasured != "" {
+			degraded = true
 		}
 	}
 	for _, b := range bins {
@@ -204,8 +221,20 @@ func table(tools []toolchain.Status, bins []binStatus) string {
 	var sb strings.Builder
 	for _, t := range tools {
 		switch {
+		// TOO OLD IS ITS OWN ROW, before the plain ✓ that used to swallow it. The disqualifying
+		// number was already being printed beside the tick; what was missing was anything that
+		// read it (#521). The remedy word is UPGRADE, because telling an operator to install
+		// what they are demonstrably holding sends them to the wrong place.
+		case t.Found && t.TooOld:
+			fmt.Fprintf(&sb, "%-18s ✗ (%s) %s is below the minimum %s — upgrade: %s\n",
+				t.Name, t.Tier, t.Version, t.MinVersion, t.Install[runtime.GOOS])
+		// AND UNMEASURED IS NOT A PASS. A declared minimum that could not be read leaves the
+		// question open, and rendering that as ✓ is the collapse the field exists to end.
+		case t.Found && t.VersionUnmeasured != "":
+			fmt.Fprintf(&sb, "%-18s ? present, but the minimum %s is NOT VERIFIED — %s\n",
+				t.Name, t.MinVersion, t.VersionUnmeasured)
 		case t.Found:
-			fmt.Fprintf(&sb, "%-18s ✓ %s\n", t.Name, versionOf(t.CheckCmd))
+			fmt.Fprintf(&sb, "%-18s ✓ %s\n", t.Name, displayVersionOf(t))
 		case t.NotApplicable:
 			// No install string: printing one here is the false alarm this branch
 			// exists to remove.
@@ -573,7 +602,9 @@ func run(args []string, stdout io.Writer, envRoot string, executable func() (str
 		return 0
 	}
 
-	tools := toolchain.Probe(req.Tools)
+	// THE MANIFEST'S OWN DIRECTORY, because a tool declaring CheckDir is asking a question
+	// whose answer depends on where it is asked — see toolchain.Tool.CheckDir (#521).
+	tools := toolchain.ProbeInDir(req.Tools, toolchain.Environment(), root)
 	// Own binaries AND every sibling plugin's: the suite is provisioned as a
 	// whole, because a seat blocked by another plugin's missing binary fails just
 	// as hard as one blocked by ours.
@@ -624,4 +655,14 @@ func run(args []string, stdout io.Writer, envRoot string, executable func() (str
 // exit code, so cmd/ stays a three-line shim and this stays testable.
 func Main() int {
 	return run(os.Args[1:], os.Stdout, os.Getenv("CLAUDE_PLUGIN_ROOT"), os.Executable, fix)
+}
+
+// displayVersion prefers the line the check command already produced during Probe over running
+// it a second time. Only tools declaring a minimum are measured there, so everything else still
+// pays exactly one exec for its version — the same cost as before, asked once instead of twice.
+func displayVersionOf(t toolchain.Status) string {
+	if t.VersionLine != "" {
+		return t.VersionLine
+	}
+	return versionOf(t.CheckCmd)
 }

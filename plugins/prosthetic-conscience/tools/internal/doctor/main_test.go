@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -199,4 +200,67 @@ func TestManifestExemptsGhInCloudSessions(t *testing.T) {
 		return
 	}
 	t.Fatal("gh is no longer declared in requirements.json")
+}
+
+// A REQUIRED TOOL BELOW ITS MINIMUM BLOCKS, exactly as a missing one does — the work it gates
+// cannot run either way, and a verdict that said READY over it would be the presence probe
+// again, one field along (#521).
+func TestATooOldRequiredToolBlocks(t *testing.T) {
+	got := verdict([]toolchain.Status{{
+		Tool:   toolchain.Tool{Name: "go", Tier: "required", MinVersion: "1.25"},
+		Found:  true,
+		TooOld: true, Version: "1.22.2",
+	}}, nil)
+	if got != "BLOCKED" {
+		t.Errorf("verdict with go1.22.2 against a 1.25 minimum = %q, want BLOCKED", got)
+	}
+}
+
+// AND AN UNVERIFIABLE MINIMUM IS NOT READY. It may well be fine; the run cannot say so, and
+// "could not tell" belongs on the degraded side of a preflight whose job is to make readiness
+// legible before work starts.
+func TestAnUnverifiableMinimumIsNotReady(t *testing.T) {
+	got := verdict([]toolchain.Status{{
+		Tool:              toolchain.Tool{Name: "go", Tier: "required", MinVersion: "1.25"},
+		Found:             true,
+		VersionUnmeasured: "no version number found in \"go: unknown subcommand\"",
+	}}, nil)
+	if got == "READY" {
+		t.Errorf("verdict with an unverifiable required minimum = READY — the check could not run and said so")
+	}
+}
+
+// THE ORDINARY CASE IS UNCHANGED. A tool that meets its minimum is just present, and a run
+// where everything is present is still READY — a preflight that cried wolf on the healthy path
+// would be discounted on the one axis it exists to be trusted on.
+func TestAToolThatMeetsItsMinimumIsStillReady(t *testing.T) {
+	got := verdict([]toolchain.Status{{
+		Tool:    toolchain.Tool{Name: "go", Tier: "required", MinVersion: "1.25"},
+		Found:   true,
+		Version: "1.25.3",
+	}}, nil)
+	if got != "READY" {
+		t.Errorf("verdict with go1.25.3 against a 1.25 minimum = %q, want READY", got)
+	}
+}
+
+// THE ROW SAYS UPGRADE, NOT INSTALL. An operator sent to install what they are demonstrably
+// holding looks in the wrong place — the same failure shape as telling a seat to pass a flag it
+// already passed.
+func TestTheTooOldRowNamesTheRightRemedy(t *testing.T) {
+	out := table([]toolchain.Status{{
+		Tool: toolchain.Tool{
+			Name: "go", Tier: "required", MinVersion: "1.25",
+			Install: map[string]string{runtime.GOOS: "see https://go.dev/dl/"},
+		},
+		Found: true, TooOld: true, Version: "1.22.2",
+	}}, nil)
+	for _, want := range []string{"go", "1.22.2", "below the minimum 1.25", "upgrade:", "https://go.dev/dl/"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the too-old row does not carry %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "✓") {
+		t.Errorf("a too-old tool still renders a tick:\n%s", out)
+	}
 }
