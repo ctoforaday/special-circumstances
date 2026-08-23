@@ -538,6 +538,13 @@ CREATE TABLE "blue_edit" (
   CHECK ("applied_verbatim" IS NULL OR "applied_verbatim" IN (0, 1))
 ) STRICT;
 
+CREATE TABLE "blue_edit_reopened" (
+  "event_id" INTEGER NOT NULL REFERENCES "blue_edit"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
 CREATE TABLE "revision" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "text" TEXT
