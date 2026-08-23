@@ -1,0 +1,8 @@
+{
+  "topic": "Sleeper-service as an automated research loop built on FEOV: compare and contrast with known automated-research and self-improving-agent systems, and with its in-repo parallel counterparts — the dream loop and the memory architecture",
+  "runDir": "/home/user/special-circumstances/.claude/worktrees/loop-counterparts/research/2026-08-23_research-loop-counterparts",
+  "model": "fable",
+  "judgmentModel": "sonnet",
+  "maxRounds": "4",
+  "lanes": "3"
+}
