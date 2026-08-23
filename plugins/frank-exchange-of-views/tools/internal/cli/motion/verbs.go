@@ -19,6 +19,13 @@ func newFile(subject string, required []string) *cobra.Command {
 		Short: "file a " + subject + " motion — the tool assigns its id",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
+			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
+			// on the other axis: Begin is not on this path, so the run refusal is not either, and
+			// these verbs WRITE — a motion filed against a contradicted run directory is the
+			// attribution failure the check exists for, one field over.
+			if s.RunErr != nil {
+				return s.RunErr
+			}
 			// THE FILER MUST BE A SEAT THE ENGINE CREATED. These verbs read the context with
 			// seat.Of, which only parses flags — seat.Begin, which runs the identity checks, is
 			// never on this path. Measured: `motion grade file --seat-id totally-invented`
@@ -108,6 +115,13 @@ func newRule(subject, ruler string) *cobra.Command {
 		Short: "rule on a " + subject + " motion (the " + ruler + " seat's)",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
+			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
+			// on the other axis: Begin is not on this path, so the run refusal is not either, and
+			// these verbs WRITE — a motion filed against a contradicted run directory is the
+			// attribution failure the check exists for, one field over.
+			if s.RunErr != nil {
+				return s.RunErr
+			}
 			// THE FILER MUST BE A SEAT THE ENGINE CREATED. These verbs read the context with
 			// seat.Of, which only parses flags — seat.Begin, which runs the identity checks, is
 			// never on this path. Measured: `motion grade file --seat-id totally-invented`
@@ -177,6 +191,13 @@ func newAppeal(subject string) *cobra.Command {
 		Short: "press a " + subject + " motion after a ruling — a ruling is an argument, not a command",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
+			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
+			// on the other axis: Begin is not on this path, so the run refusal is not either, and
+			// these verbs WRITE — a motion filed against a contradicted run directory is the
+			// attribution failure the check exists for, one field over.
+			if s.RunErr != nil {
+				return s.RunErr
+			}
 			// THE FILER MUST BE A SEAT THE ENGINE CREATED. These verbs read the context with
 			// seat.Of, which only parses flags — seat.Begin, which runs the identity checks, is
 			// never on this path. Measured: `motion grade file --seat-id totally-invented`

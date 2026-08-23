@@ -334,9 +334,9 @@ func renderView(cmd *cobra.Command, want string) error {
 	// could record all round and then be told its board did not exist. Measured with the
 	// identity injected: register, friction and revision all succeeded; `show` and
 	// `claim-index` demanded the flag.
-	runDir := Of(cmd).RunDir
-	if runDir == "" {
-		return fmt.Errorf("%s: --run <runDir> is required", role)
+	runDir, rerr := Of(cmd).RequireRun(role)
+	if rerr != nil {
+		return rerr
 	}
 	// --id SCOPES a view that supports scoping, and is an ERROR on one that does not
 	// ([[one-way-no-aliases]]: a wrong guess fails loudly rather than being ignored). Silently

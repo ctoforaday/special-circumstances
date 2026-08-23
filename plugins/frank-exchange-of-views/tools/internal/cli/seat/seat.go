@@ -99,6 +99,20 @@ type Context struct {
 	// whose seats all resolve by INFERENCE is a run the hook is not reaching, and nothing else
 	// distinguishes that from a healthy one (#512).
 	RunVia seatenv.RunSource
+
+	// RunErr is the resolution's REFUSAL, carried rather than encoded as an empty RunDir.
+	//
+	// MEASURED, on the first real exercise of the wrapper (#526). Of() returned the flag's own
+	// value when resolution failed, so `show board --run "<typo>"` printed a board for a
+	// directory nobody had dispatched — the 2026-08-05 failure this whole mechanism exists to
+	// prevent, still live on every READ verb because only Begin honoured the refusal.
+	//
+	// Returning an empty RunDir instead does not fix it: five readers answer "" with
+	// `runDir = seat.InferRunDir("")`, so the refusal would be swallowed a second time, one
+	// layer down, and resolve quietly to the real run. "" already means "nothing supplied one";
+	// making it also mean "you were refused" is the same collapse the record keeps paying for —
+	// two states, one byte, and the healthy one wins by default.
+	RunErr error
 }
 
 // Identity is what a record write needs to know about who is writing: the run, the seat, and the
@@ -169,9 +183,12 @@ func BoundSeat(runDir string) func() (string, error) {
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
 	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string { return InferRunDir("") })
-	if err == nil {
-		runDir = resolved
+	if err != nil {
+		// NO RUN DIRECTORY LEAVES HERE. A caller holding one it was refused is a caller that
+		// will use it, and every reader below this point trusts what it is handed.
+		return Context{RunErr: err, Role: roleOf(cmd), RunVia: seatenv.RunUnresolved}
 	}
+	runDir = resolved
 	// Identity resolves the same way (#348): injected wins, a disagreeing flag is refused by
 	// Begin, and the ROUND arrives as a field rather than being read back out of the id.
 	seatID, _ := cmd.Flags().GetString(flags.SeatID)
@@ -185,6 +202,23 @@ func Of(cmd *cobra.Command) Context {
 // roleOf answers WHICH SEAT is running this command, from the identity the engine injected.
 //
 // See RoleKey for what this replaced and what that cost.
+// RequireRun is the one way a verb turns a Context into a run directory it may act on.
+//
+// It answers the two failures separately, because their remedies are opposite: a REFUSED
+// resolution is the seat's own contradicting --run (drop the flag), and an EMPTY one is nothing
+// having supplied a run at all (the engine is not dispatching you). Collapsing them into
+// "--run is required" tells a seat that DID pass --run to pass it, which is the message that
+// sends it looking in the wrong place.
+func (c Context) RequireRun(verb string) (string, error) {
+	if c.RunErr != nil {
+		return "", c.RunErr
+	}
+	if c.RunDir == "" {
+		return "", feov.Errorf(feov.MissingField, "%s: --run <runDir> is required", verb)
+	}
+	return c.RunDir, nil
+}
+
 func roleOf(cmd *cobra.Command) string {
 	if cmd == nil {
 		return ""

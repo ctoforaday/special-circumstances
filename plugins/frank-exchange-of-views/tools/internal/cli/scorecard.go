@@ -38,7 +38,10 @@ func newScorecard() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// Resolved so the injected run reaches reads too, not only writes.
-			runDir := seat.Of(cmd).RunDir
+			runDir, rerr := seat.Of(cmd).RequireRun("scorecard")
+			if rerr != nil {
+				return rerr
+			}
 			chair, _ := cmd.Flags().GetString(flags.Chair)
 			cards := map[string]bool{"blue": true, "red": true, "bench": true}
 			if runDir == "" || !cards[chair] {
