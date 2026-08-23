@@ -297,7 +297,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 		}
 		// 2. Checked nothing, explicitly: --none, with the reason that distinguishes it from a
 		// skipped duty.
-		if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+		if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
 			"--none", "--reason", "the archive was empty at round start"); err != nil {
 			t.Fatal(err)
 		}
@@ -325,11 +325,11 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 func TestSpotCheckIsASingleton(t *testing.T) {
 	runDir := newRun(t)
 	seedReferents(t, runDir)
-	if _, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", "R1-3",
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", "R1-3",
 		"--reason", "re-read the closure record"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "merge", "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", "R1-3",
+	_, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--ids", "R1-3",
 		"--reason", "re-read it again")
 	if err == nil {
 		t.Fatal("a second spot-check was accepted — the round's duty would have two discharges")

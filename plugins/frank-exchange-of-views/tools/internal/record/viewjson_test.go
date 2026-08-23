@@ -68,7 +68,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if len(r1.Blue) != 1 || r1.Blue[0] != "blue r1" {
 		t.Errorf("round 1 Blue = %v, want [blue r1]", r1.Blue)
 	}
-	if len(r1.Lead) != 1 || r1.Lead[0].Disposition != "closed" || r1.Lead[0].Principle != "correctness first" {
+	if len(r1.Lead) != 1 || r1.Lead[0].Disposition != "repaired" || r1.Lead[0].Principle != "correctness first" {
 		t.Errorf("round 1 Lead = %+v, want one closed opinion", r1.Lead)
 	}
 	if len(r1.RedClosings) != 1 || r1.RedClosings[0].GapID != "R1-1" || r1.RedClosings[0].Text != "red closes r1" {

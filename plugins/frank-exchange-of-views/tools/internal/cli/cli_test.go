@@ -1156,10 +1156,10 @@ func TestClosingIsKeyedPerGap(t *testing.T) {
 func TestPositionIsASingletonPerSeat(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-merge-r1"
-	if _, err := run(t, "merge", "position", "--run", runDir, "--seat-id", seatID, "--reason", "first"); err != nil {
+	if _, err := run(t, "position", "--run", runDir, "--seat-id", seatID, "--reason", "first"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "merge", "position", "--run", runDir, "--seat-id", seatID, "--reason", "second")
+	_, err := run(t, "position", "--run", runDir, "--seat-id", seatID, "--reason", "second")
 	if err == nil {
 		t.Fatal("a second position was accepted — the record would carry two answers to a once-per-sitting question")
 	}

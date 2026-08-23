@@ -321,11 +321,21 @@ func newAppeal(subject string) *cobra.Command {
 // line of inquiry's; saying "the motion id" there would send a seat looking for an M-number that does not
 // exist, and a seat that cannot find the id it was told to pass logs friction and works around the
 // verb — losing the capability for the run rather than reporting a wrong flag.
+// refHelp is the --id line, and it carries the REQUIRED marker because the flag is.
+//
+// It did not, and nothing caught that until the surface became seat-scoped: `motion` used to sit
+// at the ROOT, so the marker gate — which walks each seat's tree and skips anything whose path
+// does not begin inside one — never reached it. Moving motion inside each seat's tree brought
+// three subgroups into a gate that had never covered them, and all three were unmarked.
+//
+// A seat reading an unmarked flag supplies it or does not, learns which by being refused, and
+// spends the turn. The refusal itself is real (RequireMotionSubjectRef resolves the id against the
+// record), so this is the help disagreeing with the enforcement rather than a missing rule.
 func refHelp(subject string) string {
 	if subject == "inquiry" {
-		return "the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
+		return "REQUIRED — the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
 	}
-	return "the motion id (M1, M2 …)"
+	return "REQUIRED — the motion id (M1, M2 …)"
 }
 
 type filed struct {

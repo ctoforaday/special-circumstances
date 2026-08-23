@@ -71,7 +71,7 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	// "rising over time" IS the text f-abc123 is attached to. Quoting it without the token was
 	// accepted before and left the anchor beside prose it was never placed against; now the seat
 	// quotes what `show report` prints and copies the token into --new like any other character.
-	out, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "rising over time<!--fx:f-abc123-->",
 		"--new", "climbing sharply<!--fx:f-abc123-->", "--reason", "sharper phrasing")
 	if err != nil {
@@ -461,7 +461,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	prior := seedProposalApplied(t, runDir)
 
 	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
-	_, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r2",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r2",
 		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium")

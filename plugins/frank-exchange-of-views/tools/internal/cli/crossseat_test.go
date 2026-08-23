@@ -295,13 +295,13 @@ func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
 	runDir := seatRun(t)
 	// The gap has to exist: `close --id` is a reference the record checks, and R1-1 is what the
 	// first mint of the round is assigned.
-	if _, err := run(t, "merge", "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatalf("merge mint: %v", err)
 	}
-	if _, err := run(t, "merge", "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", "R1-1", "--as", "closed",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "R1-1", "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
 		"--reason", "the repair was verified at the leaf"); err != nil {
 		t.Fatalf("merge close: %v", err)

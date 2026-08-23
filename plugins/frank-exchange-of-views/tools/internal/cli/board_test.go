@@ -203,7 +203,7 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 	corroborate := func(claim, url, title string) error {
 		// --independent by construction: these are sources red went and found, not citations blue
 		// authored, so there is no anchor to name.
-		_, err := run(t, "lens", "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 			"--quote", claim, "--url", url, "--title", title,
 			"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
 			"--access-date", "2026-07-24")

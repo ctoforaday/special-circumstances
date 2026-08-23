@@ -43,7 +43,23 @@ func newOpinion() *cobra.Command {
 			Principle:   proto.String(seat.Str(cmd, flags.Principle)),
 			Tension:     proto.String(seat.Str(cmd, flags.Tension)),
 			ReviewFlag:  proto.String(seat.Str(cmd, flags.ReviewFlag)),
+			Settled:     proto.String(seat.Str(cmd, flags.Settled)),
 			Rationale:   proto.String(text),
+		}
+		// ONE QUESTION, TWO ASSERTABLE ANSWERS — the `friction --none` shape. "What would reopen
+		// this?" has a real answer of "nothing", and that answer must be POSITIVE: left as an
+		// empty --reopens-on it is indistinguishable from a bench that skipped the field.
+		//
+		// PRESENCE IS THE WHOLE POINT, so `final` is set only when TRUE. Writing `false` would
+		// make "this ruling is not final" and "nobody answered" the same bytes, and the schema's
+		// check — which refuses a ruling that says neither, and one that says both — reads
+		// presence. Refused together rather than silently preferring one: a ruling that says both
+		// has not decided, and picking for it would record a decision nobody made.
+		if final, _ := cmd.Flags().GetBool(flags.Final); final {
+			body.Final = proto.Bool(true)
+		}
+		if seat.Given(cmd, flags.ReopensOn) {
+			body.ReopensOn = proto.String(seat.Str(cmd, flags.ReopensOn))
 		}
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err

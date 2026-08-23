@@ -23,7 +23,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 	}
 	seedBlueReport(t, runDir)
 	const claim = "§2 the finding prose lands in a quoted sentence."
-	if _, err := run(t, "lens", "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
 		"--url", "https://example.org/red", "--title", "T", "--quote", claim,
 		"--as", "supports", "--confidence", "high", "--reason", "read it at the leaf"); err != nil {
 		t.Fatal(err)
@@ -42,7 +42,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 
 	// AN EDIT ELSEWHERE does not reopen it. Reopening on every edit is the same as reopening on
 	// none — a reader learns to skip the field.
-	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--quote", "the parser accepts an empty body in this line.",
 		"--new", "the parser rejects an empty body in this line.", "--reason", "unrelated"); err != nil {
 		t.Fatal(err)
@@ -53,7 +53,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 
 	// THE EDIT THAT MOVES THE CITED SENTENCE reopens it — quoted AS PRINTED, token carried.
 	printed, tok := anchoredLine(t, runDir)
-	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", "blue-respond-r1",
 		"--quote", printed, "--new", "§2 an entirely different assertion now"+tok+".",
 		"--reason", "rewrote the sentence red corroborated"); err != nil {
 		t.Fatal(err)

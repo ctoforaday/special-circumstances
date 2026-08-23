@@ -76,9 +76,6 @@ func newInquiryPropose() *cobra.Command {
 			Hypothesis: proto.String(seat.Str(cmd, flags.Hypothesis)),
 			Status:     &proposed,
 		}
-		// The record keeps its own word: the payload key is `line`, the flag is --reason.
-		// Flag words are not payload keys (see internal/flags).
-		body.Line = proto.String(seat.Str(cmd, flags.Reason))
 		// A fresh proposal with no stated fate is `proposed` — the state the old shape could
 		// not express, which forced blue to declare a fate before it had one. It is set on the
 		// body above, where the enum makes it a value rather than a spelling.
@@ -86,6 +83,14 @@ func newInquiryPropose() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
+		// The record keeps its own word: the payload key is `line`, the flag is --reason.
+		// Flag words are not payload keys (see internal/flags).
+		//
+		// BOTH FIELDS TAKE THE RESOLVED PROSE. `Line` read the FLAG while `Reason` took the
+		// channel, so the same act wrote two different values whenever the seat used
+		// --reason-file: the line went in empty and the reason went in whole. seat.Reason
+		// resolves --reason, --reason-file and `--reason-file -` alike.
+		body.Line = proto.String(why)
 		body.Reason = proto.String(why)
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err

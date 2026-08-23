@@ -1068,7 +1068,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			case satisfied(d):
 				// ONE COIN, NOT TWO. This was `r.coin(25)` here AND `r.coin(25)` inside closeGap,
 				// so the regression close needed 6.25% of one branch AND a successful mint — and
-				// `close --as closed_with_regression` was reported NEVER DRIVEN across 60 runs,
+				// `close --as repaired_with_regression` was reported NEVER DRIVEN across 60 runs,
 				// alongside its `--superseded-by`. Coins that multiply read as "sampled" and
 				// behave as "off"; the sampling now happens in exactly one place.
 				r.closeGap(seatID, id, true)

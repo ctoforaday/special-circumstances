@@ -449,27 +449,37 @@ func TestNoRefusalNamesAFlagThatDoesNotExist(t *testing.T) {
 	known := knownFlagNames(t)
 
 	var checked int
-	walk(newRoot(), func(c *cobra.Command, path []string) {
-		if !c.Runnable() || len(path) < 2 || !isSeatRole(path[0]) {
-			return
+	// PER TREE, AND THE ROLE COMES FROM THE TREE — the same correction the required-flag walk
+	// above carries. This asked `isSeatRole(path[0])` and required a path of two or more, because
+	// a verb's path used to begin with its role group. Against a scoped surface no path satisfies
+	// either condition, so the walk produced nothing and the gate reported success over an empty
+	// traversal. The floor at the bottom is what caught it.
+	for role, r := range AllRoots() {
+		if !isSeatRole(role) {
+			continue // operator commands take a run directory rather than a seat
 		}
-		t.Run(strings.Join(path, " "), func(t *testing.T) {
-			// Invoked with identity and NOTHING else, so whatever the verb requires is what
-			// refuses. A verb that runs clean here simply has nothing to say and is skipped.
-			_, err := run(t, append(append([]string{}, path...), "--run", runDir, "--seat-id", seatFor(path[0]))...)
-			if err == nil {
+		walk(r, func(c *cobra.Command, path []string) {
+			if !c.Runnable() || len(path) < 1 {
 				return
 			}
-			checked++
-			// THE DIAGNOSIS, NOT THE HELP COBRA STAPLES TO IT. A verb's own usage block lists its
-			// flags (fine) and its prose sometimes names a RETIRED one on purpose — spot-check's
-			// --reason explains that it absorbed --notes, which is exactly the history a seat
-			// needs. Scanning that turns a gate about broken instructions into a gate against
-			// explaining anything. TestEveryRefusalNamesTheProblemBeforeTheHelp guarantees the
-			// diagnosis comes FIRST, which is what makes this cut safe to make.
-			assertNamedFlagsExist(t, err, known)
+			t.Run(role+" "+strings.Join(path, " "), func(t *testing.T) {
+				// Invoked with identity and NOTHING else, so whatever the verb requires is what
+				// refuses. A verb that runs clean here simply has nothing to say and is skipped.
+				_, err := run(t, append(append([]string{}, path...), "--run", runDir, "--seat-id", seatFor(role))...)
+				if err == nil {
+					return
+				}
+				checked++
+				// THE DIAGNOSIS, NOT THE HELP COBRA STAPLES TO IT. A verb's own usage block lists
+				// its flags (fine) and its prose sometimes names a RETIRED one on purpose —
+				// spot-check's --reason explains that it absorbed --notes, which is exactly the
+				// history a seat needs. Scanning that turns a gate about broken instructions into a
+				// gate against explaining anything. TestEveryRefusalNamesTheProblemBeforeTheHelp
+				// guarantees the diagnosis comes FIRST, which is what makes this cut safe.
+				assertNamedFlagsExist(t, err, known)
+			})
 		})
-	})
+	}
 	if checked < 10 {
 		t.Fatalf("only %d verbs refused anything — this gate reads refusals, so a walk that produces none passes it forever", checked)
 	}
@@ -494,14 +504,26 @@ func diagnosisOf(err error) string {
 // vocabulary is incomplete manufactures the exact defect it exists to find.
 func knownFlagNames(t *testing.T) map[string]bool {
 	t.Helper()
-	root := newRoot()
+	// THE UNION ACROSS EVERY SEAT, because there is no longer one tree that holds them all.
+	//
+	// This walked `newRoot()`, which is the seat-LESS root: under a scoped surface that carries the
+	// persistent flags and almost nothing else, so the census found four names and the refusals it
+	// is meant to police were checked against a vocabulary that knew nothing. It did not fail
+	// open — the floor below caught it — but the floor is the only reason, and a census that walks
+	// the wrong tree is exactly the plausible zero this file exists to refuse.
 	known := map[string]bool{"help": true}
-	root.PersistentFlags().VisitAll(func(f *pflag.Flag) { known[f.Name] = true })
-	walk(root, func(c *cobra.Command, path []string) {
-		c.Flags().VisitAll(func(f *pflag.Flag) { known[f.Name] = true })
-		c.PersistentFlags().VisitAll(func(f *pflag.Flag) { known[f.Name] = true })
-		c.InheritedFlags().VisitAll(func(f *pflag.Flag) { known[f.Name] = true })
-	})
+	collect := func(root *cobra.Command) {
+		root.PersistentFlags().VisitAll(func(f *pflag.Flag) { known[f.Name] = true })
+		walk(root, func(c *cobra.Command, path []string) {
+			c.Flags().VisitAll(func(f *pflag.Flag) { known[f.Name] = true })
+			c.PersistentFlags().VisitAll(func(f *pflag.Flag) { known[f.Name] = true })
+			c.InheritedFlags().VisitAll(func(f *pflag.Flag) { known[f.Name] = true })
+		})
+	}
+	collect(newRoot())
+	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		collect(NewRootFor(seatFor(role)))
+	}
 	if len(known) < 20 {
 		t.Fatalf("only %d flags found in the tree — the walk is not reaching it, and an empty vocabulary accepts every message forever", len(known))
 	}

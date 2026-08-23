@@ -63,7 +63,7 @@ func TestCiteAnchorBijection(t *testing.T) {
 	// fragment ending on the last word ends exactly where the marker begins — which IS the text
 	// the anchor is attached to, and is refused now. This fragment starts the sentence and stops
 	// well short, which is the case the exemption exists for.
-	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "Beta holds", "--new", "Beta clearly holds", "--reason", "precision"); err != nil {
 		t.Fatalf("clean edit: %v", err)
 	}

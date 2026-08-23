@@ -24,9 +24,17 @@ func newSpotCheck() *cobra.Command {
 
 	c := seat.New("spot-check", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		none := seat.Given(cmd, flags.None)
+		// THE CHANNEL, NOT THE FLAG. seat.Reason resolves --reason, --reason-file and
+		// `--reason-file -` into one string; reading the flag gets the inline spelling only, so a
+		// seat passing a heredoc has its prose silently dropped and the write is then refused for
+		// a field it did supply.
+		why, err := seat.Reason(cmd)
+		if err != nil {
+			return nil, err
+		}
 		body := &recordpb.SpotCheck{
 			Ids:    ids.Value(),
-			Reason: proto.String(seat.Str(cmd, flags.Reason)),
+			Reason: proto.String(why),
 		}
 		if none {
 			body.None = proto.Bool(true)

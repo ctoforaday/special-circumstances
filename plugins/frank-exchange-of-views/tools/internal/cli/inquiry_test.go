@@ -145,7 +145,7 @@ func TestRulingRequiresAReason(t *testing.T) {
 	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat, "--reason", "a line"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "merge", "line-of-inquiry-rule", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "line-of-inquiry-rule", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--id", "Q1", "--ruling", "too_thin"); err == nil {
 		t.Fatal("an unreasoned ruling was accepted — blue cannot contest what has no stated basis")
 	}
