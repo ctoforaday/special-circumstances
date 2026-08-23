@@ -193,6 +193,18 @@ sentence moved.
 Its job was "so blue can match an occurrence after edits move it", and blue cannot compute FNV-1a
 by hand. The anchors are the locator; that is what visible markers are FOR.
 
+**The rule is scoped to REPLACEMENT, and finding that out cost a commit.** Baked into
+`LocateUnique` it also fired on `merge mint --quote`, which names the sentence a defect LIVES AT
+and rewrites nothing — so minting a gap about any already-anchored sentence was refused, with a
+message about "the text you are replacing". It is `LocateUniqueReplacing` now: `blue edit`, and
+`ValidateProposal` (red's proposed text is applied verbatim by blue, so it owes the same duty).
+
+The method note matters more than the fix. It was found by reading a golden that had ALREADY BEEN
+COMMITTED unread — swept in by `git add -A plugins` — where a whole round's integration output had
+recorded the regression as the new expected shape. A golden records what the code does, so a
+golden regenerated without reading turns a regression into a baseline. Read every diff; regenerate
+in its own act.
+
 **Not fixed, and worth stating:** `InsertAnchor` still places the token before the terminal
 punctuation. With the span now swallowing both, nothing depends on the side any more — but placing
 it after would let `tidySeam` see an adjacent pair unaided, which is one less thing balanced on an
