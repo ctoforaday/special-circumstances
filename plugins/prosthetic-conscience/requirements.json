@@ -110,6 +110,11 @@
         "name": "sc-subagentstop",
         "event": "SubagentStop",
         "purpose": "Seals the live CHECKPOINT.md at the SubagentStop seam. One binary per event over one shared seal unit; sc-checkpoint-seal served all three until #201 step 3."
+      },
+      {
+        "name": "sc-stop",
+        "event": "Stop",
+        "purpose": "The checkpoint-freshness nudge: at a turn boundary, reports how old the note is if it has crossed a band. INERT until thresholds exist — Phase 1 is collecting the distribution they come from — and while inert it emits nothing and writes no state, because the seal record reads the nudge's liveness from whether its state file exists. Guarded twice: the client's own stop_hook_active flag, and a band record written BEFORE the emission, since an unguarded injector here loops (16 firings, 4,326 output tokens measured)."
       }
     ]
   }
