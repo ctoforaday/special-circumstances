@@ -2,6 +2,7 @@ package setup
 
 import (
 	"errors"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"os"
 	"path/filepath"
 	"strings"
@@ -123,7 +124,7 @@ func TestMirrorGapPatterns(t *testing.T) {
 // WriteRunLiveMarker: commitment-as-state with the pinned paths for hook guards.
 func TestWriteRunLiveMarker(t *testing.T) {
 	project := t.TempDir()
-	p := WriteRunLiveMarker(project, "research/x", []string{"research/old-run", "ideas/backlog.md"}, time.Now(), "", "")
+	p := runlive.WriteRunLiveMarker(project, "research/x", []string{"research/old-run", "ideas/backlog.md"}, time.Now(), "", "")
 	body := read(t, p)
 	if !has(body, `"runDir": "research/x"`) {
 		t.Errorf("runDir missing: %s", body)
@@ -132,7 +133,7 @@ func TestWriteRunLiveMarker(t *testing.T) {
 		t.Errorf("pinnedPaths missing: %s", body)
 	}
 	// An empty pinnedPaths must render as [] not null.
-	q := WriteRunLiveMarker(t.TempDir(), "r", nil, time.Now(), "", "")
+	q := runlive.WriteRunLiveMarker(t.TempDir(), "r", nil, time.Now(), "", "")
 	if !has(read(t, q), `"pinnedPaths": []`) {
 		t.Error("empty pinnedPaths must be [], not null")
 	}
@@ -333,13 +334,13 @@ func TestMirrorScorecardsFallbackParsesColonClause(t *testing.T) {
 // every verb invoked without --run.
 func TestSetupRefusesWhenAnotherRunIsStillOpen(t *testing.T) {
 	cwd := t.TempDir()
-	WriteRunLiveMarker(cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "")
+	runlive.WriteRunLiveMarker(cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "")
 
-	m, ok := ReadRunLiveMarker(cwd)
+	m, ok := runlive.ReadRunLiveMarker(cwd)
 	if !ok || m.RunDir != "research/2026-08-01_abandoned" {
 		t.Fatalf("fixture: the marker must read back, got %+v ok=%v", m, ok)
 	}
-	if sameRun(cwd, m.RunDir, "research/2026-08-16_new") {
+	if runlive.SameRun(cwd, m.RunDir, "research/2026-08-16_new") {
 		t.Fatal("two different runs must not compare equal")
 	}
 }
@@ -350,7 +351,7 @@ func TestTheSameRunIsRecognisedThroughPathForm(t *testing.T) {
 	cwd := t.TempDir()
 	abs := filepath.Join(cwd, "research", "2026-08-16_live")
 	for _, form := range []string{"research/2026-08-16_live", abs, "./research/2026-08-16_live", filepath.FromSlash("research/2026-08-16_live")} {
-		if !sameRun(cwd, form, "research/2026-08-16_live") {
+		if !runlive.SameRun(cwd, form, "research/2026-08-16_live") {
 			t.Errorf("%q must be recognised as the same run — setup on a live run must stay idempotent", form)
 		}
 	}
@@ -367,11 +368,11 @@ func TestAnUnreadableMarkerIsNotAnOpenRun(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(cwd, ".claude", "run-live.json"), []byte(body), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if _, ok := ReadRunLiveMarker(cwd); ok {
+		if _, ok := runlive.ReadRunLiveMarker(cwd); ok {
 			t.Errorf("%q must not read as an open run", body)
 		}
 	}
-	if _, ok := ReadRunLiveMarker(t.TempDir()); ok {
+	if _, ok := runlive.ReadRunLiveMarker(t.TempDir()); ok {
 		t.Error("an absent marker is not an open run")
 	}
 }

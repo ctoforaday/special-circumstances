@@ -32,6 +32,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
@@ -253,11 +254,21 @@ func InferRunDir(start string) string {
 	}
 	for i := 0; dir != "" && i < 12; i++ {
 		marker := filepath.Join(dir, ".claude", "run-live.json")
-		if b, err := os.ReadFile(marker); err == nil {
-			var m struct {
-				RunDir string `json:"runDir"`
-			}
-			if json.Unmarshal(b, &m) == nil && m.RunDir != "" {
+		if _, err := os.Stat(marker); err == nil {
+			// THROUGH THE PACKAGE THAT OWNS THE FILE, never a private decode of it.
+			//
+			// This used to unmarshal its own `struct{ RunDir string }` — a second reader of a
+			// shape stated elsewhere, which is the defect RunLiveMarker's own comment names.
+			// It broke the moment the marker became a list (#529): the private decoder found no
+			// `runDir` key, inference stopped resolving anything, and the LIVE symptom was a
+			// verb asking for --run — which is exactly what it asks when no run is open, so the
+			// regression read as correct behaviour. Five tests caught it; driving it by hand did
+			// not, and would not have.
+			//
+			// ok=false now also covers MORE THAN ONE run open, which is the answer inference
+			// should give there: with two runs live there is no single run to infer, and the
+			// marker's own rule for an unusable state is to say nothing rather than guess.
+			if m, ok := runlive.ReadRunLiveMarker(dir); ok {
 				resolved := m.RunDir
 				if !filepath.IsAbs(resolved) {
 					resolved = filepath.Join(dir, resolved)

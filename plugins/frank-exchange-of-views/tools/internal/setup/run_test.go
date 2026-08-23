@@ -2,6 +2,7 @@ package setup
 
 import (
 	"bytes"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"os"
 	"path/filepath"
 	"strings"
@@ -375,37 +376,59 @@ func TestUnjoinablePatternClassesAreNamed(t *testing.T) {
 	}
 }
 
-// #270, DRIVEN END TO END: the gate refuses before anything is built, and stays out of the way
-// for the run it belongs to.
-func TestSetupWillNotOpenASecondRunOverAnUnclosedOne(t *testing.T) {
+// A SECOND RUN OPENS, AND THE FIRST ONE IS NAMED. Driven end to end (#529).
+//
+// This gate used to REFUSE, for a reason it stated itself: the stale marker was what
+// seat.InferRunDir handed to every verb invoked without --run, so a run left open misdirected
+// the next one's seats. #526 removed that — setup bakes the run into <runDir>/.bin/feov-record,
+// so a seat carries its run in its own environment and never has to ask, and ReadRunLiveMarker
+// now declines to answer at all when more than one run is open.
+//
+// With the misdirection gone, refusing only forced the operator to defeat the guard by hand;
+// measured twice on consecutive days, and both times the remedy was `rm` on the one file that
+// says a run is open. What survives is the half that was always worth keeping: telling a human,
+// at the one moment one is present, that a previous run was never captured.
+func TestSetupOpensASecondRunAndNamesTheUnclosedOne(t *testing.T) {
 	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
-	WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "")
+	runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "")
 
 	var out, errb bytes.Buffer
-	code := Run(cfg, &out, &errb)
-	if code != 2 {
-		t.Fatalf("exit %d, want 2 — a run left open must stop the next one:\n%s", code, errb.String())
+	if code := Run(cfg, &out, &errb); code != 0 {
+		t.Fatalf("exit %d, want 0 — a run left open no longer stops the next one:\n%s", code, errb.String())
 	}
-	msg := errb.String()
+	msg := out.String()
 	for _, want := range []string{
-		"A RUN IS ALREADY OPEN",
+		"ALSO OPEN",
 		"research/2026-08-01_abandoned", // names the other run
 		"2026-08-01T09:00:00.000Z",      // and when it started
-		"feov-record capture",           // the remedy that KEEPS its record
-		"delete .claude/run-live.json",  // and the one that does not
+		"feov-record capture",           // with the remedy that KEEPS its record
+		"resolves",                      // and what an unflagged verb now does instead of guessing
 	} {
 		if !strings.Contains(msg, want) {
-			t.Errorf("the refusal must carry %q so the operator can act on it:\n%s", want, msg)
+			t.Errorf("the notice must carry %q so the operator can act on it:\n%s", want, msg)
 		}
 	}
-	// REFUSED BEFORE ANYTHING WAS BUILT. A gate that fires after creating the skeleton has already
-	// done the thing it was refusing.
-	if _, err := os.Stat(runDir); err == nil {
-		t.Error("the run directory was created despite the refusal — the gate must precede construction")
+	// THE RUN IS ACTUALLY BUILT. A notice that quietly still refused would be the worst of both.
+	if _, err := os.Stat(filepath.Join(runDir, "records")); err != nil {
+		t.Errorf("the second run was not built: %v", err)
 	}
-	// And the marker is untouched: the abandoned run is still capturable.
-	if m, ok := ReadRunLiveMarker(cfg.Cwd); !ok || m.RunDir != "research/2026-08-01_abandoned" {
-		t.Errorf("the refusal must not disturb the marker it refused over: %+v ok=%v", m, ok)
+	// BOTH ARE LIVE, and the abandoned one is still capturable — its row must not be displaced.
+	live := runlive.ReadRunLive(cfg.Cwd)
+	if len(live) != 2 {
+		t.Fatalf("the marker holds %d run(s), want both: %+v", len(live), live)
+	}
+	var names []string
+	for _, m := range live {
+		names = append(names, m.RunDir)
+	}
+	if !strings.Contains(strings.Join(names, " "), "research/2026-08-01_abandoned") {
+		t.Errorf("opening a second run displaced the first one's row: %v", names)
+	}
+
+	// AND NEITHER IS INFERRED. Two open runs means there is no single answer, so the thing that
+	// hands a run to an unflagged verb must decline rather than pick one.
+	if m, ok := runlive.ReadRunLiveMarker(cfg.Cwd); ok {
+		t.Errorf("with two runs open, inference still resolved one (%s) — that is the guess this replaces", m.RunDir)
 	}
 }
 
@@ -413,7 +436,7 @@ func TestSetupWillNotOpenASecondRunOverAnUnclosedOne(t *testing.T) {
 // gate must not be the thing that breaks it.
 func TestSetupStaysIdempotentForTheRunItsMarkerNames(t *testing.T) {
 	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
-	WriteRunLiveMarker(cfg.Cwd, runDir, nil, cfg.Now, "", "")
+	runlive.WriteRunLiveMarker(cfg.Cwd, runDir, nil, cfg.Now, "", "")
 
 	var out, errb bytes.Buffer
 	if code := Run(cfg, &out, &errb); code != 0 {

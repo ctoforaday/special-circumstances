@@ -1311,7 +1311,7 @@ func TestRunDirIsInferredFromTheLiveMarkerWhenTheFlagIsOmitted(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(proj, ".claude", "run-live.json"),
-		[]byte(`{"runDir":"research/live-run"}`), 0o644); err != nil {
+		[]byte(`{"runs":[{"runDir":"research/live-run"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", proj)
@@ -1336,7 +1336,7 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 		}
 	}
 	if err := os.WriteFile(filepath.Join(proj, ".claude", "run-live.json"),
-		[]byte(`{"runDir":"research/marker-run"}`), 0o644); err != nil {
+		[]byte(`{"runs":[{"runDir":"research/marker-run"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", proj)

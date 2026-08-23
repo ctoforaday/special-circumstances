@@ -27,8 +27,8 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/setup"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -1054,37 +1054,59 @@ func orQ(s string) string {
 // state that says the run is open.
 func closeRunLiveMarker(cwd, runDir string) string {
 	marker := filepath.Join(cwd, ".claude", "run-live.json")
-	// AND IT MUST BE THIS RUN'S MARKER, which nothing checked.
+	// THIS RUN'S ROW, AND ONLY THIS RUN'S.
 	//
-	// The marker is a singleton: one file naming the one open run. Capture removed it by PATH,
-	// never asking which run it named — so capturing run A while run B is live lifted B's
+	// The marker was a singleton: one file naming the one open run. Capture removed it by PATH,
+	// never asking which run it named — so capturing run A while run B was live lifted B's
 	// marker and reported "removed", which reads exactly like the correct outcome. Every later
-	// un-flagged verb in B then infers no run at all, and B's own capture finds nothing to close
-	// and says so in the words it uses for a run that was already clean.
+	// un-flagged verb in B then inferred no run at all, and B's own capture found nothing to
+	// close and said so in the words it uses for a run that was already clean.
 	//
 	// NEARLY DONE, 2026-08-22: a discarded run was about to be captured for its evidence while
 	// the next run was eleven minutes into its first round. Caught by reading this function
 	// rather than by anything in it.
-	if m, ok := setup.ReadRunLiveMarker(cwd); ok && !sameRunDir(cwd, m.RunDir, runDir) {
-		return "run-live marker: LEFT IN PLACE — it names " + m.RunDir + ", not the run being " +
-			"captured (" + runDir + "). Removing it would have closed a DIFFERENT run, and that " +
-			"run's own capture would then report nothing to close. Capture the run it names, or " +
-			"clear it deliberately if that run is abandoned"
-	}
-	_, serr := os.Stat(marker)
-	switch {
-	case serr == nil:
-		if rerr := os.Remove(marker); rerr != nil {
-			return "run-live marker: FOUND at " + marker + " and could NOT be removed: " + rerr.Error() +
-				" — the run still reads as live to every verb that infers its run directory"
+	//
+	// A path comparison guarded that. Per-run rows REMOVE it: the row this capture owns is the
+	// only one it can take, so there is no longer a case where taking the wrong one is possible
+	// and a check is what stands between (#529).
+	if _, err := os.Stat(marker); err != nil {
+		if os.IsNotExist(err) {
+			return "run-live marker: none at " + marker +
+				" — either it was already cleared, or capture is running from a directory that is not the project root, in which case the real marker is still there"
 		}
-		return "run-live marker: removed"
-	case os.IsNotExist(serr):
-		return "run-live marker: none at " + marker +
-			" — either it was already cleared, or capture is running from a directory that is not the project root, in which case the real marker is still there"
-	default:
-		return "run-live marker: could not be read at " + marker + ": " + serr.Error()
+		return "run-live marker: could not be read at " + marker + ": " + err.Error()
 	}
+	before := len(runlive.ReadRunLive(cwd))
+	found, remaining := runlive.RemoveRunLiveEntry(cwd, runDir)
+	switch {
+	case !found && remaining > 0:
+		// The file is there and does not mention this run. Not an error and not a clean close:
+		// something else is open and this run was never registered in it.
+		return "run-live marker: this run has no entry — " + otherRuns(remaining) +
+			" still open, and none of them is " + runDir +
+			". Nothing was removed; the open run(s) are unaffected"
+	case !found && before == 0:
+		// PRESENT AND NAMING NOTHING is its own answer, and it must not read like a clean close.
+		// It is what an unreadable marker looks like from here, and reporting "nothing to
+		// remove" would let a file that no reader can parse pass for an absent one — the same
+		// bytes for a broken state and a healthy one.
+		return "run-live marker: the file at " + marker + " exists but names NO open run — it is " +
+			"empty or unreadable, so nothing could be removed and no verb can infer a run from it. " +
+			"Delete it if it is residue"
+	case !found:
+		return "run-live marker: this run had no entry to remove"
+	case remaining > 0:
+		return "run-live marker: this run's entry removed — " + otherRuns(remaining) + " still open, so the marker file remains"
+	default:
+		return "run-live marker: removed"
+	}
+}
+
+// otherRuns names how many OTHER runs remain open, for a message that has to read naturally
+// either way. The package's own plural() takes two literals; this is the one place where the
+// count itself has to appear inside them.
+func otherRuns(n int) string {
+	return fmt.Sprintf("%d other run%s", n, plural(n, "", "s"))
 }
 
 // ---- precedent harvest ----
@@ -1683,23 +1705,6 @@ func ArchiveRecord(runDir, repoRoot string) (string, error) {
 		return "", err
 	}
 	return out, nil
-}
-
-// sameRunDir compares two run directories as PATHS, not as strings — the marker stores whatever
-// it was given (`research/x` from one invocation, an absolute path from another), so a string
-// compare would refuse to close the very run in progress. Mirrors setup.sameRun, which is
-// unexported and answers the same question at the other end of the run's life.
-func sameRunDir(projectDir, a, b string) bool {
-	abs := func(p string) string {
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(projectDir, p)
-		}
-		if r, err := filepath.Abs(filepath.Clean(p)); err == nil {
-			return r
-		}
-		return filepath.Clean(p)
-	}
-	return strings.EqualFold(abs(a), abs(b))
 }
 
 // ---- gap-class harvest ----
