@@ -152,3 +152,48 @@ gate and its remedy both driven, simulator 93 pass / 0 fail. The difftest golden
 (the help text did not change and the catalogue's probes do not reach the new refusal); the
 schema golden gained exactly one line, `"label" TEXT`. `qlty` is absent on this box, so the
 format/lint gate is SKIPPED rather than passed.
+
+## VI. The anchor model, audited (2026-08-23)
+
+Adding red's citations made a pre-existing question urgent: what happens to an anchor when the
+text under it changes? The audit answered it in three parts.
+
+**The no-loss promise HOLDS.** All five paths that mutate `blue/report.md` funnel through
+`MutateBlueReport`; `AnchorsTransitUnchanged` refuses a replacement that drops an anchor and
+`droppedMarker` backstops the whole edit. I initially called this a hole. It is not.
+
+**The transit was never DELIBERATE, which is the part that was broken.** `InsertAnchor` places a
+token before the terminal punctuation; `normalizeQuote` skips annotation spans and trims trailing
+punctuation. So a quote that omitted the marker still matched, and the span it located ended just
+short of it — meaning on the commonest edit there is, a whole-sentence rewrite, the guard never
+fired at all. Measured: a citation on *"The sky is blue and the grass is green"* followed the text
+to *"The sky is green and the grass is on fire"*, silently. The orphaned `now.<!--cite-->.` was the
+visible residue: `tidySeam` collapses an exact `..` pair only when the two are adjacent, and the
+marker sat between them.
+
+**Why the complexity existed at all**, since the code records it: `trailingPunct` is there because
+*"a quote may omit or include a terminal period the report has, or vice versa"* — seats type quotes
+by reading prose and are inconsistent about terminal punctuation. Every guard downstream is
+paying for one thing: **text is addressed by quoting it, and the quote is normalized, so span
+boundaries stop corresponding to the raw bytes.**
+
+**The operator's ruling: the markers ARE the mechanism.** Not block ids — positional addressing
+fails an LLM the way line numbers do. Not hidden markers — that was tried and broke worse. The
+markers stay real, stay visible, and stay in the edit stream, because `edit` mirrors how an agent
+actually edits any document: quote what is there, write what should be there. A seat that can SEE
+a token copies it like any other character.
+
+So the fix DELETES A TOLERANCE rather than adding machinery. The quote is the evidence of intent:
+contains the token → the span swallows the punctuation run and the token, the guard fires, and the
+terminator travels with the replacement; omits it → refused, with the token printed to carry.
+A fragment edit that does not reach the anchor stays legal, and `reopened` records that its
+sentence moved.
+
+**`sentence_hash` is burned.** No production reader, no prompt, no document — only its own test.
+Its job was "so blue can match an occurrence after edits move it", and blue cannot compute FNV-1a
+by hand. The anchors are the locator; that is what visible markers are FOR.
+
+**Not fixed, and worth stating:** `InsertAnchor` still places the token before the terminal
+punctuation. With the span now swallowing both, nothing depends on the side any more — but placing
+it after would let `tidySeam` see an adjacent pair unaided, which is one less thing balanced on an
+offset.
