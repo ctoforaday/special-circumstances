@@ -593,7 +593,7 @@ grep -rln "compaction-observations" --include=*.go --include=*.md plugins/ scrip
 substantive conclusion the plan relied on survives; the pasted evidence for it did not, and a census
 whose command returns 51 while the plan says 8 is the defect §III exists to prevent, committed by §III.
 
-### `[NEW] internal/stopnudge` + `cmd/sc-stop` — the nudge channel
+### `[NEW] internal/stopnudge` + `cmd/sc-stop` — the nudge channel · **stopnudge BUILT, inert until thresholds exist**
 
 `Stop` is the turn boundary: the natural unit of the operator's "it's been 100 turns", ~10× cheaper
 than a per-tool tick, and the only channel that gives the model a turn in which to respond.
@@ -616,7 +616,15 @@ looped nine times and burned 1,186 output tokens on filler. Therefore:
   band state. Belt and braces, because the two failure modes have different causes — one is our
   state file, one is the client's own re-entry.
 - A **loop regression test** asserts the null case: given a band already spent, the emission is
-  empty. This is the test that must never be deleted.
+  empty. This is the test that must never be deleted. **Built**, with ten more around it — the
+  `stop_hook_active` path (which suppresses with no state at all), the unwritable and corrupt
+  record paths (both fail closed), the cap surviving a re-armed band, session scoping, the floor,
+  unmeasured figures crossing nothing, and growth alone reaching URGENT.
+
+**An unconfigured nudge writes NO state file, and that is not an optimisation.** `nudge_enabled` is
+derived from `nudge.json`'s presence, so a build that created the file while inert would make every
+Phase 1 row claim the nudge was live — and criterion 6 would compare an "after" population against a
+"before" that is not one. The kill switch would be disarmed by the mechanism that had not yet fired.
 
 **The `PostToolUse` gauge tick is CUT, and this is a design change, not a wording fix.** It was
 specified as a cheap tick that "updates the measurement so `Stop` can decide quickly" — an
