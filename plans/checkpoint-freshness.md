@@ -198,20 +198,62 @@ twelve turns of bulk reading, or take 300 turns without moving the token count.
 | **Branch work** | `git rev-list --count --first-parent <note.head>..HEAD` | no |
 | *Proximity* | `Tokens / Ceiling` — **emitted only when `Ceiling` is known**, with its basis named | yes |
 
-**Reference point is `CHECKPOINT.md`'s mtime** — a fact the filesystem holds, that no writer can
-forget to update. The `updated:` frontmatter is read as a cross-check and a disagreement between
-the two is itself reportable, but mtime is the authority. **No new record is created to hold "when
-we last checkpointed"**; the note and the transcript already hold it.
+### The reference point is a FIELD, not the file's mtime — schema 3
+
+An earlier draft made **mtime the authority** — "a fact the filesystem holds, that no writer can
+forget to update" — with `updated:` as a cross-check. That is the wrong authority, and the audit's
+criterion-6 finding is what exposed it: **mtime records that the file was TOUCHED, and the design
+needs to know when its CONTENT last changed.** A "still accurate" re-affirmation moves mtime exactly
+as a rewrite does, so an age measured from mtime resets either way, and the kill switch cannot tell a
+fresher note from a touched one. Mitigating that downstream (three-valued `nudge_answered`,
+segmented medians, F6's cross-check) was treating the symptom: the fact was never in a field.
+
+**`CHECKPOINT.md` frontmatter goes to `schema: 3` and carries the facts the gauge reads:**
+
+| Field | Type | Meaning |
+|---|---|---|
+| `written_at` | `<UTC ISO>` | when the note's **body last changed**. This is the age reference point |
+| `reaffirmed_at` | `<UTC ISO\|null>` | when it was last confirmed still accurate without changing |
+| `body_sha` | `<hex>` | hash of the body below the frontmatter — makes "did the content change" **checkable** rather than claimed |
+
+**All three are flat scalars, which is why they fit.** §VI-b refuses `handles:` because it is a
+**list** and `internal/checkpoint.Parse` is deliberately not a YAML parser. That objection is about
+shape, not about frontmatter, and it does not reach a timestamp or a hash — the existing parser reads
+these with no change to its contract. §VI-b is narrowed accordingly rather than left to look like a
+blanket refusal.
+
+**What this retires.** Age is now `now − written_at`, immune to a touch; `reaffirmed_at` records the
+other event as its own fact instead of being inferred from a mtime that moved. **mtime is demoted to
+a cross-check** — the reverse of the earlier draft — and `body_sha` makes the cross-check decidable:
+a note whose `written_at` moved while `body_sha` did not is a mis-written note, and is reportable as
+an error rather than a disagreement someone has to adjudicate.
+
+**Carriers of the schema bump**, enumerated because a version surface changing is exactly what
+[[complete-the-concept]] sweeps for:
+
+| Carrier | Change |
+|---|---|
+| `skills/context-checkpointing/SKILL.md` | the schema block: `schema: 3`, three new fields, and the contract that a writer sets `written_at` + `body_sha` on a content change and `reaffirmed_at` otherwise |
+| `commands/checkpoint.md` | writes them; this is where "still accurate" becomes an artifact |
+| `internal/checkpoint` | no parser change (flat scalars); a `Note` accessor per field, and **schema-2 notes lack all three** |
+| `internal/checkpointrestore`, `checkpointseal`, `postcompactobserve`, `filechangedrearm` | read the note; additive fields, no behaviour change |
+| `gray-area/tools/internal/claims` | reads a sealed note's body — unaffected, the body is unchanged |
+| goldens under `internal/checkpoint*/testdata` | fixtures gain the fields |
+
+**Schema 2 notes must not read as age zero.** Nothing consumes the `schema:` key today (verified: it
+appears in comments and fixtures only), so the bump costs no migration — but a note without
+`written_at` is **`Unmeasured`, not fresh**, and the gauge reports it as such. That is the same
+tri-state discipline `Ceiling` already uses, applied to the field this design turns on.
 
 **One new file, and its fields are specified because a query reads them:**
 `.claude/checkpoints/freshness.json`, holding
 
 | Field | Why |
 |---|---|
-| `bands_spent` | which of NOTICE/WARN/URGENT have fired, **reset when the note's mtime moves** |
-| `emissions_this_session` | a monotone counter, **NOT reset by an mtime move** — criterion 4's cap is per session, and a counter that resets cannot enforce it |
+| `bands_spent` | which of NOTICE/WARN/URGENT have fired, **reset when the note is ANSWERED** — i.e. when `written_at` OR `reaffirmed_at` moves. Bands close on an answer; age tracks content. The skill clause makes a reasoned "still accurate" a valid answer, so it must close the band while leaving the age alone |
+| `emissions_this_session` | a monotone counter, **NOT reset by an answer** — criterion 4's cap is per session, and a counter that resets cannot enforce it |
 | `emission_bytes_max` | the largest render emitted, for criterion 4's ≤ 200 bytes |
-| `note_mtime_seen` | what the band reset is keyed on |
+| `answered_at_seen` | the latest of `written_at`/`reaffirmed_at` this file has observed — what the band reset is keyed on. A field, so a filesystem timestamp is not load-bearing anywhere in the mechanism |
 
 **The hard cap is here, and it is separate from the band policy.** Bands are "at most once per band
 per session, reset on write" — which permits three emissions per note-write cycle, so two checkpoint
@@ -487,13 +529,17 @@ done?"* — and for a spoken "still accurate" the answer is **nothing**. The dut
 into the conversation and leave no trace, so criterion 6's falsification could not distinguish a
 session that answered the nudge from one that ignored it. **The seal row therefore carries `nudge_answered`** — and it MUST be three-valued.
 
-> **A boolean here would have broken criterion 6, and audit caught it rather than Phase 3.** The age
-> reference point is `CHECKPOINT.md`'s mtime. A "still accurate" re-affirmation moves that mtime
+> **A boolean here would have broken criterion 6 — and chasing that is what exposed the real defect.**
+> The age reference point *was* `CHECKPOINT.md`'s mtime (it is now `written_at`, §III). A "still accurate" re-affirmation moves that mtime
 > **exactly as a real rewrite does**, so both reset note-age to ~0 and a boolean marks both `true`.
 > Criterion 6 — *median note-age-at-seal falls* — could then not distinguish **"the nudge made notes
 > fresher"** from **"the nudge trained agents to touch the note"**, and would report success for the
 > second. F6's `updated:`-vs-mtime cross-check does not catch it: the two agree, and only the
 > *content* is unchanged. The kill switch would have been disarmed by the mechanism it polices.
+>
+> **Schema 3 removes the cause**, so this three-valued field is no longer load-bearing for criterion
+> 6 — it survives as the diagnostic that says *how* the duty was discharged (§VI-c), and because an
+> `ignored` rate is F1's wallpaper signal whatever the medians do.
 
 The value goes in the **seal row**, a record with fields — not into `updated:`, which is `<UTC ISO>`
 under schema 2 and parsed by a deliberately flat-scalar reader, so a judgement composed into it would
@@ -541,9 +587,9 @@ editing L or I.
 | F1 | **The nudge becomes wallpaper** — and a context-pressure warning that costs context is self-defeating at exactly the moment it matters. | H×H×M | Bands, once per band; ≤ 200 bytes; reset on write; **criterion 6 removes it** if the baseline median does not fall. | Ph. 3 |
 | F2 | **Fabricated denominator.** | M×H×L | `Ceiling` tri-state with `Unknown` as a value callers must handle; criterion 2 is a test over the render. | Ph. 1 |
 | F3 | **Commit count reads other people's work as mine.** | H×M×L | `--first-parent`; no author filter (§II measured both). | Ph. 1 |
-| F4 | **Gauge cost on a hot path.** | M×M×L | Bounded tail; skip entirely when note mtime is unchanged and the band is current; criterion 3 is a measured gate. | Ph. 2 |
+| F4 | **Gauge cost on a hot path.** | M×M×L | Bounded tail; skip entirely when note mtime is unchanged and the band is current — mtime survives here as a **cheap short-circuit**, which is a performance question, not the measurement; criterion 3 is a measured gate. | Ph. 2 |
 | ~~F5~~ | ~~**Concurrent seats share `session_id`.**~~ **RETIRED** — no per-seat emitter exists: `sc-stop` is the only writer and `Stop` carries no `agent_*` fields (spike §12/§13); the only seat-bearing channel cannot emit (§10). Left in place rather than deleted, because it was a live risk until the `PostToolUse` tick was cut. | — | — | — |
-| F6 | **mtime lies** — a tool touches the note without rewriting it. | L×H×M | `updated:` cross-check; disagreement is reported rather than resolved silently. | Ph. 1 |
+| F6 | ~~**mtime lies** — a tool touches the note without rewriting it.~~ **LARGELY RETIRED**: age is read from `written_at`, not mtime (§III, schema 3), so a touch no longer resets it. What remains is a **writer** that sets `written_at` without changing the body — caught by `body_sha`, and reported as an error rather than adjudicated. | L×M×L | `body_sha` disagreement is an error; mtime demoted to cross-check. | Ph. 1 |
 | F7 | **Short sessions get lectured.** | M×L×L | Gauge arms only above a floor (a note exists, or the session crossed a turn/token floor). Below it, silent. | Ph. 3 |
 | F8 | **Age is read as truth.** A fresh note is not a correct note. | M×M×L | The skill clause says so; the render states a measure, never a verdict. gray-area's `/audit-checkpoint` remains the instrument for the note's *claims*, and the two are deliberately different tools. | Ph. 3 |
 | **F10** | **`Stop` injection loops** — measured, not theorised, and **worse on the current client**: 9 firings / 1,186 output tokens on 2.1.235, **16 firings / 35 assistant entries / 4,326 output tokens on 2.1.240** (spike §13). The cap is undocumented and moved between two patch versions. | **H×H×L** · residual after mitigation **L×M** | Write-before-emit; `stop_hook_active` as an independent second brake; a loop regression test asserting the empty emission on a spent band. §III. | Ph. 2 |
@@ -562,8 +608,9 @@ editing L or I.
 
 Coverage must include the negatives, which are the point: a tail containing **no** assistant entry;
 a truncated final line; a session with **no** compact boundary → `Ceiling: Unknown` **and no
-percentage in the render**; two boundaries → most recent wins; mtime and `updated:` disagreeing; a
-note head that is unreachable; a branch whose history contains merges → first-parent and plain
+percentage in the render**; two boundaries → most recent wins; **a schema-2 note lacking `written_at` → `Unmeasured`, NOT age zero**; `written_at`
+moved while `body_sha` did not → reported as an **error**, not adjudicated; a note head that is
+unreachable; a branch whose history contains merges → first-parent and plain
 counts differ; **a payload with no `background_tasks` key → `handles_measured: false` and NO
 `live_handles` field** (the `PreCompact`/`SessionEnd` case, measured §12); **and the case that
 discriminates — `background_tasks: []` PRESENT but empty → `handles_measured: true`, `live_handles:
@@ -791,25 +838,36 @@ what keeps this from being a scope increase wearing a census as justification.
 | **#508** | **SPLIT — four fire, three refuted, six unreachable** | Fire with usable payloads: `ConfigChange` `{source, file_path}`, `InstructionsLoaded` `{file_path, memory_type, load_reason}`, `CwdChanged` `{old_cwd, new_cwd}`, `FileChanged` `{file_path, event}`. Refuted for the shapes tested: `StopFailure` (hook exit 1), `PermissionRequest`/`PermissionDenied` (hook-issued deny). Not reachable in a headless harness: `Elicitation`/`ElicitationResult`, `Setup`, `TeammateIdle`, `WorktreeCreate`/`WorktreeRemove`, `DirectoryAdded`, `UserPromptExpansion` (§9b). | **Hard, and mostly not worth it.** Four usable signals, each invalidating a *named* part of the note — but each is one more emission path competing for the same ≤ 4-per-session budget that F1 already calls the main risk. |
 | **#509** | **CLOSED, negatively** | `SessionStart`'s payload has no model field at all; `message.model` reads `claude-opus-5` on a live `claude-opus-5[1m]` session; no `*limit*` field exists anywhere in a transcript (§9e). | **Nothing to fold in.** F2's tri-state `Ceiling` with `Unknown` is not a conservative choice pending better data — it is the only correct one, and `compactMetadata.preTokens` remains the sole denominator. |
 
-### VI-c. OPEN DECISION for the human: what criterion 6 is computed over
+### VI-c. Criterion 6's ambiguity — resolved by removing its cause, not by choosing a population
 
-Criterion 6 is the kill switch — *median note-age-at-seal falls, or the nudge comes out*. `reaffirmed`
-and `rewritten` **both** move `CHECKPOINT.md`'s mtime, so both reset the age to ~0. Which population
-the median is taken over therefore decides what the falsification can even detect:
+This section previously offered the human three ways to compute criterion 6's median, because
+`rewritten` and `reaffirmed` both moved `CHECKPOINT.md`'s mtime and the age therefore reset either
+way. All three were workarounds for a measurement taken from the wrong place.
 
-| Option | Criterion 6 computed over | What it rewards | What it misses |
-|---|---|---|---|
-| **A — rewrites only** | `nudge_answered == "rewritten"` | notes that actually changed | a nudge whose whole effect is re-affirmation scores as no effect, even where re-affirming was correct |
-| **B — all answered** | `rewritten` + `reaffirmed` | any response to the band | **cannot distinguish a fresher note from a touched one** — the failure the three-valued field exists to expose |
-| **C — segmented, no single verdict** | both reported side by side, kill-switch fires only if *neither* falls | honest about the ambiguity | no single number; the human reads two |
+**Resolved instead by putting the fact in a field** (§III, schema 3): age is `now − written_at`,
+which moves only when the **body** changes. A re-affirmation sets `reaffirmed_at` and leaves the age
+alone, so criterion 6's median is computed over **every seal**, with no population choice to make and
+nothing for a "touched" note to score.
 
-**This is not an editing fix and it is not the auditor's to make.** It decides what "the nudge
-worked" means, before any data exists to argue about — which is exactly the preregistration
-discipline criterion 6 imposes on everything else. **Recommendation: C**, because A and B each answer
-a question the other needs, and the whole reason `nudge_answered` is three-valued is that collapsing
-them is what a boolean already did wrong.
+| Was | Now |
+|---|---|
+| A — rewrites only | unnecessary: re-affirmation no longer inflates the median |
+| B — all answered | unnecessary: a touched note is not a fresher note by construction |
+| C — segmented, report both | **kept, but as a diagnostic rather than the verdict** — `nudge_answered`'s three values still say *how* the duty was discharged, and a high `ignored` rate is F1's wallpaper signal whatever the medians do |
+
+**The lesson is worth more than the fix.** Three rounds of audit hardened a measurement built on
+mtime — a three-valued field, a segmented median, a cross-check, a risk row — and none of them
+questioned the reference point. The plan's own §I says a fact another party acts on belongs in a
+field on a record; the age reference was a fact recovered from a filesystem timestamp, and the
+document arguing that principle did not apply it to its own primary measure.
 
 ### VI-b. Blocked: the note has no field for its handles
+
+> **Narrowed by §III's schema-3 change.** This section is about `handles:`, a **list**, and its
+> objection is about SHAPE: `internal/checkpoint.Parse` is deliberately not a YAML parser. It is not
+> an argument against frontmatter, and it does not reach the flat scalars `written_at`,
+> `reaffirmed_at` and `body_sha`, which the existing parser reads unchanged. What follows stands for
+> lists; it never stood for scalars, and an earlier draft let it read as a blanket refusal.
 
 #506's strong claim — *the note's "In-flight handles" section is provably wrong* — needs handle ids
 the note does not carry. `CHECKPOINT.md` **already is structured data**: versioned frontmatter
