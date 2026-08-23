@@ -100,16 +100,38 @@ func Gauge(st State, m ctxusage.Measure, b Branch) Measures {
 	// resets at a compaction — 1,001,875 to 12,823, measured — so the naive difference
 	// goes negative across one and the stalest note in the file reads as the freshest.
 	// Both terms are monotone, so their difference is too.
-	if st.HasWriteReading && m.TokensKnown {
+	if st.HasWriteReading && m.TokensKnown && comparable(st, m) {
 		now := m.Tokens
 		if m.DroppedKnown {
 			now += m.Dropped
 		}
 		then := st.TokensAtWrite + st.DroppedAtWrite
-		out.Growth, out.GrowthKnown = now-then, true
+		// Growth CANNOT be negative: both terms are monotone by construction. A negative
+		// result is proof the two sides are not comparable, whatever the flags said, so
+		// it is reported as unmeasured rather than rendered. Belt and braces with
+		// comparable() below, because the two catch different mistakes — one a missing
+		// term, the other an arithmetic that has gone wrong for a reason not foreseen.
+		if g := now - then; g >= 0 {
+			out.Growth, out.GrowthKnown = g, true
+		}
 	}
 
 	return out
+}
+
+// comparable reports whether the two sides of the growth subtraction are on the same
+// footing.
+//
+// THE ASYMMETRY THIS EXISTS TO STOP: the current side adds its dropped figure only when
+// known, while the stamped side always carries whatever was recorded. A note stamped
+// just after a compaction — when cumulativeDroppedTokens was visible — and gauged later
+// from a window that no longer holds a boundary would compute
+// 13,000 − 1,000,000 = −987,000 and report it as measured. That is the stalest note
+// reading as the freshest, which is the failure the design cites as its own reason.
+//
+// So: if the stamped side carries a dropped figure, the current side must too.
+func comparable(st State, m ctxusage.Measure) bool {
+	return st.DroppedAtWrite == 0 || m.DroppedKnown
 }
 
 // Observe stamps the write-time reading the first time a given note is seen, and

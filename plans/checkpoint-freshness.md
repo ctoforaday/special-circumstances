@@ -168,7 +168,7 @@ finds the refusal instead of re-deriving it.
 ```
 plugins/prosthetic-conscience/tools/
 ├── internal/
-│   ├── ctxusage/           [NEW]    transcript tail → {tokens, turns, ceiling|Unknown}
+│   ├── ctxusage/           [NEW]    transcript tail → {tokens, turns, dropped} · all tri-state
 │   ├── freshness/          [NEW]    the gauge: three measures, bands, debounce, one-line render
 │   ├── checkpointrestore/  [MODIFY] --first-parent defect; gauge in the restore digest
 │   ├── checkpointseal/     [MODIFY] stamp note-age onto every seal record
@@ -188,9 +188,8 @@ unmeasured turn count: for a genuinely old note a wider window does not reach ba
 second read cannot change the answer. Measured, when it did widen for turns: **p95 160 ms against a
 5 ms budget** with a 2 ms floor; probing first still put p50 at 5.9 ms, because it is a second file
 open on every call. Past one widen, report `Unmeasured` — a hook must not read 13 MB on a tick, and must not hang on a rotated or truncated
-file. Returns `Tokens` (exact), `Turns`, and `Ceiling`,
-which is `compactMetadata.preTokens` from **this session's own** most recent boundary or the
-distinct value `Unknown`.
+file. Returns `Tokens` (exact), `Turns`, and `Dropped`,
+which is `compactMetadata.cumulativeDroppedTokens` from the most recent boundary, or unmeasured. **`preTokens` is deliberately not read**: it was the only available denominator and this design renders no percentages.
 
 **Built, with two things the spec did not anticipate, both found by the cost gate.**
 
@@ -217,9 +216,9 @@ precisely the one whose earliest turns fall outside a bounded scan, so a truncat
 the stalest notes as the freshest — and a small number is indistinguishable from an honestly small
 one. The scan therefore checks whether it reached back past `written_at` before it reports at all:
 if the oldest entry in the window is newer than `written_at`, the answer is "I could not see far
-enough", not a number. Widening to 1 MB happens first; past that the miss is stated.
+enough", not a number. 
 
-`Unknown` is a case the type forces every caller to handle. It is never defaulted, never
+Every tri-state here forces its caller to handle the miss: the flag is a separate field, so a zero cannot be mistaken for an answer.
 substituted, never a zero. This is clause 3 made structural rather than remembered.
 
 ### `[NEW] internal/freshness` — the gauge · **BUILT**
@@ -348,21 +347,47 @@ unmentioned, because a census that lists only its hits cannot be checked against
 **Schema 2 notes must not read as age zero.** Nothing consumes the `schema:` key today (verified: it
 appears in comments and fixtures only), so the bump costs no migration — but a note without
 `written_at` is **`Unmeasured`, not fresh**, and the gauge reports it as such. That is the same
-tri-state discipline `Ceiling` already uses, applied to the field this design turns on.
+tri-state discipline every other figure here uses, applied to the field this design turns on.
 
-**One new file, and its fields are specified because a query reads them:**
-`.claude/checkpoints/freshness.json`, holding
+**TWO files, not one, and the split is a safety requirement rather than tidiness.**
+
+`freshness.json` is written by the two RECORD writers (the sealer and the compaction observer) via
+`json.Marshal` of a fixed struct — so **every write erases any key the struct does not declare**. Put
+the band state in there and an unrelated hook, firing on an unrelated event, silently destroys the
+record of which bands have been spent. **An erased band is a re-emission on `Stop`**, which is F10's
+sixteen-firing loop: the highest-rated risk in this plan, reached through a file layout.
+
+So: `freshness.json` holds the **gauge's** state, owned by the record writers. A second file,
+`.claude/checkpoints/nudge.json`, holds the **nudge's** state and is owned by `sc-stop` alone. One
+writer per file, no locking needed between them, and neither can erase the other. The gauge writers
+never read `nudge.json`; `sc-stop` reads `freshness.json` but does not write it.
+
+**`freshness.json` — the gauge's state, written by the record writers:**
 
 | Field | Why |
 |---|---|
 | Field | Built? | Why |
 |---|---|---|
 | `written_at_seen` | **yes** | the note's `written_at` as last observed — the key deciding whether the reading below still belongs to this note |
-| `tokens_at_write`, `dropped_at_write` | **yes** | growth's other term, which no record held. Both, so growth stays monotone across a compaction |
-| `has_write_reading` | **yes** | separates "stamped at zero" from "never stamped". This is the mechanism behind the "absent → `Unmeasured`, never 0" promise; without it a note first seen before this shipped reports its whole context as growth |
-| `bands_spent` | Phase 2 | which of NOTICE/WARN/URGENT have fired, **reset when the note is ANSWERED** — `written_at` OR `reaffirmed_at` moving. Bands close on an answer; age tracks content |
-| `emissions_this_session`, `emission_bytes_max` | Phase 2 | criterion 4's cap, counted rather than intended. **Not** reset by an answer |
-| `answered_at_seen` | Phase 2 | the later of `written_at`/`reaffirmed_at` at the moment a band was spent — what `nudge_answered`'s derivation compares against. It does not exist yet, and `nudge_answered` is `n/a` on every Phase 1 row for exactly that reason |
+| `tokens_at_write`, `dropped_at_write` | **yes** | growth's other term, which no record held. Both, so growth stays monotone across a compaction — **and both sides must be on the same footing**: if `dropped_at_write` is non-zero and the current read has no dropped figure, growth is `Unmeasured`, because subtracting a post-compaction stamp from a pre-compaction reading yields a large negative number that renders as the freshest note in the file |
+| `has_write_reading` | **yes** | separates "stamped at zero" from "never stamped". The mechanism behind the "absent → `Unmeasured`, never 0" promise |
+
+**`nudge.json` — the nudge's state, written by `sc-stop` alone (Phase 2):**
+
+| Field | Why |
+|---|---|
+| `bands_spent` | which of NOTICE/WARN/URGENT have fired. **Not cleared on an answer** — see below |
+| `answered_at_seen` | the later of `written_at`/`reaffirmed_at` at the moment a band was spent. This, not `bands_spent`, is what `nudge_answered` compares against |
+| `emissions_this_session`, `emission_bytes_max` | criterion 4's cap, counted rather than intended. Never reset |
+| `branch_head_seen`, `branch_commits_seen` | the per-`HEAD` branch cache criterion 3 requires, owned here because `sc-stop` is the only caller that runs per turn |
+
+**Bands re-arm without being erased.** An earlier draft said `bands_spent` is "reset when the note is
+answered", which made `nudge_answered` underivable: the derivation reads `bands_spent` to know a band
+fired, so clearing it on an answer left `rewritten` and `reaffirmed` unreachable and only `ignored`
+observable — the artifact that keeps the `SKILL.md` clause out of `unobservable-duty` would have
+reported nothing, by construction. Instead the spent record **stays**, and a band re-arms when
+`answered_at_seen` is older than the note's current `written_at`/`reaffirmed_at`. The fact is
+"which bands fired against which version of the note", and that is one fact, not two.
 
 **The hard cap is here, and it is separate from the band policy.** Bands are "at most once per band
 per session, reset on write" — which permits three emissions per note-write cycle, so two checkpoint
@@ -454,8 +479,8 @@ machine-read fact to live in a field.
 | `seal_trigger` | `precompact` \| `sessionend` \| `seat_return` — which event sealed — **built** |
 | `live_handles` | count of `background_tasks` entries with `type != "subagent"`, plus `session_crons` — **only when measurable**. Seats are excluded deliberately: at a `seat_return` seal the returning seat appears in the parent's own list (§12), and counting it reads high by exactly one while answering a different question from "did this note miss some background work" |
 | `handles_measured` | `false` when the payload carries no `background_tasks` key |
-| `nudge_enabled` | whether the nudge was live when this seal was written — criterion 6's falsification groups on it, and it must be recorded per row rather than inferred from dates |
-| `nudge_answered` | `rewritten` \| `reaffirmed` \| `ignored` \| **`n/a`** — three values plus the Phase 1 case, **derived by the sealer, not written by an agent**: if `bands_spent` is empty the value is `n/a` (Phase 1 ships with no nudge, so every row carries this); otherwise compare the note's `written_at` and `reaffirmed_at` against `freshness.json`'s `answered_at_seen` at the moment the band was spent — `written_at` newer → `rewritten`, `reaffirmed_at` newer → `reaffirmed`, neither → `ignored` |
+| `nudge_enabled` | whether the nudge was live when this seal was written — **read from the presence of `.claude/checkpoints/nudge.json`**, which only `sc-stop` creates and which exists from its first run in a session. Not a build tag (invisible to a consumer, and wrong the moment a binary is swapped), not an env var (unset in the hook's environment as often as not), not `hooks.json` (registered ≠ running). The file is written by the thing whose liveness is the question, so its existence IS the answer — criterion 6's falsification groups on it, and it must be recorded per row rather than inferred from dates |
+| `nudge_answered` | `rewritten` \| `reaffirmed` \| `ignored` \| **`n/a`** — three values plus the Phase 1 case, **derived by the sealer, not written by an agent**: if no band has fired the value is `n/a` (Phase 1 ships with no nudge, so every row carries this); otherwise compare the note's `written_at` and `reaffirmed_at` against `nudge.json`'s `answered_at_seen` — `written_at` newer → `rewritten`, `reaffirmed_at` newer → `reaffirmed`, neither → `ignored` |
 | `body_sha` | hash of the note's body, **computed here** from the snapshot this package already writes — not read from the note. Drift is a comparison between consecutive seal rows, which needs no prior value held anywhere else |
 | `emissions_this_session` | copied from `freshness.json`'s monotone counter at seal time, and `emission_bytes_max` beside it — **criterion 4's budget is stated as "counted in the observation row rather than intended", and until this field existed nothing counted it**. The debounce file already holds the number; the seal row is where it becomes checkable after the fact |
 
@@ -529,7 +554,7 @@ acts on cannot be checked against a re-run:
 | `internal/checkpointseal/{main.go,main_test.go,drift_test.go,hook_test.go}` | the package | **YES** — new writer plus tests. **`hook_test.go`'s `snapshots()` helper listed the whole directory**, so it counted `seals.jsonl` as a seal and broke five unrelated assertions the moment the record appeared. Scoped to `*.md`, the same rule `prune()` uses — a helper that measures more than the code manages is a carrier, and this census did not name it until the build hit it |
 | `commands/resume.md:7` | `--seals` tells the agent to list snapshots "with their sealed-at stamp, trigger and agent" — a **prompt-side contract against the comment string** | **No** — the stamp is unchanged. This is the carrier that makes the stamp load-bearing; retiring it starts here |
 | `internal/checkpoint/checkpoint.go:239` (`NoteLoopProblems`) + `checkpoint_test.go:101` | the note body. The test fixture contains `<!-- sealed: trigger=auto -->` — **a stamp shape the writer never emits** (it writes `event=`/`occasion=`) | **No** — `Parse` strips scaffolding and never reads the stamp's keys. Flagged because a fixture asserting a format nothing writes is how a format's real readers get miscounted |
-| `gray-area/tools/internal/claims/claims.go` + its tests | *"reads a sealed checkpoint note as a set of DECLARED CLAIMS"* — the note body | **No** — snapshot format unchanged |
+| `gray-area/tools/internal/claims/{claims_test.go, adjudicate_test.go}` | the two files the commands actually return — fixtures of a sealed note's body | **No** — snapshot format unchanged. (The package doc of `claims.go` describes reading a sealed note, but the file matches neither command and is listed here for the reader rather than as a census hit) |
 | `gray-area/commands/audit-checkpoint.md`, `gray-area/README.md` | the note's claims, agent-side | **No** |
 | `internal/checkpointrestore/*`, `internal/filechangedrearm/*`, `sessionstart`/`transcript`/`postcompactobserve` tests | the live note or the checkpoints directory | **No** — none reads a seal |
 | `commands/checkpoint.md`, `skills/{context-checkpointing,project-memory,validation-loop}/SKILL.md`, `README.md`, `requirements.json` | the note's path and schema, agent-side prose | **No** — `seals.jsonl` is machine-only; no agent must read it |
@@ -691,7 +716,7 @@ editing L or I.
 | F3 | **Commit count reads other people's work as mine.** | H×M×L | `--first-parent`; no author filter (§II measured both). | Ph. 1 |
 | F4 | **Gauge cost on a hot path.** | M×M×L | Bounded tail; **cache the PARSED NOTE keyed on mtime** — re-read the file only when mtime moves. mtime can save a *parse*; it cannot save the transcript read, which is the cost criterion 3 budgets, and it must never gate the MEASUREMENT: growth, turns and branch work all advance while the file sits untouched, which is the case this design exists to catch. | Ph. 2 |
 | F6 | **A writer advances `written_at` without changing the body** — the note claims to be fresh and is not. | L×M×L | `checkpointseal` computes `body_sha` from the snapshot it already takes; a `written_at` that advanced between two seals while the hash did not is reported as an **error**. Both sides are computed by the machine — neither is a value the note claims about itself. | Ph. 1 |
-| F7 | **Short sessions get lectured.** | M×L×L | Gauge arms only above a floor (a note exists, or the session crossed a turn/token floor). Below it, silent. | Ph. 3 |
+| F7 | **Short sessions get lectured.** | M×L×L | The gauge arms only above a **floor fixed here, not later**: a note exists AND (**≥ 20 assistant turns since it was written** OR **≥ 50,000 tokens grown**). Below that, silent — no band, no emission. The numbers are deliberately generous: a session that has done less than either has nothing a nudge could usefully say. Phase 2's acceptance asserts zero emissions below the floor, so the floor must exist by then. | **Ph. 2** |
 | F8 | **Age is read as truth.** A fresh note is not a correct note. | M×M×L | The skill clause says so; the render states a measure, never a verdict. gray-area's `/audit-checkpoint` remains the instrument for the note's *claims*, and the two are deliberately different tools. | Ph. 3 |
 | **F10** | **`Stop` injection loops** — measured, not theorised, and **worse on the current client**: 9 firings / 1,186 output tokens on 2.1.235, **16 firings / 35 assistant entries / 4,326 output tokens on 2.1.240** (spike §13). The cap is undocumented and moved between two patch versions. | **H×H×L** · residual after mitigation **L×M** | Write-before-emit; `stop_hook_active` as an independent second brake; a loop regression test asserting the empty emission on a spent band. §III. | Ph. 2 |
 | F11 | **`seals.jsonl` grows without bound** — deliberately not pruned, reversing the `keepSnapshots = 10` precedent beside it, whose comment cites a resource problem this repository already hit once. | L×L×L | A row is ~200 bytes and the file is gitignored: 20 boundaries ≈ 4 KB, a year of heavy use is single-digit MB. **Pruning is what made the old seal unusable as a record** (§III) — the baseline needs history. Phase 3 sets a retirement point if the measured row size exceeds the estimate. | Ph. 3 |
@@ -737,7 +762,7 @@ this repository today is schema 2, so a run against "a real `CHECKPOINT.md`" exe
    branch-work count hand-checked against its `head`;
 3. the token figure hand-checked against `tail -c 200000 … | jq '.message.usage'` on a live multi-MB
    transcript. **Done: 525,066 from a 3.1 MB transcript, matching `jq` exactly**, with `Turns`
-   correctly `Unmeasured` (the file exceeds the window) and `Ceiling` `Unknown` (that session had
+   correctly `Unmeasured` (the file exceeds the window) and `Dropped` unmeasured (that session had
    never compacted). Kept as `TestAgainstARealTranscript`, driven by `SC_REAL_TRANSCRIPT` and skipped
    without it — a machine-specific path must not turn into a red that means "not applicable here".
 
@@ -779,7 +804,8 @@ absent case and the honest zero are otherwise the same bytes:
 # Rows where the payload could not tell us are EXCLUDED, not counted as zero.
 jq -s '[.[] | select(.handles_measured)] | group_by(.live_handles > 0)
        | map({live_handles: .[0].live_handles > 0, n: length,
-              median_age: (map(.note_age_turns) | sort | .[length/2|floor])})' \
+              median_age: ([.[] | select(.turns_measured) | .note_age_turns] | sort | .[length/2|floor]),
+              turns_measured_n: ([.[] | select(.turns_measured)] | length)})' \
    .claude/checkpoints/seals.jsonl
 
 # ...and how much of the baseline that excluded, reported rather than inferred from a small n:
@@ -789,7 +815,8 @@ jq -s '{total: length, measured: ([.[] | select(.handles_measured)] | length)}' 
 # #507: how stale is the note at a seat return, against the other triggers?
 jq -s 'group_by(.seal_trigger)
        | map({trigger: .[0].seal_trigger, n: length,
-              median_age: (map(.note_age_turns) | sort | .[length/2|floor])})' \
+              median_age: ([.[] | select(.turns_measured) | .note_age_turns] | sort | .[length/2|floor]),
+              turns_measured_n: ([.[] | select(.turns_measured)] | length)})' \
    .claude/checkpoints/seals.jsonl
 ```
 
@@ -862,6 +889,22 @@ jq -s '{sealed_sessions: (group_by(.session_id) | length),
 If the sealed count is far below the sessions actually run, `worst_count` is measuring the sessions
 that ended tidily, which are not the ones the budget is protecting against.
 
+**F6's drift check, which is what makes `body_sha` a measurement rather than a stored string.**
+Nothing read it before; a hash with no reader is a column, not a check:
+
+```bash
+# A note whose written_at ADVANCED between two seals while its body hash did NOT is
+# claiming to be fresh without having changed. Reported as an error, not adjudicated.
+jq -s 'sort_by(.at) | [ .[] | {at, written_at, body_sha} ]
+       | . as $r | range(1; length) as $i
+       | select($r[$i].written_at > $r[$i-1].written_at and $r[$i].body_sha == $r[$i-1].body_sha)
+       | {at: $r[$i].at, written_at: $r[$i].written_at, note: "written_at advanced, body did not"}' \
+   .claude/checkpoints/seals.jsonl
+```
+
+Empty output is the healthy state — and, this being the shape this plan is about, an empty result is
+also what a query over an empty file returns, so it is run beside the row count above.
+
 **Did the duty get discharged, and which way** — the artifact that keeps the `SKILL.md` clause out
 of the `unobservable-duty` class. A field no check reads leaves the class alive one level up:
 
@@ -931,10 +974,18 @@ the boundary, and assert the negative: a short session below the F7 floor emits 
 Twenty more boundaries with the nudge live.
 
 ```bash
-jq -s '{before:      [.[]|select(.nudge_enabled==false)|.note_age_turns]|sort,
-        after_all:   [.[]|select(.nudge_enabled==true )|.note_age_turns]|sort,
-        after_rewritten: [.[]|select(.nudge_enabled==true and .nudge_answered=="rewritten")|.note_age_turns]|sort,
-        after_reaffirmed:[.[]|select(.nudge_enabled==true and .nudge_answered=="reaffirmed")|.note_age_turns]|sort}' \
+# EVERY array filters on turns_measured. A row with turns unmeasured omits the key, jq
+# yields null, sort places nulls FIRST, and the median index moves — on the statistic
+# that decides whether the nudge is removed.
+jq -s '[.[] | select(.turns_measured)] |
+       {before:           [.[]|select(.nudge_enabled==false)|.note_age_turns]|sort,
+        after_all:        [.[]|select(.nudge_enabled==true )|.note_age_turns]|sort,
+        after_rewritten:  [.[]|select(.nudge_enabled==true and .nudge_answered=="rewritten")|.note_age_turns]|sort,
+        after_reaffirmed: [.[]|select(.nudge_enabled==true and .nudge_answered=="reaffirmed")|.note_age_turns]|sort,
+        excluded_unmeasured: 0}' \
+   .claude/checkpoints/seals.jsonl
+# and the count this excluded, reported rather than inferred:
+jq -s '{total: length, turns_measured: ([.[]|select(.turns_measured)]|length)}' \
    .claude/checkpoints/seals.jsonl
 ```
 
