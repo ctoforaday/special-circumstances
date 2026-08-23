@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -229,5 +230,96 @@ func TestEachShimReportsItsOwnName(t *testing.T) {
 		if got := strings.Fields(out.String()); len(got) == 0 || got[0] != want {
 			t.Errorf("%s -version reported %q, want it to start with %q", event, out.String(), want)
 		}
+	}
+}
+
+// PRESENT BUT UNREADABLE IS NOT ZERO. The key exists, so "absent" does not apply; the
+// contents cannot be decoded, so no count is available. Writing 0 here would be the same
+// manufactured measurement the pointer types exist to prevent, arriving by a different
+// route: a malformed payload rather than a missing key.
+func TestUnreadableHandlesAreUnmeasuredNotZero(t *testing.T) {
+	// Valid JSON of the WRONG SHAPE, which is what can actually arrive: the client sends
+	// well-formed JSON, so a truncated array is not a reachable case — an earlier draft of
+	// this test asserted one and could not even build the payload.
+	for _, bad := range []string{`{"not":"an array"}`, `"a string"`, `42`, `[1,2,3]`} {
+		raw := json.RawMessage(bad)
+		dir := sealWith(t, hookInput{
+			SessionID: "s1", HookEventName: evSubagentStop, BackgroundTasks: &raw,
+		}, evSubagentStop)
+		r := rows(t, dir)[0]
+		if r["handles_measured"] != false {
+			t.Errorf("background_tasks=%s reported handles_measured=%v", bad, r["handles_measured"])
+		}
+		if _, present := r["live_handles"]; present {
+			t.Errorf("background_tasks=%s produced live_handles=%v; it must be omitted", bad, r["live_handles"])
+		}
+	}
+}
+
+// session_crons is the other half of the count and had no test of its own: a malformed
+// crons array must also make the whole figure unmeasured rather than counting only the
+// tasks. A partial count is a number for a question nobody asked.
+func TestUnreadableCronsMakeTheWholeCountUnmeasured(t *testing.T) {
+	tasks := json.RawMessage(`[{"id":"a","type":"shell"}]`)
+	crons := json.RawMessage(`{"not":"an array"}`)
+	dir := sealWith(t, hookInput{
+		SessionID: "s1", HookEventName: evSubagentStop,
+		BackgroundTasks: &tasks, SessionCrons: &crons,
+	}, evSubagentStop)
+	r := rows(t, dir)[0]
+	if r["handles_measured"] != false {
+		t.Errorf("handles_measured=%v with an unreadable session_crons; a partial count is not a measurement", r["handles_measured"])
+	}
+}
+
+// The seal must survive a checkpoints directory it cannot write to. It runs at PreCompact,
+// so failing there risks the compaction; the snapshot and the row are both worth less than
+// the boundary completing.
+func TestASealSurvivesAnUnwritableCheckpointsDirectory(t *testing.T) {
+	dir := t.TempDir()
+	cp := filepath.Join(dir, ".claude", "checkpoints")
+	writeNote(t, filepath.Join(cp, "CHECKPOINT.md"), rowNote)
+	if err := os.Chmod(cp, 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(cp, 0o755) })
+
+	_, _, code := call(t, input(t, hookInput{SessionID: "s1", HookEventName: evPreCompact}), dir,
+		time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC), "-event", evPreCompact)
+	if code != 0 {
+		t.Errorf("exit = %d, want 0 — a failing PreCompact seal risks the compaction itself", code)
+	}
+}
+
+// growth_since is what stops "growth" being read as growth since the note was WRITTEN.
+// Nothing observes a note at its write, so the baseline is taken at the first boundary,
+// and a row carrying the number without the moment invites exactly that misreading.
+func TestARowWithGrowthCarriesTheMomentItWasMeasuredFrom(t *testing.T) {
+	dir := t.TempDir()
+	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), rowNote)
+	tp := filepath.Join(dir, "t.jsonl")
+	entry := func(tokens int) string {
+		return `{"type":"assistant","timestamp":"2026-08-23T00:30:00Z","message":{"usage":{"input_tokens":0,"cache_read_input_tokens":` +
+			strconv.Itoa(tokens) + `,"cache_creation_input_tokens":0}}}`
+	}
+	if err := os.WriteFile(tp, []byte(entry(100_000)+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	in := hookInput{SessionID: "s1", HookEventName: evPreCompact, TranscriptPath: tp}
+	call(t, input(t, in), dir, time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC), "-event", evPreCompact)
+
+	// Second boundary, more context: now growth is real and must name its origin.
+	if err := os.WriteFile(tp, []byte(entry(100_000)+"\n"+entry(160_000)+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	call(t, input(t, in), dir, time.Date(2026, 8, 23, 2, 0, 0, 0, time.UTC), "-event", evPreCompact)
+
+	got := rows(t, dir)
+	last := got[len(got)-1]
+	if last["growth_measured"] != true {
+		t.Fatalf("second row has no growth: %v", last)
+	}
+	if last["growth_since"] == nil || last["growth_since"] == "" {
+		t.Error("growth reported with no growth_since; a reader cannot tell what interval it covers")
 	}
 }
