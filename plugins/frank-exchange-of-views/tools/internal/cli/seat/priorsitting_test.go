@@ -76,3 +76,44 @@ func TestAFailedCheckSaysSoRatherThanReadingAsClean(t *testing.T) {
 		t.Errorf("a failed check rendered as a discard warning:\n%s", h)
 	}
 }
+
+// A DISPATCHED SEAT WHOSE IDENTITY NEVER ARRIVED IS TOLD, WHILE ITS SITTING IS STILL RUNNING.
+//
+// The record already handles this correctly at the write (absent recorded as absent) and capture
+// already reports it hours later. Nothing told the SEAT. Measured: in
+// research/2026-08-22_is-7-prime all FOURTEEN registers carry no agent_id — the hook never fired
+// for that run — so every later call was refused "this agent has not registered" whatever shape
+// it took. That message was returned 92 times across the session and was false every time.
+func TestASeatWhoseIdentityNeverArrivedIsToldWhatToDo(t *testing.T) {
+	h := registerResult{SeatID: "red-lens-r1-L1", Nonce: "7a6b912e", IdentityAbsent: true}.Human()
+	for _, want := range []string{
+		"registered red-lens-r1-L1",
+		"YOUR IDENTITY DID NOT REACH THE TOOL",
+		"PASS --seat-id ON EVERY CALL",
+		"DO NOT REGISTER AGAIN",
+		"rotates your shard nonce",
+	} {
+		if !strings.Contains(h, want) {
+			t.Errorf("the advisory does not carry %q:\n%s", want, h)
+		}
+	}
+}
+
+// AND IT IS AN ADVISORY, NOT A REFUSAL. Refusing would wedge a run whose only fault is a hook
+// that did not fire — the seat can work perfectly well by passing --seat-id, and a run that
+// cannot start is strictly worse than one that starts knowing.
+func TestTheIdentityAdvisoryDoesNotDisplaceTheRegistration(t *testing.T) {
+	h := registerResult{SeatID: "blue-lane-1", Nonce: "b647e93a", IdentityAbsent: true}.Human()
+	if !strings.HasPrefix(h, "registered blue-lane-1 (shard nonce b647e93a)") {
+		t.Errorf("the registration line is no longer first:\n%s", h)
+	}
+}
+
+// THE ORDINARY CASE STAYS SILENT HERE TOO. Every seat in a healthy run registers with an agent
+// id, so a warning on that path would be noise on every register in every run.
+func TestAnArrivedIdentitySaysNothing(t *testing.T) {
+	h := registerResult{SeatID: "blue-lane-2", Nonce: "a2d8351d"}.Human()
+	if strings.Contains(h, "YOUR IDENTITY") {
+		t.Errorf("a healthy register grew an advisory:\n%s", h)
+	}
+}
