@@ -46,7 +46,7 @@ func TestConcurrentSeatsRace(t *testing.T) {
 					Impact:     recordtest.P(recordpb.Grade_GRADE_HIGH),
 					Text:       proto.String(strings.Repeat("finding prose ", 20)),
 				}
-				if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, f); err != nil {
+				if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, f); err != nil {
 					errs <- err
 					continue
 				}
@@ -122,7 +122,7 @@ func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Now()
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("over an abandoned lock")}); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("over an abandoned lock")}); err != nil {
 		t.Fatalf("append over an abandoned lock file: %v", err)
 	}
 	if elapsed := time.Since(start); elapsed > lockWait {

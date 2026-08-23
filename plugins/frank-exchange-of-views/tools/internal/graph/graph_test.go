@@ -21,7 +21,7 @@ func TestGapHoleHeuristic(t *testing.T) {
 			// `evidence-rebutted`, which is not a ClosureClass and never was — untyped it read as
 			// a closure with a class, and typed it cannot be written at all.
 			"MERGE_CLOSED": {ID: "MERGE_CLOSED", Open: false, Mint: mint(), Closure: &recordpb.Close{
-				ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REBUTTAL_SUSTAINED),
+				ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_NOT_A_DEFECT),
 			}},
 			// TORN is a closure carrying NO class — which is the whole condition, and which the
 			// schema expresses by absence rather than by an unrecognised word.

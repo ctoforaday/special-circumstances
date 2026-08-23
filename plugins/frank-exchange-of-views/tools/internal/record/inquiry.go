@@ -294,6 +294,23 @@ func RequireInquiryRef(runDir, id string) error {
 func CurrentRound(b *Board) int {
 	max := 0
 	for _, e := range b.Events {
+		// A BARE DISPATCH IS NOT A ROUND. `register` is every seat's first act and says only that
+		// it was seated — it decides nothing and records no work — so counting it advances the
+		// board's idea of "now" past every earlier seat and leaves their round-scoped duties
+		// permanently unsatisfiable.
+		//
+		// MEASURED 2026-08-21, and it cost a seat its sitting. A round-1 merge discharged its
+		// round-1 duty, was told the act succeeded, and found the projection still demanding it.
+		// It retried ten to twelve times — different wording, different formatting, inline and
+		// from a file — then filed friction reporting that the tool returned success and nothing
+		// persisted. The events had persisted perfectly: CurrentRound was 2, and the only round-2
+		// event on that board was `judge-r2` calling `register`.
+		//
+		// The seat's own summary is the argument for this line: "A seat can't trust its own
+		// actions. I can't tell if the tool accepted my command or silently failed."
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
+			continue
+		}
 		// An event with no round reads as 0, which is what the old `int` field held when the key
 		// was absent — round 0 is a real round, so there is nothing here for presence to say.
 		if r := int(e.GetRound()); r > max {

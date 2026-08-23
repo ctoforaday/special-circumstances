@@ -199,7 +199,6 @@ func ArtifactStateOf(class string) (ArtifactState, bool) {
 	return ArtifactUnknown, true
 }
 
-
 type EnumField struct {
 	Key  string // the payload key the value lands in
 	Flag string // the flag a seat types — NOT derived: payload keys are not globally

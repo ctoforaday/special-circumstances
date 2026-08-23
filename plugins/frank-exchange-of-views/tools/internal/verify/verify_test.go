@@ -35,9 +35,9 @@ func TestGapsDisposedAcceptsBothClosureFields(t *testing.T) {
 			// old map-shaped payload let one field hold either — which is why every reader spelled
 			// the same question twice.
 			"C1": {ID: "C1", Open: false, Closure: &recordpb.Close{
-				ClosureClass: recordpb.Disposition_DISPOSITION_CLOSED.Enum()}},
+				ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 			"C2": {ID: "C2", Open: false, BenchClosure: &recordpb.Opinion{
-				Disposition: recordpb.Disposition_DISPOSITION_REBUTTAL_SUSTAINED.Enum()}},
+				Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()}},
 			"OPEN": {ID: "OPEN", Open: true}, // ignored
 			// Closed with NO stated reason: a Close whose class was never set. The old fixture
 			// wrote an unrelated key to express that; absence is now the honest way to say it.
@@ -76,7 +76,7 @@ func TestDialecticRefsResolve(t *testing.T) {
 		Events: []*record.Event{
 			recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{
 				GapId:       proto.String("R1-1"),
-				Disposition: recordpb.Disposition_DISPOSITION_CLOSED.Enum(),
+				Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			}),
 			recordtest.Event(t, "blue-r1", 1, &recordpb.Closing{GapId: proto.String("PHANTOM")}),
 		},
@@ -149,12 +149,12 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 		GapOrder: []string{"G1", "G2"},
 		Gaps: map[string]*record.Gap{
 			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{FoundBy: []string{"L5-F1"}}},
-			"G2": {ID: "G2", Open: false, BenchClosure: &recordpb.Opinion{Disposition: recordpb.Disposition_DISPOSITION_CLOSED.Enum()}},
+			"G2": {ID: "G2", Open: false, BenchClosure: &recordpb.Opinion{Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 		},
 		Events: []*record.Event{
 			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Finding{Label: proto.String("L5-F1")}), // minted
 			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Finding{Label: proto.String("L5-F2")}), // un-minted
-			recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{GapId: proto.String("G2"), Disposition: recordpb.Disposition_DISPOSITION_CLOSED.Enum()}),
+			recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{GapId: proto.String("G2"), Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}),
 			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Verify{Claim: proto.String("c1"), Anchor: proto.String("r1")}),
 			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Verify{Claim: proto.String("c2"), Anchor: proto.String("r2")}),
 			recordtest.Event(t, "judge-r1", 1, &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("the ceiling was reached")}),
@@ -297,7 +297,7 @@ func TestAHeldCheckIsNotMarkedNA(t *testing.T) {
 		Events:   []*record.Event{recordtest.Event(t, "", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"R1-1"},
 		Gaps: map[string]*record.Gap{
-			"R1-1": {ID: "R1-1", Open: false, Closure: &recordpb.Close{ClosureClass: recordpb.Disposition_DISPOSITION_CLOSED.Enum()}},
+			"R1-1": {ID: "R1-1", Open: false, Closure: &recordpb.Close{ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 		},
 	}
 	got := find(t, Run(b), "pass-closes-all-gaps")

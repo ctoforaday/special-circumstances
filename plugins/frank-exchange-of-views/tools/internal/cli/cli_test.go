@@ -842,7 +842,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 		t.Errorf("close said %q", out)
 	}
 	ev := lastBody(t, runDir, &recordpb.Close{})
-	if got := ev.GetClosureClass(); got != recordpb.Disposition_DISPOSITION_CLOSED {
+	if got := ev.GetClosureClass(); got != recordpb.Disposition_DISPOSITION_REPAIRED {
 		t.Errorf("closure_class = %q, want the default \"closed\"", got)
 	}
 

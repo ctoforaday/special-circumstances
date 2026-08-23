@@ -27,8 +27,8 @@ import (
 // of many — the fuzzer, the probe harness and every fixture append through this path.
 func TestAnOutcomeWithoutAVerdictIsRefused(t *testing.T) {
 	runDir := t.TempDir()
-	id := Identity{RunDir: runDir, SeatID: "judge-r1", Round: RoundOf("judge-r1")}
-	if _, _, err := RegisterSeat(id); err != nil {
+	id := Identity{RunDir: runDir, SeatID: "judge-r1", Round: RoundIn(runDir)("judge-r1")}
+	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
 

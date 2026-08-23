@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"os"
 	"path/filepath"
 	"strings"

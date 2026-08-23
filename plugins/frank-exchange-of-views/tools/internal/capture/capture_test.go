@@ -1,6 +1,9 @@
 package capture
 
 import (
+	"archive/tar"
+	"compress/gzip"
+	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
@@ -125,36 +128,26 @@ func TestTelemetryAudit(t *testing.T) {
 func frictionRun(t *testing.T, seat, agentID string, wrote string) string {
 	t.Helper()
 	dir := t.TempDir()
-	recs := filepath.Join(dir, "records")
-	if err := os.MkdirAll(recs, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	var lines [][]byte
-	reg := record.NewPayload().Set("tool_version", "test")
+	// agent_id IS A FIELD ON THE REGISTER now, not a payload key — and it is only SET when the
+	// hook supplied one, because a run whose hook never fired must stay legible as "not measured"
+	// rather than as an agent whose handle is the empty string.
+	reg := &recordpb.Register{ToolVersion: proto.String("test")}
 	if agentID != "" {
-		reg = reg.Set("agent_id", agentID)
+		reg.AgentId = proto.String(agentID)
 	}
-	add := func(e record.Event) {
-		b, err := record.MarshalEvent(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		lines = append(lines, append(b, '\n'))
+	evs := []*recordpb.Event{recordtest.At(t, seat, 1, seat+":register:#1", reg)}
+	switch wrote {
+	case "friction":
+		evs = append(evs, recordtest.At(t, seat, 1, seat+":friction:#1",
+			&recordpb.Friction{Text: proto.String("the seat's own words, recorded")}))
+	case "friction-none":
+		evs = append(evs, recordtest.At(t, seat, 1, seat+":friction_none:#1",
+			&recordpb.FrictionNone{Text: proto.String("the seat's own words, recorded")}))
+	case "":
+	default:
+		t.Fatalf("frictionRun does not know how to write %q", wrote)
 	}
-	add(record.Event{SeatID: seat, Nonce: "0000000a", Round: 1, Type: "register",
-		Key: seat + ":register:0000000a", Payload: reg})
-	if wrote != "" {
-		add(record.Event{SeatID: seat, Nonce: "0000000a", Round: 1, Type: wrote,
-			Key:     seat + ":" + wrote + ":1",
-			Payload: record.NewPayload().Set("reason", "the seat's own words, recorded")})
-	}
-	var all []byte
-	for _, l := range lines {
-		all = append(all, l...)
-	}
-	if err := os.WriteFile(filepath.Join(recs, "events-"+seat+"-0000000a.jsonl"), all, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	recordtest.Seed(t, dir, evs...)
 	return dir
 }
 
@@ -435,7 +428,7 @@ func TestHarvestPrecedents(t *testing.T) {
 	board := &record.Board{Events: []*record.Event{
 		recordtest.Event(t, "judge-r2", 2, &recordpb.Opinion{
 			GapId:       proto.String("R2-3"),
-			Disposition: recordpb.Disposition_DISPOSITION_RISK_ACCEPTED.Enum(),
+			Disposition: recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED.Enum(),
 		}),
 		// The petition's FILER is on the motion event, not on the ruling — the ruling names
 		// only the motion. Harvesting the petitioner means joining the two.

@@ -31,6 +31,7 @@ package fuzz
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -626,10 +627,11 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// A PRIOR ROUND'S CLOSURE, which is the only thing a carry can restate. `--carried-from`
 	// names the round, and a close keys on gap_id, so carrying a gap closed in THIS sitting is a
 	// duplicate the record refuses.
-	if prior := r.closedInARoundBefore(record.RoundOf(seatID)); len(prior) > 0 {
+	round, _ := record.RoundOf(seatID)
+	if prior := r.closedInARoundBefore(round); len(prior) > 0 {
 		carried := prior[r.rng.Intn(len(prior))]
 		carry := []string{"merge", "carry", "--seat-id", seatID, "--id", carried,
-			"--carried-from", strconv.Itoa(record.RoundOf(seatID) - 1), "--as", "closed"}
+			"--carried-from", strconv.Itoa(round - 1), "--as", "repaired"}
 		// THE EXEMPTION ITSELF, half the time. A carry restates a closure an earlier round already
 		// argued, so it owes no fresh argument — and nothing drove the no-reason form, which is
 		// how the annotation deleted it silently. Both shapes are legal and both are driven.
@@ -766,9 +768,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 	// sits rarely (5 frictions in the whole sweep), and 30% of rarely is a path the coverage gate
 	// reports as missing while the drive is right there.
 	if r.coin(60) {
-		r.do(role, "friction", seatID).set("--reason", "fuzz friction from "+seatID).run()
+		r.do("friction", seatID).set("--reason", "fuzz friction from "+seatID).run()
 	} else {
-		r.do(role, "friction", seatID).bare("--none").set("--reason", "fuzz: nothing blocked "+seatID).run()
+		r.do("friction", seatID).bare("--none").set("--reason", "fuzz: nothing blocked "+seatID).run()
 	}
 	// line of inquiry carries an optional --method; feed it sometimes so that flag is exercised too.
 	// #246: a line of inquiry now has an id and a LIFECYCLE. Propose, then sometimes move it — the
@@ -829,7 +831,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		//
 		// A coin is the wrong shape for a duty. What varies between runs is what the review FINDS,
 		// not whether the read happened.
-		r.do("merge", "inquiry-support", seatID).
+		r.do("inquiry-support", seatID).
 			set("--reason", "fuzz: read the report against the lines on the record; the treatment matches").run()
 		// ONE MOTION DRIVER, AND THERE WERE BRIEFLY TWO.
 		//
@@ -2718,13 +2720,13 @@ func (r *runner) answerInquiryRulings(seatID string) {
 			// `contests_ruling` field is still exercised by the move below either way.
 			_, _ = r.exec("motion", "inquiry", "appeal", "--seat-id", seatID, "--id", a.ID,
 				"--reason", "fuzz: the scope call is wrong, this bears on the core claim")
-			r.do("blue", "line-of-inquiry move", seatID).set("--id", a.ID).set("--as", "pursued").
+			r.do("line-of-inquiry move", seatID).set("--id", a.ID).set("--as", "pursued").
 				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").run()
 		case ruling == "endorsed":
-			r.do("blue", "line-of-inquiry move", seatID).set("--id", a.ID).set("--as", "pursued").
+			r.do("line-of-inquiry move", seatID).set("--id", a.ID).set("--as", "pursued").
 				set("--reason", "fuzz: endorsed, taking it up").run()
 		default:
-			r.do("blue", "line-of-inquiry move", seatID).set("--id", a.ID).set("--as", "declined").
+			r.do("line-of-inquiry move", seatID).set("--id", a.ID).set("--as", "declined").
 				set("--reason", "fuzz: accepting the ruling").run()
 		}
 	}
@@ -2804,7 +2806,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 				case !strings.Contains(string(cur), fo):
 					r.noteApplyMiss("the proposed span is no longer in the report (an earlier edit moved it)")
 				default:
-					if _, err := r.do("blue", "edit", seatID).set("--quote", fo).set("--new", fn).
+					if _, err := r.do("edit", seatID).set("--quote", fo).set("--new", fn).
 						set("--answers", id).set("--reason", "fuzz: applying red's proposed text verbatim").run(); err != nil {
 						r.noteApplyMiss("blue edit REFUSED: " + firstLine(err.Error()))
 						break

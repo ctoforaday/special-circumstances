@@ -233,7 +233,7 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("an open problem"), Location: proto.String("§2"), RequiredFix: proto.String("do the thing"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		recordtest.At(t, seatID, 1, seatID+":mint:R1-2", &recordpb.Mint{GapId: proto.String("R1-2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("a closed problem"), Location: proto.String("§3")}),
 		recordtest.At(t, seatID, 1, seatID+":mint:R1-3", &recordpb.Mint{GapId: proto.String("R1-3"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("an unclassed problem"), Location: proto.String("§4")}),
-		recordtest.At(t, seatID, 1, seatID+":close:R1-2", &recordpb.Close{GapId: proto.String("R1-2"), Prose: proto.String("verified at the leaf"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION), Successor: proto.String("R1-3"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
+		recordtest.At(t, seatID, 1, seatID+":close:R1-2", &recordpb.Close{GapId: proto.String("R1-2"), Prose: proto.String("verified at the leaf"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION), Successor: proto.String("R1-3"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
 	})
 	open, closed, err := Counts(runDir)
 	if err != nil {
@@ -353,7 +353,7 @@ func TestTelemetryIsComputed(t *testing.T) {
 		// closure class without a successor, so the fixture cannot express the half-state.
 		recordtest.At(t, r2, 2, r2+":close:R1-1", &recordpb.Close{
 			GapId:        proto.String("R1-1"),
-			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION),
+			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION),
 			Successor:    proto.String("R2-1"),
 			Prose:        proto.String("verified at the leaf"),
 		}),
@@ -532,7 +532,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 		}),
 	})
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED), Principle: proto.String("correctness first"), Tension: proto.String("speed against certainty"), ReviewFlag: proto.String("none"), Rationale: proto.String("because")}),
+		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Principle: proto.String("correctness first"), Tension: proto.String("speed against certainty"), ReviewFlag: proto.String("none"), Rationale: proto.String("because")}),
 	})
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, lens, 1, lens+":verify:https://x", &recordpb.Verify{Claim: proto.String("the source says so"), Anchor: proto.String("c-abc"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_MEDIUM), Text: proto.String("read at the leaf"), AccessDate: proto.String("2026-07-18")}),

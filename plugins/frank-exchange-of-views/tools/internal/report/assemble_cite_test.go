@@ -95,7 +95,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		Title:      proto.String("Coherence Proof"),
 		AccessDate: proto.String("2026-08-03"),
 	}
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "blue-synth-r0", Round: record.RoundOf("blue-synth-r0")}, cite); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "blue-synth-r0", Round: record.RoundIn(runDir)("blue-synth-r0")}, cite); err != nil {
 		t.Fatal(err)
 	}
 

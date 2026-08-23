@@ -26,9 +26,10 @@ import (
 // this regrows is somebody restoring "the id it votes on" without noticing the event has nowhere to
 // put it. So the absence is asserted rather than assumed.
 func TestTheInquiryReviewOffersNoRetiredFlags(t *testing.T) {
-	c := NewCommand()
+	// Verbs(), not a role-scoped tree: the merge surface is assembled by the root from this list,
+	// so asking it directly is asking the same question one construction step earlier.
 	var review *cobra.Command
-	for _, sub := range c.Commands() {
+	for _, sub := range Verbs() {
 		if sub.Name() == "inquiry-support" {
 			review = sub
 			break

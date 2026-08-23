@@ -1,6 +1,9 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
 	"time"
@@ -16,13 +19,17 @@ const liveStamp = "2006-01-02T15:04:05.000000000Z07:00"
 func runWithCadence(t *testing.T, n int, gap time.Duration, last time.Time) string {
 	t.Helper()
 	dir := t.TempDir()
-	evs := make([]Event, 0, n)
+	evs := make([]*Event, 0, n)
 	for i := 0; i < n; i++ {
-		e := ev("red-lens-r1-L1", "aaaaaaaa", i, 1, "finding", "k"+itoaT(i), nil)
-		e.TS = last.Add(-time.Duration(n-1-i) * gap).UTC().Format(liveStamp)
-		evs = append(evs, e)
+		ts := last.Add(-time.Duration(n-1-i) * gap).UTC().Format(liveStamp)
+		evs = append(evs, recordtest.Stamped(
+			recordtest.At(t, "red-lens-r1-L1", 1, "red-lens-r1-L1:finding:k"+itoaT(i), &recordpb.Finding{
+				FindingId: proto.String("F" + itoaT(i)),
+				Label:     proto.String("L1-F" + itoaT(i)),
+				Text:      proto.String("a finding"),
+			}), ts))
 	}
-	writeShard(t, dir, "red-lens-r1-L1", "aaaaaaaa", evs)
+	writeShard(t, dir, evs)
 	return dir
 }
 

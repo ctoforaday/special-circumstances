@@ -54,11 +54,11 @@ func TestEveryMotionSubjectNamesItsRuler(t *testing.T) {
 func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 	runDir := t.TempDir()
 	for _, sid := range []string{"blue-respond-r1", "red-merge-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: sid, Round: RoundOf(sid)}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: sid, Round: RoundIn(runDir)(sid)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, &recordpb.Motion{
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 		Basis:    proto.String("the run is proceeding past a safety objection"),

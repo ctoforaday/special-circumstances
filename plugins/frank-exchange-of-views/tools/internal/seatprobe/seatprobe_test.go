@@ -31,7 +31,7 @@ func writeRun(t *testing.T, events []struct {
 		if e.payload == nil {
 			continue
 		}
-		if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: e.seat, Round: record.RoundOf(e.seat)}, e.payload); err != nil {
+		if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: e.seat, Round: record.RoundIn(runDir)(e.seat)}, e.payload); err != nil {
 			t.Fatalf("append for %s: %v", e.seat, err)
 		}
 	}

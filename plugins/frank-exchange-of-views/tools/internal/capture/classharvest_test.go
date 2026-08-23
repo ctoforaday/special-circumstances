@@ -6,19 +6,26 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-func classEvent(seat, slug, def, neighbor, dist string) record.Event {
-	return record.Event{
-		SeatID: seat, Type: "class-new",
-		Payload: record.NewPayload().Set("slug", slug).Set("definition", def).
-			Set("neighbor", neighbor).Set("distinguisher", dist),
-	}
+func classEvent(t *testing.T, seat, slug, def, neighbor, dist string) *record.Event {
+	t.Helper()
+	return recordtest.Event(t, seat, 1, &recordpb.ClassNew{
+		Slug: proto.String(slug), Definition: proto.String(def),
+		Neighbor: proto.String(neighbor), Distinguisher: proto.String(dist),
+	})
 }
 
-func mintEvent(gapID, class string) record.Event {
-	return record.Event{Type: "mint", Payload: record.NewPayload().Set("gap_id", gapID).Set("class", class)}
+func mintEvent(t *testing.T, gapID, class string) *record.Event {
+	t.Helper()
+	return recordtest.Event(t, "red-merge-r1", 1, &recordpb.Mint{
+		GapId: proto.String(gapID), Class: proto.String(class),
+	})
 }
 
 // THE PROPOSAL CARRIES WHAT A REVIEWER NEEDS TO DECIDE, and the join is the part only the record
@@ -26,10 +33,10 @@ func mintEvent(gapID, class string) record.Event {
 // concrete case that motivated it.
 func TestAProposalCarriesTheThreeFieldsAndTheCaseThatMotivatedIt(t *testing.T) {
 	law := t.TempDir()
-	board := &record.Board{Events: []record.Event{
-		classEvent("red-merge-r2", "silent-no-match-probe", "a probe whose miss reads as a clean result",
+	board := &record.Board{Events: []*record.Event{
+		classEvent(t, "red-merge-r2", "silent-no-match-probe", "a probe whose miss reads as a clean result",
 			"self-attestation", "did a tool act run and miss, or did none run at all"),
-		mintEvent("R2-1", "silent-no-match-probe"),
+		mintEvent(t, "R2-1", "silent-no-match-probe"),
 	}}
 	r := HarvestClasses("/runs/2026-08-22_example", law, board)
 	if !r.Written || r.Count != 1 {
@@ -58,7 +65,7 @@ func TestAProposalCarriesTheThreeFieldsAndTheCaseThatMotivatedIt(t *testing.T) {
 // line reading "no classes coined this run" must come from having looked.
 func TestARunThatCoinedNothingWritesNothingAndSaysSo(t *testing.T) {
 	law := t.TempDir()
-	r := HarvestClasses("/runs/quiet", law, &record.Board{Events: []record.Event{mintEvent("R1-1", "false-universal")}})
+	r := HarvestClasses("/runs/quiet", law, &record.Board{Events: []*record.Event{mintEvent(t, "R1-1", "false-universal")}})
 	if r.Written || r.Count != 0 || r.Reason != "" {
 		t.Errorf("written=%v count=%d reason=%q, want false, 0, empty", r.Written, r.Count, r.Reason)
 	}
@@ -75,8 +82,8 @@ func TestARunThatCoinedNothingWritesNothingAndSaysSo(t *testing.T) {
 // first PROPOSAL, which is the same defect one step earlier. A reviewer has to see both.
 func TestTwoRunsCoiningOneSlugLandSideBySide(t *testing.T) {
 	law := t.TempDir()
-	one := &record.Board{Events: []record.Event{classEvent("red-merge-r1", "drift", "the first reading", "false-universal", "A")}}
-	two := &record.Board{Events: []record.Event{classEvent("red-merge-r1", "drift", "a DIFFERENT reading", "false-universal", "B")}}
+	one := &record.Board{Events: []*record.Event{classEvent(t, "red-merge-r1", "drift", "the first reading", "false-universal", "A")}}
+	two := &record.Board{Events: []*record.Event{classEvent(t, "red-merge-r1", "drift", "a DIFFERENT reading", "false-universal", "B")}}
 	HarvestClasses("/runs/run-alpha", law, one)
 	HarvestClasses("/runs/run-beta", law, two)
 	ms, _ := filepath.Glob(filepath.Join(law, "proposed", "class-drift--*.md"))
@@ -97,8 +104,8 @@ func TestTwoRunsCoiningOneSlugLandSideBySide(t *testing.T) {
 // a fact about the class — nobody has worked a case with it yet — and a reviewer weighs it.
 func TestAClassCoinedAndNeverMintedAgainstSaysSo(t *testing.T) {
 	law := t.TempDir()
-	HarvestClasses("/runs/x", law, &record.Board{Events: []record.Event{
-		classEvent("red-merge-r1", "unused", "d", "n", "x"),
+	HarvestClasses("/runs/x", law, &record.Board{Events: []*record.Event{
+		classEvent(t, "red-merge-r1", "unused", "d", "n", "x"),
 	}})
 	b, err := os.ReadFile(filepath.Join(law, "proposed", "class-unused--x.md"))
 	if err != nil {

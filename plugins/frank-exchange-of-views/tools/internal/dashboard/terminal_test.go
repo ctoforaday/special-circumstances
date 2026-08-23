@@ -6,7 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // A STUBBED report.md IS NOT A FINISHED RUN, and for the life of every run it was read as one.
@@ -28,17 +31,17 @@ func runWithStubbedReportButNoOutcome(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte("# report.md — a topic\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	e := record.Event{SeatID: "red-merge-r1", Nonce: "0000000a", Round: 1, Type: "mint",
-		Key: "red-merge-r1:mint:R1-1",
-		Payload: record.NewPayload().Set("gap_id", "R1-1").Set("problem", "p").
-			Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium")}
-	line, err := record.MarshalEvent(e)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(recs, "events-red-merge-r1-0000000a.jsonl"), append(line, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	recordtest.Seed(t, dir, recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-1", &recordpb.Mint{
+		GapId:           proto.String("R1-1"),
+		Problem:         proto.String("p"),
+		RequiredFix:     proto.String("f"),
+		AcceptanceCheck: proto.String("the check runs"),
+		Class:           proto.String("self-attestation"),
+		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+		Severity:        recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+	}))
 	return dir
 }
 
@@ -71,15 +74,10 @@ func TestTheLiveRunPageDoesNotAnnounceCompletion(t *testing.T) {
 // The other direction: a recorded outcome IS terminal, and the verdict travels from the record.
 func TestARecordedOutcomeIsTerminal(t *testing.T) {
 	dir := runWithStubbedReportButNoOutcome(t)
-	e := record.Event{SeatID: "bench-r1", Nonce: "0000000c", Round: 1, Type: "outcome",
-		Key: "bench-r1:outcome:1", Payload: record.NewPayload().Set("verdict", "CEILING")}
-	line, err := record.MarshalEvent(e)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "records", "events-bench-r1-0000000c.jsonl"), append(line, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	recordtest.Seed(t, dir, recordtest.At(t, "judge-terminal", 1, "judge-terminal:outcome:#1", &recordpb.Outcome{
+		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
+		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
+	}))
 	m := BuildModel(dir, t.TempDir(), Config{}, 0)
 	if !m.Terminal {
 		t.Error("the bench recorded an outcome; the run is terminal")

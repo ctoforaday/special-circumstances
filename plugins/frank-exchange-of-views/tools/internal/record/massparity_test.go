@@ -49,7 +49,7 @@ var (
 	//
 	// Anchoring on `{` or `,` means a key must start where a key can start, so a partial match is
 	// not a match at all.
-	reMassEntry   = regexp.MustCompile(`[{,]\s*'?([a-z_]+)'?\s*:\s*([0-9.]+)`)
+	reMassEntry = regexp.MustCompile(`[{,]\s*'?([a-z_]+)'?\s*:\s*([0-9.]+)`)
 )
 
 func readDebateJS(t *testing.T) string {

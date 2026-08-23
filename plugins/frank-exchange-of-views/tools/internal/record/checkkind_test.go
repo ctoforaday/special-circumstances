@@ -33,7 +33,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 		{"R1-1", recordpb.CheckKind_CHECK_KIND_COMPUTATION},
 		{"R1-2", recordpb.CheckKind_CHECK_KIND_DOCUMENT},
 	} {
-		if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Mint{
+		if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Mint{
 			GapId:           proto.String(c.id),
 			Class:           proto.String("self-attestation"),
 			Problem:         proto.String("p"),
@@ -85,7 +85,7 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 		t.Fatalf("a silent run: total=%d attested=%d, want 0/0", j.Counts.Total, j.Counts.Attested)
 	}
 
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, &recordpb.FrictionNone{Text: proto.String("read the board and my verb list; every refusal was my own error")}); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, &recordpb.FrictionNone{Text: proto.String("read the board and my verb list; every refusal was my own error")}); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = BoardState(runDir)
@@ -119,7 +119,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	}
 	mint := func(id string, kind recordpb.CheckKind) {
 		t.Helper()
-		if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Mint{
+		if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Mint{
 			GapId:           proto.String(id),
 			Class:           proto.String("self-attestation"),
 			Problem:         proto.String("p"),
@@ -150,7 +150,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	// THE PROOF ANSWERS A GAP, and the earlier conversion dropped `answers` — so the proof
 	// discharged nothing and the debt could not move. `answers` is the whole join this test is
 	// about: a proof that names no gap is a script that ran for no stated reason.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundOf("blue-respond-r1")}, &recordpb.Proof{
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, &recordpb.Proof{
 		Answers: proto.String("R1-1"),
 		Script:  proto.String("s.py"),
 	}); err != nil {
@@ -183,7 +183,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	}
 
 	// A CLOSED gap owes nothing, whatever its kind: the debt is what blue can still act on.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Close{
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Close{
 		GapId:        proto.String("R1-2"),
 		AnchorSeat:   proto.String("L1"),
 		AnchorTool:   proto.String("Read"),

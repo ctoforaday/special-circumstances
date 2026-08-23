@@ -39,7 +39,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 		// section is carried by its position, which is what this test reads.
 	})
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{Tension: proto.String("speed against certainty"), ReviewFlag: proto.String("no"), Rationale: proto.String("because"), GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED), Principle: proto.String("correctness first")}),
+		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{Tension: proto.String("speed against certainty"), ReviewFlag: proto.String("no"), Rationale: proto.String("because"), GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Principle: proto.String("correctness first")}),
 	})
 	// Round 2: red positions again, blue does not (a red-only round — its Red is non-empty,
 	// its Blue is the empty array a consumer counts as zero, never a null).
@@ -147,7 +147,7 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 			// `class: "resolved"` before the schema — a key `merge close` never wrote (it writes
 			// closure_class) carrying a word the enum never had. Untyped, it replayed as a closure
 			// with NO class: a torn closure, which is the state this test is not about.
-			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED),
+			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 		}),
 	})
 

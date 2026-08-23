@@ -229,7 +229,7 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 
 	// THREE, NOT FOUR: three distinct (source, claim) corroborations, and the retry above added
 	// nothing. This counted 2 when a source could bear on only one claim.
-	if b := board(t, runDir, "merge", "red-merge-r1"); b.Counts.Citations != 3 {
+	if b := board(t, runDir, "red-merge-r1"); b.Counts.Citations != 3 {
 		t.Errorf("counts.citations = %d, want 3 (three distinct source/claim readings, the retry adding none) — the board is the source for citations_checked", b.Counts.Citations)
 	}
 }

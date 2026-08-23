@@ -98,7 +98,7 @@ func TestSpellingStripsTheGeneratedPrefix(t *testing.T) {
 		val  protoreflect.EnumValueDescriptor
 		want string
 	}{
-		{Disposition_DISPOSITION_RISK_ACCEPTED.Descriptor().Values().ByNumber(5), "risk_accepted"},
+		{Disposition_DISPOSITION_DEFECT_ACCEPTED.Descriptor().Values().ByNumber(5), "defect_accepted"},
 		{SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE.Descriptor().Values().ByNumber(2), "supports_with_bridge"},
 		{Grade_GRADE_LOW_MEDIUM.Descriptor().Values().ByNumber(3), "low_medium"},
 		{RunOutcome_RUN_OUTCOME_CEILING.Descriptor().Values().ByNumber(2), "ceiling"},
@@ -113,8 +113,8 @@ func TestSpellingStripsTheGeneratedPrefix(t *testing.T) {
 // The near-miss is the failure that was actually MEASURED (`--as pass` recording a PASS that
 // skipped the gate), so the refusal names what would have worked rather than only listing the set.
 func TestNearMissFindsTheTypoClassAndNothingWider(t *testing.T) {
-	e := Disposition_DISPOSITION_CLOSED.Descriptor()
-	for _, typo := range []string{"closed-with-regression", "Closed_With_Regression", "CLOSED_WITH_REGRESSION"} {
+	e := Disposition_DISPOSITION_REPAIRED.Descriptor()
+	for _, typo := range []string{"repaired-with-regression", "Repaired_With_Regression", "REPAIRED_WITH_REGRESSION"} {
 		got, ok := NearMiss(e, typo)
 		if !ok || got != "repaired_with_regression" {
 			t.Errorf("NearMiss(%q) = %q,%v — want repaired_with_regression,true", typo, got, ok)

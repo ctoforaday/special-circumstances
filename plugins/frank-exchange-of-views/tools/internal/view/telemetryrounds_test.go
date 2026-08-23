@@ -1,11 +1,11 @@
 package view
 
 import (
-	"os"
-	"path/filepath"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // A ROUND THAT CLOSES WITHOUT MINTING IS THE CONVERGED ROUND, and it used to vanish.
@@ -22,26 +22,27 @@ import (
 func runWithMintAtR1AndCloseAtR2(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	recs := filepath.Join(dir, "records")
-	if err := os.MkdirAll(recs, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	put := func(seat, nonce string, e record.Event) {
-		line, err := record.MarshalEvent(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(recs, "events-"+seat+"-"+nonce+".jsonl"), append(line, '\n'), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	put("red-merge-r1", "0000000a", record.Event{SeatID: "red-merge-r1", Nonce: "0000000a", Round: 1, Type: "mint",
-		Key: "red-merge-r1:mint:R1-1",
-		Payload: record.NewPayload().Set("gap_id", "R1-1").Set("problem", "p").
-			Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium")})
-	put("red-merge-r2", "0000000b", record.Event{SeatID: "red-merge-r2", Nonce: "0000000b", Round: 2, Type: "close",
-		Key:     "red-merge-r2:close:R1-1",
-		Payload: record.NewPayload().Set("gap_id", "R1-1").Set("class", "verified")})
+	recordtest.Seed(t, dir,
+		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-1", &recordpb.Mint{
+			GapId:           proto.String("R1-1"),
+			Problem:         proto.String("p"),
+			RequiredFix:     proto.String("f"),
+			AcceptanceCheck: proto.String("the check runs"),
+			Class:           proto.String("self-attestation"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Severity:        recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}),
+		recordtest.At(t, "red-merge-r2", 2, "red-merge-r2:close:R1-1", &recordpb.Close{
+			GapId:        proto.String("R1-1"),
+			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
+			AnchorSeat:   proto.String("red-merge-r2"),
+			AnchorTool:   proto.String("go test"),
+			AnchorTarget: proto.String("./..."),
+			Prose:        proto.String("verified at the leaf"),
+		}),
+	)
 	return dir
 }
 

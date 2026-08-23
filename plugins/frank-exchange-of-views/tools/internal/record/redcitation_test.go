@@ -37,7 +37,7 @@ func corroboration(label, url, claim string, outcome recordpb.SourceOutcome) *re
 func TestOneSourceCorroboratesManyClaims(t *testing.T) {
 	runDir := t.TempDir()
 	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
-	if _, _, err := RegisterSeat(id); err != nil {
+	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
 	const url = "https://example.org/one-good-source"
@@ -72,7 +72,7 @@ func TestOneSourceCorroboratesManyClaims(t *testing.T) {
 func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 	runDir := t.TempDir()
 	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
-	if _, _, err := RegisterSeat(id); err != nil {
+	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
 	label := NewCitationID()
@@ -140,7 +140,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	lens := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
 	merge := Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}
 	for _, id := range []Identity{lens, merge} {
-		if _, _, err := RegisterSeat(id); err != nil {
+		if _, _, err := RegisterSeat(id, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -199,7 +199,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 	runDir := t.TempDir()
 	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
-	if _, _, err := RegisterSeat(id); err != nil {
+	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
 	label := NewCitationID()
@@ -236,7 +236,7 @@ func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 	runDir := t.TempDir()
 	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
-	if _, _, err := RegisterSeat(id); err != nil {
+	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
 	const claim = "the cache never evicts under load"
@@ -295,7 +295,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 	runDir := t.TempDir()
 	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
-	if _, _, err := RegisterSeat(id); err != nil {
+	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
 	label := NewCitationID()
@@ -334,7 +334,7 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 func TestAnEmptyReopenedIDNeverReachesTheProtectedSet(t *testing.T) {
 	runDir := t.TempDir()
 	id := Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: 1}
-	if _, _, err := RegisterSeat(id); err != nil {
+	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
 	// An edit whose reopened list carries a blank alongside a real id, and the real id twice.

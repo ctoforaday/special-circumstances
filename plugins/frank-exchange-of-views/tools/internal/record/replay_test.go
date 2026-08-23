@@ -183,7 +183,7 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 		}
 		// The MINTED id, not a fixed one: each pass records the gap it just reserved, which is
 		// what makes the ids sequential rather than one gap minted three times.
-		if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Mint{GapId: proto.String(got), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+		if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, &recordpb.Mint{GapId: proto.String(got), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -209,7 +209,7 @@ func TestExistingMintByKey(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundOf(seatID)}, &recordpb.Mint{GapId: proto.String("R1-1"), MintKey: proto.String("L1-F3"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, &recordpb.Mint{GapId: proto.String("R1-1"), MintKey: proto.String("L1-F3"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -242,7 +242,7 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 		recordtest.At(t, seatID, 1, seatID+":mint:R1-2", &recordpb.Mint{GapId: proto.String("R1-2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p2"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		// A regrade moves ONLY the keys it carries.
 		recordtest.At(t, seatID, 1, seatID+":regrade:R1-1", &recordpb.Regrade{GapId: proto.String("R1-1"), Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), Basis: proto.String("new evidence")}),
-		recordtest.At(t, seatID, 1, seatID+":close:R1-2", &recordpb.Close{GapId: proto.String("R1-2"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED), Prose: proto.String("verified at the leaf")}),
+		recordtest.At(t, seatID, 1, seatID+":close:R1-2", &recordpb.Close{GapId: proto.String("R1-2"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")}),
 		// A REGRADE AND A CLOSE OF AN UNKNOWN GAP USED TO BE SEEDED HERE, and the assertion was
 		// that the replay IGNORED them rather than failing. Both are foreign keys onto the mint
 		// now, so neither row can be written — the state is unrepresentable, and the replay's arm
@@ -427,7 +427,7 @@ func opinionRunDir(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundOf("red-merge-r1")}, &recordpb.Mint{AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Mint{AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
 	return runDir
@@ -448,7 +448,7 @@ func TestValidateOpinionNamesEachMissingField(t *testing.T) {
 	complete := func() *recordpb.Opinion {
 		return &recordpb.Opinion{
 			GapId:       proto.String("R1-1"),
-			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED),
+			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 			Principle:   proto.String("x"),
 			Tension:     proto.String("x"),
 			ReviewFlag:  proto.String("x"),
@@ -586,8 +586,8 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		// exactly what anchored_closures_pct exists to detect. The genuine case (close
 		// with an anchor, then restate) is covered in required_test.go.
 		{"--carried-from cannot invent an earlier closure", &recordpb.Close{GapId: proto.String("R1-1"), Prose: proto.String("verified"), CarriedFrom: proto.String("2")}, "no closure of it exists in the record"},
-		{"closed_with_regression needs a successor", withClass(recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION, ""), "requires --superseded-by"},
-		{"closed_with_regression with a successor", withClass(recordpb.Disposition_DISPOSITION_CLOSED_WITH_REGRESSION, "R2-1"), ""},
+		{"closed_with_regression needs a successor", withClass(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION, ""), "requires --superseded-by"},
+		{"closed_with_regression with a successor", withClass(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION, "R2-1"), ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -829,8 +829,8 @@ func TestSingletonVerbsAreDeclaredForTheVerbsThatAreOnce(t *testing.T) {
 func TestTheSameLabelInALaterRoundIsNotACollision(t *testing.T) {
 	runDir := t.TempDir()
 	for _, seat := range []string{"red-lens-r1-L1", "red-lens-r2-L1"} {
-		id := Identity{RunDir: runDir, SeatID: seat, Round: RoundOf(seat)}
-		if _, _, err := RegisterSeat(id); err != nil {
+		id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
+		if _, _, err := RegisterSeat(id, ""); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := Append(id, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("x")}); err != nil {
@@ -1022,7 +1022,7 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 		AnchorTarget: proto.String("blue/report.md"),
 	}
 	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}, ""); err != nil {
 		t.Fatal(err)
 	}
 	// A real gap on the record, so the reference check passes and the ARGUMENT rule is what answers.
@@ -1063,7 +1063,7 @@ func TestTheOpinionDemandsARuleButNotAnInventedTension(t *testing.T) {
 	full := func() *recordpb.Opinion {
 		return &recordpb.Opinion{
 			GapId:       proto.String("R1-1"),
-			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CLOSED),
+			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
 			Principle:   proto.String("a claim rests on its weakest citation"),
 			Tension:     proto.String("correctness vs economy"),
 			ReviewFlag:  proto.String("no human review needed"),
@@ -1072,10 +1072,10 @@ func TestTheOpinionDemandsARuleButNotAnInventedTension(t *testing.T) {
 	}
 	// A REAL GAP on the record, so the reference check passes and the FIELD rules are what answer.
 	runDir := t.TempDir()
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "judge-r1", Round: 1}); err != nil {
+	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "judge-r1", Round: 1}, ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}, &recordpb.Mint{
@@ -1122,7 +1122,7 @@ func TestTheOpinionDemandsARuleButNotAnInventedTension(t *testing.T) {
 func TestAGradeMotionThatMovesNothingIsRefused(t *testing.T) {
 	runDir := t.TempDir()
 	for _, s := range []string{"red-merge-r1", "blue-respond-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: 1}); err != nil {
+		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: 1}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1203,21 +1203,19 @@ func TestEveryGradeDimensionCanBeReadFromAGap(t *testing.T) {
 func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 	runDir := newRun(t)
 	// zulu proposes FIRST in wall-clock; alpha moves it SECOND. Alphabetically alpha < zulu.
-	writeShard(t, runDir, "zulu", "aaaaaaaa", []Event{
-		func() Event {
-			e := ev("zulu", "aaaaaaaa", 0, 1, "line-of-inquiry", "zulu:line-of-inquiry:#1",
-				NewPayload().Set("inquiry_id", "Q1").Set("status", "proposed").Set("reason", "opened"))
-			e.TS = "2026-08-22T10:00:00.000000000Z"
-			return e
-		}(),
-	})
-	writeShard(t, runDir, "alpha", "bbbbbbbb", []Event{
-		func() Event {
-			e := ev("alpha", "bbbbbbbb", 0, 1, "line-of-inquiry", "alpha:line-of-inquiry:#1",
-				NewPayload().Set("inquiry_id", "Q1").Set("status", "abandoned").Set("reason", "died"))
-			e.TS = "2026-08-22T11:00:00.000000000Z"
-			return e
-		}(),
+	writeShard(t, runDir, []*Event{
+		recordtest.Stamped(recordtest.At(t, "zulu", 1, "zulu:line-of-inquiry:#1", &recordpb.Avenue{
+			AvenueId: proto.String("Q1"),
+			Status:   recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
+			Line:     proto.String("opened"),
+			Reason:   proto.String("opened"),
+		}), "2026-08-22T10:00:00.000000000Z"),
+		recordtest.Stamped(recordtest.At(t, "alpha", 1, "alpha:line-of-inquiry:#1", &recordpb.Avenue{
+			AvenueId:         proto.String("Q1"),
+			Status:           recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED.Enum(),
+			SupersedesStatus: proto.String("proposed"),
+			Reason:           proto.String("died"),
+		}), "2026-08-22T11:00:00.000000000Z"),
 	})
 
 	b, err := BoardState(runDir)
@@ -1229,10 +1227,10 @@ func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 	if len(b.Events) != 2 {
 		t.Fatalf("expected 2 events, got %d", len(b.Events))
 	}
-	if b.Events[0].SeatID != "zulu" || b.Events[1].SeatID != "alpha" {
+	if b.Events[0].GetSeatId() != "zulu" || b.Events[1].GetSeatId() != "alpha" {
 		t.Errorf("Board.Events = [%s, %s], want [zulu, alpha] — zulu acted an hour EARLIER, and a "+
 			"board published in seat-name order hands every consumer a chronology assembled from filenames",
-			b.Events[0].SeatID, b.Events[1].SeatID)
+			b.Events[0].GetSeatId(), b.Events[1].GetSeatId())
 	}
 
 	// AND THE CONSUMER THAT READS IT AGREES. This is the half that shipped broken: the reduction

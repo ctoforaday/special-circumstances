@@ -67,7 +67,7 @@ func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
 
 	// Record one under key F1 with label L1-F1.
 	f := &recordpb.Finding{Label: proto.String("L1-F1"), FindingKey: proto.String("F1"), Text: proto.String("x")}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundOf(seat)}, f); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}, f); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ := ExistingFindingByKey(runDir, seat, "F1"); got != "L1-F1" {
@@ -85,7 +85,7 @@ func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
 func mustFinding(t *testing.T, runDir, seat, label string) {
 	t.Helper()
 	f := &recordpb.Finding{Label: proto.String(label), FindingKey: proto.String(label), Text: proto.String("x")}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundOf(seat)}, f); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}, f); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -180,7 +180,7 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 		New:     proto.String("climbing fast"),
 		Text:    proto.String("r"),
 	}
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: blueSeat, Round: record.RoundOf(blueSeat)}, intent); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: blueSeat, Round: record.RoundIn(runDir)(blueSeat)}, intent); err != nil {
 		t.Fatal(err)
 	}
 	// Retry with the same key → reconcile forward.

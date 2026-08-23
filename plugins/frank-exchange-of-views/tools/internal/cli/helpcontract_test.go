@@ -120,22 +120,15 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 					if !strings.Contains(err.Error(), f.Name) {
 						t.Errorf("--%s was refused and the message does not NAME it:\n\n%v\n\nA seat that cannot tell which flag it missed guesses, and the guess costs a round.", f.Name, err)
 					}
+					// AND EVERY FLAG THE REFUSAL NAMES MUST EXIST. Checked HERE as well as in
+					// TestNoRefusalNamesAFlagThatDoesNotExist because that one invokes each verb bare
+					// and therefore only ever sees cobra's "required flag(s) not set" — the record
+					// layer's teaching messages, which are the ones that name flags in prose, are
+					// reached only by satisfying the earlier refusals, which is what this loop does.
+					// Measured: renaming `mint requires --problem` to `--problem-statement` left the
+					// bare-invocation gate green.
+					assertNamedFlagsExist(t, err, knownFlagNames(t))
 				})
-				_, err := run(t, args...)
-				if err == nil {
-					t.Fatalf("--%s says REQUIRED in its help and the verb ran without it.\n\nusage: %s\n\nA seat reading that supplies it and nothing is wrong; a seat that misses it records an event with a hole, and the hole surfaces rounds later as an empty section nobody can trace.", f.Name, f.Usage)
-				}
-				if !strings.Contains(err.Error(), f.Name) {
-					t.Errorf("--%s was refused and the message does not NAME it:\n\n%v\n\nA seat that cannot tell which flag it missed guesses, and the guess costs a round.", f.Name, err)
-				}
-				// AND EVERY FLAG THE REFUSAL NAMES MUST EXIST. Checked HERE as well as in
-				// TestNoRefusalNamesAFlagThatDoesNotExist because that one invokes each verb bare
-				// and therefore only ever sees cobra's "required flag(s) not set" — the record
-				// layer's teaching messages, which are the ones that name flags in prose, are
-				// reached only by satisfying the earlier refusals, which is what this loop does.
-				// Measured: renaming `mint requires --problem` to `--problem-statement` left the
-				// bare-invocation gate green.
-				assertNamedFlagsExist(t, err, knownFlagNames(t))
 			})
 		})
 	}

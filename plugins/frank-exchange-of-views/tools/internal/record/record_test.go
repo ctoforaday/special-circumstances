@@ -66,7 +66,7 @@ func TestAppendedEventCarriesAStamp(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, ""); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}, &recordpb.Observe{Label: proto.String("L1-O1")})
+	ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, &recordpb.Observe{Label: proto.String("L1-O1")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,8 +111,8 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 			Now = c.now
 
 			runDir := t.TempDir()
-			id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundOf("red-lens-r1-L1")}
-			if _, _, err := RegisterSeat(id); err != nil {
+			id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}
+			if _, _, err := RegisterSeat(id, ""); err != nil {
 				t.Fatal(err)
 			}
 			var wrote []string
@@ -240,10 +240,10 @@ func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
 func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 	runDir := t.TempDir()
 	seat := "red-merge-r1"
-	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundOf(seat)}
+	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
 
 	for dispatch := 1; dispatch <= 2; dispatch++ {
-		n, _, err := RegisterSeat(id)
+		n, _, err := RegisterSeat(id, "")
 		if err != nil {
 			t.Fatalf("dispatch %d could not register: %v", dispatch, err)
 		}
@@ -287,8 +287,8 @@ func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 func TestARepeatedSingletonActIsRefusedInTheSeatsOwnTerms(t *testing.T) {
 	runDir := t.TempDir()
 	seat := "red-merge-r1"
-	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundOf(seat)}
-	if _, _, err := RegisterSeat(id); err != nil {
+	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
+	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(id, &recordpb.Position{Text: proto.String("the board is clean going in")}); err != nil {

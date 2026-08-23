@@ -57,10 +57,10 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 		Likelihood:      recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Impact:          recordtest.P(recordpb.Grade_GRADE_HIGH),
 	}
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundOf("red-merge-r1")}, mint); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundIn(runDir)("red-merge-r1")}, mint); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundOf("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), Prose: proto.String("the round ceiling arrived before red could pass the final revision")}); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundIn(runDir)("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), Prose: proto.String("the round ceiling arrived before red could pass the final revision")}); err != nil {
 		t.Fatal(err)
 	}
 
