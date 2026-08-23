@@ -475,3 +475,57 @@ coverage report about a path whose drive was fine (`motion inquiry appeal`), as 
 oracle naming an absent event (`R1-1 has no dispute event`), as a derivation blamed for an
 `asserted` verdict it was never given the chance to derive. **The distance between the
 discarded refusal and the reported symptom is the whole cost.**
+
+
+## The storage posture, measured (2026-08-23)
+
+Four settings, each with the measurement that justifies it. Three were already right; two were
+missing and one was actively expensive.
+
+| setting | why | measured |
+|---|---|---|
+| `journal_mode(WAL)` | concurrent readers across processes | — |
+| `busy_timeout(5000)` | SQLite resolves cross-process races internally before Go sees an error | — |
+| `_txlock=immediate` | a deferred BEGIN upgrades read→write, and SQLite deliberately will NOT apply busy_timeout to an upgrade | 8 processes lost ~half their writes without it |
+| `SetMaxOpenConns(1)` | **was missing.** Two goroutines on two pooled connections collide in SQLITE_BUSY; with one they queue on a Go mutex | — |
+| schema in ONE transaction | **was 171 implicit transactions, each fsyncing** | **525ms → 39ms per fresh database** |
+
+### The schema was the expensive one, and it cost nothing to fix
+
+`Open` applied 171 DDL statements. SQLite autocommits any statement not already in a transaction
+and every commit is an fsync, so creating a run directory paid 171 disk syncs — to write a schema
+that is DERIVED and regenerated for free whenever `events` is absent.
+
+Every alternative traded durability and was still slower:
+
+    as-is (171 implicit transactions)   499ms   full durability
+    synchronous=normal                   67ms   can drop recent commits
+    synchronous=off                      46ms   corruption risk
+    ONE transaction                      39ms   full durability, unchanged
+
+One fsync instead of 171 is not a relaxed guarantee — it is the same guarantee, asked for once.
+SQLite's own forum states the mechanism: an autocommitted statement fsyncs on its own, so
+batching replaces one-fsync-per-statement with a single fsync at COMMIT.
+
+### What is NOT there, stated so nobody assumes it is
+
+**No retry, anywhere on the write path.** The only retry in the record layer is
+`renameWithRetry`, a Windows rename workaround with LINEAR backoff and no jitter. Everything else
+relies on `busy_timeout`, and SQLite's default busy handler is a FIXED schedule with no jitter —
+`{1,2,5,10,15,20,25,25,25,50,50,100}`ms, 100ms thereafter — so contending waiters wake in
+lockstep. Past five seconds it is a hard failure and the seat is told its write failed.
+
+`SetMaxOpenConns(1)` removes the in-process half of that surface entirely, so what remains is
+seat-vs-seat across processes, which the 8-process test exercises and currently passes. Adding
+exponential backoff with full jitter (`avast/retry-go` has `FullJitterBackoffDelay`;
+`cenkalti/backoff` is a port of Google's algorithm) is the standard answer IF that test starts
+to show strain — but it is a dependency added on evidence, not on reasoning, and the evidence is
+not there yet.
+
+### One trade taken knowingly
+
+`SetMaxOpenConns(1)` serializes the dashboard server's per-request renders, which run in
+`http.Server`'s per-request goroutines. It is a local single-operator dashboard, not a
+throughput-sensitive service, and the fix if it ever matters is a separate read-only handle for
+the server rather than reverting the pool setting — the seat write path is what the setting
+protects.

@@ -55,27 +55,72 @@ func Open(path string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+	// ONE CONNECTION. A pool is the wrong shape for a single-writer file database.
+	//
+	// `_txlock=immediate` takes the write lock at BEGIN, so two goroutines holding two pooled
+	// connections collide in SQLITE_BUSY and then poll — on SQLite's default busy schedule, which
+	// is a FIXED sequence ({1,2,5,10,15,20,25,25,25,50,50,100}ms, 100ms thereafter) with NO
+	// jitter, so contending waiters wake together and retry together. With one connection they
+	// queue on a Go mutex instead: no lock contention to resolve, no polling, no herd.
+	//
+	// It does NOT replace busy_timeout, which is still what handles the case this cannot touch —
+	// a DIFFERENT PROCESS holding the write lock. Seats are separate processes; that is the
+	// contention the 8-process test exists for.
+	//
+	// SAFE HERE because nothing queries the pool while a transaction from it is open: `Append`
+	// validates (which reads the board) BEFORE insertNumbered begins its transaction, and
+	// deriveKey counts through the tx rather than around it. With one connection, a db.Query
+	// inside an open tx would deadlock on itself rather than merely contend — so that ordering is
+	// now load-bearing, not incidental.
+	db.SetMaxOpenConns(1)
+
 	var n int
 	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'`).Scan(&n); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("recordsql: reading %s: %w", path, err)
 	}
 	if n == 0 {
-		schema, err := Schema()
-		if err != nil {
-			db.Close()
-			return nil, err
-		}
-		if _, err := db.Exec(schema); err != nil {
+		if err := applySchema(db); err != nil {
 			db.Close()
 			return nil, fmt.Errorf("recordsql: applying the schema to %s: %w", path, err)
 		}
-		if _, err := db.Exec(ViewsDDL); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("recordsql: applying the projections to %s: %w", path, err)
-		}
 	}
 	return db, nil
+}
+
+// applySchema creates the whole record in ONE transaction.
+//
+// IT WAS 171 STATEMENTS, EACH ITS OWN IMPLICIT TRANSACTION. SQLite autocommits any statement not
+// already inside one, and every commit is an fsync — so creating a run directory paid 171 disk
+// syncs to write a schema that is DERIVED and could be regenerated for free. Measured here:
+// 499ms per fresh database, against 39ms for the same DDL in one transaction. Thirteen times, and
+// the cost is paid by every test that opens a run (208 of them in internal/cli alone) as well as
+// by every real run.
+//
+// NOTHING IS TRADED FOR IT. The obvious alternatives all weaken durability — `synchronous=off`
+// measured 46ms and risks corruption, `synchronous=normal` 67ms and can drop recent commits — and
+// this is FASTER than either while leaving `synchronous` at its default. One fsync instead of
+// 171 is not a relaxed guarantee; it is the same guarantee, asked for once.
+//
+// SQLite's own forum states the mechanism: an autocommitted statement fsyncs on its own, so
+// batching replaces one-fsync-per-statement with one fsync at COMMIT.
+func applySchema(db *sql.DB) error {
+	schema, err := Schema()
+	if err != nil {
+		return err
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }() // no-op after a successful Commit
+	if _, err := tx.Exec(schema); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ViewsDDL); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
 
 // Insert writes one event and its body inside a single transaction.
