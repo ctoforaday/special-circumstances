@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -87,7 +88,35 @@ func TestAnUnconfiguredNudgeWritesNoStateFile(t *testing.T) {
 
 // Write before emit: if the record cannot be written, nothing is said. A guard that emits
 // first has re-emitted whenever the write fails, and on Stop that is the loop.
+//
+// PORTABLE VARIANT. The checkpoints PATH is occupied by a regular file, so MkdirAll fails
+// on every platform — where chmod does not: on Windows os.Chmod cannot make a directory
+// unwritable, so the write succeeds and the emission is correct. That is a premise
+// failing, not an assertion, and CI caught it as one.
+func TestAnUnusableStateLocationSuppressesTheEmission(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".claude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A FILE where the directory must be.
+	if err := os.WriteFile(filepath.Join(dir, ".claude", "checkpoints"), []byte("not a directory"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
+		t.Errorf("emitted with nowhere to record the band:\n%s", d.Emit)
+	}
+}
+
+// The same property against an unwritable DIRECTORY, which is the shape a real machine
+// produces (a permissions mistake, a read-only mount). Unix only, and skipped rather than
+// silently passing: os.Chmod does not restrict a directory on Windows, so the arm would
+// exercise nothing while reporting green — and a test that passes without testing is
+// worse than one that says it did not run.
 func TestAnUnwritableStateFileSuppressesTheEmission(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("os.Chmod cannot make a directory unwritable on Windows; " +
+			"TestAnUnusableStateLocationSuppressesTheEmission covers the same property portably")
+	}
 	dir := t.TempDir()
 	cp := filepath.Join(dir, ".claude", "checkpoints")
 	if err := os.MkdirAll(cp, 0o755); err != nil {
