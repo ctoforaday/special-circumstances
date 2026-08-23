@@ -95,7 +95,7 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 		"--id", id, "--as", "repaired",
 		"--principle", "the repair discharges the defect at the leaf",
 		"--tension", "thoroughness against ceremony",
-		"--review-flag", "no — the closure is mechanical and the anchor is checkable",
+		"--review-flag", "no — the closure is mechanical and the anchor is checkable", "--settled", "the proposition this ruling bars", "--final",
 		"--reason", "closed at the bench, not by red"); err != nil {
 		// NEVER skip here. A skip would excuse exactly the defect this test exists to
 		// catch, and a suite that excuses its own subject is how the projection shipped

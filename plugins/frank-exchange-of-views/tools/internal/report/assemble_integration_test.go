@@ -84,7 +84,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	add("blue-respond-r1", "line-of-inquiry", "inquiry_id", "Q1", "status", "pursued", "line", "model-check the two-writer interleaving", "method", "TLA+")
 	add("blue-respond-r1", "line-of-inquiry", "inquiry_id", "Q2", "status", "abandoned", "line", "rewrite the cache lock-free", "reason", "cost exceeds the benefit at this scale")
 	add("judge-r1", "opinion", "gap_id", "R1-1", "disposition", "carried", "principle", "correctness",
-		"tension", "cost vs certainty", "review_flag", "false", "reason", "a model-check is owed before this closes")
+		"tension", "cost vs certainty", "review_flag", "false", "settled", "the proposition this ruling bars", "reopens_on", "a model-check that contradicts it", "reason", "a model-check is owed before this closes")
 	add("judge-terminal", "outcome", "verdict", "CEILING", "reason", "the round ceiling arrived before red could pass the final revision")
 
 	path, err := Assemble(runDir)

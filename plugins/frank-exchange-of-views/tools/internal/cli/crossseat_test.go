@@ -70,7 +70,7 @@ func TestBenchCarriedLeavesTheGapOpenWhileClosedDoesNot(t *testing.T) {
 		if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
 			"--id", c.id, "--as", c.as, "--principle", c.principle,
 			"--tension", "thoroughness against ceremony",
-			"--review-flag", "no — the ruling is mechanical",
+			"--review-flag", "no — the ruling is mechanical", "--settled", "the proposition this ruling bars", "--final",
 			"--reason", "the ruling as reasoned"); err != nil {
 			t.Fatalf("bench opinion %s: %v", c.as, err)
 		}
@@ -268,7 +268,7 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 	id := mintGap(t, runDir, "not-haltable", "halt-is-its-own-verb")
 	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
 		"--id", id, "--as", "halt", "--principle", "p", "--tension", "t",
-		"--review-flag", "no", "--reason", "attempting to halt via a disposition"); err == nil {
+		"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "attempting to halt via a disposition"); err == nil {
 		t.Error("`opinion --as halt` was accepted; ending the run must not be reachable by a mistyped disposition")
 	}
 }

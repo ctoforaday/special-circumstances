@@ -543,7 +543,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	writeShard(t, runDir, judge, "cccccccc", []record.Event{
 		ev(judge, "cccccccc", 0, 1, "opinion", judge+":opinion:R1-1", record.NewPayload().
 			Set("gap_id", "R1-1").Set("disposition", "upheld").Set("principle", "correctness first").
-			Set("tension", "economy").Set("review_flag", "none").Set("reason", "because")),
+			Set("tension", "economy").Set("review_flag", "none").Set("settled", "the proposition this ruling bars").Set("final", true).Set("reason", "because")),
 	})
 	writeShard(t, runDir, lens, "dddddddd", []record.Event{
 		ev(lens, "dddddddd", 0, 1, "verify", lens+":verify:https://x", record.NewPayload().

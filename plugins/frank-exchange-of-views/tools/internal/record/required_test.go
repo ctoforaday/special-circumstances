@@ -112,7 +112,7 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 		// for a complete payload.
 		"line-of-inquiry": NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "l"),
 		"opinion": NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
-			Set("principle", "p").Set("tension", "t").Set("review_flag", "no").Set("reason", "r"),
+			Set("principle", "p").Set("tension", "t").Set("review_flag", "no").Set("settled", "the proposition this ruling bars").Set("final", true).Set("reason", "r"),
 	} {
 		dir := t.TempDir()
 		if typ == "opinion" {
@@ -130,7 +130,8 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 // defects in this codebase have come from treating a falsy value as an absent one.
 func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 	p := NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
-		Set("principle", "p").Set("tension", "t").Set("review_flag", false).Set("reason", "r")
+		Set("principle", "p").Set("tension", "t").Set("review_flag", false).Set("reason", "r").
+		Set("settled", "the proposition this ruling bars").Set("final", true)
 	if err := validate(runWithGap(t), "judge-r1", "opinion", p); err != nil {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
 	}

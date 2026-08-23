@@ -41,9 +41,13 @@ var RequiredFields = map[string][]string{
 	"retire":          {"claim", "reason"},
 	"line-of-inquiry": {"status", "line"},
 	"inquiry-support": {"inquiry_id", "as", "reason"},
-	"opinion":         {"gap_id", "disposition", "principle", "tension", "review_flag", "reason"},
-	"halt":            {"reason"},
-	"certify":         {"reason"},
+	// `settled` is unconditional and belongs here. `reopens_on` is NOT: --final answers the same
+	// question the other way and either satisfies the duty, so per this file's own rule a
+	// requirement that depends on another field stays as logic in validate, with the condition
+	// stated in the flag's own description (#502).
+	"opinion": {"gap_id", "disposition", "principle", "tension", "review_flag", "reason", "settled"},
+	"halt":    {"reason"},
+	"certify": {"reason"},
 	// The run's TERMINAL act, and it carried no reasoning at all until a bench seat reached for
 	// --reason and filed its absence as friction (#375). The verdict is derived; how the sitting
 	// ENDED is not, and on a judged deadlock nothing else records it.

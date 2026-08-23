@@ -1006,10 +1006,24 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		if err := requireGap(runDir, p.Str("gap_id"), "opinion", "--id"); err != nil {
 			return err
 		}
-		for _, f := range []string{"gap_id", "disposition", "principle", "tension", "review_flag"} {
+		for _, f := range []string{"gap_id", "disposition", "principle", "tension", "review_flag", "settled"} {
 			if !p.Has(f) {
 				return fmt.Errorf("record: opinion requires --%s (opinions, not dispositions)", flags.ForPayloadKey(f))
 			}
+		}
+		// WHAT WOULD REOPEN THIS, ANSWERED ONE WAY OR THE OTHER (#502).
+		//
+		// A losing party's three questions are which proposition fell, what still stands, and
+		// what would change the outcome. `settled` above answers the first; this answers the
+		// third; the second is derivable from the first plus the artifact state (#499's
+		// ArtifactStateOf) and is deliberately not stored, because a derivable field stored is
+		// a second hand-kept copy.
+		//
+		// EITHER FIELD SATISFIES IT. `final: true` says nothing would reopen it, which is a real
+		// answer and not an omission — the `friction --none` shape, and for the same measured
+		// reason: an empty channel that cannot assert its own emptiness goes unclosed.
+		if !p.Has("reopens_on") && !p.Has("final") {
+			return fmt.Errorf("record: opinion requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round")
 		}
 		if p.Str("reason") == "" {
 			return fmt.Errorf("record: opinion requires --reason (the ruling's rationale — a disposition with no stated reasoning is indistinguishable from a default)")

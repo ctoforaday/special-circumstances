@@ -168,7 +168,14 @@ const (
 	Principle  = "principle"
 	Tension    = "tension"
 	ReviewFlag = "review-flag"
-	Relief     = "relief"
+	// Settled and ReopensOn are what a ruling BARS and what would undo it — the two things a
+	// losing party needs and a disposition cannot supply (#502).
+	Settled   = "settled"
+	ReopensOn = "reopens-on"
+	// Final is ReopensOn's assertable empty case, on the `friction --none` pattern: "nothing
+	// would reopen this" is a positive answer to the question, not a skipped field.
+	Final  = "final"
+	Relief = "relief"
 
 	// Blue's process record.
 	Method     = "method"
@@ -217,6 +224,7 @@ func All() []string {
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor,
 		Principle, Tension, ReviewFlag, Relief, Binds,
+		Settled, ReopensOn, Final,
 		Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, RunID, ScriptPath,
 		Chair, Watch, Now, Serve,
