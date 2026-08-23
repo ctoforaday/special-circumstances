@@ -1,6 +1,7 @@
 package checkpointseal
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -206,5 +207,27 @@ func TestASealWithNoTranscriptStillWritesARowWithTheAgeUnmeasured(t *testing.T) 
 	}
 	if _, present := r["note_age_turns"]; present {
 		t.Errorf("note_age_turns present (%v) with nothing to measure it from; it must be omitted", r["note_age_turns"])
+	}
+}
+
+// A binary must report the name it is invoked as. #201 step 3 split one merged sealer
+// into three shims — sc-precompact, sc-sessionend, sc-subagentstop — and the version
+// line kept printing the merged name, so all three identified as sc-checkpoint-seal.
+//
+// That is a version surface still speaking the retired model: sc-doctor lists binaries
+// by name and prints this line, so three rows would carry the same name and an operator
+// could not tell WHICH of the three was stale — which is the only question the line is
+// there to answer.
+func TestEachShimReportsItsOwnName(t *testing.T) {
+	for event, want := range map[string]string{
+		evPreCompact:   "sc-precompact",
+		evSessionEnd:   "sc-sessionend",
+		evSubagentStop: "sc-subagentstop",
+	} {
+		var out, errb bytes.Buffer
+		runEvent(event, []string{"-version"}, strings.NewReader(""), &out, &errb, t.TempDir(), time.Now())
+		if got := strings.Fields(out.String()); len(got) == 0 || got[0] != want {
+			t.Errorf("%s -version reported %q, want it to start with %q", event, out.String(), want)
+		}
 	}
 }
