@@ -172,7 +172,7 @@ plugins/prosthetic-conscience/tools/
                              (no `sc-posttooluse` change: the per-tool tick was cut — §III)
 ```
 
-### `[NEW] internal/ctxusage` — the measurement
+### `[NEW] internal/ctxusage` — the measurement · **BUILT**
 
 Bounded backward scan of the last **256 KB** of `transcript_path` — the number is fixed here because
 "N KB" is not a specification — for the most recent `type:"assistant"` entry and any
@@ -181,6 +181,16 @@ Bounded backward scan of the last **256 KB** of `transcript_path` — the number
 file. Returns `Tokens` (exact), `Turns`, and `Ceiling`,
 which is `compactMetadata.preTokens` from **this session's own** most recent boundary or the
 distinct value `Unknown`.
+
+**Built, with one thing the spec did not anticipate: a prefilter is required to meet criterion 3.**
+Unmarshalling every line in the window cost **p50 19 ms / p95 203 ms** on a live 3.1 MB transcript —
+4× to 40× over budget. Parsing only lines that can carry a figure brings it to **p50 3.0 ms / p95
+3.9 ms** against a raw-read floor of 1.3 ms. The prefilter is a performance device only: every line
+it admits is parsed properly and every field is read from the parsed struct, never from the bytes.
+**A first attempt matched bare `assistant` and admitted 47 of 113 lines**, because tool results carry
+`sourceToolAssistantUUID` — a prefilter that admits everything is not a prefilter, and it was
+silently not one. Measured admit rates over one real window: `assistant` 47, `"type":"assistant"` 43,
+`"usage"` 43, `compact_boundary` 7.
 
 **`Turns` is `Unmeasured` whenever the window does not reach `written_at`, and NEVER a partial
 count.** This is the failure mode the whole design exists to catch, inverted: a 300-turn-old note is
@@ -675,7 +685,10 @@ this repository today is schema 2, so a run against "a real `CHECKPOINT.md`" exe
 2. a note actually written under schema 3 → age hand-checked against its own `written_at`, and the
    branch-work count hand-checked against its `head`;
 3. the token figure hand-checked against `tail -c 200000 … | jq '.message.usage'` on a live multi-MB
-   transcript.
+   transcript. **Done: 525,066 from a 3.1 MB transcript, matching `jq` exactly**, with `Turns`
+   correctly `Unmeasured` (the file exceeds the window) and `Ceiling` `Unknown` (that session had
+   never compacted). Kept as `TestAgainstARealTranscript`, driven by `SC_REAL_TRANSCRIPT` and skipped
+   without it — a machine-specific path must not turn into a red that means "not applicable here".
 
 
 Then, in this repository:
@@ -739,6 +752,18 @@ correctness change and the stamping is pure observation.
 Thresholds from Phase 1, at §III's preregistered percentiles. **Two cost gates, not one** (criterion
 3): the transcript read p95 over 100 invocations **fails above 5 ms**; branch work p95 **fails above
 200 ms** and must be served from the per-`HEAD` cache on a repeat call.
+
+**Both gates carry an UNMEASURABLE case, and it is not optional.** An absolute wall-clock budget on a
+shared machine measures the neighbours: this gate read **p95 191 ms at load average 11**, against a
+raw seek-and-read floor — no parsing at all — of **13 ms**, over the same 256 KB. Blaming the code
+for that is how a gate teaches people to ignore it. So each run measures the unavoidable read
+alongside the real one, and **when the floor alone exceeds the budget the gate SKIPS with that
+number stated**, rather than failing. A budget that cannot be evaluated here reports "not measured",
+which is the same tri-state the thing it is testing applies to everything else.
+
+Note what was NOT done: the first fix attempt replaced the budget with a multiple of the raw read,
+and the multiple would have been chosen after seeing that the result was 3.43×. That is the post-hoc
+freedom §III forecloses for the nudge's own thresholds, and it applies to the gates too.
 
 **The protocol-rule gate, which the implementation commit fails without:**
 
