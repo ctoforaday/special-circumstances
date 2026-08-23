@@ -212,20 +212,31 @@ func suiteFor(rel string) string {
 // cost a quarter of an hour and a 200-site file would take fifty. Measured: two hours of
 // sweeping `internal/record` completed about eight mutants and produced no output at all.
 //
-// The fix keeps the correctness argument and drops the bill. A mutant is tried against its OWN
-// package first, where nearly all of them die in milliseconds; only a SURVIVOR — a mutant its
-// own tests did not notice — is worth asking the rest of the module about. The verdict is
-// identical, because a mutant killed locally would have been killed by the wider run too.
+// A mutant is tried against its OWN package, where nearly all die in milliseconds.
 //
-// The wide stage runs `-short` and skips ./integration/... : the integration suite shrinks under
-// -short by design, and it exists to exercise whole debates rather than to notice a one-operator
-// flip. Excluding it is the difference between a wide stage that costs a minute and one nobody
-// waits for.
-func runSuite(moduleDir, pkg string) (passed, broke bool) {
-	if passed, broke := runOne(moduleDir, "go", "test", pkg); broke || !passed {
+// THE WIDE STAGE IS OPT-IN (`-confirm`), AND MAKING IT SO IS THE SECOND HALF OF THE FIX. Trying
+// every survivor against the rest of the module is correct and costs ~8 minutes EACH: measured,
+// a `citationid.go` sweep ran an hour because its survivors each paid for a full-module run, and
+// the operator waiting on it could not be told how many were left. Two stages made the common
+// case free and left the reported case ruinous.
+//
+// So a survivor is reported as what it IS — "survived its own package" — and the expensive
+// confirmation is asked for rather than assumed. That matches what this tool already is: an
+// on-demand audit whose output is a list to EXPLAIN, not a gate. An operator who wants to know
+// whether another package would have caught it can ask; one who is auditing the package in front
+// of them should not pay for an answer they did not want.
+//
+// The correctness argument for the wide stage is unchanged and still true — an `internal/`
+// mutant CAN be killed by another package's tests — which is why `-confirm` exists rather than
+// the stage being deleted. What changed is who decides to pay.
+//
+// With `-confirm` the wide run uses `-short` and skips ./integration/... : that suite shrinks
+// under -short by design and exists to exercise whole debates, not to notice a one-operator flip.
+func runSuite(moduleDir, pkg string, confirm bool) (passed, broke bool) {
+	passed, broke = runOne(moduleDir, "go", "test", pkg)
+	if broke || !passed || !confirm {
 		return passed, broke
 	}
-	// Survived its own package. Ask the rest of the module before believing it.
 	pkgs, err := widePackages(moduleDir)
 	if err != nil || len(pkgs) == 0 {
 		return true, false
@@ -267,7 +278,7 @@ type result struct {
 
 // sweep mutates one occurrence at a time, ALWAYS restoring the file — including on SIGINT,
 // because a mutant left in the working tree is worse than no measurement.
-func sweep(moduleDir, filter string, out *os.File) (*result, error) {
+func sweep(moduleDir, filter string, confirm bool, out *os.File) (*result, error) {
 	files, err := goFiles(moduleDir)
 	if err != nil {
 		return nil, err
@@ -326,7 +337,7 @@ func sweep(moduleDir, filter string, out *os.File) (*result, error) {
 			}
 			lines[c.line] = original
 
-			passed, broke := runSuite(moduleDir, pkg)
+			passed, broke := runSuite(moduleDir, pkg, confirm)
 			switch {
 			case broke:
 				res.nocompile++
@@ -415,7 +426,7 @@ func TestLooseIsCalledButNotAsserted(t *testing.T) {
 		return false
 	}
 
-	res, err := sweep(dir, "", os.Stdout)
+	res, err := sweep(dir, "", false, os.Stdout)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "selftest FAILED:", err)
 		return false
@@ -461,6 +472,7 @@ func main() {
 	filter := flag.String("filter", "", "only sweep files whose path contains this substring")
 	doSelftest := flag.Bool("selftest", false, "prove the tool can still mutate and observe, then exit")
 	goVersion := flag.String("go-version", "1.25", "go directive for the -selftest fixture module")
+	confirm := flag.Bool("confirm", false, "re-test each SURVIVOR against the rest of the module (correct, and ~8 minutes per survivor)")
 	flag.Parse()
 
 	if *doSelftest {
@@ -494,7 +506,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	res, err := sweep(moduleDir, *filter, os.Stdout)
+	res, err := sweep(moduleDir, *filter, *confirm, os.Stdout)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
