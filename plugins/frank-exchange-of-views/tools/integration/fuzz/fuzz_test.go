@@ -486,11 +486,20 @@ func (r *runner) mint(seatID string) string {
 	// only ever in company with a mint.
 	if !r.classMade {
 		r.classMade = true
-		_, _ = r.exec("class", "new", "--seat-id", seatID,
+		// THE COIN'S FAILURE IS NOT OPTIONAL, and swallowing it made this file lie about what it
+		// drove. `classMade` is set BEFORE the call and the error was discarded, so a coin that
+		// failed for ANY reason left the flag latched and every later `--class fuzzcls` refused
+		// with "unknown class" — a run that mints nothing, returns FAIL with an empty gaps array,
+		// and is rejected by the engine as a degenerate merge. The cause was three verbs away
+		// from the symptom and invisible from the log.
+		if _, err := r.exec("class", "new", "--seat-id", seatID,
 			// --neighbor names an EXISTING class, and is checked. `verification-gap` was not one;
 			// nothing objected while the registry was absent, so the coining path ran green for
 			// its whole life against a neighbour that did not exist.
-			"--class", "fuzzcls", "--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q")
+			"--class", "fuzzcls", "--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q"); err != nil {
+			r.noteApplyMiss("class new refused: " + err.Error())
+			r.classMade = false // let a later seat try again rather than latching the run dead
+		}
 	}
 	args = append(args, "--class", "fuzzcls")
 	if r.coin(40) {
@@ -659,7 +668,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// 20% ON TOP OF "a prior closure exists" left `close --as amends_prior` never driven across
 	// 60 runs. The precondition is already the rare part.
 	if prior := r.closedGapIDs(); len(prior) > 0 {
-		if _, err := r.exec("merge", "close", "--seat-id", seatID, "--id", id, "--as", "amends_prior",
+		if _, err := r.exec("close", "--seat-id", seatID, "--id", id, "--as", "amends_prior",
 			"--supersedes", prior[r.rng.Intn(len(prior))], "--reason", "fuzz: found between two clean repairs",
 			"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
 			return
@@ -1119,12 +1128,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// The refusal is the production behaviour under test. Honouring it means a clean board
 			// with an outstanding motion FAILs the round — which is exactly right, and is the only
 			// way the motion arm of that gate is ever exercised end to end.
-			if _, err := r.exec("merge", "verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
+			if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
 				return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 			}
 			// Refused over something that is not a gap. Record the verdict the tool WILL take, so
 			// the record and the harness agree about how this round ended.
-			_, _ = r.exec("merge", "verdict", "--seat-id", seatID, "--as", "FAIL")
+			_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
 			return map[string]any{"verdict": "FAIL", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
 
@@ -1330,7 +1339,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// what makes both the gate and the act that clears it real in the sweep; without
 				// it every run with a negative reading would wedge at the verdict.
 				if outcome == "refutes" || outcome == "absent" {
-					_, _ = r.exec("lens", "finding", "--seat-id", seatID,
+					_, _ = r.exec("finding", "--seat-id", seatID,
 						"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
 						"--quote", claim, "--reason", "fuzz: the source says otherwise")
 				}
