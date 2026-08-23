@@ -170,8 +170,8 @@ plugins/prosthetic-conscience/tools/
 │   ├── stopnudge/          [NEW]    the guarded single emission at the turn boundary
 │   └── postcompactobserve/ [MODIFY] carry note-age-at-seal into the observation row
 └── cmd/
-    ├── sc-stop/            [NEW]    Stop — the nudge channel (one binary per event, #201 step 3)
-    └── sc-posttooluse/     [MODIFY] fan in the gauge as a cheap tick (matcher union widens)
+    └── sc-stop/            [NEW]    Stop — the nudge channel AND the gauge read, once per turn
+                             (no `sc-posttooluse` change: the per-tool tick was cut — §III)
 ```
 
 ### `[NEW] internal/ctxusage` — the measurement
@@ -265,9 +265,10 @@ machine-read fact to live in a field.
 | `at`, `event`, `occasion`, `session_id`, `agent_id` | the stamp's five facts, as fields this time |
 | `note_age_turns`, `note_growth_tokens`, `note_branch_commits`, `ceiling_known` | criterion 1 |
 | `seal_trigger` | `precompact` \| `sessionend` \| `seat_return` — which event sealed |
-| `live_handles` | `len(background_tasks) + len(session_crons)`, **only when measurable** |
+| `live_handles` | count of `background_tasks` entries with `type != "subagent"`, plus `session_crons` — **only when measurable**. Seats are excluded deliberately: at a `seat_return` seal the returning seat appears in the parent's own list (§12), and counting it reads high by exactly one while answering a different question from "did this note miss some background work" |
 | `handles_measured` | `false` when the payload carries no `background_tasks` key |
 | `nudge_enabled` | whether the nudge was live when this seal was written — criterion 6's falsification groups on it, and it must be recorded per row rather than inferred from dates |
+| `emissions_this_session` | how many nudges this session has emitted at the time of the seal, and `emission_bytes_max` beside it — **criterion 4's budget is stated as "counted in the observation row rather than intended", and until this field existed nothing counted it**. The debounce file already holds the number; the seal row is where it becomes checkable after the fact |
 
 **`handles_measured` is not defensive padding; it is the whole of the column's honesty.** Measured
 per event 2026-08-23 on 2.1.240 and recorded as `hook-surface-spike.md` **§12** — key sets read from
@@ -313,14 +314,16 @@ able to measure handles would be silently dropped from the baseline.
 
 **A count must also decide about seats.** `background_tasks` includes subagents —
 `{"type":"subagent","agent_type":"general-purpose","status":"running"}` (§12) — so at a `seat_return`
-seal the returning seat can appear in its own handle list. `live_handles` counts entries with
-`type != "subagent"` plus `session_crons`; a seat-inclusive figure answers a different question from
-"did this note miss some background work", and reads high by exactly one.
+seal the returning seat can appear in its own handle list. The field table above carries the single definition; this is why it excludes them.
 
-> **A loose end, recorded rather than smoothed:** in a run ending with a background task still
-> running, **`SessionEnd` did not fire at all** (0/1; it fired in 14 of 15 census sessions, all of
-> which ended clean). One observation is not a finding, but it points at the same case this plan
-> cares about, so Phase 1 MUST count `sessionend` rows against sessions rather than assume one each.
+> **A loose end, recorded rather than smoothed:** `SessionEnd` did **not fire in either** run that
+> ended with a background task still running — **0 of 2** — while it fired in 14 of 15 census sessions
+> and in the clean control (spike §12). **The confound is named there and is carried here rather than
+> dropped:** both live-task runs also hit the driver's pipe close, so "the session did not end the way
+> the hook counts as ending" is not excluded. Two observations with an unexcluded confound are a
+> pattern, not a finding. Phase 1 MUST therefore count `sessionend` rows **against sessions** rather
+> than assume one each, because a seal that silently never fires is indistinguishable from one that
+> fired and found nothing.
 
 **Consumer census — of the RECORD's readers, not of the package's importers.** The previous census
 ran `grep -rn "checkpointseal" --include=*.go plugins/` and concluded "no external reader": that
@@ -340,7 +343,7 @@ acts on cannot be checked against a re-run:
 | Hit | Reads what | Changes? |
 |---|---|---|
 | `cmd/sc-precompact`, `cmd/sc-sessionend`, `cmd/sc-subagentstop` | call the sealer | **YES** — each now also writes a `seals.jsonl` row |
-| `internal/checkpointseal/{main,drift,hook,main_test}.go` | the package | **YES** — new writer plus tests |
+| `internal/checkpointseal/{main.go,main_test.go,drift_test.go,hook_test.go}` | the package | **YES** — new writer plus tests |
 | `commands/resume.md:7` | `--seals` tells the agent to list snapshots "with their sealed-at stamp, trigger and agent" — a **prompt-side contract against the comment string** | **No** — the stamp is unchanged. This is the carrier that makes the stamp load-bearing; retiring it starts here |
 | `internal/checkpoint/checkpoint.go:239` (`NoteLoopProblems`) + `checkpoint_test.go:101` | the note body. The test fixture contains `<!-- sealed: trigger=auto -->` — **a stamp shape the writer never emits** (it writes `event=`/`occasion=`) | **No** — `Parse` strips scaffolding and never reads the stamp's keys. Flagged because a fixture asserting a format nothing writes is how a format's real readers get miscounted |
 | `gray-area/tools/internal/claims/claims.go` + its tests | *"reads a sealed checkpoint note as a set of DECLARED CLAIMS"* — the note body | **No** — snapshot format unchanged |
@@ -402,26 +405,42 @@ looped nine times and burned 1,186 output tokens on filler. Therefore:
 - A **loop regression test** asserts the null case: given a band already spent, the emission is
   empty. This is the test that must never be deleted.
 
-`sc-posttooluse` additionally fans in the gauge as a cheap tick — it updates the measurement so
-`Stop` can decide quickly, and it does **not** emit. One writer of the nudge, one event.
+**The `PostToolUse` gauge tick is CUT, and this is a design change, not a wording fix.** It was
+specified as a cheap tick that "updates the measurement so `Stop` can decide quickly" — an
+optimisation with no measurement behind it, bought at a price the plan had not counted:
 
-**Carrier census for the two commands — three of these are hard-gated and were previously omitted.**
-`scripts/pluginparity` fails the build on any of them going stale, and §V Phase 2 must run it:
+- `internal/posttooluse/main_test.go:133` `TestRealUnitsKeepTheirOwnMatchers` iterates **every** unit
+  in `Units()` and asserts each one *rejects* `{"tool_name":"Bash"}` and *accepts* `Edit`. A gauge
+  unit that accepts `Read`/`Bash` **fails a shipped test** — one that exists precisely to stop a
+  merged binary widening what its units act on (`hooks.json:18`'s `_comment` states the same policy).
+  Widening would have meant editing an invariant to fit a convenience.
+- `requirements.json:68` states the matcher as `"event": "PostToolUse(Write|Edit)"` and would go stale.
+- Criterion 3's ≤ 5 ms is a **per-invocation** budget; a per-tool tick multiplies it by the tool count.
 
-| Carrier | What changes | Gate |
+`Stop` fires at every turn boundary and can read the gauge itself — **once per turn instead of once
+per tool**, which is cheaper than the thing the tick was meant to make cheap. One writer, one event,
+one registration. `sc-posttooluse` is untouched by this plan.
+
+**Carrier census for `cmd/sc-stop`** — the one new command:
+
+| Carrier | What changes | Actually gated by |
 |---|---|---|
-| `plugins/prosthetic-conscience/hooks/hooks.json` | a **new `Stop` registration** for `sc-stop`; `PostToolUse`'s matcher goes from `Write\|Edit` to **`Write\|Edit\|Read\|Bash`** | `pluginparity` |
-| `requirements.json` `_hook_binaries.binaries[]` | `sc-stop` added | `pluginparity` |
-| `docs/setup-script.md:99` | reads "15 at the time of writing"; a new `cmd/` directory makes it 16 | `pluginparity` `main.go:130-138` |
-| `hooks.json` `_comment` on `PostToolUse` | states the union policy this widens — the prose is the policy's only statement | review |
+| `hooks.json` | a **new `Stop` registration** | **NOTHING — see below** |
+| `requirements.json` `_hook_binaries.binaries[]` | `sc-stop` added | `pluginparity` (`main.go:120-169`, names against `cmd/` dirs) |
+| `docs/setup-script.md:99` | "15 at the time of writing" → 16 | `pluginparity` (`main.go:130-138`) |
 
-**The matcher value is stated because a matcher is a contract, not an intention.** `Write|Edit|Read|Bash`
-is chosen as the smallest set that tracks context growth: `Read` and `Bash` are what actually move the
-token count, `Write|Edit` are already registered for the quality gate. It is deliberately **not** `*` —
-the `_comment` at `hooks.json:18` records that each unit "still checks its own applicability so merging
-cannot widen what it acts on", and criterion 3's ≤ 5 ms p95 is a **per-invocation** budget, so the
-matcher is also the sizing input for it. A tick on every tool call would multiply that budget by the
-tool count and could not be reviewed against a set nobody wrote down.
+**An earlier draft of this table said `pluginparity` "fails on any one going stale". That is false,
+and the false part is the row that matters.** `grep -c "hooks.json" scripts/pluginparity/main.go`
+returns **0**: it gates the marketplace/bootstrap/docs plugin lists, the docs binary count, and
+`requirements.json` binary *names* — never registration. The only `hooks.json` check in CI
+(`.github/workflows/hooks.yml:428-455`) tests bootstrap-guard degradation, not registration or
+matchers. **So a `Stop` hook that is built, declared and documented but never registered passes every
+command §V names**, and the binary sits on disk doing nothing while the gates read green — the
+plausible-zero shape, at the level of the gate set.
+
+Phase 2 therefore carries a **stated manual review** of `hooks.json`, and this plan files the gap
+rather than pretending a gate covers it: extending `pluginparity` with `hooks.json` ↔ `cmd/`
+registration parity is the real fix and belongs to the parity tool, not here.
 
 The parent plan's Phase 5 preferred `PostToolUseFailure`. That is now demoted to a fallback and
 was, on the evidence, the wrong instinct for a good reason: it was the only injector known at the
@@ -474,7 +493,12 @@ a truncated final line; a session with **no** compact boundary → `Ceiling: Unk
 percentage in the render**; two boundaries → most recent wins; mtime and `updated:` disagreeing; a
 note head that is unreachable; a branch whose history contains merges → first-parent and plain
 counts differ; **a payload with no `background_tasks` key → `handles_measured: false` and NO
-`live_handles` field** (the `PreCompact` case, measured); **a seal row written on each of the three
+`live_handles` field** (the `PreCompact`/`SessionEnd` case, measured §12); **and the case that
+discriminates — `background_tasks: []` PRESENT but empty → `handles_measured: true`, `live_handles:
+0`** (the normal `seat_return`, §9d). Without the second, the suite passes for a `[]Task` decode that
+cannot tell absent from empty, and the only trigger that can measure handles is silently dropped from
+the baseline; **a seat's own entry excluded from the count** (§12: a live seat appears as
+`type: "subagent"` in the parent's list); **a seal row written on each of the three
 trigger events**, asserted per event rather than per package.
 
 **Driveable check on real data.** Run the gauge against a live multi-MB transcript and a real
@@ -543,15 +567,33 @@ Thresholds from Phase 1, at §III's preregistered percentiles. **Two cost gates,
 3): the transcript read p95 over 100 invocations **fails above 5 ms**; branch work p95 **fails above
 200 ms** and must be served from the per-`HEAD` cache on a repeat call.
 
-**Registration parity, which Phase 2 cannot pass without:**
+**Criterion 4's budget, counted rather than intended:**
+
+```bash
+# No session may exceed 4 emissions, and no render may exceed 200 bytes.
+jq -s 'map(select(.nudge_enabled)) | {sessions: (group_by(.session_id) | length),
+        worst_count: (map(.emissions_this_session) | max),
+        worst_bytes: (map(.emission_bytes_max) | max)}' .claude/checkpoints/seals.jsonl
+```
+
+`worst_count > 4` or `worst_bytes > 200` fails Phase 2. A criterion whose number appears only in §I is
+an intention; this is the query that makes it a check.
+
+**Registration parity — and what it does NOT cover:**
 
 ```bash
 (cd scripts && go run ./pluginparity)
 ```
 
-`sc-stop` is a new `cmd/` directory, so `hooks.json`, `requirements.json` `_hook_binaries.binaries[]`
-and `docs/setup-script.md`'s binary count all move together; `pluginparity` fails on any one going
-stale. §V previously ran only `go test` inside `tools/`, which cannot see any of them.
+`sc-stop` is a new `cmd/` directory, so `requirements.json` `_hook_binaries.binaries[]` and
+`docs/setup-script.md`'s binary count both move; `pluginparity` fails on either going stale, and §V
+previously ran only `go test` inside `tools/`, which cannot see them.
+
+**It does not cover `hooks.json`.** `pluginparity` never reads that file (§III), and no other gate
+checks registration, so Phase 2 also requires a **stated manual review**: confirm `sc-stop` is
+registered on `Stop`, and that no other event's matcher moved. Written down as a manual step because
+naming a gate that does not check the thing is worse than admitting there is no gate — the run goes
+green either way, and only one of the two tells you why.
 
 **The loop gate comes first, because it is the one that burns tokens.** Reproduce spike §8's null
 control against the real binary: a scratch project, one prompt, band already spent → **exactly one
@@ -669,8 +711,9 @@ exists to say whether it is worth starting.
 **What the census changes about the plan's own risks.** **F10 keeps its `H×H×L` rating and gains a
 stated residual of `L×M`** (§IV, where the table's pre-mitigation convention is now written down; an
 earlier draft of this paragraph announced a re-rating to `L×M×L`, which would have made F10 the one
-row not comparable with the others). The residual is low — 9 firings and 1,186 wasted tokens stand — but because the
-hazard is cycle detection, and two independent brakes are already specified: `stop_hook_active` is a
+row not comparable with the others). The measurement is undisturbed — 9 firings and 1,186 wasted
+tokens stand. What is low is the **residual**, because the hazard is cycle detection and two
+independent brakes are already specified: `stop_hook_active` is a
 field the client sets on every re-entry (false on the first firing, true on the eight that followed,
 on `Stop` and `SubagentStop` alike), needing no state and no write, and the debounce file carries
 band policy, whose worst failure is one duplicate emission. The original rating priced an *unguarded*
