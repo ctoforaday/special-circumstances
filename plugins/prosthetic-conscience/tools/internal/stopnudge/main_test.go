@@ -12,6 +12,21 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 )
 
+// payload builds hook stdin by MARSHALLING, never by concatenation.
+//
+// A path embedded in a JSON string literal is not a path on Windows: C:\Users\...\t.jsonl
+// carries \U and \t, and \t is a TAB. The transcript path then arrives corrupted, the file
+// is not found, and the read comes back unmeasured — which is what CI caught, on a test
+// asserting turns_measured. json.Marshal escapes it correctly on every platform.
+func payload(t *testing.T, kv map[string]any) string {
+	t.Helper()
+	b, err := json.Marshal(kv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
 func withNote(t *testing.T, body string) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -76,7 +91,7 @@ func TestNewestOnAnUnparseableNoteIsZero(t *testing.T) {
 // seal record reads the nudge's liveness from whether that file exists.
 func TestRunWithNoNoteSaysNothingAndWritesNothing(t *testing.T) {
 	dir := t.TempDir()
-	out, errb := drive(t, dir, `{"session_id":"s1","cwd":"`+dir+`"}`)
+	out, errb := drive(t, dir, payload(t, map[string]any{"session_id": "s1", "cwd": dir}))
 	if out != "" {
 		t.Errorf("emitted with no note present:\n%s", out)
 	}
@@ -95,7 +110,7 @@ func TestRunWithNoNoteSaysNothingAndWritesNothing(t *testing.T) {
 // nudge_enabled, disarming criterion 6.
 func TestRunIsInertAndLeavesNoTraceWhileThresholdsAreUnset(t *testing.T) {
 	dir := withNote(t, "---\nschema: 3\nwritten_at: 2026-08-23T00:00:00Z\n---\n## Validation loop\n1. x\n")
-	out, _ := drive(t, dir, `{"session_id":"s1","cwd":"`+dir+`","stop_hook_active":false}`)
+	out, _ := drive(t, dir, payload(t, map[string]any{"session_id": "s1", "cwd": dir, "stop_hook_active": false}))
 	if out != "" {
 		t.Errorf("an unconfigured nudge emitted:\n%s", out)
 	}
@@ -142,8 +157,8 @@ func TestTheEmitPathProducesTheMeasuredResponseShape(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, _ := driveWith(t, dir, `{"session_id":"s1","cwd":"`+dir+`","transcript_path":"`+tp+`","stop_hook_active":false}`,
-		Thresholds{TurnsNotice: 30, TurnsWarn: 60, TurnsUrgent: 120})
+	in := payload(t, map[string]any{"session_id": "s1", "cwd": dir, "transcript_path": tp, "stop_hook_active": false})
+	out, _ := driveWith(t, dir, in, Thresholds{TurnsNotice: 30, TurnsWarn: 60, TurnsUrgent: 120})
 	if out == "" {
 		t.Fatal("no emission from a note 40 turns old with a NOTICE edge at 30")
 	}
@@ -170,8 +185,7 @@ func TestTheEmitPathProducesTheMeasuredResponseShape(t *testing.T) {
 		t.Errorf("emitted a percentage:\n%s", ctx)
 	}
 	// And it recorded the band BEFORE returning: a second boundary must be silent.
-	if again, _ := driveWith(t, dir, `{"session_id":"s1","cwd":"`+dir+`","transcript_path":"`+tp+`","stop_hook_active":false}`,
-		Thresholds{TurnsNotice: 30, TurnsWarn: 60, TurnsUrgent: 120}); again != "" {
+	if again, _ := driveWith(t, dir, in, Thresholds{TurnsNotice: 30, TurnsWarn: 60, TurnsUrgent: 120}); again != "" {
 		t.Errorf("emitted twice for one band — the write did not happen before the emit:\n%s", again)
 	}
 }

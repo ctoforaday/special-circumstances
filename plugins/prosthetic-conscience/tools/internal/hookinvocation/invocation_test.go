@@ -162,6 +162,18 @@ func stdoutContract(event string) string {
 	return "json-or-empty"
 }
 
+// marshal builds a payload the way the client does. Concatenating a path into a JSON
+// literal is not portable: on Windows the separators become escape sequences, and \t is
+// a tab.
+func marshal(t *testing.T, kv map[string]any) string {
+	t.Helper()
+	b, err := json.Marshal(kv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
+
 // THE I/O CONTRACT, against the real processes, with the payloads a client sends and
 // several it never would.
 func TestTheShippedBinariesHonourTheIOContract(t *testing.T) {
@@ -176,7 +188,7 @@ func TestTheShippedBinariesHonourTheIOContract(t *testing.T) {
 	}
 
 	payloads := map[string]string{
-		"realistic":   `{"session_id":"s1","cwd":"` + project + `","hook_event_name":"X","trigger":"auto","stop_hook_active":false}`,
+		"realistic":   marshal(t, map[string]any{"session_id": "s1", "cwd": project, "hook_event_name": "X", "trigger": "auto", "stop_hook_active": false}),
 		"empty":       ``,
 		"not json":    `{`,
 		"json null":   `null`,
