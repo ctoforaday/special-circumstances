@@ -798,9 +798,12 @@ probe cannot separate those. The low row is the informative one.
 ### D. What is NOT verified
 
 - ~~**Restore at `source == "compact"` end-to-end.**~~ **Now verified — 2026-07-29, see §17.**
-- ~~**`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is not a usable lever.**~~ **Wrong; it is, at `PCT=10`.
-  See §17 A** — the failure was using it at 1 and 2, where the headroom above the fixed ~30.6k floor
+- ~~**`CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is not a usable lever.**~~ ~~**Wrong; it is, at `PCT=10`.
+  See §17 A**~~ — the failure was using it at 1 and 2, where the headroom above the fixed ~30.6k floor
   is a few thousand tokens and the next boundary is one turn away whatever the workload does.
+  **Both readings are now obsolete: on client 2.1.240 the variable is inert at every value tested
+  (2/5/10/25 — zero boundaries with ~102k of context reached in each run).** The lever is
+  `--autocompact <auto|tokens>`; evidence in `hook-surface-spike.md` §11.
 - ~~`watchPaths` re-arming of validation triggers (I2) is spiked but unwired.~~ **Built 2026-07-29** — see §18.
 - ~~`SubagentStop` and `SessionEnd` seals remain Phase 2 leftovers~~ — **shipped 2026-07-29** (§13
   Phase 2).
@@ -824,6 +827,17 @@ probe cannot separate those. The low row is the informative one.
 had assumed answered.
 
 ### A. `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE` is a usable lever — at 10, not at 2
+
+> **OBSOLETE ON 2.1.240 (measured 2026-08-22, `hook-surface-spike.md` §11).** The variable does
+> nothing at any value now: the same sweep shape run at 2/5/10/25 produced **zero** compactions while
+> every run reached ~102k tokens of context. Use `--autocompact <tokens>` instead — a flag that did
+> not exist when this section was written.
+>
+> **The section is kept in full, because its method is what caught this.** Its own lesson — *"a clean
+> exit says the run finished; it says nothing about where the threshold was"* — is exactly why §11
+> asserts the boundary from the transcript rather than from an exit code. This is the third revision
+> of this claim, and the failure moved: it was the value twice, and now it is the lever. A control
+> surface can disappear between patch versions while every test built on it keeps exiting 0.
 
 §16 D said it was not usable and a Phase 4 harness needed a different mechanism. That was wrong, and
 wrong in the same way twice: the value was sized off a guess and then "confirmed" by a clean exit.
