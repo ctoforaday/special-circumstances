@@ -58,8 +58,13 @@ func TestCiteAnchorBijection(t *testing.T) {
 	assertBijection(t, runDir)
 
 	// An edit that does NOT touch an anchor keeps the bijection.
+	//
+	// `Beta holds` and not `under load too`: both cites anchor at the END of their sentence, so a
+	// fragment ending on the last word ends exactly where the marker begins — which IS the text
+	// the anchor is attached to, and is refused now. This fragment starts the sentence and stops
+	// well short, which is the case the exemption exists for.
 	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--quote", "under load too", "--new", "under heavy load too", "--reason", "precision"); err != nil {
+		"--key", "E1", "--quote", "Beta holds", "--new", "Beta clearly holds", "--reason", "precision"); err != nil {
 		t.Fatalf("clean edit: %v", err)
 	}
 	assertBijection(t, runDir)

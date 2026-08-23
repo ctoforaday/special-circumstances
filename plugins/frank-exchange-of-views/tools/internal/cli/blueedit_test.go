@@ -67,8 +67,13 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	writeReport(t, runDir, "# Findings\n\nThe cost is high and rising over time<!--fx:f-abc123-->. Volume grows[^v] steadily.\n")
 	registerBlue(t, runDir)
 
+	// THE QUOTE CARRIES THE MARKER, because the span ends exactly where the marker begins —
+	// "rising over time" IS the text f-abc123 is attached to. Quoting it without the token was
+	// accepted before and left the anchor beside prose it was never placed against; now the seat
+	// quotes what `show report` prints and copies the token into --new like any other character.
 	out, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--quote", "rising over time", "--new", "climbing sharply", "--reason", "sharper phrasing")
+		"--key", "E1", "--quote", "rising over time<!--fx:f-abc123-->",
+		"--new", "climbing sharply<!--fx:f-abc123-->", "--reason", "sharper phrasing")
 	if err != nil {
 		t.Fatalf("blue edit: %v (out %q)", err, out)
 	}
@@ -79,9 +84,17 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	if !strings.Contains(rep, "<!--fx:f-abc123-->") {
 		t.Errorf("finding-marker was dropped: %q", rep)
 	}
+	// THE MARKERS ARE IN THE RECORDED OP, on both sides. The diff stack is the record of what
+	// text moved, and the anchor is part of the text — an op showing a replacement that silently
+	// omits the token would describe an edit nobody made. Carrying it in `old` and `new` is also
+	// what lets the stack be replayed or reviewed without the document to hand.
 	ev := lastBody(t, runDir, &recordpb.BlueEdit{})
-	if ev.GetOld() != "rising over time" || ev.GetNew() != "climbing sharply" {
+	if ev.GetOld() != "rising over time<!--fx:f-abc123-->" || ev.GetNew() != "climbing sharply<!--fx:f-abc123-->" {
 		t.Errorf("blue_edit op payload wrong: old=%q new=%q", ev.GetOld(), ev.GetNew())
+	}
+	// AND THE EDIT REOPENED THE FINDING, because it rewrote the words that finding is anchored to.
+	if got := ev.GetReopened(); len(got) != 1 || got[0] != "f-abc123" {
+		t.Errorf("reopened = %v, want [f-abc123] — the marker survived onto different words, which is exactly the case that needs re-reading", got)
 	}
 	if ev.GetText() != "sharper phrasing" {
 		t.Errorf("reason not recorded: %q", ev.GetText())

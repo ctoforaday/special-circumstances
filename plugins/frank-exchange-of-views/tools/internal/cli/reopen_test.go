@@ -51,9 +51,10 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 		t.Errorf("reopened = %v after an edit elsewhere in the document, want none", got)
 	}
 
-	// THE EDIT THAT MOVES THE CITED SENTENCE reopens it.
+	// THE EDIT THAT MOVES THE CITED SENTENCE reopens it — quoted AS PRINTED, token carried.
+	printed, tok := anchoredLine(t, runDir)
 	if _, err := run(t, "blue", "edit", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--quote", claim, "--new", "§2 an entirely different assertion now.",
+		"--quote", printed, "--new", "§2 an entirely different assertion now"+tok+".",
 		"--reason", "rewrote the sentence red corroborated"); err != nil {
 		t.Fatal(err)
 	}
@@ -69,4 +70,24 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 	if !strings.Contains(string(md), got[0]) {
 		t.Error("the anchor was lost rather than reopened — an anchor may transit an edit but never be dropped by one")
 	}
+}
+
+// anchoredLine returns the report line carrying a citation anchor and the token itself — what a
+// seat sees in `show report` and copies into its quote.
+func anchoredLine(t *testing.T, runDir string) (string, string) {
+	t.Helper()
+	md, err := record.ReadBlueReport(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, l := range strings.Split(string(md), "\n") {
+		i := strings.Index(l, "<!--cite:")
+		if i < 0 {
+			continue
+		}
+		j := strings.Index(l[i:], "-->")
+		return l, l[i : i+j+3]
+	}
+	t.Fatal("no anchored line in the report")
+	return "", ""
 }

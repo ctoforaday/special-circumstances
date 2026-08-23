@@ -68,9 +68,11 @@ stdout:
 registered red-merge-r1
 
 $ merge mint --run {RUN} --seat-id red-merge-r1 --class citation-drift --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote ## S2 --found-by L1-F1,L5-F1 --problem the cited source does not say this
-exit 0
-stdout:
-minted R1-1
+exit 2
+stderr:
+feov-record: merge: merge mint --quote: the text you are replacing carries finding-marker FINDING001, and your quote stops just before it. That anchor is ON this sentence: rewriting the sentence without it strands the reference beside prose it was never placed against. Quote the sentence AS `show report` PRINTS IT — anchors included — and carry <!--fx:FINDING001--> into --new unchanged. To change the words around it and leave the anchor where it is, quote a FRAGMENT that does not reach it
+
+Quote the exact sentence the defect lives at, from blue/report.md and nothing else — a section heading plus a sentence will not match. For a gap about something MISSING, quote the sentence where it SHOULD be; that is how a lens finding anchors an omission
 
 $ merge position --run {RUN} --seat-id red-merge-r1 --reason round one: FAIL
 exit 0
@@ -80,7 +82,7 @@ position recorded
 $ merge verdict --run {RUN} --seat-id red-merge-r1 --as FAIL
 exit 0
 stdout:
-verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
+verdict FAIL (0 open, 0 closed) and checkpointed to {MIRROR}
 
 ═══ EVENTS ═══
 
@@ -108,9 +110,7 @@ indistinguishable from one that never looked._
 
 ## Read this first
 
-1 open gap(s) remain, most severe first — full statements in **Red team findings** below.
-
-1. **[high]** the cited source does not say this (R1-1) — 
+_(no open gaps remain — nothing outstanding to re-examine)_
 
 ## TL;DR
 
@@ -132,7 +132,7 @@ _(blue/report.md has no "## Analysis" section — not authored here; blue owns t
 
 | Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
 |---|---|---|---|---|
-| the cited source does not say this | high | high | medium | — |
+| _(no open gaps)_ |  |  |  |  |
 
 The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
 
@@ -164,21 +164,25 @@ A claim sits under S4.
 
 ## Red team findings (in full)
 
-### Open gaps (1)
+### Open gaps (0)
 
-### R1-1 — the cited source does not say this
-## S2
-severity high | high x high | cx medium | class citation-drift
-required_fix: 
-fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
-acceptance_check: refetch and diff
-surfaced by:
-- L1-F1 (## S2): citation does not support
-- L5-F1 (## S4): a leap of faith
+_(none open)_
 
 ### Closure index (0)
 
 _(nothing closed)_
+
+### Lens findings not raised to a gap (2)
+
+Red's leaf audit that the merge weighed but did not mint — kept for the record, not a gate on the verdict.
+
+### L1-F1 — ## S2
+severity medium | medium x high | red-lens-r1-L1
+citation does not support
+
+### L5-F1 — ## S4
+severity high | high x high | red-lens-r1-L5
+a leap of faith
 
 ## The debate
 
