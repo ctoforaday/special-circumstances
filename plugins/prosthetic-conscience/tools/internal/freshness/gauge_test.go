@@ -103,7 +103,7 @@ func TestWriteStateLeavesNoTempFilesBehind(t *testing.T) {
 	if len(names) != 1 || names[0] != "freshness.json" {
 		t.Errorf("checkpoints dir = %v, want just freshness.json — temp files were left behind", names)
 	}
-	got := readState(p)
+	got, _ := readState(p)
 	if got.TokensAtWrite != 3000 {
 		t.Errorf("TokensAtWrite = %d, want 3000 from the last write", got.TokensAtWrite)
 	}
@@ -111,7 +111,7 @@ func TestWriteStateLeavesNoTempFilesBehind(t *testing.T) {
 
 // An unreadable state file is not an empty one, for the same reason a corrupt one is not.
 func TestReadStateOnAMissingFileIsTheZeroState(t *testing.T) {
-	st := readState(filepath.Join(t.TempDir(), "nope.json"))
+	st, _ := readState(filepath.Join(t.TempDir(), "nope.json"))
 	if st.HasWriteReading {
 		t.Errorf("a missing state file reported a write reading: %+v", st)
 	}

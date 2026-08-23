@@ -2,6 +2,7 @@ package freshness
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -36,7 +37,14 @@ func Of(projectDir, transcriptPath, note string, branch Branch, now time.Time) M
 	m, _ := ctxusage.Read(transcriptPath, writtenAt)
 
 	stPath := filepath.Join(projectDir, ".claude", "checkpoints", "freshness.json")
-	st := readState(stPath)
+	st, ok := readState(stPath)
+	if !ok {
+		// The record exists and could not be read. Stamping now would overwrite a reading
+		// we cannot see with one taken at this moment, and every later growth figure would
+		// measure from here rather than from the note. Report what needs no state, and
+		// leave the file alone.
+		return Gauge(State{}, m, branch)
+	}
 	st, justStamped := ObserveAndSay(st, writtenAt, m, now)
 	writeState(stPath, st)
 
@@ -45,34 +53,44 @@ func Of(projectDir, transcriptPath, note string, branch Branch, now time.Time) M
 	return GaugeAfter(st, m, branch, justStamped)
 }
 
-// readState returns the zero State for anything it cannot read. A corrupt or absent
-// state file costs one note's growth measurement, which the row then reports as
-// unmeasured — the honest outcome, and better than a stale reading presented as current.
-func readState(path string) State {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return State{}
+// readState reports the state AND whether the file could be read at all.
+//
+// ABSENT AND UNREADABLE ARE DIFFERENT ANSWERS, which is the distinction this design
+// enforces everywhere else and did not enforce here. A missing file is an honest empty
+// state: nothing has been stamped yet. A file that exists but cannot be read is not
+// empty — and treating it as empty makes Of() RE-STAMP tokens_at_write at the current
+// count, after which growth measures the interval since the failed read.
+//
+// MEASURED ON WINDOWS, by CI. A reader can transiently fail to open a file that is being
+// renamed over — rename is atomic for the FILE, but a concurrent open can still hit a
+// sharing violation — and 21 of 800 reads came back "torn" under four concurrent writers.
+// On Linux the same harness reports zero. The retry absorbs the transient case; the
+// second return value makes the permanent one honest instead of silently zero.
+func readState(path string) (State, bool) {
+	var lastErr error
+	for attempt := range 3 {
+		b, err := os.ReadFile(path)
+		if errors.Is(err, os.ErrNotExist) {
+			return State{}, true // absent: an honest empty state
+		}
+		if err != nil {
+			lastErr = err
+			// Transient on Windows while a rename lands. A few milliseconds is far below
+			// any hook's budget and far above the window.
+			time.Sleep(time.Duration(attempt+1) * 2 * time.Millisecond)
+			continue
+		}
+		var st State
+		if err := json.Unmarshal(b, &st); err != nil {
+			// Present but undecodable. NOT empty — see the doc comment.
+			return State{}, false
+		}
+		return st, true
 	}
-	var st State
-	if err := json.Unmarshal(b, &st); err != nil {
-		return State{}
-	}
-	return st
+	_ = lastErr
+	return State{}, false
 }
 
-// writeState replaces the state file ATOMICALLY: temp file, then rename.
-//
-// FOUR binaries write this file — sc-precompact, sc-sessionend, sc-subagentstop and
-// sc-postcompact-observe — and the client runs an event's hooks in PARALLEL (measured,
-// hook-surface-spike.md §4b), while two seats can return at once. A plain os.WriteFile
-// truncates and then writes, so a concurrent reader sees an empty or half-written file,
-// decodes the zero State, and RE-STAMPS tokens_at_write at the current count. Growth
-// then measures the interval since the tear, reported as measured, confident and wrong.
-//
-// rename(2) is atomic within a directory, so a reader sees either the old file or the
-// new one. It does not order two concurrent writers — last writer wins — but both are
-// writing a reading of the same note, so either is correct; the failure this prevents is
-// reading a file that is neither.
 func writeState(path string, st State) {
 	b, err := json.Marshal(st)
 	if err != nil {

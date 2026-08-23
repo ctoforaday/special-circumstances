@@ -57,7 +57,7 @@ func hammer(t *testing.T, write func(string, State)) (torn int) {
 		go func() {
 			defer wg.Done()
 			for range rounds {
-				if got := readState(path); !got.HasWriteReading {
+				if got, ok := readState(path); !ok || !got.HasWriteReading {
 					mu.Lock()
 					torn++
 					mu.Unlock()
@@ -147,7 +147,7 @@ func TestTheSurvivingStateIsOneSomebodyActuallyWrote(t *testing.T) {
 	}
 	wg.Wait()
 
-	got := readState(path)
+	got, _ := readState(path)
 	if !got.HasWriteReading {
 		t.Fatal("final state is the zero value; the last write did not survive")
 	}
