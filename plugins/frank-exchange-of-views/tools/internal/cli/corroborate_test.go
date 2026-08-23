@@ -122,3 +122,39 @@ func TestACorroborationOfAnAbsentClaimIsRefused(t *testing.T) {
 		t.Errorf("the splice was refused and %d source(s) still recorded: %+v", len(srcs), srcs)
 	}
 }
+
+// A `weak` READING STILL POINTS AT A SOURCE, so it joins the bibliography.
+//
+// THE ARGUMENT IS SYMMETRY, NOT STRENGTH. When blue cites a source and red grades it `weak`
+// through `lens verify`, the footnote STAYS — verify adjudicates and never touches the report.
+// Excluding a weak corroboration rendered the same (claim, source, grade) triple as a footnote
+// when blue found the source and as nothing when red did, which is the one difference a reader
+// must not be able to see. It also left red's reading with no reader and no duty: neither cited
+// nor owing a finding, visible only in the evidence projection.
+//
+// `unreachable` is the honest exclusion and is asserted beside it: red could not read the thing,
+// so there is nothing to point a reader at.
+func TestAWeakReadingCitesButAnUnreachableOneDoesNot(t *testing.T) {
+	for _, tc := range []struct {
+		outcome string
+		cites   bool
+		why     string
+	}{
+		{"weak", true, "thin support is still support, and the footnote is a pointer rather than an endorsement"},
+		{"unreachable", false, "red could not read it, so there is nothing to point the reader at"},
+	} {
+		t.Run(tc.outcome, func(t *testing.T) {
+			runDir := corroborateRun(t)
+			if _, err := run(t, "lens", "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+				"--url", "https://example.org/"+tc.outcome, "--title", "A source",
+				"--quote", corroborated, "--as", tc.outcome, "--confidence", "medium",
+				"--reason", "what the source says"); err != nil {
+				t.Fatalf("a %s corroboration was refused — every reading must RECORD, whatever it renders: %v", tc.outcome, err)
+			}
+			got := strings.Contains(assembled(t, runDir), "example.org/"+tc.outcome)
+			if got != tc.cites {
+				t.Errorf("%s in the bibliography = %v, want %v — %s", tc.outcome, got, tc.cites, tc.why)
+			}
+		})
+	}
+}

@@ -146,18 +146,29 @@ const (
 	adjudates citing = false
 )
 
-// backsTheClaim reports whether an outcome is a source that BACKS the sentence, and so belongs in
-// the bibliography.
+// backsTheClaim reports whether an outcome POINTS AT A SOURCE the reader can go and read, and so
+// belongs in the bibliography.
 //
-// `weak` is the judgement call and it is deliberately OUT: "it gestures at the claim, or is
-// itself uncorroborated". Red recording `weak` is saying the support is thin, and a footnote
-// states the opposite to a reader who sees only the reference list. `refutes` and `absent` are
-// not references at all — a source that contradicts the sentence, rendered in the bibliography,
-// reads as support, and the report's own assembly check already treats a live refuted citation
-// as a failure. `unreachable` is red saying it could not read the thing.
+// `weak` IS INCLUDED, and the argument is symmetry rather than strength. When BLUE cites a source
+// and red grades it `weak` through `lens verify`, the footnote STAYS — verify adjudicates, it
+// never touches the report. So excluding a weak corroboration would render the same (claim,
+// source, grade) triple as a footnote when blue found the source and as NOTHING when red did,
+// which is exactly the difference a reader should never be able to see. Held out, red's reading
+// also reached no reader at all and carried no duty: the silent middle state.
+//
+// A footnote is a POINTER, not an endorsement. It says "this source bears on this sentence" —
+// which is true of thin support — and red's judgement of how well it bears is preserved where
+// judgements live, in the evidence view, exactly as it is for a blue cite graded weak.
+//
+// `refutes` and `absent` stay out because they are not pointers to supporting material: a source
+// that contradicts the sentence, rendered in the bibliography, reads as backing it, and the
+// report's assembly check already treats a live refuted citation as a failure. They owe a
+// finding instead. `unreachable` stays out on its own merits — red could not read the thing, so
+// there is nothing to point the reader at.
 func backsTheClaim(o recordpb.SourceOutcome) bool {
 	return o == recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS ||
-		o == recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE
+		o == recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE ||
+		o == recordpb.SourceOutcome_SOURCE_OUTCOME_WEAK
 }
 
 func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayCite citing) (seat.Result, error) {

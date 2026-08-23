@@ -60,13 +60,23 @@ Crash-retry idempotency stays where blue's is: on `--key`, a stable label the se
 as a footnote it reads as support, and the report's own assembly check already treats a live
 refuted citation as a failure.
 
-- `supports` / `supports_with_bridge` → mint a label, splice, render as a footnote.
+- `supports` / `supports_with_bridge` / `weak` → mint a label, splice, render as a footnote.
+
+  **`weak` was excluded and that was wrong** (corrected 2026-08-23, operator's call). The argument
+  is symmetry, not strength: when BLUE cites a source and red grades it `weak` through
+  `lens verify`, the footnote STAYS — verify adjudicates and never touches the report. Excluding a
+  weak corroboration rendered the same (claim, source, grade) triple as a footnote when blue found
+  the source and as NOTHING when red did, which is the one difference a reader must not be able to
+  see. It also left the reading in a silent middle state: neither cited nor owing a finding,
+  visible only in the evidence projection. A footnote is a POINTER, not an endorsement — red's
+  judgement of how well the source bears is preserved where judgements live.
 - `refutes` / `absent` / `weak` → red finding the text unsupported IS a defect in the text.
   **A LENS CANNOT MINT** — that is structural, not an oversight ("A lens structurally cannot
   mint or close a board gap: no such verb exists in its namespace"). So the carrier is
   `lens finding`, which the merge raises to a gap through `found_by`. The negative
   corroboration records as evidence AND the seat owes a finding; the tool says so.
-- `unreachable` is neither: red could not read the source. Record-only.
+- `unreachable` is the honest exclusion: red could not read the source, so there is nothing to
+  point a reader at. Record-only.
 
 **SETTLED, on evidence rather than preference.** `Finding` carries severity, likelihood and
 impact, and `lens finding` demands all three — so the tool writing one on red's behalf would
