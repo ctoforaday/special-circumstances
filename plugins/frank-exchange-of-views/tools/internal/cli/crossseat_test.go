@@ -284,13 +284,13 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 // AN ABSENT FLAG IS NOT AN EMPTY ANSWER, driven through the command a seat actually types.
 //
 // `merge close` set `successor` whatever happened, so an ordinary closure recorded `successor =
-// ''`. Once successor referenced `mint.gap_id` every close in the tool failed outright — the
+// ”`. Once successor referenced `mint.gap_id` every close in the tool failed outright — the
 // constraint is what surfaced it — but the defect predates the constraint: before it, the same
 // rows were written and read as a closure whose successor was the empty gap.
 //
 // The class is wider than the instance and this pins the instance. 40 sites build a field with
 // `proto.String(seat.Str(...))`; the others do not fail loudly because their fields carry no
-// foreign key, so an absent flag lands as '' and reads as an answer.
+// foreign key, so an absent flag lands as ” and reads as an answer.
 func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
 	runDir := seatRun(t)
 	// The gap has to exist: `close --id` is a reference the record checks, and R1-1 is what the

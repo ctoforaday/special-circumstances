@@ -22,7 +22,6 @@ func find(t *testing.T, checks []Check, name string) Check {
 	return Check{}
 }
 
-
 // A gap closed by a merge carries closure_class; one closed by a bench opinion carries a
 // disposition. BOTH are recorded reasons — the check must accept either. This is the
 // regression that shipped in the first cut (it looked only for closure_class and flagged all

@@ -1515,7 +1515,6 @@ func fieldText(t *testing.T, body proto.Message, name string) string {
 	return v.String()
 }
 
-
 // setArmField finds a field on whichever message-typed oneof arm is set.
 //
 // The record models a motion's substance on its subject's arm rather than flat on the message, so

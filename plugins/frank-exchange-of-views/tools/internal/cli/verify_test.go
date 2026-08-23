@@ -6,7 +6,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
-
 )
 
 // THE OPERATOR VERBS WERE DRIVEN BY NOTHING (#185 §6).

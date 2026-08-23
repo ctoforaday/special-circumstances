@@ -11,7 +11,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-
 // seedChanges lays down one minted gap and three edits: two answering it, one answering
 // nothing (blue's own work — 6 of the smoke's 26 edits were exactly that shape).
 func seedChanges(t *testing.T, runDir string) {

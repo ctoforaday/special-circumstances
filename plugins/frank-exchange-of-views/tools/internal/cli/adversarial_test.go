@@ -190,8 +190,8 @@ func adversarialCases() []adversarialCase {
 				"and the refusal come from one list. The replacement registered it as a bare string.",
 		},
 		{
-			name:    "a petition class outside the four is refused",
-			act:     seatStep{"motion", "petition", "file", "--seat-id", "red-lens-r1-L1", "--class", "aesthetic", "--relief", "halt", "--reason", "petitioning on a standard nobody wrote"},
+			name: "a petition class outside the four is refused",
+			act:  seatStep{"motion", "petition", "file", "--seat-id", "red-lens-r1-L1", "--class", "aesthetic", "--relief", "halt", "--reason", "petitioning on a standard nobody wrote"},
 			// THE ORDER IS THE SCHEMA'S, and this expectation used to carry a different one — from
 			// the hand-written table that listed four classes PetitionClass did not have. Two of
 			// the four were refused at the write for words the help advertised. The set is derived

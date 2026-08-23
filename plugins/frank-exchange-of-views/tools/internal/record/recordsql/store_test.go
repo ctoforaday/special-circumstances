@@ -150,7 +150,6 @@ func TestAnAbsentFieldIsNull(t *testing.T) {
 // A constraint that is wrong for a third of the cases is worse than none. It refuses correct work,
 // and it reads as a guarantee.
 
-
 // A RULE THAT SPANS TWO FIELDS IS ENFORCED BY THE DATABASE, not only by the tool.
 //
 // "closed_with_regression requires a successor" cannot be NOT NULL — the column must stay nullable

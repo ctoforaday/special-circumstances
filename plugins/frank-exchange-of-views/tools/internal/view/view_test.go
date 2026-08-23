@@ -27,7 +27,6 @@ func writeShard(t *testing.T, runDir string, evs []*record.Event) {
 	recordtest.Seed(t, runDir, evs...)
 }
 
-
 // md is view.Markdown or a fatal.
 func md(t *testing.T, runDir, name string) string {
 	t.Helper()

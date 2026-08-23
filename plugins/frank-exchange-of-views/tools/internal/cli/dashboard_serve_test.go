@@ -15,7 +15,6 @@ import (
 	"testing"
 
 	"google.golang.org/protobuf/proto"
-
 )
 
 // The capability gate is the whole security model: the exact secret path renders, everything else

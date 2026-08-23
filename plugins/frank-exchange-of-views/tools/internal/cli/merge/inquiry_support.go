@@ -66,7 +66,7 @@ func newInquirySupport() *cobra.Command {
 			//
 			// So --id and --as no longer reach the record. That is the schema's decision, not a
 			// conversion slip: the flags are gone from the surface and from the help,
-					if _, err := record.Append(s.Identity(), &recordpb.InquiryReview{Reason: proto.String(text)}); err != nil {
+			if _, err := record.Append(s.Identity(), &recordpb.InquiryReview{Reason: proto.String(text)}); err != nil {
 				return nil, err
 			}
 			return inquiryReviewResult{}, nil
