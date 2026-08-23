@@ -1,0 +1,13 @@
+{
+  "bench": [
+    "undeclared_inspection_risk 0 [DETECTOR]"
+  ],
+  "blue": [
+    "repair_regression_ratio 0.5 [BENCHMARK]",
+    "manifest_coverage 7 [BENCHMARK]"
+  ],
+  "red": [
+    "anchored_closures_pct 100 [BENCHMARK]",
+    "citation_yield_by_round {\"1\":{\"citation\":1,\"logic\":2,\"darkside\":2,\"seats\":{\"citation\":1,\"logic\":1,\"darkside\":1},\"per_seat\":{\"citation\":1,\"logic\":2,\"darkside\":2}},\"2\":{\"citation\":0,\"logic\":1,\"darkside\":2,\"seats\":{\"citation\":0,\"logic\":1,\"darkside\":1},\"per_seat\":{\"citation\":null,\"logic\":1,\"darkside\":2}}} [DIAGNOSTIC]"
+  ]
+}
