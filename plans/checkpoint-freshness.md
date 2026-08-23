@@ -593,7 +593,7 @@ grep -rln "compaction-observations" --include=*.go --include=*.md plugins/ scrip
 substantive conclusion the plan relied on survives; the pasted evidence for it did not, and a census
 whose command returns 51 while the plan says 8 is the defect §III exists to prevent, committed by §III.
 
-### `[NEW] internal/stopnudge` + `cmd/sc-stop` — the nudge channel · **stopnudge BUILT, inert until thresholds exist**
+### `[NEW] internal/stopnudge` + `cmd/sc-stop` — the nudge channel · **BUILT, inert until thresholds exist**
 
 `Stop` is the turn boundary: the natural unit of the operator's "it's been 100 turns", ~10× cheaper
 than a per-tool tick, and the only channel that gives the model a turn in which to respond.
@@ -646,7 +646,7 @@ one registration. `sc-posttooluse` is untouched by this plan.
 
 | Carrier | What changes | Actually gated by |
 |---|---|---|
-| `hooks.json` | a **new `Stop` registration** | **NOTHING — see below** |
+| `hooks.json` | a **new `Stop` registration**, no matcher (Stop takes none) | **NOTHING — see below.** Reviewed by hand at build time, and the review found something a gate would not have: every other hook wraps its binary in a degradation shim (`if [ -x "$B" ]; then exec "$B"; fi; echo …>&2`) and the first draft of this entry was a bare path. A bare path to a missing binary is what disabled every session the plugin was installed into (`1082275`) |
 | `requirements.json` `_hook_binaries.binaries[]` | `sc-stop` added | `pluginparity` (`main.go:120-169`, names against `cmd/` dirs) |
 | `docs/setup-script.md:99` | "15 at the time of writing" → 16 | `pluginparity` (`main.go:130-138`) |
 
