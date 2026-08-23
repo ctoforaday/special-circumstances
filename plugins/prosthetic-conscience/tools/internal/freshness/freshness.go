@@ -47,6 +47,18 @@ type State struct {
 	// HasWriteReading separates "stamped at zero" from "never stamped". Without it a
 	// note first seen before this shipped would report its whole context as growth.
 	HasWriteReading bool `json:"has_write_reading"`
+
+	// StampedAt is WHEN the reading above was taken, which is not when the note was
+	// written and can be far from it.
+	//
+	// Nothing observes a note at the moment it is written: the only callers of Of are
+	// the sealer and the compaction observer, which run at boundaries. A note written at
+	// turn 10 and first sealed at turn 200 gets its baseline at turn 200, so "growth"
+	// afterwards is growth since the SEAL. That is a real interval and a useful one, but
+	// it is not the interval the field name promises, and a reader cannot tell the two
+	// apart from the number alone. The row carries this timestamp so the gap is visible
+	// rather than assumed away.
+	StampedAt time.Time `json:"stamped_at"`
 }
 
 // Branch is the third measure, passed in rather than computed here: it costs a git
@@ -60,8 +72,12 @@ type Branch struct {
 
 // Measures is the note's age in every unit that could be established.
 type Measures struct {
+	// Growth is measured from StampedAt, which is when the baseline reading was taken —
+	// NOT from the note's written_at. GrowthSince carries that moment so a consumer can
+	// see the gap instead of inferring an interval the number does not describe.
 	Growth      int
 	GrowthKnown bool
+	GrowthSince time.Time
 
 	Turns         int
 	TurnsMeasured bool
@@ -112,7 +128,7 @@ func Gauge(st State, m ctxusage.Measure, b Branch) Measures {
 		// comparable() below, because the two catch different mistakes — one a missing
 		// term, the other an arithmetic that has gone wrong for a reason not foreseen.
 		if g := now - then; g >= 0 {
-			out.Growth, out.GrowthKnown = g, true
+			out.Growth, out.GrowthKnown, out.GrowthSince = g, true, st.StampedAt
 		}
 	}
 
@@ -141,8 +157,8 @@ func comparable(st State, m ctxusage.Measure) bool {
 // present on every call, and growth would report the interval since the last tick
 // rather than since the note — a measure that is always near zero and always looks
 // healthy.
-func Observe(st State, writtenAt time.Time, m ctxusage.Measure) State {
-	out, _ := ObserveAndSay(st, writtenAt, m)
+func Observe(st State, writtenAt time.Time, m ctxusage.Measure, now time.Time) State {
+	out, _ := ObserveAndSay(st, writtenAt, m, now)
 	return out
 }
 
@@ -152,14 +168,14 @@ func Observe(st State, writtenAt time.Time, m ctxusage.Measure) State {
 // would compare the current figure against itself and report growth 0 as MEASURED. For
 // a note written long before its first seal that zero is manufactured, and it lands in
 // criterion 1's distribution looking exactly like a genuinely fresh note.
-func ObserveAndSay(st State, writtenAt time.Time, m ctxusage.Measure) (State, bool) {
+func ObserveAndSay(st State, writtenAt time.Time, m ctxusage.Measure, now time.Time) (State, bool) {
 	before := st
-	st = observe(st, writtenAt, m)
+	st = observe(st, writtenAt, m, now)
 	stamped := st.HasWriteReading && (!before.HasWriteReading || !before.WrittenAtSeen.Equal(st.WrittenAtSeen))
 	return st, stamped
 }
 
-func observe(st State, writtenAt time.Time, m ctxusage.Measure) State {
+func observe(st State, writtenAt time.Time, m ctxusage.Measure, now time.Time) State {
 	if writtenAt.IsZero() {
 		return st
 	}
@@ -176,6 +192,7 @@ func observe(st State, writtenAt time.Time, m ctxusage.Measure) State {
 	st.TokensAtWrite = m.Tokens
 	st.DroppedAtWrite = m.Dropped
 	st.HasWriteReading = true
+	st.StampedAt = now
 	return st
 }
 

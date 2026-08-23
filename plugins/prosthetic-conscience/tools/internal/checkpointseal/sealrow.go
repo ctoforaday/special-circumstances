@@ -61,8 +61,14 @@ type sealRow struct {
 	NoteAgeTurns  *int `json:"note_age_turns,omitempty"`
 	TurnsMeasured bool `json:"turns_measured"`
 
-	NoteGrowthTokens *int `json:"note_growth_tokens,omitempty"`
-	GrowthMeasured   bool `json:"growth_measured"`
+	// GrowthSince is WHEN the growth baseline was taken. Nothing observes a note at the
+	// moment it is written — the callers run at boundaries — so a note written at turn 10
+	// and first sealed at turn 200 measures growth from turn 200. The number is real; the
+	// interval is not the one the field name suggests, and this makes the difference
+	// visible rather than leaving it to be assumed.
+	NoteGrowthTokens *int   `json:"note_growth_tokens,omitempty"`
+	GrowthMeasured   bool   `json:"growth_measured"`
+	GrowthSince      string `json:"growth_since,omitempty"`
 
 	NoteBranchCommits *int `json:"note_branch_commits,omitempty"`
 	BranchMeasured    bool `json:"branch_measured"`
@@ -168,6 +174,9 @@ func appendSealRow(dir string, body []byte, now time.Time, event, occ string, in
 	if age.GrowthKnown {
 		g := age.Growth
 		row.NoteGrowthTokens = &g
+		if !age.GrowthSince.IsZero() {
+			row.GrowthSince = age.GrowthSince.UTC().Format(time.RFC3339)
+		}
 	}
 	if age.BranchKnown {
 		c := age.BranchCommits

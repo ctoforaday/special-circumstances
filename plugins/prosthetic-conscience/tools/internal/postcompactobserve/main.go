@@ -89,12 +89,13 @@ type observation struct {
 	// computed by the same gauge — a second implementation is how two records start
 	// disagreeing about what "age" meant. Each is OMITTED when unmeasured rather than
 	// written as a zero.
-	NoteAgeTurns      *int `json:"note_age_turns,omitempty"`
-	TurnsMeasured     bool `json:"turns_measured"`
-	NoteGrowthTokens  *int `json:"note_growth_tokens,omitempty"`
-	GrowthMeasured    bool `json:"growth_measured"`
-	NoteBranchCommits *int `json:"note_branch_commits,omitempty"`
-	BranchMeasured    bool `json:"branch_measured"`
+	NoteAgeTurns      *int   `json:"note_age_turns,omitempty"`
+	TurnsMeasured     bool   `json:"turns_measured"`
+	NoteGrowthTokens  *int   `json:"note_growth_tokens,omitempty"`
+	GrowthMeasured    bool   `json:"growth_measured"`
+	GrowthSince       string `json:"growth_since,omitempty"`
+	NoteBranchCommits *int   `json:"note_branch_commits,omitempty"`
+	BranchMeasured    bool   `json:"branch_measured"`
 
 	// NudgeEnabled says whether the nudge was live when this row was written.
 	// Criterion 6 compares the two populations, and a row that does not say which it
@@ -215,7 +216,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	}
 
 	age := freshness.Of(projectDir, in.TranscriptPath, string(body),
-		freshness.BranchWork(checkpoint.Parse(string(body)).Get("head")))
+		freshness.BranchWork(checkpoint.Parse(string(body)).Get("head")), now)
 
 	o := observation{
 		At:        now.UTC().Format(time.RFC3339),
@@ -240,6 +241,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 	if age.GrowthKnown {
 		g := age.Growth
 		o.NoteGrowthTokens = &g
+		if !age.GrowthSince.IsZero() {
+			o.GrowthSince = age.GrowthSince.UTC().Format(time.RFC3339)
+		}
 	}
 	if age.BranchKnown {
 		c := age.BranchCommits

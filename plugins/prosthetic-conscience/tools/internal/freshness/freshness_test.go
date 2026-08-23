@@ -129,17 +129,17 @@ func TestRenderCarriesNoInstruction(t *testing.T) {
 // permanently zero — the measure would report the interval since the last tick.
 func TestObserveStampsTheWriteReadingOncePerNote(t *testing.T) {
 	var st State
-	st = Observe(st, ts(10), ctxusage.Measure{Tokens: 100_000, TokensKnown: true})
+	st = Observe(st, ts(10), ctxusage.Measure{Tokens: 100_000, TokensKnown: true}, ts(99))
 	if !st.HasWriteReading || st.TokensAtWrite != 100_000 {
 		t.Fatalf("first sight did not stamp: %+v", st)
 	}
 	// Same note, later in the session: the reading must NOT move.
-	st = Observe(st, ts(10), ctxusage.Measure{Tokens: 400_000, TokensKnown: true})
+	st = Observe(st, ts(10), ctxusage.Measure{Tokens: 400_000, TokensKnown: true}, ts(99))
 	if st.TokensAtWrite != 100_000 {
 		t.Errorf("TokensAtWrite moved to %d on an unchanged note; growth would always read ~0", st.TokensAtWrite)
 	}
 	// The note is rewritten: a new reference point, and a new reading.
-	st = Observe(st, ts(50), ctxusage.Measure{Tokens: 400_000, TokensKnown: true})
+	st = Observe(st, ts(50), ctxusage.Measure{Tokens: 400_000, TokensKnown: true}, ts(99))
 	if st.TokensAtWrite != 400_000 || !st.WrittenAtSeen.Equal(ts(50)) {
 		t.Errorf("a rewritten note did not re-stamp: %+v", st)
 	}
@@ -148,7 +148,7 @@ func TestObserveStampsTheWriteReadingOncePerNote(t *testing.T) {
 // Without a token reading there is nothing to stamp, and stamping zero would make the
 // next growth reading enormous and wrong.
 func TestObserveDoesNotStampAnUnmeasuredReading(t *testing.T) {
-	st := Observe(State{}, ts(10), ctxusage.Measure{})
+	st := Observe(State{}, ts(10), ctxusage.Measure{}, ts(99))
 	if st.HasWriteReading {
 		t.Errorf("stamped a write reading from an unmeasured transcript: %+v", st)
 	}
@@ -164,7 +164,7 @@ func TestObserveDoesNotStampAnUnmeasuredReading(t *testing.T) {
 // through the door that rule was built to guard.
 func TestGrowthIsUnmeasuredOnTheObservationThatCreatedTheReading(t *testing.T) {
 	var st State // nothing seen yet
-	st, fresh := ObserveAndSay(st, ts(10), ctxusage.Measure{Tokens: 100_000, TokensKnown: true})
+	st, fresh := ObserveAndSay(st, ts(10), ctxusage.Measure{Tokens: 100_000, TokensKnown: true}, ts(99))
 	if !fresh {
 		t.Fatal("first sight of a note must report that it stamped")
 	}
@@ -174,7 +174,7 @@ func TestGrowthIsUnmeasuredOnTheObservationThatCreatedTheReading(t *testing.T) {
 	}
 
 	// The NEXT boundary has a real interval behind it.
-	st2, fresh2 := ObserveAndSay(st, ts(10), ctxusage.Measure{Tokens: 180_000, TokensKnown: true})
+	st2, fresh2 := ObserveAndSay(st, ts(10), ctxusage.Measure{Tokens: 180_000, TokensKnown: true}, ts(99))
 	if fresh2 {
 		t.Fatal("an unchanged note must not re-stamp")
 	}
@@ -229,7 +229,7 @@ func TestANoteWithoutWrittenAtIsUnmeasuredNotAgeZero(t *testing.T) {
 		t.Fatal(err)
 	}
 	const schema2 = "---\nschema: 2\nupdated: 2026-08-23T00:10:00Z\n---\n## Validation loop\n1. x\n"
-	m := Of(dir, "", schema2, Branch{})
+	m := Of(dir, "", schema2, Branch{}, ts(99))
 	if m.GrowthKnown || m.TurnsMeasured || m.BranchKnown {
 		t.Errorf("a note with no written_at reported something as measured: %+v", m)
 	}
