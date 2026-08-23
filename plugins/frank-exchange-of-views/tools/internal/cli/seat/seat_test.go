@@ -140,3 +140,54 @@ func TestTheContextCarriesWhichPathSuppliedTheRun(t *testing.T) {
 		}
 	})
 }
+
+// A REFUSED RESOLUTION IS CARRIED, NEVER RETURNED AS A RUN DIRECTORY OR AS AN EMPTY ONE.
+//
+// MEASURED on the first real exercise of the wrapper (#526): `show board --run "<typo>"` printed
+// a board. Of() handed back the flag's own value when resolution failed, so every READ verb
+// silently obeyed a contradicted --run — the 2026-08-05 failure the whole mechanism exists to
+// prevent, still live because only Begin honoured the refusal.
+//
+// Returning "" instead would not have fixed it. Five readers answer "" with
+// `runDir = seat.InferRunDir("")`, so the refusal would be swallowed a second time and resolve
+// quietly to the real run: "" already means "nothing supplied one", and making it also mean
+// "you were refused" is two states in one byte with the healthy one winning by default.
+func TestARefusedRunIsCarriedNotHandedBack(t *testing.T) {
+	run := t.TempDir()
+	t.Setenv(seatenv.Var, "")
+	t.Setenv(seatenv.VarWrapper, run)
+
+	c := &cobra.Command{Use: "show"}
+	c.Flags().String(flags.Run, "", "")
+	c.Flags().String(flags.SeatID, "", "")
+	if err := c.Flags().Set(flags.Run, filepath.Join(run, "..", "somewhere-else")); err != nil {
+		t.Fatal(err)
+	}
+
+	s := Of(c)
+	if s.RunErr == nil {
+		t.Fatalf("Of() carried no refusal for a --run contradicting the dispatch (RunDir %q)", s.RunDir)
+	}
+	if s.RunDir != "" {
+		t.Errorf("Of().RunDir = %q on a refused resolution — a caller holding one will use it", s.RunDir)
+	}
+
+	// RequireRun answers the refusal itself, not a generic "required": a seat that DID pass
+	// --run and is told to pass --run looks somewhere it has no power.
+	got, err := s.RequireRun("show")
+	if err == nil {
+		t.Fatalf("RequireRun returned %q with no error", got)
+	}
+	if !strings.Contains(err.Error(), "disagrees") {
+		t.Errorf("RequireRun reported %v, want the disagreement — not a generic requirement", err)
+	}
+	if strings.Contains(err.Error(), "is required") {
+		t.Errorf("a refused run is reported as a missing one: %v", err)
+	}
+
+	// And the ordinary empty case still says what it always said.
+	empty, err := Context{}.RequireRun("show")
+	if err == nil || !strings.Contains(err.Error(), "--run <runDir> is required") {
+		t.Errorf("Context{}.RequireRun = (%q, %v), want the missing-run message", empty, err)
+	}
+}

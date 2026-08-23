@@ -27,9 +27,9 @@ func newAssemble() *cobra.Command {
 	}
 	c.RunE = func(cmd *cobra.Command, _ []string) error {
 		// Resolved, so the injected run reaches this read as it does every write.
-		runDir := seat.Of(cmd).RunDir
-		if runDir == "" {
-			return fmt.Errorf("bench assemble: --run <runDir> is required")
+		runDir, rerr := seat.Of(cmd).RequireRun("bench assemble")
+		if rerr != nil {
+			return rerr
 		}
 		path, err := report.Assemble(runDir)
 		if err != nil {
