@@ -420,7 +420,8 @@ func seal(projectDir, note string, now time.Time, event string, in hookInput, st
 	// The record, beside the snapshot: fields a reader cannot mis-parse, hashing the
 	// NOTE rather than the stamped file — the stamp carries a timestamp, so hashing
 	// the snapshot would make every seal differ and the drift check meaningless.
-	appendSealRow(dir, body, now, event, occ, in, stderr)
+	age := gaugeAge(projectDir, in.TranscriptPath, string(body), branchWork(checkpoint.Parse(string(body)).Get("head")))
+	appendSealRow(dir, body, now, event, occ, in, stderr, age)
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
