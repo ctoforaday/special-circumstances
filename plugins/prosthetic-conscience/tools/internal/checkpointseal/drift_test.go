@@ -25,7 +25,7 @@ func tree(t *testing.T, dirs ...string) (string, checkpoint.WithinRoot) {
 }
 
 func noteWith(loop string) string {
-	return "---\nschema: 2\nobjective: something\n---\n## Validation loop\n" + loop + "\n## Open threads\n- none\n"
+	return "---\nschema: 3\nobjective: something\n---\n## Validation loop\n" + loop + "\n## Open threads\n- none\n"
 }
 
 // THE #166 SCENARIO, as measured. The inherited note's loop watched
@@ -92,9 +92,9 @@ func TestDriftRequiresAPathBoundary(t *testing.T) {
 func TestDriftNamesAMissingLoop(t *testing.T) {
 	_, within := tree(t, "tools")
 	for _, note := range []string{
-		"---\nschema: 2\n---\n## Open threads\n- none\n",                  // no section
-		"---\nschema: 2\n---\n## Validation loop\n\n## Open threads\n",    // empty section
-		"---\nschema: 2\n---\n## Validation loop\n← the checks go here\n", // scaffolding only
+		"---\nschema: 3\n---\n## Open threads\n- none\n",                  // no section
+		"---\nschema: 3\n---\n## Validation loop\n\n## Open threads\n",    // empty section
+		"---\nschema: 3\n---\n## Validation loop\n← the checks go here\n", // scaffolding only
 	} {
 		got := drift(note, []string{"tools/x.go"}, within)
 		if !strings.Contains(got, "NO validation loop") {

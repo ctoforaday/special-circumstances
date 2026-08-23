@@ -55,7 +55,7 @@ func snapshots(t *testing.T, projectDir string) []string {
 	return out
 }
 
-const sampleNote = "---\nschema: 2\nstatus: in-progress\n---\n" +
+const sampleNote = "---\nschema: 3\nstatus: in-progress\n---\n" +
 	"## Validation loop\n1. go test ./...  · re-armed by: any change under tools/\n" +
 	"## Next intended steps\n1. wire the hook (issue #999)\n"
 
@@ -379,7 +379,7 @@ func TestSnapshotNamesCannotEscapeTheDirectory(t *testing.T) {
 func TestSealReportsAMalformedLoopWithoutRefusingToSeal(t *testing.T) {
 	dir := t.TempDir()
 	writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"),
-		"---\nschema: 2\nstatus: in-progress\n---\n"+
+		"---\nschema: 3\nstatus: in-progress\n---\n"+
 			"## Validation loop\n1. `go test ./...` · re-armed by: tools/\n"+
 			"3. `qlty check` · re-armed by: .qlty/\n"+
 			"3b. `make release` · re-armed by: a human\n"+
@@ -422,7 +422,7 @@ func TestSealIsSilentOnAWellFormedLoop(t *testing.T) {
 // Reported at EVERY seam, not just compaction: a session that ends without ever compacting
 // is the one whose note nobody else is going to look at first.
 func TestSealReportsTheLoopOnEverySealEvent(t *testing.T) {
-	bad := "---\nschema: 2\n---\n## Validation loop\n2. `go test ./...` · re-armed by: tools/\n"
+	bad := "---\nschema: 3\n---\n## Validation loop\n2. `go test ./...` · re-armed by: tools/\n"
 	for _, event := range []string{evPreCompact, evSessionEnd, evSubagentStop} {
 		dir := t.TempDir()
 		writeNote(t, filepath.Join(dir, ".claude", "checkpoints", "CHECKPOINT.md"), bad)

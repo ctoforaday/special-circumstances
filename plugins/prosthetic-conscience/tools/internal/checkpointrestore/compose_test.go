@@ -111,7 +111,7 @@ func TestDigestSpeaksOnEitherHalfAlone(t *testing.T) {
 	empty := checkpoint.RearmState{}
 
 	// Sections, no objective at all.
-	sectionsOnly := "---\nschema: 2\n---\n## Next intended steps\n1. wire hooks.json\n"
+	sectionsOnly := "---\nschema: 3\n---\n## Next intended steps\n1. wire hooks.json\n"
 	if got := digest(sectionsOnly, "p/CHECKPOINT.md", "startup", empty); got == "" {
 		t.Error("a note with sections but no objective produced silence")
 	} else if !strings.Contains(got, "wire hooks.json") {
@@ -119,7 +119,7 @@ func TestDigestSpeaksOnEitherHalfAlone(t *testing.T) {
 	}
 
 	// An objective, no sections at all.
-	objectiveOnly := "---\nschema: 2\nobjective: prove the restore path fires\n---\n"
+	objectiveOnly := "---\nschema: 3\nobjective: prove the restore path fires\n---\n"
 	got := digest(objectiveOnly, "p/CHECKPOINT.md", "startup", empty)
 	if got == "" {
 		t.Fatal("a note with an objective but no sections produced silence")
@@ -131,7 +131,7 @@ func TestDigestSpeaksOnEitherHalfAlone(t *testing.T) {
 	}
 
 	// Neither: genuine silence, which must stay silent rather than emit a header.
-	if got := digest("---\nschema: 2\n---\n", "p/CHECKPOINT.md", "startup", empty); got != "" {
+	if got := digest("---\nschema: 3\n---\n", "p/CHECKPOINT.md", "startup", empty); got != "" {
 		t.Errorf("a note with neither an objective nor a section must produce nothing, got %q", got)
 	}
 }
@@ -154,7 +154,7 @@ func TestPointerObjectiveFallback(t *testing.T) {
 
 	for _, raw := range []string{
 		"## Open threads\n- none\n",                    // no frontmatter at all
-		"---\nschema: 2\n---\n## Open threads\n",       // frontmatter without the key
+		"---\nschema: 3\n---\n## Open threads\n",       // frontmatter without the key
 		"---\nobjective:\n---\n## Open threads\n",      // key present, value empty
 		"---\nobjective: \"\"\n---\n## Open threads\n", // explicitly empty
 	} {
@@ -212,7 +212,7 @@ func TestStaleness(t *testing.T) {
 // The staleness line rides in the digest's provenance run, beside where it came from and
 // when it was written.
 func TestDigestCarriesStaleness(t *testing.T) {
-	note := "---\nschema: 2\nupdated: 2026-07-30T04:00:00Z\nhead: deadbee\nobjective: ship it\n---\n" +
+	note := "---\nschema: 3\nwritten_at: 2026-07-30T04:00:00Z\nhead: deadbee\nobjective: ship it\n---\n" +
 		"## Next intended steps\n1. do the thing\n"
 	got := digest(note, "p/CHECKPOINT.md", "startup", checkpoint.RearmState{})
 	if !strings.Contains(got, "deadbee") {
@@ -228,7 +228,7 @@ func TestDigestCarriesStaleness(t *testing.T) {
 // last, so the section a resumed session most needs BEFORE acting was first to vanish.
 func TestOversizeDigestKeepsEverySectionVisible(t *testing.T) {
 	long := func(n int) string { return strings.Repeat("detail line that fills the budget\n", n) }
-	note := "---\nschema: 2\nobjective: ship it\n---\n" +
+	note := "---\nschema: 3\nobjective: ship it\n---\n" +
 		"## Validation loop\n" + long(60) +
 		"## Invariants / foot-guns\n- NEVER amend a published commit\n" +
 		"## Next intended steps\n" + long(40) +
@@ -264,7 +264,7 @@ func TestOversizeDigestKeepsEverySectionVisible(t *testing.T) {
 
 // A digest that fits is untouched: no truncation furniture on a healthy note.
 func TestDigestThatFitsSaysNothingAboutTruncation(t *testing.T) {
-	note := "---\nschema: 2\nobjective: ship it\n---\n" +
+	note := "---\nschema: 3\nobjective: ship it\n---\n" +
 		"## Validation loop\n1. go test ./...\n## Invariants / foot-guns\n- do not amend\n"
 	got := digest(note, "p/CHECKPOINT.md", "startup", checkpoint.RearmState{})
 	for _, unwanted := range []string{"Shortened to fit", "omitted here", "section truncated"} {
@@ -287,7 +287,7 @@ func TestTruncationNeverSplitsARune(t *testing.T) {
 				t.Fatalf("cut(%d) produced invalid UTF-8: %q", n, got)
 			}
 		}
-		note := "---\nschema: 2\n---\n## Validation loop\n" + s + "## Invariants / foot-guns\n- " + s
+		note := "---\nschema: 3\n---\n## Validation loop\n" + s + "## Invariants / foot-guns\n- " + s
 		if got := digest(note, "p/CHECKPOINT.md", "startup", checkpoint.RearmState{}); !utf8.ValidString(got) {
 			t.Error("digest produced invalid UTF-8")
 		}

@@ -218,7 +218,7 @@ func TestSanitizeKeepsExactlyTheSafeClasses(t *testing.T) {
 }
 
 func TestHeadings(t *testing.T) {
-	note := "---\nschema: 2\n---\n## One\ntext\n### Not a section\n## Two\n"
+	note := "---\nschema: 3\n---\n## One\ntext\n### Not a section\n## Two\n"
 	got := headings(note)
 	if len(got) != 2 || got[0] != "One" || got[1] != "Two" {
 		t.Fatalf("headings = %v", got)
