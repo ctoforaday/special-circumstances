@@ -5,7 +5,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/spf13/cobra"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -160,6 +159,6 @@ func testRoot() *cobra.Command {
 func tmpRun(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	t.Cleanup(func() { _ = recordsql.Close(filepath.Join(dir, "records", "record.db")) })
+	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
 	return dir
 }

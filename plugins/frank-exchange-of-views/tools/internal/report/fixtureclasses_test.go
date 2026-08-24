@@ -2,7 +2,6 @@ package report
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
-	"path/filepath"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -63,6 +62,6 @@ var shippedClasses = []string{
 func tmpRun(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	t.Cleanup(func() { _ = recordsql.Close(filepath.Join(dir, "records", "record.db")) })
+	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
 	return dir
 }

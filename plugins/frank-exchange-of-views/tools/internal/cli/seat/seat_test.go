@@ -202,6 +202,6 @@ func TestARefusedRunIsCarriedNotHandedBack(t *testing.T) {
 func tmpRun(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	t.Cleanup(func() { _ = recordsql.Close(filepath.Join(dir, "records", "record.db")) })
+	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
 	return dir
 }

@@ -117,6 +117,36 @@ func Close(path string) error {
 	return db.Close()
 }
 
+// CloseUnder releases every cached handle whose database lives under dir.
+//
+// THE PATH CANNOT BE GUESSED FROM THE RUN, which is what the per-path release assumed. A SEPARATED
+// run keeps its records outside the run directory entirely (RecordsDir resolves it), so
+// `<run>/records/record.db` finds nothing and the real handle stays open — measured on Windows as
+// `TestASeparatedRunKeepsNoEventsUnderTheRun` failing its own TempDir cleanup.
+//
+// A prefix is the honest key for a test: everything this test created lives under its temp
+// directory, wherever the resolution put it, and nothing else does.
+func CloseUnder(dir string) error {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		abs = dir
+	}
+	prefix := abs + string(filepath.Separator)
+	openMu.Lock()
+	defer openMu.Unlock()
+	var first error
+	for k, db := range openCache {
+		if !strings.HasPrefix(k, prefix) {
+			continue
+		}
+		if err := db.Close(); err != nil && first == nil {
+			first = err
+		}
+		delete(openCache, k)
+	}
+	return first
+}
+
 // CloseAll releases every cached handle. For a process shutting down, not for a test cleanup.
 func CloseAll() error {
 	openMu.Lock()

@@ -2,6 +2,7 @@ package record
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
@@ -300,6 +301,14 @@ func TestADeletedRootRefusesInsteadOfReadingAsAnEmptyRun(t *testing.T) {
 	t.Setenv(RecordRootEnv, "")
 
 	// What the seat probe does to every board it does not -keep.
+	//
+	// The handle for this root is released FIRST, because Windows will not remove an open file and
+	// this process is holding one. That is not a test artefact: anything deleting a board while a
+	// handle on it is live meets the same refusal, which is the platform being explicit about a
+	// lifetime Linux lets you ignore.
+	if err := recordsql.CloseUnder(root); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.RemoveAll(root); err != nil {
 		t.Fatal(err)
 	}

@@ -101,7 +101,7 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	// opened by PRODUCTION code deep inside the verb, so the test that owns the directory never
 	// sees it. The invocation is the only place that knows both the run and the *testing.T.
 	if dir := flagValue(args, "--run"); dir != "" {
-		t.Cleanup(func() { _ = recordsql.Close(filepath.Join(dir, "records", "record.db")) })
+		t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
 	}
 	seatID := testDispatchedSeat(args)
 	root := NewRootFor(seatID)
@@ -1652,6 +1652,6 @@ func setArmField(m protoreflect.Message, name string) (protoreflect.Message, pro
 func tmpRun(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	t.Cleanup(func() { _ = recordsql.Close(filepath.Join(dir, "records", "record.db")) })
+	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
 	return dir
 }

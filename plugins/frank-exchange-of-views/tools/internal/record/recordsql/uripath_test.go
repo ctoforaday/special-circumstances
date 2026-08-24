@@ -3,6 +3,7 @@ package recordsql
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -32,6 +33,14 @@ func TestARunDirectoryWithURIPunctuationGetsItsOwnDatabase(t *testing.T) {
 		"with space", "amp&sand", "semi;colon", "at@sign", "plus+plus", "brack[et]", "uni-日本語",
 	} {
 		t.Run(name, func(t *testing.T) {
+			// WINDOWS CANNOT NAME THIS DIRECTORY AT ALL. `?` is one of the characters the
+			// platform forbids in a path (`< > : " / \ | ? *`), so the case cannot be built
+			// there — and skipping is honest rather than lossy: dsnFor's own table below asserts
+			// that `?` escapes to %3F, which is the behaviour this case exists to protect and
+			// which runs on every platform.
+			if runtime.GOOS == "windows" && strings.ContainsAny(name, `<>:"|?*`) {
+				t.Skipf("%q is not a legal path on Windows; dsnFor's table covers the escaping", name)
+			}
 			dir := filepath.Join(base, name)
 			if err := os.MkdirAll(dir, 0o755); err != nil {
 				t.Fatal(err)

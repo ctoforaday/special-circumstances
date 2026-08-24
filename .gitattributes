@@ -3,3 +3,9 @@
 *.md text eol=lf
 *.yml text eol=lf
 *.go text eol=lf
+# A GOLDEN IS COMPARED BYTE FOR BYTE, so its line endings are part of the artifact. Without
+# these two, a Windows checkout converts them to CRLF while the code that derives them emits LF,
+# and the file differs from itself on one platform — `the derived schema differs from
+# testdata/schema.sql` with no change to the schema. Same reason the five above are pinned.
+*.sql text eol=lf
+*.golden text eol=lf

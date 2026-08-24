@@ -3,7 +3,6 @@ package seatprobe
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -53,6 +52,6 @@ func TestBuildDoesNotBindTheSeatsItStages(t *testing.T) {
 func tmpRun(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	t.Cleanup(func() { _ = recordsql.Close(filepath.Join(dir, "records", "record.db")) })
+	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
 	return dir
 }

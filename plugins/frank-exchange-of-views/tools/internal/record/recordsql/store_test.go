@@ -764,6 +764,6 @@ func TestAGapsListsAreCountedByTheView(t *testing.T) {
 func tmpRun(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	t.Cleanup(func() { _ = Close(filepath.Join(dir, "records", "record.db")) })
+	t.Cleanup(func() { _ = CloseUnder(dir) })
 	return dir
 }
