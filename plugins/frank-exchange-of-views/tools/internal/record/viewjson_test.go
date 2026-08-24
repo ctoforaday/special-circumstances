@@ -104,7 +104,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 // is one way to that JSON, by name) and a markdown view with no JSON form rejects it too.
 // This is enforced in the show read-path; the check here guards the DebateJSONBytes entry.
 func TestDebateJSONBytesIsValidJSON(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:position", &recordpb.Position{Text: proto.String("red")}),
 	})
@@ -290,7 +290,7 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 // thing for a board to say. That is the plausible zero in its purest form — a missing line of code
 // rendering as a fact about the debate.
 func TestRedsArgumentReachesTheBoard(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	seat := "red-merge-r1"
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, seat, 1, seat+":mint:R1-1", &recordpb.Mint{

@@ -19,7 +19,7 @@ func writeRun(t *testing.T, events []struct {
 	payload proto.Message
 }) string {
 	t.Helper()
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	seen := map[string]bool{}
 	for _, e := range events {
 		if !seen[e.seat] {

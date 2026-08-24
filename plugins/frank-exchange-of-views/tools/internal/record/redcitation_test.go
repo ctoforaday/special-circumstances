@@ -35,7 +35,7 @@ func corroboration(label, url, claim string, outcome recordpb.SourceOutcome) *re
 // is the ordinary case rather than an exotic one: a strong source usually bears on several
 // claims. `blue cite` never had this problem because it keys on its minted label.
 func TestOneSourceCorroboratesManyClaims(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
@@ -70,7 +70,7 @@ func TestOneSourceCorroboratesManyClaims(t *testing.T) {
 // and is EXCLUDED" — and the consequence was that red's independent corroboration reached no
 // reader of the document at all.
 func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
@@ -136,7 +136,7 @@ func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 // writing the finding here would mean inventing its severity, likelihood and impact — three
 // grades nobody chose, feeding the mass calculation that decides what a gap is worth.
 func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	lens := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
 	merge := Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}
 	for _, id := range []Identity{lens, merge} {
@@ -197,7 +197,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 // The gain is worth stating as well as the fix: red's citation anchors are IMMORTAL now, the
 // same as blue's. Before this they were spliced into the report and protected by nothing.
 func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
@@ -234,7 +234,7 @@ func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 // too. The empty array is the point as much as the full one: without the field, "nothing
 // outstanding" and "nobody checked" are the same absence.
 func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
@@ -293,7 +293,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 // only ever satisfied together with the other. That is the shape this branch kept finding in
 // production code and it was sitting in code written the same day.
 func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
@@ -332,7 +332,7 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 // check reports a dropped citation that was never there. The guard is `id != "" && !seen[id]`,
 // and a sweep showed neither half was tested alone.
 func TestAnEmptyReopenedIDNeverReachesTheProtectedSet(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	id := Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)

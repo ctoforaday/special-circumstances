@@ -57,7 +57,7 @@ func TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord(t *testing.
 	for name, b := range boards {
 		b := b
 		t.Run(name, func(t *testing.T) {
-			runDir := t.TempDir()
+			runDir := tmpRun(t)
 			// THE ROOT GOES TO THE SUBPROCESS ONLY, exactly as cmd/seatprobe declares it. Setting
 			// it with t.Setenv instead would put it in this process too, and this test would
 			// become the in-process one it exists to be different from.

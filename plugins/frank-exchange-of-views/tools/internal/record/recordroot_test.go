@@ -35,7 +35,7 @@ func isolate(t *testing.T) {
 
 func TestRecordsDirDefaultsUnderTheRun(t *testing.T) {
 	isolate(t)
-	run := t.TempDir()
+	run := tmpRun(t)
 	got, err := RecordsDir(run)
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
@@ -191,7 +191,7 @@ func TestALostPointerRefusesInsteadOfReportingAnEmptyBoard(t *testing.T) {
 
 func TestConflictingDeclarationsRefuse(t *testing.T) {
 	isolate(t)
-	run := t.TempDir()
+	run := tmpRun(t)
 	first := filepath.Join(t.TempDir(), "first")
 	t.Setenv(RecordRootEnv, first)
 	if _, err := RecordsDir(run); err != nil {
@@ -221,7 +221,7 @@ func TestTwoRunsCannotShareOneRoot(t *testing.T) {
 
 func TestARunWithEventsInPlaceRefusesToSeparate(t *testing.T) {
 	isolate(t)
-	run := t.TempDir()
+	run := tmpRun(t)
 	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
@@ -233,7 +233,7 @@ func TestARunWithEventsInPlaceRefusesToSeparate(t *testing.T) {
 
 func TestDeclaringTheDefaultPathChangesNothing(t *testing.T) {
 	isolate(t)
-	run := t.TempDir()
+	run := tmpRun(t)
 	t.Setenv(RecordRootEnv, filepath.Join(run, "records"))
 	if _, err := RecordsDir(run); err != nil {
 		t.Fatalf("resolve: %v", err)
@@ -320,7 +320,7 @@ func TestADeletedRootRefusesInsteadOfReadingAsAnEmptyRun(t *testing.T) {
 // conflict naming two temp directories the operator never chose.
 func TestARebuiltRunDirectoryDoesNotInheritTheOldRoot(t *testing.T) {
 	isolate(t)
-	run := t.TempDir()
+	run := tmpRun(t)
 	first := filepath.Join(t.TempDir(), "first")
 	t.Setenv(RecordRootEnv, first)
 	if _, err := RecordsDir(run); err != nil {

@@ -58,3 +58,16 @@ var shippedClasses = []string{
 	"verification-scope-blindspot", "doctrine-vs-implementation", "measurement-methodology-drift",
 	"cross-corpus-id-collision", "negative-definition",
 }
+
+// tmpRun is t.TempDir() for a RUN, plus the release its record handle needs.
+//
+// It stages NOTHING: several tests here depend on a run having no class registry, and newRun would
+// take that property away. The only difference from t.TempDir is that the cached *sql.DB for this
+// run is closed when the test ends — which is invisible on Linux, where an open file can still be
+// unlinked, and is the difference between pass and fail on Windows.
+func tmpRun(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Cleanup(func() { _ = recordsql.Close(filepath.Join(dir, "records", "record.db")) })
+	return dir
+}

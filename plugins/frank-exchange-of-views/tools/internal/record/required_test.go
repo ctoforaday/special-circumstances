@@ -179,7 +179,7 @@ func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 // grade ruling resolves against the MOTIONS, a direction ruling against the LINES, and each says
 // which it could not find.
 func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	id := Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)

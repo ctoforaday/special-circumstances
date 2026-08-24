@@ -110,7 +110,7 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 			defer func() { Now = orig }()
 			Now = c.now
 
-			runDir := t.TempDir()
+			runDir := tmpRun(t)
 			id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}
 			if _, _, err := RegisterSeat(id, ""); err != nil {
 				t.Fatal(err)
@@ -238,7 +238,7 @@ func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
 // change turned a tolerated duplicate into a refusal — and the fix is that the ordinal is scoped to
 // the SEAT, which makes its keys monotonic across dispatches.
 func TestARedispatchedSeatCanStillRecord(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	seat := "red-merge-r1"
 	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
 
@@ -285,7 +285,7 @@ func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 // so the second write is refused — and a raw `UNIQUE constraint failed: events.key` teaches
 // nothing, which is why isDuplicateKey exists.
 func TestARepeatedSingletonActIsRefusedInTheSeatsOwnTerms(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	seat := "red-merge-r1"
 	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
 	if _, _, err := RegisterSeat(id, ""); err != nil {

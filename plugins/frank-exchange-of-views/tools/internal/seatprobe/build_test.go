@@ -1,7 +1,9 @@
 package seatprobe
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -28,7 +30,7 @@ func TestBuildDoesNotBindTheSeatsItStages(t *testing.T) {
 		}
 		return "", nil
 	}
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	if err := Build(runDir, Boards()["arithmetic"], exec); err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -43,4 +45,14 @@ func TestBuildDoesNotBindTheSeatsItStages(t *testing.T) {
 			t.Errorf("the build changed the agent handle for %q (saw %q) — it is binding the seats it stages", cmd, handle)
 		}
 	}
+}
+
+// tmpRun is t.TempDir() for a RUN, plus the release its record handle needs. recordsql caches a
+// *sql.DB per database and production never closes one; a test process accumulates them, and on
+// Windows an open file cannot be removed so `t.TempDir` cleanup fails.
+func tmpRun(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Cleanup(func() { _ = recordsql.Close(filepath.Join(dir, "records", "record.db")) })
+	return dir
 }

@@ -22,7 +22,7 @@ import (
 // The disagreement case is the one worth pinning: when the record says one thing and the rendered
 // prose says another, the record wins. Anything else makes the dashboard a reader of a reader.
 func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "judge-terminal", Round: RoundIn(runDir)("judge-terminal")}, ""); err != nil {
 		t.Fatal(err)
@@ -55,7 +55,7 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 // verdict off the record and relabels "final verdict" as "latest verdict (rN)", so the operator is
 // shown a different claim rather than the same claim from a worse source.
 func TestTerminalVerdictIsEmptyWhenTheRecordCannotSay(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
 	if err := os.WriteFile(filepath.Join(runDir, "report.md"),
 		[]byte("# report\n\n**Verdict:** UNVERIFIED — the run ended without the question being answered.\n"), 0o644); err != nil {

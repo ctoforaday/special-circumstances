@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"os"
@@ -56,6 +57,27 @@ func testDispatchedSeat(args []string) string {
 // run executes one command against a fresh root and captures what the seat sees.
 // Verb output goes to real stdout via fmt.Println, so stdout is redirected
 // rather than taken from cobra's writer.
+// flagValue reads a flag's value out of an argv the way the parser will, so the harness and the
+// command agree about which run directory this call is against.
+func flagValue(args []string, flag string) string {
+	for i, a := range args {
+		if a == flag && i+1 < len(args) {
+			return args[i+1]
+		}
+		if v, ok := cutPrefix(a, flag+"="); ok {
+			return v
+		}
+	}
+	return ""
+}
+
+func cutPrefix(s, p string) (string, bool) {
+	if len(s) >= len(p) && s[:len(p)] == p {
+		return s[len(p):], true
+	}
+	return "", false
+}
+
 func run(t *testing.T, args ...string) (stdout string, err error) {
 	t.Helper()
 	// Output goes through cmd.OutOrStdout(), so a buffer set on the root captures every
@@ -69,6 +91,18 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	// running with no --seat-id gets its own tree. A harness stopping at the flag hands that
 	// same call the EMPTY tree and reports "no such command", which is a fact about the harness
 	// and reads as a fact about the seat.
+	// RELEASE THIS RUN'S HANDLE WHEN THE TEST ENDS, and do it HERE because this is the one place
+	// every test in this package reaches the record. recordsql caches a *sql.DB per database and
+	// production never closes one — a seat is a process per command. A test is the other shape,
+	// and on Windows an open file cannot be removed, so `t.TempDir` cleanup fails and the test is
+	// reported as failing for a reason that has nothing to do with what it asserts.
+	//
+	// Registering from the harness rather than from 56 fixtures is not a shortcut: the handle is
+	// opened by PRODUCTION code deep inside the verb, so the test that owns the directory never
+	// sees it. The invocation is the only place that knows both the run and the *testing.T.
+	if dir := flagValue(args, "--run"); dir != "" {
+		t.Cleanup(func() { _ = recordsql.Close(filepath.Join(dir, "records", "record.db")) })
+	}
 	seatID := testDispatchedSeat(args)
 	root := NewRootFor(seatID)
 	var out bytes.Buffer

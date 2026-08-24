@@ -850,7 +850,7 @@ func TestSingletonVerbsAreDeclaredForTheVerbsThatAreOnce(t *testing.T) {
 // UNIQUE, so a collision is not a wrong string — it is a refused act, and this asserts that both
 // findings land.
 func TestTheSameLabelInALaterRoundIsNotACollision(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	for _, seat := range []string{"red-lens-r1-L1", "red-lens-r2-L1"} {
 		id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
 		if _, _, err := RegisterSeat(id, ""); err != nil {
