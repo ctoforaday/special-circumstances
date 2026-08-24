@@ -529,3 +529,77 @@ not there yet.
 throughput-sensitive service, and the fix if it ever matters is a separate read-only handle for
 the server rather than reverting the pool setting — the seat write path is what the setting
 protects.
+
+## The merge with `origin/main` (2026-08-23)
+
+147 commits ahead, 110 conflicts, and **almost none of the risk was in them**. Six things merged
+CLEANLY and were wrong. Every one is the same shape: two halves of one change arriving from
+opposite sides, each half correct beside its own partner. `git` cannot see that class at all.
+
+| what merged clean | what it did |
+|---|---|
+| the hand-written `(check)` expr | compared `closure_class` against `'closed_with_regression'` — a word no writer can now produce, so the expression is always true and "a regression closure must name its successor" never fires again |
+| the gavel | main dropped `requireRuler` because its constructor scoped the verb; our constructor added the verb unconditionally. Together: **no gavel at all** — blue ruled its own motion and was told it succeeded |
+| three coverage gates | walked `newRoot()` and asked `isSeatRole(path[0])`. Against a scoped surface no path qualifies, so they traversed NOTHING and reported success. Their floors (`< 20 flags`, `< 10 verbs`) are the only reason this surfaced |
+| the class registry | main's strict arm landed beside our test asserting the opposite ("no registry staged is advisory") |
+| the fuzz's PASS path | `r.exec("merge", "verdict", …)` — a path the scoped surface no longer has. The refusal reads as "refused over something that is not a gap", which is a REAL production case, so the drive recorded FAIL with an empty gaps array and the engine rejected the round. 21 of 60 seeds |
+| the golden harness | `cmd{role: "merge", args: {"show", …}}` with no `--seat-id`. Every scenario silently lost its RENDERS and REPORT halves |
+
+**The two worth remembering fail silently BY DESIGN.** The fuzz reads a refusal as a legitimate
+FAIL; the golden harness appends only when the command succeeds, because a degenerate scenario
+really does render nothing. In both, total failure and the honest empty case are the same bytes —
+[[facts-are-fields]] clause 3, in a harness rather than in a parser. The golden one would have been
+committed: regenerating first produced **2278 deletions against 323 insertions** across 20 files,
+with one golden losing 113 lines and gaining zero. A vocabulary rename does not delete two thousand
+lines, and that ratio is the only thing that prompted the look.
+
+### The vocabulary, resolved
+
+Main's `a1e8e26` renamed the closure VALUES; this branch renamed the TYPE. Orthogonal, and both
+land: **main's words, our type name, our annotation, main's derived axis.** Main's numbering is
+preserved exactly, so `carried` keeps slot 7 — a slot main has no value for, because it carries
+deferral on a separate field. `ArtifactStateOf` is absorbed minus its retired-class arm: under
+no-back-compat a retired class is unwritable, because the CHECK is generated from the same enum.
+
+Values take the schema's spelling (`too_thin`, `defect_accepted`, `low_medium`); flags take dashes.
+The enum refusal now names BOTH near-miss classes — it detected case and said nothing for
+separators, which is the mistake those two conventions invite on one command line.
+
+### The defect the merge surfaced, which ships and predates it
+
+`recordsql.Open` built `"file:" + path + "?_txlock=…"`. The `file:` prefix makes that a URI, so a
+run directory containing `#`, `?` or `%` was TRUNCATED at that character — silently, to a path that
+still opens. Two runs then share one database, or a run opens one that is not its own, and every
+write reports success. Reachable in production: run directories are named from the topic, and
+"C# concurrency" produces exactly this path.
+
+Found by accident. Two identically-named Go subtests get `#01` appended, `t.TempDir` builds from the
+test name, and the second opened the FIRST one's database — surfacing three verbs away as "this
+seat has already recorded a mint this sitting" in a run that had recorded nothing.
+
+Fixed with `net/url`, **not** a hand-rolled escape. The hand-rolled version was the first attempt and
+is instructive: it got the three reserved characters and could not answer the `//`-authority case at
+all, because `/` is not escapable without changing the path. I had written that limitation into the
+test as "not measured" and shipped it — a stated limit that was really the fix being wrong. The
+driver has no DSN builder and neither does `mattn/go-sqlite3`; the format is a cross-driver string
+convention with the escaping obligation pushed onto every caller.
+
+### Prompts carry the JOB; the tool carries the contract
+
+Main's workstream had one goal: move instructions out of prose and into the CLI, so a subagent
+discovers paths from the tool rather than from a description of it. **The help is the instruction;
+prose about the tool is stutter, and its partial information produces satisficing.**
+
+`promptCatalogue` pinned at 0 is that rule's mechanism, not a lint. Red's merge prompt went to
+main's — 20315 characters against a 13000 ceiling, 56% over, while every other seat sat under — and
+what left was contract: the near-match rule naming the screening verb, `citations_checked` naming a
+projection, `found_by` naming a mint field. `SKILL.md` had grown to 5 named commands on THIS branch
+while every other surface was going to 0, and is now pinned explicitly so the carrier is covered by
+a decision rather than by an untracked file's default.
+
+### Verified
+
+tools `./...` 35 packages 0 failures (fuzz included, 60/60) · simulator 94/94 · scripts 9/9 ·
+difftest and prompt goldens re-recorded AND read · build, vet, `qlty` clean. The `go` directive
+moved to 1.25.14, which is where 46 stdlib CVEs were; the suite was re-run under it rather than
+assumed, because the goldens pin error text that can originate in stdlib. No golden moved.
