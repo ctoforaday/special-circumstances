@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // WHAT EACH CLOSED-SET FLAG ACCEPTS, DECLARED ONCE.
@@ -48,28 +51,81 @@ import (
 // concept, four spellings, and no mechanism could see them disagree because every set was
 // open.
 // DispositionCarried is the ONE bench disposition that does not end a gap: it defers the
-// question to a later round with a stated research direction. Every other disposition is a
-// ClosureClass.
+// question to a later round with a stated research direction.
+//
+// It stays a named constant because it is the word the CLI defaults to and the seat-facing help
+// reaches for, but it is no longer the DEFINITION of anything. "Does this end the gap" is
+// recordpb.Closes, read off the value's own annotation. The two were the same statement while
+// `carried` was the only deferring word, and that coincidence is exactly what made the negative
+// rule "everything except carried" look correct right up until a second deferring word existed.
 const DispositionCarried = "carried"
 
-// ClosureClasses is HOW A GAP ENDED — one vocabulary for both closing verbs (#342).
+// Dispositions is HOW A GAP ENDED — one vocabulary for both closing verbs (#342).
 //
 // `merge close` (red closes on verified repair) and `bench opinion` (the bench closes on
 // judgement) are different acts with different evidence bars, and they stay different verbs.
 // What they must not have is different WORDS for the same outcome: before this, a reader had
 // to know which verb produced a closure before it could interpret the word, and four surfaces
 // spelled the same three outcomes six ways.
-var ClosureClasses = []EnumValue{
-	Ev("repaired", "the repair was verified at the leaf and nothing regressed"),
-	Ev("repaired_with_regression", "repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward"),
-	Ev("amends_prior", "a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit"),
-	Ev("not_a_defect", "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be"),
-	Ev("defect_accepted", "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record"),
-	Ev("defect_owed_elsewhere", "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped"),
-}
+//
+// READ OFF THE SCHEMA, not re-typed beside it. This table used to carry all six meanings as Go
+// string literals while record.proto carried the same six as `(means)` annotations — one
+// statement, two files, and nothing in the build that could see them disagree. That is the exact
+// defect the annotations were added to remove, reproduced one layer up from it.
+var Dispositions = dispositionsWhere(func(bool) bool { return true })
+
+// ClosureClasses is the subset a MERGE may write: the values that actually close a gap.
+//
+// Derived from the same annotation the schema builds its CHECK from, so the refusal a seat reads
+// and the constraint the database enforces cannot admit different words.
+var ClosureClasses = dispositionsWhere(func(closes bool) bool { return closes })
+
+// DeferringDispositions is the complement of ClosureClasses: the words that do NOT end the gap.
+//
+// It exists so that no surface has to SAY which those are. The help text used to read "every value
+// ends the gap except `carried`" — a sentence that was true when it was written, is a copy of an
+// annotation that now answers the question, and would have gone quietly wrong the moment a second
+// deferring word was added. That is not a hypothetical: it is what happened to the predicate this
+// vocabulary replaced.
+var DeferringDispositions = dispositionsWhere(func(closes bool) bool { return !closes })
 
 // ClosureClassNames is the bare vocabulary, for the readers that only need the words.
 func ClosureClassNames() []string { return Names(ClosureClasses) }
+
+// dispositionsWhere reads the vocabulary out of the descriptor.
+//
+// A value that never declared `closes` PANICS at init rather than defaulting to false. That is
+// deliberate and it is the whole point of the annotation: adding a word must force the question,
+// and answering it here on the author's behalf is precisely how a gap the bench deferred came to
+// be retired with nobody having decided to retire it. An init panic is loud, immediate, and
+// impossible to ship past; a default is none of those.
+func dispositionsWhere(keep func(closes bool) bool) []EnumValue {
+	ed := recordpb.Disposition(0).Descriptor()
+	var out []EnumValue
+	for i := 0; i < ed.Values().Len(); i++ {
+		vd := ed.Values().Get(i)
+		word := recordpb.Word(recordpb.Disposition(vd.Number()))
+		if word == "" {
+			continue // the UNSPECIFIED zero is absence, not a choice a seat makes
+		}
+		closes, declared, err := recordpb.Facet(vd, "closes")
+		if err != nil || !declared {
+			panic(fmt.Sprintf("record: disposition %s does not declare whether it closes the gap — "+
+				"a value added without answering that reads as closing BY DEFAULT, which is how "+
+				"`grade_adjusted` retired a gap the bench had explicitly deferred", vd.Name()))
+		}
+		if !keep(closes) {
+			continue
+		}
+		means, err := recordpb.EnumValueDoc(vd)
+		if err != nil {
+			panic(fmt.Sprintf("record: disposition %s carries no meaning, so the set would reach a "+
+				"seat as a bare noun: %v", vd.Name(), err))
+		}
+		out = append(out, Ev(word, means))
+	}
+	return out
+}
 
 // ArtifactState is the SECOND AXIS a closure carries, and for a long time nothing could read it.
 //
@@ -109,9 +165,11 @@ const (
 	// ArtifactUnexamined: nobody reached the merits, so nothing is known either way. It must not
 	// collapse into "no defect" — an unasked question and an answered one are not the same.
 	ArtifactUnexamined ArtifactState = "unexamined"
-	// ArtifactUnknown: the class is not one this vocabulary knows — an older record written
-	// under a vocabulary that has since changed, which stays a valid record. Reported as itself,
-	// never folded into a healthy value.
+	// ArtifactUnknown: the class is not a word this vocabulary carries. NO RECORD CAN PRODUCE
+	// IT — the schema's CHECK is generated from the same enum this map is checked against, and
+	// TestArtifactStateCoversEveryDisposition fails the moment the map falls behind that enum.
+	// It survives for input that reached here without passing the schema, where reporting the
+	// miss as itself beats folding it into a healthy value.
 	ArtifactUnknown ArtifactState = "unknown"
 )
 
@@ -123,7 +181,6 @@ var artifactByClass = map[string]ArtifactState{
 	"not_a_defect":             ArtifactNoDefect,
 	"defect_accepted":          ArtifactDefectLive,
 	"defect_owed_elsewhere":    ArtifactDefectLive,
-	"moot":                     ArtifactUnexamined,
 	DispositionCarried:         ArtifactUnexamined, // still live; the question is open, not answered
 }
 
@@ -141,10 +198,6 @@ func ArtifactStateOf(class string) (ArtifactState, bool) {
 	}
 	return ArtifactUnknown, true
 }
-
-// benchDispositions is ClosureClasses plus the one word that does not close.
-var benchDispositions = append(append([]EnumValue{}, ClosureClasses...),
-	Ev(DispositionCarried, "NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes"))
 
 type EnumField struct {
 	Key  string // the payload key the value lands in
@@ -194,14 +247,19 @@ var EnumFields = map[string][]EnumField{
 		// tool accepted and the reader resolved by argument order.
 		Why: "the verdict stamp reads this to say HOW a non-pass ended; an unrecognized word decorates the stamp with nothing, which reads exactly like a run that ended for no stated reason",
 	}},
-	"line-of-inquiry": {{
+	// `avenue`, the schema's word. It was "line-of-inquiry" — an event type the schema does not
+	// declare — so this whole set was advertised against a body that does not exist, and nothing
+	// noticed because the key was only ever looked up by the same stale name.
+	"avenue": {{
 		Key: "status", Flag: flags.As, Values: InquiryStatuses,
 		Why: "the lines-of-inquiry projection groups BY status, so a status outside the set does not fail — it silently vanishes from the section that exists to show the roads not taken",
 	}},
-	"inquiry-support": {{
-		Key: "as", Flag: flags.As, Values: InquirySupports,
-		Why: "the duty that clears blue's work list keys on `unsupported` and `absent` by exact match, so an unrecognized spelling silently discharges red's vote AND never reaches blue — the line reads as checked and nobody checked it",
-	}},
+	// `inquiry-review` HAS NO ENTRY BECAUSE IT HAS NO CLOSED SET, and the absence is the ruling.
+	// Its predecessor `inquiry-support` carried a four-value `--as` (supported / weakened /
+	// unsupported / absent) answering "does the report still carry this line". Presence is not a
+	// question — the lines are generated onto the page from the record, so blue cannot cut them —
+	// and the surviving question, whether the body delivered the research, is an ORDINARY GAP with
+	// the grade vocabulary it already has. The review carries prose and nothing else.
 	// dispute, dispute-respond, petition, petition-rule and avenue-rule ARE ABSENT AND THAT IS
 	// DELIBERATE (#344). EnumFields is checked at the WRITE, and nothing writes those types any
 	// more — the verbs are gone. Their READ paths are permanent (record/compat.go), but a reader
@@ -217,7 +275,7 @@ var EnumFields = map[string][]EnumField{
 		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
 	}},
 	"opinion": {{
-		Key: "disposition", Flag: flags.As, Values: benchDispositions,
+		Key: "disposition", Flag: flags.As, Values: Dispositions,
 		Optional: true,
 		Why:      "the bench's disposition both RULES and ends the gap; `carried` is the one value that defers instead of closing, and the replay keys the gap's whole fate on that distinction. A near-miss spelling silently carried a gap the bench meant to close, or closed one it meant to carry",
 	}},
@@ -241,7 +299,11 @@ var EnumFields = map[string][]EnumField{
 	"verify": {{
 		Key: "outcome", Flag: flags.As, Values: []EnumValue{
 			Ev("supports", "you read the source at the leaf and it says what the claim says"),
-			Ev("supports-with-bridge", "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"),
+			// UNDERSCORE, matching the schema. It was `supports-with-bridge` — the only hyphenated value in
+			// any set — so `--help` offered a word `SourceOutcomeOf` then refused: "not a source outcome
+			// this record can carry", for the value the tool had just told the seat to use. That is #342
+			// in miniature, and it survived because nothing compared the advertised set to the schema's.
+			Ev("supports_with_bridge", "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"),
 			Ev("weak", "it gestures at the claim, or is itself uncorroborated: thin support, not none"),
 			Ev("refutes", "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all"),
 			Ev("absent", "you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was"),
@@ -310,33 +372,76 @@ func sameWord(a, b string) bool {
 	return strip(a) == strip(b)
 }
 
-// checkEnum refuses a value outside the declared set, naming what would have worked.
+// checkOpenSets refuses a value outside the ONE set the schema cannot close.
 //
-// The near-miss is called out BY NAME when the value differs only in case, because that
-// is the failure that was actually measured (`--as pass`, `--as Pass`) and "PASS | FAIL"
-// alone does not tell a seat that its lowercase spelling was the whole problem.
-func checkEnum(typ string, p *Payload) error {
-	for _, e := range EnumFields[typ] {
-		if e.Optional && !p.Has(e.Key) {
-			continue
+// MOST OF WHAT checkEnum POLICED IS NOW UNREPRESENTABLE. verdict, outcome's verdict, avenue
+// status, closure_class, check_kind, soundness, verify's outcome and confidence are closed proto
+// enums: a value outside the set cannot be built, let alone written, so a runtime check for it
+// would be dead code asserting the type system works.
+//
+// `Opinion.disposition` WAS THE SECOND, AND THE REASON GIVEN FOR IT DID NOT SURVIVE READING.
+//
+// It was listed here as "kept open on the operator's decision (plan §II.3): closing it means a
+// legitimate bench ruling fails HARD mid-round, and a bench that cannot rule is worse than a
+// vocabulary that drifts." Two things were wrong with that. The cited section is in no plan in
+// `plans/`. And the behaviour it described as the cost of closing the set was what this function
+// ALREADY DID: the arm below refused any word outside `benchDispositions`, from record.go:1131, on
+// the write path a bench actually uses. The set was closed. Only its DECLARATION was loose, one
+// file from the field, where the schema could not read it — so the DDL could not build a foreign
+// key, the vocabulary table had no row for `carried`, and "does this word close the gap" had to be
+// answered by a hand-written predicate that guessed.
+//
+// The drift it was meant to tolerate happened anyway, and could not be seen: the engine and the
+// bench's own constitution instructed three dispositions this arm refused.
+//
+// So one set remains, and it is genuinely open:
+//
+//   - `Outcome.ended` — how the sitting ended.
+//
+// The near-miss is called out BY NAME when the value differs only in case, because that is the
+// failure that was actually measured (`--as pass`, `--as Pass`) and "PASS | FAIL" alone does not
+// tell a seat that its lowercase spelling was the whole problem.
+func checkOpenSets(body proto.Message) error {
+	switch b := body.(type) {
+	case *recordpb.Outcome:
+		if b.Ended == nil {
+			return nil // absent is legal; `ended` is optional
 		}
-		got := p.Str(e.Key)
-		if e.Allows(got) {
-			continue
+		return checkWord("ended", flags.Ended, b.GetEnded(), endedValues())
+	}
+	return nil
+}
+
+// checkWord is the refusal itself: the value, the set that would have worked, and the consequence.
+func checkWord(key, flag, got string, allowed []EnumValue) error {
+	for _, want := range allowed {
+		if got == want.Name {
+			return nil
 		}
-		// The consequence (Why) is always stated: a seat that mistyped needs to know what
-		// the mistype WOULD have done, not just that a set exists.
-		detail := ""
-		for _, want := range e.Values {
-			if strings.EqualFold(got, want.Name) {
-				detail = fmt.Sprintf("%s differs from %s only in case, and ", jsonish(got), jsonish(want.Name))
-			}
+	}
+	detail := ""
+	for _, want := range allowed {
+		if strings.EqualFold(got, want.Name) {
+			detail = fmt.Sprintf("%s differs from %s only in case, and ", jsonish(got), jsonish(want.Name))
 		}
-		if got == "" {
-			detail = "nothing was passed, and "
+	}
+	if got == "" {
+		detail = "nothing was passed, and "
+	}
+	names := make([]string, 0, len(allowed))
+	for _, want := range allowed {
+		names = append(names, want.Name)
+	}
+	return fmt.Errorf("record: --%s must be one of %s (got %s) — %sthe word is what every later reader switches on",
+		flag, strings.Join(names, "|"), jsonish(got), detail)
+}
+
+// endedValues is the `ended` set, read off the one declaration of it rather than re-typed.
+func endedValues() []EnumValue {
+	for _, ef := range EnumFields["outcome"] {
+		if ef.Key == "ended" {
+			return ef.Values
 		}
-		return fmt.Errorf("record: %s requires --%s %s (got %s) — %s%s",
-			typ, e.Flag, strings.Join(Names(e.Values), "|"), jsonish(got), detail, e.Why)
 	}
 	return nil
 }

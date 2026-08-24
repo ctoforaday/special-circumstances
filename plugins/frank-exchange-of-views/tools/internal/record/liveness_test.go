@@ -1,6 +1,9 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
 	"time"
@@ -15,21 +18,25 @@ const liveStamp = "2006-01-02T15:04:05.000000000Z07:00"
 // runWithCadence writes one shard whose events are `gap` apart, ending at `last`.
 func runWithCadence(t *testing.T, n int, gap time.Duration, last time.Time) string {
 	t.Helper()
-	dir := t.TempDir()
-	evs := make([]Event, 0, n)
+	dir := tmpRun(t)
+	evs := make([]*Event, 0, n)
 	for i := 0; i < n; i++ {
-		e := ev("red-lens-r1-L1", "aaaaaaaa", i, 1, "finding", "k"+itoaT(i), nil)
-		e.TS = last.Add(-time.Duration(n-1-i) * gap).UTC().Format(liveStamp)
-		evs = append(evs, e)
+		ts := last.Add(-time.Duration(n-1-i) * gap).UTC().Format(liveStamp)
+		evs = append(evs, recordtest.Stamped(
+			recordtest.At(t, "red-lens-r1-L1", 1, "red-lens-r1-L1:finding:k"+itoaT(i), &recordpb.Finding{
+				FindingId: proto.String("F" + itoaT(i)),
+				Label:     proto.String("L1-F" + itoaT(i)),
+				Text:      proto.String("a finding"),
+			}), ts))
 	}
-	writeShard(t, dir, "red-lens-r1-L1", "aaaaaaaa", evs)
+	writeShard(t, dir, evs)
 	return dir
 }
 
 func itoaT(i int) string { return string(rune('a' + i%26)) }
 
 func TestLastActivityRefusesARecordWithNoEvents(t *testing.T) {
-	dir := t.TempDir()
+	dir := tmpRun(t)
 	if _, err := LastActivity(dir); err == nil {
 		t.Fatal("LastActivity returned no error for a run that has recorded nothing — a run that " +
 			"never started and a run that went quiet would then arrive as the same age")
@@ -55,7 +62,7 @@ func TestLastActivityReadsTheNewestEventsOwnTimestamp(t *testing.T) {
 }
 
 func TestAssessSaysEndedOnceCaptured(t *testing.T) {
-	l := Assess(t.TempDir(), time.Now(), true)
+	l := Assess(tmpRun(t), time.Now(), true)
 	if l.State != StateEnded {
 		t.Errorf("state = %s, want ENDED", l.State)
 	}

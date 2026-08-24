@@ -2,10 +2,12 @@ package merge
 
 import (
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // class: the gap-class registry, and coining an entry in it.
@@ -31,9 +33,13 @@ func newClass() *cobra.Command {
 
 func newClassNew() *cobra.Command {
 	c := seat.Records(seat.New("new", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-		p := record.NewPayload().Set("slug", seat.Str(cmd, flags.Class))
-		seat.SetSame(cmd, p, flags.Definition, flags.Neighbor, flags.Distinguisher)
-		if _, err := record.Append(s.Identity(), "class-new", p); err != nil {
+		body := &recordpb.ClassNew{
+			Slug:          proto.String(seat.Str(cmd, flags.Class)),
+			Definition:    proto.String(seat.Str(cmd, flags.Definition)),
+			Neighbor:      proto.String(seat.Str(cmd, flags.Neighbor)),
+			Distinguisher: proto.String(seat.Str(cmd, flags.Distinguisher)),
+		}
+		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
 		return classResult{Slug: seat.Str(cmd, flags.Class)}, nil

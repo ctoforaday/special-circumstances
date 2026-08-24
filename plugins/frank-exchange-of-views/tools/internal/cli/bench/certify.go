@@ -2,9 +2,11 @@ package bench
 
 import (
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // certify: the run-end statement of what a human should re-examine.
@@ -18,7 +20,7 @@ func newCertify() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := record.Append(s.Identity(), "certify", record.NewPayload().Set("reason", text)); err != nil {
+		if _, err := record.Append(s.Identity(), &recordpb.Certify{Statement: proto.String(text)}); err != nil {
 			return nil, err
 		}
 		return seat.Msg{Message: "certification recorded"}, nil

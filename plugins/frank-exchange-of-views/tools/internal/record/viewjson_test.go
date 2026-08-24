@@ -2,6 +2,9 @@ package record
 
 import (
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
 )
@@ -16,27 +19,37 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	blue := "blue-lane-1"
 	judge := "judge-r1"
 	merge2 := "red-merge-r2"
-	blue2 := "blue-lane-2"
 
-	writeShard(t, runDir, merge, "aaaaaaaa", []Event{
-		ev(merge, "aaaaaaaa", 0, 1, "position", merge+":position", NewPayload().Set("reason", "red r1")),
-		ev(merge, "aaaaaaaa", 1, 1, "closing", merge+":closing:R1-1", NewPayload().Set("gap_id", "R1-1").Set("reason", "red closes r1")),
+	writeShard(t, runDir, []*Event{
+		recordtest.At(t, merge, 1, merge+":position", &recordpb.Position{Text: proto.String("red r1")}),
+		// The gap must exist before anything speaks about it: `closing.gap_id` and the bench's
+		// opinion are both foreign keys onto the mint.
+		recordtest.At(t, merge, 1, merge+":mint:R1-1", &recordpb.Mint{
+			GapId: proto.String("R1-1"), Class: proto.String("overclaim"), Problem: proto.String("p"),
+			AcceptanceCheck: proto.String("the check runs"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}),
+		recordtest.At(t, merge, 1, merge+":closing:R1-1", &recordpb.Closing{GapId: proto.String("R1-1"), Text: proto.String("red closes r1")}),
 	})
-	writeShard(t, runDir, blue, "bbbbbbbb", []Event{
-		ev(blue, "bbbbbbbb", 0, 1, "position", blue+":position", NewPayload().Set("reason", "blue r1")),
-		ev(blue, "bbbbbbbb", 1, 1, "confidence", blue+":confidence:C1", NewPayload().Set("label", "claim one").Set("grade", "medium")),
+	writeShard(t, runDir, []*Event{
+		recordtest.At(t, blue, 1, blue+":position", &recordpb.Position{Text: proto.String("blue r1")}),
+		// The `confidence` event type went with the per-claim confidence grades; blue's round-1
+		// section is carried by its position, which is what this test reads.
 	})
-	writeShard(t, runDir, judge, "cccccccc", []Event{
-		ev(judge, "cccccccc", 0, 1, "opinion", judge+":opinion:R1-1", NewPayload().
-			Set("gap_id", "R1-1").Set("disposition", "upheld").Set("principle", "correctness first")),
+	writeShard(t, runDir, []*Event{
+		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{Tension: proto.String("speed against certainty"), ReviewFlag: proto.String("no"), Settled: proto.String("the claim as it stood may not be re-asserted"),
+			Final:     proto.Bool(true),
+			Rationale: proto.String("because"), GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Principle: proto.String("correctness first")}),
 	})
 	// Round 2: red positions again, blue does not (a red-only round — its Red is non-empty,
 	// its Blue is the empty array a consumer counts as zero, never a null).
-	writeShard(t, runDir, merge2, "dddddddd", []Event{
-		ev(merge2, "dddddddd", 0, 2, "position", merge2+":position", NewPayload().Set("reason", "red r2")),
+	writeShard(t, runDir, []*Event{
+		recordtest.At(t, merge2, 2, merge2+":position", &recordpb.Position{Text: proto.String("red r2")}),
 	})
-	// A blue seat that recorded nothing in round 2 (present in the run, silent this round).
-	writeShard(t, runDir, blue2, "eeeeeeee", []Event{})
+	// A blue seat that recorded nothing in round 2 is simply absent from the record — there is no
+	// empty shard file to write, which is what the call here used to produce.
 
 	b, err := BoardState(runDir)
 	if err != nil {
@@ -57,8 +70,8 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if len(r1.Blue) != 1 || r1.Blue[0] != "blue r1" {
 		t.Errorf("round 1 Blue = %v, want [blue r1]", r1.Blue)
 	}
-	if len(r1.Lead) != 1 || r1.Lead[0].Disposition != "upheld" || r1.Lead[0].Principle != "correctness first" {
-		t.Errorf("round 1 Lead = %+v, want one upheld opinion", r1.Lead)
+	if len(r1.Lead) != 1 || r1.Lead[0].Disposition != "repaired" || r1.Lead[0].Principle != "correctness first" {
+		t.Errorf("round 1 Lead = %+v, want one closed opinion", r1.Lead)
 	}
 	if len(r1.RedClosings) != 1 || r1.RedClosings[0].GapID != "R1-1" || r1.RedClosings[0].Text != "red closes r1" {
 		t.Errorf("round 1 RedClosings = %+v", r1.RedClosings)
@@ -91,9 +104,9 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 // is one way to that JSON, by name) and a markdown view with no JSON form rejects it too.
 // This is enforced in the show read-path; the check here guards the DebateJSONBytes entry.
 func TestDebateJSONBytesIsValidJSON(t *testing.T) {
-	runDir := newRun(t)
-	writeShard(t, runDir, "red-merge-r1", "aaaaaaaa", []Event{
-		ev("red-merge-r1", "aaaaaaaa", 0, 1, "position", "red-merge-r1:position", NewPayload().Set("reason", "red")),
+	runDir := tmpRun(t)
+	writeShard(t, runDir, []*Event{
+		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:position", &recordpb.Position{Text: proto.String("red")}),
 	})
 	out, err := DebateJSONBytes(runDir)
 	if err != nil {
@@ -112,17 +125,32 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	runDir := newRun(t)
 	m := "red-merge-r1"
 	longProblem := strings.Repeat("word ", 60) // ~300 chars, well over the 140-rune synopsis budget
-	writeShard(t, runDir, m, "aaaaaaaa", []Event{
-		ev(m, "aaaaaaaa", 0, 1, "mint", m+":mint:R1-1", NewPayload().
-			Set("gap_id", "R1-1").Set("problem", longProblem).Set("location", "§open").
-			Set("class", "correctness").Set("required_fix", "SECRET_FIX_PROSE").
-			Set("acceptance_check", "SECRET_CHECK_PROSE").Set("severity", "high").
-			Set("found_by", []string{"L1-F1"})),
-		ev(m, "aaaaaaaa", 1, 1, "mint", m+":mint:R1-2", NewPayload().
-			Set("gap_id", "R1-2").Set("problem", "a closed problem").Set("location", "§closed").
-			Set("class", "citation").Set("required_fix", "fix").Set("acceptance_check", "chk")),
-		ev(m, "aaaaaaaa", 2, 1, "close", m+":close:R1-2", NewPayload().
-			Set("gap_id", "R1-2").Set("class", "resolved")),
+	writeShard(t, runDir, []*Event{
+		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{
+			GapId: proto.String("R1-1"), Class: proto.String("correctness"),
+			Problem: proto.String(longProblem), Location: proto.String("§open"),
+			RequiredFix: proto.String("SECRET_FIX_PROSE"), AcceptanceCheck: proto.String("SECRET_CHECK_PROSE"),
+			CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
+			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			FoundBy:    []string{"L1-F1"},
+		}),
+		recordtest.At(t, m, 1, m+":mint:R1-2", &recordpb.Mint{
+			GapId: proto.String("R1-2"), Class: proto.String("citation"),
+			Problem: proto.String("a closed problem"), Location: proto.String("§closed"),
+			RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
+			CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}),
+		recordtest.At(t, m, 1, m+":close:R1-2", &recordpb.Close{Prose: proto.String("verified at the leaf"),
+			GapId: proto.String("R1-2"),
+			// `class: "resolved"` before the schema — a key `merge close` never wrote (it writes
+			// closure_class) carrying a word the enum never had. Untyped, it replayed as a closure
+			// with NO class: a torn closure, which is the state this test is not about.
+			ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+		}),
 	})
 
 	b, err := BoardState(runDir)
@@ -174,12 +202,19 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	runDir := newRun(t)
 	m := "red-merge-r1"
-	writeShard(t, runDir, m, "aaaaaaaa", []Event{
-		ev(m, "aaaaaaaa", 0, 1, "mint", m+":mint:R1-1", NewPayload().
-			Set("gap_id", "R1-1").Set("problem", "an open problem").Set("location", "§1").
-			Set("required_fix", "do the thing").Set("acceptance_check", "run the check").
-			Set("severity", "high").Set("existence", "verified").
-			Set("found_by", []string{"L1-F1", "L5-F3"}).Set("supersedes", []string{"R0-9"})),
+	writeShard(t, runDir, []*Event{
+		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{
+			GapId: proto.String("R1-1"), Class: proto.String("overclaim"),
+			Problem: proto.String("an open problem"), Location: proto.String("§1"),
+			AcceptanceCheck: proto.String("run the check"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Supersedes:      []string{"R0-9"},
+			// found_by is the OTHER promoted list, and the assertion below reads both. The earlier
+			// conversion dropped it, so the test asserted against a gap that credited nobody.
+			FoundBy: []string{"L1-F1", "L5-F3"},
+		}),
 	})
 	b, err := BoardJSONBytes(runDir)
 	if err != nil {
@@ -212,12 +247,19 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 	runDir := newRun(t)
 	s := "red-lens-r1-L1"
 	m := "red-merge-r1"
-	writeShard(t, runDir, s, "aaaaaaaa", []Event{
-		ev(s, "aaaaaaaa", 0, 1, "finding", s+":finding:L1-F1", NewPayload().Set("label", "L1-F1").Set("reason", "credited")),
-		ev(s, "aaaaaaaa", 1, 1, "finding", s+":finding:L1-F2", NewPayload().Set("label", "L1-F2").Set("reason", "never credited")),
+	writeShard(t, runDir, []*Event{
+		recordtest.At(t, s, 1, s+":finding:L1-F1", &recordpb.Finding{Label: proto.String("L1-F1"), Text: proto.String("credited")}),
+		recordtest.At(t, s, 1, s+":finding:L1-F2", &recordpb.Finding{Label: proto.String("L1-F2"), Text: proto.String("never credited")}),
 	})
-	writeShard(t, runDir, m, "bbbbbbbb", []Event{
-		ev(m, "bbbbbbbb", 0, 1, "mint", m+":mint:k", NewPayload().Set("gap_id", "R1-1").Set("found_by", []string{"L1-F1"})),
+	writeShard(t, runDir, []*Event{
+		recordtest.At(t, m, 1, m+":mint:k", &recordpb.Mint{
+			GapId: proto.String("k"), Class: proto.String("overclaim"), Problem: proto.String("p"),
+			AcceptanceCheck: proto.String("the check runs"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			FoundBy:         []string{"L1-F1"},
+		}),
 	})
 	b, err := BoardState(runDir)
 	if err != nil {
@@ -232,5 +274,51 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 		if o.Credited != want {
 			t.Errorf("%s: credited=%v, want %v", o.Label, o.Credited, want)
 		}
+	}
+}
+
+// RED'S ARGUMENT REACHES THE BOARD, and this is the test for a field that was declared, written,
+// and never joined to the projection.
+//
+// `Mint.mint_reason` is what red thinks is WRONG with the text, distinct from `problem`, which
+// says what is wrong — the half a seat answers and a bench weighs. `merge mint` writes it, the
+// schema carries it, and BoardJSON declares the field. Only the assignment between them was
+// missing, and viewjson.go carried a note saying the schema had no such field, which was not true.
+//
+// Nothing reported it because a struct field that is never assigned renders as its zero: the board
+// showed no argument on every gap in every run, and "red gave no argument" is a perfectly ordinary
+// thing for a board to say. That is the plausible zero in its purest form — a missing line of code
+// rendering as a fact about the debate.
+func TestRedsArgumentReachesTheBoard(t *testing.T) {
+	runDir := tmpRun(t)
+	seat := "red-merge-r1"
+	writeShard(t, runDir, []*Event{
+		recordtest.At(t, seat, 1, seat+":mint:R1-1", &recordpb.Mint{
+			GapId: proto.String("R1-1"), Class: proto.String("overclaim"),
+			Problem:         proto.String("the section claims independence"),
+			MintReason:      proto.String("all five approaches share one definition of primality"),
+			AcceptanceCheck: proto.String("the section no longer claims independence"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}),
+	})
+	b, err := BoardState(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	j := BoardJSONOf(b)
+	if len(j.Open) != 1 {
+		t.Fatalf("%d open gaps, want 1 — an empty board would pass the assertion below", len(j.Open))
+	}
+	if got := j.Open[0].MintReason; got != "all five approaches share one definition of primality" {
+		t.Errorf("mint_reason = %q — red's argument for the gap did not reach the board, so a seat "+
+			"answering it sees only what is wrong and not why red thinks so", got)
+	}
+	// And it stays DISTINCT from the problem: the whole reason the field exists is that "what is
+	// wrong" and "why I say so" are two facts, and a projection carrying one as the other loses
+	// the half a seat can actually argue with.
+	if j.Open[0].MintReason == j.Open[0].Problem {
+		t.Error("mint_reason and problem rendered the same text — the field exists to keep them apart")
 	}
 }

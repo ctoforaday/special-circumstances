@@ -95,13 +95,17 @@ var enforcedElsewhere = map[string]string{
 	// from record.MotionVerdictEnum — the SAME table, so the two cannot drift, which is the
 	// property EnumFields exists to give and the reason this is "enforced elsewhere" rather than
 	// an exemption.
-	"rule --as": "record.validate, keyed on (SUBJECT, ruling); help generated from record.MotionVerdictEnum — the same table, so the two cannot drift",
+	"motion_rule --as": "record.validate, keyed on (SUBJECT, ruling); help generated from record.MotionVerdictEnum — the same table, so the two cannot drift",
 
 	// The addressee of granted relief, keyed on (SUBJECT, key) like the filing's fields — and
 	// checked in the same loop, on the ruling side, which did not exist until a ruling first
 	// carried an enumerated field. This gate is what found that: `--binds` advertised a closed
 	// set the write path did not check, on the day it was added.
-	"rule --binds": "record.validate's MotionFields loop on the motion-rule arm; help generated from record.MotionFieldEnum — the same table",
+	// KEYED ON THE RECORD TYPE, not the command name. setKey prefers `seat.RecordType`, and the
+	// motion verbs carry it now — they were built as raw cobra commands with no annotation, so
+	// they fell back to the leaf's name (`file`, `rule`, `appeal`) and sat outside the contract
+	// gate entirely. Three verbs' requirements were unchecked; the keys here moved with them.
+	"motion_rule --binds": "record.validate's MotionFields loop on the motion-rule arm; help generated from record.MotionFieldEnum — the same table",
 
 	// The ONE set already solved the other way, and correctly: flags.GradeValue is a
 	// pflag.Value, so a bad grade is refused BEFORE the payload is built, and both the
@@ -110,7 +114,7 @@ var enforcedElsewhere = map[string]string{
 	"mint --severity":    gradeParseTime,
 	"finding --severity": gradeParseTime,
 	"regrade --severity": gradeParseTime,
-	"file --proposed":    gradeParseTime,
+	"motion --proposed":  gradeParseTime,
 
 	// The two filing sets, keyed on (SUBJECT, key) exactly as the verdicts are: one `motion` event
 	// carries a grade `dimension` or a petition `class` depending on what it is about, and
@@ -123,8 +127,8 @@ var enforcedElsewhere = map[string]string{
 	// was deleted and this gate had a flag to compare against — the new verb had been shipped with
 	// a weaker contract than the one it retires, which is complete-the-concept one layer below
 	// where that rule usually gets applied.
-	"file --dimension": "record.validate, keyed on (SUBJECT, dimension); help generated from record.MotionFieldEnum — the same table",
-	"file --class":     "record.validate, keyed on (SUBJECT, class); help generated from record.MotionFieldEnum — the same table",
+	"motion --dimension": "record.validate, keyed on (SUBJECT, dimension); help generated from record.MotionFieldEnum — the same table",
+	"motion --class":     "record.validate, keyed on (SUBJECT, class); help generated from record.MotionFieldEnum — the same table",
 
 	// `show --view` IS NO LONGER SET-SHAPED, and that is the fix rather than the regression.
 	// Its usage was `board | findings | work list | …` — a pipe list of nouns with no meanings,

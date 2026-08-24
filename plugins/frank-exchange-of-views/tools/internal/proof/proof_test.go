@@ -47,10 +47,39 @@ console.log("9 divisors in 2..8:", d.join(","), "-> composite:", d.length > 0);
 		t.Errorf("the computation's own answer is missing from the record: %q", res.Output)
 	}
 	// The artifact must survive the turn — that is the whole difference from a Bash call.
-	for _, f := range []string{"script.js", "output", "meta.json"} {
+	//
+	// CONTENT ONLY. `meta.json` was in this list and is deliberately gone: it held sha, exit,
+	// script and drift — facts ABOUT the debate, in a JSON file beside the record that exists to
+	// hold facts about the debate, where nothing could refuse a wrong value. Those fields are on
+	// `Result` now, and the assertions below are what replaced the stat: a reader gets the facts
+	// from a typed field rather than from a file that could disagree with the event.
+	for _, f := range []string{"script.js", "output"} {
 		if _, err := os.Stat(filepath.Join(runDir, "proofs", res.SHA, f)); err != nil {
 			t.Errorf("%s was not cached, so the auditor has nothing to re-run: %v", f, err)
 		}
+	}
+	// The facts meta.json used to carry, asserted where they actually live.
+	if res.SHA == "" {
+		t.Error("no sha on the result — it is the artifact's address AND the id red re-runs by")
+	}
+	if res.Exit != 0 {
+		t.Errorf("exit = %d, want 0: the script says 9 is composite and says it successfully", res.Exit)
+	}
+	if res.Script != "nine.js" {
+		t.Errorf("script = %q, want nine.js — a reader must be able to name what was run", res.Script)
+	}
+	// And the artifact directory holds NOTHING ELSE: a fact that creeps back into a file here is
+	// a fact nothing can refuse, and it would read as a richer record rather than a weaker one.
+	ents, err := os.ReadDir(filepath.Join(runDir, "proofs", res.SHA))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(ents) != 2 {
+		var names []string
+		for _, e := range ents {
+			names = append(names, e.Name())
+		}
+		t.Errorf("the proof directory holds %v — content is cached here, FACTS belong on the record", names)
 	}
 }
 

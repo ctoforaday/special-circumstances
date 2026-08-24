@@ -4,39 +4,49 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-)
+	"google.golang.org/protobuf/proto"
 
-// pay builds a payload from alternating key/value strings.
-func pay(kv ...string) *record.Payload {
-	p := record.NewPayload()
-	for i := 0; i+1 < len(kv); i += 2 {
-		p.Set(kv[i], kv[i+1])
-	}
-	return p
-}
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+)
 
 // seedChanges lays down one minted gap and three edits: two answering it, one answering
 // nothing (blue's own work — 6 of the smoke's 26 edits were exactly that shape).
 func seedChanges(t *testing.T, runDir string) {
 	t.Helper()
-	writeShard(t, runDir, "red-merge-r1", "aaaaaaaa", []record.Event{
-		ev("red-merge-r1", "aaaaaaaa", 0, 1, "mint", "red-merge-r1:mint:R1-1", pay(
-			"gap_id", "R1-1",
-			"problem", "independence is overclaimed",
-			"required_fix", "acknowledge the shared definition",
-			"acceptance_check", "the section no longer claims independence",
-			"class", "overclaim", "likelihood", "medium", "impact", "medium")),
+	writeShard(t, runDir, []*record.Event{
+		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-1", &recordpb.Mint{
+			GapId:           proto.String("R1-1"),
+			Class:           proto.String("overclaim"),
+			Problem:         proto.String("independence is overclaimed"),
+			RequiredFix:     proto.String("acknowledge the shared definition"),
+			AcceptanceCheck: proto.String("the section no longer claims independence"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}),
 	})
-	writeShard(t, runDir, "blue-respond-r1", "bbbbbbbb", []record.Event{
-		ev("blue-respond-r1", "bbbbbbbb", 0, 1, "blue_edit", "blue-respond-r1:blue_edit:e1", pay(
-			"answers", "R1-1", "old", "five independent approaches",
-			"new", "five approaches", "reason", "drop the independence claim")),
-		ev("blue-respond-r1", "bbbbbbbb", 1, 1, "blue_edit", "blue-respond-r1:blue_edit:e2", pay(
-			"answers", "R1-1", "old", "They agree.",
-			"new", "They agree, sharing one definition of primality.", "reason", "name the shared definition")),
-		ev("blue-respond-r1", "bbbbbbbb", 2, 1, "blue_edit", "blue-respond-r1:blue_edit:e3", pay(
-			"old", "cost ,", "new", "cost,", "reason", "punctuation repair")),
+	writeShard(t, runDir, []*record.Event{
+		recordtest.At(t, "blue-respond-r1", 1, "blue-respond-r1:blue_edit:e1", &recordpb.BlueEdit{
+			Answers: proto.String("R1-1"),
+			Old:     proto.String("five independent approaches"),
+			New:     proto.String("five approaches"),
+			Text:    proto.String("drop the independence claim"),
+		}),
+		recordtest.At(t, "blue-respond-r1", 1, "blue-respond-r1:blue_edit:e2", &recordpb.BlueEdit{
+			Answers: proto.String("R1-1"),
+			Old:     proto.String("They agree."),
+			New:     proto.String("They agree, sharing one definition of primality."),
+			Text:    proto.String("name the shared definition"),
+		}),
+		// The unattributed edit: blue's own work, answering no gap. Six of the smoke's 26 edits
+		// were this shape, which is why `answers` being ABSENT has to stay expressible.
+		recordtest.At(t, "blue-respond-r1", 1, "blue-respond-r1:blue_edit:e3", &recordpb.BlueEdit{
+			Old:  proto.String("cost ,"),
+			New:  proto.String("cost,"),
+			Text: proto.String("punctuation repair"),
+		}),
 	})
 }
 
@@ -89,10 +99,17 @@ func TestChangesScopedPutsRequiredFixBesideTheEdits(t *testing.T) {
 // — including that an edit which omitted --answers would be invisible here.
 func TestChangesScopedSaysNoneRatherThanRenderingEmpty(t *testing.T) {
 	runDir := t.TempDir()
-	writeShard(t, runDir, "red-merge-r1", "aaaaaaaa", []record.Event{
-		ev("red-merge-r1", "aaaaaaaa", 0, 1, "mint", "red-merge-r1:mint:R1-1", pay(
-			"gap_id", "R1-1", "problem", "p", "required_fix", "f", "acceptance_check", "c",
-			"class", "x", "likelihood", "medium", "impact", "medium")),
+	writeShard(t, runDir, []*record.Event{
+		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-1", &recordpb.Mint{
+			GapId:           proto.String("R1-1"),
+			Class:           proto.String("x"),
+			Problem:         proto.String("p"),
+			RequiredFix:     proto.String("f"),
+			AcceptanceCheck: proto.String("c"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}),
 	})
 
 	b, err := Markdown(runDir, "changes", "R1-1")

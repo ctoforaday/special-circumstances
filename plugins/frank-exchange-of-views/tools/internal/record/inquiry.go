@@ -1,6 +1,11 @@
 package record
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+)
 
 // LINES OF INQUIRY HAVE A LIFECYCLE NOW, BECAUSE THE UNIT IS THE CHOICE, NOT THE ENTRY.
 //
@@ -43,41 +48,8 @@ func InquiryStatusNames() []string { return Names(InquiryStatuses) }
 // spelling for it is the aliasing this vocabulary exists to prevent.
 var InquiryRulings = []EnumValue{
 	Ev("endorsed", "worth this run's time — blue should take it up"),
-	Ev("out-of-scope", "a real question, but not THIS question"),
-	Ev("too-thin", "in scope, and the hypothesis does not carry its budget as stated"),
-}
-
-// InquirySupports are red's per-round verdict on whether the REPORT still carries this line.
-//
-// This is a different question from InquiryRulings and the two must not be confused. A ruling
-// answers "is this direction worth the run's time" — red's judgement about the RESEARCH. A support
-// verdict answers "is this line present in the report, and does the text still back it as stated"
-// — red's leaf read of the ARTIFACT. A line can be endorsed and unsupported at once: red agreed it
-// was worth taking and the section that took it has since been cut.
-//
-// WHY IT EXISTS. A line of inquiry reached the report as an unaudited row: `assemble` generates it
-// from the record, so it carries no citation anchor and `lens verify` cannot reach it. "We pursued
-// X" was the one claim in the document that nothing checked, which is the shape this repository
-// keeps finding — a fact stated where nothing can refuse it.
-//
-// `weakened` is the middle grade and earns its place the way a `low` corroboration does: it lets
-// red say the support has eroded without demanding a repair blue may reasonably decline. Only
-// `unsupported` and `absent` put the line on blue's work list.
-var InquirySupports = []EnumValue{
-	Ev("supported", "the line is in the report and the text still backs it as stated"),
-	Ev("weakened", "still there, and the support has eroded — a flag, not a demand; blue is not obliged to act"),
-	Ev("unsupported", "the line is in the report and the text no longer backs it — blue owes a repair or a rebuttal"),
-	Ev("absent", "the line is NOT in the report at all — the record claims a direction the document does not carry"),
-}
-
-// InquirySupportNames is the bare vocabulary.
-func InquirySupportNames() []string { return Names(InquirySupports) }
-
-// SupportDemandsBlue reports whether this verdict puts the line on blue's work list. `weakened` does
-// not: it is red saying "this is thinner than it was", which is an argument blue may answer or
-// accept, and a duty that fires on it would make every erosion a blocking repair.
-func SupportDemandsBlue(verdict string) bool {
-	return verdict == "unsupported" || verdict == "absent"
+	Ev("out_of_scope", "a real question, but not THIS question"),
+	Ev("too_thin", "in scope, and the hypothesis does not carry its budget as stated"),
 }
 
 // InquiryRulingNames is the bare vocabulary.
@@ -95,7 +67,19 @@ func MintInquiryID(runDir string) (string, error) {
 	}
 	n := 0
 	for _, e := range m.Events {
-		if e.Type == "line-of-inquiry" && e.Payload.Str("inquiry_id") != "" && e.Payload.Str("supersedes_status") == "" {
+		// THE BODY IS THE TYPE. `line-of-inquiry` is carried by the `Avenue` message
+		// (EVENT_TYPE_AVENUE) — the schema kept the pre-rename spelling for the message and its
+		// id field, so `inquiry_id` is `avenue_id` here. Matching on the body cannot go stale
+		// against the enum the way `e.Type == "line-of-inquiry"` could.
+		av, ok := recordpb.BodyAs[*recordpb.Avenue](e)
+		if !ok {
+			continue
+		}
+		// A PROPOSAL, NOT A MOVE. `supersedes_status` is PRESENT on a move and absent on a
+		// proposal — the schema says so in as many words — so the id counter reads the pointer,
+		// not the string. `GetSupersedesStatus() == ""` would count a move whose marker was
+		// written empty as a fresh proposal and mint an id that already exists.
+		if av.GetAvenueId() != "" && av.SupersedesStatus == nil {
 			n++
 		}
 	}
@@ -118,17 +102,27 @@ type Inquiry struct {
 	Ruling     string   // red's fate, if ruled
 	RulingWhy  string
 	RuledRound int
-	// Contests is the ruling blue moved AGAINST, recorded by `blue line of inquiry` at the moment of
-	// the move. Read from the field rather than re-derived from (status, ruling): the write
+	// Contests was the ruling blue moved AGAINST, recorded by `blue line-of-inquiry` at the moment
+	// of the move. Read from the field rather than re-derived from (status, ruling): the write
 	// path already decided what counts as contesting, and a second derivation downstream is a
 	// second definition that can disagree with it.
+	//
+	// IT IS NOW ALWAYS EMPTY, AND SAYING SO HERE IS THE POINT. Its carrier was the payload key
+	// `contests_ruling`, which the schema deliberately does not have — recordpb's key census calls
+	// it "the legacy spelling of an appeal … the one legacy field with no counterpart at all", and
+	// #344 replaced the mechanism with `motion inquiry appeal`. Nothing has written it since;
+	// blue/inquiry.go:109 records why. The field stays because report/assemble.go still renders
+	// it, and because the CONCEPT is live: its post-#344 carrier is a `motion-appeal` event
+	// (MotionAppeal, subject DIRECTION) on this line's id, which this projection has never read.
+	// Wiring that is new behaviour rather than a conversion, so it is reported, not done here.
 	Contests string
-	// Support is red's latest verdict on whether the REPORT still carries this line, with the
-	// round it was cast in. SupportRound is what makes "voted THIS round" answerable — the duty
-	// is per-round, so a verdict from two rounds ago is not a verdict for this one.
-	Support      string
-	SupportWhy   string
-	SupportRound int
+	// THERE IS NO PER-LINE SUPPORT VERDICT, AND ITS ABSENCE IS A RULING RATHER THAN AN OMISSION.
+	// Three fields here — Support, SupportWhy, SupportRound — carried red's per-round answer to
+	// "does the report still CARRY this line". That made presence the question. Presence is not a
+	// question: the lines reach the report on the WORKLIST, generated from this projection, so
+	// blue cannot cut them. What remains — did blue's body deliver the research — is an ordinary
+	// GAP, minted and closed like any other, and the per-round statement that the read HAPPENED is
+	// InquiryReviewDue's business, not this struct's.
 }
 
 // Inquiries replays the line of inquiry events into current state, in proposal order.
@@ -136,21 +130,21 @@ func Inquiries(b *Board) []*Inquiry {
 	byID := map[string]*Inquiry{}
 	var order []string
 	for _, e := range b.Events {
-		id := e.Payload.Str("inquiry_id")
-		if id == "" {
-			// A direction motion carries the line of inquiry's id under `motion_id`, because to the
-			// motion machinery it IS the motion's id — the proposal is the filing, so there is
-			// no second identity to mint. Keying only on `inquiry_id` dropped every ruling made
-			// through the new verb before it reached the switch below.
-			if e.Type == "motion-rule" && e.Payload.Str("subject") == "inquiry" {
-				id = e.Payload.Str("motion_id")
-			}
+		body, ok := recordpb.Body(e)
+		if !ok {
+			// NO BODY IS NOT AN EMPTY ONE. An event the schema carries no body for names no line
+			// of inquiry, which is the same outcome the old `Str("inquiry_id") == ""` reached —
+			// but reached here by asking the question rather than by a lookup that misses.
+			continue
+		}
+		switch t := body.(type) {
+		case *recordpb.Avenue:
+			// The id is `avenue_id`: the schema kept the pre-rename spelling, and the old
+			// `inquiry_id` key is the same fact under the newer word.
+			id := t.GetAvenueId()
 			if id == "" {
 				continue
 			}
-		}
-		switch e.Type {
-		case "line-of-inquiry":
 			a, ok := byID[id]
 			if !ok {
 				a = &Inquiry{ID: id}
@@ -158,42 +152,109 @@ func Inquiries(b *Board) []*Inquiry {
 				order = append(order, id)
 			}
 			// A creation carries the substance; a MOVE carries only the new status and why,
-			// so the substance must not be blanked by it.
-			if v := e.Payload.Str("line"); v != "" {
+			// so the substance must not be blanked by it. These stay VALUE tests rather than
+			// presence tests on purpose: the question they ask is "did this event bring
+			// substance", and a move that carried `line` as an empty string must not blank a
+			// proposal's line either. `av.Line != nil` would let it.
+			if v := t.GetLine(); v != "" {
 				a.Line = v
 			}
-			if v := e.Payload.Str("hypothesis"); v != "" {
+			if v := t.GetHypothesis(); v != "" {
 				a.Hypothesis = v
 			}
-			if v := e.Payload.Str("method"); v != "" {
+			if v := t.GetMethod(); v != "" {
 				a.Method = v
 			}
-			a.Status, a.Reason, a.Round, a.SeatID = e.Payload.Str("status"), e.Payload.Str("reason"), e.Round, e.SeatID
-			a.Contests = e.Payload.Str("contests_ruling")
-			a.History = append(a.History, fmt.Sprintf("r%d %s", e.Round, a.Status))
-		case "motion-rule":
+			// STATUS IS OVERWRITTEN BY EVERY EVENT, including one that carried none — that is
+			// what "latest status" means, and the old `Str("status")` did exactly this.
+			//
+			// `Word` is what makes the absent case survive: an unset status is the enum zero, and
+			// Word maps the zero to "" rather than to the literal `unspecified`. Rendering the
+			// zero's name would put a line in the lines-of-inquiry projection under a fate no
+			// seat ever chose, and into History as "r2 unspecified". The value form is used
+			// deliberately — `Word(t.Status)` would pass a typed nil pointer into an interface
+			// that is not nil, and panic on the absent case this line exists to handle.
+			//
+			// AvenueStatus needs no hyphen join: none of proposed/pursued/deferred/declined/
+			// abandoned carries an underscore. DirectionRuling below is the opposite case.
+			a.Status = recordpb.Word(t.GetStatus())
+			a.Reason, a.Round, a.SeatID = t.GetReason(), int(e.GetRound()), e.GetSeatId()
+			// `contests_ruling` HAS NO FIELD, AND THAT IS THE SCHEMA'S DECISION, NOT THIS
+			// CONVERSION'S. It was set as a side effect of moving a line to `pursued` against an
+			// adverse ruling; #344 replaced it with `motion inquiry appeal`, blue/inquiry.go:109
+			// records that nothing has written it since, and recordpb's key census calls it "the
+			// legacy spelling of an appeal … the one legacy field with no counterpart at all".
+			// So the read is dropped rather than converted, and Inquiry.Contests is now always
+			// empty. THE CONCEPT IS NOT DEAD: its post-#344 carrier is a `motion-appeal` event on
+			// this line's id, which this projection has never read. Wiring that is new behaviour,
+			// not a conversion, so it is reported rather than done here.
+			a.History = append(a.History, fmt.Sprintf("r%d %s", e.GetRound(), a.Status))
+		case *recordpb.MotionRule:
 			// THE CURRENT SPELLING, and reading it here is not optional.
 			//
-			// A direction motion joins on the line of inquiry's own id, so `motion direction rule` writes
-			// a motion-rule whose motion_id IS an A-number. Until this arm existed, a ruling
+			// A direction motion joins on the line of inquiry's own id, so `motion inquiry rule`
+			// writes a motion-rule whose motion_id IS a Q-number. Until this arm existed, a ruling
 			// made through the new verb never reached `--view lines-of-inquiry` — the projection
 			// blue reads to decide whether to pursue, comply or drop. The line simply stayed
 			// "Awaiting a decision", which is what an unruled line looks like, so red's ruling
 			// was indistinguishable from red not having sat.
-			if e.Payload.Str("subject") != "inquiry" {
+			//
+			// The subject the CLI spells `inquiry` is MOTION_SUBJECT_DIRECTION in the schema —
+			// the same subject under the schema's word, and the only one whose ruling set is
+			// DirectionRuling (endorsed / out-of-scope / too-thin).
+			if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
+				continue
+			}
+			id := t.GetMotionId()
+			if id == "" {
 				continue
 			}
 			a, ok := byID[id]
 			if !ok {
 				continue
 			}
-			a.Ruling, a.RulingWhy, a.RuledRound = e.Payload.Str("ruling"), e.Payload.Str("reason"), e.Round
-		case "inquiry-support":
-			a, ok := byID[id]
+			// AN ABSENT RULING IS THE EMPTY WORD, and the oneof is what says so: a motion-rule
+			// whose `ruling` arm is unset, or is set to another subject's arm, carried no
+			// direction ruling and must leave Inquiry.Ruling empty — `GetDirection()` alone
+			// returns UNSPECIFIED for all three cases and cannot tell them apart.
+			//
+			// NO `_` -> `-` JOIN, AND THE COMMENT THAT DEMANDED ONE WAS STALE. It said the seat
+			// types `out-of-scope`, that InquiryRulings spells it with a hyphen, and that the
+			// underscore form "is a word no surface recognizes". Checked: DirectionRuling spells
+			// DIRECTION_RULING_OUT_OF_SCOPE, `Word` yields `out_of_scope`, and InquiryRulings
+			// carries `out_of_scope` too. The hyphen is what no surface recognizes now, so the
+			// word goes through unchanged and there is no third spelling to keep in step.
+			a.Ruling = ""
+			if d, isDirection := t.GetRuling().(*recordpb.MotionRule_Direction); isDirection {
+				a.Ruling = recordpb.Word(d.Direction)
+			}
+			// `reason` on the wire is `opinion` on the message — the ruler's argument, which is
+			// the field MotionRule carries and the only prose channel it has.
+			a.RulingWhy, a.RuledRound = t.GetOpinion(), int(e.GetRound())
+		case *recordpb.MotionAppeal:
+			// BLUE MOVING AGAINST A RULING, which is the post-#344 carrier of `contests_ruling`.
+			//
+			// The field it replaced was set as a side effect of moving a line to `pursued` against
+			// an adverse ruling, and when it was retired this arm was NOT written — so
+			// `Inquiry.Contests` was always empty and the report's "blue took this line against
+			// red's X ruling" line could never render. The comment above recorded that as owed
+			// rather than done; this is the doing.
+			//
+			// What blue contested is the ruling ON THE RECORD, so it is read off the line rather
+			// than restated by the appeal: an appeal names the motion, and the motion's ruling is
+			// already here. An appeal against a line nobody ruled leaves it empty, because there
+			// is nothing to have moved against.
+			if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
+				continue
+			}
+			a, ok := byID[t.GetMotionId()]
 			if !ok {
 				continue
 			}
-			a.Support, a.SupportWhy, a.SupportRound = e.Payload.Str("as"), e.Payload.Str("reason"), e.Round
+			a.Contests = a.Ruling
+			// THERE IS NO InquiryReview ARM, AND THAT IS THE SHAPE RATHER THAN A GAP IN IT. The
+			// review is ONE event per round about the report as a whole; it names no line, so there
+			// is nothing here for it to join to. Its reader is InquiryReviewDue.
 		}
 	}
 	out := make([]*Inquiry, 0, len(order))
@@ -215,7 +276,10 @@ func RequireInquiryRef(runDir, id string) error {
 		return err
 	}
 	for _, e := range m.Events {
-		if e.Type == "line-of-inquiry" && e.Payload.Str("inquiry_id") == id {
+		// EVERY Avenue event answers this, proposal or move, exactly as the old type test did —
+		// the check is that the id was ever WRITTEN by the line-of-inquiry verb, not that the
+		// event was the proposal.
+		if av, ok := recordpb.BodyAs[*recordpb.Avenue](e); ok && av.GetAvenueId() == id {
 			return nil
 		}
 	}
@@ -230,8 +294,27 @@ func RequireInquiryRef(runDir, id string) error {
 func CurrentRound(b *Board) int {
 	max := 0
 	for _, e := range b.Events {
-		if e.Round > max {
-			max = e.Round
+		// A BARE DISPATCH IS NOT A ROUND. `register` is every seat's first act and says only that
+		// it was seated — it decides nothing and records no work — so counting it advances the
+		// board's idea of "now" past every earlier seat and leaves their round-scoped duties
+		// permanently unsatisfiable.
+		//
+		// MEASURED 2026-08-21, and it cost a seat its sitting. A round-1 merge discharged its
+		// round-1 duty, was told the act succeeded, and found the projection still demanding it.
+		// It retried ten to twelve times — different wording, different formatting, inline and
+		// from a file — then filed friction reporting that the tool returned success and nothing
+		// persisted. The events had persisted perfectly: CurrentRound was 2, and the only round-2
+		// event on that board was `judge-r2` calling `register`.
+		//
+		// The seat's own summary is the argument for this line: "A seat can't trust its own
+		// actions. I can't tell if the tool accepted my command or silently failed."
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
+			continue
+		}
+		// An event with no round reads as 0, which is what the old `int` field held when the key
+		// was absent — round 0 is a real round, so there is nothing here for presence to say.
+		if r := int(e.GetRound()); r > max {
+			max = r
 		}
 	}
 	return max
@@ -305,69 +388,79 @@ func InquiryRuling(runDir, inquiryID string) string {
 	if err != nil {
 		return ""
 	}
-	// MOST RECENT WINS. Events are ordered by timestamp across shards, so "last one seen" is the
+	// MOST RECENT WINS. Events are ordered by insertion, so "last one seen" is the
 	// latest ruling. There was a second arm here for the pre-#344 `avenue-rule` spelling; nothing
 	// has written it since the motion collapse and the dual-read that justified reading it is gone.
 	ruling := ""
 	for _, e := range b.Events {
-		if e.Type == "motion-rule" && e.Payload.Str("subject") == "inquiry" && e.Payload.Str("motion_id") == inquiryID {
-			ruling = e.Payload.Str("ruling")
+		mr, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
+		if !ok || mr.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION || mr.GetMotionId() != inquiryID {
+			continue
+		}
+		// THE LATEST RULING WINS, INCLUDING A LATER ONE THAT CARRIED NONE. The old
+		// `Str("ruling")` overwrote with "" for a motion-rule that named no verdict, and the
+		// oneof is what preserves that: an unset `ruling` arm, or another subject's arm, is not
+		// a direction ruling. `GetDirection()` alone returns UNSPECIFIED for all three and
+		// cannot tell "red ruled nothing" from "red is not on this event".
+		// The hyphen join, for the reason given at the same read in `Inquiries`.
+		ruling = ""
+		if d, isDirection := mr.GetRuling().(*recordpb.MotionRule_Direction); isDirection {
+			ruling = strings.ReplaceAll(recordpb.Word(d.Direction), "_", "-")
 		}
 	}
 	return ruling
 }
 
-// UnvotedInquiries returns the lines red has not cast a support verdict on THIS round.
+// InquiryReviewDue reports whether this round still owes a read of the report against the lines
+// of inquiry the record carries.
 //
-// The vote is per-round by design: the question is whether the report STILL carries the line, and
-// a report that changed this round has not been checked by a verdict cast before it did. A verdict
-// that carried forward would answer a question about a document that no longer exists.
-func UnvotedInquiries(b *Board) []*Inquiry { return UnvotedInquiriesAt(b, CurrentRound(b)) }
-
-// UnvotedInquiriesAt asks the same question AS OF a stated round, which is what a seat's own duty
-// list needs.
+// # ONE QUESTION PER ROUND, NOT ONE PER LINE, and the correction is the whole change
 //
-// # The round is the SEAT's, not the board's maximum
+// This was `UnvotedInquiries`, which returned the LINES red had not yet cast a per-line verdict
+// on — `supported` / `weakened` / `unsupported` / `absent`, later `carried` / `hollow` / `cut`.
+// Every one of those vocabularies made PRESENCE the question, and presence is not a question. The
+// lines reach the report on the WORKLIST, generated from `Inquiries` above, so blue cannot cut
+// them: a line is on the page because the record says it is. `absent` and `cut` named a state no
+// writer could produce, and the other values were grades on a continuum wearing a closed set's
+// clothes.
 //
-// CurrentRound is the highest round on any event, and a bare `register` carries one. So a seat that
-// has merely been dispatched — written nothing, decided nothing — advances the board's idea of
-// "now" past every earlier seat, and every round-scoped duty those seats discharged becomes
-// permanently unsatisfiable. The vote is on the record, at its own round, and the gate compares it
-// against a later one forever.
+// What is genuinely open is whether blue's BODY delivered the research a line claims — thin
+// treatment, a hypothesis never tested, a method never run. That is a defect in the report, so it
+// is an ORDINARY GAP: mint it, and it gets the id, the grade, the blue duty and the PASS gate
+// every other gap already has. A second vocabulary for the same fact is the aliasing this package
+// exists to remove, which is why nothing replaces `UnsupportedInquiries` — the work list it fed
+// is the gap board.
 //
-// MEASURED 2026-08-21, and it cost a seat its sitting. A round-1 merge voted on Q1, was told "line
-// of inquiry Q1 voted absent", and found `show work` still saying "Q1 has no support verdict this
-// round". It voted three more times with different wording, different formatting, inline and from
-// a file — 10 to 12 calls — then filed friction:
+// # The discharge is modelled on `friction --none`
 //
-//	the tool returned 'line of inquiry Q1 voted absent' each time, but the votes do not persist
-//	in any projection ... This appears to be a harness/record persistence issue rather than a
-//	user error, as the command syntax matched the help text exactly and the tool gave success
-//	responses.
+// Silence cannot clear a duty. An absent review reads identically whether the report was read and
+// found sound or nobody looked at it, so "nothing to say" must still be SAID: one
+// EVENT_TYPE_INQUIRY_REVIEW, this round, carrying what the read found. validate requires its
+// reason for the reason `friction --none` requires one.
 //
-// It was right that the fault was the tool's and wrong only about which fault: the events persisted
-// perfectly. CurrentRound was 2, and the ONLY round-2 event on that board was `judge-r2` calling
-// `register`. Its own summary of the cost is the argument for this fix: "A seat can't trust its own
-// actions. I can't tell if the tool accepted my command or silently failed."
-func UnvotedInquiriesAt(b *Board, now int) []*Inquiry {
-	var out []*Inquiry
-	for _, a := range Inquiries(b) {
-		if a.Support == "" || a.SupportRound < now {
-			out = append(out, a)
+// # Board-wide, and per ROUND
+//
+// Any seat's review answers it — the read is one pass over one document, and the per-line gate
+// counted a vote from any seat the same way. Per round because the report is regenerated every
+// round: a review recorded before this round's edits answers a question about a document that no
+// longer exists.
+//
+// A board with NO lines of inquiry owes nothing. There is no account of research on the page to
+// read, and the per-line gate was likewise silent on an empty set — so this is behaviour held,
+// not a hole opened.
+func InquiryReviewDue(b *Board) bool {
+	if len(Inquiries(b)) == 0 {
+		return false
+	}
+	now := CurrentRound(b)
+	for _, e := range b.Events {
+		// THE BODY IS THE TYPE, as everywhere else in this file: a match on the message cannot go
+		// stale against the enum. No field is read — the event's existence in this round IS the
+		// fact — but the type test still goes through the body so a renamed enum value fails to
+		// compile rather than silently matching nothing.
+		if _, ok := recordpb.BodyAs[*recordpb.InquiryReview](e); ok && int(e.GetRound()) == now {
+			return false
 		}
 	}
-	return out
-}
-
-// UnsupportedInquiries returns the lines red's latest verdict puts on BLUE's work list — the report
-// no longer backs them, or does not carry them at all. `weakened` is deliberately not here: see
-// SupportDemandsBlue.
-func UnsupportedInquiries(b *Board) []*Inquiry {
-	var out []*Inquiry
-	for _, a := range Inquiries(b) {
-		if SupportDemandsBlue(a.Support) {
-			out = append(out, a)
-		}
-	}
-	return out
+	return true
 }

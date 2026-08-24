@@ -39,7 +39,12 @@ func TestGradeValueSetRejections(t *testing.T) {
 		{"empty", ""},
 		{"the typo class that motivated the package", "catastrophic"},
 		{"case matters — the enum is lowercase", "HIGH"},
-		{"near miss on a hyphenated value", "low_medium"},
+		// THE NEAR MISS IS THE HYPHEN NOW. The grade was spelled `low-medium` when this case was
+		// written, so the underscore was the typo. The constant is `low_medium` — the schema's
+		// spelling — and this row went on asserting that a REAL grade is refused, which is the
+		// same hyphen/underscore split that had `--as supports-with-bridge` advertised in help
+		// and refused by the write path.
+		{"near miss on an underscored value", "low-medium"},
 		{"substring of a real grade", "lo"},
 		{"superstring of a real grade", "highest"},
 		{"internal whitespace is not trimmed away", "low medium"},

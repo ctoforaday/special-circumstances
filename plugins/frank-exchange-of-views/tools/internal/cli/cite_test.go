@@ -8,6 +8,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // blue cite is blue's ONLY citation mechanism: it fetches a source through the run cache
@@ -19,15 +20,17 @@ const citeSeat = blueSeat
 
 var citeAnchorRe = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
 
-func firstCiteEvent(t *testing.T, runDir string) *record.Event {
+// firstCiteEvent returns the cite BODY, typed. The label is tool-assigned, so the event is the
+// source of truth for it and the test has to read the record rather than the command's output.
+func firstCiteEvent(t *testing.T, runDir string) *recordpb.Cite {
 	t.Helper()
 	m, err := record.MergedEvents(runDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := range m.Events {
-		if m.Events[i].Type == "cite" {
-			return &m.Events[i]
+	for _, e := range m.Events {
+		if c, ok := recordpb.BodyAs[*recordpb.Cite](e); ok {
+			return c
 		}
 	}
 	return nil
@@ -52,7 +55,7 @@ func TestBlueCiteAnchorsInvisiblyAndRecordsEvent(t *testing.T) {
 	if ev == nil {
 		t.Fatal("no cite event recorded")
 	}
-	label := ev.Payload.Str("label")
+	label := ev.GetLabel()
 
 	report := readReport(t, runDir)
 	// The anchor is spliced just past the last CONTENT byte of the quote (before the
@@ -70,12 +73,12 @@ func TestBlueCiteAnchorsInvisiblyAndRecordsEvent(t *testing.T) {
 		t.Errorf("source not cached: %v", statErr)
 	}
 	// The one cite event carries the full citation record.
-	if ev.Payload.Str("url") != "https://sky/1" ||
-		ev.Payload.Str("sha256") != sha || ev.Payload.Str("title") != "Sky Facts" {
+	if ev.GetUrl() != "https://sky/1" ||
+		ev.GetSha256() != sha || ev.GetTitle() != "Sky Facts" {
 		t.Errorf("cite event payload wrong: label=%q url=%q sha=%q title=%q",
-			ev.Payload.Str("label"), ev.Payload.Str("url"), ev.Payload.Str("sha256"), ev.Payload.Str("title"))
+			ev.GetLabel(), ev.GetUrl(), ev.GetSha256(), ev.GetTitle())
 	}
-	if ev.Payload.Str("access_date") == "" {
+	if ev.GetAccessDate() == "" {
 		t.Error("cite event missing engine-supplied access_date")
 	}
 }
@@ -94,7 +97,7 @@ func TestBlueCiteMisQuoteRejectedNoEffect(t *testing.T) {
 	if strings.Contains(readReport(t, runDir), "<!--cite:") {
 		t.Error("a rejected cite still spliced an anchor")
 	}
-	if n := countType(t, runDir, "cite"); n != 0 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CITE); n != 0 {
 		t.Errorf("a rejected cite recorded %d cite events, want 0", n)
 	}
 }
@@ -127,11 +130,11 @@ func TestBlueCiteFetchFailureRejectsAndFrictions(t *testing.T) {
 	if strings.Contains(readReport(t, runDir), "<!--cite:") {
 		t.Error("an unusable cite still spliced an anchor")
 	}
-	if n := countType(t, runDir, "cite"); n != 0 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CITE); n != 0 {
 		t.Errorf("an unusable cite recorded %d cite events, want 0", n)
 	}
 	// But the DECISION to cite an unreachable source IS surfaced as friction.
-	if n := countType(t, runDir, "friction"); n != 1 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_FRICTION); n != 1 {
 		t.Errorf("an unusable cite recorded %d friction events, want 1", n)
 	}
 }
@@ -157,7 +160,7 @@ func TestBlueCiteReusesCacheAcrossTwoCites(t *testing.T) {
 	if got := len(citeAnchorRe.FindAllString(readReport(t, runDir), -1)); got != 2 {
 		t.Errorf("two cites produced %d anchors, want 2", got)
 	}
-	if n := countType(t, runDir, "cite"); n != 2 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CITE); n != 2 {
 		t.Errorf("two cites recorded %d cite events, want 2", n)
 	}
 }
@@ -180,7 +183,7 @@ func TestBlueCiteKeyIsIdempotent(t *testing.T) {
 	if got := len(citeAnchorRe.FindAllString(readReport(t, runDir), -1)); got != 1 {
 		t.Errorf("a retried cite produced %d anchors, want 1 (idempotent)", got)
 	}
-	if n := countType(t, runDir, "cite"); n != 1 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_CITE); n != 1 {
 		t.Errorf("a retried cite recorded %d cite events, want 1", n)
 	}
 }

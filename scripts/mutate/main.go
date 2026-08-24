@@ -194,24 +194,80 @@ func goFiles(moduleDir string) ([]string, error) {
 	return out, err
 }
 
-// suiteFor is the narrowest package covering a file. A cmd/ mutant cannot affect another
-// cmd/, and running one package instead of the module is most of the speed here; an
-// internal/ mutant can affect anything, so it gets ./...
+// suiteFor is the package OWNING a file — the first suite a mutant is tried against.
 func suiteFor(rel string) string {
-	parts := strings.Split(filepath.ToSlash(rel), "/")
-	if parts[0] == "cmd" && len(parts) > 1 {
-		return "./cmd/" + parts[1] + "/"
+	dir := filepath.ToSlash(filepath.Dir(rel))
+	if dir == "." {
+		return "./"
 	}
-	return "./..."
+	return "./" + dir + "/"
 }
 
-// runSuite reports whether the mutant passed, and whether it failed to build (a
-// non-compiling mutant is not behavioural and is discarded rather than counted).
-func runSuite(moduleDir, pkg string) (passed, broke bool) {
-	cmd := exec.Command("go", "test", pkg)
+// TWO STAGES, AND THE FIRST ONE IS WHY THIS TOOL CAN BE RUN AT ALL.
+//
+// Every `internal/` mutant used to run `go test ./...` — the whole module — on the argument
+// that "an internal/ mutant can affect anything". The argument is TRUE and the cost made the
+// tool unusable for exactly the packages worth auditing: the module suite is ~15 minutes here,
+// most of it an integration sweep running 60 debate simulations, so a single flipped operator
+// cost a quarter of an hour and a 200-site file would take fifty. Measured: two hours of
+// sweeping `internal/record` completed about eight mutants and produced no output at all.
+//
+// A mutant is tried against its OWN package, where nearly all die in milliseconds.
+//
+// THE WIDE STAGE IS OPT-IN (`-confirm`), AND MAKING IT SO IS THE SECOND HALF OF THE FIX. Trying
+// every survivor against the rest of the module is correct and costs ~8 minutes EACH: measured,
+// a `citationid.go` sweep ran an hour because its survivors each paid for a full-module run, and
+// the operator waiting on it could not be told how many were left. Two stages made the common
+// case free and left the reported case ruinous.
+//
+// So a survivor is reported as what it IS — "survived its own package" — and the expensive
+// confirmation is asked for rather than assumed. That matches what this tool already is: an
+// on-demand audit whose output is a list to EXPLAIN, not a gate. An operator who wants to know
+// whether another package would have caught it can ask; one who is auditing the package in front
+// of them should not pay for an answer they did not want.
+//
+// The correctness argument for the wide stage is unchanged and still true — an `internal/`
+// mutant CAN be killed by another package's tests — which is why `-confirm` exists rather than
+// the stage being deleted. What changed is who decides to pay.
+//
+// With `-confirm` the wide run uses `-short` and skips ./integration/... : that suite shrinks
+// under -short by design and exists to exercise whole debates, not to notice a one-operator flip.
+func runSuite(moduleDir, pkg string, confirm bool) (passed, broke bool) {
+	passed, broke = runOne(moduleDir, "go", "test", pkg)
+	if broke || !passed || !confirm {
+		return passed, broke
+	}
+	pkgs, err := widePackages(moduleDir)
+	if err != nil || len(pkgs) == 0 {
+		return true, false
+	}
+	return runOne(moduleDir, append([]string{"go", "test", "-short"}, pkgs...)...)
+}
+
+func runOne(moduleDir string, argv ...string) (passed, broke bool) {
+	cmd := exec.Command(argv[0], argv[1:]...)
 	cmd.Dir = moduleDir
 	out, err := cmd.CombinedOutput()
 	return err == nil, strings.Contains(string(out), "build failed")
+}
+
+// widePackages lists the module's packages EXCEPT the integration suite, which is a whole-system
+// exercise rather than a unit oracle and dominates the runtime.
+func widePackages(moduleDir string) ([]string, error) {
+	cmd := exec.Command("go", "list", "./...")
+	cmd.Dir = moduleDir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	var keep []string
+	for _, p := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if p == "" || strings.Contains(p, "/integration/") {
+			continue
+		}
+		keep = append(keep, p)
+	}
+	return keep, nil
 }
 
 type result struct {
@@ -222,7 +278,7 @@ type result struct {
 
 // sweep mutates one occurrence at a time, ALWAYS restoring the file — including on SIGINT,
 // because a mutant left in the working tree is worse than no measurement.
-func sweep(moduleDir, filter string, out *os.File) (*result, error) {
+func sweep(moduleDir, filter string, confirm bool, out *os.File) (*result, error) {
 	files, err := goFiles(moduleDir)
 	if err != nil {
 		return nil, err
@@ -281,7 +337,7 @@ func sweep(moduleDir, filter string, out *os.File) (*result, error) {
 			}
 			lines[c.line] = original
 
-			passed, broke := runSuite(moduleDir, pkg)
+			passed, broke := runSuite(moduleDir, pkg, confirm)
 			switch {
 			case broke:
 				res.nocompile++
@@ -370,7 +426,7 @@ func TestLooseIsCalledButNotAsserted(t *testing.T) {
 		return false
 	}
 
-	res, err := sweep(dir, "", os.Stdout)
+	res, err := sweep(dir, "", false, os.Stdout)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "selftest FAILED:", err)
 		return false
@@ -416,6 +472,7 @@ func main() {
 	filter := flag.String("filter", "", "only sweep files whose path contains this substring")
 	doSelftest := flag.Bool("selftest", false, "prove the tool can still mutate and observe, then exit")
 	goVersion := flag.String("go-version", "1.25", "go directive for the -selftest fixture module")
+	confirm := flag.Bool("confirm", false, "re-test each SURVIVOR against the rest of the module (correct, and ~8 minutes per survivor)")
 	flag.Parse()
 
 	if *doSelftest {
@@ -460,7 +517,7 @@ func main() {
 	// later, when that package was next run.
 	headBefore := headSHA()
 
-	res, err := sweep(moduleDir, *filter, os.Stdout)
+	res, err := sweep(moduleDir, *filter, *confirm, os.Stdout)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

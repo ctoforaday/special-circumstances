@@ -4,12 +4,14 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // reproduce: red re-RUNS a proof instead of re-reading it.
@@ -64,26 +66,37 @@ func newReproduce() *cobra.Command {
 		if soundness == "" {
 			return nil, fmt.Errorf("lens reproduce requires --as sound|unsound: re-running proves the script is DETERMINISTIC, not that it establishes the claim — `print(\"7 is prime\")` reproduces forever. Read the script and say whether it computes what it is anchored to")
 		}
-		p := record.NewPayload().Set("proof_sha", sha).Set("reproduced", ok).Set("soundness", soundness)
+		snd, known := record.SoundnessOf(soundness)
+		if !known {
+			return nil, fmt.Errorf("lens reproduce: %q is not a soundness this record can carry", soundness)
+		}
+		body := &recordpb.Reproduce{
+			ProofSha:   proto.String(sha),
+			Reproduced: proto.Bool(ok),
+			Soundness:  &snd,
+		}
 		if !ok {
 			// Only on a MISMATCH, and truncated: the recorded output already lives in the
 			// proof artifact, and copying it wholesale into the event would put a second
 			// copy of the same bytes on the record. What the reader needs is what CHANGED.
-			p.Set("recorded_output", truncateOutput(want)).Set("observed_output", truncateOutput(got))
+			body.RecordedOutput = proto.String(truncateOutput(want))
+			body.ObservedOutput = proto.String(truncateOutput(got))
 		}
-		if err := seat.SetReason(cmd, p, "reason"); err != nil {
+		note, err := seat.Reason(cmd)
+		if err != nil {
 			return nil, err
 		}
-		if p.Str("reason") == "" {
+		body.Note = proto.String(note)
+		if note == "" {
 			return nil, fmt.Errorf("lens reproduce requires --reason: say what the script ACTUALLY COMPUTES, in your words. A soundness verdict with no reading behind it is the assertion this verb exists to replace")
 		}
-		if _, err := record.Append(s.Identity(), "reproduce", p); err != nil {
+		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
 		return reproduceResult{SHA: sha, Matches: ok, Got: got, Recorded: want}, nil
 	}))
-	c.Flags().String(flags.ID, "", "the sha256 of the recorded proof to re-run")
-	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), ("having READ the script: does it actually establish the claim it is anchored to?"))
+	c.Flags().String(flags.ID, "", "REQUIRED — the sha256 of the recorded proof to re-run")
+	enumhelp.Flag(c, flags.As, record.MustEnum("reproduce", "soundness"), ("REQUIRED — having READ the script: does it actually establish the claim it is anchored to?"))
 	return c
 }
 

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"strings"
 	"testing"
 )
@@ -106,11 +107,11 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 		t.Fatalf("red regrade: %v", err)
 	}
 
-	ev := lastOfType(t, runDir, "regrade")
-	if got := ev.Payload.Str("severity"); got != "low" {
-		t.Errorf("regrade recorded severity %q, want low — an accepted dispute that does not move the grade is a channel with no consequence", got)
+	ev := lastBody(t, runDir, &recordpb.Regrade{})
+	if got := ev.GetSeverity(); got != recordpb.Grade_GRADE_LOW {
+		t.Errorf("regrade recorded severity %q, want low — an accepted dispute that does not move the grade is a channel with no consequence", recordpb.Word(got))
 	}
-	if !payloadKeys(ev)["reason"] {
+	if !setFields(ev)["basis"] {
 		t.Error("the regrade lost its basis; grade movement without a stated reason is the silent regrading this channel exists to prevent")
 	}
 }
@@ -133,22 +134,26 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 		t.Fatalf("motion petition rule: %v", err)
 	}
 
-	pet := lastOfType(t, runDir, "motion")
-	if pet.Payload.Str("class") != "safety" || !payloadKeys(pet)["relief"] {
-		t.Errorf("the petition lost its class or relief (payload %v) — relief that is not recorded cannot bind anybody", pet.Payload.Keys())
+	pet := lastBody(t, runDir, &recordpb.Motion{})
+	// The class lives on the PETITION ARM — the filing is a oneof, so a petition's class is not a
+	// field the Motion itself carries. That separation is what stops a grade motion silently
+	// holding a petition's class.
+	if pet.GetPetition().GetClass() != recordpb.PetitionClass_PETITION_CLASS_SAFETY || !setFields(pet)["relief"] {
+		t.Errorf("the petition lost its class or relief (%v) — relief that is not recorded cannot bind anybody", pet)
 	}
-	rule := lastOfType(t, runDir, "motion-rule")
-	if got := rule.Payload.Str("ruling"); got != "granted" {
-		t.Errorf("the ruling recorded %q, want granted", got)
+	rule := lastBody(t, runDir, &recordpb.MotionRule{})
+	if got := rule.GetPetition(); got != recordpb.PetitionRuling_PETITION_RULING_GRANTED {
+		t.Errorf("the ruling recorded %q, want granted", recordpb.Word(got))
 	}
 	// THE ATTRIBUTION IS THE ID NOW, and that is the substance of #312. The old check read
 	// `petitioner` off the ruling — a field the ruler restated, which is why two petitions from
 	// one seat in one round could not be told apart. The ruling names the MOTION, and the motion
 	// names its filer, so the join is a fact rather than a restatement.
-	if got := rule.Payload.Str("motion_id"); got != "M1" {
+	if got := rule.GetMotionId(); got != "M1" {
 		t.Errorf("the ruling names motion %q, want M1 — a ruling that does not name its filing cannot be matched to it", got)
 	}
-	if got := pet.SeatID; got != "red-merge-r1" {
+	// The FILER is on the envelope, not the body — the body is what the seat said.
+	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_MOTION).GetSeatId(); got != "red-merge-r1" {
 		t.Errorf("the motion was filed by %q, want the merge seat — the filer is on the filing, never restated on the answer", got)
 	}
 }
@@ -162,8 +167,10 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 		"--none", "--reason", "the archive was empty at round start; there was nothing to sample"); err != nil {
 		t.Fatalf("an empty-archive spot-check must be recordable — red reported this was impossible and it was not: %v", err)
 	}
-	ev := lastOfType(t, runDir, "spot-check")
-	if !payloadKeys(ev)["reason"] {
+	ev := lastBody(t, runDir, &recordpb.SpotCheck{})
+	// `reason` is the field. The key here said `basis` — a name SpotCheck does not carry — so the
+	// lookup could never match and the assertion could never fail.
+	if ev.GetReason() == "" {
 		t.Error("the empty spot-check lost its reason, which is the only thing distinguishing it from a skipped duty")
 	}
 
@@ -185,10 +192,10 @@ func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
 		"--new", "the API returns 400 on a malformed body"); err != nil {
 		t.Fatalf("blue retire: %v", err)
 	}
-	ev := lastOfType(t, runDir, "retire")
+	ev := lastBody(t, runDir, &recordpb.Retire{})
 	for _, want := range []string{"claim", "reason", "superseded_by"} {
-		if !payloadKeys(ev)[want] {
-			t.Errorf("the retirement lost %s (payload %v) — an unaccounted claim drop is the detector hit this verb exists to make impossible", want, ev.Payload.Keys())
+		if !setFields(ev)[want] {
+			t.Errorf("the retirement lost %s (%v) — an unaccounted claim drop is the detector hit this verb exists to make impossible", want, ev)
 		}
 	}
 }
@@ -214,12 +221,13 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 
 	seen := map[string]bool{}
 	for _, e := range events(t, runDir) {
-		if e.Type == "finding" {
-			seen[e.Payload.Str("label")] = true
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
+			f, _ := recordpb.BodyAs[*recordpb.Finding](e)
+			seen[f.GetLabel()] = true
 		}
 	}
 	if !seen["L1-F1"] || !seen["L2-F1"] {
-		t.Errorf("the merge sees %v, want both lens shards — a lossy shard merge under-counts findings precisely in the rounds with the most lenses", seen)
+		t.Errorf("the merge sees %v, want both lenses — findings from every seat are rows in one record", seen)
 	}
 }
 
@@ -238,8 +246,8 @@ func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 		t.Fatalf("close with successor: %v", err)
 	}
 
-	ev := lastOfType(t, runDir, "close")
-	if got := ev.Payload.Str("successor"); got != next {
+	ev := lastBody(t, runDir, &recordpb.Close{})
+	if got := ev.GetSuccessor(); got != next {
 		t.Errorf("the closure records successor %q, want %s — a partial repair whose residue is unnamed reads as a complete one", got, next)
 	}
 	if gapIsOpen(t, runDir, first) {
@@ -259,7 +267,7 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 		"--reason", "continuing would compromise the consent gate"); err != nil {
 		t.Fatalf("bench halt: %v", err)
 	}
-	if got := lastOfType(t, runDir, "halt").SeatID; got != "judge-r1" {
+	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_HALT).GetSeatId(); got != "judge-r1" {
 		t.Errorf("the halt is attributed to %q, want judge-r1 — an unattributed halt cannot be reviewed", got)
 	}
 
@@ -270,5 +278,44 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 		"--id", id, "--as", "halt", "--principle", "p", "--tension", "t",
 		"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "attempting to halt via a disposition"); err == nil {
 		t.Error("`opinion --as halt` was accepted; ending the run must not be reachable by a mistyped disposition")
+	}
+}
+
+// AN ABSENT FLAG IS NOT AN EMPTY ANSWER, driven through the command a seat actually types.
+//
+// `merge close` set `successor` whatever happened, so an ordinary closure recorded `successor =
+// ”`. Once successor referenced `mint.gap_id` every close in the tool failed outright — the
+// constraint is what surfaced it — but the defect predates the constraint: before it, the same
+// rows were written and read as a closure whose successor was the empty gap.
+//
+// The class is wider than the instance and this pins the instance. 40 sites build a field with
+// `proto.String(seat.Str(...))`; the others do not fail loudly because their fields carry no
+// foreign key, so an absent flag lands as ” and reads as an answer.
+func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
+	runDir := seatRun(t)
+	// The gap has to exist: `close --id` is a reference the record checks, and R1-1 is what the
+	// first mint of the round is assigned.
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--class", "x", "--check-kind", "document", "--check", "c",
+		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+		t.Fatalf("merge mint: %v", err)
+	}
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "R1-1", "--as", "repaired",
+		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
+		"--reason", "the repair was verified at the leaf"); err != nil {
+		t.Fatalf("merge close: %v", err)
+	}
+
+	c := lastBody(t, runDir, &recordpb.Close{})
+	// UNSET, not empty. `--superseded-by` was never passed, and the record must say the seat did
+	// not answer rather than that it answered with nothing.
+	if c.Successor != nil {
+		t.Errorf("an unpassed --superseded-by was recorded as %q — a flag the seat never typed became "+
+			"a claim about lineage, and lineage is what the successor field exists to carry", c.GetSuccessor())
+	}
+	// And the flags that WERE passed are there, so this is not passing because nothing was written.
+	if c.GetAnchorSeat() != "L1" || c.GetProse() == "" {
+		t.Errorf("the closure lost what the seat did pass: %+v", c)
 	}
 }

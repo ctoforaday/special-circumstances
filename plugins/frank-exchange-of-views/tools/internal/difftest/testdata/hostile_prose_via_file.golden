@@ -1,13 +1,13 @@
 $ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
-registered red-merge-r1 (shard nonce NONCE001)
+registered red-merge-r1
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ position --run {RUN} --seat-id red-merge-r1 --reason-file {RUN}/prose.md
 exit 0
@@ -25,11 +25,142 @@ stdout:
 finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
 ═══ EVENTS ═══
--- events-red-lens-r1-L5-NONCE002.jsonl
-{"key":"red-lens-r1-L5:register:NONCE002","nonce":"NONCE002","payload":{"tool_version":"0.72.0"},"role":"lens","round":1,"seatId":"red-lens-r1-L5","seq":0,"ts":3,"type":"register"}
-{"key":"red-lens-r1-L5:finding:L5-F1","nonce":"NONCE002","payload":{"finding_id":"FINDING001","finding_key":"F1","impact":"low","label":"L5-F1","likelihood":"low","location":"## S2","reason":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","severity":"low"},"role":"lens","round":1,"seatId":"red-lens-r1-L5","seq":1,"ts":4,"type":"finding"}
-{"key":"red-lens-r1-L5:anchor:FINDING001","nonce":"NONCE002","payload":{"id":"FINDING001","location":"## S2"},"role":"lens","round":1,"seatId":"red-lens-r1-L5","seq":2,"ts":5,"type":"anchor"}
--- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"run_via":"flag","tool_version":"0.72.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r1:position","nonce":"NONCE001","payload":{"reason":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":1,"ts":1,"type":"position"}
-{"key":"red-merge-r1:mint:R1-1","nonce":"NONCE001","payload":{"acceptance_check":"x","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R1-1","impact":"medium","likelihood":"medium","problem":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","severity":"medium","supersedes":[]},"role":"merge","round":1,"seatId":"red-merge-r1","seq":2,"ts":2,"type":"mint"}
+
+═══ RENDERS ═══
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+## Round 1
+
+### RED
+quotes " ' `backtick` $(subshell) ${var}
+newline	tab
+angle <brackets> & ampersand
+unicode — em-dash · ✓ 日本語
+backslash \ and \n literal
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
+
+
+═══ REPORT ═══
+# _(blue/report.md has no title — not authored here)_
+
+**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
+
+## Read this first
+
+1 open gap(s) remain, most severe first — full statements in **Red team findings** below.
+
+1. **[medium]** quotes " ' `backtick` $(subshell) ${var} newline tab angle <brackets> & ampersand unicode — em-das… (R1-1) — 
+
+## TL;DR
+
+_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
+
+## The Catechism
+
+_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
+
+## Technical foundations
+
+_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
+
+## Analysis
+
+_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
+
+## Risk matrix
+
+| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
+|---|---|---|---|---|
+| quotes " ' `backtick` $(subshell) ${var} newline tab angle <brackets> & ampersand unicode — em-das… | medium | medium | — | — |
+
+The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
+
+## Research areas
+
+_(none on the record)_
+
+## Future research directions
+
+_(none on the record)_
+
+## Alternatives considered
+
+_(none on the record)_
+
+## Open questions
+
+_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
+
+## Blue team report (sections not composed above)
+
+## S2
+
+A claim sits under S2.
+
+## S4
+
+A claim sits under S4.
+
+## Red team findings (in full)
+
+### Open gaps (1)
+
+### R1-1 — quotes " ' `backtick` $(subshell) ${var}
+newline	tab
+angle <brackets> & ampersand
+unicode — em-dash · ✓ 日本語
+backslash \ and \n literal
+
+severity medium | medium x medium | cx — | class scope-creep
+required_fix: 
+fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
+acceptance_check: x
+
+### Closure index (0)
+
+_(nothing closed)_
+
+### Lens findings not raised to a gap (1)
+
+Red's leaf audit that the merge weighed but did not mint — kept for the record, not a gate on the verdict.
+
+### L5-F1 — ## S2
+severity low | low x low | red-lens-r1-L5
+quotes " ' `backtick` $(subshell) ${var}
+newline	tab
+angle <brackets> & ampersand
+unicode — em-dash · ✓ 日本語
+backslash \ and \n literal
+
+## The debate
+
+### Round 1
+
+### RED
+quotes " ' `backtick` $(subshell) ${var}
+newline	tab
+angle <brackets> & ampersand
+unicode — em-dash · ✓ 日本語
+backslash \ and \n literal
+
+## Record verification
+
+Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
+
+- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
+- **ok** — `found-by-resolves` — every found_by credit names a real finding
+- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
+- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
+- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
+- **FAIL** — `register-before-append` — a seat emitted an event before registering
+    - red-lens-r1-L5 (first event was finding)
+- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
+
+**5 held · 1 did not apply · 1 violated.** A violated invariant is a record-integrity finding: the report's content may still be sound, but the record it was assembled from contradicts itself, so treat every count derived from it as suspect until the violation is explained. An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

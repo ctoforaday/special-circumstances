@@ -1,5 +1,11 @@
 package record
 
+import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
+)
+
 import "testing"
 
 // THE TABLE MUST BE TRUE.
@@ -37,91 +43,10 @@ func runWithGap(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "mint", NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
-		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Mint{AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
 	return runDir
-}
-
-func TestEveryDeclaredRequiredFieldIsActuallyEnforced(t *testing.T) {
-	// full is a payload that satisfies each verb, from which one field is removed at a
-	// time. Values are placeholders — validate checks presence, not meaning.
-	full := map[string]map[string]any{
-		"mint":            {"acceptance_check": "c", "class": "scope-creep"},
-		"close":           {"gap_id": "R1-1", "anchor_seat": "L1", "anchor_tool": "t", "anchor_target": "x", "reason": "p"},
-		"closing":         {"gap_id": "R1-1", "reason": "t"},
-		"regrade":         {"reason": "b"},
-		"retire":          {"claim": "c", "reason": "r"},
-		"line-of-inquiry": {"status": "pursued", "line": "l"},
-		"inquiry-support": {"inquiry_id": "Q1", "as": "supported", "reason": "r"},
-		"opinion":         {"gap_id": "R1-1", "disposition": "carried", "principle": "p", "tension": "t", "review_flag": "no", "reason": "r"},
-		"halt":            {"reason": "o"},
-		"certify":         {"reason": "s"},
-		"outcome":         {"verdict": "VERIFIED", "reason": "p"},
-		"finding":         {"label": "L1-F1"},
-		"observe":         {"label": "L1-O1"},
-		// The verb that took no required flag at all: a bare `lens verify` recorded an event and
-		// counted as red's audit volume. `outcome` is the payload key behind --as.
-		"verify": {"claim": "c", "outcome": "supports", "confidence": "high", "reason": "what the source says"},
-		// The duties a bare verb used to discharge with nothing. Two of these GATE the sitting,
-		// so an empty one did not merely record badly — it ended the seat's obligations.
-		"friction":      {"reason": "what I reached for and could not get"},
-		"friction-none": {"reason": "what I reached for and found"},
-		"position":      {"reason": "where I stand this round"},
-		"revision":      {"reason": "what I changed this round"},
-		"manifest-row":  {"gap_id": "R1-1", "row": "what I checked and what it showed"},
-	}
-
-	for typ, required := range RequiredFields {
-		base, ok := full[typ]
-		if !ok {
-			t.Errorf("%s is declared in RequiredFields but this test has no complete payload for it — the table grew and the check did not", typ)
-			continue
-		}
-		for _, missing := range required {
-			t.Run(typ+"/without_"+missing, func(t *testing.T) {
-				p := NewPayload()
-				for k, v := range base {
-					if k != missing {
-						p.Set(k, v)
-					}
-				}
-				dir := t.TempDir()
-				if typ == "opinion" {
-					dir = runWithGap(t)
-				}
-				if err := validate(dir, seatFor(typ), typ, p); err == nil {
-					t.Errorf("RequiredFields says %s.%s is required, but validate ACCEPTED a payload without it — the help would mark a flag REQUIRED that the tool does not require", typ, missing)
-				}
-			})
-		}
-	}
-}
-
-// And the complete payloads must be ACCEPTED, or the test above would pass for the wrong
-// reason: a validate that rejects everything satisfies every "missing field is refused"
-// case while telling us nothing.
-func TestTheCompletePayloadsAreAccepted(t *testing.T) {
-	for typ, p := range map[string]*Payload{
-		"regrade": NewPayload().Set("reason", "b"),
-		"retire":  NewPayload().Set("claim", "c").Set("reason", "r"),
-		// inquiry_id is TOOL-assigned, like a finding's label and a mint's gap_id: validate
-		// requires it and no flag sets it, so it is not in RequiredFields but must be present
-		// for a complete payload.
-		"line-of-inquiry": NewPayload().Set("inquiry_id", "Q1").Set("status", "pursued").Set("line", "l"),
-		"opinion": NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
-			Set("principle", "p").Set("tension", "t").Set("review_flag", "no").Set("settled", "the proposition this ruling bars").Set("final", true).Set("reason", "r"),
-	} {
-		dir := t.TempDir()
-		if typ == "opinion" {
-			dir = runWithGap(t)
-		}
-		if err := validate(dir, seatFor(typ), typ, p); err != nil {
-			t.Errorf("%s rejected a payload carrying every required field: %v", typ, err)
-		}
-	}
 }
 
 // review_flag is required by PRESENCE, not by being non-empty, and that distinction is
@@ -129,10 +54,16 @@ func TestTheCompletePayloadsAreAccepted(t *testing.T) {
 // at this"), and a generic present-and-non-empty check would refuse it. Three separate
 // defects in this codebase have come from treating a falsy value as an absent one.
 func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
-	p := NewPayload().Set("gap_id", "R1-1").Set("disposition", "carried").
-		Set("principle", "p").Set("tension", "t").Set("review_flag", false).Set("reason", "r").
-		Set("settled", "the proposition this ruling bars").Set("final", true)
-	if err := validate(runWithGap(t), "judge-r1", "opinion", p); err != nil {
+	// `review_flag` is a STRING field carrying the seat's answer; "false" is an answer, and the
+	// requirement is satisfied by the field being SET, not by it being non-empty.
+	o := &recordpb.Opinion{
+		GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+		Principle: proto.String("p"), Tension: proto.String("t"),
+		ReviewFlag: proto.String("false"), Settled: proto.String("the claim as it stood may not be re-asserted"),
+		Final:     proto.Bool(true),
+		Rationale: proto.String("r"),
+	}
+	if err := validate(runWithGap(t), "judge-r1", recordpb.EventType_EVENT_TYPE_OPINION, o); err != nil {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
 	}
 }
@@ -150,23 +81,29 @@ func TestCarriedFromCannotLaunderAnUnanchoredFirstClosure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	mint := NewPayload().Set("gap_id", id).Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
-		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "mint", mint); err != nil {
+	mint := &recordpb.Mint{
+		GapId: proto.String(id), AcceptanceCheck: proto.String("c"),
+		CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"),
+		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		Problem: proto.String("p"),
+	}
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, mint); err != nil {
 		t.Fatal(err)
 	}
 
 	// No prior closure exists, so a carry is a false claim about the record.
-	p := NewPayload().Set("gap_id", id).Set("carried_from", "1")
-	if err := validate(runDir, "red-merge-r1", "close", p); err == nil {
+	carry := &recordpb.Close{GapId: proto.String(id), CarriedFrom: proto.String("1"), Prose: proto.String("verified at the leaf")}
+	if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_CLOSE, carry); err == nil {
 		t.Error("an unanchored FIRST closure was accepted as a carry — that is the laundering path: no verification, no lineage, and it scores as closed")
 	}
 
 	// Anchored, it goes through — the escape hatch is closed, not the door.
-	anchored := NewPayload().Set("gap_id", id).
-		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x").
-		Set("reason", "verified and holds")
-	if err := validate(runDir, "red-merge-r1", "close", anchored); err != nil {
+	anchored := &recordpb.Close{
+		GapId: proto.String(id), AnchorSeat: proto.String("L1"),
+		AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"),
+		Prose: proto.String("verified and holds"),
+	}
+	if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_CLOSE, anchored); err != nil {
 		t.Errorf("an anchored closure must still be accepted: %v", err)
 	}
 }
@@ -181,17 +118,13 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "mint", NewPayload().Set("gap_id", id).
-		Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "x").
-		Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Mint{AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "close", NewPayload().Set("gap_id", id).
-		Set("anchor_seat", "L1").Set("anchor_tool", "go test").Set("anchor_target", "./x").
-		Set("reason", "verified and holds")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Close{GapId: proto.String(id), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"), Prose: proto.String("verified at the leaf")}); err != nil {
 		t.Fatal(err)
 	}
-	if err := validate(runDir, "red-merge-r1", "close", NewPayload().Set("gap_id", id).Set("carried_from", "1")); err != nil {
+	if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{GapId: proto.String(id), CarriedFrom: proto.String("1"), Prose: proto.String("verified at the leaf")}); err != nil {
 		t.Errorf("a carry restating a real earlier closure must be accepted: %v", err)
 	}
 }
@@ -200,27 +133,91 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 // an ungraded gap reads as harmless rather than ungraded. Severity and cx are reported
 // rather than multiplied, so their absence is visible and they stay optional.
 func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
-	base := func() *Payload {
-		return NewPayload().Set("acceptance_check", "c").Set("check_kind", "document").Set("class", "scope-creep").
-			Set("likelihood", "medium").Set("impact", "medium").Set("problem", "p")
-	}
-	for _, missing := range []string{"likelihood", "impact"} {
-		p := NewPayload()
-		for _, k := range base().Keys() {
-			if k != missing {
-				v, _ := base().Get(k)
-				p.Set(k, v)
-			}
+	base := func() *recordpb.Mint {
+		return &recordpb.Mint{
+			GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("c"),
+			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Class:     proto.String("scope-creep"), Problem: proto.String("p"),
+			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}
-		if err := validate(newRun(t), "red-merge-r1", "mint", p); err == nil {
-			t.Errorf("mint without --%s was accepted; its mass computes to ZERO and the gap sinks to the bottom of every ranking as though it were harmless", missing)
+	}
+	// The two grades that MULTIPLY into mass, cleared one at a time. Clearing is `nil`, not the
+	// zero value: an unset enum and one set to UNSPECIFIED are the same on the wire, and the
+	// requirement is presence.
+	for _, c := range []struct {
+		name  string
+		clear func(*recordpb.Mint)
+	}{
+		{"likelihood", func(m *recordpb.Mint) { m.Likelihood = nil }},
+		{"impact", func(m *recordpb.Mint) { m.Impact = nil }},
+	} {
+		m := base()
+		c.clear(m)
+		if err := validate(newRun(t), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, m); err == nil {
+			t.Errorf("mint without --%s was accepted; its mass computes to ZERO and the gap sinks to the bottom of every ranking as though it were harmless", c.name)
 		}
 	}
 	// Severity and cx remain optional: absent, they are SHOWN absent.
-	if err := validate(newRun(t), "red-merge-r1", "mint", base()); err != nil {
+	if err := validate(newRun(t), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, base()); err != nil {
 		t.Errorf("severity and cx must stay optional — their absence is visible, not silently zero: %v", err)
 	}
 	if GapMass("", "medium") != 0 {
 		t.Error("the premise of this rule has changed: an absent grade no longer contributes zero")
+	}
+}
+
+// A RULING'S REFERENT DEPENDS ON ITS SUBJECT, and this is the test for the constraint that got
+// that wrong.
+//
+// `motion_rule.motion_id` briefly carried a foreign key onto `motion.motion_id`. It reads right
+// and it is false for one subject in three: a DIRECTION motion has no motion row, because the
+// proposal IS the filing — `motion direction rule` names the line of inquiry's own id. The key
+// refused every direction ruling in the tool while looking like a guarantee.
+//
+// The rule is subject-aware, so it is enforced where the subject is known. This pins both arms: a
+// grade ruling resolves against the MOTIONS, a direction ruling against the LINES, and each says
+// which it could not find.
+func TestARulingsReferentDependsOnItsSubject(t *testing.T) {
+	runDir := tmpRun(t)
+	id := Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}
+	if _, _, err := RegisterSeat(id, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	// A DIRECTION ruling names a line of inquiry. With no such line it is refused; with one it
+	// goes through — and it never needed a motion row, which is the whole point.
+	direction := func() *recordpb.MotionRule {
+		return &recordpb.MotionRule{
+			MotionId: proto.String("Q1"),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION),
+			Opinion:  proto.String("a real question, but not this one"),
+			Ruling:   &recordpb.MotionRule_Direction{Direction: recordpb.DirectionRuling_DIRECTION_RULING_OUT_OF_SCOPE},
+		}
+	}
+	if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err == nil {
+		t.Error("a direction ruling named Q1, which no line of inquiry created, and was accepted")
+	}
+	if _, err := Append(id, &recordpb.Avenue{
+		AvenueId: proto.String("Q1"),
+		Status:   recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED),
+		Line:     proto.String("read the adjacent literature"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, direction()); err != nil {
+		t.Errorf("a direction ruling on a REAL line was refused: %v\n\nThis is the case a foreign key "+
+			"onto `motion.motion_id` got wrong: a direction motion has no motion row", err)
+	}
+
+	// A GRADE ruling names a motion, and resolves against a different table entirely.
+	grade := &recordpb.MotionRule{
+		MotionId: proto.String("M9"),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+		Opinion:  proto.String("the grade stands"),
+		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
+	}
+	if err := validate(runDir, "red-merge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, grade); err == nil {
+		t.Error("a grade ruling named M9, which nobody filed, and was accepted — the ordering hazard stands for the subjects that DO have a filing")
 	}
 }

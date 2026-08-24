@@ -113,7 +113,7 @@ message Event {
 
   optional uint32 schema_version = 9;   // the format discriminator — see §II.5
 
-  oneof body { /* 31 bodies — the census below is the whole set */ }
+  oneof body { /* 32 bodies — the census below is the whole set */ }
 }
 ```
 
@@ -129,7 +129,16 @@ central artifact is one message per event type, so the set it covers is not an a
 Produced by `grep -rhoE '(record\.)?Append\([^,]+, *[^,]+, *"[a-z_-]+"' --include="*.go"
 internal/cli internal/record internal/capture` (30 types) **plus `register`**, which `Append`
 never writes — `RegisterSeat` mints it directly (`record.go`), so no grep over `Append` can
-see it. 31 messages:
+see it. **32 messages: 30 + `register` + `inquiry-review`.**
+
+`inquiry-review` is the 32nd and it is the census's own second blind spot, recorded here rather
+than quietly absorbed. Its predecessor `inquiry-support` (5a70b14, 2026-08-17 00:15) passed the
+event type as `Append`'s SECOND argument, so the grep above — which requires it third — never saw
+it, exactly as it never saw `line-of-inquiry`. `TestEveryEventTypeHasABodyAndViceVersa` could not
+catch that either: it checks the two carriers against each other, and both were missing the type.
+The verb is now the per-round `inquiry-review` (one statement that the report's account of its own
+research was READ, modelled on `friction --none`); a line's research falling short is an ordinary
+gap, not a vocabulary of its own.
 
 | # | Event type | Message | # | Event type | Message |
 |---|---|---|---|---|---|
@@ -148,7 +157,7 @@ see it. 31 messages:
 | 13 | `friction-none` | `FrictionNone` | 29 | `spot-check` | `SpotCheck` |
 | 14 | `halt` | `Halt` | 30 | `verdict` | `VerdictEvent` |
 | 15 | `manifest-row` | `ManifestRow` | 31 | `verify` | `Verify` |
-| 16 | `mint` | `Mint` | | | |
+| 16 | `mint` | `Mint` | 32 | `inquiry-review` | `InquiryReview` |
 
 The five retired types (`dispute`, `dispute-respond`, `petition`, `petition-rule`,
 `avenue-rule`) get **no message** — that is the deletion (§II.6).
@@ -941,7 +950,7 @@ at `tool_version 0.47.0`, in the post-collapse vocabulary. It is not in the dele
 converts it and asserts a byte-for-byte round trip; PR3 asserts `show board` and `capture`
 render it identically before and after.
 
-**What it does NOT cover, stated so nobody reads it as broad coverage.** Three of the 31 event
+**What it does NOT cover, stated so nobody reads it as broad coverage.** Three of the 32 event
 types. No `close`, `mint`, `motion`, `opinion` or `verify` event, so it exercises **none of the
 ten enum sets §II.3 closes** and none of the five legacy types §II.6 deletes. Its value is
 narrow and real: it is the only record in the tree a real seat wrote, so it is the only check
@@ -971,7 +980,8 @@ for m in 'Str(' 'Has(' 'StrList(' 'Bool(' 'Keys()'; do \
   echo -n "$m "; grep -rn "\.$m" --include='*.go' . | $NOPB | wc -l; done   # 542 34 27 15 11
 grep -rn "\.Get(" --include="*.go" . | grep -v "opts.Get\|vm.Get" | $NOPB | wc -l  # 24  -> total 653
 
-# the 31 messages of §II.1: 30 Append types + register, which RegisterSeat writes directly
+# 30 of §II.1's 32: the two the grep CANNOT see are register (RegisterSeat writes it directly)
+# and inquiry-review, whose predecessor passed the type as Append's SECOND argument — §II.1 says so
 grep -rhoE '(record\.)?Append\([^,]+, *[^,]+, *"[a-z_-]+"' --include="*.go" \
   internal/cli internal/record internal/capture | grep -oE '"[a-z_-]+"' | sort -u | wc -l   # 30
 
@@ -1098,8 +1108,8 @@ drift §IV.4 is actually about.
     Verified: `-check` fails on an edited schema and recovers. Residue the audit is right about —
     a hand-edited stamp still passes; the closing form is `go run ./protogen && git diff
     --exit-code`, which this design supports because it needs no compiler.
-- `internal/record/recordpb/record.proto` — **COMPLETE: 31 body messages, 35 messages total,
-  18 enums.** Generated code compiles. Corrects two counts this plan asserted: goal 2 and §III.2
+- `internal/record/recordpb/record.proto` — **COMPLETE: 32 body messages, 41 messages total,
+  19 enums.** Generated code compiles. Corrects two counts this plan asserted: goal 2 and §III.2
   said "ten enums" and the round-5 audit estimated "≥13"; the real figure is **18**, because the
   motion collapse needs `MotionSubject`, three per-subject ruling sets, `GradeDimension`,
   `PetitionClass` and `RulingBinds` on top of the eight payload sets.

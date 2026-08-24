@@ -5,11 +5,13 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
@@ -30,26 +32,11 @@ import (
 
 func Register() *cobra.Command {
 	return New("register", func(s Context, _ *cobra.Command) (Result, error) {
-		nonce, _, err := record.RegisterSeat(s.Identity(), string(s.RunVia))
+		dispatch, _, err := record.RegisterSeat(s.Identity(), string(s.RunVia))
 		if err != nil {
 			return nil, err
 		}
-		r := registerResult{SeatID: s.SeatID, Nonce: nonce, RunVia: string(s.RunVia)}
-		// A SECOND SITTING IS TOLD WHAT ITS FIRST ONE LOST, HERE, BECAUSE THIS IS THE ONLY
-		// MOMENT IT IS LISTENING FOR WHO IT IS.
-		//
-		// Read AFTER the register, deliberately: the rotation this call just performed is what
-		// makes the earlier shard a loser, so the discard does not exist until now.
-		//
-		// A read failure is NOT reported as "nothing was discarded". It leaves the field nil and
-		// the seat is told the check could not run — the alternative is a silence that means
-		// either "your predecessor lost nothing" or "nobody looked", which is the shape this
-		// whole warning exists to break.
-		if d, found, derr := record.DiscardedForSeat(s.RunDir, s.SeatID); derr != nil {
-			r.PriorSittingUnknown = derr.Error()
-		} else if found && len(d.Keys) > 0 {
-			r.PriorSitting = &priorSitting{Dispatches: d.Dispatches, DiscardedKeys: d.Keys}
-		}
+		r := registerResult{SeatID: s.SeatID, Dispatch: dispatch, RunVia: string(s.RunVia)}
 		// THE IDENTITY DID NOT ARRIVE, AND THE SEAT IS THE ONLY PARTY THAT CAN STILL ACT ON IT.
 		//
 		// register is where the agent->seat binding is written, so it is also the first and only
@@ -65,17 +52,14 @@ func Register() *cobra.Command {
 		// them were a seat that had genuinely not registered.
 		//
 		// A WARNING, NOT A REFUSAL. Refusing here would wedge a run whose only fault is a hook
-		// that did not fire, and the seat can work perfectly well by passing --seat-id. What it
-		// cannot do is guess that, or know that re-registering — the obvious reading of "you have
-		// not registered" — rotates its shard and orphans its work.
+		// that did not fire, and the seat can work perfectly well by passing --seat-id.
 		if seatenv.AgentID() == "" && s.SeatID != record.OperatorRole {
 			r.IdentityAbsent = true
 		}
 		// THE HOOK IS NOT REACHING THIS RUN — a bigger fact than a missing identity, and one the
 		// hook itself records nowhere. It injects FEOV_RUN on every Bash call in a live run, so
 		// a run directory that arrived any OTHER way means the hook declined, was never invoked,
-		// or found no marker from the payload's cwd. 2026-08-22_is-7-prime spent an entire run
-		// in one of those: fourteen seats, zero agent_id, no stderr, no way to tell which (#512).
+		// or found no marker from the payload's cwd.
 		//
 		// THE WRAPPER MAKES THIS A CLEAN READING ON ITS OWN. `setup` bakes the run into
 		// <runDir>/.bin/feov-record, and the hook — when it fires — sets FEOV_RUN, which
@@ -116,12 +100,12 @@ func Friction() *cobra.Command {
 		if none {
 			// An empty discharge that does not say what you looked for is indistinguishable
 			// from a skipped duty — the same rule spot-check applies to its own --none.
-			if _, err := record.Append(s.Identity(), "friction-none", record.NewPayload().Set("reason", text)); err != nil {
+			if _, err := record.Append(s.Identity(), &recordpb.FrictionNone{Text: proto.String(text)}); err != nil {
 				return nil, err
 			}
 			return Msg{Message: "recorded: nothing blocked this sitting"}, nil
 		}
-		if _, err := record.Append(s.Identity(), "friction", record.NewPayload().Set("reason", text)); err != nil {
+		if _, err := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(text)}); err != nil {
 			return nil, err
 		}
 		return Msg{Message: "friction recorded"}, nil
@@ -138,7 +122,7 @@ func Position(key string) *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		if _, err := record.Append(s.Identity(), "position", record.NewPayload().Set("reason", text)); err != nil {
+		if _, err := record.Append(s.Identity(), &recordpb.Position{Text: proto.String(text)}); err != nil {
 			return nil, err
 		}
 		return Msg{Message: "position recorded"}, nil
@@ -151,9 +135,10 @@ func Closing(key string) *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		p := Set(cmd, record.NewPayload(), "gap_id", flags.ID)
-		p.Set("reason", text)
-		if _, err := record.Append(s.Identity(), "closing", p); err != nil {
+		if _, err := record.Append(s.Identity(), &recordpb.Closing{
+			GapId: proto.String(Str(cmd, flags.ID)),
+			Text:  proto.String(text),
+		}); err != nil {
 			return nil, err
 		}
 		return closingResult{ID: Str(cmd, flags.ID)}, nil
@@ -604,22 +589,23 @@ func join(names []string) string {
 
 // registerResult and closingResult are the shared-verb results: these verbs are built by
 // seat for every role, so their result types live beside them.
+// registerResult reports WHICH DISPATCH this is, not an opaque sitting id.
+//
+// It carried a `nonce` — eight hex characters naming the shard file the seat would write to. There
+// is no shard file, and the nonce is gone from the record entirely (it scoped the idempotency
+// ordinal per sitting while the key index is global, so a re-dispatched seat collided with its own
+// earlier acts and could not record at all). What a seat can actually use is the count: being told
+// this is dispatch 2 says a previous attempt exists.
 type registerResult struct {
-	SeatID string `json:"seat_id"`
-	Nonce  string `json:"nonce"`
-	// PriorSitting is present ONLY when an earlier dispatch of this same seat left work that
-	// replay has dropped. Absent is the ordinary case.
-	PriorSitting *priorSitting `json:"prior_sitting,omitempty"`
-	// PriorSittingUnknown carries the reason the check could not run, so "not measured" never
-	// renders as "nothing lost".
-	PriorSittingUnknown string `json:"prior_sitting_unknown,omitempty"`
+	SeatID   string `json:"seat_id"`
+	Dispatch int    `json:"dispatch"`
 	// IdentityAbsent is true when a DISPATCHED seat registered with no agent id — the hook did
 	// not reach this call, so nothing on the record can bind this agent to this seat.
 	IdentityAbsent bool `json:"identity_absent,omitempty"`
-	// RunVia says which path supplied the run directory: injected | flag | inferred.
+	// RunVia says which path supplied the run directory: injected | flag | wrapper | inferred.
 	RunVia string `json:"run_via,omitempty"`
-	// HookAbsent is IdentityAbsent AND an inferred run directory — the pair that says the hook
-	// itself is not reaching this run, rather than only the identity being missing.
+	// HookAbsent says the hook is not reaching the RUN, rather than only the identity being
+	// missing — every seat in it is affected, not just this one.
 	HookAbsent bool `json:"hook_absent,omitempty"`
 }
 
@@ -633,25 +619,28 @@ func (r registerResult) hookAbsentSource() string {
 	return "the tool's own search for the run marker"
 }
 
-// priorSitting is the discarded work of an earlier dispatch of this seat — the keys, not a
-// count, because a `cite` key carries the anchor id and that is the half a seat can act on.
-type priorSitting struct {
-	Dispatches    int      `json:"dispatches"`
-	DiscardedKeys []string `json:"discarded_keys"`
-}
-
 func (r registerResult) Human() string {
-	out := "registered " + r.SeatID + " (shard nonce " + r.Nonce + ")"
+	out := "registered " + r.SeatID
+	if r.Dispatch > 1 {
+		out = fmt.Sprintf("registered %s (dispatch %d — a previous dispatch of this seat is on the record)", r.SeatID, r.Dispatch)
+	}
 	if r.IdentityAbsent {
+		// THE SECOND CONSEQUENCE IS NOT THE ONE THE SHARD RECORD CARRIED. That warning ended
+		// "re-registering rotates your shard nonce and replay then discards everything the first
+		// sitting recorded" — true of shards, and false here: both sittings' events are rows and
+		// nothing selects a winner, so a second register costs you a dispatch count and no work.
+		// Copying the sentence across would have been a seat-facing threat about a mechanism that
+		// no longer exists, which is worse than no warning: it teaches a false model of the record.
 		out += "\n\nYOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent " +
 			"to this seat. You are registered and your events are recorded; what is missing is the " +
 			"binding that lets a LATER call resolve who you are without being told.\n\n" +
-			"TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:\n" +
+			"TWO CONSEQUENCES:\n" +
 			"  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking " +
 			"and will refuse you.\n" +
-			"  DO NOT REGISTER AGAIN. If a later call says \"this agent has not registered\", it is " +
-			"THIS, not a lost registration — re-registering rotates your shard nonce and replay " +
-			"then discards everything the first sitting recorded."
+			"  REGISTERING AGAIN WILL NOT FIX IT. If a later call says \"this agent has not " +
+			"registered\", it is THIS, not a lost registration — and a second register cannot supply " +
+			"an agent id the hook never sent. Your work is safe either way; the record is " +
+			"append-only and keeps both sittings."
 	}
 	if r.HookAbsent {
 		// SEPARATE FROM THE IDENTITY BLOCK, and readable without it: under a wrapper this fires
@@ -664,68 +653,7 @@ func (r registerResult) Human() string {
 			"above. Record the hook's absence ONCE with the friction verb — you are the first party " +
 			"that can see it, and the run leaves no other trace of it."
 	}
-	if r.PriorSittingUnknown != "" {
-		return out + "\n\nWHETHER AN EARLIER SITTING OF THIS SEAT LOST WORK COULD NOT BE CHECKED: " +
-			r.PriorSittingUnknown + ". Treat this as NOT MEASURED, not as a clean board."
-	}
-	if r.PriorSitting == nil {
-		return out
-	}
-	byType := map[string]int{}
-	var order []string
-	for _, k := range r.PriorSitting.DiscardedKeys {
-		t := k
-		if parts := strings.Split(k, ":"); len(parts) >= 2 {
-			t = parts[1]
-		}
-		if byType[t] == 0 {
-			order = append(order, t)
-		}
-		byType[t]++
-	}
-	var kinds []string
-	for _, t := range order {
-		kinds = append(kinds, fmt.Sprintf("%d %s", byType[t], t))
-	}
-	// THE GUIDANCE NAMES ONLY THE KINDS ACTUALLY LOST. The first draft listed `cite` and
-	// `blue_edit` unconditionally, and the golden corpus caught it immediately: a merge seat that
-	// lost one `mint` was being told what a dropped citation means. Advice about work a seat did
-	// not lose is noise, and noise in a warning is how the real line stops landing.
-	var notes []string
-	for _, t := range order {
-		if n, ok := discardNotes[t]; ok {
-			notes = append(notes, "  "+t+" — "+n)
-		}
-	}
-	guidance := "Re-do what still applies rather than assuming your predecessor's output survived it."
-	if len(notes) > 0 {
-		guidance = strings.Join(notes, "\n") + "\n\n" + guidance
-	}
-	return out + fmt.Sprintf(
-		"\n\nYOU ARE SITTING %d OF THIS SEAT, AND AN EARLIER SITTING'S WORK IS GONE. %d event(s) it "+
-			"recorded (%s) lost replay's winner selection and survive nowhere — not in the board, not "+
-			"in the report's evidence, not in any projection you are about to read. This is not a "+
-			"warning about the record being wrong; the record is correct and that work is simply "+
-			"absent.\n\n%s\n\n%s",
-		r.PriorSitting.Dispatches, len(r.PriorSitting.DiscardedKeys),
-		strings.Join(kinds, ", "), guidance,
-		strings.Join(r.PriorSitting.DiscardedKeys, "\n"))
-}
-
-// discardNotes says what losing one event of each kind COSTS, for the kinds a lost sitting can
-// plausibly carry. A kind with no note still appears in the count and the key list — the absence
-// of advice is not the absence of loss, and inventing a sentence per kind to look complete would
-// be worse than saying nothing about the ones whose consequence is simply "it is not there".
-var discardNotes = map[string]string{
-	"cite":            "a source was fetched and is no longer cited, so the report may make a claim nothing backs",
-	"prove":           "a computation was run and its proof anchor resolves to nothing",
-	"blue_edit":       "a change to the report has no event behind it, so `show changes` cannot explain how the text got that way",
-	"mint":            "a gap was raised and is not on the board — nobody is being asked to fix it",
-	"close":           "a closure was recorded and the gap it closed reads as still open",
-	"finding":         "a lens finding is gone, so the merge has nothing to coalesce from it",
-	"line-of-inquiry": "a direction was opened or disposed and reads as never asked",
-	"verify":          "a citation was judged and reads as unchecked",
-	"reproduce":       "a proof was re-run and reads as never re-run",
+	return out
 }
 
 type closingResult struct {

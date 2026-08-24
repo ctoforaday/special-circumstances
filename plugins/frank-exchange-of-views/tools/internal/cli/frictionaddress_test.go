@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"os"
 	"path/filepath"
 	"strings"
@@ -38,7 +39,7 @@ func TestTheTwoFrictionsAreOnDifferentSurfaces(t *testing.T) {
 		"--reason", "the tool has no path for X"); err != nil {
 		t.Fatalf("a seat's own friction write was refused: %v", err)
 	}
-	if got := lastOfType(t, runDir, "friction").Payload.Str("reason"); got != "the tool has no path for X" {
+	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_FRICTION).GetFriction().GetText(); got != "the tool has no path for X" {
 		t.Errorf("reason = %q", got)
 	}
 	// And the operator's READ is not on that tree at all — it is not a verb a seat can reach,
@@ -56,7 +57,7 @@ func TestTheTwoFrictionsAreOnDifferentSurfaces(t *testing.T) {
 // The operator's read is what this command IS. A refusal that also broke it would trade one
 // unreachable channel for another.
 func TestTheOperatorFrictionReadStillWorks(t *testing.T) {
-	out, err := run(t, "friction", "--seat-id", "operator", "--run", t.TempDir())
+	out, err := run(t, "friction", "--seat-id", "operator", "--run", tmpRun(t))
 	if err != nil {
 		t.Fatalf("the operator's friction read failed: %v", err)
 	}

@@ -16,6 +16,7 @@ import (
 	"unicode/utf16"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // jsNum formats a float the way JSON.stringify / String() would: JavaScript
@@ -63,13 +64,29 @@ func jsText(v any) string {
 	}
 }
 
-// undefStr is jsText for a payload key that may be absent.
-func undefStr(p *record.Payload, key string) string {
-	v, ok := p.Get(key)
-	if !ok {
+// undefStr is jsText for an OPTIONAL SCHEMA FIELD, and it takes the field POINTER rather than
+// the getter's value on purpose: `undefined` is what the old projections printed when the payload
+// key was ABSENT, and `GetX() == ""` cannot tell an absent field from one written empty. Every
+// field in record.proto is `optional` precisely so that question stays answerable.
+func undefStr(s *string) string {
+	if s == nil {
 		return "undefined"
 	}
-	return jsText(v)
+	return jsText(*s)
+}
+
+// gradeText renders a grade the way every projection here always has: the schema's word, and the
+// literal nine-character `undefined` for an ungraded one — never empty.
+//
+// The empty string is what recordpb.Word returns for the UNSPECIFIED zero, because the
+// pre-migration record held ABSENCE there. A projection must not print that blank: by_severity
+// KEYS on this word, so a bare "" would silently merge ungraded mints into whatever else keyed
+// empty. record.proto says the same thing from the schema's side, on Grade.GRADE_UNSPECIFIED.
+func gradeText(g recordpb.Grade) string {
+	if w := recordpb.Word(g); w != "" {
+		return w
+	}
+	return "undefined"
 }
 
 // truncate is JavaScript's String.prototype.slice(0, n): JS strings are UTF-16,
@@ -92,10 +109,18 @@ func massSum(gaps []*record.Gap) float64 {
 
 // Counts returns the board's open/closed/anomaly tallies — the values the old
 // RenderResult carried, for verdict and any counts-only caller.
-func Counts(runDir string) (open, closed, anomalies int, err error) {
+// Counts is the board in two numbers.
+//
+// THE THIRD RETURN IS GONE. It was `len(b.Anomalies)`, and the board no longer has anomalies: the
+// replay-time producers were shard failures (a torn line, an undecodable row) and mutations naming
+// a gap that did not exist. A transaction commits or does not, and a dangling gap_id is refused by
+// a foreign key, so there is nothing left to count. Returning a constant 0 in its place would be
+// the worse outcome — every caller reading "0 anomalies" as a clean board, in the same words it
+// used when the number meant something.
+func Counts(runDir string) (open, closed int, err error) {
 	b, err := record.BoardState(runDir)
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, err
 	}
 	for _, id := range b.GapOrder {
 		if b.Gaps[id].Open {
@@ -104,7 +129,7 @@ func Counts(runDir string) (open, closed, anomalies int, err error) {
 			closed++
 		}
 	}
-	return open, closed, len(b.Anomalies), nil
+	return open, closed, nil
 }
 
 // Telemetry returns the per-round board-telemetry series, computed from the
@@ -219,14 +244,11 @@ func ledgerMD(b *record.Board) []byte {
 		}
 	}
 
+	// THE RENDER-ANOMALY FOOTER IS GONE with the anomalies it printed. It existed so a shard
+	// failure was never silently normalized away, and shard failures are not a thing that can
+	// happen to a database. An always-empty footer would say "nothing was dropped" on every render
+	// whether or not anything was, which is the shape it was built to prevent.
 	anomalyFooter := ""
-	if len(b.Anomalies) > 0 {
-		lines := make([]string, len(b.Anomalies))
-		for i, a := range b.Anomalies {
-			lines[i] = "- " + a
-		}
-		anomalyFooter = "\n## render anomalies (never silently normalized)\n\n" + strings.Join(lines, "\n") + "\n"
-	}
 	// UNCREDITED, not undisposed (#327). `observe` and `dispose` are retired: a finding is
 	// addressed by being named in some gap's found_by, and that is the only way. This footer
 	// is the merge's live work list of lens work it has neither minted nor credited — the same
@@ -236,13 +258,13 @@ func ledgerMD(b *record.Board) []byte {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, lbl := range g.Mint.StrList("found_by") {
+		for _, lbl := range g.Mint.GetFoundBy() {
 			credited[lbl] = true
 		}
 	}
 	var uncredited []*record.Observation
 	for _, o := range b.Observations {
-		if lbl := o.Payload.Str("label"); lbl == "" || !credited[lbl] {
+		if lbl := o.Finding.GetLabel(); lbl == "" || !credited[lbl] {
 			uncredited = append(uncredited, o)
 		}
 	}
@@ -250,11 +272,13 @@ func ledgerMD(b *record.Board) []byte {
 	if len(uncredited) > 0 {
 		lines := make([]string, len(uncredited))
 		for i, o := range uncredited {
-			name := o.Payload.Str("label")
+			name := o.Finding.GetLabel()
 			if name == "" {
 				name = o.Key
 			}
-			lines[i] = fmt.Sprintf("- %s %s: %s", o.SeatID, name, truncate(o.Payload.Str("reason"), 120))
+			// `reason` WAS THE PAYLOAD KEY; `text` is the field (lens/finding.go writes the
+			// prose under it). Finding carries no `reason`.
+			lines[i] = fmt.Sprintf("- %s %s: %s", o.SeatID, name, truncate(o.Finding.GetText(), 120))
 		}
 		notesFooter = "\n## lens findings credited by no gap (each is work the merge has not yet weighed)\n\n" + strings.Join(lines, "\n") + "\n"
 	}
@@ -267,36 +291,49 @@ func ledgerMD(b *record.Board) []byte {
 	}
 	for _, g := range open {
 		supersedes := ""
-		if s := g.Mint.StrList("supersedes"); len(s) > 0 {
+		if s := g.Mint.GetSupersedes(); len(s) > 0 {
 			supersedes = " | supersedes " + strings.Join(s, " ")
 		}
 		foundBy := ""
-		if f := g.Mint.StrList("found_by"); len(f) > 0 {
+		if f := g.Mint.GetFoundBy(); len(f) > 0 {
 			foundBy = " | found_by " + strings.Join(f, ",")
 		}
 		regraded := ""
 		if n := len(g.Regrades); n > 0 {
-			regraded = fmt.Sprintf("\nregraded x%d (history in the event log; latest basis: %s)", n, g.Regrades[n-1].Str("reason"))
+			// `reason` WAS THE PAYLOAD KEY; the field is `basis` (recordpb/required.go declares
+			// the pair: Regrade.basis is typed as --reason).
+			regraded = fmt.Sprintf("\nregraded x%d (history in the event log; latest basis: %s)", n, g.Regrades[n-1].GetBasis())
+		}
+		// The two `undefined`-sentinel fields are read as POINTERS, not getters: absence is what
+		// prints `undefined`, and a field written empty is a different fact.
+		var class, check *string
+		if m := g.Mint; m != nil {
+			class, check = m.Class, m.AcceptanceCheck
 		}
 		ledgerParts = append(ledgerParts, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s%s%s\nrequired_fix: %s\nacceptance_check: %s\n",
-			g.ID, truncate(g.Mint.Str("problem"), 100),
-			g.Mint.Str("location"),
-			jsText(g.Severity), jsText(g.Likelihood), jsText(g.Impact), jsText(g.ComplexityCost), undefStr(g.Mint, "class"),
+			g.ID, truncate(g.Mint.GetProblem(), 100),
+			g.Mint.GetLocation(),
+			gradeText(g.Severity), gradeText(g.Likelihood), gradeText(g.Impact), gradeText(g.ComplexityCost), undefStr(class),
 			supersedes, foundBy, regraded,
-			g.Mint.Str("required_fix"),
-			undefStr(g.Mint, "acceptance_check")))
+			g.Mint.GetRequiredFix(),
+			undefStr(check)))
 	}
 	ledgerParts = append(ledgerParts, "## CLOSURE INDEX", "")
 	for _, g := range closed {
-		cc := g.Closure.Str("closure_class")
+		// ONE QUESTION, ONE ANSWER. `Str("closure_class")` used to reach a payload that held
+		// EITHER a close or an opinion; those are separate messages now, and record.ClosureReason
+		// is the join — it names this site as one of the four that spelled the fallback by hand.
+		// A bench-closed gap therefore reads as its DISPOSITION where it previously fell through
+		// to the bare word `closed`.
+		cc := g.ClosureReason()
 		if cc == "" {
 			cc = "repaired"
 		}
-		succ := g.Closure.Str("successor")
+		succ := g.Closure.GetSuccessor()
 		if succ == "" {
 			succ = "-"
 		}
-		ledgerParts = append(ledgerParts, fmt.Sprintf("%s | %s | %s | %s", g.ID, cc, truncate(g.Mint.Str("problem"), 60), succ))
+		ledgerParts = append(ledgerParts, fmt.Sprintf("%s | %s | %s | %s", g.ID, cc, truncate(g.Mint.GetProblem(), 60), succ))
 	}
 	ledgerParts = append(ledgerParts, anomalyFooter, notesFooter)
 	return []byte(strings.Join(ledgerParts, "\n"))
@@ -312,20 +349,29 @@ func archiveMD(b *record.Board) []byte {
 	}
 	archiveParts := []string{"# red/archive.md — RENDERED PROJECTION (append-only by construction in the event log)", ""}
 	for _, g := range closed {
-		cc := g.Closure.Str("closure_class")
+		// The same join as the ledger's closure index — see the comment there.
+		cc := g.ClosureReason()
 		if cc == "" {
 			cc = "repaired"
 		}
-		anchor := fmt.Sprintf("%s | %s | %s", undefStr(g.Closure, "anchor_seat"), undefStr(g.Closure, "anchor_tool"), undefStr(g.Closure, "anchor_target"))
-		if g.Closure.Has("carried_from") {
-			anchor = "CARRIED from round " + undefStr(g.Closure, "carried_from")
+		// A BENCH-CLOSED GAP CARRIES NO `close` BODY. Closure and BenchClosure are separate
+		// messages now, so every field of the anchor triple is ABSENT for one — which is exactly
+		// what the single-payload read already rendered, because an opinion payload never held an
+		// anchor key either. Read as pointers: `carried_from` is a PRESENCE question.
+		var anchorSeat, anchorTool, anchorTarget, carriedFrom *string
+		if c := g.Closure; c != nil {
+			anchorSeat, anchorTool, anchorTarget, carriedFrom = c.AnchorSeat, c.AnchorTool, c.AnchorTarget, c.CarriedFrom
+		}
+		anchor := fmt.Sprintf("%s | %s | %s", undefStr(anchorSeat), undefStr(anchorTool), undefStr(anchorTarget))
+		if carriedFrom != nil {
+			anchor = "CARRIED from round " + undefStr(carriedFrom)
 		}
 		successor := ""
-		if s := g.Closure.Str("successor"); s != "" {
+		if s := g.Closure.GetSuccessor(); s != "" {
 			successor = "\nsuccessor: " + s
 		}
 		archiveParts = append(archiveParts, fmt.Sprintf("## %s — %s\n%s\nverification anchor: %s%s\n",
-			g.ID, cc, g.Mint.Str("problem"), anchor, successor))
+			g.ID, cc, g.Mint.GetProblem(), anchor, successor))
 	}
 	return []byte(strings.Join(archiveParts, "\n"))
 }
@@ -390,7 +436,7 @@ func telemetryLines(b *record.Board) ([]string, error) {
 			}
 			if g.Round == r {
 				minted = append(minted, g)
-				if len(g.Mint.StrList("supersedes")) > 0 {
+				if len(g.Mint.GetSupersedes()) > 0 {
 					lineage = append(lineage, g)
 				}
 			}
@@ -400,7 +446,7 @@ func telemetryLines(b *record.Board) ([]string, error) {
 		}
 		var down, up float64
 		for _, g := range lineage {
-			for _, anc := range g.Mint.StrList("supersedes") {
+			for _, anc := range g.Mint.GetSupersedes() {
 				a := b.Gaps[anc]
 				if a == nil {
 					continue
@@ -415,7 +461,7 @@ func telemetryLines(b *record.Board) ([]string, error) {
 		}
 		bySev := record.NewPayload()
 		for _, g := range minted {
-			k := jsText(g.Severity)
+			k := gradeText(g.Severity)
 			n := 0
 			if v, ok := bySev.Get(k); ok {
 				n, _ = v.(int)
@@ -433,7 +479,7 @@ func telemetryLines(b *record.Board) ([]string, error) {
 		// against the registry, so this is an aggregation, never a new assertion.
 		byClass := record.NewPayload()
 		for _, g := range minted {
-			k := g.Mint.Str("class")
+			k := g.Mint.GetClass()
 			if k == "" {
 				continue
 			}
@@ -447,7 +493,7 @@ func telemetryLines(b *record.Board) ([]string, error) {
 		// circling the same kind of defect, which is signal 1 without reading the prose.
 		repeated := 0
 		for _, g := range minted {
-			if prevClasses[g.Mint.Str("class")] {
+			if prevClasses[g.Mint.GetClass()] {
 				repeated++
 			}
 		}
@@ -457,19 +503,23 @@ func telemetryLines(b *record.Board) ([]string, error) {
 		}
 		nextPrevClasses := map[string]bool{}
 		for _, g := range minted {
-			if c := g.Mint.Str("class"); c != "" {
+			if c := g.Mint.GetClass(); c != "" {
 				nextPrevClasses[c] = true
 			}
 		}
 		maxSeverity := any(nil)
 		if len(openAtR) > 0 {
-			sevs := make([]any, len(openAtR))
+			sevs := make([]recordpb.Grade, len(openAtR))
 			for i, g := range openAtR {
 				sevs[i] = g.Severity
 			}
 			sort.SliceStable(sevs, func(i, j int) bool {
 				return record.MASS[record.GradeStr(sevs[i])] > record.MASS[record.GradeStr(sevs[j])]
 			})
+			// NOT gradeText HERE. The line's `max_severity` stays ABSENT when the top grade is
+			// ungraded — GradeStr's empty string is the absence the old `Str` returned for a
+			// missing key, and the schema's TelemetryLine comment keeps the two apart: the
+			// `undefined` sentinel is what a RENDERED grade prints, not what an unset one records.
 			if top := record.GradeStr(sevs[0]); top != "" {
 				maxSeverity = top
 			}
@@ -510,12 +560,13 @@ func telemetryLines(b *record.Board) ([]string, error) {
 // debateMD — the round-by-round transcript. Trailing newline (render.go parity).
 func debateMD(b *record.Board) []byte {
 	var roundOrder []int
-	byRound := map[int][]record.Event{}
+	byRound := map[int][]*record.Event{}
 	for _, e := range b.Events {
-		if _, seen := byRound[e.Round]; !seen {
-			roundOrder = append(roundOrder, e.Round)
+		r := int(e.GetRound())
+		if _, seen := byRound[r]; !seen {
+			roundOrder = append(roundOrder, r)
 		}
-		byRound[e.Round] = append(byRound[e.Round], e)
+		byRound[r] = append(byRound[r], e)
 	}
 	sort.Ints(roundOrder)
 
@@ -525,27 +576,39 @@ func debateMD(b *record.Board) []byte {
 		// Party from the stamped field, not the id's prefix — see the twin in
 		// record/viewjson.go. These two renderers derive from one replay and must
 		// not drift, so they answer "which party" the same way.
-		sec := func(typ, party string) []record.Event {
-			var out []record.Event
+		sec := func(typ recordpb.EventType, party string) []*record.Event {
+			var out []*record.Event
 			for _, e := range re {
-				if e.Type == typ && record.PartyOf(e) == party {
+				if e.GetType() == typ && record.PartyOf(e) == party {
 					out = append(out, e)
 				}
 			}
 			return out
 		}
+		// `reason` WAS THE PAYLOAD KEY on position and closing; `text` is the field on both
+		// messages (Position.text, Closing.text — required.go declares Closing.text as --reason).
+		// Neither message has a `reason`. The twin in record/viewjson.go reads them the same way,
+		// which is the point of the note above.
 		parts := []string{fmt.Sprintf("\n## Round %d", r)}
-		for _, p := range sec("position", "merge") {
-			parts = append(parts, "### RED\n"+p.Payload.Str("reason"))
+		for _, e := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "merge") {
+			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
+				parts = append(parts, "### RED\n"+p.GetText())
+			}
 		}
-		for _, c := range sec("closing", "merge") {
-			parts = append(parts, fmt.Sprintf("### RED CLOSING (round %d) — %s\n%s", r, c.Payload.Str("gap_id"), c.Payload.Str("reason")))
+		for _, e := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "merge") {
+			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
+				parts = append(parts, fmt.Sprintf("### RED CLOSING (round %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
+			}
 		}
-		for _, p := range sec("position", "blue") {
-			parts = append(parts, "### BLUE\n"+p.Payload.Str("reason"))
+		for _, e := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
+			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
+				parts = append(parts, "### BLUE\n"+p.GetText())
+			}
 		}
-		for _, c := range sec("closing", "blue") {
-			parts = append(parts, fmt.Sprintf("### BLUE CLOSING (round %d) — %s\n%s", r, c.Payload.Str("gap_id"), c.Payload.Str("reason")))
+		for _, e := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "blue") {
+			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
+				parts = append(parts, fmt.Sprintf("### BLUE CLOSING (round %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
+			}
 		}
 		// THE BENCH'S WHOLE OUTPUT, not only the part that moves a gap.
 		//
@@ -564,30 +627,48 @@ func debateMD(b *record.Board) []byte {
 		// compliance, and nothing anywhere reported that it was not delivered.
 		var ops []string
 		for _, e := range re {
-			switch e.Type {
-			case "opinion":
+			// THE SWITCH IS ON THE BODY. Every arm reaches straight for a field, so binding the
+			// message and the type in one step removes the pair that could disagree. An event with
+			// NO body names none of these three verbs — BoardState has already announced it as an
+			// anomaly — so it is skipped here exactly as a non-matching type was.
+			body, ok := recordpb.Body(e)
+			if !ok {
+				continue
+			}
+			switch t := body.(type) {
+			case *recordpb.Opinion:
+				// `reason` WAS THE PAYLOAD KEY for the bench's argument; the field is `rationale`
+				// (required.go: Opinion.rationale is typed as --reason).
 				ops = append(ops, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
-					e.Payload.Str("gap_id"), e.Payload.Str("disposition"), e.Payload.Str("principle"),
-					e.Payload.Str("tension"), e.Payload.Str("review_flag"), e.Payload.Str("reason")))
-			case "declare":
-				ops = append(ops, "- **DECLARED** (binds how the record is read; moves no gap)\n"+e.Payload.Str("holding"))
-			case "motion-rule":
+					// recordpb.Word, NOT the enum's own String(). A generated enum prints its Go
+					// constant name — a seat reading the debate would be shown
+					// `DISPOSITION_REPAIRED` where the vocabulary's word belongs. The typing made
+					// this a rendering bug that no longer announces itself as a type error.
+					t.GetGapId(), recordpb.Word(t.GetDisposition()), t.GetPrinciple(),
+					t.GetTension(), t.GetReviewFlag(), t.GetRationale()))
+			case *recordpb.Declare:
+				ops = append(ops, "- **DECLARED** (binds how the record is read; moves no gap)\n"+t.GetHolding())
+			case *recordpb.MotionRule:
 				// Only the PETITION subject: a grade or direction ruling answers a motion the
 				// motions view already renders with its ask beside it. A petition ruling is the
 				// bench acting on the run itself, and its opinion is the operative part.
-				if e.Type == "motion-rule" && e.Payload.Str("subject") != "petition" {
+				if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_PETITION {
 					continue
 				}
-				relief := ""
-				if r := e.Payload.Str("relief"); r != "" {
-					relief = "\nrelief: " + r
-				}
+				// THE RELIEF LINE IS GONE BECAUSE IT NEVER RENDERED. `relief` is a field of the
+				// FILING (Motion.relief, written by `motion … file`); a motion-rule event has
+				// carried only motion_id, subject, ruling, opinion and binds since the verb
+				// existed, so `Str("relief")` was empty on every ruling ever recorded and this
+				// paragraph's own header — "including granted relief meant to bind the next
+				// round" — described output the code could not produce. Rendering it needs a JOIN
+				// to the motion by id, which record.Motions already resolves; that is new
+				// behaviour, not a conversion, so it is REPORTED rather than done here.
 				binds := ""
-				if b := e.Payload.Str("binds"); b != "" {
+				if b := recordpb.Word(t.GetBinds()); b != "" {
 					binds = " — binds **" + b + "**"
 				}
-				ops = append(ops, fmt.Sprintf("- **PETITION %s**%s%s\n%s",
-					strings.ToUpper(e.Payload.Str("ruling")), binds, relief, e.Payload.Str("reason")))
+				ops = append(ops, fmt.Sprintf("- **PETITION %s**%s\n%s",
+					strings.ToUpper(recordpb.Word(t.GetPetition())), binds, t.GetOpinion()))
 			}
 		}
 		if len(ops) > 0 {

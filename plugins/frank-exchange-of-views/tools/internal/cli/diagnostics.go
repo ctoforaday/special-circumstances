@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"os"
 	"path/filepath"
 	"sort"
@@ -185,8 +186,8 @@ func diagnose(runDir, traj, seatID string) (RunDiagnostic, error) {
 	if seatID == "" {
 		var registered []string
 		for _, e := range m.Events {
-			if e.Type == "register" {
-				registered = append(registered, e.SeatID)
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
+				registered = append(registered, e.GetSeatId())
 			}
 		}
 		sort.Strings(registered)
@@ -362,9 +363,9 @@ func dedupeSeats(in []string) []string {
 	return out
 }
 
-func registeredIn(evs []record.Event, seatID string) bool {
+func registeredIn(evs []*record.Event, seatID string) bool {
 	for _, e := range evs {
-		if e.Type == "register" && e.SeatID == seatID {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && e.GetSeatId() == seatID {
 			return true
 		}
 	}

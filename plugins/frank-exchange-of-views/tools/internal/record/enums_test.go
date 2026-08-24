@@ -1,147 +1,13 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"slices"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
-
-// A verb can carry more than one set (petition-rule carries the ruling AND the petition
-// class), so probing one field in isolation trips its sibling's refusal instead. base
-// fills every OTHER declared field with a legal value, so each subtest measures the field
-// it names. Without this, a two-set verb reports its first field's message for both.
-func base(typ, except string) *Payload {
-	p := NewPayload()
-	for _, e := range EnumFields[typ] {
-		if e.Key != except && !e.Optional {
-			p.Set(e.Key, e.Values[0].Name)
-		}
-	}
-	return p
-}
-
-// THE DEFECT (#80 §0), measured against the shipped tree before this fix: every flag whose
-// --help spelled an enum accepted any string, and every consumer downstream compares
-// literally, so a near-miss did not fail — it took the other branch.
-//
-//	merge verdict --as PASS   -> refused, 1 gap still OPEN   <- the gate
-//	merge verdict --as pass   -> RECORDED                    <- same intent, no gate
-//	merge verdict --as banana -> RECORDED
-//
-// Case variants and junk are BOTH tested for every entry, because testing only the literal
-// correct value is exactly what left the hole: the suite was green with no enforcement at
-// all. A regex-free sweep of the whole table means a new entry cannot be added untested.
-func TestEveryClosedSetRefusesWhatIsNotInIt(t *testing.T) {
-	for typ, fields := range EnumFields {
-		for _, e := range fields {
-			t.Run(typ+"."+e.Key, func(t *testing.T) {
-				refuses := func(v string) error { return checkEnum(typ, base(typ, e.Key).Set(e.Key, v)) }
-				if len(e.Values) == 0 {
-					t.Fatalf("%s declares an empty set — it would refuse everything", typ)
-				}
-				for _, v := range Names(e.Values) {
-					if !e.Allows(v) {
-						t.Errorf("declared value %q is not allowed by its own set", v)
-					}
-					if err := refuses(v); err != nil {
-						t.Errorf("a declared value was refused: %v", err)
-					}
-					// The case variant of a legal value is the measured failure mode, not
-					// a hypothetical: `--as pass` and `--as ceiling` both recorded silently.
-					lower := strings.ToLower(v)
-					titled := strings.ToUpper(lower[:1]) + lower[1:]
-					for _, variant := range []string{lower, strings.ToUpper(v), titled} {
-						if variant == v {
-							continue
-						}
-						if e.Allows(variant) {
-							t.Errorf("%q was accepted as %q — these are compared exactly downstream", variant, v)
-						}
-						if err := refuses(variant); err == nil {
-							t.Errorf("checkEnum accepted the case variant %q", variant)
-						}
-					}
-				}
-				for _, junk := range []string{"banana", "", " ", Names(e.Values)[0] + "x"} {
-					if err := refuses(junk); err == nil {
-						t.Errorf("checkEnum accepted %q", junk)
-					}
-				}
-				// ABSENT is governed by Optional, and the two are NOT the same question.
-				// `dispose` used to be presence-checked under a message that named the four
-				// values, which is how the set came to exist only in prose; but several of
-				// these flags are legitimately omittable, and closing their sets must not
-				// make them mandatory as a side effect. required.go owns requiredness.
-				err := checkEnum(typ, base(typ, e.Key))
-				if e.Optional && err != nil {
-					t.Errorf("%s is Optional but an absent %s was refused: %v", typ, e.Key, err)
-				}
-				if !e.Optional && err == nil {
-					t.Errorf("checkEnum accepted a payload with no %s at all", e.Key)
-				}
-			})
-		}
-	}
-}
-
-// An Optional set still polices what IS passed. "May be omitted" and "may be anything"
-// are different permissions, and conflating them would have made half this table inert.
-func TestOptionalStillRefusesAPresentButWrongValue(t *testing.T) {
-	var checked int
-	for typ, fields := range EnumFields {
-		for _, e := range fields {
-			if !e.Optional {
-				continue
-			}
-			checked++
-			if err := checkEnum(typ, base(typ, e.Key).Set(e.Key, "banana")); err == nil {
-				t.Errorf("%s.%s is Optional and accepted junk — Optional means absent-is-allowed, not anything-is-allowed", typ, e.Key)
-			}
-		}
-	}
-	if checked == 0 {
-		t.Fatal("no Optional entries — this test would pass vacuously forever")
-	}
-}
-
-// The refusal is the seat's teacher (the error-catalogue golden exists for this), so it
-// must name what would have worked and what the near-miss would have DONE. A bare
-// "invalid value" would pass a shallower test and teach nothing.
-func TestTheRefusalNamesTheSetAndTheConsequence(t *testing.T) {
-	for typ, fields := range EnumFields {
-		for _, e := range fields {
-			err := checkEnum(typ, base(typ, e.Key).Set(e.Key, "banana"))
-			if err == nil {
-				t.Fatalf("%s.%s accepted junk", typ, e.Key)
-			}
-			msg := err.Error()
-			for _, v := range Names(e.Values) {
-				if !strings.Contains(msg, v) {
-					t.Errorf("%s.%s: the refusal does not offer %q: %s", typ, e.Key, v, msg)
-				}
-			}
-			if !strings.Contains(msg, "--"+e.Flag) {
-				t.Errorf("%s.%s: the refusal does not name the flag --%s: %s", typ, e.Key, e.Flag, msg)
-			}
-			if e.Why == "" {
-				t.Errorf("%s.%s: no Why — a seat learns the set but not what its mistype would have done", typ, e.Key)
-			} else if !strings.Contains(msg, e.Why) {
-				t.Errorf("%s.%s: the refusal drops the consequence: %s", typ, e.Key, msg)
-			}
-		}
-	}
-}
-
-// A case near-miss is called out AS a case near-miss. "PASS | FAIL" alone does not tell a
-// seat that lowercase was the entire problem, and lowercase is what was measured.
-func TestACaseNearMissIsNamedAsOne(t *testing.T) {
-	err := checkEnum("verdict", NewPayload().Set("verdict", "pass"))
-	if err == nil {
-		t.Fatal("`pass` was accepted")
-	}
-	if !strings.Contains(err.Error(), "only in case") {
-		t.Errorf("the refusal does not say the difference is case: %v", err)
-	}
-}
 
 // Usage/Spelling are what the CLI puts in --help. The help IS the contract a seat is told
 // to read, so it has to be generated from the set rather than restated beside it: the
@@ -186,6 +52,47 @@ func TestTheAdjudicationVocabulariesHaveExactlyOneSourceEach(t *testing.T) {
 	}
 	if len(MotionFields["petition"]["class"]) == 0 {
 		t.Error("MotionFields lost the petition classes — the one source the filing and the ruling both read")
+	}
+	// AND THE CENSUS ABOVE WAS INCOMPLETE, WHICH IS WHY THIS BLOCK EXISTS.
+	//
+	// This test asserted "there is ONE table … the drift is not detected, it is unrepresentable"
+	// while counting only the two tables it knew about. The WRITE PATH resolves against the proto
+	// ENUM, a third source it never looked at — and the three disagreed. MotionFields listed
+	// `ethical | safety | integrity | constitutional`; PetitionClass carried
+	// `integrity | safety | process | scope`. Half the advertised classes were refused at the
+	// write for a value the seat had just read in --help. `binds` overlapped in NOTHING, and
+	// --binds is set exactly when a petition is granted, so no granted petition could be recorded.
+	//
+	// A test that names its own completeness is only as good as its census. This one now checks
+	// the source it missed: every word the help offers must be a word the write path resolves.
+	for _, tc := range []struct {
+		subject, key string
+		ed           protoreflect.EnumDescriptor
+	}{
+		{"petition", "class", recordpb.PetitionClass(0).Descriptor()},
+		{"petition", "binds", recordpb.RulingBinds(0).Descriptor()},
+		{"grade", "dimension", recordpb.GradeDimension(0).Descriptor()},
+	} {
+		for _, v := range MotionFields[tc.subject][tc.key] {
+			if _, ok := recordpb.BySpelling(tc.ed, v.Name); !ok {
+				t.Errorf("%s --%s advertises %q and the write path cannot resolve it against %s — "+
+					"a seat that reads the help and types the word is REFUSED, which teaches that the help lies rather than what to pass",
+					tc.subject, tc.key, v.Name, tc.ed.FullName())
+			}
+		}
+		// And the other direction: a schema value the help never offers is a word nothing can
+		// choose, which is how `process` and `scope` sat in the enum unreachable for releases.
+		vals := tc.ed.Values()
+		for i := 0; i < vals.Len(); i++ {
+			if vals.Get(i).Number() == 0 {
+				continue
+			}
+			w := recordpb.Spelling(vals.Get(i))
+			if !slices.Contains(Names(MotionFields[tc.subject][tc.key]), w) {
+				t.Errorf("%s carries %q and %s --%s never offers it — a value no surface can produce is dead vocabulary, and it reads as a richer set than the one that works",
+					tc.ed.FullName(), w, tc.subject, tc.key)
+			}
+		}
 	}
 	if len(MotionVerdicts["petition"]) == 0 {
 		t.Error("MotionVerdicts lost the petition rulings")
@@ -259,6 +166,96 @@ func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
 	}
 }
 
+// EVERY WORD A TABLE DECLARES MUST BE A WORD THE SCHEMA CARRIES.
+//
+// EnumFields, MotionVerdicts and MotionFields are what `--help` renders and what `contract` prints,
+// so a value in one of them that the schema does not have is a value a seat is TOLD to use and the
+// record then refuses. That is #342 in one sentence: the engine declared `unresolved`, `moot` and
+// `grade_adjusted`, the constitution instructed all three, and the write path rejected every one —
+// so a bench following its own constitution could record nothing.
+//
+// The check is resolution through the schema's own spelling table, not a string compare against a
+// second list, because a second list is the thing that drifted.
+func TestEveryDeclaredValueIsAWordTheSchemaCarries(t *testing.T) {
+	checked := 0
+	check := func(t *testing.T, owner, key string, vs []EnumValue, resolve func(string) bool) {
+		t.Helper()
+		if len(vs) == 0 {
+			t.Errorf("%s.%s declares an empty set — it would render as no choices at all", owner, key)
+		}
+		for _, v := range vs {
+			checked++
+			if !resolve(v.Name) {
+				t.Errorf("%s.%s declares %q, which the schema does not carry — a seat reading --help "+
+					"is told to use a word the write path refuses", owner, key, v.Name)
+			}
+			if v.Means == "" {
+				t.Errorf("%s.%s value %q carries no meaning; a set rendered as bare words leaves a "+
+					"seat to guess which situation warrants which", owner, key, v.Name)
+			}
+		}
+	}
+	for typ, fields := range EnumFields {
+		for _, f := range fields {
+			ef := f
+			t.Run(typ+"."+ef.Key, func(t *testing.T) {
+				check(t, typ, ef.Key, ef.Values, func(word string) bool {
+					return schemaCarries(t, typ, ef.Key, word)
+				})
+			})
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no declared values were checked — an empty traversal passes this test on every set")
+	}
+}
+
+// schemaCarries answers whether the record can hold this word in this field, by asking the
+// DESCRIPTOR rather than a list beside it.
+func schemaCarries(t *testing.T, typ, key, word string) bool {
+	t.Helper()
+	md, ok := bodyDescriptorFor(typ)
+	if !ok {
+		t.Fatalf("EnumFields names the event type %q, which the schema does not declare", typ)
+	}
+	fd := md.Fields().ByName(protoreflect.Name(key))
+	if fd == nil {
+		t.Fatalf("%s has no field %q — the table names a field the schema does not carry, so its "+
+			"whole set is advertised against nothing", typ, key)
+	}
+	if fd.Kind() != protoreflect.EnumKind {
+		// The one open set. Its vocabulary is enforced by checkOpenSets rather than by a type.
+		return true
+	}
+	if _, found := recordpb.BySpelling(fd.Enum(), word); found {
+		return true
+	}
+	// A CONVERTER MAY FOLD CASE, and two deliberately do. `merge verdict --as PASS` and `bench
+	// outcome --as VERIFIED` are the seat's words in capitals — that is the surface, and VerdictOf
+	// and RunOutcomeOf lowercase before resolving. BySpelling is exact by design (its own test
+	// pins that `PASS` does not resolve to `pass`), so the fold is checked here rather than
+	// weakened there. It is one-way: a declared word may be louder than the schema's, never
+	// different from it.
+	_, found := recordpb.BySpelling(fd.Enum(), strings.ToLower(word))
+	return found
+}
+
+// bodyDescriptorFor resolves an event type's WORD to the body message the schema pairs with it,
+// through the `body` oneof — the one place that pairing is declared.
+func bodyDescriptorFor(typ string) (protoreflect.MessageDescriptor, bool) {
+	od := (&recordpb.Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body")
+	if od == nil {
+		return nil, false
+	}
+	for i := 0; i < od.Fields().Len(); i++ {
+		fd := od.Fields().Get(i)
+		if string(fd.Name()) == typ && fd.Message() != nil {
+			return fd.Message(), true
+		}
+	}
+	return nil, false
+}
+
 // THE DOCKET AXIS AND THE ARTIFACT AXIS ARE DIFFERENT, and for a long time one word carried both.
 //
 // Measured 2026-08-22 on the sqlite-schema run: the board said open:0 while assembly-screen
@@ -275,7 +272,6 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 		{"defect_accepted", ArtifactDefectLive},
 		{"defect_owed_elsewhere", ArtifactDefectLive},
 		{"repaired_with_regression", ArtifactDefectLive},
-		{"moot", ArtifactUnexamined},
 		{DispositionCarried, ArtifactUnexamined},
 	} {
 		got, ok := ArtifactStateOf(c.class)
@@ -304,10 +300,12 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 			"and a plausible answer here is worse than an honest refusal")
 	}
 
-	// AN UNKNOWN CLASS REPORTS ITSELF. An older record under a vocabulary that has since changed
-	// is still the record; it must not silently read as healthy.
-	if got, ok := ArtifactStateOf("routed_to_infrastructure"); !ok || got != ArtifactUnknown {
-		t.Errorf("a retired class read as %q/%v, want unknown — old records stay valid and must not "+
+	// A WORD OUTSIDE THE VOCABULARY REPORTS ITSELF. No record can carry one — the schema's CHECK
+	// is generated from the same enum artifactByClass is checked against below — so this pins the
+	// behaviour for input that reached the function without passing the schema. `moot` is the
+	// live example: the engine still offers it as a bench resolution and the record refuses it.
+	if got, ok := ArtifactStateOf("moot"); !ok || got != ArtifactUnknown {
+		t.Errorf("a word the schema does not carry read as %q/%v, want unknown — it must not "+
 			"fold into a healthy value", got, ok)
 	}
 

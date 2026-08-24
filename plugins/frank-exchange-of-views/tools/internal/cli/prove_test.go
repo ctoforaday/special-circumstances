@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,12 +49,23 @@ func TestProveAnchorsAndRecordsTheComputation(t *testing.T) {
 	if !strings.Contains(readReport(t, runDir), "<!--proof:p-") {
 		t.Error("no proof anchor was spliced, so nothing connects the script to the claim")
 	}
-	ev := lastOfType(t, runDir, "proof")
-	if ev.Payload.Str("proof_basis") != "reproducible" {
-		t.Errorf("basis = %q", ev.Payload.Str("proof_basis"))
+	ev := lastBody(t, runDir, &recordpb.Proof{})
+	if ev.GetProofBasis() != "reproducible" {
+		t.Errorf("basis = %q", ev.GetProofBasis())
 	}
-	if !strings.Contains(ev.Payload.Str("output"), "divisors: 3") {
-		t.Errorf("the computation's answer is not on the record: %q", ev.Payload.Str("output"))
+	// THE OUTPUT IS IN THE CACHE, NOT ON THE EVENT, and that is a decision rather than a drop —
+	// prove.go states it: "content is not a fact about the debate", the output is addressed by
+	// `proof_sha`, and report/proofs.go renders script, exit, basis and drift. This asserted
+	// `text` carried the answer, which is the field the SEAT's prose lands in.
+	//
+	// What must hold is the JOIN: the event names a sha, and the sha addresses the output an
+	// auditor re-runs against. A sha on the event with nothing behind it is a citation to
+	// evidence that does not exist.
+	if ev.GetProofSha() == "" {
+		t.Fatal("the proof event names no sha — nothing addresses the output an auditor would re-run against")
+	}
+	if !strings.Contains(ev.GetText(), "trial division settles it") {
+		t.Errorf("the seat's own prose did not reach the event: %q", ev.GetText())
 	}
 }
 
@@ -90,7 +102,7 @@ func TestRedReproducesAProof(t *testing.T) {
 		"--quote", "Seven has no divisor between two and six.", "--script", s, "--reason", "r"); err != nil {
 		t.Fatal(err)
 	}
-	sha := lastOfType(t, runDir, "proof").Payload.Str("sha256")
+	sha := lastBody(t, runDir, &recordpb.Proof{}).GetProofSha()
 
 	// --as and --reason are REQUIRED (#343): re-running measures DETERMINISM, and a script that
 	// prints "7 is prime" reproduces forever. The soundness verdict is red's, from reading it.
@@ -100,8 +112,8 @@ func TestRedReproducesAProof(t *testing.T) {
 		t.Fatalf("reproduce: %v", err)
 	}
 	// The verdict is on the RECORD now, not only in red's head.
-	if ev := lastOfType(t, runDir, "reproduce"); ev.Payload.Str("soundness") != "sound" {
-		t.Errorf("the soundness judgement must be recorded, got %q", ev.Payload.Str("soundness"))
+	if ev := lastBody(t, runDir, &recordpb.Reproduce{}); ev.GetSoundness() != recordpb.Soundness_SOUNDNESS_SOUND {
+		t.Errorf("the soundness judgement must be recorded, got %q", ev.GetSoundness())
 	}
 	if !strings.Contains(out, "REPRODUCES") {
 		t.Errorf("red re-ran the proof and did not confirm it: %q", out)
@@ -136,10 +148,10 @@ func TestAnUnrunnableProofIsRefusedAndLogsFriction(t *testing.T) {
 		"--quote", "A sentence to anchor to.", "--script", s, "--reason", "r"); err == nil {
 		t.Fatal("a script with no known interpreter was accepted as evidence")
 	}
-	if countType(t, runDir, "friction") == 0 {
+	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_FRICTION) == 0 {
 		t.Error("the refusal logged no friction, so the capability gap is invisible to the retool loop")
 	}
-	if countType(t, runDir, "proof") != 0 {
+	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF) != 0 {
 		t.Error("a refused proof still landed on the record")
 	}
 }

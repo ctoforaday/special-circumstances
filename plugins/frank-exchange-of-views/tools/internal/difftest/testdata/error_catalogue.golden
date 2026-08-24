@@ -23,7 +23,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -36,7 +36,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -75,7 +75,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -88,7 +88,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -127,7 +127,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -140,7 +140,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -179,7 +179,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -192,7 +192,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -231,7 +231,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -244,7 +244,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -260,7 +260,7 @@ Global Flags:
 
 ── mint with bad grade
 exit 2
-feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low-medium | medium | medium-high | high | certain | realized | trivial
+feov-record: invalid argument "catastrophic" for "--severity" flag: "catastrophic" is not a grade — use one of: low | low_medium | medium | medium_high | high | certain | realized | trivial
 
 turn lens findings into a graded gap on the board, when a defect is real and belongs there
 
@@ -283,7 +283,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -296,7 +296,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -335,7 +335,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -348,7 +348,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -394,8 +394,8 @@ Flags:
 Enumerated values:
   --as
     repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -437,8 +437,8 @@ Flags:
 Enumerated values:
   --as
     repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -480,8 +480,8 @@ Flags:
 Enumerated values:
   --as
     repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -523,8 +523,8 @@ Flags:
 Enumerated values:
   --as
     repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -562,7 +562,7 @@ Flags:
       --likelihood grade   how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them
       --reason string      REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -      read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade     how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade     how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
@@ -742,8 +742,8 @@ exit 2
 feov-record: invalid argument "closed-with-regression" for "--as" flag: --as must be one of repaired|repaired_with_regression|amends_prior|not_a_defect|defect_accepted|defect_owed_elsewhere (got "closed-with-regression") — the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason
 
     repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -776,8 +776,8 @@ Flags:
 Enumerated values:
   --as
     repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -795,6 +795,35 @@ feov-record: invalid argument "banana" for "--dimension" flag: --dimension must 
     likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them
     impact      how bad the consequence is if it lands
     complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
+
+file a grade motion — the tool assigns its id.
+
+THREE SUBJECTS, ONE EVENT, DIFFERENT CONTRACTS. `motion grade file` disputes a gap's grade and is ruled by the merge; `motion petition file` raises an ethical, safety, integrity or constitutional objection and is ruled by the BENCH, before the debate continues; a direction needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
+
+Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.
+
+Usage:
+  feov-record motion grade file [flags]
+
+Flags:
+      --dimension dimension-value   REQUIRED for a grade motion
+  -h, --help                        help for file
+      --id string                   REQUIRED for a grade motion
+      --proposed grade              the grade you say it should be: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --reason string               your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -               read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+
+Enumerated values:
+  --dimension
+    severity    how bad the defect is in itself
+    likelihood  how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them
+    impact      how bad the consequence is if it lands
+    complexity  what fixing it costs — the axis to contest when the fix is worth more than the defect
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ── verification outcome outside the set
 exit 2
@@ -1122,7 +1151,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -1135,7 +1164,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -1181,8 +1210,8 @@ Flags:
 Enumerated values:
   --as
     repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
+    repaired_with_regression  repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward
+    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit
     not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
     defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
     defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
@@ -1217,7 +1246,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -1230,7 +1259,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:

@@ -1,13 +1,13 @@
 $ register --run {RUN} --seat-id red-merge-r1
 exit 0
 stdout:
-registered red-merge-r1 (shard nonce NONCE001)
+registered red-merge-r1
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ mint --run {RUN} --seat-id red-merge-r1 --class invented-class --check-kind document --check x --problem p
 exit 2
@@ -35,7 +35,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -48,7 +48,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -88,7 +88,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -101,7 +101,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -141,7 +141,7 @@ Usage:
 Flags:
       --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
       --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — slug — the gap's class slug, what KIND of defect this is
+      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
       --complexity grade         what fixing it costs, on the same scale
       --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
       --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
@@ -154,7 +154,7 @@ Flags:
       --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
       --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low-medium | medium | medium-high | high | certain | realized | trivial
+      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
       --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
@@ -179,5 +179,102 @@ stderr:
 feov-record: merge: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `merge class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
 
 ═══ EVENTS ═══
--- events-red-merge-r1-NONCE001.jsonl
-{"key":"red-merge-r1:register:NONCE001","nonce":"NONCE001","payload":{"run_via":"flag","tool_version":"0.72.0"},"role":"merge","round":1,"seatId":"red-merge-r1","seq":0,"ts":0,"type":"register"}
+
+═══ RENDERS ═══
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
+
+
+═══ REPORT ═══
+# _(blue/report.md has no title — not authored here)_
+
+**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
+
+## Read this first
+
+_(no open gaps remain — nothing outstanding to re-examine)_
+
+## TL;DR
+
+_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
+
+## The Catechism
+
+_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
+
+## Technical foundations
+
+_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
+
+## Analysis
+
+_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
+
+## Risk matrix
+
+| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
+|---|---|---|---|---|
+| _(no open gaps)_ |  |  |  |  |
+
+The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
+
+## Research areas
+
+_(none on the record)_
+
+## Future research directions
+
+_(none on the record)_
+
+## Alternatives considered
+
+_(none on the record)_
+
+## Open questions
+
+_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
+
+## Blue team report (sections not composed above)
+
+## S2
+
+A claim sits under S2.
+
+## S4
+
+A claim sits under S4.
+
+## Red team findings (in full)
+
+### Open gaps (0)
+
+_(none open)_
+
+### Closure index (0)
+
+_(nothing closed)_
+
+## The debate
+
+_(no debate on the record)_
+
+## Record verification
+
+Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
+
+- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
+- **ok** — `found-by-resolves` — every found_by credit names a real finding
+- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
+- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
+- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
+- **ok** — `register-before-append` — every seat registered before it wrote
+- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
+
+**6 held · 1 did not apply · 0 violated.** An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

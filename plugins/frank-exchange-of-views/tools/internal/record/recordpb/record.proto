@@ -19,6 +19,140 @@ package feov.record.v1;
 
 option go_package = "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb";
 
+import "google/protobuf/descriptor.proto";
+
+// THE RELATIONAL FACTS LIVE ON THE FIELD THEY CONSTRAIN.
+//
+// The record's storage is SQLite and its schema is DERIVED from these descriptors, so anything the
+// database must enforce has to be expressible here. Without that, the constraints that are the
+// whole reason for a database — the foreign key that makes a ruling-before-its-filing unwritable —
+// would be hand-written in the deriver, and a hand-written half is the second copy this schema
+// exists to remove.
+//
+// `required` also lands here, and it REPLACES a Go map keyed by field name. That map was the
+// canonical instance of the defect: the requirement lived one file away from the field, and it had
+// already omitted Outcome.verdict, which is how a run could record that it ENDED and not how.
+extend google.protobuf.FieldOptions {
+  optional Sql sql = 50000;
+}
+
+// A VALUE'S MEANING BELONGS ON THE VALUE.
+//
+// The seat-facing sets are closed, and a closed set delivered as bare words leaves a seat to guess
+// which situation warrants which — `--as repaired | not_a_defect | defect_accepted` is six words
+// and one shared sentence. The meanings existed all along as SOURCE COMMENTS, written for a Go
+// reader and delivered to no seat, which is the shape enumvalue.go was created to end.
+//
+// They then lived in a Go map keyed by full name: one statement, two files, and a name to keep in
+// step. Here the meaning sits ON the value, so `--help`, the refusal a seat reads, and the record's
+// own vocabulary tables are three readers of one declaration.
+extend google.protobuf.EnumValueOptions {
+  optional string means = 50001;
+
+  // closes is WHETHER THIS WORD ENDS THE GAP, and it is on the value because that is the only
+  // place a new value cannot be added without answering the question.
+  //
+  // It replaces `benchClosesGap`, which was the negative rule "everything except carried closes".
+  // A negative rule has no gap to notice: every disposition added after it was classified as
+  // closing BY DEFAULT, silently, and no test of the predicate's stated behaviour would fail.
+  // Measured — `grade_adjusted` was added to the bench's vocabulary and read as closing a gap the
+  // bench had explicitly deferred, because nobody was asked.
+  //
+  // As an annotation the miss is LOUD at two layers: the schema refuses to build a vocabulary
+  // table that is partly annotated, and the column is NOT NULL.
+  optional bool closes = 50003;
+
+  // ruled_by IS WHICH SEAT HOLDS THE GAVEL, and it is on the value for the same reason `closes`
+  // is: a new motion subject cannot be added without answering it.
+  //
+  // It was a hand-written string in internal/cli/motion (`subject("petition", …, "bench")`) while
+  // the PASS gate's refusal — in internal/record, which cannot import the CLI — told every
+  // blocked seat to "rule it with `motion <subject> rule`". For a PETITION that instruction is
+  // refused by requireRuler, because the bench holds that gavel and the merge does not. Two
+  // hand-written copies of one fact, one of which did not exist, so the message walked a merge
+  // seat into a role refusal and there was no verdict it could legally give.
+  optional string ruled_by = 50004;
+}
+
+// A CONSTRAINT THAT DEPENDS ON ANOTHER FIELD BELONGS ON THE MESSAGE.
+//
+// `required` is a property of ONE field and lives on it. "repaired_with_regression requires a
+// successor" is not: it is a rule about two fields together, and no annotation on either can say
+// it. Those rules were hand-written `if` blocks in validate — the app refusing what the database
+// would happily store, which for a record that is EVIDENCE is a real gap: anything writing SQL
+// directly could create a state the tool forbids, and the row would look exactly like a legitimate
+// one.
+//
+// This does put SQL in the schema, and that is a genuine cost — a second language in a file that
+// otherwise describes shape. It is paid because the alternative is the constraint living in two
+// places, or in only the weaker one.
+extend google.protobuf.MessageOptions {
+  repeated SqlCheck check = 50002;
+}
+
+// SqlCheck is one table-level rule and what it protects.
+message SqlCheck {
+  // expr is the SQL, with column names quoted as the derived DDL quotes them.
+  optional string expr = 1;
+
+  // why is what the rule is FOR. A CHECK that fires with only its expression tells a reader what
+  // was refused and nothing about which invariant they walked into.
+  optional string why = 2;
+}
+
+// Sql is what the database must know about a field that the field's type cannot say.
+message Sql {
+  // required makes the column NOT NULL and is what the write path refuses on. One statement, two
+  // enforcers, no way for them to disagree.
+  optional bool required = 1;
+
+  // flag is the word a SEAT types, when it deliberately differs from the field name. It is not an
+  // alias table: it sits on the field, so there is one place to read and nothing to keep in step.
+  //
+  // It exists for ONE reason, and the reason is deliberate: the prose field is spelled differently
+  // per verb — a close stores `prose`, an opinion `rationale`, a regrade `basis` — while the word a
+  // seat types for all of them is `--reason`. Collapsing the schema's names would lose what each
+  // prose field IS; collapsing the seat's would make every verb's prose a different word to learn.
+  optional string flag = 2;
+
+  // allow_empty says a required STRING field may be present and EMPTY.
+  //
+  // `required` means the seat SAID something, and for prose that means it said something with
+  // content: an acceptance check of "" is a contract that demands nothing, and a friction entry of
+  // "" is a duty discharged by silence — measured, and it took a seat from two outstanding duties
+  // to `complete: true` while the channel reported one entry saying nothing.
+  //
+  // The exception is real and narrow: `--review-flag false` is a legitimate ruling ("no, a human
+  // need not look at this"), so an empty answer there is an ANSWER. Presence-only requiredness is
+  // the exception and says so at the field, rather than being the silent default it briefly became
+  // when the Go table's two flavours collapsed into one annotation.
+  optional bool allow_empty = 7;
+
+  // subset names a VALUE FACET this column's values must carry — `subset: "closes"` admits only
+  // the values annotated `(closes) = true`. The generator expands it into a CHECK over the real
+  // words from the descriptor, so the subset is DERIVED and there is no second list to keep.
+  //
+  // Without it the alternative was `CHECK ("closure_class" <> 'carried')` hand-typed into the
+  // schema: a word composed into an expression and recovered by nothing, which is the shape this
+  // whole annotation layer exists to remove.
+  optional string subset = 6;
+
+  // why is what omitting it costs, in the words the refusal shows the seat. A required field whose
+  // refusal says only "required" teaches nothing about the state it was protecting.
+  optional string why = 3;
+
+  // references names the row this value must already point at, as "table.column". This is the
+  // constraint the sharded log could not have: filing and ruling lived in different files and
+  // replay merged them by timestamp, so a ruling could replay before its filing — recorded in
+  // capitals at record/motion.go and papered over by a second pass. A foreign key makes the state
+  // unwritable rather than recoverable.
+  optional string references = 4;
+
+  // unique is a per-run uniqueness the type cannot state — a gap id minted twice is two gaps
+  // wearing one name, and every join afterwards is ambiguous.
+  optional bool unique = 5;
+}
+
 // SchemaVersion is the format discriminator, and it is a POSITIVE FIELD rather than a parse
 // failure on purpose.
 //
@@ -34,7 +168,7 @@ option go_package = "github.com/ctoforaday/special-circumstances/plugins/frank-e
 // tolerance setting. The version gate refuses the line first; scripts/protogen gates the bump.
 enum SchemaVersion {
   SCHEMA_VERSION_UNSPECIFIED = 0;  // absent: written before the schema existed. Always an error.
-  SCHEMA_VERSION_1 = 1;
+  SCHEMA_VERSION_1 = 1 [(means) = "the protobuf record: one event stream, one row per act, schema derived from these descriptors"];
 }
 
 // EventType names the verb that wrote the event. It is redundant with the `body` oneof case and
@@ -47,37 +181,38 @@ enum SchemaVersion {
 // have NO value here. That absence is the deletion of the legacy vocabulary.
 enum EventType {
   EVENT_TYPE_UNSPECIFIED = 0;
-  EVENT_TYPE_REGISTER = 1;
-  EVENT_TYPE_ANCHOR = 2;
-  EVENT_TYPE_AVENUE = 3;
-  EVENT_TYPE_BLUE_EDIT = 4;
-  EVENT_TYPE_CERTIFY = 5;
-  EVENT_TYPE_CITE = 6;
-  EVENT_TYPE_CLASS_NEW = 7;
-  EVENT_TYPE_CLOSE = 8;
-  EVENT_TYPE_CLOSING = 9;
-  EVENT_TYPE_DECLARE = 10;
-  EVENT_TYPE_FINDING = 11;
-  EVENT_TYPE_FRICTION = 12;
-  EVENT_TYPE_FRICTION_NONE = 13;
-  EVENT_TYPE_HALT = 14;
-  EVENT_TYPE_MANIFEST_ROW = 15;
-  EVENT_TYPE_MINT = 16;
-  EVENT_TYPE_MOTION = 17;
-  EVENT_TYPE_MOTION_APPEAL = 18;
-  EVENT_TYPE_MOTION_RULE = 19;
-  EVENT_TYPE_OBSERVE = 20;
-  EVENT_TYPE_OPINION = 21;
-  EVENT_TYPE_OUTCOME = 22;
-  EVENT_TYPE_POSITION = 23;
-  EVENT_TYPE_PROOF = 24;
-  EVENT_TYPE_REGRADE = 25;
-  EVENT_TYPE_REPRODUCE = 26;
-  EVENT_TYPE_RETIRE = 27;
-  EVENT_TYPE_REVISION = 28;
-  EVENT_TYPE_SPOT_CHECK = 29;
-  EVENT_TYPE_VERDICT = 30;
-  EVENT_TYPE_VERIFY = 31;
+  EVENT_TYPE_REGISTER = 1 [(means) = "a seat took its seat — the first act of any seat, stamping the tool version it ran under"];
+  EVENT_TYPE_ANCHOR = 2 [(means) = "evidence tied to a finding: where in the artifact the claim actually lives"];
+  EVENT_TYPE_AVENUE = 3 [(means) = "a line of inquiry, from proposed through pursued, declined, deferred or abandoned"];
+  EVENT_TYPE_BLUE_EDIT = 4 [(means) = "a change to the living report, recorded as old and new so the edit itself is auditable"];
+  EVENT_TYPE_CERTIFY = 5 [(means) = "a seat's signed statement about its own work — what it asserts on the record"];
+  EVENT_TYPE_CITE = 6 [(means) = "a source brought into the debate, with the hash and access date that make it re-checkable"];
+  EVENT_TYPE_CLASS_NEW = 7 [(means) = "a defect class coined in this run, with its definition and the neighbour it is distinguished from"];
+  EVENT_TYPE_CLOSE = 8 [(means) = "a merge closing a gap on a verified repair — red's half of the closing vocabulary"];
+  EVENT_TYPE_CLOSING = 9 [(means) = "a seat's closing statement on a gap: the argument, not the disposition"];
+  EVENT_TYPE_DECLARE = 10 [(means) = "the bench stating a holding that later sittings are expected to apply"];
+  EVENT_TYPE_FINDING = 11 [(means) = "something red found, graded but not yet minted as a gap"];
+  EVENT_TYPE_FRICTION = 12 [(means) = "a capability the tool did not have, recorded so the tooling gets fixed rather than worked around"];
+  EVENT_TYPE_FRICTION_NONE = 13 [(means) = "a seat stating it hit no friction — the negative answer, recorded so silence and `none` are different facts"];
+  EVENT_TYPE_HALT = 14 [(means) = "the bench ending the run on a safety, ethics, consent or integrity boundary"];
+  EVENT_TYPE_MANIFEST_ROW = 15 [(means) = "one row of the run's manifest, tying a gap to what shipped for it"];
+  EVENT_TYPE_MINT = 16 [(means) = "a gap put on the board — the act that creates the entity every other act refers to"];
+  EVENT_TYPE_MOTION = 17 [(means) = "a motion filed: a grade contested, a petition to the bench, or a direction proposed"];
+  EVENT_TYPE_MOTION_APPEAL = 18 [(means) = "an appeal of a ruling already made on a motion"];
+  EVENT_TYPE_MOTION_RULE = 19 [(means) = "the bench's ruling on a filed motion, and whom it binds"];
+  EVENT_TYPE_OBSERVE = 20 [(means) = "an observation recorded without a claim attached to it"];
+  EVENT_TYPE_OPINION = 21 [(means) = "the bench ruling on a gap, with the principle applied and the tension acknowledged"];
+  EVENT_TYPE_OUTCOME = 22 [(means) = "the run's terminal act: how it ended and whether the question was answered"];
+  EVENT_TYPE_POSITION = 23 [(means) = "a seat's stated position going into a round"];
+  EVENT_TYPE_PROOF = 24 [(means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
+  EVENT_TYPE_REGRADE = 25 [(means) = "a gap's grade changed, with the basis for the change"];
+  EVENT_TYPE_REPRODUCE = 26 [(means) = "an attempt to re-run a recorded proof, and whether what it computes is sound"];
+  EVENT_TYPE_RETIRE = 27 [(means) = "a claim withdrawn from the report, with the reason and what supersedes it"];
+  EVENT_TYPE_REVISION = 28 [(means) = "a revision to a seat's own earlier text"];
+  EVENT_TYPE_SPOT_CHECK = 29 [(means) = "red re-checking a sample of prior work, or stating that it checked none and why"];
+  EVENT_TYPE_VERDICT = 30 [(means) = "red's round gate: PASS or FAIL against the open board"];
+  EVENT_TYPE_VERIFY = 31 [(means) = "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"];
+  EVENT_TYPE_INQUIRY_REVIEW = 32 [(means) = "a review of the lines of inquiry themselves, rather than of a finding"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -90,14 +225,14 @@ enum Grade {
   // enum's zero keeps "not graded" a value the schema can carry rather than an absence a reader
   // has to infer.
   GRADE_UNSPECIFIED = 0;
-  GRADE_TRIVIAL = 1;
-  GRADE_LOW = 2;
-  GRADE_LOW_MEDIUM = 3;
-  GRADE_MEDIUM = 4;
-  GRADE_MEDIUM_HIGH = 5;
-  GRADE_HIGH = 6;
-  GRADE_CERTAIN = 7;
-  GRADE_REALIZED = 8;
+  GRADE_TRIVIAL = 1 [(means) = "cosmetic; nothing downstream changes if it is wrong"];
+  GRADE_LOW = 2 [(means) = "minor"];
+  GRADE_LOW_MEDIUM = 3 [(means) = "between minor and material"];
+  GRADE_MEDIUM = 4 [(means) = "material"];
+  GRADE_MEDIUM_HIGH = 5 [(means) = "between material and serious"];
+  GRADE_HIGH = 6 [(means) = "serious"];
+  GRADE_CERTAIN = 7 [(means) = "the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists"];
+  GRADE_REALIZED = 8 [(means) = "it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead"];
 }
 
 // Verdict is red's binary gate. PASS is CHECKED against the open board, not taken on the seat's
@@ -105,8 +240,8 @@ enum Grade {
 // entirely, and `--as banana` recorded a banana.
 enum Verdict {
   VERDICT_UNSPECIFIED = 0;
-  VERDICT_PASS = 1;
-  VERDICT_FAIL = 2;
+  VERDICT_PASS = 1 [(means) = "every gap on the board is resolved — this is CHECKED against the open board, not taken on your word"];
+  VERDICT_FAIL = 2 [(means) = "at least one gap is still open, or you are not satisfied it was answered"];
 }
 
 // RunOutcome is how the SITTING ended. The report's verdict stamp switches on it, so an
@@ -114,10 +249,10 @@ enum Verdict {
 // NOT a judged failure to verify" caveat the stamp exists to carry.
 enum RunOutcome {
   RUN_OUTCOME_UNSPECIFIED = 0;
-  RUN_OUTCOME_VERIFIED = 1;
-  RUN_OUTCOME_CEILING = 2;
-  RUN_OUTCOME_HALTED = 3;
-  RUN_OUTCOME_UNVERIFIED = 4;
+  RUN_OUTCOME_VERIFIED = 1 [(means) = "red passed the board and the bench agrees the question was answered"];
+  RUN_OUTCOME_CEILING = 2 [(means) = "the round ceiling was reached with work still open — NOT a judged failure to verify, and the stamp says so"];
+  RUN_OUTCOME_HALTED = 3 [(means) = "the bench ended the run on a safety, ethics, consent or integrity boundary"];
+  RUN_OUTCOME_UNVERIFIED = 4 [(means) = "the run ended without the question being answered, and no ceiling or halt explains it"];
 }
 
 // CheckKind is WHAT WOULD SETTLE an acceptance check. COMPUTATION is the one with teeth: a gap
@@ -126,22 +261,29 @@ enum RunOutcome {
 // ever ask whether the report SAYS something.
 enum CheckKind {
   CHECK_KIND_UNSPECIFIED = 0;
-  CHECK_KIND_DOCUMENT = 1;
-  CHECK_KIND_COMPUTATION = 2;
-  CHECK_KIND_SOURCE = 3;
+  CHECK_KIND_DOCUMENT = 1 [(means) = "reading a shipped artifact settles it — the check is answered by prose that quotes what is there"];
+  CHECK_KIND_COMPUTATION = 2 [(means) = "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind"];
+  CHECK_KIND_SOURCE = 3 [(means) = "verifying an external source settles it — the claim stands or falls on what the cited material actually says"];
 }
 
 // ClosureClass is HOW A GAP ENDED — one vocabulary for both closing verbs. Before it was
 // unified, four surfaces spelled the same three outcomes six ways and no mechanism could see
 // them disagree, because every set was open.
-enum ClosureClass {
-  CLOSURE_CLASS_UNSPECIFIED = 0;
-  CLOSURE_CLASS_REPAIRED = 1;
-  CLOSURE_CLASS_REPAIRED_WITH_REGRESSION = 2;  // REQUIRES successor
-  CLOSURE_CLASS_AMENDS_PRIOR = 3;            // REQUIRES supersedes
-  CLOSURE_CLASS_NOT_A_DEFECT = 4;
-  CLOSURE_CLASS_DEFECT_ACCEPTED = 5;
-  CLOSURE_CLASS_DEFECT_OWED_ELSEWHERE = 6;
+enum Disposition {
+  DISPOSITION_UNSPECIFIED = 0;
+  DISPOSITION_REPAIRED = 1 [(means) = "the repair was verified at the leaf and nothing regressed", (closes) = true];
+  DISPOSITION_REPAIRED_WITH_REGRESSION = 2 [(means) = "repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward", (closes) = true];
+  DISPOSITION_AMENDS_PRIOR = 3 [(means) = "a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit", (closes) = true];
+  DISPOSITION_NOT_A_DEFECT = 4 [(means) = "blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be", (closes) = true];
+  DISPOSITION_DEFECT_ACCEPTED = 5 [(means) = "the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record", (closes) = true];
+  DISPOSITION_DEFECT_OWED_ELSEWHERE = 6 [(means) = "a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped", (closes) = true];
+
+  // THE ONE WORD THAT DOES NOT CLOSE, and the reason this enum carries `closes` at all.
+  //
+  // `carried` is reachable by the BENCH only: a merge closing a gap is asserting a repair, and
+  // "I repaired it by carrying it" is not a sentence. The subset is enforced, not documented —
+  // see Close.closure_class, whose `subset: "closes"` generates the CHECK from this annotation.
+  DISPOSITION_CARRIED = 7 [(means) = "NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes", (closes) = false];
 }
 
 // SourceOutcome is WHAT THE SOURCE DID for a claim — a different question from how sure the
@@ -153,12 +295,12 @@ enum ClosureClass {
 // a verdict no field could carry, reporting PASS over an empty file on every run.
 enum SourceOutcome {
   SOURCE_OUTCOME_UNSPECIFIED = 0;
-  SOURCE_OUTCOME_SUPPORTS = 1;
-  SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE = 2;
-  SOURCE_OUTCOME_WEAK = 3;
-  SOURCE_OUTCOME_REFUTES = 4;
-  SOURCE_OUTCOME_ABSENT = 5;      // silence is not contradiction
-  SOURCE_OUTCOME_UNREACHABLE = 6;
+  SOURCE_OUTCOME_SUPPORTS = 1 [(means) = "you read the source at the leaf and it says what the claim says"];
+  SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE = 2 [(means) = "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"];
+  SOURCE_OUTCOME_WEAK = 3 [(means) = "it gestures at the claim, or is itself uncorroborated: thin support, not none"];
+  SOURCE_OUTCOME_REFUTES = 4 [(means) = "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all"];
+  SOURCE_OUTCOME_ABSENT = 5 [(means) = "you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was"];      // silence is not contradiction
+  SOURCE_OUTCOME_UNREACHABLE = 6 [(means) = "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"];
 }
 
 // Confidence is how sure the auditor is OF THE DETERMINATION, whatever the determination was.
@@ -167,9 +309,9 @@ enum SourceOutcome {
 // an automatic fail.
 enum Confidence {
   CONFIDENCE_UNSPECIFIED = 0;
-  CONFIDENCE_HIGH = 1;
-  CONFIDENCE_MEDIUM = 2;
-  CONFIDENCE_LOW = 3;
+  CONFIDENCE_HIGH = 1 [(means) = "you read the source at the leaf and would defend this determination as it stands"];
+  CONFIDENCE_MEDIUM = 2 [(means) = "you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement"];
+  CONFIDENCE_LOW = 3 [(means) = "your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further"];
 }
 
 // Soundness: REPRODUCING IS NOT PROVING. Re-running a script and getting the same bytes measures
@@ -177,8 +319,8 @@ enum Confidence {
 // cell, because a proof that re-runs clean and establishes nothing looks maximally credible.
 enum Soundness {
   SOUNDNESS_UNSPECIFIED = 0;
-  SOUNDNESS_SOUND = 1;
-  SOUNDNESS_UNSOUND = 2;
+  SOUNDNESS_SOUND = 1 [(means) = "you READ the script and it computes what it claims to compute"];
+  SOUNDNESS_UNSOUND = 2 [(means) = "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible"];
 }
 
 // AvenueStatus is a line of inquiry's fate. The lines-of-inquiry projection groups BY status, so
@@ -186,20 +328,20 @@ enum Soundness {
 // show the roads not taken.
 enum AvenueStatus {
   AVENUE_STATUS_UNSPECIFIED = 0;
-  AVENUE_STATUS_PROPOSED = 1;
-  AVENUE_STATUS_PURSUED = 2;
-  AVENUE_STATUS_DEFERRED = 3;
-  AVENUE_STATUS_DECLINED = 4;
-  AVENUE_STATUS_ABANDONED = 5;
+  AVENUE_STATUS_PROPOSED = 1 [(means) = "you intend to follow this line; the tool assigns it an id and red may rule on it"];
+  AVENUE_STATUS_PURSUED = 2 [(means) = "you took the line — what it produced belongs in the report"];
+  AVENUE_STATUS_DEFERRED = 3 [(means) = "not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet"];
+  AVENUE_STATUS_DECLINED = 4 [(means) = "you considered it and chose not to. REQUIRES a reason — the road not taken is worthless without why"];
+  AVENUE_STATUS_ABANDONED = 5 [(means) = "you started and stopped. REQUIRES a reason — what killed it is the part a future run actually needs"];
 }
 
 // MotionSubject is what a motion is ABOUT. The ruling vocabulary is keyed on it, which is why
 // the rulings are separate enums below rather than one flat set.
 enum MotionSubject {
   MOTION_SUBJECT_UNSPECIFIED = 0;
-  MOTION_SUBJECT_GRADE = 1;
-  MOTION_SUBJECT_PETITION = 2;
-  MOTION_SUBJECT_DIRECTION = 3;
+  MOTION_SUBJECT_GRADE = 1 [(means) = "you contest a gap's grade on one dimension", (ruled_by) = "merge"];
+  MOTION_SUBJECT_PETITION = 2 [(means) = "you ask the bench to intervene — the constitutional short-circuit available to any party seat", (ruled_by) = "bench"];
+  MOTION_SUBJECT_DIRECTION = 3 [(means) = "a ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing", (ruled_by) = "merge"];
 }
 
 // The ruling sets, one per subject. A single flat set cannot express this: one motion-rule
@@ -207,21 +349,21 @@ enum MotionSubject {
 // nothing recognizes reads as no ruling at all — so a refusal silently becomes permission.
 enum GradeRuling {
   GRADE_RULING_UNSPECIFIED = 0;
-  GRADE_RULING_ACCEPTED = 1;
-  GRADE_RULING_REJECTED = 2;
+  GRADE_RULING_ACCEPTED = 1 [(means) = "the proposed grade stands"];
+  GRADE_RULING_REJECTED = 2 [(means) = "the grade on the board stands"];
 }
 
 enum PetitionRuling {
   PETITION_RULING_UNSPECIFIED = 0;
-  PETITION_RULING_GRANTED = 1;
-  PETITION_RULING_DENIED = 2;
+  PETITION_RULING_GRANTED = 1 [(means) = "the relief asked for is ordered"];
+  PETITION_RULING_DENIED = 2 [(means) = "the petition fails; the run continues as it was"];
 }
 
 enum DirectionRuling {
   DIRECTION_RULING_UNSPECIFIED = 0;
-  DIRECTION_RULING_ENDORSED = 1;
-  DIRECTION_RULING_OUT_OF_SCOPE = 2;  // a real question, but not THIS question
-  DIRECTION_RULING_TOO_THIN = 3;      // in scope, but the hypothesis does not carry its budget
+  DIRECTION_RULING_ENDORSED = 1 [(means) = "worth this run's time — pursue it"];
+  DIRECTION_RULING_OUT_OF_SCOPE = 2 [(means) = "a real question, but not THIS question"];  // a real question, but not THIS question
+  DIRECTION_RULING_TOO_THIN = 3 [(means) = "in scope, but the hypothesis does not carry its budget"];      // in scope, but the hypothesis does not carry its budget
 }
 
 // Event is the log line.
@@ -234,7 +376,18 @@ enum DirectionRuling {
 // schema_version could not distinguish "absent" from "0", which is the question the read rests
 // on. Requiredness is a validate-time duty declared separately, never inferred from optionality.
 message Event {
-  optional int32 seq = 1;
+  // `seq` WAS FIELD 1 AND IS GONE. It was the seat's position within its own shard file, and its
+  // last reader was replay's (TS, SeatID, Seq) tiebreak — a sort that existed because merging
+  // per-file had lost the real order. `ORDER BY id` is that order, so the tiebreak went, and with
+  // it the only thing that ever read this.
+  //
+  // Removing it removed a READ-BEFORE-WRITE from the write path: numbering an event meant counting
+  // the seat's existing rows first, which is the deferred-transaction upgrade SQLite refuses to
+  // apply busy_timeout to. A field nothing reads is not free; this one cost every write a query
+  // and an upgrade hazard.
+  //
+  // The number is still askable, and it is a `row_number() OVER (PARTITION BY seat_id, nonce)`
+  // away — computed when someone wants it rather than stamped on every row forever.
 
   // ts is when the event happened, and it is what replay ORDERS BY.
   //
@@ -246,7 +399,21 @@ message Event {
   optional string ts = 2;
 
   optional string seat_id = 3;
-  optional string nonce = 4;
+  // `nonce` IS GONE, AND KILLING IT FIXED A BUG RATHER THAN TIDYING ONE.
+  //
+  // It named a SITTING — one dispatch of a seat — and it existed because the shard file was
+  // `events-<seat>-<nonce>.jsonl`. A re-dispatch rotated it, so a crash retry wrote into a fresh
+  // file and replay picked a winner between them.
+  //
+  // With one table there is no second file and no winner selection, and the nonce became actively
+  // harmful: the idempotency ordinal was counted PER SITTING while `events.key` carries a GLOBAL
+  // unique index, so a re-dispatched seat restarted at `#1` and collided with its own earlier
+  // acts. Measured through the binary — register, record, re-register, record: `UNIQUE constraint
+  // failed: events.key`. A re-dispatched seat could not record at all.
+  //
+  // The ordinal is scoped to the seat now, so its keys are monotonic across dispatches and the
+  // collision is unrepresentable. "Which dispatch was this" is still answerable — it is the count
+  // of that seat's register events at or before the row, which is what capture.go already does.
   optional int32 round = 5;
 
   // role is the seat's ROLE as a field. Readers used to recover it with
@@ -261,7 +428,7 @@ message Event {
 
   oneof body {
     Register register = 20;
-    Verdict_ verdict = 21;
+    RoundVerdict verdict = 21;
     Outcome outcome = 22;
     Position position = 23;
     Halt halt = 24;
@@ -291,11 +458,13 @@ message Event {
     ManifestRow manifest_row = 48;
     Friction friction = 49;
     FrictionNone friction_none = 50;
+    InquiryReview inquiry_review = 51;
   }
 
-  // 51-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
-  // claimed now rather than negotiated later.
-  reserved 51 to 80;
+  // 52-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
+  // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, which
+  // is what the reserve is for — the block shrinks by one and nothing is renumbered.
+  reserved 52 to 80;
 }
 
 // TelemetryLine is the per-round projection, NOT a shard event.
@@ -372,13 +541,27 @@ message EdgeDeltas {
 
 // Mint records a gap. `gap_id` is ASSIGNED by the tool, never chosen by the seat.
 message Mint {
-  optional string gap_id = 1;
+  // THE RECORD'S PRIMARY ENTITY, and until this annotation nothing enforced that it existed.
+  //
+  // Every other gap_id in the schema now references this column, which is only possible because it
+  // is unique and present. Before, a close, an opinion, a regrade or a grade motion could name a
+  // gap that had never been minted, and the file-backed record met that case with a `missingGap`
+  // ANOMALY — a defect discovered on read, per reader, after the fact. As a foreign key it is not
+  // discoverable at all: the row cannot be written.
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    unique: true
+    why: "the gap id is what every later act refers to; a mint without one is a finding nothing can cite, close or rule on"
+  }];
   optional string mint_key = 2;
 
   // class names the defect's kind. class_new records that the seat coined it in this act, which
   // is why the definition/neighbor/distinguisher trio travels alongside: a new class has to say
   // what it is, what it is nearest to, and how it differs.
-  optional string class = 3;
+  optional string class = 3 [(sql) = {
+    required: true
+    why: "the slug — one the registry has, or one you coined first with `merge class new`. A gap with no class cannot be counted with its kind, and the class report is how a run learns it keeps making the same mistake"
+  }];
   optional bool class_new = 4;
   optional string definition = 5;
   optional string neighbor = 6;
@@ -386,7 +569,10 @@ message Mint {
 
   // location is the defect's span, quoted verbatim from the report and matched against it.
   optional string location = 8;
-  optional string problem = 9;
+  optional string problem = 9 [(sql) = {
+    required: true
+    why: "what is wrong; --reason fills it too — a gap with no stated problem cannot be repaired or re-audited"
+  }];
   optional string required_fix = 10;
 
   // fix_new is the text that span should become — validated against the LIVE report, so a seat
@@ -400,8 +586,16 @@ message Mint {
   reserved 11;
   reserved "fix_old";
 
-  optional string acceptance_check = 14;
-  optional CheckKind check_kind = 15;
+  optional string acceptance_check = 14 [(sql) = {
+    required: true
+    flag: "check"
+    why: "the acceptance check red will run at re-audit — the pre-agreed contract"
+  }];
+  optional CheckKind check_kind = 15 [(sql) = {
+    required: true
+    flag: "check-kind"
+    why: "document | computation | source — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation, and measured across six runs no seat ever wrote one"
+  }];
 
   // LIKELIHOOD AND IMPACT ARE REQUIRED; severity and complexity_cost are not. The rule is not
   // "grade everything" — it is that a field whose ABSENCE IS INDISTINGUISHABLE FROM A LEGITIMATE
@@ -410,14 +604,33 @@ message Mint {
   // bottom of every ranking. Severity and cost are reported rather than multiplied, so their
   // absence is visible to a reader.
   optional Grade severity = 16;
-  optional Grade likelihood = 17;
-  optional Grade impact = 18;
+  optional Grade likelihood = 17 [(sql) = {
+    required: true
+    why: "it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded"
+  }];
+  optional Grade impact = 18 [(sql) = {
+    required: true
+    why: "it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded"
+  }];
   optional Grade complexity_cost = 19;
 
   // ALWAYS PRESENT, even empty: a gap with no ancestors records an empty list, because an absent
   // key would read as "lineage unknown" where the truth is "lineage none".
   repeated string supersedes = 20;
   repeated string found_by = 21;
+
+  // mint_reason is RED'S ARGUMENT FOR THE GAP, which is not the same fact as `problem`.
+  //
+  // `problem` is what is wrong with the report; this is why it is worth a gap — the case blue
+  // answers and a bench weighs. cli/merge/mint.go stores it only when the two DIFFER, so a mint
+  // that passed its problem through --reason does not carry it twice.
+  //
+  // IT WAS MISSING FROM THIS SCHEMA AND FROM THE FROZEN KEY CENSUS, so both mechanisms that exist
+  // to catch a dropped key missed it, and internal/record/viewjson.go reported the hole in place
+  // rather than deleting the line — which would have rendered red's argument as absent on every
+  // gap while every test stayed green. Added here rather than excused: a test
+  // (TestAGapCarriesRedsArgumentAndNotOnlyItsProblem) asserts it reaches the projection.
+  optional string mint_reason = 22;
 }
 
 // ClassNew registers a coined gap class in the run's registry.
@@ -430,8 +643,39 @@ message ClassNew {
 
 // Close ends a gap on verified repair.
 message Close {
-  optional string gap_id = 1;
-  optional ClosureClass closure_class = 2;
+  // LINEAGE NEVER DROPS. A regression closure that names no successor loses the thread from the
+  // defect to the gap now carrying it, and the repair_regression denominator counts a closure that
+  // resolved nothing. It was an `if` in validate, which left the DATABASE willing to store the very
+  // state the tool refused.
+  option (check) = {
+    expr: "\"closure_class\" <> 'repaired_with_regression' OR \"successor\" IS NOT NULL"
+    why: "a closure that reports a regression must name the gap carrying it forward — lineage never drops"
+  };
+
+  // THE CLOSURE ARGUMENT, KEPT AS A WALL WHILE IT STOPPED BEING A FIELD RULE.
+  //
+  // `prose` was `required: true`, which is unconditional and therefore refused a CARRY before
+  // validate's exemption for one could run. Dropping the marking fixed the carry and made the
+  // column nullable — and that would have handed the database the state the tool refuses, which
+  // is exactly the hole the regression check above exists to close. Stated here instead, where a
+  // rule about two fields together belongs: everything that is not a carry owes an argument.
+  option (check) = {
+    expr: "\"carried_from\" IS NOT NULL OR \"prose\" IS NOT NULL"
+    why: "a closure states what was verified and why it holds; only a carry is exempt, because the round it restates already argued it"
+  };
+
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    flag: "id"
+    references: "mint.gap_id"
+    why: "which gap this closes"
+  }];
+  // A MERGE MAY CLOSE, AND MAY NOT CARRY. `subset` generates the CHECK from the vocabulary's own
+  // `closes` annotation, so the admitted words are never typed here.
+  optional Disposition closure_class = 2 [(sql) = {
+    subset: "closes"
+    why: "a merge close asserts a repair; `carried` defers instead of closing and is the bench's word alone"
+  }];
 
   // The attestation anchor: WHO checked, with WHAT tool, against WHAT target. An unanchored
   // closure is unauditable — or the closure is a carry, restating an earlier one.
@@ -441,29 +685,54 @@ message Close {
   optional string carried_from = 6;
 
   // successor carries the unresolved remainder forward. Required by CLOSED_WITH_REGRESSION,
-  // because lineage never drops.
-  optional string successor = 7;
+  // because lineage never drops — and now it must name a gap that EXISTS. "Lineage never drops"
+  // was enforced as "the field is not empty", which a typo satisfies: the closure recorded a
+  // successor, the successor pointed at nothing, and the remainder was carried forward to a gap
+  // id no board has ever had.
+  optional string successor = 7 [(sql) = { references: "mint.gap_id" }];
 
   // prose is the closure's ARGUMENT: what was verified and why it holds. The report renders it
   // and the re-audit reads it.
-  optional string prose = 8;
+  //
+  // NOT `required` — CONDITIONALLY required, like Avenue.line, and for the same kind of reason.
+  // `merge carry` restates a closure an earlier round already argued, so demanding a fresh
+  // argument asks the same thing twice; validate exempts a carry and requires it everywhere else.
+  // Marked unconditional here, the annotation refused a carry BEFORE that exemption could run,
+  // and `merge carry --id R2-3 --carried-from 2` — the invocation the verb's own help documents,
+  // with --reason listed nowhere in it — was refused outright. The exemption still read as live:
+  // the code was there, commented, and could not execute.
+  //
+  // An annotation cannot say "unless this other field is set", which is the split validate's
+  // header states: unconditional requirements on the field, everything conditional below.
+  optional string prose = 8 [(sql) = {
+    flag: "reason"
+    why: "the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it"
+  }];
 }
 
 // Closing is the closing argument on a docket-bound gap, read by the bench.
 message Closing {
-  optional string gap_id = 1;
-  optional string text = 2;
+  optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
+  optional string text = 2 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "the closing argument for this gap — the report renders it under the gap's docket"
+  }];
 }
 
 // Regrade moves a grade, with its reason. A grade decides what happens NEXT to a gap, so moving
 // one on a finished gap changes a number nobody reads.
 message Regrade {
-  optional string gap_id = 1;
+  optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
   optional Grade severity = 2;
   optional Grade likelihood = 3;
   optional Grade impact = 4;
   optional Grade complexity_cost = 5;
-  optional string basis = 6;
+  optional string basis = 6 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "grade movement is recorded with its reason"
+  }];
 }
 
 // SpotCheck re-reads archived closures. THE NUMBER IS COMPUTED FROM THE BOARD, NOT TAKEN FROM
@@ -482,18 +751,101 @@ message SpotCheck {
 
 // Opinion is the bench ruling on a gap.
 message Opinion {
-  optional string gap_id = 1;
+  // ONE QUESTION, TWO ASSERTABLE ANSWERS — the `friction --none` shape.
+  //
+  // "What would reopen this?" has a real answer of "nothing", and that answer must be POSITIVE.
+  // Left as an empty `reopens_on` it is indistinguishable from a bench that skipped the field,
+  // which is the defect the friction channel carried for eighteen consecutive sittings until
+  // `--none` made the empty case sayable.
+  option (check) = {
+    expr: "\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
+    why: "a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round"
+  };
 
-  // disposition stays a STRING, deliberately. Its set is open: closing it would mean a
-  // legitimate bench ruling failing hard mid-round. Two guards remain in validate — `halt` is
-  // refused because it is the bench's own verb and must not be reachable by a typo, and a
-  // near-miss spelling of a closure class is refused as the typo it is.
-  optional string disposition = 2;
+  // REFUSED TOGETHER rather than silently preferring one: a ruling that says both "this is final"
+  // and "here is what would undo it" has not decided, and picking for it would record a decision
+  // nobody made. It is a rule about two fields, so it lives here rather than in one verb's parse
+  // — the CLI is not the only writer, and the database was willing to store the contradiction.
+  option (check) = {
+    expr: "\"reopens_on\" IS NULL OR \"final\" IS NULL"
+    why: "--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one"
+  };
 
-  optional string principle = 3;
-  optional string tension = 4;
-  optional string review_flag = 5;
-  optional string rationale = 6;
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    flag: "id"
+    references: "mint.gap_id"
+    why: "which gap is being ruled on"
+  }];
+
+  // THE BENCH'S WORD, AND WHY IT IS NO LONGER A STRING.
+  //
+  // This field was `string` on a recorded decision: "its set is open — closing it would mean a
+  // legitimate bench ruling failing HARD mid-round." The premise was already false when it was
+  // written. `checkOpenSets` refuses any word outside `benchDispositions` at record.go:1131, so a
+  // bench ruling outside the set ALREADY failed hard mid-round; the string bought nothing except
+  // that the closed set lived in Go, one file from the field, where the schema could not see it.
+  //
+  // That is not hypothetical. The engine and the bench's own constitution instructed three
+  // dispositions the record refused, and the terminal dispute docket had no legal value at all —
+  // the drift was possible precisely because the vocabulary was not in the schema to be read off.
+  //
+  // Typed, the set is one declaration with four readers: the flag parser, the DDL's foreign key,
+  // the `closes` column the gap view folds on, and `--help`.
+  optional Disposition disposition = 2 [(sql) = {
+    required: true
+    flag: "as"
+    why: "how the gap ends, or `carried` to defer it with a stated research direction"
+  }];
+
+  // NON-EMPTY, and this is the one of the three that is. Decided 2026-08-22 by the operator,
+  // as a contract question rather than a storage one.
+  //
+  // A ruling always applies SOME rule, so an empty `principle` is exactly the decoration this
+  // verb was built to refuse — the measured failure is a bench that ruled `carried` on 64 of 65
+  // items, a router rather than a judge. `tension` and `review_flag` stay presence-only on the
+  // opposite argument: not every ruling has two values in conflict and most need no human to
+  // look, so demanding them would produce INVENTED tension and pro-forma flags, which read as
+  // reasoning and are worse than an honest blank.
+  optional string principle = 3 [(sql) = {
+    required: true
+    why: "the rule you are applying, stated so a later sitting can apply it too"
+  }];
+  optional string tension = 4 [(sql) = {
+    required: true
+    allow_empty: true
+    why: "what pulls the other way — a ruling with no acknowledged counterweight is an assertion"
+  }];
+  optional string review_flag = 5 [(sql) = {
+    required: true
+    allow_empty: true
+    flag: "review-flag"
+    why: "why a human should, or should not, look at this"
+  }];
+  optional string rationale = 6 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "the ruling's rationale — a disposition with no stated reasoning is indistinguishable from a default"
+  }];
+
+  // THE PROPOSITION NOW BARRED. A finding is a claim, its evidence and its demand; a fate says
+  // which of the three fell only to whoever wrote it. Presence-only for the same reason `tension`
+  // is: demanding prose here would produce a restatement of the disposition, which reads as
+  // reasoning and is worse than an honest blank.
+  optional string settled = 7 [(sql) = {
+    required: true
+    allow_empty: true
+    why: "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition"
+  }];
+
+  optional string reopens_on = 8 [(sql) = {
+    flag: "reopens-on"
+    why: "the evidence or condition that would make this worth raising again"
+  }];
+
+  // Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the
+  // check above is what makes "neither" unrepresentable.
+  optional bool final = 9;
 }
 
 // Finding is a lens observation. The label is TOOL-assigned (L{lens}-F{n}); an unlabelled
@@ -548,7 +900,11 @@ message Cite {
 
 // Verify is red reading a source at the leaf.
 message Verify {
-  optional string claim = 1;
+  optional string claim = 1 [(sql) = {
+    flag: "quote"
+    required: true
+    why: "the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or counted"
+  }];
 
   // A SOURCE IS NAMED BY url + title, here as in Cite. `reference` was a free-text third
   // spelling on the one verb that reads a source red found itself, so the corroboration a run
@@ -562,9 +918,38 @@ message Verify {
   optional bool independent = 4;
 
   optional string access_date = 5;
-  optional SourceOutcome outcome = 6;
-  optional Confidence confidence = 7;
-  optional string text = 8;
+  optional SourceOutcome outcome = 6 [(sql) = {
+    required: true
+    flag: "as"
+    why: "what the source ACTUALLY DID for the claim — the negative half is the point, and until 0.60.0 there was no field for it"
+  }];
+  optional Confidence confidence = 7 [(sql) = {
+    required: true
+    why: "how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts"
+  }];
+  optional string text = 8 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "what the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replace"
+  }];
+
+  // label IS THE FOOTNOTE, and it is what moves this event's key off the source.
+  //
+  // Set ONLY by `corroborate`, and only when the outcome supports: a source red found itself,
+  // for a claim blue made, becomes an ordinary footnote in the assembled bibliography. A human
+  // reader cares that the text has appropriate references, not which team inserted them —
+  // `citationid.go` used to say the opposite in as many words ("Red's `lens cite` carries no
+  // label and is EXCLUDED"), and the consequence was that red's independent corroboration
+  // reached no reader of the document at all.
+  //
+  // IT ALSO FIXES THE KEY, WITHOUT TOUCHING keyFields. That list is walked first-match, and
+  // `label` sits before `url` — so a corroboration with a label keys on the minted id and one
+  // source may corroborate many claims, exactly as `blue cite` may cite one url many times.
+  // Keyed on `url`, only the FIRST claim recorded and the rest were refused. Crash-retry
+  // idempotency stays where blue's is: on `--key`.
+  //
+  // `verify` never sets it — that verb keys on `anchor`, which already sits at one sentence.
+  optional string label = 11;
 
   reserved 2;
   reserved "reference";
@@ -582,8 +967,23 @@ message Proof {
   optional string proof_basis = 8;
   optional string answers = 4;
   optional string cites = 5;
-  optional bool drift = 6;
+
+  // drift is WHAT MOVED between the two runs, not merely that something did.
+  //
+  // It was a bool, and the sentence describing the divergence lived in the proof cache's
+  // meta.json instead. That split put a fact about the debate in a JSON file beside the record
+  // that exists to hold it — and the report renders the sentence, so the record was the one
+  // party to the exchange that could not say what happened. Absent means the two runs agreed.
+  optional string drift = 6;
+
   optional string text = 7;
+
+  // script and exit are the execution's own facts, and they belong here for the same reason:
+  // `report/proofs.go` renders both, and a reader of the record should not have to open a
+  // second store to learn how a proof ran. The script BODY and its output stay in the cache as
+  // CONTENT, addressed by proof_sha — content is not a fact about the debate.
+  optional string script = 9;
+  optional int32 exit = 10;
 }
 
 // Reproduce is red re-running a proof. REPRODUCING IS NOT PROVING: `reproduced` is COMPUTED by
@@ -598,15 +998,60 @@ message Reproduce {
   optional string note = 6;
 }
 
+// InquiryReview is one seat's statement, ONCE THIS ROUND, that it read the current report against
+// the record's lines of inquiry.
+//
+// The report's account of its own research — "we pursued X", "we deferred Y" — reaches the page as
+// a row `assemble` GENERATES from the record. It carries no citation anchor, so `lens verify`
+// cannot reach it: without this event nothing on the record says those claims were ever read, and
+// an unread section and a sound one are the same bytes.
+//
+// ONE EVENT PER ROUND, NOT ONE PER LINE, AND THE CORRECTION IS THE POINT. A retired shape gave
+// every line its own verdict on whether the report still CARRIED it. That made presence the
+// question, and presence is not a question: the lines reach the report on the WORKLIST, generated
+// from the record, so blue cannot cut them. A line is on the page because the record says it is,
+// and a per-line `cut`/`absent` state named something no writer could produce.
+//
+// WHAT IS LEFT IS AN ORDINARY GAP. The live question is whether blue's BODY delivered the research
+// a line claims — thin treatment, an unanswered hypothesis, a method never run. That is a defect
+// in the report, so it is minted as a gap and gets the lifecycle, the blue duty, the grade and the
+// PASS gate every other gap already has. A second vocabulary for the same fact is exactly the
+// aliasing this schema exists to remove.
+//
+// THE DISCHARGE IS MODELLED ON `friction --none`, for the same reason and with the same field.
+// Silence cannot clear a duty: an absent review reads identically whether the report was read and
+// found sound or nobody looked. So "nothing to say" must still be SAID — one event, this round,
+// carrying what the read found. `reason` is required at the write path for the reason
+// FrictionNone.text is: an explicit negative is only worth more than silence when it says what was
+// looked at.
+message InquiryReview {
+  optional string reason = 1;
+}
+
 // Avenue is a line of inquiry with a lifecycle. A PROPOSAL assigns the id and carries the
 // substance; a MOVE names the avenue and carries only the new status and its reason, which is
 // why `line` cannot be required unconditionally.
 message Avenue {
   optional string avenue_id = 1;
-  optional string line = 2;
+  // NOT `required`, which is what the message comment directly above has said all along — the
+  // annotation contradicted it. Only UNCONDITIONAL requirements belong on a field: `line` is
+  // required on a PROPOSAL and must not be on a MOVE, and record.go's Avenue arm spells that out
+  // ("requiring --line here would make a move impossible").
+  //
+  // Marked unconditional it did two things at once: CheckRequired refused every move before the
+  // conditional check could run, and the derived DDL put NOT NULL on the column so the row could
+  // not be stored either. A conditional requirement expressed as an unconditional one does not
+  // become stricter — it becomes wrong.
+  optional string line = 2 [(sql) = {
+    why: "what you are going to try — an unnamed avenue teaches a future run nothing"
+  }];
   optional string hypothesis = 3;
   optional string method = 4;
-  optional AvenueStatus status = 5;
+  optional AvenueStatus status = 5 [(sql) = {
+    required: true
+    flag: "as"
+    why: "the line's fate; the lines-of-inquiry projection groups by it"
+  }];
 
   // supersedes_status marks this event as a MOVE rather than a proposal.
   optional string supersedes_status = 6;
@@ -629,6 +1074,24 @@ message BlueEdit {
   // applied_verbatim marks text taken unchanged from red's own --fix-new. Estoppel is enforced
   // on it: red may not open a clean slate against its own words.
   optional bool applied_verbatim = 6;
+
+  // reopened are the anchors whose SENTENCE this edit changed — the citations, findings and
+  // proofs whose referent moved under them.
+  //
+  // THE ANCHOR AND ITS REFERENT ARE TWO CONCERNS AND ONLY ONE WAS ENFORCED. An anchor is never
+  // lost: `droppedMarker` refuses any edit that would drop one, and that promise holds — measured.
+  // But an anchor that SURVIVES onto rewritten text is a citation backing a sentence nobody read,
+  // and nothing said so. Measured: blue cited "The sky is blue and the grass is green", rewrote it
+  // to "The sky is green and the grass is on fire", and the citation followed the inversion.
+  //
+  // Text moves through exactly ONE path — `blue edit` — so the no-loss proof and the
+  // requires-review mark belong on that one channel rather than being inferred later by a reader
+  // comparing documents it no longer has.
+  //
+  // It is a REOPENING, not an invalidation: the reference stands, and what changed is that its
+  // referent needs looking at again. A verification of a reopened anchor is stale rather than
+  // wrong, which is a different fact and gets a different word.
+  repeated string reopened = 7;
 }
 
 message Revision {
@@ -637,14 +1100,21 @@ message Revision {
 
 // Retire removes substance from the report. Substance leaves ONLY with its reason recorded.
 message Retire {
-  optional string claim = 1;
-  optional string reason = 2;
+  optional string claim = 1 [(sql) = {
+    flag: "quote"
+    required: true
+    why: "quote the claim as it stood — a removal nobody can identify is not on the record"
+  }];
+  optional string reason = 2 [(sql) = {
+    required: true
+    why: "refuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recorded"
+  }];
   optional string superseded_by = 3;
   optional string removal_basis = 4;
 }
 
 message ManifestRow {
-  optional string gap_id = 1;
+  optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
   optional string row = 2;
 }
 
@@ -654,7 +1124,7 @@ message ManifestRow {
 // A `{text}`-only Friction message would have reverted that fix silently.
 enum FrictionKind {
   FRICTION_KIND_UNSPECIFIED = 0;  // a seat's own report: a capability it needed and did not have
-  FRICTION_KIND_ESTOPPEL = 1;     // an estoppel REFUSAL, recorded by the tool rather than the seat
+  FRICTION_KIND_ESTOPPEL = 1 [(means) = "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit"];     // an estoppel REFUSAL, recorded by the tool rather than the seat
 
   // TOOL_ERROR is the record's answer to a swallowed error, and it is why the KIND field earns
   // its keep twice over.
@@ -668,7 +1138,7 @@ enum FrictionKind {
   // SEAT's report of a missing capability, and folding tool faults into that count would move a
   // number an operator reads for a reason unrelated to what it measures — the #283 property this
   // enum exists to protect. Filter by kind; the counts stay honest.
-  FRICTION_KIND_TOOL_ERROR = 2;
+  FRICTION_KIND_TOOL_ERROR = 2 [(means) = "the TOOL failed internally — unparseable input, an undecodable row, a check that could not run. Recorded rather than printed or swallowed, because an error nobody learns about is one nothing improves on. Distinct from a seat's own friction so the counts an operator reads stay about capability gaps"];
 }
 
 // Friction is the escalation channel that keeps a missing tool from becoming a silent workaround
@@ -702,7 +1172,11 @@ message FrictionNone {
 // The `subject` enum is kept alongside for the same reason `Event.type` is kept alongside its
 // body oneof: readers switch on it, and it is checked against the oneof case at the write.
 message Motion {
-  optional string motion_id = 1;
+  optional string motion_id = 1 [(sql) = {
+    required: true
+    unique: true
+    why: "the id everything else joins on — the tool assigns it, and a motion without one cannot be ruled, appealed or rendered"
+  }];
   optional MotionSubject subject = 2;
 
   // basis is the ASK in the filer's words. A motion with no argument is a demand, and the ruler
@@ -722,7 +1196,9 @@ message Motion {
 // not exist is dropped at replay, and one against a gap already disposed of asks for a
 // disposition that has already been made.
 message GradeMotion {
-  optional string gap_id = 1;
+  // A grade motion contests a REAL gap's grade. This is the arm whose foreign keys the generator
+  // dropped entirely until the golden was read; the referent is now enforced with the vocabulary.
+  optional string gap_id = 1 [(sql) = { references: "mint.gap_id" }];
   optional GradeDimension dimension = 2;
   optional Grade proposed = 3;
 }
@@ -730,10 +1206,10 @@ message GradeMotion {
 // GradeDimension is which axis of a gap's grading is contested.
 enum GradeDimension {
   GRADE_DIMENSION_UNSPECIFIED = 0;
-  GRADE_DIMENSION_SEVERITY = 1;
-  GRADE_DIMENSION_LIKELIHOOD = 2;
-  GRADE_DIMENSION_IMPACT = 3;
-  GRADE_DIMENSION_COMPLEXITY_COST = 4;
+  GRADE_DIMENSION_SEVERITY = 1 [(means) = "how bad it is if it bites"];
+  GRADE_DIMENSION_LIKELIHOOD = 2 [(means) = "how likely the CONSEQUENCE is — not how sure you are the defect exists, which is a separate axis"];
+  GRADE_DIMENSION_IMPACT = 3 [(means) = "how far the damage reaches"];
+  GRADE_DIMENSION_COMPLEXITY = 4 [(means) = "what the fix costs; it is what makes defect_accepted arguable"];
 }
 
 // PetitionMotion is the constitutional short-circuit: any party seat may petition the bench.
@@ -741,12 +1217,27 @@ message PetitionMotion {
   optional PetitionClass class = 1;
 }
 
+// THE PETITION CLASSES, AND THIS ENUM WAS NEVER MIGRATED TO THEM.
+//
+// It carried `integrity | safety | process | scope` while the help, debate.js's PETITIONS schema,
+// the report and internal/cli/motion's own Short line all said `ethical | safety | integrity |
+// constitutional`. Two of four overlapped, so half the filings worked and half were refused with
+// "X is not a petition class" — for a value the seat had just read in `--help`. Measured in the
+// fuzz: 22 of 40 `motion petition file` invocations refused.
+//
+// `process` and `scope` are RESERVED rather than renumbered. No Go code ever referenced them and
+// no surface could produce them, so nothing has written a 3 or a 4 — but a number back in service
+// silently reinterprets any record that did, and that rule does not bend for values one is
+// confident are unused. 1 and 2 keep their numbers because they are the two that worked.
 enum PetitionClass {
+  reserved 3, 4;
+  reserved "PETITION_CLASS_PROCESS", "PETITION_CLASS_SCOPE";
+
   PETITION_CLASS_UNSPECIFIED = 0;
-  PETITION_CLASS_INTEGRITY = 1;
-  PETITION_CLASS_SAFETY = 2;
-  PETITION_CLASS_PROCESS = 3;
-  PETITION_CLASS_SCOPE = 4;
+  PETITION_CLASS_INTEGRITY = 1 [(means) = "proceeding would require asserting what you believe false, or burying a real finding"];
+  PETITION_CLASS_SAFETY = 2 [(means) = "proceeding would create or conceal a hazard"];
+  PETITION_CLASS_ETHICAL = 5 [(means) = "proceeding would require acting against the interests of someone the run affects"];
+  PETITION_CLASS_CONSTITUTIONAL = 6 [(means) = "the instruction itself conflicts with the rules the run is bound by"];
 }
 
 // DirectionMotion rules on a line of inquiry blue proposed. The id is the AVENUE's own — a
@@ -759,7 +1250,33 @@ message DirectionMotion {
 // motion-rule event carries granted|denied for a petition and accepted|rejected for a grade.
 // An unrecognized ruling reads as no ruling at all, so a refusal silently becomes permission.
 message MotionRule {
-  optional string motion_id = 1;
+  // THE CONSTRAINT THE SHARDED LOG COULD NOT HAVE. Filing and ruling are written by different seats
+  // into different files, and replay merged them by timestamp — so a ruling could replay BEFORE its
+  // filing, which record/motion.go records in capitals and works around with a second pass. Here it
+  // is simply unwritable.
+  optional string motion_id = 1 [(sql) = {
+    required: true
+    // `--id`, the word every verb uses for the thing it is acting on. Without it the flag was
+    // derived as `--motion-id`, which no command registers — so the contract gate read the
+    // requirement as invisible, and it was right.
+    flag: "id"
+    // NO `references`, AND THE REASON IS THE DOMAIN RATHER THAN THE MECHANISM.
+    //
+    // It carried `references: "motion.motion_id"`, which reads right and is false for one subject
+    // in three: a DIRECTION motion has no motion row. "The proposal IS the filing" — `motion
+    // direction rule` names the line of inquiry's own id, so the referent is an `avenue`, not a
+    // `motion`. The foreign key refused every direction ruling in the tool.
+    //
+    // A conditional foreign key is not expressible (a CHECK cannot hold a subquery), and a trigger
+    // could enforce it while saying nothing useful — RAISE takes a static string, so a seat would
+    // learn only that something was refused. The rule is SUBJECT-AWARE, so it lives where the
+    // subject is known: RequireMotionSubjectRef checks a grade or petition ruling against the
+    // motions and a direction ruling against the lines, and says which it could not find.
+    //
+    // A constraint that is wrong for a third of the cases is worse than none: it refuses correct
+    // work, and it reads as a guarantee.
+    why: "the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312"
+  }];
   optional MotionSubject subject = 2;
   optional string opinion = 3;
 
@@ -775,17 +1292,42 @@ message MotionRule {
   optional RulingBinds binds = 4;
 }
 
+// WHO GRANTED RELIEF BINDS, AND NOT ONE OF ITS OLD VALUES COULD EVER BE PASSED.
+//
+// It carried `all | filer | none` — a generic "how binding is this" — while the flag's help, the
+// hand-written table it renders from, and debate.js all say `blue | red | both`. ZERO overlap, so
+// `--binds` was refused for every value a seat could read, and since `--binds` is set exactly
+// when a petition is GRANTED, **no granted petition could be recorded at all**. The safety
+// short-circuit's grant path did not work. Measured in the fuzz: 8 of 18 `motion petition rule`
+// invocations refused, which is the granted half of a 50/50 coin.
+//
+// The vocabulary here is an ADDRESSEE, not a strength, and that is the point #360 measured: a
+// bench granted relief for the coming round and recorded in its own friction that it had "issued
+// a direction to red knowing it has no carrier", because the engine threaded relief into exactly
+// one prompt. Routing needs someone to route TO. `all | filer | none` cannot say that.
+//
+// Reserved rather than renumbered, for the reason PetitionClass states: nothing could write these
+// numbers, and a number back in service reinterprets any record that did.
 enum RulingBinds {
+  reserved 1, 2, 3;
+  reserved "RULING_BINDS_ALL", "RULING_BINDS_FILER", "RULING_BINDS_NONE";
+
   RULING_BINDS_UNSPECIFIED = 0;
-  RULING_BINDS_ALL = 1;
-  RULING_BINDS_FILER = 2;
-  RULING_BINDS_NONE = 3;
+  RULING_BINDS_BLUE = 4 [(means) = "the relief binds the response seat — what blue must do, or must not, in the coming round"];
+  RULING_BINDS_RED = 5 [(means) = "it binds the audit seats: the lenses and the merge"];
+  RULING_BINDS_BOTH = 6 [(means) = "it binds the whole exchange, and every dispatched seat carries it"];
 }
 
 // MotionAppeal records that a party pressed a ruling — whether or not it also complied. Arguing
 // and then yielding belongs on the record instead of vanishing.
 message MotionAppeal {
-  optional string motion_id = 1;
+  // An appeal names the motion it appeals — and NOT as a foreign key, for the reason MotionRule
+  // records at length: a direction appeal names the line of inquiry's own id, because the proposal
+  // is the filing and there is no motion row. I added the reference here for symmetry with the
+  // ruling's, and it was wrong in both places for the same third of cases.
+  //
+  // RequireMotionSubjectRef is the check, and it knows the subject.
+  optional string motion_id = 1 [(sql) = { flag: "id" }];
   optional MotionSubject subject = 2;
   optional string reason = 3;
 }
@@ -797,11 +1339,43 @@ message Register {
   // tool_version is stamped on the seat's first act, so a run that somehow mixes binaries says
   // so in its own record instead of producing events whose difference nobody can explain.
   optional string tool_version = 1;
+
+  // THE BINDING BETWEEN A HARNESS AGENT AND A SEAT, WRITTEN HERE AND NOWHERE ELSE.
+  //
+  // register is every seat's stated first action, which makes it the one moment the mapping is
+  // knowable: the hook supplies the agent id — the only payload field that discriminates one
+  // seat from another — and the seat supplies which seat it is. Recording their join is what
+  // turns self-asserted identity into a fact later calls can be held to.
+  //
+  // A FIELD, NOT A SIDE TABLE. The alternative was a JSON map the hook keeps, keyed on a seat id
+  // recovered by parsing the seat's own command — a fact read back out of prose, whose miss is
+  // indistinguishable from an honest absence.
+  //
+  // ABSENT IS NOT "". A run whose hook never fired carries no agent_id on any register event, and
+  // that stays legible as NOT MEASURED rather than reading as an agent whose handle is empty.
+  optional string agent_id = 2;
+
+  // run_via says which path supplied the run directory. A run whose seats all resolve by
+  // INFERENCE is a run the PreToolUse hook is not reaching, and nothing else records that.
+  //
+  // Absent on an IMPLICIT register, and that absence is the honest answer: that path fires when a
+  // seat writes before registering, so nothing observed how the run directory was resolved, and a
+  // guess would put a fact on the record nobody measured.
+  optional string run_via = 3;
 }
 
-// Verdict_ carries red's terminal gate. Named with a trailing underscore because `Verdict` is
-// the enum; the field is `verdict` either way and the wire is unaffected.
-message Verdict_ {
+// RoundVerdict carries red's terminal gate on a round.
+//
+// IT WAS `Verdict_`, with a trailing underscore, because `Verdict` is the enum and protoc-gen-go
+// would collide the two Go identifiers. That is a real constraint and it was solved in the wrong
+// place: the workaround named the MESSAGE after a property of the code generator, and the name
+// then travelled all the way into the record as a table called `verdict_` — a Go artifact sitting
+// in the schema a human reads to understand the debate.
+//
+// `RoundVerdict` says what it is. The collision is gone because the name is different, not because
+// it was decorated, and the wire is unaffected either way: field numbers carry the format, names do
+// not.
+message RoundVerdict {
   optional Verdict verdict = 1;
 }
 
@@ -809,8 +1383,16 @@ message Verdict_ {
 // ENDED is not, and on a judged deadlock this prose is the only evidence that determination
 // will ever have.
 message Outcome {
-  optional RunOutcome verdict = 1;
-  optional string prose = 2;
+  optional RunOutcome verdict = 1 [(sql) = {
+    required: true
+    flag: "as"
+    why: "the run's terminal verdict — an outcome event without one records that the run ENDED and not how, and every reader downstream sees a run that never reached a verdict"
+  }];
+  optional string prose = 2 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on a judged deadlock it is the only evidence that determination will ever have"
+  }];
   optional string verdict_why = 3;
 
   // A HAND CENSUS DOES NOT FIND THESE: a grep requiring `.Set(` on one line cannot see a chained
@@ -836,13 +1418,21 @@ message Position {
 // Halt is the safety boundary, and it reaches the human as the words the bench chose, relayed
 // verbatim — so a halt with no written opinion cannot do its one job.
 message Halt {
-  optional string opinion = 1;
+  optional string opinion = 1 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "the written opinion capture relays verbatim — a halt nobody can read is a stop with no stated cause"
+  }];
 }
 
 // Certify is the bench's continuity: what it would want a human to re-examine. The bench keeps
 // no memory between runs, so this statement is the whole of it.
 message Certify {
-  optional string statement = 1;
+  optional string statement = 1 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "what you would want a human to re-examine — the bench keeps no memory between runs, so this statement is its continuity"
+  }];
 }
 
 message Declare {

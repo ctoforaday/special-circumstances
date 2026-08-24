@@ -2,11 +2,14 @@ package cli
 
 import (
 	"bytes"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // THE ESCAPING TAX.
@@ -31,7 +34,7 @@ func TestPayloadArrivesIntactThroughStdin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("--reason-file - : %v (%s)", err, out)
 	}
-	if got := lastOfType(t, runDir, "friction").Payload.Str("reason"); got != hostile {
+	if got := lastBody(t, runDir, &recordpb.Friction{}).GetText(); got != hostile {
 		t.Errorf("the payload did not survive stdin.\n got: %q\nwant: %q", got, hostile)
 	}
 }
@@ -53,18 +56,20 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 	}
 
 	for _, c := range []struct {
-		name, key string
+		name, field string
 		// typ is the event type to look for. It used to be args[1] — the verb word, read back
 		// out of the argv the case had just composed. That works only while every command path
 		// is <role> <verb> AND the verb word equals the event type; `motion grade file` breaks
 		// both halves at once, and the failure was "no grade event in the log".
-		typ  string
+		typ  recordpb.EventType
 		args []string
 	}{
-		{"merge regrade", "reason", "regrade", []string{"regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
-		{"motion grade rule", "reason", "motion-rule", []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted"}},
-		{"motion grade file", "reason", "motion", []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
-		{"motion petition file", "reason", "motion", []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--class", "safety", "--relief", "halt"}},
+		// NO ROLE SEGMENT: the surface is the seat's, so `regrade` sits at the root of the merge
+		// tree. `motion …` below keeps its path because motion is a real subgroup within it.
+		{"merge regrade", "basis", recordpb.EventType_EVENT_TYPE_REGRADE, []string{"regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
+		{"motion grade rule", "opinion", recordpb.EventType_EVENT_TYPE_MOTION_RULE, []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted"}},
+		{"motion grade file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
+		{"motion petition file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--class", "safety", "--relief", "halt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			// The path is however many leading non-flag words the case supplies.
@@ -78,9 +83,21 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 			if out, err := runStdin(t, hostile, args...); err != nil {
 				t.Fatalf("%s via stdin: %v (%s)", c.name, err, out)
 			}
+			// THE FIELD, NOT THE FLAG. `--reason` is what a seat types; the field it lands in is
+			// spelled per verb (a regrade stores `basis`, a ruling `opinion`), which is exactly
+			// the fold flags.ForPayloadKey exists for.
 			ev := lastOfType(t, runDir, c.typ)
-			if got := ev.Payload.Str(c.key); got != hostile {
-				t.Errorf("%s did not fill %s from the payload channel.\n got: %q\nwant: %q", c.name, c.key, got, hostile)
+			body, ok := recordpb.Body(ev)
+			if !ok {
+				t.Fatalf("%s wrote an event with no body", c.name)
+			}
+			m := body.ProtoReflect()
+			fd := m.Descriptor().Fields().ByName(protoreflect.Name(c.field))
+			if fd == nil {
+				t.Fatalf("%s: %s has no field %q", c.name, m.Descriptor().FullName(), c.field)
+			}
+			if got := m.Get(fd).String(); got != hostile {
+				t.Errorf("%s did not fill %s from the prose channel.\n got: %q\nwant: %q", c.name, c.field, got, hostile)
 			}
 		})
 	}
@@ -93,7 +110,7 @@ func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 	runDir := seatRun(t)
 	// Driven through `merge position` since #327 retired `dispose`, which this used to use.
 	// The rule is the seat.Prose contract's, not any one verb's — any prose verb proves it.
-	both := filepath.Join(t.TempDir(), "prose.md")
+	both := filepath.Join(tmpRun(t), "prose.md")
 	if werr := os.WriteFile(both, []byte("from a file"), 0o644); werr != nil {
 		t.Fatal(werr)
 	}
@@ -166,8 +183,8 @@ func TestReasonFileReadsStdinThroughTheDashConvention(t *testing.T) {
 		"--seat-id", "red-lens-r1-L1", "--reason-file", "-"); err != nil {
 		t.Fatalf("--reason-file -: %v", err)
 	}
-	ev := lastOfType(t, runDir, "friction")
-	if got := ev.Payload.Str("reason"); got != hostile {
+	ev := lastBody(t, runDir, &recordpb.Friction{})
+	if got := ev.GetText(); got != hostile {
 		t.Errorf("text = %q, want the stdin content intact", got)
 	}
 }

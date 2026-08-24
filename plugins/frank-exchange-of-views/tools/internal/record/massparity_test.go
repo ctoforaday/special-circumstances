@@ -38,7 +38,18 @@ const debateJS = "../../../skills/research-protocol/scripts/debate.js"
 var (
 	reMassVersion = regexp.MustCompile(`(?m)^const MASS_MAPPING_VERSION\s*=\s*'([^']*)'`)
 	reMassTable   = regexp.MustCompile(`(?m)^const MASS\s*=\s*\{([^}]*)\}`)
-	reMassEntry   = regexp.MustCompile(`'?([a-z-]+)'?\s*:\s*([0-9.]+)`)
+	// ANCHORED ON THE SEPARATOR, and the key charset includes `_`.
+	//
+	// It was `'?([a-z-]+)'?\s*:\s*([0-9.]+)` — letters and a HYPHEN, no underscore — so
+	// `'low_medium': 1.5` did not fail to match. It matched the TAIL: `medium` : 1.5. The parse
+	// then carried `medium=1.5` until the real `medium: 2` overwrote it, and reported
+	// `low_medium` and `medium_high` ABSENT from a file that declares both. A regex that
+	// half-matches is worse than one that misses: the miss is a hole, the half-match is a wrong
+	// answer wearing a right one's clothes.
+	//
+	// Anchoring on `{` or `,` means a key must start where a key can start, so a partial match is
+	// not a match at all.
+	reMassEntry = regexp.MustCompile(`[{,]\s*'?([a-z_]+)'?\s*:\s*([0-9.]+)`)
 )
 
 func readDebateJS(t *testing.T) string {
@@ -81,7 +92,16 @@ func TestMassTableMatchesTheEngine(t *testing.T) {
 		t.Fatalf("no `const MASS = { ... }` in %s — see the sibling test on why this fails rather "+
 			"than skips.", debateJS)
 	}
-	entries := reMassEntry.FindAllStringSubmatch(tbl[1], -1)
+	// The table body is comma-separated, so the entry count is knowable independently of the
+	// pattern that reads them. A parse that finds FEWER is silently skipping a key, which is the
+	// defect the anchor above exists to prevent — and it would otherwise be reported as a
+	// divergence in the mapping rather than as a broken read.
+	if want := strings.Count(tbl[1], ",") + 1; len(reMassEntry.FindAllStringSubmatch("{"+tbl[1], -1)) != want {
+		t.Fatalf("the MASS table in %s has %d comma-separated entries and the parse found %d — "+
+			"a partial parse reports the keys it could not see as ABSENT, which reads as a real "+
+			"divergence between the two tables", debateJS, want, len(reMassEntry.FindAllStringSubmatch("{"+tbl[1], -1)))
+	}
+	entries := reMassEntry.FindAllStringSubmatch("{"+tbl[1], -1)
 	if len(entries) == 0 {
 		t.Fatalf("`const MASS` in %s parsed to ZERO entries. An empty parse compares equal to "+
 			"nothing and would report success; failing instead.", debateJS)

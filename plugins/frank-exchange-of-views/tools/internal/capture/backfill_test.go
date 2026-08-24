@@ -1,8 +1,9 @@
 package capture
 
 import (
-	"os"
-	"path/filepath"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
 	"time"
@@ -16,33 +17,24 @@ import (
 
 const bfStamp = "2006-01-02T15:04:05.000000000Z"
 
-// bfSeat writes one seat's shard: a register at t0, then n events at the given offsets from t0.
+// bfSeat seeds one seat's acts: a register at t0, then n events at the given offsets from t0.
 // Stamps are written verbatim so a test can state the timing it means rather than depend on a
-// clock.
-func bfSeat(t *testing.T, dir, seat string, nonce string, t0 time.Time, offsets []time.Duration) {
+// clock — which is the whole subject of this audit.
+//
+// It wrote a shard file and hand-marshalled each line. The record is a database, so a fixture that
+// writes a file leaves the run EMPTY and every assertion below would pass against a board that was
+// never built — a green test measuring nothing.
+func bfSeat(t *testing.T, dir, seat string, t0 time.Time, offsets []time.Duration) {
 	t.Helper()
-	recs := filepath.Join(dir, "records")
-	if err := os.MkdirAll(recs, 0o755); err != nil {
-		t.Fatal(err)
+	evs := []*recordpb.Event{
+		recordtest.Stamped(recordtest.At(t, seat, 1, seat+":register", &recordpb.Register{}), t0.Format(bfStamp)),
 	}
-	var lines []byte
-	add := func(e record.Event) {
-		b, err := record.MarshalEvent(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		lines = append(lines, append(b, '\n')...)
-	}
-	add(record.Event{Seq: 0, TS: t0.Format(bfStamp), SeatID: seat, Nonce: nonce, Round: 1,
-		Type: "register", Key: seat + ":register", Payload: record.NewPayload()})
 	for i, off := range offsets {
-		add(record.Event{Seq: i + 1, TS: t0.Add(off).Format(bfStamp), SeatID: seat, Nonce: nonce, Round: 1,
-			Type: "finding", Key: seat + ":finding:F" + string(rune('1'+i)),
-			Payload: record.NewPayload().Set("reason", "r")})
+		evs = append(evs, recordtest.Stamped(
+			recordtest.At(t, seat, 1, seat+":finding:F"+string(rune('1'+i)), &recordpb.Finding{Text: proto.String("r")}),
+			t0.Add(off).Format(bfStamp)))
 	}
-	if err := os.WriteFile(filepath.Join(recs, "events-"+seat+"-"+nonce+".jsonl"), lines, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	recordtest.Seed(t, dir, evs...)
 }
 
 func bfT0(t *testing.T) time.Time {
@@ -63,7 +55,7 @@ func TestBackfillAuditWarnsOnAClosingBurst(t *testing.T) {
 	base := 10 * time.Minute
 	offs := []time.Duration{base, base + 100*time.Millisecond, base + 200*time.Millisecond,
 		base + 300*time.Millisecond, base + 400*time.Millisecond, base + 500*time.Millisecond}
-	bfSeat(t, dir, "red-lens-r1-L1", "0000000a", t0, offs)
+	bfSeat(t, dir, "red-lens-r1-L1", t0, offs)
 
 	a := BackfillAudit(dir)
 	if a.Verdict != "WARN" {
@@ -84,7 +76,7 @@ func TestBackfillAuditPassesWhenRecordingIsSpreadAcrossTheSitting(t *testing.T) 
 	t0 := bfT0(t)
 	offs := []time.Duration{1 * time.Minute, 3 * time.Minute, 5 * time.Minute,
 		7 * time.Minute, 9 * time.Minute, 10 * time.Minute}
-	bfSeat(t, dir, "red-lens-r1-L1", "0000000b", t0, offs)
+	bfSeat(t, dir, "red-lens-r1-L1", t0, offs)
 
 	a := BackfillAudit(dir)
 	if a.Verdict != "PASS" {
@@ -101,7 +93,7 @@ func TestBackfillAuditDoesNotJudgeASeatBelowTheEventFloor(t *testing.T) {
 	dir := t.TempDir()
 	t0 := bfT0(t)
 	offs := []time.Duration{10 * time.Minute, 10*time.Minute + time.Millisecond, 10*time.Minute + 2*time.Millisecond}
-	bfSeat(t, dir, "red-lens-r1-L1", "0000000c", t0, offs)
+	bfSeat(t, dir, "red-lens-r1-L1", t0, offs)
 
 	a := BackfillAudit(dir)
 	if a.Verdict != "PASS" {
@@ -120,18 +112,14 @@ func TestBackfillAuditDoesNotJudgeASeatBelowTheEventFloor(t *testing.T) {
 func TestBackfillAuditReportsUnparseableStampsRatherThanDroppingThem(t *testing.T) {
 	dir := t.TempDir()
 	t0 := bfT0(t)
-	bfSeat(t, dir, "red-lens-r1-L1", "0000000d", t0, []time.Duration{time.Minute, 2 * time.Minute})
+	bfSeat(t, dir, "red-lens-r1-L1", t0, []time.Duration{time.Minute, 2 * time.Minute})
 
-	recs := filepath.Join(dir, "records")
-	bad := record.Event{Seq: 0, TS: "not-a-timestamp", SeatID: "red-merge-r1", Nonce: "0000000e",
-		Round: 1, Type: "finding", Key: "red-merge-r1:finding:F1", Payload: record.NewPayload()}
-	b, err := record.MarshalEvent(bad)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(recs, "events-red-merge-r1-0000000e.jsonl"), append(b, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	// `ts` is TEXT, so an unparseable stamp is still storable — which is the point: the DATABASE
+	// cannot reject prose that is not a timestamp, so the audit still has to notice rather than
+	// fold the miss into its zero.
+	recordtest.Seed(t, dir, recordtest.Stamped(
+		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:finding:F1", &recordpb.Finding{}),
+		"not-a-timestamp"))
 
 	a := BackfillAudit(dir)
 	if !strings.Contains(a.Detail, "NOT MEASURED") {
@@ -147,24 +135,13 @@ func TestBackfillAuditReportsUnparseableStampsRatherThanDroppingThem(t *testing.
 func TestBackfillAuditSkipsASeatWithNoRegister(t *testing.T) {
 	dir := t.TempDir()
 	t0 := bfT0(t)
-	recs := filepath.Join(dir, "records")
-	if err := os.MkdirAll(recs, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	var lines []byte
+	var evs []*recordpb.Event
 	for i := 0; i < 6; i++ {
-		e := record.Event{Seq: i, TS: t0.Add(10*time.Minute + time.Duration(i)*time.Millisecond).Format(bfStamp),
-			SeatID: "red-lens-r1-L1", Nonce: "0000000f", Round: 1, Type: "finding",
-			Key: "red-lens-r1-L1:finding:F" + string(rune('1'+i)), Payload: record.NewPayload()}
-		b, err := record.MarshalEvent(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		lines = append(lines, append(b, '\n')...)
+		evs = append(evs, recordtest.Stamped(
+			recordtest.At(t, "red-lens-r1-L1", 1, "red-lens-r1-L1:finding:F"+string(rune('1'+i)), &recordpb.Finding{}),
+			t0.Add(10*time.Minute+time.Duration(i)*time.Millisecond).Format(bfStamp)))
 	}
-	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-r1-L1-0000000f.jsonl"), lines, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	recordtest.Seed(t, dir, evs...)
 
 	a := BackfillAudit(dir)
 	if a.Verdict != "PASS" {

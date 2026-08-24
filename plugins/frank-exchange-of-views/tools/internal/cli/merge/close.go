@@ -4,11 +4,14 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // close: retire a gap, WITH the evidence that it is retired.
@@ -33,9 +36,9 @@ func newClose() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		seat.Set(cmd, p, "anchor_seat", flags.VerifiedBy)
-		seat.Set(cmd, p, "anchor_tool", flags.VerifiedWith)
-		seat.Set(cmd, p, "anchor_target", flags.VerifiedAgainst)
+		p.AnchorSeat = proto.String(seat.Str(cmd, flags.VerifiedBy))
+		p.AnchorTool = proto.String(seat.Str(cmd, flags.VerifiedWith))
+		p.AnchorTarget = proto.String(seat.Str(cmd, flags.VerifiedAgainst))
 		// A COMPUTATION CHECK CANNOT BE CLOSED BY PROSE.
 		//
 		// This is what makes --check-kind a demand rather than a label. Red asked for a
@@ -55,10 +58,10 @@ func newClose() *cobra.Command {
 					seat.Str(cmd, flags.ID), seat.Str(cmd, flags.ID))
 			}
 		}
-		if _, err := record.Append(s.Identity(), "close", p); err != nil {
+		if _, err := record.Append(s.Identity(), p); err != nil {
 			return nil, err
 		}
-		return closeResult{GapID: seat.Str(cmd, flags.ID), Class: p.Str("closure_class")}, nil
+		return closeResult{GapID: seat.Str(cmd, flags.ID), Class: recordpb.Word(p.GetClosureClass())}, nil
 	})
 
 	closureFlags(c)
@@ -70,7 +73,15 @@ func newClose() *cobra.Command {
 	// unanchored one that spent the seat's turn before saying so.
 	c.MarkFlagsRequiredTogether(flags.VerifiedBy, flags.VerifiedWith, flags.VerifiedAgainst)
 	_ = c.MarkFlagRequired(flags.VerifiedBy)
-	return seat.Prose(c)
+	// THE ARGUMENT IS UNCONDITIONAL FOR THIS VERB, AND CONDITIONAL FOR THE MESSAGE — the same
+	// split `blue line-of-inquiry propose` makes for --reason, and for the same reason.
+	//
+	// `Close.prose` carried `required: true`, which refuses unconditionally and therefore refused
+	// a CARRY — a carry restates a closure an earlier round already argued. Making it conditional
+	// fixed the carry and cost THIS verb both its cobra refusal and its REQUIRED marker.
+	// seat.ProseRequired restores the two together; separating them is how a parser ends up
+	// holding a rule the help does not state.
+	return seat.ProseRequired(c)
 }
 
 // carry: restate a closure made in an earlier round.
@@ -85,11 +96,11 @@ func newCarry() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		seat.Set(cmd, p, "carried_from", flags.CarriedFrom)
-		if _, err := record.Append(s.Identity(), "close", p); err != nil {
+		p.CarriedFrom = proto.String(seat.Str(cmd, flags.CarriedFrom))
+		if _, err := record.Append(s.Identity(), p); err != nil {
 			return nil, err
 		}
-		return closeResult{GapID: seat.Str(cmd, flags.ID), Class: p.Str("closure_class"), Carried: true}, nil
+		return closeResult{GapID: seat.Str(cmd, flags.ID), Class: recordpb.Word(p.GetClosureClass()), Carried: true}, nil
 	}), "close")
 
 	closureFlags(c)
@@ -107,21 +118,41 @@ func closureFlags(c *cobra.Command) {
 }
 
 // closurePayload builds what a closure records before either verb adds its own evidence.
-func closurePayload(cmd *cobra.Command) (*record.Payload, error) {
-	class := seat.Str(cmd, flags.As)
-	if class == "" {
-		class = "repaired"
+func closurePayload(cmd *cobra.Command) (*recordpb.Close, error) {
+	word := seat.Str(cmd, flags.As)
+	if word == "" {
+		// THE DEFAULT IS THE PLAIN REPAIR, and it is spelled from the schema rather than typed.
+		// It was the literal "closed", which stopped being a word this vocabulary carries when the
+		// values were renamed to name the DEFECT's state rather than the paperwork — so every
+		// close that omitted --as was refused by its own default.
+		word = recordpb.Word(recordpb.Disposition_DISPOSITION_REPAIRED)
 	}
-	p := seat.Set(cmd, record.NewPayload(), "gap_id", flags.ID)
-	p.Set("closure_class", class)
-	seat.Set(cmd, p, "successor", flags.SupersededBy)
+	class, ok := record.DispositionOf(word)
+	if !ok {
+		return nil, feov.Errorf(feov.Validation,
+			"merge close: %q is not a disposition — an unrecognized word lands in no bucket and the gap reads as closed for no stated reason", word)
+	}
+	// A MERGE MAY CLOSE AND MAY NOT CARRY, and the subset comes off the vocabulary rather than from
+	// a word typed here. The database refuses the same value through the CHECK the schema generates
+	// from `subset: "closes"`, so this refusal is the teaching copy of a constraint that holds even
+	// against SQL written straight at the file.
+	if !recordpb.Closes(class) {
+		return nil, feov.Errorf(feov.Validation,
+			"merge close: %q defers the gap instead of closing it, and deferring is the BENCH decision — a close asserts a verified repair. Rule it from the bench with `feov-record bench opinion --as %s`, or close it with a class that states what the repair was", word, word)
+	}
 	// The SHARED prose channel, not a private one. close hand-rolled its own --file read and so
 	// was the only prose-bearing verb with no --text at all — a verb that opts out of the shared
 	// helper drifts from it by construction.
-	if err := seat.SetReason(cmd, p, "reason"); err != nil {
+	prose, err := seat.Reason(cmd)
+	if err != nil {
 		return nil, err
 	}
-	return p, nil
+	return &recordpb.Close{
+		GapId:        proto.String(seat.Str(cmd, flags.ID)),
+		ClosureClass: &class,
+		Successor:    seat.OptStr(cmd, flags.SupersededBy),
+		Prose:        proto.String(prose),
+	}, nil
 }
 
 // closeResult names the closed gap and the closure class it was retired under.
@@ -151,5 +182,5 @@ func computationGapKind(runDir, gapID string) (bool, error) {
 	if g == nil || g.Mint == nil {
 		return false, nil
 	}
-	return g.Mint.Str("check_kind") == record.CheckKindComputation, nil
+	return g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION, nil
 }

@@ -39,8 +39,8 @@ func TestEveryProbeBoardStillBuilds(t *testing.T) {
 			// boards still build, so it must give Build exactly what the probe gives it: nothing.
 			// Staging a class registry here made the gate green on the day every real dispatch
 			// died on its first mint, because the fixture was configured a way the probe never is.
-			runDir := t.TempDir()
-			t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+			runDir := tmpRun(t)
+			t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 			// seatprobe.Build, not a second copy of it. The harness dispatches through that
 			// function; a gate that rebuilt the steps here would be asserting its own reading of
 			// the build rather than the build the probe actually runs.

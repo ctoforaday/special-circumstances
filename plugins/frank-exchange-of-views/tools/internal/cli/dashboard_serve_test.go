@@ -2,6 +2,8 @@ package cli
 
 import (
 	"crypto/x509"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"io"
 	"net"
 	"net/http"
@@ -12,7 +14,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"google.golang.org/protobuf/proto"
 )
 
 // The capability gate is the whole security model: the exact secret path renders, everything else
@@ -120,7 +122,7 @@ func TestServeHelpMatchesTheTransport(t *testing.T) {
 // which on 2026-08-04 left a dashboard exposed on the LAN after its run ended, with nothing to
 // close it. Binding is now refused unless the run is live.
 func TestServeRefusesWhenTheRunIsNotLive(t *testing.T) {
-	dir := t.TempDir()
+	dir := tmpRun(t)
 	prev := runLiveMarker
 	runLiveMarker = filepath.Join(dir, "absent-run-live.json")
 	t.Cleanup(func() { runLiveMarker = prev })
@@ -143,7 +145,7 @@ func TestServeRefusesWhenTheRunIsNotLive(t *testing.T) {
 func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 	// A live run: marker present, no outcome on the record. Neither watcher may exit.
 	runDir := newRun(t)
-	marker := filepath.Join(t.TempDir(), "run-live.json")
+	marker := filepath.Join(tmpRun(t), "run-live.json")
 	if err := os.WriteFile(marker, []byte(`{"runs":[{"runDir":"x"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +154,7 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 	}
 
 	// The clean end: capture removed the marker.
-	gone := filepath.Join(t.TempDir(), "absent.json")
+	gone := filepath.Join(tmpRun(t), "absent.json")
 	ended, why := runHasEnded(gone, runDir)
 	if !ended || !strings.Contains(why, "marker gone") {
 		t.Errorf("an absent marker is the clean end: ended=%v why=%q", ended, why)
@@ -160,20 +162,11 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 
 	// THE CASE THIS EXISTS FOR: the bench recorded the run's outcome and the marker is STILL
 	// there, because nothing ran capture. The record is the truthful signal.
-	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	ev := record.Event{
-		TS: "2026-08-16T00:00:00Z", SeatID: "judge-terminal", Nonce: "aaaaaaaa", Type: "outcome",
-		Key: "judge-terminal:outcome:1", Payload: record.NewPayload().Set("verdict", "UNVERIFIED"),
-	}
-	b, err := record.MarshalEvent(ev)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(runDir, "records", "events-judge-terminal-aaaaaaaa.jsonl"), append(b, '\n'), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	recordtest.Seed(t, runDir, recordtest.At(t, "judge-terminal", 1, "judge-terminal:outcome:1",
+		&recordpb.Outcome{
+			Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED),
+			Prose:   proto.String("the run ended without the question being answered"),
+		}))
 	ended, why = runHasEnded(marker, runDir)
 	if !ended {
 		t.Fatal("a run whose outcome is on the record has ended, whatever the filesystem says")

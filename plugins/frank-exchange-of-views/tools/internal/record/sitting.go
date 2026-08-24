@@ -1,5 +1,9 @@
 package record
 
+import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+)
+
 // WHAT THIS SEAT STILL OWES, ON THE READ IT ALREADY DOES.
 //
 // A seat had no way to know it was finished. Asked directly, the merge named a real mechanism —
@@ -88,7 +92,8 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 	// EVERY SEAT CLOSES THE FRICTION CHANNEL. Silence is not the empty case: an absent friction
 	// log reads the same whether the sitting was clean or the channel went unused, and across
 	// eighteen recorded sittings it was the second every time.
-	if !seatDid(b, seatID, "friction") && !seatDid(b, seatID, "friction-none") {
+	if !seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_FRICTION) &&
+		!seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_FRICTION_NONE) {
 		add("the friction channel is open — you have neither reported a capability gap nor said that nothing blocked you")
 	}
 
@@ -103,15 +108,14 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 			// like non-compliance.
 			add("gap " + id + " was minted --check-kind computation and no proof answers it; prose cannot close it")
 		}
-		// RED SAID THE DOCUMENT DOES NOT CARRY THIS LINE, and that is blue's to answer.
-		//
-		// `weakened` is deliberately absent: it is red flagging erosion, an argument blue may
-		// accept, and a duty firing on it would make every "this is thinner than it was" a
-		// blocking repair. SupportDemandsBlue is the one statement of which verdicts bind.
-		for _, a := range UnsupportedInquiries(b) {
-			add("red voted line of inquiry " + a.ID + " `" + a.Support + "` — the report no longer backs it as stated, or does not carry it at all")
-		}
-		if !seatDid(b, seatID, "revision") {
+		// THERE IS NO PER-LINE INQUIRY DUTY HERE ANY MORE, and the deletion is a ruling rather
+		// than a dropped check. This arm read `UnsupportedInquiries` — the lines red had voted
+		// `unsupported` or `absent`. Presence is not a question: the lines reach the report on
+		// the worklist, generated from the record, so blue cannot cut them. Where blue's body
+		// genuinely failed to deliver a line's research, red MINTS A GAP, and an open gap already
+		// reaches blue through the ordinary route with a grade, a required fix and the PASS gate
+		// behind it. Restoring a second duty here would be the same fact told twice.
+		if !seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
 			add("the round record is missing — a revision that is not on the record did not happen as far as the debate is concerned (W1.7)")
 		}
 	case "merge":
@@ -127,23 +131,17 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 				add("motion " + m.ID + " was filed and never ruled — PASS is refused while it stands")
 			}
 		}
-		// EVERY LINE OF INQUIRY IS VOTED, EVERY ROUND.
+		// THE LINES OF INQUIRY ARE READ ONCE, EVERY ROUND.
 		//
-		// The report is regenerated each round, so a verdict cast before this round's edits
-		// answers a question about a document that no longer exists. This is the channel that
-		// makes "we pursued X" checkable at all: the row `assemble` generates carries no anchor,
-		// so without a vote it is the one claim in the report nothing can refuse.
-		// AS OF THIS SEAT'S ROUND. A round-1 merge is asked whether it voted in round 1 — not
-		// whether it voted in whatever the highest round on the board happens to be, which a
-		// later seat's bare `register` is enough to advance.
-		now := CurrentRound(b)
-		if r, ok := RoundOf(seatID); ok && r > 0 {
-			now = r
+		// One statement per round, not one per line: presence is not the question, because the
+		// lines are generated onto the page from the record. What the read owes is a judgement on
+		// whether the BODY delivered them, and where it did not, a gap. The report is regenerated
+		// each round, so a review recorded before this round's edits answers a question about a
+		// document that no longer exists.
+		if InquiryReviewDue(b) {
+			add("the report's account of its own research has not been read this round — PASS is refused until one `inquiry-review` says what the read found (and any shortfall is minted as a gap)")
 		}
-		for _, a := range UnvotedInquiriesAt(b, now) {
-			add("line of inquiry " + a.ID + " has no support verdict this round — PASS is refused while the report's own account of its research is unchecked")
-		}
-		if !seatDid(b, seatID, "verdict") {
+		if !seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
 	// THE LENS HAS NO CASE, AND THAT IS THE RULE HOLDING RATHER THAN A GAP IN IT.
@@ -187,9 +185,13 @@ func (s SittingJSON) Blocked() bool {
 }
 
 // seatDid reports whether this seat recorded an event of this type in this run.
-func seatDid(b *Board, seatID, typ string) bool {
+//
+// The type is an EventType rather than a string: a caller that mistypes `"spot_check"` for
+// `"spot-check"` used to get a silent false — a duty that reads as undischarged forever, or as
+// discharged when it was not, depending on which side of the comparison drifted.
+func seatDid(b *Board, seatID string, typ recordpb.EventType) bool {
 	for _, e := range b.Events {
-		if e.SeatID == seatID && e.Type == typ {
+		if e.GetSeatId() == seatID && e.GetType() == typ {
 			return true
 		}
 	}
@@ -204,7 +206,7 @@ func gapsAwaitingProofOn(b *Board) []string {
 		if g == nil || !g.Open || g.Mint == nil {
 			continue
 		}
-		if g.Mint.Str("check_kind") == CheckKindComputation && !proofNames(b, id) {
+		if g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION && !proofNames(b, id) {
 			out = append(out, id)
 		}
 	}

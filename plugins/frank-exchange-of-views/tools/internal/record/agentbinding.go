@@ -1,5 +1,9 @@
 package record
 
+import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+)
+
 // The agent -> seat binding, read back.
 //
 // `register` writes agent_id as a field on its event (see RegisterSeat), because it is the one
@@ -24,10 +28,9 @@ package record
 //	                    because a separated record nobody can reach would otherwise report an
 //	                    unregistered agent and send the seat off to register a second time.
 //
-// THE LAST REGISTER WINS. A re-dispatch rotates the nonce and writes a fresh register event, so a
-// resumed seat legitimately arrives under a NEW agent id claiming a seat that is already bound.
-// Treating that as a conflict would refuse every resume; the binding is simply the most recent
-// claim, which is also what the shard pointer already does.
+// THE LAST REGISTER WINS. A re-dispatch writes a fresh register event, so a resumed seat
+// legitimately arrives under a NEW agent id claiming a seat that is already bound. Treating that
+// as a conflict would refuse every resume; the binding is simply the most recent claim.
 func SeatOfAgent(runDir, agentID string) (string, bool, error) {
 	if agentID == "" {
 		return "", false, nil
@@ -38,11 +41,11 @@ func SeatOfAgent(runDir, agentID string) (string, bool, error) {
 	}
 	seat, found := "", false
 	for _, e := range m.Events {
-		if e.Type != "register" || e.Payload.Str("agent_id") != agentID {
+		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER || e.GetRegister().GetAgentId() != agentID {
 			continue
 		}
 		// MergedEvents orders deterministically, so the last match is the latest register.
-		seat, found = e.SeatID, true
+		seat, found = e.GetSeatId(), true
 	}
 	return seat, found, nil
 }
@@ -61,47 +64,29 @@ func AgentOfSeat(runDir, seatID string) (string, bool, error) {
 	}
 	agent, found := "", false
 	for _, e := range m.Events {
-		if e.Type != "register" || e.SeatID != seatID {
+		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER || e.GetSeatId() != seatID {
 			continue
 		}
-		if a := e.Payload.Str("agent_id"); a != "" {
+		if a := e.GetRegister().GetAgentId(); a != "" {
 			agent, found = a, true
 		}
 	}
 	return agent, found, nil
 }
 
-// DiscardedForSeat reports the event keys a PREVIOUS sitting of this seat wrote and replay has
-// since dropped, because the seat was dispatched more than once and only one shard can win.
+// DiscardedForSeat IS NOT PORTED, and its absence is the honest answer rather than an omission.
 //
-// WHY A SEAT IS TOLD THIS AT ALL. A re-dispatch is ordinary — a resume is exactly that shape, and
-// `SeatOfAgent` already treats the latest register as the binding. What is not ordinary is that
-// the arriving seat has no way to know a previous sitting of ITSELF did work that no longer
-// exists. Measured 2026-08-22 in research/2026-08-22_record-store-authority: the workflow was
-// killed between blue-synthesize writing blue/report.md and its call returning, so the resume
-// re-ran it; the second sitting rewrote the report from scratch and thirteen events of the first
-// — four citations, two lines of inquiry, seven report edits — survive nowhere. One of those
-// citations was the only source in the run for the question it backed, and nothing in the run
-// could have told the second sitting to go and re-fetch it.
+// It reported the event keys a PREVIOUS sitting of this seat wrote and replay had since dropped,
+// because two shards existed for one seat and only one could win. Under the store there is no
+// losing shard: both sittings' events are rows, and nothing selects a winner — so the loss it
+// disclosed is not merely absent, it is UNREPRESENTABLE. Merged.Discarded is deleted for the same
+// reason (see replay.go), because a field nothing computes reads "no loss detected" forever in the
+// same words it used when the check was real.
 //
-// THE KEYS, NOT A COUNT. A count says work was lost; the keys say WHICH, and a `cite` key carries
-// the anchor id, which is the half a seat can act on. Bounded by one sitting's output.
-//
-// AN EMPTY RESULT IS THE ORDINARY CASE and must stay distinguishable from a failure to look: the
-// error is returned rather than folded into a nil slice, because "the record could not be read"
-// and "nothing was discarded" are the same bytes to a caller that only checks length.
-func DiscardedForSeat(runDir, seatID string) (DiscardedShard, bool, error) {
-	if seatID == "" {
-		return DiscardedShard{}, false, nil
-	}
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		return DiscardedShard{}, false, err
-	}
-	for _, d := range m.Discarded {
-		if d.SeatID == seatID {
-			return d, true, nil
-		}
-	}
-	return DiscardedShard{}, false, nil
-}
+// WHAT DID NOT GO AWAY WITH IT. The measured incident behind it — a workflow killed between
+// blue-synthesize writing blue/report.md and its call returning, so the resume re-ran it and the
+// second sitting rewrote the report from scratch — loses the FILE, not the events. The four cite
+// events still exist; the anchors they spliced do not, because report.md was replaced. That is a
+// different defect from a discarded shard and this function never covered it. It is tracked as
+// the rewind work (#533), which is where a re-dispatched seat's relationship to its own earlier
+// sitting belongs.

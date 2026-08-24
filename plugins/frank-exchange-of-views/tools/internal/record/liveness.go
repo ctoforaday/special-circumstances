@@ -35,6 +35,7 @@ package record
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"sort"
 	"time"
 )
@@ -99,12 +100,12 @@ func LastActivity(runDir string) (Activity, error) {
 	var newest Activity
 	newest.Events = len(merged.Events)
 	for _, e := range merged.Events {
-		t, perr := time.Parse(time.RFC3339Nano, e.TS)
+		t, perr := time.Parse(time.RFC3339Nano, e.GetTs())
 		if perr != nil {
 			continue
 		}
 		if t.After(newest.At) {
-			newest.At, newest.Seat, newest.Type = t, e.SeatID, e.Type
+			newest.At, newest.Seat, newest.Type = t, e.GetSeatId(), recordpb.Word(e.GetType())
 		}
 	}
 	if newest.At.IsZero() {
@@ -124,10 +125,10 @@ func LastActivity(runDir string) (Activity, error) {
 // Too few gaps to characterise returns ok=false, and the caller must say NOT MEASURED rather
 // than pick a default. A threshold nobody can justify is the same defect as a fact nobody can
 // refuse.
-func staleThreshold(events []Event) (time.Duration, string, bool) {
+func staleThreshold(events []*Event) (time.Duration, string, bool) {
 	var ts []time.Time
 	for _, e := range events {
-		if t, err := time.Parse(time.RFC3339Nano, e.TS); err == nil {
+		if t, err := time.Parse(time.RFC3339Nano, e.GetTs()); err == nil {
 			ts = append(ts, t)
 		}
 	}
@@ -241,10 +242,10 @@ func TerminalVerdict(runDir string) string {
 	}
 	// The bench's own terminal act, latest wins.
 	for i := len(b.Events) - 1; i >= 0; i-- {
-		if b.Events[i].Type != "outcome" {
+		if b.Events[i].GetType() != recordpb.EventType_EVENT_TYPE_OUTCOME {
 			continue
 		}
-		if v := b.Events[i].Payload.Str("verdict"); v != "" {
+		if v := recordpb.Word(b.Events[i].GetOutcome().GetVerdict()); v != "" {
 			return v
 		}
 	}

@@ -4,10 +4,12 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // spot-check: re-verify archived closures, and say which.
@@ -20,27 +22,31 @@ import (
 func newSpotCheck() *cobra.Command {
 	var ids flags.CSV
 
-	c := (seat.New("spot-check", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+	c := seat.New("spot-check", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		none := seat.Given(cmd, flags.None)
-		p := record.NewPayload()
-		seat.SetList(p, "ids", &ids)
-		// THE CHANNEL, NOT THE FLAG. This read --reason directly and registered its own copy of
-		// it, so a seat with a paragraph-length spot-check finding had no file form and no stdin
-		// form — the exact leak seat.Prose exists to prevent, reproduced by not using it.
-		if err := seat.SetReason(cmd, p, flags.Reason); err != nil {
+		// THE CHANNEL, NOT THE FLAG. seat.Reason resolves --reason, --reason-file and
+		// `--reason-file -` into one string; reading the flag gets the inline spelling only, so a
+		// seat passing a heredoc has its prose silently dropped and the write is then refused for
+		// a field it did supply.
+		why, err := seat.Reason(cmd)
+		if err != nil {
 			return nil, err
 		}
-		if none {
-			p.Set("none", true)
+		body := &recordpb.SpotCheck{
+			Ids:    ids.Value(),
+			Reason: proto.String(why),
 		}
-		if _, err := record.Append(s.Identity(), "spot-check", p); err != nil {
+		if none {
+			body.None = proto.Bool(true)
+		}
+		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
 		if none {
 			return spotCheckResult{}, nil
 		}
 		return spotCheckResult{Sampled: ids.Value()}, nil
-	}))
+	})
 
 	c.Flags().Var(&ids, flags.IDs, "comma-separated archived closures you re-verified this round")
 	// AN HONESTLY-EMPTY ROUND IS A DISCHARGE, NOT A SKIP.

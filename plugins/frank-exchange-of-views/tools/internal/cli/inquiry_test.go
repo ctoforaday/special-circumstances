@@ -3,6 +3,8 @@ package cli
 import (
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE UNIT IS THE CHOICE, NOT THE ENTRY (#246).
@@ -35,11 +37,12 @@ func TestInquiryProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 	if !strings.Contains(out, "Q1") {
 		t.Errorf("the tool must assign the id, not the seat: %q", out)
 	}
-	ev := lastOfType(t, runDir, "line-of-inquiry")
-	if got := ev.Payload.Str("status"); got != "proposed" {
-		t.Errorf("status = %q, want proposed — a fresh proposal has no fate yet", got)
+	ev := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_AVENUE)
+	a, _ := recordpb.BodyAs[*recordpb.Avenue](ev)
+	if got := a.GetStatus(); got != recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED {
+		t.Errorf("status = %q, want proposed — a fresh proposal has no fate yet", recordpb.Word(got))
 	}
-	if ev.Payload.Str("hypothesis") == "" {
+	if a.GetHypothesis() == "" {
 		t.Error("the hypothesis was not recorded, so a later abandonment has nothing to be judged against")
 	}
 }
@@ -122,7 +125,7 @@ func TestRedRulesOnAProposedInquiry(t *testing.T) {
 	// A direction motion joins on the LINE's own id: it has no `file` verb because the
 	// proposal IS the filing, which is why A1 works here and no M-number is minted.
 	if _, err := run(t, "motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", "Q1", "--as", "out-of-scope",
+		"--id", "Q1", "--as", "out_of_scope",
 		"--reason", "classical mathematics is the reference frame for this question"); err != nil {
 		t.Fatalf("rule: %v", err)
 	}
@@ -130,7 +133,7 @@ func TestRedRulesOnAProposedInquiry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "RED RULED") || !strings.Contains(out, "out-of-scope") {
+	if !strings.Contains(out, "RED RULED") || !strings.Contains(out, "out_of_scope") {
 		t.Errorf("the ruling did not reach the projection blue reads:\n%s", out)
 	}
 }
@@ -143,7 +146,7 @@ func TestRulingRequiresAReason(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := run(t, "line-of-inquiry-rule", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", "Q1", "--ruling", "too-thin"); err == nil {
+		"--id", "Q1", "--ruling", "too_thin"); err == nil {
 		t.Fatal("an unreasoned ruling was accepted — blue cannot contest what has no stated basis")
 	}
 }

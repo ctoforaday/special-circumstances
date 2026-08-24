@@ -37,42 +37,64 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// NewCommandFor builds the motion group for ONE seat: every subject's `file`, and `rule` only on
-// the subject this role holds the gavel for.
+// NewCommandFor builds the motion tree for ONE seat's role.
 //
-// THE RULING BOUNDARY IS THE TREE AGAIN. It used to be requireRuler, a runtime check comparing the
-// acting role against the subject's ruler — the one seat-facing boundary in this tool NOT drawn by
-// the verb set, in the one command that sat outside the role level. That exception cost more than
-// a confusing sentence: because a motion's command parent is its SUBJECT, roleOf returned "grade"
-// where a role was expected, CheckSeatRole found no such role and returned nil, and the whole
-// identity guard fell open. Measured 2026-08-15 on a real board: `blue position` with an invented
-// --seat-id was REFUSED, `motion grade file` with the same invented id was ACCEPTED, filed,
-// rendered and ruled on.
+// THE GAVEL IS A FACT ABOUT WHICH TREE YOU ARE IN, not a check the verb runs. `rule` is added
+// only to the gavel-holder's surface, which is why newRule carries no requireRuler.
 //
-// A lens can no more type `motion grade rule` than it can type `mint`.
-func NewCommandFor(role string) *cobra.Command {
+// THE PAIR IS LOAD-BEARING AND IT CAME APART IN THE MERGE. verbs.go dropped the runtime check on
+// the strength of this scoping while this constructor still added `rule` to every seat, so for a
+// moment there was no gavel at all: blue ruled its own grade motion and was told it succeeded.
+// Neither half is wrong alone and neither is sufficient alone — TestAHostileSeatIsRefused is what
+// noticed, and it is the reason a verb's absence must be constructed rather than asserted.
+func NewCommandFor(actingRole string) *cobra.Command {
 	c := &cobra.Command{
 		Use:          "motion",
 		Short:        "file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.",
 		SilenceUsage: true,
 	}
-	c.AddCommand(subject("grade", role,
+	// THE GAVEL IS NOT TYPED HERE. It was — `subject("petition", …, "bench")` — and the PASS gate
+	// in internal/record, which cannot import this package, told blocked seats to rule motions
+	// without knowing whose ruling it would be. Both readers take it off the MotionSubject enum
+	// now, so a subject cannot be added with a gavel in one place and not the other.
+	c.AddCommand(subject(actingRole, "grade",
 		"contest a gap's grade: the merge rules, and a rejected dispute may be appealed to the bench",
-		[]string{flags.ID, flags.Dimension, flags.Proposed}, "merge"))
-	c.AddCommand(subject("petition", role,
+		[]string{flags.ID, flags.Dimension, flags.Proposed}))
+	c.AddCommand(subject(actingRole, "petition",
 		"an ethical | safety | integrity | constitutional objection: the BENCH rules, before the debate continues",
-		[]string{flags.Class, flags.Relief}, "bench"))
-	c.AddCommand(subject("inquiry", role,
-		"rule on a line blue proposed: the merge rules. There is NO file verb — the proposal is the filing (`line-of-inquiry propose`)",
-		nil, "merge"))
+		[]string{flags.Class, flags.Relief}))
+	c.AddCommand(subject(actingRole, "inquiry",
+		"rule on a line blue proposed: the merge rules. There is NO file verb — the proposal is the filing (`blue line of inquiry`)",
+		nil))
 	return c
+}
+
+// rulerFor resolves the seat holding a subgroup's gavel from the schema.
+//
+// It PANICS on an unknown subject or an unannotated one, and that is deliberate: this runs at
+// command construction, so the failure is at startup for every seat rather than at the moment one
+// tries to rule. A subgroup whose gavel nobody declared would otherwise accept rulings from
+// everybody, which is the arm requireRuler exists to close.
+func rulerFor(name string) string {
+	subj, ok := record.MotionSubjectEnum(name)
+	if !ok {
+		panic("motion: subgroup " + name + " names no MotionSubject — the subgroup and the schema have diverged")
+	}
+	r, err := recordpb.SubjectRuler(subj)
+	if err != nil {
+		panic("motion: " + err.Error())
+	}
+	return r
 }
 
 // subject builds one subgroup. `direction` gets no `file`: red rules on a line blue already
 // proposed, so a filing verb here would be a second way to say what `blue line of inquiry` already says.
-func subject(name, actingRole, short string, fileFlags []string, ruler string) *cobra.Command {
+func subject(actingRole, name, short string, fileFlags []string) *cobra.Command {
+	ruler := rulerFor(name)
 	c := &cobra.Command{
 		Use: name, Short: short, SilenceUsage: true,
 		// Tolerate unknown flags AT THE GROUP LEVEL so the Args check below is what answers.
@@ -121,8 +143,9 @@ func subject(name, actingRole, short string, fileFlags []string, ruler string) *
 	if fileFlags != nil {
 		c.AddCommand(newFile(name, fileFlags))
 	}
-	// ONLY THE GAVEL-HOLDER GETS THE VERB. Every seat may FILE — that asymmetry is the
-	// mechanism — and exactly one rules, which is now a fact about which tree you are in.
+	// ONLY THE GAVEL-HOLDER GETS THE VERB. Every seat may FILE — that asymmetry is the mechanism —
+	// and exactly one rules, which is a fact about which tree you are in rather than a refusal the
+	// verb performs. A seat that cannot rule this subject cannot name the command.
 	if actingRole == ruler {
 		c.AddCommand(newRule(name, ruler))
 	}
@@ -132,6 +155,33 @@ func subject(name, actingRole, short string, fileFlags []string, ruler string) *
 		c.AddCommand(newAppeal(name))
 	}
 	return c
+}
+
+// actingRole reports the role of the seat running the command, from its identity.
+//
+// Not from tree position (see the package comment) and not from a flag — the seat id is injected
+// and cross-checked (#348), so it is the one identity fact a seat cannot quietly get wrong.
+func actingRole(seatID string) string {
+	for _, r := range []string{"lens", "merge", "blue", "bench"} {
+		if record.CheckSeatRole(r, seatID) == nil {
+			return r
+		}
+	}
+	return ""
+}
+
+// requireRuler refuses a ruling from a seat that does not hold the gavel for this subject.
+//
+// The message NAMES the seat that does. Under a scoped surface "not yours" would otherwise read
+// as "does not exist" — the measured failure where a seat handed an unavailable verb logs
+// friction and works around it, losing the capability for the run.
+func requireRuler(subject, ruler, seatID string) error {
+	if got := actingRole(seatID); got != ruler {
+		return feov.Errorf(feov.Validation,
+			"a %s motion is ruled by the %s seat; you are %s (%s). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle",
+			subject, ruler, seatID, got)
+	}
+	return nil
 }
 
 // prose pulls the one prose field, refusing an empty one by name.

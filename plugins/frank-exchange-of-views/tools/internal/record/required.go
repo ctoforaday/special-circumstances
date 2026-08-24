@@ -1,5 +1,11 @@
 package record
 
+import (
+	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+)
+
 // WHAT EACH VERB REQUIRES, DECLARED ONCE.
 //
 // A seat's contract is `--help`. The help was a flat alphabetical list in which `--check`,
@@ -30,64 +36,51 @@ package record
 // back to it). The 2026-07-20 vocabulary collapse made every claim/judgment act require
 // that prose: a ruling, a closure, a removal or a dispute with no stated reasoning is
 // indistinguishable from a default, and the tool refuses it rather than let it through.
-var RequiredFields = map[string][]string{
-	"mint": {"acceptance_check", "check_kind", "class", "likelihood", "impact", "problem"},
-	// finding's label is TOOL-assigned now (not seat-provided), so it is not listed
-	// here — same as mint's gap_id, which validate requires but no flag sets. validate
-	// still enforces the finding-label INVARIANT; the table lists only seat-set fields.
-	"close":           {"gap_id", "reason"},
-	"closing":         {"reason"},
-	"regrade":         {"reason"},
-	"retire":          {"claim", "reason"},
-	"line-of-inquiry": {"status", "line"},
-	"inquiry-support": {"inquiry_id", "as", "reason"},
-	// `settled` is unconditional and belongs here. `reopens_on` is NOT: --final answers the same
-	// question the other way and either satisfies the duty, so per this file's own rule a
-	// requirement that depends on another field stays as logic in validate, with the condition
-	// stated in the flag's own description (#502).
-	"opinion": {"gap_id", "disposition", "principle", "tension", "review_flag", "reason", "settled"},
-	"halt":    {"reason"},
-	"certify": {"reason"},
-	// The run's TERMINAL act, and it carried no reasoning at all until a bench seat reached for
-	// --reason and filed its absence as friction (#375). The verdict is derived; how the sitting
-	// ENDED is not, and on a judged deadlock nothing else records it.
-	// `verdict` was enforced ONLY in the cobra verb, in RunE — which this file's neighbour warns
-	// against in the `outcome` case itself: "a requirement the CLI holds and the record does not
-	// is one every other caller skips". It also meant --help could not mark --as required and the
-	// refusal fired after the seat had composed the whole invocation, which is the same defect
-	// `spot-check` names in its own comment. Declared here, the mechanism marks the flag and
-	// validate enforces it, and the hand-rolled check in RunE is gone.
-	"outcome": {"reason", "verdict"},
-	// A VERIFICATION OF NOTHING WAS RECORDABLE. `lens verify` required no flag at all: the bare
-	// verb printed "source verified:" and appended an event, which then counted as red's audit
-	// volume. The four fields here are what makes the row mean something — WHICH citation
-	// (or an explicit --independent), WHAT the source did for the claim, HOW SURE red is of that
-	// (a separate question), and the reading behind the verdict.
-	"verify": {"claim", "outcome", "confidence", "reason"},
-	// A DUTY DISCHARGED BY NOTHING. None of these required anything, so the bare verb recorded
-	// an empty event and returned success — and two of them GATE THE SITTING. Measured:
-	// `blue friction` then `blue revision`, no flags, took a seat from two outstanding duties to
-	// complete:true, and the friction projection then read total:1 attested:0 with text:"".
-	//
-	// Same class as `verify` above, which was fixed at that one instance while its siblings sat
-	// untouched. `spot-check` is deliberately absent: its bare form is a documented decision.
-	"friction":      {"reason"},
-	"friction-none": {"reason"},
-	"position":      {"reason"},
-	"revision":      {"reason"},
-	"manifest-row":  {"gap_id", "row"},
+// RequiredFields lists the payload keys a verb must carry, DERIVED from the schema.
+//
+// It was a hand-written map of 20 verbs — the third copy of a fact the `(sql).required` annotation
+// already carries on the field, beside recordpb's own map (deleted with this change) and the DDL's
+// NOT NULL. Its own test said what a third copy costs: "the table grew and the check did not".
+//
+// The help is its one reader: seat.markRequired turns each key into the flag a seat types and
+// marks it REQUIRED, so a verb whose schema requires a field it does not offer a flag for is
+// simply not marked — which is correct, and stated where that happens.
+func RequiredFields(typ string) []RequiredField {
+	md, ok := bodyDescriptor(typ)
+	if !ok {
+		return nil
+	}
+	var out []RequiredField
+	for _, fd := range recordpb.RequiredOf(md) {
+		out = append(out, RequiredField{Key: string(fd.Name()), Flag: recordpb.FlagFor(fd)})
+	}
+	return out
 }
 
-// THIS TABLE DOES NOT ENFORCE. validate still owns enforcement, field by field, with its
-// own message explaining WHY each is required — and those messages are the seat's teacher,
-// so they are worth more than a generic "required flag not set".
+// RequiredField is a required field and the word a SEAT TYPES for it — both off the one
+// annotation, because they are one declaration.
 //
-// Making the table a second enforcer would have been the mistake this codebase keeps
-// making: two readers of one rule, drifting. It would also have broken `opinion`
-// immediately, because validate requires review_flag by PRESENCE while a generic
-// "present and non-empty" check rejects a legitimate `--review-flag false` — the
-// falsy-value confusion that has produced three separate defects here already.
-//
-// Instead the table is DOCUMENTATION, and a test proves it accurate behaviourally: for
-// every (verb, field) listed, a payload missing that field must be rejected by validate.
-// The table cannot drift from the code without that test failing.
+// The flag is not derivable from the key: a ruling's `motion_id` is typed `--id`, the word every
+// verb uses for the thing it is acting on, and a close's `prose` is typed `--reason`. Deriving it
+// by rule (`s/_/-/`) produced `--motion-id`, which no command registers — so the contract gate
+// read three verbs' requirements as invisible, and was right to.
+type RequiredField struct {
+	Key  string // the field the record holds
+	Flag string // the word a seat types
+}
+
+// bodyDescriptor resolves an event type's WORD to the body message the `body` oneof pairs it with
+// — the one place that pairing is declared, and the same one recordsql derives the schema from.
+func bodyDescriptor(typ string) (protoreflect.MessageDescriptor, bool) {
+	od := (&recordpb.Event{}).ProtoReflect().Descriptor().Oneofs().ByName("body")
+	if od == nil {
+		return nil, false
+	}
+	for i := 0; i < od.Fields().Len(); i++ {
+		fd := od.Fields().Get(i)
+		if string(fd.Name()) == typ && fd.Message() != nil {
+			return fd.Message(), true
+		}
+	}
+	return nil, false
+}

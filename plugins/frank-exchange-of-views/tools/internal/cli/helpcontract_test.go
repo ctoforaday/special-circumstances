@@ -12,6 +12,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // A PROMISE IN HELP TEXT IS A CONTRACT, AND EVERY CONTRACT HAS A TEST.
@@ -61,7 +62,7 @@ var notEnforcedAtTheFlag = map[string]string{
 // omits. A seat reading it supplies the flag and nothing is wrong; a seat that misses it records
 // an event with a hole in it, and the hole surfaces rounds later as an empty section.
 func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := seatRunForContracts(t)
 
 	var checked int
@@ -119,6 +120,14 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 					if !strings.Contains(err.Error(), f.Name) {
 						t.Errorf("--%s was refused and the message does not NAME it:\n\n%v\n\nA seat that cannot tell which flag it missed guesses, and the guess costs a round.", f.Name, err)
 					}
+					// AND EVERY FLAG THE REFUSAL NAMES MUST EXIST. Checked HERE as well as in
+					// TestNoRefusalNamesAFlagThatDoesNotExist because that one invokes each verb bare
+					// and therefore only ever sees cobra's "required flag(s) not set" — the record
+					// layer's teaching messages, which are the ones that name flags in prose, are
+					// reached only by satisfying the earlier refusals, which is what this loop does.
+					// Measured: renaming `mint requires --problem` to `--problem-statement` left the
+					// bare-invocation gate green.
+					assertNamedFlagsExist(t, err, knownFlagNames(t))
 				})
 			})
 		})
@@ -136,7 +145,7 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 // statement of what went wrong, and a seat has to infer its own mistake from a list of things it
 // did not do. A diagnosis that comes after the remedy is not a diagnosis.
 func TestEveryRefusalNamesTheProblemBeforeTheHelp(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := newRun(t)
 
 	for _, tc := range []struct {
@@ -283,7 +292,7 @@ func seatRunForContracts(t *testing.T) string {
 	}
 	seedBlueReport(t, runDir)
 	// A REAL SCRIPT ON DISK, because `blue prove` RUNS what --script names.
-	scriptPath = filepath.Join(t.TempDir(), "contract-proof.py")
+	scriptPath = filepath.Join(tmpRun(t), "contract-proof.py")
 	if err := os.WriteFile(scriptPath, []byte("print('contract seed')\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -322,8 +331,8 @@ func seatRunForContracts(t *testing.T) string {
 		t.Fatal(err)
 	}
 	for _, e := range b.Events {
-		if e.Type == "proof" && e.Payload.Str("sha256") != "" {
-			proofSHA = e.Payload.Str("sha256")
+		if pf, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && pf.GetProofSha() != "" {
+			proofSHA = pf.GetProofSha()
 		}
 	}
 	if proofSHA == "" {
@@ -400,5 +409,135 @@ func TestEverySetRestatedInASummaryMatchesTheRealOne(t *testing.T) {
 	}
 	if enumCommands == 0 {
 		t.Fatal("walked every root and found no command declaring an enum flag — the walk is broken, and this gate would report a clean board on a tree it never read")
+	}
+}
+
+// flagToken matches a `--flag` reference inside a refusal message.
+//
+// THE LEADING BOUNDARY IS LOAD-BEARING. Without it this matched `--proof` inside the anchor
+// token `<!--proof:p-…-->`, and reported `lens reproduce` — whose message is correct — for a
+// flag it never named. A seat types a flag after a space, a backtick, a quote or an open
+// paren; nothing else introduces one. Go's regexp has no lookbehind, so the boundary is a
+// non-capturing alternation and the NAME is group 1.
+//
+// Trailing punctuation is excluded by the character class, so `--as FAIL`, "`--quote`," and
+// "--id." all yield the bare name. A bare `--` is not a name: one name character is required.
+var flagToken = regexp.MustCompile("(?:^|[\\s(\"'`])--([a-z][a-z0-9-]*)")
+
+// EVERY FLAG A REFUSAL NAMES MUST BE A FLAG SOMETHING REGISTERS.
+//
+// FOUR INSTANCES ON ONE BRANCH, each found by a different accident:
+//
+//	`--as supports-with-bridge`  advertised in help, refused by the write path
+//	`--id Q1 --as supported|…`   advertised by inquiry-support after the schema retired both
+//	`retire requires --claim`    the FIELD name in a message that must carry the FLAG word
+//	`out-of-scope` / `too-thin`  the fuzz typing an enum's field spelling at the flag
+//
+// The shape is always the same: two spellings of one fact across a boundary, one side moved.
+// A seat obeys the message, gets a cobra refusal for a flag nobody accepts, and learns nothing
+// about what it actually needed. It is not catchable by reading the message — it reads fine.
+//
+// This is the CHEAP HALF of the check, and deliberately so: it asks only whether the name exists
+// ANYWHERE in the tree, because a refusal legitimately names other verbs' flags ("close them with
+// `close --id <id>`"). Scoping each mention to its own verb would need to know which sentences
+// are self-referential, and a gate that guesses that would fire on prose. A name nothing at all
+// registers is unambiguous, needs no judgement, and is what all four instances were.
+func TestNoRefusalNamesAFlagThatDoesNotExist(t *testing.T) {
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
+	runDir := seatRunForContracts(t)
+
+	known := knownFlagNames(t)
+
+	var checked int
+	// PER TREE, AND THE ROLE COMES FROM THE TREE — the same correction the required-flag walk
+	// above carries. This asked `isSeatRole(path[0])` and required a path of two or more, because
+	// a verb's path used to begin with its role group. Against a scoped surface no path satisfies
+	// either condition, so the walk produced nothing and the gate reported success over an empty
+	// traversal. The floor at the bottom is what caught it.
+	for role, r := range AllRoots() {
+		if !isSeatRole(role) {
+			continue // operator commands take a run directory rather than a seat
+		}
+		walk(r, func(c *cobra.Command, path []string) {
+			if !c.Runnable() || len(path) < 1 {
+				return
+			}
+			t.Run(role+" "+strings.Join(path, " "), func(t *testing.T) {
+				// Invoked with identity and NOTHING else, so whatever the verb requires is what
+				// refuses. A verb that runs clean here simply has nothing to say and is skipped.
+				_, err := run(t, append(append([]string{}, path...), "--run", runDir, "--seat-id", seatFor(role))...)
+				if err == nil {
+					return
+				}
+				checked++
+				// THE DIAGNOSIS, NOT THE HELP COBRA STAPLES TO IT. A verb's own usage block lists
+				// its flags (fine) and its prose sometimes names a RETIRED one on purpose —
+				// spot-check's --reason explains that it absorbed --notes, which is exactly the
+				// history a seat needs. Scanning that turns a gate about broken instructions into a
+				// gate against explaining anything. TestEveryRefusalNamesTheProblemBeforeTheHelp
+				// guarantees the diagnosis comes FIRST, which is what makes this cut safe.
+				assertNamedFlagsExist(t, err, known)
+			})
+		})
+	}
+	if checked < 10 {
+		t.Fatalf("only %d verbs refused anything — this gate reads refusals, so a walk that produces none passes it forever", checked)
+	}
+}
+
+// diagnosisOf returns the part of a refusal that states the problem, cutting cobra's appended
+// help. The boundary is the usage block, or the standing footer that precedes it.
+func diagnosisOf(err error) string {
+	msg := err.Error()
+	for _, cut := range []string{"\nUsage:", "\nIf you need a verb or a flag that is not listed here"} {
+		if i := strings.Index(msg, cut); i >= 0 {
+			msg = msg[:i]
+		}
+	}
+	return msg
+}
+
+// knownFlagNames is every flag name the whole tree registers — local, persistent AND inherited.
+//
+// The first draft collected only local flags and reported `--run`, `--seat-id`, `--json` and
+// `--help` on nineteen verbs: the globals every refusal legitimately names. A gate whose own
+// vocabulary is incomplete manufactures the exact defect it exists to find.
+func knownFlagNames(t *testing.T) map[string]bool {
+	t.Helper()
+	// THE UNION ACROSS EVERY SEAT, because there is no longer one tree that holds them all.
+	//
+	// This walked `newRoot()`, which is the seat-LESS root: under a scoped surface that carries the
+	// persistent flags and almost nothing else, so the census found four names and the refusals it
+	// is meant to police were checked against a vocabulary that knew nothing. It did not fail
+	// open — the floor below caught it — but the floor is the only reason, and a census that walks
+	// the wrong tree is exactly the plausible zero this file exists to refuse.
+	known := map[string]bool{"help": true}
+	collect := func(root *cobra.Command) {
+		root.PersistentFlags().VisitAll(func(f *pflag.Flag) { known[f.Name] = true })
+		walk(root, func(c *cobra.Command, path []string) {
+			c.Flags().VisitAll(func(f *pflag.Flag) { known[f.Name] = true })
+			c.PersistentFlags().VisitAll(func(f *pflag.Flag) { known[f.Name] = true })
+			c.InheritedFlags().VisitAll(func(f *pflag.Flag) { known[f.Name] = true })
+		})
+	}
+	collect(newRoot())
+	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		collect(NewRootFor(seatFor(role)))
+	}
+	if len(known) < 20 {
+		t.Fatalf("only %d flags found in the tree — the walk is not reaching it, and an empty vocabulary accepts every message forever", len(known))
+	}
+	return known
+}
+
+// assertNamedFlagsExist reports any `--flag` the refusal's DIAGNOSIS names that nothing registers.
+func assertNamedFlagsExist(t *testing.T, err error, known map[string]bool) {
+	t.Helper()
+	for _, m := range flagToken.FindAllStringSubmatch(diagnosisOf(err), -1) {
+		if !known[m[1]] {
+			t.Errorf("the refusal names `--%s`, which NO command in the tree registers:\n\n%v\n\n"+
+				"A seat that obeys this gets a cobra refusal for a flag nobody accepts, and still does not know what it needed. "+
+				"Either the flag was renamed and the message was not, or the message is naming a record FIELD where a seat types a FLAG word.", m[1], err)
+		}
 	}
 }

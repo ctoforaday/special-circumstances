@@ -2,12 +2,10 @@ package cli
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // THE OPERATOR VERBS WERE DRIVEN BY NOTHING (#185 §6).
@@ -104,7 +102,7 @@ func TestVerifyIsReadOnly(t *testing.T) {
 // A missing --run is a REFUSAL, not an empty report. A verify that says "0 gaps" because it
 // looked at nothing is the failure mode the whole verb is aimed at.
 func TestVerifyRefusesWithoutARun(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	out, err := run(t, "verify", "--seat-id", "operator")
 	if err == nil {
 		t.Fatalf("verify with no run must refuse rather than report an empty board:\n%s", out)
@@ -153,7 +151,7 @@ func TestGraphRendersARunsBehaviour(t *testing.T) {
 }
 
 func TestCountClaimsRefusesWhenThereIsNoReport(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	// count-claims reads blue/report.md; with no run it must refuse rather than answer 0.
 	out, err := run(t, "count-claims")
 	if err == nil && strings.Contains(out, "0") {
@@ -188,36 +186,15 @@ func TestVerifyExitsNonZeroWhenAnInvariantFails(t *testing.T) {
 		t.Fatalf("minting the gap this test needs: %v", err)
 	}
 
-	// The PASS the writer would refuse, APPENDED TO THE SEAT'S OWN SHARD.
+	// THE PASS THE WRITER WOULD REFUSE, seeded straight into the record.
 	//
-	// Not a new shard. A seat's events live in one shard per nonce, and replay picks a single
-	// winner per seat — so writing `events-red-merge-r1-<new nonce>.jsonl` DISPLACES the real
-	// shard instead of adding to it. The first version of this test did exactly that, and the
-	// board came back with "gaps: 0 total": the fixture deleted the gap it existed to
-	// contradict, pass-closes-all-gaps reported ok, and the test passed on a different
-	// invariant (register-before-append) firing for a seat whose history had vanished.
-	shards, err := filepath.Glob(filepath.Join(runDir, "records", "events-red-merge-r1-*.jsonl"))
-	if err != nil || len(shards) != 1 {
-		t.Fatalf("expected exactly one shard for red-merge-r1, got %v (%v)", shards, err)
-	}
-	existing, err := os.ReadFile(shards[0])
-	if err != nil {
-		t.Fatal(err)
-	}
-	nonce := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(shards[0]), "events-red-merge-r1-"), ".jsonl")
-	ev := record.Event{
-		Seq: len(strings.Split(strings.TrimSpace(string(existing)), "\n")),
-		TS:  "2099-01-01T00:00:00.000000000Z", SeatID: "red-merge-r1", Nonce: nonce,
-		Round: 1, Type: "verdict", Key: "red-merge-r1:verdict",
-		Payload: record.NewPayload().Set("verdict", "PASS"),
-	}
-	line, err := record.MarshalEvent(ev)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(shards[0], append(existing, append(line, '\n')...), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	// This used to append a line to the seat's own shard file, and the comment explained at length
+	// why it must not write a NEW shard: replay picked one winner per seat, so a second file
+	// DISPLACED the real one and the board came back with "gaps: 0 total" — the fixture deleting
+	// the gap it existed to contradict. None of that is a hazard now. There is one record, nothing
+	// is displaced, and seeding is an insert.
+	recordtest.Seed(t, runDir, recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:verdict",
+		&recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}))
 
 	out, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--seat-id", "operator")
 	if err == nil {

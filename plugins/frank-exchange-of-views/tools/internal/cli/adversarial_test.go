@@ -28,7 +28,7 @@ import (
 //
 // # Massively parallel by construction
 //
-// Every scenario gets its own t.TempDir() and its own run directory, and `run` builds a fresh
+// Every scenario gets its own tmpRun(t) and its own run directory, and `run` builds a fresh
 // cobra root with its own output buffer per call. There is no shared state to serialise on — the
 // record's locks are per run directory, and nothing here touches process globals (no env, no
 // chdir). So every scenario declares t.Parallel() and the suite scales with cores.
@@ -149,7 +149,7 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:  "any seat may appeal, not only the filer",
-			setup: []seatStep{propose, {"motion", "inquiry", "rule", "--seat-id", "red-merge-r1", "--id", "Q1", "--as", "out-of-scope", "--reason", "not this question"}},
+			setup: []seatStep{propose, {"motion", "inquiry", "rule", "--seat-id", "red-merge-r1", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question"}},
 			act:   seatStep{"motion", "inquiry", "appeal", "--seat-id", "red-lens-r1-L1", "--id", "Q1", "--reason", "a lens presses a direction blue proposed"},
 			guards: "STANDING IS OPEN ON PURPOSE and this pins it. A motion belongs to the run, not " +
 				"to its filer — a lens files a safety petition and it is BLUE the granted relief " +
@@ -190,9 +190,15 @@ func adversarialCases() []adversarialCase {
 				"and the refusal come from one list. The replacement registered it as a bare string.",
 		},
 		{
-			name:    "a petition class outside the four is refused",
-			act:     seatStep{"motion", "petition", "file", "--seat-id", "red-lens-r1-L1", "--class", "aesthetic", "--relief", "halt", "--reason", "petitioning on a standard nobody wrote"},
-			refused: "--class must be one of ethical|safety|integrity|constitutional",
+			name: "a petition class outside the four is refused",
+			act:  seatStep{"motion", "petition", "file", "--seat-id", "red-lens-r1-L1", "--class", "aesthetic", "--relief", "halt", "--reason", "petitioning on a standard nobody wrote"},
+			// THE ORDER IS THE SCHEMA'S, and this expectation used to carry a different one — from
+			// the hand-written table that listed four classes PetitionClass did not have. Two of
+			// the four were refused at the write for words the help advertised. The set is derived
+			// from the enum now, so its order follows declaration: integrity and safety kept their
+			// numbers (they were the two that worked), ethical and constitutional took fresh ones
+			// because the numbers they would have reused are reserved.
+			refused: "--class must be one of integrity|safety|ethical|constitutional",
 			guards: "The bench is convened PER CLASS; a fifth is a petition heard under whichever " +
 				"standard the ruling seat happened to imagine. Refused at PARSE now, with the " +
 				"four classes and what each is for — the seat learns the vocabulary from the refusal.",
@@ -214,7 +220,7 @@ func TestAHostileSeatIsRefused(t *testing.T) {
 	// package's usual seatRun helper calls it — so the scenarios build their own run directory
 	// and inherit this. The parent is not parallel, the subtests are, and the env is a
 	// process-global that only needs setting once anyway.
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	for _, tc := range adversarialCases() {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

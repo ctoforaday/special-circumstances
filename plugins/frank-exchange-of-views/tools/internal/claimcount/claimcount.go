@@ -44,8 +44,6 @@
 package claimcount
 
 import (
-	"fmt"
-	"hash/fnv"
 	"regexp"
 	"strings"
 )
@@ -154,10 +152,16 @@ func Count(md string) int {
 // content hash of the enclosing segment that survives line-number drift (the durable
 // locator; line is the convenience pointer).
 type Occurrence struct {
-	Heading      string `json:"heading"`
-	Line         int    `json:"line"`
-	SentenceHash string `json:"sentence_hash"`
+	Heading string `json:"heading"`
+	Line    int    `json:"line"`
 }
+
+// NO `sentence_hash`. It was an FNV-1a of the normalized sentence, emitted here and described as
+// "a locator stable under line-number shift, so blue can match an occurrence after edits move
+// it" — and nothing could use it for that. Its only reader was its own test; no production code,
+// no prompt, no document referenced the field. An AGENT was the intended consumer, and an agent
+// cannot compute FNV-1a by hand to compare one, so the durable locator was durable and unusable.
+// Anchors are the locator, and they are visible in the text precisely so a seat can carry them.
 
 // LabelOccurrences is one footnoted claim (by its label) and every site it appears.
 type LabelOccurrences struct {
@@ -178,7 +182,7 @@ func Index(md string) []LabelOccurrences {
 				order = append(order, label)
 			}
 			byLabel[label] = append(byLabel[label], Occurrence{
-				Heading: s.Heading, Line: s.Line, SentenceHash: sentenceHash(s.Text),
+				Heading: s.Heading, Line: s.Line,
 			})
 		}
 	}
@@ -315,13 +319,4 @@ func MissingCitationAnchorIDs(expected []string, reportMD string) []string {
 // backstop runs, so a raw write that drops a finding marker OR a citation anchor is caught.
 func MissingProtectedAnchorIDs(expected []string, reportMD string) []string {
 	return missingFrom(expected, ProtectedAnchorIDs(reportMD))
-}
-
-// sentenceHash is the FNV-1a hash of the whitespace-normalized segment: a locator
-// stable under line-number shift, so blue can match an occurrence after edits move
-// it. strings.Fields collapses whitespace runs and trims.
-func sentenceHash(seg string) string {
-	h := fnv.New32a()
-	_, _ = h.Write([]byte(strings.Join(strings.Fields(seg), " ")))
-	return fmt.Sprintf("%08x", h.Sum32())
 }

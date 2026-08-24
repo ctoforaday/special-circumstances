@@ -4,12 +4,15 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // file: a seat asks for something, and the tool assigns the id everything else joins on.
@@ -17,6 +20,20 @@ func newFile(subject string, required []string) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "file",
 		Short: "file a " + subject + " motion — the tool assigns its id",
+		// EACH SUBJECT'S `file` SAYS WHERE THE BOUNDARY IS. The three subjects write ONE event
+		// type with different required flags and different gavels, so a seat that opens the wrong
+		// one meets a refusal about a flag rather than about the subject it should have named.
+		//
+		// The tree knowing about the split is not the same as the seat knowing: this page is what
+		// a seat actually reads, and it was blank. It went unnoticed because `motion` sat at the
+		// ROOT until the surface became seat-scoped, so the sibling gate never reached it.
+		Long: "file a " + subject + " motion — the tool assigns its id.\n\n" +
+			"THREE SUBJECTS, ONE EVENT, DIFFERENT CONTRACTS. `motion grade file` disputes a gap's " +
+			"grade and is ruled by the merge; `motion petition file` raises an ethical, safety, " +
+			"integrity or constitutional objection and is ruled by the BENCH, before the debate " +
+			"continues; a direction needs no file verb at all — proposing the line of inquiry IS " +
+			"the filing, and only its ruling is a motion.\n\n" +
+			"Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
 			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
@@ -48,14 +65,47 @@ func newFile(subject string, required []string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			p := record.NewPayload().Set("motion_id", id).Set("subject", subject).Set("reason", basis)
-			for _, f := range required {
-				p.Set(payloadKey(f), seat.Str(cmd, f))
+			// THE UNTYPED LOOP CANNOT SURVIVE A TYPED FILING, and that is the migration working
+			// rather than a cost of it. `for _, f := range required { p.Set(payloadKey(f), …) }`
+			// wrote whatever the flags happened to hold under whatever key payloadKey returned —
+			// which is how `--petition-class` landed under the key `petition-class` while every
+			// reader looked for `class`, and nothing could see the two disagree. The filing is now
+			// a oneof, so a grade's fields cannot be written onto a petition at all.
+			subj, ok := record.MotionSubjectEnum(subject)
+			if !ok {
+				return feov.Errorf(feov.Validation, "motion %s file: %q is not a motion subject", subject, subject)
+			}
+			body := &recordpb.Motion{
+				MotionId: proto.String(id),
+				Subject:  &subj,
+				Basis:    proto.String(basis),
+			}
+			switch subj {
+			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
+				dim, known := record.GradeDimensionOf(seat.Str(cmd, flags.Dimension))
+				if !known {
+					return feov.Errorf(feov.Validation, "motion grade file: %q is not a grade dimension", seat.Str(cmd, flags.Dimension))
+				}
+				prop, known := record.GradeOf(seat.Str(cmd, flags.Proposed))
+				if !known {
+					return feov.Errorf(feov.Validation, "motion grade file: %q is not a grade", seat.Str(cmd, flags.Proposed))
+				}
+				body.Filing = &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
+					GapId:     proto.String(seat.Str(cmd, flags.ID)),
+					Dimension: &dim,
+					Proposed:  &prop,
+				}}
+			case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
+				cls, known := record.PetitionClassOf(seat.Str(cmd, flags.Class))
+				if !known {
+					return feov.Errorf(feov.Validation, "motion petition file: %q is not a petition class", seat.Str(cmd, flags.Class))
+				}
+				body.Filing = &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: &cls}}
 			}
 			if r := seat.Str(cmd, flags.Relief); r != "" {
-				p.Set("relief", r)
+				body.Relief = proto.String(r)
 			}
-			if _, err := record.Append(s.Identity(), "motion", p); err != nil {
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return err
 			}
 			return seat.Emit(cmd, filed{ID: id, Subject: subject}, nil)
@@ -81,6 +131,16 @@ func newFile(subject string, required []string) *cobra.Command {
 			c.Flags().String(f, "", "REQUIRED for a "+subject+" motion")
 		}
 	}
+	// THE RECORD TYPE, DECLARED. These verbs are built as raw cobra commands rather than through
+	// seat.New, so they carried no `records` annotation — and the contract gate joins commands to
+	// their declared requirements through exactly that. Three verbs sat outside it: nothing checked
+	// that a field the record requires is marked REQUIRED in their help, which is the one place a
+	// seat reads what it must supply.
+	seat.Records(c, "motion")
+	// THE MOTION ID IS ASSIGNED BY THE TOOL on a filing — a seat that chose its own would collide
+	// with another seat's, which is the join #312 exists to make reliable. Declared at the verb
+	// that does the assigning.
+	seat.Supplies(c, "motion_id", "the tool assigns it on filing; a ruling and an appeal name it with --id")
 	return c
 }
 
@@ -113,6 +173,15 @@ func newRule(subject, ruler string) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "rule",
 		Short: "rule on a " + subject + " motion (the " + ruler + " seat's)",
+		// THE THIRD PAGE THAT HAD TO SAY WHICH SUBJECT IT IS — `file` and `appeal` carry one for
+		// the same reason. `rule` differs from those two in that it is not on every seat's
+		// surface at all, so the page a seat CAN open should also say which ones it cannot.
+		Long: "rule on a " + subject + " motion — this verb is the " + ruler + " seat's, and it " +
+			"appears only on that surface.\n\n" +
+			"THREE SUBJECTS, THREE GAVELS. A grade dispute and a direction are ruled by the MERGE; " +
+			"a petition is ruled by the BENCH, before the debate continues. A motion is filed by " +
+			"any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it " +
+			"is why `rule` is missing from the surfaces that do not hold the gavel.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
 			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
@@ -134,7 +203,7 @@ func newRule(subject, ruler string) *cobra.Command {
 			// later refusal is phrased in terms of it: a lens typing `motion grade rule` at a
 			// petition should be told it named the wrong subgroup, not that grade motions belong
 			// to the merge — which is true, irrelevant, and sends it to the wrong fix.
-			if err := record.RequireMotionSubjectRef(s.RunDir, subject, id); err != nil {
+			if err := record.RequireMotionSubjectRef(s.RunDir, mustSubject(subject), id); err != nil {
 				return err
 			}
 			if err := record.RequireSubjectMatches(s.RunDir, subject, id); err != nil {
@@ -152,13 +221,48 @@ func newRule(subject, ruler string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			p := record.NewPayload().Set("motion_id", id).Set("subject", subject).
-				Set("ruling", seat.Str(cmd, flags.As)).Set("reason", opinion)
+			// THE VERDICT SET IS KEYED ON (SUBJECT, RULING) and the schema says so with a oneof:
+			// granted|denied can only reach the petition arm, accepted|rejected the grade arm. The
+			// old payload carried `subject` and `ruling` as two independent strings that a writer
+			// could set inconsistently, and record.go's validate existed to catch exactly that.
+			subj := mustSubject(subject)
+			body := &recordpb.MotionRule{
+				MotionId: proto.String(id),
+				Subject:  &subj,
+				Opinion:  proto.String(opinion),
+			}
+			word := seat.Str(cmd, flags.As)
+			switch subj {
+			case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
+				v, ok := enumOf[recordpb.GradeRuling](recordpb.GradeRuling(0).Descriptor(), word)
+				if !ok {
+					return feov.Errorf(feov.Validation, "motion grade rule: %q is not a ruling on a grade motion", word)
+				}
+				body.Ruling = &recordpb.MotionRule_Grade{Grade: v}
+			case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
+				v, ok := enumOf[recordpb.PetitionRuling](recordpb.PetitionRuling(0).Descriptor(), word)
+				if !ok {
+					return feov.Errorf(feov.Validation, "motion petition rule: %q is not a ruling on a petition", word)
+				}
+				body.Ruling = &recordpb.MotionRule_Petition{Petition: v}
+			case recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION:
+				v, ok := enumOf[recordpb.DirectionRuling](recordpb.DirectionRuling(0).Descriptor(), word)
+				if !ok {
+					return feov.Errorf(feov.Validation, "motion inquiry rule: %q is not a ruling on a direction", word)
+				}
+				body.Ruling = &recordpb.MotionRule_Direction{Direction: v}
+			}
 			// WHO THE RELIEF BINDS travels with the ruling that grants it (#360). Optional,
 			// because a denial binds nobody — and a grant that names no addressee is exactly the
 			// state the bench filed friction about: a direction issued knowing it had no carrier.
-			seat.Set(cmd, p, "binds", flags.Binds)
-			if _, err := record.Append(s.Identity(), "motion-rule", p); err != nil {
+			if w := seat.Str(cmd, flags.Binds); w != "" {
+				b, ok := enumOf[recordpb.RulingBinds](recordpb.RulingBinds(0).Descriptor(), w)
+				if !ok {
+					return feov.Errorf(feov.Validation, "motion %s rule: %q is not an addressee the relief can bind", subject, w)
+				}
+				body.Binds = &b
+			}
+			if _, err := record.Append(s.Identity(), body); err != nil {
 				return err
 			}
 			return seat.Emit(cmd, ruled{ID: id, Ruling: seat.Str(cmd, flags.As)}, nil)
@@ -170,6 +274,8 @@ func newRule(subject, ruler string) *cobra.Command {
 	if be, ok := record.MotionFieldEnum(subject, "binds", flags.Binds); ok {
 		enumhelp.Flag(c, flags.Binds, be, "who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not")
 	}
+	// The record type, for the contract gate — see newFile.
+	seat.Records(c, "motion_rule")
 	return c
 }
 
@@ -189,6 +295,16 @@ func newAppeal(subject string) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "appeal",
 		Short: "press a " + subject + " motion after a ruling — a ruling is an argument, not a command",
+		// SAME EVENT, TWO SUBJECTS, AND THE PAGE HAS TO SAY WHICH IS WHICH — the reason `file`
+		// carries one, for the same reason: a seat picks between them by opening one of them.
+		Long: "press a " + subject + " motion after a ruling — a ruling is an ARGUMENT, not a " +
+			"command, so the losing side may answer it on the record.\n\n" +
+			"TWO SUBJECTS TAKE AN APPEAL. `motion grade appeal` presses a grade dispute the merge " +
+			"rejected; `motion inquiry appeal` presses a line of inquiry red ruled out-of-scope or " +
+			"too-thin, and it is filed whether or not blue also pursues the line — separating the " +
+			"argument from the act is the whole point of the verb.\n\n" +
+			"A PETITION HAS NO APPEAL, and that absence is the design rather than an omission: it " +
+			"is heard by the bench BEFORE the debate continues, so there is nothing to escalate to.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
 			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
@@ -206,7 +322,7 @@ func newAppeal(subject string) *cobra.Command {
 				return err
 			}
 			id := seat.Str(cmd, flags.ID)
-			if err := record.RequireRuledMotion(s.RunDir, subject, id); err != nil {
+			if err := record.RequireRuledMotion(s.RunDir, mustSubject(subject), id); err != nil {
 				return err
 			}
 			if err := record.RequireSubjectMatches(s.RunDir, subject, id); err != nil {
@@ -216,8 +332,12 @@ func newAppeal(subject string) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			p := record.NewPayload().Set("motion_id", id).Set("subject", subject).Set("reason", reason)
-			if _, err := record.Append(s.Identity(), "motion-appeal", p); err != nil {
+			subj := mustSubject(subject)
+			if _, err := record.Append(s.Identity(), &recordpb.MotionAppeal{
+				MotionId: proto.String(id),
+				Subject:  &subj,
+				Reason:   proto.String(reason),
+			}); err != nil {
 				return err
 			}
 			return seat.Emit(cmd, appealed{ID: id}, nil)
@@ -225,6 +345,8 @@ func newAppeal(subject string) *cobra.Command {
 	}
 	seat.Prose(c)
 	c.Flags().String(flags.ID, "", refHelp(subject)+" — the motion being appealed, which must already have been ruled")
+	// The record type, for the contract gate — see newFile.
+	seat.Records(c, "motion_appeal")
 	return c
 }
 
@@ -232,11 +354,21 @@ func newAppeal(subject string) *cobra.Command {
 // line of inquiry's; saying "the motion id" there would send a seat looking for an M-number that does not
 // exist, and a seat that cannot find the id it was told to pass logs friction and works around the
 // verb — losing the capability for the run rather than reporting a wrong flag.
+// refHelp is the --id line, and it carries the REQUIRED marker because the flag is.
+//
+// It did not, and nothing caught that until the surface became seat-scoped: `motion` used to sit
+// at the ROOT, so the marker gate — which walks each seat's tree and skips anything whose path
+// does not begin inside one — never reached it. Moving motion inside each seat's tree brought
+// three subgroups into a gate that had never covered them, and all three were unmarked.
+//
+// A seat reading an unmarked flag supplies it or does not, learns which by being refused, and
+// spends the turn. The refusal itself is real (RequireMotionSubjectRef resolves the id against the
+// record), so this is the help disagreeing with the enforcement rather than a missing rule.
 func refHelp(subject string) string {
 	if subject == "inquiry" {
-		return "the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
+		return "REQUIRED — the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
 	}
-	return "the motion id (M1, M2 …)"
+	return "REQUIRED — the motion id (M1, M2 …)"
 }
 
 type filed struct {
@@ -258,3 +390,26 @@ type appealed struct {
 }
 
 func (r appealed) Human() string { return "motion " + r.ID + " appealed" }
+
+// mustSubject resolves a subject word registered by this package's own command tree, where an
+// unknown word is a programming error rather than seat input: subject() is called with literals.
+// The zero would be UNSPECIFIED, which reads downstream as a motion about nothing.
+func mustSubject(word string) recordpb.MotionSubject {
+	subj, ok := record.MotionSubjectEnum(word)
+	if !ok {
+		panic("motion: " + word + " is registered as a subgroup and is not a motion subject — the command tree and the schema disagree")
+	}
+	return subj
+}
+
+// enumOf resolves a seat's word to a typed ruling. It mirrors record.enumOf, which is unexported
+// there for the same reason it is unexported here: the EXPORTED pairs (GradeOf, ConfidenceOf …)
+// carry each enum's own fold rules, and a caller reaching past them to a generic would lose those.
+// The three ruling sets have no folds — they are the schema's spelling exactly.
+func enumOf[E ~int32](d protoreflect.EnumDescriptor, word string) (E, bool) {
+	vd, ok := recordpb.BySpelling(d, word)
+	if !ok {
+		return E(0), false
+	}
+	return E(vd.Number()), true
+}

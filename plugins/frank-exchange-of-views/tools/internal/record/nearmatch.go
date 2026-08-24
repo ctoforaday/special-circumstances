@@ -79,8 +79,8 @@ func NearMatch(b *Board, candidate, location string, topN int) []NearMatchJSON {
 		if !ok || g.Mint == nil {
 			continue
 		}
-		gapLoc := g.Mint.Str("location")
-		score := jaccard(candTokens, tokenize(g.Mint.Str("problem")+" "+gapLoc))
+		gapLoc := g.Mint.GetLocation()
+		score := jaccard(candTokens, tokenize(g.Mint.GetProblem()+" "+gapLoc))
 		if score <= 0 {
 			continue
 		}

@@ -46,7 +46,7 @@ func TestSynthesisSeatsAreRoundZeroByRule(t *testing.T) {
 // conflation this removes, one layer up: "no rounds have happened" would again be spelled the
 // same as "this happened in synthesis".
 func TestATerminalSeatOnAnEmptyRunIsUnknownRatherThanZero(t *testing.T) {
-	if got := RoundIn(t.TempDir())("judge-terminal"); got != -1 {
+	if got := RoundIn(tmpRun(t))("judge-terminal"); got != -1 {
 		t.Errorf("terminal round on an empty run = %d, want -1 (unknown); 0 would claim it happened in synthesis", got)
 	}
 }

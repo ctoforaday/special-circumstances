@@ -1,6 +1,11 @@
 package record
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
+)
 
 func TestRoleOf(t *testing.T) {
 	cases := map[string]string{
@@ -61,8 +66,8 @@ func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
 	}
 
 	// Record one under key F1 with label L1-F1.
-	p := NewPayload().Set("label", "L1-F1").Set("finding_key", "F1").Set("reason", "x")
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}, "finding", p); err != nil {
+	f := &recordpb.Finding{Label: proto.String("L1-F1"), FindingKey: proto.String("F1"), Text: proto.String("x")}
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}, f); err != nil {
 		t.Fatal(err)
 	}
 	if got, _ := ExistingFindingByKey(runDir, seat, "F1"); got != "L1-F1" {
@@ -79,8 +84,8 @@ func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
 
 func mustFinding(t *testing.T, runDir, seat, label string) {
 	t.Helper()
-	p := NewPayload().Set("label", label).Set("finding_key", label).Set("reason", "x")
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}, "finding", p); err != nil {
+	f := &recordpb.Finding{Label: proto.String(label), FindingKey: proto.String(label), Text: proto.String("x")}
+	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}, f); err != nil {
 		t.Fatal(err)
 	}
 }

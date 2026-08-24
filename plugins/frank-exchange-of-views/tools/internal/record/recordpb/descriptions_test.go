@@ -39,9 +39,6 @@ func TestEveryEnumValueHasADescription(t *testing.T) {
 	enums := allEnums(t)
 	checked := 0
 	for _, e := range enums {
-		if undocumentedEnums[e.FullName()] {
-			continue
-		}
 		for i := 0; i < e.Values().Len(); i++ {
 			v := e.Values().Get(i)
 			if isZeroValue(v) {
@@ -65,23 +62,14 @@ func TestEveryEnumValueHasADescription(t *testing.T) {
 	}
 }
 
-// AND THE MAP MUST NOT ROT THE OTHER WAY. A description naming a value that no longer exists is
-// dead weight that reads as coverage — the hand-kept-allowlist failure facts-are-fields warns
-// about, caught from the opposite direction.
-func TestNoDescriptionNamesAMissingValue(t *testing.T) {
-	live := map[string]bool{}
-	for _, e := range allEnums(t) {
-		for i := 0; i < e.Values().Len(); i++ {
-			live[string(e.Values().Get(i).FullName())] = true
-		}
-	}
-	for _, k := range sortedDocKeys() {
-		if !live[k] {
-			t.Errorf("descriptions.go documents %s, which the schema no longer declares — "+
-				"delete it, or the map silently drifts from the set it claims to cover", k)
-		}
-	}
-}
+// A DESCRIPTION CANNOT NAME A VALUE THE SCHEMA NO LONGER DECLARES, so the test that checked for it
+// is gone rather than retargeted.
+//
+// It walked a Go map keyed by full name and reported entries with no live value behind them — real
+// rot while the meanings lived one file away from the values. They now sit ON the value as
+// `[(means) = "…"]`, so deleting a value takes its meaning with it and the drift has nowhere to
+// happen. The test is recorded here as removed for that reason rather than deleted quietly: a gate
+// that disappears in a refactor looks identical to one somebody dropped.
 
 // Usage renders from the set itself, so the help a seat reads cannot drift from the check the
 // write path runs. This is the property enums.go named and the reason its table could not simply
@@ -110,7 +98,7 @@ func TestSpellingStripsTheGeneratedPrefix(t *testing.T) {
 		val  protoreflect.EnumValueDescriptor
 		want string
 	}{
-		{ClosureClass_CLOSURE_CLASS_DEFECT_ACCEPTED.Descriptor().Values().ByNumber(5), "defect_accepted"},
+		{Disposition_DISPOSITION_DEFECT_ACCEPTED.Descriptor().Values().ByNumber(5), "defect_accepted"},
 		{SourceOutcome_SOURCE_OUTCOME_SUPPORTS_WITH_BRIDGE.Descriptor().Values().ByNumber(2), "supports_with_bridge"},
 		{Grade_GRADE_LOW_MEDIUM.Descriptor().Values().ByNumber(3), "low_medium"},
 		{RunOutcome_RUN_OUTCOME_CEILING.Descriptor().Values().ByNumber(2), "ceiling"},
@@ -125,7 +113,7 @@ func TestSpellingStripsTheGeneratedPrefix(t *testing.T) {
 // The near-miss is the failure that was actually MEASURED (`--as pass` recording a PASS that
 // skipped the gate), so the refusal names what would have worked rather than only listing the set.
 func TestNearMissFindsTheTypoClassAndNothingWider(t *testing.T) {
-	e := ClosureClass_CLOSURE_CLASS_REPAIRED.Descriptor()
+	e := Disposition_DISPOSITION_REPAIRED.Descriptor()
 	for _, typo := range []string{"repaired-with-regression", "Repaired_With_Regression", "REPAIRED_WITH_REGRESSION"} {
 		got, ok := NearMiss(e, typo)
 		if !ok || got != "repaired_with_regression" {

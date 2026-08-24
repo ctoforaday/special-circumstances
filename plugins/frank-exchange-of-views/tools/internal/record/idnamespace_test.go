@@ -2,6 +2,9 @@ package record
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"regexp"
 	"strings"
 	"testing"
@@ -183,24 +186,23 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 	t.Helper()
 	switch kind {
 	case "gap":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "mint", NewPayload().
-			Set("gap_id", id).Set("class", "self-attestation").
-			Set("location", "L").Set("problem", "p").Set("required_fix", "f").
-			Set("acceptance_check", "c").Set("check_kind", "document").
-			Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium").
-			Set("complexity_cost", "low").Set("existence", "verified"))
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Mint{GapId: proto.String(id), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		return err
 	case "line-of-inquiry":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "line-of-inquiry", NewPayload().
-			Set("inquiry_id", id).Set("status", "proposed").Set("line", "a line").Set("reason", "r"))
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Avenue{AvenueId: proto.String(id), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("a line"), Reason: proto.String("r")})
 		return err
 	case "motion":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "motion", NewPayload().
-			Set("motion_id", id).Set("subject", "petition").Set("reason", "b").Set("class", "safety"))
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Motion{
+			MotionId: proto.String(id),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
+			Basis:    proto.String("b"),
+			Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{
+				Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY),
+			}},
+		})
 		return err
 	case "finding":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "finding", NewPayload().
-			Set("label", id).Set("location", "L").Set("problem", "p").Set("severity", "medium"))
+		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Finding{FindingId: proto.String(id), Label: proto.String(id), Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		return err
 	}
 	return fmt.Errorf("no recorder for id kind %q — add one, or the minter never advances and this test compares twelve copies of the same id", kind)

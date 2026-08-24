@@ -1,5 +1,11 @@
 package record
 
+import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
+)
+
 import "testing"
 
 // check_kind IS THE FIELD WITH TEETH, AND IT REACHED NO VIEW.
@@ -17,13 +23,26 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
-	for id, kind := range map[string]string{"R1-1": "computation", "R1-2": "document"} {
-		if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "mint", NewPayload().
-			Set("gap_id", id).Set("class", "self-attestation").
-			Set("location", "L").Set("problem", "p").Set("required_fix", "f").
-			Set("acceptance_check", "c").Set("check_kind", kind).
-			Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium").
-			Set("complexity_cost", "low").Set("existence", "verified")); err != nil {
+	// THE ID AND THE KIND ARE THE SUBJECT OF THIS TEST, and the earlier conversion dropped both
+	// from the body — every gap would have been minted identical and unidentified, which is a
+	// fixture that cannot fail the way the test intends.
+	for _, c := range []struct {
+		id   string
+		kind recordpb.CheckKind
+	}{
+		{"R1-1", recordpb.CheckKind_CHECK_KIND_COMPUTATION},
+		{"R1-2", recordpb.CheckKind_CHECK_KIND_DOCUMENT},
+	} {
+		if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Mint{
+			GapId:           proto.String(c.id),
+			Class:           proto.String("self-attestation"),
+			Problem:         proto.String("p"),
+			RequiredFix:     proto.String("f"),
+			AcceptanceCheck: proto.String("the check runs"),
+			CheckKind:       c.kind.Enum(),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -66,8 +85,7 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 		t.Fatalf("a silent run: total=%d attested=%d, want 0/0", j.Counts.Total, j.Counts.Attested)
 	}
 
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, "friction-none",
-		NewPayload().Set("reason", "read the board and my verb list; every refusal was my own error")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, &recordpb.FrictionNone{Text: proto.String("read the board and my verb list; every refusal was my own error")}); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = BoardState(runDir)
@@ -99,20 +117,24 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	mint := func(id, kind string) {
+	mint := func(id string, kind recordpb.CheckKind) {
 		t.Helper()
-		if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "mint", NewPayload().
-			Set("gap_id", id).Set("class", "self-attestation").
-			Set("location", "L").Set("problem", "p").Set("required_fix", "f").
-			Set("acceptance_check", "c").Set("check_kind", kind).
-			Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium").
-			Set("complexity_cost", "low").Set("existence", "verified")); err != nil {
+		if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Mint{
+			GapId:           proto.String(id),
+			Class:           proto.String("self-attestation"),
+			Problem:         proto.String("p"),
+			RequiredFix:     proto.String("f"),
+			AcceptanceCheck: proto.String("the check runs"),
+			CheckKind:       kind.Enum(),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	mint("R1-1", CheckKindComputation)
-	mint("R1-2", CheckKindComputation)
-	mint("R1-3", "document")
+	mint("R1-1", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
+	mint("R1-2", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
+	mint("R1-3", recordpb.CheckKind_CHECK_KIND_DOCUMENT)
 
 	owed := GapsAwaitingProof(runDir)
 	if len(owed) != 2 || owed[0] != "R1-1" || owed[1] != "R1-2" {
@@ -125,9 +147,13 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 		}
 	}
 
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, "proof", NewPayload().
-		Set("answers", "R1-1").Set("location", "L").Set("script", "s.py").
-		Set("proof_id", "p-1").Set("reproducible", true)); err != nil {
+	// THE PROOF ANSWERS A GAP, and the earlier conversion dropped `answers` — so the proof
+	// discharged nothing and the debt could not move. `answers` is the whole join this test is
+	// about: a proof that names no gap is a script that ran for no stated reason.
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, &recordpb.Proof{
+		Answers: proto.String("R1-1"),
+		Script:  proto.String("s.py"),
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if owed := GapsAwaitingProof(runDir); len(owed) != 1 || owed[0] != "R1-2" {
@@ -157,10 +183,13 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	}
 
 	// A CLOSED gap owes nothing, whatever its kind: the debt is what blue can still act on.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "close", NewPayload().
-		Set("gap_id", "R1-2").Set("disposition", "defect_accepted").
-		Set("anchor_seat", "L1").Set("anchor_tool", "Read").Set("anchor_target", "x").
-		Set("reason", "the demand outweighed the defect")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Close{
+		GapId:        proto.String("R1-2"),
+		AnchorSeat:   proto.String("L1"),
+		AnchorTool:   proto.String("Read"),
+		AnchorTarget: proto.String("x"),
+		Prose:        proto.String("the computation ran and the check holds"),
+	}); err != nil {
 		t.Fatal(err)
 	}
 	if owed := GapsAwaitingProof(runDir); len(owed) != 0 {

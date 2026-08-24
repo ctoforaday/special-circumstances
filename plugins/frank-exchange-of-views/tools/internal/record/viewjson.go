@@ -5,6 +5,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // STRUCTURED STATE FOR THE SEATS.
@@ -143,13 +148,18 @@ type ObservationJSON struct {
 
 // BoardJSONOf projects the replayed board into the seat-facing shape.
 func BoardJSONOf(b *Board) BoardJSON {
+	// ANOMALIES ARE THIS PROJECTION'S OWN NOW. They used to be seeded from the board, which
+	// carried the replay's findings — torn shard lines, undecodable rows, mutations naming a gap
+	// that did not exist. None of those survive the record being a database: a transaction commits
+	// or does not, and a dangling gap_id is refused by a foreign key. So the seed is gone and what
+	// remains is what this function itself discovers: a body it could not render.
+	//
+	// The empty slice is deliberate and unchanged — `[]` and `null` are different answers in the
+	// artifact a seat reads, and "no anomalies" must not arrive as "the field is missing".
 	out := BoardJSON{
 		Open:      []GapJSON{},
 		Closed:    []GapJSON{},
-		Anomalies: b.Anomalies,
-	}
-	if out.Anomalies == nil {
-		out.Anomalies = []string{}
+		Anomalies: []string{},
 	}
 
 	for _, id := range b.GapOrder {
@@ -160,33 +170,63 @@ func BoardJSONOf(b *Board) BoardJSON {
 		gj := GapJSON{
 			ID: g.ID, Round: g.Round, Open: g.Open,
 			FoundBy: []string{}, Supersedes: []string{}, Regrades: []map[string]any{},
-			Severity: g.Severity, Likelihood: g.Likelihood,
-			Impact: g.Impact, ComplexityCost: g.ComplexityCost,
+			Severity: gradeVal(g.Severity), Likelihood: gradeVal(g.Likelihood),
+			Impact: gradeVal(g.Impact), ComplexityCost: gradeVal(g.ComplexityCost),
 			ClosedByBench: g.ClosedByBench,
 		}
 		if g.Mint != nil {
-			gj.Class = g.Mint.Str("class")
-			gj.Location = g.Mint.Str("location")
-			gj.Problem = g.Mint.Str("problem")
-			gj.MintReason = g.Mint.Str("mint_reason")
-			gj.RequiredFix = g.Mint.Str("required_fix")
-			gj.AcceptanceGate = g.Mint.Str("acceptance_check")
-			gj.CheckKind = g.Mint.Str("check_kind")
-			gj.AwaitingProof = g.Open && gj.CheckKind == CheckKindComputation && !proofNames(b, g.ID)
-			gj.FixBasis = g.Mint.Str("fix_basis")
-			gj.FixOld = g.Mint.Str("location")
-			gj.FixNew = g.Mint.Str("fix_new")
-			gj.FoundBy = strs(g.Mint.StrList("found_by"))
-			gj.Supersedes = strs(g.Mint.StrList("supersedes"))
+			gj.Class = g.Mint.GetClass()
+			gj.Location = g.Mint.GetLocation()
+			gj.Problem = g.Mint.GetProblem()
+			// MINT_REASON HAS NO FIELD IN record.proto AND IS LEFT UNSET HERE.
+			//
+			// RESOLVED. The note here said the schema carried no `Mint.mint_reason`, so the
+			// assignment was dropped and red's ARGUMENT for a gap — the half a seat answers and a
+			// bench weighs — reached no reader. The schema does carry it, and the projection
+			// declares the field; only the line joining them was missing, which is why nothing
+			// reported it: a struct field that is never assigned renders as absent, and absent
+			// reads as "red gave no argument" on every gap in every run.
+			gj.MintReason = g.Mint.GetMintReason()
+			gj.RequiredFix = g.Mint.GetRequiredFix()
+			gj.AcceptanceGate = g.Mint.GetAcceptanceCheck()
+			if g.Mint.CheckKind != nil {
+				gj.CheckKind = recordpb.Word(g.Mint.GetCheckKind())
+			}
+			// THE GATE COMPARES THE ENUM, NOT THE RENDERED WORD. Reading it back off gj.CheckKind
+			// would put a string round-trip between the board and the close gate, which is the
+			// pair that could disagree this migration exists to remove.
+			gj.AwaitingProof = g.Open && g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION && !proofNames(b, g.ID)
+			gj.FixBasis = g.Mint.GetFixBasis()
+			gj.FixOld = g.Mint.GetLocation()
+			gj.FixNew = g.Mint.GetFixNew()
+			gj.FoundBy = strs(g.Mint.GetFoundBy())
+			gj.Supersedes = strs(g.Mint.GetSupersedes())
 		}
 		if g.HasClosed {
 			gj.ClosedRound = g.ClosedRound
 		}
-		if g.Closure != nil {
-			gj.Closure = payloadMap(g.Closure)
+		// BOTH CLOSING BODIES REACH THIS FIELD, and the pair is why the nil test is a switch.
+		//
+		// replay.go now splits the closure into `Closure` (a `merge close`) and `BenchClosure` (a
+		// `bench opinion` whose disposition ended the gap), and warns in its own words that
+		// `g.Closure != nil` no longer means "closed by anything". The pre-split payload held
+		// EITHER body and this projection rendered whichever arrived — so reading only `Closure`
+		// here would drop every bench closure out of the board silently, which is the exact failure
+		// replay.go's `missingGap` header records from the round the bench's closures vanished.
+		if body := closureBody(g); body != nil {
+			m, err := bodyMap(body)
+			if err != nil {
+				out.Anomalies = append(out.Anomalies, fmt.Sprintf("gap %s: %v — the closure was DROPPED from this projection, not rendered empty", g.ID, err))
+			}
+			gj.Closure = m
 		}
 		for _, r := range g.Regrades {
-			gj.Regrades = append(gj.Regrades, payloadMap(r))
+			m, err := bodyMap(r)
+			if err != nil {
+				out.Anomalies = append(out.Anomalies, fmt.Sprintf("gap %s: %v — the regrade was DROPPED from this projection, not rendered empty", g.ID, err))
+				continue
+			}
+			gj.Regrades = append(gj.Regrades, m)
 		}
 		if g.Open {
 			out.Open = append(out.Open, gj)
@@ -204,16 +244,18 @@ func BoardJSONOf(b *Board) BoardJSON {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, lbl := range g.Mint.StrList("found_by") {
+		for _, lbl := range g.Mint.GetFoundBy() {
 			credited[lbl] = true
 		}
 	}
 	for _, o := range b.Observations {
 		oj := ObservationJSON{SeatID: o.SeatID, Key: o.Key, Kind: o.Kind}
-		if o.Payload != nil {
-			oj.ID = o.Payload.Str("finding_id")
-			oj.Label = o.Payload.Str("label")
-			oj.Text = o.Payload.Str("reason")
+		if o.Finding != nil {
+			oj.ID = o.Finding.GetFindingId()
+			oj.Label = o.Finding.GetLabel()
+			// `reason` WAS THE PAYLOAD KEY; `text` IS THE FIELD. Finding carries one prose
+			// channel and this is it — Finding has no `reason`, and the CLI's --reason lands here.
+			oj.Text = o.Finding.GetText()
 		}
 		oj.Credited = oj.Label != "" && credited[oj.Label]
 		if !oj.Credited {
@@ -230,10 +272,10 @@ func BoardJSONOf(b *Board) BoardJSON {
 		// number red reads as its audit volume must not grow when blue writes. The two are
 		// different EVENT TYPES now (#341), so neither count can absorb the other's events by
 		// a field happening to be empty.
-		switch e.Type {
-		case "verify":
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_VERIFY:
 			out.Counts.Citations++
-		case "cite":
+		case recordpb.EventType_EVENT_TYPE_CITE:
 			out.Counts.CitationsAuthored++
 		}
 	}
@@ -260,17 +302,93 @@ func strs(v []string) []string {
 	return v
 }
 
-func payloadMap(p *Payload) map[string]any {
-	if p == nil {
+// bodyMap is what `payloadMap` became (plan §III.1): the closure and regrade objects, projected
+// from the typed body through protojson instead of from a map whose shape was whatever the payload
+// happened to hold.
+//
+// `UseProtoNames` keeps the SCHEMA'S OWN field names — `closure_class`, `anchor_seat` — so the keys
+// are the ones record.proto, the CLI and the docs already spell. `EmitUnpopulated` stays false,
+// which is what makes this presence-preserving: a field the seat never set is ABSENT from the
+// object, exactly as an unset payload key was, while one it set to a zero value is present. That
+// distinction is the whole reason every field in the schema is `optional`.
+//
+// IT ROUND-TRIPS THROUGH map[string]any RATHER THAN HANDING protojson's BYTES OUT, and that is not
+// laziness. protojson's whitespace comes from protobuf-go's internal/detrand and is stable within a
+// program but UNSTABLE ACROSS BUILDS (plan §IV.1) — the same hazard canonical.go solves for the
+// shard line. Re-marshalling from a Go map means encoding/json emits every byte a consumer sees,
+// with its own deterministic sorted-key order, and no protojson byte reaches the render. The old
+// `payloadMap` had this property for the same reason: it also produced a map, and Payload's
+// insertion order never survived `json.Marshal`.
+//
+// The error is RETURNED rather than swallowed to a nil map. A projection failure that renders as an
+// empty object is the plausible zero this file's own header is about: a closure with no anchors and
+// a closure that failed to project would print the same bytes.
+func bodyMap(m proto.Message) (map[string]any, error) {
+	if m == nil || !m.ProtoReflect().IsValid() {
+		return nil, nil
+	}
+	name := m.ProtoReflect().Descriptor().Name()
+	raw, err := protojson.MarshalOptions{UseProtoNames: true}.Marshal(m)
+	if err != nil {
+		return nil, fmt.Errorf("projecting a %s body: %w", name, err)
+	}
+	out := map[string]any{}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, fmt.Errorf("re-reading a projected %s body: %w", name, err)
+	}
+	return out, nil
+}
+
+// gradeWord adds PRESENCE to GradeStr, and nothing else.
+//
+// The vocabulary is GradeStr's — one spelling now, `low_medium`, after flags.Grade converged on
+// the schema's word; GradeStr's own header carries what the join was and why it was not a general
+// rule. This function must never re-implement it: a second copy of that mapping is how MASS lookups
+// silently return 0, which is the same number an ungraded gap reports.
+//
+// What is local here is the JSON view's presence contract, which GradeStr cannot express because it
+// returns a string. These fields are `any` so an UNGRADED finding renders `null` and a graded one
+// renders its word — the distinction GapJSON's own comment calls "the falsy-value confusion that
+// has now produced three separate defects in this codebase". `f.Severity != nil` is the presence
+// read; the zero value is NOT, because an explicit GRADE_UNSPECIFIED and an absent field must not
+// collapse into the same bytes.
+func gradeWord(g *recordpb.Grade) any {
+	if g == nil {
 		return nil
 	}
-	m := map[string]any{}
-	for _, k := range p.Keys() {
-		if v, ok := p.Get(k); ok {
-			m[k] = v
-		}
+	return gradeVal(*g)
+}
+
+// gradeVal is gradeWord for a grade that arrives WITHOUT presence — replay.go's Gap carries its
+// four grades as plain `recordpb.Grade` values, so an ungraded gap is the UNSPECIFIED zero rather
+// than a nil pointer.
+//
+// The zero renders as JSON `null`, not as `""` and not as the number 0. `null` is what the
+// pre-migration board emitted (payloadVal returned nil for an absent key) and it is what GapJSON's
+// comment demands: an ungraded gap must not be confusable with a graded one, and `0` would be both
+// a valid-looking value and a number no consumer's grade table can key on.
+func gradeVal(g recordpb.Grade) any {
+	if w := GradeStr(g); w != "" {
+		return w
 	}
-	return m
+	return nil
+}
+
+// closureBody is the gap's closing event, whichever verb wrote it.
+//
+// `merge close` and `bench opinion` are different acts with different evidence bars and they write
+// different messages, but a seat AUDITING a closure asks one question — how did this gap end — and
+// the board has always answered it in one field. The two-field split lives in replay.go so the
+// typed readers cannot conflate them; this is the one place that deliberately re-joins them, and it
+// is a function rather than an inline `if` so no caller can add a third reader that checks only one.
+func closureBody(g *Gap) proto.Message {
+	switch {
+	case g.Closure != nil:
+		return g.Closure
+	case g.BenchClosure != nil:
+		return g.BenchClosure
+	}
+	return nil
 }
 
 // BoardJSONBytes renders the board as indented JSON. Indented because a seat reads this in
@@ -449,16 +567,18 @@ func WorkJSONOf(b *Board) WorkJSON {
 		if g.Open {
 			wg := WorkGapJSON{
 				ID:       g.ID,
-				Severity: g.Severity, Likelihood: g.Likelihood,
-				Impact: g.Impact, ComplexityCost: g.ComplexityCost,
+				Severity: gradeVal(g.Severity), Likelihood: gradeVal(g.Likelihood),
+				Impact: gradeVal(g.Impact), ComplexityCost: gradeVal(g.ComplexityCost),
 			}
 			if g.Mint != nil {
-				wg.Class = g.Mint.Str("class")
-				wg.Location = g.Mint.Str("location")
-				wg.ProblemSynopsis = synopsis(g.Mint.Str("problem"))
-				wg.CheckKind = g.Mint.Str("check_kind")
-				wg.AwaitingProof = wg.CheckKind == CheckKindComputation && !proofNames(b, g.ID)
-				wg.FoundBy = strs(g.Mint.StrList("found_by"))
+				wg.Class = g.Mint.GetClass()
+				wg.Location = g.Mint.GetLocation()
+				wg.ProblemSynopsis = synopsis(g.Mint.GetProblem())
+				if g.Mint.CheckKind != nil {
+					wg.CheckKind = recordpb.Word(g.Mint.GetCheckKind())
+				}
+				wg.AwaitingProof = g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION && !proofNames(b, g.ID)
+				wg.FoundBy = strs(g.Mint.GetFoundBy())
 			}
 			out.Open = append(out.Open, wg)
 		} else {
@@ -467,16 +587,18 @@ func WorkJSONOf(b *Board) WorkJSON {
 				ci.ClosedBy = "bench"
 			}
 			if g.Mint != nil {
-				ci.Location = g.Mint.Str("location")
-				ci.Class = g.Mint.Str("class")
+				ci.Location = g.Mint.GetLocation()
+				ci.Class = g.Mint.GetClass()
 			}
-			// Two spellings, one fact: red closes with `closure_class`, the bench disposes with
-			// `disposition`. graph.go already reads them with this same fallback — the fate is
-			// the fact, and which verb wrote it is not the reader's problem.
+			// ONE VOCABULARY, TWO WRITERS. Red closes with `closure_class`, the bench disposes
+			// with `disposition`; both are the same Disposition enum, and which verb wrote it is
+			// not the reader's problem. They are separate FIELDS here rather than one payload key
+			// read twice, so the fallback is a nil test on a typed body instead of a string miss.
 			if g.Closure != nil {
-				if ci.Fate = g.Closure.Str("closure_class"); ci.Fate == "" {
-					ci.Fate = g.Closure.Str("disposition")
-				}
+				ci.Fate = recordpb.Word(g.Closure.GetClosureClass())
+			}
+			if ci.Fate == "" && g.BenchClosure != nil {
+				ci.Fate = recordpb.Word(g.BenchClosure.GetDisposition())
 			}
 			// The second axis, derived rather than stored. `amends_prior` cannot be answered
 			// from the class alone — it inherits from the ruling it amends — and it says so
@@ -485,7 +607,12 @@ func WorkJSONOf(b *Board) WorkJSON {
 			if s, ok := ArtifactStateOf(ci.Fate); ok {
 				ci.ArtifactState = string(s)
 			} else {
-				ci.ArtifactState = "inherits:" + g.Closure.Str("supersedes")
+				// THE LINEAGE IS ON THE MINT, not on the closure. `amends_prior` means this gap
+				// amends earlier ones, and the gap names its ancestors where every other reader
+				// finds them — `Mint.supersedes`, always present and empty when there are none.
+				// The payload record read a `supersedes` key off the CLOSE event; there is no
+				// such field, so that read would have been an empty string on every closure.
+				ci.ArtifactState = "inherits:" + strings.Join(g.Mint.GetSupersedes(), ",")
 			}
 			out.ClosedIndex = append(out.ClosedIndex, ci)
 		}
@@ -512,15 +639,16 @@ func counterpartyOf(b *Board, role string, round int) CounterpartyJSON {
 		if PartyOf(e) != other {
 			continue
 		}
-		switch e.Type {
-		case "register", "friction-none":
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_REGISTER, recordpb.EventType_EVENT_TYPE_FRICTION_NONE:
 			continue // arriving is not acting
 		}
 		c.Acts++
-		if e.Round > c.LastRound {
-			c.LastRound = e.Round
+		r := int(e.GetRound())
+		if r > c.LastRound {
+			c.LastRound = r
 		}
-		if e.Round == round {
+		if r == round {
 			c.ActsThisRound++
 		}
 	}
@@ -539,8 +667,8 @@ func counterpartyOf(b *Board, role string, round int) CounterpartyJSON {
 func roundOfSeatOnBoard(b *Board, seatID string) int {
 	r := 0
 	for _, e := range b.Events {
-		if e.SeatID == seatID && e.Round > r {
-			r = e.Round
+		if e.GetSeatId() == seatID && int(e.GetRound()) > r {
+			r = int(e.GetRound())
 		}
 	}
 	return r
@@ -604,27 +732,32 @@ type FindingsJSON struct {
 func FindingsJSONOf(b *Board) FindingsJSON {
 	out := FindingsJSON{Findings: []FindingJSON{}}
 	for _, e := range b.Events {
-		if e.Type != "finding" {
+		// TYPE-SWITCHED ON THE BODY, not on `type`: this loop reaches straight for the finding's
+		// fields, and a body read that way cannot go stale against the enum.
+		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
+		if !ok {
 			continue
 		}
 		fj := FindingJSON{
-			Label:    e.Payload.Str("label"),
-			Anchor:   e.Payload.Str("finding_id"),
-			SeatID:   e.SeatID,
-			Round:    e.Round,
-			Role:     RoleOf(e.SeatID),
-			Location: e.Payload.Str("location"),
-			Text:     e.Payload.Str("reason"),
+			Label:  f.GetLabel(),
+			Anchor: f.GetFindingId(),
+			SeatID: e.GetSeatId(),
+			Round:  int(e.GetRound()),
+			Role:   RoleOf(e.GetSeatId()),
+			// `reason` WAS THE PAYLOAD KEY; `text` IS THE FIELD. Finding carries one prose
+			// channel and this is it — there is no Finding.reason.
+			Location: f.GetLocation(),
+			Text:     f.GetText(),
 		}
-		if v, ok := e.Payload.Get("severity"); ok {
-			fj.Severity = v
-		}
-		if v, ok := e.Payload.Get("likelihood"); ok {
-			fj.Likelihood = v
-		}
-		if v, ok := e.Payload.Get("impact"); ok {
-			fj.Impact = v
-		}
+		// PRESENCE, NOT TRUTHINESS — and the POINTER is passed, not GetSeverity().
+		//
+		// Finding's grades are `optional`, so a lens that graded nothing leaves them nil and
+		// gradeWord renders `null`, which is what the old `if v, ok := Get("severity"); ok` arm
+		// produced. `GetSeverity()` would hand over the UNSPECIFIED zero instead and fold "never
+		// graded" into the same bytes as a grade — the confusion GapJSON's own comment names.
+		fj.Severity = gradeWord(f.Severity)
+		fj.Likelihood = gradeWord(f.Likelihood)
+		fj.Impact = gradeWord(f.Impact)
 		out.Findings = append(out.Findings, fj)
 	}
 	out.Counts.Total = len(out.Findings)
@@ -674,11 +807,18 @@ type FrictionEntryJSON struct {
 func FrictionJSONOf(b *Board) FrictionJSON {
 	out := FrictionJSON{Friction: []FrictionEntryJSON{}, NothingBlocked: []FrictionEntryJSON{}}
 	for _, e := range b.Events {
-		switch e.Type {
-		case "friction":
-			out.Friction = append(out.Friction, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("reason")})
-		case "friction-none":
-			out.NothingBlocked = append(out.NothingBlocked, FrictionEntryJSON{SeatID: e.SeatID, Round: e.Round, Text: e.Payload.Str("reason")})
+		// `reason` WAS THE PAYLOAD KEY on both verbs; `text` is the field on both messages.
+		//
+		// KIND IS NOT FILTERED HERE, and that is the behaviour this view already had rather than a
+		// choice made in the conversion: Friction now carries a `kind` (seat report / estoppel
+		// refusal / tool error) and this list counts all three, exactly as the payload-keyed
+		// version did. Reported, not changed — narrowing it would move Counts.Total.
+		if f, ok := recordpb.BodyAs[*recordpb.Friction](e); ok {
+			out.Friction = append(out.Friction, FrictionEntryJSON{SeatID: e.GetSeatId(), Round: int(e.GetRound()), Text: f.GetText()})
+			continue
+		}
+		if f, ok := recordpb.BodyAs[*recordpb.FrictionNone](e); ok {
+			out.NothingBlocked = append(out.NothingBlocked, FrictionEntryJSON{SeatID: e.GetSeatId(), Round: int(e.GetRound()), Text: f.GetText()})
 		}
 	}
 	out.Counts.Total = len(out.Friction)
@@ -746,12 +886,13 @@ func DebateJSONOf(b *Board) DebateJSON {
 	out := DebateJSON{Rounds: []DebateRoundJSON{}}
 
 	var roundOrder []int
-	byRound := map[int][]Event{}
+	byRound := map[int][]*Event{}
 	for _, e := range b.Events {
-		if _, seen := byRound[e.Round]; !seen {
-			roundOrder = append(roundOrder, e.Round)
+		r := int(e.GetRound())
+		if _, seen := byRound[r]; !seen {
+			roundOrder = append(roundOrder, r)
 		}
-		byRound[e.Round] = append(byRound[e.Round], e)
+		byRound[r] = append(byRound[r], e)
 	}
 	sort.Ints(roundOrder)
 
@@ -761,35 +902,47 @@ func DebateJSONOf(b *Board) DebateJSON {
 		// raw seat id: an id that fails to match its expected prefix renders as the WRONG
 		// PARTY with nothing to notice. `frontier` is one such blue seat; it emits no
 		// position or closing today, and this stays correct if that changes.
-		sec := func(typ, party string) []Event {
-			var s []Event
+		sec := func(typ recordpb.EventType, party string) []*Event {
+			var s []*Event
 			for _, e := range re {
-				if e.Type == typ && PartyOf(e) == party {
+				if e.GetType() == typ && PartyOf(e) == party {
 					s = append(s, e)
 				}
 			}
 			return s
 		}
 		rj := DebateRoundJSON{Round: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{}}
-		for _, p := range sec("position", "merge") {
-			rj.Red = append(rj.Red, p.Payload.Str("reason"))
+		// `reason` WAS THE PAYLOAD KEY on position and closing; `text` is the field on both
+		// messages (Position.text, Closing.text). Neither message has a `reason`.
+		for _, p := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "merge") {
+			if pos, ok := recordpb.BodyAs[*recordpb.Position](p); ok {
+				rj.Red = append(rj.Red, pos.GetText())
+			}
 		}
-		for _, c := range sec("closing", "merge") {
-			rj.RedClosings = append(rj.RedClosings, DebateClosingJSON{GapID: c.Payload.Str("gap_id"), Text: c.Payload.Str("reason")})
+		for _, c := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "merge") {
+			if cl, ok := recordpb.BodyAs[*recordpb.Closing](c); ok {
+				rj.RedClosings = append(rj.RedClosings, DebateClosingJSON{GapID: cl.GetGapId(), Text: cl.GetText()})
+			}
 		}
-		for _, p := range sec("position", "blue") {
-			rj.Blue = append(rj.Blue, p.Payload.Str("reason"))
+		for _, p := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
+			if pos, ok := recordpb.BodyAs[*recordpb.Position](p); ok {
+				rj.Blue = append(rj.Blue, pos.GetText())
+			}
 		}
-		for _, c := range sec("closing", "blue") {
-			rj.BlueClosings = append(rj.BlueClosings, DebateClosingJSON{GapID: c.Payload.Str("gap_id"), Text: c.Payload.Str("reason")})
+		for _, c := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "blue") {
+			if cl, ok := recordpb.BodyAs[*recordpb.Closing](c); ok {
+				rj.BlueClosings = append(rj.BlueClosings, DebateClosingJSON{GapID: cl.GetGapId(), Text: cl.GetText()})
+			}
 		}
 		for _, e := range re {
-			switch e.Type {
-			case "opinion":
+			// `reason` WAS THE PAYLOAD KEY for the bench's argument; `rationale` is the field, and
+			// the JSON key was already `rationale` — the record and the view disagreed on the name
+			// of one fact and the schema settles it.
+			if o, ok := recordpb.BodyAs[*recordpb.Opinion](e); ok {
 				rj.Lead = append(rj.Lead, DebateOpinionJSON{
-					GapID: e.Payload.Str("gap_id"), Disposition: e.Payload.Str("disposition"),
-					Principle: e.Payload.Str("principle"), Tension: e.Payload.Str("tension"),
-					ReviewFlag: e.Payload.Str("review_flag"), Rationale: e.Payload.Str("reason"),
+					GapID: o.GetGapId(), Disposition: recordpb.Word(o.GetDisposition()),
+					Principle: o.GetPrinciple(), Tension: o.GetTension(),
+					ReviewFlag: o.GetReviewFlag(), Rationale: o.GetRationale(),
 				})
 			}
 		}

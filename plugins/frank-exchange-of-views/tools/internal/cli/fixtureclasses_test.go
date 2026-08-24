@@ -18,7 +18,8 @@ import (
 // ones tests use to prove an unknown class is refused.
 func newRun(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
+	// tmpRun already releases this run's handle; newRun only adds the class vocabulary.
+	dir := tmpRun(t)
 	if err := record.StageForRun(dir, fixtureClasses...); err != nil {
 		t.Fatalf("stage the class registry: %v", err)
 	}

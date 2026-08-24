@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // A lens role segment in a seat id: "red-lens-r3-L2" -> "L2". The role is the
@@ -39,7 +41,7 @@ func NextFindingLabel(runDir, seatID string) (string, error) {
 	prefix := role + "-F"
 	n := 0
 	for _, e := range m.Events {
-		if e.Type == "finding" && strings.HasPrefix(e.Payload.Str("label"), prefix) {
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && strings.HasPrefix(f.GetLabel(), prefix) {
 			n++
 		}
 	}
@@ -52,6 +54,18 @@ func NextFindingLabel(runDir, seatID string) (string, error) {
 // ExistingMintByKey: the retry dedup is this short-circuit BEFORE Append, not a
 // change to the event key (which stays the unique label).
 func ExistingFindingByKey(runDir, seatID, key string) (string, error) {
-	result, _, err := ExistingByKey(runDir, seatID, "finding", key)
-	return result, err
+	if key == "" {
+		return "", nil
+	}
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return "", err
+	}
+	for _, e := range m.Events {
+		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
+		if ok && e.GetSeatId() == seatID && f.GetFindingKey() == key {
+			return f.GetLabel(), nil
+		}
+	}
+	return "", nil
 }

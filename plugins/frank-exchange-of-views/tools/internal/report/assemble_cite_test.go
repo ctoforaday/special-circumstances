@@ -8,6 +8,8 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 )
 
 // §V.4 — the citation weave: invisible anchors → visible [^N] + a composed ## Bibliography.
@@ -86,10 +88,14 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 	if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "blue-synthesize", Round: record.RoundIn(runDir)("blue-synthesize")}, ""); err != nil {
 		t.Fatal(err)
 	}
-	cite := record.NewPayload().
-		Set("label", "c-1").Set("url", "https://ex/coherence").Set("sha256", "deadbeef").
-		Set("title", "Coherence Proof").Set("access_date", "2026-08-03")
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "blue-synthesize", Round: record.RoundIn(runDir)("blue-synthesize")}, "cite", cite); err != nil {
+	cite := &recordpb.Cite{
+		Label:      proto.String("c-1"),
+		Url:        proto.String("https://ex/coherence"),
+		Sha256:     proto.String("deadbeef"),
+		Title:      proto.String("Coherence Proof"),
+		AccessDate: proto.String("2026-08-03"),
+	}
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "blue-synth-r0", Round: record.RoundIn(runDir)("blue-synth-r0")}, cite); err != nil {
 		t.Fatal(err)
 	}
 

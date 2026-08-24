@@ -33,8 +33,7 @@
 package record
 
 import (
-	"crypto/rand"
-	"encoding/hex"
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -43,8 +42,13 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
@@ -60,7 +64,7 @@ import (
 // MEASURED 2026-08-16, by reading both tables instead of both stamps:
 //
 //	debate.js:262  { trivial: 0.5, low: 1, 'low-medium': 1.5, medium: 2, 'medium-high': 2.5, high: 3, certain: 3.5, realized: 0 }
-//	MASS below     { trivial: 0.5, low: 1, "low-medium": 1.5, "medium": 2, "medium-high": 2.5, "high": 3, "certain": 3.5, "realized": 0 }
+//	MASS below     { trivial: 0.5, low: 1, "low_medium": 1.5, "medium": 2, "medium_high": 2.5, "high": 3, "certain": 3.5, "realized": 0 }
 //
 // Eight keys, eight values, identical — and GapMass matches gapMass on the missing-grade
 // rule too (absent multiplies as zero on both sides). The MAPPINGS agree. Only the STAMPS
@@ -96,8 +100,8 @@ const MassMappingVersion = "v2"
 var ToolVersion = "unset — internal/cli assigns the real version at init"
 
 var MASS = map[string]float64{
-	"trivial": 0.5, "low": 1, "low-medium": 1.5, "medium": 2,
-	"medium-high": 2.5, "high": 3, "certain": 3.5, "realized": 0,
+	"trivial": 0.5, "low": 1, "low_medium": 1.5, "medium": 2,
+	"medium_high": 2.5, "high": 3, "certain": 3.5, "realized": 0,
 }
 
 // isGrade validates against the single canonical grade set (flags.Grades) — record does not
@@ -108,80 +112,30 @@ func isGrade(s string) bool { return flags.IsGrade(s) }
 // absent grade contributes zero rather than erroring.
 func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS[impact] }
 
-// The path helpers take an ALREADY-RESOLVED record directory rather than a run directory.
-// Resolution can fail (see RecordsDir), and a helper that cannot report that failure would have
-// to fall back to <runDir>/records — writing a separated run's events into the very directory
-// the separation exists to keep them out of, silently. So the resolve happens once, at each
-// public entry point, where there is an error to return.
-func pointerPath(recDir, seatID string) string {
-	return filepath.Join(recDir, ".active-"+seatID)
-}
-
-func shardPath(recDir, seatID, nonce string) string {
-	return filepath.Join(recDir, fmt.Sprintf("events-%s-%s.jsonl", seatID, nonce))
-}
+// RoundOf, RoundIn and LastRoundOn live in round.go now.
+//
+// What stood here returned a bare int and read FEOV_ROUND first — an injected branch nothing in
+// the repository ever set, so in production the regex was not a fallback but the only path, and
+// `judge-terminal` stamped round 0 on every append (#396). round.go answers the question the regex
+// structurally cannot: a terminal seat's round is derived from the RECORD (the highest round any
+// seat stamped), and "this name says nothing about a round" is a second return value rather than a
+// zero indistinguishable from round 0.
 
 var seatIDRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-]*$`)
 
-// nonceFn is indirected for the differential harness: both implementations accept
-// a test-only seed so nonces can be made comparable (R2g comparison policy 1).
-var nonceFn = randomNonce
-
-func randomNonce() string {
-	b := make([]byte, 4)
-	if _, err := rand.Read(b); err != nil {
-		panic("record: entropy unavailable: " + err.Error())
-	}
-	return hex.EncodeToString(b)
-}
-
-// Event is the log line. Field order matches the oracle's object literal so the
-// serialized form is byte-comparable, not merely structurally equal.
-type Event struct {
-	Seq int `json:"seq"`
-	// TS is when the event happened, and it is what replay ORDERS BY.
-	//
-	// Without it, events merged by shard FILENAME, so a whole seat replayed before the
-	// next seat began and every cross-seat reference was ordered by how seat names
-	// happen to sort. The bench closing a gap red minted was dropped silently because
-	// the gap did not exist yet at replay time; the merge seat disposing a lens
-	// observation worked only because red-lens sorts before red-merge.
-	//
-	// Wall clock from many short-lived processes is not monotonic and can go backwards,
-	// so it is never sufficient ALONE — (TS, SeatID, Seq) is the full ordering key, and
-	// the tail of it is deterministic when clocks tie or skew.
-	TS     string `json:"ts"`
-	SeatID string `json:"seatId"`
-	Nonce  string `json:"nonce"`
-	Round  int    `json:"round"`
-	// Role is the seat's PARTY as a field. Stamped ONCE, at the write, and never recomputed by a
-	// reader — a reader that prefix-matched the seat id itself would render the wrong party
-	// silently whenever an id failed to match its expected prefix.
-	//
-	// IT IS STILL DERIVED: `roleOfSeat(seatID)` prefix-matches the seat id at the write. One
-	// derivation instead of four is the whole gain; it does not make the value a fact.
-	//
-	// seat.Context.Role USED TO BE THE WRONG SOURCE, and the reason it was is gone. It answered
-	// which command GROUP a verb was mounted under, not which party was writing: `motion grade
-	// file` run by `blue-respond-r1` was party `blue` and command-group `grade`, so threading it
-	// would have relabelled every motion event's author. That was true while the tree had a role
-	// level and a seat typed it.
-	//
-	// The tree is scoped to the dispatched identity now, so seat.Context.Role is READ OUT OF the
-	// seat id — the same derivation this field does, one layer up. It is no longer a different
-	// fact wearing the same name, and the old warning would send a reader away from a value that
-	// now agrees by construction. The two are kept separate anyway, for the reason at the top:
-	// this one is stamped ONCE at the write, so a later change to how the party is derived cannot
-	// silently re-label events already on the record.
-	//
-	// What would still make it a FACT rather than a derivation is the dispatcher stating the
-	// party. The seat is now a fact — bound at `register` and read back from the record — but the
-	// party is still inferred from the seat id's prefix.
-	Role    string   `json:"role,omitempty"`
-	Type    string   `json:"type"`
-	Key     string   `json:"key"`
-	Payload *Payload `json:"payload"`
-}
+// Event IS the schema's event — `record.Event` and `recordpb.Event` are ONE TYPE, not two that
+// convert at a boundary.
+//
+// A hand-written struct that marshalled itself to proto would be exactly the value object this
+// migration exists to delete: two declarations of one shape kept in step by hand, where the schema
+// can refuse a wrong write and the hand-written half cannot. The cost of the alias is real and is
+// paid at every reader — generated spellings differ (`TS` -> `Ts`, `SeatID` -> `SeatId`) and every
+// field is read through its `GetX()` accessor, because presence is meaningful and a zero value is
+// not the same fact as an absent one.
+//
+// The field documentation that lived here now lives on the schema, where a reader of any language
+// finds it: see `ts`, `role` and `seq` in record.proto.
+type Event = recordpb.Event
 
 // Identity is WHO IS WRITING, carried to the write instead of recovered at it.
 //
@@ -211,17 +165,17 @@ type Identity struct {
 // runVia says which path supplied the run directory — see seatenv.RunSource. It is recorded on
 // the register event because a run whose seats all resolve by INFERENCE is a run the PreToolUse
 // hook is not reaching, and the hook records that nowhere (#512).
-func RegisterSeat(id Identity, runVia string) (nonce, shard string, err error) {
+func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err error) {
 	runDir, seatID := id.RunDir, id.SeatID
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
-		return "", "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
+		return 0, "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
 	}
 	// THE ROSTER GATE, AND IT BELONGS HERE RATHER THAN AT EVERY VERB. Register is the one call
 	// that takes a seat's word for who it is; everything after it reads the binding this call
 	// writes. So this is where an id no dispatch could have produced has to be refused — after
 	// it, the wrong id is not a claim any more, it is the record.
 	if err := RequireDispatchableSeat(seatID); err != nil {
-		return "", "", err
+		return 0, "", err
 	}
 	// A SEAT RECORDS INTO A RUN THAT EXISTS. IT NEVER CREATES ONE.
 	//
@@ -230,125 +184,184 @@ func RegisterSeat(id Identity, runVia string) (nonce, shard string, err error) {
 	// place, and the only honest answer is to say so.
 	//
 	// MEASURED, and it cost a run's worth of work (#358). The run directory reaches a seat as a
-	// path it resolves against its OWN working directory. During
-	// research/2026-08-10_dual-read-vs-migration a seat whose shell cwd was the `tools/` directory
-	// resolved `research/<slug>/` from there, and this MkdirAll obligingly built a second
-	// blackboard: a full duplicate tree with the lane's entire 13.7 KB draft, its own shards,
-	// clock and locks. The real run's `blue/candidates/` was empty for the whole run, and TWO
-	// shards of one seat class existed in both places — the resolution differed per invocation,
-	// not per seat.
-	//
-	// Nothing announced it. The seat was told `registered red-merge-r1`. A seat's work landing
-	// outside the run is indistinguishable from a seat that produced nothing, and the record
-	// simply has fewer events in it — the plausible zero, built by a helpful mkdir.
+	// path it resolves against its OWN working directory, and a helpful MkdirAll built a second
+	// blackboard: a full duplicate tree with the lane's entire draft, its own events, and the real
+	// run's `blue/candidates/` empty for the whole run. Nothing announced it — the seat was told
+	// `registered red-merge-r1`. A seat's work landing outside the run is indistinguishable from a
+	// seat that produced nothing.
 	//
 	// The check is CHEAP AND EXACT: does the run directory exist? It is not a guess about what a
-	// run should contain, so it cannot reject a legitimately sparse one, and it fires before any
-	// resolution or lock work.
+	// run should contain, so it cannot reject a legitimately sparse one.
 	if st, err := os.Stat(runDir); err != nil || !st.IsDir() {
 		abs, _ := filepath.Abs(runDir)
-		return "", "", feov.Errorf(feov.NotFound,
+		return 0, "", feov.Errorf(feov.NotFound,
 			"record: no run directory at %s (resolved to %s) — a seat records into a run `setup` already made and never creates one. A RELATIVE --run resolves against YOUR working directory, which is how a seat once built a second blackboard beside the real run and reported success; pass the absolute path the engine gave you",
 			runDir, abs)
 	}
 	// REGISTER IS WHERE A SEPARATION IS ADOPTED. It is every seat's first record action, so
 	// resolving here means the root is bound (and its pointer written) before any event exists.
-	recDir, err := RecordsDir(runDir)
+	db, err := openRun(runDir)
 	if err != nil {
-		return "", "", err
+		return 0, "", err
 	}
-	if err := os.MkdirAll(recDir, 0o755); err != nil {
-		return "", "", err
+
+	// THERE IS NO POINTER FILE AND NO LOCK. Which sitting is live was a fact held in
+	// `.active-<seat>`, written under a per-seat lock because two registers race — a record
+	// standing outside the record, holding one fact the register events already carried. It is a
+	// query now (activeNonce), and the race it needed a lock for is the ordering SQLite already
+	// gives: the latest register row IS the answer.
+	ev := &Event{}
+	// agent_id and run_via are ENGINE-OBSERVED, never typed by the seat. Both are set only when
+	// actually observed: an absent field says "not measured", which is the honest answer for a run
+	// whose hook never fired, and is a different fact from an agent whose handle is empty.
+	reg := &recordpb.Register{ToolVersion: proto.String(ToolVersion)}
+	if agent := seatenv.AgentID(); agent != "" {
+		reg.AgentId = proto.String(agent)
 	}
-	nonce = nonceFn()
-	// The pointer is a shared surface (two racing registers): lock per seatId.
-	var writeErr error
-	withLock(recDir, "ptr-"+seatID, func() {
-		// The pointer decides which shard every later verb writes to, so it is
-		// durable-written like the shards themselves: a half-written pointer would
-		// send a resumed seat to a shard that does not exist.
-		writeErr = durableWrite(pointerPath(recDir, seatID), []byte(nonce), pointerPath(recDir, seatID)+".tmp")
-	})
-	if writeErr != nil {
-		return "", "", writeErr
+	if runVia != "" {
+		reg.RunVia = proto.String(runVia)
 	}
-	shard = shardPath(recDir, seatID, nonce)
-	// tool_version is stamped on the seat's FIRST act (R2g.2). The
-	// never-update-mid-run rule stands, but a run that somehow mixes binaries now
-	// says so in its own record instead of producing events whose difference
-	// nobody can explain afterwards.
-	// THE BINDING BETWEEN A HARNESS AGENT AND A SEAT IS WRITTEN HERE, AND NOWHERE ELSE.
-	//
-	// register is every seat's stated first action, which makes it the one moment the mapping is
-	// knowable: the hook supplies agent_id (the only payload field that discriminates one seat
-	// from another), and the seat supplies which seat it is. Recording their join is what turns
-	// self-asserted identity into a fact later calls can be held to.
-	//
-	// A FIELD, NOT A SIDE TABLE. The alternative was a JSON map the hook keeps, keyed on a seat
-	// id recovered by parsing the seat's own command — a fact read back out of prose, whose
-	// miss is indistinguishable from an honest absence. This is a field on an event a writer can
-	// refuse, on the record that already holds everything else about the seat.
-	//
-	// EMPTY IS RECORDED AS ABSENT, not as "". A run whose hook never fired has no agent_id on any
-	// register event, and that must stay legible as "not measured" rather than reading as an
-	// agent whose handle is the empty string.
-	agent := seatenv.AgentID()
-	ev := Event{
-		Seq: 0, TS: nextStamp(recDir), SeatID: seatID, Nonce: nonce, Round: id.Round, Role: roleOfSeat(seatID),
-		Type: "register", Key: seatID + ":register:" + nonce,
-		Payload: NewPayload().Set("tool_version", ToolVersion).SetIf(agent != "", "agent_id", agent).
-			SetIf(runVia != "", "run_via", runVia),
+	if _, err := recordpb.SetBody(ev, reg); err != nil {
+		return 0, "", err
 	}
-	if err := appendLine(shard, ev); err != nil {
-		return "", "", err
+	// THE REGISTER IS NO LONGER A SPECIAL CASE. It used to be the one key deriveKey did not mint,
+	// because it carried the nonce — two registers for one seat are a legitimate re-dispatch and
+	// must not dedup into one. With the ordinal scoped to the seat, `red-merge-r1:register:#2` is
+	// what the general rule already produces, so the exception is gone rather than restated.
+	if err := insertNumbered(db, ev, seatID, id.Round, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister()); err != nil {
+		return 0, "", err
 	}
-	return nonce, shard, nil
+	if err := db.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
+		seatID).Scan(&dispatch); err != nil {
+		return 0, "", err
+	}
+	// WHAT THE TWO RETURNS ARE NOW. The first was a NONCE, an opaque sitting id a seat could do
+	// nothing with; it is the dispatch NUMBER, which is the thing that was actually being
+	// communicated ("this is your second dispatch"). The second was the shard path a seat wrote to
+	// — there is no shard, so it is the record's location.
+	return dispatch, dbName, nil
 }
 
-// activeNonce reads the seat pointer, implicitly registering when absent —
-// deliberately tolerant, matching the oracle.
-func activeNonce(id Identity, recDir string) (string, error) {
-	b, err := os.ReadFile(pointerPath(recDir, id.SeatID))
+// envelope stamps the fields EVERY event carries whatever its body, in ONE place — so a second
+// write path cannot come to exist that forgets one.
+//
+// schema_version is among them and is load-bearing: recordpb.ClassifyLine drops a line that lacks
+// it as an INCOMPLETE WRITE (stage 3), inert and unreported. An unstamped event would therefore
+// vanish from its own record without a word — the plausible zero this schema exists to remove.
+//
+// ROLE IS SET ONLY WHEN THE SEAT ID RESOLVES TO ONE. The pre-schema struct carried
+// `json:"role,omitempty"`, so a seat matching no role had NO role field; presence keeps that fact
+// expressible, where proto.String("") would assert that its role is the empty string.
+func envelope(ev *Event, ts, seatID string, round int, key string) {
+	ev.Ts = proto.String(ts)
+	ev.SeatId = proto.String(seatID)
+	ev.Round = proto.Int32(int32(round))
+	if r := roleOfSeat(seatID); r != "" {
+		ev.Role = proto.String(r)
+	}
+	ev.Key = proto.String(key)
+	ev.SchemaVersion = recordpb.CurrentSchemaVersion.Enum()
+}
+
+// singleton verbs key on seat+verb; multi-instance verbs on their stable labels; the rest on a
+// per-seat ordinal.
+//
+// REGISTER IS NOT ONE, and it never really was. It sat here and then had its key overridden in
+// RegisterSeat to carry the nonce, precisely because two registers for one seat are a legitimate
+// re-dispatch that must not collapse into one. The override is gone with the nonce, so the
+// exception is expressed where it belongs: a register is an ordinary numbered act, and a
+// re-dispatched seat gets `#2`.
+var singleton = map[recordpb.EventType]bool{
+	recordpb.EventType_EVENT_TYPE_POSITION:   true,
+	recordpb.EventType_EVENT_TYPE_REVISION:   true,
+	recordpb.EventType_EVENT_TYPE_VERDICT:    true,
+	recordpb.EventType_EVENT_TYPE_SPOT_CHECK: true,
+}
+
+// keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
+// no writer sets any more simply never matches, and the ordinal fallback then records a second
+// event where the first should have been updated in place. `reference` was on this list after the
+// verify verbs stopped writing it, so re-verifying one source counted as two.
+//
+// It is matched against the BODY'S OWN FIELD NAMES rather than against a per-type switch, so the
+// list stays the single statement of the rule: `Anchor` carries both `label` and `id` and takes
+// `label` because it is earlier here, exactly as `p.Str` walked them before. A name the schema no
+// longer has is skipped — which is the same silent staleness the paragraph above warns about, and
+// the reason a name is only ever REMOVED from this list deliberately.
+var keyFields = []protoreflect.Name{"gap_id", "label", "id", "observation", "anchor", "url"}
+
+// requireGradeMotionAsksForAChange refuses a grade motion proposing the grade already on the board.
+func requireGradeMotionAsksForAChange(runDir string, g *recordpb.GradeMotion) error {
+	proposed := g.GetProposed()
+	if proposed == recordpb.Grade_GRADE_UNSPECIFIED {
+		return nil // an absent proposal is the required-field sweep's refusal, not this one's
+	}
+	b, err := BoardState(runDir)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// NO run_via ON AN IMPLICIT REGISTER, and the absence is the honest answer. This
-			// path fires when a seat writes before registering, so nothing here observed how the
-			// run directory was resolved — recording a guess would put a fact on the record that
-			// nobody measured, which is worse than the field being absent.
-			n, _, rerr := RegisterSeat(id, "")
-			return n, rerr
-		}
-		return "", err
+		return nil // a board that cannot be read does not block the filing; requireGap already ran
 	}
-	return strings.TrimSpace(string(b)), nil
+	gap := b.Gaps[g.GetGapId()]
+	if gap == nil {
+		return nil // requireGap answered this already
+	}
+	current, known := gap.GradeAt(g.GetDimension())
+	if !known {
+		return fmt.Errorf("record: motion grade file: %q is not an axis this binary can read a grade at, so it cannot tell whether your motion asks for a change — add it to Gap.GradeAt",
+			recordpb.Word(g.GetDimension()))
+	}
+	if current != proposed {
+		return nil
+	}
+	return fmt.Errorf("record: motion grade file: %s is already %s at %s, so this motion asks for no change — "+
+		"a motion is a request to MOVE a grade, and a ruling on one that moves nothing reads exactly like a ruling on the merits. "+
+		"Propose the grade you think it should be, or if you mean to argue the current grade is right, that belongs in your closing rather than on the docket",
+		g.GetGapId(), recordpb.Word(proposed), recordpb.Word(g.GetDimension()))
 }
 
-// singleton verbs key on seat+verb; multi-instance verbs on their stable labels;
-// the rest on a per-shard ordinal.
-var singleton = map[string]bool{
-	"position": true, "revision": true, "verdict": true, "spot-check": true, "register": true,
-}
-
-func deriveKey(seatID, typ string, p *Payload, shardEvents []Event) string {
+// deriveKey builds the idempotency key, and its ordinal arm COUNTS INSIDE THE WRITING
+// TRANSACTION.
+//
+// That arm used to walk the seat's own shard, which was correct only because one seat owned one
+// file. Counting in Go from a list read earlier is a read-then-write with a gap in it; counting in
+// the transaction that does the insert has no gap. The uniqueness of the result is no longer a
+// property of the counting either way — `events.key` carries a UNIQUE index, so a duplicate key is
+// refused rather than silently written twice.
+func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Message) (string, error) {
+	slug := recordpb.Word(typ)
 	if singleton[typ] {
-		return seatID + ":" + typ
+		return seatID + ":" + slug, nil
 	}
-	// THE LIST IS THE IDEMPOTENCY CONTRACT, and it goes stale silently: a key that no writer
-	// stores any more simply never matches, and the ordinal fallback then records a second event
-	// where the first should have been updated in place. `reference` was here after the verify
-	// verbs stopped writing it, so re-verifying one source counted as two.
-	for _, k := range []string{"gap_id", "label", "id", "observation", "anchor", "url"} {
-		if v := p.Str(k); v != "" {
-			return seatID + ":" + typ + ":" + v
+	if v := keyLabel(body); v != "" {
+		return seatID + ":" + slug + ":" + v, nil
+	}
+	var prior int
+	// SCOPED TO THE SEAT, NOT TO A SITTING. It was `seat_id AND nonce AND type`, which restarted the
+	// count on every re-dispatch while `events.key` carries a GLOBAL unique index — so a
+	// re-registered seat's first act collided with its own earlier one and was refused outright.
+	if err := tx.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = ?`,
+		seatID, slug).Scan(&prior); err != nil {
+		return "", fmt.Errorf("record: counting this seat's %s events: %w", slug, err)
+	}
+	return fmt.Sprintf("%s:%s:#%d", seatID, slug, prior+1), nil
+}
+
+// keyLabel is the first non-empty keyFields value this body carries, or "".
+func keyLabel(body proto.Message) string {
+	if body == nil {
+		return ""
+	}
+	m := body.ProtoReflect()
+	fds := m.Descriptor().Fields()
+	for _, name := range keyFields {
+		fd := fds.ByName(name)
+		if fd == nil || fd.Kind() != protoreflect.StringKind || fd.IsList() {
+			continue
+		}
+		if v := m.Get(fd).String(); v != "" {
+			return v
 		}
 	}
-	ordinal := 1
-	for _, e := range shardEvents {
-		if e.Type == typ {
-			ordinal++
-		}
-	}
-	return fmt.Sprintf("%s:%s:#%d", seatID, typ, ordinal)
+	return ""
 }
 
 // Append is the ONLY write path. It validates, derives the idempotency key, and
@@ -396,167 +409,144 @@ func ParseStamp(ts string) (time.Time, error) {
 	return time.Parse(stampLayout, strings.TrimSpace(ts))
 }
 
-// nextStamp issues a stamp that is STRICTLY GREATER than the last one issued for this run.
+// Append writes ONE typed body as an event. The body IS the type — there is no type argument to
+// disagree with it, which is the pair recordpb.SetBody exists to retire.
 //
-// Precision alone still leaves ordering to luck: it narrows the window in which two events
-// can tie, but two seats CAN stamp the same instant, and a wall clock can step backwards
-// under NTP and issue a stamp earlier than one already written. Both land in the same place
-// — a tie or an inversion in the ordering key — and the sort then falls through to seat
-// name, which is the defect that dropped the bench's closures.
-//
-// So monotonicity is GUARANTEED IN CODE rather than hoped for from the hardware. The last
-// issued stamp is kept in the run, and a stamp that would not advance is nudged to
-// last + 1ns. It is a logical clock wearing a timestamp's clothes: no schema change, the
-// field stays a time, and the ORDER is now a property of the code instead of a property of
-// the machine.
-//
-// THE TRADE, stated: under a backwards clock step the stamps stop tracking wall time and
-// become an ordinal sequence until real time catches up. That is the right way to lose —
-// this field's job is order, and a timestamp that is slightly wrong about WHEN is strictly
-// better than one that is wrong about WHAT CAME FIRST.
-//
-// Contention is survivable by the same rule withLock already uses: if the lock cannot be
-// taken, or the clock file is unreadable or corrupt, fall back to the raw clock. That
-// degrades to the previous behaviour — ties possible, tiebreak by (SeatID, Seq) — rather
-// than failing an append. An event is never lost to bookkeeping.
-func nextStamp(recDir string) string {
-	var out string
-	withLock(recDir, "clock", func() {
-		now := Now()
-		p := filepath.Join(recDir, ".clock")
-		if b, err := os.ReadFile(p); err == nil {
-			if prev, err := time.Parse(stampLayout, strings.TrimSpace(string(b))); err == nil && !now.After(prev) {
-				now = prev.Add(time.Nanosecond)
-			}
-		}
-		out = now.Format(stampLayout)
-		if err := os.WriteFile(p, []byte(out), 0o644); err != nil {
-			// The stamp already issued is still valid and strictly increasing for THIS
-			// event; only the next one loses the guarantee. Not worth failing a write.
-			return
-		}
-	})
-	if out == "" {
-		return stamp()
-	}
-	return out
-}
-
-func Append(id Identity, typ string, p *Payload) (Event, error) {
+// A NIL BODY IS NOT AN EMPTY ONE. The old signature substituted an empty Payload for a nil one, so
+// a caller that built nothing wrote a well-formed event carrying nothing and was told it succeeded.
+// SetBody refuses it by name instead: every EventType names a body message, so "no body" is not a
+// state an event can be in.
+func Append(id Identity, body proto.Message) (*Event, error) {
 	runDir, seatID := id.RunDir, id.SeatID
-	if p == nil {
-		p = NewPayload()
-	}
-	recDir, err := RecordsDir(runDir)
+	ev := &Event{}
+	typ, err := recordpb.SetBody(ev, body)
 	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
-	nonce, err := activeNonce(id, recDir)
+	db, err := openRun(runDir)
 	if err != nil {
-		return Event{}, err
-	}
-	shard := shardPath(recDir, seatID, nonce)
-	events, err := ReadShard(shard)
-	if err != nil {
-		return Event{}, err
+		return nil, err
 	}
 	// IDENTITY IS ASSIGNED HERE, not chosen by the seat. A finding gets an unguessable
 	// id the moment it is recorded, so the only way to refer to it later is to have read
 	// it back — see findingid.go for what a guessable one cost.
-	if typ == "finding" {
-		if !p.Has("finding_id") {
-			p.Set("finding_id", NewFindingID())
-		}
+	//
+	// THE TEST IS PRESENCE, NOT EMPTINESS. `GetFindingId() != ""` would ask a different question
+	// and would overwrite a deliberately-empty id, which is the exact conflation this migration
+	// exists to remove.
+	if f, ok := body.(*recordpb.Finding); ok && f.FindingId == nil {
+		f.FindingId = proto.String(NewFindingID())
 	}
-	if err := validate(runDir, seatID, typ, p); err != nil {
-		return Event{}, err
+	if err := validate(runDir, seatID, typ, body); err != nil {
+		return nil, err
 	}
-	ev := Event{
-		Seq: len(events), TS: nextStamp(recDir), SeatID: seatID, Nonce: nonce, Round: id.Round, Role: roleOfSeat(seatID),
-		Type: typ, Key: deriveKey(seatID, typ, p, events), Payload: p,
-	}
-	if err := appendLine(shard, ev); err != nil {
-		return Event{}, err
-	}
-	return ev, nil
+	// SEQ AND THE INSERT ARE ONE TRANSACTION. The shard version read the file, counted the lines
+	// and appended — two steps with a gap, held together only by one seat owning one file.
+	return ev, insertNumbered(db, ev, seatID, id.Round, typ, body)
 }
 
-// appendLine performs the torn-line healing the oracle documents: a crash
-// mid-append can leave an unterminated fragment as the file's last bytes, and
-// appending straight onto it would destroy THIS event too. If the shard does not
-// end in a newline, terminate the fragment first — the fragment stays visibly
-// unparseable, the new event stays whole.
-func appendLine(shard string, ev Event) error {
-	prefix := ""
-	if st, err := os.Stat(shard); err == nil && st.Size() > 0 {
-		f, err := os.Open(shard)
-		if err != nil {
-			return err
-		}
-		buf := make([]byte, 1)
-		_, rerr := f.ReadAt(buf, st.Size()-1)
-		f.Close()
-		if rerr != nil {
-			return rerr
-		}
-		if buf[0] != '\n' {
-			prefix = "\n"
-		}
-	}
-	line, err := marshalEvent(ev)
+// insertNumbered stamps the envelope and writes the event in ONE transaction.
+//
+// # The one read that is left, and why
+//
+// It used to make TWO queries before the insert: the seat's event count (for `seq`) and its
+// per-type count (for the idempotency key's ordinal). `seq` is gone — nothing read it — so only
+// the key's ordinal remains, and that is genuinely read: the key names the act in the artifact a
+// seat reads back, and `#3` has to know what came before it.
+//
+// A read followed by a write in one transaction is exactly the deferred-BEGIN upgrade SQLite
+// refuses to apply busy_timeout to, which is why the DSN takes the write lock at BEGIN. Measured
+// before that: 8 concurrent seat processes lost about half their acts to SQLITE_BUSY.
+func insertNumbered(db *sql.DB, ev *Event, seatID string, round int, typ recordpb.EventType, body proto.Message) error {
+	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
-	// DEFECT FIXED: this wrote the event with a bare OpenFile+WriteString, so the
-	// ONLY append path in the package bypassed both guarantees safety.go was
-	// written to provide. durableAppend was defined there, documented as the append
-	// path ("a seat that reports success has a record that survives the machine
-	// dying"), and never called — Go does not flag an unused function, so it
-	// compiled clean while every event was written unsynced and unguarded. Two
-	// consequences, both the ones that file's header claims are closed: an event
-	// was never fsynced, so a crash could leave a shard that GREW without its
-	// bytes reaching disk; and the write sat outside enterCritical, so a SIGINT
-	// landing mid-WriteString could tear the line it was appending — "the cost of
-	// an interrupted seat is now a missing event, never a corrupt one" was not
-	// true of the append path. Routing through durableAppend makes it true.
-	return durableAppend(shard, prefix+string(line)+"\n")
+	defer tx.Rollback()
+	key, err := deriveKey(tx, seatID, typ, body)
+	if err != nil {
+		return err
+	}
+	envelope(ev, Now().UTC().Format(stampLayout), seatID, round, key)
+	if _, err := recordsql.InsertTx(tx, ev); err != nil {
+		// A KEY COLLISION IS A SEAT REPEATING A ONCE-PER-SITTING ACT, and the raw constraint text
+		// teaches nothing about that. The shard record met this by DEDUPING — two events with one
+		// key, one of them silently discarded on read — so a seat that stated its position twice
+		// never learned that only one survived. Refusing is the better answer and it has to say
+		// what was refused.
+		if isDuplicateKey(err) {
+			return feov.Errorf(feov.Validation,
+				"record: %s has already recorded a %s this sitting, and it is a once-per-sitting act — "+
+					"the record keeps your first one rather than quietly replacing it. If the first was wrong, "+
+					"say so in the act that supersedes it; the record is append-only and both stay visible",
+				seatID, recordpb.Word(typ))
+		}
+		return err
+	}
+	return tx.Commit()
 }
 
-// validate mirrors the oracle's append-time checks: enums, anchors, lineage
-// existence, class registry. Error strings are matched verbatim — seats read
-// them, and the differential suite compares them.
-func validate(runDir, seatID, typ string, p *Payload) error {
-	for _, g := range []string{"severity", "likelihood", "impact", "complexity_cost"} {
-		v, ok := p.Get(g)
-		if !ok {
-			continue
-		}
-		s, isStr := v.(string)
-		if !isStr || !isGrade(s) {
-			return fmt.Errorf("record: %s.%s=%s not in grade enum", typ, g, jsonish(v))
-		}
+// insertEvent writes an event whose envelope is already stamped — the register, which opens the
+// sitting and so has nothing to count against.
+func insertEvent(db *sql.DB, ev *Event) error {
+	_, err := recordsql.Insert(db, ev)
+	return err
+}
+
+// validate mirrors the oracle's append-time checks: anchors, lineage existence, class registry,
+// and the requirements no schema can express. Error strings are matched verbatim — seats read
+// them, and the golden suite compares them.
+//
+// IT SWITCHES ON THE BODY, NOT ON A TYPE STRING. The type and the fields are one fact now, so an
+// arm cannot go stale against the value it reads: a `close` arm that reaches for a Mint field does
+// not compile, where the map-shaped version returned "" and validated nothing.
+//
+// WHAT LEFT THIS FUNCTION AND WHY IS ON THE SCHEMA. The grade loop
+// (`record: mint.severity=… not in grade enum`) policed four payload keys that are now `Grade`
+// fields; a non-grade cannot be represented, so the loop had nothing left to refuse. The same is
+// true of the closure_class near-miss (`closed-with-regression`), the motion subject's enumerated
+// filing fields, and the ruling vocabulary — each is now a closed enum or a oneof case. Where the
+// schema replaced a VALUE check with a STRUCTURAL one, the structural check is made here rather
+// than assumed: see the filing/ruling arms below.
+func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message) error {
+	// THE UNCONDITIONAL REQUIREMENTS COME FROM THE FIELDS THEMSELVES, once, before any verb's own
+	// rules run. What stays below is everything an annotation CANNOT say: requirements that depend
+	// on another field's value, references that must resolve against the record, and the closed
+	// sets keyed on (subject, key) that no single field owns.
+	//
+	// The split is the one required.go always stated and could not enforce — "ONLY UNCONDITIONAL
+	// REQUIREMENTS BELONG HERE" — and the reason it could not is that it was a list somewhere else.
+	//
+	// TEN GUARDS BELOW WERE DELETED FOR RESTATING THIS ONE, and they could never run: an empty
+	// `problem`, `gap_id`, `text`, `basis`, `opinion`, `statement`, `prose`, `claim` or
+	// `rationale` is refused HERE, above, with the annotation's own words. The copies read as
+	// live — present, commented, explaining themselves — and one of them named `--claim` where
+	// the annotation declares the flag `--quote`, so the unreachable copy was also the wrong one.
+	//
+	// The dangerous variant is the eleventh, which was NOT a restatement: `close` exempts a carry
+	// from the closure argument, and `prose` was annotated required anyway, so the exemption was
+	// refused before it could run and `merge carry --id R2-3 --carried-from 2` — the invocation
+	// its own help documents — was rejected. That annotation is conditional now, like Avenue.line.
+	// The lesson is the ordering: anything an annotation makes UNCONDITIONAL is decided before a
+	// single line here executes, so a `required` marking silently deletes every exemption below.
+	if err := recordpb.CheckRequired(verbOf(typ), body); err != nil {
+		return err
 	}
-	switch typ {
-	case "anchor":
+	switch b := body.(type) {
+	case *recordpb.Anchor:
 		// The finding-marker's record: it says "finding <id> has a marker at <location>
 		// in blue/report.md". EXPECTED for the immortal-marker detector is exactly the set
 		// of these. It keys on `id` (a finding_id) via deriveKey, so it is idempotent per
 		// finding — a re-anchor of the same finding writes one event, not a second marker's.
-		if !p.Has("id") || p.Str("id") == "" {
+		if b.GetId() == "" {
 			return fmt.Errorf("record: anchor requires id (the finding_id the marker carries)")
 		}
-		if !p.Has("location") || p.Str("location") == "" {
+		if b.GetLocation() == "" {
 			return fmt.Errorf("record: anchor requires location (the section + quoted sentence the marker sits at)")
 		}
-	case "class-new":
-		return validateClassNew(runDir, p)
-	case "mint":
-		if !p.Has("acceptance_check") || p.Str("acceptance_check") == "" {
-			return fmt.Errorf("record: mint requires --check (the acceptance check red will run at re-audit — the pre-agreed contract)")
-		}
-		if !p.Has("class") || p.Str("class") == "" {
-			return fmt.Errorf("record: mint requires --class (the slug — one the registry has, or one you coined first with `merge class new`)")
-		}
+	case *recordpb.ClassNew:
+		return validateClassNew(runDir, b)
+	case *recordpb.Mint:
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
 		// The 2026-08-05 smoke produced ZERO proofs across a full run. Not because blue
@@ -565,7 +555,11 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// line of inquiry --hypothesis was before it was required, which is to say not at all. Making
 		// red state what would settle each check is the behaviour change; `document` stays a
 		// legitimate answer, but it now has to be chosen.
-		if !p.Has("check_kind") || p.Str("check_kind") == "" {
+		//
+		// UNSPECIFIED IS THE SCHEMA'S SPELLING OF ABSENT, and it is what the old
+		// `!p.Has || == ""` pair asked in one question: a seat that passed no --check-kind and
+		// a seat that passed an empty one were both refused, and both land here.
+		if b.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
 			return fmt.Errorf("record: mint requires --check-kind (document | computation | source) — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation, and measured across six runs no seat ever wrote one")
 		}
 		// LIKELIHOOD AND IMPACT ARE REQUIRED; severity and cx are not. The rule is not
@@ -586,49 +580,47 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// carried all four grades unprompted. No seat is inconvenienced today. This is
 		// insurance against the cheaper tier, where grading is exactly the step a seat
 		// under pressure would drop — and it drops silently, into a zero.
-		for _, g := range []string{"likelihood", "impact"} {
-			if !p.Has(g) || p.Str(g) == "" {
-				return fmt.Errorf("record: mint requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g)
+		for _, g := range []struct {
+			flag  string
+			grade recordpb.Grade
+		}{{"likelihood", b.GetLikelihood()}, {"impact", b.GetImpact()}} {
+			if g.grade == recordpb.Grade_GRADE_UNSPECIFIED {
+				return fmt.Errorf("record: mint requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g.flag)
 			}
 		}
-		// The defect the gap records. Checked after check/class/grades so those more
-		// specific refusals lead; --problem is structural and --reason fills it too.
-		if !p.Has("problem") || p.Str("problem") == "" {
-			return fmt.Errorf("record: mint requires --problem (what is wrong; --reason fills it too) — a gap with no stated problem cannot be repaired or re-audited")
-		}
-		if err := validateClass(runDir, p); err != nil {
+		if err := validateClass(runDir, b); err != nil {
 			return err
 		}
 		ids, err := allGapIDs(runDir)
 		if err != nil {
 			return err
 		}
-		if err := requireFindings(runDir, p.StrList("found_by"), "mint", "--found-by"); err != nil {
+		if err := requireFindings(runDir, b.GetFoundBy(), "mint", "--found-by"); err != nil {
 			return err
 		}
-		for _, anc := range p.StrList("supersedes") {
+		for _, anc := range b.GetSupersedes() {
 			if !ids[anc] {
 				return fmt.Errorf("record: mint supersedes %s, which no mint event has created — dangling lineage refused", anc)
 			}
 		}
-	case "proof":
+	case *recordpb.Proof:
 		// The same key rule as blue_edit's --answers: a proof may name the gap it settles,
 		// and a dangling reference is refused HERE rather than accepted and dropped at
 		// replay. It is optional — a proof can back a claim nobody challenged — but a
 		// `computation` gap can be closed ONLY by one that names it (see merge close).
-		if err := requireGap(runDir, p.Str("answers"), "blue prove", "--answers"); err != nil {
+		if err := requireGap(runDir, b.GetAnswers(), "blue prove", "--answers"); err != nil {
 			return err
 		}
-		if err := requireCitation(runDir, p.Str("cites"), "blue prove", "--cites"); err != nil {
+		if err := requireCitation(runDir, b.GetCites(), "blue prove", "--cites"); err != nil {
 			return err
 		}
-	case "blue_edit":
+	case *recordpb.BlueEdit:
 		// PROVENANCE IS A KEY, NOT A CONVENTION.
 		//
 		// --answers names the gap this edit responds to, and it is checked against the board
 		// like every other reference in this file (refs.go: twelve of twelve were once
 		// unchecked, and a dangling reference is ACCEPTED here and DROPPED at replay).
-		if err := requireGap(runDir, p.Str("answers"), "blue edit", "--answers"); err != nil {
+		if err := requireGap(runDir, b.GetAnswers(), "blue edit", "--answers"); err != nil {
 			return err
 		}
 		// And the convention it replaces is REFUSED, not merely deprecated. Measured on the
@@ -641,8 +633,10 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// Only a gap the board actually knows triggers this, so prose is not pattern-policed:
 		// blue may write anything that is not the name of a real open question it is
 		// answering without saying so.
-		if p.Str("answers") == "" {
-			named, err := gapNamedIn(runDir, p.Str("reason"))
+		if b.GetAnswers() == "" {
+			// --reason lands in BlueEdit.text: the flag a seat types and the field the schema
+			// carries are two vocabularies, and this is the one place the edit's argument lives.
+			named, err := gapNamedIn(runDir, b.GetText())
 			if err != nil {
 				return err
 			}
@@ -650,19 +644,20 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 				return fmt.Errorf("record: blue edit --reason names gap %s but --answers is empty — say it with --answers %s so the edit joins to the fix red asked for; --reason is the argument, not the key", named, named)
 			}
 		}
-	case "close":
-		if !p.Has("gap_id") || p.Str("gap_id") == "" {
-			return fmt.Errorf("record: close requires --id")
-		}
+	case *recordpb.Close:
 		ids, err := allGapIDs(runDir)
 		if err != nil {
 			return err
 		}
-		if !ids[p.Str("gap_id")] {
-			return fmt.Errorf("record: close of unknown gap %s", p.Str("gap_id"))
+		if !ids[b.GetGapId()] {
+			return fmt.Errorf("record: close of unknown gap %s", b.GetGapId())
 		}
-		anchored := p.Str("anchor_seat") != "" && p.Str("anchor_tool") != "" && p.Str("anchor_target") != ""
-		if !anchored && !p.Has("carried_from") {
+		anchored := b.GetAnchorSeat() != "" && b.GetAnchorTool() != "" && b.GetAnchorTarget() != ""
+		// PRESENCE, NOT EMPTINESS, on carried_from throughout this arm. It is a lineage CLAIM,
+		// and `--carried-from ""` is a claim made badly rather than a claim not made — the old
+		// `p.Has` asked exactly that and the check below is what stops it laundering an
+		// unverified closure past the anchor requirement.
+		if !anchored && b.CarriedFrom == nil {
 			return fmt.Errorf("record: close requires the verification triple (--verified-by --verified-with --verified-against) — an unverified closure is unauditable (E0.5a). To restate a closure an earlier round already made, use `merge carry --carried-from <round>` instead")
 		}
 		// --carried-from IS A LINEAGE CLAIM, so it is checked like one.
@@ -681,21 +676,21 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// The run used it zero times out of nine closures, so this costs nothing today.
 		// It is here for the cheaper tier, where an anchor is exactly the work a seat
 		// under pressure would rather skip.
-		if !anchored && p.Has("carried_from") {
-			prior, err := priorClosureRounds(runDir, p.Str("gap_id"))
+		if !anchored && b.CarriedFrom != nil {
+			prior, err := priorClosureRounds(runDir, b.GetGapId())
 			if err != nil {
 				return err
 			}
 			if len(prior) == 0 {
-				return fmt.Errorf("record: carry claims gap %s was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `merge close` with --verified-by/--verified-with/--verified-against", p.Str("gap_id"))
+				return fmt.Errorf("record: carry claims gap %s was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `merge close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
 			}
 		}
-		if err := requireGap(runDir, p.Str("successor"), "close", "--superseded-by"); err != nil {
+		if err := requireGap(runDir, b.GetSuccessor(), "close", "--superseded-by"); err != nil {
 			return err
 		}
 		// The residue has to go somewhere STILL LIVE. A successor that is itself closed
 		// is a dead end wearing a forwarding address.
-		if err := requireOpenGap(runDir, p.Str("successor"), "close", "--superseded-by",
+		if err := requireOpenGap(runDir, b.GetSuccessor(), "close", "--superseded-by",
 			"the unresolved remainder cannot be carried into a gap that is already finished"); err != nil {
 			return err
 		}
@@ -703,34 +698,31 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// repair_regression denominator (see replay.go on ClosedByBench). A --carried-from
 		// close is exempt: restating an earlier closure is exactly what it means, and it
 		// is separately checked against a real prior closure below.
-		if !p.Has("carried_from") {
-			if err := requireOpenGap(runDir, p.Str("gap_id"), "close", "--id",
+		if b.CarriedFrom == nil {
+			if err := requireOpenGap(runDir, b.GetGapId(), "close", "--id",
 				"closing it twice double-counts closure history and corrupts the repair_regression denominator; use `merge carry --carried-from <round>` to RESTATE an earlier closure"); err != nil {
 				return err
 			}
 		}
-		if p.Str("closure_class") == "repaired_with_regression" && !p.Has("successor") {
+		if b.GetClosureClass() == recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION && b.Successor == nil {
 			return fmt.Errorf("record: repaired_with_regression requires --superseded-by (lineage never drops)")
 		}
-		// THE NEAR MISS, refused as the typo it is.
-		//
-		// closure_class is an open set (enums.go says why), so a MISSPELLING of the one
-		// class that gates an invariant does not fail — it lands in the open part of the
-		// set and skips the successor check above, which is the opposite of "lineage
-		// never drops". Only spellings that differ in case or separator are caught: that
-		// is the whole typo class, and it cannot refuse a class somebody meant.
-		if cc := p.Str("closure_class"); cc != "repaired_with_regression" && sameWord(cc, "repaired_with_regression") {
-			return fmt.Errorf("record: %s is not a closure class — did you mean `repaired_with_regression`? It is matched exactly, and it is the one class that requires --superseded-by, so a near-miss spelling would have closed the gap with its remainder dropped", jsonish(cc))
-		}
+		// THE NEAR-MISS CHECK IS GONE BECAUSE THE OPEN SET IS GONE, not because it stopped
+		// mattering. It refused `closed-with-regression` and `Closed_With_Regression`: spellings
+		// that landed in the open part of a string-valued closure_class and skipped the successor
+		// check above, which is the opposite of "lineage never drops". `ClosureClass` is a closed
+		// enum now, so no near-miss can be REPRESENTED here — the refusal moves to wherever a
+		// seat's word is resolved to a value (recordpb.BySpelling / NearMiss, which exist for
+		// exactly this), and that resolution is the CLI's parse, not this write path.
 		// A closure is a claim, and the claim's substance is its argument: what was verified and
 		// why it holds. Checked after the verification triple so the more specific refusal (an
 		// unauditable closure) leads when both are absent, and EXEMPT for a carry — a carry
 		// restates an earlier closure that already stated its reason, so demanding a fresh one
 		// would be asking the same argument twice.
-		if !p.Has("carried_from") && (!p.Has("reason") || p.Str("reason") == "") {
+		if b.CarriedFrom == nil && b.GetProse() == "" {
 			return fmt.Errorf("record: close requires --reason (the closure's argument — what was verified and why it holds; the report renders it and the re-audit reads it)")
 		}
-	case "closing", "manifest-row":
+	case *recordpb.Closing:
 		// Both name a gap and neither checked it. Grouped because the reference is the same
 		// reference: the verb differs, the dangling failure does not.
 		//
@@ -742,19 +734,23 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// so absence needs its own. Without it a bare `manifest-row` recorded a repair receipt
 		// naming no gap and printed "manifest row recorded for ", and a bare `closing` filed an
 		// argument about nothing.
-		if p.Str("gap_id") == "" {
-			return fmt.Errorf("record: %s requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)", typ)
+		if b.GetGapId() == "" {
+			return fmt.Errorf("record: %s requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)", "closing")
 		}
-		if err := requireGap(runDir, p.Str("gap_id"), typ, "--id"); err != nil {
+		if err := requireGap(runDir, b.GetGapId(), "closing", "--id"); err != nil {
 			return err
 		}
-		if typ == "closing" && p.Str("reason") == "" {
-			return fmt.Errorf("record: closing requires --reason (the closing argument for this gap — the report renders it under the gap's docket)")
+	case *recordpb.ManifestRow:
+		if b.GetGapId() == "" {
+			return fmt.Errorf("record: %s requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)", "manifest-row")
+		}
+		if err := requireGap(runDir, b.GetGapId(), "manifest-row", "--id"); err != nil {
+			return err
 		}
 		// A MANIFEST ROW IS THE RECEIPT. An empty one says a repair was audited and shows
 		// nothing for it, which is worth less than no row: the row is what makes "unaudited
 		// repair" countable, so a blank one flatters the count it feeds.
-		if typ == "manifest-row" && p.Str("row") == "" {
+		if b.GetRow() == "" {
 			return fmt.Errorf("record: manifest-row requires --%s (what you checked and what it showed — an empty receipt still counts as a repair audited)", flags.ForPayloadKey("row"))
 		}
 	// A DUTY DISCHARGED BY NOTHING IS THE DUTY'S OWN DEFEAT.
@@ -772,111 +768,124 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 	//
 	// `spot-check` is deliberately NOT in this arm. Its bare form is a documented decision with
 	// a test pinning it, and its --none --reason exists for the same distinction this makes.
-	case "friction", "friction-none", "position", "revision":
-		if p.Str("reason") == "" {
-			switch typ {
-			case "friction":
-				return fmt.Errorf("record: friction requires --reason (what you reached for and could not get). If nothing blocked you, that is the --none form, and it needs a --reason too: an empty discharge cannot be told from a skipped one")
-			case "friction-none":
-				return fmt.Errorf("record: friction --none requires --reason (what you reached for and FOUND). The explicit negative is only worth more than silence when it says what was looked at")
-			default:
-				return fmt.Errorf("record: %s requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", typ, typ)
-			}
+	case *recordpb.Friction:
+		if b.GetText() == "" {
+			return fmt.Errorf("record: friction requires --reason (what you reached for and could not get). If nothing blocked you, that is the --none form, and it needs a --reason too: an empty discharge cannot be told from a skipped one")
 		}
-	case "finding":
+	case *recordpb.FrictionNone:
+		if b.GetText() == "" {
+			return fmt.Errorf("record: friction --none requires --reason (what you reached for and FOUND). The explicit negative is only worth more than silence when it says what was looked at")
+		}
+	case *recordpb.Position:
+		if b.GetText() == "" {
+			return fmt.Errorf("record: %s requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "position", "position")
+		}
+	case *recordpb.Revision:
+		if b.GetText() == "" {
+			return fmt.Errorf("record: %s requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "revision", "revision")
+		}
+	case *recordpb.Finding:
 		// A finding/observation with no label CANNOT BE ADDRESSED, and every one must get
 		// a fate. Measured on the 2026-07-18 run: 8 finding/observe events carried no label
 		// at all, so the merge could not name them even to decline them — they sat in the
 		// undisposed set forever. The invariant holds regardless of WHO supplies the label:
 		// `observe` takes --label from the seat; a `finding` label is TOOL-assigned
 		// (L{role}-F{N}), so this refusal is an internal guard for it, not a seat message.
-		if !p.Has("label") || p.Str("label") == "" {
+		if b.GetLabel() == "" {
 			return fmt.Errorf("record: a finding must carry a label — the tool assigns L{role}-F{N}; an unlabelled finding can never be credited in a gap's found_by and its work is lost")
 		}
-	case "regrade":
-		if err := requireGap(runDir, p.Str("gap_id"), "regrade", "--id"); err != nil {
+	case *recordpb.Regrade:
+		if err := requireGap(runDir, b.GetGapId(), "regrade", "--id"); err != nil {
 			return err
 		}
-		if err := requireOpenGap(runDir, p.Str("gap_id"), "regrade", "--id",
+		if err := requireOpenGap(runDir, b.GetGapId(), "regrade", "--id",
 			"a grade only decides what happens NEXT to a gap, so moving one on a finished gap changes a number nobody reads"); err != nil {
 			return err
 		}
-		if !p.Has("reason") || p.Str("reason") == "" {
-			return fmt.Errorf("record: regrade requires --reason (grade movement is recorded with its reason)")
-		}
-	case "motion":
-		if !p.Has("subject") || p.Str("reason") == "" {
+	case *recordpb.Motion:
+		if b.Subject == nil || b.GetBasis() == "" {
 			return fmt.Errorf("record: a motion requires a subject and --reason (the ASK in the filer's words — a motion with no argument is a demand, and the ruler has nothing to rule on)")
 		}
-		// The subject's enumerated fields, checked at the WRITE as well as at parse. The CLI's
-		// flag types refuse most of these first; this is the backstop for anything reaching
-		// Append by another path, and the one place the (subject, key) keying can live — see
-		// MotionFields.
-		subject := p.Str("subject")
-		if _, known := MotionVerdicts[subject]; !known {
-			return fmt.Errorf("record: %q is not a motion subject — one of %s", subject, strings.Join(MotionSubjects, " | "))
+		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED {
+			return fmt.Errorf("record: %q is not a motion subject — one of %s", recordpb.Word(b.GetSubject()), strings.Join(MotionSubjects, " | "))
 		}
-		for key, allowed := range MotionFields[subject] {
-			v := p.Str(key)
-			if v != "" && !Allows(allowed, v) {
-				return fmt.Errorf("record: %q is not a %s for a %s motion — one of %s", v, key, subject, strings.Join(Names(allowed), " | "))
-			}
+		// THE FILING MUST BE THE SUBJECT'S OWN. This is the structural successor to the
+		// MotionFields loop, which checked that a value belonged to its (subject, key) pair. It
+		// cannot be that any more — `dimension` lives on GradeMotion and `class` on
+		// PetitionMotion, so a grade motion carrying a petition's class is unrepresentable — but
+		// the SUBJECT and the FILING are still two carriers of one fact, and record.proto says
+		// they are "checked against the oneof case at the write". This is that check.
+		//
+		// Only a filing that is PRESENT is checked: a motion whose oneof is unset refuses nothing
+		// it refused before, and inventing a refusal here would be a new gate wearing a
+		// migration's clothes.
+		if b.GetFiling() != nil && filingSubject(b) != b.GetSubject() {
+			return fmt.Errorf("record: a %s motion carries a %s filing — the subject and the filing are one fact written twice, and a reader that switches on the subject would ask this motion for fields it does not have",
+				recordpb.Word(b.GetSubject()), recordpb.Word(filingSubject(b)))
 		}
 		// A GRADE MOTION IS ABOUT A GAP. A motion against a gap that does not exist is dropped
 		// at replay; one against a gap already disposed of asks for a different disposition than
 		// the one that has been made.
-		if subject == "grade" {
-			if err := requireGap(runDir, p.Str("gap_id"), "motion grade file", "--id"); err != nil {
+		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
+			if err := requireGap(runDir, b.GetGrade().GetGapId(), "motion grade file", "--id"); err != nil {
 				return err
 			}
-			if err := requireOpenGap(runDir, p.Str("gap_id"), "motion grade file", "--id",
+			if err := requireOpenGap(runDir, b.GetGrade().GetGapId(), "motion grade file", "--id",
 				"a grade motion asks for a DIFFERENT disposition, and the disposition has already been made"); err != nil {
 				return err
 			}
+			// AND IT MUST ASK FOR A CHANGE. Proposing the grade already on the board contests
+			// nothing, and the ruling it produces is unreadable: `rejected` on a no-op and
+			// `rejected` on the merits are the same word, in the one exchange built to make that
+			// distinction legible. Measured 2026-08-22 — with severity already `high`,
+			// `--dimension severity --proposed high` filed cleanly.
+			//
+			// Read from the BOARD, not from the filer's claim about it, and a dimension this
+			// binary cannot resolve is an ERROR rather than a skipped check: GradeAt's zero would
+			// differ from every real proposal and quietly accept everything on a new axis.
+			if err := requireGradeMotionAsksForAChange(runDir, b.GetGrade()); err != nil {
+				return err
+			}
 		}
-	case "motion-rule", "motion-appeal":
+	case *recordpb.MotionAppeal:
+		return RequireMotionSubjectRef(runDir, b.GetSubject(), b.GetMotionId())
+	case *recordpb.MotionRule:
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), which EnumFields cannot express: it is
 		// keyed by event TYPE, and one `motion-rule` carries granted|denied for a petition and
 		// accepted|rejected for a grade. So the check lives here, and the CLI's help is generated
 		// from the SAME table (MotionVerdictEnum) — one source, two readers, which is the rule
 		// enums.go exists to keep.
-		if err := RequireMotionSubjectRef(runDir, p.Str("subject"), p.Str("motion_id")); err != nil {
+		if err := RequireMotionSubjectRef(runDir, b.GetSubject(), b.GetMotionId()); err != nil {
 			return err
 		}
-		if typ == "motion-rule" {
-			subject, ruling := p.Str("subject"), p.Str("ruling")
-			allowed, known := MotionVerdicts[subject]
-			if !known {
-				return fmt.Errorf("record: %q is not a motion subject — one of %s", subject, strings.Join(MotionSubjects, " | "))
-			}
-			if !Allows(allowed, ruling) {
-				return fmt.Errorf("record: %q is not a ruling on a %s motion — one of %s. The ruling is what BINDS the coming seats, and an unrecognized one reads as no ruling at all, so a refusal silently becomes permission",
-					ruling, subject, strings.Join(Names(allowed), " | "))
-			}
-			// AND THE SUBJECT'S ENUMERATED FIELDS ON THE RULING SIDE.
-			//
-			// The filing's copy of this loop has always existed; the ruling's did not, because
-			// until `binds` there was no enumerated field on a ruling to check. The enum-coverage
-			// gate caught the gap the moment one appeared — a flag advertising a closed set that
-			// nothing enforced, which is how a near-miss reaches the log and every downstream
-			// consumer compares it literally.
-			for key, allowed := range MotionFields[subject] {
-				v := p.Str(key)
-				if v != "" && !Allows(allowed, v) {
-					return fmt.Errorf("record: %q is not a %s for a %s ruling — one of %s", v, key, subject, strings.Join(Names(allowed), " | "))
-				}
-			}
+		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED {
+			return fmt.Errorf("record: %q is not a motion subject — one of %s", recordpb.Word(b.GetSubject()), strings.Join(MotionSubjects, " | "))
 		}
-	case "retire":
-		// A removal with no stated reason is the failure this verb exists to make
-		// visible, so it is refused at the tool rather than noticed at capture.
-		if !p.Has("claim") || p.Str("claim") == "" {
-			return fmt.Errorf("record: retire requires --%s (quote the claim as it stood — a removal nobody can identify is not on the record)", flags.ForPayloadKey("claim"))
+		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), and the schema now says so in its own
+		// syntax: one `ruling` oneof, one case per subject, each with its own closed enum. So a
+		// ruling from the WRONG subject's vocabulary is unrepresentable, and what remains to
+		// refuse is the ruling that is absent or UNSPECIFIED — which is exactly the failure the
+		// old message names, because an unrecognized ruling reads as no ruling at all.
+		//
+		// The set offered back is the schema's, via recordpb.Names, rather than a hand-kept copy:
+		// MotionVerdicts held the same words in a second table, which is the pair this migration
+		// exists to collapse.
+		if w := rulingWord(b); w == "" || rulingSubject(b) != b.GetSubject() {
+			return fmt.Errorf("record: %q is not a ruling on a %s motion — one of %s. The ruling is what BINDS the coming seats, and an unrecognized one reads as no ruling at all, so a refusal silently becomes permission",
+				w, recordpb.Word(b.GetSubject()), strings.Join(rulingNames(b.GetSubject()), " | "))
 		}
-		if !p.Has("reason") || p.Str("reason") == "" {
-			return fmt.Errorf("record: retire requires --reason (refuted, superseded, merged, out of scope — substance leaves the report ONLY with its reason recorded)")
-		}
-	case "verdict":
+	// NO `case *recordpb.Retire` — BOTH ITS ARMS WERE DEAD, AND ONE WAS WRONG.
+	//
+	// `claim` and `reason` both carry `required: true` with the very `why` text these arms
+	// printed, so the annotation sweep refused first and neither line could run. The claim arm
+	// said `--claim`, the FIELD name, while the annotation declares the flag as `--quote` — so
+	// the copy that could never execute was also the copy that named a flag no verb accepts.
+	// A test asserted the dead spelling and passed, because it called validate directly.
+	//
+	// This is the argument for deriving the refusal rather than writing it beside the schema: two
+	// copies, and the unreachable one is the one that drifts, silently, in the direction nobody
+	// reads.
+	case *recordpb.RoundVerdict:
 		// The seat's terminal act is where completion duties belong: it is the last
 		// moment the seat is still there to discharge them.
 		if err := requireSupersededAreClosed(runDir); err != nil {
@@ -885,47 +894,51 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// A PASS is a claim that nothing is left open. Enforce it here, at the one write
 		// path, so no verdict route can record a PASS over an unadjudicated board (the
 		// 2026-07-20 rubber-stamp: PASS with 9 open gaps).
-		if p.Str("verdict") == "PASS" {
+		if b.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
 			if err := requirePassClosesAllGaps(runDir); err != nil {
 				return err
 			}
 		}
-	case "spot-check":
-		if err := requireGaps(runDir, p.StrList("ids"), "spot-check", "--ids"); err != nil {
+	case *recordpb.SpotCheck:
+		if err := requireGaps(runDir, b.GetIds(), "spot-check", "--ids"); err != nil {
 			return err
 		}
-		if err := requireClosedGaps(runDir, p.StrList("ids"), "spot-check", "--ids"); err != nil {
+		if err := requireClosedGaps(runDir, b.GetIds(), "spot-check", "--ids"); err != nil {
 			return err
 		}
-	case "line-of-inquiry":
+	case *recordpb.Avenue:
 		// EVERY LINE OF INQUIRY HAS AN ID, exactly as every gap, finding and citation does. A
 		// record without one does not replay: a compatibility path for one subsystem is an
 		// asymmetry every reader then has to learn.
 		// A MOVE names a line of inquiry that exists. A proposal ASSIGNS the id, so only a move (which
 		// carries supersedes_status) is checked against the record.
-		if p.Str("supersedes_status") != "" {
-			if err := requireInquiry(runDir, p.Str("inquiry_id"), "blue line of inquiry", "--id"); err != nil {
+		// inquiry_id IS Avenue.avenue_id. The record has spelled this concept both ways for
+		// releases — the CLI writes `inquiry_id`, the schema and the frozen key census carry
+		// `avenue_id`, and the seat-facing verb is `line of inquiry` — and the schema's name is
+		// the one that survives. Named here because it is a rename by judgement, not a match.
+		if b.GetSupersedesStatus() != "" {
+			if err := requireInquiry(runDir, b.GetAvenueId(), "blue line of inquiry", "--id"); err != nil {
 				return err
 			}
 		}
-		if p.Str("inquiry_id") == "" {
+		if b.GetAvenueId() == "" {
 			return fmt.Errorf("record: line-of-inquiry requires an id — the tool assigns one on a proposal and --id names it on a move; a line of inquiry with no identity has no lifecycle and cannot be ruled on or revisited")
 		}
 		// A MOVE (--id) carries only the new status and its reason; the substance lives on
 		// the proposal it moves, so requiring --line here would make a move impossible.
-		if p.Str("supersedes_status") == "" && (!p.Has("line") || p.Str("line") == "") {
-			// THE FLAG NAME IS DERIVED, NOT SPELLED. The payload key is `line`; the flag that
-			// fills it is --reason, because prose reaches every verb through one channel. This
-			// message said "requires --line" for its whole life — a flag that appears on no
-			// surface and cannot be typed.
+		if b.GetSupersedesStatus() == "" && b.GetLine() == "" {
+			// THE FLAG NAME IS DERIVED, NOT SPELLED. The payload key is `line`; the flag that fills
+			// it is --reason, because prose reaches every verb through one channel. This message
+			// said "requires --line" for its whole life — a flag that appears on no surface and
+			// cannot be typed.
 			//
 			// MEASURED 2026-08-21: a blue seat hit it, believed it (the tool said so), invented
 			// `--line`, was refused again as an unknown flag, gave up after four attempts, and
 			// filed friction reporting "the tool requires an undocumented --line flag". The seat
 			// was right that something was wrong and wrong about what — because the refusal
-			// pointed it at a flag that does not exist. A refusal naming something the seat
-			// cannot type is worse than a bare "invalid": it is a false lead with the tool's
-			// authority behind it.
+			// pointed it at a flag that does not exist. A refusal naming something the seat cannot
+			// type is worse than a bare "invalid": it is a false lead with the tool's authority
+			// behind it.
 			return fmt.Errorf("record: line-of-inquiry requires --%s (what you are going to try — an unnamed line teaches a future run nothing)", flags.ForPayloadKey("line"))
 		}
 		// A declined or abandoned line of inquiry with no reason is the decoration this verb
@@ -933,49 +946,37 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// Guarded by the DECLARED set so an unknown status falls through to checkEnum at the
 		// end of validate, which names the set and the near-miss. Without the guard the
 		// reason rule fires first and a typo'd status is reported as a missing reason.
-		declared, _ := Enum("line-of-inquiry", "status")
-		if st := p.Str("status"); declared.Allows(st) && st != "pursued" && st != "proposed" && (!p.Has("reason") || p.Str("reason") == "") {
-			if st == "deferred" {
+		// The old guard was `declared.Allows(st)`, which let an UNDECLARED status fall through to
+		// checkEnum so the near-miss was named rather than reported as a missing reason. Every
+		// AvenueStatus is declared now, so the surviving distinction is the schema's own: the
+		// zero, which is the absence the old empty string was.
+		if st := b.GetStatus(); st != recordpb.AvenueStatus_AVENUE_STATUS_UNSPECIFIED &&
+			st != recordpb.AvenueStatus_AVENUE_STATUS_PURSUED &&
+			st != recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED && b.GetReason() == "" {
+			if st == recordpb.AvenueStatus_AVENUE_STATUS_DEFERRED {
 				return fmt.Errorf("record: a deferred line of inquiry requires --reason — what a later run should pick it up FOR. A deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet")
 			}
-			return fmt.Errorf("record: a %s line of inquiry requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", p.Str("status"))
+			return fmt.Errorf("record: a %s line of inquiry requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
 		}
-	case "inquiry-support":
-		// AN ABSENT ID IS ITS OWN REFUSAL. requireInquiry treats "" as "not provided" and returns
-		// nil — correct where the flag is optional, and silently permissive here, where the id IS
-		// the join. Checked first so a missing --id names itself rather than falling through to a
-		// reference check that never fires.
-		if p.Str("inquiry_id") == "" {
-			return fmt.Errorf("record: inquiry-support requires --id — the line of inquiry you are voting on. " +
-				"`show lines-of-inquiry` lists every one with its fate")
+	// THE PER-ROUND READ OF THE REPORT AGAINST THE RECORD'S LINES OF INQUIRY.
+	//
+	// The retired `inquiry-support` carried three checks; ONE survives and the other two retired
+	// with the shape rather than being dropped. `--id must be present` and `--id must name a line
+	// the record has` policed a PER-LINE vote, and there is no per-line vote: the lines reach the
+	// report on the worklist, generated from the record, so presence is not a question and the
+	// review names no line at all. Nothing dangles because nothing is joined.
+	//
+	// The survivor is the one that mattered, and it is the `friction --none` rule verbatim: a
+	// review with no quoted text is the self-attestation this channel exists to end. TrimSpace,
+	// not `== ""`, because a --reason of one space discharges the duty and says nothing — the
+	// stricter of the two tests is kept deliberately.
+	case *recordpb.InquiryReview:
+		if strings.TrimSpace(b.GetReason()) == "" {
+			return fmt.Errorf("record: inquiry-review requires --reason (what the report SAYS where it accounts for this run's research — quote it). Silence cannot clear this duty: an absent review reads exactly like a report read and found sound, which is why the explicit negative must still be said. Where a line's research is thin or missing, that is a GAP — mint it; this event records only that the read happened")
 		}
-		// THE VOTE NAMES A LINE THAT EXISTS. A dangling id would record a verdict about a line
-		// nobody proposed — and the merge's PASS gate counts votes, so it would discharge a duty
-		// for a line that is not there while the real one stayed unvoted.
-		if err := requireInquiry(runDir, p.Str("inquiry_id"), "merge inquiry-support", "--id"); err != nil {
-			return err
-		}
-		// AND IT SAYS WHAT THE REPORT ACTUALLY SAYS. The grade alone is red's conclusion; the
-		// reason is the evidence for it, and it is the half blue and the bench can check. A
-		// verdict with no quoted text is the self-attestation this whole channel exists to end —
-		// "I read it and it is fine" is the claim, not the check.
-		if strings.TrimSpace(p.Str("reason")) == "" {
-			return fmt.Errorf("record: inquiry-support requires --reason — what the report SAYS for this line, quoted " +
-				"from the read you did this round. " +
-				"The grade is your conclusion; the quote is what anyone else can check it against, and a verdict " +
-				"without one is indistinguishable from not having looked")
-		}
-	case "halt":
-		// The safety boundary reaches the human as the words the bench chose, relayed
-		// verbatim — so a halt with no written opinion cannot do its one job.
-		if p.Str("reason") == "" {
-			return fmt.Errorf("record: halt requires --reason (the written opinion capture relays verbatim — a halt nobody can read is a stop with no stated cause)")
-		}
-	case "certify":
-		if p.Str("reason") == "" {
-			return fmt.Errorf("record: certify requires --reason (what you would want a human to re-examine — the bench keeps no memory between runs, so this statement is its continuity)")
-		}
-	case "outcome":
+	case *recordpb.Halt:
+	case *recordpb.Certify:
+	case *recordpb.Outcome:
 		// THE RUN'S TERMINAL ACT, and it carried no reasoning at all until a bench seat reached
 		// for --reason, found nothing, and filed the absence as friction (#375). Enforcement is
 		// HERE rather than in the cobra verb because validate is the single write path: a
@@ -984,10 +985,7 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// The verdict itself is derived and needs no defence. How the SITTING ended is not, and
 		// where a run ended by judged deadlock nothing else records it — DeriveVerdict says so
 		// itself, that the determination "is not on the record (#289)".
-		if p.Str("reason") == "" {
-			return fmt.Errorf("record: outcome requires --reason (how this run ended, in your words — the verdict is derived from the record, but your account of the sitting is not, and on a judged deadlock it is the only evidence that determination will ever have)")
-		}
-	case "verify":
+	case *recordpb.Verify:
 		// A VERIFICATION OF NOTHING WAS RECORDABLE. The bare verb — no flags at all — printed
 		// "source verified:" and appended an event that counted as red's audit volume. Enforced
 		// HERE and not only in the cobra verb, for the reason `outcome` states above: validate is
@@ -998,64 +996,129 @@ func validate(runDir, seatID, typ string, p *Payload) error {
 		// citation exist?) and because "--anchor or --independent" is a shape this table cannot
 		// express. What is enforced here is that the row says something: which claim, what the
 		// source did for it, and the reading behind that verdict.
-		if p.Str("claim") == "" {
-			return fmt.Errorf("record: verify requires --%s (the claim you checked, quoted from the report — a verification that does not name what it verified cannot be re-checked, contested, or counted)", flags.ForPayloadKey("claim"))
+		if b.GetOutcome() == recordpb.SourceOutcome_SOURCE_OUTCOME_UNSPECIFIED {
+			return fmt.Errorf("record: verify requires --as (what the source ACTUALLY DID for the claim: supports | supports_with_bridge | weak | refutes | absent | unreachable — the negative half is the point, and until 0.60.0 there was no field for it)")
 		}
-		if p.Str("outcome") == "" {
-			return fmt.Errorf("record: verify requires --as (what the source ACTUALLY DID for the claim: supports | supports-with-bridge | weak | refutes | absent | unreachable — the negative half is the point, and until 0.60.0 there was no field for it)")
-		}
-		if p.Str("confidence") == "" {
+		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
 			return fmt.Errorf("record: verify requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
 		}
-		if p.Str("reason") == "" {
-			return fmt.Errorf("record: verify requires --reason (what the source says, in your words — a verdict with no reading behind it is the assertion this verb exists to replace)")
-		}
-	case "opinion":
-		if err := requireGap(runDir, p.Str("gap_id"), "opinion", "--id"); err != nil {
+	case *recordpb.Opinion:
+		if err := requireGap(runDir, b.GetGapId(), "opinion", "--id"); err != nil {
 			return err
 		}
-		for _, f := range []string{"gap_id", "disposition", "principle", "tension", "review_flag", "settled"} {
-			if !p.Has(f) {
-				return fmt.Errorf("record: opinion requires --%s (opinions, not dispositions)", flags.ForPayloadKey(f))
-			}
-		}
+		// THE PRESENCE LOOP THAT STOOD HERE WAS THE TWELFTH RESTATEMENT, and like the other ten
+		// it could never run. It asked presence for gap_id, disposition, principle, tension and
+		// review_flag — every one of them annotated `required` — so CheckRequired refused all five
+		// above, with the annotation's own words, before this switch was entered. It read as live
+		// because it was commented and explained itself; that is the whole failure mode.
+		//
+		// WHAT REMAINS IS CONDITIONAL, which is the test for belonging below rather than above.
+
 		// WHAT WOULD REOPEN THIS, ANSWERED ONE WAY OR THE OTHER (#502).
 		//
-		// A losing party's three questions are which proposition fell, what still stands, and
-		// what would change the outcome. `settled` above answers the first; this answers the
-		// third; the second is derivable from the first plus the artifact state (#499's
-		// ArtifactStateOf) and is deliberately not stored, because a derivable field stored is
-		// a second hand-kept copy.
+		// A losing party's three questions are which proposition fell, what still stands, and what
+		// would change the outcome. `settled` answers the first (annotated, refused above); this
+		// answers the third; the second is derivable from the first plus the artifact state
+		// (ArtifactStateOf) and is deliberately not stored, because a derivable field stored is a
+		// second hand-kept copy.
 		//
 		// EITHER FIELD SATISFIES IT. `final: true` says nothing would reopen it, which is a real
 		// answer and not an omission — the `friction --none` shape, and for the same measured
 		// reason: an empty channel that cannot assert its own emptiness goes unclosed.
-		if !p.Has("reopens_on") && !p.Has("final") {
+		//
+		// THE SCHEMA CARRIES THIS TOO, as a (check) on Opinion, and the pair is not a restatement
+		// of the kind deleted above: that one duplicated an UNCONDITIONAL annotation which runs
+		// first and makes the copy unreachable. This is the `Close` pattern — the tool refuses in
+		// words a bench can act on, and the database refuses independently of the tool, because a
+		// CHECK's `why` does not currently reach the seat (its violation arrives as raw driver
+		// text). Close that and this guard becomes the restatement it is not yet.
+		if b.ReopensOn == nil && b.Final == nil {
 			return fmt.Errorf("record: opinion requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round")
 		}
-		if p.Str("reason") == "" {
-			return fmt.Errorf("record: opinion requires --reason (the ruling's rationale — a disposition with no stated reasoning is indistinguishable from a default)")
+		if b.ReopensOn != nil && b.Final != nil {
+			return fmt.Errorf("record: --final says nothing would reopen this and --reopens-on names what would. They are opposite answers to one question; pass exactly one")
 		}
-		// A verb that owns an act must OWN it. petition_rule.go states the safety
-		// property plainly — "a halt is deliberately NOT a value of --as ... giving it
-		// its own verb means it can never be reached by a typo in an enum" — and that
-		// was untrue: --as took any string, so `opinion --as halt` recorded an opinion
-		// whose disposition reads like the run's terminal act and stops nothing.
+		// A VERB THAT OWNS AN ACT MUST OWN IT — and this guard is now the type system's job.
 		//
-		// The enum stays OPEN otherwise (its help ends in "...", and closing it would
-		// mean a legitimate ruling failing hard mid-round). Only the words that are
-		// somebody else's verb are refused, which is the whole of the claimed property.
-		if d := p.Str("disposition"); d == "halt" {
-			return fmt.Errorf("record: `halt` is not a disposition — it is the bench's own verb, so that the run's terminal act cannot be reached by a typo in a ruling. Use `bench halt` if you mean to stop the run")
-		}
+		// petition_rule.go states the safety property plainly: "a halt is deliberately NOT a value
+		// of --as ... giving it its own verb means it can never be reached by a typo in an enum".
+		// That was untrue while --as took any string, so `opinion --as halt` recorded an opinion
+		// whose disposition reads like the run's terminal act and stops nothing. This block was the
+		// repair: refuse the one word that is somebody else's verb.
+		//
+		// `disposition` is a closed enum now, so `halt` is not a value that can be constructed —
+		// the property petition_rule.go claimed is finally structural rather than a listed
+		// exception. The guard is deleted rather than kept as belt-and-braces: a runtime check for
+		// a state the type system forbids is dead code that reads like a live defense, and the next
+		// reader would take it as evidence the set is still open.
 	}
 	// The closed sets, checked from one declaration (enums.go) rather than five
-	// hand-written copies. LAST, so the more specific refusal leads when a payload has
+	// hand-written copies. LAST, so the more specific refusal leads when a body has
 	// several defects at once — the same ordering rule `close` states above, where the
 	// unauditable-closure message beats the missing-reason one. A seat fixing `dispose
 	// --observation N2` learns that N2 does not exist before it learns that --as was
 	// also blank; both refusals are reachable, in the order that gets it unstuck.
-	return checkEnum(typ, p)
+	//
+	// MOST OF WHAT IT POLICED IS NOW THE SCHEMA'S: verdict, outcome's verdict, avenue status,
+	// closure_class, check_kind, soundness, verify's outcome and confidence are all closed enums,
+	// where a value outside the set cannot be represented at all. Two are NOT — `Outcome.ended`
+	// and `Opinion.disposition` are still open strings with declared sets — so the call stays,
+	// and it stays here, at the single write path.
+	return checkOpenSets(body)
+}
+
+// filingSubject is the subject a Motion's filing BELONGS to, read off the oneof case rather than
+// off the `subject` field it is checked against.
+func filingSubject(m *recordpb.Motion) recordpb.MotionSubject {
+	switch m.GetFiling().(type) {
+	case *recordpb.Motion_Grade:
+		return recordpb.MotionSubject_MOTION_SUBJECT_GRADE
+	case *recordpb.Motion_Petition:
+		return recordpb.MotionSubject_MOTION_SUBJECT_PETITION
+	case *recordpb.Motion_Direction:
+		return recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION
+	}
+	return recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED
+}
+
+// rulingSubject is filingSubject for the ruling side.
+func rulingSubject(r *recordpb.MotionRule) recordpb.MotionSubject {
+	switch r.GetRuling().(type) {
+	case *recordpb.MotionRule_Grade:
+		return recordpb.MotionSubject_MOTION_SUBJECT_GRADE
+	case *recordpb.MotionRule_Petition:
+		return recordpb.MotionSubject_MOTION_SUBJECT_PETITION
+	case *recordpb.MotionRule_Direction:
+		return recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION
+	}
+	return recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED
+}
+
+// rulingWord is the ruling as a seat spells it, and "" when nothing was ruled.
+func rulingWord(r *recordpb.MotionRule) string {
+	switch v := r.GetRuling().(type) {
+	case *recordpb.MotionRule_Grade:
+		return recordpb.Word(v.Grade)
+	case *recordpb.MotionRule_Petition:
+		return recordpb.Word(v.Petition)
+	case *recordpb.MotionRule_Direction:
+		return recordpb.Word(v.Direction)
+	}
+	return ""
+}
+
+// rulingNames is the vocabulary legal on one subject, taken from the schema's own enum so the
+// refusal cannot offer a word the write path would then reject.
+func rulingNames(s recordpb.MotionSubject) []string {
+	switch s {
+	case recordpb.MotionSubject_MOTION_SUBJECT_GRADE:
+		return recordpb.Names(recordpb.GradeRuling(0).Descriptor())
+	case recordpb.MotionSubject_MOTION_SUBJECT_PETITION:
+		return recordpb.Names(recordpb.PetitionRuling(0).Descriptor())
+	case recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION:
+		return recordpb.Names(recordpb.DirectionRuling(0).Descriptor())
+	}
+	return nil
 }
 
 // jsonish renders a value the way JSON.stringify would inside the oracle's error
@@ -1069,4 +1132,23 @@ func jsonish(v any) string {
 	default:
 		return fmt.Sprintf("%v", t)
 	}
+}
+
+// verbOf names the act in the words a seat types it, for a refusal it can act on. The schema spells
+// the type; the seat typed a verb, and "record: motion_rule requires --x" sends it looking for a
+// command it never ran.
+func verbOf(typ recordpb.EventType) string {
+	return strings.ReplaceAll(recordpb.Word(typ), "_", " ")
+}
+
+// isDuplicateKey recognises the one constraint a SEAT can walk into, so it can be answered in the
+// seat's own terms rather than SQLite's.
+//
+// Matched on the driver's message because modernc.org/sqlite reports constraint violations as a
+// generic error rather than a typed one. That is a string match on a foreign library's prose and
+// it is the shape facts-are-fields warns about — so it FAILS SAFE: an unrecognised error is
+// returned unchanged rather than folded into this explanation, which means a miss shows the raw
+// constraint text instead of confidently mislabelling something else.
+func isDuplicateKey(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed: events.key")
 }

@@ -172,7 +172,18 @@ func TestGolden(t *testing.T) {
 			// contributes nothing, so degenerate runs carry no RENDERS section — as before.
 			var renders strings.Builder
 			for _, v := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
-				got := normalizeOutput(runGo(bin, runDir, cmd{role: "merge", args: []string{"show", v, "--run", runDir}}), runDir, m)
+				// THE SEAT SELECTS THE TREE, so the projection is read the way a merge seat reads
+				// it: `show <v> --seat-id red-merge-r1`. This said `cmd{role: "merge", args:
+				// {"show", ...}}`, which composes `merge show ledger` — a path that stopped
+				// existing when the surface became seat-scoped, and no --seat-id at all, so the
+				// root exposed no verbs to begin with.
+				//
+				// IT FAILED SILENTLY BY DESIGN. The block only appends when `got.code == 0`,
+				// because a degenerate run legitimately renders nothing — so every scenario simply
+				// lost its RENDERS and REPORT halves, and regenerating would have recorded that as
+				// the new expected output. 2278 deletions against 323 insertions across 20 files,
+				// and every one of them would have been "the goldens moved with the surface".
+				got := normalizeOutput(runGo(bin, runDir, cmd{role: "show", args: []string{v, "--run", runDir, "--seat-id", "red-merge-r1"}}), runDir, m)
 				if got.code == 0 {
 					fmt.Fprintf(&renders, "-- %s\n%s\n", v, got.stdout)
 				}
@@ -197,7 +208,7 @@ func TestGolden(t *testing.T) {
 			// blue/report.md cannot assemble, so it contributes no section — the same
 			// degenerate-run rule RENDERS already follows, and the reason this could be added to
 			// every scenario rather than needing a fixture of its own.
-			if inv := runGo(bin, runDir, cmd{role: "bench", args: []string{"assemble", "--run", runDir}}); inv.code == 0 {
+			if inv := runGo(bin, runDir, cmd{role: "assemble", args: []string{"--run", runDir, "--seat-id", "judge-terminal"}}); inv.code == 0 {
 				body, err := os.ReadFile(filepath.Join(runDir, "report.md"))
 				if err != nil {
 					t.Fatalf("bench assemble exited 0 but wrote no report.md: %v", err)
@@ -229,7 +240,12 @@ func compareGolden(t *testing.T, name, got string) {
 	}
 	want := strings.ReplaceAll(string(wantBytes), "\r\n", "\n")
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("%s differs from its golden (-want +got).\nIf this change is INTENTIONAL, regenerate with UPDATE_GOLDENS=1 and justify it in the commit.\n%s",
+		// `UPDATE_GOLDENS=1`, NOT `-update`. The comment at the top of this file exists because
+		// someone already wrote `-update` there and no such flag is declared — and this message,
+		// the one a reader actually hits, went on saying it anyway. Instructions that name a
+		// mechanism nobody implements are the same defect as a refusal naming a flag no verb
+		// registers; this one had its own correction written thirty lines above it.
+		t.Errorf("%s differs from its golden (-want +got).\nIf this change is INTENTIONAL, regenerate with UPDATE_GOLDENS=1 go test ./internal/difftest and justify the diff in the commit.\n%s",
 			name, diff)
 	}
 }

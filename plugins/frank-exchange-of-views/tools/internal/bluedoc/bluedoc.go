@@ -21,6 +21,7 @@ package bluedoc
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -56,6 +57,90 @@ func LocateUnique(verb, report, old string) (int, int, error) {
 		return 0, 0, fmt.Errorf("%s: your span starts or ends inside a word — quote whole words. Editing letters rather than language produces one-byte ops that carry no meaning on the record", verb)
 	}
 	return start, end, nil
+}
+
+// LocateUniqueReplacing is LocateUnique for a caller that intends to REPLACE the span it finds.
+//
+// THE ANCHOR RULE BELONGS TO REPLACEMENT, NOT TO LOCATION. Baked into LocateUnique it also fired
+// on `merge mint --quote`, which names the sentence a defect LIVES AT and rewrites nothing — so
+// minting a gap about any already-anchored sentence was refused, with a message that spoke of
+// "the text you are replacing". Caught by reading a regenerated golden that had recorded
+// `minted R1-1` turning into `exit 2`, which is what the read-every-diff rule is for.
+func LocateUniqueReplacing(verb, report, old string) (int, int, error) {
+	start, end, err := LocateUnique(verb, report, old)
+	if err != nil {
+		return 0, 0, err
+	}
+	end, err = settleAbuttingAnchor(verb, report, old, end)
+	if err != nil {
+		return 0, 0, err
+	}
+	return start, end, nil
+}
+
+// requireAbuttingAnchor refuses a quote that stops JUST SHORT of the anchor attached to the text
+// it is replacing.
+//
+// THE MARKERS ARE THE MECHANISM, and they are visible for this reason. `show report` prints
+// anchors as they are, so a seat rewriting a sentence can see the token sitting in it and copy it
+// into --new the same way it copies every other character. That is the whole model: an edit
+// mimics how you edit any document — quote what is there, write what should be there.
+//
+// The tolerance broke it. normalizeQuote SKIPS annotation spans, so a quote that omits the marker
+// still matches — and the span it locates then ENDS BEFORE the marker. Measured: the transit
+// guard never fires on a whole-sentence edit (the commonest edit there is), the marker is stranded
+// beside prose it was never placed against, and tidySeam cannot even collapse the doubled
+// terminator because the marker sits between the two halves.
+//
+// Only the ABUTTING case is refused. A fragment edit inside a sentence does not touch what the
+// anchor is attached to; the marker keeps its position and `reopened` records that its sentence
+// moved. What is refused is rewriting the text an anchor is ON while pretending the anchor is not
+// there.
+func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
+	// Trailing punctuation the quote legitimately omitted sits between the span and the marker:
+	// InsertAnchor places the token BEFORE the terminator, so skip that run first. TrimLeft takes
+	// a rune cutset — `…` is three bytes, and a byte-wise skip would half-consume it.
+	tail := report[end:]
+	after := strings.TrimLeft(tail, lens.TrailingPunct)
+	m := anyAnchorToken.FindStringIndex(after)
+	if m == nil || m[0] != 0 {
+		return end, nil
+	}
+	// THE RUN, NOT THE FIRST TOKEN. Two lenses anchoring one sentence is an ordinary corpus shape
+	// — `verification<!--fx:f-e4bc25ec--><!--fx:f-73a56bd3-->` is from a real report — and this
+	// consumed one token deep. The seat then quoted the sentence exactly as `show report` prints
+	// it, carried BOTH markers into --new as instructed, and was told the second one was an
+	// INVENTION: it sat past the extended span, so AnchorsTransitUnchanged saw it appear from
+	// nowhere. Following its own instruction was the thing that got it refused.
+	run := m[1]
+	for {
+		next := anyAnchorToken.FindStringIndex(after[run:])
+		if next == nil || next[0] != 0 {
+			break
+		}
+		run += next[1]
+	}
+	tok := after[:run]
+
+	// THE SEAT QUOTED IT: EXTEND THE SPAN TO COVER IT.
+	//
+	// normalizeQuote drops annotation spans from the quote as well as from the report, so a seat
+	// that copied the sentence EXACTLY as `show report` prints it still locates a span ending
+	// before the marker. The quote is the evidence of intent: if the token is in it, the seat
+	// means to replace the text the anchor sits on, so the span swallows the punctuation run and
+	// the token. AnchorsTransitUnchanged then sees the anchor and requires it in --new, and the
+	// terminator goes with the replacement instead of being stranded past the marker — which is
+	// what produced `now.<!--cite:c-…-->.`
+	if strings.Contains(quoted, tok) {
+		return end + (len(tail) - len(after)) + run, nil
+	}
+
+	// IT DID NOT: refuse, and print the token to carry.
+	return 0, fmt.Errorf("%s: the text you are replacing carries %s, and your quote stops just before it. "+
+		"That anchor is ON this sentence: rewriting the sentence without it strands the reference beside prose it was never placed against. "+
+		"Quote the sentence AS `show report` PRINTS IT — anchors included — and carry %s into --new unchanged. "+
+		"To change the words around it and leave the anchor where it is, quote a FRAGMENT that does not reach it",
+		verb, anchor.Label(idIn(tok)), tok)
 }
 
 // spanBoundaryOK rejects only a span that SPLITS A WORD.
@@ -158,7 +243,9 @@ func ValidateProposal(verb, report, old, new string) error {
 	if old == new {
 		return fmt.Errorf("%s: the proposed old and new text are identical — there is no change to propose", verb)
 	}
-	start, end, err := LocateUnique(verb, report, old)
+	// REPLACING: red's proposal is text blue will apply verbatim, so it owes the same duty an
+	// edit does — carry the anchors on the span it rewrites.
+	start, end, err := LocateUniqueReplacing(verb, report, old)
 	if err != nil {
 		return err
 	}
@@ -171,3 +258,97 @@ func ValidateProposal(verb, report, old, new string) error {
 	}
 	return nil
 }
+
+// ReopenedAnchors returns the anchors whose SENTENCE this edit changed — the referents that
+// moved under their references.
+//
+// THE TWO CONCERNS ARE SEPARATE AND ONLY ONE WAS ENFORCED. An anchor is never lost:
+// AnchorsTransitUnchanged refuses a replacement that drops one, and droppedMarker backstops the
+// whole edit. That promise holds. But an anchor SURVIVING onto rewritten prose is a citation
+// backing a sentence nobody read, and nothing said so — measured: a cite on "The sky is blue and
+// the grass is green" followed the text to "The sky is green and the grass is on fire".
+//
+// COMPARING SENTENCES, NOT SPANS, IS THE POINT. The obvious implementation asks which anchors sat
+// inside the replaced span, and it would find almost none: InsertAnchor places a marker BEFORE the
+// terminal punctuation, and normalizeQuote trims trailing punctuation off the quote — so a
+// whole-sentence edit locates a span that ENDS just before the anchor. The anchor is adjacent,
+// not contained, which is why AnchorsTransitUnchanged does not fire on the commonest edit there
+// is. Reading the sentence around each anchor sidesteps the boundary question entirely: if the
+// words around the reference changed, the reference needs looking at again, however the offsets
+// happened to fall.
+func ReopenedAnchors(before, after string) []string {
+	var out []string
+	for _, id := range claimcount.ProtectedAnchorIDs(before) {
+		b, okB := sentenceAround(before, anchor.Token(id))
+		a, okA := sentenceAround(after, anchor.Token(id))
+		// An anchor that is GONE from `after` is not reopened — it is dropped, which is a refusal
+		// the caller has already made. Saying both would report one fault as two.
+		if !okB || !okA {
+			continue
+		}
+		if b != a {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// sentenceAround returns the text between sentence boundaries surrounding tok, with every anchor
+// token stripped, so a SECOND anchor arriving in the same sentence does not read as the first
+// one's referent changing.
+func sentenceAround(doc, tok string) (string, bool) {
+	if !strings.Contains(doc, tok) {
+		return "", false
+	}
+	// MARKERS COME OUT BEFORE THE BOUNDARY SCAN, not after.
+	//
+	// `!` is a sentence terminator and `<!--` contains one, so scanning the raw document ends the
+	// segment INSIDE a neighbouring marker — measured: a twin anchor truncated the sentence to
+	// "…the grass is green<", which differs from the original and reported every cite as reopened
+	// by its own neighbour. Stripping first removes the question.
+	const mark = "\x00" // boundary-free, so the scan cannot end inside it
+	cleaned := anyAnchorToken.ReplaceAllStringFunc(doc, func(m string) string {
+		if m == tok {
+			return mark
+		}
+		return ""
+	})
+	i := strings.Index(cleaned, mark)
+	if i < 0 {
+		return "", false
+	}
+	start := strings.LastIndexAny(cleaned[:i], ".!?\n")
+	if start < 0 {
+		start = 0
+	} else {
+		start++
+	}
+	rest := cleaned[i+len(mark):]
+	end := strings.IndexAny(rest, ".!?\n")
+	if end < 0 {
+		end = len(rest)
+	}
+	return strings.Join(strings.Fields(cleaned[start:i]+rest[:end]), " "), true
+}
+
+// idIn returns the id inside an anchor token — `<!--cite:c-abc-->` yields `c-abc`.
+func idIn(tok string) string {
+	if i := strings.IndexByte(tok, ':'); i >= 0 {
+		return strings.TrimSuffix(tok[i+1:], "-->")
+	}
+	return tok
+}
+
+// anyAnchorToken matches an invisible marker of EITHER class — a finding's `<!--fx:…-->` or a
+// citation's `<!--cite:…-->`.
+//
+// By SHAPE, not by reconstructing tokens from ids. The first draft stripped
+// `anchor.Token(id)` for each id ProtectedAnchorIDs found, which silently failed for whichever
+// class Token does not render identically — and a token left behind reads as the sentence having
+// changed, so every cite reopened its own neighbours. Caught by the twin case in the test rather
+// than in review.
+var anyAnchorToken = regexp.MustCompile(`<!--[a-z]+:[^>]*-->`)
+
+// stripAnchors removes every anchor token from a segment, so a marker ARRIVING beside a
+// reference is not read as that reference's text changing.
+func stripAnchors(s string) string { return anyAnchorToken.ReplaceAllString(s, "") }

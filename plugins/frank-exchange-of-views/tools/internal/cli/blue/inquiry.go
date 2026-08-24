@@ -2,11 +2,14 @@ package blue
 
 import (
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // line of inquiry: a line of inquiry, and what became of it.
@@ -66,45 +69,44 @@ func newInquiryPropose() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		p := record.NewPayload().Set("inquiry_id", id)
-		seat.SetSame(cmd, p, flags.Method)
-		seat.Set(cmd, p, "hypothesis", flags.Hypothesis)
-		// The record keeps its own word: the payload key is `line`, the flag is --reason.
-		// Flag words are not payload keys (see internal/flags).
-		//
-		// READ THE PROSE CHANNEL ONCE, AND FILL BOTH KEYS FROM IT. This read `--reason` as a raw
-		// FLAG for `line` and the resolved CHANNEL for `reason`, so the two were not the same
-		// argument: `--reason` filled both, and `--reason-file` filled only `reason`, leaving
-		// `line` empty and the write refused. The flag's own help says --reason-file is "the same
-		// field as --reason, for anything long or that would fight shell quoting", and for this
-		// one verb it was not.
-		//
-		// FOUND BY A SEAT, 2026-08-21, through the friction channel. A blue seat wrote its
-		// proposal as a heredoc into `--reason-file -` — exactly what that flag is for, and the
-		// only sane way to pass a paragraph — was refused, tried twice more, and filed a friction
-		// report. It could not name the cause (the refusal pointed at a flag that does not exist)
-		// but it was right that the tool was wrong.
-		//
-		// ONCE, because `--reason-file -` is STDIN: a second read of the channel returns nothing,
-		// so resolving separately for each key would leave whichever key read second empty.
-		prose, err := seat.Reason(cmd)
+		proposed := recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED
+		body := &recordpb.Avenue{
+			AvenueId:   proto.String(id),
+			Method:     proto.String(seat.Str(cmd, flags.Method)),
+			Hypothesis: proto.String(seat.Str(cmd, flags.Hypothesis)),
+			Status:     &proposed,
+		}
+		// A fresh proposal with no stated fate is `proposed` — the state the old shape could
+		// not express, which forced blue to declare a fate before it had one. It is set on the
+		// body above, where the enum makes it a value rather than a spelling.
+		why, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err
 		}
-		p.Set("line", prose)
-		if prose != "" {
-			p.Set("reason", prose)
-		}
-		// A fresh proposal with no stated fate is `proposed` — the state the old shape could
-		// not express, which forced blue to declare a fate before it had one.
-		p.Set("status", "proposed")
-		if _, err := record.Append(s.Identity(), "line-of-inquiry", p); err != nil {
+		// The record keeps its own word: the payload key is `line`, the flag is --reason.
+		// Flag words are not payload keys (see internal/flags).
+		//
+		// BOTH FIELDS TAKE THE RESOLVED PROSE. `Line` read the FLAG while `Reason` took the
+		// channel, so the same act wrote two different values whenever the seat used
+		// --reason-file: the line went in empty and the reason went in whole. seat.Reason
+		// resolves --reason, --reason-file and `--reason-file -` alike.
+		body.Line = proto.String(why)
+		body.Reason = proto.String(why)
+		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return inquiryResult{ID: id, Status: "proposed", Line: p.Str("line")}, nil
-	}), "line-of-inquiry"))
+		return inquiryResult{ID: id, Status: "proposed", Line: body.GetLine()}, nil
+	}), "avenue"))
 
 	seat.Supplies(c, "status", "a proposal starts at `proposed` — the state the field exists to express, and the one a seat would not think to type. A MOVE requires it")
+	// `line` IS UNCONDITIONAL FOR THIS VERB, and conditional for the message. The field carries no
+	// `required` annotation because a MOVE must not need it — but a PROPOSAL always does, and that
+	// is a per-VERB fact no field annotation can state.
+	//
+	// Marked here so cobra refuses before an event exists and the refusal carries the help, which
+	// is where a seat actually learns the verb. Without it the only refusal was validate's, which
+	// arrives later and teaches less.
+	c.MarkFlagsOneRequired(flags.Reason, flags.ReasonFile)
 	c.Flags().String(flags.Hypothesis, "", "what would be TRUE if this line pays off — the claim a later abandonment is judged against, so the fate is checkable rather than a shrug")
 	c.Flags().String(flags.Method, "", "the source class or technique it belonged to, when that is what distinguishes it")
 	return c
@@ -116,24 +118,31 @@ func newInquiryMove() *cobra.Command {
 		if err := record.RequireInquiryRef(s.RunDir, id); err != nil {
 			return nil, err
 		}
-		p := record.NewPayload().
-			Set("inquiry_id", id).
-			Set("supersedes_status", "1").
-			Set("status", seat.Str(cmd, flags.As))
+		st, known := record.AvenueStatusOf(seat.Str(cmd, flags.As))
+		if !known {
+			return nil, feov.Errorf(feov.Validation, "blue line-of-inquiry: %q is not a fate a line can take", seat.Str(cmd, flags.As))
+		}
+		body := &recordpb.Avenue{
+			AvenueId:         proto.String(id),
+			SupersedesStatus: proto.String("1"),
+			Status:           &st,
+		}
 		// THE CONTEST IS `motion inquiry appeal` (#344), NOT A FIELD HERE. `contests_ruling`
 		// was set as a side effect of moving a line to `pursued` against an adverse ruling,
 		// and that coupling can only record disagreement that WINS: in one real record the
 		// merge ruled a line too thin, blue argued the reasoning at the leaf and then
 		// declined the line anyway — the ordinary outcome of an argument — and the field
 		// recorded nothing. It appears zero times in the whole record.
-		if err := seat.SetReason(cmd, p, "reason"); err != nil {
+		why, err := seat.Reason(cmd)
+		if err != nil {
 			return nil, err
 		}
-		if _, err := record.Append(s.Identity(), "line-of-inquiry", p); err != nil {
+		body.Reason = proto.String(why)
+		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return inquiryResult{ID: id, Status: p.Str("status"), Moved: true}, nil
-	}), "line-of-inquiry"))
+		return inquiryResult{ID: id, Status: recordpb.Word(body.GetStatus()), Moved: true}, nil
+	}), "avenue"))
 
 	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID, "`inquiry-id` — the line of inquiry whose fate you are moving (A1, A2 …); the lines-of-inquiry projection lists every one")
 	_ = c.MarkFlagRequired(flags.ID)
@@ -141,7 +150,7 @@ func newInquiryMove() *cobra.Command {
 	// five statuses — `deferred` had been added to InquiryStatuses and never to the string — and
 	// glossed the four it did carry differently from the enum. enumhelp renders every value with
 	// its own meaning from the record, so the usage line's job is to say what the FIELD is for.
-	enumhelp.Flag(c, flags.As, record.MustEnum("line-of-inquiry", "status"), "the fate of this line of inquiry")
+	enumhelp.Flag(c, flags.As, record.MustEnum("avenue", "status"), "the fate of this line of inquiry")
 	return c
 }
 

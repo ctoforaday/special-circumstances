@@ -3,6 +3,10 @@ package record
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"google.golang.org/protobuf/proto"
+	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // CITATION IDENTITY MIRRORS FINDING IDENTITY — see findingid.go for the full argument.
@@ -38,10 +42,59 @@ type Source struct {
 	Location   string
 }
 
+// citedSource reads a citable source off an event body, if it is one.
+//
+// TWO EVENT TYPES CARRY A CITATION NOW, and that is the change. Blue's `cite` attaches a source
+// to a claim it is AUTHORING; red's `corroborate` records a source it FOUND, for a claim blue
+// made. #341 split them deliberately and this does not undo that — they stay separate acts with
+// separate verbs and separate readers. What they share is a minted label, and a label is what
+// makes a footnote.
+//
+// The comments here used to state red's exclusion as a property of the system: "Red's `lens cite`
+// carries no label and is EXCLUDED, so this is exactly the tool-inserted citation set." That was
+// accurate and it was the defect — red's independent corroboration reached no reader of the
+// document, and the strongest thing an adversarial process produces (a claim confirmed by a
+// source its author never chose) died in a projection. A human reader cares that the text has
+// appropriate references, not which team inserted them.
+//
+// ONLY A SUPPORTING CORROBORATION CARRIES A LABEL. The verb withholds it for `refutes`, `absent`
+// and `weak`: a source that CONTRADICTS the sentence is not a reference backing it, and rendered
+// in the bibliography it would read as support. Those go to the board instead.
+func citedSource(body proto.Message) (Source, bool) {
+	switch b := body.(type) {
+	case *recordpb.Cite:
+		return Source{
+			Label:      b.GetLabel(),
+			URL:        b.GetUrl(),
+			Sha256:     b.GetSha256(),
+			Title:      b.GetTitle(),
+			AccessDate: b.GetAccessDate(),
+			Location:   b.GetLocation(),
+		}, true
+	case *recordpb.Verify:
+		// No sha: red read the source itself rather than through the run cache, and the
+		// bibliography renders title + url + access date, never the hash. `location` is blue's
+		// placement field; a corroboration's span is its `claim`.
+		return Source{
+			Label:      b.GetLabel(),
+			URL:        b.GetUrl(),
+			Title:      b.GetTitle(),
+			AccessDate: b.GetAccessDate(),
+			Location:   b.GetClaim(),
+		}, true
+	}
+	return Source{}, false
+}
+
 // CitedSources returns the distinct cited sources — one per blue `cite` label, in
 // first-seen (label) order. It is the composer input for the assembled ## Bibliography and,
-// via its labels, the EXPECTED set the unbacked_citations detector checks. Red's `lens cite`
-// carries no label and is excluded, so this is exactly the tool-inserted citation set.
+// via its labels, the EXPECTED set the unbacked_citations detector checks.
+//
+// IT IS BOTH TEAMS' CITATIONS NOW. This said "Red's `lens cite` carries no label and is excluded,
+// so this is exactly the tool-inserted citation set" — the second half is still true and the
+// first is the thing that changed: a supporting corroboration mints a label and splices an
+// anchor, so it MUST be in this set or the blue-report lockdown reads red's anchor as a citation
+// blue dropped. See citedSource for why red's evidence stopped being excluded.
 func CitedSources(runDir string) ([]Source, error) {
 	m, err := MergedEvents(runDir)
 	if err != nil {
@@ -49,23 +102,26 @@ func CitedSources(runDir string) ([]Source, error) {
 	}
 	seen := map[string]bool{}
 	var out []Source
-	for _, e := range m.Events {
-		if e.Type != "cite" {
+	for i := range m.Events {
+		body, ok := recordpb.Body(m.Events[i])
+		if !ok {
+			// No body at all, so nothing to cite. The old code reached the same answer by a
+			// different route: Payload.Str on an absent key returned "", which the label
+			// filter below dropped.
 			continue
 		}
-		label := e.Payload.Str("label")
-		if label == "" || seen[label] {
+		src, ok := citedSource(body)
+		if !ok {
 			continue
 		}
-		seen[label] = true
-		out = append(out, Source{
-			Label:      label,
-			URL:        e.Payload.Str("url"),
-			Sha256:     e.Payload.Str("sha256"),
-			Title:      e.Payload.Str("title"),
-			AccessDate: e.Payload.Str("access_date"),
-			Location:   e.Payload.Str("location"),
-		})
+		// The empty-label filter is UNCHANGED and still load-bearing: an event with no label
+		// names no anchor, and CitationLabels — the EXPECTED set the lockdown compares against
+		// the report — must not gain a phantom. What changed is WHICH events can carry one.
+		if src.Label == "" || seen[src.Label] {
+			continue
+		}
+		seen[src.Label] = true
+		out = append(out, src)
 	}
 	return out, nil
 }
@@ -81,17 +137,33 @@ func CitationLabels(runDir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	return citationLabelsOf(m.Events), nil
+}
+
+// CitationLabelsOf is CitationLabels over events already read — for a caller holding a board,
+// which would otherwise re-derive the set inline and become a second copy of the rule.
+//
+// It exists because one already had. internal/scorecard built the unbacked_citations detector's
+// EXPECTED set with its own loop over `Cite` events, so widening this function to include red's
+// labelled corroborations left that detector on the old rule: blue dropping a RED citation
+// anchor would be caught by the hookgate lockdown and MISSED by the scorecard, two detectors
+// disagreeing about one protection. That is the duplication this schema exists to remove.
+func CitationLabelsOf(events []*Event) []string { return citationLabelsOf(events) }
+
+func citationLabelsOf(events []*Event) []string {
 	seen := map[string]bool{}
 	var out []string
-	for _, e := range m.Events {
-		if e.Type == "cite" {
-			if id := e.Payload.Str("label"); id != "" && !seen[id] {
-				seen[id] = true
-				out = append(out, id)
-			}
+	for i := range events {
+		body, ok := recordpb.Body(events[i])
+		if !ok {
+			continue
+		}
+		if src, ok := citedSource(body); ok && src.Label != "" && !seen[src.Label] {
+			seen[src.Label] = true
+			out = append(out, src.Label)
 		}
 	}
-	return out, nil
+	return out
 }
 
 // ExistingCiteByKey returns the label of a prior blue cite this seat recorded under the
@@ -101,8 +173,30 @@ func CitationLabels(runDir string) ([]string, error) {
 // unique citation label). A blue cite carries a `label`; red's `lens cite` does not, so
 // this scans only the blue side of the shared "cite" event type.
 func ExistingCiteByKey(runDir, seatID, key string) (string, error) {
-	result, _, err := ExistingByKey(runDir, seatID, "cite", key)
-	return result, err
+	if key == "" {
+		return "", nil
+	}
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return "", err
+	}
+	for i := range m.Events {
+		e := m.Events[i]
+		if e.GetSeatId() != seatID {
+			continue
+		}
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
+		}
+		// key is non-empty (guarded above), so GetCiteKey()'s zero value for an ABSENT
+		// cite_key can never match it — the old `Payload.Str("cite_key") == key` had the same
+		// property for the same reason.
+		if c, isCite := body.(*recordpb.Cite); isCite && c.GetCiteKey() == key {
+			return c.GetLabel(), nil
+		}
+	}
+	return "", nil
 }
 
 // TWO KINDS OF `cite` EVENT SHARE ONE TYPE — and conflating them inflates red's audit metric.
@@ -148,8 +242,31 @@ func NewProofID() string {
 // after the event landed re-runs the same key and gets the recorded sha back rather than
 // executing the script a second time and splicing a second anchor.
 func ExistingProofByKey(runDir, seatID, key string) (string, error) {
-	result, _, err := ExistingByKey(runDir, seatID, "proof", key)
-	return result, err
+	if key == "" {
+		return "", nil
+	}
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return "", err
+	}
+	for i := range m.Events {
+		e := m.Events[i]
+		if e.GetSeatId() != seatID {
+			continue
+		}
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
+		}
+		// The proof's sha was written under the payload key `sha256` and is READ BACK under
+		// `proof_sha` by every joiner — reproduce writes `proof_sha` for the same value, and
+		// `lens reproduce --id` takes it. The schema carries the one fact once, on
+		// Proof.proof_sha; this is that same value, not a rename of a different field.
+		if p, isProof := body.(*recordpb.Proof); isProof && p.GetProofKey() == key {
+			return p.GetProofSha(), nil
+		}
+	}
+	return "", nil
 }
 
 // Proof is one recorded computation, drawn from a blue `prove` event — the composer input
@@ -162,7 +279,11 @@ type Proof struct {
 	Exit   int
 	Cites  string // the METHOD citation this applies, when blue named one
 	Reason string
-	Drift  string
+
+	// Drift is WHAT MOVED between the two runs — the sentence, not a bool. It lived in the proof
+	// cache's meta.json while the report rendered it, so the record was the one party to the
+	// exchange that could not say what happened. That file is gone and this is a field.
+	Drift string
 
 	// Verified is red's independent re-run (#343): whether the proof reproduced for the
 	// auditor, and what red made of it. Nil when nobody re-ran it — and that absence is
@@ -198,47 +319,196 @@ func RecordedProofs(runDir string) ([]Proof, error) {
 	// Red's re-runs, keyed by the proof they checked, so the join happens once here rather
 	// than in every reader.
 	verified := map[string]*ProofVerification{}
-	for _, e := range m.Events {
-		if e.Type != "reproduce" {
+	for i := range m.Events {
+		e := m.Events[i]
+		body, ok := recordpb.Body(e)
+		if !ok {
 			continue
 		}
-		rep := false
-		if v, ok := e.Payload.Get("reproduced"); ok {
-			if b, isBool := v.(bool); isBool {
-				rep = b
-			}
+		r, isReproduce := body.(*recordpb.Reproduce)
+		if !isReproduce {
+			continue
 		}
-		verified[e.Payload.Str("proof_sha")] = &ProofVerification{
-			SeatID: e.SeatID, Round: e.Round, Reproduced: rep,
-			Sound: e.Payload.Str("soundness") == "sound", Note: e.Payload.Str("reason"),
-			Recorded: e.Payload.Str("recorded_output"), Observed: e.Payload.Str("observed_output"),
+		verified[r.GetProofSha()] = &ProofVerification{
+			SeatID: e.GetSeatId(), Round: int(e.GetRound()),
+			// `reproduced` is COMPUTED by the tool and always written; an absent one reads
+			// false, which is what the old bool-assertion default did with a missing or
+			// wrongly-typed key. ProofVerification.Reproduced is a plain bool and cannot
+			// carry the absence, so the presence distinction stops here as it did before.
+			Reproduced: r.GetReproduced(),
+			// The seat types --as sound|unsound; the string compare against "sound" becomes
+			// the enum it was standing in for. UNSPECIFIED (absent) is not sound, exactly as
+			// an absent `soundness` key was not.
+			Sound: r.GetSoundness() == recordpb.Soundness_SOUNDNESS_SOUND,
+			// --reason lands on Reproduce.note. The flag and the field are two vocabularies
+			// (recordpb/required.go says so outright: a close stores `prose`, an opinion
+			// `rationale`, and the flag for both is --reason); `note` is the only prose
+			// channel this message has.
+			Note:     r.GetNote(),
+			Recorded: r.GetRecordedOutput(), Observed: r.GetObservedOutput(),
 		}
 	}
+	// THREE FIELDS OF THIS PROJECTION HAVE NO FIELD ON `recordpb.Proof`, and they are left
+	// UNCONVERTED rather than defaulted — see the report to the lead. `blue prove` writes
+	// `script`, `exit` and `drift` onto the proof event (cli/blue/prove.go:85,86,90) and
+	// report/proofs.go renders all three: the script's path names the code fence's language,
+	// the exit code is a line of the Proofs section, and `drift` is describeDrift's SENTENCE
+	// ("exit code moved 2 -> 3"), which the schema's `optional bool drift` cannot carry.
+	// Zero-filling them would render a drifting proof as a clean one, in a section whose whole
+	// subject is whether the computation held — the plausible zero this migration exists to
+	// remove. The schema decision is the lead's; the compile error is the loud miss.
 	var out []Proof
-	for _, e := range m.Events {
-		if e.Type != "proof" {
+	for i := range m.Events {
+		e := m.Events[i]
+		body, ok := recordpb.Body(e)
+		if !ok {
 			continue
 		}
-		exit := 0
-		if v, ok := e.Payload.Get("exit"); ok {
-			if f, isNum := v.(float64); isNum {
-				exit = int(f)
-			} else if i, isInt := v.(int); isInt {
-				exit = i
-			}
+		pf, isProof := body.(*recordpb.Proof)
+		if !isProof {
+			continue
 		}
 		out = append(out, Proof{
-			Label:  e.Payload.Str("proof_id"),
-			SHA:    e.Payload.Str("sha256"),
-			Basis:  e.Payload.Str("proof_basis"),
-			Script: e.Payload.Str("script"),
-			Exit:   exit,
-			Cites:  e.Payload.Str("cites"),
-			Reason: e.Payload.Str("reason"),
-			Drift:  e.Payload.Str("drift"),
+			Label: pf.GetProofId(),
+			// Written as `sha256`, joined on as `proof_sha` — one fact, one field now.
+			SHA:    pf.GetProofSha(),
+			Basis:  pf.GetProofBasis(),
+			Script: pf.GetScript(),
+			Exit:   int(pf.GetExit()),
+			Cites:  pf.GetCites(),
+			// --reason lands on Proof.text, the message's only prose channel — the same
+			// flag/field split recordpb/required.go records for Verify.text.
+			Reason: pf.GetText(),
+			Drift:  pf.GetDrift(),
 			// nil when nobody re-ran it, which the report states rather than omits.
-			Verified: verified[e.Payload.Str("sha256")],
+			Verified: verified[pf.GetProofSha()],
 		})
 	}
 	return out, nil
+}
+
+// ExistingCorroborationLabel returns the label this seat already minted for the same source and
+// the same claim, so a crash-retried `lens corroborate` returns its anchor instead of splicing a
+// second one.
+//
+// IT REPLACES AN IDEMPOTENCY THE LABEL TOOK AWAY. A corroboration used to key on its `url`, so a
+// retry collided and was refused — the same mechanism that also capped one source at one claim
+// per sitting, which is why the key moved to the minted label. But a minted label is fresh every
+// call, so nothing collided any more and a retry wrote a DUPLICATE: the exact cost that made
+// "drop url from keyFields" the wrong answer, arrived at by another route.
+//
+// Keyed on (source, claim) rather than on a seat-supplied `--key` like blue's cite, because the
+// pair IS the act — corroborating one claim from one source twice is one corroboration, and a
+// retry should not need the seat to have anticipated it.
+func ExistingCorroborationLabel(runDir, seatID, url, claim string) (string, error) {
+	if url == "" || claim == "" {
+		return "", nil
+	}
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return "", err
+	}
+	for i := range m.Events {
+		e := m.Events[i]
+		if e.GetSeatId() != seatID {
+			continue
+		}
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
+		}
+		if v, isVerify := body.(*recordpb.Verify); isVerify &&
+			v.GetLabel() != "" && v.GetUrl() == url && v.GetClaim() == claim {
+			return v.GetLabel(), nil
+		}
+	}
+	return "", nil
+}
+
+// UnansweredContradictions returns the claims where red read a source that CONTRADICTS the
+// report and no finding was ever raised about it.
+//
+// THE NEGATIVE HALF OF THE CORROBORATION AXIS HAS TO REACH THE BOARD. A supporting corroboration
+// becomes a footnote and reaches the reader that way; `refutes` and `absent` are not references
+// backing the sentence and are deliberately NOT spliced — which leaves them landing only in the
+// `evidence` projection, seen by red and by nobody else. That is the same defect one axis over:
+// evidence on the record with no reader.
+//
+// THE TOOL DOES NOT DISCHARGE THE DUTY, and that is deliberate. Writing the finding here would
+// mean inventing its severity, likelihood and impact — three grades nobody chose, feeding the
+// mass calculation that decides what a gap is worth. A fabricated grade reads exactly like a
+// judged one. So the duty is REPORTED and red grades its own finding, the way
+// InquiryReviewDue reports a read that has not happened rather than pretending it did.
+//
+// The match is deliberately loose — any finding by any lens quoting the same claim answers it.
+// A stricter join (same seat, same round) would refuse a contradiction one lens found and
+// another raised, which is the collaboration the lens roles exist for.
+func UnansweredContradictions(b *Board) []string {
+	if b == nil {
+		return nil
+	}
+	answered := map[string]bool{}
+	for _, e := range b.Events {
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
+			if loc := strings.TrimSpace(f.GetLocation()); loc != "" {
+				answered[loc] = true
+			}
+		}
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, e := range b.Events {
+		v, ok := recordpb.BodyAs[*recordpb.Verify](e)
+		if !ok || !contradicts(v.GetOutcome()) {
+			continue
+		}
+		claim := strings.TrimSpace(v.GetClaim())
+		if claim == "" || answered[claim] || seen[claim] {
+			continue
+		}
+		seen[claim] = true
+		out = append(out, claim)
+	}
+	return out
+}
+
+// contradicts is the half of the outcome set that says the text is not supported. It is the
+// complement of the set that earns a footnote, and the two are written as one pair so a value
+// added to the enum cannot fall between them unnoticed.
+func contradicts(o recordpb.SourceOutcome) bool {
+	return o == recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES ||
+		o == recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT
+}
+
+// ReopenedAnchors returns the anchors whose text has moved since they were placed — every id any
+// `blue edit` reported reopening, in first-seen order.
+//
+// THE REFERENCE STANDS; ITS REFERENT MOVED. That is deliberately not the same as the citation
+// being wrong: a source still says what it says. What changed is the sentence it was placed
+// against, so a verification of it is STALE rather than refuted, and a reader who cannot tell
+// those apart will either re-check everything or trust everything.
+//
+// Read from the BlueEdit events rather than recomputed by diffing documents, because the
+// documents are gone: `blue/report.md` holds only its current state, and the before-image an
+// edit replaced exists nowhere else. The one channel that text moves through is the only place
+// this fact can be captured at the moment it becomes true.
+func ReopenedAnchors(b *Board) []string {
+	if b == nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, e := range b.Events {
+		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
+		if !ok {
+			continue
+		}
+		for _, id := range ed.GetReopened() {
+			if id != "" && !seen[id] {
+				seen[id] = true
+				out = append(out, id)
+			}
+		}
+	}
+	return out
 }

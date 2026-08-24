@@ -1,13 +1,13 @@
 $ register --run {RUN} --seat-id red-merge-r2
 exit 0
 stdout:
-registered red-merge-r2 (shard nonce NONCE001)
+registered red-merge-r2
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ mint --run {RUN} --seat-id red-merge-r2 --class scope-creep --check-kind document --check reread --severity medium --likelihood medium --impact medium --problem carried case
 exit 0
@@ -17,46 +17,112 @@ minted R2-1
 $ carry --run {RUN} --seat-id red-merge-r2 --id R2-1 --carried-from 1
 exit 2
 stderr:
-feov-record: at least one of the flags in the group [reason reason-file] is required
-
-restate an earlier round's closure, when the work is done and you are not re-attesting it
-
-It makes no fresh claim, so it needs no verification triple — you are RESTATING a closure the record already holds, not attesting one.
-
-Use `close` when you did the checking THIS round. Re-closing carried work here double-counts the closure history.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
-
-Usage:
-  feov-record carry [flags]
-
-Flags:
-      --as as-value            HOW the gap ended. One vocabulary with the bench's dispositions since #342 — a reader no longer has to know which verb produced a closure before it can interpret the word
-      --carried-from string    the round whose closure this restates
-  -h, --help                   help for carry
-      --id gap-id              REQUIRED — the gap id
-      --reason string          REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
-      --reason-file -          read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --superseded-by gap-id   the gap id carrying the unresolved remainder forward
-
-Enumerated values:
-  --as
-    repaired                  the repair was verified at the leaf and nothing regressed
-    repaired_with_regression  repaired, but something else broke — REQUIRES --superseded-by naming the gap that carries the regression forward
-    amends_prior              a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES --supersedes so the lineage is explicit
-    not_a_defect              blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be
-    defect_accepted           the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record
-    defect_owed_elsewhere     a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped
-
-Global Flags:
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
+feov-record: merge: record: carry claims gap R2-1 was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `merge close` with --verified-by/--verified-with/--verified-against
 
 ═══ EVENTS ═══
--- events-red-merge-r2-NONCE001.jsonl
-{"key":"red-merge-r2:register:NONCE001","nonce":"NONCE001","payload":{"run_via":"flag","tool_version":"0.72.0"},"role":"merge","round":2,"seatId":"red-merge-r2","seq":0,"ts":0,"type":"register"}
-{"key":"red-merge-r2:mint:R2-1","nonce":"NONCE001","payload":{"acceptance_check":"reread","check_kind":"document","class":"scope-creep","class_new":false,"fix_basis":"proposed","found_by":[],"gap_id":"R2-1","impact":"medium","likelihood":"medium","problem":"carried case","severity":"medium","supersedes":[]},"role":"merge","round":2,"seatId":"red-merge-r2","seq":1,"ts":1,"type":"mint"}
+
+═══ RENDERS ═══
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
+
+
+═══ REPORT ═══
+# _(blue/report.md has no title — not authored here)_
+
+**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
+
+## Read this first
+
+1 open gap(s) remain, most severe first — full statements in **Red team findings** below.
+
+1. **[medium]** carried case (R2-1) — 
+
+## TL;DR
+
+_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
+
+## The Catechism
+
+_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
+
+## Technical foundations
+
+_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
+
+## Analysis
+
+_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
+
+## Risk matrix
+
+| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
+|---|---|---|---|---|
+| carried case | medium | medium | — | — |
+
+The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
+
+## Research areas
+
+_(none on the record)_
+
+## Future research directions
+
+_(none on the record)_
+
+## Alternatives considered
+
+_(none on the record)_
+
+## Open questions
+
+_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
+
+## Blue team report (sections not composed above)
+
+## S2
+
+A claim sits under S2.
+
+## S4
+
+A claim sits under S4.
+
+## Red team findings (in full)
+
+### Open gaps (1)
+
+### R2-1 — carried case
+
+severity medium | medium x medium | cx — | class scope-creep
+required_fix: 
+fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
+acceptance_check: reread
+
+### Closure index (0)
+
+_(nothing closed)_
+
+## The debate
+
+_(no debate on the record)_
+
+## Record verification
+
+Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
+
+- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
+- **ok** — `found-by-resolves` — every found_by credit names a real finding
+- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
+- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
+- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
+- **ok** — `register-before-append` — every seat registered before it wrote
+- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
+
+**6 held · 1 did not apply · 0 violated.** An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

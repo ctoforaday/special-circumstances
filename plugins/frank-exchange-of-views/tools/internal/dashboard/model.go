@@ -11,6 +11,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -366,6 +367,68 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 		Live:      record.Assess(runDir, time.UnixMilli(int64(nowMs)).UTC(), terminalVerdict != ""),
 		Generated: nowISO(nowMs),
 	}
+}
+
+func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
+
+// readTerminalVerdict answers from the RECORD, and from nothing else.
+//
+// IT WAS A REGEX OVER report.md, and then briefly a regex kept "as a last resort", which is not a
+// justification. The verdict is a FIELD on the `outcome` event — the bench's terminal act writes
+// it — so parsing it back out of the prose it was rendered into is the shape [[facts-are-fields]]
+// names, and keeping the parse as a fallback keeps the shape.
+//
+// WHAT THE FALLBACK ACTUALLY SERVED, measured across the 9 assembled runs in research/ rather than
+// assumed:
+//
+//	2  carry an `outcome` event — the record answers
+//	1  carries a round `verdict` event and no terminal act
+//	5  carry NO terminal act at all, and their reports say "UNVERIFIED"
+//	1  has no verdict in the report either
+//
+// Those five are pre-#289 artifacts, assembled before the terminal act was an event. Their
+// "UNVERIFIED" is backed by no record anywhere — so the fallback's job was to read a word out of
+// prose and hand it to an operator as the run's verdict, which is exactly the unbacked assertion
+// `basisNote` exists to keep out of the report. A fact that no record holds is not recovered by
+// finding it written down.
+//
+// The honest answer when the record cannot say is that the record cannot say, and the renderer
+// already says it well: an empty terminal verdict falls through to the round verdict off the
+// record and is RELABELLED from "final verdict" to "latest verdict (rN)". The operator sees a
+// different claim rather than the same claim from a worse source.
+// TerminalVerdict is readTerminalVerdict for callers outside this package: has the bench recorded
+// this run's outcome? Exported for the dashboard SERVER, whose lifetime was keyed only to the
+// run-live marker — a file whose only remover is `capture`, so a killed run left the server
+// watching forever (#270). The record knows what the marker cannot.
+func TerminalVerdict(runDir string) string { return readTerminalVerdict(runDir) }
+
+func readTerminalVerdict(runDir string) string {
+	b, err := record.BoardState(runDir)
+	if err != nil {
+		return ""
+	}
+	// The bench's own terminal act, latest wins.
+	for i := len(b.Events) - 1; i >= 0; i-- {
+		if b.Events[i].GetType() != recordpb.EventType_EVENT_TYPE_OUTCOME {
+			continue
+		}
+		o, ok := recordpb.BodyAs[*recordpb.Outcome](b.Events[i])
+		if !ok {
+			continue
+		}
+		// Word maps the enum back to the schema's own spelling and returns "" for the zero value,
+		// which is the same empty this loop already skipped on — an outcome event whose verdict was
+		// never set must not read as a verdict.
+		if v := recordpb.Word(o.GetVerdict()); v != "" {
+			return strings.ToUpper(v)
+		}
+	}
+	// Or what the record decides for itself. ok is false only where the record genuinely
+	// cannot — a judged deadlock — and that is a real answer, not a gap to paper over.
+	if v, _, ok := record.DeriveVerdict(runDir); ok {
+		return v
+	}
+	return ""
 }
 
 // buildJudiciary ports the journal-envelope analytics: rulings by type, dispute traffic, and

@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"testing"
 
@@ -54,6 +57,27 @@ func testDispatchedSeat(args []string) string {
 // run executes one command against a fresh root and captures what the seat sees.
 // Verb output goes to real stdout via fmt.Println, so stdout is redirected
 // rather than taken from cobra's writer.
+// flagValue reads a flag's value out of an argv the way the parser will, so the harness and the
+// command agree about which run directory this call is against.
+func flagValue(args []string, flag string) string {
+	for i, a := range args {
+		if a == flag && i+1 < len(args) {
+			return args[i+1]
+		}
+		if v, ok := cutPrefix(a, flag+"="); ok {
+			return v
+		}
+	}
+	return ""
+}
+
+func cutPrefix(s, p string) (string, bool) {
+	if len(s) >= len(p) && s[:len(p)] == p {
+		return s[len(p):], true
+	}
+	return "", false
+}
+
 func run(t *testing.T, args ...string) (stdout string, err error) {
 	t.Helper()
 	// Output goes through cmd.OutOrStdout(), so a buffer set on the root captures every
@@ -67,6 +91,18 @@ func run(t *testing.T, args ...string) (stdout string, err error) {
 	// running with no --seat-id gets its own tree. A harness stopping at the flag hands that
 	// same call the EMPTY tree and reports "no such command", which is a fact about the harness
 	// and reads as a fact about the seat.
+	// RELEASE THIS RUN'S HANDLE WHEN THE TEST ENDS, and do it HERE because this is the one place
+	// every test in this package reaches the record. recordsql caches a *sql.DB per database and
+	// production never closes one — a seat is a process per command. A test is the other shape,
+	// and on Windows an open file cannot be removed, so `t.TempDir` cleanup fails and the test is
+	// reported as failing for a reason that has nothing to do with what it asserts.
+	//
+	// Registering from the harness rather than from 56 fixtures is not a shortcut: the handle is
+	// opened by PRODUCTION code deep inside the verb, so the test that owns the directory never
+	// sees it. The invocation is the only place that knows both the run and the *testing.T.
+	if dir := flagValue(args, "--run"); dir != "" {
+		t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
+	}
 	seatID := testDispatchedSeat(args)
 	root := NewRootFor(seatID)
 	var out bytes.Buffer
@@ -127,7 +163,7 @@ func help(t *testing.T, args ...string) string {
 }
 
 // events reads the merged event log the way every projection does.
-func events(t *testing.T, runDir string) []record.Event {
+func events(t *testing.T, runDir string) []*record.Event {
 	t.Helper()
 	m, err := record.MergedEvents(runDir)
 	if err != nil {
@@ -136,42 +172,57 @@ func events(t *testing.T, runDir string) []record.Event {
 	return m.Events
 }
 
-// lastOfType is LAST IN TIME, not last in the slice.
+// lastOfType is LAST IN TIME, and the slice IS in time order now.
 //
-// MergedEvents returns events in shard order, so "the tail of the slice" is whichever seat
-// file sorts last — fine while a test run dir held one seat's events, wrong the moment
-// fixtures seed events from several seats. It silently returned the SEEDED dispute instead
-// of the one the test had just filed, which reads as the verb writing the wrong payload.
-// The canonical order is (TS, SeatID, Seq), the same key replay uses.
-func lastOfType(t *testing.T, runDir, typ string) record.Event {
+// It used to re-sort by (TS, SeatID, Seq) because MergedEvents returned events in SHARD order —
+// "the tail of the slice" was whichever seat file sorted last, which silently returned a seeded
+// event instead of the one the test had just written, reading as the verb writing the wrong body.
+// The record is one table read `ORDER BY id`, so the tail of the slice is the last thing that
+// happened, and re-sorting it by a wall clock could only move an event away from where it was.
+func lastOfType(t *testing.T, runDir string, typ recordpb.EventType) *record.Event {
 	t.Helper()
 	evs := events(t, runDir)
-	sort.SliceStable(evs, func(i, j int) bool {
-		a, b := evs[i], evs[j]
-		if a.TS != b.TS {
-			return a.TS < b.TS
-		}
-		if a.SeatID != b.SeatID {
-			return a.SeatID < b.SeatID
-		}
-		return a.Seq < b.Seq
-	})
 	for i := len(evs) - 1; i >= 0; i-- {
-		if evs[i].Type == typ {
+		if evs[i].GetType() == typ {
 			return evs[i]
 		}
 	}
 	t.Fatalf("no %s event in the log", typ)
-	return record.Event{}
+	return nil
 }
 
-// payloadKeys is how the absent/present distinction is asserted: a flag the seat
-// never passed must not appear in the event AT ALL.
-func payloadKeys(ev record.Event) map[string]bool {
-	out := map[string]bool{}
-	for _, k := range ev.Payload.Keys() {
-		out[k] = true
+// lastBody is lastOfType with the body already typed, which is what every caller wanted.
+//
+// The type argument and the EventType are the SAME FACT — asking for a *recordpb.Cite and then
+// naming EVENT_TYPE_CITE beside it is the agreement this migration keeps removing — so the type is
+// derived from the body by the same SetBody the write path uses.
+func lastBody[T proto.Message](t *testing.T, runDir string, zero T) T {
+	t.Helper()
+	typ, err := recordpb.SetBody(&record.Event{}, zero)
+	if err != nil {
+		t.Fatal(err)
 	}
+	body, ok := recordpb.BodyAs[T](lastOfType(t, runDir, typ))
+	if !ok {
+		t.Fatalf("the last %s event does not carry a %T", typ, zero)
+	}
+	return body
+}
+
+// setFields is how the absent/present distinction is asserted: a flag the seat never passed must
+// not appear in the event AT ALL.
+//
+// It was payloadKeys over an untyped map. Under the schema the question is the same and the answer
+// is stronger: every field is optional, so PRESENCE is a property the record itself carries, and
+// protoreflect.Range visits only the populated ones. A field left unset is absent in the same sense
+// the old key was missing — which is the distinction the tests are about, and which a struct with
+// zero values could not have expressed at all.
+func setFields(body proto.Message) map[string]bool {
+	out := map[string]bool{}
+	body.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, _ protoreflect.Value) bool {
+		out[string(fd.Name())] = true
+		return true
+	})
 	return out
 }
 
@@ -213,12 +264,12 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 			// then runs, the precondition looks broken, and the suite passes or fails
 			// by ambient state. Point it at an empty directory so "no run is live"
 			// is a fact of the test rather than of the machine.
-			t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+			t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 			args := make([]string, len(tc.args))
 			copy(args, tc.args)
 			for i, a := range args {
 				if a == "X" {
-					args[i] = t.TempDir()
+					args[i] = tmpRun(t)
 				}
 			}
 			_, err := run(t, args...)
@@ -282,7 +333,7 @@ func TestUnknownVerbAnswersWithTheAvailableSet(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.role+"/"+tc.verb, func(t *testing.T) {
-			out, err := run(t, tc.verb, "--run", t.TempDir(), "--seat-id", record.SampleSeatOf(tc.role))
+			out, err := run(t, tc.verb, "--run", tmpRun(t), "--seat-id", record.SampleSeatOf(tc.role))
 			if err == nil {
 				t.Fatalf("%s ran the %s verb", tc.role, tc.verb)
 			}
@@ -399,8 +450,14 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "registered "+seatID) || !strings.Contains(out, "shard nonce") {
+	// "registered <seat>" and NOTHING ELSE on a first dispatch. It used to append "(shard nonce
+	// <8 hex>)" — an opaque id naming the file the seat would write to. There is no file and no
+	// nonce; a re-dispatch says which attempt it is, which is the part a seat can act on.
+	if !strings.Contains(out, "registered "+seatID) {
 		t.Errorf("register said %q", out)
+	}
+	if strings.Contains(out, "nonce") || strings.Contains(out, "dispatch") {
+		t.Errorf("a FIRST registration should say nothing beyond the seat: %q", out)
 	}
 
 	out, err = run(t, "finding", "--run", runDir, "--seat-id", seatID,
@@ -415,21 +472,24 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 		t.Errorf("finding said %q", out)
 	}
 
-	ev := lastOfType(t, runDir, "finding")
-	if got := ev.Payload.Str("label"); got != "L1-F1" {
+	ev := lastBody(t, runDir, &recordpb.Finding{})
+	if got := ev.GetLabel(); got != "L1-F1" {
 		t.Errorf("label = %q", got)
 	}
-	if got := ev.Payload.Str("severity"); got != "high" {
-		t.Errorf("severity = %q", got)
+	if got := ev.GetSeverity(); got != recordpb.Grade_GRADE_HIGH {
+		t.Errorf("severity = %q", recordpb.Word(got))
 	}
-	if got := ev.Payload.Str("reason"); got != "the finding prose" {
+	if got := ev.GetText(); got != "the finding prose" {
 		t.Errorf("text = %q", got)
 	}
-	if ev.Round != 1 {
-		t.Errorf("round = %d, want 1 from the seat id", ev.Round)
+	// Round and key live on the ENVELOPE, not on the body — the body is what the seat said, the
+	// envelope is what the record stamped.
+	env := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING)
+	if env.GetRound() != 1 {
+		t.Errorf("round = %d, want 1 from the seat id", env.GetRound())
 	}
-	if ev.Key != seatID+":finding:L1-F1" {
-		t.Errorf("key = %q", ev.Key)
+	if env.GetKey() != seatID+":finding:L1-F1" {
+		t.Errorf("key = %q", env.GetKey())
 	}
 }
 
@@ -445,9 +505,11 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 		"--key", "F1", "--severity", "high", "--quote", "§1", "--reason", "t"); err != nil {
 		t.Fatal(err)
 	}
-	keys := payloadKeys(lastOfType(t, runDir, "finding"))
-	if !keys["label"] || !keys["severity"] || !keys["reason"] {
-		t.Errorf("a passed flag is missing from the payload: %v", keys)
+	// `reason` is the FLAG; the field it lands in is `text`. setFields reads the schema, so it
+	// reports what the record holds rather than what the seat typed.
+	keys := setFields(lastBody(t, runDir, &recordpb.Finding{}))
+	if !keys["label"] || !keys["severity"] || !keys["text"] {
+		t.Errorf("a passed flag is missing from the body: %v", keys)
 	}
 	for _, absent := range []string{"likelihood", "impact"} {
 		if keys[absent] {
@@ -456,29 +518,41 @@ func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 	}
 }
 
-// The CSV fields are the exception: ALWAYS present, even empty, because an
-// absent key would read as "lineage unknown" where the truth is "lineage none".
-func TestListFieldsAreAlwaysPresentEvenWhenEmpty(t *testing.T) {
+// THE CSV FIELDS ARE ALWAYS RENDERED, even empty, because an absent key reads as "lineage
+// unknown" where the truth is "lineage none".
+//
+// THE QUESTION MOVED FROM THE BODY TO THE PROJECTION, and it had to. This asserted that the mint
+// EVENT carried `supersedes` and `found_by` as present-but-empty keys — a distinction a payload
+// map could hold and a proto message cannot: a repeated field has no presence, so an empty list
+// and an unset one are the same bytes. There is nothing on the body left to assert.
+//
+// What a reader actually sees is the projection, and there the distinction is real and preserved:
+// viewjson seeds both as `[]string{}` so they render as `[]` rather than being omitted. That is
+// the guarantee this test was always about, asked where it can still be answered — and where it
+// would fail if someone dropped the seeding.
+func TestListFieldsAreAlwaysRenderedEvenWhenEmpty(t *testing.T) {
+	// newRun, not a bare TempDir: a run stages its gap-class vocabulary, and a mint against a run
+	// with no registry is refused rather than waved through.
 	runDir := newRun(t)
 	seatID := "red-merge-r1"
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	ev := lastOfType(t, runDir, "mint")
-	keys := payloadKeys(ev)
-	for _, k := range []string{"supersedes", "found_by"} {
-		if !keys[k] {
-			t.Errorf("%q is absent; an absent lineage key reads as \"lineage unknown\"", k)
-		}
-	}
-	// And they serialize as arrays, not null.
-	b, err := json.Marshal(ev.Payload)
+	b, err := record.BoardJSONBytes(runDir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(b), `"supersedes":[]`) {
-		t.Errorf("empty lineage did not serialize as []: %s", b)
+	s := string(b)
+	for _, want := range []string{`"supersedes": []`, `"found_by": []`} {
+		if !strings.Contains(s, want) {
+			t.Errorf("the board does not render %s — an absent lineage key reads as \"lineage unknown\" "+
+				"where the truth is \"lineage none\":\n%s", want, s)
+		}
+	}
+	// And a gap that HAS lineage renders it, so the check above is not passing on an empty board.
+	if strings.Count(s, `"supersedes"`) != 1 {
+		t.Errorf("expected exactly one gap on the board, got %d supersedes keys", strings.Count(s, `"supersedes"`))
 	}
 }
 
@@ -532,7 +606,7 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 	}
 	mints := 0
 	for _, e := range events(t, runDir) {
-		if e.Type == "mint" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_MINT {
 			mints++
 		}
 	}
@@ -631,19 +705,23 @@ func TestClassNewCoinsTheSlugInClass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := lastOfType(t, runDir, "mint")
-	if got := m.Payload.Str("class"); got != "brand-new" {
+	m := lastBody(t, runDir, &recordpb.Mint{})
+	if got := m.GetClass(); got != "brand-new" {
 		t.Errorf("class = %q, want the slug from --class", got)
 	}
-	if v, _ := m.Payload.Get("class_new"); v != true {
-		t.Errorf("class_new = %v, want true", v)
+	if !m.GetClassNew() {
+		t.Error("class_new = false, want true — the mint must record that the seat coined the class")
 	}
-	cn := lastOfType(t, runDir, "class-new")
-	if got := cn.Payload.Str("slug"); got != "brand-new" {
+	cn := lastBody(t, runDir, &recordpb.ClassNew{})
+	if got := cn.GetSlug(); got != "brand-new" {
 		t.Errorf("class-new slug = %q", got)
 	}
-	for _, k := range []string{"definition", "neighbor", "distinguisher"} {
-		if cn.Payload.Str(k) == "" {
+	for k, v := range map[string]string{
+		"definition":    cn.GetDefinition(),
+		"neighbor":      cn.GetNeighbor(),
+		"distinguisher": cn.GetDistinguisher(),
+	} {
+		if v == "" {
 			t.Errorf("the class-new event dropped %q", k)
 		}
 	}
@@ -661,14 +739,14 @@ func TestProseChannelResolution(t *testing.T) {
 	t.Run("--file is read whole, less its terminating newline", func(t *testing.T) {
 		runDir := newRun(t)
 		body := "line one\nline two — with unicode ✓ and <angle> brackets"
-		f := filepath.Join(t.TempDir(), "prose.md")
+		f := filepath.Join(tmpRun(t), "prose.md")
 		if err := os.WriteFile(f, []byte(body+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := run(t, "position", "--run", runDir, "--seat-id", "red-merge-r1", "--reason-file", f); err != nil {
 			t.Fatal(err)
 		}
-		if got := lastOfType(t, runDir, "position").Payload.Str("reason"); got != body {
+		if got := lastBody(t, runDir, &recordpb.Position{}).GetText(); got != body {
 			t.Errorf("text = %q, want the file's content without its terminator %q", got, body)
 		}
 	})
@@ -681,7 +759,7 @@ func TestProseChannelResolution(t *testing.T) {
 	// Refusing costs the seat one turn and tells it exactly what to fix.
 	t.Run("--file and --text together are refused, not ranked", func(t *testing.T) {
 		runDir := newRun(t)
-		f := filepath.Join(t.TempDir(), "prose.md")
+		f := filepath.Join(tmpRun(t), "prose.md")
 		if err := os.WriteFile(f, []byte("from the file"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -698,7 +776,7 @@ func TestProseChannelResolution(t *testing.T) {
 	t.Run("a missing --file is an error, not an empty payload", func(t *testing.T) {
 		runDir := newRun(t)
 		_, err := run(t, "position", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--reason-file", filepath.Join(t.TempDir(), "no-such-file.md"))
+			"--reason-file", filepath.Join(tmpRun(t), "no-such-file.md"))
 		if err == nil {
 			t.Fatal("a missing prose file was silently treated as empty")
 		}
@@ -732,7 +810,7 @@ func TestProseChannelResolution(t *testing.T) {
 		}
 		// The seat's own register event is expected; a POSITION event is not.
 		for _, e := range events(t, runDir) {
-			if e.Type == "position" {
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION {
 				t.Errorf("a refused position was still recorded: %+v", e)
 			}
 		}
@@ -744,7 +822,7 @@ func TestProseChannelResolution(t *testing.T) {
 			"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "from the flag", "--reason", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
-		if got := lastOfType(t, runDir, "mint").Payload.Str("problem"); got != "from the flag" {
+		if got := lastBody(t, runDir, &recordpb.Mint{}).GetProblem(); got != "from the flag" {
 			t.Errorf("problem = %q, want --problem to win", got)
 		}
 	})
@@ -755,7 +833,7 @@ func TestProseChannelResolution(t *testing.T) {
 			"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--reason", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
-		if got := lastOfType(t, runDir, "mint").Payload.Str("problem"); got != "from the prose channel" {
+		if got := lastBody(t, runDir, &recordpb.Mint{}).GetProblem(); got != "from the prose channel" {
 			t.Errorf("problem = %q", got)
 		}
 	})
@@ -799,9 +877,9 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 	if !strings.Contains(out, "closed R1-1 (repaired)") {
 		t.Errorf("close said %q", out)
 	}
-	ev := lastOfType(t, runDir, "close")
-	if got := ev.Payload.Str("closure_class"); got != "repaired" {
-		t.Errorf("closure_class = %q, want the default \"repaired\"", got)
+	ev := lastBody(t, runDir, &recordpb.Close{})
+	if got := ev.GetClosureClass(); got != recordpb.Disposition_DISPOSITION_REPAIRED {
+		t.Errorf("closure_class = %q, want the default \"closed\"", got)
 	}
 
 	// Closing an unknown gap is refused before anything is written.
@@ -858,7 +936,7 @@ func TestCloseFile(t *testing.T) {
 		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	f := filepath.Join(t.TempDir(), "closure.md")
+	f := filepath.Join(tmpRun(t), "closure.md")
 	if err := os.WriteFile(f, []byte("the whole closure record"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -866,13 +944,13 @@ func TestCloseFile(t *testing.T) {
 		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--reason-file", f); err != nil {
 		t.Fatal(err)
 	}
-	if got := lastOfType(t, runDir, "close").Payload.Str("reason"); got != "the whole closure record" {
+	if got := lastBody(t, runDir, &recordpb.Close{}).GetProse(); got != "the whole closure record" {
 		t.Errorf("prose = %q", got)
 	}
 
 	_, err := run(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
 		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
-		"--reason-file", filepath.Join(t.TempDir(), "gone.md"))
+		"--reason-file", filepath.Join(tmpRun(t), "gone.md"))
 	if err == nil {
 		t.Fatal("a missing --file was ignored")
 	}
@@ -961,8 +1039,8 @@ func TestBlueVerbContracts(t *testing.T) {
 			"--reason", "what changed"); err != nil {
 			t.Fatal(err)
 		}
-		ev := lastOfType(t, runDir, "revision")
-		if got := ev.Payload.Str("reason"); got != "what changed" {
+		ev := lastBody(t, runDir, &recordpb.Revision{})
+		if got := ev.GetText(); got != "what changed" {
 			t.Errorf("text = %q", got)
 		}
 	})
@@ -1023,7 +1101,7 @@ func TestBenchOpinionRequiresEachUnconditionalField(t *testing.T) {
 	if !strings.Contains(out, "opinion recorded: R1-1 carried") {
 		t.Errorf("opinion said %q", out)
 	}
-	if got := lastOfType(t, runDir, "opinion").Payload.Str("reason"); got != "the rationale" {
+	if got := lastBody(t, runDir, &recordpb.Opinion{}).GetRationale(); got != "the rationale" {
 		t.Errorf("rationale = %q", got)
 	}
 }
@@ -1048,12 +1126,15 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 			if strings.TrimSpace(out) != "friction recorded" {
 				t.Errorf("friction said %q", out)
 			}
-			ev := lastOfType(t, runDir, "friction")
-			if got := ev.Payload.Str("reason"); got != "the capability I needed" {
+			ev := lastBody(t, runDir, &recordpb.Friction{})
+			if got := ev.GetText(); got != "the capability I needed" {
 				t.Errorf("text = %q", got)
 			}
-			if keys := payloadKeys(ev); len(keys) != 1 || !keys["reason"] {
-				t.Errorf("the friction payload is not just the reason: %v", keys)
+			// `text`, not `reason`. `--reason` is the word a SEAT types; the field it lands in is
+			// spelled per verb, and a friction stores `text`. setFields reads the schema, so it
+			// reports what the record holds rather than what the seat typed.
+			if keys := setFields(ev); len(keys) != 1 || !keys["text"] {
+				t.Errorf("the friction body carries more than the seat's prose: %v", keys)
 			}
 		})
 	}
@@ -1092,7 +1173,7 @@ func TestClosingIsKeyedPerGap(t *testing.T) {
 	}
 	closings := 0
 	for _, e := range events(t, runDir) {
-		if e.Type == "closing" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_CLOSING {
 			closings++
 		}
 	}
@@ -1101,21 +1182,32 @@ func TestClosingIsKeyedPerGap(t *testing.T) {
 	}
 }
 
-// position is a SINGLETON: a seat has one position, so a re-run replaces rather
-// than appending a second.
+// position is a SINGLETON: a seat has one position, and a second is REFUSED rather than quietly
+// replacing it.
+//
+// The refusal is the change and it is the honest half. The shard record deduped on READ — two
+// events with one key, one silently discarded — so this test's own header said "replaces" while
+// its assertion said the FIRST survives, and a seat that stated its position twice learned
+// neither. `events.key` is UNIQUE now, so the second write fails and the seat is told why.
 func TestPositionIsASingletonPerSeat(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-merge-r1"
-	for _, text := range []string{"first", "second"} {
-		if _, err := run(t, "position", "--run", runDir, "--seat-id", seatID, "--reason", text); err != nil {
-			t.Fatal(err)
-		}
+	if _, err := run(t, "position", "--run", runDir, "--seat-id", seatID, "--reason", "first"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := run(t, "position", "--run", runDir, "--seat-id", seatID, "--reason", "second")
+	if err == nil {
+		t.Fatal("a second position was accepted — the record would carry two answers to a once-per-sitting question")
+	}
+	if !strings.Contains(err.Error(), "once-per-sitting") {
+		t.Errorf("the refusal does not teach what was wrong:\n%v", err)
 	}
 	positions := 0
 	for _, e := range events(t, runDir) {
-		if e.Type == "position" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_POSITION {
 			positions++
-			if got := e.Payload.Str("reason"); got != "first" {
+			p, _ := recordpb.BodyAs[*recordpb.Position](e)
+			if got := p.GetText(); got != "first" {
 				t.Errorf("the surviving position is %q, want the first", got)
 			}
 		}
@@ -1198,8 +1290,8 @@ func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
 			// AND NOTHING WAS WRITTEN. A refusal that still appends leaves a verdict on
 			// the record for every projection to read.
 			for _, e := range events(t, runDir) {
-				if e.Type == "verdict" {
-					t.Errorf("a refused verdict reached the log anyway: %+v", e.Payload)
+				if e.GetType() == recordpb.EventType_EVENT_TYPE_VERDICT {
+					t.Errorf("a refused verdict reached the log anyway: %+v", e)
 				}
 			}
 		})
@@ -1237,17 +1329,20 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	if rerr != nil {
 		t.Fatalf("the checkpoint mirror is not readable: %v", rerr)
 	}
-	var shards int
+	// THE MIRROR HOLDS THE RECORD, which is one database rather than a set of `events-*.jsonl`
+	// files. The checkpoint's purpose is unchanged — a copy of the record survives the run
+	// directory — so the assertion is that the record is THERE, by the name it now has.
+	var found bool
 	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), "events-") {
-			shards++
+		if e.Name() == "record.db" {
+			found = true
 		}
 	}
-	if shards == 0 {
-		t.Errorf("the mirror holds no shards: %v", entries)
+	if !found {
+		t.Errorf("the mirror does not hold the record: %v", entries)
 	}
 	// The verdict itself is on the record.
-	if got := lastOfType(t, runDir, "verdict").Payload.Str("verdict"); got != "PASS" {
+	if got := lastBody(t, runDir, &recordpb.RoundVerdict{}).GetVerdict(); got != recordpb.Verdict_VERDICT_PASS {
 		t.Errorf("verdict payload = %q", got)
 	}
 }
@@ -1272,8 +1367,8 @@ func TestVersionIsStampedOnTheFirstAct(t *testing.T) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
 		t.Fatal(err)
 	}
-	reg := lastOfType(t, runDir, "register")
-	if got := reg.Payload.Str("tool_version"); got != Version {
+	reg := lastBody(t, runDir, &recordpb.Register{})
+	if got := reg.GetToolVersion(); got != Version {
 		t.Errorf("tool_version = %q, want %q", got, Version)
 	}
 	if record.ToolVersion != Version {
@@ -1283,7 +1378,7 @@ func TestVersionIsStampedOnTheFirstAct(t *testing.T) {
 
 func writeTemp(t *testing.T, body string) string {
 	t.Helper()
-	p := filepath.Join(t.TempDir(), "prose.md")
+	p := filepath.Join(tmpRun(t), "prose.md")
 	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -1302,7 +1397,7 @@ func boardState(t *testing.T, runDir string) (*record.Board, error) {
 // this flag alone, and it cannot be carried in the environment — shell state does not
 // persist between tool calls and every subagent shares the parent's session id.
 func TestRunDirIsInferredFromTheLiveMarkerWhenTheFlagIsOmitted(t *testing.T) {
-	proj := t.TempDir()
+	proj := tmpRun(t)
 	runDir := filepath.Join(proj, "research", "live-run")
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
@@ -1327,7 +1422,7 @@ func TestRunDirIsInferredFromTheLiveMarkerWhenTheFlagIsOmitted(t *testing.T) {
 // An explicit --run always beats the marker: inference is a fallback for the seat
 // that forgot, never a second source of truth that can override what it was told.
 func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
-	proj := t.TempDir()
+	proj := tmpRun(t)
 	marker := filepath.Join(proj, "research", "marker-run")
 	explicit := filepath.Join(proj, "research", "explicit-run")
 	for _, d := range []string{marker, explicit, filepath.Join(proj, ".claude")} {
@@ -1359,7 +1454,7 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 // audit has to take on trust. An unrecordable discharge is indistinguishable from a
 // skipped duty, which is precisely what the event stream exists to prevent.
 func TestSpotCheckRecordsAnHonestlyEmptyRound(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := newRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 		t.Fatal(err)
@@ -1372,15 +1467,15 @@ func TestSpotCheckRecordsAnHonestlyEmptyRound(t *testing.T) {
 	if !strings.Contains(out, "nothing to sample") {
 		t.Errorf("output %q should say the discharge was empty", out)
 	}
-	ev := lastOfType(t, runDir, "spot-check")
-	keys := payloadKeys(ev)
+	ev := lastBody(t, runDir, &recordpb.SpotCheck{})
+	keys := setFields(ev)
 	if !keys["none"] || !keys["reason"] {
 		t.Errorf("the event must carry both the empty marker and its reason; got %v", keys)
 	}
 }
 
 func TestSpotCheckRefusesAnEmptyDischargeWithNoReason(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := newRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 		t.Fatal(err)
@@ -1395,7 +1490,7 @@ func TestSpotCheckRefusesAnEmptyDischargeWithNoReason(t *testing.T) {
 }
 
 func TestSpotCheckRefusesContradictoryFlags(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := newRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 		t.Fatal(err)
@@ -1411,7 +1506,7 @@ func TestSpotCheckRefusesContradictoryFlags(t *testing.T) {
 // array with no account of it, so "the archive was empty at round start" and "the seat skipped
 // its duty" were the same event.
 func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := newRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 		t.Fatal(err)
@@ -1420,8 +1515,20 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 		"--reason", "nothing was sampled this round"); err != nil {
 		t.Fatalf("the no-sample form must keep working: %v", err)
 	}
-	if keys := payloadKeys(lastOfType(t, runDir, "spot-check")); !keys["ids"] {
-		t.Error("ids must still be present as an empty array")
+	// AN EMPTY REPEATED FIELD HAS NO PRESENCE, so this cannot be asked of the body: a proto
+	// message cannot tell "sampled nothing" from "field unset". The distinction is real and it
+	// lives in the PROJECTION, which renders `ids` as `[]` — a reader distinguishes "checked
+	// nothing" from "did not check" by seeing the empty array.
+	// The BARE form (no --ids, no --none) still records the duty and its reason. Whether it also
+	// carried an empty `ids` array was the old assertion; a repeated field has no presence, so
+	// that distinction moved to `none` — see TestSpotCheckIdsAreAlwaysAnArray, which pins all
+	// three states.
+	sc := lastBody(t, runDir, &recordpb.SpotCheck{})
+	if len(sc.GetIds()) != 0 {
+		t.Errorf("the bare form sampled %v", sc.GetIds())
+	}
+	if sc.GetReason() == "" {
+		t.Error("the bare form lost its reason — an unexplained empty round is indistinguishable from a skipped one")
 	}
 }
 
@@ -1429,9 +1536,9 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 // calls it --file. Seats typed --file here and were refused, twice, in one run. Post-
 // collapse the shared word is --reason-file, and this pins that close reads it.
 func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := newRun(t)
-	prose := filepath.Join(t.TempDir(), "closure.md")
+	prose := filepath.Join(tmpRun(t), "closure.md")
 	if err := os.WriteFile(prose, []byte("verified at the leaf; digits match the cited arm"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -1459,7 +1566,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 		"--reason-file", prose); err != nil {
 		t.Fatalf("--file must work on close, as it does on every other prose verb: %v", err)
 	}
-	if !payloadKeys(lastOfType(t, runDir, "close"))["reason"] {
+	if lastBody(t, runDir, &recordpb.Close{}).GetProse() == "" {
 		t.Error("the prose from --file must reach the event")
 	}
 }
@@ -1473,50 +1580,78 @@ func inquiryIDOf(out string) string {
 	return m[1]
 }
 
-// ONE QUESTION, TWO ANSWERS, AND NEVER BOTH — the conditional half of #502's contract.
+// fieldText renders one field of an event's body as the WORD the record holds.
 //
-// "What would reopen this?" has a real answer of "nothing", and that answer has to be POSITIVE:
-// left as an empty --reopens-on it is indistinguishable from a bench that skipped the field,
-// which is the defect the friction channel carried for eighteen consecutive sittings until
-// --none made the empty case sayable.
+// Test tables state expectations as (field, value) pairs, which is the right shape — one line per
+// fact a verb must record. Reading them off typed bodies with a switch per verb would be forty
+// near-identical arms; reading them out of a payload map is what this migration removed.
 //
-// THE BOTH-FLAGS CASE IS REFUSED RATHER THAN RESOLVED. A ruling that says both "this is final"
-// and "here is what would undo it" has not decided, and preferring one would record a decision
-// nobody made.
+// THE MISS IS LOUD. A name the body does not carry FAILS rather than returning "", because a stale
+// field name silently never matches and the assertion then passes for every value — a table row
+// that cannot fail reads exactly like one that holds.
 //
-// Written here, with a real minted gap, because the reference check fires FIRST: my first
-// attempt at this lived in a difftest scenario ruling on a gap no mint had created, so both
-// commands were refused for the wrong reason and the golden proved nothing about this contract.
-func TestOpinionTakesEitherReopensOnOrFinalAndNeverBoth(t *testing.T) {
-	runDir := newRun(t)
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--key", "k", "--class", "x", "--check-kind", "document", "--check", "c",
-		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
-		t.Fatal(err)
+// Enums render through recordpb.Word, not the generated String(): the table states the vocabulary's
+// word, which is what a seat types and what every projection prints.
+func fieldText(t *testing.T, body proto.Message, name string) string {
+	t.Helper()
+	m := body.ProtoReflect()
+	fd := m.Descriptor().Fields().ByName(protoreflect.Name(name))
+	if fd == nil {
+		// THE SUBSTANCE MAY BE ON A ONEOF ARM. A motion's `proposed` grade lives on GradeMotion
+		// and a ruling's verdict on the MotionRule_Grade arm — that separation is what makes a
+		// ruling from the wrong subject's vocabulary unrepresentable. A seat thinks of them as
+		// fields of the act, so the lookup descends into whichever arm is set.
+		if arm, af := setArmField(m, name); af != nil {
+			m, fd = arm, af
+		}
 	}
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "judge-r1"); err != nil {
-		t.Fatal(err)
+	if fd == nil {
+		t.Fatalf("%s has no field %q, on the message or on any set arm — the expectation names a "+
+			"field the schema does not carry, so it could never have matched", m.Descriptor().FullName(), name)
 	}
-	base := []string{"opinion", "--run", runDir, "--seat-id", "judge-r1", "--id", "R1-1",
-		"--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "no",
-		"--settled", "blue must repair c-65ca0a9e", "--reason", "the rationale"}
+	if !m.Has(fd) {
+		return ""
+	}
+	v := m.Get(fd)
+	if fd.Kind() == protoreflect.EnumKind {
+		return recordpb.Spelling(fd.Enum().Values().ByNumber(v.Enum()))
+	}
+	return v.String()
+}
 
-	if _, err := run(t, append(append([]string{}, base...), "--final")...); err != nil {
-		t.Errorf("--final alone was refused, so a bench cannot say a question is settled: %v", err)
+// setArmField finds a field on whichever message-typed oneof arm is set.
+//
+// The record models a motion's substance on its subject's arm rather than flat on the message, so
+// "the motion proposed `low`" is GradeMotion.proposed. A test table states the fact the way a seat
+// would, and this is the one join between the two.
+func setArmField(m protoreflect.Message, name string) (protoreflect.Message, protoreflect.FieldDescriptor) {
+	md := m.Descriptor()
+	for i := 0; i < md.Oneofs().Len(); i++ {
+		od := md.Oneofs().Get(i)
+		if od.IsSynthetic() {
+			continue
+		}
+		set := m.WhichOneof(od)
+		if set == nil || set.Message() == nil {
+			continue
+		}
+		arm := m.Get(set).Message()
+		if fd := arm.Descriptor().Fields().ByName(protoreflect.Name(name)); fd != nil {
+			return arm, fd
+		}
 	}
-	if _, err := run(t, append(append([]string{}, base...), "--reopens-on", "a clean-tree reproduction")...); err != nil {
-		t.Errorf("--reopens-on alone was refused: %v", err)
-	}
-	_, err := run(t, append(append([]string{}, base...), "--final", "--reopens-on", "a clean-tree reproduction")...)
-	if err == nil {
-		t.Fatal("a ruling claiming both finality and a reopening condition was accepted; one of the two answers was silently dropped")
-	}
-	if !strings.Contains(err.Error(), "opposite answers") {
-		t.Errorf("the refusal does not explain that these are opposite answers to one question: %v", err)
-	}
+	return m, nil
+}
 
-	// AND NEITHER IS REFUSED, which is the whole point of making the empty case assertable.
-	if _, err := run(t, base...); err == nil {
-		t.Error("a ruling answering neither was accepted, so a skipped field is indistinguishable from a decided one")
-	}
+// tmpRun is tmpRun(t) with the release its record handle needs.
+//
+// WRAPPED UNCONDITIONALLY, and that is safe by construction: recordsql.Close on a path that was
+// never opened is a no-op, so a scratch directory pays nothing and a run directory cannot be
+// missed. Guessing which TempDir is a run is what left five packages still failing on Windows
+// after two rounds of wiring the ones whose variable happened to be called runDir.
+func tmpRun(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
+	return dir
 }

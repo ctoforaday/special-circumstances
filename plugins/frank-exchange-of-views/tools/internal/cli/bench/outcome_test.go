@@ -1,6 +1,9 @@
 package bench
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/spf13/cobra"
 	"strings"
 	"testing"
@@ -45,7 +48,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			runDir := t.TempDir()
+			runDir := tmpRun(t)
 			// Identity comes from the injection, as it does in a real run: the hook exports the
 			// agent handle, `register` binds it to this seat, and every later call resolves the
 			// seat from that binding rather than from a flag. So the handle is set BEFORE the
@@ -93,7 +96,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 // The derivation's reasoning was computed on every call and used only to phrase an error, so a
 // report could stamp a verdict and never say why it was that one.
 func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	// The bench's own handle is the one that must resolve; the merge is registered here only so
 	// its verdict has a seat to hang on, and it binds a different agent for the same reason a run
 	// does — two seats are two agents.
@@ -104,7 +107,7 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 		}
 	}
 	// A PASS on the record makes VERIFIED derivable, with a stated basis.
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundIn(runDir)("red-merge-r1")}, "verdict", record.NewPayload().Set("verdict", "PASS")); err != nil {
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundIn(runDir)("red-merge-r1")}, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv(seatenv.AgentVar, "agent_bench")
@@ -125,10 +128,14 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, e := range b.Events {
-		if e.Type != "outcome" {
+		if e.GetType() != recordpb.EventType_EVENT_TYPE_OUTCOME {
 			continue
 		}
-		if why := e.Payload.Str("verdict_why"); why == "" {
+		o, ok := recordpb.BodyAs[*recordpb.Outcome](e)
+		if !ok {
+			t.Fatal("an outcome event carries no Outcome body")
+		}
+		if why := o.GetVerdictWhy(); why == "" {
 			t.Fatal("the outcome records no verdict_why — the report stamps a verdict it cannot explain")
 		} else if !strings.Contains(why, "PASS") {
 			t.Errorf("verdict_why = %q, want it to name what decided the verdict", why)
@@ -144,4 +151,14 @@ func testRoot() *cobra.Command {
 	c := &cobra.Command{Use: "bench", SilenceUsage: true, SilenceErrors: true}
 	c.AddCommand(Verbs()...)
 	return c
+}
+
+// tmpRun is t.TempDir() for a RUN, plus the release its record handle needs. recordsql caches a
+// *sql.DB per database and production never closes one; a test process accumulates them, and on
+// Windows an open file cannot be removed so `t.TempDir` cleanup fails.
+func tmpRun(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
+	return dir
 }

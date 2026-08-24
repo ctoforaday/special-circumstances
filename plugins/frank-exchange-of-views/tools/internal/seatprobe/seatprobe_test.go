@@ -1,6 +1,8 @@
 package seatprobe
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
 
@@ -13,11 +15,11 @@ import (
 // reading of it is right.
 
 func writeRun(t *testing.T, events []struct {
-	seat, typ string
-	payload   *record.Payload
+	seat    string
+	payload proto.Message
 }) string {
 	t.Helper()
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	seen := map[string]bool{}
 	for _, e := range events {
 		if !seen[e.seat] {
@@ -26,11 +28,11 @@ func writeRun(t *testing.T, events []struct {
 			}
 			seen[e.seat] = true
 		}
-		if e.typ == "" {
+		if e.payload == nil {
 			continue
 		}
-		if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: e.seat, Round: record.RoundIn(runDir)(e.seat)}, e.typ, e.payload); err != nil {
-			t.Fatalf("append %s: %v", e.typ, err)
+		if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: e.seat, Round: record.RoundIn(runDir)(e.seat)}, e.payload); err != nil {
+			t.Fatalf("append for %s: %v", e.seat, err)
 		}
 	}
 	return runDir
@@ -43,10 +45,10 @@ func writeRun(t *testing.T, events []struct {
 // noise, and a report nobody reads catches nothing.
 func TestUnusedListsOnlyWhatTheRoleOffers(t *testing.T) {
 	runDir := writeRun(t, []struct {
-		seat, typ string
-		payload   *record.Payload
+		seat    string
+		payload proto.Message
 	}{
-		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("reason", "the round's narrative")},
+		{seat: "blue-respond-r1", payload: &recordpb.Position{Text: proto.String("the round's narrative")}},
 	})
 
 	c, err := Read(surface(), runDir, "blue-respond-r1")
@@ -79,11 +81,10 @@ func TestUnusedListsOnlyWhatTheRoleOffers(t *testing.T) {
 // the verbs it actually used. `blue edit` writes `blue_edit`; `blue prove` writes `proof`.
 func TestTheVerbIsRecoveredFromTheEventType(t *testing.T) {
 	runDir := writeRun(t, []struct {
-		seat, typ string
-		payload   *record.Payload
+		seat    string
+		payload proto.Message
 	}{
-		{seat: "blue-respond-r1", typ: "blue_edit", payload: record.NewPayload().
-			Set("old", "a").Set("new", "b").Set("reason", "why")},
+		{seat: "blue-respond-r1", payload: &recordpb.BlueEdit{Old: proto.String("a"), New: proto.String("b"), Text: proto.String("why")}},
 	})
 	c, err := Read(surface(), runDir, "blue-respond-r1")
 	if err != nil {
@@ -106,15 +107,14 @@ func TestTheVerbIsRecoveredFromTheEventType(t *testing.T) {
 // constitution problem, not a discoverability one.
 func TestAnUnmetExpectationNamesTheSubstitute(t *testing.T) {
 	var evs []struct {
-		seat, typ string
-		payload   *record.Payload
+		seat    string
+		payload proto.Message
 	}
 	for i := 0; i < 4; i++ {
 		evs = append(evs, struct {
-			seat, typ string
-			payload   *record.Payload
-		}{"blue-respond-r1", "blue_edit", record.NewPayload().
-			Set("old", "a").Set("new", "b").Set("reason", "why")})
+			seat    string
+			payload proto.Message
+		}{"blue-respond-r1", &recordpb.BlueEdit{Old: proto.String("a"), New: proto.String("b"), Text: proto.String("why")}})
 	}
 	runDir := writeRun(t, evs)
 
@@ -137,10 +137,10 @@ func TestAnUnmetExpectationNamesTheSubstitute(t *testing.T) {
 // project keeps finding, and the report must refuse to produce it.
 func TestNoFrictionIsNotReportedAsACleanBoard(t *testing.T) {
 	runDir := writeRun(t, []struct {
-		seat, typ string
-		payload   *record.Payload
+		seat    string
+		payload proto.Message
 	}{
-		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("reason", "n")},
+		{seat: "blue-respond-r1", payload: &recordpb.Position{Text: proto.String("n")}},
 	})
 	out, err := Report(surface(), runDir, []string{"blue-respond-r1"}, nil, nil)
 	if err != nil {

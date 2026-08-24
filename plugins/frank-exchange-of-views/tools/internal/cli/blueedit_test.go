@@ -1,10 +1,13 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -34,7 +37,7 @@ func readReport(t *testing.T, runDir string) string {
 	return string(b)
 }
 
-func countType(t *testing.T, runDir, typ string) int {
+func countType(t *testing.T, runDir string, typ recordpb.EventType) int {
 	t.Helper()
 	m, err := record.MergedEvents(runDir)
 	if err != nil {
@@ -42,7 +45,7 @@ func countType(t *testing.T, runDir, typ string) int {
 	}
 	n := 0
 	for _, e := range m.Events {
-		if e.Type == typ {
+		if e.GetType() == typ {
 			n++
 		}
 	}
@@ -64,8 +67,13 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	writeReport(t, runDir, "# Findings\n\nThe cost is high and rising over time<!--fx:f-abc123-->. Volume grows[^v] steadily.\n")
 	registerBlue(t, runDir)
 
+	// THE QUOTE CARRIES THE MARKER, because the span ends exactly where the marker begins —
+	// "rising over time" IS the text f-abc123 is attached to. Quoting it without the token was
+	// accepted before and left the anchor beside prose it was never placed against; now the seat
+	// quotes what `show report` prints and copies the token into --new like any other character.
 	out, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
-		"--key", "E1", "--quote", "rising over time", "--new", "climbing sharply", "--reason", "sharper phrasing")
+		"--key", "E1", "--quote", "rising over time<!--fx:f-abc123-->",
+		"--new", "climbing sharply<!--fx:f-abc123-->", "--reason", "sharper phrasing")
 	if err != nil {
 		t.Fatalf("blue edit: %v (out %q)", err, out)
 	}
@@ -76,12 +84,20 @@ func TestBlueEditReplacesSpanPreservingMarker(t *testing.T) {
 	if !strings.Contains(rep, "<!--fx:f-abc123-->") {
 		t.Errorf("finding-marker was dropped: %q", rep)
 	}
-	ev := lastOfType(t, runDir, "blue_edit")
-	if ev.Payload.Str("old") != "rising over time" || ev.Payload.Str("new") != "climbing sharply" {
-		t.Errorf("blue_edit op payload wrong: old=%q new=%q", ev.Payload.Str("old"), ev.Payload.Str("new"))
+	// THE MARKERS ARE IN THE RECORDED OP, on both sides. The diff stack is the record of what
+	// text moved, and the anchor is part of the text — an op showing a replacement that silently
+	// omits the token would describe an edit nobody made. Carrying it in `old` and `new` is also
+	// what lets the stack be replayed or reviewed without the document to hand.
+	ev := lastBody(t, runDir, &recordpb.BlueEdit{})
+	if ev.GetOld() != "rising over time<!--fx:f-abc123-->" || ev.GetNew() != "climbing sharply<!--fx:f-abc123-->" {
+		t.Errorf("blue_edit op payload wrong: old=%q new=%q", ev.GetOld(), ev.GetNew())
 	}
-	if ev.Payload.Str("reason") != "sharper phrasing" {
-		t.Errorf("reason not recorded: %q", ev.Payload.Str("reason"))
+	// AND THE EDIT REOPENED THE FINDING, because it rewrote the words that finding is anchored to.
+	if got := ev.GetReopened(); len(got) != 1 || got[0] != "f-abc123" {
+		t.Errorf("reopened = %v, want [f-abc123] — the marker survived onto different words, which is exactly the case that needs re-reading", got)
+	}
+	if ev.GetText() != "sharper phrasing" {
+		t.Errorf("reason not recorded: %q", ev.GetText())
 	}
 }
 
@@ -105,7 +121,7 @@ func TestBlueEditRejectsMarkerSpanningEdit(t *testing.T) {
 	if strings.Contains(readReport(t, runDir), "vital") {
 		t.Error("report was mutated on a rejected marker-spanning edit")
 	}
-	if n := countType(t, runDir, "blue_edit"); n != 0 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
 		t.Errorf("a rejected edit recorded %d stack ops, want 0", n)
 	}
 }
@@ -120,7 +136,7 @@ func TestBlueEditRejectsAbsentOld(t *testing.T) {
 	if err == nil {
 		t.Fatal("a mis-quote must be rejected")
 	}
-	if n := countType(t, runDir, "blue_edit"); n != 0 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
 		t.Errorf("a mis-quote recorded %d stack ops, want 0 (no phantom event)", n)
 	}
 }
@@ -142,7 +158,7 @@ func TestBlueEditIdempotentRetry(t *testing.T) {
 	if !strings.Contains(out, "idempotent") {
 		t.Errorf("retry should report idempotent: %q", out)
 	}
-	if n := countType(t, runDir, "blue_edit"); n != 1 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 1 {
 		t.Errorf("retry recorded %d ops, want exactly 1", n)
 	}
 	if strings.Count(readReport(t, runDir), "climbing fast") != 1 {
@@ -158,12 +174,13 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nThe cost is rising fast.\n")
 	registerBlue(t, runDir)
 	// Simulate the crash window: the intent event exists, the write never happened.
-	p := record.NewPayload()
-	p.Set("edit_key", "E1")
-	p.Set("old", "rising fast")
-	p.Set("new", "climbing fast")
-	p.Set("reason", "r")
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: blueSeat, Round: record.RoundIn(runDir)(blueSeat)}, "blue_edit", p); err != nil {
+	intent := &recordpb.BlueEdit{
+		EditKey: proto.String("E1"),
+		Old:     proto.String("rising fast"),
+		New:     proto.String("climbing fast"),
+		Text:    proto.String("r"),
+	}
+	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: blueSeat, Round: record.RoundIn(runDir)(blueSeat)}, intent); err != nil {
 		t.Fatal(err)
 	}
 	// Retry with the same key → reconcile forward.
@@ -174,7 +191,7 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 	if !strings.Contains(readReport(t, runDir), "climbing fast") {
 		t.Error("reconcile did not apply the pending write")
 	}
-	if n := countType(t, runDir, "blue_edit"); n != 1 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 1 {
 		t.Errorf("reconcile appended a second op (%d), want 1", n)
 	}
 }
@@ -193,7 +210,7 @@ func TestBlueEditRecordsTheGapItAnswers(t *testing.T) {
 		"--answers", gap, "--reason", "drop the independence claim"); err != nil {
 		t.Fatalf("blue edit --answers: %v", err)
 	}
-	if got := lastOfType(t, runDir, "blue_edit").Payload.Str("answers"); got != gap {
+	if got := lastBody(t, runDir, &recordpb.BlueEdit{}).GetAnswers(); got != gap {
 		t.Errorf("answers = %q, want %q — without it required_fix and the actual change cannot be joined", got, gap)
 	}
 }
@@ -215,7 +232,7 @@ func TestBlueEditRefusesAnUnknownGap(t *testing.T) {
 	if !strings.Contains(err.Error(), "R9-99") {
 		t.Errorf("the refusal must name the dangling id: %v", err)
 	}
-	if n := countType(t, runDir, "blue_edit"); n != 0 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
 		t.Errorf("a refused edit still recorded %d op(s) — validation must precede the append", n)
 	}
 	if strings.Contains(readReport(t, runDir), "prose to revise") {
@@ -240,7 +257,7 @@ func TestBlueEditRefusesAGapIDHidingInTheReason(t *testing.T) {
 	if !strings.Contains(err.Error(), "--answers") || !strings.Contains(err.Error(), gap) {
 		t.Errorf("the refusal must name both the gap and the flag that fixes it: %v", err)
 	}
-	if n := countType(t, runDir, "blue_edit"); n != 0 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
 		t.Errorf("a refused edit recorded %d op(s)", n)
 	}
 }
@@ -258,7 +275,7 @@ func TestBlueEditAllowsProseThatNamesNoRealGap(t *testing.T) {
 		"--reason", "tightened per R9-99 and section 3-2 of the style note"); err != nil {
 		t.Fatalf("prose naming no real gap was refused: %v", err)
 	}
-	if countType(t, runDir, "blue_edit") != 1 {
+	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT) != 1 {
 		t.Error("the edit did not land")
 	}
 }
@@ -276,7 +293,7 @@ func TestBlueEditWithoutAnswersIsStillLegal(t *testing.T) {
 		"--reason", "clearer phrasing, self-directed"); err != nil {
 		t.Fatalf("a self-directed edit was refused: %v", err)
 	}
-	if got := lastOfType(t, runDir, "blue_edit").Payload.Str("answers"); got != "" {
+	if got := lastBody(t, runDir, &recordpb.BlueEdit{}).GetAnswers(); got != "" {
 		t.Errorf("answers = %q, want empty", got)
 	}
 }
@@ -304,8 +321,8 @@ func TestMintWithoutAConcreteProposalIsBasisProposed(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
 	mintGap(t, runDir, "G1", "overclaim")
 
-	ev := lastOfType(t, runDir, "mint")
-	if got := ev.Payload.Str("fix_basis"); got != "proposed" {
+	ev := lastBody(t, runDir, &recordpb.Mint{})
+	if got := ev.GetFixBasis(); got != "proposed" {
 		t.Errorf("fix_basis = %q, want %q — a prose fix red did not check against the document is proposed", got, "proposed")
 	}
 }
@@ -323,11 +340,11 @@ func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
 		"--new", "Five verification approaches agree."); err != nil {
 		t.Fatalf("a legal concrete proposal was refused: %v", err)
 	}
-	ev := lastOfType(t, runDir, "mint")
-	if got := ev.Payload.Str("fix_basis"); got != "verified" {
+	ev := lastBody(t, runDir, &recordpb.Mint{})
+	if got := ev.GetFixBasis(); got != "verified" {
 		t.Errorf("fix_basis = %q, want %q — a replacement validated against the live report is verified", got, "verified")
 	}
-	if ev.Payload.Str("location") == "" || ev.Payload.Str("fix_new") == "" {
+	if ev.GetLocation() == "" || ev.GetFixNew() == "" {
 		t.Error("the proposal itself was not recorded, so blue cannot apply what red proposed")
 	}
 }
@@ -366,7 +383,7 @@ func TestAProposalAgainstTextThatIsNotThereIsRefused(t *testing.T) {
 	if err == nil {
 		t.Fatal("a proposal against absent text was accepted, so nothing forced red to read the report")
 	}
-	if n := countType(t, runDir, "mint"); n != 0 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != 0 {
 		t.Errorf("a refused mint still recorded %d event(s)", n)
 	}
 }
@@ -412,7 +429,7 @@ func seedProposalApplied(t *testing.T, runDir string) string {
 func TestApplyingRedsProposalVerbatimIsRecorded(t *testing.T) {
 	runDir := newRun(t)
 	seedProposalApplied(t, runDir)
-	if !lastOfType(t, runDir, "blue_edit").Payload.Bool("applied_verbatim") {
+	if !lastBody(t, runDir, &recordpb.BlueEdit{}).GetAppliedVerbatim() {
 		t.Error("an edit identical to red's proposal was not recorded as verbatim, so nothing estops red")
 	}
 }
@@ -431,7 +448,7 @@ func TestACounterEditIsNotRecordedAsVerbatim(t *testing.T) {
 		"--reason", "red's wording overstates it; mine is tighter"); err != nil {
 		t.Fatalf("counter-edit: %v", err)
 	}
-	if lastOfType(t, runDir, "blue_edit").Payload.Bool("applied_verbatim") {
+	if lastBody(t, runDir, &recordpb.BlueEdit{}).GetAppliedVerbatim() {
 		t.Error("a counter-edit was recorded as verbatim application — blue's own text would then estop red")
 	}
 }
@@ -443,7 +460,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	runDir := newRun(t)
 	prior := seedProposalApplied(t, runDir)
 
-	before := countType(t, runDir, "mint")
+	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
 	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r2",
 		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
@@ -456,11 +473,11 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 			t.Errorf("the refusal must name %q so red knows where to argue it: %v", want, err)
 		}
 	}
-	if n := countType(t, runDir, "mint"); n != before {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT); n != before {
 		t.Errorf("a refused mint still landed on the board (%d -> %d)", before, n)
 	}
 	// A guard that silently blocks is invisible.
-	if countType(t, runDir, "friction") == 0 {
+	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_FRICTION) == 0 {
 		t.Error("the estoppel rejection logged no friction — the block is unmeasurable, which is how a dead guard survives")
 	}
 }

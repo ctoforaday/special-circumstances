@@ -599,6 +599,19 @@ var promptCatalogue = map[string]int{
 	"blue-synthesizer.md": 0,
 	"lead-judge.md":       0,
 	"red-auditor.md":      0,
+	// SKILL.md IS PINNED BECAUSE IT IS DECIDED, not because the default happens to agree.
+	//
+	// An untracked file's ceiling is already zero — the arm below says so — so this entry changes
+	// no behaviour today. What it changes is what a reader can conclude: without it, the one
+	// agent-facing surface that is NOT a prompt or a constitution is covered by a fallback, and
+	// "nobody has decided about this file" and "somebody decided zero" are the same green run.
+	//
+	// It is not hypothetical for this file. It reached 5 while the rest of the sweep was going to
+	// 0 — `lens corroborate` and `show report`, added by the red-citations work on this branch,
+	// naming commands in prose at the same time as every other surface was having them removed.
+	// The default caught it; the default would also have accepted a new ceiling silently, because
+	// an untracked file has no ratchet and cannot report a strip that went the other way.
+	"SKILL.md": 0,
 }
 
 func TestNoPromptGrowsItsCommandCatalogue(t *testing.T) {

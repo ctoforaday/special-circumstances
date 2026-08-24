@@ -12,8 +12,10 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -27,11 +29,20 @@ import (
 // mirror, so the frozen snapshot is the source, not a materialized cache.
 func newVerdict() *cobra.Command {
 	c := seat.New("verdict", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-		p := seat.Set(cmd, record.NewPayload(), "verdict", flags.As)
-		if _, err := record.Append(s.Identity(), "verdict", p); err != nil {
+		v, ok := record.VerdictOf(seat.Str(cmd, flags.As))
+		if !ok {
+			// THE REFUSAL NAMES WHAT WOULD HAVE WORKED. `%q is not a verdict` tells a seat it
+			// was wrong and not what to type — and this is the terminal act of the round, so
+			// a seat that cannot get past it has nowhere to go. The set is rendered from the
+			// same declaration the help renders, so the two cannot say different things.
+			return nil, feov.Errorf(feov.Validation,
+				"merge verdict: --%s must be one of %s (got %q) — the verdict is the round's terminal act and every later reader switches on it",
+				flags.As, record.MustEnum("verdict", "verdict").Spelling(), seat.Str(cmd, flags.As))
+		}
+		if _, err := record.Append(s.Identity(), &recordpb.RoundVerdict{Verdict: &v}); err != nil {
 			return nil, err
 		}
-		open, closed, _, err := view.Counts(s.RunDir)
+		open, closed, err := view.Counts(s.RunDir)
 		if err != nil {
 			return nil, err
 		}

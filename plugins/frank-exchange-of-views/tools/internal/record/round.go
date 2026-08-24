@@ -89,8 +89,8 @@ func LastRoundOn(runDir string) (int, bool) {
 	}
 	max, found := 0, false
 	for _, e := range m.Events {
-		if e.Round > max {
-			max, found = e.Round, true
+		if r := int(e.GetRound()); r > max {
+			max, found = r, true
 		}
 	}
 	return max, found

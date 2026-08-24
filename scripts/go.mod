@@ -1,6 +1,6 @@
 module github.com/ctoforaday/special-circumstances/scripts
 
-go 1.25
+go 1.25.13
 
 require (
 	github.com/bufbuild/protocompile v0.14.1

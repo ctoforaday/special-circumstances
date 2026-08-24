@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -23,7 +24,7 @@ import (
 // seatRun sets up a run directory with every seat registered, the way the engine does.
 func seatRun(t *testing.T) string {
 	t.Helper()
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := newRun(t)
 	for _, id := range []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
@@ -137,10 +138,10 @@ func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 	evs := events(t, runDir)
 	var sawFiling, sawRuling bool
 	for _, e := range evs {
-		switch e.Type {
-		case "motion":
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_MOTION:
 			sawFiling = true
-		case "motion-rule":
+		case recordpb.EventType_EVENT_TYPE_MOTION_RULE:
 			sawRuling = true
 		}
 	}
@@ -156,7 +157,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "anchored-closure", "anchor-visibility")
 
-	prose := filepath.Join(t.TempDir(), "closure.md")
+	prose := filepath.Join(tmpRun(t), "closure.md")
 	if err := os.WriteFile(prose, []byte("re-read the cited source; the digits match the arm the claim names"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -167,14 +168,16 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 		t.Fatalf("close: %v", err)
 	}
 
-	ev := lastOfType(t, runDir, "close")
-	keys := payloadKeys(ev)
+	ev := lastBody(t, runDir, &recordpb.Close{})
+	keys := setFields(ev)
 	for _, want := range []string{"anchor_seat", "anchor_tool", "anchor_target"} {
 		if !keys[want] {
 			t.Errorf("closure lost %s; an unanchored closure is mechanically unauditable (payload had %v)", want, keys)
 		}
 	}
-	if !keys["reason"] {
+	// `prose` is the FIELD; `--reason` is the flag. A close stores its argument as `prose`, an
+	// opinion as `rationale` — the fold is the flag's business, and setFields reads the schema.
+	if !keys["prose"] {
 		t.Error("closure lost its prose record")
 	}
 }
@@ -197,7 +200,7 @@ func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 
 	seats := map[string]bool{}
 	for _, e := range events(t, runDir) {
-		seats[e.SeatID] = true
+		seats[e.GetSeatId()] = true
 	}
 	for _, want := range []string{"red-lens-r1-L1", "red-merge-r1"} {
 		if !seats[want] {

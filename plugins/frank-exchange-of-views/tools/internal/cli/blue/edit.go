@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
@@ -13,6 +14,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // edit: the ONLY write path to blue/report.md for a response seat.
@@ -72,17 +74,27 @@ func newEdit() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		if err := validateEdit(string(peek), oldStr, newStr); err != nil {
+		planned, err := validateEdit(string(peek), oldStr, newStr)
+		if err != nil {
 			return nil, err
 		}
 
 		// Event-first: commit the diff-stack op, then apply the write.
-		p := record.NewPayload()
-		seat.Set(cmd, p, "edit_key", flags.Key)
-		seat.Set(cmd, p, "answers", flags.Answers)
-		p.Set("old", oldStr)
-		p.Set("new", newStr)
-		p.Set("reason", reason)
+		body := &recordpb.BlueEdit{
+			EditKey: proto.String(seat.Str(cmd, flags.Key)),
+			Answers: proto.String(seat.Str(cmd, flags.Answers)),
+			Old:     proto.String(oldStr),
+			New:     proto.String(newStr),
+			Text:    proto.String(reason),
+			// WHAT THIS EDIT REOPENED. An anchor is never lost — that is enforced above and
+			// holds — but one that SURVIVES onto rewritten prose is a citation backing a
+			// sentence nobody read, and nothing said so. Text moves through this verb alone,
+			// so the no-loss proof and the requires-review mark belong on this one channel.
+			//
+			// Computed from the SNAPSHOT the validation used, not from a re-read: the write
+			// has not happened yet, and a second read could see a different document.
+			Reopened: bluedoc.ReopenedAnchors(string(peek), planned),
+		}
 		// ESTOPPEL, RECORDED BY THE TOOL COMPARING BYTES (#267 stage 4).
 		//
 		// If blue applied red's own proposed text EXACTLY, there is nothing left for red to
@@ -98,10 +110,10 @@ func newEdit() *cobra.Command {
 				return nil, err
 			}
 			if verbatim {
-				p.Set("applied_verbatim", true)
+				body.AppliedVerbatim = proto.Bool(true)
 			}
 		}
-		if _, err := record.Append(s.Identity(), "blue_edit", p); err != nil {
+		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
 		if err := applyEdit(s.RunDir, oldStr, newStr); err != nil {
@@ -111,7 +123,7 @@ func newEdit() *cobra.Command {
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
-	c.Flags().String(flags.Quote, "", flags.DescQuote+". It is matched ACROSS the invisible anchor layer, so an anchor inside your span is carried into the replacement rather than blocking the edit — reproduce it there verbatim")
+	c.Flags().String(flags.Quote, "", flags.DescQuote+". It is matched ACROSS the invisible anchor layer, and rejected if it contains a finding-marker or a citation anchor")
 	c.Flags().String(flags.New, "", "the text that span should become")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to (R1-4) — the provenance join key; omit only for an edit that answers no gap")
 	return c
@@ -131,7 +143,7 @@ var errMisQuote = bluedoc.ErrMisQuote
 // part only blue does: the SPLICE. The crash-reconcile and the lock live in applyEdit; the
 // validation peek reuses this via validateEdit. Fuzzed directly (edit_fuzz_test.go).
 func planEdit(report, old, new string) (string, error) {
-	start, end, err := bluedoc.LocateUnique("blue edit", report, old)
+	start, end, err := bluedoc.LocateUniqueReplacing("blue edit", report, old)
 	if err != nil {
 		return "", err
 	}
@@ -145,15 +157,6 @@ func planEdit(report, old, new string) (string, error) {
 	// 71% of anchored quotes in the smoke had their anchor mid-span, so this is the common shape,
 	// not a corner.
 	if err := bluedoc.AnchorsTransitUnchanged("blue edit", report[start:end], new); err != nil {
-		// THE ADJACENT CASE IS NOT AN INVENTION, and saying so is the difference between a
-		// seat proceeding and a seat looping. The span stops before the sentence's trimmed
-		// punctuation, so an anchor sitting at `end` was never inside it — the seat quoted
-		// text that appeared to contain it and is being told it invented one (#525).
-		var intro *bluedoc.ErrAnchorIntroduced
-		if errors.As(err, &intro) && anchor.SkipRun(report, end) > end &&
-			strings.Contains(report[end:anchor.SkipRun(report, end)], anchor.Token(intro.ID)) {
-			return "", fmt.Errorf("blue edit: %s sits just OUTSIDE the span you matched, not inside it — a quote's trailing punctuation is trimmed before the span is located, so an anchor before a sentence's final period is not part of what you are replacing. It is preserved with no action from you: leave it out of the replacement", anchor.Label(intro.ID))
-		}
 		return "", err
 	}
 	next := report[:start] + new + report[end:]
@@ -169,10 +172,11 @@ func planEdit(report, old, new string) (string, error) {
 }
 
 // validateEdit rejects a mis-quote or a marker-spanning edit against a snapshot, WITHOUT
-// mutating — so no event is recorded for an edit that cannot apply.
-func validateEdit(report, old, new string) error {
-	_, err := planEdit(report, old, new)
-	return err
+// mutating — so no event is recorded for an edit that cannot apply. It RETURNS the planned
+// document so the caller can record what this edit reopens, computed from the same snapshot the
+// validation used rather than from a re-read that may have moved.
+func validateEdit(report, old, new string) (string, error) {
+	return planEdit(report, old, new)
 }
 
 // applyEdit performs the span replacement under the blue-report flock. IDEMPOTENT: on a

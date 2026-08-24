@@ -1,13 +1,13 @@
 $ register --run {RUN} --seat-id red-lens-r1-L1
 exit 0
 stdout:
-registered red-lens-r1-L1 (shard nonce NONCE001)
+registered red-lens-r1-L1
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ finding --run {RUN} --seat-id red-lens-r1-L1 --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason older shard
 exit 0
@@ -17,22 +17,13 @@ finding recorded: L1-F1 — the run-unique label a gap's found_by names (id FIND
 $ register --run {RUN} --seat-id red-lens-r1-L1
 exit 0
 stdout:
-registered red-lens-r1-L1 (shard nonce NONCE002)
+registered red-lens-r1-L1 (dispatch 2 — a previous dispatch of this seat is on the record)
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-TWO CONSEQUENCES, AND THE SECOND IS THE EXPENSIVE ONE:
+TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
-  DO NOT REGISTER AGAIN. If a later call says "this agent has not registered", it is THIS, not a lost registration — re-registering rotates your shard nonce and replay then discards everything the first sitting recorded.
-
-YOU ARE SITTING 2 OF THIS SEAT, AND AN EARLIER SITTING'S WORK IS GONE. 2 event(s) it recorded (1 finding, 1 anchor) lost replay's winner selection and survive nowhere — not in the board, not in the report's evidence, not in any projection you are about to read. This is not a warning about the record being wrong; the record is correct and that work is simply absent.
-
-  finding — a lens finding is gone, so the merge has nothing to coalesce from it
-
-Re-do what still applies rather than assuming your predecessor's output survived it.
-
-red-lens-r1-L1:finding:L1-F1
-red-lens-r1-L1:anchor:FINDING001
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
 $ lens finding --run {RUN} --seat-id red-lens-r1-L1 --key F2 --severity low --likelihood low --impact low --quote ## S2 --reason newer shard
 exit 2
@@ -76,9 +67,110 @@ Flags:
 Use "feov-record [command] --help" for more information about a command.
 
 ═══ EVENTS ═══
--- events-red-lens-r1-L1-NONCE001.jsonl
-{"key":"red-lens-r1-L1:register:NONCE001","nonce":"NONCE001","payload":{"run_via":"flag","tool_version":"0.72.0"},"role":"lens","round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":0,"type":"register"}
-{"key":"red-lens-r1-L1:finding:L1-F1","nonce":"NONCE001","payload":{"finding_id":"FINDING001","finding_key":"F1","impact":"low","label":"L1-F1","likelihood":"low","location":"## S2","reason":"older shard","severity":"low"},"role":"lens","round":1,"seatId":"red-lens-r1-L1","seq":1,"ts":1,"type":"finding"}
-{"key":"red-lens-r1-L1:anchor:FINDING001","nonce":"NONCE001","payload":{"id":"FINDING001","location":"## S2"},"role":"lens","round":1,"seatId":"red-lens-r1-L1","seq":2,"ts":2,"type":"anchor"}
--- events-red-lens-r1-L1-NONCE002.jsonl
-{"key":"red-lens-r1-L1:register:NONCE002","nonce":"NONCE002","payload":{"run_via":"flag","tool_version":"0.72.0"},"role":"lens","round":1,"seatId":"red-lens-r1-L1","seq":0,"ts":3,"type":"register"}
+
+═══ RENDERS ═══
+-- debate
+# debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+-- lines-of-inquiry
+# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
+
+_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
+either did not happen or was not written down, and a report with no roads-not-taken is
+indistinguishable from one that never looked._
+
+
+═══ REPORT ═══
+# _(blue/report.md has no title — not authored here)_
+
+**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
+
+## Read this first
+
+_(no open gaps remain — nothing outstanding to re-examine)_
+
+## TL;DR
+
+_(blue/report.md has no "## TL;DR" section — not authored here; blue owns this surface and red audits it.)_
+
+## The Catechism
+
+_(blue/report.md has no "## The Catechism" section — not authored here; blue owns this surface and red audits it.)_
+
+## Technical foundations
+
+_(blue/report.md has no "## Technical foundations" section — not authored here; blue owns this surface and red audits it.)_
+
+## Analysis
+
+_(blue/report.md has no "## Analysis" section — not authored here; blue owns this surface and red audits it.)_
+
+## Risk matrix
+
+| Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
+|---|---|---|---|---|
+| _(no open gaps)_ |  |  |  |  |
+
+The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
+
+## Research areas
+
+_(none on the record)_
+
+## Future research directions
+
+_(none on the record)_
+
+## Alternatives considered
+
+_(none on the record)_
+
+## Open questions
+
+_(blue/report.md has no "## Open questions" section — not authored here; blue owns this surface and red audits it.)_
+
+## Blue team report (sections not composed above)
+
+## S2
+
+A claim sits under S2.
+
+## S4
+
+A claim sits under S4.
+
+## Red team findings (in full)
+
+### Open gaps (0)
+
+_(none open)_
+
+### Closure index (0)
+
+_(nothing closed)_
+
+### Lens findings not raised to a gap (1)
+
+Red's leaf audit that the merge weighed but did not mint — kept for the record, not a gate on the verdict.
+
+### L1-F1 — ## S2
+severity low | low x low | red-lens-r1-L1
+older shard
+
+## The debate
+
+_(no debate on the record)_
+
+## Record verification
+
+Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
+
+- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
+- **ok** — `found-by-resolves` — every found_by credit names a real finding
+- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
+- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
+- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
+- **ok** — `register-before-append` — every seat registered before it wrote
+- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
+
+**6 held · 1 did not apply · 0 violated.** An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

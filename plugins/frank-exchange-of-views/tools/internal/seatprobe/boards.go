@@ -360,7 +360,7 @@ Reversibility under load was not tested.
 				RuledWhy: "this is the one line here that PRODUCES a fact rather than an opinion about a fact. " +
 					"It also answers the gap it touches only partly — staging is not load — so take it knowing " +
 					"it narrows R1-2 rather than closing it."},
-			{Line: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring", Ruled: "too-thin",
+			{Line: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring", Ruled: "too_thin",
 				RuledWhy: "the hypothesis is that a standard form exists, and a survey that finds no standard " +
 					"form cannot distinguish `there is none` from `we looked in the wrong places`. Name the three " +
 					"systems and what specifically would count as documenting a reversal, and it stops being thin."},

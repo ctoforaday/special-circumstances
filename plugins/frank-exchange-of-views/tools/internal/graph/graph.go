@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 var nonID = regexp.MustCompile(`[^a-zA-Z0-9]`)
@@ -41,12 +42,19 @@ func tallyByGap(b *record.Board) map[string]*perGap {
 		return m[id]
 	}
 	for _, e := range b.Events {
-		g := e.Payload.Str("gap_id")
-		switch e.Type {
-		case "closing":
-			get(g).closings++
-		case "opinion":
-			get(g).opinions++
+		// THE BODY IS THE TYPE. A closing and an opinion each carry their OWN gap_id field, so
+		// the id is read off the message that holds it rather than off a key that might sit on
+		// anything — and an event with no body has no gap to attribute, which is not the same
+		// fact as an event whose gap_id is empty.
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
+		}
+		switch f := body.(type) {
+		case *recordpb.Closing:
+			get(f.GetGapId()).closings++
+		case *recordpb.Opinion:
+			get(f.GetGapId()).opinions++
 		}
 	}
 	// A GRADE MOTION IS THIS GAP'S CHALLENGE. These counters read `dispute`/`dispute-respond`
@@ -91,16 +99,21 @@ func seatFlowMermaid(b *record.Board) string {
 	byRound := map[int]map[string]*seat{}
 	var rounds []int
 	for _, e := range b.Events {
-		if byRound[e.Round] == nil {
-			byRound[e.Round] = map[string]*seat{}
-			rounds = append(rounds, e.Round)
+		round, seatID := int(e.GetRound()), e.GetSeatId()
+		if byRound[round] == nil {
+			byRound[round] = map[string]*seat{}
+			rounds = append(rounds, round)
 		}
-		s := byRound[e.Round][e.SeatID]
+		s := byRound[round][seatID]
 		if s == nil {
-			s = &seat{id: e.SeatID, tally: map[string]int{}}
-			byRound[e.Round][e.SeatID] = s
+			s = &seat{id: seatID, tally: map[string]int{}}
+			byRound[round][seatID] = s
 		}
-		s.tally[e.Type]++
+		// The tally is keyed on the event type's SCHEMA SPELLING (`motion_rule`, not
+		// `motion-rule`): the type is an enum value now, and recordpb.Word is the one place
+		// that word is derived. The zero renders as "", which is what an event with no type
+		// produced before.
+		s.tally[recordpb.Word(e.GetType())]++
 		s.nEvent++
 	}
 	sort.Ints(rounds)
@@ -171,12 +184,12 @@ func gapFlowMermaid(b *record.Board) string {
 		if !g.Open {
 			state = "CLOSED"
 			class = "closed"
-			if g.Closure != nil {
-				reason = g.Closure.Str("closure_class")
-				if reason == "" {
-					reason = g.Closure.Str("disposition")
-				}
-			}
+			// ONE QUESTION, ONE ANSWER. This was `closure_class` else `disposition` — the
+			// merge's word or the bench's — and the two now live on different messages
+			// (`Close` and `Opinion`), so the fallback belongs to the Gap rather than being
+			// spelled out again here. `g.Closure != nil` would no longer serve: it means
+			// "closed by a `close` event", so a bench closure would read as a torn one.
+			reason = g.ClosureReason()
 		}
 		// A hole is a genuine defect, not merely a quiet gap: a dispute nobody answered, or a
 		// TORN closure — closed with no recorded reason (no closure_class, no disposition). A
@@ -186,7 +199,7 @@ func gapFlowMermaid(b *record.Board) string {
 			class = "hole"
 		}
 		label := fmt.Sprintf("%s · %s<br/>%s%s<br/>closing×%d dispute×%d/%d opinion×%d",
-			id, g.Mint.Str("class"), state, sep(reason), pg.closings, pg.motionsFiled, pg.motionsRuled, pg.opinions)
+			id, g.Mint.GetClass(), state, sep(reason), pg.closings, pg.motionsFiled, pg.motionsRuled, pg.opinions)
 		out.WriteString(fmt.Sprintf("  %s[\"%s\"]:::%s\n", nodeID("g", id), label, class))
 	}
 	// supersedes edges — a gap's lineage.
@@ -195,7 +208,7 @@ func gapFlowMermaid(b *record.Board) string {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, anc := range g.Mint.StrList("supersedes") {
+		for _, anc := range g.Mint.GetSupersedes() {
 			out.WriteString(fmt.Sprintf("  %s -.supersedes.-> %s\n", nodeID("g", id), nodeID("g", anc)))
 		}
 	}
@@ -229,11 +242,9 @@ func Dot(b *record.Board) string {
 		reason := ""
 		if !g.Open {
 			fill, state = "#dcefe4", "CLOSED"
-			if g.Closure != nil {
-				if reason = g.Closure.Str("closure_class"); reason == "" {
-					reason = g.Closure.Str("disposition")
-				}
-			}
+			// The merge's closure_class or the bench's disposition, asked once — see
+			// gapFlowMermaid on why the `g.Closure != nil` guard cannot stand in for it.
+			reason = g.ClosureReason()
 		}
 		if (pg.motionsFiled > 0 && pg.motionsRuled == 0) || (!g.Open && reason == "") {
 			fill = "#f6ead0"
@@ -245,7 +256,7 @@ func Dot(b *record.Board) string {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, anc := range g.Mint.StrList("supersedes") {
+		for _, anc := range g.Mint.GetSupersedes() {
 			out.WriteString(fmt.Sprintf("  %q -> %q [style=dashed, label=\"supersedes\"];\n", id, anc))
 		}
 	}

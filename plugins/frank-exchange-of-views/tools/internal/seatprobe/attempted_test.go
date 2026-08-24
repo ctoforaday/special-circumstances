@@ -1,9 +1,10 @@
 package seatprobe
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 	"os"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -89,10 +90,10 @@ func TestAttemptedIgnoresAnotherToolNamedLikeAVerb(t *testing.T) {
 // seat NEVER REACHED a verb it had just called nine times.
 func TestReportSeparatesRecordedFromInvoked(t *testing.T) {
 	runDir := writeRun(t, []struct {
-		seat, typ string
-		payload   *record.Payload
+		seat    string
+		payload proto.Message
 	}{
-		{seat: "blue-respond-r1", typ: "position", payload: record.NewPayload().Set("reason", "n")},
+		{seat: "blue-respond-r1", payload: &recordpb.Position{Text: proto.String("n")}},
 	})
 
 	attempts := map[string]map[string]int{"blue-respond-r1": {"show": 9}}

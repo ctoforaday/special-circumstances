@@ -3,6 +3,11 @@ package record
 import (
 	"strings"
 	"testing"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // AN AFFORDANCE IS ON THE LIST AND DOES NOT BLOCK.
@@ -16,11 +21,11 @@ import (
 // So the same guarantee, on one list: affordances appear, affordances carry Blocks:false, and
 // `complete` reads the blocking items alone.
 func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
-	b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
-		{SeatID: "blue-respond-r1", Type: "blue_edit", Payload: NewPayload().Set("answers", "R1-2")},
+	b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
+		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.BlueEdit{Answers: proto.String("R1-2")}),
 		// Both duties a blue seat owes on an empty board, discharged, so nothing blocks.
-		{SeatID: "blue-respond-r1", Type: "friction"},
-		{SeatID: "blue-respond-r1", Type: "revision"},
+		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.Friction{}),
+		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.Revision{}),
 	}}
 	s := SittingOf(b, "blue", "blue-respond-r1")
 
@@ -59,30 +64,42 @@ func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
 func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 
 	t.Run("manifest row missing after an edit", func(t *testing.T) {
-		b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
-			{SeatID: "blue-respond-r1", Type: "blue_edit", Payload: NewPayload().Set("answers", "R1-2")},
+		b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
+			recordtest.Event(t, "blue-respond-r1", 0, &recordpb.BlueEdit{Answers: proto.String("R1-2")}),
 		}}
 		got := AvailableOf(b, "blue", "blue-respond-r1")
 		if !mentions(got, "gap R1-2 was answered by an edit and carries no manifest row") {
 			t.Fatalf("an edit answering R1-2 with no manifest row afforded nothing: %v", hows(got))
 		}
 		// And it stops once the receipt exists, or the line is a nag rather than a fact.
-		b.Events = append(b.Events, Event{SeatID: "blue-respond-r1", Type: "manifest-row", Payload: NewPayload().Set("gap_id", "R1-2")})
+		b.Events = append(b.Events, recordtest.Event(t, "blue-respond-r1", 0, &recordpb.ManifestRow{GapId: proto.String("R1-2")}))
 		if got := AvailableOf(b, "blue", "blue-respond-r1"); mentions(got, "gap R1-2 was answered by an edit and carries no manifest row") {
 			t.Errorf("the manifest affordance survived its own discharge: %v", hows(got))
 		}
 	})
 
 	t.Run("grade accepted and never moved", func(t *testing.T) {
-		b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
-			{SeatID: "red-merge-r1", Type: "motion-rule", Payload: NewPayload().
-				Set("subject", "grade").Set("as", "accepted").Set("gap_id", "R1-1")},
+		b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
+			// THE FIXTURE IS NOW A REAL EXCHANGE, because the join demands one. The gap id lives
+			// on the FILING and the verdict on the RULING, in different shards, and Motions()
+			// pairs them on the motion id — so a lone motion-rule carrying a gap_id, which is what
+			// this fixture used to be, describes a state the record cannot hold.
+			recordtest.Event(t, "blue-respond-r1", 0, &recordpb.Motion{
+				MotionId: proto.String("M1"),
+				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("R1-1")}},
+			}),
+			recordtest.Event(t, "red-merge-r1", 0, &recordpb.MotionRule{
+				MotionId: proto.String("M1"),
+				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
+			}),
 		}}
 		got := AvailableOf(b, "merge", "red-merge-r1")
 		if !mentions(got, "gap R1-1 had a grade motion ACCEPTED and no regrade") {
 			t.Fatalf("an accepted grade motion with no regrade afforded nothing: %v", hows(got))
 		}
-		b.Events = append(b.Events, Event{SeatID: "red-merge-r1", Type: "regrade", Payload: NewPayload().Set("gap_id", "R1-1")})
+		b.Events = append(b.Events, recordtest.Event(t, "red-merge-r1", 0, &recordpb.Regrade{GapId: proto.String("R1-1")}))
 		if got := AvailableOf(b, "merge", "red-merge-r1"); mentions(got, "gap R1-1 had a grade motion ACCEPTED and no regrade") {
 			t.Errorf("the regrade affordance survived the regrade: %v", hows(got))
 		}
@@ -91,9 +108,21 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 	// A REJECTED motion owes no regrade, and saying it does would be the unmeetable expectation
 	// this package's own coverage gate exists to refuse.
 	t.Run("a rejected motion affords no regrade", func(t *testing.T) {
-		b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
-			{SeatID: "red-merge-r1", Type: "motion-rule", Payload: NewPayload().
-				Set("subject", "grade").Set("as", "rejected").Set("gap_id", "R1-1")},
+		b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
+			// THE FIXTURE IS NOW A REAL EXCHANGE, because the join demands one. The gap id lives
+			// on the FILING and the verdict on the RULING, in different shards, and Motions()
+			// pairs them on the motion id — so a lone motion-rule carrying a gap_id, which is what
+			// this fixture used to be, describes a state the record cannot hold.
+			recordtest.Event(t, "blue-respond-r1", 0, &recordpb.Motion{
+				MotionId: proto.String("M1"),
+				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("R1-1")}},
+			}),
+			recordtest.Event(t, "red-merge-r1", 0, &recordpb.MotionRule{
+				MotionId: proto.String("M1"),
+				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
+				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
+			}),
 		}}
 		if got := AvailableOf(b, "merge", "red-merge-r1"); mentions(got, "no regrade followed it") {
 			t.Errorf("a REJECTED grade motion afforded a regrade: %v", hows(got))
@@ -121,13 +150,17 @@ func mentions(ds []Item, want string) bool {
 }
 
 // inquiryAt builds one `line of inquiry` event, so a test can place a line at a status in a round.
-func inquiryAt(id, status string, round int) Event {
-	return Event{
-		Type:    "line-of-inquiry",
-		Round:   round,
-		SeatID:  "blue-respond-r" + string(rune('0'+round)),
-		Payload: NewPayload().Set("inquiry_id", id).Set("status", status).Set("line", "a line"),
+func inquiryAt(t *testing.T, id, status string, round int) *Event {
+	t.Helper()
+	st, ok := AvenueStatusOf(status)
+	if !ok {
+		t.Fatalf("%q is not a line-of-inquiry status", status)
 	}
+	return recordtest.Event(t, "blue-respond-r"+string(rune('0'+round)), round, &recordpb.Avenue{
+		AvenueId: proto.String(id),
+		Status:   &st,
+		Line:     proto.String("a line"),
+	})
 }
 
 // A REAFFIRMED LINE STOPS NAGGING; A NEGLECTED ONE DOES NOT. They used to be the same bytes.
@@ -142,16 +175,16 @@ func inquiryAt(id, status string, round int) Event {
 // line untouched since round 0. The only statuses that DID clear it were `declined`, `abandoned`
 // and `deferred`, all of which mean stop: the channel could express giving up and not carrying on.
 func TestAPursuedInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
-	b := &Board{Gaps: map[string]*Gap{}, Events: []Event{
-		inquiryAt("Q1", "proposed", 0),
-		inquiryAt("Q1", "pursued", 0),
-		inquiryAt("Q2", "pursued", 0),
-		inquiryAt("Q2", "pursued", 2), // reaffirmed in the current round
-		inquiryAt("Q3", "pursued", 0), // never revisited
-		inquiryAt("Q4", "deferred", 0),
-		inquiryAt("Q5", "abandoned", 0),
-		inquiryAt("Q6", "proposed", 2), // undecided, and `proposed` owes a move whenever asked
-		inquiryAt("Z", "pursued", 2),   // carries the round forward
+	b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
+		inquiryAt(t, "Q1", "proposed", 0),
+		inquiryAt(t, "Q1", "pursued", 0),
+		inquiryAt(t, "Q2", "pursued", 0),
+		inquiryAt(t, "Q2", "pursued", 2), // reaffirmed in the current round
+		inquiryAt(t, "Q3", "pursued", 0), // never revisited
+		inquiryAt(t, "Q4", "deferred", 0),
+		inquiryAt(t, "Q5", "abandoned", 0),
+		inquiryAt(t, "Q6", "proposed", 2), // undecided, and `proposed` owes a move whenever asked
+		inquiryAt(t, "Z", "pursued", 2),   // carries the round forward
 	}}
 
 	stale := map[string]bool{}

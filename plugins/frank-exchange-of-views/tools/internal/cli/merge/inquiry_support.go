@@ -2,11 +2,11 @@ package merge
 
 import (
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // inquiry-support: red's per-round verdict that the REPORT still carries a line of inquiry.
@@ -53,28 +53,44 @@ func newInquirySupport() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		p := record.NewPayload().
-			Set("inquiry_id", seat.Str(cmd, flags.ID)).
-			Set("as", seat.Str(cmd, flags.As)).
-			Set("reason", text)
-		if _, err := record.Append(s.Identity(), "inquiry-support", p); err != nil {
+		// THE SCHEMA COLLAPSED THIS EVENT AND THE VERB HAS NOT CAUGHT UP. InquiryReview
+		// carries `reason` alone: the per-line grade is retired because "a line is treated
+		// thinly" is a DEFECT IN THE REPORT, which the schema says belongs on the board as a
+		// minted gap with the lifecycle, the blue duty, the grade and the PASS gate every
+		// other gap has — "a second vocabulary for the same fact is exactly the aliasing this
+		// schema exists to remove".
+		//
+		// So --id and --as no longer reach the record. That is the schema's decision, not a
+		// conversion slip: the flags are gone from the surface and from the help,
+		if _, err := record.Append(s.Identity(), &recordpb.InquiryReview{Reason: proto.String(text)}); err != nil {
 			return nil, err
 		}
-		return inquirySupportResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
+		return inquiryReviewResult{}, nil
 	}))
 
-	c.Flags().Var(flags.InquiryID().WithCheck(record.InquiryExists), flags.ID,
-		"`inquiry-id` — the line of inquiry you are voting on; the lines-of-inquiry projection lists every one")
-	enumhelp.Flag(c, flags.As, record.MustEnum("inquiry-support", "as"),
-		"what the report does for this line RIGHT NOW, from this round's read of the document rather than from the record you already have. `unsupported` and `absent` put it on blue's work list; `weakened` is a flag blue may answer or accept")
+	// NO --id AND NO --as, AND THE ABSENCE IS THE RULING.
+	//
+	// THE HELP ABOVE ADVERTISED BOTH UNTIL NOW — `--id Q1 --as supported|weakened|unsupported|absent`
+	// on a command that registers neither, so a seat following its own help got a cobra refusal for
+	// a flag the schema deliberately retired. The comment below already called removing them "the
+	// follow-through this branch still owes"; the flags went and the sentence describing them
+	// stayed, which is the half-state that reads as done. Third instance of that family this
+	// branch: `--as supports-with-bridge` advertised and refused, and the fuzz's hyphenated
+	// ruling words.
+	//
+	// The four-value `--as` answered "does the report still carry this line". Presence stopped
+	// being a question when the lines became GENERATED onto the page from the record — blue cannot
+	// cut one — and the surviving question, whether the body delivered the research, is an ORDINARY
+	// GAP with the grade vocabulary it already has. record/enums.go states the same ruling from the
+	// other side by declining to declare a set: "a second vocabulary for the same fact is exactly
+	// the aliasing this schema exists to remove".
+	//
+	// A flag a seat can pass and the record ignores is worse than one that does not exist, so both
+	// go rather than lingering as accepted-and-discarded. One read of the document per round,
+	// recorded as prose.
 	return c
 }
 
-type inquirySupportResult struct {
-	ID string `json:"id"`
-	As string `json:"as"`
-}
+type inquiryReviewResult struct{}
 
-func (r inquirySupportResult) Human() string {
-	return "line of inquiry " + r.ID + " voted " + r.As
-}
+func (r inquiryReviewResult) Human() string { return "inquiry review recorded" }

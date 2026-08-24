@@ -56,7 +56,7 @@ func refusals() []struct {
 }
 
 func TestNoRefusalHandsOutABareList(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := newRun(t)
 
 	for _, r := range refusals() {

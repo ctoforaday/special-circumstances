@@ -1,6 +1,9 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"testing"
 )
 
@@ -16,23 +19,26 @@ type gapSpec struct {
 func mintBoard(t *testing.T, runDir string, specs ...gapSpec) {
 	t.Helper()
 	const seat, nonce = "red-merge-r1", "aaaaaaaa"
-	var evs []Event
+	var evs []*Event
 	seq := 0
 	for _, s := range specs {
-		evs = append(evs, ev(seat, nonce, seq, 1, "mint", seat+":mint:"+s.id, NewPayload().
-			Set("gap_id", s.id).Set("problem", s.problem).Set("location", s.location).
-			Set("class", "correctness").Set("acceptance_check", "check").Set("check_kind", "document").
-			Set("severity", "high").Set("likelihood", "high").Set("impact", "high")))
+		evs = append(evs, recordtest.At(t, seat, 1, seat+":mint:"+s.id, &recordpb.Mint{
+			GapId: proto.String(s.id), Class: proto.String("overclaim"),
+			Problem: proto.String(s.problem), Location: proto.String(s.location),
+			AcceptanceCheck: proto.String("check"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_HIGH),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_HIGH),
+		}))
 		seq++
 	}
 	for _, s := range specs {
 		if !s.open {
-			evs = append(evs, ev(seat, nonce, seq, 1, "close", seat+":close:"+s.id, NewPayload().
-				Set("gap_id", s.id).Set("class", "resolved")))
+			evs = append(evs, recordtest.At(t, seat, 1, seat+":close:"+s.id, &recordpb.Close{GapId: proto.String(s.id), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")}))
 			seq++
 		}
 	}
-	writeShard(t, runDir, seat, nonce, evs)
+	writeShard(t, runDir, evs)
 }
 
 // A near-duplicate of an existing gap must outrank an unrelated gap, and both open and

@@ -1,8 +1,11 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -63,79 +66,85 @@ func TestAppendedEventCarriesAStamp(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, ""); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, "observe", NewPayload().Set("label", "L1-O1"))
+	ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, &recordpb.Observe{Label: proto.String("L1-O1")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ev.TS == "" {
+	if ev.GetTs() == "" {
 		t.Fatal("an event carries no timestamp; replay would order it by seat name")
 	}
 }
 
-// MONOTONICITY IS GUARANTEED IN CODE, NOT BORROWED FROM THE HARDWARE.
+// THE ORDER IS A PROPERTY OF THE CODE, NOT OF THE MACHINE'S CLOCK — and the code that holds it
+// changed, so these two tests ask about the guarantee rather than about its old carrier.
 //
-// Precision only narrows the window in which two events can tie. Two seats can still stamp
-// the same instant, and a wall clock can step BACKWARDS under NTP and issue a stamp earlier
-// than one already written. Both produce a tie or an inversion in the ordering key, and the
-// sort then falls through to seat name — the defect that dropped the bench's closures.
+// They used to assert that STAMPS strictly increase under a frozen clock and under one running
+// backwards. That mattered because replay sorted by (TS, SeatID, Seq): a tie or an inversion in
+// the stamp fell through to seat NAME, which is the defect that dropped a whole sitting's bench
+// closures. A monotonic clock file existed for exactly that reason.
 //
-// These freeze or reverse the clock outright: conditions no precision can survive, and
-// exactly what a real clock does occasionally. The stamps must still strictly increase.
-func TestStampsStrictlyIncreaseUnderAFrozenClock(t *testing.T) {
-	orig := Now
-	defer func() { Now = orig }()
-	frozen := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
-	Now = func() time.Time { return frozen }
+// Order is `events.id` now — assigned by the thing doing the inserting — so `ts` is informational
+// and may tie or step backwards without consequence. The guarantee is unchanged and stronger, so
+// it is asserted directly: whatever the clock does, the record reads back in the order it was
+// written.
+func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		now  func() time.Time
+	}{
+		{"a frozen clock", func() func() time.Time {
+			frozen := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
+			return func() time.Time { return frozen }
+		}()},
+		{"a clock running backwards", func() func() time.Time {
+			base := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
+			var call int
+			return func() time.Time {
+				call++
+				return base.Add(-time.Duration(call) * time.Second)
+			}
+		}()},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			orig := Now
+			defer func() { Now = orig }()
+			Now = c.now
 
-	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, ""); err != nil {
-		t.Fatal(err)
-	}
+			runDir := tmpRun(t)
+			id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}
+			if _, _, err := RegisterSeat(id, ""); err != nil {
+				t.Fatal(err)
+			}
+			var wrote []string
+			for i := 0; i < 6; i++ {
+				label := string(rune('a' + i))
+				if _, err := Append(id, &recordpb.Observe{Label: proto.String(label)}); err != nil {
+					t.Fatal(err)
+				}
+				wrote = append(wrote, label)
+			}
 
-	var stamps []string
-	for i := 0; i < 10; i++ {
-		ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, "observe", NewPayload().Set("label", string(rune('a'+i))))
-		if err != nil {
-			t.Fatal(err)
-		}
-		stamps = append(stamps, ev.TS)
-	}
-	for i := 1; i < len(stamps); i++ {
-		if stamps[i] <= stamps[i-1] {
-			t.Fatalf("a frozen clock produced non-increasing stamps: %s then %s. Order must be a property of the CODE, not of the machine's clock", stamps[i-1], stamps[i])
-		}
-	}
-}
-
-// The nastier case: the clock runs BACKWARDS. A stamp must never be issued that would sort
-// before one already written, or replay reorders events that are already on disk.
-func TestStampsStrictlyIncreaseWhenTheClockRunsBackwards(t *testing.T) {
-	orig := Now
-	defer func() { Now = orig }()
-	base := time.Date(2026, 7, 19, 12, 0, 0, 0, time.UTC)
-	var call int
-	Now = func() time.Time {
-		call++
-		return base.Add(-time.Duration(call) * time.Second) // each call earlier than the last
-	}
-
-	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, ""); err != nil {
-		t.Fatal(err)
-	}
-
-	var stamps []string
-	for i := 0; i < 6; i++ {
-		ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, "observe", NewPayload().Set("label", string(rune('a'+i))))
-		if err != nil {
-			t.Fatal(err)
-		}
-		stamps = append(stamps, ev.TS)
-	}
-	for i := 1; i < len(stamps); i++ {
-		if stamps[i] <= stamps[i-1] {
-			t.Fatalf("a backwards-running clock produced non-increasing stamps: %s then %s. The stamps may drift from wall time — that is the accepted trade — but they must never lie about WHAT CAME FIRST", stamps[i-1], stamps[i])
-		}
+			m, err := MergedEvents(runDir)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var read []string
+			for _, e := range m.Events {
+				if o, ok := recordpb.BodyAs[*recordpb.Observe](e); ok {
+					read = append(read, o.GetLabel())
+				}
+			}
+			if len(read) != len(wrote) {
+				t.Fatalf("%d observations read, %d written", len(read), len(wrote))
+			}
+			for i := range wrote {
+				if read[i] != wrote[i] {
+					t.Fatalf("under %s the record read back in a different order: %v, want %v.\n\n"+
+						"The stamps may tie or drift — that is what a real clock does — but the record "+
+						"must never lie about WHAT CAME FIRST", c.name, read, wrote)
+				}
+			}
+		})
 	}
 }
 
@@ -150,7 +159,7 @@ func TestStampsStrictlyIncreaseWhenTheClockRunsBackwards(t *testing.T) {
 // carries no `-r<N>` at all, so the two answers are distinguishable — the name cannot answer,
 // and anything that shows up in the event must therefore have come from the caller.
 func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
-	dir := t.TempDir()
+	dir := tmpRun(t)
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -158,27 +167,38 @@ func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
 		t.Fatal("fixture assumption: judge-terminal's NAME cannot answer which round it is in")
 	}
 
-	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: 7}, "friction", NewPayload().Set("reason", "a capability gap"))
+	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: 7}, &recordpb.Friction{Text: proto.String("a capability gap")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ev.Round != 7 {
-		t.Errorf("the event must carry the round it was GIVEN, not the one its id looks like: got %d, want 7", ev.Round)
+	if ev.GetRound() != 7 {
+		t.Errorf("the event must carry the round it was GIVEN, not the one its id looks like: got %d, want 7", ev.GetRound())
 	}
-	// And the register the append triggered carries it too — both write sites take the seam.
-	evs, err := ReadShard(filepath.Join(dir, "records", "events-judge-terminal-"+ev.Nonce+".jsonl"))
+	// And every other event this seat wrote carries it too — both write sites take the seam. Read
+	// from the record rather than from a named shard file: there is no filename to compose, which
+	// is one fewer place for the test to encode where the events live.
+	m, err := MergedEvents(dir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, e := range evs {
-		if e.Round != 7 {
-			t.Errorf("%s event stamped round %d, want 7 — RegisterSeat must take the same seam as Append", e.Type, e.Round)
+	seen := 0
+	for _, e := range m.Events {
+		if e.GetSeatId() != "judge-terminal" {
+			continue
 		}
+		seen++
+		if e.GetRound() != 7 {
+			t.Errorf("%s event stamped round %d, want 7 — RegisterSeat must take the same seam as Append",
+				recordpb.Word(e.GetType()), e.GetRound())
+		}
+	}
+	if seen == 0 {
+		t.Fatal("the seat wrote nothing — an empty traversal passes the assertion above on every event")
 	}
 	// Party is NOT taken from the caller: it stays derived from the seat id, because the
 	// caller's Role answers which command group is running, not who is writing.
-	if ev.Role != "bench" {
-		t.Errorf("the party is the seat's, derived from its id: got %q, want bench", ev.Role)
+	if ev.GetRole() != "bench" {
+		t.Errorf("the party is the seat's, derived from its id: got %q, want bench", ev.GetRole())
 	}
 }
 
@@ -192,15 +212,98 @@ func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
 // unknown. It is NOT quietly converted to 0, which is synthesis and a real round — the
 // conflation that produced the phantom archive in #327.
 func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
-	dir := t.TempDir()
+	dir := tmpRun(t)
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: -1}, "friction", NewPayload().Set("reason", "a capability gap"))
+	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: -1}, &recordpb.Friction{Text: proto.String("a capability gap")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ev.Round != -1 {
-		t.Errorf("unknown must stay unknown on the record: got %d, want -1", ev.Round)
+	if ev.GetRound() != -1 {
+		t.Errorf("unknown must stay unknown on the record: got %d, want -1", ev.GetRound())
+	}
+}
+
+// A RE-DISPATCHED SEAT CAN STILL RECORD, and this is the regression test for the bug that killed
+// it outright.
+//
+// The idempotency ordinal was counted PER SITTING — `seat_id AND nonce AND type` — while
+// `events.key` carries a GLOBAL unique index. So a seat registering a second time restarted at
+// `#1` and collided with its own earlier act: measured through the binary as `UNIQUE constraint
+// failed: events.key` on the first thing it tried to write.
+//
+// It could not happen while the record was shards, because the retry wrote the same keys into a
+// NEW FILE and replay picked a winner between them. One table has no second file, so the storage
+// change turned a tolerated duplicate into a refusal — and the fix is that the ordinal is scoped to
+// the SEAT, which makes its keys monotonic across dispatches.
+func TestARedispatchedSeatCanStillRecord(t *testing.T) {
+	runDir := tmpRun(t)
+	seat := "red-merge-r1"
+	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
+
+	for dispatch := 1; dispatch <= 2; dispatch++ {
+		n, _, err := RegisterSeat(id, "")
+		if err != nil {
+			t.Fatalf("dispatch %d could not register: %v", dispatch, err)
+		}
+		if n != dispatch {
+			t.Errorf("register reported dispatch %d, want %d — a seat told which attempt this is can "+
+				"say so; an opaque sitting id told it nothing it could use", n, dispatch)
+		}
+		if _, err := Append(id, &recordpb.FrictionNone{Text: proto.String("nothing blocked this sitting")}); err != nil {
+			t.Fatalf("dispatch %d could not record: %v\n\nA re-dispatched seat that cannot write is a "+
+				"crash retry that loses the whole sitting", dispatch, err)
+		}
+	}
+
+	// BOTH SITTINGS ARE ON THE RECORD. Nothing selects a winner, so the second does not displace
+	// the first — which is the other half of what the shard layout got wrong.
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	registers, acts := 0, 0
+	for _, e := range m.Events {
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_REGISTER:
+			registers++
+		case recordpb.EventType_EVENT_TYPE_FRICTION_NONE:
+			acts++
+		}
+	}
+	if registers != 2 || acts != 2 {
+		t.Errorf("the record holds %d registers and %d acts, want 2 and 2 — a dispatch that vanished "+
+			"is work that happened and exists nowhere", registers, acts)
+	}
+}
+
+// A ONCE-PER-SITTING ACT REPEATED IS REFUSED, and the refusal teaches.
+//
+// The shard record DEDUPED it on read: two events with one key, one silently discarded, so a seat
+// that stated its position twice never learned that only one survived. `events.key` is UNIQUE now,
+// so the second write is refused — and a raw `UNIQUE constraint failed: events.key` teaches
+// nothing, which is why isDuplicateKey exists.
+func TestARepeatedSingletonActIsRefusedInTheSeatsOwnTerms(t *testing.T) {
+	runDir := tmpRun(t)
+	seat := "red-merge-r1"
+	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
+	if _, _, err := RegisterSeat(id, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(id, &recordpb.Position{Text: proto.String("the board is clean going in")}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Append(id, &recordpb.Position{Text: proto.String("changed my mind")})
+	if err == nil {
+		t.Fatal("a second position was recorded — the record kept two answers to a once-per-sitting question")
+	}
+	for _, want := range []string{"once-per-sitting", "position"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("the refusal does not say %q, so a seat reading it learns only that SQLite is unhappy:\n%v", want, err)
+		}
+	}
+	if strings.Contains(err.Error(), "UNIQUE constraint") {
+		t.Errorf("the raw constraint text reached the seat:\n%v", err)
 	}
 }

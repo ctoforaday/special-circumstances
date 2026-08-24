@@ -6,12 +6,15 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // mint: put a gap on the board.
@@ -33,12 +36,13 @@ func newMint() *cobra.Command {
 		if prior != "" {
 			return mintResult{GapID: prior, Idempotent: true}, nil
 		}
-		// The round comes from the seat's CONTEXT, not from re-reading its id here.
-		// A gap id is the run's primary public identifier — printed in the report and
-		// referenced by --supersedes, --id and found_by — so it is minted from the round
-		// the seat resolved ONCE, at the seam, rather than re-derived at this call site.
-		// The two answered the same even when the derivation was broken, which is exactly
-		// why keeping one resolution point matters: a divergence here would be invisible.
+		// The round comes from the seat's CONTEXT, not from re-reading its id.
+		// Both answer the same today (Of passes record.RoundOf as the inference),
+		// but a gap id is the run's primary public identifier — it is printed in
+		// the report and referenced by --supersedes, --id and found_by — so it
+		// must be minted from the FACT the dispatcher supplies, not from a guess
+		// about a string's shape. The moment FEOV_ROUND is injected these diverge,
+		// and this call site would have kept the guess (#348).
 		gapID, err := record.MintGapID(s.RunDir, s.Round)
 		if err != nil {
 			return nil, err
@@ -68,16 +72,16 @@ func newMint() *cobra.Command {
 		// `problem` says WHAT IS WRONG. This says why red thinks so, which is the half a seat
 		// answers and a bench weighs. Stored only when the two differ, so a mint that passed
 		// its problem through --reason does not carry it twice.
-		p := record.NewPayload().Set("gap_id", gapID)
+		p := &recordpb.Mint{GapId: proto.String(gapID)}
 		if text != "" && text != problem {
-			p.Set("mint_reason", text)
+			p.MintReason = proto.String(text)
 		}
-		seat.Set(cmd, p, "mint_key", flags.Key)
+		p.MintKey = proto.String(seat.Str(cmd, flags.Key))
 		// COINING A CLASS IS `merge class new`, a verb of its own. This one names a slug
 		// the registry already has; class_new records whether THIS run coined it, which
 		// the registry knows and a seat no longer has to assert.
-		seat.Set(cmd, p, "class", flags.Class)
-		p.Set("class_new", record.ClassCoinedInRun(s.RunDir, seat.Str(cmd, flags.Class)))
+		p.Class = proto.String(seat.Str(cmd, flags.Class))
+		p.ClassNew = proto.Bool(record.ClassCoinedInRun(s.RunDir, seat.Str(cmd, flags.Class)))
 
 		// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
 		//
@@ -104,9 +108,9 @@ func newMint() *cobra.Command {
 				return nil, fmt.Errorf("%w\n\nQuote the exact sentence the defect lives at, from blue/report.md and nothing else — a section heading plus a sentence will not match. For a gap about something MISSING, quote the sentence where it SHOULD be; that is how a lens finding anchors an omission", lerr)
 			}
 		}
-		seat.Set(cmd, p, "location", flags.Quote)
-		p.Set("problem", problem)
-		seat.Set(cmd, p, "required_fix", flags.Fix)
+		p.Location = proto.String(seat.Str(cmd, flags.Quote))
+		p.Problem = proto.String(problem)
+		p.RequiredFix = proto.String(seat.Str(cmd, flags.Fix))
 		// THE CONCRETE PROPOSAL, AND WHY fix_basis IS DERIVED (#267 stage 3).
 		//
 		// `required_fix` is prose ("acknowledge the shared definition"), which blue cannot
@@ -129,18 +133,24 @@ func newMint() *cobra.Command {
 			if err := bluedoc.ValidateProposal("merge mint", string(report), seat.Str(cmd, flags.Quote), fixNew); err != nil {
 				return nil, err
 			}
-			p.Set("fix_new", fixNew)
+			p.FixNew = proto.String(fixNew)
 			basis = "verified"
 		}
-		p.Set("fix_basis", basis)
-		seat.Set(cmd, p, "acceptance_check", flags.Check)
-		seat.Set(cmd, p, "check_kind", flags.CheckKind)
-		seat.SetGrade(p, "severity", &severity)
-		seat.SetGrade(p, "likelihood", &likelihood)
-		seat.SetGrade(p, "impact", &impact)
-		seat.SetGrade(p, "complexity_cost", &cx)
-		seat.SetList(p, "supersedes", &supersedes)
-		seat.SetList(p, "found_by", &foundBy)
+		p.FixBasis = proto.String(basis)
+		p.AcceptanceCheck = proto.String(seat.Str(cmd, flags.Check))
+		if w := seat.Str(cmd, flags.CheckKind); w != "" {
+			ck, ok := record.CheckKindOf(w)
+			if !ok {
+				return nil, feov.Errorf(feov.Validation, "merge mint: %q is not a check kind — it says WHAT WOULD SETTLE the acceptance check", w)
+			}
+			p.CheckKind = &ck
+		}
+		p.Severity = seat.GradeOrNil(&severity)
+		p.Likelihood = seat.GradeOrNil(&likelihood)
+		p.Impact = seat.GradeOrNil(&impact)
+		p.ComplexityCost = seat.GradeOrNil(&cx)
+		p.Supersedes = supersedes.Value()
+		p.FoundBy = foundBy.Value()
 
 		// ESTOPPEL: RED IS BOUND BY THE FIX IT PRESCRIBED (#267 stage 4).
 		//
@@ -172,25 +182,36 @@ func newMint() *cobra.Command {
 				// recorded an entry that rendered with EMPTY TEXT in the operator's
 				// friction read: the block was logged and its explanation was not, which
 				// is the same blank entry an empty discharge produces.
-				fr := record.NewPayload().
-					Set("reason", msg).
-					Set(record.FrictionKindKey, record.FrictionKindEstoppel).
-					Set("estopped_by", prior)
-				if _, ferr := record.Append(s.Identity(), "friction", fr); ferr != nil {
+				// THE KIND IS A VALUE NOW, not a key/word pair. `text` is the field the
+				// friction projection reads, and the old payload set the wrong key — every
+				// estoppel block recorded an entry that rendered with EMPTY TEXT, so the
+				// block was logged and its explanation was not. The schema removes the way
+				// to make that mistake: there is one prose field and one typed kind.
+				kind := recordpb.FrictionKind_FRICTION_KIND_ESTOPPEL
+				fr := &recordpb.Friction{
+					Text:       proto.String(msg),
+					Kind:       &kind,
+					EstoppedBy: proto.String(prior),
+				}
+				if _, ferr := record.Append(s.Identity(), fr); ferr != nil {
 					return nil, ferr
 				}
 				return nil, errors.New(msg)
 			}
 		}
 
-		if _, err := record.Append(s.Identity(), "mint", p); err != nil {
+		if _, err := record.Append(s.Identity(), p); err != nil {
 			return nil, err
 		}
 		return mintResult{GapID: gapID}, nil
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
-	c.Flags().String(flags.Class, "", "`slug` — the gap's class slug, what KIND of defect this is")
+	// THE BACKTICKS ARE COBRA'S PLACEHOLDER SYNTAX, not emphasis — it takes the first backquoted
+	// word as the flag's value shape. They sat around a COMMAND, so `--class` advertised its value
+	// as "merge class new": a phrase from the prose offered to a seat as the thing to type. The
+	// command is named without them, and the placeholder is the shape actually wanted.
+	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb")
 	c.Flags().String(flags.Quote, "", flags.DescQuote+". For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission")
 	c.Flags().String(flags.Problem, "", "what is wrong (or pass it via --reason)")
 	c.Flags().String(flags.Fix, "", "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
@@ -203,6 +224,12 @@ func newMint() *cobra.Command {
 	c.Flags().Var(&cx, flags.Complexity, "what fixing it costs, on the same scale")
 	c.Flags().Var(&supersedes, flags.Supersedes, "comma-separated ancestor ids this gap replaces; lineage is never dropped")
 	c.Flags().Var(&foundBy, flags.FoundBy, "comma-separated lens findings that surfaced it (L5-F3,L6-F2)")
+	// THE GAP ID IS REQUIRED OF THE RECORD AND SUPPLIED BY THE VERB — declared here, at the code
+	// that does the supplying, so the fact and what makes it true cannot drift apart. Without it
+	// the contract gate reads "mint declares gap_id required and registers no --id" and is right
+	// to: a requirement with no flag behind it is invisible to a seat unless something says the
+	// tool meets it.
+	seat.Supplies(c, "gap_id", "the tool assigns it (MintGapID), sequentially per round — a seat that chose its own would collide with another seat's")
 	return c
 }
 

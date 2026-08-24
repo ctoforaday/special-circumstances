@@ -4,9 +4,11 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // revision: the round-record event (W1.7), and the last thing blue does in a sitting.
@@ -28,8 +30,7 @@ func newRevision() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		p := record.NewPayload().Set("reason", text)
-		if _, err := record.Append(s.Identity(), "revision", p); err != nil {
+		if _, err := record.Append(s.Identity(), &recordpb.Revision{Text: proto.String(text)}); err != nil {
 			return nil, err
 		}
 		// THE DEBT IS NAMED WHERE THE SITTING ENDS. `revision` is emitted after blue's

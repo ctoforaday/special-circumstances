@@ -93,16 +93,21 @@ func TestCandidatesIgnoresStringsAndComments(t *testing.T) {
 	}
 }
 
-// A mutant in cmd/X cannot affect cmd/Y, and running one package rather than the module is
-// most of this tool's speed. An internal/ mutant can affect anything, so it must widen.
+// suiteFor names the package that OWNS a file — the first suite a mutant is tried against.
+//
+// It used to return `./...` for anything outside cmd/, on the argument that an internal/ mutant
+// can affect anything. That argument is true and it made the tool unusable: the whole module ran
+// per mutant. The widening did not disappear — it moved behind `-confirm`, so a SURVIVOR can be
+// re-tested against the rest of the module on request, and the common case (a mutant its own
+// package kills) costs milliseconds.
 func TestSuiteFor(t *testing.T) {
 	for in, want := range map[string]string{
 		"cmd/sc-doctor/main.go":       "./cmd/sc-doctor/",
-		"cmd/sc-doctor/sub/helper.go": "./cmd/sc-doctor/",
-		"internal/secrets/secrets.go": "./...",
-		"internal/a/b/c.go":           "./...",
-		"main.go":                     "./...",
-		"cmd":                         "./...",
+		"cmd/sc-doctor/sub/helper.go": "./cmd/sc-doctor/sub/",
+		"internal/secrets/secrets.go": "./internal/secrets/",
+		"internal/a/b/c.go":           "./internal/a/b/",
+		"main.go":                     "./",
+		"cmd":                         "./",
 	} {
 		if got := suiteFor(in); got != want {
 			t.Errorf("suiteFor(%q) = %q, want %q", in, got, want)

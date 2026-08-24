@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // Check is one invariant's result. Violations lists the specific offenders (gap ids, refs)
@@ -152,7 +153,12 @@ func gapsDisposed(b *record.Board) Check {
 		if g == nil || g.Open {
 			continue
 		}
-		if g.Closure == nil || (g.Closure.Str("closure_class") == "" && g.Closure.Str("disposition") == "") {
+		// ASK THE GAP, NOT THE CLOSURE FIELD. The merge's `closure_class` and the bench's
+		// `disposition` now live on two different messages (`Close` and `Opinion`), and
+		// `g.Closure != nil` no longer means "closed by anything" — it means "closed by a
+		// `close` event". Reading it here would report every bench-closed gap as a torn
+		// closure, which is the regression the test above this check pins.
+		if g.ClosureReason() == "" {
 			bad = append(bad, id)
 		}
 	}
@@ -167,8 +173,8 @@ func gapsDisposed(b *record.Board) Check {
 func foundByResolves(b *record.Board) Check {
 	labels := map[string]bool{}
 	for _, e := range b.Events {
-		if e.Type == "finding" {
-			if l := e.Payload.Str("label"); l != "" {
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
+			if l := f.GetLabel(); l != "" {
 				labels[l] = true
 			}
 		}
@@ -179,7 +185,7 @@ func foundByResolves(b *record.Board) Check {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, l := range g.Mint.StrList("found_by") {
+		for _, l := range g.Mint.GetFoundBy() {
 			if !labels[l] {
 				bad = append(bad, fmt.Sprintf("%s→%s", id, l))
 			}
@@ -196,17 +202,45 @@ func foundByResolves(b *record.Board) Check {
 func dialecticRefsResolve(b *record.Board) Check {
 	var bad []string
 	for _, e := range b.Events {
-		switch e.Type {
-		case "closing", "motion", "opinion":
-			gid := e.Payload.Str("gap_id")
-			if gid != "" && b.Gaps[gid] == nil {
-				bad = append(bad, fmt.Sprintf("%s/%s→%s", e.SeatID, e.Type, gid))
-			}
+		gid, isDialectic := dialecticGapID(e)
+		if !isDialectic {
+			continue
+		}
+		if gid != "" && b.Gaps[gid] == nil {
+			bad = append(bad, fmt.Sprintf("%s/%s→%s", e.GetSeatId(), recordpb.Word(e.GetType()), gid))
 		}
 	}
 	return result("dialectic-refs-resolve",
 		"every closing/dispute/opinion names a gap that exists",
 		"a dialectic act argues about a gap that is not on the record", bad)
+}
+
+// dialecticGapID returns the gap a dialectic act argues about, and whether the event is a
+// dialectic act at all.
+//
+// THE THREE ACTS DO NOT SPELL THE GAP THE SAME WAY, which is what made this a function rather
+// than one payload key read three times. A `closing` and an `opinion` each carry `gap_id` on
+// their own message; a `motion` does NOT — only a GRADE motion is about a gap, and its id lives
+// one level down on `Motion.grade.gap_id`. A petition or a direction motion is a dialectic act
+// with no gap, which is why ok=true with an empty id is a real answer here and not a miss: the
+// caller skips an empty id exactly as it did when the payload had no such key.
+func dialecticGapID(e *record.Event) (string, bool) {
+	body, ok := recordpb.Body(e)
+	if !ok {
+		return "", false
+	}
+	switch f := body.(type) {
+	case *recordpb.Closing:
+		return f.GetGapId(), true
+	case *recordpb.Opinion:
+		return f.GetGapId(), true
+	case *recordpb.Motion:
+		if g, isGrade := f.GetFiling().(*recordpb.Motion_Grade); isGrade {
+			return g.Grade.GetGapId(), true
+		}
+		return "", true
+	}
+	return "", false
 }
 
 // supersedesResolve: a successor gap's lineage names ancestors that exist — the chain the
@@ -218,7 +252,7 @@ func supersedesResolve(b *record.Board) Check {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, anc := range g.Mint.StrList("supersedes") {
+		for _, anc := range g.Mint.GetSupersedes() {
 			if b.Gaps[anc] == nil {
 				bad = append(bad, fmt.Sprintf("%s⊃%s", id, anc))
 			}
@@ -250,22 +284,35 @@ func supersedesResolve(b *record.Board) Check {
 // TestPassVerdictIsAWordItsEventTypeCanActuallyCarry asserts the pair against the schema, so
 // re-pointing this at the wrong event type — or renaming the word — FAILS instead of going
 // quietly not-applicable. That is the part that generalises; the fix below is one instance.
+//
+// UNDER THE SCHEMA THE PAIR IS NOW A TYPE, and the two constants are typed with it. `verdict`
+// carries a `Verdict_` body whose only field is the `Verdict` enum, and `outcome` carries a
+// `RunOutcome`: they are different Go types, so pointing this gate at `outcome` no longer
+// compiles rather than going quietly dark. The pair is still stated here because the CHOICE of
+// which event type holds the run's PASS remains a decision this file makes.
 const (
-	passVerdictType = "verdict"
-	passVerdictWord = "PASS"
+	passVerdictType = recordpb.EventType_EVENT_TYPE_VERDICT
+	passVerdictWord = recordpb.Verdict_VERDICT_PASS
 )
 
 // passClosesAllGaps: the #67 gate, verified after the fact. A PASS verdict with an open gap is
 // a contradiction — the record says the run resolved everything, and it did not.
 func passClosesAllGaps(b *record.Board) Check {
-	verdict := ""
+	var verdict recordpb.Verdict
 	for _, e := range b.Events {
-		if e.Type == passVerdictType {
-			verdict = e.Payload.Str("verdict")
+		if e.GetType() != passVerdictType {
+			continue
 		}
+		// LAST VERDICT EVENT WINS, INCLUDING A BODYLESS ONE. The old read assigned
+		// `p.Str("verdict")` unconditionally, so a later verdict event carrying nothing reset
+		// the answer to "". BodyAs returns the typed nil for both "no body" and "wrong body",
+		// and GetVerdict on it is the UNSPECIFIED zero — the same reset, without inventing a
+		// PASS out of an event that never said so.
+		v, _ := recordpb.BodyAs[*recordpb.RoundVerdict](e)
+		verdict = v.GetVerdict()
 	}
 	if verdict != passVerdictWord {
-		return notApplicable("pass-closes-all-gaps", fmt.Sprintf("the verdict is %s, so there is no PASS to contradict", nonEmpty(verdict, "unrecorded")))
+		return notApplicable("pass-closes-all-gaps", fmt.Sprintf("the verdict is %s, so there is no PASS to contradict", nonEmpty(verdictWord(verdict), "unrecorded")))
 	}
 	var open []string
 	for _, id := range b.GapOrder {
@@ -284,18 +331,44 @@ func registerBeforeAppend(b *record.Board) Check {
 	seen := map[string]bool{}
 	var bad []string
 	for _, e := range b.Events {
-		if seen[e.SeatID] {
+		if seen[e.GetSeatId()] {
 			continue
 		}
-		seen[e.SeatID] = true
-		if e.Type != "register" {
-			bad = append(bad, fmt.Sprintf("%s (first event was %s)", e.SeatID, e.Type))
+		seen[e.GetSeatId()] = true
+		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
+			bad = append(bad, fmt.Sprintf("%s (first event was %s)", e.GetSeatId(), recordpb.Word(e.GetType())))
 		}
 	}
 	return result("register-before-append",
 		"every seat registered before it wrote",
 		"a seat emitted an event before registering", bad)
 }
+
+// verdictWord and outcomeWord render the two enums this file reads back to a human — `Verdict`
+// and `RunOutcome`.
+//
+// THE CASE OF THESE TWO WORDS IS AN OPEN QUESTION AND THIS IS NOT THE FILE THAT SETTLES IT. Two
+// surfaces of the same migration disagree today:
+//
+//   - recordpb.Spelling derives `pass` and `verified` from the generated constant names, and
+//     recordpb's own TestBySpellingIsExactAndCaseSensitive pins that `PASS` does NOT resolve —
+//     so the schema's word for this set is lower case, deliberately.
+//   - enums.go still declares PASS|FAIL and VERIFIED|CEILING|HALTED|UNVERIFIED, `bench outcome`
+//     still passes `--as VERIFIED`, record.DeriveVerdict still returns "VERIFIED", and the
+//     report's stamp still switches on the capital word.
+//
+// Until the seat-facing surfaces are converted, the capital word is what the record held and
+// what `feov verify` printed, so upper-casing here PRESERVES the output rather than choosing a
+// side. If the ruling is that the schema's spelling wins everywhere, these two functions
+// collapse to recordpb.Word and the change is one line each — and it belongs in ONE place beside
+// record.GradeStr, which is the same shape of join (a seat-facing vocabulary differing from the
+// schema's spelling by a mechanical rule) and which must exist in BOTH directions, because the
+// write path needs the inverse and recordpb.BySpelling is case-sensitive by design.
+//
+// The zero renders as "", matching what `p.Str("verdict")` returned for an absent key.
+func verdictWord(v recordpb.Verdict) string { return strings.ToUpper(recordpb.Word(v)) }
+
+func outcomeWord(o recordpb.RunOutcome) string { return strings.ToUpper(recordpb.Word(o)) }
 
 func nonEmpty(s, fallback string) string {
 	if strings.TrimSpace(s) == "" {
@@ -333,16 +406,22 @@ type Stats struct {
 func Compute(b *record.Board) Stats {
 	s := Stats{Events: map[string]int{}}
 	for _, e := range b.Events {
-		s.Events[e.Type]++
-		if e.Type == "outcome" {
-			s.Verdict = e.Payload.Str("verdict")
+		// The tally is keyed on the event type's SCHEMA SPELLING, so `motion-rule` reads
+		// `motion_rule` here and in `feov verify`'s event line. The type is an enum value now
+		// and recordpb.Word is the one place its word is derived.
+		s.Events[recordpb.Word(e.GetType())]++
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_OUTCOME {
+			// Assigned unconditionally, as the payload read was: a later outcome event that
+			// carries no verdict resets this rather than leaving an earlier one standing.
+			o, _ := recordpb.BodyAs[*recordpb.Outcome](e)
+			s.Verdict = outcomeWord(o.GetVerdict())
 		}
 	}
 
 	minted := map[string]bool{}
 	for _, id := range b.GapOrder {
 		if g := b.Gaps[id]; g != nil && g.Mint != nil {
-			for _, l := range g.Mint.StrList("found_by") {
+			for _, l := range g.Mint.GetFoundBy() {
 				minted[l] = true
 			}
 		}
@@ -350,27 +429,45 @@ func Compute(b *record.Board) Stats {
 	findingLabels := map[string]bool{}
 	withClosing, withDispute, withOpinion := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, e := range b.Events {
-		if e.Type == "finding" {
-			if l := e.Payload.Str("label"); l != "" {
-				findingLabels[l] = true
-			}
-		}
-		if e.Type == "verify" { // red's verifications only — blue's authored cites are not audit volume (#341)
+		// COUNTED ON THE TYPE, NOT THE BODY. A verify event with an unreadable body is still a
+		// verification red performed; gating this on the body would let a decode gap silently
+		// shrink red's audit volume. Red's verifications only — blue's authored cites are not
+		// audit volume (#341).
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_VERIFY {
 			s.Citations++
 		}
-		if gid := e.Payload.Str("gap_id"); gid != "" {
-			switch e.Type {
-			case "closing":
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
+		}
+		switch f := body.(type) {
+		case *recordpb.Finding:
+			if l := f.GetLabel(); l != "" {
+				findingLabels[l] = true
+			}
+		case *recordpb.Closing:
+			if gid := f.GetGapId(); gid != "" {
 				withClosing[gid] = true
-			case "motion":
-				// The grade-challenge stat. It counted `dispute` events until the motion collapse
-				// retired the type, after which it reported 0 for every run — indistinguishable
-				// from a run where nobody challenged a grade.
-				if e.Payload.Str("subject") == "grade" {
+			}
+		case *recordpb.Opinion:
+			if gid := f.GetGapId(); gid != "" {
+				withOpinion[gid] = true
+			}
+		case *recordpb.Motion:
+			// The grade-challenge stat. It counted `dispute` events until the motion collapse
+			// retired the type, after which it reported 0 for every run — indistinguishable
+			// from a run where nobody challenged a grade.
+			//
+			// The subject is read from the ENUM and the gap from the grade filing's own
+			// message, which is the pair the schema keeps in step: a petition motion has no
+			// gap_id to find, and could not carry one.
+			if f.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
+				continue
+			}
+			if g, isGrade := f.GetFiling().(*recordpb.Motion_Grade); isGrade {
+				if gid := g.Grade.GetGapId(); gid != "" {
 					withDispute[gid] = true
 				}
-			case "opinion":
-				withOpinion[gid] = true
 			}
 		}
 	}

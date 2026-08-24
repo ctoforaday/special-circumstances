@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // EVERY REFERENCE IS CHECKED AGAINST THE THING IT REFERENCES.
@@ -88,8 +90,8 @@ func requireFindings(runDir string, labels []string, verb, flag string) error {
 	}
 	have := map[string]bool{}
 	for _, e := range m.Events {
-		if e.Type == "finding" {
-			if l := e.Payload.Str("label"); l != "" {
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
+			if l := f.GetLabel(); l != "" {
 				have[l] = true
 			}
 		}
@@ -123,7 +125,10 @@ func requireCitation(runDir, label, verb, flag string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("record: %s %s=%s names no citation on the record — blue has cited %d source(s), and `show evidence` lists them by anchor. Cite the method with `blue cite` first; a proof pointing at a citation that does not exist claims a provenance it does not have",
+	// "blue has cited" WAS TRUE AND IS NOT. The set now includes red's supporting
+	// corroborations, which mint a label of their own — so a count described as blue's would
+	// misstate what a seat is being compared against.
+	return fmt.Errorf("record: %s %s=%s names no citation on the record — %d source(s) are cited (blue's, and red's corroborations), and `show evidence` lists them by anchor. Cite the method with `blue cite` first; a proof pointing at a citation that does not exist claims a provenance it does not have",
 		verb, flag, label, len(known))
 }
 
@@ -158,7 +163,7 @@ func requireSeat(runDir, seatID, verb, flag string) error {
 		return err
 	}
 	for _, e := range m.Events {
-		if e.SeatID == seatID {
+		if e.GetSeatId() == seatID {
 			return nil
 		}
 	}
@@ -256,7 +261,7 @@ func requireSupersededAreClosed(runDir string) error {
 		if g == nil || g.Mint == nil {
 			continue
 		}
-		for _, anc := range g.Mint.StrList("supersedes") {
+		for _, anc := range g.Mint.GetSupersedes() {
 			superseded[anc] = id
 		}
 	}
@@ -305,10 +310,27 @@ func requirePassClosesAllGaps(runDir string) error {
 	// The gate counts what is on the RECORD, both vocabularies, because a pre-collapse record
 	// replayed under this binary must be judged by the same standard it was written to.
 	var unruled []string
+	// AND WHICH SEAT HOLDS THE GAVEL FOR EACH. Naming the id alone told a blocked merge seat to
+	// rule motions it structurally cannot: a PETITION is the bench's, requireRuler refuses the
+	// merge outright, and with a clean gap board there was then no verdict the seat could legally
+	// give. The role comes off the MotionSubject enum, which is where the CLI's gavel check reads
+	// it too — the alternative was a second hand-written copy in a package that cannot see the
+	// first. A subject with no ruler annotated is an ERROR, not an unlabelled id: it would mean a
+	// motion that blocks a PASS and nobody has to answer.
 	for _, m := range Motions(b) {
-		if !m.Ruled() {
-			unruled = append(unruled, m.ID)
+		if m.Ruled() {
+			continue
 		}
+		subj, known := MotionSubjectEnum(m.Subject)
+		if !known {
+			unruled = append(unruled, m.ID+" ("+m.Subject+", a subject this binary does not know — it cannot say who rules it)")
+			continue
+		}
+		ruler, err := recordpb.SubjectRuler(subj)
+		if err != nil {
+			return err
+		}
+		unruled = append(unruled, m.ID+" ("+m.Subject+", ruled by the "+ruler+" seat)")
 	}
 	if len(unruled) != 0 {
 		sort.Strings(unruled)
@@ -318,35 +340,57 @@ func requirePassClosesAllGaps(runDir string) error {
 		// A blocking message that does not say how to unblock is an invitation to guess.
 		return fmt.Errorf("record: verdict PASS refused — %d motion(s) filed and never ruled: %s. "+
 			"Read what each one asks with `show motions` (its `basis` is the filer's argument, which your ruling answers), "+
-			"then rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"`. "+
-			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen; rule them, or issue `--as FAIL`",
+			"then rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"` — IF THE GAVEL NAMED ABOVE IS YOURS. "+
+			"Where it is not, the ruling is not yours to make and not yours to wait for silently: issue `--as FAIL` so the round ends on the record and the seat that holds it can answer. "+
+			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen",
 			len(unruled), strings.Join(unruled, ", "))
 	}
-	// AND EVERY LINE OF INQUIRY VOTED THIS ROUND.
+	// AND THE REPORT'S ACCOUNT OF ITS OWN RESEARCH READ, THIS ROUND.
 	//
-	// The report's account of its own research — "we pursued X", "we deferred Y", "we abandoned Z"
-	// — reaches the reader as a row `assemble` GENERATES from the record. It carries no citation
-	// anchor, so `lens verify` cannot reach it and the ordinary adversarial route does not apply.
-	// Without this gate it is the one class of claim in the document that nothing could refuse.
+	// The lines of inquiry — "we pursued X", "we deferred Y", "we abandoned Z" — reach the reader
+	// as rows `assemble` GENERATES from the record. They carry no citation anchor, so `lens
+	// verify` cannot reach them and the ordinary adversarial route does not apply. Without this
+	// gate they are the one class of claim in the document that nothing could refuse.
 	//
-	// PER ROUND, not once: the report is regenerated every round, so a verdict cast before this
+	// ONE STATEMENT, NOT ONE PER LINE. Whether the report CARRIES a line is not a question: the
+	// rows are generated from the record, so blue cannot cut them. What the read judges is whether
+	// the BODY delivered the research each line claims — and where it did not, that is an ORDINARY
+	// GAP, already refused above by requirePassClosesAllGaps. This gate therefore asks only that
+	// the read HAPPENED, and it asks it the way `friction --none` does: silence cannot clear a
+	// duty, so "nothing to say" is still said.
+	//
+	// PER ROUND, not once: the report is regenerated every round, so a review recorded before this
 	// round's edits answers a question about a document that no longer exists. That is the whole
-	// content of "red verifies every turn" — a carried-forward vote would be a stale read wearing
+	// content of "red verifies every turn" — a carried-forward review would be a stale read wearing
 	// the shape of a fresh one, which is this repository's recurring defect rather than a fix for
 	// it.
-	if unvoted := UnvotedInquiries(b); len(unvoted) != 0 {
-		ids := make([]string, len(unvoted))
-		for i, a := range unvoted {
-			ids[i] = a.ID
-		}
-		sort.Strings(ids)
-		return fmt.Errorf("record: verdict PASS refused — %d line(s) of inquiry have no support verdict this round: %s. "+
-			"READ THE REPORT ONCE (`show report`), list the lines with `show lines-of-inquiry`, and vote every one "+
-			"against that single read — this is one pass over the document, not one pass per line: "+
-			"`inquiry-support --id <id> --as supported|weakened|unsupported|absent --reason \"<what the report says there>\"`. "+
-			"A PASS claims the report is sound, and its account of what this run investigated is part of the report; "+
-			"vote them, or issue `--as FAIL`",
-			len(ids), strings.Join(ids, ", "))
+	if InquiryReviewDue(b) {
+		return fmt.Errorf("record: verdict PASS refused — this round has no line-of-inquiry review. " +
+			"READ THE REPORT ONCE (`show report`), list what the record claims this run investigated with " +
+			"`show lines-of-inquiry`, and answer in one act: `inquiry-review --reason \"<what the report " +
+			"says at those lines>\"`. Where a line's research is thin, missing or unsupported by the text, " +
+			"MINT A GAP for it — the shortfall is an ordinary defect and gets the ordinary lifecycle; this " +
+			"event only records that the read happened, because an absent review reads exactly like a sound " +
+			"one. A PASS claims the report is sound, and its account of what this run investigated is part " +
+			"of the report; record the review, or issue `--as FAIL`")
+	}
+	// AND A CONTRADICTION RED FOUND AND NEVER RAISED.
+	//
+	// A supporting corroboration becomes a footnote and reaches the reader that way. `refutes`
+	// and `absent` are NOT references backing the sentence, so they are deliberately not spliced
+	// — which leaves them landing only in the `evidence` projection, seen by red and nobody else.
+	// A PASS over one claims the report is sound while the record holds red's own reading that a
+	// sentence in it is contradicted or unsupported.
+	//
+	// The remedy is a FINDING, not a gap: a lens structurally cannot mint, and the tool will not
+	// write the finding itself because that would mean inventing its three grades. Red grades its
+	// own finding and the merge decides whether to raise it.
+	if open := UnansweredContradictions(b); len(open) > 0 {
+		sort.Strings(open)
+		return fmt.Errorf("record: verdict PASS refused — red read a source that CONTRADICTS or does not support %d claim(s), and no finding was ever raised about them:\n  %s\n"+
+			"Each is red's own reading that the report says something its source does not. Raise it with `lens finding --quote \"<the claim>\" --reason \"<what the source actually says>\"` graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has. "+
+			"Read them with `show evidence`. A PASS claims the report is sound; these say otherwise on the record. Raise them, or issue `--as FAIL`",
+			len(open), strings.Join(open, "\n  "))
 	}
 	return nil
 }

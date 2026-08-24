@@ -3,11 +3,13 @@ package blue
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // retire: the ONLY way substance leaves the report.
@@ -31,11 +33,15 @@ func newRetire() *cobra.Command {
 	c := seat.Prose(seat.New("retire", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		// --reason is the prose channel (Prose provides it); it lands under `reason`,
 		// which validate requires — substance leaves the report only with its reason.
-		p := seat.Set(cmd, record.NewPayload(), "claim", flags.Quote)
-		if err := seat.SetReason(cmd, p, "reason"); err != nil {
+		why, err := seat.Reason(cmd)
+		body := &recordpb.Retire{
+			Claim:        proto.String(seat.Str(cmd, flags.Quote)),
+			Reason:       proto.String(why),
+			SupersededBy: proto.String(seat.Str(cmd, flags.New)),
+		}
+		if err != nil {
 			return nil, err
 		}
-		seat.Set(cmd, p, "superseded_by", flags.New)
 
 		// THE REMOVAL IS CHECKED, NOT TAKEN ON TRUST.
 		//
@@ -64,16 +70,16 @@ func newRetire() *cobra.Command {
 				basis = record.RemovalVerified
 			}
 		}
-		p.Set("removal_basis", basis)
+		body.RemovalBasis = proto.String(basis)
 
-		if _, err := record.Append(s.Identity(), "retire", p); err != nil {
+		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
 		return retireResult{Claim: seat.Str(cmd, flags.Quote)}, nil
 	}))
 
 	c.Flags().String(flags.Quote, "", flags.DescQuote+" — the claim being removed, as it stood before you edited it out")
-	c.Flags().String(flags.New, "", "`claim` — the claim that replaces it, when one does")
+	c.Flags().String(flags.New, "", "the claim that replaces it, when one does — the same --quote/--new pair `edit` and `mint` take")
 	return c
 }
 

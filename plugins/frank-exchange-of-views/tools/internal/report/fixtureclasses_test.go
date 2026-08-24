@@ -1,6 +1,7 @@
 package report
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -18,7 +19,7 @@ import (
 // ones tests use to prove an unknown class is refused.
 func newRun(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
+	dir := tmpRun(t)
 	if err := record.StageForRun(dir, fixtureClasses...); err != nil {
 		t.Fatalf("stage the class registry: %v", err)
 	}
@@ -53,4 +54,14 @@ var shippedClasses = []string{
 	"artifact-preservation", "config-semantics-error", "vote-laundering",
 	"verification-scope-blindspot", "doctrine-vs-implementation", "measurement-methodology-drift",
 	"cross-corpus-id-collision", "negative-definition",
+}
+
+// tmpRun is tmpRun(t) for a RUN, plus the release its record handle needs. recordsql caches a
+// *sql.DB per database and production never closes one; a test process accumulates them, and on
+// Windows an open file cannot be removed so `t.TempDir` cleanup fails.
+func tmpRun(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
+	return dir
 }

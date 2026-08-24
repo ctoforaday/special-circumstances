@@ -24,13 +24,14 @@ package fuzz
 // in verbsWithEvents must fire at least once (a regression that silently drops one fails loudly).
 // `halt` terminates the run, so it is covered by the dedicated TestFuzzHaltPath, not the sweep.
 //
-// Run: go test ./internal/fuzz -run TestFuzzDebate -count=1   (respects -short by shrinking N).
-// Confidence sweep: FUZZ_N=1000 go test ./internal/fuzz -run TestFuzzDebate -timeout 1200s.
+// Run: go test ./integration/fuzz -run TestFuzzDebate -count=1   (respects -short by shrinking N).
+// Confidence sweep: FUZZ_N=1000 go test ./integration/fuzz -run TestFuzzDebate -timeout 1200s.
 // FUZZ_C overrides concurrency (runs are subprocess-bound, so the default oversubscribes cores).
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -51,8 +52,10 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"google.golang.org/protobuf/reflect/protoreflect"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // Capture only seat-id characters — NOT the trailing "." in "SEAT_ID: red-merge-r1." — or the
@@ -111,6 +114,13 @@ type runner struct {
 	// reproduced records the PROVE gaps whose proof a lens re-ran and confirmed. Red closes on
 	// THIS, not on its own assertion that a computation happened.
 	reproduced map[string]bool
+	// applyMisses counts, by CAUSE, every time the verbatim-apply branch declined to apply.
+	// Reported beside the verbatim tally so a zero there names its reason instead of implying one.
+	applyMisses map[string]int
+	// disputeRefusals is why a grade filing was REFUSED, per gap. The scenario oracle reports a
+	// missing dispute event; without this it cannot distinguish a drive that never ran from one
+	// that ran and was told no, and those want opposite fixes.
+	disputeRefusals map[string]string
 	// #111: every model an agent() call carried, one per dispatch ("unset" if absent). The tier
 	// oracle asserts all equal the configured tier — map-free, needs no bulk-seat list here.
 	models []string
@@ -169,6 +179,24 @@ func (c *cmd) on(pct int, flag, val string) *cmd {
 	return c
 }
 func (c *cmd) run() (string, error) { return c.r.exec(c.args...) }
+
+// noteApplyMiss records WHY the verbatim-apply branch declined, so the estoppel precondition's
+// count of zero arrives with a cause rather than inviting the reader to guess one.
+func (r *runner) noteApplyMiss(why string) {
+	if r.applyMisses == nil {
+		r.applyMisses = map[string]int{}
+	}
+	r.applyMisses[why]++
+}
+
+// firstLine keeps a refusal's diagnosis and drops the help cobra staples to it — the tally is a
+// histogram, and a full help page per key makes it unreadable.
+func firstLine(s string) string {
+	if i := strings.IndexByte(s, '\n'); i >= 0 {
+		return s[:i]
+	}
+	return s
+}
 
 // dialectic emits the round's transcript onto the record the way Stage 1 seats do — a position
 // narrative and a closing per open gap — plus, at random, a regrade, a lineage-carrying
@@ -305,10 +333,20 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 	return env
 }
 
+// exec runs one seat command. THE ERROR CARRIES WHAT THE TOOL SAID.
+//
+// It returned exec.ExitError verbatim — `exit status 2` — so every caller that kept its error
+// still learned nothing. The dispute oracle was instrumented to print the refusal and printed
+// "exit status 2"; the refusal itself was in the output the error did not mention. Six defects
+// this session were a discarded refusal, and the cost was always the distance between the
+// refusal and the symptom. Attaching it here shortens that distance for every call site at once.
 func (r *runner) exec(args ...string) (string, error) {
 	cmd := exec.Command(r.bin, append(args, "--run", r.runDir)...)
 	out, err := cmd.CombinedOutput()
 	noteExec(args, err)
+	if err != nil {
+		err = fmt.Errorf("%s: %w\n  %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+	}
 	return string(out), err
 }
 
@@ -320,9 +358,50 @@ func (r *runner) register(role, seatID string) {
 	_, _ = r.exec("register", "--seat-id", seatID)
 }
 
-var grades = []string{"low", "low-medium", "medium", "medium-high", "high"}
+// UNDERSCORES, because that is what the grade enum spells. This was `low-medium` and
+// `medium-high`: two of five values refused at every site that generates a grade, which is
+// `--proposed` on a grade dispute and both axes of a regrade. Measured — `merge regrade=8(7
+// refused)`, `motion grade file=7(2 refused)`, and a scenario oracle three layers away reporting
+// `R1-1 has no dispute event` for a contest whose drive was fine.
+//
+// Sixth instance this session of one value spelled two ways across a boundary with one side
+// moved, and the third of them inside this fuzz. The others: the hyphenated direction rulings,
+// and five drives naming commands that do not exist.
+var grades = []string{"low", "low_medium", "medium", "medium_high", "high"}
 
 func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
+
+// currentGrade reads the gap's grade at one axis, in the words a seat types. Empty when the board
+// cannot be read or the axis is unknown — the caller treats that as "no constraint".
+func (r *runner) currentGrade(gapID, dim string) string {
+	b, err := record.BoardState(r.runDir)
+	if err != nil {
+		return ""
+	}
+	g := b.Gaps[gapID]
+	if g == nil {
+		return ""
+	}
+	d, ok := record.GradeDimensionOf(dim)
+	if !ok {
+		return ""
+	}
+	cur, known := g.GradeAt(d)
+	if !known {
+		return ""
+	}
+	return recordpb.Word(cur)
+}
+
+// gradeOtherThan picks a grade that is not the one given, so a dispute always asks for a change.
+func (r *runner) gradeOtherThan(cur string) string {
+	for i := 0; i < len(grades)*4; i++ {
+		if g := r.g(); g != cur {
+			return g
+		}
+	}
+	return grades[0] // unreachable while len(grades) > 1; a stated fallback beats a silent loop
+}
 
 // verifyOutcomes is the value space of `lens verify --as` — what a source DID for the claim.
 //
@@ -330,7 +409,7 @@ func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 // negative half is what this list exists to drive: `refutes` and `absent` are the outcomes that
 // make the assembly screen fire, and a fuzz that only ever generated supporting verdicts would
 // leave that whole path unexercised while the coverage gate read green.
-var verifyOutcomes = []string{"supports", "supports-with-bridge", "weak", "refutes", "absent", "unreachable"}
+var verifyOutcomes = []string{"supports", "supports_with_bridge", "weak", "refutes", "absent", "unreachable"}
 
 // verifyConfidence is the ORTHOGONAL axis: how sure red is of the outcome it just recorded.
 // Driven independently of the outcome, because the pairs that matter most — `refutes` at low
@@ -407,11 +486,20 @@ func (r *runner) mint(seatID string) string {
 	// only ever in company with a mint.
 	if !r.classMade {
 		r.classMade = true
-		_, _ = r.exec("class", "new", "--seat-id", seatID,
+		// THE COIN'S FAILURE IS NOT OPTIONAL, and swallowing it made this file lie about what it
+		// drove. `classMade` is set BEFORE the call and the error was discarded, so a coin that
+		// failed for ANY reason left the flag latched and every later `--class fuzzcls` refused
+		// with "unknown class" — a run that mints nothing, returns FAIL with an empty gaps array,
+		// and is rejected by the engine as a degenerate merge. The cause was three verbs away
+		// from the symptom and invisible from the log.
+		if _, err := r.exec("class", "new", "--seat-id", seatID,
 			// --neighbor names an EXISTING class, and is checked. `verification-gap` was not one;
 			// nothing objected while the registry was absent, so the coining path ran green for
 			// its whole life against a neighbour that did not exist.
-			"--class", "fuzzcls", "--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q")
+			"--class", "fuzzcls", "--definition", "d", "--neighbor", "self-attestation", "--distinguisher", "q"); err != nil {
+			r.noteApplyMiss("class new refused: " + err.Error())
+			r.classMade = false // let a later seat try again rather than latching the run dead
+		}
 	}
 	args = append(args, "--class", "fuzzcls")
 	if r.coin(40) {
@@ -524,7 +612,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// A regression close carries lineage forward: it mints a successor and closes WITH it
 	// (record.go requires --successor for repaired_with_regression). Only allowed on the first close
 	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
-	if allowReg && r.coin(25) {
+	if allowReg && r.coin(35) {
 		if succ := r.mint(seatID); succ != "" {
 			if _, err := r.exec("close", "--seat-id", seatID, "--id", id, "--as", "repaired_with_regression",
 				"--superseded-by", succ, "--reason", "fuzz regression close", "--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
@@ -539,10 +627,26 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// is closing for the FIRST time — was refused every time, because a carry of a gap with no
 	// prior closure is a laundering path the record exists to refuse. 20 of 20 refused, and the
 	// coverage line read as a driven verb.
-	if prior := r.closedGapIDs(); len(prior) > 0 && r.coin(30) {
+	// UNCONDITIONAL WHEN THERE IS SOMETHING TO CARRY. Behind a 30% coin on a precondition that
+	// needs a PRIOR round's closure, this fired ONCE across 60 runs — and that one was refused,
+	// so the verb's real coverage was zero while the tally read 1. What it was hiding: `merge
+	// carry` could not run without --reason at all, because `Close.prose` was annotated
+	// unconditionally required and refused before validate's carry exemption could execute. A
+	// documented invocation was broken for as long as the drive was too thin to say so.
+	// A PRIOR ROUND'S CLOSURE, which is the only thing a carry can restate. `--carried-from`
+	// names the round, and a close keys on gap_id, so carrying a gap closed in THIS sitting is a
+	// duplicate the record refuses.
+	round, _ := record.RoundOf(seatID)
+	if prior := r.closedInARoundBefore(round); len(prior) > 0 {
 		carried := prior[r.rng.Intn(len(prior))]
-		carry := []string{"carry", "--seat-id", seatID, "--id", carried, "--as", "repaired",
-			"--reason", "fuzz: carried from the prior round", "--carried-from", "1"}
+		carry := []string{"merge", "carry", "--seat-id", seatID, "--id", carried,
+			"--carried-from", strconv.Itoa(round - 1), "--as", "repaired"}
+		// THE EXEMPTION ITSELF, half the time. A carry restates a closure an earlier round already
+		// argued, so it owes no fresh argument — and nothing drove the no-reason form, which is
+		// how the annotation deleted it silently. Both shapes are legal and both are driven.
+		if r.coin(50) {
+			carry = append(carry, "--reason", "fuzz: carried from the prior round")
+		}
 		// A carry names where the remainder went as often as a close does; the flag is on both
 		// verbs and was driven on neither once the two split. The successor is MINTED here for
 		// the same reason the regression close mints one: it must be a real, still-open gap, and
@@ -561,7 +665,9 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	//
 	// `amends_prior` takes --supersedes: it names a defect found BETWEEN two repairs that each
 	// closed clean earlier, so it needs a prior closure to amend.
-	if prior := r.closedGapIDs(); len(prior) > 0 && r.coin(20) {
+	// 20% ON TOP OF "a prior closure exists" left `close --as amends_prior` never driven across
+	// 60 runs. The precondition is already the rare part.
+	if prior := r.closedGapIDs(); len(prior) > 0 {
 		if _, err := r.exec("close", "--seat-id", seatID, "--id", id, "--as", "amends_prior",
 			"--supersedes", prior[r.rng.Intn(len(prior))], "--reason", "fuzz: found between two clean repairs",
 			"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
@@ -663,10 +769,18 @@ func (r *runner) extras(role, seatID string, open []string) {
 	// nothing blocked it, and it writes a DIFFERENT event type — so a sweep that only ever
 	// drove the complaint arm would leave the attestation path unexercised, which is the
 	// arm the whole change exists to make observable.
-	r.maybe(50, func() { r.do("friction", seatID).set("--reason", "fuzz friction from "+seatID).run() })
-	r.maybe(30, func() {
+	//
+	// EXCLUSIVE, AND ONE OF THEM ALWAYS FIRES. These were independent coins at 50% and 30%, so a
+	// sitting could close with NEITHER — which the verb's own help forbids ("CLOSE THIS CHANNEL
+	// EVERY SITTING"), and a drive that contradicts the contract it exercises is testing a system
+	// nobody ships. It also left `bench friction --none` never passed across 60 runs: the bench
+	// sits rarely (5 frictions in the whole sweep), and 30% of rarely is a path the coverage gate
+	// reports as missing while the drive is right there.
+	if r.coin(60) {
+		r.do("friction", seatID).set("--reason", "fuzz friction from "+seatID).run()
+	} else {
 		r.do("friction", seatID).bare("--none").set("--reason", "fuzz: nothing blocked "+seatID).run()
-	})
+	}
 	// line of inquiry carries an optional --method; feed it sometimes so that flag is exercised too.
 	// #246: a line of inquiry now has an id and a LIFECYCLE. Propose, then sometimes move it — the
 	// move is the path the old one-shot append could not record at all (measured: 0 of 86
@@ -712,6 +826,22 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// the verb gate stayed green on blue's line of inquiry events — a dead drive that read as
 		// coverage. Found by the execution tally (lens line-of-inquiry: 183 of 183 refused).
 	case "merge":
+		// THE PER-ROUND REVIEW OF THE REPORT'S ACCOUNT OF ITS OWN RESEARCH. The verb is
+		// `inquiry-support` and the event it writes is `inquiry_review` — the names differ, which
+		// is why deleting the retired per-line VOTE took this verb's only drive with it. It names
+		// no line and casts no verdict: a shortfall in the body is an ordinary gap, so `--reason`
+		// is its whole payload.
+		// UNCONDITIONAL, BECAUSE IT IS A PER-ROUND DUTY AND A HARD PRECONDITION FOR PASS.
+		//
+		// This sat behind a 40% coin, so three rounds in five could not pass: the tool refuses a
+		// PASS with no review for the round, and debate.js refuses a FAIL that names no gaps, so
+		// the seat had NO legal verdict and the run wedged. Before the drive honoured the refusal
+		// that was invisible — the error was discarded and the harness was told PASS anyway.
+		//
+		// A coin is the wrong shape for a duty. What varies between runs is what the review FINDS,
+		// not whether the read happened.
+		r.do("inquiry-support", seatID).
+			set("--reason", "fuzz: read the report against the lines on the record; the treatment matches").run()
 		// ONE MOTION DRIVER, AND THERE WERE BRIEFLY TWO.
 		//
 		// The additive stage added a blue-files/merge-rules pair here beside the `blue dispute`
@@ -945,7 +1075,12 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			}
 			switch {
 			case satisfied(d):
-				r.closeGap(seatID, id, r.coin(25)) // the regression-close variant is still sampled
+				// ONE COIN, NOT TWO. This was `r.coin(25)` here AND `r.coin(25)` inside closeGap,
+				// so the regression close needed 6.25% of one branch AND a successful mint — and
+				// `close --as repaired_with_regression` was reported NEVER DRIVEN across 60 runs,
+				// alongside its `--superseded-by`. Coins that multiply read as "sampled" and
+				// behave as "off"; the sampling now happens in exactly one place.
+				r.closeGap(seatID, id, true)
 			case d == dirProve && r.reproduced[id]:
 				// THE REPRODUCTION EARNS THE CLOSE. Red does not take blue's word that a
 				// computation happened, and does not take its own: a lens re-ran the recorded
@@ -974,21 +1109,32 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			r.mint(seatID)
 		}
 
-		// RED'S PER-ROUND SUPPORT VERDICT ON EVERY LINE OF INQUIRY.
-		//
-		// Driven before the verdict because `verdict --as PASS` is refused while any line is
-		// unvoted this round — the fuzz models the protocol, and the protocol now says red checks
-		// the report's account of its own research every turn. Without this the run cannot reach
-		// PASS at all: 50 of 144 verdicts were refused and every seed fell through to an ASSERTED
-		// terminal verdict, which is how this landed rather than as a silent coverage loss.
-		r.voteInquirySupport(seatID)
-
+		// RED'S PER-LINE SUPPORT VERDICT USED TO BE DRIVEN HERE, before the round verdict,
+		// because `verdict --as PASS` was refused while any line was unvoted. Both the verb and
+		// that gate are retired: a line's treatment is an ordinary gap now, so the PASS gate is
+		// the gap board and nothing else. See the note where voteInquirySupport was.
 		open := r.openGaps()
 		if len(open) == 0 {
 			r.dialectic("merge", seatID, nil)
-			// The merge's TERMINAL act on a PASS: checkpoints the event log to the recovery mirror.
-			_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "PASS")
-			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+			// THE TOOL DECIDES WHETHER THIS IS A PASS, NOT THE SEAT'S OWN GAP COUNT.
+			//
+			// An empty board is NOT the whole PASS gate: requirePassClosesAllGaps also refuses over
+			// an unruled MOTION, which is the case a seat cannot see by counting gaps. This drive
+			// discarded the refusal and told the harness `PASS` anyway — so debate.js walked on to
+			// `bench outcome --as verified` while the record held NO verdict event at all, and the
+			// outcome landed with basis `asserted` because DeriveVerdict had nothing to derive from.
+			// Six of sixty seeds, and the fuzz reported them as a derivation failure.
+			//
+			// The refusal is the production behaviour under test. Honouring it means a clean board
+			// with an outstanding motion FAILs the round — which is exactly right, and is the only
+			// way the motion arm of that gate is ever exercised end to end.
+			if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
+				return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+			}
+			// Refused over something that is not a gap. Record the verdict the tool WILL take, so
+			// the record and the harness agree about how this round ended.
+			_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
+			return map[string]any{"verdict": "FAIL", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
 
 		// Something is unrepaired, so the round FAILs.
@@ -996,9 +1142,6 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		var gaps []any
 		for _, id := range open {
 			gaps = append(gaps, map[string]any{"id": id, "supersedes": arr()})
-		}
-		if len(gaps) == 0 {
-			return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 		}
 		// The merge's terminal act on a FAIL too: the checkpoint is what protects the event log
 		// from a stray git operation mid-round, and it was only ever driven on a PASS — so the
@@ -1167,9 +1310,17 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// and requires the url and title that are the only thing identifying it.
 				// Falling back to corroborate when blue has cited nothing keeps the axis driven
 				// from round 0 rather than only after the first cite lands.
+				// A REAL SPAN OF THE LIVE REPORT. This quoted `"fuzz claim "+seatID`, which is in
+				// no document — and a SUPPORTING corroboration splices a citation anchor at the
+				// claim now, so every one of them would be refused and the drive discards its
+				// error. The seeded anchor sentence is the right span: the edit target below it
+				// is swapped back and forth by blue's edits, this one is left alone precisely so
+				// findings and cites have something stable to attach to.
+				claim := "A § fuzz sentence to anchor findings."
+				outcome := verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]
 				axes := func(c *cmd) *cmd {
-					return c.set("--quote", "fuzz claim "+seatID).
-						set("--as", verifyOutcomes[r.rng.Intn(len(verifyOutcomes))]).
+					return c.set("--quote", claim).
+						set("--as", outcome).
 						set("--confidence", verifyConfidence[r.rng.Intn(len(verifyConfidence))]).
 						set("--reason", "fuzz: what the source actually says").
 						on(60, "--access-date", "2026-07-24")
@@ -1180,6 +1331,17 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 					axes(r.do("corroborate", seatID)).
 						set("--url", "https://fuzz.invalid/"+seatID).
 						set("--title", "fuzz source for "+seatID).run()
+				}
+				// AND RED RAISES WHAT IT CONTRADICTED. A `refutes` or `absent` reading is red
+				// saying the report asserts what its source does not, and a PASS is refused until
+				// a finding quotes that claim — the tool will not write the finding itself,
+				// because that would mean inventing its three grades. Driving the remedy here is
+				// what makes both the gate and the act that clears it real in the sweep; without
+				// it every run with a negative reading would wedge at the verdict.
+				if outcome == "refutes" || outcome == "absent" {
+					_, _ = r.exec("finding", "--seat-id", seatID,
+						"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(),
+						"--quote", claim, "--reason", "fuzz: the source says otherwise")
 				}
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
 				_, _ = r.exec("finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
@@ -1242,6 +1404,9 @@ type outcome struct {
 	// #267 stage 4: edits that applied red's proposal EXACTLY. Without a counter, the fuzz
 	// could counter-edit every time and the estoppel path would never be reached at all.
 	verbatimApplied int
+	// applyMisses is why it did not, by cause — carried out of the run so a ZERO above arrives
+	// with its explanation instead of inviting one.
+	applyMisses map[string]int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -1343,7 +1508,7 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	return result, settledErr
 }
 
-func runOne(wrapped, bin string, seed int64) outcome {
+func runOne(t *testing.T, wrapped, bin string, seed int64) (res outcome) {
 	runDir, _ := os.MkdirTemp("", "fuzz-run-")
 	// A lens finding anchors into blue/report.md and is rejected unless its --location
 	// quote is present (slice 1b). Seed a report carrying the fuzzer's finding quote
@@ -1363,7 +1528,11 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	}
 	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(seed)), registered: map[string]bool{}}
 
-	res := outcome{seed: seed, runDir: runDir}
+	res = outcome{seed: seed, runDir: runDir}
+	// NAMED RETURN + defer, because this function returns from a dozen places — an oracle that
+	// fires early would otherwise drop the run's apply-miss causes on the floor, which is the
+	// same silent loss the causes exist to explain.
+	defer func() { res.applyMisses = r.applyMisses }()
 	result, settledErr := driveDebate(r, wrapped)
 	if settledErr != "" {
 		res.err = settledErr
@@ -1557,23 +1726,27 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// is built on.
 	if board, err := record.BoardState(runDir); err == nil {
 		answered, disputed, proved := map[string]bool{}, map[string]bool{}, map[string]bool{}
+		// THE SWITCH IS ON THE BODY, not on a type string beside it. Each arm reaches straight for
+		// a field, so binding the message and the type in one step removes the pair that could
+		// disagree — and a grade motion's gap id now comes off the GradeMotion arm rather than
+		// from a payload key that petitions and directions also had.
 		for _, e := range board.Events {
-			if e.Type == "proof" && e.Payload.Str("answers") != "" {
-				proved[e.Payload.Str("answers")] = true
+			body, ok := recordpb.Body(e)
+			if !ok {
+				continue
 			}
-			switch e.Type {
-			case "blue_edit":
-				if id := e.Payload.Str("answers"); id != "" {
-					answered[id] = true
+			switch t := body.(type) {
+			case *recordpb.Proof:
+				if t.GetAnswers() != "" {
+					proved[t.GetAnswers()] = true
 				}
-			case "motion":
-				// A grade motion IS the contest, and the oracle reads it by subject rather than
-				// by event type now: `motion` carries petitions and directions too, so keying on
-				// the type alone would count a petition as a contested grade.
-				if e.Payload.Str("subject") == "grade" {
-					if id := e.Payload.Str("gap_id"); id != "" {
-						disputed[id] = true
-					}
+			case *recordpb.BlueEdit:
+				if t.GetAnswers() != "" {
+					answered[t.GetAnswers()] = true
+				}
+			case *recordpb.Motion:
+				if g := t.GetGrade(); g != nil && g.GetGapId() != "" {
+					disputed[g.GetGapId()] = true
 				}
 			}
 		}
@@ -1584,7 +1757,7 @@ func runOne(wrapped, bin string, seed int64) outcome {
 			if g == nil || g.Mint == nil || !r.presented[id] {
 				continue
 			}
-			switch g.Mint.Str("required_fix") {
+			switch g.Mint.GetRequiredFix() {
 			case dirIgnore:
 				if answered[id] {
 					res.err = "scenario IGNORE: " + id + " was answered by a blue_edit, but the scenario said blue does nothing — either a writer ignored the directive or --answers is attaching provenance nobody claimed"
@@ -1593,6 +1766,11 @@ func runOne(wrapped, bin string, seed int64) outcome {
 			case dirDisputeWon, dirDisputeLost:
 				if !disputed[id] {
 					res.err = "scenario DISPUTE: " + id + " has no dispute event — the contest the scenario specified is absent from the record"
+					if why := r.disputeRefusals[id]; why != "" {
+						res.err += "\nthe filing was REFUSED, and this is what it said:\n  " + why
+					} else {
+						res.err += "\nno refusal was recorded for it either, so the drive never reached `motion grade file` at all"
+					}
 					return res
 				}
 			case dirProve, dirProveDrifts:
@@ -1617,8 +1795,8 @@ func runOne(wrapped, bin string, seed int64) outcome {
 			// run simply ended CEILING with work sitting done-but-open, and nothing said so.
 			// Scoped to gaps red actually sat on after blue answered: a repair landed in the
 			// final round leaves the gap legitimately open, because red never sits again.
-			if satisfied(g.Mint.Str("required_fix")) && r.evaluated[id] && g.Open {
-				res.err = "scenario " + g.Mint.Str("required_fix") + ": " + id + " is still OPEN after red sat on the repaired board — work was done and the board never recorded it as finished"
+			if satisfied(g.Mint.GetRequiredFix()) && r.evaluated[id] && g.Open {
+				res.err = "scenario " + g.Mint.GetRequiredFix() + ": " + id + " is still OPEN after red sat on the repaired board — work was done and the board never recorded it as finished"
 				return res
 			}
 		}
@@ -1636,14 +1814,14 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// status does next.
 	if board, err := record.BoardState(runDir); err == nil {
 		contests := map[string]string{}
+		// THE PRE-#344 ARM IS GONE. It read a `line-of-inquiry` event carrying `contests_ruling`,
+		// kept because "a stored record carries it and the oracle runs against replayed records as
+		// well as fresh ones". No stored record carries it: the event type does not exist in the
+		// schema, so nothing can hold that shape and the arm could only ever be dead.
 		for _, e := range board.Events {
-			if e.Type == "motion-appeal" && e.Payload.Str("subject") == "inquiry" {
-				contests[e.Payload.Str("motion_id")] = "appealed"
-			}
-			// The PRE-#344 spelling, still read: a stored record carries it and the oracle runs
-			// against replayed records as well as fresh ones.
-			if e.Type == "line-of-inquiry" && e.Payload.Str("contests_ruling") != "" {
-				contests[e.Payload.Str("inquiry_id")] = e.Payload.Str("contests_ruling")
+			a, ok := recordpb.BodyAs[*recordpb.MotionAppeal](e)
+			if ok && a.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
+				contests[a.GetMotionId()] = "appealed"
 			}
 		}
 		for _, a := range record.Inquiries(board) {
@@ -1681,8 +1859,9 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// scorecard's additive-integrity detector, so it must not pass unnoticed here either.
 	if board, err := record.BoardState(runDir); err == nil {
 		for _, e := range board.Events {
-			if e.Type == "retire" && e.Payload.Str("removal_basis") != record.RemovalVerified {
-				res.err = "a retire recorded removal_basis=" + e.Payload.Str("removal_basis") +
+			r, ok := recordpb.BodyAs[*recordpb.Retire](e)
+			if ok && r.GetRemovalBasis() != record.RemovalVerified {
+				res.err = "a retire recorded removal_basis=" + r.GetRemovalBasis() +
 					" — nothing on the record shows that claim was ever in the report, and an unevidenced retirement cancels real claim loss in the additive-integrity detector"
 				return res
 			}
@@ -1707,20 +1886,32 @@ func runOne(wrapped, bin string, seed int64) outcome {
 	// verdict WITHOUT one still means the derivation stopped working, and still fails here.
 	if board, err := record.BoardState(runDir); err == nil {
 		for _, e := range board.Events {
-			if e.Type != "outcome" {
+			o, ok := recordpb.BodyAs[*recordpb.Outcome](e)
+			if !ok {
 				continue
 			}
-			switch e.Payload.Str("verdict_basis") {
+			switch o.GetVerdictBasis() {
 			case record.VerdictDerived:
 			case "":
 				res.err = "the outcome event carries no verdict_basis — the field that says whether the verdict was computed or claimed has gone missing"
 				return res
 			default:
-				if e.Payload.Str("ended") == "deadlock" {
-					continue // a judged deadlock is the one thing the record cannot derive
+				// THE SANCTIONED CASE, WHICH THE COMMENT ABOVE ALREADY DESCRIBED AND THE CODE NEVER
+				// CHECKED. DeriveVerdict reports "cannot answer" on a judged DEADLOCK by design —
+				// that is a real answer, not a gap to paper over — so the bench asserts the outcome
+				// and stamps `ended: deadlock` to say why. This arm fired on it anyway.
+				//
+				// IT PASSED FOR YEARS BECAUSE THE ARM WAS UNREACHABLE. Its own message says
+				// "debate.js cannot produce a judged deadlock while it is hardcoded false (#289)",
+				// and that was true when it was written. The stub judge now derives deadlock from
+				// the dispositions it actually made, precisely so both arms of the cleared-board
+				// branch are driven — and the moment deadlock became reachable, this gate started
+				// failing the healthy outcome. A premise that expires without the assertion
+				// noticing is the shape this suite exists to catch, met in the suite itself.
+				if o.GetEnded() == "deadlock" {
+					continue
 				}
-				res.err = "the run recorded an ASSERTED verdict (" + e.Payload.Str("verdict") +
-					") that did NOT end in a judged deadlock — the only case the record cannot decide for itself, so this means the derivation stopped working"
+				res.err = "the run recorded an ASSERTED verdict (" + recordpb.Word(o.GetVerdict()) + ") and did NOT stamp `ended: deadlock` — a judged deadlock is the one case the record cannot derive a verdict for, and without it an asserted verdict means the derivation stopped working"
 				return res
 			}
 		}
@@ -1742,8 +1933,11 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		}
 		recorded := ""
 		for _, e := range board.Events {
-			if e.Type == "outcome" {
-				recorded = e.Payload.Str("verdict")
+			if o, ok := recordpb.BodyAs[*recordpb.Outcome](e); ok {
+				// UPPERCASE, because that is the word this oracle compares against and the
+				// schema's spelling is lowercase. The fold is stated here rather than left to
+				// a reader to notice.
+				recorded = strings.ToUpper(recordpb.Word(o.GetVerdict()))
 			}
 		}
 		if recorded == "VERIFIED" && openCount > 0 {
@@ -1783,11 +1977,11 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		res.err = "board: " + berr.Error()
 		return res
 	}
-	if m := proseRenders(board, runDir); m != "" {
+	if m := proseRenders(t, board, runDir); m != "" {
 		res.err = m
 	}
 	if res.err == "" {
-		if m := basisRenders(board, runDir); m != "" {
+		if m := basisRenders(t, board, runDir); m != "" {
 			res.err = m
 		}
 	}
@@ -1798,14 +1992,22 @@ func runOne(wrapped, bin string, seed int64) outcome {
 		res.citeAnchors = strings.Count(string(md), "<!--cite:")
 	}
 	for _, e := range board.Events {
-		if e.Type == "blue_edit" && e.Payload.Str("answers") != "" {
-			res.editAnswers++
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
 		}
-		if e.Type == "mint" && e.Payload.Str("fix_basis") == "verified" {
-			res.verifiedBasis++
-		}
-		if e.Type == "blue_edit" && e.Payload.Bool("applied_verbatim") {
-			res.verbatimApplied++
+		switch t := body.(type) {
+		case *recordpb.BlueEdit:
+			if t.GetAnswers() != "" {
+				res.editAnswers++
+			}
+			if t.GetAppliedVerbatim() {
+				res.verbatimApplied++
+			}
+		case *recordpb.Mint:
+			if t.GetFixBasis() == "verified" {
+				res.verifiedBasis++
+			}
 		}
 	}
 	if ents, err := os.ReadDir(filepath.Join(runDir, "cache")); err == nil {
@@ -1865,24 +2067,36 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
 	"closing", "position", "opinion", "regrade", "mint", "close",
-	"cite", "verify", "finding", "line-of-inquiry", "reproduce", "friction", "revision", "retire",
-	"manifest-row", "verdict", "spot-check", "inquiry-support", "certify", "declare", "halt",
+	"cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
+	"manifest_row", "verdict", "spot_check", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
 	// so a gate listing only "friction" would report the channel covered while the arm that
 	// makes an empty log meaningful went undriven.
-	"friction-none",
+	"friction_none",
 	// The motion collapse (#344): filed by any seat, ruled by one, appealed by the filer.
-	"motion", "motion-rule", "motion-appeal",
+	"motion", "motion_rule", "motion_appeal",
 	// Added 2026-08-04 by a census of every type record.Append can write: these three were
 	// APPENDABLE BUT UNGATED, so a regression that stopped emitting any of them would have
 	// left the sweep green. `anchor` is the finding-marker's own record (the immortal-marker
 	// detector's EXPECTED set is exactly these), `class-new` is the growing gap registry's
 	// write, `outcome` is the bench's.
-	"blue_edit", "anchor", "class-new", "outcome", "proof",
+	"blue_edit", "anchor", "class_new", "outcome", "proof",
+	// The remaining schema types, named so the census below has a complete list to check against.
+	"closing", "inquiry_review", "register",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
-var coverExempt = map[string]bool{"halt": true} // terminal — covered by TestFuzzHaltPath
+var coverExempt = map[string]bool{
+	"halt": true, // terminal — covered by TestFuzzHaltPath
+	// NO VERB WRITES `observe`. The event type is in the schema and nothing in the command tree
+	// produces it: `lens observe` does not exist, and the only Appends of a recordpb.Observe are
+	// in record's own tests. It is exempted rather than driven, because a drive would have to
+	// invent a verb — and named here rather than dropped from the list, so the type's homelessness
+	// is a line somebody has to read instead of a silence.
+	//
+	// The `Observation` a board carries is built from FINDING events, not from this type.
+	"observe": true,
+}
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
 // halt ends the run and reshapes every downstream oracle. blue-synthesize files a petition
@@ -1913,7 +2127,7 @@ func TestFuzzHaltPath(t *testing.T) {
 	}
 	halts := 0
 	for _, e := range board.Events {
-		if e.Type == "halt" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_HALT {
 			halts++
 		}
 	}
@@ -1933,8 +2147,11 @@ func tallyDialectic(board *record.Board) map[string]int {
 	}
 	m := map[string]int{}
 	for _, e := range board.Events {
-		if want[e.Type] {
-			m[e.Type]++
+		// The type is an enum now; the tally is keyed on the WORD, which is what verbsWithEvents
+		// carries and what the failure message names.
+		w := recordpb.Word(e.GetType())
+		if want[w] {
+			m[w]++
 		}
 	}
 	return m
@@ -1953,41 +2170,47 @@ func tallyDialectic(board *record.Board) map[string]int {
 // FAILS. A new verb cannot be added without deciding, in writing, what its reader gets.
 var dialecticProseKey = map[string]string{
 	// The debate proper.
-	"position": "reason", "closing": "reason", "opinion": "reason",
+	// THE FIELD NAMES, NOT THE FLAG NAMES. Every entry here said `reason` because that is what a
+	// seat TYPES; the schema spells the prose field per verb — a closing stores `text`, an opinion
+	// `rationale`, a regrade `basis`. Read against a payload map the wrong name simply never
+	// matched, so this gate was inert for most of the types it claims to cover, reporting "the
+	// report renders every recorded prose" over rules that could not fire. fieldStr makes the miss
+	// loud, which is how these were found.
+	"position": "text", "closing": "text", "opinion": "rationale",
 	// Motions: the ASK and the ANSWER, on one id. `petition-rule` alone used to be the half-dialog — the
 	// reader got the bench's ruling with no question attached.
 	// The board.
-	"mint": "problem", "finding": "reason", "regrade": "reason",
+	"mint": "problem", "finding": "text", "regrade": "basis",
 	// Directions: the line, red's ruling on it, and blue's reason for its fate.
-	"line-of-inquiry": "line",
+	"avenue": "line",
 	// Red's per-round verdict that the REPORT still carries the line. It renders ON THE LINE'S OWN
 	// ROW in the three research areas rather than in a section of its own, because the claim it
 	// answers ("we pursued X") lives there and a verdict a reader has to go and find is a verdict
 	// most readers do not find. `reason` is what red read at that line — the quoted text, not the
 	// grade, which is the half a reader can check.
-	"inquiry-support": "reason",
+
 	// The lens's below-the-bar work and the fate the merge gave it.
 	// Substance leaving the report, on the record, with its reason.
 	"retire": "claim",
 	// Run-level voices.
-	"friction": "reason", "revision": "reason", "halt": "reason", "certify": "reason", "declare": "holding",
+	"friction": "text", "revision": "text", "halt": "opinion", "certify": "statement", "declare": "holding",
 	// The friction channel's EXPLICIT NEGATIVE. It renders for the same reason the complaint
 	// does, and arguably a stronger one: a reader weighing "no friction this run" needs to know
 	// whether the seats looked and said so, or never used the channel. Those were the same
 	// bytes for eighteen recorded sittings, and this event is what separates them.
-	"friction-none": "text",
+	"friction_none": "text",
 	// Blue's self-audit receipt, one per repaired gap. `row` is what blue checked and what
 	// checking it showed — the receipt reached no reader for a year, because the coverage metric
 	// counted the ENVELOPE array and the verb was named in no prompt at all (#318).
-	"manifest-row": "row",
+	"manifest_row": "row",
 	// The motion group. `basis` is the ASK, `opinion` the answer, `reason` the appeal — all three
 	// render in the report's one Motions section, joined on the motion id (#344).
-	"motion":        "reason",
-	"motion-rule":   "opinion",
-	"motion-appeal": "reason",
+	"motion":        "basis",
+	"motion_rule":   "opinion",
+	"motion_appeal": "reason",
 	// Red re-reading its own closure archive. The prose is what the sample FOUND — the whole
 	// point of sampling — and it reached no reader at all until the floor was enforced (#317).
-	"spot-check": "reason",
+	"spot_check": "reason",
 }
 
 // reportExemptions are event types whose prose is deliberately NOT expected in the report, each
@@ -1997,7 +2220,7 @@ var reportExemptions = map[string]string{
 	"register":  "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
 	"anchor":    "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
 	"blue_edit": "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
-	"class-new": "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
+	"class_new": "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "reason",
@@ -2005,8 +2228,16 @@ var reportExemptions = map[string]string{
 	"cite":      "resolved rather than rendered — the anchor becomes a visible [^N] and the source becomes a ## Bibliography line (weaveCitations)",
 	"proof":     "resolved rather than rendered — weaveProofs splices the computation at its anchor",
 	"close":     "the closure's prose is red's acceptance argument and reaches the reader only as an index row today; rendering it in full is tracked, not silently accepted",
-	"outcome":   "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
-	"verdict":   "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
+	// The per-round review of the report against the lines on the record. Its READER IS A GATE,
+	// not the document: record.InquiryReviewDue asks whether this round's review exists and
+	// refuses the sitting until it does. Rendering it in the report would put a process check
+	// where the debate goes — the review says "I read the report against the record", and what
+	// a reader wants is the outcome of that reading, which arrives as an ordinary GAP when the
+	// treatment falls short. Named here rather than left silent, because the gate is right that
+	// an unclassified event type is how a report loses a whole exchange.
+	"inquiry_review": "read by record.InquiryReviewDue as a per-round duty gate, not rendered: a shortfall the review finds is minted as an ordinary gap, which is what reaches the reader",
+	"outcome":        "composed into the verdict stamp by verdictStamp, from the payload's verdict/deadlocked/exhausted fields rather than a prose field",
+	"verdict":        "red's per-round PASS/FAIL, consumed by DeriveVerdict into the terminal outcome; the round-by-round spine is not yet a transcript section",
 }
 
 // basisFields are the DERIVED-NOT-ASSERTED fields, mapped to the event that carries each and a
@@ -2034,7 +2265,7 @@ var basisFields = []struct{ evType, key, value, want string }{
 	{"proof", "proof_basis", "observed", "observed"},
 }
 
-func basisRenders(board *record.Board, runDir string) string {
+func basisRenders(t *testing.T, board *record.Board, runDir string) string {
 	report, err := os.ReadFile(filepath.Join(runDir, "report.md"))
 	if err != nil {
 		return "no report.md: " + err.Error()
@@ -2047,9 +2278,15 @@ func basisRenders(board *record.Board, runDir string) string {
 			// A CLOSED gap's mint is still on the record but its fix_basis is no longer shown —
 			// the demand was met, and the report's closure index is a one-line index by design.
 			// Only OPEN gaps are checked, which is where the qualifier changes what a reader does.
-			if e.Type == bf.evType && e.Payload.Str(bf.key) == bf.value {
-				if bf.evType == "mint" && !gapIsOpen(board, e.Payload.Str("gap_id")) {
-					continue
+			if recordpb.Word(e.GetType()) != bf.evType {
+				continue
+			}
+			if fieldStr(t, e, bf.key) == bf.value {
+				if bf.evType == "mint" {
+					m, _ := recordpb.BodyAs[*recordpb.Mint](e)
+					if !gapIsOpen(board, m.GetGapId()) {
+						continue
+					}
 				}
 				present = true
 				break
@@ -2070,7 +2307,7 @@ func gapIsOpen(board *record.Board, id string) bool {
 	return g != nil && g.Open
 }
 
-func proseRenders(board *record.Board, runDir string) string {
+func proseRenders(t *testing.T, board *record.Board, runDir string) string {
 	report, err := os.ReadFile(filepath.Join(runDir, "report.md"))
 	if err != nil {
 		return "no report.md: " + err.Error()
@@ -2079,22 +2316,23 @@ func proseRenders(board *record.Board, runDir string) string {
 	var missing, unclassified []string
 	seen := map[string]bool{}
 	for _, e := range board.Events {
-		key, ok := dialecticProseKey[e.Type]
+		w := recordpb.Word(e.GetType())
+		key, ok := dialecticProseKey[w]
 		if !ok {
 			// An event type in neither table is a DECISION NOBODY MADE. Registering it here
 			// costs one line; leaving it unclassified is how four exchanges reached the record
 			// and never the reader.
-			if reportExemptions[e.Type] == "" && !seen[e.Type] {
-				seen[e.Type] = true
-				unclassified = append(unclassified, e.Type)
+			if reportExemptions[w] == "" && !seen[w] {
+				seen[w] = true
+				unclassified = append(unclassified, w)
 			}
 			continue
 		}
-		prose := strings.TrimSpace(e.Payload.Str(key))
+		prose := strings.TrimSpace(fieldStr(t, e, key))
 		if prose == "" || strings.Contains(rpt, prose) {
 			continue
 		}
-		missing = append(missing, fmt.Sprintf("%s/%s prose absent from report: %q", e.SeatID, e.Type, prose))
+		missing = append(missing, fmt.Sprintf("%s/%s prose absent from report: %q", e.GetSeatId(), w, prose))
 		if len(missing) >= 5 {
 			break
 		}
@@ -2142,7 +2380,7 @@ func TestFuzzDebate(t *testing.T) {
 
 	// CI runs `go test ./...` (no -short) on four jobs, so the DEFAULT is a modest smoke that
 	// proves the harness and catches gross regressions in ~15s. The full 1000-run confidence
-	// sweep is on demand: FUZZ_N=1000 go test ./internal/fuzz -run TestFuzzDebate -timeout 600s.
+	// sweep is on demand: FUZZ_N=1000 go test ./integration/fuzz -run TestFuzzDebate -timeout 600s.
 	n := 60
 	if testing.Short() {
 		n = 15
@@ -2173,6 +2411,7 @@ func TestFuzzDebate(t *testing.T) {
 	editAnswers := 0                // #267: blue_edit events that carried the provenance key
 	verifiedBasis := 0              // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
 	verbatimApplied := 0            // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
+	applyMisses := map[string]int{} // and why it did not, by cause — a bare 0 above named none of them
 
 	for i := 0; i < n; i++ {
 		seed := int64(i) + 1
@@ -2181,7 +2420,7 @@ func TestFuzzDebate(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
-			o := runOne(wrapped, bin, seed)
+			o := runOne(t, wrapped, bin, seed)
 			mu.Lock()
 			completed++
 			verdicts[o.verdict]++
@@ -2194,6 +2433,9 @@ func TestFuzzDebate(t *testing.T) {
 			editAnswers += o.editAnswers
 			verifiedBasis += o.verifiedBasis
 			verbatimApplied += o.verbatimApplied
+			for why, n := range o.applyMisses {
+				applyMisses[why] += n
+			}
 			if o.err != "" {
 				failures = append(failures, o)
 			} else {
@@ -2204,8 +2446,21 @@ func TestFuzzDebate(t *testing.T) {
 	}
 	wg.Wait()
 
-	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim",
-		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied)
+	// AND WHY IT DID NOT, WHENEVER IT DID NOT. `%d edits applied a proposal verbatim` read 0
+	// across 60 runs and named no cause: the branch could have gone untaken, found no proposal
+	// on the gap, found the span already edited away, or run and been refused. Four causes, one
+	// zero, in the instrument whose job is to detect exactly that shape.
+	misses := ""
+	if len(applyMisses) > 0 {
+		causes := make([]string, 0, len(applyMisses))
+		for why, n := range applyMisses {
+			causes = append(causes, fmt.Sprintf("%d× %s", n, why))
+		}
+		sort.Strings(causes)
+		misses = "\n  verbatim-apply declined: " + strings.Join(causes, "\n                          ")
+	}
+	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim%s",
+		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, misses)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -2287,6 +2542,10 @@ func TestFuzzDebate(t *testing.T) {
 		t.Log(execReport())
 	}
 	if len(failures) > 0 {
+		// EIGHT, AND IT SAYS SO WHEN IT TRUNCATES. Sixty seeds failing the same way is a wall of
+		// identical text, so the cap is right — but "17/60 failed, see seeds above" over eight
+		// printed seeds invites a reader to take the eight as the whole distribution and count
+		// classes from them. A silent cap reads as full coverage; this one names what it dropped.
 		show := failures
 		if len(show) > 8 {
 			show = show[:8]
@@ -2294,7 +2553,16 @@ func TestFuzzDebate(t *testing.T) {
 		for _, f := range show {
 			t.Errorf("seed %d FAILED (runDir %s):\n%s", f.seed, f.runDir, f.err)
 		}
-		t.Fatalf("%d/%d fuzz runs failed — see seeds above (reproduce with that seed)", len(failures), n)
+		more := ""
+		if len(failures) > len(show) {
+			var rest []string
+			for _, f := range failures[len(show):] {
+				rest = append(rest, fmt.Sprintf("%d", f.seed))
+			}
+			more = fmt.Sprintf(" — %d of them NOT printed above (seeds %s); re-run one of those directly to see its failure",
+				len(rest), strings.Join(rest, " "))
+		}
+		t.Fatalf("%d/%d fuzz runs failed — see seeds above (reproduce with that seed)%s", len(failures), n, more)
 	}
 }
 
@@ -2320,10 +2588,8 @@ func someReportAnchor(runDir string) string {
 		return ""
 	}
 	for _, e := range b.Events {
-		if e.Type == "finding" {
-			if id := e.Payload.Str("finding_id"); id != "" {
-				return id
-			}
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && f.GetFindingId() != "" {
+			return f.GetFindingId()
 		}
 	}
 	return ""
@@ -2336,8 +2602,8 @@ func mintedGapIDs(runDir string) []string {
 	}
 	var out []string
 	for _, e := range b.Events {
-		if e.Type == "mint" {
-			out = append(out, e.Payload.Str("gap_id"))
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
+			out = append(out, m.GetGapId())
 		}
 	}
 	return out
@@ -2367,10 +2633,11 @@ func (r *runner) recentlyEditedOut() string {
 	}
 	for i := len(b.Events) - 1; i >= 0; i-- {
 		e := b.Events[i]
-		if e.Type != "blue_edit" {
+		be, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
+		if !ok {
 			continue
 		}
-		old := e.Payload.Str("old")
+		old := be.GetOld()
 		if old != "" && !strings.Contains(string(cur), old) {
 			return old
 		}
@@ -2394,16 +2661,26 @@ const (
 var inquiryFates = []string{avEndorse, avEndorse, avScope, avThin, avContest}
 
 // rulingFor maps a proposed line to the ruling red should give it.
+//
+// UNDERSCORES, because that is what the tool accepts. These were `out-of-scope` and `too-thin`,
+// and DirectionRuling spells `out_of_scope` / `too_thin` — so 17 of 27 rulings across 60 runs were
+// refused, and everything below a ruling starved with them: a contested line can only be appealed
+// after it is ruled, which is why `motion inquiry appeal` reported as an unreached path.
+//
+// Same family as `--as supports-with-bridge` advertised in help and refused by the write path: one
+// value spelled two ways across a boundary, with only one side moved. The refusals were discarded
+// by the drive, so the only thing that noticed was a coverage gate reporting a MISSING drive for a
+// path whose drive was fine.
 func rulingFor(line string) string {
 	switch {
 	case strings.HasPrefix(line, avEndorse):
 		return "endorsed"
 	case strings.HasPrefix(line, avScope):
-		return "out-of-scope"
+		return "out_of_scope"
 	case strings.HasPrefix(line, avThin):
-		return "too-thin"
+		return "too_thin"
 	case strings.HasPrefix(line, avContest):
-		return "out-of-scope"
+		return "out_of_scope"
 	}
 	return ""
 }
@@ -2467,13 +2744,13 @@ func (r *runner) answerInquiryRulings(seatID string) {
 			// `contests_ruling` field is still exercised by the move below either way.
 			_, _ = r.exec("motion", "inquiry", "appeal", "--seat-id", seatID, "--id", a.ID,
 				"--reason", "fuzz: the scope call is wrong, this bears on the core claim")
-			r.do("line-of-inquiry", seatID).set("--id", a.ID).set("--as", "pursued").
+			r.do("line-of-inquiry move", seatID).set("--id", a.ID).set("--as", "pursued").
 				set("--reason", "fuzz: the scope call is wrong, this bears on the core claim").run()
 		case ruling == "endorsed":
-			r.do("line-of-inquiry", seatID).set("--id", a.ID).set("--as", "pursued").
+			r.do("line-of-inquiry move", seatID).set("--id", a.ID).set("--as", "pursued").
 				set("--reason", "fuzz: endorsed, taking it up").run()
 		default:
-			r.do("line-of-inquiry", seatID).set("--id", a.ID).set("--as", "declined").
+			r.do("line-of-inquiry move", seatID).set("--id", a.ID).set("--as", "declined").
 				set("--reason", "fuzz: accepting the ruling").run()
 		}
 	}
@@ -2489,8 +2766,8 @@ func (r *runner) reproveOpenProofs(seatID string) {
 	}
 	proofFor := map[string]string{} // gap -> sha
 	for _, e := range b.Events {
-		if e.Type == "proof" && e.Payload.Str("answers") != "" && e.Payload.Str("sha256") != "" {
-			proofFor[e.Payload.Str("answers")] = e.Payload.Str("sha256")
+		if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && p.GetAnswers() != "" && p.GetProofSha() != "" {
+			proofFor[p.GetAnswers()] = p.GetProofSha()
 		}
 	}
 	for _, id := range r.openGaps() {
@@ -2525,7 +2802,7 @@ func (r *runner) scenarioOf(gapID string) string {
 	if g == nil || g.Mint == nil {
 		return ""
 	}
-	return g.Mint.Str("required_fix")
+	return g.Mint.GetRequiredFix()
 }
 
 // blueRespondTo carries out the scenario each open gap was minted with — one decision per gap,
@@ -2535,22 +2812,56 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 		switch r.scenarioOf(id) {
 		case dirApply:
 			// The only branch that sets applied_verbatim, and so the only one that estops red.
-			if gid, fo, fn := r.proposalFor(id); gid != "" {
-				if cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md")); err == nil && strings.Contains(string(cur), fo) {
-					r.do("edit", seatID).set("--quote", fo).set("--new", fn).
-						set("--answers", id).set("--reason", "fuzz: applying red's proposed text verbatim").run()
+			//
+			// EVERY WAY IT CAN FAIL IS COUNTED, because the fallthrough below is silent and the
+			// gate downstream reported "0 verbatim applications" across 60 runs without being
+			// able to say whether the branch was never taken, took and found no proposal, took
+			// and found the span already edited away, or ran and was REFUSED. Four causes, one
+			// zero — the plausible-zero shape, in the instrument meant to detect it.
+			gid, fo, fn := r.proposalFor(id)
+			switch {
+			case gid == "":
+				r.noteApplyMiss("no proposal on the gap (red minted prose-only)")
+			default:
+				cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+				switch {
+				case err != nil:
+					r.noteApplyMiss("report unreadable: " + err.Error())
+				case !strings.Contains(string(cur), fo):
+					r.noteApplyMiss("the proposed span is no longer in the report (an earlier edit moved it)")
+				default:
+					if _, err := r.do("edit", seatID).set("--quote", fo).set("--new", fn).
+						set("--answers", id).set("--reason", "fuzz: applying red's proposed text verbatim").run(); err != nil {
+						r.noteApplyMiss("blue edit REFUSED: " + firstLine(err.Error()))
+						break
+					}
 					continue
 				}
 			}
-			// No concrete pair to apply — degrade to a counter-edit rather than fake one.
+			// No applicable pair — degrade to a counter-edit rather than fake one.
 			fallthrough
 		case dirCounter:
 			r.counterEdit(seatID, id)
 		case dirDisputeWon, dirDisputeLost:
 			dim := pick(r.rng, disputeDims)
-			proposed := r.g()
+			// A DIFFERENT GRADE FROM THE ONE ON THE BOARD. A motion proposing the grade already
+			// there is refused now (it asks for no change), and a drive that hits that 1 time in
+			// 5 would report as a missing dispute event three layers away — which is exactly the
+			// shape the hyphenated grade words produced.
+			proposed := r.gradeOtherThan(r.currentGrade(id, dim))
 			out, err := r.exec("--json", "motion", "grade", "file", "--seat-id", seatID, "--id", id,
 				"--dimension", dim, "--proposed", proposed, "--reason", "fuzz: contesting the grade on "+id)
+			// THE REFUSAL IS KEPT, because the oracle downstream reports its ABSENCE and cannot
+			// say why. `scenario DISPUTE: R1-1 has no dispute event` is what a discarded error
+			// looks like from the far end — a coverage report about a drive that ran fine, which
+			// is the same shape as the hyphenated ruling words that made `motion inquiry appeal`
+			// read as unreached. 2 of 7 filings were refused across 60 runs and nothing said so.
+			if err != nil {
+				if r.disputeRefusals == nil {
+					r.disputeRefusals = map[string]string{}
+				}
+				r.disputeRefusals[id] = err.Error()
+			}
 			if err == nil {
 				if mid := motionIDOf(out); mid != "" {
 					// The envelope ref keeps (gap_id, dimension) because debate.js routes the
@@ -2621,12 +2932,12 @@ func (r *runner) proposalFor(gapID string) (string, string, string) {
 		return "", "", ""
 	}
 	g := b.Gaps[gapID]
-	if g == nil || g.Mint == nil || g.Mint.Str("fix_basis") != "verified" {
+	if g == nil || g.Mint == nil || g.Mint.GetFixBasis() != "verified" {
 		return "", "", ""
 	}
 	// THE SPAN IS THE GAP'S OWN `location`. `fix_old` was a second copy of it, matched by a
 	// second matcher; a proposal is --quote (the span, required anyway) plus --new.
-	return gapID, g.Mint.Str("location"), g.Mint.Str("fix_new")
+	return gapID, g.Mint.GetLocation(), g.Mint.GetFixNew()
 }
 
 func (r *runner) someProposal() (string, string, string) {
@@ -2635,8 +2946,8 @@ func (r *runner) someProposal() (string, string, string) {
 		return "", "", ""
 	}
 	for _, e := range b.Events {
-		if e.Type == "mint" && e.Payload.Str("fix_basis") == "verified" {
-			return e.Payload.Str("gap_id"), e.Payload.Str("location"), e.Payload.Str("fix_new")
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && m.GetFixBasis() == "verified" {
+			return m.GetGapId(), m.GetLocation(), m.GetFixNew()
 		}
 	}
 	return "", "", ""
@@ -2743,28 +3054,46 @@ func sumCounts(m map[string]int) int {
 	return n
 }
 
-// voteInquirySupport casts red's per-round support verdict on every line of inquiry that has none
-// this round. It spreads the four outcomes so each is exercised, and keeps `unsupported`/`absent`
-// rare — those put the line on BLUE's work list, and a fuzz that made every line unsupported would
-// drive that duty and nothing else.
-func (r *runner) voteInquirySupport(seatID string) {
-	b, err := record.BoardState(r.runDir)
-	if err != nil {
-		return
+// THE INQUIRY-SUPPORT VOTE IS GONE, and it is the verb that went, not just the fuzz action.
+//
+// It cast a per-line verdict — supported / weakened / unsupported / absent — on every line of
+// inquiry. `record.UnvotedInquiries` fed it and was deleted deliberately with nothing replacing
+// it: every one of those vocabularies made PRESENCE the question, and a line is on the worklist
+// because the record says so, not because a seat voted it there. What is genuinely open — whether
+// blue's body delivered the research a line claims — is an ORDINARY GAP now, with the id, the
+// grade, the blue duty and the PASS gate every gap already has.
+//
+// A fuzz action driving a retired verb is not coverage. It would spend every run issuing a command
+// the tool refuses, and the refusals would read as the tool working.
+
+// fieldStr reads a named string field off an event's body, by DESCRIPTOR.
+//
+// The basisFields table is keyed on field names, which is the right shape for it — the same rule
+// stated once per (event, field, value) triple. Reading them off typed bodies with a switch would
+// be seven near-identical arms, and reading them out of a map is what the migration removed.
+//
+// THE MISS IS LOUD. A name the schema does not carry FAILS THE TEST rather than returning "", and
+// that is the whole reason this is not a bare lookup: a stale key silently never matches, so the
+// gate would report "the report never says so" for a field that no longer exists — or, worse,
+// report nothing at all and read as covered. record.go's keyFields carries the same warning about
+// the same shape.
+func fieldStr(t *testing.T, e *record.Event, name string) string {
+	t.Helper()
+	body, ok := recordpb.Body(e)
+	if !ok {
+		return ""
 	}
-	for _, a := range record.UnvotedInquiries(b) {
-		as := "supported"
-		switch r.rng.Intn(10) {
-		case 0:
-			as = "unsupported"
-		case 1:
-			as = "absent"
-		case 2, 3:
-			as = "weakened"
-		}
-		_, _ = r.exec("inquiry-support", "--seat-id", seatID, "--id", a.ID,
-			"--as", as, "--reason", "fuzz: read the report at "+a.ID)
+	m := body.ProtoReflect()
+	fd := m.Descriptor().Fields().ByName(protoreflect.Name(name))
+	if fd == nil {
+		t.Fatalf("fuzz: %s has no field %q — the basisFields table names a field the schema does not "+
+			"carry, so its rule can never match and the gate would read as covered",
+			m.Descriptor().FullName(), name)
 	}
+	if !m.Has(fd) {
+		return ""
+	}
+	return m.Get(fd).String()
 }
 
 // seatOfRole is a dispatched seat of the given role, for drives that iterate roles. The role is no

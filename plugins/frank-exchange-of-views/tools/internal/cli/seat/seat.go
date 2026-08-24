@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"os"
 	"path/filepath"
 
@@ -32,7 +33,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
@@ -386,9 +387,16 @@ func annotate(c *cobra.Command, key, val string) {
 	c.Annotations[key] = val
 }
 
-// satisfiedByAnyOf are payload keys a seat may supply through MORE THAN ONE flag. Cobra's
-// per-flag required marking cannot express that — it would refuse the alternative — so these go
-// through MarkFlagsOneRequired instead.
+// satisfiedByAnyOf are FLAGS a seat may supply through more than one flag. Cobra's per-flag
+// required marking cannot express that — it would refuse the alternative — so these go through
+// MarkFlagsOneRequired instead.
+//
+// KEYED ON THE FLAG, NOT THE FIELD. It was keyed on payload keys, which worked while requiredness
+// came from a hand-written table that spoke in the seat's words ("reason"). It is derived from the
+// schema now and speaks in the schema's: a close stores `prose`, an opinion `rationale`, a halt
+// `opinion`, a certification `statement`. Keyed on fields this map would need an entry per prose
+// field and would go stale one field at a time; keyed on the flag it states the rule once, which
+// is what the rule actually is — the prose channel is ONE argument arriving three ways.
 var satisfiedByAnyOf = map[string][]string{
 	// The prose channel is one argument arriving three ways: inline, from a file, or from stdin
 	// via `--reason-file -`. The file forms exist for prose too large to type.
@@ -428,8 +436,9 @@ func markTree(c *cobra.Command) {
 func RecordType(c *cobra.Command) string { return c.Annotations[recordsKey] }
 
 func markRequired(c *cobra.Command, verb string) {
-	for _, key := range record.RequiredFields[verb] {
-		f := c.Flags().Lookup(flags.ForPayloadKey(key))
+	for _, rf := range record.RequiredFields(verb) {
+		key := rf.Key
+		f := c.Flags().Lookup(rf.Flag)
 		if f == nil {
 			// The field is set by the verb rather than typed by the seat. Nothing to
 			// annotate, and nothing wrong: not every payload key has a flag.
@@ -456,7 +465,7 @@ func markRequired(c *cobra.Command, verb string) {
 		// guards a different boundary, the one internal callers reach through record.Append
 		// without a command line. Cobra's is the SEAT's boundary, and it is the one that can
 		// refuse before an event exists and can say so in the help.
-		if alts := satisfiedByAnyOf[key]; len(alts) > 0 {
+		if alts := satisfiedByAnyOf[rf.Flag]; len(alts) > 0 {
 			var present []string
 			for _, a := range alts {
 				if c.Flags().Lookup(a) != nil {
@@ -686,13 +695,23 @@ func Prose(c *cobra.Command) *cobra.Command {
 	return c
 }
 
-// ProseRequired adds the channel and makes it mandatory THROUGH EITHER SPELLING.
+// ProseRequired registers the prose channel AND says so, for a verb whose argument is
+// unconditional even though the FIELD's is not.
 //
-// A verb that reached for cobra's MarkFlagRequired got a rule naming one flag, which refuses the
-// file form — so `spot-check`, whose reason is always owed, could not be discharged with a
-// heredoc. One argument, one requirement, stated by the channel rather than by each verb.
+// `merge close` is the case. `Close.prose` cannot carry `required: true` — that refuses before
+// validate runs and so refused a CARRY, which restates an argument an earlier round already made.
+// Dropping the annotation fixed the carry and silently unmarked close: cobra stopped refusing and
+// the help stopped saying REQUIRED, on a verb whose argument is the whole point. Marking it by
+// hand at the verb restored the refusal and NOT the marker, which is worse than either — a
+// requirement the parser holds and the help does not state is one a seat only meets by accident.
+//
+// Both halves here, so they cannot come apart again.
 func ProseRequired(c *cobra.Command) *cobra.Command {
-	new(flags.Prose).RegisterRequired(c)
+	c = Prose(c)
+	if f := c.Flags().Lookup(flags.Reason); f != nil {
+		f.Usage = "REQUIRED — " + f.Usage
+	}
+	c.MarkFlagsOneRequired(flags.Reason, flags.ReasonFile)
 	return c
 }
 
@@ -714,6 +733,29 @@ func Str(cmd *cobra.Command, name string) string {
 	// ONE IMPLEMENTATION, in flags.Value. This used to hand-roll the same fallback and
 	// flags.Set hand-rolled the broken version, which is how the identical defect shipped twice.
 	return flags.Value(cmd, name)
+}
+
+// OptStr is Str for a field whose ABSENCE is a different fact from its emptiness.
+//
+// `proto.String(Str(cmd, f))` sets the field whatever happens, so a flag the seat never passed
+// lands in the record as the empty string — "the seat said nothing" written as "the seat said
+// nothing at all". Every field on this schema is `optional` precisely to keep those apart, and the
+// write path was throwing the distinction away on the way in.
+//
+// MEASURED, and the foreign keys are what found it: `merge close` set `successor` unconditionally,
+// so an ordinary closure stored `successor = ”` — and once successor referenced `mint.gap_id`,
+// every close in the tool failed with `FOREIGN KEY constraint failed`, because no gap is named ”.
+// Before the constraint existed the same rows were written and simply read as a closure whose
+// successor was the empty gap.
+//
+// It keys on Given (pflag's Changed), not on emptiness: a seat that passes `--reason ""` has said
+// something — that there is nothing to say — and that is a fact the record keeps.
+func OptStr(cmd *cobra.Command, name string) *string {
+	if !Given(cmd, name) {
+		return nil
+	}
+	v := Str(cmd, name)
+	return &v
 }
 
 // Given answers whether the SEAT passed the flag. The absent/present distinction
@@ -755,6 +797,25 @@ func SetGrade(p *record.Payload, key string, g *flags.GradeValue) *record.Payloa
 		p.Set(key, string(g.Grade))
 	}
 	return p
+}
+
+// GradeOrNil is SetGrade for a proto body: the typed value when the seat passed it, and nil when
+// it did not. ABSENT AND ZERO ARE DIFFERENT and the distinction is the whole reason this returns a
+// pointer — Grade's zero is UNSPECIFIED, so writing it for an omitted flag would record a grade the
+// seat never gave, and every downstream reader would see a graded axis rather than an ungraded one.
+//
+// It refuses rather than guesses on a word the schema does not know: record.GradeOf returns false,
+// and nil here means the field stays absent, which is what the pre-migration record did when the
+// key was never set.
+func GradeOrNil(g *flags.GradeValue) *recordpb.Grade {
+	if !g.Given() {
+		return nil
+	}
+	v, ok := record.GradeOf(string(g.Grade))
+	if !ok {
+		return nil
+	}
+	return &v
 }
 
 // SetList writes a comma-list field. These are ALWAYS present in the event, even

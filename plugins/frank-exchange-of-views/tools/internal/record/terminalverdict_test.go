@@ -4,6 +4,9 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,13 +22,12 @@ import (
 // The disagreement case is the one worth pinning: when the record says one thing and the rendered
 // prose says another, the record wins. Anything else makes the dashboard a reader of a reader.
 func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
-	runDir := t.TempDir()
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	runDir := tmpRun(t)
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "judge-terminal", Round: RoundIn(runDir)("judge-terminal")}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "judge-terminal", Round: RoundIn(runDir)("judge-terminal")}, "outcome",
-		NewPayload().Set("verdict", "HALTED").Set("reason", "ended on safety grounds")); err != nil {
+	if _, err := Append(Identity{RunDir: runDir, SeatID: "judge-terminal", Round: RoundIn(runDir)("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED), Prose: proto.String("ended on safety grounds")}); err != nil {
 		t.Fatal(err)
 	}
 	// The rendered artifact says something else. It is the derived carrier; the event is the fact.
@@ -33,8 +35,13 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 		[]byte("# report\n\n**Verdict:** VERIFIED — **derived from the record**, not claimed.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := TerminalVerdict(runDir); got != "HALTED" {
-		t.Errorf("readTerminalVerdict = %q, want \"HALTED\" — the record holds the verdict as a field and the report is a rendering of it", got)
+	// THE SPELLING COMES FROM THE SCHEMA, not from a literal. The point here is that the RECORD
+	// beats the rendered prose — report.md above says VERIFIED — and the casing is incidental to
+	// it: a hardcoded "HALTED" was really asserting how the payload record happened to store the
+	// seat's uppercase word.
+	want := recordpb.Word(recordpb.RunOutcome_RUN_OUTCOME_HALTED)
+	if got := TerminalVerdict(runDir); got != want {
+		t.Errorf("readTerminalVerdict = %q, want %q — the record holds the verdict as a field and the report is a rendering of it", got, want)
 	}
 }
 
@@ -48,8 +55,8 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 // verdict off the record and relabels "final verdict" as "latest verdict (rN)", so the operator is
 // shown a different claim rather than the same claim from a worse source.
 func TestTerminalVerdictIsEmptyWhenTheRecordCannotSay(t *testing.T) {
-	runDir := t.TempDir()
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	runDir := tmpRun(t)
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	if err := os.WriteFile(filepath.Join(runDir, "report.md"),
 		[]byte("# report\n\n**Verdict:** UNVERIFIED — the run ended without the question being answered.\n"), 0o644); err != nil {
 		t.Fatal(err)

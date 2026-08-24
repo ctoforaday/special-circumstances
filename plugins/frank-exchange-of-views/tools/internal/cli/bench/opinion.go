@@ -1,13 +1,18 @@
 package bench
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // opinion: a ruling that has to BE an opinion.
@@ -23,42 +28,47 @@ func newOpinion() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		p := record.NewPayload()
-		flags.Set(p, "gap_id", cmd, flags.ID)
-		flags.Set(p, "disposition", cmd, flags.As)
-		seat.SetSame(cmd, p, flags.Principle, flags.Tension)
-		seat.Set(cmd, p, "review_flag", flags.ReviewFlag)
-		seat.Set(cmd, p, "settled", flags.Settled)
-		// ONE QUESTION, TWO ASSERTABLE ANSWERS — the `friction --none` shape.
-		//
-		// "What would reopen this?" has a real answer of "nothing", and that answer must be
-		// POSITIVE. Left as an empty --reopens-on it would be indistinguishable from a bench
-		// that skipped the field, which is the same defect the friction channel had for
-		// eighteen consecutive sittings until --none made the empty case sayable.
-		//
-		// Refused together rather than silently preferring one: a ruling that says both "this
-		// is final" and "here is what would undo it" has not decided, and picking for it would
-		// record a decision nobody made.
-		final, _ := cmd.Flags().GetBool(flags.Final)
-		if final && seat.Given(cmd, flags.ReopensOn) {
+		// The word resolves through the ONE vocabulary both closing verbs share. A miss is
+		// refused here rather than recorded as the unspecified zero, because an unset
+		// disposition reads downstream as a gap the bench never ruled on — which is a
+		// quieter, worse outcome than a typo that gets told no.
+		as, ok := record.DispositionOf(seat.Str(cmd, flags.As))
+		if !ok {
 			return nil, feov.Errorf(feov.Validation,
-				"opinion: --final says nothing would reopen this and --reopens-on names what would. "+
-					"They are opposite answers to one question; pass exactly one")
+				"bench opinion: %q is not a disposition — the word is what every later reader switches on, and one the record does not know leaves the gap ruled by nobody. Run `feov-record bench opinion --help` for the set and what each value is for", seat.Str(cmd, flags.As))
 		}
-		if final {
-			p.Set("final", true)
-		} else {
-			seat.Set(cmd, p, "reopens_on", flags.ReopensOn)
+		body := &recordpb.Opinion{
+			GapId:       proto.String(seat.Str(cmd, flags.ID)),
+			Disposition: &as,
+			Principle:   proto.String(seat.Str(cmd, flags.Principle)),
+			Tension:     proto.String(seat.Str(cmd, flags.Tension)),
+			ReviewFlag:  proto.String(seat.Str(cmd, flags.ReviewFlag)),
+			Settled:     proto.String(seat.Str(cmd, flags.Settled)),
+			Rationale:   proto.String(text),
 		}
-		p.Set("reason", text)
-		if _, err := record.Append(s.Identity(), "opinion", p); err != nil {
+		// ONE QUESTION, TWO ASSERTABLE ANSWERS — the `friction --none` shape. "What would reopen
+		// this?" has a real answer of "nothing", and that answer must be POSITIVE: left as an
+		// empty --reopens-on it is indistinguishable from a bench that skipped the field.
+		//
+		// PRESENCE IS THE WHOLE POINT, so `final` is set only when TRUE. Writing `false` would
+		// make "this ruling is not final" and "nobody answered" the same bytes, and the schema's
+		// check — which refuses a ruling that says neither, and one that says both — reads
+		// presence. Refused together rather than silently preferring one: a ruling that says both
+		// has not decided, and picking for it would record a decision nobody made.
+		if final, _ := cmd.Flags().GetBool(flags.Final); final {
+			body.Final = proto.Bool(true)
+		}
+		if seat.Given(cmd, flags.ReopensOn) {
+			body.ReopensOn = proto.String(seat.Str(cmd, flags.ReopensOn))
+		}
+		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
 		return opinionResult{ID: seat.Str(cmd, flags.ID), As: seat.Str(cmd, flags.As)}, nil
 	}))
 
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.ID, "the gap being ruled on")
-	enumhelp.Flag(c, flags.As, record.MustEnum("opinion", "disposition"), ("your ruling AND the gap's fate. Every value ends the gap except `carried`, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342"))
+	enumhelp.Flag(c, flags.As, record.MustEnum("opinion", "disposition"), dispositionHelp())
 	c.Flags().String(flags.Principle, "", "the principle applied — a ruling is an OPINION, not a disposition")
 	c.Flags().String(flags.Tension, "", "the values in tension (e.g. correctness vs economy)")
 	c.Flags().String(flags.ReviewFlag, "", "why a human should, or should not, look at this")
@@ -81,3 +91,31 @@ type opinionResult struct {
 }
 
 func (r opinionResult) Human() string { return "opinion recorded: " + r.ID + " " + r.As }
+
+// dispositionHelp states the gap's fate in the seat's own terms, with the deferring words READ OFF
+// the vocabulary rather than named here.
+//
+// The sentence it replaces — "every value ends the gap except `carried`" — was accurate prose and
+// a copy of a fact the record now holds as an annotation. Copies of that fact have gone wrong
+// before, in the predicate this vocabulary was built to replace and in four agent-facing surfaces
+// that named dispositions the record refused. This one cannot: adding a deferring disposition
+// rewrites the clause.
+// NO BACKTICKS: cobra reads a backquoted word in a flag's usage as the VALUE PLACEHOLDER, so
+// "except `carried`" rendered the flag as `--as carried` — the one deferring word displayed where
+// the type belongs, in the line a seat skims first.
+func dispositionHelp() string {
+	deferring := record.Names(record.DeferringDispositions)
+	var clause string
+	switch len(deferring) {
+	case 0:
+		// Not reachable today and not silently ignored: a vocabulary in which every word closes
+		// would make `bench opinion` unable to defer at all, which is a real change to what the
+		// bench can do and should read as one.
+		clause = "Every value ends the gap; there is no way to defer one."
+	case 1:
+		clause = fmt.Sprintf("Every value ends the gap except %s, which defers it to a later round with a stated direction.", deferring[0])
+	default:
+		clause = fmt.Sprintf("Every value ends the gap except %s, which defer it to a later round with a stated direction.", strings.Join(deferring, " and "))
+	}
+	return "your ruling AND the gap's fate. " + clause + " One vocabulary with red's closure classes since #342"
+}

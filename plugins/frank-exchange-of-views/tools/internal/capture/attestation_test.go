@@ -6,7 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"google.golang.org/protobuf/proto"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // THE PRODUCTION FAILURE, PINNED. Measured 2026-08-22 on research/2026-08-22_is-7-prime: two
@@ -21,36 +24,34 @@ import (
 
 // attestRun writes a run whose board holds one gap, minted at r1 and closed at r2 with the given
 // anchor fields.
+//
+// SEEDED THROUGH THE STORE, not by hand-writing shard files. This wrote `events-<seat>-<nonce>.jsonl`
+// with record.MarshalEvent; there are no shards and no nonce, and a fixture that builds the record
+// by a route production cannot take is testing a shape rather than the system.
 func attestRun(t *testing.T, anchorTool, anchorTarget string) string {
 	t.Helper()
 	dir := t.TempDir()
-	recs := filepath.Join(dir, "records")
-	if err := os.MkdirAll(recs, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	put := func(seat, nonce string, e record.Event) {
-		line, err := record.MarshalEvent(e)
-		if err != nil {
-			t.Fatal(err)
-		}
-		p := filepath.Join(recs, "events-"+seat+"-"+nonce+".jsonl")
-		f, err := os.OpenFile(p, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer f.Close()
-		if _, err := f.Write(append(line, '\n')); err != nil {
-			t.Fatal(err)
-		}
-	}
-	put("red-merge-r1", "0000000a", record.Event{SeatID: "red-merge-r1", Nonce: "0000000a", Round: 1, Type: "mint",
-		Key: "red-merge-r1:mint:R1-1",
-		Payload: record.NewPayload().Set("gap_id", "R1-1").Set("problem", "p").
-			Set("severity", "medium").Set("likelihood", "medium").Set("impact", "medium")})
-	put("red-merge-r2", "0000000b", record.Event{SeatID: "red-merge-r2", Nonce: "0000000b", Round: 2, Type: "close",
-		Key: "red-merge-r2:close:R1-1",
-		Payload: record.NewPayload().Set("gap_id", "R1-1").Set("class", "verified").
-			Set("anchor_seat", "red-merge-r2").Set("anchor_tool", anchorTool).Set("anchor_target", anchorTarget)})
+	recordtest.Seed(t, dir,
+		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-1", &recordpb.Mint{
+			GapId:           proto.String("R1-1"),
+			Problem:         proto.String("p"),
+			RequiredFix:     proto.String("f"),
+			AcceptanceCheck: proto.String("the check runs"),
+			Class:           proto.String("self-attestation"),
+			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
+			Severity:        recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}),
+		recordtest.At(t, "red-merge-r2", 2, "red-merge-r2:close:R1-1", &recordpb.Close{
+			GapId:        proto.String("R1-1"),
+			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
+			AnchorSeat:   proto.String("red-merge-r2"),
+			AnchorTool:   proto.String(anchorTool),
+			AnchorTarget: proto.String(anchorTarget),
+			Prose:        proto.String("verified at the leaf"),
+		}),
+	)
 	return dir
 }
 

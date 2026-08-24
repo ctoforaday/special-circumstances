@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE DIFF STACK, MADE READABLE (#268 → #267).
@@ -47,21 +48,27 @@ func changesMD(b *record.Board, gapID string) ([]byte, error) {
 	}
 	round, n, total := -1, 0, 0
 	for _, e := range b.Events {
-		if e.Type != "blue_edit" {
+		// THE BODY IS THE TYPE. Matching the message cannot go stale against the enum the way
+		// `e.Type == "blue_edit"` could, and it is the same assertion the reader needs anyway.
+		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
+		if !ok {
 			continue
 		}
 		total++
-		if e.Round != round {
-			round, n = e.Round, 0
-			out = append(out, fmt.Sprintf("## Round %d", e.Round), "")
+		if r := int(e.GetRound()); r != round {
+			round, n = r, 0
+			out = append(out, fmt.Sprintf("## Round %d", r), "")
 		}
 		n++
 		answers := "_no gap — blue's own_"
-		if id := e.Payload.Str("answers"); id != "" {
+		if id := ed.GetAnswers(); id != "" {
 			answers = "answers **" + id + "**"
 		}
+		// `reason` WAS THE PAYLOAD KEY; `text` is the field — BlueEdit carries no `reason`
+		// (blue/edit.go writes the prose under it, and the frozen key census lists blue_edit as
+		// answers/applied_verbatim/edit_key/new/old/text).
 		out = append(out, fmt.Sprintf("- **#%d** `%s` %s · %s — %s",
-			n, e.SeatID, answers, delta(e.Payload.Str("old"), e.Payload.Str("new")), e.Payload.Str("reason")))
+			n, e.GetSeatId(), answers, delta(ed.GetOld(), ed.GetNew()), ed.GetText()))
 	}
 	if total == 0 {
 		// SAID, NOT IMPLIED. An empty section reads as "nothing to show"; on a run past
@@ -114,10 +121,10 @@ func changesForGap(b *record.Board, gapID string) ([]byte, error) {
 		"",
 	}
 	if g.Mint != nil {
-		// PAYLOAD KEY, NOT FLAG WORD. mint stores this under `required_fix` while the seat
-		// types --fix (mint.go: seat.Set(cmd, p, "required_fix", flags.Fix)). Reading it as
-		// "fix" compiles, renders, and silently reports every gap as unprescribed.
-		if fix := g.Mint.Str("required_fix"); fix != "" {
+		// FIELD NAME, NOT FLAG WORD. mint stores this as `required_fix` while the seat types
+		// --fix (recordpb/required.go declares the split). Reading it as "fix" no longer
+		// compiles; before the schema it rendered every gap as unprescribed, in silence.
+		if fix := g.Mint.GetRequiredFix(); fix != "" {
 			out = append(out, fix, "")
 		} else {
 			// A gap may legitimately carry no prescription — red states the defect and
@@ -127,9 +134,9 @@ func changesForGap(b *record.Board, gapID string) ([]byte, error) {
 		// The CONCRETE proposal, when red made one. Shown as the diff blue could apply
 		// verbatim — and labelled with what applying it costs and does not cost, because the
 		// cheapest path is always compliance and that gradient should be visible, not felt.
-		if fo, fn := g.Mint.Str("location"), g.Mint.Str("fix_new"); fn != "" {
+		if fo, fn := g.Mint.GetLocation(), g.Mint.GetFixNew(); fn != "" {
 			out = append(out,
-				"**Red proposed exact text** (`fix_basis: "+g.Mint.Str("fix_basis")+"` — red stated this against the live document, so it applies cleanly):",
+				"**Red proposed exact text** (`fix_basis: "+g.Mint.GetFixBasis()+"` — red stated this against the live document, so it applies cleanly):",
 				"",
 				"```diff",
 				"- "+oneLine(fo),
@@ -141,18 +148,24 @@ func changesForGap(b *record.Board, gapID string) ([]byte, error) {
 				"stay a real option — a run in which blue never declines is manufacturing agreement, not earning it.",
 				"")
 		}
-		if check := g.Mint.Str("acceptance_check"); check != "" {
+		if check := g.Mint.GetAcceptanceCheck(); check != "" {
 			out = append(out, "**Acceptance check** (what red runs at re-audit): "+check, "")
 		}
-		if problem := g.Mint.Str("problem"); problem != "" {
+		if problem := g.Mint.GetProblem(); problem != "" {
 			out = append(out, "**The defect**: "+problem, "")
 		}
 	}
 
-	var edits []record.Event
+	// The envelope carries the round and the seat, the body carries the spans — the render needs
+	// both, so the assertion is made ONCE here rather than repeated (and possibly ignored) below.
+	type recordedEdit struct {
+		ev   *record.Event
+		body *recordpb.BlueEdit
+	}
+	var edits []recordedEdit
 	for _, e := range b.Events {
-		if e.Type == "blue_edit" && e.Payload.Str("answers") == gapID {
-			edits = append(edits, e)
+		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok && ed.GetAnswers() == gapID {
+			edits = append(edits, recordedEdit{ev: e, body: ed})
 		}
 	}
 
@@ -169,13 +182,13 @@ func changesForGap(b *record.Board, gapID string) ([]byte, error) {
 	out = append(out, fmt.Sprintf("## Edits blue recorded against it (%d)", len(edits)), "")
 	for i, e := range edits {
 		out = append(out,
-			fmt.Sprintf("### %d. Round %d · `%s` · %s", i+1, e.Round, e.SeatID, delta(e.Payload.Str("old"), e.Payload.Str("new"))),
+			fmt.Sprintf("### %d. Round %d · `%s` · %s", i+1, int(e.ev.GetRound()), e.ev.GetSeatId(), delta(e.body.GetOld(), e.body.GetNew())),
 			"",
-			"**Blue's reason**: "+e.Payload.Str("reason"),
+			"**Blue's reason**: "+e.body.GetText(),
 			"",
 			"```diff",
-			"- "+oneLine(e.Payload.Str("old")),
-			"+ "+oneLine(e.Payload.Str("new")),
+			"- "+oneLine(e.body.GetOld()),
+			"+ "+oneLine(e.body.GetNew()),
 			"```",
 			"")
 	}

@@ -233,7 +233,7 @@ YOUR REASONING IS PART OF EVERY ACT, and the report renders it: it is your argum
 
 // Compound grades allowed: red's protocol grades finer than a 3-point scale
 // (retrospective friction #6 — forced rounding lost information every round).
-const GRADE = { type: 'string', enum: ['low', 'low-medium', 'medium', 'medium-high', 'high', 'certain', 'realized', 'trivial'] }
+const GRADE = { type: 'string', enum: ['low', 'low_medium', 'medium', 'medium_high', 'high', 'certain', 'realized', 'trivial'] }
 
 // §8 Q6 pinned mass mapping (run-4 report §2.5 item 1) — TOTAL over the GRADE enum.
 // `realized` is EXCLUDED from mass (a realized risk is no longer a probability: it
@@ -251,7 +251,7 @@ const GRADE = { type: 'string', enum: ['low', 'low-medium', 'medium', 'medium-hi
 // repair was EMPTYING likelihood, and the receptacle turned out to be a self-report
 // nobody could contest. See the 0.65.0 changelog entry.
 const MASS_MAPPING_VERSION = 'v2'
-const MASS = { trivial: 0.5, low: 1, 'low-medium': 1.5, medium: 2, 'medium-high': 2.5, high: 3, certain: 3.5, realized: 0 }
+const MASS = { trivial: 0.5, low: 1, 'low_medium': 1.5, medium: 2, 'medium_high': 2.5, high: 3, certain: 3.5, realized: 0 }
 const gapMass = (g) => (MASS[g.likelihood] ?? 0) * (MASS[g.impact] ?? 0)
 
 // Grade-dispute channel constants (run-4 report §3.3, clauses (v) and (vii)):
@@ -656,10 +656,10 @@ const reliefFor = (party) => {
 }
 let halted = false
 let haltOpinion = null
-// ONE SEAT ID NAMES ONE SITTING. Sharing one id across sittings loses rulings silently: each
-// sitting's register rotates the nonce (deliberately, for crash re-dispatch), so N sittings are
-// N shards for one seat, and replay keeps ONE — a petition sitting writes no `verdict` and no
-// `revision`, so the terminal pool is empty and selection falls to latest mtime.
+// ONE SEAT ID NAMES ONE SITTING.
+//
+// A seat id is what every act is attributed to, so two sittings sharing one leaves the record
+// unable to say which occasion an act belongs to.
 //
 // Deriving the id from the PETITIONER makes it unique by construction rather than by a counter
 // someone has to remember to increment — the filer already identifies the occasion, because each
@@ -708,7 +708,7 @@ async function hearPetitions(env, who) {
 // ---- Frontier ----
 phase('Frontier')
 await agent(
-  `Research debate opening for topic: "${topic}". Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A LINE OF INQUIRY — the verb is under a group of its own in your role's help, and it takes the approach you would follow and the hypothesis that would be true if it paid off. ONE line of inquiry per hypothesis, and the tool assigns each an id (Q1, Q2 …). THEY ARE LINES OF INQUIRY, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too-thin or out-of-scope, and cannot hold you to when the run drifts. On the record it has an id, a fate, and an argument. The hypotheses opening a run are the ones that shape everything downstream and were until now the only ones nobody could contest.${speedClause}${recordClause('frontier')} Return one line per hypothesis.`,
+  `Research debate opening for topic: "${topic}". Formulate 3-5 frontier hypotheses — what would be TRUE if each candidate answer were right — and RECORD EACH ONE AS A LINE OF INQUIRY — the verb is under a group of its own in your role's help, and it takes the approach you would follow and the hypothesis that would be true if it paid off. ONE line of inquiry per hypothesis, and the tool assigns each an id (Q1, Q2 …). THEY ARE LINES OF INQUIRY, NOT A DOCUMENT, and that is the point: a hypothesis in a markdown file is something red cannot rule on, cannot grade too_thin or out_of_scope, and cannot hold you to when the run drifts. On the record it has an id, a fate, and an argument. The hypotheses opening a run are the ones that shape everything downstream and were until now the only ones nobody could contest.${speedClause}${recordClause('frontier')} Return one line per hypothesis.`,
   { ...bulk, label: `frontier · ${slug}`, agentType: 'frank-exchange-of-views:blue-researcher' })
 
 // ---- Blue: best-of-N lanes with method diversity, then additive synthesis ----
@@ -848,8 +848,23 @@ YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is do
   // Degenerate-shape guard (retrospective §3 row 20, decided R4-2: throw, never soft-convert):
   // FAIL with zero gaps is evidence of a broken merge, not a clean report — looping on it
   // burns maxRounds silently and returns a self-contradictory UNVERIFIED/0-gaps verdict.
-  if (redEnv.verdict === 'FAIL' && redEnv.gaps.length === 0) {
+  //
+  // A PETITION IS THE ONE HONEST WAY TO FAIL WITH A CLEAN BOARD, and this guard predates the
+  // tool gate that made it reachable. `verdict --as PASS` is refused while any motion is
+  // unruled; a PETITION is the BENCH's to rule, not the merge's, and the merge files one in the
+  // same envelope that carries its verdict — so the bench has not sat yet. The seat cannot pass
+  // (the tool refuses) and could not fail either (this threw), which is no legal verdict at all.
+  // Measured: 4 of 60 fuzz runs died here, and the merge was behaving correctly in every one.
+  //
+  // Scoped to the envelope's own petitions deliberately. A petition BLUE filed dispatches a
+  // bench sitting before the next scheduled seat, so it is already ruled by the time red sits;
+  // what this exempts is the case red itself created, which is the case red cannot resolve.
+  const petitioned = Array.isArray(redEnv.petitions) && redEnv.petitions.length > 0
+  if (redEnv.verdict === 'FAIL' && redEnv.gaps.length === 0 && !petitioned) {
     throw new Error(`red-merge round ${round} returned FAIL with an empty gaps array — degenerate merge, refusing to loop silently`)
+  }
+  if (redEnv.verdict === 'FAIL' && redEnv.gaps.length === 0) {
+    log(`round ${round}: red FAILed on a clean board — ${redEnv.petitions.length} petition(s) outstanding for the bench, which is not a defect on the board`)
   }
   // Lineage enforcement (row 23 step 4, per red's own R5-5 critique: self-declared lineage
   // is hollow unless structurally checked): every repaired_with_regression closure must have

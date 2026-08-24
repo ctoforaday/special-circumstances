@@ -16,6 +16,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -27,7 +28,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -529,36 +530,22 @@ func repoRootOf(runDir string) string {
 // `RegisterSeat` refuses a run directory that does not exist now, so the creation path is closed.
 // This audit covers what that cannot: a stray already on disk from an older binary, and the
 // narrower case where the wrongly-resolved directory happens to exist already.
-// DiscardedEventsAudit fails a run whose replay threw away work.
+// THE DISCARDED-EVENTS AUDIT IS DELETED, and the deletion is the point rather than a tidy-up.
 //
-// Multi-nonce is normal and must stay allowed: a `register` rotates the nonce so a crash
-// re-dispatch writes a fresh shard, and the retry rewrites the same idempotency keys, so nothing
-// is lost. The replay already reported both cases in one sentence — "multi-nonce seat X: N
-// dispatches" — and NOTHING GATED ON IT, so a run that lost a whole bench sitting reported
-// success (#394).
+// It failed a run whose replay threw away work. Multi-nonce was normal — a `register` rotates the
+// nonce so a crash re-dispatch writes a fresh shard, and the retry rewrites the same idempotency
+// keys, so nothing is lost. The lossy case was one seat id used for two different SITTINGS, where
+// the losing shard held keys that survived nowhere. The replay had reported both in one sentence
+// ("multi-nonce seat X: N dispatches") and nothing gated on either, so a run that lost a whole
+// bench sitting reported success (#394). This audit was the gate that fixed that.
 //
-// The distinguishing fact is not how many shards a seat has; it is whether a losing shard held
-// event keys that survive nowhere. record.MergedEvents computes exactly that, and this reads the
-// count rather than the sentence.
-func DiscardedEventsAudit(runDir string) Audit {
-	board, err := record.BoardState(runDir)
-	if err != nil {
-		return Audit{Check: "discarded-events", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
-	}
-	if len(board.Discarded) == 0 {
-		return Audit{Check: "discarded-events", Verdict: "PASS", Detail: "no seat's replay discarded recorded work"}
-	}
-	var parts []string
-	lost := 0
-	for _, d := range board.Discarded {
-		lost += len(d.Keys)
-		parts = append(parts, fmt.Sprintf("%s (%d dispatches, winner %s) lost %d: %s",
-			d.SeatID, d.Dispatches, d.Winner, len(d.Keys), strings.Join(d.Keys, ", ")))
-	}
-	return Audit{Check: "discarded-events", Verdict: "FAIL", Detail: fmt.Sprintf(
-		"%d event(s) across %d seat(s) were written, then dropped by replay winner selection and survive nowhere — "+
-			"one seat id was used for more than one sitting: %s", lost, len(board.Discarded), strings.Join(parts, "; "))}
-}
+// There is no losing shard now. Both sittings' events are ROWS, told apart by `nonce`, and no
+// winner is selected — so the loss this audit reported is not merely absent, it is unrepresentable.
+// Kept as a permanent PASS it would answer "no seat's replay discarded recorded work" on every run,
+// in the exact words it used when the check was real, which is the failure #394 was.
+//
+// What it was protecting is still protected, one layer down and by construction: every event
+// written is a row, and `UNIQUE (seat_id, nonce, seq)` is what stops two writers claiming one slot.
 
 func StrayRecordsAudit(repoRoot, runDir string) Audit {
 	if repoRoot == "" {
@@ -625,8 +612,8 @@ func RecordParityAudit(runDir string, redRounds, blueBlocks int) Audit {
 	rounds := map[int]bool{}
 	if board, err := record.BoardState(runDir); err == nil {
 		for _, e := range board.Events {
-			if e.Type == "revision" {
-				rounds[e.Round] = true
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_REVISION {
+				rounds[int(e.GetRound())] = true
 			}
 		}
 	}
@@ -705,18 +692,18 @@ func BackfillAudit(runDir string) Audit {
 	order := []string{}
 	unparsed := 0
 	for _, e := range board.Events {
-		ts, perr := record.ParseStamp(e.TS)
+		ts, perr := record.ParseStamp(e.GetTs())
 		if perr != nil {
 			unparsed++
 			continue
 		}
-		s := seats[e.SeatID]
+		s := seats[e.GetSeatId()]
 		if s == nil {
 			s = &seatSpan{}
-			seats[e.SeatID] = s
-			order = append(order, e.SeatID)
+			seats[e.GetSeatId()] = s
+			order = append(order, e.GetSeatId())
 		}
-		if e.Type == "register" {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
 			// A seat can register more than once — a re-dispatch rotates the nonce
 			// (RegisterSeat). The EARLIEST register is when this seat first existed.
 			if s.registered.IsZero() || ts.Before(s.registered) {
@@ -806,10 +793,10 @@ func AttestationAudit(runDir, transcriptDir string, agentFiles []string, sampleF
 		}
 		// A CARRIED closure attests nothing — it is last round's verification restated, and
 		// holding a seat to a tool call it never made this round is a false finding.
-		if g.Closure.Str("carried_from") != "" {
+		if g.Closure.GetCarriedFrom() != "" {
 			continue
 		}
-		seat, tool, target := g.Closure.Str("anchor_seat"), g.Closure.Str("anchor_tool"), g.Closure.Str("anchor_target")
+		seat, tool, target := g.Closure.GetAnchorSeat(), g.Closure.GetAnchorTool(), g.Closure.GetAnchorTarget()
 		if seat != "" && tool != "" && target != "" {
 			claims = append(claims, Claim{ID: g.ID, Seat: seat, Tool: tool, Target: target})
 		}
@@ -1166,39 +1153,53 @@ func rulingsFromRecord(board *record.Board) []ruling {
 	// the `motion` event, which is the only place that fact exists.
 	filedBy := map[string]string{}
 	for _, e := range board.Events {
-		if e.Type == "motion" {
-			filedBy[e.Payload.Str("motion_id")] = e.SeatID
+		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
+			filedBy[m.GetMotionId()] = e.GetSeatId()
 		}
 	}
 
 	var out []ruling
 	for _, e := range board.Events {
-		switch e.Type {
-		case "opinion":
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_OPINION:
+			o, ok := recordpb.BodyAs[*recordpb.Opinion](e)
+			if !ok {
+				continue
+			}
 			out = append(out, ruling{
 				kind:        "docket",
-				gapID:       e.Payload.Str("gap_id"),
-				disposition: e.Payload.Str("disposition"),
-				rationale:   e.Payload.Str("reason"),
+				gapID:       o.GetGapId(),
+				disposition: recordpb.Word(o.GetDisposition()),
+				rationale:   o.GetRationale(),
 			})
-		case "declare":
+		case recordpb.EventType_EVENT_TYPE_DECLARE:
 			// No gap and no fate — that is the point of the verb. The holding IS the ruling.
+			d, ok := recordpb.BodyAs[*recordpb.Declare](e)
+			if !ok {
+				continue
+			}
 			out = append(out, ruling{
 				kind:        "declaration",
 				disposition: "declared",
-				rationale:   e.Payload.Str("holding"),
+				rationale:   d.GetHolding(),
 			})
-		case "motion-rule":
+		case recordpb.EventType_EVENT_TYPE_MOTION_RULE:
 			// Only the PETITION subject reaches the precedent harvest: a grade or direction
 			// ruling answers a motion the motions view renders with its ask beside it.
-			if e.Payload.Str("subject") != "petition" {
+			//
+			// THE SUBJECT IS NOW THE ONEOF, not a string compare. A petition ruling carries its
+			// verdict on the `petition` arm, so reading the arm IS the subject test — a grade
+			// ruling cannot answer it, where the old `Str("subject") != "petition"` depended on a
+			// field that could disagree with the value beside it.
+			r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
+			if !ok || r.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_PETITION {
 				continue
 			}
 			out = append(out, ruling{
 				kind:        "petition",
-				petitioner:  filedBy[e.Payload.Str("motion_id")],
-				disposition: e.Payload.Str("ruling"),
-				rationale:   e.Payload.Str("reason"),
+				petitioner:  filedBy[r.GetMotionId()],
+				disposition: recordpb.Word(r.GetPetition()),
+				rationale:   r.GetOpinion(),
 			})
 		}
 	}
@@ -1514,7 +1515,6 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(runDir),
 		StrayRecordsAudit(repoRootOf(runDir), runDir),
-		DiscardedEventsAudit(runDir),
 		RecordParityAudit(runDir, redRounds, blueBlocks),
 		BackfillAudit(runDir),
 		AttestationAudit(runDir, transcriptDir, agentFiles, 5),
@@ -1728,17 +1728,18 @@ func classesFromRecord(board *record.Board) []coinedClass {
 	}
 	var out []coinedClass
 	for _, e := range board.Events {
-		if e.Type != "class-new" {
+		cn := e.GetClassNew()
+		if cn == nil {
 			continue
 		}
 		c := coinedClass{
-			slug: e.Payload.Str("slug"), definition: e.Payload.Str("definition"),
-			neighbor: e.Payload.Str("neighbor"), distinguisher: e.Payload.Str("distinguisher"),
-			seatID: e.SeatID,
+			slug: cn.GetSlug(), definition: cn.GetDefinition(),
+			neighbor: cn.GetNeighbor(), distinguisher: cn.GetDistinguisher(),
+			seatID: e.GetSeatId(),
 		}
 		for _, m := range board.Events {
-			if m.Type == "mint" && m.Payload.Str("class") == c.slug {
-				c.firstGap = m.Payload.Str("gap_id")
+			if mint := m.GetMint(); mint != nil && mint.GetClass() == c.slug {
+				c.firstGap = mint.GetGapId()
 				break
 			}
 		}

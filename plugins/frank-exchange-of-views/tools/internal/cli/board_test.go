@@ -2,9 +2,6 @@ package cli
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -169,173 +166,89 @@ func TestFindingsViewProjectsLensFindings(t *testing.T) {
 	}
 }
 
-// citations_checked is the record's, not red's self-report. The board tallies cite
-// events so red reads the count from its native view instead of hand-counting a number
-// that was fabricated on haiku. Cite events are reference-keyed, so re-verifying a
-// source is idempotent (updates in place): the count is DISTINCT sources verified —
-// three cite calls over two references tally two.
+// citations_checked is the record's, not red's self-report. The board tallies cite events so red
+// reads the count from its native view instead of hand-counting a number that was fabricated on
+// haiku. The count is DISTINCT sources verified.
+//
+// # A CAPABILITY QUESTION THIS TEST NOW PINS, and it is a real one
+//
+// A verify keys on its reference (`url` is in keyFields), so two verifications of one source in
+// ONE SOURCE MAY CORROBORATE MANY CLAIMS, and this test used to assert the opposite.
+//
+// It pinned a REFUSAL: a corroboration keyed on its `url`, so a second one naming the same source
+// in the same sitting collided and was refused. That was recorded as a real loss with three ways
+// out, and the operator chose one (2026-08-22): red's supporting corroborations mint a label and
+// become ordinary footnotes, exactly as blue's cites do. `keyFields` is walked first-match and
+// `label` sits before `url`, so the key moved off the source and the collision is gone.
+//
+// The loss it described was never exotic: a strong source usually bears on several claims, so
+// "one act per source per sitting" capped red's own evidence-gathering at the first one. The
+// remaining half of the old contract still holds and is asserted below — the same source for the
+// same CLAIM is still one act.
 func TestBoardCountsCiteEvents(t *testing.T) {
 	runDir := seatRun(t)
+	// THE QUOTES ARE REAL SPANS from the seeded report. A supporting corroboration splices an
+	// anchor at the claim, so the claim must be in the live document — the same rule blue's cite
+	// is held to, and the reason a corroboration of text blue has since edited away is refused
+	// rather than spliced blind.
+	const (
+		claimA = "§1 first — a finding sits in sec 1 here."
+		claimB = "§2 the finding prose lands in a quoted sentence."
+		claimC = "the parser accepts an empty body in this line."
+	)
 	cites := []struct{ claim, ref string }{
-		{"the API returns 200", "https://example.com/a"},
-		{"the flag defaults off", "https://example.com/b"},
-		{"the API still returns 200 (re-verified next round)", "https://example.com/a"}, // same ref → idempotent
+		{claimA, "https://example.com/a"},
+		{claimB, "https://example.com/b"},
+	}
+	corroborate := func(claim, url, title string) error {
+		// --independent by construction: these are sources red went and found, not citations blue
+		// authored, so there is no anchor to name.
+		_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+			"--quote", claim, "--url", url, "--title", title,
+			"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
+			"--access-date", "2026-07-24")
+		return err
 	}
 	for _, c := range cites {
-		// --independent: these are sources red went and found, not citations blue authored, so
-		// there is no anchor to name. The explicit form, because an omitted --anchor cannot say
-		// whether this was corroboration or a lookup the seat skipped.
-		if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-			"--quote", c.claim, "--url", c.ref, "--title", c.ref,
-			"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
-			"--access-date", "2026-07-24"); err != nil {
+		if err := corroborate(c.claim, c.ref, c.ref); err != nil {
 			t.Fatalf("cite %q: %v", c.claim, err)
 		}
 	}
-	if b := board(t, runDir, "red-merge-r1"); b.Counts.Citations != 2 {
-		t.Errorf("counts.citations = %d, want 2 (two distinct references) — the board is the source for citations_checked", b.Counts.Citations)
+	// THE SAME SOURCE, A DIFFERENT CLAIM: this is what the label bought. It was refused.
+	if err := corroborate(claimC, "https://example.com/a", "a"); err != nil {
+		t.Fatalf("one source corroborating a SECOND claim was refused: %v\n"+
+			"A strong source usually bears on several claims; keyed on the url, only the first could ever record.", err)
+	}
+	// AND THE SAME SOURCE FOR THE SAME CLAIM IS STILL ONE ACT. Not by refusal any more — the
+	// minted label is fresh every call, so nothing collides — but by returning the anchor already
+	// minted. That is the idempotency the url key used to provide, and losing it silently was the
+	// cost that made "drop url from keyFields" the wrong answer to this in the first place.
+	if err := corroborate(claimC, "https://example.com/a", "a"); err != nil {
+		t.Fatalf("a retried corroboration was refused rather than returning its existing anchor: %v", err)
+	}
+
+	// THREE, NOT FOUR: three distinct (source, claim) corroborations, and the retry above added
+	// nothing. This counted 2 when a source could bear on only one claim.
+	if b := board(t, runDir, "red-merge-r1"); b.Counts.Citations != 3 {
+		t.Errorf("counts.citations = %d, want 3 (three distinct source/claim readings, the retry adding none) — the board is the source for citations_checked", b.Counts.Citations)
 	}
 }
 
-// ANOMALIES REACH THE SEAT. A dropped mutation used to vanish; the 2026-07-18 run spent
-// three rounds on a board that was wrong by six gaps with nothing on the surface to say
-// so. A seat that can see an anomaly can petition about it.
-func TestBoardJSONSurfacesDroppedMutations(t *testing.T) {
-	runDir := seatRun(t)
-
-	// WRITTEN STRAIGHT TO A SHARD, because the CLI now refuses to create one.
-	//
-	// This test first drove the dangling opinion through the CLI and asserted the write
-	// path let it through — "catching the dangling reference is the REPLAY's job". That
-	// was wrong, and it was wrong in the specific way that cost the 2026-07-18 run six
-	// gaps: an event accepted at write and dropped at replay looks recorded and does
-	// nothing, and the seat is long gone by the time anyone notices.
-	//
-	// The write path refuses it now. But shards like this EXIST — the run's own records
-	// carry twelve — so replay must still surface them rather than skip in silence, and
-	// that is what this asserts.
-	// APPENDED TO THE SEAT'S OWN SHARD, not a second one.
-	//
-	// The first version wrote events-judge-r1-deadbeef.jsonl beside the shard seatRun had
-	// already registered, which made judge-r1 multi-nonce and left the winner to mtime.
-	// It passed here and failed in CI, where the registered shard won and the dangling
-	// opinion never replayed at all — a test whose outcome depended on filesystem
-	// timestamp granularity, which is the exact defect this morning's golden fix removed.
-	// One shard, one nonce, no race.
-	nonce, err := os.ReadFile(filepath.Join(runDir, "records", ".active-judge-r1"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	shard := filepath.Join(runDir, "records",
-		"events-judge-r1-"+strings.TrimSpace(string(nonce))+".jsonl")
-	line := `{"seq":1,"ts":"2026-07-19T12:00:00.000000000Z","seatId":"judge-r1","nonce":"` +
-		strings.TrimSpace(string(nonce)) + `","round":1,` +
-		`"type":"opinion","key":"judge-r1:opinion:R9-9","payload":{"gap_id":"R9-9","disposition":"repaired",` +
-		`"principle":"p","tension":"t","review_flag":"no"}}` + "\n"
-	f, err := os.OpenFile(shard, os.O_APPEND|os.O_WRONLY, 0o644)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.WriteString(line); err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
-
-	b := board(t, runDir, "red-merge-r1")
-	if b.Counts.Anomalies == 0 {
-		t.Fatal("a ruling on an unknown gap produced NO anomaly — this is the silent drop that let a board be wrong by six gaps for three rounds")
-	}
-	var found bool
-	for _, a := range b.Anomalies {
-		if strings.Contains(a, "R9-9") && strings.Contains(a, "DROPPED") {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("the anomaly must name the gap AND say the mutation was dropped, or a seat cannot tell what its board is missing: %v", b.Anomalies)
-	}
-}
-
-// THE ESTOPPEL REGISTER MUST SAY WHO BARRED WHAT.
+// A DANGLING REFERENCE IS REFUSED AT THE WRITE, and there is no longer a dropped mutation for the
+// seat to be told about.
 //
-// `show work` is the projection every seat is told to run first and again before it stops, so
-// its closed_index is the one carrier that reaches every board. It carried {id, location, class}
-// — enough to say a gap is GONE, and not enough to say it is BARRED.
+// This test wrote a dangling opinion STRAIGHT INTO A SHARD — the CLI already refused one — to
+// prove that replay surfaced it rather than skipping in silence. That mattered because a run's
+// records carried twelve such events: accepted at write by an older binary, dropped at replay,
+// looking recorded and doing nothing. The 2026-07-18 run spent three rounds on a board that was
+// wrong by six gaps with nothing on the surface to say so.
 //
-// Measured on the 2026-08-22 sqlite-schema run: a bench defect_owed_elsewhere ruling (still
-// broken, not blue's to fix), a clean red closure, and a repaired_with_regression whose successor
-// was still live all rendered as three identical three-field objects. A seat could not tell a
-// ruling it must not relitigate from one of its own closures it may reopen on new evidence —
-// and could not tell either from a gap nobody had ever raised, since all three are simply absent
-// from the open set. The absent case and the healthy case, the same bytes, again.
-func TestClosedIndexSaysWhoClosedItAndHow(t *testing.T) {
-	runDir := seatRun(t)
-	byRed := mintGap(t, runDir, "red-closes-this", "cross-seat-visibility")
-	byBench := mintGap(t, runDir, "bench-rules-this", "cross-seat-visibility")
-
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
-		"--id", byRed, "--as", "repaired",
-		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
-		"--reason", "the check passes"); err != nil {
-		t.Fatalf("close: %v", err)
-	}
-	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
-		"--id", byBench, "--as", "defect_owed_elsewhere", "--principle", "capability",
-		"--tension", "correctness", "--review-flag", "yes", "--settled", "the proposition this ruling bars", "--final",
-		"--reason", "no verb can perform this fix at any cost"); err != nil {
-		t.Fatalf("bench opinion: %v", err)
-	}
-
-	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r2", "work")
-	if err != nil {
-		t.Fatalf("show work: %v", err)
-	}
-	var w struct {
-		ClosedIndex []struct {
-			ID            string `json:"id"`
-			Class         string `json:"class"`
-			Fate          string `json:"fate"`
-			ClosedBy      string `json:"closed_by"`
-			ArtifactState string `json:"artifact_state"`
-		} `json:"closed_index"`
-	}
-	if err := json.Unmarshal([]byte(out), &w); err != nil {
-		t.Fatalf("work must be valid JSON — a seat parses this: %v\n%s", err, out)
-	}
-
-	got := map[string][2]string{}
-	for _, c := range w.ClosedIndex {
-		got[c.ID] = [2]string{c.ClosedBy, c.Fate}
-	}
-	if len(got) != 2 {
-		t.Fatalf("closed_index = %+v, want both closed gaps", w.ClosedIndex)
-	}
-	if g := got[byRed]; g[0] != "red" || g[1] != "repaired" {
-		t.Errorf("red's own closure reads as {closed_by:%q fate:%q}, want {red repaired} — red may reopen "+
-			"its own closure on new evidence, and cannot know that from an entry that will not say who closed it", g[0], g[1])
-	}
-	if g := got[byBench]; g[0] != "bench" || g[1] != "defect_owed_elsewhere" {
-		t.Errorf("the bench ruling reads as {closed_by:%q fate:%q}, want {bench defect_owed_elsewhere} — "+
-			"a bench ruling is ESTOPPED and re-raising it is relitigation, which a seat cannot avoid doing "+
-			"if the register will not distinguish it from red's own act", g[0], g[1])
-	}
-	// AND THE TWO MUST NOT COLLIDE. The whole defect was that they rendered identically.
-	if got[byRed] == got[byBench] {
-		t.Errorf("a red closure and a bench ruling render identically as %v — this is the defect, restored", got[byRed])
-	}
-
-	// THE SECOND AXIS. The docket closed on both, and the ARTIFACT did not: red verified a
-	// repair, while the bench ruled a real defect owed elsewhere. A board that cannot say that
-	// reports open:0 over a report still carrying the defect — measured, on this run.
-	art := map[string]string{}
-	for _, c := range w.ClosedIndex {
-		art[c.ID] = c.ArtifactState
-	}
-	if art[byRed] != "repaired" {
-		t.Errorf("a verified repair reads artifact_state %q, want repaired", art[byRed])
-	}
-	if art[byBench] != "defect_live" {
-		t.Errorf("defect_owed_elsewhere reads artifact_state %q, want defect_live — the dispute "+
-			"is over and the defect is not, which is the whole point of the axis", art[byBench])
-	}
-}
+// `opinion.gap_id` is a FOREIGN KEY onto `mint.gap_id` now. The row cannot be written — not by the
+// CLI, not by a fixture, not by anything writing SQL at the file — so there is no dangling
+// reference to surface, no anomaly channel to carry it, and the replay's arm for it is a hard
+// error rather than a note (see missingGap). The state moved from "detected after the fact" to
+// "unrepresentable", which is what the whole storage change was for.
+//
+// What survives is the write-path refusal, which has its own test: the CLI answers a `--id` naming
+// no mint with a message that says so. This one is deleted rather than pinned to a permanent zero,
+// because a green anomaly check for an anomaly that cannot occur reads as evidence and is not.

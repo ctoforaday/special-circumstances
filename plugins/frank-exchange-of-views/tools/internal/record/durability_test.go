@@ -7,98 +7,23 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 )
 
-// The append path is the whole product: a seat's records are the only surviving
-// account of what it did. These tests hold the guarantees safety.go's header
-// states — every event fsynced, every write inside a critical section, and a torn
-// fragment healed rather than compounded.
-
-// appendLine must route through durableAppend. The regression this guards is
-// exactly what shipped: durableAppend was defined, documented as THE append path,
-// and never called, so every event was written unsynced and unguarded while the
-// package compiled clean.
+// FIVE TESTS ARE GONE FROM THIS FILE, and each named a mechanism the record no longer has.
 //
-// The contract is deterministic and observable from outside: once shutdown has
-// begun, a new append must NOT start. A write path that skips the guard proceeds
-// regardless, which is precisely the interrupted, half-written line the guard
-// exists to prevent.
-func TestAppendEntersACriticalSection(t *testing.T) {
-	runDir := newRun(t)
-	seatID := "red-lens-r1-L1"
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, ""); err != nil {
-		t.Fatal(err)
-	}
-	before, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	guardMu.Lock()
-	shuttingDown = true
-	guardMu.Unlock()
-	released := false
-	release := func() {
-		if released {
-			return
-		}
-		released = true
-		guardMu.Lock()
-		shuttingDown = false
-		guardCond.Broadcast()
-		guardMu.Unlock()
-	}
-	t.Cleanup(release)
-
-	done := make(chan error, 1)
-	go func() {
-		_, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "finding", NewPayload().Set("label", "F1").Set("reason", "must not start"))
-		done <- err
-	}()
-
-	// Give the append every chance to run to completion if it is unguarded.
-	select {
-	case err := <-done:
-		t.Fatalf("Append completed during shutdown (err=%v) — the write path bypasses the signal guard, "+
-			"so an interrupt can tear the line it is appending", err)
-	case <-time.After(250 * time.Millisecond):
-	}
-
-	// Nothing reached the shard while the append was correctly blocked.
-	mid, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(mid) != len(before) {
-		t.Errorf("shard grew by %d events during shutdown, want 0", len(mid)-len(before))
-	}
-
-	// Once shutdown clears, the blocked write proceeds and lands whole.
-	release()
-	if err := <-done; err != nil {
-		t.Fatalf("the released append failed: %v", err)
-	}
-	after, err := ReadShard(shardPath(recordsDirT(runDir), seatID, mustNonce(t, runDir, seatID)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(after) != len(before)+1 {
-		t.Fatalf("shard has %d events after release, want %d", len(after), len(before)+1)
-	}
-	if got := after[len(after)-1].Payload.Str("reason"); got != "must not start" {
-		t.Errorf("the released event landed as %q", got)
-	}
-}
-
-func mustNonce(t *testing.T, runDir, seatID string) string {
-	t.Helper()
-	b, err := os.ReadFile(pointerPath(recordsDirT(runDir), seatID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return strings.TrimSpace(string(b))
-}
+//   - TestAppendEntersACriticalSection — the append took a critical section around a FILE write.
+//   - TestAppendHealsATornFinalLine — a crash mid-append left an unterminated fragment, and
+//     appending onto it would destroy the next event too. A transaction commits or it does not.
+//   - TestAppendAssignsGapFreePerShardSequence — `seq` was the seat's position in its own shard;
+//     nothing read it, and numbering it cost every write a query.
+//   - TestRegisterRotatesTheNonceAndRepointsTheSeat — the nonce named a shard file and the pointer
+//     said which was live. Both are gone; the sitting is the count of a seat's registers.
+//   - TestAppendImplicitlyRegistersWhenThePointerIsAbsent — there is no pointer to be absent.
+//
+// What they protected is not unprotected: atomicity is the transaction (recordsql.InsertTx),
+// concurrent writers are covered by TestConcurrentSeatsDoNotLoseEvents in recordsql — which spawns
+// real processes, because goroutines did not reproduce the hazard — and the write path's
+// registration and seat-id rules are still tested below.
 
 // enterCritical must BLOCK once shutdown has begun: starting a write we may not
 // be allowed to finish is the truncation the guard exists to prevent.
@@ -201,176 +126,6 @@ func TestCriticalSectionsNest(t *testing.T) {
 		t.Errorf("depth is +%d after balanced exits, want 0", got)
 	}
 }
-
-// The torn-line heal: a crash can leave an unterminated fragment as the shard's
-// last bytes, and appending straight onto it would destroy THIS event too.
-func TestAppendHealsATornFinalLine(t *testing.T) {
-	runDir := newRun(t)
-	seatID := "red-lens-r1-L1"
-	nonce, shard, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	_ = nonce
-
-	// Simulate the crash: a partial JSON line with no trailing newline.
-	torn := `{"seq":1,"seatId":"red-lens-r1-L1","type":"find`
-	f, err := os.OpenFile(shard, os.O_APPEND|os.O_WRONLY, 0o644)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := f.WriteString(torn); err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
-
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "finding", NewPayload().Set("label", "F1").Set("reason", "intact")); err != nil {
-		t.Fatal(err)
-	}
-
-	b, err := os.ReadFile(shard)
-	if err != nil {
-		t.Fatal(err)
-	}
-	lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
-	// register, the torn fragment (now terminated), and the new event.
-	if len(lines) != 3 {
-		t.Fatalf("shard has %d lines, want 3 (register, sealed fragment, new event):\n%s", len(lines), b)
-	}
-	if lines[1] != torn {
-		t.Errorf("the fragment was altered rather than sealed: %q", lines[1])
-	}
-	// The fragment stays visibly unparseable; the new event stays whole.
-	evs, err := ReadShard(shard)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(evs) != 2 {
-		t.Fatalf("ReadShard recovered %d events, want 2 (the fragment must stay inert)", len(evs))
-	}
-	last := evs[len(evs)-1]
-	if last.Type != "finding" || last.Payload.Str("reason") != "intact" {
-		t.Errorf("the event appended after a tear did not survive whole: %+v", last)
-	}
-	// A further append must not add a second heal: the file now ends in a newline.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "finding", NewPayload().Set("label", "F2").Set("reason", "second")); err != nil {
-		t.Fatal(err)
-	}
-	b, _ = os.ReadFile(shard)
-	if strings.Contains(string(b), "\n\n") {
-		t.Errorf("a blank line was introduced by healing an already-terminated shard:\n%q", b)
-	}
-}
-
-// Sequence numbers are per-shard and gap-free; they are how a reader knows an
-// event is missing rather than merely late.
-func TestAppendAssignsGapFreePerShardSequence(t *testing.T) {
-	runDir := newRun(t)
-	seatID := "red-lens-r1-L1"
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, ""); err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < 5; i++ {
-		ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "finding", NewPayload().Set("label", fmt.Sprintf("F%d", i)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		// register is seq 0, so the i-th finding is seq i+1.
-		if want := i + 1; ev.Seq != want {
-			t.Errorf("finding %d got seq %d, want %d", i, ev.Seq, want)
-		}
-		if ev.Round != 1 {
-			t.Errorf("round = %d, want 1 (derived from the seat id)", ev.Round)
-		}
-		if ev.SeatID != seatID {
-			t.Errorf("seatId = %q, want %q", ev.SeatID, seatID)
-		}
-	}
-}
-
-// The seat pointer decides which shard every later verb writes to, so a
-// re-register ROTATES the nonce and the stale shard stays inert.
-func TestRegisterRotatesTheNonceAndRepointsTheSeat(t *testing.T) {
-	runDir := newRun(t)
-	seatID := "red-merge-r1"
-	n1, s1, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "position", NewPayload().Set("reason", "first instance")); err != nil {
-		t.Fatal(err)
-	}
-	n2, s2, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n1 == n2 {
-		t.Fatal("re-register reused the nonce; a crash re-run would append into the stale instance's shard")
-	}
-	if s1 == s2 {
-		t.Fatal("re-register reused the shard path")
-	}
-	// The pointer now names the NEW nonce.
-	b, err := os.ReadFile(pointerPath(recordsDirT(runDir), seatID))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := strings.TrimSpace(string(b)); got != n2 {
-		t.Errorf("pointer = %q, want the rotated nonce %q", got, n2)
-	}
-	// The stale shard is untouched and still holds its event.
-	old, err := ReadShard(s1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(old) != 2 {
-		t.Errorf("stale shard has %d events, want 2 — a re-register must not rewrite it", len(old))
-	}
-	// The new instance writes to the new shard, starting its own sequence.
-	ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "position", NewPayload().Set("reason", "second instance"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ev.Nonce != n2 {
-		t.Errorf("append landed on nonce %q, want %q", ev.Nonce, n2)
-	}
-	if ev.Seq != 1 {
-		t.Errorf("seq = %d on the new shard, want 1", ev.Seq)
-	}
-	// Two registers for one seat are themselves an event: the merge must SAY so.
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(m.Anomalies) == 0 {
-		t.Error("a double dispatch produced no anomaly — the render footer would hide it")
-	}
-}
-
-// A missing pointer implicitly registers: deliberately tolerant, matching the
-// oracle, so a verb never fails merely because register was skipped.
-func TestAppendImplicitlyRegistersWhenThePointerIsAbsent(t *testing.T) {
-	runDir := newRun(t)
-	seatID := "blue-lane-1"
-	ev, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, "friction", NewPayload().Set("reason", "no register first"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ev.Nonce == "" {
-		t.Error("implicit registration produced no nonce")
-	}
-	if _, err := os.Stat(pointerPath(recordsDirT(runDir), seatID)); err != nil {
-		t.Errorf("no pointer was written by the implicit register: %v", err)
-	}
-	evs, err := ReadShard(shardPath(recordsDirT(runDir), seatID, ev.Nonce))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(evs) != 2 || evs[0].Type != "register" {
-		t.Errorf("expected a register followed by the friction event, got %d events", len(evs))
-	}
-}
-
 func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 	cases := []struct {
 		name string
@@ -474,7 +229,7 @@ func TestTheRosterAndTheRoleTableAgree(t *testing.T) {
 // writeAtomic must never leave a temp file behind, and must never publish a
 // half-written projection.
 func TestWriteAtomicLeavesNoTempAndPublishesWholeContent(t *testing.T) {
-	dir := t.TempDir()
+	dir := tmpRun(t)
 	target := filepath.Join(dir, "ledger.md")
 	content := []byte(strings.Repeat("projection line\n", 5000))
 	if err := writeAtomic(target, content); err != nil {
@@ -510,7 +265,7 @@ func TestWriteAtomicLeavesNoTempAndPublishesWholeContent(t *testing.T) {
 // Concurrent writers to the SAME projection: the lock plus atomic rename means a
 // reader never sees a partial file, whichever writer wins.
 func TestConcurrentWriteAtomicNeverPublishesAPartialFile(t *testing.T) {
-	dir := t.TempDir()
+	dir := tmpRun(t)
 	target := filepath.Join(dir, "ledger.md")
 	a := []byte(strings.Repeat("A", 200000))
 	b := []byte(strings.Repeat("B", 200000))

@@ -34,6 +34,8 @@ package hookcmd
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 	"io"
 	"os"
 	"strings"
@@ -205,15 +207,16 @@ func fileToolFriction(runDir, toolName string) {
 	if runDir == "" {
 		return
 	}
-	p := record.NewPayload().
-		Set("text", fmt.Sprintf("hookgate could not parse tool_input for %s, so the blue-report "+
+	f := &recordpb.Friction{
+		Text: proto.String(fmt.Sprintf("hookgate could not parse tool_input for %s, so the blue-report "+
 			"lockdown refused the call rather than risk bypassing it. The seat did nothing wrong; "+
-			"the tool_input shape and this gate's parser have diverged.", toolName)).
-		Set(record.FrictionKindKey, record.FrictionKindToolError)
+			"the tool_input shape and this gate's parser have diverged.", toolName)),
+		Kind: recordpb.FrictionKind_FRICTION_KIND_TOOL_ERROR.Enum(),
+	}
 	// Round -1 is UNKNOWN, and record.Identity is explicit that this is not round 0 — a hook
 	// fires outside any seat's round, and conflating the two produced the phantom-archive bug
 	// this field was added to prevent.
-	_, _ = record.Append(record.Identity{RunDir: runDir, SeatID: "hookgate", Round: -1}, "friction", p)
+	_, _ = record.Append(record.Identity{RunDir: runDir, SeatID: "hookgate", Round: -1}, f)
 }
 
 // emitPreDeny writes the PreToolUse deny document (exit stays 0).

@@ -3,7 +3,10 @@ package record
 import (
 	"fmt"
 
+	"google.golang.org/protobuf/reflect/protoreflect"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // ONE ADJUDICATION MECHANISM, WITH AN ID (#344).
@@ -46,8 +49,8 @@ var MotionVerdicts = map[string][]EnumValue{
 	},
 	"inquiry": {
 		Ev("endorsed", "worth this run's time — blue should take it up"),
-		Ev("out-of-scope", "a real question, but not THIS question"),
-		Ev("too-thin", "in scope, and the hypothesis does not carry its budget as stated"),
+		Ev("out_of_scope", "a real question, but not THIS question"),
+		Ev("too_thin", "in scope, and the hypothesis does not carry its budget as stated"),
 	},
 }
 
@@ -77,12 +80,11 @@ var MotionFields = map[string]map[string][]EnumValue{
 		Ev("complexity", "what fixing it costs — the axis to contest when the fix is worth more than the defect"),
 	}},
 	"petition": {
-		"class": {
-			Ev("ethical", "proceeding would require acting against the interests of someone the run affects"),
-			Ev("safety", "proceeding would create or conceal a hazard"),
-			Ev("integrity", "proceeding would require asserting what you believe false, or burying a real finding"),
-			Ev("constitutional", "the instruction itself conflicts with the rules the run is bound by"),
-		},
+		// FROM THE SCHEMA, not typed here. These four words were hand-listed while PetitionClass
+		// carried a different four, and the write path resolves against the enum — so `ethical`
+		// and `constitutional` were advertised in --help and REFUSED at the write, 22 of 40 times
+		// in the fuzz. Derived, the two cannot disagree.
+		"class": EvsOf(recordpb.PetitionClass(0).Descriptor()),
 		// WHO THE GRANTED RELIEF BINDS. Set on the RULING, not the filing: what a petitioner asks
 		// for and what the bench orders are different facts, and only the second binds anyone.
 		//
@@ -91,11 +93,10 @@ var MotionFields = map[string]map[string][]EnumValue{
 		// knowing it has no carrier". The engine threaded relief into exactly ONE prompt — blue's
 		// — so relief addressed to red reached nothing. Routing needs an addressee, and there was
 		// no field for one.
-		"binds": {
-			Ev("blue", "the relief binds the response seat — what blue must do, or must not, in the coming round"),
-			Ev("red", "it binds the audit seats: the lenses and the merge"),
-			Ev("both", "it binds the whole exchange, and every dispatched seat carries it"),
-		},
+		// AND THE WORSE HALF: the table said `blue | red | both`, RulingBinds said
+		// `all | filer | none`, NOTHING overlapped, and --binds is set exactly when a petition is
+		// GRANTED — so no granted petition could be recorded at all.
+		"binds": EvsOf(recordpb.RulingBinds(0).Descriptor()),
 	},
 }
 
@@ -114,6 +115,101 @@ func MotionFieldEnum(subject, key string, flag string) (EnumField, bool) {
 	return EnumField{Key: key, Flag: flag, Values: values, Why: why}, true
 }
 
+// MotionIDOf returns the motion id an event JOINS ON, and whether the event is part of a motion
+// exchange at all.
+//
+// THIS IS THE JOIN, AND IT IS THE ONE THING IN THIS FILE THAT MUST NOT BE INLINED PER CALLER.
+// `motion`, `motion-rule` and `motion-appeal` each carry `motion_id` on their OWN body message —
+// three different Go types holding one fact — so a reader that reaches for a body's id without
+// covering all three drops a whole limb of the exchange silently. And the id it must reach for is
+// `motion_id`: a ruling carries NO gap id, so attributing a ruling to a gap from the ruling event
+// alone buckets every one of them under the empty key and reports zero forever. The gap lives on
+// the FILING (`Motion.grade.gap_id`); the answer knows only the ask's id, and `Motions` is where
+// the two are put together.
+//
+// ok=false means "not a motion event" — distinct from a motion event whose id is empty, which is a
+// write the tool should never have produced and which callers still skip on their own terms.
+func MotionIDOf(e *Event) (string, bool) {
+	body, ok := recordpb.Body(e)
+	if !ok {
+		return "", false
+	}
+	switch b := body.(type) {
+	case *recordpb.Motion:
+		return b.GetMotionId(), true
+	case *recordpb.MotionRule:
+		return b.GetMotionId(), true
+	case *recordpb.MotionAppeal:
+		return b.GetMotionId(), true
+	}
+	return "", false
+}
+
+// MotionSubjectWord renders a subject as the word this tool's surfaces use, and the ONE
+// disagreement it has to bridge is stated here rather than in each caller.
+//
+// The schema calls the third subject `MOTION_SUBJECT_DIRECTION`. Every surface outside the schema
+// calls it `inquiry`: the `motion inquiry` subgroup, MotionSubjects above, RequireMotionSubjectRef's
+// own branch, report/motions.go's switch, and the goldens that render "direction Q1" from a motion
+// whose subject reads `inquiry`. Rendering it as `direction` would compile, and would invert
+// RequireSubjectMatches for every direction motion in the run — the CLI passes `inquiry`, the
+// record would answer `direction`, and a legitimate ruling would be refused with a message telling
+// the seat to use the subgroup it already used.
+//
+// So the rename is bridged in exactly one place, visibly, until the vocabularies are settled. Every
+// other value comes from the schema.
+func MotionSubjectWord(s recordpb.MotionSubject) string {
+	if s == recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
+		return "inquiry"
+	}
+	return enumWord(s)
+}
+
+// MotionSubjectEnum resolves a surface's subject word back to the schema value. The inverse of
+// MotionSubjectWord, sharing its one special case so the pair cannot drift apart.
+func MotionSubjectEnum(word string) (recordpb.MotionSubject, bool) {
+	if word == "inquiry" {
+		return recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION, true
+	}
+	vd, ok := recordpb.BySpelling(recordpb.MotionSubject(0).Descriptor(), word)
+	if !ok {
+		return recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED, false
+	}
+	return recordpb.MotionSubject(vd.Number()), true
+}
+
+// MotionRulingWord renders whichever ruling the event actually carries.
+//
+// THE VERDICT SET IS KEYED ON THE SUBJECT — that is what MotionVerdicts above says and what the
+// schema's three ruling enums enforce — so there is no single field to read. An arm nobody set
+// returns "", which is what Motion.Ruled() tests: a motion filed and never ruled must stay
+// distinguishable from one ruled with a verdict this binary does not know.
+func MotionRulingWord(r *recordpb.MotionRule) string {
+	switch v := r.GetRuling().(type) {
+	case *recordpb.MotionRule_Grade:
+		return enumWord(v.Grade)
+	case *recordpb.MotionRule_Petition:
+		return enumWord(v.Petition)
+	case *recordpb.MotionRule_Direction:
+		return enumWord(v.Direction)
+	}
+	return ""
+}
+
+// enumWord is the schema's own spelling of an enum value — recordpb.Spelling, reached through the
+// descriptor the generated type already carries.
+//
+// IT IS DELIBERATELY NOT A SECOND VOCABULARY. Where recordpb.Spelling disagrees with the word a
+// seat types (see the return note on separators), that is one defect in one central function and
+// fixing it there corrects every caller, including this one, without an edit here.
+func enumWord(v protoreflect.Enum) string {
+	vd := v.Descriptor().Values().ByNumber(v.Number())
+	if vd == nil {
+		return ""
+	}
+	return recordpb.Spelling(vd)
+}
+
 // MintMotionID assigns the next run-unique motion id (M1, M2 …).
 //
 // Run-unique rather than round-scoped, for the reason a line of inquiry's is: a motion OUTLIVES the round
@@ -127,7 +223,7 @@ func MintMotionID(runDir string) (string, error) {
 	}
 	n := 0
 	for _, e := range m.Events {
-		if e.Type == "motion" && e.Payload.Str("motion_id") != "" {
+		if f, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && f.GetMotionId() != "" {
 			n++
 		}
 	}
@@ -199,39 +295,82 @@ func Motions(b *Board) []*Motion {
 	// inside pass 1 this map was read before it was filled, and a direction motion came out with
 	// no filer, no round and no ask — rendering as an answer to a question nobody asked.
 	for _, e := range b.Events {
-		if e.Type == "line-of-inquiry" && e.Payload.Str("supersedes_status") == "" {
-			if a := e.Payload.Str("inquiry_id"); a != "" {
-				proposals[a] = proposal{filer: e.SeatID, basis: e.Payload.Str("line"), round: e.Round}
-			}
+		av, ok := recordpb.BodyAs[*recordpb.Avenue](e)
+		// A MOVE IS NOT A PROPOSAL, and the discriminator is PRESENCE. The schema states
+		// `supersedes_status` marks the event as a move, so a proposal does not carry the field at
+		// all — `GetSupersedesStatus() == ""` would fold a field somebody set to the empty string
+		// back into the proposal set, which is the read this migration exists to remove.
+		if !ok || av.SupersedesStatus != nil {
+			continue
+		}
+		if a := av.GetAvenueId(); a != "" {
+			proposals[a] = proposal{filer: e.GetSeatId(), basis: av.GetLine(), round: int(e.GetRound())}
 		}
 	}
 
 	for _, e := range b.Events {
-		id := e.Payload.Str("motion_id")
-		if id == "" {
+		body, ok := recordpb.Body(e)
+		if !ok {
+			// No body at all. Not an empty motion — an event this pass has nothing to read, and
+			// falling through would ask a nil message for an id.
 			continue
 		}
-		switch e.Type {
-		case "motion":
+		switch f := body.(type) {
+		case *recordpb.Motion:
+			// THE FILING CARRIES THE ID EVERYTHING ELSE JOINS ON. It is read from the filing's own
+			// message rather than from a key that might be present on anything.
+			id := f.GetMotionId()
+			if id == "" {
+				continue
+			}
 			m, ok := byID[id]
 			if !ok {
 				m = &Motion{ID: id, Fields: map[string]string{}}
 				byID[id] = m
 				order = append(order, id)
 			}
-			m.Subject, m.Filer, m.Round = e.Payload.Str("subject"), e.SeatID, e.Round
-			m.Basis, m.Relief = e.Payload.Str("reason"), e.Payload.Str("relief")
-			for _, k := range []string{"gap_id", "dimension", "proposed", "class", "inquiry_id"} {
-				if v := e.Payload.Str(k); v != "" {
-					m.Fields[k] = v
+			m.Subject, m.Filer, m.Round = MotionSubjectWord(f.GetSubject()), e.GetSeatId(), int(e.GetRound())
+			m.Basis, m.Relief = f.GetBasis(), f.GetRelief()
+			// THE SUBJECT-SPECIFIC FIELDS COME OFF THE SUBJECT'S OWN MESSAGE, which is what the
+			// `filing` oneof buys: a grade motion cannot carry a petition's `class`, so the loop
+			// over five payload keys that used to stand in for that guarantee is gone. The KEYS
+			// stay as they were — report/motions.go and motionview.go read `gap_id`, `dimension`,
+			// `proposed`, `class` and `inquiry_id` by name, and `inquiry_id` in particular is the
+			// surface spelling of what the schema calls `avenue_id`.
+			//
+			// Each is set only when PRESENT. The old read skipped an empty string; an absent enum
+			// would otherwise render as its UNSPECIFIED spelling and put a word on the report where
+			// the seat wrote nothing.
+			switch fil := f.GetFiling().(type) {
+			case *recordpb.Motion_Grade:
+				if fil.Grade.GapId != nil {
+					m.Fields["gap_id"] = fil.Grade.GetGapId()
+				}
+				if fil.Grade.Dimension != nil {
+					m.Fields["dimension"] = enumWord(fil.Grade.GetDimension())
+				}
+				if fil.Grade.Proposed != nil {
+					m.Fields["proposed"] = enumWord(fil.Grade.GetProposed())
+				}
+			case *recordpb.Motion_Petition:
+				if fil.Petition.Class != nil {
+					m.Fields["class"] = enumWord(fil.Petition.GetClass())
+				}
+			case *recordpb.Motion_Direction:
+				if fil.Direction.AvenueId != nil {
+					m.Fields["inquiry_id"] = fil.Direction.GetAvenueId()
 				}
 			}
-		case "motion-rule":
+		case *recordpb.MotionRule:
+			id := f.GetMotionId()
+			if id == "" {
+				continue
+			}
 			// PASS 1 only CREATES. A direction motion has no filing event of its own, so its
 			// ruling is also its creation; every other subject is created by its `motion` event,
 			// which this pass may not have reached yet. The ruling itself is attached in pass 2.
 			if _, ok := byID[id]; !ok {
-				if e.Payload.Str("subject") != "inquiry" {
+				if f.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
 					continue // a ruling naming no filing; RequireMotionSubjectRef refuses this at the write
 				}
 				// A DIRECTION MOTION IS CREATED BY ITS RULING, and that is not a special case
@@ -260,21 +399,30 @@ func Motions(b *Board) []*Motion {
 
 	// PASS 2 attaches every answer. Order-independent by construction, which is the only safe
 	// assumption about a multi-shard log.
+	//
+	// THE ANSWER KNOWS ONLY THE ASK'S ID. A `motion-rule` carries `motion_id` and nothing else that
+	// identifies what it is about — no gap id, no avenue id — so this lookup IS the attribution.
+	// Reading a ruling's subject matter from the ruling event alone would key every one of them on
+	// the empty string and report a board with no rulings on it.
 	for _, e := range b.Events {
-		id := e.Payload.Str("motion_id")
-		if id == "" {
+		id, ok := MotionIDOf(e)
+		if !ok || id == "" {
 			continue
 		}
 		m, ok := byID[id]
 		if !ok {
 			continue // a ruling or appeal naming no filing; the write-side ref checks refuse these
 		}
-		switch e.Type {
-		case "motion-rule":
-			m.Ruling, m.RulingBy, m.RulingRound = e.Payload.Str("ruling"), e.SeatID, e.Round
-			m.Opinion = e.Payload.Str("reason")
-		case "motion-appeal":
-			m.Appealed, m.AppealReason = true, e.Payload.Str("reason")
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
+		}
+		switch f := body.(type) {
+		case *recordpb.MotionRule:
+			m.Ruling, m.RulingBy, m.RulingRound = MotionRulingWord(f), e.GetSeatId(), int(e.GetRound())
+			m.Opinion = f.GetOpinion()
+		case *recordpb.MotionAppeal:
+			m.Appealed, m.AppealReason = true, f.GetReason()
 		}
 	}
 
@@ -294,11 +442,11 @@ func Motions(b *Board) []*Motion {
 // the proposal is the filing — so it joins on the LINE's own id, and the thing that must exist
 // is the line of inquiry, not a motion event. Passing the subject keeps that difference in one place
 // instead of pushing it into each RunE.
-func RequireMotionSubjectRef(runDir, subject, id string) error {
+func RequireMotionSubjectRef(runDir string, subject recordpb.MotionSubject, id string) error {
 	if id == "" {
 		return fmt.Errorf("record: --id is required — a ruling names the motion it answers, and that join is the whole of #312")
 	}
-	if subject == "inquiry" {
+	if subject == recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
 		return RequireInquiryRef(runDir, id)
 	}
 	m, err := MergedEvents(runDir)
@@ -306,7 +454,7 @@ func RequireMotionSubjectRef(runDir, subject, id string) error {
 		return err
 	}
 	for _, e := range m.Events {
-		if e.Type == "motion" && e.Payload.Str("motion_id") == id {
+		if f, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && f.GetMotionId() == id {
 			return nil
 		}
 	}
@@ -347,12 +495,14 @@ func MotionSubjectOf(runDir, id string) (string, error) {
 		return "", err
 	}
 	for _, e := range m.Events {
-		if e.Type == "motion" && e.Payload.Str("motion_id") == id {
-			return e.Payload.Str("subject"), nil
+		if f, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && f.GetMotionId() == id {
+			return MotionSubjectWord(f.GetSubject()), nil
 		}
 	}
 	for _, e := range m.Events {
-		if e.Type == "line-of-inquiry" && e.Payload.Str("inquiry_id") == id {
+		// ANY avenue event, proposal or move: the question is whether this id names a line of
+		// inquiry at all, and a line that has since moved status is still a line.
+		if av, ok := recordpb.BodyAs[*recordpb.Avenue](e); ok && av.GetAvenueId() == id {
 			return "inquiry", nil
 		}
 	}
@@ -375,9 +525,9 @@ func RequireUnruledMotion(runDir, id string) error {
 		return err
 	}
 	for _, e := range m.Events {
-		if e.Type == "motion-rule" && e.Payload.Str("motion_id") == id {
-			return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — it replays as whichever the shard ordering favours, and the other disappears. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command",
-				id, e.Payload.Str("ruling"), e.SeatID)
+		if f, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && f.GetMotionId() == id {
+			return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command",
+				id, MotionRulingWord(f), e.GetSeatId())
 		}
 	}
 	return nil
@@ -390,7 +540,7 @@ func RequireUnruledMotion(runDir, id string) error {
 // has no honest sentence for. The check covers every subject rather than the one that surfaced it:
 // appealing an unruled grade is the same nonsense as appealing an unruled direction, and fixing
 // only the instance is how the class survives.
-func RequireRuledMotion(runDir, subject, id string) error {
+func RequireRuledMotion(runDir string, subject recordpb.MotionSubject, id string) error {
 	if err := RequireMotionSubjectRef(runDir, subject, id); err != nil {
 		return err
 	}
@@ -399,11 +549,8 @@ func RequireRuledMotion(runDir, subject, id string) error {
 		return err
 	}
 	for _, e := range m.Events {
-		switch e.Type {
-		case "motion-rule":
-			if e.Payload.Str("motion_id") == id {
-				return nil
-			}
+		if f, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && f.GetMotionId() == id {
+			return nil
 		}
 	}
 	return fmt.Errorf("record: %s motion %s has no ruling to appeal — an appeal presses on after an answer, and there is no answer on the record yet", subject, id)

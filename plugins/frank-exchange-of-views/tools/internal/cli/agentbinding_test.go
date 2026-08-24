@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"strings"
 	"testing"
 
@@ -41,7 +42,7 @@ func TestTheHookInjectsAnIdentityThatRegisterRecords(t *testing.T) {
 	if _, err := run(t, "register", "--seat-id", "red-lens-r1-L1"); err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	got := lastOfType(t, runDir, "register").Payload.Str("agent_id")
+	got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_REGISTER).GetRegister().GetAgentId()
 	if got != agent {
 		t.Fatalf("the register event does not carry the agent that made the call: got %q, want %q.\n"+
 			"The binding is the whole mechanism — without it every later call is back to trusting whatever --seat-id it is handed.", got, agent)
@@ -61,13 +62,16 @@ func TestNoHookMeansNoAgentField(t *testing.T) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	ev := lastOfType(t, runDir, "register")
-	if ev.Payload.Has(recordAgentKey) {
-		t.Errorf("an unhooked run wrote an agent_id field anyway: %v", ev.Payload.Keys())
+	ev := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_REGISTER)
+	// PRESENCE, not the empty string: agent_id is an optional field, so "never measured" is the
+	// field being ABSENT. Reading it with GetAgentId() would collapse the two cases this test exists
+	// to keep apart.
+	if ev.GetRegister().AgentId != nil {
+		t.Errorf("an unhooked run wrote an agent_id field anyway: %q", ev.GetRegister().GetAgentId())
 	}
 	// And the register itself must still work. A seat whose harness has no hook is not a seat
 	// that cannot record.
-	if ev.SeatID != "red-lens-r1-L1" {
+	if ev.GetSeatId() != "red-lens-r1-L1" {
 		t.Errorf("register did not record the seat: %+v", ev)
 	}
 }
@@ -100,17 +104,26 @@ func TestConcurrentSeatsRecordDistinctAgents(t *testing.T) {
 			t.Fatalf("register %s: %v", seat, err)
 		}
 	}
+	// THE LATEST REGISTER PER SEAT, which is what the binding IS. seatRun already registered
+	// red-lens-r1-L1 with no agent, and this loop asserted over EVERY register event — so it
+	// failed on the fixture's own earlier sitting rather than on the binding under test.
+	//
+	// Taking the last one is not a way around that: it is the rule agentbinding.go states. A
+	// re-dispatch writes a fresh register, both stay on the record because it is append-only, and
+	// the binding is the most recent claim. Asserting over all of them would refuse every resume.
+	bound := map[string]string{}
 	for _, ev := range events(t, runDir) {
-		if ev.Type != "register" {
+		if ev.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
 			continue
 		}
-		if want, ok := seats[ev.SeatID]; ok && ev.Payload.Str("agent_id") != want {
-			t.Errorf("seat %s bound to %q, want %q — the handles crossed", ev.SeatID, ev.Payload.Str("agent_id"), want)
+		bound[ev.GetSeatId()] = ev.GetRegister().GetAgentId()
+	}
+	for seat, want := range seats {
+		if bound[seat] != want {
+			t.Errorf("seat %s bound to %q, want %q — the handles crossed", seat, bound[seat], want)
 		}
 	}
 }
-
-const recordAgentKey = "agent_id"
 
 // applyExports puts the variables from a hook rewrite into this process, the way the shell that
 // receives the rewritten command would.
@@ -176,7 +189,7 @@ func TestRegisterIsTheOneVerbThatMayRunUnbound(t *testing.T) {
 	if _, err := run(t, "friction", "--run", runDir, "--reason", "the tool has no path for X"); err != nil {
 		t.Fatalf("a registered agent still could not act without retyping its seat id: %v", err)
 	}
-	if got := lastOfType(t, runDir, "friction").SeatID; got != "red-lens-r1-L1" {
+	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_FRICTION).GetSeatId(); got != "red-lens-r1-L1" {
 		t.Errorf("the event was filed under %q; the binding did not carry the identity", got)
 	}
 }

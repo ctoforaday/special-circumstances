@@ -30,6 +30,13 @@ func extractQuote(location string) string {
 // by an internal mark ("costs rise, sharply" vs "costs rise sharply") stay distinct.
 const trailingPunct = ".,;:!?\"'…"
 
+// TrailingPunct is the same cutset, exported for the one other place that must skip the run a
+// quote is allowed to omit: bluedoc, deciding whether a span abuts an anchor. Exported rather
+// than restated there — two copies of "which marks a quote may drop" is precisely the pair that
+// drifts, and the drift would show as an edit refused or permitted for no reason a reader could
+// find.
+const TrailingPunct = trailingPunct
+
 func isSpace(b byte) bool {
 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }

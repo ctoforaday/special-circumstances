@@ -2,6 +2,8 @@ package cli
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"os"
 	"path/filepath"
 	"sort"
@@ -50,7 +52,11 @@ func TestBothProseChannelsProduceTheSameRecord(t *testing.T) {
 		{blueSeat, []string{"position"}},
 		{blueSeat, []string{"revision"}},
 		{blueSeat, []string{"friction"}},
-		{"red-merge-r1", []string{"position"}},
+		// A SEAT THE STAGED BOARD HAS NOT ALREADY USED. The docket board records a `position` for
+		// red-merge-r1, and a position is a once-per-sitting act the record REFUSES to repeat
+		// rather than dedup — so this case was failing on the fixture's own write, not on the
+		// prose channel it is testing.
+		{"red-merge-r2", []string{"position"}},
 		{"red-merge-r1", []string{"friction"}},
 		{"judge-r2", []string{"certify"}},
 		{"judge-r2", []string{"declare"}},
@@ -86,48 +92,70 @@ func TestBothProseChannelsProduceTheSameRecord(t *testing.T) {
 func recordOnce(t *testing.T, seatID string, args []string, prose func(dir string) []string) string {
 	t.Helper()
 	runDir := newRun(t)
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	exec := func(a ...string) (string, error) { return run(t, a...) }
 	if err := seatprobe.Build(runDir, seatprobe.Boards()["docket"], exec); err != nil {
 		t.Fatalf("stage the board: %v", err)
 	}
 	full := append(append([]string{}, args...), "--run", runDir, "--seat-id", seatID)
-	full = append(full, prose(t.TempDir())...)
+	full = append(full, prose(tmpRun(t))...)
 	if _, err := run(t, full...); err != nil {
 		t.Fatalf("%v: %v", args, err)
 	}
-	return payloadOfLast(t, runDir, recordTypeOf(args))
+	return payloadOfLast(t, runDir, recordTypeOf(t, args))
 }
 
-// recordTypeOf is the event a verb writes, spelled the way the record spells it. Hand-kept and
-// SMALL on purpose: the alternative is resolving the command tree here, and a wrong entry fails
-// loudly at payloadOfLast ("no <type> event in the log") rather than passing on a miss.
-func recordTypeOf(args []string) string {
-	switch args[0] {
-	case "line-of-inquiry":
-		return "line-of-inquiry"
-	default:
-		return args[0]
+// recordTypeOf is the event a verb writes.
+//
+// SMALL, AND CHECKED — which is the part that was missing either way. It began as a hand-kept
+// switch defended as "SMALL on purpose". I replaced it with a bare schema lookup on the verb name,
+// on the argument that the table was a second list beside the descriptor. That was wrong: a verb
+// and the event it writes are DIFFERENT NAMES, deliberately — `line-of-inquiry` writes an `avenue`
+// — so the lookup resolved nothing and the test asserted against a word the schema does not carry.
+//
+// The mapping is real and irreducible, so it stays; what it now does is RESOLVE through the
+// descriptor, so a stale entry fails here naming the word it could not find rather than passing
+// on a miss. See [[facts-are-fields]] clause 4: find every reader before removing an encoding.
+func recordTypeOf(t *testing.T, args []string) recordpb.EventType {
+	t.Helper()
+	word := args[0]
+	if w, ok := map[string]string{"line-of-inquiry": "avenue"}[word]; ok {
+		word = w
 	}
+	vd, ok := recordpb.BySpelling(recordpb.EventType(0).Descriptor(), strings.ReplaceAll(word, "-", "_"))
+	if !ok {
+		t.Fatalf("%q maps to %q, which is not an event type the schema declares — the verb->event mapping above is stale", args[0], word)
+	}
+	return recordpb.EventType(vd.Number())
 }
 
 // payloadOfLast renders the event's payload as stable text, dropping the fields that differ by
 // construction between two separate runs.
-func payloadOfLast(t *testing.T, runDir, typ string) string {
+func payloadOfLast(t *testing.T, runDir string, typ recordpb.EventType) string {
 	t.Helper()
 	ev := lastOfType(t, runDir, typ)
-	keys := make([]string, 0)
-	for _, k := range ev.Payload.Keys() {
-		switch k {
-		case "inquiry_id", "gap_id", "nonce", "ts":
-			continue // minted per run; equality here would be a test of the id generator
-		}
-		keys = append(keys, k)
+	body, ok := recordpb.Body(ev)
+	if !ok {
+		t.Fatalf("the %s event carries no body", typ)
 	}
+	// FIELDS OFF THE DESCRIPTOR, not keys off a map. The payload is a typed message now, so
+	// "which fields are set" is presence on the message rather than membership in a string map —
+	// and an unset field is absent here for the same reason it is absent from the record.
+	var keys []string
+	seen := map[string]string{}
+	body.ProtoReflect().Range(func(fd protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		switch string(fd.Name()) {
+		case "inquiry_id", "gap_id":
+			return true // minted per run; equality here would be a test of the id generator
+		}
+		keys = append(keys, string(fd.Name()))
+		seen[string(fd.Name())] = v.String()
+		return true
+	})
 	sort.Strings(keys)
 	var b strings.Builder
 	for _, k := range keys {
-		fmt.Fprintf(&b, "%s=%q ", k, ev.Payload.Str(k))
+		fmt.Fprintf(&b, "%s=%q ", k, seen[k])
 	}
 	return strings.TrimSpace(b.String())
 }

@@ -5,6 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE VERDICT IS THE LAST BIG DERIVED-NOT-ASSERTED VIOLATION (#308).
@@ -52,15 +55,33 @@ func DeriveVerdict(runDir string) (verdict, why string, ok bool) {
 	maxRound := 0
 	passed := false
 	halted := false
-	for _, e := range b.Events {
-		if e.Round > maxRound {
-			maxRound = e.Round
+	for i := range b.Events {
+		e := b.Events[i]
+		if r := int(e.GetRound()); r > maxRound {
+			maxRound = r
 		}
-		switch e.Type {
-		case "halt":
+		switch e.GetType() {
+		case recordpb.EventType_EVENT_TYPE_HALT:
+			// A HALT COUNTS ON ITS TYPE, not on its body being readable. The Halt body carries
+			// only the bench's opinion, which this function never reads, and the failure mode
+			// is asymmetric: a halt that did not register here lets a run that was STOPPED on
+			// safety grounds report VERIFIED. So the absence of a body is not allowed to
+			// suppress the halt.
 			halted = true
-		case "verdict":
-			if e.Payload.Str("verdict") == "PASS" {
+		case recordpb.EventType_EVENT_TYPE_VERDICT:
+			// A verdict event with NO body is not a pass. It cannot be — the PASS lives in the
+			// body's enum and there is nothing else to read it from — but it is also not
+			// silently equivalent to a recorded FAIL, and it does not become one here: it
+			// leaves `passed` untouched, and if nothing else decides the run, DeriveVerdict
+			// returns ok=false rather than guessing.
+			// Named `hasBody`, not `ok`: this function's third RESULT is named ok, and a
+			// shadow of it here would make any later bare `return` report the loop's last
+			// body-presence as the verdict's derivability.
+			body, hasBody := recordpb.Body(e)
+			if !hasBody {
+				continue
+			}
+			if v, isVerdict := body.(*recordpb.RoundVerdict); isVerdict && v.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
 				passed = true
 			}
 		}
@@ -99,4 +120,21 @@ func configuredMaxRounds(runDir string) int {
 		return 0
 	}
 	return n
+}
+
+// RunOutcomeOf is the seat's verdict word to the schema's value, and it lives beside DeriveVerdict
+// for the reason GradeOf lives beside GradeStr: a conversion that exists in only one direction is
+// how two vocabularies drift apart. The writer invents its own mapping, the reader keeps another,
+// and nothing can see them disagree.
+//
+// The seat types `VERIFIED`; the schema spells `verified`. Case is presentation and is folded here
+// rather than at each call site, because a caller that forgets returns the zero — and the zero is
+// UNSPECIFIED, which would record a run as having no verdict at all rather than refusing the word.
+// `false` means it is not a verdict; a caller must refuse rather than record the zero.
+func RunOutcomeOf(word string) (recordpb.RunOutcome, bool) {
+	vd, ok := recordpb.BySpelling(recordpb.RunOutcome(0).Descriptor(), strings.ToLower(strings.TrimSpace(word)))
+	if !ok {
+		return recordpb.RunOutcome_RUN_OUTCOME_UNSPECIFIED, false
+	}
+	return recordpb.RunOutcome(vd.Number()), true
 }
