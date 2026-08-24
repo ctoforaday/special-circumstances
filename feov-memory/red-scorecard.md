@@ -81,3 +81,23 @@ HEADLINE: anchored_closures_pct 60 [BENCHMARK] · citation_yield_by_round {"1":{
 - `finding_precision` [benchmark] — Certification: earned PASS/FAIL: _not computed_ — needs adjudication outcomes per finding; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful
 
 HEADLINE: anchored_closures_pct 100 [BENCHMARK] · citation_yield_by_round {"1":{"citation":1,"logic":2,"darkside":2,"seats":{"citation":1,"logic":1,"darkside":1},"per_seat":{"citation":1,"logic":2,"darkside":2}},"2":{"citation":0,"logic":1,"darkside":2,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":1,"darkside":2}}} [DIAGNOSTIC]
+
+## 2026-08-23_research-loop-counterparts
+
+- `anchored_closures_pct` [benchmark] — Attestation-format invariant: **81** (target 100; baseline 89 (E0.5a))
+- `convergence_vs_verdict_flags` [detector] — Never-hard-fail: **0**
+- `citation_yield_by_round` [diagnostic] — Lens economics (W2i assumption): **{"1":{"citation":0,"logic":4,"darkside":3,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":4,"darkside":3}},"2":{"citation":0,"logic":1,"darkside":3,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":1,"darkside":3}},"3":{"citation":1,"logic":1,"darkside":3,"seats":{"citation":1,"logic":1,"darkside":1},"per_seat":{"citation":1,"logic":1,"darkside":3}},"4":{"citation":0,"logic":2,"darkside":2,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":2,"darkside":2}}}**
+  - RETUNE TRIGGER: compare PER_SEAT yield across rounds, never the raw count — W2i dispatches fewer citation lenses later, so a raw comparison scores the cut as the collapse that justified it. If per-seat citation yield holds while another role collapses, the cap is aimed at the wrong lens
+- `finding_precision` [benchmark] — Certification: earned PASS/FAIL: _not computed_ — needs adjudication outcomes per finding; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful
+
+HEADLINE: anchored_closures_pct 81 [BENCHMARK] · citation_yield_by_round {"1":{"citation":0,"logic":4,"darkside":3,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":4,"darkside":3}},"2":{"citation":0,"logic":1,"darkside":3,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":1,"darkside":3}},"3":{"citation":1,"logic":1,"darkside":3,"seats":{"citation":1,"logic":1,"darkside":1},"per_seat":{"citation":1,"logic":1,"darkside":3}},"4":{"citation":0,"logic":2,"darkside":2,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":2,"darkside":2}}} [DIAGNOSTIC]
+
+## 2026-08-23_sleeper-service-plan
+
+- `anchored_closures_pct` [benchmark] — Attestation-format invariant: **57** (target 100; baseline 89 (E0.5a))
+- `convergence_vs_verdict_flags` [detector] — Never-hard-fail: **0**
+- `citation_yield_by_round` [diagnostic] — Lens economics (W2i assumption): **{"1":{"citation":2,"logic":6,"darkside":3,"seats":{"citation":1,"logic":1,"darkside":1},"per_seat":{"citation":2,"logic":6,"darkside":3}},"2":{"citation":0,"logic":4,"darkside":2,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":4,"darkside":2}},"3":{"citation":0,"logic":2,"darkside":3,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":2,"darkside":3}},"4":{"citation":0,"logic":2,"darkside":3,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":2,"darkside":3}}}**
+  - RETUNE TRIGGER: compare PER_SEAT yield across rounds, never the raw count — W2i dispatches fewer citation lenses later, so a raw comparison scores the cut as the collapse that justified it. If per-seat citation yield holds while another role collapses, the cap is aimed at the wrong lens
+- `finding_precision` [benchmark] — Certification: earned PASS/FAIL: _not computed_ — needs adjudication outcomes per finding; the judge ruled on <5% of gaps in runs 4-5, so the denominator is not yet meaningful
+
+HEADLINE: anchored_closures_pct 57 [BENCHMARK] · citation_yield_by_round {"1":{"citation":2,"logic":6,"darkside":3,"seats":{"citation":1,"logic":1,"darkside":1},"per_seat":{"citation":2,"logic":6,"darkside":3}},"2":{"citation":0,"logic":4,"darkside":2,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":4,"darkside":2}},"3":{"citation":0,"logic":2,"darkside":3,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":2,"darkside":3}},"4":{"citation":0,"logic":2,"darkside":3,"seats":{"citation":0,"logic":1,"darkside":1},"per_seat":{"citation":null,"logic":2,"darkside":3}}} [DIAGNOSTIC]
