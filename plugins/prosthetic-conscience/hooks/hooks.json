@@ -3,35 +3,35 @@
   "hooks": {
     "PreToolUse": [
       {
-        "_comment": "ONE hook for this event (#201 step 3). The secrets gate and the push-freeze guard are still separate UNITS with OPPOSITE postures — the gate fails CLOSED and can deny, including on an undecodable payload (#211); the freeze guard NEVER blocks, because the freeze is a commitment the human may consciously override. The merge keeps both: deny wins and only one permission document is emitted, while warnings survive a denial because the operator needs both facts. The matcher is the UNION of the units' own (the gate watches WebFetch|WebSearch|Bash, the guard only Bash), and each unit still checks its own applicability so merging cannot widen what it acts on.",
+        "_comment": "ONE hook for this event (#201 step 3). The secrets gate and the push-freeze guard are still separate UNITS with OPPOSITE postures \u2014 the gate fails CLOSED and can deny, including on an undecodable payload (#211); the freeze guard NEVER blocks, because the freeze is a commitment the human may consciously override. The merge keeps both: deny wins and only one permission document is emitted, while warnings survive a denial because the operator needs both facts. The matcher is the UNION of the units' own (the gate watches WebFetch|WebSearch|Bash, the guard only Bash), and each unit still checks its own applicability so merging cannot widen what it acts on.",
         "matcher": "WebFetch|WebSearch|Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-pretooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-pretooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "_comment": "ONE hook for this event (#201 step 3). Units keep their own packages and tests and run in one process over one shared context; the recall-index unit was retired with the retrieval layer (2026-08-04), so the quality gate is the one unit today and the fan-in stays for the merge policy, not for a headcount. Measured (hook-surface-spike.md §4b): the client runs an event's hooks in PARALLEL, so this merge runs its units concurrently simply to MATCH that — parity is the floor. What it buys is what separate processes could not share: the payload parsed once, the project root resolved once, ONE writer for the hook log (two appends on one event were concurrent by design), and a place for expensive reads to be memoised as they arrive. The matcher is the UNION of the units' own, and each unit still checks its own applicability.",
+        "_comment": "ONE hook for this event (#201 step 3). Units keep their own packages and tests and run in one process over one shared context; the recall-index unit was retired with the retrieval layer (2026-08-04), so the quality gate is the one unit today and the fan-in stays for the merge policy, not for a headcount. Measured (hook-surface-spike.md \u00a74b): the client runs an event's hooks in PARALLEL, so this merge runs its units concurrently simply to MATCH that \u2014 parity is the floor. What it buys is what separate processes could not share: the payload parsed once, the project root resolved once, ONE writer for the hook log (two appends on one event were concurrent by design), and a place for expensive reads to be memoised as they arrive. The matcher is the UNION of the units' own, and each unit still checks its own applicability.",
         "matcher": "Write|Edit",
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-posttooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-posttooluse\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
     ],
     "SessionStart": [
       {
-        "_comment": "ONE hook for this event (#201 step 3). The toolchain nudge and the checkpoint restore are still separate UNITS; what changed is that ONE response is composed from both. They were emitting on DIFFERENT CHANNELS and separate processes hid it — the nudge printed a bare line to stdout, the restore emitted a JSON document — and one process cannot do both without corrupting the document. Everything now travels as additionalContext, which is the channel hook-surface-spike.md §5 actually verified. No matcher: restore must fire on EVERY source, compact included.",
+        "_comment": "ONE hook for this event (#201 step 3). The toolchain nudge and the checkpoint restore are still separate UNITS; what changed is that ONE response is composed from both. They were emitting on DIFFERENT CHANNELS and separate processes hid it \u2014 the nudge printed a bare line to stdout, the restore emitted a JSON document \u2014 and one process cannot do both without corrupting the document. Everything now travels as additionalContext, which is the channel hook-surface-spike.md \u00a75 actually verified. No matcher: restore must fire on EVERY source, compact included.",
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-sessionstart\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-sessionstart\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -41,62 +41,73 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-postcompact-observe\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-postcompact-observe\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
     ],
     "FileChanged": [
       {
-        "_comment": "No matcher: watchPaths is registered dynamically by sc-checkpoint-restore from the note's own trigger surfaces, so the set is per-session and cannot be written here. The hook narrows what the watch cannot — watchPaths takes directories, never patterns (hook-surface-spike.md §6) — by matching file_path back to the check that claimed the surface. Changes under .claude/ are ignored so the hooks' own writes cannot re-trigger them.",
+        "_comment": "No matcher: watchPaths is registered dynamically by sc-checkpoint-restore from the note's own trigger surfaces, so the set is per-session and cannot be written here. The hook narrows what the watch cannot \u2014 watchPaths takes directories, never patterns (hook-surface-spike.md \u00a76) \u2014 by matching file_path back to the check that claimed the surface. Changes under .claude/ are ignored so the hooks' own writes cannot re-trigger them.",
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-filechanged-rearm\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-filechanged-rearm\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
     ],
     "PreCompact": [
       {
-        "_comment": "ONE binary per EVENT (#201 step 3). sc-checkpoint-seal served all three seal events from one binary behind an -event flag — the inverse of the rule, and the flag existed only to work around it. Each binary now knows its event by construction; the seal itself did not fork, so the drift the merged binary avoided is prevented by the shared unit instead.",
+        "_comment": "ONE binary per EVENT (#201 step 3). sc-checkpoint-seal served all three seal events from one binary behind an -event flag \u2014 the inverse of the rule, and the flag existed only to work around it. Each binary now knows its event by construction; the seal itself did not fork, so the drift the merged binary avoided is prevented by the shared unit instead.",
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-precompact\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-precompact\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
     ],
     "SessionEnd": [
       {
-        "_comment": "ONE binary per EVENT (#201 step 3). sc-checkpoint-seal served all three seal events from one binary behind an -event flag — the inverse of the rule, and the flag existed only to work around it. Each binary now knows its event by construction; the seal itself did not fork, so the drift the merged binary avoided is prevented by the shared unit instead.",
+        "_comment": "ONE binary per EVENT (#201 step 3). sc-checkpoint-seal served all three seal events from one binary behind an -event flag \u2014 the inverse of the rule, and the flag existed only to work around it. Each binary now knows its event by construction; the seal itself did not fork, so the drift the merged binary avoided is prevented by the shared unit instead.",
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-sessionend\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-sessionend\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
     ],
     "SubagentStop": [
       {
-        "_comment": "ONE binary per EVENT (#201 step 3). sc-checkpoint-seal served all three seal events from one binary behind an -event flag — the inverse of the rule, and the flag existed only to work around it. Each binary now knows its event by construction; the seal itself did not fork, so the drift the merged binary avoided is prevented by the shared unit instead.",
+        "_comment": "ONE binary per EVENT (#201 step 3). sc-checkpoint-seal served all three seal events from one binary behind an -event flag \u2014 the inverse of the rule, and the flag existed only to work around it. Each binary now knows its event by construction; the seal itself did not fork, so the drift the merged binary avoided is prevented by the shared unit instead.",
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-subagentstop\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-subagentstop\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
     ],
     "PostToolUseFailure": [
       {
-        "_comment": "No matcher: a spin is a spin whatever tool it runs through, and anti-spinning names none. The counter keys on (tool, target) itself, and skips is_interrupt so the rule's other half — honor the cancel — does not fight this one (measured: plans/hook-surface-spike.md §2).",
+        "_comment": "No matcher: a spin is a spin whatever tool it runs through, and anti-spinning names none. The counter keys on (tool, target) itself, and skips is_interrupt so the rule's other half \u2014 honor the cancel \u2014 does not fight this one (measured: plans/hook-surface-spike.md \u00a72).",
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-strike-counter\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-strike-counter\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "_comment": "The checkpoint-freshness nudge. NO MATCHER: Stop takes none. INERT until band thresholds exist \u2014 it emits nothing and, deliberately, writes no state either, because the seal record derives nudge_enabled from whether nudge.json exists; a file created by an inert build would make every baseline row claim the nudge was live. Registration is the one carrier NOTHING gates: scripts/pluginparity does not read this file (grep returns 0) and the only hooks.json check in CI tests bootstrap-guard degradation, so a binary that is built, declared and documented but never registered passes every command the plan names. Reviewed by hand, deliberately. The command uses the SAME degradation wrapper as every other hook here, and that shape is not decoration: a bare path to a missing binary made the plugin disable every session it was installed into (1082275). A hook that cannot find its binary must say so and exit, not fail the event.",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/sc-stop\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\"; fi; echo 'prosthetic-conscience: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }

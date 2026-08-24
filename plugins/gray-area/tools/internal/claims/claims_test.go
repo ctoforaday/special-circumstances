@@ -15,7 +15,7 @@ import (
 // off-by-one that made rearmed.json's key 2 mean the note's `1.` (#192). A
 // fixture inherits its author's idea of what the format is; this one inherited a
 // wrong one from a real file, which is the harder version of that trap.
-const realNote = "---\nschema: 2\n---\n" + `
+const realNote = "---\nschema: 3\n---\n" + `
 ## Validation loop
 1. ` + "`go test -C plugins/gray-area/tools ./...`" + `  → 3 packages ok  · re-armed by: plugins/gray-area/tools/
    last run: pass 2026-07-30T04:41Z (on merged main, 667c716)

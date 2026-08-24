@@ -54,6 +54,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 )
 
@@ -83,6 +84,25 @@ type observation struct {
 	SummaryB  int              `json:"summary_bytes"`
 	NotePath  string           `json:"note_path"`
 	Sections  []sectionOverlap `json:"sections"`
+
+	// The note's age at this boundary, in the same three units the seal row uses and
+	// computed by the same gauge — a second implementation is how two records start
+	// disagreeing about what "age" meant. Each is OMITTED when unmeasured rather than
+	// written as a zero.
+	NoteAgeTurns      *int   `json:"note_age_turns,omitempty"`
+	TurnsMeasured     bool   `json:"turns_measured"`
+	NoteGrowthTokens  *int   `json:"note_growth_tokens,omitempty"`
+	GrowthMeasured    bool   `json:"growth_measured"`
+	GrowthSince       string `json:"growth_since,omitempty"`
+	NoteBranchCommits *int   `json:"note_branch_commits,omitempty"`
+	BranchMeasured    bool   `json:"branch_measured"`
+
+	// NudgeEnabled says whether the nudge was live when this row was written.
+	// Criterion 6 compares the two populations, and a row that does not say which it
+	// belongs to cannot be put in either. Recorded per row rather than inferred from
+	// dates, because "when did it ship" is exactly the kind of fact that gets
+	// reconstructed wrongly a month later.
+	NudgeEnabled bool `json:"nudge_enabled"`
 }
 
 // sectionOverlap is how much of one section's distinctive vocabulary the summary
@@ -195,7 +215,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 
-	appendRow(projectDir, observation{
+	age := freshness.Of(projectDir, in.TranscriptPath, string(body),
+		freshness.BranchWork(checkpoint.Parse(string(body)).Get("head")), now)
+
+	o := observation{
 		At:        now.UTC().Format(time.RFC3339),
 		Probe:     probe,
 		SessionID: in.SessionID,
@@ -204,7 +227,29 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		SummaryB:  len(in.CompactSummary),
 		NotePath:  path,
 		Sections:  overlap(string(body), in.CompactSummary),
-	}, stderr)
+
+		TurnsMeasured:  age.TurnsMeasured,
+		GrowthMeasured: age.GrowthKnown,
+		BranchMeasured: age.BranchKnown,
+		// Phase 1 ships no nudge. This becomes a real reading when stopnudge exists.
+		NudgeEnabled: false,
+	}
+	if age.TurnsMeasured {
+		t := age.Turns
+		o.NoteAgeTurns = &t
+	}
+	if age.GrowthKnown {
+		g := age.Growth
+		o.NoteGrowthTokens = &g
+		if !age.GrowthSince.IsZero() {
+			o.GrowthSince = age.GrowthSince.UTC().Format(time.RFC3339)
+		}
+	}
+	if age.BranchKnown {
+		c := age.BranchCommits
+		o.NoteBranchCommits = &c
+	}
+	appendRow(projectDir, o, stderr)
 	return 0
 }
 
