@@ -55,7 +55,10 @@ func TestConcurrentSeatsDoNotLoseEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	seed.Close()
+	// NOT seed.Close(): Open CACHES per database, so closing here poisons the cache and the next
+	// Open returns the same closed handle. The contention this test measures is between separate
+	// PROCESSES (concChildEnv), which the in-process cache does not touch.
+	_ = seed
 
 	const seats = 8
 	var wg sync.WaitGroup
@@ -84,7 +87,7 @@ func TestConcurrentSeatsDoNotLoseEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	t.Cleanup(func() { _ = CloseAll() })
 	// NO ERRORS IS NOT NO LOSS, so the rows are counted rather than inferred from silence.
 	var got int
 	if err := db.QueryRow(`SELECT count(*) FROM "friction_none"`).Scan(&got); err != nil {
@@ -110,7 +113,7 @@ func writeAsChild(t *testing.T, path, seat string) {
 	if err != nil {
 		t.Fatalf("child %s could not open the record: %v", seat, err)
 	}
-	defer db.Close()
+	t.Cleanup(func() { _ = CloseAll() })
 	for i := 0; i < concEach; i++ {
 		ev := &recordpb.Event{}
 		if _, err := recordpb.SetBody(ev, &recordpb.FrictionNone{

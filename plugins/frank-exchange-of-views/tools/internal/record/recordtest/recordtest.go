@@ -92,6 +92,20 @@ func Stamped(ev *recordpb.Event, ts string) *recordpb.Event {
 // by the foreign key rather than quietly producing a board nobody could have reached.
 func Seed(t *testing.T, runDir string, evs ...*recordpb.Event) {
 	t.Helper()
+	// RELEASE THE RUN'S HANDLE WHEN THE TEST ENDS. recordsql caches one *sql.DB per database and
+	// production never closes one — a seat is a process per command, and the dashboard wants it
+	// held. A TEST is the other shape: one process, hundreds of run directories, every handle
+	// retained. Unlinking an open file succeeds on Linux, so the leak is invisible here; on
+	// WINDOWS the file cannot be removed and `t.TempDir` cleanup fails, which is exactly how it
+	// surfaced — ten packages at once, all reporting `TempDir RemoveAll cleanup: unlinkat`.
+	//
+	// Registered AFTER the caller's t.TempDir, so LIFO ordering runs this FIRST and the directory
+	// is removable by the time cleanup reaches it.
+	//
+	// ONE DATABASE, NOT ALL OF THEM. CloseAll from here takes a parent test's and a sibling
+	// subtest's handles with it, and the next act on a still-live run fails with "sql: database is
+	// closed". A fixture releases the run it created.
+	t.Cleanup(func() { _ = recordsql.Close(filepath.Join(runDir, "records", "record.db")) })
 	dir := filepath.Join(runDir, "records")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatalf("recordtest: %v", err)
@@ -100,7 +114,9 @@ func Seed(t *testing.T, runDir string, evs ...*recordpb.Event) {
 	if err != nil {
 		t.Fatalf("recordtest: opening the run's record: %v", err)
 	}
-	defer db.Close()
+	// NO db.Close() HERE. The handle is CACHED by recordsql, so closing it does not release a
+	// private connection — it poisons the cache, and the next Open hands the same closed handle
+	// back as "sql: database is closed". The cache owns the lifetime; t.Cleanup above releases it.
 	for i, ev := range evs {
 		if ev.Ts == nil {
 			// A STAMP EVERY EVENT, because `ts` is NOT NULL and several audits read it. The

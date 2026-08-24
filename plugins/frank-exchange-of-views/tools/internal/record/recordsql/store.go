@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	// THE DRIVER BELONGS TO THE PACKAGE THAT OPENS THE DATABASE, not to its tests.
 	//
@@ -74,7 +75,82 @@ func dsnFor(path string) string {
 	return u.String()
 }
 
+// open handles are cached per absolute path, and CloseAll is the release the cache never had.
+//
+// WHY THERE WAS NO CLOSE. A seat runs one command per process, so the handle dies with the process
+// and the OS reclaims it; the dashboard is the only long-lived reader and it wants the handle held.
+// Nothing in production ever needed to close one.
+//
+// TESTS ARE THE OTHER SHAPE: one process, hundreds of run directories, every handle retained. On
+// Linux that is invisible — unlinking an open file succeeds, so `t.TempDir` cleanup passes. On
+// WINDOWS an open file cannot be removed and the cleanup fails, which is how this surfaced:
+// `TempDir RemoveAll cleanup: unlinkat ...\records\record.db` across ten packages at once. The
+// leak was always real; only one of the two platforms was willing to say so.
+//
+// THE CACHE LIVES HERE RATHER THAN IN record, and that is what makes it releasable. It was one
+// layer up, where the fixture package cannot reach it: recordtest cannot import record, because
+// record's own tests import recordtest. Owned by the thing that opens the database, both the
+// caching and the closing are available to every caller without a cycle.
+var (
+	openMu    sync.Mutex
+	openCache = map[string]*sql.DB{}
+)
+
+// Close releases the handle for ONE database, which is what a test fixture wants.
+//
+// CloseAll IS THE WRONG TOOL FROM A PER-TEST CLEANUP, measured: a subtest that closes everything
+// takes its parent's and its siblings' handles with it, and the next act on a run that is still
+// live fails with "sql: database is closed". A fixture releases the run it created; nothing else
+// is its to release.
+func Close(path string) error {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		abs = path
+	}
+	openMu.Lock()
+	defer openMu.Unlock()
+	db, ok := openCache[abs]
+	if !ok {
+		return nil
+	}
+	delete(openCache, abs)
+	return db.Close()
+}
+
+// CloseAll releases every cached handle. For a process shutting down, not for a test cleanup.
+func CloseAll() error {
+	openMu.Lock()
+	defer openMu.Unlock()
+	var first error
+	for k, db := range openCache {
+		if err := db.Close(); err != nil && first == nil {
+			first = err
+		}
+		delete(openCache, k)
+	}
+	return first
+}
+
+// Open returns the cached handle for this database, opening it on first use.
 func Open(path string) (*sql.DB, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		abs = path // an unresolvable path still deserves ONE handle rather than none
+	}
+	openMu.Lock()
+	defer openMu.Unlock()
+	if db, ok := openCache[abs]; ok {
+		return db, nil
+	}
+	db, err := openUncached(path)
+	if err != nil {
+		return nil, err
+	}
+	openCache[abs] = db
+	return db, nil
+}
+
+func openUncached(path string) (*sql.DB, error) {
 	// _txlock=immediate IS NOT A TUNING KNOB. IT IS THE DIFFERENCE BETWEEN WORKING AND NOT.
 	//
 	// A default `BEGIN` is DEFERRED: it takes no lock, acquires a READ lock at the first SELECT, and

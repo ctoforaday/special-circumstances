@@ -1,6 +1,11 @@
 package record
 
-import "testing"
+import (
+	"path/filepath"
+	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+)
 
 // newRun makes a run directory whose gap-class vocabulary is DECLARED.
 //
@@ -15,6 +20,9 @@ import "testing"
 func newRun(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
+	// The run's cached *sql.DB outlives the test otherwise; see record.CloseAll. Registered after
+	// t.TempDir so LIFO runs it first and the directory is removable when cleanup reaches it.
+	t.Cleanup(func() { _ = recordsql.Close(filepath.Join(dir, "records", "record.db")) })
 	if err := StageForRun(dir, fixtureClasses...); err != nil {
 		t.Fatalf("stage the class registry: %v", err)
 	}

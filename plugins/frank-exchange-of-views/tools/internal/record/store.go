@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
@@ -26,10 +25,7 @@ const dbName = "record.db"
 // serialises behind the same file lock every other seat is using. The cache is keyed on the
 // RESOLVED records directory, so two run paths that resolve to one record share a handle, which is
 // the property the second-blackboard incident (#358) turned on.
-var (
-	dbsMu sync.Mutex
-	dbs   = map[string]*sql.DB{}
-)
+var ()
 
 func openRun(runDir string) (*sql.DB, error) {
 	dir, err := RecordsDir(runDir)
@@ -40,20 +36,15 @@ func openRun(runDir string) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	dbsMu.Lock()
-	defer dbsMu.Unlock()
-	if db, ok := dbs[abs]; ok {
-		return db, nil
-	}
 	if err := os.MkdirAll(abs, 0o755); err != nil {
 		return nil, err
 	}
-	db, err := recordsql.Open(filepath.Join(abs, dbName))
-	if err != nil {
-		return nil, err
-	}
-	dbs[abs] = db
-	return db, nil
+	// THE CACHE MOVED DOWN A LAYER. It was here, keyed on the records directory, and there was no
+	// way to release it: recordtest cannot import this package (record's own tests import
+	// recordtest), so the fixture that creates run directories could not close their handles.
+	// recordsql.Open caches and recordsql.CloseAll releases, and both are reachable from every
+	// caller without a cycle.
+	return recordsql.Open(filepath.Join(abs, dbName))
 }
 
 // openRunForRead is openRun for the read path, where a run that has recorded NOTHING is a legal
