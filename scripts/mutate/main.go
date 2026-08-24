@@ -506,6 +506,17 @@ func main() {
 		os.Exit(1)
 	}
 
+	// HEAD BEFORE THE SWEEP. The dirty-tree refusal above stops a run from STARTING over
+	// your edits; it cannot stop a commit made WHILE the run is in flight, and that is the
+	// case that bites. Mutants live in the working tree for the length of one test run
+	// each, so any `git add -A` during a sweep can capture one — and the resulting commit
+	// looks like whatever else you were doing at the time.
+	//
+	// MEASURED, on this repository: a readState guard was committed inverted this way, and
+	// the commit's subject was about an unrelated test file. The suite caught it an hour
+	// later, when that package was next run.
+	headBefore := headSHA()
+
 	res, err := sweep(moduleDir, *filter, *confirm, os.Stdout)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -522,4 +533,24 @@ func main() {
 	fmt.Println("Survivors are a list to EXPLAIN, not a number to drive to zero: equivalent mutants and")
 	fmt.Println("platform-conditional branches cannot be killed by any test. The ones nobody can explain")
 	fmt.Println("are the findings.")
+
+	if after := headSHA(); after != "" && headBefore != "" && after != headBefore {
+		fmt.Fprintf(os.Stderr, "\nWARNING — HEAD MOVED DURING THIS SWEEP: %s -> %s\n"+
+			"Mutants live in the working tree while their test runs, so a commit made during the\n"+
+			"sweep can contain one, and it will look like whatever that commit was about. Check:\n\n"+
+			"    git diff %s..%s -- %s\n\n"+
+			"An inverted comparison or a flipped operator you did not write is a captured mutant.\n",
+			headBefore[:8], after[:8], headBefore[:8], after[:8], *module)
+	}
+}
+
+// headSHA reports the current commit, or "" when that cannot be determined — in which
+// case the warning above simply does not fire, because a check that guesses is worse
+// than one that stays quiet.
+func headSHA() string {
+	out, err := exec.Command("git", "rev-parse", "HEAD").Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }

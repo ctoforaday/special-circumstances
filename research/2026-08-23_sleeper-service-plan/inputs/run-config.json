@@ -1,0 +1,8 @@
+{
+  "topic": "The sleeper-service plan: the first shipped increment of the autonomous self-improvement loop — inputs (friction corpus, run records, telemetry, judicial rulings), topic selection, cadence and scheduling, the promotion ladder and its human gates, prototype-and-test verification discipline, and the ship-vs-withdraw resolution for #429",
+  "runDir": "/home/user/special-circumstances/.claude/worktrees/sleeper-plan/research/2026-08-23_sleeper-service-plan",
+  "model": "fable",
+  "judgmentModel": "sonnet",
+  "maxRounds": "4",
+  "lanes": "3"
+}

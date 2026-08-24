@@ -83,6 +83,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/transcript"
 )
@@ -107,6 +108,15 @@ type hookInput struct {
 	AgentType           string `json:"agent_type"` // SubagentStop
 	Reason              string `json:"reason"`     // SessionEnd: clear|logout|prompt_input_exit|other
 	HookEventName       string `json:"hook_event_name"`
+
+	// BackgroundTasks and SessionCrons are POINTERS on purpose. Measured
+	// (hook-surface-spike.md §12): SubagentStop carries these keys and populates them,
+	// while PreCompact and SessionEnd do not carry them AT ALL. Decoding into a plain
+	// slice maps "absent" and "[]" to the same nil, which would report "no background
+	// work" for an event that cannot answer the question. A pointer keeps the two
+	// apart, and countHandles turns that into handles_measured.
+	BackgroundTasks *json.RawMessage `json:"background_tasks"`
+	SessionCrons    *json.RawMessage `json:"session_crons"`
 }
 
 // The events this binary is registered on.
@@ -122,6 +132,21 @@ const (
 	evSessionEnd   = EvSessionEnd
 	evSubagentStop = EvSubagentStop
 )
+
+// binaryFor maps a sealing event to the shim that serves it. One binary per event
+// (#201 step 3), so this is a total function over the three and falls back to the
+// package name only for an unlabelled invocation, which seals silently anyway.
+func binaryFor(event string) string {
+	switch event {
+	case evPreCompact:
+		return "sc-precompact"
+	case evSessionEnd:
+		return "sc-sessionend"
+	case evSubagentStop:
+		return "sc-subagentstop"
+	}
+	return "sc-checkpoint-seal"
+}
 
 // resolveEvent picks the event name: the explicit flag, then the payload field
 // if the client happens to send one, then "" — which seals silently.
@@ -408,6 +433,13 @@ func seal(projectDir, note string, now time.Time, event string, in hookInput, st
 		return
 	}
 
+	// The record, beside the snapshot: fields a reader cannot mis-parse, hashing the
+	// NOTE rather than the stamped file — the stamp carries a timestamp, so hashing
+	// the snapshot would make every seal differ and the drift check meaningless.
+	age := freshness.Of(projectDir, in.TranscriptPath, string(body),
+		freshness.BranchWork(checkpoint.Parse(string(body)).Get("head")), now)
+	appendSealRow(dir, body, now, event, occ, in, stderr, age, checkpoint.Parse(string(body)).Get("written_at"))
+
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return
@@ -446,7 +478,17 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 		return 0 // a bad flag is never worth wedging a compaction over
 	}
 	if *showVersion {
-		fmt.Fprintln(stdout, buildid.Line("sc-checkpoint-seal"))
+		// THE NAME IT WAS INVOKED AS, not the name of the binary these three used to be.
+		// #201 step 3 split one merged sealer into three shims; this line kept printing
+		// the merged name, so sc-precompact, sc-sessionend and sc-subagentstop all
+		// identified as sc-checkpoint-seal. sc-doctor lists binaries by name and prints
+		// this line, so three rows carried one name and an operator could not tell WHICH
+		// was stale — the only question the line exists to answer.
+		name := fixedEvent
+		if name == "" {
+			name = *flagEvent // a stale hooks.json from before the split still passes -event
+		}
+		fmt.Fprintln(stdout, buildid.Line(binaryFor(name)))
 		return 0
 	}
 

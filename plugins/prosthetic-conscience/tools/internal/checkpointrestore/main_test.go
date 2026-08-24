@@ -12,8 +12,8 @@ import (
 )
 
 const note = `---
-schema: 2
-updated: 2026-07-29T04:00:00Z
+schema: 3
+written_at: 2026-07-29T04:00:00Z
 session_id: sess-abc
 agent_id: null
 objective: "prove the restore path fires on every source"
@@ -146,7 +146,7 @@ func TestStatusDoneGetsAPointerNotTheDigest(t *testing.T) {
 // Age is deliberately not a criterion — a resume days later is when the note is
 // most valuable. Guarded so a future "helpful" staleness timer has to argue.
 func TestAgeAloneNeverSuppressesTheDigest(t *testing.T) {
-	dir := withNote(t, strings.Replace(note, "updated: 2026-07-29T04:00:00Z", "updated: 2019-01-01T00:00:00Z", 1))
+	dir := withNote(t, strings.Replace(note, "written_at: 2026-07-29T04:00:00Z", "written_at: 2019-01-01T00:00:00Z", 1))
 	stdout, _, _ := call(t, dir, `{"source":"resume"}`)
 	if got := injected(t, stdout); !strings.Contains(got, "go test ./...") {
 		t.Errorf("an old but unfinished note was suppressed:\n%s", got)
@@ -189,8 +189,8 @@ func TestTheHookAddsNoImperativeOfItsOwn(t *testing.T) {
 	// A note with no imperative anywhere in it, so anything commanding in the
 	// output can only have come from the hook.
 	declarative := `---
-schema: 2
-updated: 2026-07-29T04:00:00Z
+schema: 3
+written_at: 2026-07-29T04:00:00Z
 objective: "measure the digest's own voice"
 beyond_plan: true
 status: in-progress
@@ -238,7 +238,7 @@ func TestImperativesQuotedFromTheNoteSurvive(t *testing.T) {
 // A note that established nothing gives the session nothing. Manufacturing a
 // digest from an empty note is precisely the introduce-don't-reinforce failure.
 func TestEmptyNoteProducesSilence(t *testing.T) {
-	skeleton := "---\nschema: 2\nstatus: in-progress\n---\n" +
+	skeleton := "---\nschema: 3\nstatus: in-progress\n---\n" +
 		"## Validation loop\n\n## Next intended steps\n\n## In-flight handles\n"
 	dir := withNote(t, skeleton)
 	stdout, _, code := call(t, dir, `{"source":"compact"}`)
@@ -252,7 +252,7 @@ func TestEmptyNoteProducesSilence(t *testing.T) {
 
 // Placeholder annotations from the skill's template are scaffolding, not content.
 func TestTemplateScaffoldingIsNotContent(t *testing.T) {
-	tmpl := "---\nschema: 2\n---\n## Validation loop\n← load-bearing\n## Next intended steps\n← each item carries its queue pointer\n"
+	tmpl := "---\nschema: 3\n---\n## Validation loop\n← load-bearing\n## Next intended steps\n← each item carries its queue pointer\n"
 	dir := withNote(t, tmpl)
 	stdout, _, _ := call(t, dir, `{"source":"resume"}`)
 	if got := injected(t, stdout); got != "" {
@@ -275,7 +275,7 @@ func TestBeyondPlanSurvives(t *testing.T) {
 // writes "Next steps" where the schema says "Next intended steps", and silence
 // there is total continuity loss with no symptom.
 func TestOffSchemaHeadingsStillRestore(t *testing.T) {
-	off := "---\nschema: 2\nobjective: \"ship it\"\n---\n" +
+	off := "---\nschema: 3\nobjective: \"ship it\"\n---\n" +
 		"## Checks\n1. make verify → green\n" +
 		"## Next steps\n1. wire the hook\n" +
 		"## Files touched\n- main.go\n"
@@ -382,7 +382,7 @@ func watchOf(t *testing.T, stdout string) []string {
 }
 
 const watchNote = `---
-schema: 2
+schema: 3
 status: in-progress
 objective: "wire the watcher"
 ---
@@ -426,7 +426,7 @@ func TestPointerSessionsRegisterNoWatch(t *testing.T) {
 // not look identical to one that watched everything.
 func TestUnresolvableSurfacesAreReported(t *testing.T) {
 	dir := withTree(t, `---
-schema: 2
+schema: 3
 status: in-progress
 objective: "prose surfaces"
 ---
