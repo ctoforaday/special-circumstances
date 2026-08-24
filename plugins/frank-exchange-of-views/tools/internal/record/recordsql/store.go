@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	// THE DRIVER BELONGS TO THE PACKAGE THAT OPENS THE DATABASE, not to its tests.
@@ -49,9 +50,25 @@ import (
 // url.URL emits an explicit empty authority (`file:////server/share`) so the path survives whole.
 // RawQuery is written verbatim, which is what keeps `busy_timeout(5000)`'s parentheses intact.
 func dsnFor(path string) string {
+	// A WINDOWS PATH IS NOT A URI PATH, AND url.URL CANNOT KNOW THAT. `C:\\Users\\x` has no
+	// leading slash, so String() writes `file://` and then the path — putting `C:` where the
+	// AUTHORITY goes. SQLite accepts an empty authority or `localhost` and nothing else, so every
+	// open on Windows failed with "invalid uri authority" and the store was unwritable: 60 of 60
+	// fuzz runs, zero events of every type, round 0.
+	//
+	// SQLite documents the Windows form as `file:///C:/Users/x` — forward slashes, and the volume
+	// behind a third slash so the authority stays empty. Both steps are needed: ToSlash alone still
+	// leaves `C:/Users/x` unrooted, and a leading slash alone leaves backslashes that escape to
+	// %5C and take the whole path into the authority with them.
+	//
+	// On Unix both are no-ops: `/runs/x` is already rooted and already slashed.
+	p := filepath.ToSlash(path)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
 	u := url.URL{
 		Scheme:   "file",
-		Path:     path,
+		Path:     p,
 		RawQuery: "_txlock=immediate&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)",
 	}
 	return u.String()

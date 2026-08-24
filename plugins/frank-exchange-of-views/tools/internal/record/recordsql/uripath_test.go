@@ -80,6 +80,17 @@ func TestTheDSNIsBuiltByAURIBuilderRatherThanConcatenated(t *testing.T) {
 		{"/runs/with space/record.db", "file:///runs/with%20space/record.db" + q},
 		// A UNC-shaped path keeps its leading pair, behind an EMPTY authority.
 		{"//server/share/record.db", "file:////server/share/record.db" + q},
+		// WINDOWS, AND THIS IS THE CASE THAT SHIPPED BROKEN. A volume path has no leading slash, so
+		// url.URL alone writes `file://C:/Users/...` and SQLite reads `C:` as the AUTHORITY — which
+		// it accepts only when empty or `localhost`. Every open failed with "invalid uri authority"
+		// and the store was unwritable: 60 of 60 fuzz runs, zero events of every type, round 0.
+		//
+		// ROOTING IS WHAT IS ASSERTED HERE, and it is the half that caused the defect. The
+		// backslash-to-slash step is filepath.ToSlash's, which is a NO-OP on Linux by design, so a
+		// case written with backslashes would pass here for the wrong reason and prove nothing. The
+		// input is given already-slashed, which is exactly what ToSlash hands this code on Windows.
+		{"C:/Users/runner/AppData/Local/Temp/r/record.db", "file:///C:/Users/runner/AppData/Local/Temp/r/record.db" + q},
+		{"C:/runs/hash#01/record.db", "file:///C:/runs/hash%2301/record.db" + q},
 	} {
 		if got := dsnFor(c.path); got != c.want {
 			t.Errorf("dsnFor(%q) =\n  %s\nwant\n  %s", c.path, got, c.want)
