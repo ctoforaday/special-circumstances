@@ -603,3 +603,59 @@ tools `./...` 35 packages 0 failures (fuzz included, 60/60) · simulator 94/94 �
 difftest and prompt goldens re-recorded AND read · build, vet, `qlty` clean. The `go` directive
 moved to 1.25.14, which is where 46 stdlib CVEs were; the suite was re-run under it rather than
 assumed, because the goldens pin error text that can originate in stdlib. No golden moved.
+
+## Two defects Windows CI found that Linux structurally cannot (2026-08-24)
+
+The first CI run this branch ever had. Both are real, both predate the PR, and neither is
+observable on Linux — which is the reason they survived a green suite for the whole migration.
+
+### `Open` composed a URI and did not escape the path
+
+`"file:" + path + "?_txlock=…"` is a URI, and `?` and `#` are reserved in one. A run directory
+containing either was TRUNCATED there, silently, to a path that still opens: two runs share one
+database, or a run opens one that is not its own, and every write reports success. Run directories
+are named from the topic, so "C# concurrency" produces exactly this path.
+
+Fixed by building the DSN with `net/url`. The instructive part is the FIRST fix, a three-character
+`strings.Replacer` — a hand-kept list of what the grammar reserves, written while fixing an
+instance of exactly that class. It also could not answer the case percent-encoding cannot: a path
+beginning `//` parses as an authority and `/` is not escapable. I had written that limitation into
+the test as a "not measured" comment and treated writing it down as discharging it.
+
+Then `net/url` broke Windows on its own: `C:\Users\x` has no leading slash, so `String()` writes
+`file://` and puts `C:` where the AUTHORITY goes — `invalid uri authority`, 60 of 60 fuzz runs,
+zero events, round 0. SQLite documents the form: `file:///C:/Users/x`. `dsnFor` is a PURE FUNCTION,
+so the platform it is wrong on is not the platform the test has to run on — the rooting is asserted
+directly, and the comment that stood in for it is gone.
+
+### The handle cache had no release
+
+`Open` caches a `*sql.DB` per database and nothing ever closed one. Correct in production — a seat
+is a process per command, and the dashboard wants the handle held — and invisible on Linux, where
+an open file can still be unlinked. On Windows `t.TempDir` cleanup cannot remove an open file, so
+ten packages failed at once on a line that has nothing to do with what they assert.
+
+The cache moved from `record` down into `recordsql`, which is what made it releasable: `recordtest`
+cannot import `record`, because `record`'s own tests import `recordtest`. Owned by the thing that
+opens the database, both caching and release reach every caller with no cycle.
+
+Two invariants a cache imposes, both found by the suite rather than by reasoning:
+
+- **No caller may close.** `recordtest.Seed`'s `defer db.Close()` stopped releasing a private
+  connection and started poisoning the cache — the next `Open` returns the same closed handle.
+- **A fixture releases the run it CREATED.** A global `CloseAll` from a per-test cleanup takes the
+  parent's and the siblings' handles with it.
+
+### STILL OPEN: `Open` races on schema creation
+
+Removing the cache to measure its cost exposed it. Two openers of a FRESH database each see no
+`events` table and each apply the schema; the second fails with "table already exists". `Open` does
+check-then-create with nothing between.
+
+Unexercised today for two separate reasons, which is why it has never been seen: the in-process
+cache means one opener per database per process, and the cross-process concurrency test SEEDS the
+database before spawning its eight children, so the schema exists by the time they open. Production
+is protected by the same accident — `setup` creates the run before any seat is dispatched.
+
+NOT fixed here. `CREATE TABLE IF NOT EXISTS` and a transaction-with-retry differ in what they do to
+a HALF-created schema, and that is the decision, not the mechanism.
