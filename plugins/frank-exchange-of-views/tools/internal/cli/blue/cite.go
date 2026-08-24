@@ -3,6 +3,9 @@ package blue
 import (
 	"errors"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -68,25 +71,36 @@ func newCite() *cobra.Command {
 			return nil, errors.New(msg)
 		}
 
-		// Mint the label UP FRONT: it forms the marker, so it must exist before the report
-		// write. Append will not re-mint (the label is already in the payload).
-		label := record.NewCitationID()
-		marker := "<!--cite:" + label + "-->"
+		// A TORN SPLICE IS ADOPTED, NOT DOUBLED. The splice below and the event append after it
+		// are two acts with no transaction over them, so a crash between them leaves an anchor
+		// on this very sentence that no event backs — and retries are this record's ordinary
+		// weather (mint, cite and prove all carry crash-retry keys). The retry used to look for
+		// a prior EVENT, find none, and splice a second marker beside the orphan: one sentence,
+		// two tokens, one of them immortal and backing nothing. If the located quote already
+		// carries a citation anchor the record has never heard of, that anchor IS this cite's
+		// first attempt, and the retry finishes the interrupted act instead of starting a rival.
+		label := adoptTornCiteAnchor(s.RunDir, quote)
+		if label == "" {
+			// Mint the label UP FRONT: it forms the marker, so it must exist before the report
+			// write. Append will not re-mint (the label is already in the payload).
+			label = record.NewCitationID()
+			marker := "<!--cite:" + label + "-->"
 
-		// Splice the invisible anchor at the located quote UNDER THE LOCK, atomically, via
-		// the shared anchor-insert (the same rule a finding is anchored by). Mis-quote or
-		// in-fence -> reject; nothing is written and no cite is recorded.
-		if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
-			next, aerr := lens.InsertAnchor(old, quote, marker)
-			switch {
-			case errors.Is(aerr, lens.ErrMisQuote):
-				return nil, fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
-			case errors.Is(aerr, lens.ErrInFence):
-				return nil, fmt.Errorf("blue cite: the quote resolves inside a code fence — cite a prose sentence, not code")
+			// Splice the invisible anchor at the located quote UNDER THE LOCK, atomically, via
+			// the shared anchor-insert (the same rule a finding is anchored by). Mis-quote or
+			// in-fence -> reject; nothing is written and no cite is recorded.
+			if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
+				next, aerr := lens.InsertAnchor(old, quote, marker)
+				switch {
+				case errors.Is(aerr, lens.ErrMisQuote):
+					return nil, fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
+				case errors.Is(aerr, lens.ErrInFence):
+					return nil, fmt.Errorf("blue cite: the quote resolves inside a code fence — cite a prose sentence, not code")
+				}
+				return next, aerr
+			}); err != nil {
+				return nil, err
 			}
-			return next, aerr
-		}); err != nil {
-			return nil, err
 		}
 
 		// The anchor is committed; the cite event follows. access_date is engine-supplied
@@ -125,4 +139,59 @@ func (r citeResult) Human() string {
 		return "cite " + r.Label + " (idempotent retry — existing anchor returned)"
 	}
 	return "citation recorded: " + r.Label + " — an invisible immortal anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")"
+}
+
+// citeToken matches a citation anchor as minted; group 1 is the label.
+var citeToken = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
+
+// adoptTornCiteAnchor returns the label of a citation anchor already sitting on the located
+// quote that NO recorded event backs — the state a crash between splice and append leaves — or
+// "" when the sentence carries no such orphan and a fresh splice is the right act.
+//
+// THE SCOPE IS THE SENTENCE'S OWN ANCHOR RUN, not the whole report: an orphan elsewhere on the
+// page is somebody else's torn act, and adopting it here would attach this cite's source to a
+// sentence it never read. The walk mirrors the splice's own geometry — InsertAnchor lands the
+// token between the located span and its trailing punctuation, and abutting runs are ordinary
+// (two lenses anchoring one sentence is a measured corpus shape) — so both token-runs and
+// punctuation are stepped over, in either order.
+//
+// Every miss returns "": a report that cannot be read, a quote that does not locate, a run with
+// no orphan. The caller then splices fresh, and whatever refusal that path produces is the one
+// the seat should see.
+func adoptTornCiteAnchor(runDir, quote string) string {
+	rep, err := record.ReadBlueReport(runDir)
+	if err != nil {
+		return ""
+	}
+	report := string(rep)
+	_, end, err := bluedoc.LocateUnique("blue cite", report, quote)
+	if err != nil {
+		return ""
+	}
+	recorded := map[string]bool{}
+	if labels, err := record.CitationLabels(runDir); err == nil {
+		for _, l := range labels {
+			recorded[l] = true
+		}
+	} else {
+		return "" // cannot tell orphan from backed; splice fresh rather than guess
+	}
+	j := end
+	for j < len(report) {
+		if next := anchor.SkipRun(report, j); next > j {
+			for _, m := range citeToken.FindAllStringSubmatch(report[j:next], -1) {
+				if !recorded[m[1]] {
+					return m[1]
+				}
+			}
+			j = next
+			continue
+		}
+		if strings.ContainsRune(lens.TrailingPunct, rune(report[j])) {
+			j++
+			continue
+		}
+		break
+	}
+	return ""
 }

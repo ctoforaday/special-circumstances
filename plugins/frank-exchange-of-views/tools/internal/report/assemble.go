@@ -754,9 +754,15 @@ func redFindings(board *record.Board) string {
 			// "closed by anything". A nil Closure spells the empty word here and falls through to
 			// "closed", which is what the old single-payload read produced for a bench closure
 			// (an Opinion payload has no `closure_class` key). Behaviour held.
-			cc := recordpb.Word(g.Closure.GetClosureClass())
+			// THE LAST CLOSER'S WORD, and no flattering default. This read g.Closure alone and
+			// defaulted "" to "repaired" — and g.Closure is nil for every BENCH closure, so a gap
+			// the bench ruled `defect_accepted` (a live defect, shipping in this very report)
+			// reached the one human-facing document as "repaired". That inverts the artifact
+			// axis ArtifactStateOf exists to protect, in the terminal artifact. A class-less
+			// closure now says the neutral thing instead of the healthiest possible word.
+			cc := g.ClosureReason()
 			if cc == "" {
-				cc = "repaired"
+				cc = "closed (no recorded class)"
 			}
 			succ := g.Closure.GetSuccessor()
 			if succ == "" {
