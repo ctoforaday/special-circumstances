@@ -42,7 +42,7 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	// was not true of any board. That is worth knowing about the probe — scaffolding acts are
 	// attributed to the party that performs them — and it is not what this test is about.
 	quiet := newRun(t)
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	for _, id := range []string{"red-merge-r1", "blue-respond-r1"} {
 		if _, err := run(t, "register", "--run", quiet, "--seat-id", id); err != nil {
 			t.Fatal(err)

@@ -19,10 +19,8 @@ import (
 // ones tests use to prove an unknown class is refused.
 func newRun(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	// The run's cached *sql.DB outlives the test otherwise; see record.CloseAll. Registered after
-	// t.TempDir so LIFO runs it first and the directory is removable when cleanup reaches it.
-	t.Cleanup(func() { _ = recordsql.Close(filepath.Join(dir, "records", "record.db")) })
+	// tmpRun already releases this run's handle; newRun only adds the class vocabulary.
+	dir := tmpRun(t)
 	if err := StageForRun(dir, fixtureClasses...); err != nil {
 		t.Fatalf("stage the class registry: %v", err)
 	}
@@ -59,7 +57,7 @@ var shippedClasses = []string{
 	"cross-corpus-id-collision", "negative-definition",
 }
 
-// tmpRun is t.TempDir() for a RUN, plus the release its record handle needs.
+// tmpRun is tmpRun(t) for a RUN, plus the release its record handle needs.
 //
 // It stages NOTHING: several tests here depend on a run having no class registry, and newRun would
 // take that property away. The only difference from t.TempDir is that the cached *sql.DB for this

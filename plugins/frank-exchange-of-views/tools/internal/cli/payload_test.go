@@ -110,7 +110,7 @@ func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 	runDir := seatRun(t)
 	// Driven through `merge position` since #327 retired `dispose`, which this used to use.
 	// The rule is the seat.Prose contract's, not any one verb's — any prose verb proves it.
-	both := filepath.Join(t.TempDir(), "prose.md")
+	both := filepath.Join(tmpRun(t), "prose.md")
 	if werr := os.WriteFile(both, []byte("from a file"), 0o644); werr != nil {
 		t.Fatal(werr)
 	}

@@ -23,7 +23,7 @@ import (
 // prose says another, the record wins. Anything else makes the dashboard a reader of a reader.
 func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	runDir := tmpRun(t)
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "judge-terminal", Round: RoundIn(runDir)("judge-terminal")}, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 // shown a different claim rather than the same claim from a worse source.
 func TestTerminalVerdictIsEmptyWhenTheRecordCannotSay(t *testing.T) {
 	runDir := tmpRun(t)
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	if err := os.WriteFile(filepath.Join(runDir, "report.md"),
 		[]byte("# report\n\n**Verdict:** UNVERIFIED — the run ended without the question being answered.\n"), 0o644); err != nil {
 		t.Fatal(err)

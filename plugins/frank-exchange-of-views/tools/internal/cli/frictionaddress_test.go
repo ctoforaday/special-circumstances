@@ -57,7 +57,7 @@ func TestTheTwoFrictionsAreOnDifferentSurfaces(t *testing.T) {
 // The operator's read is what this command IS. A refusal that also broke it would trade one
 // unreachable channel for another.
 func TestTheOperatorFrictionReadStillWorks(t *testing.T) {
-	out, err := run(t, "friction", "--seat-id", "operator", "--run", t.TempDir())
+	out, err := run(t, "friction", "--seat-id", "operator", "--run", tmpRun(t))
 	if err != nil {
 		t.Fatalf("the operator's friction read failed: %v", err)
 	}

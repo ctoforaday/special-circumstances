@@ -159,7 +159,7 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 // carries no `-r<N>` at all, so the two answers are distinguishable — the name cannot answer,
 // and anything that shows up in the event must therefore have come from the caller.
 func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
-	dir := t.TempDir()
+	dir := tmpRun(t)
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +212,7 @@ func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
 // unknown. It is NOT quietly converted to 0, which is synthesis and a real round — the
 // conflation that produced the phantom archive in #327.
 func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
-	dir := t.TempDir()
+	dir := tmpRun(t)
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}

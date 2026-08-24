@@ -92,13 +92,13 @@ func TestBothProseChannelsProduceTheSameRecord(t *testing.T) {
 func recordOnce(t *testing.T, seatID string, args []string, prose func(dir string) []string) string {
 	t.Helper()
 	runDir := newRun(t)
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	exec := func(a ...string) (string, error) { return run(t, a...) }
 	if err := seatprobe.Build(runDir, seatprobe.Boards()["docket"], exec); err != nil {
 		t.Fatalf("stage the board: %v", err)
 	}
 	full := append(append([]string{}, args...), "--run", runDir, "--seat-id", seatID)
-	full = append(full, prose(t.TempDir())...)
+	full = append(full, prose(tmpRun(t))...)
 	if _, err := run(t, full...); err != nil {
 		t.Fatalf("%v: %v", args, err)
 	}

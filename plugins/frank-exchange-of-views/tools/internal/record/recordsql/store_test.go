@@ -13,7 +13,7 @@ import (
 
 func store(t *testing.T) *sql.DB {
 	t.Helper()
-	db, err := Open(filepath.Join(t.TempDir(), "record.db"))
+	db, err := Open(filepath.Join(tmpRun(t), "record.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -753,4 +753,17 @@ func TestAGapsListsAreCountedByTheView(t *testing.T) {
 	if lineage != 0 || credits != 0 {
 		t.Errorf("a gap with no lineage counts = (%d, %d), want (0, 0)", lineage, credits)
 	}
+}
+
+// tmpRun is tmpRun(t) with the release its record handle needs.
+//
+// WRAPPED UNCONDITIONALLY, and that is safe by construction: recordsql.Close on a path that was
+// never opened is a no-op, so a scratch directory pays nothing and a run directory cannot be
+// missed. Guessing which TempDir is a run is what left five packages still failing on Windows
+// after two rounds of wiring the ones whose variable happened to be called runDir.
+func tmpRun(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Cleanup(func() { _ = Close(filepath.Join(dir, "records", "record.db")) })
+	return dir
 }

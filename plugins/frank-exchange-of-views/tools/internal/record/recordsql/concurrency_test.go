@@ -50,7 +50,7 @@ func TestConcurrentSeatsDoNotLoseEvents(t *testing.T) {
 		return
 	}
 
-	path := filepath.Join(t.TempDir(), "record.db")
+	path := filepath.Join(tmpRun(t), "record.db")
 	seed, err := Open(path)
 	if err != nil {
 		t.Fatal(err)

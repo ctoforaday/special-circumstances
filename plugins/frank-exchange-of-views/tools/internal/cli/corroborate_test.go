@@ -13,7 +13,7 @@ import (
 // corroborateRun is a run with a registered lens and a seeded report.
 func corroborateRun(t *testing.T) string {
 	t.Helper()
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
 		t.Fatal(err)
 	}

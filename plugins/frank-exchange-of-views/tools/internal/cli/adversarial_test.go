@@ -28,7 +28,7 @@ import (
 //
 // # Massively parallel by construction
 //
-// Every scenario gets its own t.TempDir() and its own run directory, and `run` builds a fresh
+// Every scenario gets its own tmpRun(t) and its own run directory, and `run` builds a fresh
 // cobra root with its own output buffer per call. There is no shared state to serialise on — the
 // record's locks are per run directory, and nothing here touches process globals (no env, no
 // chdir). So every scenario declares t.Parallel() and the suite scales with cores.
@@ -220,7 +220,7 @@ func TestAHostileSeatIsRefused(t *testing.T) {
 	// package's usual seatRun helper calls it — so the scenarios build their own run directory
 	// and inherit this. The parent is not parallel, the subtests are, and the env is a
 	// process-global that only needs setting once anyway.
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	for _, tc := range adversarialCases() {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

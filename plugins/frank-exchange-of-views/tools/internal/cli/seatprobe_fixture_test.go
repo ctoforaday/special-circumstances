@@ -68,7 +68,7 @@ func TestWriteSeatProbeFixture(t *testing.T) {
 		sort.Strings(have)
 		t.Fatalf("no board %q — one of %s", name, strings.Join(have, ", "))
 	}
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	buildBoard(t, dest, board)
 	t.Logf("board %q written to %s for seat %s: %d gap(s), %d inquiry(s), %d expectation(s)",
 		board.Name, dest, board.Seat, len(board.Gaps), len(board.Inquiries), len(board.Expect))

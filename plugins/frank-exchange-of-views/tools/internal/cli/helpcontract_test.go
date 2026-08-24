@@ -62,7 +62,7 @@ var notEnforcedAtTheFlag = map[string]string{
 // omits. A seat reading it supplies the flag and nothing is wrong; a seat that misses it records
 // an event with a hole in it, and the hole surfaces rounds later as an empty section.
 func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := seatRunForContracts(t)
 
 	var checked int
@@ -145,7 +145,7 @@ func TestEveryRequiredFlagIsActuallyRefused(t *testing.T) {
 // statement of what went wrong, and a seat has to infer its own mistake from a list of things it
 // did not do. A diagnosis that comes after the remedy is not a diagnosis.
 func TestEveryRefusalNamesTheProblemBeforeTheHelp(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := newRun(t)
 
 	for _, tc := range []struct {
@@ -292,7 +292,7 @@ func seatRunForContracts(t *testing.T) string {
 	}
 	seedBlueReport(t, runDir)
 	// A REAL SCRIPT ON DISK, because `blue prove` RUNS what --script names.
-	scriptPath = filepath.Join(t.TempDir(), "contract-proof.py")
+	scriptPath = filepath.Join(tmpRun(t), "contract-proof.py")
 	if err := os.WriteFile(scriptPath, []byte("print('contract seed')\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -443,7 +443,7 @@ var flagToken = regexp.MustCompile("(?:^|[\\s(\"'`])--([a-z][a-z0-9-]*)")
 // are self-referential, and a gate that guesses that would fire on prose. A name nothing at all
 // registers is unambiguous, needs no judgement, and is what all four instances were.
 func TestNoRefusalNamesAFlagThatDoesNotExist(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := seatRunForContracts(t)
 
 	known := knownFlagNames(t)

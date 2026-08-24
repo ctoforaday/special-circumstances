@@ -20,7 +20,7 @@ import (
 // ones tests use to prove an unknown class is refused.
 func newRun(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
+	dir := tmpRun(t)
 	if err := record.StageForRun(dir, fixtureClasses...); err != nil {
 		t.Fatalf("stage the class registry: %v", err)
 	}
@@ -57,7 +57,7 @@ var shippedClasses = []string{
 	"cross-corpus-id-collision", "negative-definition",
 }
 
-// tmpRun is t.TempDir() for a RUN, plus the release its record handle needs. recordsql caches a
+// tmpRun is tmpRun(t) for a RUN, plus the release its record handle needs. recordsql caches a
 // *sql.DB per database and production never closes one; a test process accumulates them, and on
 // Windows an open file cannot be removed so `t.TempDir` cleanup fails.
 func tmpRun(t *testing.T) string {

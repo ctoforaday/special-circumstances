@@ -15,7 +15,7 @@ import (
 // Measured before the fix: a cite placed on "The sky is blue and the grass is green" followed the
 // text to "The sky is green and the grass is on fire", silently.
 func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
-	runDir := t.TempDir()
+	runDir := tmpRun(t)
 	for _, id := range []string{"red-lens-r1-L1", "blue-respond-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatal(err)

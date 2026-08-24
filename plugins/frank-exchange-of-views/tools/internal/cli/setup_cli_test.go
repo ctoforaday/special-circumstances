@@ -15,7 +15,7 @@ import (
 
 func buildSetupBinary(t *testing.T) string {
 	t.Helper()
-	out := filepath.Join(t.TempDir(), "feov-record")
+	out := filepath.Join(tmpRun(t), "feov-record")
 	if runtime.GOOS == "windows" {
 		out += ".exe"
 	}
@@ -76,7 +76,7 @@ func runSetup(t *testing.T, bin, cwd string, args ...string) setupRun {
 	c := exec.Command(bin, append([]string{"setup", "--seat-id", "operator"}, args...)...)
 	c.Dir = cwd
 	// Hermetic: no CLAUDE_PROJECT_DIR leaking a live run's memory into the fixture.
-	c.Env = append(os.Environ(), "CLAUDE_PROJECT_DIR="+t.TempDir())
+	c.Env = append(os.Environ(), "CLAUDE_PROJECT_DIR="+tmpRun(t))
 	var so, se strings.Builder
 	c.Stdout, c.Stderr = &so, &se
 	err := c.Run()
@@ -92,7 +92,7 @@ func runSetup(t *testing.T, bin, cwd string, args ...string) setupRun {
 // A cite whose path is absent at its pin fails setup loudly, creating nothing.
 func TestSetupCLIPinValidationRefusesAndCreatesNothing(t *testing.T) {
 	bin := buildSetupBinary(t)
-	cwd := t.TempDir()
+	cwd := tmpRun(t)
 	gitInit(t, cwd)
 	os.WriteFile(filepath.Join(cwd, "real.md"), []byte("exists\n"), 0o644)
 	gitCommit(t, cwd)
@@ -124,7 +124,7 @@ func TestSetupCLIPinValidationRefusesAndCreatesNothing(t *testing.T) {
 // Arg parsing end-to-end: topic header, multi-cite pins, summary lines, marker.
 func TestSetupCLIArgParsing(t *testing.T) {
 	bin := buildSetupBinary(t)
-	cwd := t.TempDir()
+	cwd := tmpRun(t)
 	runDir := filepath.Join(cwd, "research", "2026-01-01_cli-test")
 
 	r := runSetup(t, bin, cwd, runDir, "--topic", "cli parse topic", "--model", "haiku", "--judgment-model", "haiku", "--max-rounds", "3",
@@ -151,7 +151,7 @@ func TestSetupCLIArgParsing(t *testing.T) {
 // Missing model tiers refuse with exit 2 before any state exists (#111).
 func TestSetupCLIModelTiersRequired(t *testing.T) {
 	bin := buildSetupBinary(t)
-	cwd := t.TempDir()
+	cwd := tmpRun(t)
 	runDir := filepath.Join(cwd, "research", "no-model")
 	r := runSetup(t, bin, cwd, runDir, "--topic", "t")
 	if r.code != 2 {
@@ -168,7 +168,7 @@ func TestSetupCLIModelTiersRequired(t *testing.T) {
 // No runDir → exit 1 with a usage line.
 func TestSetupCLIRefusesWithoutRunDir(t *testing.T) {
 	bin := buildSetupBinary(t)
-	r := runSetup(t, bin, t.TempDir(), "--topic", "x")
+	r := runSetup(t, bin, tmpRun(t), "--topic", "x")
 	if r.code != 1 {
 		t.Fatalf("expected exit 1, got %d: %s", r.code, r.stderr)
 	}

@@ -21,7 +21,7 @@ import (
 // It is reachable outside a test: run directories are named from the topic, and "C# concurrency"
 // produces exactly this path.
 func TestARunDirectoryWithURIPunctuationGetsItsOwnDatabase(t *testing.T) {
-	base := t.TempDir()
+	base := tmpRun(t)
 	// THE RESERVED SET IS EXACTLY THREE, MEASURED RATHER THAN ASSUMED. With the escape removed,
 	// `hash#01`, `query?a=1` and `pct%20` are the only names that land elsewhere; the rest pass
 	// through untouched because SQLite's URI grammar reserves only `?` and `#`, and `%` is the

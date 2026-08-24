@@ -102,7 +102,7 @@ func TestVerifyIsReadOnly(t *testing.T) {
 // A missing --run is a REFUSAL, not an empty report. A verify that says "0 gaps" because it
 // looked at nothing is the failure mode the whole verb is aimed at.
 func TestVerifyRefusesWithoutARun(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	out, err := run(t, "verify", "--seat-id", "operator")
 	if err == nil {
 		t.Fatalf("verify with no run must refuse rather than report an empty board:\n%s", out)
@@ -151,7 +151,7 @@ func TestGraphRendersARunsBehaviour(t *testing.T) {
 }
 
 func TestCountClaimsRefusesWhenThereIsNoReport(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	// count-claims reads blue/report.md; with no run it must refuse rather than answer 0.
 	out, err := run(t, "count-claims")
 	if err == nil && strings.Contains(out, "0") {

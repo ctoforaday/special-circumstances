@@ -24,7 +24,7 @@ import (
 // seatRun sets up a run directory with every seat registered, the way the engine does.
 func seatRun(t *testing.T) string {
 	t.Helper()
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	runDir := newRun(t)
 	for _, id := range []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
@@ -157,7 +157,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "anchored-closure", "anchor-visibility")
 
-	prose := filepath.Join(t.TempDir(), "closure.md")
+	prose := filepath.Join(tmpRun(t), "closure.md")
 	if err := os.WriteFile(prose, []byte("re-read the cited source; the digits match the arm the claim names"), 0o644); err != nil {
 		t.Fatal(err)
 	}

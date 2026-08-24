@@ -295,7 +295,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	// So the states are asserted where they live rather than through a key that cannot carry them.
 	t.Run("the three states are distinguishable", func(t *testing.T) {
 		// 1. Never checked: no event.
-		runDir := t.TempDir()
+		runDir := tmpRun(t)
 		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_SPOT_CHECK); n != 0 {
 			t.Fatalf("%d spot-checks before any were run", n)
 		}

@@ -21,7 +21,7 @@ import (
 // with red's intent unrecorded.
 func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 	runDir := newRun(t)
-	t.Setenv("CLAUDE_PROJECT_DIR", t.TempDir())
+	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
 	board := seatprobe.Boards()["audit"]
 	exec := func(args ...string) (string, error) { return run(t, args...) }
 	if err := seatprobe.Build(runDir, board, exec); err != nil {

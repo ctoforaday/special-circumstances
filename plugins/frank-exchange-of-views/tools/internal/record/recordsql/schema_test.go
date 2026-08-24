@@ -13,7 +13,7 @@ func open(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatal(err)
 	}
-	db, err := sql.Open("sqlite", "file:"+t.TempDir()+"/r.db?_pragma=foreign_keys(1)")
+	db, err := sql.Open("sqlite", "file:"+tmpRun(t)+"/r.db?_pragma=foreign_keys(1)")
 	if err != nil {
 		t.Fatal(err)
 	}
