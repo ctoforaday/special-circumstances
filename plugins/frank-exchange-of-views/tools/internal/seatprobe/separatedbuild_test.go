@@ -2,6 +2,7 @@ package seatprobe
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -48,14 +49,13 @@ func TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord(t *testing.
 	if testing.Short() && runtime.GOOS != "windows" {
 		t.Skip("builds a binary")
 	}
-	// `.exe`, ALWAYS. Go does not append it for an explicit -o filename, and Windows will not
-	// start an extensionless file — so the first register returned no output and an error this
-	// helper then threw away, which is how nine boards failed with a blank reason. The fuzz's
-	// builder has spelled it this way all along; the extension is inert on Linux.
-	bin := filepath.Join(t.TempDir(), "feov-record.exe")
-	if out, err := exec.Command("go", "build", "-o", bin, "../../cmd/feov-record").CombinedOutput(); err != nil {
-		t.Fatalf("build feov-record: %v\n%s", err, out)
-	}
+	// The incident this test was written for: Go does not append .exe for an explicit -o
+	// filename and Windows will not start an extensionless file, so a builder that omitted it
+	// returned no output and an error the helper threw away — nine boards failing with a
+	// blank reason. testbuild owns that rule now, in ONE place, and applies the platform
+	// convention rather than a fixed spelling (a `.exe` on Linux breaks the callers that
+	// resolve the name themselves — measured, see that package's comment).
+	bin := testbuild.Binary(t, "feov-record")
 
 	boards := Boards()
 	if len(boards) == 0 {
