@@ -22,11 +22,11 @@ package difftest
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -65,19 +65,11 @@ func repoRoot(t *testing.T) string {
 	return root
 }
 
+// buildBinary is testbuild.Binary — kept as a name so the call sites read the same. The
+// body it replaces built the binary on EVERY call, and this package calls it four times.
 func buildBinary(t *testing.T) string {
 	t.Helper()
-	out := filepath.Join(t.TempDir(), "feov-record")
-	if runtime.GOOS == "windows" {
-		out += ".exe"
-	}
-	root := repoRoot(t)
-	c := exec.Command("go", "build", "-o", out, "./cmd/feov-record")
-	c.Dir = filepath.Join(root, "plugins", "frank-exchange-of-views", "tools")
-	if b, err := c.CombinedOutput(); err != nil {
-		t.Fatalf("building feov-record: %v\n%s", err, b)
-	}
-	return out
+	return testbuild.Binary(t, "feov-record")
 }
 
 type invocation struct {

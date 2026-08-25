@@ -34,6 +34,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/consistency"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -2590,15 +2591,11 @@ func TestFuzzDebate(t *testing.T) {
 	}
 }
 
+// buildBinary is testbuild.Binary: built once per test binary instead of once per call, and
+// named by the platform convention rather than an unconditional ".exe".
 func buildBinary(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
-	bin := filepath.Join(dir, "feov-record.exe")
-	out, err := exec.Command("go", "build", "-o", bin, "../../cmd/feov-record").CombinedOutput()
-	if err != nil {
-		t.Fatalf("build feov-record: %v\n%s", err, out)
-	}
-	return bin
+	return testbuild.Binary(t, "feov-record")
 }
 
 // mintedGapIDs lists the gaps a run actually created, so a scoped-view oracle asks about

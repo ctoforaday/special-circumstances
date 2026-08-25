@@ -1,10 +1,10 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -13,18 +13,13 @@ import (
 // in-process (os.Exit would kill the test). These e2e cases spawn the built binary
 // in a temp git fixture — the same shape as the run-setup CLI cases in the mjs suite.
 
+// buildSetupBinary is testbuild.Binary. The body it replaces rebuilt on every call — four
+// in this package — and found the tools directory by counting ".." from the working
+// directory, the path-derivation the difftest harness's own comment records as having
+// broken when files moved. testbuild walks up to go.mod instead.
 func buildSetupBinary(t *testing.T) string {
 	t.Helper()
-	out := filepath.Join(tmpRun(t), "feov-record")
-	if runtime.GOOS == "windows" {
-		out += ".exe"
-	}
-	c := exec.Command("go", "build", "-o", out, "./cmd/feov-record")
-	c.Dir = toolsDir(t)
-	if b, err := c.CombinedOutput(); err != nil {
-		t.Fatalf("building feov-record: %v\n%s", err, b)
-	}
-	return out
+	return testbuild.Binary(t, "feov-record")
 }
 
 // toolsDir walks up from the test's cwd (internal/cli) to the tools module root.
