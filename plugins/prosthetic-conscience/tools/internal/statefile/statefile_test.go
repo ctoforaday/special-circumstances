@@ -392,3 +392,43 @@ func TestAFileThatNeverAppearsIsAbsentNotUnreadable(t *testing.T) {
 		t.Errorf("a name that never appears → (%+v, %v), want (zero, absent)", got, st)
 	}
 }
+
+// THE EXPORTED READER RETRIES TOO, because the callers that need it most do not come
+// through Read.
+//
+// checkpoint.LoadRearm takes its reader as a parameter, and the one caller reading the
+// re-arm record outside the re-arm lock passed os.ReadFile bare — so the transient miss
+// that Read now absorbs went straight through to a caller that reads it as "no re-arm
+// history". Same window, same wrong conclusion, one signature away.
+func TestReadFileFindsAFileThatAppearsMidRetry(t *testing.T) {
+	orig := readBackoff
+	readBackoff = 25 * time.Millisecond
+	t.Cleanup(func() { readBackoff = orig })
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "rearm.json")
+
+	written := make(chan struct{})
+	go func() {
+		defer close(written)
+		time.Sleep(5 * time.Millisecond)
+		if err := os.WriteFile(path, []byte(`{"n":7}`), 0o644); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	}()
+
+	b, err := ReadFile(path)
+	<-written
+	if err != nil || !strings.Contains(string(b), `"n":7`) {
+		t.Errorf("a file that appeared mid-read → (%q, %v), want the contents — a bare read "+
+			"here reports ErrNotExist and the caller concludes the record is empty", b, err)
+	}
+}
+
+// AND A NAME THAT NEVER APPEARS STILL REPORTS ErrNotExist, which is what lets callers keep
+// telling absent from unreadable after the retry.
+func TestReadFileStillReportsAGenuineAbsence(t *testing.T) {
+	if _, err := ReadFile(filepath.Join(t.TempDir(), "never.json")); !os.IsNotExist(err) {
+		t.Errorf("a name that never appears → %v, want a not-exist error", err)
+	}
+}
