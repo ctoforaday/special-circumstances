@@ -1,4 +1,6 @@
-// sc-push-freeze-guard is a prosthetic-conscience PreToolUse hook (Go binary).
+// sc-push-freeze-guard is a prosthetic-conscience PreToolUse guard, shipped as a UNIT of
+// the merged sc-pretooluse binary — not as a binary of its own (#201). Its standalone
+// Main outlived that merge, built by nothing, and is gone.
 //
 // Contract (Design by Contract):
 //
@@ -13,24 +15,12 @@ package pushfreezeguard
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
-	"io"
-	"os"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/runlive"
 )
-
-type hookInput struct {
-	ToolInput struct {
-		Command string `json:"command"`
-	} `json:"tool_input"`
-	CWD string `json:"cwd"`
-}
 
 // isSeparator reports whether a token ends one command in a compound shell line.
 func isSeparator(tok string) bool {
@@ -206,24 +196,4 @@ func Unit() hookunit.Unit {
 			}
 		},
 	}
-}
-
-// Main is the process boundary: it wires the real environment in and returns the
-// exit code, so cmd/ stays a three-line shim and this stays testable.
-func Main() int {
-	showVersion := flag.Bool("version", false, "print version and exit")
-	flag.Parse()
-	if *showVersion {
-		fmt.Println(buildid.Line("sc-push-freeze-guard"))
-		return 0
-	}
-
-	raw, _ := io.ReadAll(os.Stdin)
-	var in hookInput
-	_ = json.Unmarshal(raw, &in)
-
-	if line := decide(runlive.Read(hookenv.ProjectDir(os.Getenv("CLAUDE_PROJECT_DIR"), in.CWD)), in.ToolInput.Command); line != "" {
-		fmt.Fprintln(os.Stderr, line)
-	}
-	return 0
 }

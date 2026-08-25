@@ -1,19 +1,31 @@
 package secretsgate
 
 import (
-	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 )
 
-// call drives the gate exactly as the harness does: bytes in, bytes out, exit code.
-func call(stdin string, args ...string) (stdout string, code int) {
-	var out bytes.Buffer
-	code = run(args, strings.NewReader(stdin), &out)
-	return out.String(), code
+// call drives the gate through the unit the merged PreToolUse binary actually registers.
+//
+// It used to drive a standalone `run` that nothing shipped: the #201 merge moved this gate
+// into sc-pretooluse and left a second, complete implementation behind — its own stdin
+// decode, its own raw-scan fallback, its own deny document. Both copies had to receive the
+// #211 bypass fix, and only one of them was reachable. These tests, including the #211
+// regression, were guarding the DEAD one.
+//
+// Exit code is always 0 by contract: a PreToolUse block travels in the JSON, never in the
+// status, and the merged binary owns the process boundary.
+func call(stdin string, _ ...string) (stdout string, code int) {
+	ctx := hookunit.NewCtx("PreToolUse", []byte(stdin), "", time.Time{})
+	var out strings.Builder
+	for _, r := range hookunit.Run(ctx, []hookunit.Unit{Unit()}) {
+		out.WriteString(r.Stdout)
+	}
+	return out.String(), 0
 }
 
 // A clean payload must produce NO output at all: the PreToolUse protocol reads
@@ -123,16 +135,6 @@ func TestDenyEmitsOneLine(t *testing.T) {
 	stdout, _ := call(`{"tool_name":"Bash","tool_input":{"c":"AKIAIOSFODNN7EXAMPLE"}}`)
 	if n := strings.Count(strings.TrimRight(stdout, "\n"), "\n"); n != 0 {
 		t.Fatalf("decision spans %d extra lines: %q", n, stdout)
-	}
-}
-
-func TestVersionFlag(t *testing.T) {
-	stdout, code := call("", "-version")
-	if code != 0 {
-		t.Fatalf("exit %d", code)
-	}
-	if !strings.Contains(stdout, "sc-secrets-gate") || !strings.Contains(stdout, buildid.Revision()) {
-		t.Fatalf("version output = %q; want the name and %s", stdout, buildid.Revision())
 	}
 }
 

@@ -1,13 +1,13 @@
 package toolchainnudge
 
 import (
-	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
@@ -63,11 +63,22 @@ func projectWithMarker(t *testing.T, body string) string {
 	return dir
 }
 
-func call(t *testing.T, root, project string, probe func([]toolchain.Tool) []toolchain.Status, args ...string) (string, int) {
+// call drives the nudge through the unit the merged SessionStart binary registers.
+//
+// It used to drive a standalone `run` that nothing shipped — the #201 merge moved this into
+// sc-sessionstart and left a second implementation behind, with its own manifest read and
+// its own live-run check. These tests were exercising the copy that never runs.
+//
+// Exit code is always 0 by contract: a SessionStart hook that fails is a session that
+// fails, and the merged binary owns the process boundary.
+func call(t *testing.T, root, project string, probe func([]toolchain.Tool) []toolchain.Status, _ ...string) (string, int) {
 	t.Helper()
-	var out bytes.Buffer
-	code := run(args, nil, &out, root, project, probe)
-	return out.String(), code
+	ctx := hookunit.NewCtx("SessionStart", nil, project, time.Time{})
+	var out strings.Builder
+	for _, r := range hookunit.Run(ctx, []hookunit.Unit{Unit(root, probe)}) {
+		out.WriteString(r.Stdout)
+	}
+	return out.String(), 0
 }
 
 // liveMarker is the shape the frank-exchange-of-views writer ACTUALLY produces (a list of
@@ -154,18 +165,5 @@ func TestLiveNudge(t *testing.T) {
 	}
 	if strings.Contains(got, "\n") {
 		t.Errorf("the live nudge must be one line: %q", got)
-	}
-}
-
-func TestVersionFlag(t *testing.T) {
-	out, code := call(t, pluginRoot(t, manifest), projectWithMarker(t, liveMarker), allMissing, "-version")
-	if code != 0 {
-		t.Fatalf("exit %d", code)
-	}
-	if !strings.Contains(out, "sc-toolchain-nudge") || !strings.Contains(out, buildid.Revision()) {
-		t.Fatalf("version output = %q", out)
-	}
-	if strings.Contains(out, "LIVE") || strings.Contains(out, "qlty") {
-		t.Errorf("-version must print only the version: %q", out)
 	}
 }
