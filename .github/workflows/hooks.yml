@@ -55,6 +55,11 @@ jobs:
         run: |
           mkdir -p /dev/shm/tmp
           echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
+          # EXPERIMENT (do not merge): the Linux half of the full-RAM A/B — build caches
+          # join the temp dirs in tmpfs, so both platforms run compile+test with no disk
+          # in the path and the residual platform gap is spawn/compute by construction.
+          echo "GOCACHE=/dev/shm/gocache" >> "$GITHUB_ENV"
+          echo "GOMODCACHE=/dev/shm/gomod" >> "$GITHUB_ENV"
       - name: dev drive for TEMP
         if: runner.os == 'Windows'
         shell: pwsh
@@ -84,8 +89,9 @@ jobs:
       # reach the slow disk; memfs makes fsync genuinely free, at the price of a
       # user-mode round-trip per filesystem op. Build caches STAY on the dev drive —
       # this isolates the temp-dir filesystem, which is where every t.TempDir SQLite
-      # database lives. Question under test: does fsync-free RAM beat ReFS-on-VHDX by
-      # enough to matter, or is the residual Windows gap not filesystem at all?
+      # database lives — and in the FULL-RAM variant the build caches follow (below),
+      # so the question widens: with I/O removed as a bottleneck on BOTH platforms,
+      # what remains of the Windows gap is spawn/compute by construction.
       - name: winfsp memfs for TEMP (experiment)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -96,7 +102,7 @@ jobs:
             Get-ChildItem "C:\Program Files (x86)\WinFsp" -Recurse | ForEach-Object FullName
             throw "memfs-x64.exe is not in the WinFsp install - the listing above is the next clue"
           }
-          Start-Process -FilePath $memfs -ArgumentList '-i','-m','X:' -WindowStyle Hidden
+          Start-Process -FilePath $memfs -ArgumentList '-i','-n','2000000','-s','1073741824','-m','X:' -WindowStyle Hidden
           $deadline = (Get-Date).AddSeconds(30)
           while (-not (Test-Path "X:\")) {
             if ((Get-Date) -gt $deadline) { throw "memfs never mounted X:" }
@@ -105,6 +111,13 @@ jobs:
           New-Item -ItemType Directory -Path "X:\tmp" | Out-Null
           "TMP=X:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
           "TEMP=X:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # FULL-RAM VARIANT: the build caches follow — these overwrite the dev drive's
+          # GOCACHE/GOMODCACHE above, so V: keeps only what nothing redirected. With TMP
+          # also on X:, the go test work dirs (where test binaries are built and run
+          # from) are RAM as well: compile, link, execute, and database churn all happen
+          # without a disk in the path.
+          "GOCACHE=X:\gocache"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOMODCACHE=X:\gomod" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -215,6 +228,11 @@ jobs:
         run: |
           mkdir -p /dev/shm/tmp
           echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
+          # EXPERIMENT (do not merge): the Linux half of the full-RAM A/B — build caches
+          # join the temp dirs in tmpfs, so both platforms run compile+test with no disk
+          # in the path and the residual platform gap is spawn/compute by construction.
+          echo "GOCACHE=/dev/shm/gocache" >> "$GITHUB_ENV"
+          echo "GOMODCACHE=/dev/shm/gomod" >> "$GITHUB_ENV"
       - name: dev drive for TEMP
         if: runner.os == 'Windows'
         shell: pwsh
@@ -244,8 +262,9 @@ jobs:
       # reach the slow disk; memfs makes fsync genuinely free, at the price of a
       # user-mode round-trip per filesystem op. Build caches STAY on the dev drive —
       # this isolates the temp-dir filesystem, which is where every t.TempDir SQLite
-      # database lives. Question under test: does fsync-free RAM beat ReFS-on-VHDX by
-      # enough to matter, or is the residual Windows gap not filesystem at all?
+      # database lives — and in the FULL-RAM variant the build caches follow (below),
+      # so the question widens: with I/O removed as a bottleneck on BOTH platforms,
+      # what remains of the Windows gap is spawn/compute by construction.
       - name: winfsp memfs for TEMP (experiment)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -256,7 +275,7 @@ jobs:
             Get-ChildItem "C:\Program Files (x86)\WinFsp" -Recurse | ForEach-Object FullName
             throw "memfs-x64.exe is not in the WinFsp install - the listing above is the next clue"
           }
-          Start-Process -FilePath $memfs -ArgumentList '-i','-m','X:' -WindowStyle Hidden
+          Start-Process -FilePath $memfs -ArgumentList '-i','-n','2000000','-s','1073741824','-m','X:' -WindowStyle Hidden
           $deadline = (Get-Date).AddSeconds(30)
           while (-not (Test-Path "X:\")) {
             if ((Get-Date) -gt $deadline) { throw "memfs never mounted X:" }
@@ -265,6 +284,13 @@ jobs:
           New-Item -ItemType Directory -Path "X:\tmp" | Out-Null
           "TMP=X:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
           "TEMP=X:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # FULL-RAM VARIANT: the build caches follow — these overwrite the dev drive's
+          # GOCACHE/GOMODCACHE above, so V: keeps only what nothing redirected. With TMP
+          # also on X:, the go test work dirs (where test binaries are built and run
+          # from) are RAM as well: compile, link, execute, and database churn all happen
+          # without a disk in the path.
+          "GOCACHE=X:\gocache"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOMODCACHE=X:\gomod" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -385,6 +411,11 @@ jobs:
         run: |
           mkdir -p /dev/shm/tmp
           echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
+          # EXPERIMENT (do not merge): the Linux half of the full-RAM A/B — build caches
+          # join the temp dirs in tmpfs, so both platforms run compile+test with no disk
+          # in the path and the residual platform gap is spawn/compute by construction.
+          echo "GOCACHE=/dev/shm/gocache" >> "$GITHUB_ENV"
+          echo "GOMODCACHE=/dev/shm/gomod" >> "$GITHUB_ENV"
       - name: dev drive for TEMP
         if: runner.os == 'Windows'
         shell: pwsh
@@ -414,8 +445,9 @@ jobs:
       # reach the slow disk; memfs makes fsync genuinely free, at the price of a
       # user-mode round-trip per filesystem op. Build caches STAY on the dev drive —
       # this isolates the temp-dir filesystem, which is where every t.TempDir SQLite
-      # database lives. Question under test: does fsync-free RAM beat ReFS-on-VHDX by
-      # enough to matter, or is the residual Windows gap not filesystem at all?
+      # database lives — and in the FULL-RAM variant the build caches follow (below),
+      # so the question widens: with I/O removed as a bottleneck on BOTH platforms,
+      # what remains of the Windows gap is spawn/compute by construction.
       - name: winfsp memfs for TEMP (experiment)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -426,7 +458,7 @@ jobs:
             Get-ChildItem "C:\Program Files (x86)\WinFsp" -Recurse | ForEach-Object FullName
             throw "memfs-x64.exe is not in the WinFsp install - the listing above is the next clue"
           }
-          Start-Process -FilePath $memfs -ArgumentList '-i','-m','X:' -WindowStyle Hidden
+          Start-Process -FilePath $memfs -ArgumentList '-i','-n','2000000','-s','1073741824','-m','X:' -WindowStyle Hidden
           $deadline = (Get-Date).AddSeconds(30)
           while (-not (Test-Path "X:\")) {
             if ((Get-Date) -gt $deadline) { throw "memfs never mounted X:" }
@@ -435,6 +467,13 @@ jobs:
           New-Item -ItemType Directory -Path "X:\tmp" | Out-Null
           "TMP=X:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
           "TEMP=X:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # FULL-RAM VARIANT: the build caches follow — these overwrite the dev drive's
+          # GOCACHE/GOMODCACHE above, so V: keeps only what nothing redirected. With TMP
+          # also on X:, the go test work dirs (where test binaries are built and run
+          # from) are RAM as well: compile, link, execute, and database churn all happen
+          # without a disk in the path.
+          "GOCACHE=X:\gocache"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOMODCACHE=X:\gomod" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
