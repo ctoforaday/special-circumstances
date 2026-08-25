@@ -50,11 +50,20 @@ func (s Status) String() string {
 	return "unreadable"
 }
 
-// readAttempts and readBackoff absorb the transient case measured on Windows: rename is
-// atomic for the FILE, but a concurrent open can still hit a sharing violation while it
-// lands. CI saw 21 of 800 reads fail that way under four concurrent writers, and zero on
-// Linux. A few milliseconds is far below any hook's budget and far above the window.
-const (
+// readAttempts and readBackoff absorb the transient cases measured on Windows, and there
+// are TWO of them. A concurrent open can hit a sharing violation while a rename lands: CI
+// saw 21 of 800 reads fail that way under four concurrent writers, and zero on Linux. It
+// can ALSO observe the name as not existing at all for an instant while the replace binds
+// — measured once the CI temp dir moved to a RAM disk, where 800 renames land in 0.38s and
+// the window is sampled often enough to see: 3 of 800 reads came back ErrNotExist on a
+// file that existed before and after.
+//
+// That second case is why ErrNotExist is RETRIED rather than trusted. It is the dangerous
+// one: a sharing violation reports Unreadable, which forbids a write, while a premature
+// Absent invites the caller to overwrite a record it simply failed to see.
+//
+// Vars, not consts, so a test can widen the window deterministically.
+var (
 	readAttempts = 3
 	readBackoff  = 2 * time.Millisecond
 )
@@ -62,23 +71,32 @@ const (
 // Read loads a JSON record, distinguishing absent from unreadable.
 func Read[T any](path string) (T, Status) {
 	var zero T
+	// What the LAST attempt saw decides the verdict: a name that is still missing after
+	// every retry is genuinely absent, and one that was missing only in passing is not.
+	missing := false
 	for attempt := range readAttempts {
 		b, err := os.ReadFile(path)
 		switch {
 		case errors.Is(err, os.ErrNotExist):
-			return zero, Absent
+			missing = true
 		case err != nil:
+			missing = false
+		default:
+			var v T
+			if err := json.Unmarshal(b, &v); err != nil {
+				// Present and undecodable. Retrying will not help — a torn write has
+				// already landed or the file is corrupt — and reporting it as empty would
+				// invite the caller to overwrite it.
+				return zero, Unreadable
+			}
+			return v, Present
+		}
+		if attempt < readAttempts-1 {
 			time.Sleep(time.Duration(attempt+1) * readBackoff)
-			continue
 		}
-		var v T
-		if err := json.Unmarshal(b, &v); err != nil {
-			// Present and undecodable. Retrying will not help — a torn write has
-			// already landed or the file is corrupt — and reporting it as empty would
-			// invite the caller to overwrite it.
-			return zero, Unreadable
-		}
-		return v, Present
+	}
+	if missing {
+		return zero, Absent
 	}
 	return zero, Unreadable
 }
