@@ -11,7 +11,7 @@ import (
 
 func runWith(t *testing.T, maxRounds string, evs []*Event) string {
 	t.Helper()
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	if maxRounds != "" {
 		if err := os.MkdirAll(filepath.Join(dir, "inputs"), 0o755); err != nil {
 			t.Fatal(err)

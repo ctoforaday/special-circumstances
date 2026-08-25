@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
 
@@ -21,7 +22,7 @@ import (
 // tree where the role arrives and nothing reads it.
 func TestTheRoleSurvivesTheShowGroup(t *testing.T) {
 	runDir := newRun(t)
-	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	board := seatprobe.Boards()["audit"]
 	exec := func(args ...string) (string, error) { return run(t, args...) }
 	if err := seatprobe.Build(runDir, board, exec); err != nil {

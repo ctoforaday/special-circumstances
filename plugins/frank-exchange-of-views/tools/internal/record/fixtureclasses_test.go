@@ -1,9 +1,8 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"testing"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // newRun makes a run directory whose gap-class vocabulary is DECLARED.
@@ -19,7 +18,7 @@ import (
 func newRun(t *testing.T) string {
 	t.Helper()
 	// tmpRun already releases this run's handle; newRun only adds the class vocabulary.
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	if err := StageForRun(dir, fixtureClasses...); err != nil {
 		t.Fatalf("stage the class registry: %v", err)
 	}
@@ -54,17 +53,4 @@ var shippedClasses = []string{
 	"artifact-preservation", "config-semantics-error", "vote-laundering",
 	"verification-scope-blindspot", "doctrine-vs-implementation", "measurement-methodology-drift",
 	"cross-corpus-id-collision", "negative-definition",
-}
-
-// tmpRun is tmpRun(t) for a RUN, plus the release its record handle needs.
-//
-// It stages NOTHING: several tests here depend on a run having no class registry, and newRun would
-// take that property away. The only difference from t.TempDir is that the cached *sql.DB for this
-// run is closed when the test ends — which is invisible on Linux, where an open file can still be
-// unlinked, and is the difference between pass and fail on Windows.
-func tmpRun(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
-	return dir
 }

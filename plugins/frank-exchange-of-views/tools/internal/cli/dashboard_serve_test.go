@@ -122,7 +122,7 @@ func TestServeHelpMatchesTheTransport(t *testing.T) {
 // which on 2026-08-04 left a dashboard exposed on the LAN after its run ended, with nothing to
 // close it. Binding is now refused unless the run is live.
 func TestServeRefusesWhenTheRunIsNotLive(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	prev := runLiveMarker
 	runLiveMarker = filepath.Join(dir, "absent-run-live.json")
 	t.Cleanup(func() { runLiveMarker = prev })
@@ -145,7 +145,7 @@ func TestServeRefusesWhenTheRunIsNotLive(t *testing.T) {
 func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 	// A live run: marker present, no outcome on the record. Neither watcher may exit.
 	runDir := newRun(t)
-	marker := filepath.Join(tmpRun(t), "run-live.json")
+	marker := filepath.Join(recordtest.TmpRun(t), "run-live.json")
 	if err := os.WriteFile(marker, []byte(`{"runs":[{"runDir":"x"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 	}
 
 	// The clean end: capture removed the marker.
-	gone := filepath.Join(tmpRun(t), "absent.json")
+	gone := filepath.Join(recordtest.TmpRun(t), "absent.json")
 	ended, why := runHasEnded(gone, runDir)
 	if !ended || !strings.Contains(why, "marker gone") {
 		t.Errorf("an absent marker is the clean end: ended=%v why=%q", ended, why)

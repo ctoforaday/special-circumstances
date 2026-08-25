@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
 )
@@ -295,7 +296,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	// So the states are asserted where they live rather than through a key that cannot carry them.
 	t.Run("the three states are distinguishable", func(t *testing.T) {
 		// 1. Never checked: no event.
-		runDir := tmpRun(t)
+		runDir := recordtest.TmpRun(t)
 		if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_SPOT_CHECK); n != 0 {
 			t.Fatalf("%d spot-checks before any were run", n)
 		}

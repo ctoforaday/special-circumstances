@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"os"
 	"path/filepath"
@@ -110,7 +111,7 @@ func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 	runDir := seatRun(t)
 	// Driven through `merge position` since #327 retired `dispose`, which this used to use.
 	// The rule is the seat.Prose contract's, not any one verb's — any prose verb proves it.
-	both := filepath.Join(tmpRun(t), "prose.md")
+	both := filepath.Join(recordtest.TmpRun(t), "prose.md")
 	if werr := os.WriteFile(both, []byte("from a file"), 0o644); werr != nil {
 		t.Fatal(werr)
 	}

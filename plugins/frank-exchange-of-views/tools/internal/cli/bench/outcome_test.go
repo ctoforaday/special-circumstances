@@ -2,7 +2,6 @@ package bench
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/spf13/cobra"
 	"strings"
@@ -48,7 +47,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			runDir := tmpRun(t)
+			runDir := recordtest.TmpRun(t)
 			// Identity comes from the injection, as it does in a real run: the hook exports the
 			// agent handle, `register` binds it to this seat, and every later call resolves the
 			// seat from that binding rather than from a flag. So the handle is set BEFORE the
@@ -96,7 +95,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 // The derivation's reasoning was computed on every call and used only to phrase an error, so a
 // report could stamp a verdict and never say why it was that one.
 func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
-	runDir := tmpRun(t)
+	runDir := recordtest.TmpRun(t)
 	// The bench's own handle is the one that must resolve; the merge is registered here only so
 	// its verdict has a seat to hang on, and it binds a different agent for the same reason a run
 	// does — two seats are two agents.
@@ -151,14 +150,4 @@ func testRoot() *cobra.Command {
 	c := &cobra.Command{Use: "bench", SilenceUsage: true, SilenceErrors: true}
 	c.AddCommand(Verbs()...)
 	return c
-}
-
-// tmpRun is t.TempDir() for a RUN, plus the release its record handle needs. recordsql caches a
-// *sql.DB per database and production never closes one; a test process accumulates them, and on
-// Windows an open file cannot be removed so `t.TempDir` cleanup fails.
-func tmpRun(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
-	return dir
 }

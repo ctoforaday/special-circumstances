@@ -2,6 +2,7 @@ package record
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
@@ -110,7 +111,7 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 			defer func() { Now = orig }()
 			Now = c.now
 
-			runDir := tmpRun(t)
+			runDir := recordtest.TmpRun(t)
 			id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}
 			if _, _, err := RegisterSeat(id, ""); err != nil {
 				t.Fatal(err)
@@ -159,7 +160,7 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 // carries no `-r<N>` at all, so the two answers are distinguishable — the name cannot answer,
 // and anything that shows up in the event must therefore have come from the caller.
 func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +213,7 @@ func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
 // unknown. It is NOT quietly converted to 0, which is synthesis and a real round — the
 // conflation that produced the phantom archive in #327.
 func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +239,7 @@ func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
 // change turned a tolerated duplicate into a refusal — and the fix is that the ordinal is scoped to
 // the SEAT, which makes its keys monotonic across dispatches.
 func TestARedispatchedSeatCanStillRecord(t *testing.T) {
-	runDir := tmpRun(t)
+	runDir := recordtest.TmpRun(t)
 	seat := "red-merge-r1"
 	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
 
@@ -285,7 +286,7 @@ func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 // so the second write is refused — and a raw `UNIQUE constraint failed: events.key` teaches
 // nothing, which is why isDuplicateKey exists.
 func TestARepeatedSingletonActIsRefusedInTheSeatsOwnTerms(t *testing.T) {
-	runDir := tmpRun(t)
+	runDir := recordtest.TmpRun(t)
 	seat := "red-merge-r1"
 	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
 	if _, _, err := RegisterSeat(id, ""); err != nil {

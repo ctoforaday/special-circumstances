@@ -761,6 +761,9 @@ func TestAGapsListsAreCountedByTheView(t *testing.T) {
 // never opened is a no-op, so a scratch directory pays nothing and a run directory cannot be
 // missed. Guessing which TempDir is a run is what left five packages still failing on Windows
 // after two rounds of wiring the ones whose variable happened to be called runDir.
+// tmpRun is recordtest.TmpRun's twin, and the ONE copy that has to stay: recordtest imports
+// this package, so importing it back is a cycle. It calls CloseUnder unqualified for the same
+// reason — this IS that package. Every other copy (seven of them, byte-identical) is gone.
 func tmpRun(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()

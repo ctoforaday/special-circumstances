@@ -131,3 +131,21 @@ func Seed(t *testing.T, runDir string, evs ...*recordpb.Event) {
 		}
 	}
 }
+
+// TmpRun is a scratch run directory whose cached record handle is released when the test ends.
+//
+// The two lines matter in the opposite order to how they read. t.TempDir gives the directory;
+// recordsql.CloseUnder gives back the *sql.DB the record layer caches per run — and THAT is the
+// correctness half. On Linux an open file can still be unlinked, so a missed release is
+// invisible; on Windows it is the difference between a passing test and a cleanup that cannot
+// delete a locked file. A helper whose value shows up on one platform only is exactly the kind
+// that gets copied without its cleanup.
+//
+// It was copied, eight times, byte-identical in seven of them. The eighth lives inside recordsql
+// itself and calls CloseUnder unqualified — a real import cycle, so that one stays where it is.
+func TmpRun(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
+	return dir
+}

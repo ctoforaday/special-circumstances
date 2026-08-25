@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -56,7 +57,7 @@ func refusals() []struct {
 }
 
 func TestNoRefusalHandsOutABareList(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
 
 	for _, r := range refusals() {

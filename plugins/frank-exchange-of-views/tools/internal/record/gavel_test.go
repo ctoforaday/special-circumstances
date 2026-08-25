@@ -52,7 +52,7 @@ func TestEveryMotionSubjectNamesItsRuler(t *testing.T) {
 // cannot rule it and cannot pass; the only legal act left is FAIL, and the seat learns that from
 // this message or not at all.
 func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
-	runDir := tmpRun(t)
+	runDir := recordtest.TmpRun(t)
 	for _, sid := range []string{"blue-respond-r1", "red-merge-r1"} {
 		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: sid, Round: RoundIn(runDir)(sid)}, ""); err != nil {
 			t.Fatal(err)

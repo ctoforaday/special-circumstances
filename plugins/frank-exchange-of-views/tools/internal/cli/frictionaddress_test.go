@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,7 +58,7 @@ func TestTheTwoFrictionsAreOnDifferentSurfaces(t *testing.T) {
 // The operator's read is what this command IS. A refusal that also broke it would trade one
 // unreachable channel for another.
 func TestTheOperatorFrictionReadStillWorks(t *testing.T) {
-	out, err := run(t, "friction", "--seat-id", "operator", "--run", tmpRun(t))
+	out, err := run(t, "friction", "--seat-id", "operator", "--run", recordtest.TmpRun(t))
 	if err != nil {
 		t.Fatalf("the operator's friction read failed: %v", err)
 	}

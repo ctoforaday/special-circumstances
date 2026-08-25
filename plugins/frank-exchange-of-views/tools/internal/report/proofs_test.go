@@ -1,6 +1,7 @@
 package report
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -90,7 +91,7 @@ func TestADanglingProofAnchorIsMarkedUnresolved(t *testing.T) {
 	// A VALID hex id with no event behind it. (An id-shaped-but-not-hex token like
 	// "p-nothing" is not an anchor at all — the regex correctly ignores it, which is a
 	// different case and not the one under test.)
-	out := weaveProofs(tmpRun(t), "A claim<!--proof:p-abcdef01-->.\n", nil)
+	out := weaveProofs(recordtest.TmpRun(t), "A claim<!--proof:p-abcdef01-->.\n", nil)
 	if !strings.Contains(out, "unresolved proof") {
 		t.Errorf("a dangling proof anchor vanished silently:\n%s", out)
 	}
@@ -99,7 +100,7 @@ func TestADanglingProofAnchorIsMarkedUnresolved(t *testing.T) {
 // With no proofs the report is returned unchanged — no empty section.
 func TestNoProofsLeavesTheReportAlone(t *testing.T) {
 	const md = "A report with no computations in it.\n"
-	if got := weaveProofs(tmpRun(t), md, nil); got != md {
+	if got := weaveProofs(recordtest.TmpRun(t), md, nil); got != md {
 		t.Errorf("an empty Proofs section was appended:\n%s", got)
 	}
 }
