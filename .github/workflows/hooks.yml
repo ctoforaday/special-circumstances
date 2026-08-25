@@ -31,11 +31,26 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
-          # tag, and a cache a pull request can write is a cache a release build would
-          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
-          # publish path is worth more.
-          cache: false
+          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
+          # a sharper version of the blanket `cache: false` that stood here, not a retreat
+          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
+          # can restore, and a run can only restore caches from its own ref or the default
+          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
+          # dangerous caches are MAIN's, which only `push` events would write — and this
+          # workflow pushes only on main and tags, so with the condition below neither ever
+          # writes one (a tag build is event_name == push, so this is false there too).
+          # The invariant to keep: if caching is ever enabled for `push`, the release build
+          # starts restoring main's caches and the original finding reopens.
+          #
+          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
+          # of a pull request (measured on windows-latest, where one PR paid it six times).
+          # The first push of a PR is still cold; iteration on it is warm.
+          cache: ${{ github.event_name == 'pull_request' }}
+          # The modules are not at the repo root, and setup-go's default lookup is — with
+          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
+          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
+          # enough to be the right trade against four hand-kept per-job paths.
+          cache-dependency-path: "**/go.sum"
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -82,11 +97,26 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
-          # tag, and a cache a pull request can write is a cache a release build would
-          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
-          # publish path is worth more.
-          cache: false
+          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
+          # a sharper version of the blanket `cache: false` that stood here, not a retreat
+          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
+          # can restore, and a run can only restore caches from its own ref or the default
+          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
+          # dangerous caches are MAIN's, which only `push` events would write — and this
+          # workflow pushes only on main and tags, so with the condition below neither ever
+          # writes one (a tag build is event_name == push, so this is false there too).
+          # The invariant to keep: if caching is ever enabled for `push`, the release build
+          # starts restoring main's caches and the original finding reopens.
+          #
+          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
+          # of a pull request (measured on windows-latest, where one PR paid it six times).
+          # The first push of a PR is still cold; iteration on it is warm.
+          cache: ${{ github.event_name == 'pull_request' }}
+          # The modules are not at the repo root, and setup-go's default lookup is — with
+          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
+          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
+          # enough to be the right trade against four hand-kept per-job paths.
+          cache-dependency-path: "**/go.sum"
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -137,11 +167,26 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
-          # tag, and a cache a pull request can write is a cache a release build would
-          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
-          # publish path is worth more.
-          cache: false
+          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
+          # a sharper version of the blanket `cache: false` that stood here, not a retreat
+          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
+          # can restore, and a run can only restore caches from its own ref or the default
+          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
+          # dangerous caches are MAIN's, which only `push` events would write — and this
+          # workflow pushes only on main and tags, so with the condition below neither ever
+          # writes one (a tag build is event_name == push, so this is false there too).
+          # The invariant to keep: if caching is ever enabled for `push`, the release build
+          # starts restoring main's caches and the original finding reopens.
+          #
+          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
+          # of a pull request (measured on windows-latest, where one PR paid it six times).
+          # The first push of a PR is still cold; iteration on it is warm.
+          cache: ${{ github.event_name == 'pull_request' }}
+          # The modules are not at the repo root, and setup-go's default lookup is — with
+          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
+          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
+          # enough to be the right trade against four hand-kept per-job paths.
+          cache-dependency-path: "**/go.sum"
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -180,9 +225,11 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v7
         with:
-          # Same reasoning as every other leg: this workflow PUBLISHES on a tag, so a
-          # cache a pull request can write is a cache a release build would read.
-          cache: false
+          # PR-only, for the reason the first setup-go in this file states in full: a tag
+          # run can only restore same-ref or default-branch caches, and neither is ever
+          # written, because `push` (main and tags alike) stays cache-free.
+          cache: ${{ github.event_name == 'pull_request' }}
+          cache-dependency-path: "**/go.sum"
           go-version: "1.25"
       - uses: actions/setup-node@v7
         with:
@@ -249,9 +296,11 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # Same reasoning as every other leg: this workflow PUBLISHES on a tag, so a
-          # cache a pull request can write is a cache a release build would read.
-          cache: false
+          # PR-only, for the reason the first setup-go in this file states in full: a tag
+          # run can only restore same-ref or default-branch caches, and neither is ever
+          # written, because `push` (main and tags alike) stays cache-free.
+          cache: ${{ github.event_name == 'pull_request' }}
+          cache-dependency-path: "**/go.sum"
           go-version: "1.25"
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
@@ -326,11 +375,26 @@ jobs:
           node-version: "24"
       - uses: actions/setup-go@v7
         with:
-          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
-          # tag, and a cache a pull request can write is a cache a release build would
-          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
-          # publish path is worth more.
-          cache: false
+          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
+          # a sharper version of the blanket `cache: false` that stood here, not a retreat
+          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
+          # can restore, and a run can only restore caches from its own ref or the default
+          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
+          # dangerous caches are MAIN's, which only `push` events would write — and this
+          # workflow pushes only on main and tags, so with the condition below neither ever
+          # writes one (a tag build is event_name == push, so this is false there too).
+          # The invariant to keep: if caching is ever enabled for `push`, the release build
+          # starts restoring main's caches and the original finding reopens.
+          #
+          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
+          # of a pull request (measured on windows-latest, where one PR paid it six times).
+          # The first push of a PR is still cold; iteration on it is warm.
+          cache: ${{ github.event_name == 'pull_request' }}
+          # The modules are not at the repo root, and setup-go's default lookup is — with
+          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
+          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
+          # enough to be the right trade against four hand-kept per-job paths.
+          cache-dependency-path: "**/go.sum"
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -357,9 +421,11 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # Same reasoning as every other leg: this workflow PUBLISHES on a tag, so a
-          # cache a pull request can write is a cache a release build would read.
-          cache: false
+          # PR-only, for the reason the first setup-go in this file states in full: a tag
+          # run can only restore same-ref or default-branch caches, and neither is ever
+          # written, because `push` (main and tags alike) stays cache-free.
+          cache: ${{ github.event_name == 'pull_request' }}
+          cache-dependency-path: "**/go.sum"
           go-version: "1.25"
       - uses: actions/setup-node@v7
         with:
@@ -479,11 +545,26 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
-          # tag, and a cache a pull request can write is a cache a release build would
-          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
-          # publish path is worth more.
-          cache: false
+          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
+          # a sharper version of the blanket `cache: false` that stood here, not a retreat
+          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
+          # can restore, and a run can only restore caches from its own ref or the default
+          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
+          # dangerous caches are MAIN's, which only `push` events would write — and this
+          # workflow pushes only on main and tags, so with the condition below neither ever
+          # writes one (a tag build is event_name == push, so this is false there too).
+          # The invariant to keep: if caching is ever enabled for `push`, the release build
+          # starts restoring main's caches and the original finding reopens.
+          #
+          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
+          # of a pull request (measured on windows-latest, where one PR paid it six times).
+          # The first push of a PR is still cold; iteration on it is warm.
+          cache: ${{ github.event_name == 'pull_request' }}
+          # The modules are not at the repo root, and setup-go's default lookup is — with
+          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
+          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
+          # enough to be the right trade against four hand-kept per-job paths.
+          cache-dependency-path: "**/go.sum"
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
