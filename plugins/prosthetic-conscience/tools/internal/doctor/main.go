@@ -11,6 +11,7 @@ package doctor
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -42,13 +43,6 @@ type binStatus struct {
 	Version string
 }
 
-func exeSuffix() string {
-	if runtime.GOOS == "windows" {
-		return ".exe"
-	}
-	return ""
-}
-
 // AssetName is THE CONTRACT between the release job and this program, in one function.
 //
 // The release workflow cross-compiles into `dist/${name}_${os}_${arch}${ext}` and checksums
@@ -64,6 +58,9 @@ func exeSuffix() string {
 // contract has to hold for all six published pairs, not just the one the test happens to run
 // on. release_contract_test.go reads the workflow and checks every pair against this.
 func AssetName(name, goos, goarch string) string {
+	// Not buildid.ExeName: this is a CROSS-compile name, so the extension follows the
+	// argument goos, never the host. sc-doctor -fix on Linux must be able to name the
+	// Windows asset, and a host-derived suffix would quietly produce the Linux one.
 	ext := ""
 	if goos == "windows" {
 		ext = ".exe"
@@ -83,7 +80,7 @@ func binariesOf(root, plugin, version string) []binStatus {
 		if !e.IsDir() {
 			continue
 		}
-		bin := filepath.Join(root, "bin", e.Name()+exeSuffix())
+		bin := filepath.Join(root, "bin", e.Name()+buildid.ExeName(""))
 		_, err := os.Stat(bin)
 		out = append(out, binStatus{
 			Name: e.Name(), Built: err == nil,
@@ -281,7 +278,7 @@ func table(tools []toolchain.Status, bins []binStatus) string {
 
 // binPath is where a binStatus's executable lives, matching binariesOf.
 func binPath(b binStatus) string {
-	return filepath.Join(b.Root, "bin", b.Name+exeSuffix())
+	return filepath.Join(b.Root, "bin", b.Name+buildid.ExeName(""))
 }
 
 // versionOf best-effort runs a check command and returns its first output line.
@@ -472,7 +469,7 @@ func describeFetchFailure(tag, ghOutput string) string {
 // checksum against the release SHA256SUMS, and installs it into bin/.
 func fetchRelease(b binStatus) error {
 	if !toolchain.Present("gh") {
-		return fmt.Errorf("gh not on PATH")
+		return errors.New("gh not on PATH")
 	}
 	root, name := b.Root, b.Name
 	asset := AssetName(name, runtime.GOOS, runtime.GOARCH)
@@ -487,7 +484,10 @@ func fetchRelease(b binStatus) error {
 	}
 	dl := exec.Command("gh", args...)
 	if msg, err := dl.CombinedOutput(); err != nil {
-		return fmt.Errorf("%s", describeFetchFailure(releaseTag(b), string(msg)))
+		// The cause is WRAPPED, not flattened. describeFetchFailure renders gh's output
+		// for a human; err carries the exit status, and dropping it left a caller with no
+		// way to tell "gh refused" from "gh was killed" — the two need different advice.
+		return fmt.Errorf("%s: %w", describeFetchFailure(releaseTag(b), string(msg)), err)
 	}
 	data, err := os.ReadFile(filepath.Join(tmp, asset))
 	if err != nil {
@@ -501,7 +501,7 @@ func fetchRelease(b binStatus) error {
 	if !verifySHA256(string(sums), asset, digest) {
 		return fmt.Errorf("checksum mismatch for %s — refusing to install", asset)
 	}
-	dst := filepath.Join(root, "bin", name+exeSuffix())
+	dst := filepath.Join(root, "bin", buildid.ExeName(name))
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return err
 	}
@@ -511,7 +511,7 @@ func fetchRelease(b binStatus) error {
 // buildFromSource is the local-toolchain boundary: the dev-convenience fallback when
 // no release asset can be fetched. It returns the build output for the report.
 func buildFromSource(b binStatus) (string, error) {
-	out := filepath.Join(b.Root, "bin", b.Name+exeSuffix())
+	out := filepath.Join(b.Root, "bin", b.Name+buildid.ExeName(""))
 	cmd := exec.Command("go", "build", "-C", filepath.Join(b.Root, "tools"), "-o", out, "./cmd/"+b.Name)
 	msg, err := cmd.CombinedOutput()
 	return strings.TrimSpace(string(msg)), err
@@ -549,8 +549,13 @@ func fixWith(bins []binStatus, fetch func(binStatus) error, build func(binStatus
 				report = append(report, fmt.Sprintf("%s: fetch failed (%v); built from source (dev fallback)", b.Name, fetchErr))
 			}
 		} else {
-			report = append(report, fmt.Sprintf("%s: fetch failed (%v) and Go not found — install gh or Go, or place %s_%s_%s%s into %s manually",
-				b.Name, fetchErr, b.Name, runtime.GOOS, runtime.GOARCH, exeSuffix(), filepath.Join(b.Root, "bin")))
+			// AssetName, not a second assembly of it. This message names the file the
+			// human must place, and the release job names the file it publishes; those are
+			// the SAME fact, so they get one statement of it. Hand-composing the pattern
+			// here meant a change to the contract would leave this advice pointing at a
+			// filename that never existed.
+			report = append(report, fmt.Sprintf("%s: fetch failed (%v) and Go not found — install gh or Go, or place %s into %s manually",
+				b.Name, fetchErr, AssetName(b.Name, runtime.GOOS, runtime.GOARCH), filepath.Join(b.Root, "bin")))
 		}
 	}
 	return report

@@ -32,16 +32,15 @@ package posttooluse
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooklog"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/qualitygate"
 )
@@ -67,14 +66,7 @@ func merge(results []hookunit.Result) (stderr string, exit int, logs []string) {
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, units []hookunit.Unit) int {
-	fs := flag.NewFlagSet("sc-posttooluse", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	showVersion := fs.Bool("version", false, "print version and exit")
-	if err := fs.Parse(args); err != nil {
-		return 0 // a bad flag is never worth failing the Edit/Write over
-	}
-	if *showVersion {
-		fmt.Fprintln(stdout, buildid.Line("sc-posttooluse"))
+	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-posttooluse")) {
 		return 0
 	}
 

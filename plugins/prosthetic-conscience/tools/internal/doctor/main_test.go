@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
+
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
 
@@ -112,7 +114,7 @@ func TestSiblingBinariesAreDiscoveredAndTagged(t *testing.T) {
 		t.Errorf("root = %s, want %s", b.Root, sib)
 	}
 	// Writing the binary flips Built, which is what --fix re-probes.
-	if err := os.WriteFile(filepath.Join(sib, "bin", "feov-record"+exeSuffix()), []byte("x"), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(sib, "bin", buildid.ExeName("feov-record")), []byte("x"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if again := siblingBinaries(self); !again[0].Built {

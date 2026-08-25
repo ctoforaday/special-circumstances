@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -269,5 +270,54 @@ func TestEveryBandEdgeFromEitherMeasure(t *testing.T) {
 				t.Errorf("highestBand = (%q, %v), want (%q, %v)", got, ok, tc.want, tc.any)
 			}
 		})
+	}
+}
+
+// WHAT THIS PACKAGE INHERITED, asserted here rather than assumed from the shared code.
+//
+// stopnudge's own copy of the state IO had no retry and no absent/unreadable distinction;
+// freshness's had both, because CI exercised that one and the fix went where the red was.
+// Moving to internal/statefile hands this package the stricter behaviour — and an
+// inheritance nobody tests is a claim about another package's tests.
+//
+// The property that matters here is not the retry itself but what it protects: a spent
+// band must survive concurrent access. A lost band is a re-emission, and on Stop a
+// re-emission is the sixteen-firing loop rather than a duplicate nudge.
+func TestASpentBandSurvivesConcurrentDecisions(t *testing.T) {
+	dir := t.TempDir()
+	if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit == "" {
+		t.Fatal("first crossing emitted nothing; the fixture does not exercise the guard")
+	}
+
+	// Many boundaries arriving at once against the same spent band. Hooks on one event run
+	// in PARALLEL (measured, hook-surface-spike.md §4b), so this is the expected shape.
+	const n = 24
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var emissions int
+	for i := range n {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(11+i)); d.Emit != "" {
+				mu.Lock()
+				emissions++
+				mu.Unlock()
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	if emissions != 0 {
+		t.Errorf("%d of %d concurrent boundaries re-emitted a spent band; each one is a turn the "+
+			"model did not need to take", emissions, n)
+	}
+	// And the record still says what it should, rather than having been torn by the race.
+	st, ok := read(t, dir)
+	if !ok {
+		t.Fatal("state file gone after concurrent access")
+	}
+	if len(st.BandsSpent) != 1 {
+		t.Errorf("BandsSpent = %v, want exactly one band recorded", st.BandsSpent)
 	}
 }

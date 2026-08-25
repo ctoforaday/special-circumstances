@@ -29,15 +29,14 @@ package pretooluse
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/pushfreezeguard"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/secretsgate"
@@ -58,14 +57,7 @@ func merge(results []hookunit.Result) (decision, warnings string) {
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, units []hookunit.Unit) int {
-	fs := flag.NewFlagSet("sc-pretooluse", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	showVersion := fs.Bool("version", false, "print version and exit")
-	if err := fs.Parse(args); err != nil {
-		return 0
-	}
-	if *showVersion {
-		fmt.Fprintln(stdout, buildid.Line("sc-pretooluse"))
+	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-pretooluse")) {
 		return 0
 	}
 

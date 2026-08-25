@@ -1,9 +1,6 @@
 package freshness
 
 import (
-	"encoding/json"
-	"errors"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -12,6 +9,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/ctxusage"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/statefile"
 )
 
 // Of measures a note's age for a caller that has a project directory and a transcript.
@@ -53,66 +51,31 @@ func Of(projectDir, transcriptPath, note string, branch Branch, now time.Time) M
 	return GaugeAfter(st, m, branch, justStamped)
 }
 
-// readState reports the state AND whether the file could be read at all.
+// readState loads the gauge's state, reporting whether it could be read at all.
 //
-// ABSENT AND UNREADABLE ARE DIFFERENT ANSWERS, which is the distinction this design
-// enforces everywhere else and did not enforce here. A missing file is an honest empty
-// state: nothing has been stamped yet. A file that exists but cannot be read is not
-// empty — and treating it as empty makes Of() RE-STAMP tokens_at_write at the current
-// count, after which growth measures the interval since the failed read.
+// The tri-state and the atomic write now live in internal/statefile, because this file
+// and internal/stopnudge each grew their own copy and only this one learned — from CI —
+// that a concurrent reader on Windows can transiently fail to open a file being renamed
+// over. Two implementations of one idea, diverged in robustness within hours.
 //
-// MEASURED ON WINDOWS, by CI. A reader can transiently fail to open a file that is being
-// renamed over — rename is atomic for the FILE, but a concurrent open can still hit a
-// sharing violation — and 21 of 800 reads came back "torn" under four concurrent writers.
-// On Linux the same harness reports zero. The retry absorbs the transient case; the
-// second return value makes the permanent one honest instead of silently zero.
+// The POLICY stays here, because it is not shared: an unreadable record means this gauge
+// must not re-stamp, since stamping over a reading it cannot see makes every later growth
+// figure measure from this moment rather than from the note.
 func readState(path string) (State, bool) {
-	var lastErr error
-	for attempt := range 3 {
-		b, err := os.ReadFile(path)
-		if errors.Is(err, os.ErrNotExist) {
-			return State{}, true // absent: an honest empty state
-		}
-		if err != nil {
-			lastErr = err
-			// Transient on Windows while a rename lands. A few milliseconds is far below
-			// any hook's budget and far above the window.
-			time.Sleep(time.Duration(attempt+1) * 2 * time.Millisecond)
-			continue
-		}
-		var st State
-		if err := json.Unmarshal(b, &st); err != nil {
-			// Present but undecodable. NOT empty — see the doc comment.
-			return State{}, false
-		}
+	st, status := statefile.Read[State](path)
+	switch status {
+	case statefile.Absent:
+		return State{}, true // nothing stamped yet: an honest empty state
+	case statefile.Present:
 		return st, true
 	}
-	_ = lastErr
 	return State{}, false
 }
 
 func writeState(path string, st State) {
-	b, err := json.Marshal(st)
-	if err != nil {
-		return
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".freshness-*.tmp")
-	if err != nil {
-		return
-	}
-	name := tmp.Name()
-	if _, err := tmp.Write(b); err != nil {
-		tmp.Close()
-		_ = os.Remove(name)
-		return
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(name)
-		return
-	}
-	if err := os.Rename(name, path); err != nil {
-		_ = os.Remove(name)
-	}
+	// Best-effort, matching this package's posture: a lost write costs one observation,
+	// and a hook must not fail an event over provenance.
+	_ = statefile.Write(path, st)
 }
 
 // branchWork counts commits on THIS BRANCH'S line since the note's head.

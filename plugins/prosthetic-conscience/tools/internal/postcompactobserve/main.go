@@ -42,7 +42,6 @@ package postcompactobserve
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -52,10 +51,11 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/statefile"
 )
 
 // probe names the measurement, so a row can never be read as more than it is.
@@ -164,34 +164,17 @@ func overlap(note, summary string) []sectionOverlap {
 // appendRow writes one JSONL row. Best-effort: an observation that cannot be
 // written must never cost the session anything.
 func appendRow(projectDir string, o observation, stderr io.Writer) {
-	dir := filepath.Join(projectDir, ".claude", "checkpoints")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		fmt.Fprintln(stderr, "sc-postcompact-observe: cannot create dir:", err)
-		return
+	path := filepath.Join(projectDir, ".claude", "checkpoints", "compaction-observations.jsonl")
+	if err := statefile.AppendRow(path, o); err != nil {
+		// EVERY failure is reported, where three of the four were silent before. A lost
+		// observation is cheap; a lost observation nobody knows about is what makes a
+		// thin corpus read like a quiet one.
+		fmt.Fprintln(stderr, "sc-postcompact-observe: cannot append observation:", err)
 	}
-	line, err := json.Marshal(o)
-	if err != nil {
-		return
-	}
-	f, err := os.OpenFile(filepath.Join(dir, "compaction-observations.jsonl"),
-		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		fmt.Fprintln(stderr, "sc-postcompact-observe: cannot open observations:", err)
-		return
-	}
-	defer f.Close()
-	_, _ = f.Write(append(line, '\n'))
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time) int {
-	fs := flag.NewFlagSet("sc-postcompact-observe", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	showVersion := fs.Bool("version", false, "print version and exit")
-	if err := fs.Parse(args); err != nil {
-		return 0
-	}
-	if *showVersion {
-		fmt.Fprintln(stdout, buildid.Line("sc-postcompact-observe"))
+	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-postcompact-observe")) {
 		return 0
 	}
 
