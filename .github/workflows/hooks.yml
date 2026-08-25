@@ -93,7 +93,15 @@ jobs:
         run: |
           set -euo pipefail
           for mod in plugins/prosthetic-conscience/tools plugins/frank-exchange-of-views/tools plugins/gray-area/tools scripts; do
-            ( cd "$mod" && test -z "$(gofmt -l .)" || { echo "unformatted in $mod:"; gofmt -l .; exit 1; } )
+            # An explicit `if`, not `cd && test || {...}`: that reads as if-then-else and is
+            # not one (shellcheck SC2015) — a failed `cd` would take the else branch and
+            # report the module unformatted when the truth is that it was never looked at.
+            unformatted="$( cd "$mod" && gofmt -l . )"
+            if [ -n "$unformatted" ]; then
+              echo "unformatted in $mod:"
+              echo "$unformatted"
+              exit 1
+            fi
           done
       - name: vet every module against every operating system we ship
         run: |
