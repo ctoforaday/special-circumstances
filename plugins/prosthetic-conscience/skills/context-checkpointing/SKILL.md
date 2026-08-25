@@ -14,7 +14,7 @@ One file, **overwritten in place** — `CHECKPOINT.md` in the active `projects/<
 ```markdown
 ---
 schema: 3
-written_at: <UTC ISO>     # when the BODY last changed — the note's age is measured from here
+written_at: <UTC ISO>     # `date -u +%Y-%m-%dT%H:%M:%SZ`, READ BEFORE WRITING — the age is measured from here
 reaffirmed_at: <UTC ISO|null>  # when it was last judged still accurate WITHOUT changing
 head: <short sha|null>    # the branch head this was written against — makes staleness checkable
 session_id: <id>          # NOT unique — every subagent shares the parent's
@@ -37,7 +37,17 @@ status: <in-progress|blocked|validating|done>
 
 ## The contracts
 
-- BEFORE writing the note, YOU MUST set `written_at` and record `head:`. **A re-affirmation is
+- BEFORE writing the note, YOU MUST set `written_at` by READING A CLOCK —
+  `date -u +%Y-%m-%dT%H:%M:%SZ`, run BEFORE you start composing, not typed from a sense of what
+  time it probably is. Take the reading before you open the file, not after you close it: the
+  time you began is honest and knowable, the time you finished is neither, and a note that took
+  ten minutes to write is not ten minutes fresher than it says.
+  **An agent has no clock.** Every other falsifiable field here names the command that produces it
+  — `head:` says `git rev-parse --short HEAD` — and this one said only `<UTC ISO>`, which is an
+  invitation to invent. Measured on a real session: four consecutive notes claimed `06:45` three
+  times and then `07:55`, against seal times of `07:02`–`07:27` — one of them seven minutes in the
+  FUTURE. The age this design is built on was being fed round numbers.
+  YOU MUST also record `head:`. **A re-affirmation is
   different from a write and MUST touch only `reaffirmed_at`** — not `written_at`, not `head`.
   Confirming a note is still accurate is not doing the work again, and moving the content fields
   would report the note as fresh and the branch as unchanged when neither was re-established. The

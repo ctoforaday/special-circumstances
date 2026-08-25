@@ -39,7 +39,14 @@ func TestAFreshlyBuiltBinaryReportsItsOwnCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	head, err := exec.Command("git", "-C", dir, "rev-parse", "--short=7", "HEAD").Output()
+	// THE REVISION GO STAMPS FROM, not this working tree's HEAD. In a worktree those differ,
+	// and asserting the local HEAD made the test fail everywhere this repo is developed while
+	// the toolchain was behaving exactly as documented (#532).
+	stampDir, ok := StampedFrom(dir)
+	if !ok {
+		t.Skip("not in a git checkout")
+	}
+	head, err := exec.Command("git", "-C", stampDir, "rev-parse", "--short=7", "HEAD").Output()
 	if err != nil {
 		t.Skip("not in a git checkout")
 	}
@@ -65,8 +72,8 @@ func TestAFreshlyBuiltBinaryReportsItsOwnCommit(t *testing.T) {
 		t.Errorf("-version = %q; must name the tool", line)
 	}
 	if !strings.Contains(line, want) {
-		t.Errorf("-version = %q; must report the commit it was built from (%s). "+
+		t.Errorf("-version = %q; must report the revision Go stamped it from (%s, read from %s). "+
 			"If this fails with `unknown`, the toolchain stopped stamping vcs.revision and every "+
-			"binary is now reporting nothing rather than something wrong", line, want)
+			"binary is now reporting nothing rather than something wrong", line, want, stampDir)
 	}
 }
