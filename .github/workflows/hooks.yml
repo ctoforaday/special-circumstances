@@ -29,13 +29,83 @@ jobs:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
+      # THE TEMP DISK IS THE TEST SUITE'S REAL SUBSTRATE, and on windows-2025 it is the slow
+      # one. These runner images removed the D: drive (actions/runner-images#12647), so TEMP
+      # lives on C: — network-attached storage a commenter in that issue benchmarked at
+      # ~33 MB/s — and every t.TempDir database in this suite pays it: the packages that
+      # degrade worst vs Linux (recordsql 5.6x, record 3.9x) are exactly the SQLite-churn
+      # ones, while the process-spawning fuzz degrades least (2.3x). Defender is NOT the
+      # cause: the images already run it in passive mode (Configure-WindowsDefender.ps1).
+      #
+      # The fix the community converged on is a DEV DRIVE — a ReFS VHDX on local storage
+      # with antivirus in async performance mode — created inline here rather than via a
+      # third-party action, because ten lines of PowerShell is cheaper to trust than a tag.
+      # Only TMP/TEMP move; GOCACHE stays at its default so setup-go's pull-request cache
+      # keeps saving and restoring the path it expects. Compile cost is the cache's job,
+      # test I/O is the dev drive's, and the two stay independently measurable.
+      - name: dev drive for TEMP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vhd = "C:\dev.vhdx"
+          New-VHD -Path $vhd -SizeBytes 20GB -Dynamic | Out-Null
+          $disk = Mount-VHD -Path $vhd -PassThru | Initialize-Disk -PassThru
+          $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter V
+          Format-Volume -DriveLetter V -DevDrive | Out-Null
+          New-Item -ItemType Directory -Path "V:\tmp" | Out-Null
+          "TMP=V:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=V:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # THE BUILD CACHES MOVE TOO — build artifacts are the workload a dev drive is
+          # FOR, and the first version of this step left them on C: on a claim that moving
+          # GOCACHE would break setup-go's cache restore. That claim was wrong: setup-go
+          # resolves its paths dynamically through `go env` when its step runs, and this
+          # step runs first, so exporting the paths here makes the cache restore land ON
+          # the dev drive. The one thing deliberately left on C: is the workspace itself —
+          # checkout is pinned to GITHUB_WORKSPACE and sources are read-mostly, so moving
+          # them costs a copy step and a re-pointed working-directory for a benefit RAM
+          # mostly provides; that is a later rung if compile stays slow, taken on numbers.
+          "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
-          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
-          # tag, and a cache a pull request can write is a cache a release build would
-          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
-          # publish path is worth more.
-          cache: false
+          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
+          # a sharper version of the blanket `cache: false` that stood here, not a retreat
+          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
+          # can restore, and a run can only restore caches from its own ref or the default
+          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
+          # dangerous caches are MAIN's, which only `push` events would write — and this
+          # workflow pushes only on main and tags, so with the condition below neither ever
+          # writes one (a tag build is event_name == push, so this is false there too).
+          # The invariant to keep: if caching is ever enabled for `push`, the release build
+          # starts restoring main's caches and the original finding reopens.
+          #
+          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
+          # of a pull request (measured on windows-latest, where one PR paid it six times).
+          # The first push of a PR is still cold; iteration on it is warm.
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          # The modules are not at the repo root, and setup-go's default lookup is — with
+          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
+          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
+          # enough to be the right trade against four hand-kept per-job paths.
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
+          cache-dependency-path: |
+            plugins/prosthetic-conscience/tools/go.mod
+            .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -80,13 +150,83 @@ jobs:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
+      # THE TEMP DISK IS THE TEST SUITE'S REAL SUBSTRATE, and on windows-2025 it is the slow
+      # one. These runner images removed the D: drive (actions/runner-images#12647), so TEMP
+      # lives on C: — network-attached storage a commenter in that issue benchmarked at
+      # ~33 MB/s — and every t.TempDir database in this suite pays it: the packages that
+      # degrade worst vs Linux (recordsql 5.6x, record 3.9x) are exactly the SQLite-churn
+      # ones, while the process-spawning fuzz degrades least (2.3x). Defender is NOT the
+      # cause: the images already run it in passive mode (Configure-WindowsDefender.ps1).
+      #
+      # The fix the community converged on is a DEV DRIVE — a ReFS VHDX on local storage
+      # with antivirus in async performance mode — created inline here rather than via a
+      # third-party action, because ten lines of PowerShell is cheaper to trust than a tag.
+      # Only TMP/TEMP move; GOCACHE stays at its default so setup-go's pull-request cache
+      # keeps saving and restoring the path it expects. Compile cost is the cache's job,
+      # test I/O is the dev drive's, and the two stay independently measurable.
+      - name: dev drive for TEMP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vhd = "C:\dev.vhdx"
+          New-VHD -Path $vhd -SizeBytes 20GB -Dynamic | Out-Null
+          $disk = Mount-VHD -Path $vhd -PassThru | Initialize-Disk -PassThru
+          $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter V
+          Format-Volume -DriveLetter V -DevDrive | Out-Null
+          New-Item -ItemType Directory -Path "V:\tmp" | Out-Null
+          "TMP=V:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=V:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # THE BUILD CACHES MOVE TOO — build artifacts are the workload a dev drive is
+          # FOR, and the first version of this step left them on C: on a claim that moving
+          # GOCACHE would break setup-go's cache restore. That claim was wrong: setup-go
+          # resolves its paths dynamically through `go env` when its step runs, and this
+          # step runs first, so exporting the paths here makes the cache restore land ON
+          # the dev drive. The one thing deliberately left on C: is the workspace itself —
+          # checkout is pinned to GITHUB_WORKSPACE and sources are read-mostly, so moving
+          # them costs a copy step and a re-pointed working-directory for a benefit RAM
+          # mostly provides; that is a later rung if compile stays slow, taken on numbers.
+          "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
-          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
-          # tag, and a cache a pull request can write is a cache a release build would
-          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
-          # publish path is worth more.
-          cache: false
+          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
+          # a sharper version of the blanket `cache: false` that stood here, not a retreat
+          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
+          # can restore, and a run can only restore caches from its own ref or the default
+          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
+          # dangerous caches are MAIN's, which only `push` events would write — and this
+          # workflow pushes only on main and tags, so with the condition below neither ever
+          # writes one (a tag build is event_name == push, so this is false there too).
+          # The invariant to keep: if caching is ever enabled for `push`, the release build
+          # starts restoring main's caches and the original finding reopens.
+          #
+          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
+          # of a pull request (measured on windows-latest, where one PR paid it six times).
+          # The first push of a PR is still cold; iteration on it is warm.
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          # The modules are not at the repo root, and setup-go's default lookup is — with
+          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
+          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
+          # enough to be the right trade against four hand-kept per-job paths.
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
+          cache-dependency-path: |
+            plugins/frank-exchange-of-views/tools/go.sum
+            .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -110,6 +250,12 @@ jobs:
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
         shell: bash
+      # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
+      # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
+      # sibling package binaries in parallel, so the "idle" cores the oversubscription
+      # was meant to fill were already running cli, recordsql and capture — which starved
+      # (cli 180s -> 411s). Net negative at machine level; the premise ignored
+      # inter-package parallelism.
       - run: go test ./...
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
@@ -135,13 +281,83 @@ jobs:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
+      # THE TEMP DISK IS THE TEST SUITE'S REAL SUBSTRATE, and on windows-2025 it is the slow
+      # one. These runner images removed the D: drive (actions/runner-images#12647), so TEMP
+      # lives on C: — network-attached storage a commenter in that issue benchmarked at
+      # ~33 MB/s — and every t.TempDir database in this suite pays it: the packages that
+      # degrade worst vs Linux (recordsql 5.6x, record 3.9x) are exactly the SQLite-churn
+      # ones, while the process-spawning fuzz degrades least (2.3x). Defender is NOT the
+      # cause: the images already run it in passive mode (Configure-WindowsDefender.ps1).
+      #
+      # The fix the community converged on is a DEV DRIVE — a ReFS VHDX on local storage
+      # with antivirus in async performance mode — created inline here rather than via a
+      # third-party action, because ten lines of PowerShell is cheaper to trust than a tag.
+      # Only TMP/TEMP move; GOCACHE stays at its default so setup-go's pull-request cache
+      # keeps saving and restoring the path it expects. Compile cost is the cache's job,
+      # test I/O is the dev drive's, and the two stay independently measurable.
+      - name: dev drive for TEMP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vhd = "C:\dev.vhdx"
+          New-VHD -Path $vhd -SizeBytes 20GB -Dynamic | Out-Null
+          $disk = Mount-VHD -Path $vhd -PassThru | Initialize-Disk -PassThru
+          $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter V
+          Format-Volume -DriveLetter V -DevDrive | Out-Null
+          New-Item -ItemType Directory -Path "V:\tmp" | Out-Null
+          "TMP=V:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=V:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # THE BUILD CACHES MOVE TOO — build artifacts are the workload a dev drive is
+          # FOR, and the first version of this step left them on C: on a claim that moving
+          # GOCACHE would break setup-go's cache restore. That claim was wrong: setup-go
+          # resolves its paths dynamically through `go env` when its step runs, and this
+          # step runs first, so exporting the paths here makes the cache restore land ON
+          # the dev drive. The one thing deliberately left on C: is the workspace itself —
+          # checkout is pinned to GITHUB_WORKSPACE and sources are read-mostly, so moving
+          # them costs a copy step and a re-pointed working-directory for a benefit RAM
+          # mostly provides; that is a later rung if compile stays slow, taken on numbers.
+          "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
-          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
-          # tag, and a cache a pull request can write is a cache a release build would
-          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
-          # publish path is worth more.
-          cache: false
+          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
+          # a sharper version of the blanket `cache: false` that stood here, not a retreat
+          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
+          # can restore, and a run can only restore caches from its own ref or the default
+          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
+          # dangerous caches are MAIN's, which only `push` events would write — and this
+          # workflow pushes only on main and tags, so with the condition below neither ever
+          # writes one (a tag build is event_name == push, so this is false there too).
+          # The invariant to keep: if caching is ever enabled for `push`, the release build
+          # starts restoring main's caches and the original finding reopens.
+          #
+          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
+          # of a pull request (measured on windows-latest, where one PR paid it six times).
+          # The first push of a PR is still cold; iteration on it is warm.
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          # The modules are not at the repo root, and setup-go's default lookup is — with
+          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
+          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
+          # enough to be the right trade against four hand-kept per-job paths.
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
+          cache-dependency-path: |
+            plugins/gray-area/tools/go.mod
+            .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -180,9 +396,29 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v7
         with:
-          # Same reasoning as every other leg: this workflow PUBLISHES on a tag, so a
-          # cache a pull request can write is a cache a release build would read.
-          cache: false
+          # PR-only, for the reason the first setup-go in this file states in full: a tag
+          # run can only restore same-ref or default-branch caches, and neither is ever
+          # written, because `push` (main and tags alike) stays cache-free.
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
+          cache-dependency-path: |
+            scripts/go.sum
+            .github/workflows/hooks.yml
           go-version: "1.25"
       - uses: actions/setup-node@v7
         with:
@@ -249,9 +485,29 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # Same reasoning as every other leg: this workflow PUBLISHES on a tag, so a
-          # cache a pull request can write is a cache a release build would read.
-          cache: false
+          # PR-only, for the reason the first setup-go in this file states in full: a tag
+          # run can only restore same-ref or default-branch caches, and neither is ever
+          # written, because `push` (main and tags alike) stays cache-free.
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
+          cache-dependency-path: |
+            scripts/go.sum
+            .github/workflows/hooks.yml
           go-version: "1.25"
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
@@ -326,11 +582,46 @@ jobs:
           node-version: "24"
       - uses: actions/setup-go@v7
         with:
-          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
-          # tag, and a cache a pull request can write is a cache a release build would
-          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
-          # publish path is worth more.
-          cache: false
+          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
+          # a sharper version of the blanket `cache: false` that stood here, not a retreat
+          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
+          # can restore, and a run can only restore caches from its own ref or the default
+          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
+          # dangerous caches are MAIN's, which only `push` events would write — and this
+          # workflow pushes only on main and tags, so with the condition below neither ever
+          # writes one (a tag build is event_name == push, so this is false there too).
+          # The invariant to keep: if caching is ever enabled for `push`, the release build
+          # starts restoring main's caches and the original finding reopens.
+          #
+          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
+          # of a pull request (measured on windows-latest, where one PR paid it six times).
+          # The first push of a PR is still cold; iteration on it is warm.
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          # The modules are not at the repo root, and setup-go's default lookup is — with
+          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
+          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
+          # enough to be the right trade against four hand-kept per-job paths.
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
+          cache-dependency-path: |
+            scripts/go.sum
+            plugins/frank-exchange-of-views/tools/go.sum
+            plugins/prosthetic-conscience/tools/go.mod
+            .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -357,9 +648,29 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # Same reasoning as every other leg: this workflow PUBLISHES on a tag, so a
-          # cache a pull request can write is a cache a release build would read.
-          cache: false
+          # PR-only, for the reason the first setup-go in this file states in full: a tag
+          # run can only restore same-ref or default-branch caches, and neither is ever
+          # written, because `push` (main and tags alike) stays cache-free.
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
+          cache-dependency-path: |
+            plugins/frank-exchange-of-views/tools/go.sum
+            .github/workflows/hooks.yml
           go-version: "1.25"
       - uses: actions/setup-node@v7
         with:
@@ -479,11 +790,46 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # Caching is off by design, not oversight: this workflow also PUBLISHES on a
-          # tag, and a cache a pull request can write is a cache a release build would
-          # read (zizmor/cache-poisoning). Restoring the cache is worth seconds; the
-          # publish path is worth more.
-          cache: false
+          # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
+          # a sharper version of the blanket `cache: false` that stood here, not a retreat
+          # from it. The poisoning path (zizmor/cache-poisoning) needs a cache the TAG run
+          # can restore, and a run can only restore caches from its own ref or the default
+          # branch. A pull request's cache lives on its merge ref, invisible to a tag; the
+          # dangerous caches are MAIN's, which only `push` events would write — and this
+          # workflow pushes only on main and tags, so with the condition below neither ever
+          # writes one (a tag build is event_name == push, so this is false there too).
+          # The invariant to keep: if caching is ever enabled for `push`, the release build
+          # starts restoring main's caches and the original finding reopens.
+          #
+          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
+          # of a pull request (measured on windows-latest, where one PR paid it six times).
+          # The first push of a PR is still cold; iteration on it is warm.
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          # The modules are not at the repo root, and setup-go's default lookup is — with
+          # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
+          # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
+          # enough to be the right trade against four hand-kept per-job paths.
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
+          cache-dependency-path: |
+            plugins/prosthetic-conscience/tools/go.mod
+            plugins/frank-exchange-of-views/tools/go.sum
+            plugins/gray-area/tools/go.mod
+            .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
