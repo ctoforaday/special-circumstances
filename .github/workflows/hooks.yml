@@ -79,8 +79,9 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # PR-only, for the reason the first setup-go in this file states in full.
-          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          # Pull requests and the nightly, for the reason the first setup-go states in full:
+          # the schedule is what puts a cache on main for a new branch to restore.
+          cache: ${{ github.event_name == 'pull_request' || github.event_name == 'schedule' }}  # zizmor: ignore[cache-poisoning]
           # Every module, because this job is the only one that vets any of them now.
           cache-dependency-path: |
             plugins/prosthetic-conscience/tools/go.mod
@@ -203,15 +204,25 @@ jobs:
           # The invariant to keep: if caching is ever enabled for `push`, the release build
           # starts restoring main's caches and the original finding reopens.
           #
-          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
-          # of a pull request (measured on windows-latest, where one PR paid it six times).
-          # The first push of a PR is still cold; iteration on it is warm.
+          # THE NIGHTLY SEEDS THE CACHE MAIN OTHERWISE NEVER HAD, and that is what makes a
+          # pull request's FIRST run warm rather than only its later ones. A run restores
+          # caches from its own ref or the default branch; saving on pull_request alone put
+          # every cache on a merge ref, so a new branch could see none of them. Measured
+          # before this line changed: 100 of 100 caches sat on refs/pull/N/merge and main
+          # held ZERO, which is why a first run rebuilt the standard library every time.
+          # A scheduled run executes on main's ref at full depth, so it writes exactly the
+          # caches a later pull request wants.
+          #
+          # THE TAG INVARIANT ABOVE IS UNTOUCHED, deliberately: a tag build is
+          # event_name == push, so this expression is false there and a release run still
+          # neither writes a cache nor restores one. What the schedule adds is a cache on
+          # MAIN that pull requests can read; nothing on the release path changed.
           # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
           # statically. The finding is answered, not suppressed-and-forgotten: the release
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' || github.event_name == 'schedule' }}  # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
@@ -362,15 +373,25 @@ jobs:
           # The invariant to keep: if caching is ever enabled for `push`, the release build
           # starts restoring main's caches and the original finding reopens.
           #
-          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
-          # of a pull request (measured on windows-latest, where one PR paid it six times).
-          # The first push of a PR is still cold; iteration on it is warm.
+          # THE NIGHTLY SEEDS THE CACHE MAIN OTHERWISE NEVER HAD, and that is what makes a
+          # pull request's FIRST run warm rather than only its later ones. A run restores
+          # caches from its own ref or the default branch; saving on pull_request alone put
+          # every cache on a merge ref, so a new branch could see none of them. Measured
+          # before this line changed: 100 of 100 caches sat on refs/pull/N/merge and main
+          # held ZERO, which is why a first run rebuilt the standard library every time.
+          # A scheduled run executes on main's ref at full depth, so it writes exactly the
+          # caches a later pull request wants.
+          #
+          # THE TAG INVARIANT ABOVE IS UNTOUCHED, deliberately: a tag build is
+          # event_name == push, so this expression is false there and a release run still
+          # neither writes a cache nor restores one. What the schedule adds is a cache on
+          # MAIN that pull requests can read; nothing on the release path changed.
           # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
           # statically. The finding is answered, not suppressed-and-forgotten: the release
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' || github.event_name == 'schedule' }}  # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
@@ -552,15 +573,25 @@ jobs:
           # The invariant to keep: if caching is ever enabled for `push`, the release build
           # starts restoring main's caches and the original finding reopens.
           #
-          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
-          # of a pull request (measured on windows-latest, where one PR paid it six times).
-          # The first push of a PR is still cold; iteration on it is warm.
+          # THE NIGHTLY SEEDS THE CACHE MAIN OTHERWISE NEVER HAD, and that is what makes a
+          # pull request's FIRST run warm rather than only its later ones. A run restores
+          # caches from its own ref or the default branch; saving on pull_request alone put
+          # every cache on a merge ref, so a new branch could see none of them. Measured
+          # before this line changed: 100 of 100 caches sat on refs/pull/N/merge and main
+          # held ZERO, which is why a first run rebuilt the standard library every time.
+          # A scheduled run executes on main's ref at full depth, so it writes exactly the
+          # caches a later pull request wants.
+          #
+          # THE TAG INVARIANT ABOVE IS UNTOUCHED, deliberately: a tag build is
+          # event_name == push, so this expression is false there and a release run still
+          # neither writes a cache nor restores one. What the schedule adds is a cache on
+          # MAIN that pull requests can read; nothing on the release path changed.
           # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
           # statically. The finding is answered, not suppressed-and-forgotten: the release
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' || github.event_name == 'schedule' }}  # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
@@ -625,15 +656,15 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v7
         with:
-          # PR-only, for the reason the first setup-go in this file states in full: a tag
-          # run can only restore same-ref or default-branch caches, and neither is ever
-          # written, because `push` (main and tags alike) stays cache-free.
+          # Pull requests and the nightly, for the reason the first setup-go states in full:
+          # a tag run restores nothing because `push` stays cache-free, while the schedule
+          # writes the main-scoped cache a new pull-request branch can actually restore.
           # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
           # statically. The finding is answered, not suppressed-and-forgotten: the release
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' || github.event_name == 'schedule' }}  # zizmor: ignore[cache-poisoning]
           # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
           # cost what it sounds like: every edit to this workflow invalidated all nine jobs
           # at once, and setup-go passes only a primary key to restoreCache with no
@@ -725,15 +756,15 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # PR-only, for the reason the first setup-go in this file states in full: a tag
-          # run can only restore same-ref or default-branch caches, and neither is ever
-          # written, because `push` (main and tags alike) stays cache-free.
+          # Pull requests and the nightly, for the reason the first setup-go states in full:
+          # a tag run restores nothing because `push` stays cache-free, while the schedule
+          # writes the main-scoped cache a new pull-request branch can actually restore.
           # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
           # statically. The finding is answered, not suppressed-and-forgotten: the release
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' || github.event_name == 'schedule' }}  # zizmor: ignore[cache-poisoning]
           # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
           # cost what it sounds like: every edit to this workflow invalidated all nine jobs
           # at once, and setup-go passes only a primary key to restoreCache with no
@@ -841,15 +872,25 @@ jobs:
           # The invariant to keep: if caching is ever enabled for `push`, the release build
           # starts restoring main's caches and the original finding reopens.
           #
-          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
-          # of a pull request (measured on windows-latest, where one PR paid it six times).
-          # The first push of a PR is still cold; iteration on it is warm.
+          # THE NIGHTLY SEEDS THE CACHE MAIN OTHERWISE NEVER HAD, and that is what makes a
+          # pull request's FIRST run warm rather than only its later ones. A run restores
+          # caches from its own ref or the default branch; saving on pull_request alone put
+          # every cache on a merge ref, so a new branch could see none of them. Measured
+          # before this line changed: 100 of 100 caches sat on refs/pull/N/merge and main
+          # held ZERO, which is why a first run rebuilt the standard library every time.
+          # A scheduled run executes on main's ref at full depth, so it writes exactly the
+          # caches a later pull request wants.
+          #
+          # THE TAG INVARIANT ABOVE IS UNTOUCHED, deliberately: a tag build is
+          # event_name == push, so this expression is false there and a release run still
+          # neither writes a cache nor restores one. What the schedule adds is a cache on
+          # MAIN that pull requests can read; nothing on the release path changed.
           # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
           # statically. The finding is answered, not suppressed-and-forgotten: the release
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' || github.event_name == 'schedule' }}  # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
@@ -907,15 +948,15 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # PR-only, for the reason the first setup-go in this file states in full: a tag
-          # run can only restore same-ref or default-branch caches, and neither is ever
-          # written, because `push` (main and tags alike) stays cache-free.
+          # Pull requests and the nightly, for the reason the first setup-go states in full:
+          # a tag run restores nothing because `push` stays cache-free, while the schedule
+          # writes the main-scoped cache a new pull-request branch can actually restore.
           # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
           # statically. The finding is answered, not suppressed-and-forgotten: the release
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' || github.event_name == 'schedule' }}  # zizmor: ignore[cache-poisoning]
           # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
           # cost what it sounds like: every edit to this workflow invalidated all nine jobs
           # at once, and setup-go passes only a primary key to restoreCache with no
@@ -1071,15 +1112,25 @@ jobs:
           # The invariant to keep: if caching is ever enabled for `push`, the release build
           # starts restoring main's caches and the original finding reopens.
           #
-          # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
-          # of a pull request (measured on windows-latest, where one PR paid it six times).
-          # The first push of a PR is still cold; iteration on it is warm.
+          # THE NIGHTLY SEEDS THE CACHE MAIN OTHERWISE NEVER HAD, and that is what makes a
+          # pull request's FIRST run warm rather than only its later ones. A run restores
+          # caches from its own ref or the default branch; saving on pull_request alone put
+          # every cache on a merge ref, so a new branch could see none of them. Measured
+          # before this line changed: 100 of 100 caches sat on refs/pull/N/merge and main
+          # held ZERO, which is why a first run rebuilt the standard library every time.
+          # A scheduled run executes on main's ref at full depth, so it writes exactly the
+          # caches a later pull request wants.
+          #
+          # THE TAG INVARIANT ABOVE IS UNTOUCHED, deliberately: a tag build is
+          # event_name == push, so this expression is false there and a release run still
+          # neither writes a cache nor restores one. What the schedule adds is a cache on
+          # MAIN that pull requests can read; nothing on the release path changed.
           # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
           # statically. The finding is answered, not suppressed-and-forgotten: the release
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' || github.event_name == 'schedule' }}  # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
