@@ -78,6 +78,33 @@ jobs:
           # mostly provides; that is a later rung if compile stays slow, taken on numbers.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
+      # EXPERIMENT (do not merge): WinFsp memfs as a TRUE RAM disk for TEMP, overriding
+      # the dev drive's TMP/TEMP written above (later GITHUB_ENV writes win). The dev
+      # drive is ReFS on a VHDX whose backing file lives on C:, so a real flush can still
+      # reach the slow disk; memfs makes fsync genuinely free, at the price of a
+      # user-mode round-trip per filesystem op. Build caches STAY on the dev drive —
+      # this isolates the temp-dir filesystem, which is where every t.TempDir SQLite
+      # database lives. Question under test: does fsync-free RAM beat ReFS-on-VHDX by
+      # enough to matter, or is the residual Windows gap not filesystem at all?
+      - name: winfsp memfs for TEMP (experiment)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install winfsp -y --no-progress | Out-Null
+          $memfs = "C:\Program Files (x86)\WinFsp\bin\memfs-x64.exe"
+          if (-not (Test-Path $memfs)) {
+            Get-ChildItem "C:\Program Files (x86)\WinFsp" -Recurse | ForEach-Object FullName
+            throw "memfs-x64.exe is not in the WinFsp install - the listing above is the next clue"
+          }
+          Start-Process -FilePath $memfs -ArgumentList '-i','-m','X:' -WindowStyle Hidden
+          $deadline = (Get-Date).AddSeconds(30)
+          while (-not (Test-Path "X:\")) {
+            if ((Get-Date) -gt $deadline) { throw "memfs never mounted X:" }
+            Start-Sleep -Milliseconds 500
+          }
+          New-Item -ItemType Directory -Path "X:\tmp" | Out-Null
+          "TMP=X:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=X:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -211,6 +238,33 @@ jobs:
           # mostly provides; that is a later rung if compile stays slow, taken on numbers.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
+      # EXPERIMENT (do not merge): WinFsp memfs as a TRUE RAM disk for TEMP, overriding
+      # the dev drive's TMP/TEMP written above (later GITHUB_ENV writes win). The dev
+      # drive is ReFS on a VHDX whose backing file lives on C:, so a real flush can still
+      # reach the slow disk; memfs makes fsync genuinely free, at the price of a
+      # user-mode round-trip per filesystem op. Build caches STAY on the dev drive —
+      # this isolates the temp-dir filesystem, which is where every t.TempDir SQLite
+      # database lives. Question under test: does fsync-free RAM beat ReFS-on-VHDX by
+      # enough to matter, or is the residual Windows gap not filesystem at all?
+      - name: winfsp memfs for TEMP (experiment)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install winfsp -y --no-progress | Out-Null
+          $memfs = "C:\Program Files (x86)\WinFsp\bin\memfs-x64.exe"
+          if (-not (Test-Path $memfs)) {
+            Get-ChildItem "C:\Program Files (x86)\WinFsp" -Recurse | ForEach-Object FullName
+            throw "memfs-x64.exe is not in the WinFsp install - the listing above is the next clue"
+          }
+          Start-Process -FilePath $memfs -ArgumentList '-i','-m','X:' -WindowStyle Hidden
+          $deadline = (Get-Date).AddSeconds(30)
+          while (-not (Test-Path "X:\")) {
+            if ((Get-Date) -gt $deadline) { throw "memfs never mounted X:" }
+            Start-Sleep -Milliseconds 500
+          }
+          New-Item -ItemType Directory -Path "X:\tmp" | Out-Null
+          "TMP=X:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=X:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -354,6 +408,33 @@ jobs:
           # mostly provides; that is a later rung if compile stays slow, taken on numbers.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
+      # EXPERIMENT (do not merge): WinFsp memfs as a TRUE RAM disk for TEMP, overriding
+      # the dev drive's TMP/TEMP written above (later GITHUB_ENV writes win). The dev
+      # drive is ReFS on a VHDX whose backing file lives on C:, so a real flush can still
+      # reach the slow disk; memfs makes fsync genuinely free, at the price of a
+      # user-mode round-trip per filesystem op. Build caches STAY on the dev drive —
+      # this isolates the temp-dir filesystem, which is where every t.TempDir SQLite
+      # database lives. Question under test: does fsync-free RAM beat ReFS-on-VHDX by
+      # enough to matter, or is the residual Windows gap not filesystem at all?
+      - name: winfsp memfs for TEMP (experiment)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install winfsp -y --no-progress | Out-Null
+          $memfs = "C:\Program Files (x86)\WinFsp\bin\memfs-x64.exe"
+          if (-not (Test-Path $memfs)) {
+            Get-ChildItem "C:\Program Files (x86)\WinFsp" -Recurse | ForEach-Object FullName
+            throw "memfs-x64.exe is not in the WinFsp install - the listing above is the next clue"
+          }
+          Start-Process -FilePath $memfs -ArgumentList '-i','-m','X:' -WindowStyle Hidden
+          $deadline = (Get-Date).AddSeconds(30)
+          while (-not (Test-Path "X:\")) {
+            if ((Get-Date) -gt $deadline) { throw "memfs never mounted X:" }
+            Start-Sleep -Milliseconds 500
+          }
+          New-Item -ItemType Directory -Path "X:\tmp" | Out-Null
+          "TMP=X:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=X:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
