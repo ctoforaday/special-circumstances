@@ -87,7 +87,6 @@ jobs:
             plugins/frank-exchange-of-views/tools/go.sum
             plugins/gray-area/tools/go.mod
             scripts/go.sum
-            .github/cache-epoch
           go-version: "1.25"
       - name: gofmt, once, for the whole repository
         run: |
@@ -217,15 +216,24 @@ jobs:
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
           # enough to be the right trade against four hand-kept per-job paths.
-          # .github/cache-epoch is IN the key so invalidation stays POSSIBLE without being
-          # incidental. The key is otherwise go.sum-only, and setup-go skips the save on a
-          # primary-key hit, so a bad save would persist until a dependency moved. This
-          # file is the hatch: bump it and every cache goes. It replaces hooks.yml, which
-          # did the same job by accident at a price measured while tuning this very file —
-          # every workflow edit invalidated all nine jobs and each rebuilt the standard
-          # library from scratch, ~150s per platform, 3m54s for a vet job that costs ~30s
-          # warm. setup-go passes only a primary key to restoreCache with no restore-keys
-          # array (verified in its cache-restore source), so a miss is TOTAL, never partial.
+          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
+          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
+          # at once, and setup-go passes only a primary key to restoreCache with no
+          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
+          # rather than partial — each job rebuilt the standard library from scratch, ~150s
+          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
+          # whoever was editing CI, which is the work most in need of a fast loop.
+          #
+          # It was there to keep a bad save from persisting: the key is otherwise
+          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
+          # that worry without a key component. A FAILED job never saves at all (its post
+          # step is skipped — observed), so a broken run cannot poison anything. And a
+          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
+          # by hand would have rebuilt, worse, something GitHub ships.
+          #
+          # The go TOOLCHAIN is already in setup-go's own key
+          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
           # that is the whole story of the frozen 27 MB cache: the pc-tools job
@@ -233,7 +241,6 @@ jobs:
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
             plugins/prosthetic-conscience/tools/go.mod
-            .github/cache-epoch
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -368,15 +375,24 @@ jobs:
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
           # enough to be the right trade against four hand-kept per-job paths.
-          # .github/cache-epoch is IN the key so invalidation stays POSSIBLE without being
-          # incidental. The key is otherwise go.sum-only, and setup-go skips the save on a
-          # primary-key hit, so a bad save would persist until a dependency moved. This
-          # file is the hatch: bump it and every cache goes. It replaces hooks.yml, which
-          # did the same job by accident at a price measured while tuning this very file —
-          # every workflow edit invalidated all nine jobs and each rebuilt the standard
-          # library from scratch, ~150s per platform, 3m54s for a vet job that costs ~30s
-          # warm. setup-go passes only a primary key to restoreCache with no restore-keys
-          # array (verified in its cache-restore source), so a miss is TOTAL, never partial.
+          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
+          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
+          # at once, and setup-go passes only a primary key to restoreCache with no
+          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
+          # rather than partial — each job rebuilt the standard library from scratch, ~150s
+          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
+          # whoever was editing CI, which is the work most in need of a fast loop.
+          #
+          # It was there to keep a bad save from persisting: the key is otherwise
+          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
+          # that worry without a key component. A FAILED job never saves at all (its post
+          # step is skipped — observed), so a broken run cannot poison anything. And a
+          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
+          # by hand would have rebuilt, worse, something GitHub ships.
+          #
+          # The go TOOLCHAIN is already in setup-go's own key
+          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
           # that is the whole story of the frozen 27 MB cache: the pc-tools job
@@ -384,7 +400,6 @@ jobs:
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
             plugins/frank-exchange-of-views/tools/go.sum
-            .github/cache-epoch
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -550,15 +565,24 @@ jobs:
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
           # enough to be the right trade against four hand-kept per-job paths.
-          # .github/cache-epoch is IN the key so invalidation stays POSSIBLE without being
-          # incidental. The key is otherwise go.sum-only, and setup-go skips the save on a
-          # primary-key hit, so a bad save would persist until a dependency moved. This
-          # file is the hatch: bump it and every cache goes. It replaces hooks.yml, which
-          # did the same job by accident at a price measured while tuning this very file —
-          # every workflow edit invalidated all nine jobs and each rebuilt the standard
-          # library from scratch, ~150s per platform, 3m54s for a vet job that costs ~30s
-          # warm. setup-go passes only a primary key to restoreCache with no restore-keys
-          # array (verified in its cache-restore source), so a miss is TOTAL, never partial.
+          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
+          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
+          # at once, and setup-go passes only a primary key to restoreCache with no
+          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
+          # rather than partial — each job rebuilt the standard library from scratch, ~150s
+          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
+          # whoever was editing CI, which is the work most in need of a fast loop.
+          #
+          # It was there to keep a bad save from persisting: the key is otherwise
+          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
+          # that worry without a key component. A FAILED job never saves at all (its post
+          # step is skipped — observed), so a broken run cannot poison anything. And a
+          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
+          # by hand would have rebuilt, worse, something GitHub ships.
+          #
+          # The go TOOLCHAIN is already in setup-go's own key
+          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
           # that is the whole story of the frozen 27 MB cache: the pc-tools job
@@ -566,7 +590,6 @@ jobs:
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
             plugins/gray-area/tools/go.mod
-            .github/cache-epoch
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -611,15 +634,24 @@ jobs:
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
           cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
-          # .github/cache-epoch is IN the key so invalidation stays POSSIBLE without being
-          # incidental. The key is otherwise go.sum-only, and setup-go skips the save on a
-          # primary-key hit, so a bad save would persist until a dependency moved. This
-          # file is the hatch: bump it and every cache goes. It replaces hooks.yml, which
-          # did the same job by accident at a price measured while tuning this very file —
-          # every workflow edit invalidated all nine jobs and each rebuilt the standard
-          # library from scratch, ~150s per platform, 3m54s for a vet job that costs ~30s
-          # warm. setup-go passes only a primary key to restoreCache with no restore-keys
-          # array (verified in its cache-restore source), so a miss is TOTAL, never partial.
+          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
+          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
+          # at once, and setup-go passes only a primary key to restoreCache with no
+          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
+          # rather than partial — each job rebuilt the standard library from scratch, ~150s
+          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
+          # whoever was editing CI, which is the work most in need of a fast loop.
+          #
+          # It was there to keep a bad save from persisting: the key is otherwise
+          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
+          # that worry without a key component. A FAILED job never saves at all (its post
+          # step is skipped — observed), so a broken run cannot poison anything. And a
+          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
+          # by hand would have rebuilt, worse, something GitHub ships.
+          #
+          # The go TOOLCHAIN is already in setup-go's own key
+          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
           # that is the whole story of the frozen 27 MB cache: the pc-tools job
@@ -627,7 +659,6 @@ jobs:
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
             scripts/go.sum
-            .github/cache-epoch
           go-version: "1.25"
       - uses: actions/setup-node@v7
         with:
@@ -703,15 +734,24 @@ jobs:
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
           cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
-          # .github/cache-epoch is IN the key so invalidation stays POSSIBLE without being
-          # incidental. The key is otherwise go.sum-only, and setup-go skips the save on a
-          # primary-key hit, so a bad save would persist until a dependency moved. This
-          # file is the hatch: bump it and every cache goes. It replaces hooks.yml, which
-          # did the same job by accident at a price measured while tuning this very file —
-          # every workflow edit invalidated all nine jobs and each rebuilt the standard
-          # library from scratch, ~150s per platform, 3m54s for a vet job that costs ~30s
-          # warm. setup-go passes only a primary key to restoreCache with no restore-keys
-          # array (verified in its cache-restore source), so a miss is TOTAL, never partial.
+          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
+          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
+          # at once, and setup-go passes only a primary key to restoreCache with no
+          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
+          # rather than partial — each job rebuilt the standard library from scratch, ~150s
+          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
+          # whoever was editing CI, which is the work most in need of a fast loop.
+          #
+          # It was there to keep a bad save from persisting: the key is otherwise
+          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
+          # that worry without a key component. A FAILED job never saves at all (its post
+          # step is skipped — observed), so a broken run cannot poison anything. And a
+          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
+          # by hand would have rebuilt, worse, something GitHub ships.
+          #
+          # The go TOOLCHAIN is already in setup-go's own key
+          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
           # that is the whole story of the frozen 27 MB cache: the pc-tools job
@@ -719,7 +759,6 @@ jobs:
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
             scripts/go.sum
-            .github/cache-epoch
           go-version: "1.25"
       - run: go test ./...
 
@@ -815,15 +854,24 @@ jobs:
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
           # enough to be the right trade against four hand-kept per-job paths.
-          # .github/cache-epoch is IN the key so invalidation stays POSSIBLE without being
-          # incidental. The key is otherwise go.sum-only, and setup-go skips the save on a
-          # primary-key hit, so a bad save would persist until a dependency moved. This
-          # file is the hatch: bump it and every cache goes. It replaces hooks.yml, which
-          # did the same job by accident at a price measured while tuning this very file —
-          # every workflow edit invalidated all nine jobs and each rebuilt the standard
-          # library from scratch, ~150s per platform, 3m54s for a vet job that costs ~30s
-          # warm. setup-go passes only a primary key to restoreCache with no restore-keys
-          # array (verified in its cache-restore source), so a miss is TOTAL, never partial.
+          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
+          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
+          # at once, and setup-go passes only a primary key to restoreCache with no
+          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
+          # rather than partial — each job rebuilt the standard library from scratch, ~150s
+          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
+          # whoever was editing CI, which is the work most in need of a fast loop.
+          #
+          # It was there to keep a bad save from persisting: the key is otherwise
+          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
+          # that worry without a key component. A FAILED job never saves at all (its post
+          # step is skipped — observed), so a broken run cannot poison anything. And a
+          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
+          # by hand would have rebuilt, worse, something GitHub ships.
+          #
+          # The go TOOLCHAIN is already in setup-go's own key
+          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
           # that is the whole story of the frozen 27 MB cache: the pc-tools job
@@ -833,7 +881,6 @@ jobs:
             scripts/go.sum
             plugins/frank-exchange-of-views/tools/go.sum
             plugins/prosthetic-conscience/tools/go.mod
-            .github/cache-epoch
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -869,15 +916,24 @@ jobs:
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
           cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
-          # .github/cache-epoch is IN the key so invalidation stays POSSIBLE without being
-          # incidental. The key is otherwise go.sum-only, and setup-go skips the save on a
-          # primary-key hit, so a bad save would persist until a dependency moved. This
-          # file is the hatch: bump it and every cache goes. It replaces hooks.yml, which
-          # did the same job by accident at a price measured while tuning this very file —
-          # every workflow edit invalidated all nine jobs and each rebuilt the standard
-          # library from scratch, ~150s per platform, 3m54s for a vet job that costs ~30s
-          # warm. setup-go passes only a primary key to restoreCache with no restore-keys
-          # array (verified in its cache-restore source), so a miss is TOTAL, never partial.
+          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
+          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
+          # at once, and setup-go passes only a primary key to restoreCache with no
+          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
+          # rather than partial — each job rebuilt the standard library from scratch, ~150s
+          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
+          # whoever was editing CI, which is the work most in need of a fast loop.
+          #
+          # It was there to keep a bad save from persisting: the key is otherwise
+          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
+          # that worry without a key component. A FAILED job never saves at all (its post
+          # step is skipped — observed), so a broken run cannot poison anything. And a
+          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
+          # by hand would have rebuilt, worse, something GitHub ships.
+          #
+          # The go TOOLCHAIN is already in setup-go's own key
+          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
           # that is the whole story of the frozen 27 MB cache: the pc-tools job
@@ -885,7 +941,6 @@ jobs:
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
             plugins/frank-exchange-of-views/tools/go.sum
-            .github/cache-epoch
           go-version: "1.25"
       - uses: actions/setup-node@v7
         with:
@@ -1029,15 +1084,24 @@ jobs:
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
           # enough to be the right trade against four hand-kept per-job paths.
-          # .github/cache-epoch is IN the key so invalidation stays POSSIBLE without being
-          # incidental. The key is otherwise go.sum-only, and setup-go skips the save on a
-          # primary-key hit, so a bad save would persist until a dependency moved. This
-          # file is the hatch: bump it and every cache goes. It replaces hooks.yml, which
-          # did the same job by accident at a price measured while tuning this very file —
-          # every workflow edit invalidated all nine jobs and each rebuilt the standard
-          # library from scratch, ~150s per platform, 3m54s for a vet job that costs ~30s
-          # warm. setup-go passes only a primary key to restoreCache with no restore-keys
-          # array (verified in its cache-restore source), so a miss is TOTAL, never partial.
+          # NOTHING BUT THE DEPENDENCY FILES IS IN THE KEY, and hooks.yml used to be. That
+          # cost what it sounds like: every edit to this workflow invalidated all nine jobs
+          # at once, and setup-go passes only a primary key to restoreCache with no
+          # restore-keys array (verified in its cache-restore source), so the miss is TOTAL
+          # rather than partial — each job rebuilt the standard library from scratch, ~150s
+          # per platform, measured 2026-08-25 while tuning this very file. The tax fell on
+          # whoever was editing CI, which is the work most in need of a fast loop.
+          #
+          # It was there to keep a bad save from persisting: the key is otherwise
+          # go.sum-only and setup-go skips the save on a primary-key hit. Two facts retire
+          # that worry without a key component. A FAILED job never saves at all (its post
+          # step is skipped — observed), so a broken run cannot poison anything. And a
+          # deliberate purge already has a tool: `gh cache delete`. Inventing a file to bump
+          # by hand would have rebuilt, worse, something GitHub ships.
+          #
+          # The go TOOLCHAIN is already in setup-go's own key
+          # (setup-go-Windows-x64-go-1.25.13-<hash>), so a version bump invalidates on its
+          # own and needs nothing here.
           # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
           # inputs, so they raced to save one key and the smallest job always won —
           # that is the whole story of the frozen 27 MB cache: the pc-tools job
@@ -1047,7 +1111,6 @@ jobs:
             plugins/prosthetic-conscience/tools/go.mod
             plugins/frank-exchange-of-views/tools/go.sum
             plugins/gray-area/tools/go.mod
-            .github/cache-epoch
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
