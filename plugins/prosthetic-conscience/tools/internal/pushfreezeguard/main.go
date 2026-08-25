@@ -140,19 +140,26 @@ func hasAny(args []string, want ...string) bool {
 // every git operation class that can destroy or freeze-violate the untracked blackboard
 // (W1.13; 2026-07-17 incident: `git add -A` swept the blackboard into a commit, then
 // `git checkout main` deleted it from the working tree under a live round).
-func decide(m *runlive.Marker, command string) string {
-	if m == nil || !strings.Contains(command, "git") {
+func decide(st runlive.State, command string) string {
+	live := st.Describe()
+	if live == "" || !strings.Contains(command, "git") {
 		return ""
 	}
-	live := fmt.Sprintf("a research run is LIVE (%s, started %s)", m.RunDir, m.Started)
 	// The substring check is kept as a widening union with the token-based one: it
 	// catches forms the tokenizer does not model (quoting, aliases), while gitArgs
 	// catches `git -C repo push`, which the substring check cannot see. A guard that
 	// only ever warns is allowed to be generous.
 	_, tokenPush := gitArgs(command, "push")
 	if tokenPush || strings.Contains(command, "git push") {
-		return fmt.Sprintf("sc-push-freeze-guard: %s — pinned paths are FROZEN: %s. Push only if it touches none of them (run-capture lifts the freeze).",
-			live, strings.Join(m.PinnedPaths, ", "))
+		// The union across open runs, and a NAMED absence when there is none. Printing
+		// "FROZEN: " with an empty list is what this guard did for as long as the marker
+		// shape was unreadable, and an empty list reads as "nothing is frozen" — the
+		// opposite of what it means.
+		if pinned := st.Pinned(); len(pinned) > 0 {
+			return fmt.Sprintf("sc-push-freeze-guard: %s — pinned paths are FROZEN: %s. Push only if it touches none of them (run-capture lifts the freeze).",
+				live, strings.Join(pinned, ", "))
+		}
+		return fmt.Sprintf("sc-push-freeze-guard: %s — the marker names NO pinned paths, which means this guard could not read them, NOT that nothing is frozen. Treat the freeze as in force and check the run before pushing.", live)
 	}
 	if args, ok := gitArgs(command, "add"); ok && hasAny(args, "-A", "--all", ".") {
 		return fmt.Sprintf("sc-push-freeze-guard: %s — a sweeping `git add` stages the UNTRACKED blackboard (2026-07-17 incident class). Add explicit paths only.", live)
