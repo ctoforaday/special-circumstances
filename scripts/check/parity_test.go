@@ -163,9 +163,36 @@ func TestRaceScopesMatchTheWorkflow(t *testing.T) {
 		t.Errorf("raceScope for feov = %v, want exactly ./internal/record/ — a broader claim here "+
 			"would report concurrency coverage the workflow does not run", scope)
 	}
-	if _, ok := raceScope["scripts"]; ok {
-		t.Error("scripts has no -race leg in CI; declaring one here claims coverage that does not exist")
+	// scripts GAINED a -race leg when its concurrency became real: golden/interrupt.go
+	// guards signal state with a mutex, and mutate arms a file for its interrupt handler to
+	// restore. The unsynchronised version of that second one shipped and was found by
+	// reading, because this was the one module the detector never ran over.
+	//
+	// Scoped to the job's own block: `-race ./...` appears in several jobs, so a bare
+	// Contains over the whole workflow would pass on somebody else's leg — which is the
+	// shape of claim this whole test exists to refuse.
+	if !strings.Contains(jobBlock(t, wf, "scripts"), "go test -race ./...") {
+		t.Error("the scripts job no longer runs -race over ./..., but raceScope claims it does")
 	}
+	if scope := raceScope["scripts"]; len(scope) != 1 || scope[0] != "./..." {
+		t.Errorf("raceScope for scripts = %v, want exactly ./...", scope)
+	}
+}
+
+// jobBlock returns one job's YAML, so a workflow assertion cannot be satisfied by a step in
+// a different job. Jobs are two-space keys under `jobs:`; the block runs to the next one.
+func jobBlock(t *testing.T, wf, job string) string {
+	t.Helper()
+	start := strings.Index(wf, "\n  "+job+":\n")
+	if start < 0 {
+		t.Fatalf("job %q is not in the workflow at all", job)
+	}
+	rest := wf[start+1:]
+	next := regexp.MustCompile(`\n  [a-z][a-z0-9-]*:\n`).FindStringIndex(rest[len(job)+2:])
+	if next == nil {
+		return rest
+	}
+	return rest[:len(job)+2+next[0]]
 }
 
 // Node suites are enumerated in both places for the same Windows reason; mjsparity guards the

@@ -50,11 +50,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 )
 
 // mutation is one operator flip.
@@ -296,28 +294,13 @@ func sweep(moduleDir, filter string, confirm bool, out *os.File) (*result, error
 		return nil, fmt.Errorf("no non-test .go files under %s (filter %q)", moduleDir, filter)
 	}
 
-	var (
-		res     result
-		current string
-		backup  []byte
-	)
-	restore := func() {
-		if current != "" {
-			_ = os.WriteFile(current, backup, 0o644)
-			current = ""
-		}
-	}
-	defer restore()
-
-	sig := make(chan os.Signal, 1)
-	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(sig)
-	go func() {
-		<-sig
-		restore()
-		fmt.Fprintln(os.Stderr, "\ninterrupted — file restored")
-		os.Exit(130)
-	}()
+	// NO SIGNAL HANDLER AND NOTHING TO RESCUE. The sweep runs in a copy (see sandbox.go), so
+	// an interrupt abandons a scratch directory instead of leaving a mutant in source anyone
+	// is using. The handler this replaces restored a file recorded in two unsynchronised
+	// package-locals and then printed "interrupted — file restored" whether or not it had
+	// been — a race and a false reassurance, both of them guarding a hazard that only existed
+	// because the sweep wrote to the real tree.
+	var res result
 
 	for _, path := range files {
 		source, err := os.ReadFile(path)
@@ -326,7 +309,7 @@ func sweep(moduleDir, filter string, confirm bool, out *os.File) (*result, error
 		}
 		rel, _ := filepath.Rel(moduleDir, path)
 		pkg := suiteFor(rel)
-		current, backup = path, source
+
 		lines := strings.Split(string(source), "\n")
 
 		for _, c := range candidates(string(source)) {
@@ -353,7 +336,12 @@ func sweep(moduleDir, filter string, confirm bool, out *os.File) (*result, error
 				res.killed++
 			}
 		}
-		restore()
+		// Restore before the next FILE, or every later mutant is measured against a file
+		// that still carries this one. Inside the sandbox this is measurement hygiene, not
+		// data safety — which is why its failure ends the sweep instead of being discarded.
+		if err := restoreFile(path, source); err != nil {
+			return nil, err
+		}
 	}
 	return &res, nil
 }
@@ -489,35 +477,24 @@ func main() {
 	}
 	moduleDir := filepath.Join(root, *module)
 
-	// The mutant lives in the working tree. A dirty target means a crash cannot be told
-	// apart from your own edit, so refuse rather than risk it. This is not hypothetical:
-	// during the pass that closed these survivors, a sweep was running while files were
-	// staged, and the tree had to be checked mutant-by-mutant before committing was safe.
-	dirty, err := exec.Command("git", "-C", root, "status", "--porcelain", "--", moduleDir).Output()
+	// NO DIRTY-TREE REFUSAL. It existed because the mutant lived in YOUR tree, where a
+	// crashed run could not be told apart from your own edit — "commit or stash first" was
+	// the price. The sweep now runs in a copy, so a dirty tree is not a hazard, and copying
+	// it is the point: mutation testing is most useful on the tests you just wrote, which
+	// are exactly the ones the refusal forbade measuring.
+
+	// THE SWEEP RUNS IN A COPY. Everything this tool has ever got wrong came from mutating
+	// the tree other people are using — a failed undo, a signal landing mid-record, and the
+	// one no amount of care in the writer can answer: a second agent or a human editing a
+	// file while the sweep holds a stale copy of it. 0.06s for the largest module here.
+	work, cleanup, err := sandbox(moduleDir)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "cannot read git status:", err)
+		fmt.Fprintln(os.Stderr, "mutate:", err)
 		os.Exit(1)
 	}
-	if len(strings.TrimSpace(string(dirty))) > 0 {
-		fmt.Fprintf(os.Stderr, "refusing to sweep: %s has uncommitted changes.\n"+
-			"This tool writes mutants into the working tree and restores them; an interrupted run\n"+
-			"against a dirty tree cannot be told apart from your own edits. Commit or stash first.\n\n%s",
-			*module, dirty)
-		os.Exit(1)
-	}
+	defer cleanup()
 
-	// HEAD BEFORE THE SWEEP. The dirty-tree refusal above stops a run from STARTING over
-	// your edits; it cannot stop a commit made WHILE the run is in flight, and that is the
-	// case that bites. Mutants live in the working tree for the length of one test run
-	// each, so any `git add -A` during a sweep can capture one — and the resulting commit
-	// looks like whatever else you were doing at the time.
-	//
-	// MEASURED, on this repository: a readState guard was committed inverted this way, and
-	// the commit's subject was about an unrelated test file. The suite caught it an hour
-	// later, when that package was next run.
-	headBefore := headSHA()
-
-	res, err := sweep(moduleDir, *filter, *confirm, os.Stdout)
+	res, err := sweep(work, *filter, *confirm, os.Stdout)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -534,23 +511,9 @@ func main() {
 	fmt.Println("platform-conditional branches cannot be killed by any test. The ones nobody can explain")
 	fmt.Println("are the findings.")
 
-	if after := headSHA(); after != "" && headBefore != "" && after != headBefore {
-		fmt.Fprintf(os.Stderr, "\nWARNING — HEAD MOVED DURING THIS SWEEP: %s -> %s\n"+
-			"Mutants live in the working tree while their test runs, so a commit made during the\n"+
-			"sweep can contain one, and it will look like whatever that commit was about. Check:\n\n"+
-			"    git diff %s..%s -- %s\n\n"+
-			"An inverted comparison or a flipped operator you did not write is a captured mutant.\n",
-			headBefore[:8], after[:8], headBefore[:8], after[:8], *module)
-	}
-}
-
-// headSHA reports the current commit, or "" when that cannot be determined — in which
-// case the warning above simply does not fire, because a check that guesses is worse
-// than one that stays quiet.
-func headSHA() string {
-	out, err := exec.Command("git", "rev-parse", "HEAD").Output()
-	if err != nil {
-		return ""
-	}
-	return strings.TrimSpace(string(out))
+	// NO "HEAD MOVED" WARNING EITHER. It caught a real defect — a readState guard committed
+	// INVERTED by a `git add -A` that ran while a mutant was on disk, under a commit subject
+	// about an unrelated test file. That capture is now impossible: the mutant never exists
+	// anywhere git is looking. The sweep measures a SNAPSHOT taken at its start, which is
+	// also a cleaner thing to report than a measurement of a tree that moved underneath it.
 }
