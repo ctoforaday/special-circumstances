@@ -1,4 +1,9 @@
-// sc-toolchain-nudge is a prosthetic-conscience SessionStart hook (Go binary).
+// sc-toolchain-nudge is a prosthetic-conscience SessionStart nudge, shipped as a UNIT of
+// the merged sc-sessionstart binary — not as a binary of its own (#201).
+//
+// Its standalone run/Main pair survived that merge with a second copy of the manifest
+// read and the live-run check, built by nothing, and the package's tests drove it rather
+// than the unit that actually runs. Both are gone; the tests drive Unit.
 //
 // Contract (Design by Contract):
 //
@@ -14,13 +19,10 @@ package toolchainnudge
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
@@ -77,49 +79,6 @@ func liveNudge(st runlive.State) string {
 	return fmt.Sprintf("prosthetic-conscience: %s — do NOT update plugins and do NOT push to pinned paths until run-capture completes.", desc)
 }
 
-// run is the hook with its process boundary passed in. probe is a parameter rather
-// than a direct toolchain.Probe call so a test's verdict does not depend on what
-// happens to be installed on the machine running it.
-// stdin is read for ONE field: the payload's cwd, the second place the harness states
-// where the project is. This hook took the project root from the environment alone, and
-// with CLAUDE_PROJECT_DIR unset the live-run nudge went silent — a research run in
-// progress and nothing said so, which is the one job that nudge has.
-func run(args []string, stdin io.Reader, stdout io.Writer, pluginRoot, projectDir string, probe func([]toolchain.Tool) []toolchain.Status) int {
-	if len(args) > 0 && args[0] == "-version" {
-		fmt.Fprintln(stdout, buildid.Line("sc-toolchain-nudge"))
-		return 0
-	}
-
-	if stdin != nil {
-		var in struct {
-			CWD string `json:"cwd"`
-		}
-		raw, _ := io.ReadAll(stdin)
-		_ = json.Unmarshal(raw, &in)
-		projectDir = hookenv.ProjectDir(projectDir, in.CWD)
-	}
-
-	// A missing/unreadable/malformed manifest degrades to silence, never to an error:
-	// a SessionStart hook that fails is a session that fails.
-	if pluginRoot != "" {
-		if raw, err := os.ReadFile(filepath.Join(pluginRoot, "requirements.json")); err == nil {
-			var req requirements
-			if err := json.Unmarshal(raw, &req); err == nil {
-				if line := nudge(probe(req.Tools)); line != "" {
-					fmt.Fprintln(stdout, line) // SessionStart stdout reaches the session
-				}
-			}
-		}
-	}
-
-	// The live-run nudge is INDEPENDENT of the manifest: a live research run must be
-	// announced even when there is no plugin root to read requirements from.
-	if line := liveNudge(runlive.Read(projectDir)); line != "" {
-		fmt.Fprintln(stdout, line)
-	}
-	return 0
-}
-
 // Unit exposes the nudge to the merged SessionStart binary.
 //
 // It returns TEXT rather than writing it. The standalone binary printed the line straight to
@@ -153,11 +112,4 @@ func Unit(pluginRoot string, probe func([]toolchain.Tool) []toolchain.Status) ho
 			return hookunit.Result{Name: "sc-toolchain-nudge", Stdout: strings.Join(lines, "\n")}
 		},
 	}
-}
-
-// Main is the process boundary: it wires the real environment in and returns the
-// exit code, so cmd/ stays a three-line shim and this stays testable.
-func Main() int {
-	return run(os.Args[1:], os.Stdin, os.Stdout,
-		os.Getenv("CLAUDE_PLUGIN_ROOT"), os.Getenv("CLAUDE_PROJECT_DIR"), toolchain.Probe)
 }
