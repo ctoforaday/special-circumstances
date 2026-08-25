@@ -26,6 +26,93 @@ defaults:
     working-directory: plugins/prosthetic-conscience/tools
 
 jobs:
+  # STATIC ANALYSIS DOES NOT NEED THE PLATFORM IT ANALYSES, and running it per-runner was
+  # buying one target per runner while paying Windows rates for it.
+  #
+  # `go vet` executes nothing. Its inputs are the files a build constraint selects plus the
+  # types they resolve to, and BOTH are decided by GOOS/GOARCH — not by the host kernel. So
+  # `GOOS=windows go vet` on Linux is not an approximation of the Windows answer, it is the
+  # same answer: verified by appending unreachable code to seat_windows.go, where the
+  # native-Linux vet exited 0 completely blind and the cross-vet named the line.
+  #
+  # THE COVERAGE ARGUMENT IS THE BIGGER ONE. release builds for three operating systems and
+  # CI vetted exactly TWO, the two it happened to own runners for. internal/dashboard is the
+  # one package here whose source is platform-split (seat_windows.go, seat_linux.go,
+  # seat_fallback.go), and seat_fallback.go — the arm darwin actually compiles — had never
+  # been vetted by anything.
+  #
+  # GOOS ONLY, DELIBERATELY. release ships six GOOS/GOARCH pairs, and vetting all six was
+  # measured to be twice the work for exactly the same answer: with no _amd64.go/_arm64.go
+  # files anywhere, `go list` returns byte-identical source for amd64 and arm64 under every
+  # GOOS, while each extra target costs another full standard-library build. GOOS is the
+  # axis that selects files; GOARCH here selects nothing. That holds while every shipped
+  # target is 64-bit — a 32-bit one would change int width, and with it the constant-overflow
+  # and printf checks, so it would have to come back as its own entry.
+  #
+  # EVERY MODULE AGAINST EVERY OS, including the modules whose source is byte-identical
+  # across platforms — because the bug this catches does not show up as a different file
+  # set. Reach for a platform-only API (syscall.Kill, a windows-only call) WITHOUT a build
+  # tag and `go list` still reports the same GoFiles everywhere; what differs is whether it
+  # type-checks. Skipping a target because the module "looks the same" would skip exactly
+  # the case worth catching.
+  #
+  # COST, measured, so nobody reads the first cold run as a fault: the price is one standard
+  # -library build per GOOS, ~100-150s each, and then ~3s forever. A fresh cache went
+  # windows 147s, darwin 126s, linux 97s; revisiting windows and darwin after all three
+  # were built cost 3s apiece. The cache is content-addressed with GOOS in the key, so the
+  # targets COEXIST — it grew 61M -> 127M -> 183M and never evicted — which is also why the
+  # loop order below does not matter: each platform is built once whatever order it is
+  # reached in. Cold is therefore ~6-7 min on this job and ~30s warm, off the critical path
+  # either way, and a cold run only happens when the cache key moves (this file, or a
+  # dependency bump), which is the same moment every other job goes cold too.
+  #
+  # gofmt comes along because it is host-independent outright: it formats text and reads no
+  # build constraints, so seven runs of it across the matrix were seven identical answers.
+  vet:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7
+        with:
+          # PR-only, for the reason the first setup-go in this file states in full.
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
+          # Every module, because this job is the only one that vets any of them now.
+          cache-dependency-path: |
+            plugins/prosthetic-conscience/tools/go.mod
+            plugins/frank-exchange-of-views/tools/go.sum
+            plugins/gray-area/tools/go.mod
+            scripts/go.sum
+            .github/workflows/hooks.yml
+          go-version: "1.25"
+      - name: gofmt, once, for the whole repository
+        run: |
+          set -euo pipefail
+          for mod in plugins/prosthetic-conscience/tools plugins/frank-exchange-of-views/tools plugins/gray-area/tools scripts; do
+            # An explicit `if`, not `cd && test || {...}`: that reads as if-then-else and is
+            # not one (shellcheck SC2015) — a failed `cd` would take the else branch and
+            # report the module unformatted when the truth is that it was never looked at.
+            unformatted="$( cd "$mod" && gofmt -l . )"
+            if [ -n "$unformatted" ]; then
+              echo "unformatted in $mod:"
+              echo "$unformatted"
+              exit 1
+            fi
+          done
+      - name: vet every module against every operating system we ship
+        run: |
+          set -euo pipefail
+          for mod in plugins/prosthetic-conscience/tools plugins/frank-exchange-of-views/tools plugins/gray-area/tools scripts; do
+            for os in windows darwin linux; do
+              echo "== $mod :: $os =="
+              ( cd "$mod" && GOOS="$os" GOARCH=amd64 go vet ./... )
+            done
+          done
+
   test:
     strategy:
       matrix:
@@ -152,9 +239,6 @@ jobs:
           # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
           # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
           go-version: "1.25"
-      - run: go vet ./...
-      - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
-        shell: bash
       - run: go test ./...
       # This module had no race leg at all, while gray-area ran `-race ./...` and
       # feov-record ran it over internal/record. It passes clean today (measured, exit 0,
@@ -315,9 +399,6 @@ jobs:
           # request can write is a cache a release build would read.
           package-manager-cache: false
           node-version: "24"
-      - run: go vet ./...
-      - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
-        shell: bash
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
       # sibling package binaries in parallel, so the "idle" cores the oversubscription
@@ -485,9 +566,6 @@ jobs:
           # into the honest error it always was — `go.mod requires go >= 1.25`. Raising the
           # pin is the fix; lowering go.mod or restoring `auto` would only re-hide it.
           go-version: "1.25"
-      - run: go vet ./...
-      - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
-        shell: bash
       - run: go test ./...
       - run: go test -race ./...
         env:
@@ -628,9 +706,6 @@ jobs:
             scripts/go.sum
             .github/workflows/hooks.yml
           go-version: "1.25"
-      - run: go vet ./...
-      - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
-        shell: bash
       - run: go test ./...
 
   qlty:
