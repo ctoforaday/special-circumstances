@@ -895,6 +895,18 @@ in exactly the words it would use for a session that behaved perfectly. The seal
 `internal/checkpointseal/queryfields_test.go` extracts every `.field` these blocks read and fails if
 the record cannot answer it. Adding a query to §V is therefore checked without anyone remembering to.
 
+**Steering is now attributable.** `compaction-observations.jsonl` records per-section survival
+ratios, and they exist to answer "does the summarizer honour the instruction". `steer()` is
+CONDITIONAL — it names only headings the note carries, and returns nothing when it finds none — so a
+ratio from an unsteered boundary and one from a steered boundary were the same shape of number. The
+seal row now carries `steered` and `steered_sections`; read them only on
+`seal_trigger == "precompact"`, since steering is PreCompact-only and `false` elsewhere means NOT
+APPLICABLE.
+
+Note what those ratios do and do not measure: overlap with the NOTE, which
+`sc-checkpoint-restore` re-injects and which is on disk regardless. They are a measure of
+COMPLIANCE, not of value retained.
+
 Add `nudge_measured` to the denominator report: `nudge.json` UNREADABLE is not `nudge_enabled:
 false`, and filing it as such would put an unreadable state into criterion 6's control group.
 
