@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -38,7 +39,13 @@ import (
 //
 // So this one pays for a binary. That is the price of testing the configuration that ships.
 func TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord(t *testing.T) {
-	if testing.Short() {
+	// EXCEPT ON WINDOWS, where -short does not excuse it. The binary build is what the
+	// guard saves; the `.exe` note below is what the test is FOR, and that defect class is
+	// live only on Windows — inert on Linux, so no depth of Linux coverage substitutes.
+	// The Windows pull-request leg runs `go test -short ./...` (hooks.yml), and this test
+	// leaving with the guard would move the one Windows-only regression check in this
+	// package out of the gate that exists to catch it.
+	if testing.Short() && runtime.GOOS != "windows" {
 		t.Skip("builds a binary")
 	}
 	// `.exe`, ALWAYS. Go does not append it for an explicit -o filename, and Windows will not

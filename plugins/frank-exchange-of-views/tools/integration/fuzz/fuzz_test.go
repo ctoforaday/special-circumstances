@@ -2380,9 +2380,16 @@ func TestFuzzDebate(t *testing.T) {
 	bin := buildBinary(t)
 	wrapped := debateWrapped(t)
 
-	// CI runs `go test ./...` (no -short) on four jobs, so the DEFAULT is a modest smoke that
-	// proves the harness and catches gross regressions in ~15s. The full 1000-run confidence
-	// sweep is on demand: FUZZ_N=1000 go test ./integration/fuzz -run TestFuzzDebate -timeout 600s.
+	// The DEFAULT is a modest smoke that proves the harness and catches gross regressions in
+	// ~15s on Linux — which is what the Linux legs, main pushes, tag builds and the nightly
+	// all run. Windows PULL REQUESTS run -short (hooks.yml): each run shells the real binary
+	// ~50-70 times, and Windows pays process-spawn cost on every one, which made this
+	// package that leg's critical path (573s, measured 2026-08-25) after the RAM disk took
+	// I/O out of the bill. What a run proves about the PLATFORM — the .exe build, the
+	// spawns, the temp plumbing — run 15 proves as well as run 60; depth past that is
+	// statistics on debate semantics, which are platform-independent and keep full depth on
+	// Linux. The full 1000-run confidence sweep is on demand:
+	// FUZZ_N=1000 go test ./integration/fuzz -run TestFuzzDebate -timeout 1200s.
 	n := 60
 	if testing.Short() {
 		n = 15

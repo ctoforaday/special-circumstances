@@ -6,6 +6,14 @@ on:
     branches: [main]
     tags: ["*--v*"]
   pull_request:
+  # THE NIGHTLY IS WHERE THE SKIPPED DEPTH STILL HAPPENS. The Windows pull-request leg of
+  # feov-record runs `go test -short` (the step says why); a scheduled run is not a pull
+  # request, so this fires every job at FULL depth once a day — and doubles as the
+  # environment canary: a runner-image change of the D:-drive-removal kind surfaces here
+  # on a quiet week instead of inside someone's unrelated pull request. Cron is UTC, and
+  # the minute is off :00 because GitHub sheds scheduled load at the top of the hour.
+  schedule:
+    - cron: "23 9 * * *"
 
 # Least privilege by default: every job here only reads code and runs tests. The
 # release job declares the wider scope it needs, and a job-level block overrides
@@ -280,7 +288,28 @@ jobs:
       # was meant to fill were already running cli, recordsql and capture — which starved
       # (cli 180s -> 411s). Net negative at machine level; the premise ignored
       # inter-package parallelism.
-      - run: go test ./...
+      #
+      # SHALLOW ON WINDOWS PULL REQUESTS, FULL EVERYWHERE ELSE. Once the RAM disk owns the
+      # I/O bill, the Windows leg's remaining cost is integration/fuzz, which shells the
+      # real binary ~50-70 times per run and pays Windows process-spawn cost on every one:
+      # 573s of the leg's 12-minute `go test ./...` (run 32813820292), against 106s for
+      # recordsql. -short takes the fuzz from 60 runs to 15. What a run proves about the
+      # PLATFORM — the .exe build, the spawns, the temp plumbing — run 15 proves as well as
+      # run 60; the depth beyond that is statistics on debate semantics, platform-
+      # independent and still at full depth on the Linux twin of this job, on every main
+      # push and tag build (a pull request is the only event that shallows), and on the
+      # nightly schedule.
+      #
+      # The packages where Windows has actually caught defects (record, recordsql: the DSN
+      # truncation, the unclosed handle — plans commit f772105) carry NO testing.Short()
+      # guard, so -short leaves them at FULL depth. The invariant to keep: a Short gear
+      # added to those packages reopens exactly the hole this arrangement routes around.
+      # seatprobe's separated-build test inverts its guard on Windows for the same reason,
+      # stated there.
+      #
+      # Both ternary arms are workflow literals, so this ${{ }} expands no external input —
+      # which is why it may sit in the run line where rule-sweep's base ref may not.
+      - run: go test ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
       - run: go test -race ./internal/record/
