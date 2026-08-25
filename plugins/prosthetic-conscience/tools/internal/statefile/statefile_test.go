@@ -432,3 +432,38 @@ func TestReadFileStillReportsAGenuineAbsence(t *testing.T) {
 		t.Errorf("a name that never appears → %v, want a not-exist error", err)
 	}
 }
+
+// A RENAME THAT FAILS MUST BE REPORTED AS A FAILURE. This is the last step of the atomic
+// write, and it is the one where "I told you I saved it" and "I saved it" come apart: the
+// temp file holds the new bytes, the real path still holds the old ones, and a caller told
+// `nil` believes its state is durable when nothing moved.
+//
+// Found by mutation testing, not by coverage — the branch was EXECUTED by every successful
+// write, so it read as covered while the failing half had never run. Inverting the
+// condition left the suite green.
+//
+// A DIRECTORY at the destination is the portable way to make rename fail: POSIX gives
+// EISDIR/ENOTEMPTY and Windows refuses it too, where a permission trick would not.
+func TestAFailedRenameIsReportedAndLeavesNoDebris(t *testing.T) {
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "state.json")
+	if err := os.MkdirAll(filepath.Join(dest, "occupied"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Write(dest, rec{N: 1, Set: true}); err == nil {
+		t.Error("Write reported success while the record was never moved into place")
+	}
+
+	// The temp file must not survive: this directory is pruned by pattern elsewhere, and a
+	// caller that retries would otherwise accumulate one orphan per attempt.
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.Name() != "state.json" {
+			t.Errorf("a failed write left %s behind", e.Name())
+		}
+	}
+}
