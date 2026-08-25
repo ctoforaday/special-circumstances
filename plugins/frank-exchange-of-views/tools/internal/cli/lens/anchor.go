@@ -2,6 +2,8 @@ package lens
 
 import (
 	"errors"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"regexp"
 	"strings"
 )
 
@@ -294,4 +296,59 @@ func insideFence(report string, at int) bool {
 		}
 	}
 	return false
+}
+
+// orphanClass matches one anchor class; group 1 is the id. Built per call from the class word so
+// the three splicing verbs cannot drift on the token grammar.
+func orphanClass(class string) *regexp.Regexp {
+	return regexp.MustCompile(`<!--` + regexp.QuoteMeta(class) + `:([a-z]-[0-9a-f]+)-->`)
+}
+
+// OrphanAnchorAt returns the id of an anchor of `class` sitting in the located quote's own
+// anchor run that `recorded` does not know — the state a crash between a committed splice and
+// its event append leaves behind — or "" when the sentence carries no such orphan.
+//
+// THE THREE SPLICING VERBS SHARE ONE CRASH SHAPE. `blue cite`, `lens finding` and `blue prove`
+// all mutate blue/report.md first and append their event second, and all three carry crash-retry
+// keys because a killed process is this record's ordinary weather. A retry that only looks for a
+// prior EVENT sees a fresh act and splices a SECOND marker beside the orphan: one sentence, two
+// tokens, one of them immortal and backing nothing. Adoption is the other half of the retry —
+// the orphan on this very sentence IS the interrupted first attempt, and the retry finishes it.
+// (`blue edit` met the same window from the other side and reconciles event-first; these verbs
+// splice first because a mis-quote must be refused before anything is written.)
+//
+// IT LIVES BESIDE InsertAnchor AND USES ITS LOCATOR, so the sentence the adoption inspects is
+// the sentence the splice would have used — not an approximation of it. The scope is that
+// sentence's own anchor run, never the page: an orphan elsewhere is somebody else's torn act,
+// and adopting it would attach this act's evidence to a sentence it never touched. The walk
+// mirrors the splice's geometry — the token lands between the located span and its trailing
+// punctuation, and abutting runs are ordinary — so token runs and punctuation are stepped over
+// in either order.
+//
+// Every miss returns "": a quote that does not locate, a run with no orphan. The caller then
+// splices fresh, and whatever refusal that path produces is the one the seat should see.
+func OrphanAnchorAt(report, quote, class string, recorded func(id string) bool) string {
+	start, end, ambiguous := LocateSpanUnique(report, quote)
+	if start < 0 || ambiguous {
+		return ""
+	}
+	re := orphanClass(class)
+	j := end
+	for j < len(report) {
+		if next := anchor.SkipRun(report, j); next > j {
+			for _, m := range re.FindAllStringSubmatch(report[j:next], -1) {
+				if !recorded(m[1]) {
+					return m[1]
+				}
+			}
+			j = next
+			continue
+		}
+		if strings.ContainsRune(trailingPunct, rune(report[j])) {
+			j++
+			continue
+		}
+		break
+	}
+	return ""
 }

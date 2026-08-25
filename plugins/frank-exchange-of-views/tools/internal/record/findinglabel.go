@@ -69,3 +69,43 @@ func ExistingFindingByKey(runDir, seatID, key string) (string, error) {
 	}
 	return "", nil
 }
+
+// FindingByKey returns the prior finding's (label, finding_id) for this seat's --key, or empty
+// strings when none exists. ExistingFindingByKey answers the seat's question — "did I already do
+// this?" — with the label alone; the crash-window heal in `lens finding` also needs the ID, to
+// ask whether the SECOND append of the interrupted pair (the anchor event) ever landed.
+func FindingByKey(runDir, seatID, key string) (label, findingID string, err error) {
+	if key == "" {
+		return "", "", nil
+	}
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return "", "", err
+	}
+	for _, e := range m.Events {
+		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
+		if ok && e.GetSeatId() == seatID && f.GetFindingKey() == key {
+			return f.GetLabel(), f.GetFindingId(), nil
+		}
+	}
+	return "", "", nil
+}
+
+// AnchorEventExists reports whether an anchor event names this finding id. The finding and its
+// anchor event are appended as a PAIR after the splice, so "finding recorded, anchor missing" is
+// exactly the state a crash between the two appends leaves.
+func AnchorEventExists(runDir, findingID string) (bool, error) {
+	if findingID == "" {
+		return false, nil
+	}
+	m, err := MergedEvents(runDir)
+	if err != nil {
+		return false, err
+	}
+	for _, e := range m.Events {
+		if a, ok := recordpb.BodyAs[*recordpb.Anchor](e); ok && a.GetId() == findingID {
+			return true, nil
+		}
+	}
+	return false, nil
+}

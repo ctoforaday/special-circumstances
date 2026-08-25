@@ -31,6 +31,8 @@ package fuzz
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/consistency"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"math/rand"
 	"net/http"
@@ -2421,6 +2423,21 @@ func TestFuzzDebate(t *testing.T) {
 			defer wg.Done()
 			defer func() { <-sem }()
 			o := runOne(t, wrapped, bin, seed)
+			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
+			// each command SUCCEEDED; the oracle asserts that the record those commands built is
+			// one every projection agrees about — the cross-reader class the unit suites cannot
+			// see, because each exercises one reader against its own fixture. A violation keeps
+			// the run directory like any other failure, so the disagreement can be inspected.
+			if o.err == "" {
+				if violations, cerr := consistency.Check(o.runDir); cerr != nil {
+					o.err = "consistency oracle: " + cerr.Error()
+				} else if len(violations) > 0 {
+					o.err = "consistency violations:\n  " + strings.Join(violations, "\n  ")
+				}
+			}
+			// The oracle opened this run's cached handle in-process; release it or the
+			// RemoveAll below fails on Windows and the sweep leaks one handle per seed.
+			_ = recordsql.CloseUnder(o.runDir)
 			mu.Lock()
 			completed++
 			verdicts[o.verdict]++

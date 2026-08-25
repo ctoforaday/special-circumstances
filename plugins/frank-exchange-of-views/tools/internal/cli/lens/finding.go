@@ -43,18 +43,39 @@ func newFinding() *cobra.Command {
 		// Crash-retry idempotency: a prior finding under this --key returns its
 		// label, no second event AND no second marker (BEFORE any write).
 		key := seat.Str(cmd, flags.Key)
-		if prior, err := record.ExistingFindingByKey(s.RunDir, s.SeatID, key); err != nil {
+		if prior, priorID, err := record.FindingByKey(s.RunDir, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
+			// THE PAIR MAY BE HALF-APPENDED. The finding and its anchor event follow the splice
+			// as two separate appends, so a crash between them leaves the finding recorded and
+			// the anchor event missing — and this early return used to seal that state forever:
+			// the retry saw the finding, answered idempotently, and the immortal-marker detector
+			// never learned the marker exists. The retry now finishes the interrupted pair.
+			if anchored, aerr := record.AnchorEventExists(s.RunDir, priorID); aerr != nil {
+				return nil, aerr
+			} else if !anchored {
+				ap := &recordpb.Anchor{Id: proto.String(priorID), Location: proto.String(seat.Str(cmd, flags.Quote))}
+				if _, aerr := record.Append(s.Identity(), ap); aerr != nil {
+					return nil, aerr
+				}
+			}
 			return findingResult{Label: prior, Idempotent: true}, nil
 		}
 		label, err := record.NextFindingLabel(s.RunDir, s.SeatID)
 		if err != nil {
 			return nil, err
 		}
-		// Mint the id UP FRONT: it forms the marker, so it must exist before the
-		// report write. Append will not re-mint (finding_id already present).
-		findingID := record.NewFindingID()
+		// A TORN SPLICE IS ADOPTED, NOT DOUBLED — the same rule as `blue cite`, through the
+		// same shared walk. A crash after the splice below and before the appends leaves a
+		// marker on this quote that no event names; the retry would otherwise mint a fresh id
+		// and splice a rival beside the immortal orphan.
+		findingID := adoptTornFindingAnchor(s.RunDir, location)
+		spliced := findingID != ""
+		if findingID == "" {
+			// Mint the id UP FRONT: it forms the marker, so it must exist before the
+			// report write. Append will not re-mint (finding_id already present).
+			findingID = record.NewFindingID()
+		}
 		// An INVISIBLE HTML-comment token, not a footnote: a "[^id]" marker rendered
 		// as an undefined footnote AND red audited it as one, and a finding's quoted
 		// location/reason text carried the marker into the record-derived sections. A
@@ -67,6 +88,9 @@ func newFinding() *cobra.Command {
 		// written, and the finding is not recorded. The events are appended ONLY
 		// after a confirmed write (so a failed write leaves no id in EXPECTED).
 		if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
+			if spliced {
+				return old, nil // the crashed first attempt already placed this marker
+			}
 			next, err := InsertAnchor(old, location, marker)
 			switch {
 			case errors.Is(err, ErrMisQuote):
@@ -121,4 +145,27 @@ func (r findingResult) Human() string {
 		return "finding " + r.Label + " (idempotent retry — existing label returned)"
 	}
 	return "finding recorded: " + r.Label + " — the run-unique label a gap's found_by names (id " + r.FindingID + ")"
+}
+
+// adoptTornFindingAnchor returns the id of a finding marker already on the located quote that no
+// finding OR anchor event names — a torn splice — or "" for the ordinary fresh path.
+func adoptTornFindingAnchor(runDir, quote string) string {
+	rep, err := record.ReadBlueReport(runDir)
+	if err != nil {
+		return ""
+	}
+	m, err := record.MergedEvents(runDir)
+	if err != nil {
+		return ""
+	}
+	recorded := map[string]bool{}
+	for _, e := range m.Events {
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
+			recorded[f.GetFindingId()] = true
+		}
+		if a, ok := recordpb.BodyAs[*recordpb.Anchor](e); ok {
+			recorded[a.GetId()] = true
+		}
+	}
+	return OrphanAnchorAt(string(rep), quote, "fx", func(id string) bool { return recorded[id] })
 }

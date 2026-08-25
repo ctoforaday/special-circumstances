@@ -68,25 +68,36 @@ func newCite() *cobra.Command {
 			return nil, errors.New(msg)
 		}
 
-		// Mint the label UP FRONT: it forms the marker, so it must exist before the report
-		// write. Append will not re-mint (the label is already in the payload).
-		label := record.NewCitationID()
-		marker := "<!--cite:" + label + "-->"
+		// A TORN SPLICE IS ADOPTED, NOT DOUBLED. The splice below and the event append after it
+		// are two acts with no transaction over them, so a crash between them leaves an anchor
+		// on this very sentence that no event backs — and retries are this record's ordinary
+		// weather (mint, cite and prove all carry crash-retry keys). The retry used to look for
+		// a prior EVENT, find none, and splice a second marker beside the orphan: one sentence,
+		// two tokens, one of them immortal and backing nothing. If the located quote already
+		// carries a citation anchor the record has never heard of, that anchor IS this cite's
+		// first attempt, and the retry finishes the interrupted act instead of starting a rival.
+		label := adoptTornCiteAnchor(s.RunDir, quote)
+		if label == "" {
+			// Mint the label UP FRONT: it forms the marker, so it must exist before the report
+			// write. Append will not re-mint (the label is already in the payload).
+			label = record.NewCitationID()
+			marker := "<!--cite:" + label + "-->"
 
-		// Splice the invisible anchor at the located quote UNDER THE LOCK, atomically, via
-		// the shared anchor-insert (the same rule a finding is anchored by). Mis-quote or
-		// in-fence -> reject; nothing is written and no cite is recorded.
-		if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
-			next, aerr := lens.InsertAnchor(old, quote, marker)
-			switch {
-			case errors.Is(aerr, lens.ErrMisQuote):
-				return nil, fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
-			case errors.Is(aerr, lens.ErrInFence):
-				return nil, fmt.Errorf("blue cite: the quote resolves inside a code fence — cite a prose sentence, not code")
+			// Splice the invisible anchor at the located quote UNDER THE LOCK, atomically, via
+			// the shared anchor-insert (the same rule a finding is anchored by). Mis-quote or
+			// in-fence -> reject; nothing is written and no cite is recorded.
+			if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
+				next, aerr := lens.InsertAnchor(old, quote, marker)
+				switch {
+				case errors.Is(aerr, lens.ErrMisQuote):
+					return nil, fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
+				case errors.Is(aerr, lens.ErrInFence):
+					return nil, fmt.Errorf("blue cite: the quote resolves inside a code fence — cite a prose sentence, not code")
+				}
+				return next, aerr
+			}); err != nil {
+				return nil, err
 			}
-			return next, aerr
-		}); err != nil {
-			return nil, err
 		}
 
 		// The anchor is committed; the cite event follows. access_date is engine-supplied
@@ -125,4 +136,24 @@ func (r citeResult) Human() string {
 		return "cite " + r.Label + " (idempotent retry — existing anchor returned)"
 	}
 	return "citation recorded: " + r.Label + " — an invisible immortal anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")"
+}
+
+// adoptTornCiteAnchor returns the label of a citation anchor already on the located quote that
+// no recorded event backs — a torn splice — or "" for the ordinary fresh path. The walk itself is
+// lens.OrphanAnchorAt, shared with `lens finding` and `blue prove`, which carry the same
+// two-act crash window; only the recorded set is this verb's.
+func adoptTornCiteAnchor(runDir, quote string) string {
+	rep, err := record.ReadBlueReport(runDir)
+	if err != nil {
+		return ""
+	}
+	labels, err := record.CitationLabels(runDir)
+	if err != nil {
+		return "" // cannot tell an orphan from a backed anchor; splice fresh rather than guess
+	}
+	recorded := map[string]bool{}
+	for _, l := range labels {
+		recorded[l] = true
+	}
+	return lens.OrphanAnchorAt(string(rep), quote, "cite", func(id string) bool { return recorded[id] })
 }

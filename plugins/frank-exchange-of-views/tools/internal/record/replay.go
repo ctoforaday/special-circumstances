@@ -268,6 +268,17 @@ func (g *Gap) ClosureReason() string {
 	if g == nil {
 		return ""
 	}
+	// THE LAST CLOSER'S WORD, not a fixed precedence. This read Closure first unconditionally,
+	// so a gap red closed and the bench later ruled kept showing red's class — every reader of
+	// this helper (the graph, the archive, the debate render, verify) reported a fate the record
+	// had since overruled. ClosedByBench already says whose closing event was last; the word
+	// follows it, with the other writer's word as the fallback for a class-less close.
+	if g.ClosedByBench {
+		if w := recordpb.Word(g.BenchClosure.GetDisposition()); w != "" {
+			return w
+		}
+		return recordpb.Word(g.Closure.GetClosureClass())
+	}
 	if g.Closure != nil {
 		if w := recordpb.Word(g.Closure.GetClosureClass()); w != "" {
 			return w
@@ -471,6 +482,12 @@ func BoardState(runDir string) (*Board, error) {
 			g.Closure = m
 			g.ClosedRound = int(e.GetRound())
 			g.HasClosed = true
+			// THE ATTRIBUTION FOLLOWS THE LAST CLOSING EVENT, like ClosedRound just above.
+			// This flag used to LATCH: a bench ruling set it and nothing cleared it, so a red
+			// close landing after a bench ruling left a gap whose ClosedRound said red's round
+			// while ClosedBy said bench — mixed attribution, found by the consistency oracle on
+			// the bench-then-red seed (the reverse order of the measured 2026-08-22 incident).
+			g.ClosedByBench = false
 		case *recordpb.Opinion:
 			// THE BENCH'S RULINGS REACH RED'S BOARD.
 			//

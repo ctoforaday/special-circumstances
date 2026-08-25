@@ -53,11 +53,16 @@ type CountsJSON struct {
 	UncreditedFindings int `json:"uncredited_findings"`
 	Anomalies          int `json:"anomalies"`
 	TotalObservations  int `json:"total_observations"`
-	// Citations is the count of cite events on the record — the canonical source
-	// for the envelope's citations_checked, which red reads from its native board
-	// view instead of self-reporting (a number fabricated on haiku). Cite events are
-	// reference-keyed, so this is DISTINCT sources verified (a re-verification of the
-	// same reference updates in place, matching the citation-ledger projection).
+	// Citations counts VERIFY events — red's leaf reads — and is the canonical source for the
+	// envelope's citations_checked, which red reads from its native board view instead of
+	// self-reporting (a number fabricated on haiku).
+	//
+	// THIS DOC USED TO DESCRIBE A DIFFERENT NUMBER. It said "count of cite events ... DISTINCT
+	// sources ... updates in place", which was true before #341 split the event types and false
+	// for every release since: the implementation counts verify EVENTS, one per verification,
+	// and blue's authored cites are CitationsAuthored below. The consistency oracle found the
+	// disagreement by implementing the doc and diverging from the code. Note what the counter
+	// therefore is NOT: distinct — a source re-verified in a later round counts once per read.
 	Citations int `json:"citations"`
 	// CitationsAuthored is blue's tool-inserted citations (#256). Kept SEPARATE from Citations:
 	// counting them together inflated red's audit-volume metric by 43% on the 2026-08-04 smoke.
@@ -594,12 +599,10 @@ func WorkJSONOf(b *Board) WorkJSON {
 			// with `disposition`; both are the same Disposition enum, and which verb wrote it is
 			// not the reader's problem. They are separate FIELDS here rather than one payload key
 			// read twice, so the fallback is a nil test on a typed body instead of a string miss.
-			if g.Closure != nil {
-				ci.Fate = recordpb.Word(g.Closure.GetClosureClass())
-			}
-			if ci.Fate == "" && g.BenchClosure != nil {
-				ci.Fate = recordpb.Word(g.BenchClosure.GetDisposition())
-			}
+			// The LAST closer's word — ClosureReason keys on ClosedByBench, so a gap both
+			// writers acted on reports the fate the record settled on, not whichever field a
+			// fixed precedence happened to read first.
+			ci.Fate = g.ClosureReason()
 			// The second axis, derived rather than stored. `amends_prior` cannot be answered
 			// from the class alone — it inherits from the ruling it amends — and it says so
 			// instead of guessing, because a wrong "repaired" here is exactly the plausible
