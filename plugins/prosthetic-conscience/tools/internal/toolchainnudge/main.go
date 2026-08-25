@@ -65,12 +65,16 @@ func nudge(statuses []toolchain.Status) string {
 
 // liveNudge warns when a research run is live — plugin updates and pushes to pinned
 // paths are frozen (marker-and-hook: the commitment is state, not memory).
-func liveNudge(m *runlive.Marker) string {
-	if m == nil {
+func liveNudge(st runlive.State) string {
+	// Describe is empty exactly when nothing is live, and names the runs — or names the
+	// fact that the marker's shape is not understood — when something is. The phrasing
+	// lives in runlive so this guard and pushfreezeguard cannot drift apart in what they
+	// call the same state, which is the smaller cousin of the drift that emptied both.
+	desc := st.Describe()
+	if desc == "" {
 		return ""
 	}
-	return fmt.Sprintf("prosthetic-conscience: a research run is LIVE (%s, started %s) — do NOT update plugins and do NOT push to pinned paths until run-capture completes.",
-		m.RunDir, m.Started)
+	return fmt.Sprintf("prosthetic-conscience: %s — do NOT update plugins and do NOT push to pinned paths until run-capture completes.", desc)
 }
 
 // run is the hook with its process boundary passed in. probe is a parameter rather

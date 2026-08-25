@@ -161,6 +161,8 @@ var tools = []gate{
 		why: "every recorded decision names the issue that tracks it"},
 	{id: "pluginparity", kind: kindTool, dir: "scripts", args: []string{"run", "./pluginparity"}, ciJob: "debate-sim",
 		why: "every marketplace plugin is installed by both bootstrap paths"},
+	{id: "fixtureparity", kind: kindTool, dir: "scripts", args: []string{"run", "./fixtureparity"}, ciJob: "debate-sim",
+		why: "a file shape two modules must agree on drifted once and nothing failed"},
 }
 
 // nodeSuites are the .mjs suites CI drives directly. Enumerated in the workflow because

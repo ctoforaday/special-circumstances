@@ -1,0 +1,22 @@
+{
+  "runs": [
+    {
+      "runDir": "research/2026-07-18_alpha",
+      "pinnedPaths": [
+        "ideas/backlog.md",
+        "research/old"
+      ],
+      "started": "2026-07-18T09:00:00.000Z",
+      "runId": "run-alpha",
+      "scriptPath": "scripts/run.mjs"
+    },
+    {
+      "runDir": "research/2026-07-18_beta",
+      "pinnedPaths": [
+        "research/old",
+        "ideas/other.md"
+      ],
+      "started": "2026-07-18T10:30:00.000Z"
+    }
+  ]
+}

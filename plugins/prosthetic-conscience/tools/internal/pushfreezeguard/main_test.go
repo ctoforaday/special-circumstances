@@ -52,15 +52,16 @@ func TestTokenize(t *testing.T) {
 }
 
 func TestDecide(t *testing.T) {
-	live := &runlive.Marker{RunDir: "research/x", PinnedPaths: []string{"ideas/backlog.md", "research/old"}, Started: "2026-07-16T00:00:00Z"}
+	live := runlive.State{Runs: []runlive.Marker{{RunDir: "research/x", PinnedPaths: []string{"ideas/backlog.md", "research/old"}, Started: "2026-07-16T00:00:00Z"}}}
+	var dead runlive.State
 	cases := []struct {
 		name    string
-		m       *runlive.Marker
+		m       runlive.State
 		cmd     string
 		wantHit bool
 		wantSub string // required substring of the warning when wantHit
 	}{
-		{"no marker is silent even on push", nil, "git push origin main", false, ""},
+		{"no marker is silent even on push", dead, "git push origin main", false, ""},
 		{"live + push warns with the frozen pins", live, "cd repo && git push", true, "FROZEN"},
 		{"live + non-push is silent", live, "git status", false, ""},
 		{"live + commit without push is silent", live, "git commit -m x", false, ""},
@@ -77,7 +78,7 @@ func TestDecide(t *testing.T) {
 		{"live + stash --include-untracked warns", live, "git stash push --include-untracked -m x", true, "untracked"},
 		{"live + stash pop warns on clobber risk", live, "git stash pop", true, "never pop"},
 		{"live + plain stash push is silent (tracked-only)", live, "git stash push -m wip", false, ""},
-		{"no marker is silent on add -A", nil, "git add -A", false, ""},
+		{"no marker is silent on add -A", dead, "git add -A", false, ""},
 		{"flag in a LATER command never leaks into the git verb", live, "git add file.md && rm -A", false, ""},
 
 		// DEFECT 1 — global git options hid the verb from the guard. `git -C repo
@@ -112,7 +113,7 @@ func TestDecide(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			got := decide(c.m, c.cmd)
 			if (got != "") != c.wantHit {
-				t.Fatalf("decide(%v, %q) = %q; wantHit=%v", c.m != nil, c.cmd, got, c.wantHit)
+				t.Fatalf("decide(live=%v, %q) = %q; wantHit=%v", c.m.Live(), c.cmd, got, c.wantHit)
 			}
 			if c.wantHit {
 				if !strings.Contains(got, "research/x") || !strings.Contains(got, c.wantSub) {
