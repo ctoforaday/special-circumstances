@@ -43,6 +43,18 @@ jobs:
       # Only TMP/TEMP move; GOCACHE stays at its default so setup-go's pull-request cache
       # keeps saving and restoring the path it expects. Compile cost is the cache's job,
       # test I/O is the dev drive's, and the two stay independently measurable.
+      # THE LINUX MIRROR OF THE DEV DRIVE, and it is two lines because tmpfs already
+      # exists. Same mechanism, same posture: synchronous stays FULL (operator ruling),
+      # and the fsyncs every test database pays land in RAM instead of on disk. Measured
+      # on a GCP dev box before adding: recordsql -84%, record -64%, cli -43%. It does
+      # not move the PR gate today — Windows is the slowest check — but it is nearly
+      # free, cuts real compute, and is already the right call the day Linux becomes the
+      # critical path.
+      - name: tmpfs for TEMP
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p /dev/shm/tmp
+          echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
       - name: dev drive for TEMP
         if: runner.os == 'Windows'
         shell: pwsh
@@ -164,6 +176,18 @@ jobs:
       # Only TMP/TEMP move; GOCACHE stays at its default so setup-go's pull-request cache
       # keeps saving and restoring the path it expects. Compile cost is the cache's job,
       # test I/O is the dev drive's, and the two stay independently measurable.
+      # THE LINUX MIRROR OF THE DEV DRIVE, and it is two lines because tmpfs already
+      # exists. Same mechanism, same posture: synchronous stays FULL (operator ruling),
+      # and the fsyncs every test database pays land in RAM instead of on disk. Measured
+      # on a GCP dev box before adding: recordsql -84%, record -64%, cli -43%. It does
+      # not move the PR gate today — Windows is the slowest check — but it is nearly
+      # free, cuts real compute, and is already the right call the day Linux becomes the
+      # critical path.
+      - name: tmpfs for TEMP
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p /dev/shm/tmp
+          echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
       - name: dev drive for TEMP
         if: runner.os == 'Windows'
         shell: pwsh
@@ -295,6 +319,18 @@ jobs:
       # Only TMP/TEMP move; GOCACHE stays at its default so setup-go's pull-request cache
       # keeps saving and restoring the path it expects. Compile cost is the cache's job,
       # test I/O is the dev drive's, and the two stay independently measurable.
+      # THE LINUX MIRROR OF THE DEV DRIVE, and it is two lines because tmpfs already
+      # exists. Same mechanism, same posture: synchronous stays FULL (operator ruling),
+      # and the fsyncs every test database pays land in RAM instead of on disk. Measured
+      # on a GCP dev box before adding: recordsql -84%, record -64%, cli -43%. It does
+      # not move the PR gate today — Windows is the slowest check — but it is nearly
+      # free, cuts real compute, and is already the right call the day Linux becomes the
+      # critical path.
+      - name: tmpfs for TEMP
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p /dev/shm/tmp
+          echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
       - name: dev drive for TEMP
         if: runner.os == 'Windows'
         shell: pwsh
