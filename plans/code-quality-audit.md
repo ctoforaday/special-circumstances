@@ -48,6 +48,11 @@ gain a single place where "what is this binary called" is answered.
 **Cost, stated honestly:** it puts a layer between `main()` and the logic, and this suite's hooks are
 deliberately shallow. The justification is not line count — it is that the name stops being repeated.
 
+**DONE — `65a4679`.** `internal/hookmain`, 100% covered. The name is supplied once and **as a
+function**, because `checkpointseal` cannot know its name until it has parsed `-event`; an API
+serving only the easy nine would have left the tenth writing the code that broke. All eleven
+migrated.
+
 ---
 
 ## 2. State-file IO is implemented twice, and the two have ALREADY diverged
@@ -113,6 +118,13 @@ third time (`if [ -x "$B" ] || [ -x "$B.exe" ]`). Three statements of one platfo
 **Recommend:** export the `doctor` one, or move it beside `buildid`. Low value, low risk, do it while
 touching the area for §1.
 
+**DONE — `57750e8`.** `buildid.ExeName`. There was a **fourth** statement the census missed: an
+inline `if runtime.GOOS == "windows"` in `buildid`'s own test. `AssetName` deliberately does not
+call it — that is a CROSS-compile name whose extension must follow the argument `goos`, never the
+host — and a fifth site was hand-assembling `<name>_<os>_<arch><ext>` in the message telling a
+human which file to place, duplicating the function whose own comment calls it "THE CONTRACT …
+in one function". That one now calls it.
+
 ---
 
 ## 5. Error wrapping is inconsistent
@@ -127,7 +139,24 @@ mostly discard errors, this matters less than it would elsewhere — but where a
 is usually to a caller deciding whether to continue, and `errors.Is` cannot see through a flattened
 one. `freshness.readState`'s `errors.Is(err, os.ErrNotExist)` is exactly the pattern that breaks.
 
-**Recommend:** `%w` at every site that returns rather than logs. Mechanical, low risk.
+**CORRECTION — the number above is wrong, and the way it is wrong is the point.** `7` is a grep
+count of `fmt.Errorf` lines lacking `%w`. Re-reading each: **five have no cause in scope at all.**
+They are original errors (`gh not on PATH`, `checksum mismatch for %s`, the two lock refusals,
+`cannot pin a release tag`) and flatten nothing. A census that counts a SHAPE and reports it as a
+DEFECT overstates by however many instances are innocent — and nobody re-derives a number once it
+is written down.
+
+Two were real, and are fixed in `57750e8`:
+- `fetchRelease` discarded `gh`'s exit status, keeping only its output text — so a caller could
+  not distinguish "gh refused" from "gh was killed".
+- `readRearm`'s "present but unparsable" covers TWO failures and only one carries a cause: invalid
+  JSON, and valid JSON that is not this record. Wrapping unconditionally would have rendered the
+  second as `%!w(<nil>)` — a decoding error reported where there was none. The second case now has
+  its own sentence.
+
+**Recommend:** `%w` where a cause EXISTS and the error is returned rather than logged. Not
+mechanical: at one of the two real sites the cause is sometimes nil, and the naive sweep would
+have printed a lie.
 
 ---
 
@@ -146,6 +175,27 @@ means the binary answers `--version` differently from its ten siblings. I wrote 
 reason, it is a preference expressed as one.
 
 **Recommend:** conform, as part of §1.
+
+**DONE — `65a4679`, and it was hiding a live defect.** Conforming the flag parsing surfaced a
+second deviation in the same function: `Main` passed `os.Getwd()` where its ten siblings pass
+`CLAUDE_PROJECT_DIR`. `hookenv.ProjectDir` prefers its first argument and a working directory is
+never empty, so the payload-`cwd` fallback beneath it was **unreachable**, and the refusal
+`hookenv.Explain` exists to perform — *"doing nothing rather than guessing from the working
+directory"*, in a message this package itself prints — could not fire.
+
+Not latent. Driven from any directory that is not the project root, `sc-stop` read a
+`CHECKPOINT.md` belonging to somebody else and wrote a `freshness.json` **baseline** beside it —
+stamping a Phase 1 reading against the wrong note, into the corpus whose only purpose is to set
+thresholds. Observed directly: the bait tree gained `.claude/checkpoints/freshness.json`.
+
+The guard is `internal/hookinvocation/projectroot_test.go`: every binary that calls `Explain`, run
+as a **process**, against a working directory baited to look exactly like a project root. It
+asserts a filesystem observation rather than searching stderr for the refusal's wording — a
+substring that stops matching after a reword reads exactly like a pass ([[facts-are-fields]]
+clause 3). Confirmed RED against the reverted `Main`, green after.
+
+**This is the audit's own lesson.** §6 was ranked last, described as style, and flagged only
+because it was mine. The defect was in the same six lines.
 
 ---
 
@@ -178,6 +228,8 @@ disagreeing about anything except how carefully they were written.
 ---
 
 ## Order of work
+
+**Status: §1, §2, §4, §5 and §6 are done (`7a76cf0`, `65a4679`, `57750e8`). §3 remains.**
 
 1. **§2 `statefile`** — the only class that has already cost correctness, and it fixes `stopnudge`'s
    missing retry as a side effect rather than as a separate patch.
