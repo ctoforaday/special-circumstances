@@ -55,6 +55,17 @@ jobs:
           New-Item -ItemType Directory -Path "V:\tmp" | Out-Null
           "TMP=V:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
           "TEMP=V:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # THE BUILD CACHES MOVE TOO — build artifacts are the workload a dev drive is
+          # FOR, and the first version of this step left them on C: on a claim that moving
+          # GOCACHE would break setup-go's cache restore. That claim was wrong: setup-go
+          # resolves its paths dynamically through `go env` when its step runs, and this
+          # step runs first, so exporting the paths here makes the cache restore land ON
+          # the dev drive. The one thing deliberately left on C: is the workspace itself —
+          # checkout is pinned to GITHUB_WORKSPACE and sources are read-mostly, so moving
+          # them costs a copy step and a re-pointed working-directory for a benefit RAM
+          # mostly provides; that is a later rung if compile stays slow, taken on numbers.
+          "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -81,7 +92,15 @@ jobs:
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
           # enough to be the right trade against four hand-kept per-job paths.
-          cache-dependency-path: "**/go.sum"
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          cache-dependency-path: |
+            **/go.sum
+            .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -152,6 +171,17 @@ jobs:
           New-Item -ItemType Directory -Path "V:\tmp" | Out-Null
           "TMP=V:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
           "TEMP=V:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # THE BUILD CACHES MOVE TOO — build artifacts are the workload a dev drive is
+          # FOR, and the first version of this step left them on C: on a claim that moving
+          # GOCACHE would break setup-go's cache restore. That claim was wrong: setup-go
+          # resolves its paths dynamically through `go env` when its step runs, and this
+          # step runs first, so exporting the paths here makes the cache restore land ON
+          # the dev drive. The one thing deliberately left on C: is the workspace itself —
+          # checkout is pinned to GITHUB_WORKSPACE and sources are read-mostly, so moving
+          # them costs a copy step and a re-pointed working-directory for a benefit RAM
+          # mostly provides; that is a later rung if compile stays slow, taken on numbers.
+          "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -178,7 +208,15 @@ jobs:
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
           # enough to be the right trade against four hand-kept per-job paths.
-          cache-dependency-path: "**/go.sum"
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          cache-dependency-path: |
+            **/go.sum
+            .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -263,6 +301,17 @@ jobs:
           New-Item -ItemType Directory -Path "V:\tmp" | Out-Null
           "TMP=V:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
           "TEMP=V:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          # THE BUILD CACHES MOVE TOO — build artifacts are the workload a dev drive is
+          # FOR, and the first version of this step left them on C: on a claim that moving
+          # GOCACHE would break setup-go's cache restore. That claim was wrong: setup-go
+          # resolves its paths dynamically through `go env` when its step runs, and this
+          # step runs first, so exporting the paths here makes the cache restore land ON
+          # the dev drive. The one thing deliberately left on C: is the workspace itself —
+          # checkout is pinned to GITHUB_WORKSPACE and sources are read-mostly, so moving
+          # them costs a copy step and a re-pointed working-directory for a benefit RAM
+          # mostly provides; that is a later rung if compile stays slow, taken on numbers.
+          "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -289,7 +338,15 @@ jobs:
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
           # enough to be the right trade against four hand-kept per-job paths.
-          cache-dependency-path: "**/go.sum"
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          cache-dependency-path: |
+            **/go.sum
+            .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -337,7 +394,15 @@ jobs:
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
           cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
-          cache-dependency-path: "**/go.sum"
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          cache-dependency-path: |
+            **/go.sum
+            .github/workflows/hooks.yml
           go-version: "1.25"
       - uses: actions/setup-node@v7
         with:
@@ -413,7 +478,15 @@ jobs:
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
           cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
-          cache-dependency-path: "**/go.sum"
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          cache-dependency-path: |
+            **/go.sum
+            .github/workflows/hooks.yml
           go-version: "1.25"
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
@@ -512,7 +585,15 @@ jobs:
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
           # enough to be the right trade against four hand-kept per-job paths.
-          cache-dependency-path: "**/go.sum"
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          cache-dependency-path: |
+            **/go.sum
+            .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
@@ -548,7 +629,15 @@ jobs:
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
           cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
-          cache-dependency-path: "**/go.sum"
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          cache-dependency-path: |
+            **/go.sum
+            .github/workflows/hooks.yml
           go-version: "1.25"
       - uses: actions/setup-node@v7
         with:
@@ -692,7 +781,15 @@ jobs:
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
           # enough to be the right trade against four hand-kept per-job paths.
-          cache-dependency-path: "**/go.sum"
+          # The workflow file is IN the key on purpose: the key is otherwise go.sum-only,
+          # and a cache saved once under a key that never changes is frozen — measured, a
+          # 27 MB snapshot (go-build nearly empty at save time) that every later run
+          # restored and, on a primary-key hit, never replaced. A workflow change now
+          # mints a fresh key, so a bad save costs one cold build instead of persisting
+          # until the next dependency bump.
+          cache-dependency-path: |
+            **/go.sum
+            .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
           # pin was a fiction: GOTOOLCHAIN defaulted to `auto`, so a 1.24 runner silently
