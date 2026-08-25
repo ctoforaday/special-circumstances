@@ -15,7 +15,7 @@ One file, **overwritten in place** — `CHECKPOINT.md` in the active `projects/<
 ---
 schema: 3
 written_at: <UTC ISO>     # `date -u +%Y-%m-%dT%H:%M:%SZ`, READ BEFORE WRITING — the age is measured from here
-reaffirmed_at: <UTC ISO|null>  # when it was last judged still accurate WITHOUT changing
+reaffirmed_at: <UTC ISO|null>  # SAME clock read — when it was judged accurate WITHOUT changing
 head: <short sha|null>    # the branch head this was written against — makes staleness checkable
 session_id: <id>          # NOT unique — every subagent shares the parent's
 agent_id: <id|null>       # the seat's own id, when running as a subagent
@@ -47,6 +47,12 @@ status: <in-progress|blocked|validating|done>
   invitation to invent. Measured on a real session: four consecutive notes claimed `06:45` three
   times and then `07:55`, against seal times of `07:02`–`07:27` — one of them seven minutes in the
   FUTURE. The age this design is built on was being fed round numbers.
+  **`reaffirmed_at` is the same duty and takes the same reading** — it is the sibling this fix
+  nearly missed, and a re-affirmation stamped from a guess is a note claiming to have been
+  re-checked at a time nobody checked it.
+  A future-dated `written_at` is IMPOSSIBLE and the sealer now says so at the next seam, on the
+  channel measured to reach an agent — so an invented timestamp fails loudly instead of silently
+  becoming the age everything is measured from.
   YOU MUST also record `head:`. **A re-affirmation is
   different from a write and MUST touch only `reaffirmed_at`** — not `written_at`, not `head`.
   Confirming a note is still accurate is not doing the work again, and moving the content fields

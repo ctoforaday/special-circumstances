@@ -1,10 +1,13 @@
 package checkpointseal
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/statefile"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/stopnudge"
@@ -104,5 +107,44 @@ func TestAZeroEmissionCountIsWrittenRatherThanOmitted(t *testing.T) {
 	}
 	if v != float64(0) {
 		t.Errorf("emissions_this_session = %v, want 0", v)
+	}
+}
+
+// A NOTE CANNOT BE WRITTEN AFTER THE SEAM THAT SEALS IT. This is the mechanism behind the
+// clause that tells an agent to READ a clock rather than type one: naming the command is
+// policy, and a policy nothing can break is how the same defect ships again as an instance.
+//
+// The real session that prompted it produced four notes running whose stamps were round
+// numbers, one of them seven minutes ahead of the seal recording it.
+func TestANoteWrittenAfterTheSealIsCalledImpossible(t *testing.T) {
+	now := time.Date(2026, 8, 25, 8, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		name, writtenAt string
+		wantComplaint   bool
+	}{
+		{"seven minutes in the future", "2026-08-25T08:07:00Z", true},
+		{"an hour in the future", "2026-08-25T09:00:00Z", true},
+		{"written moments before the seal", "2026-08-25T07:59:30Z", false},
+		{"written long before", "2026-08-24T00:00:00Z", false},
+		// Inside the grace: a note composed across the seam is not a false claim.
+		{"thirty seconds ahead", "2026-08-25T08:00:30Z", false},
+		// Neither of these is THIS check's fault to report.
+		{"absent is a schema-2 note", "", false},
+		{"unparsable is a different fault", "not-a-time", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var e bytes.Buffer
+			reportImpossibleWrittenAt(tc.writtenAt, now, "sc-precompact", &e)
+			got := e.Len() > 0
+			if got != tc.wantComplaint {
+				t.Errorf("complained=%v want %v; stderr=%q", got, tc.wantComplaint, e.String())
+			}
+			if got && !strings.Contains(e.String(), "sc-precompact") {
+				t.Errorf("the complaint does not name the binary that made it: %q", e.String())
+			}
+			if got && !strings.Contains(e.String(), "date -u") {
+				t.Errorf("the complaint does not say how to fix it: %q", e.String())
+			}
+		})
 	}
 }

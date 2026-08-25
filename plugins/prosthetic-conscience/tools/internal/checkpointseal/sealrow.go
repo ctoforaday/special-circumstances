@@ -188,6 +188,7 @@ func appendSealRow(dir, projectDir string, body []byte, now time.Time, event, oc
 		row.LiveHandles = &n
 	}
 	readNudgeState(projectDir, &row)
+	reportImpossibleWrittenAt(writtenAt, now, binaryFor(event), stderr)
 	if age.TurnsMeasured {
 		t := age.Turns
 		row.NoteAgeTurns = &t
@@ -235,5 +236,40 @@ func readNudgeState(projectDir string, row *sealRow) {
 	default:
 		// Unreadable: leave NudgeMeasured false and both counters omitted. Nothing here
 		// is written as a zero.
+	}
+}
+
+// futureGrace is how far ahead of the sealer's clock a note may claim to have been written
+// before that claim is called impossible. The agent and the hook read the SAME machine clock,
+// so any gap is authorship rather than skew; a minute absorbs a note composed across a seal
+// without absorbing the failure this looks for.
+const futureGrace = time.Minute
+
+// reportImpossibleWrittenAt complains when a note claims to have been written AFTER the seam
+// that is sealing it.
+//
+// Naming the command that produces `written_at` is policy; this is the mechanism, and the
+// rule-sweep gate is right that the first without the second is how a fix stays an instance.
+// Nothing could previously distinguish a clock reading from a typed guess, and a real session
+// produced four notes running whose stamps were round numbers — one of them seven minutes in the
+// FUTURE. That value silently becomes the age every measurement is taken from.
+//
+// It goes to stderr because that channel is MEASURED to reach the agent: it arrives inside the
+// tool result of whatever call was running when the hook fired (spike §2a's attachment settles
+// the injected channel; this one was confirmed directly from a live transcript).
+func reportImpossibleWrittenAt(writtenAt string, now time.Time, bin string, stderr io.Writer) {
+	if writtenAt == "" {
+		return // absent is a schema-2 note, not a false claim
+	}
+	t, err := time.Parse(time.RFC3339, writtenAt)
+	if err != nil {
+		return // unparsable is a different fault and not this function's to report
+	}
+	if t.After(now.Add(futureGrace)) {
+		fmt.Fprintf(stderr, "%s: this note says written_at %s, which is AFTER the seam sealing it "+
+			"at %s — a note cannot be written in the future, so that stamp was typed rather than "+
+			"read. The age every measurement is taken from is this field: set it with "+
+			"`date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ` before you start composing.\n",
+			bin, writtenAt, now.UTC().Format(time.RFC3339))
 	}
 }
