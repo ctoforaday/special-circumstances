@@ -107,6 +107,24 @@ type sealRow struct {
 	// empty string, because a blank would be indistinguishable from a field nothing
 	// wrote.
 	NudgeAnswered string `json:"nudge_answered"`
+
+	// Steered says whether this boundary's summarizer was actually instructed, and
+	// SteeredSections says which categories it was asked to preserve.
+	//
+	// WITHOUT THESE THE STEERING MEASUREMENT COULD NOT BE READ. compaction-observations.jsonl
+	// records per-section survival ratios, and those exist to answer "does steering work" —
+	// but `steer()` is conditional: it names only headings the note actually carries, and
+	// returns nothing when it finds none. A ratio from an UNSTEERED boundary and one from a
+	// steered boundary were the same shape of number, so the design's own evidence for its
+	// only influence over a summary was unattributable.
+	//
+	// READ THEM ONLY ON `seal_trigger == "precompact"`. Steering is PreCompact-only by
+	// design — on SubagentStop stdout reaches a seat still working, and SessionEnd has no
+	// summarizer left to address — so `steered: false` on the other two triggers means NOT
+	// APPLICABLE, not "declined to steer". `seal_trigger` already carries that distinction,
+	// which is why no third field restates it.
+	Steered         bool     `json:"steered"`
+	SteeredSections []string `json:"steered_sections,omitempty"`
 }
 
 // sealTriggers maps the sealing event to the name the baseline groups by. The
@@ -166,7 +184,7 @@ func countHandles(tasks, crons *json.RawMessage) (n int, measured bool) {
 // hook path costs a session its restore over a lost observation. (The nudge is the
 // opposite — it fails CLOSED — because a lost row costs one measurement while an
 // unrecorded emission costs a loop.)
-func appendSealRow(dir, projectDir string, body []byte, now time.Time, event, occ string, in hookInput, stderr io.Writer, age Measures, writtenAt string) {
+func appendSealRow(dir, projectDir string, body []byte, now time.Time, event, occ string, in hookInput, stderr io.Writer, age Measures, steered bool, steeredSections []string, writtenAt string) {
 	sum := sha256.Sum256(body)
 	n, measured := countHandles(in.BackgroundTasks, in.SessionCrons)
 	row := sealRow{
@@ -180,6 +198,8 @@ func appendSealRow(dir, projectDir string, body []byte, now time.Time, event, oc
 		HandlesMeasured: measured,
 		WrittenAt:       writtenAt,
 		NudgeAnswered:   "n/a",
+		Steered:         steered,
+		SteeredSections: steeredSections,
 		TurnsMeasured:   age.TurnsMeasured,
 		GrowthMeasured:  age.GrowthKnown,
 		BranchMeasured:  age.BranchKnown,

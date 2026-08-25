@@ -58,7 +58,7 @@ func TestSteerOnlyAsksForSectionsTheNoteCarries(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := steer(tc.note, tc.user)
+			got, _ := steer(tc.note, tc.user)
 			if tc.wantEmpty {
 				if got != "" {
 					t.Fatalf("expected silence, got %q", got)
@@ -83,7 +83,7 @@ func TestSteerOnlyAsksForSectionsTheNoteCarries(t *testing.T) {
 // reinforcement into an injection.
 func TestSteerNeverEchoesNoteBody(t *testing.T) {
 	note := "## Validation loop\n1. SECRET-COMMAND --do-the-thing\n## Open threads\n- LEAKY-DETAIL\n"
-	got := steer(note, "")
+	got, _ := steer(note, "")
 	for _, leak := range []string{"SECRET-COMMAND", "LEAKY-DETAIL"} {
 		if strings.Contains(got, leak) {
 			t.Fatalf("instruction echoed note body (%q): %q", leak, got)
