@@ -103,7 +103,7 @@ func TestRunVerdicts(t *testing.T) {
 // A built binary flips the verdict — the fact --fix exists to establish.
 func TestRunReadyOnceTheBinaryIsBuilt(t *testing.T) {
 	root := doctorRoot(t, manifestJSON("optional"), "sc-doctor")
-	if err := os.WriteFile(filepath.Join(root, "bin", "sc-doctor"+exeSuffix()), []byte("x"), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "bin", buildid.ExeName("sc-doctor")), []byte("x"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	out, _ := doctor(t, root)
@@ -186,7 +186,7 @@ func TestFixIsWiredAndReProbes(t *testing.T) {
 				continue
 			}
 			_ = os.MkdirAll(filepath.Join(b.Root, "bin"), 0o755)
-			_ = os.WriteFile(filepath.Join(b.Root, "bin", b.Name+exeSuffix()), []byte("x"), 0o755)
+			_ = os.WriteFile(filepath.Join(b.Root, "bin", buildid.ExeName(b.Name)), []byte("x"), 0o755)
 		}
 		fixed = append(fixed, bins...)
 		return []string{"provisioned"}
@@ -215,7 +215,7 @@ func TestPlainRunNeverProvisions(t *testing.T) {
 	if len(fixed) != 0 {
 		t.Fatal("a plain run called the provisioner")
 	}
-	if _, err := os.Stat(filepath.Join(root, "bin", "sc-doctor"+exeSuffix())); !os.IsNotExist(err) {
+	if _, err := os.Stat(filepath.Join(root, "bin", buildid.ExeName("sc-doctor"))); !os.IsNotExist(err) {
 		t.Fatal("a plain run installed a binary")
 	}
 }

@@ -1,0 +1,22 @@
+package buildid
+
+import "runtime"
+
+// ExeName is the filename `go build -o` writes for a binary called name, on this platform.
+//
+// One platform fact, stated in four places before this existed: sc-doctor's own copy, the
+// harness test's copy, an inline `if runtime.GOOS == "windows"` in this package's test, and
+// the SHIPPED hook command — `if [ -x "$B" ] || [ -x "$B.exe" ]`, which cannot import Go and
+// so remains the fourth statement by necessity.
+//
+// It lives in buildid because every use is the same question this package already answers —
+// what is this binary called on disk — and because getting it wrong does not fail like a
+// naming mistake: `go build -o probe` writes exactly `probe` on Windows, and exec then reports
+// "executable file not found in %PATH%", which reads like a missing toolchain. That was found
+// by the Windows CI leg, not by anyone reading the code.
+func ExeName(name string) string {
+	if runtime.GOOS == "windows" {
+		return name + ".exe"
+	}
+	return name
+}

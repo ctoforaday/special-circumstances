@@ -18,10 +18,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 )
 
 // binRef pulls the binary name out of the shipped command string. The commands are
@@ -125,18 +126,6 @@ func TestEveryCommandDegradesWhenTheBinaryIsMissing(t *testing.T) {
 	}
 }
 
-// exeSuffix is what Windows requires to execute a file at all.
-//
-// The SHIPPED hook command already knows this — `if [ -x "$B" ] || [ -x "$B.exe" ]` — and
-// this test did not, so it built extensionless binaries and then could not start them.
-// The plugin's own command string was the documentation for the platform difference.
-func exeSuffix() string {
-	if runtime.GOOS == "windows" {
-		return ".exe"
-	}
-	return ""
-}
-
 // build compiles every registered binary once, into one directory laid out the way the
 // plugin ships: <root>/bin/<name>.
 func build(t *testing.T) string {
@@ -152,7 +141,7 @@ func build(t *testing.T) string {
 			continue
 		}
 		seen[name] = true
-		cmd := exec.Command("go", "build", "-o", filepath.Join(bin, name+exeSuffix()), "./cmd/"+name)
+		cmd := exec.Command("go", "build", "-o", filepath.Join(bin, buildid.ExeName(name)), "./cmd/"+name)
 		cmd.Dir = filepath.Join("..", "..") // the tools module root
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("building %s: %v\n%s", name, err, out)
@@ -211,7 +200,7 @@ func TestTheShippedBinariesHonourTheIOContract(t *testing.T) {
 	for event, name := range registered(t) {
 		for label, payload := range payloads {
 			t.Run(event+"/"+label, func(t *testing.T) {
-				cmd := exec.Command(filepath.Join(root, "bin", name+exeSuffix()))
+				cmd := exec.Command(filepath.Join(root, "bin", buildid.ExeName(name)))
 				cmd.Env = append(os.Environ(),
 					"CLAUDE_PLUGIN_ROOT="+root,
 					"CLAUDE_PROJECT_DIR="+project,

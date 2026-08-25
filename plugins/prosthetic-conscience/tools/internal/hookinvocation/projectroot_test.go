@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 )
 
 // declines lists the binaries whose packages call hookenv.Explain — the ones that have
@@ -56,7 +58,7 @@ func TestNoHookGuessesAProjectRootFromItsWorkingDirectory(t *testing.T) {
 			}
 			before := treeOf(t, bait)
 
-			bin := filepath.Join(root, "bin", name+exeSuffix())
+			bin := filepath.Join(root, "bin", buildid.ExeName(name))
 			cmd := exec.Command(bin)
 			cmd.Dir = bait
 			cmd.Env = withoutProjectRoot(os.Environ())

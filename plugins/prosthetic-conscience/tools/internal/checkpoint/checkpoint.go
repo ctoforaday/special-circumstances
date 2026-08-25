@@ -625,7 +625,13 @@ func LoadRearm(read func(string) ([]byte, error), path string) (RearmState, erro
 	}
 	var parsed RearmState
 	if err := json.Unmarshal(b, &parsed); err != nil || parsed.Rearmed == nil {
-		return s, fmt.Errorf("re-arm state at %s is present but unparsable — refusing to overwrite it; delete it deliberately if that is what you want", path)
+		// Two different failures share this message, and only ONE has a cause: invalid
+		// JSON, and valid JSON that is not this record. Wrapping unconditionally would
+		// render the second as "%!w(<nil>)" — a decoding error where there was none.
+		if err != nil {
+			return s, fmt.Errorf("re-arm state at %s is present but unparsable: %w — refusing to overwrite it; delete it deliberately if that is what you want", path, err)
+		}
+		return s, fmt.Errorf("re-arm state at %s decoded but carries no re-arm record — refusing to overwrite it; delete it deliberately if that is what you want", path)
 	}
 	s.LastEvent = parsed.LastEvent
 	for k, r := range parsed.Rearmed {
