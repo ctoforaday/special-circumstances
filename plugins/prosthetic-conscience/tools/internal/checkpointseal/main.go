@@ -214,15 +214,16 @@ func headings(note string) []string { return checkpoint.Headings(note) }
 // userInstructions (from a manual /compact) are carried through, because this
 // hook's stdout becomes the custom instructions and would otherwise silently
 // replace what the human typed.
-func steer(note, userInstructions string) string {
+func steer(note, userInstructions string) (string, []string) {
 	present := map[string]bool{}
 	for _, h := range headings(note) {
 		present[h] = true
 	}
-	var want []string
+	var want, named []string
 	for _, sp := range sectionPhrase {
 		if present[sp.heading] {
 			want = append(want, sp.phrase)
+			named = append(named, sp.heading)
 		}
 	}
 
@@ -238,7 +239,7 @@ func steer(note, userInstructions string) string {
 		b.WriteString(strings.Join(want, "; "))
 		b.WriteString(". These are forward-looking operational state, which a summary drops first.")
 	}
-	return b.String()
+	return b.String(), named
 }
 
 // snapshotName is the immutable seal filename. agentID disambiguates concurrent
@@ -409,7 +410,7 @@ func notePath(projectDir string, exists func(string) bool) string {
 // seal copies the note to an immutable snapshot and prunes. Best-effort by
 // design: a seal that cannot be written must never cost the compaction, so
 // errors are reported to stderr and never change the exit code.
-func seal(projectDir, note string, now time.Time, event string, in hookInput, stderr io.Writer) {
+func seal(projectDir, note string, now time.Time, event string, in hookInput, stderr io.Writer, steered bool, steeredSections []string) {
 	dir := filepath.Join(projectDir, ".claude", "checkpoints")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		fmt.Fprintln(stderr, binaryFor(event)+": cannot create snapshot dir:", err)
@@ -438,7 +439,7 @@ func seal(projectDir, note string, now time.Time, event string, in hookInput, st
 	// the snapshot would make every seal differ and the drift check meaningless.
 	age := freshness.Of(projectDir, in.TranscriptPath, string(body),
 		freshness.BranchWork(checkpoint.Parse(string(body)).Get("head")), now)
-	appendSealRow(dir, projectDir, body, now, event, occ, in, stderr, age, checkpoint.Parse(string(body)).Get("written_at"))
+	appendSealRow(dir, projectDir, body, now, event, occ, in, stderr, age, steered, steeredSections, checkpoint.Parse(string(body)).Get("written_at"))
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -514,11 +515,24 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 	})
 
 	var body string
+	// Declared out here because the instruction is COMPOSED before the seal (so the row can
+	// record it) and EMITTED after the drift checks.
+	var steerText string
 	if note != "" {
 		if b, err := os.ReadFile(note); err == nil {
 			body = string(b)
 		}
-		seal(projectDir, note, now, event, in, stderr)
+		// Decided BEFORE the seal, because the ROW must record whether this boundary was
+		// steered. Written after, it could not: nothing distinguished a compaction the
+		// summarizer was instructed about from one where steer() found no heading to name,
+		// and the survival ratios in compaction-observations.jsonl were therefore
+		// unattributable — a measurement of steering that could not say whether steering
+		// happened.
+		var steerNamed []string
+		if event == evPreCompact {
+			steerText, steerNamed = steer(body, in.CustomInstructions)
+		}
+		seal(projectDir, note, now, event, in, stderr, steerText != "", steerNamed)
 
 		// A malformed loop is reported HERE, at the seam, by the session that wrote it
 		// (#219). It was previously reported only by sc-checkpoint-restore, which means
@@ -563,9 +577,11 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 		return 0
 	}
 	// Absent a note there is nothing established to preserve; stay silent rather
-	// than manufacture an instruction (see the package comment).
-	if s := steer(body, in.CustomInstructions); s != "" {
-		fmt.Fprintln(stdout, s)
+	// than manufacture an instruction (see the package comment). The text was composed
+	// before the seal so the row could record it; emitting a second, separately computed
+	// copy would let the record and the instruction disagree.
+	if steerText != "" {
+		fmt.Fprintln(stdout, steerText)
 	}
 	return 0
 }

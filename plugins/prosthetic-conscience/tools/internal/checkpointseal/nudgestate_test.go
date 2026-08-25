@@ -148,3 +148,43 @@ func TestANoteWrittenAfterTheSealIsCalledImpossible(t *testing.T) {
 		})
 	}
 }
+
+// steer() REPORTS WHAT IT NAMED, so the seal row can carry it. Without this the design's
+// only evidence about its only influence over a summary — the per-section survival ratios
+// in compaction-observations.jsonl — could not be attributed to a steered boundary or an
+// unsteered one, because steer() is conditional and nothing recorded which had happened.
+func TestSteerReportsTheSectionsItNamed(t *testing.T) {
+	note := "---\nschema: 3\n---\n## Validation loop\n1. x\n\n## Open threads\n- y\n"
+	text, named := steer(note, "")
+	if text == "" {
+		t.Fatal("no instruction for a note carrying two mapped headings")
+	}
+	if len(named) != 2 || named[0] != "Validation loop" || named[1] != "Open threads" {
+		t.Errorf("named = %v, want the two headings the note actually carries", named)
+	}
+	// What it names must be what it ASKS for: a row that disagrees with the instruction
+	// is worse than a row that says nothing.
+	for _, h := range named {
+		var phrase string
+		for _, sp := range sectionPhrase {
+			if sp.heading == h {
+				phrase = sp.phrase
+			}
+		}
+		if !strings.Contains(text, phrase) {
+			t.Errorf("row claims %q was named, but the instruction does not ask for it", h)
+		}
+	}
+}
+
+// A note with no mapped heading is SILENT, and the row must say so rather than imply an
+// instruction that was never sent.
+func TestANoteWithNothingToPreserveIsNotRecordedAsSteered(t *testing.T) {
+	text, named := steer("---\nschema: 3\n---\n## Something Else\n- z\n", "")
+	if text != "" {
+		t.Errorf("manufactured an instruction from a note with no mapped heading: %q", text)
+	}
+	if len(named) != 0 {
+		t.Errorf("named %v from a note with no mapped heading", named)
+	}
+}
