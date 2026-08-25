@@ -203,6 +203,16 @@ jobs:
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
         shell: bash
       - run: go test ./...
+        env:
+          # THE FUZZ WORKERS WAIT MORE ON WINDOWS, so the sweep runs more of them. The
+          # default is NumCPU*3 (see integration/fuzz: runs are subprocess-bound and the
+          # goroutines mostly wait), and the Windows waits are longer per invocation —
+          # CreateProcess and NTFS fsync both cost more — so the same multiplier leaves
+          # cores idler here. Each run owns its own database, so cross-run contention is
+          # zero and oversubscription is safe; the bound is the disk queue, which the dev
+          # drive step above just widened. Linux passes empty, keeping the in-code
+          # default: its waits are short enough that NumCPU*3 already saturates.
+          FUZZ_C: ${{ matrix.os == 'windows-latest' && '24' || '' }}
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
       - run: go test -race ./internal/record/
