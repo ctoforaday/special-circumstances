@@ -886,6 +886,18 @@ jq -s 'map(select(.nudge_enabled)) | {sessions: (group_by(.session_id) | length)
 `worst_count > 4` or `worst_bytes > 200` fails Phase 2. A criterion whose number appears only in §I is
 an intention; this is the query that makes it a check.
 
+**It was not a check until 2026-08-25.** `emissions_this_session` and `emission_bytes_max` are owned
+by `stopnudge` and live in `nudge.json`; this query reads `seals.jsonl`, and the seal row carried
+neither field. `map(.emissions_this_session) | max` over rows that never held the key is `null`, and
+`null > 4` is `false` in jq — so **the gate for the whole nudge budget passed by returning nothing**,
+in exactly the words it would use for a session that behaved perfectly. The sealer now reads
+`nudge.json` and copies both counters, and
+`internal/checkpointseal/queryfields_test.go` extracts every `.field` these blocks read and fails if
+the record cannot answer it. Adding a query to §V is therefore checked without anyone remembering to.
+
+Add `nudge_measured` to the denominator report: `nudge.json` UNREADABLE is not `nudge_enabled:
+false`, and filing it as such would put an unreadable state into criterion 6's control group.
+
 **It is a lower bound, and must be reported as one.** These rows exist only for sessions that
 **sealed** — and `SessionEnd` fired in 0 of 2 runs that ended with live background work (§III). A
 session that emitted five nudges and never sealed produces the same output as one that emitted three,

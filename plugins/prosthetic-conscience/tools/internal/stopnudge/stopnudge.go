@@ -204,7 +204,15 @@ func highestBand(m freshness.Measures, th Thresholds) (Band, bool) {
 	return "", false
 }
 
-func statePath(dir string) string { return filepath.Join(dir, ".claude", "checkpoints", "nudge.json") }
+// StatePath is exported because the SEALER reads this file. seals.jsonl must carry the
+// emission counters — the plan's criterion-4 gate queries them there — and this package
+// owns where they live. A second spelling of the path in checkpointseal would be the
+// filename standing in for the record all over again.
+func StatePath(dir string) string {
+	return filepath.Join(dir, ".claude", "checkpoints", "nudge.json")
+}
+
+func statePath(dir string) string { return StatePath(dir) }
 
 // load reads this session's state.
 //

@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/statefile"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/stopnudge"
 )
 
 // Measures is freshness.Measures, aliased so this file reads without qualifying every
@@ -80,6 +82,27 @@ type sealRow struct {
 	// "before" and report whatever it liked.
 	NudgeEnabled bool `json:"nudge_enabled"`
 
+	// NudgeMeasured is the tri-state this record keeps everywhere else, applied to the
+	// one column that did not have it. nudge.json ABSENT means the nudge is genuinely off;
+	// UNREADABLE means it may be on and this row cannot say. Folding the second into
+	// `nudge_enabled: false` would file an unreadable state under the "before" population
+	// that criterion 6 compares against — a manufactured control.
+	NudgeMeasured bool `json:"nudge_measured"`
+
+	// The emission counters criterion 4 is DECIDED by. They are owned by stopnudge and
+	// live in nudge.json; this row copies them because the gate queries seals.jsonl.
+	//
+	// They were missing entirely until the plan's own queries were checked against this
+	// struct. `map(.emissions_this_session) | max` over rows that never carried the key is
+	// null, `null > 4` is false in jq, and the budget gate for the whole nudge design
+	// therefore PASSED by returning nothing.
+	//
+	// POINTERS, so a row with no reading omits them rather than reporting a zero. A 0
+	// emission count is a real and interesting value — it is what a well-behaved session
+	// looks like — and it must not share a spelling with "not measured".
+	EmissionsThisSession *int `json:"emissions_this_session,omitempty"`
+	EmissionBytesMax     *int `json:"emission_bytes_max,omitempty"`
+
 	// NudgeAnswered is derived by the SEALER, never self-reported by an agent. In
 	// Phase 1 no nudge exists, so every row carries "n/a" — which is a value, not an
 	// empty string, because a blank would be indistinguishable from a field nothing
@@ -144,7 +167,7 @@ func countHandles(tasks, crons *json.RawMessage) (n int, measured bool) {
 // hook path costs a session its restore over a lost observation. (The nudge is the
 // opposite — it fails CLOSED — because a lost row costs one measurement while an
 // unrecorded emission costs a loop.)
-func appendSealRow(dir string, body []byte, now time.Time, event, occ string, in hookInput, stderr io.Writer, age Measures, writtenAt string) {
+func appendSealRow(dir, projectDir string, body []byte, now time.Time, event, occ string, in hookInput, stderr io.Writer, age Measures, writtenAt string) {
 	sum := sha256.Sum256(body)
 	n, measured := countHandles(in.BackgroundTasks, in.SessionCrons)
 	row := sealRow{
@@ -157,16 +180,15 @@ func appendSealRow(dir string, body []byte, now time.Time, event, occ string, in
 		BodySHA:         hex.EncodeToString(sum[:]),
 		HandlesMeasured: measured,
 		WrittenAt:       writtenAt,
-		// Phase 1 ships no nudge. This becomes a real reading when stopnudge exists.
-		NudgeEnabled:   false,
-		NudgeAnswered:  "n/a",
-		TurnsMeasured:  age.TurnsMeasured,
-		GrowthMeasured: age.GrowthKnown,
-		BranchMeasured: age.BranchKnown,
+		NudgeAnswered:   "n/a",
+		TurnsMeasured:   age.TurnsMeasured,
+		GrowthMeasured:  age.GrowthKnown,
+		BranchMeasured:  age.BranchKnown,
 	}
 	if measured {
 		row.LiveHandles = &n
 	}
+	readNudgeState(projectDir, &row)
 	if age.TurnsMeasured {
 		t := age.Turns
 		row.NoteAgeTurns = &t
@@ -196,5 +218,33 @@ func appendSealRow(dir string, body []byte, now time.Time, event, occ string, in
 	defer f.Close()
 	if _, err := f.Write(append(line, '\n')); err != nil {
 		fmt.Fprintln(stderr, "sc-checkpoint-seal: cannot append seal row:", err)
+	}
+}
+
+// readNudgeState copies the nudge's own counters onto the row.
+//
+// The sealer is the only writer of seals.jsonl and stopnudge is the only writer of
+// nudge.json, so this is a read across an ownership boundary and stays one: it takes the
+// path from stopnudge.StatePath rather than spelling it again, and it never writes.
+//
+// The tri-state is the whole point. Absent is an honest "the nudge is off"; Unreadable is
+// "this row cannot say", and the two must not arrive at the same column value.
+func readNudgeState(projectDir string, row *sealRow) {
+	// The PROJECT ROOT, passed in. It was briefly recovered from the snapshot directory by
+	// two filepath.Dir calls — a fact taken back out of a path, which is the shape this
+	// design spent three rounds removing from everywhere else.
+	st, status := statefile.Read[stopnudge.State](stopnudge.StatePath(projectDir))
+	switch status {
+	case statefile.Absent:
+		row.NudgeMeasured = true // the nudge is off, and that is a reading
+	case statefile.Present:
+		row.NudgeMeasured = true
+		row.NudgeEnabled = true
+		e, b := st.Emissions, st.EmissionBytes
+		row.EmissionsThisSession = &e
+		row.EmissionBytesMax = &b
+	default:
+		// Unreadable: leave NudgeMeasured false and both counters omitted. Nothing here
+		// is written as a zero.
 	}
 }
