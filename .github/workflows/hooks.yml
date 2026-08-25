@@ -98,8 +98,13 @@ jobs:
           # restored and, on a primary-key hit, never replaced. A workflow change now
           # mints a fresh key, so a bad save costs one cold build instead of persisting
           # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
-            **/go.sum
+            plugins/prosthetic-conscience/tools/go.sum
             .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
@@ -214,8 +219,13 @@ jobs:
           # restored and, on a primary-key hit, never replaced. A workflow change now
           # mints a fresh key, so a bad save costs one cold build instead of persisting
           # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
-            **/go.sum
+            plugins/frank-exchange-of-views/tools/go.sum
             .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
@@ -240,17 +250,13 @@ jobs:
       - run: go vet ./...
       - run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
         shell: bash
+      # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
+      # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
+      # sibling package binaries in parallel, so the "idle" cores the oversubscription
+      # was meant to fill were already running cli, recordsql and capture — which starved
+      # (cli 180s -> 411s). Net negative at machine level; the premise ignored
+      # inter-package parallelism.
       - run: go test ./...
-        env:
-          # THE FUZZ WORKERS WAIT MORE ON WINDOWS, so the sweep runs more of them. The
-          # default is NumCPU*3 (see integration/fuzz: runs are subprocess-bound and the
-          # goroutines mostly wait), and the Windows waits are longer per invocation —
-          # CreateProcess and NTFS fsync both cost more — so the same multiplier leaves
-          # cores idler here. Each run owns its own database, so cross-run contention is
-          # zero and oversubscription is safe; the bound is the disk queue, which the dev
-          # drive step above just widened. Linux passes empty, keeping the in-code
-          # default: its waits are short enough that NumCPU*3 already saturates.
-          FUZZ_C: ${{ matrix.os == 'windows-latest' && '24' || '' }}
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
       - run: go test -race ./internal/record/
@@ -344,8 +350,13 @@ jobs:
           # restored and, on a primary-key hit, never replaced. A workflow change now
           # mints a fresh key, so a bad save costs one cold build instead of persisting
           # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
-            **/go.sum
+            plugins/gray-area/tools/go.sum
             .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
@@ -400,8 +411,13 @@ jobs:
           # restored and, on a primary-key hit, never replaced. A workflow change now
           # mints a fresh key, so a bad save costs one cold build instead of persisting
           # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
-            **/go.sum
+            scripts/go.sum
             .github/workflows/hooks.yml
           go-version: "1.25"
       - uses: actions/setup-node@v7
@@ -484,8 +500,13 @@ jobs:
           # restored and, on a primary-key hit, never replaced. A workflow change now
           # mints a fresh key, so a bad save costs one cold build instead of persisting
           # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
-            **/go.sum
+            scripts/go.sum
             .github/workflows/hooks.yml
           go-version: "1.25"
       - run: go vet ./...
@@ -591,8 +612,15 @@ jobs:
           # restored and, on a primary-key hit, never replaced. A workflow change now
           # mints a fresh key, so a bad save costs one cold build instead of persisting
           # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
-            **/go.sum
+            scripts/go.sum
+            plugins/frank-exchange-of-views/tools/go.sum
+            plugins/prosthetic-conscience/tools/go.sum
             .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
@@ -635,8 +663,13 @@ jobs:
           # restored and, on a primary-key hit, never replaced. A workflow change now
           # mints a fresh key, so a bad save costs one cold build instead of persisting
           # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
-            **/go.sum
+            plugins/frank-exchange-of-views/tools/go.sum
             .github/workflows/hooks.yml
           go-version: "1.25"
       - uses: actions/setup-node@v7
@@ -787,8 +820,15 @@ jobs:
           # restored and, on a primary-key hit, never replaced. A workflow change now
           # mints a fresh key, so a bad save costs one cold build instead of persisting
           # until the next dependency bump.
+          # PER JOB, because a shared key is a RACE. All same-OS jobs hashed the same
+          # inputs, so they raced to save one key and the smallest job always won —
+          # that is the whole story of the frozen 27 MB cache: the pc-tools job
+          # finished first and its little build cache became everyone's. Each job now
+          # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
-            **/go.sum
+            plugins/prosthetic-conscience/tools/go.sum
+            plugins/frank-exchange-of-views/tools/go.sum
+            plugins/gray-area/tools/go.sum
             .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
