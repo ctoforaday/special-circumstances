@@ -36,21 +36,4 @@ var fixtureClasses = append([]string{
 	"unverified-arithmetic", "sibling-halo",
 	// Descriptive placeholders: a fixture names the thing it is about, which reads better in
 	// a failure than "x" and costs nothing — the point is that the vocabulary is DECLARED.
-}, shippedClasses...)
-
-// shippedClasses mirrors feov-memory/class-registry.json.
-var shippedClasses = []string{
-	"citation-figure-misattribution", "figure-recount-fails", "incomplete-repair-propagation",
-	"policy-without-mechanism", "derivation-status-overclaim", "cross-section-contradiction",
-	"enumeration-non-exhaustive", "unhandled-degenerate-case", "false-universal",
-	"unverified-composition", "self-attestation", "spec-underspecification",
-	"claim-contradicts-own-record", "reader-channel-mismatch", "exhaustive-sweep-omits-case",
-	"risk-coverage-omission", "live-source-drift", "within-source-condition-misattribution",
-	"partial-control-coverage", "figure-miscomposition", "recurrence-detector-keying",
-	"pricing-basis-drift", "metric-conflation", "citation-status-drift",
-	"undecided-disjunction", "causal-narrative-fails-reproduction", "name-keying-vs-marker",
-	"reflexivity-blindspot", "missing-root-invariant", "audited-artifact-sibling-halo",
-	"artifact-preservation", "config-semantics-error", "vote-laundering",
-	"verification-scope-blindspot", "doctrine-vs-implementation", "measurement-methodology-drift",
-	"cross-corpus-id-collision", "negative-definition",
-}
+}, recordtest.ShippedClasses...)
