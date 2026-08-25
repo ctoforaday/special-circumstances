@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 type rec struct {
@@ -340,5 +341,54 @@ func TestADirectoryWhereTheRecordBelongsIsUnreadable(t *testing.T) {
 	}
 	if _, st := Read[rec](p); st != Unreadable {
 		t.Errorf("a directory at the record's path reads as %v, want unreadable", st)
+	}
+}
+
+// A TRANSIENTLY MISSING NAME IS NOT AN ABSENT RECORD, and collapsing the two is the
+// failure this package exists to prevent — in the one direction that overwrites data.
+//
+// Windows can report ErrNotExist for an instant while a rename binds over a name. The
+// first version of Read trusted that instant and returned Absent, which tells the caller
+// "nothing has been stamped yet, go ahead and write" about a record that was there the
+// whole time. It went unseen for as long as CI ran on slow storage: the window is real on
+// any substrate, but a RAM disk samples it often enough to catch — 3 of 800 reads, on a
+// file that existed before and after.
+//
+// The test drives the same shape deterministically: read a name that does not exist yet
+// and appears mid-retry, and require Read to find it rather than call it absent.
+func TestATransientlyMissingFileIsRetriedRatherThanCalledAbsent(t *testing.T) {
+	// Widen the window so a loaded runner cannot turn this into a coin flip: the writer
+	// lands well inside the first backoff.
+	orig := readBackoff
+	readBackoff = 25 * time.Millisecond
+	t.Cleanup(func() { readBackoff = orig })
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "state.json")
+
+	written := make(chan struct{})
+	go func() {
+		defer close(written)
+		time.Sleep(5 * time.Millisecond)
+		if err := Write(path, rec{N: 7, Name: "x", Set: true}); err != nil {
+			t.Errorf("write: %v", err)
+		}
+	}()
+
+	got, st := Read[rec](path)
+	<-written
+	if st != Present || got.N != 7 {
+		t.Errorf("a file that appeared mid-read → (%+v, %v), want (n=7, present) — "+
+			"reporting it absent tells the caller to overwrite a record that exists", got, st)
+	}
+}
+
+// AND THE HONEST ABSENCE STILL RESOLVES ABSENT, which is what stops the fix above from
+// being a retry that swallows the common case: a name that never appears must not come
+// back Unreadable, or every first run would be forbidden from writing its first record.
+func TestAFileThatNeverAppearsIsAbsentNotUnreadable(t *testing.T) {
+	got, st := Read[rec](filepath.Join(t.TempDir(), "never.json"))
+	if st != Absent || got.Set {
+		t.Errorf("a name that never appears → (%+v, %v), want (zero, absent)", got, st)
 	}
 }
