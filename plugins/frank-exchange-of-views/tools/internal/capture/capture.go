@@ -15,6 +15,7 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"io/fs"
@@ -1318,18 +1319,51 @@ func WriteScorecards(runDir string, results []map[string]any, memoryDir string, 
 	label := labelOf(runDir)
 	rows := 0
 	chairs := 0
-	for chair, chairRows := range cards {
+	var failed []string
+
+	// Sorted, so a partial failure names the same chairs in the same order every run: a
+	// reason that reshuffles between runs is one a reader cannot diff.
+	names := make([]string, 0, len(cards))
+	for chair := range cards {
+		names = append(names, chair)
+	}
+	sort.Strings(names)
+
+	for _, chair := range names {
+		chairRows := cards[chair]
 		p := filepath.Join(memoryDir, chair+"-scorecard.md")
 		head := scorecard.ChairHeader(chair)
-		if b, err := os.ReadFile(p); err == nil {
+		b, err := os.ReadFile(p)
+		switch {
+		case err == nil:
 			head = string(b)
+		case !errors.Is(err, fs.ErrNotExist):
+			// A CARD THAT EXISTS AND CANNOT BE READ MUST NOT BE OVERWRITTEN. The read
+			// failure used to fall through to the fresh header, and the write below then
+			// replaced the file with it — so one unreadable moment (a permission change, an
+			// I/O error) silently discarded every earlier run's rows. That is the opposite
+			// of what this file is for: the series is the memory, and TestWriteScorecardsAppends
+			// asserts it is "appended, never overwritten". Absence is the only reason to
+			// start from a header, so absence is the only error handled that way.
+			failed = append(failed, chair+": cannot read "+p+" ("+err.Error()+") — left untouched rather than overwritten with a fresh header")
+			continue
 		}
 		body := trimTrailingNewlines(head) + "\n" + scorecard.RenderChair(chair, chairRows, label)
-		_ = os.WriteFile(p, []byte(body), 0o644)
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			// The write's error was discarded while the result reported Written: true —
+			// the same shape the law-harvest write above refuses by name.
+			failed = append(failed, chair+": cannot write "+p+" ("+err.Error()+")")
+			continue
+		}
 		rows += len(chairRows)
 		chairs++
 	}
-	return ScorecardResult{Written: true, Rows: rows, Chairs: chairs}
+
+	res := ScorecardResult{Written: len(failed) == 0, Rows: rows, Chairs: chairs}
+	if len(failed) > 0 {
+		res.Reason = fmt.Sprintf("%d of %d chair(s) NOT written: %s", len(failed), len(cards), strings.Join(failed, "; "))
+	}
+	return res
 }
 
 var reTrailNL = regexp.MustCompile(`\n+$`)
@@ -1523,9 +1557,13 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 
 	cwd, _ := os.Getwd()
 	sc := WriteScorecards(runDir, results, filepath.Join(cwd, "feov-memory"), board)
-	if sc.Written {
+	// BOTH LINES WHEN BOTH ARE TRUE. The old form printed the counts OR the reason, so a
+	// partial failure — some chairs written, one unwritable — showed the cheerful line and
+	// swallowed the reason entirely.
+	if sc.Chairs > 0 || sc.Reason == "" {
 		lines = append(lines, fmt.Sprintf("scorecards: %d row(s) across %d chair(s) -> feov-memory/", sc.Rows, sc.Chairs))
-	} else {
+	}
+	if sc.Reason != "" {
 		lines = append(lines, "scorecards: "+sc.Reason)
 	}
 

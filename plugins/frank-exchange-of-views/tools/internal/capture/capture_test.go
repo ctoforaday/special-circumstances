@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -930,5 +931,135 @@ func TestCapturingOneRunLeavesTheOthersOpen(t *testing.T) {
 	write(t, marker, `{"runs":[]}`)
 	if got := closeRunLiveMarker(cwd, "research/x"); !strings.Contains(got, "names NO open run") {
 		t.Errorf("a marker present but naming nothing was reported as an ordinary miss: %q", got)
+	}
+}
+
+// AN UNREADABLE SCORECARD IS LEFT ALONE, NOT REPLACED WITH A FRESH HEADER.
+//
+// The read error used to fall through to scorecard.ChairHeader and the write below then
+// replaced the file with it, so one unreadable moment discarded every earlier run's rows.
+// The series IS the cross-run memory — TestWriteScorecardsAppends above asserts it is
+// "appended, never overwritten" — and this is the path that overwrote it while reporting
+// success. Absence is the only reason to start from a header.
+func TestAnUnreadableScorecardIsNotOverwritten(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod 0000 does not deny reads the same way on Windows")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root reads through 0000, so the failure cannot be staged")
+	}
+	memory := t.TempDir()
+	runA := filepath.Join(t.TempDir(), "2026-07-01_first-run")
+	if err := os.MkdirAll(runA, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if r := WriteScorecards(runA, nil, memory, nil); !r.Written {
+		t.Fatalf("seeding the history failed: %+v", r)
+	}
+	card := filepath.Join(memory, "red-scorecard.md")
+	before, err := os.ReadFile(card)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Make exactly one chair's card unreadable, then run a later capture over it.
+	if err := os.Chmod(card, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(card, 0o644) })
+	runB := filepath.Join(t.TempDir(), "2026-07-18_second-run")
+	if err := os.MkdirAll(runB, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got := WriteScorecards(runB, nil, memory, nil)
+
+	if got.Written {
+		t.Error("a chair that could not be written must not report Written — that is the whole defect")
+	}
+	for _, want := range []string{"red", "cannot read", "left untouched"} {
+		if !strings.Contains(got.Reason, want) {
+			t.Errorf("the reason must carry %q so the operator knows which card and why: %q", want, got.Reason)
+		}
+	}
+	// The other chairs still got their rows: a partial failure is partial, not total.
+	if got.Chairs < 1 {
+		t.Errorf("the readable chairs must still be written: %+v", got)
+	}
+
+	if err := os.Chmod(card, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	after, err := os.ReadFile(card)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(before) {
+		t.Errorf("the unreadable card was rewritten; its history is gone.\nbefore:\n%s\nafter:\n%s", before, after)
+	}
+	if !strings.Contains(string(after), "2026-07-01_first-run") {
+		t.Error("the earlier run's series must survive an unreadable moment")
+	}
+}
+
+// A WRITE THAT FAILED MUST NOT REPORT Written: true.
+//
+// The error was discarded and the result asserted the write had landed, so a read-only
+// memory dir or a full disk produced a capture that said the chair memory had been updated
+// while nothing moved — and the next run reads the stale file as the whole history.
+func TestAFailedScorecardWriteIsReported(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a read-only file does not block writes the same way on Windows")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root writes through read-only permissions")
+	}
+	memory := t.TempDir()
+	runA := filepath.Join(t.TempDir(), "2026-07-01_first-run")
+	if err := os.MkdirAll(runA, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if r := WriteScorecards(runA, nil, memory, nil); !r.Written {
+		t.Fatalf("seeding failed: %+v", r)
+	}
+	card := filepath.Join(memory, "red-scorecard.md")
+	// Readable, but not writable: the read succeeds and the write is refused.
+	if err := os.Chmod(card, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(card, 0o644) })
+
+	runB := filepath.Join(t.TempDir(), "2026-07-18_second-run")
+	if err := os.MkdirAll(runB, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got := WriteScorecards(runB, nil, memory, nil)
+	if got.Written {
+		t.Error("a refused write must not report Written")
+	}
+	for _, want := range []string{"red", "cannot write"} {
+		if !strings.Contains(got.Reason, want) {
+			t.Errorf("the reason must name the chair and the failure: %q (missing %q)", got.Reason, want)
+		}
+	}
+}
+
+// A card that has never existed is the ordinary first-run path and must still be created
+// from the header — the fix above must not turn "absent" into a failure.
+func TestAnAbsentScorecardIsStillCreated(t *testing.T) {
+	memory := t.TempDir()
+	runA := filepath.Join(t.TempDir(), "2026-07-01_first-run")
+	if err := os.MkdirAll(runA, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	got := WriteScorecards(runA, nil, memory, nil)
+	if !got.Written || got.Chairs < 1 || got.Reason != "" {
+		t.Fatalf("a fresh memory dir must write every chair cleanly: %+v", got)
+	}
+	b, err := os.ReadFile(filepath.Join(memory, "red-scorecard.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(string(b), "# red scorecard") {
+		t.Errorf("a card born this run gets its header: %q", b)
 	}
 }
