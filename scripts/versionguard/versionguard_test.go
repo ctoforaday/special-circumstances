@@ -25,8 +25,48 @@ func TestSemver(t *testing.T) {
 		{"0.22.1", "0.22", 1},
 	}
 	for _, c := range cases {
-		if got := semver(c.a, c.b); got != c.want {
+		got, err := semver(c.a, c.b)
+		if err != nil {
+			t.Errorf("semver(%q,%q) errored on a well-formed pair: %v", c.a, c.b, err)
+			continue
+		}
+		if got != c.want {
 			t.Errorf("semver(%q,%q) = %d, want %d", c.a, c.b, got, c.want)
+		}
+	}
+}
+
+// A VERSION THIS GATE CANNOT READ MUST NOT COMPARE AS ZERO.
+//
+// strconv.Atoi's discarded error made "0.2x.0" parse as 0.0.0, and the direction that
+// matters is a malformed BASE: zero is lower than every head, so every branch looked like a
+// forward move and the backwards-guard passed without comparing anything. The gate reported
+// the same clean board whether it had checked or not.
+func TestAnUnreadableVersionIsRefusedNotCoercedToZero(t *testing.T) {
+	for _, bad := range []string{"0.2x.0", "v0.22.0", "0.22.0-rc1", "abc", "", "0.22.0.1", "0..0", "-1.0.0"} {
+		if _, err := semver(bad, "0.22.0"); err == nil {
+			t.Errorf("semver(%q, …) was accepted; an unreadable version must be refused, not read as zero", bad)
+		}
+		if _, err := semver("0.22.0", bad); err == nil {
+			t.Errorf("semver(…, %q) was accepted; the BASE side is the dangerous one — it reads as lower than everything", bad)
+		}
+	}
+	// The deliberate tolerance survives: a SHORT version is not a malformed one.
+	if _, err := semver("0.22", "0.22.0"); err != nil {
+		t.Errorf("missing parts must still count as zero: %v", err)
+	}
+}
+
+// The refusal has to name the version and the part, or it sends someone reading three
+// manifests to find which one this gate could not order.
+func TestTheRefusalNamesTheOffendingPart(t *testing.T) {
+	_, err := semver("0.2x.0", "0.22.0")
+	if err == nil {
+		t.Fatal("want a refusal")
+	}
+	for _, want := range []string{"0.2x.0", "part 2", "2x"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal %q is missing %q", err, want)
 		}
 	}
 }

@@ -45,26 +45,55 @@ type manifest struct {
 	Version string `json:"version"`
 }
 
-// semver compares dotted numeric versions. Missing parts count as zero, so 0.22 and 0.22.0
-// are the same version rather than an ordering surprise.
-func semver(a, b string) int {
-	pa, pb := strings.Split(a, "."), strings.Split(b, ".")
+// parseVersion turns a dotted numeric version into its three ordered parts.
+//
+// MISSING parts count as zero — 0.22 and 0.22.0 are the same version, deliberately, so a
+// short version is not an ordering surprise. A part that is PRESENT and not a number is
+// REFUSED rather than coerced, and that distinction is the whole point of this function
+// existing.
+//
+// `x, _ = strconv.Atoi(...)` discarded the error, so "0.2x.0" compared as 0.0.0. The
+// direction that matters is a malformed BASE: it reads as lower than everything, so every
+// head version looks like a forward move and this gate passes without having compared
+// anything. A guard that coerces garbage to zero reports the same "all clear" whether it
+// checked or not — the coin-flip-as-measurement facts-are-fields names.
+func parseVersion(s string) ([3]int, error) {
+	var out [3]int
+	trimmed := strings.TrimSpace(s)
+	parts := strings.Split(trimmed, ".")
+	if len(parts) > 3 {
+		return out, fmt.Errorf("%q has %d dotted parts; a version has at most 3", s, len(parts))
+	}
+	for i, p := range parts {
+		p = strings.TrimSpace(p)
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 0 {
+			return out, fmt.Errorf("%q is not a dotted numeric version: part %d is %q", s, i+1, p)
+		}
+		out[i] = n
+	}
+	return out, nil
+}
+
+// semver compares dotted numeric versions, and refuses to answer about one it cannot read.
+func semver(a, b string) (int, error) {
+	pa, err := parseVersion(a)
+	if err != nil {
+		return 0, err
+	}
+	pb, err := parseVersion(b)
+	if err != nil {
+		return 0, err
+	}
 	for i := 0; i < 3; i++ {
-		x, y := 0, 0
-		if i < len(pa) {
-			x, _ = strconv.Atoi(strings.TrimSpace(pa[i]))
-		}
-		if i < len(pb) {
-			y, _ = strconv.Atoi(strings.TrimSpace(pb[i]))
-		}
-		if x != y {
-			if x < y {
-				return -1
+		if pa[i] != pb[i] {
+			if pa[i] < pb[i] {
+				return -1, nil
 			}
-			return 1
+			return 1, nil
 		}
 	}
-	return 0
+	return 0, nil
 }
 
 func versionAt(root, ref, path string) (string, bool) {
@@ -117,7 +146,6 @@ func check(root, base string) (problems []string, checked int, err error) {
 		if !ok {
 			continue // new plugin: nothing to compare against
 		}
-		checked++
 
 		// THERE IS NO PER-PR BUMP RULE, AND ITS ABSENCE IS THE POINT.
 		//
@@ -134,7 +162,18 @@ func check(root, base string) (problems []string, checked int, err error) {
 		// WHAT SURVIVES: a version may never go BACKWARDS. That arm caught two real concurrent
 		// bumps this month, where two branches took the same number and the later merge won the
 		// line — and under the new model it is the only version motion left to police.
-		if semver(now.Version, was) < 0 {
+		cmp, err := semver(now.Version, was)
+		if err != nil {
+			// NOT counted as checked: a plugin whose versions cannot be compared is one this
+			// gate did not police, and saying "compared N" about it would be the same
+			// flattering arithmetic the coercion produced.
+			problems = append(problems, fmt.Sprintf(
+				"%s: %v. The backwards-guard cannot order these, so this plugin is NOT being checked — "+
+					"fix the version to dotted numbers (0.22.0).", rel, err))
+			continue
+		}
+		checked++
+		if cmp < 0 {
 			problems = append(problems, fmt.Sprintf(
 				"%s: version went BACKWARDS, %s -> %s. `/plugin update` is version-gated, so a consumer already on %s "+
 					"receives NOTHING from this branch — the content ships and the version says it did not. "+
