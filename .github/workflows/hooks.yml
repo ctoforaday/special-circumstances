@@ -29,33 +29,38 @@ jobs:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      # THE TEMP DISK IS THE TEST SUITE'S REAL SUBSTRATE, and on windows-2025 it is the slow
+      # THE TEST TEMP DIR IS THE SUITE'S REAL SUBSTRATE, and on windows-2025 it is the slow
       # one. These runner images removed the D: drive (actions/runner-images#12647), so TEMP
-      # lives on C: — network-attached storage a commenter in that issue benchmarked at
-      # ~33 MB/s — and every t.TempDir database in this suite pays it: the packages that
-      # degrade worst vs Linux (recordsql 5.6x, record 3.9x) are exactly the SQLite-churn
-      # ones, while the process-spawning fuzz degrades least (2.3x). Defender is NOT the
-      # cause: the images already run it in passive mode (Configure-WindowsDefender.ps1).
+      # lives on C: - network-attached storage benchmarked at ~33 MB/s in that issue - and
+      # every t.TempDir SQLite database pays it: on the dev drive alone, recordsql tests ran
+      # 73s, the fsync tax a ReFS VHDX backed by C: still honors. Defender is NOT the cause,
+      # and an earlier note here that called it "passive" was wrong: measured at job runtime
+      # (PR #562), AMRunningMode is Normal but RealTimeProtection and OnAccessProtection are
+      # already False, so file scanning is off and disabling it changes nothing.
       #
-      # The fix the community converged on is a DEV DRIVE — a ReFS VHDX on local storage
-      # with antivirus in async performance mode — created inline here rather than via a
-      # third-party action, because ten lines of PowerShell is cheaper to trust than a tag.
-      # Only TMP/TEMP move; GOCACHE stays at its default so setup-go's pull-request cache
-      # keeps saving and restoring the path it expects. Compile cost is the cache's job,
-      # test I/O is the dev drive's, and the two stay independently measurable.
-      # THE LINUX MIRROR OF THE DEV DRIVE, and it is two lines because tmpfs already
-      # exists. Same mechanism, same posture: synchronous stays FULL (operator ruling),
-      # and the fsyncs every test database pays land in RAM instead of on disk. Measured
-      # on a GCP dev box before adding: recordsql -84%, record -64%, cli -43%. It does
-      # not move the PR gate today — Windows is the slowest check — but it is nearly
-      # free, cuts real compute, and is already the right call the day Linux becomes the
-      # critical path.
+      # TWO DEVICES, because the two costs differ and no single substrate wins both
+      # (measured across PRs #559/#561/#563/#565):
+      #   - BUILD CACHES on a DEV DRIVE (V:): a ReFS VHDX with antivirus in async mode,
+      #     created inline rather than via a third-party action (ten lines of PowerShell is
+      #     cheaper to trust than a tag). The compile win - vet 2m -> 15s on a warm cache.
+      #   - TEMP on a KERNEL-MODE RAM DISK (X:, ImDisk): the fsync every test database pays
+      #     lands in RAM with no backing store, which the dev drive's VHDX-on-C: could not -
+      #     recordsql 73s -> 5s, cli 195s -> 61s. It MUST be kernel-mode: a user-mode
+      #     filesystem (WinFsp memfs) routes every process spawn's exe-image load through a
+      #     user-mode round-trip (cli 149-334s across the two memfs builds, PR #563), where
+      #     the kernel storage stack has no such hop. TEMP only, not the caches: keeps the
+      #     RAM footprint small so fuzz's spawn storm - spawn/compute-bound and
+      #     storage-independent, no RAM disk moved it - is not squeezed for memory.
+      # THE LINUX MIRROR is tmpfs, two lines because tmpfs already exists. Same posture:
+      # synchronous stays FULL (operator ruling); the fsyncs land in RAM. Measured on a GCP
+      # dev box: recordsql -84%, record -64%, cli -43%. It does not move the PR gate today -
+      # Windows is the slowest check - but it is nearly free and cuts real compute.
       - name: tmpfs for TEMP
         if: runner.os == 'Linux'
         run: |
           mkdir -p /dev/shm/tmp
           echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
-      - name: dev drive for TEMP
+      - name: dev drive for build caches
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -64,20 +69,33 @@ jobs:
           $disk = Mount-VHD -Path $vhd -PassThru | Initialize-Disk -PassThru
           $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter V
           Format-Volume -DriveLetter V -DevDrive | Out-Null
-          New-Item -ItemType Directory -Path "V:\tmp" | Out-Null
-          "TMP=V:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
-          "TEMP=V:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
-          # THE BUILD CACHES MOVE TOO — build artifacts are the workload a dev drive is
-          # FOR, and the first version of this step left them on C: on a claim that moving
-          # GOCACHE would break setup-go's cache restore. That claim was wrong: setup-go
-          # resolves its paths dynamically through `go env` when its step runs, and this
-          # step runs first, so exporting the paths here makes the cache restore land ON
-          # the dev drive. The one thing deliberately left on C: is the workspace itself —
-          # checkout is pinned to GITHUB_WORKSPACE and sources are read-mostly, so moving
-          # them costs a copy step and a re-pointed working-directory for a benefit RAM
-          # mostly provides; that is a later rung if compile stays slow, taken on numbers.
+          # setup-go resolves GOCACHE/GOMODCACHE through `go env` when ITS step runs, and
+          # this step runs first, so exporting the paths here lands the pull-request cache
+          # restore on the dev drive. TEMP is deliberately NOT here - it is the RAM disk's.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: RAM disk for TEMP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Kernel-mode RAM disk (ImDisk, from the choco package already on the runner).
+          # Kernel-mode, not user-mode, on purpose: a spawn's exe-image load goes through the
+          # normal kernel storage stack with no user-mode round-trip, the tax that made
+          # WinFsp memfs regress the spawn-heavy packages (PR #563/#565). 4 GiB is ample for
+          # TEMP alone (test databases + fuzz run dirs + one built binary) and small enough
+          # to leave the runner's RAM for the test processes.
+          choco install imdisk-toolkit -y --no-progress | Out-Null
+          $imdisk = "$env:SystemRoot\System32\imdisk.exe"
+          if (-not (Test-Path $imdisk)) { $imdisk = "imdisk" }
+          & $imdisk -a -s 4G -m X: -p "/fs:ntfs /q /y"
+          $deadline = (Get-Date).AddSeconds(30)
+          while (-not (Test-Path "X:\")) {
+            if ((Get-Date) -gt $deadline) { throw "ImDisk never mounted X:" }
+            Start-Sleep -Milliseconds 500
+          }
+          New-Item -ItemType Directory -Path "X:\tmp" | Out-Null
+          "TMP=X:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=X:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -162,33 +180,38 @@ jobs:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      # THE TEMP DISK IS THE TEST SUITE'S REAL SUBSTRATE, and on windows-2025 it is the slow
+      # THE TEST TEMP DIR IS THE SUITE'S REAL SUBSTRATE, and on windows-2025 it is the slow
       # one. These runner images removed the D: drive (actions/runner-images#12647), so TEMP
-      # lives on C: — network-attached storage a commenter in that issue benchmarked at
-      # ~33 MB/s — and every t.TempDir database in this suite pays it: the packages that
-      # degrade worst vs Linux (recordsql 5.6x, record 3.9x) are exactly the SQLite-churn
-      # ones, while the process-spawning fuzz degrades least (2.3x). Defender is NOT the
-      # cause: the images already run it in passive mode (Configure-WindowsDefender.ps1).
+      # lives on C: - network-attached storage benchmarked at ~33 MB/s in that issue - and
+      # every t.TempDir SQLite database pays it: on the dev drive alone, recordsql tests ran
+      # 73s, the fsync tax a ReFS VHDX backed by C: still honors. Defender is NOT the cause,
+      # and an earlier note here that called it "passive" was wrong: measured at job runtime
+      # (PR #562), AMRunningMode is Normal but RealTimeProtection and OnAccessProtection are
+      # already False, so file scanning is off and disabling it changes nothing.
       #
-      # The fix the community converged on is a DEV DRIVE — a ReFS VHDX on local storage
-      # with antivirus in async performance mode — created inline here rather than via a
-      # third-party action, because ten lines of PowerShell is cheaper to trust than a tag.
-      # Only TMP/TEMP move; GOCACHE stays at its default so setup-go's pull-request cache
-      # keeps saving and restoring the path it expects. Compile cost is the cache's job,
-      # test I/O is the dev drive's, and the two stay independently measurable.
-      # THE LINUX MIRROR OF THE DEV DRIVE, and it is two lines because tmpfs already
-      # exists. Same mechanism, same posture: synchronous stays FULL (operator ruling),
-      # and the fsyncs every test database pays land in RAM instead of on disk. Measured
-      # on a GCP dev box before adding: recordsql -84%, record -64%, cli -43%. It does
-      # not move the PR gate today — Windows is the slowest check — but it is nearly
-      # free, cuts real compute, and is already the right call the day Linux becomes the
-      # critical path.
+      # TWO DEVICES, because the two costs differ and no single substrate wins both
+      # (measured across PRs #559/#561/#563/#565):
+      #   - BUILD CACHES on a DEV DRIVE (V:): a ReFS VHDX with antivirus in async mode,
+      #     created inline rather than via a third-party action (ten lines of PowerShell is
+      #     cheaper to trust than a tag). The compile win - vet 2m -> 15s on a warm cache.
+      #   - TEMP on a KERNEL-MODE RAM DISK (X:, ImDisk): the fsync every test database pays
+      #     lands in RAM with no backing store, which the dev drive's VHDX-on-C: could not -
+      #     recordsql 73s -> 5s, cli 195s -> 61s. It MUST be kernel-mode: a user-mode
+      #     filesystem (WinFsp memfs) routes every process spawn's exe-image load through a
+      #     user-mode round-trip (cli 149-334s across the two memfs builds, PR #563), where
+      #     the kernel storage stack has no such hop. TEMP only, not the caches: keeps the
+      #     RAM footprint small so fuzz's spawn storm - spawn/compute-bound and
+      #     storage-independent, no RAM disk moved it - is not squeezed for memory.
+      # THE LINUX MIRROR is tmpfs, two lines because tmpfs already exists. Same posture:
+      # synchronous stays FULL (operator ruling); the fsyncs land in RAM. Measured on a GCP
+      # dev box: recordsql -84%, record -64%, cli -43%. It does not move the PR gate today -
+      # Windows is the slowest check - but it is nearly free and cuts real compute.
       - name: tmpfs for TEMP
         if: runner.os == 'Linux'
         run: |
           mkdir -p /dev/shm/tmp
           echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
-      - name: dev drive for TEMP
+      - name: dev drive for build caches
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -197,20 +220,33 @@ jobs:
           $disk = Mount-VHD -Path $vhd -PassThru | Initialize-Disk -PassThru
           $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter V
           Format-Volume -DriveLetter V -DevDrive | Out-Null
-          New-Item -ItemType Directory -Path "V:\tmp" | Out-Null
-          "TMP=V:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
-          "TEMP=V:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
-          # THE BUILD CACHES MOVE TOO — build artifacts are the workload a dev drive is
-          # FOR, and the first version of this step left them on C: on a claim that moving
-          # GOCACHE would break setup-go's cache restore. That claim was wrong: setup-go
-          # resolves its paths dynamically through `go env` when its step runs, and this
-          # step runs first, so exporting the paths here makes the cache restore land ON
-          # the dev drive. The one thing deliberately left on C: is the workspace itself —
-          # checkout is pinned to GITHUB_WORKSPACE and sources are read-mostly, so moving
-          # them costs a copy step and a re-pointed working-directory for a benefit RAM
-          # mostly provides; that is a later rung if compile stays slow, taken on numbers.
+          # setup-go resolves GOCACHE/GOMODCACHE through `go env` when ITS step runs, and
+          # this step runs first, so exporting the paths here lands the pull-request cache
+          # restore on the dev drive. TEMP is deliberately NOT here - it is the RAM disk's.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: RAM disk for TEMP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Kernel-mode RAM disk (ImDisk, from the choco package already on the runner).
+          # Kernel-mode, not user-mode, on purpose: a spawn's exe-image load goes through the
+          # normal kernel storage stack with no user-mode round-trip, the tax that made
+          # WinFsp memfs regress the spawn-heavy packages (PR #563/#565). 4 GiB is ample for
+          # TEMP alone (test databases + fuzz run dirs + one built binary) and small enough
+          # to leave the runner's RAM for the test processes.
+          choco install imdisk-toolkit -y --no-progress | Out-Null
+          $imdisk = "$env:SystemRoot\System32\imdisk.exe"
+          if (-not (Test-Path $imdisk)) { $imdisk = "imdisk" }
+          & $imdisk -a -s 4G -m X: -p "/fs:ntfs /q /y"
+          $deadline = (Get-Date).AddSeconds(30)
+          while (-not (Test-Path "X:\")) {
+            if ((Get-Date) -gt $deadline) { throw "ImDisk never mounted X:" }
+            Start-Sleep -Milliseconds 500
+          }
+          New-Item -ItemType Directory -Path "X:\tmp" | Out-Null
+          "TMP=X:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=X:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -305,33 +341,38 @@ jobs:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
-      # THE TEMP DISK IS THE TEST SUITE'S REAL SUBSTRATE, and on windows-2025 it is the slow
+      # THE TEST TEMP DIR IS THE SUITE'S REAL SUBSTRATE, and on windows-2025 it is the slow
       # one. These runner images removed the D: drive (actions/runner-images#12647), so TEMP
-      # lives on C: — network-attached storage a commenter in that issue benchmarked at
-      # ~33 MB/s — and every t.TempDir database in this suite pays it: the packages that
-      # degrade worst vs Linux (recordsql 5.6x, record 3.9x) are exactly the SQLite-churn
-      # ones, while the process-spawning fuzz degrades least (2.3x). Defender is NOT the
-      # cause: the images already run it in passive mode (Configure-WindowsDefender.ps1).
+      # lives on C: - network-attached storage benchmarked at ~33 MB/s in that issue - and
+      # every t.TempDir SQLite database pays it: on the dev drive alone, recordsql tests ran
+      # 73s, the fsync tax a ReFS VHDX backed by C: still honors. Defender is NOT the cause,
+      # and an earlier note here that called it "passive" was wrong: measured at job runtime
+      # (PR #562), AMRunningMode is Normal but RealTimeProtection and OnAccessProtection are
+      # already False, so file scanning is off and disabling it changes nothing.
       #
-      # The fix the community converged on is a DEV DRIVE — a ReFS VHDX on local storage
-      # with antivirus in async performance mode — created inline here rather than via a
-      # third-party action, because ten lines of PowerShell is cheaper to trust than a tag.
-      # Only TMP/TEMP move; GOCACHE stays at its default so setup-go's pull-request cache
-      # keeps saving and restoring the path it expects. Compile cost is the cache's job,
-      # test I/O is the dev drive's, and the two stay independently measurable.
-      # THE LINUX MIRROR OF THE DEV DRIVE, and it is two lines because tmpfs already
-      # exists. Same mechanism, same posture: synchronous stays FULL (operator ruling),
-      # and the fsyncs every test database pays land in RAM instead of on disk. Measured
-      # on a GCP dev box before adding: recordsql -84%, record -64%, cli -43%. It does
-      # not move the PR gate today — Windows is the slowest check — but it is nearly
-      # free, cuts real compute, and is already the right call the day Linux becomes the
-      # critical path.
+      # TWO DEVICES, because the two costs differ and no single substrate wins both
+      # (measured across PRs #559/#561/#563/#565):
+      #   - BUILD CACHES on a DEV DRIVE (V:): a ReFS VHDX with antivirus in async mode,
+      #     created inline rather than via a third-party action (ten lines of PowerShell is
+      #     cheaper to trust than a tag). The compile win - vet 2m -> 15s on a warm cache.
+      #   - TEMP on a KERNEL-MODE RAM DISK (X:, ImDisk): the fsync every test database pays
+      #     lands in RAM with no backing store, which the dev drive's VHDX-on-C: could not -
+      #     recordsql 73s -> 5s, cli 195s -> 61s. It MUST be kernel-mode: a user-mode
+      #     filesystem (WinFsp memfs) routes every process spawn's exe-image load through a
+      #     user-mode round-trip (cli 149-334s across the two memfs builds, PR #563), where
+      #     the kernel storage stack has no such hop. TEMP only, not the caches: keeps the
+      #     RAM footprint small so fuzz's spawn storm - spawn/compute-bound and
+      #     storage-independent, no RAM disk moved it - is not squeezed for memory.
+      # THE LINUX MIRROR is tmpfs, two lines because tmpfs already exists. Same posture:
+      # synchronous stays FULL (operator ruling); the fsyncs land in RAM. Measured on a GCP
+      # dev box: recordsql -84%, record -64%, cli -43%. It does not move the PR gate today -
+      # Windows is the slowest check - but it is nearly free and cuts real compute.
       - name: tmpfs for TEMP
         if: runner.os == 'Linux'
         run: |
           mkdir -p /dev/shm/tmp
           echo "TMPDIR=/dev/shm/tmp" >> "$GITHUB_ENV"
-      - name: dev drive for TEMP
+      - name: dev drive for build caches
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -340,20 +381,33 @@ jobs:
           $disk = Mount-VHD -Path $vhd -PassThru | Initialize-Disk -PassThru
           $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter V
           Format-Volume -DriveLetter V -DevDrive | Out-Null
-          New-Item -ItemType Directory -Path "V:\tmp" | Out-Null
-          "TMP=V:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
-          "TEMP=V:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
-          # THE BUILD CACHES MOVE TOO — build artifacts are the workload a dev drive is
-          # FOR, and the first version of this step left them on C: on a claim that moving
-          # GOCACHE would break setup-go's cache restore. That claim was wrong: setup-go
-          # resolves its paths dynamically through `go env` when its step runs, and this
-          # step runs first, so exporting the paths here makes the cache restore land ON
-          # the dev drive. The one thing deliberately left on C: is the workspace itself —
-          # checkout is pinned to GITHUB_WORKSPACE and sources are read-mostly, so moving
-          # them costs a copy step and a re-pointed working-directory for a benefit RAM
-          # mostly provides; that is a later rung if compile stays slow, taken on numbers.
+          # setup-go resolves GOCACHE/GOMODCACHE through `go env` when ITS step runs, and
+          # this step runs first, so exporting the paths here lands the pull-request cache
+          # restore on the dev drive. TEMP is deliberately NOT here - it is the RAM disk's.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: RAM disk for TEMP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Kernel-mode RAM disk (ImDisk, from the choco package already on the runner).
+          # Kernel-mode, not user-mode, on purpose: a spawn's exe-image load goes through the
+          # normal kernel storage stack with no user-mode round-trip, the tax that made
+          # WinFsp memfs regress the spawn-heavy packages (PR #563/#565). 4 GiB is ample for
+          # TEMP alone (test databases + fuzz run dirs + one built binary) and small enough
+          # to leave the runner's RAM for the test processes.
+          choco install imdisk-toolkit -y --no-progress | Out-Null
+          $imdisk = "$env:SystemRoot\System32\imdisk.exe"
+          if (-not (Test-Path $imdisk)) { $imdisk = "imdisk" }
+          & $imdisk -a -s 4G -m X: -p "/fs:ntfs /q /y"
+          $deadline = (Get-Date).AddSeconds(30)
+          while (-not (Test-Path "X:\")) {
+            if ((Get-Date) -gt $deadline) { throw "ImDisk never mounted X:" }
+            Start-Sleep -Milliseconds 500
+          }
+          New-Item -ItemType Directory -Path "X:\tmp" | Out-Null
+          "TMP=X:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=X:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
