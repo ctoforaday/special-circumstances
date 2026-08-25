@@ -339,7 +339,7 @@ func name(paths []string) string {
 //
 // It NEVER blocks. The seal's contract is that every path exits 0, because a hook that
 // wedges a compaction costs more than the drift it reports.
-func drift(note string, written []string, within checkpoint.WithinRoot) string {
+func drift(bin, note string, written []string, within checkpoint.WithinRoot) string {
 	// A session that wrote nothing through the edit tools cannot be SHOWN to have
 	// drifted. It may have written plenty through Bash — see internal/transcript — so
 	// silence here is "no evidence", never "no drift".
@@ -351,9 +351,9 @@ func drift(note string, written []string, within checkpoint.WithinRoot) string {
 	body, _ := n.NonEmptySection("Validation loop")
 	checks := checkpoint.ParseValidationLoop(body)
 	if len(checks) == 0 {
-		return fmt.Sprintf("sc-checkpoint-seal: the note records NO validation loop, and this session wrote %d file(s) (%s). "+
+		return fmt.Sprintf("%s: the note records NO validation loop, and this session wrote %d file(s) (%s). "+
 			"validation-loop says to write the loop BEFORE implementing; a loop written afterwards is the one a compaction loses.",
-			len(written), name(written))
+			bin, len(written), name(written))
 	}
 
 	seen := map[string]bool{}
@@ -370,9 +370,9 @@ func drift(note string, written []string, within checkpoint.WithinRoot) string {
 	sort.Strings(surfaces)
 
 	if len(surfaces) == 0 {
-		return fmt.Sprintf("sc-checkpoint-seal: none of the loop's %d check(s) records a resolvable trigger surface, so nothing claims the %d file(s) this session wrote (%s). "+
+		return fmt.Sprintf("%s: none of the loop's %d check(s) records a resolvable trigger surface, so nothing claims the %d file(s) this session wrote (%s). "+
 			"A check whose re-armed-by cannot be resolved is a check nothing re-arms.",
-			len(checks), len(written), name(written))
+			bin, len(checks), len(written), name(written))
 	}
 
 	for _, w := range written {
@@ -382,9 +382,9 @@ func drift(note string, written []string, within checkpoint.WithinRoot) string {
 			}
 		}
 	}
-	return fmt.Sprintf("sc-checkpoint-seal: the note's validation loop watches %s, and this session wrote %s — NO check covers the work. "+
+	return fmt.Sprintf("%s: the note's validation loop watches %s, and this session wrote %s — NO check covers the work. "+
 		"Either the loop is pointed at a tree nobody is touching, or the note belongs to earlier work (#166).",
-		name(surfaces), name(written))
+		bin, name(surfaces), name(written))
 }
 
 // driftTranscript picks whose work the drift check is about.
@@ -412,12 +412,12 @@ func notePath(projectDir string, exists func(string) bool) string {
 func seal(projectDir, note string, now time.Time, event string, in hookInput, stderr io.Writer) {
 	dir := filepath.Join(projectDir, ".claude", "checkpoints")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		fmt.Fprintln(stderr, "sc-checkpoint-seal: cannot create snapshot dir:", err)
+		fmt.Fprintln(stderr, binaryFor(event)+": cannot create snapshot dir:", err)
 		return
 	}
 	body, err := os.ReadFile(note)
 	if err != nil {
-		fmt.Fprintln(stderr, "sc-checkpoint-seal: cannot read checkpoint:", err)
+		fmt.Fprintln(stderr, binaryFor(event)+": cannot read checkpoint:", err)
 		return
 	}
 	occ := occasion(event, in)
@@ -429,7 +429,7 @@ func seal(projectDir, note string, now time.Time, event string, in hookInput, st
 	})
 	out := filepath.Join(dir, name)
 	if err := os.WriteFile(out, append([]byte(stamp), body...), 0o644); err != nil {
-		fmt.Fprintln(stderr, "sc-checkpoint-seal: cannot write snapshot:", err)
+		fmt.Fprintln(stderr, binaryFor(event)+": cannot write snapshot:", err)
 		return
 	}
 
@@ -497,14 +497,17 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
 	projectDir = hookenv.ProjectDir(projectDir, in.CWD)
-	if !hookenv.Explain(projectDir, stderr, "sc-checkpoint-seal") {
-		return 0
-	}
+	// EVERY operator- and agent-facing line names the binary that was INVOKED. #201 step 3
+	// retired "sc-checkpoint-seal"; -version was corrected then, and these eleven were not.
+	// A reader grepping their logs for sc-precompact found nothing.
 	event := fixedEvent
-	if event == "" {
+	if event == "" && flagEvent != nil {
 		event = resolveEvent(*flagEvent, in)
 	}
-
+	bin := binaryFor(event)
+	if !hookenv.Explain(projectDir, stderr, bin) {
+		return 0
+	}
 	note := notePath(projectDir, func(p string) bool {
 		st, err := os.Stat(p)
 		return err == nil && !st.IsDir()
@@ -528,7 +531,7 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 		// the note. It NEVER refuses — the seal's whole contract is that a note gets
 		// written; trading continuity for a numbering slip is the worse failure.
 		if problems := checkpoint.NoteLoopProblems(body); len(problems) > 0 {
-			fmt.Fprintf(stderr, "sc-checkpoint-seal: the note just sealed has %d validation-loop problem(s). The snapshot is written either way — fix the LIVE note now, while you still have the context that explains it, or the next session inherits both the fault and the confusion:\n", len(problems))
+			fmt.Fprintf(stderr, bin+": the note just sealed has %d validation-loop problem(s). The snapshot is written either way — fix the LIVE note now, while you still have the context that explains it, or the next session inherits both the fault and the confusion:\n", len(problems))
 			for _, p := range problems {
 				fmt.Fprintln(stderr, "  - "+p)
 			}
@@ -545,8 +548,8 @@ func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr i
 			// The check cannot run, and MUST NOT read as "no drift". A broken reader
 			// that stays quiet is indistinguishable from a healthy session, which is
 			// the flattering direction and the one nobody investigates.
-			fmt.Fprintln(stderr, "sc-checkpoint-seal: cannot check the note against this session's work — "+unreadable)
-		} else if line := drift(body, written, within); line != "" {
+			fmt.Fprintln(stderr, bin+": cannot check the note against this session's work — "+unreadable)
+		} else if line := drift(bin, body, written, within); line != "" {
 			fmt.Fprintln(stderr, line)
 		}
 		_ = closeRoot()

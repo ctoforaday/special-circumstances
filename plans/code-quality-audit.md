@@ -97,6 +97,20 @@ Three implementations of "marshal a row, append a line, never fail the hook". Th
 diverged in behaviour yet, but they have diverged in *care*: `hooklog` is the oldest and most
 defensive; `sealrow` reports every failure to stderr; `postcompactobserve` reports some.
 
+**DONE — and the appenders were the least of it.** The census asked whether three writers had
+diverged. The question it did not ask was who READS what they write: **nothing in this repository
+does.** `seals.jsonl` and `compaction-observations.jsonl` have no Go reader at all — their readers
+are the `jq` queries in the plan's §V, naming fields in prose. Two of those names did not exist on
+the record, and one of them decides criterion 4. See the entry below.
+
+The appenders themselves are now `statefile.AppendRow`, with the failure posture made uniform
+(every failure reported, where three of four were silent) and a concurrency test the class never
+had. And the sweep found the §1 defect again in a carrier §1 did not touch: **eleven stderr and
+agent-facing messages in `checkpointseal` still named `sc-checkpoint-seal`**, the binary #201 step 3
+retired — so all three shims announced a program that does not exist, and an operator grepping for
+`sc-precompact` got the same nothing a hook that never ran would produce. Guarded by a source sweep
+that permits only `binaryFor`'s own fallback.
+
 **Extraction is worth less here than in §2** — appending a line is genuinely simple, and the shared
 helper would be four lines of body plus a signature. The argument for doing it is consistency of the
 failure posture, not reuse. **Recommend: extract only if §2's `statefile` lands**, since the same
@@ -229,7 +243,7 @@ disagreeing about anything except how carefully they were written.
 
 ## Order of work
 
-**Status: §1, §2, §4, §5 and §6 are done (`7a76cf0`, `65a4679`, `57750e8`). §3 remains.**
+**Status: ALL SIX are done (`7a76cf0`, `65a4679`, `57750e8`, `6586f5e`, and this commit).**
 
 1. **§2 `statefile`** — the only class that has already cost correctness, and it fixes `stopnudge`'s
    missing retry as a side effect rather than as a separate patch.

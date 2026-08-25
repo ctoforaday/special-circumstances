@@ -42,7 +42,7 @@ func TestDriftCatchesTheLoopPointedAtTheWrongTree(t *testing.T) {
 		"plugins/frank-exchange-of-views/tools/internal/cli/verify.go",
 	}
 
-	got := drift(note, written, within)
+	got := drift("sc-precompact", note, written, within)
 	if got == "" {
 		t.Fatal("the 03:30–04:07 case produced no line — this is the failure the check exists for")
 	}
@@ -65,7 +65,7 @@ func TestDriftIsSilentWhenTheLoopReachesTheWork(t *testing.T) {
 		{"plugins/prosthetic-conscience/tools/internal/x.go", "README.md"}, // one covered file is enough
 	}
 	for _, written := range cases {
-		if got := drift(note, written, within); got != "" {
+		if got := drift("sc-precompact", note, written, within); got != "" {
 			t.Errorf("drift(%v) = %q; want silence", written, got)
 		}
 	}
@@ -78,10 +78,10 @@ func TestDriftRequiresAPathBoundary(t *testing.T) {
 	_, within := tree(t, "tools", "toolsmith")
 	note := noteWith("1. `go test`  → ok  · re-armed by: tools/\n   last run: pass")
 
-	if got := drift(note, []string{"toolsmith/x.go"}, within); got == "" {
+	if got := drift("sc-precompact", note, []string{"toolsmith/x.go"}, within); got == "" {
 		t.Error("`tools/` must not be read as covering `toolsmith/` — that is a false silence")
 	}
-	if got := drift(note, []string{"tools/x.go"}, within); got != "" {
+	if got := drift("sc-precompact", note, []string{"tools/x.go"}, within); got != "" {
 		t.Errorf("`tools/` must cover `tools/x.go`: %s", got)
 	}
 }
@@ -96,7 +96,7 @@ func TestDriftNamesAMissingLoop(t *testing.T) {
 		"---\nschema: 3\n---\n## Validation loop\n\n## Open threads\n",    // empty section
 		"---\nschema: 3\n---\n## Validation loop\n← the checks go here\n", // scaffolding only
 	} {
-		got := drift(note, []string{"tools/x.go"}, within)
+		got := drift("sc-precompact", note, []string{"tools/x.go"}, within)
 		if !strings.Contains(got, "NO validation loop") {
 			t.Errorf("a note without a loop must say so, got %q for note %q", got, note)
 		}
@@ -113,7 +113,7 @@ func TestDriftNamesUnresolvableSurfaces(t *testing.T) {
 	_, within := tree(t, "tools")
 	note := noteWith("1. `make release`  → tagged  · re-armed by: a human deciding to ship\n   last run: not yet run")
 
-	got := drift(note, []string{"tools/x.go"}, within)
+	got := drift("sc-precompact", note, []string{"tools/x.go"}, within)
 	if !strings.Contains(got, "resolvable trigger surface") {
 		t.Errorf("an unresolvable loop must be named as such, got %q", got)
 	}
@@ -125,10 +125,10 @@ func TestDriftSaysNothingWithoutEvidence(t *testing.T) {
 	_, within := tree(t, "tools")
 	note := noteWith("1. `go test`  → ok  · re-armed by: tools/\n   last run: pass")
 
-	if got := drift(note, nil, within); got != "" {
+	if got := drift("sc-precompact", note, nil, within); got != "" {
 		t.Errorf("no observed writes must produce no line, got %q", got)
 	}
-	if got := drift("", nil, within); got != "" {
+	if got := drift("sc-precompact", "", nil, within); got != "" {
 		t.Errorf("no note and no writes must produce no line, got %q", got)
 	}
 }
@@ -142,7 +142,7 @@ func TestDriftLineStaysBounded(t *testing.T) {
 	for _, n := range []string{"a", "b", "c", "d", "e", "f", "g", "h"} {
 		many = append(many, "elsewhere/"+n+".go")
 	}
-	got := drift(note, many, within)
+	got := drift("sc-precompact", note, many, within)
 	if got == "" {
 		t.Fatal("expected a drift line")
 	}

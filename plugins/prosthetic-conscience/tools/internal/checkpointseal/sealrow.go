@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -205,19 +204,9 @@ func appendSealRow(dir, projectDir string, body []byte, now time.Time, event, oc
 		row.NoteBranchCommits = &c
 	}
 
-	line, err := json.Marshal(row)
-	if err != nil {
-		fmt.Fprintln(stderr, "sc-checkpoint-seal: cannot encode seal row:", err)
-		return
-	}
-	f, err := os.OpenFile(filepath.Join(dir, "seals.jsonl"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
-	if err != nil {
-		fmt.Fprintln(stderr, "sc-checkpoint-seal: cannot open seal record:", err)
-		return
-	}
-	defer f.Close()
-	if _, err := f.Write(append(line, '\n')); err != nil {
-		fmt.Fprintln(stderr, "sc-checkpoint-seal: cannot append seal row:", err)
+	if err := statefile.AppendRow(filepath.Join(dir, "seals.jsonl"), row); err != nil {
+		// Named for the shim that was INVOKED, not for the binary these three used to be.
+		fmt.Fprintln(stderr, binaryFor(event)+": cannot append seal row:", err)
 	}
 }
 
