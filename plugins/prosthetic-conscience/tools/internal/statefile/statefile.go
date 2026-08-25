@@ -71,34 +71,47 @@ var (
 // Read loads a JSON record, distinguishing absent from unreadable.
 func Read[T any](path string) (T, Status) {
 	var zero T
-	// What the LAST attempt saw decides the verdict: a name that is still missing after
-	// every retry is genuinely absent, and one that was missing only in passing is not.
-	missing := false
+	b, err := ReadFile(path)
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		// Still missing after every retry, so the absence is the file's own and not a
+		// rename passing through.
+		return zero, Absent
+	case err != nil:
+		return zero, Unreadable
+	}
+	var v T
+	if err := json.Unmarshal(b, &v); err != nil {
+		// Present and undecodable. Retrying will not help — a torn write has already
+		// landed or the file is corrupt — and reporting it as empty would invite the
+		// caller to overwrite it.
+		return zero, Unreadable
+	}
+	return v, Present
+}
+
+// ReadFile is os.ReadFile with this package's transient-miss retry, exported for the
+// callers that read these records through somebody else's signature.
+//
+// checkpoint.LoadRearm takes its reader as an argument, and the one caller that reads the
+// re-arm record OUTSIDE the re-arm lock (checkpointrestore) was passing os.ReadFile bare
+// — so it could catch the same instant a rename was binding and conclude the record was
+// empty, which is the reading LoadRearm's own doc calls the symptom that cost #165 three
+// sessions. Giving it this reader closes that without moving the lock.
+//
+// The last error is the one returned, so a caller can still tell absent from unreadable.
+func ReadFile(path string) ([]byte, error) {
+	var err error
 	for attempt := range readAttempts {
-		b, err := os.ReadFile(path)
-		switch {
-		case errors.Is(err, os.ErrNotExist):
-			missing = true
-		case err != nil:
-			missing = false
-		default:
-			var v T
-			if err := json.Unmarshal(b, &v); err != nil {
-				// Present and undecodable. Retrying will not help — a torn write has
-				// already landed or the file is corrupt — and reporting it as empty would
-				// invite the caller to overwrite it.
-				return zero, Unreadable
-			}
-			return v, Present
+		var b []byte
+		if b, err = os.ReadFile(path); err == nil {
+			return b, nil
 		}
 		if attempt < readAttempts-1 {
 			time.Sleep(time.Duration(attempt+1) * readBackoff)
 		}
 	}
-	if missing {
-		return zero, Absent
-	}
-	return zero, Unreadable
+	return nil, err
 }
 
 // Write replaces the record ATOMICALLY: temp file, then rename.

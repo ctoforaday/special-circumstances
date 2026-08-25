@@ -76,6 +76,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/statefile"
 )
 
 // maxDigest bounds what is injected. The note is the tattoo, not the
@@ -551,7 +552,12 @@ func compose(projectDir, source string) (string, []string) {
 	// load-bearing half and re-arm history is an annotation on it. But it is
 	// reported rather than swallowed: silence here is what let a torn file look
 	// like "coverage stopped" for three sessions (#165).
-	rearm, rearmErr := checkpoint.LoadRearm(os.ReadFile, checkpoint.RearmPath(projectDir))
+	// statefile.ReadFile, not os.ReadFile: this read does NOT hold the re-arm lock, so it
+	// races the hooks that write the record by rename. A bare read can catch the instant
+	// the name is unbound and report ErrNotExist for a file that exists either side of it,
+	// which LoadRearm reads as "no re-arm history" — the empty-looking record that #165
+	// spent three sessions explaining. The retry costs milliseconds on a genuine absence.
+	rearm, rearmErr := checkpoint.LoadRearm(statefile.ReadFile, checkpoint.RearmPath(projectDir))
 	if rearmErr != nil {
 		unresolved = append(unresolved, rearmErr.Error())
 	}
