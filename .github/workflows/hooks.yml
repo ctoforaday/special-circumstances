@@ -1002,8 +1002,22 @@ jobs:
           # that is the whole story of the frozen 27 MB cache: the pc-tools job
           # finished first and its little build cache became everyone's. Each job now
           # keys on what IT builds, so each save is the cache its restore expects.
+          # SCRIPTS, NOT FEOV, because that is what this job actually builds. Its Go work is
+          # `go run ./mjsparity`, `./mutate`, `./validatejson`, `./frontmatter`, `./decisions`
+          # and `./pluginparity` — every one of them a scripts-module tool. It declared the
+          # feov module, which it never builds, and the key did exactly as it was told: this
+          # job saved an 18 MB cache under the feov key at 08:00:28 and feov-record (ubuntu),
+          # which builds ~280 MB, was refused at 08:05:54 with "Unable to reserve cache with
+          # key ... another job may be creating this cache". A primary-key hit skips the save,
+          # so the big job would have restored the small one's cache until feov's go.sum moved.
+          #
+          # The bug was the DECLARATION, not the keying. Sharing a key with rule-sweep and
+          # scripts is now correct rather than accidental: all three build the same module on
+          # the same platform, so they are one cache domain and should have one cache. The
+          # invariant is not "a key per job" — it is a key per (module, platform), and jobs
+          # that build the same thing SHOULD share one.
           cache-dependency-path: |
-            plugins/frank-exchange-of-views/tools/go.sum
+            scripts/go.sum
           go-version: "1.25"
       - uses: actions/setup-node@v7
         with:
