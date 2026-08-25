@@ -78,6 +78,44 @@ jobs:
           # mostly provides; that is a later rung if compile stays slow, taken on numbers.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
+      # EXPERIMENT (do not merge): retest a RAM disk for Windows CI with the EXTENDED memfs
+      # (Ceiridge/WinFsp-MemFs-Extended v3.5), a modern-C++ rewrite of the sample memfs.
+      # Two questions the sample left open, from #561:
+      #   PERF — the sample got recordsql to Linux parity but the spawn-heavy packages
+      #          (fuzz, cli) stayed slow. Does a faster memfs move them, or is the residual
+      #          gap really spawn/compute as #561 concluded?
+      #   CORRECTNESS — the sample FAILED internal/freshness truncate under -race (a reader
+      #          saw an empty file mid-rewrite). The rewrite claims better fidelity; the
+      #          -race step below is the test. Full-RAM (caches too) to match #561's column.
+      - name: extended memfs RAM disk for TEMP+caches (experiment)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install winfsp -y --no-progress | Out-Null
+          $zip = "$env:RUNNER_TEMP\memefs.zip"
+          # Pinned to the v3.5 release tag (not `latest`); a production use would hash-pin.
+          Invoke-WebRequest -Uri "https://github.com/Ceiridge/WinFsp-MemFs-Extended/releases/download/v3.5/Release.zip" -OutFile $zip
+          $dst = "C:\memefs"
+          Expand-Archive -Path $zip -DestinationPath $dst -Force
+          $exe = Get-ChildItem -Path $dst -Recurse -Filter "*.exe" | Where-Object { $_.Name -match "memefs" } | Select-Object -First 1
+          if (-not $exe) {
+            Get-ChildItem -Path $dst -Recurse | ForEach-Object FullName
+            throw "no memefs*.exe in Release.zip - the listing above is the next clue"
+          }
+          # -s is a CEILING; the extended memfs allocates on demand. 10 GiB on a ~16 GiB runner.
+          Start-Process -FilePath $exe.FullName -ArgumentList '-i','-F','NTFS','-s','10737418240','-m','X:' -WindowStyle Hidden
+          $deadline = (Get-Date).AddSeconds(30)
+          while (-not (Test-Path "X:\")) {
+            if ((Get-Date) -gt $deadline) { throw "extended memfs never mounted X:" }
+            Start-Sleep -Milliseconds 500
+          }
+          New-Item -ItemType Directory -Path "X:\tmp","X:\gocache","X:\gomod" | Out-Null
+          # These overwrite the dev drive's TMP/TEMP/GOCACHE/GOMODCACHE above (last write wins),
+          # so the variable under test is the whole build+test working set on extended memfs.
+          "TMP=X:\tmp"          | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=X:\tmp"         | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOCACHE=X:\gocache"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOMODCACHE=X:\gomod" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -211,6 +249,44 @@ jobs:
           # mostly provides; that is a later rung if compile stays slow, taken on numbers.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
+      # EXPERIMENT (do not merge): retest a RAM disk for Windows CI with the EXTENDED memfs
+      # (Ceiridge/WinFsp-MemFs-Extended v3.5), a modern-C++ rewrite of the sample memfs.
+      # Two questions the sample left open, from #561:
+      #   PERF — the sample got recordsql to Linux parity but the spawn-heavy packages
+      #          (fuzz, cli) stayed slow. Does a faster memfs move them, or is the residual
+      #          gap really spawn/compute as #561 concluded?
+      #   CORRECTNESS — the sample FAILED internal/freshness truncate under -race (a reader
+      #          saw an empty file mid-rewrite). The rewrite claims better fidelity; the
+      #          -race step below is the test. Full-RAM (caches too) to match #561's column.
+      - name: extended memfs RAM disk for TEMP+caches (experiment)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install winfsp -y --no-progress | Out-Null
+          $zip = "$env:RUNNER_TEMP\memefs.zip"
+          # Pinned to the v3.5 release tag (not `latest`); a production use would hash-pin.
+          Invoke-WebRequest -Uri "https://github.com/Ceiridge/WinFsp-MemFs-Extended/releases/download/v3.5/Release.zip" -OutFile $zip
+          $dst = "C:\memefs"
+          Expand-Archive -Path $zip -DestinationPath $dst -Force
+          $exe = Get-ChildItem -Path $dst -Recurse -Filter "*.exe" | Where-Object { $_.Name -match "memefs" } | Select-Object -First 1
+          if (-not $exe) {
+            Get-ChildItem -Path $dst -Recurse | ForEach-Object FullName
+            throw "no memefs*.exe in Release.zip - the listing above is the next clue"
+          }
+          # -s is a CEILING; the extended memfs allocates on demand. 10 GiB on a ~16 GiB runner.
+          Start-Process -FilePath $exe.FullName -ArgumentList '-i','-F','NTFS','-s','10737418240','-m','X:' -WindowStyle Hidden
+          $deadline = (Get-Date).AddSeconds(30)
+          while (-not (Test-Path "X:\")) {
+            if ((Get-Date) -gt $deadline) { throw "extended memfs never mounted X:" }
+            Start-Sleep -Milliseconds 500
+          }
+          New-Item -ItemType Directory -Path "X:\tmp","X:\gocache","X:\gomod" | Out-Null
+          # These overwrite the dev drive's TMP/TEMP/GOCACHE/GOMODCACHE above (last write wins),
+          # so the variable under test is the whole build+test working set on extended memfs.
+          "TMP=X:\tmp"          | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=X:\tmp"         | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOCACHE=X:\gocache"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOMODCACHE=X:\gomod" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -354,6 +430,44 @@ jobs:
           # mostly provides; that is a later rung if compile stays slow, taken on numbers.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
+      # EXPERIMENT (do not merge): retest a RAM disk for Windows CI with the EXTENDED memfs
+      # (Ceiridge/WinFsp-MemFs-Extended v3.5), a modern-C++ rewrite of the sample memfs.
+      # Two questions the sample left open, from #561:
+      #   PERF — the sample got recordsql to Linux parity but the spawn-heavy packages
+      #          (fuzz, cli) stayed slow. Does a faster memfs move them, or is the residual
+      #          gap really spawn/compute as #561 concluded?
+      #   CORRECTNESS — the sample FAILED internal/freshness truncate under -race (a reader
+      #          saw an empty file mid-rewrite). The rewrite claims better fidelity; the
+      #          -race step below is the test. Full-RAM (caches too) to match #561's column.
+      - name: extended memfs RAM disk for TEMP+caches (experiment)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install winfsp -y --no-progress | Out-Null
+          $zip = "$env:RUNNER_TEMP\memefs.zip"
+          # Pinned to the v3.5 release tag (not `latest`); a production use would hash-pin.
+          Invoke-WebRequest -Uri "https://github.com/Ceiridge/WinFsp-MemFs-Extended/releases/download/v3.5/Release.zip" -OutFile $zip
+          $dst = "C:\memefs"
+          Expand-Archive -Path $zip -DestinationPath $dst -Force
+          $exe = Get-ChildItem -Path $dst -Recurse -Filter "*.exe" | Where-Object { $_.Name -match "memefs" } | Select-Object -First 1
+          if (-not $exe) {
+            Get-ChildItem -Path $dst -Recurse | ForEach-Object FullName
+            throw "no memefs*.exe in Release.zip - the listing above is the next clue"
+          }
+          # -s is a CEILING; the extended memfs allocates on demand. 10 GiB on a ~16 GiB runner.
+          Start-Process -FilePath $exe.FullName -ArgumentList '-i','-F','NTFS','-s','10737418240','-m','X:' -WindowStyle Hidden
+          $deadline = (Get-Date).AddSeconds(30)
+          while (-not (Test-Path "X:\")) {
+            if ((Get-Date) -gt $deadline) { throw "extended memfs never mounted X:" }
+            Start-Sleep -Milliseconds 500
+          }
+          New-Item -ItemType Directory -Path "X:\tmp","X:\gocache","X:\gomod" | Out-Null
+          # These overwrite the dev drive's TMP/TEMP/GOCACHE/GOMODCACHE above (last write wins),
+          # so the variable under test is the whole build+test working set on extended memfs.
+          "TMP=X:\tmp"          | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=X:\tmp"         | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOCACHE=X:\gocache"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "GOMODCACHE=X:\gomod" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
