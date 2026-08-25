@@ -134,7 +134,15 @@ var raceScope = map[string][]string{
 	"plugins/prosthetic-conscience/tools":   {"./..."},
 	"plugins/frank-exchange-of-views/tools": {"./internal/record/"},
 	"plugins/gray-area/tools":               {"./..."},
-	// scripts has no -race leg in CI. Absent on purpose, and absent here, so parity agrees.
+	// scripts WAS the one module with no -race leg, absent on purpose while it was
+	// straight-line tooling. It stopped being that: golden/interrupt.go guards signal state
+	// with a mutex and mutate arms a file for an interrupt handler to put back — and the
+	// second of those shipped an unsynchronised read of the path/bytes pair, so an interrupt
+	// could pair one file's path with another file's contents and write it over real source.
+	// It was found by reading, not by CI, because CI could not look. `./...` rather than a
+	// package list: a hand-kept list of "the concurrent ones" is the next thing to go stale,
+	// and this module's suite is seconds.
+	"scripts": {"./..."},
 }
 
 // tools are the scripts/ commands CI runs.

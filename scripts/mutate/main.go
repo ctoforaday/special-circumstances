@@ -278,7 +278,7 @@ type result struct {
 
 // sweep mutates one occurrence at a time, ALWAYS restoring the file — including on SIGINT,
 // because a mutant left in the working tree is worse than no measurement.
-func sweep(moduleDir, filter string, confirm bool, out *os.File) (*result, error) {
+func sweep(moduleDir, filter string, confirm bool, out *os.File) (_ *result, err error) {
 	files, err := goFiles(moduleDir)
 	if err != nil {
 		return nil, err
@@ -297,25 +297,41 @@ func sweep(moduleDir, filter string, confirm bool, out *os.File) (*result, error
 	}
 
 	var (
-		res     result
-		current string
-		backup  []byte
+		res  result
+		rest restorer
 	)
-	restore := func() {
-		if current != "" {
-			_ = os.WriteFile(current, backup, 0o644)
-			current = ""
+	// The last line of defence, and it REPORTS. A failed restore here leaves a mutant in a
+	// tracked file, so it fails the command rather than letting a sweep that ended tidily on
+	// screen hand back a dirty tree.
+	defer func() {
+		_, rerr := restore(&rest)
+		if rerr == nil {
+			return
 		}
-	}
-	defer restore()
+		if err == nil {
+			err = rerr
+		} else {
+			err = fmt.Errorf("%w; additionally %v", err, rerr)
+		}
+	}()
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sig)
 	go func() {
 		<-sig
-		restore()
-		fmt.Fprintln(os.Stderr, "\ninterrupted — file restored")
+		p, rerr := restore(&rest)
+		if rerr != nil {
+			// The one message that must never be optimistic: this process is about to
+			// exit and nothing else will put the file back.
+			fmt.Fprintf(os.Stderr, "\ninterrupted — RESTORE FAILED: %v\n", rerr)
+			os.Exit(1)
+		}
+		if p == "" {
+			fmt.Fprintln(os.Stderr, "\ninterrupted — no file was mutated")
+		} else {
+			fmt.Fprintf(os.Stderr, "\ninterrupted — %s restored\n", p)
+		}
 		os.Exit(130)
 	}()
 
@@ -326,7 +342,7 @@ func sweep(moduleDir, filter string, confirm bool, out *os.File) (*result, error
 		}
 		rel, _ := filepath.Rel(moduleDir, path)
 		pkg := suiteFor(rel)
-		current, backup = path, source
+		rest.arm(path, source)
 		lines := strings.Split(string(source), "\n")
 
 		for _, c := range candidates(string(source)) {
@@ -353,7 +369,9 @@ func sweep(moduleDir, filter string, confirm bool, out *os.File) (*result, error
 				res.killed++
 			}
 		}
-		restore()
+		if _, rerr := restore(&rest); rerr != nil {
+			return nil, rerr
+		}
 	}
 	return &res, nil
 }

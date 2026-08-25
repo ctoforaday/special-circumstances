@@ -810,6 +810,12 @@ jobs:
             scripts/go.sum
           go-version: "1.25"
       - run: go test ./...
+      # THE MODULE'S CONCURRENCY IS REAL NOW, so the detector gets a look. golden/interrupt.go
+      # guards signal state with a mutex, and mutate arms a file for its interrupt handler to
+      # restore — where an unsynchronised path/bytes pair could hand one file another file's
+      # contents. That shipped, and was found by reading rather than by CI, because scripts was
+      # the one module with no -race leg. The suite is seconds; the detector is cheap here.
+      - run: go test -race ./...
 
   qlty:
     # The quality gate had no CI leg at all. `qlty check` is mandatory during
