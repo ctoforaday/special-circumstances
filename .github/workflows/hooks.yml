@@ -29,6 +29,32 @@ jobs:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
+      # THE TEMP DISK IS THE TEST SUITE'S REAL SUBSTRATE, and on windows-2025 it is the slow
+      # one. These runner images removed the D: drive (actions/runner-images#12647), so TEMP
+      # lives on C: — network-attached storage a commenter in that issue benchmarked at
+      # ~33 MB/s — and every t.TempDir database in this suite pays it: the packages that
+      # degrade worst vs Linux (recordsql 5.6x, record 3.9x) are exactly the SQLite-churn
+      # ones, while the process-spawning fuzz degrades least (2.3x). Defender is NOT the
+      # cause: the images already run it in passive mode (Configure-WindowsDefender.ps1).
+      #
+      # The fix the community converged on is a DEV DRIVE — a ReFS VHDX on local storage
+      # with antivirus in async performance mode — created inline here rather than via a
+      # third-party action, because ten lines of PowerShell is cheaper to trust than a tag.
+      # Only TMP/TEMP move; GOCACHE stays at its default so setup-go's pull-request cache
+      # keeps saving and restoring the path it expects. Compile cost is the cache's job,
+      # test I/O is the dev drive's, and the two stay independently measurable.
+      - name: dev drive for TEMP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vhd = "C:\dev.vhdx"
+          New-VHD -Path $vhd -SizeBytes 20GB -Dynamic | Out-Null
+          $disk = Mount-VHD -Path $vhd -PassThru | Initialize-Disk -PassThru
+          $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter V
+          Format-Volume -DriveLetter V -DevDrive | Out-Null
+          New-Item -ItemType Directory -Path "V:\tmp" | Out-Null
+          "TMP=V:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=V:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -50,7 +76,7 @@ jobs:
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
@@ -100,6 +126,32 @@ jobs:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
+      # THE TEMP DISK IS THE TEST SUITE'S REAL SUBSTRATE, and on windows-2025 it is the slow
+      # one. These runner images removed the D: drive (actions/runner-images#12647), so TEMP
+      # lives on C: — network-attached storage a commenter in that issue benchmarked at
+      # ~33 MB/s — and every t.TempDir database in this suite pays it: the packages that
+      # degrade worst vs Linux (recordsql 5.6x, record 3.9x) are exactly the SQLite-churn
+      # ones, while the process-spawning fuzz degrades least (2.3x). Defender is NOT the
+      # cause: the images already run it in passive mode (Configure-WindowsDefender.ps1).
+      #
+      # The fix the community converged on is a DEV DRIVE — a ReFS VHDX on local storage
+      # with antivirus in async performance mode — created inline here rather than via a
+      # third-party action, because ten lines of PowerShell is cheaper to trust than a tag.
+      # Only TMP/TEMP move; GOCACHE stays at its default so setup-go's pull-request cache
+      # keeps saving and restoring the path it expects. Compile cost is the cache's job,
+      # test I/O is the dev drive's, and the two stay independently measurable.
+      - name: dev drive for TEMP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vhd = "C:\dev.vhdx"
+          New-VHD -Path $vhd -SizeBytes 20GB -Dynamic | Out-Null
+          $disk = Mount-VHD -Path $vhd -PassThru | Initialize-Disk -PassThru
+          $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter V
+          Format-Volume -DriveLetter V -DevDrive | Out-Null
+          New-Item -ItemType Directory -Path "V:\tmp" | Out-Null
+          "TMP=V:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=V:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -121,7 +173,7 @@ jobs:
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
@@ -175,6 +227,32 @@ jobs:
           # No remote access after checkout, so the token has no reason to persist
           # into .git/config where any later step could read it.
           persist-credentials: false
+      # THE TEMP DISK IS THE TEST SUITE'S REAL SUBSTRATE, and on windows-2025 it is the slow
+      # one. These runner images removed the D: drive (actions/runner-images#12647), so TEMP
+      # lives on C: — network-attached storage a commenter in that issue benchmarked at
+      # ~33 MB/s — and every t.TempDir database in this suite pays it: the packages that
+      # degrade worst vs Linux (recordsql 5.6x, record 3.9x) are exactly the SQLite-churn
+      # ones, while the process-spawning fuzz degrades least (2.3x). Defender is NOT the
+      # cause: the images already run it in passive mode (Configure-WindowsDefender.ps1).
+      #
+      # The fix the community converged on is a DEV DRIVE — a ReFS VHDX on local storage
+      # with antivirus in async performance mode — created inline here rather than via a
+      # third-party action, because ten lines of PowerShell is cheaper to trust than a tag.
+      # Only TMP/TEMP move; GOCACHE stays at its default so setup-go's pull-request cache
+      # keeps saving and restoring the path it expects. Compile cost is the cache's job,
+      # test I/O is the dev drive's, and the two stay independently measurable.
+      - name: dev drive for TEMP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vhd = "C:\dev.vhdx"
+          New-VHD -Path $vhd -SizeBytes 20GB -Dynamic | Out-Null
+          $disk = Mount-VHD -Path $vhd -PassThru | Initialize-Disk -PassThru
+          $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -DriveLetter V
+          Format-Volume -DriveLetter V -DevDrive | Out-Null
+          New-Item -ItemType Directory -Path "V:\tmp" | Out-Null
+          "TMP=V:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TEMP=V:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -196,7 +274,7 @@ jobs:
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
@@ -248,7 +326,7 @@ jobs:
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
           cache-dependency-path: "**/go.sum"
           go-version: "1.25"
       - uses: actions/setup-node@v7
@@ -324,7 +402,7 @@ jobs:
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
           cache-dependency-path: "**/go.sum"
           go-version: "1.25"
       - run: go vet ./...
@@ -419,7 +497,7 @@ jobs:
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
@@ -459,7 +537,7 @@ jobs:
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
           cache-dependency-path: "**/go.sum"
           go-version: "1.25"
       - uses: actions/setup-node@v7
@@ -599,7 +677,7 @@ jobs:
           # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
           # a tag), so published bytes never touch any cache — and `push` writes none, so a
           # tag run has nothing to restore even if it looked.
-          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
+          cache: ${{ github.event_name == 'pull_request' }}  # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
