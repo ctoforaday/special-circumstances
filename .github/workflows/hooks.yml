@@ -104,7 +104,7 @@ jobs:
           # finished first and its little build cache became everyone's. Each job now
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
-            plugins/prosthetic-conscience/tools/go.sum
+            plugins/prosthetic-conscience/tools/go.mod
             .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
@@ -356,7 +356,7 @@ jobs:
           # finished first and its little build cache became everyone's. Each job now
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
-            plugins/gray-area/tools/go.sum
+            plugins/gray-area/tools/go.mod
             .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
@@ -620,7 +620,7 @@ jobs:
           cache-dependency-path: |
             scripts/go.sum
             plugins/frank-exchange-of-views/tools/go.sum
-            plugins/prosthetic-conscience/tools/go.sum
+            plugins/prosthetic-conscience/tools/go.mod
             .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
@@ -826,9 +826,9 @@ jobs:
           # finished first and its little build cache became everyone's. Each job now
           # keys on what IT builds, so each save is the cache its restore expects.
           cache-dependency-path: |
-            plugins/prosthetic-conscience/tools/go.sum
+            plugins/prosthetic-conscience/tools/go.mod
             plugins/frank-exchange-of-views/tools/go.sum
-            plugins/gray-area/tools/go.sum
+            plugins/gray-area/tools/go.mod
             .github/workflows/hooks.yml
           # MUST satisfy every go.mod in the repo — all FOUR are on 1.25: the three
           # plugin modules plus scripts/, the dev tooling. Under v5 this
