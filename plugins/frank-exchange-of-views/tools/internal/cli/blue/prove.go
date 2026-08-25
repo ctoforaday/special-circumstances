@@ -64,11 +64,20 @@ func newProve() *cobra.Command {
 			return nil, err
 		}
 
-		label := record.NewProofID()
+		// A TORN SPLICE IS ADOPTED, NOT DOUBLED — the same rule as `blue cite`, through the
+		// shared walk; only the recorded set (proof ids) is this verb's.
+		label := adoptTornProofAnchor(s.RunDir, location)
+		spliced := label != ""
+		if label == "" {
+			label = record.NewProofID()
+		}
 		marker := "<!--proof:" + label + "-->"
 		// Spliced under the report lock at the quoted sentence, by the SAME machinery a
 		// citation anchor uses: one immortal-anchor mechanism, three classes.
 		if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
+			if spliced {
+				return old, nil // the crashed first attempt already placed this marker
+			}
 			next, aerr := lens.InsertAnchor(old, location, marker)
 			if aerr != nil {
 				return nil, aerr
@@ -144,4 +153,24 @@ func (r proveResult) Human() string {
 		out += "\n  NOT reproducible: " + r.Drift + " — recorded as a measurement, not a proof"
 	}
 	return out
+}
+
+// adoptTornProofAnchor returns the id of a proof marker already on the located quote that no
+// proof event names — a torn splice — or "" for the ordinary fresh path.
+func adoptTornProofAnchor(runDir, quote string) string {
+	rep, err := record.ReadBlueReport(runDir)
+	if err != nil {
+		return ""
+	}
+	m, err := record.MergedEvents(runDir)
+	if err != nil {
+		return ""
+	}
+	recorded := map[string]bool{}
+	for _, e := range m.Events {
+		if pr, ok := recordpb.BodyAs[*recordpb.Proof](e); ok {
+			recorded[pr.GetProofId()] = true
+		}
+	}
+	return lens.OrphanAnchorAt(string(rep), quote, "proof", func(id string) bool { return recorded[id] })
 }

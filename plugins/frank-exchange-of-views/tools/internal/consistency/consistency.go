@@ -64,6 +64,9 @@ type groundTruth struct {
 	order         []string
 	gaps          map[string]*gtGap
 	findingLabels map[string]bool
+	findingIDs    map[string]bool
+	anchorEvIDs   map[string]bool
+	proofIDs      map[string]bool
 	citeEvents    int
 	verifyEvents  int
 	avenues       map[string]string // avenue id -> last status word
@@ -84,6 +87,9 @@ func walk(events []*record.Event) *groundTruth {
 	gt := &groundTruth{
 		gaps:          map[string]*gtGap{},
 		findingLabels: map[string]bool{},
+		findingIDs:    map[string]bool{},
+		anchorEvIDs:   map[string]bool{},
+		proofIDs:      map[string]bool{},
 		avenues:       map[string]string{},
 	}
 	closes := closesSet()
@@ -147,6 +153,17 @@ func walk(events []*record.Event) *groundTruth {
 			gt.observations++
 			if l := m.GetLabel(); l != "" {
 				gt.findingLabels[l] = true
+			}
+			if id := m.GetFindingId(); id != "" {
+				gt.findingIDs[id] = true
+			}
+		case *recordpb.Anchor:
+			if id := m.GetId(); id != "" {
+				gt.anchorEvIDs[id] = true
+			}
+		case *recordpb.Proof:
+			if id := m.GetProofId(); id != "" {
+				gt.proofIDs[id] = true
 			}
 		case *recordpb.Cite:
 			_ = m
@@ -360,24 +377,56 @@ func Check(runDir string) ([]string, error) {
 		for _, m := range anchorToken.FindAllStringSubmatch(string(rep), -1) {
 			inReport[m[1]] = true
 		}
-		expected, lerr := record.CitationLabels(runDir)
-		if lerr != nil {
+		// Each class's recorded set is the union of the events entitled to name that id: a c-
+		// label may come from blue's cite or from red's labelled verify (a corroboration); an f-
+		// id from the finding or its anchor event; a p- id from the proof. Every splice precedes
+		// its append, so BOTH directions of each bijection are invariants of a settled record.
+		citeSet := map[string]bool{}
+		if labels, lerr := record.CitationLabels(runDir); lerr != nil {
 			add("anchor-record", "deriving expected citation labels: %v", lerr)
 		} else {
-			want := map[string]bool{}
-			for _, l := range expected {
-				want[l] = true
+			for _, l := range labels {
+				citeSet[l] = true
 			}
-			for tok := range inReport {
-				if strings.HasPrefix(tok, "c-") && !want[tok] {
-					add("anchor-record", "report.md carries citation anchor %s and the record has no event for it — a torn splice, and the retry will mint a duplicate beside it", tok)
-				}
+		}
+		backed := func(id string) (bool, string) {
+			switch {
+			case strings.HasPrefix(id, "c-"):
+				return citeSet[id], "cite/verify"
+			case strings.HasPrefix(id, "f-"):
+				return gt.findingIDs[id] || gt.anchorEvIDs[id], "finding/anchor"
+			case strings.HasPrefix(id, "p-"):
+				return gt.proofIDs[id], "proof"
 			}
-			for l := range want {
-				if !inReport[l] {
-					add("anchor-record", "the record carries citation label %s and report.md has no anchor for it — the citation will never render", l)
-				}
+			return true, "" // an alien class is claimcount's problem, not a torn splice
+		}
+		for tok := range inReport {
+			if ok, kind := backed(tok); !ok {
+				add("anchor-record", "report.md carries anchor %s and no %s event names it — a torn splice, and a naive retry would mint a duplicate beside it", tok, kind)
 			}
+		}
+		for l := range citeSet {
+			if !inReport[l] {
+				add("anchor-record", "the record carries citation label %s and report.md has no anchor for it — the citation will never render", l)
+			}
+		}
+		for id := range gt.proofIDs {
+			if !inReport[id] {
+				add("anchor-record", "the record carries proof id %s and report.md has no anchor for it — the proof backs no sentence", id)
+			}
+		}
+		for id := range gt.findingIDs {
+			if !inReport[id] {
+				add("anchor-record", "the record carries finding id %s and report.md has no marker for it", id)
+			}
+		}
+	}
+	// The finding and its anchor event are appended as a PAIR after the splice; a finding with no
+	// anchor event is the crash window between the two appends, sealed by an idempotent retry
+	// that never looked. Report-independent, so it runs even when report.md is gone.
+	for id := range gt.findingIDs {
+		if !gt.anchorEvIDs[id] {
+			add("anchor-record", "finding %s has no anchor event — the immortal-marker detector never learned its marker exists", id)
 		}
 	}
 

@@ -3,9 +3,6 @@ package blue
 import (
 	"errors"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
-	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -141,57 +138,22 @@ func (r citeResult) Human() string {
 	return "citation recorded: " + r.Label + " — an invisible immortal anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")"
 }
 
-// citeToken matches a citation anchor as minted; group 1 is the label.
-var citeToken = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
-
-// adoptTornCiteAnchor returns the label of a citation anchor already sitting on the located
-// quote that NO recorded event backs — the state a crash between splice and append leaves — or
-// "" when the sentence carries no such orphan and a fresh splice is the right act.
-//
-// THE SCOPE IS THE SENTENCE'S OWN ANCHOR RUN, not the whole report: an orphan elsewhere on the
-// page is somebody else's torn act, and adopting it here would attach this cite's source to a
-// sentence it never read. The walk mirrors the splice's own geometry — InsertAnchor lands the
-// token between the located span and its trailing punctuation, and abutting runs are ordinary
-// (two lenses anchoring one sentence is a measured corpus shape) — so both token-runs and
-// punctuation are stepped over, in either order.
-//
-// Every miss returns "": a report that cannot be read, a quote that does not locate, a run with
-// no orphan. The caller then splices fresh, and whatever refusal that path produces is the one
-// the seat should see.
+// adoptTornCiteAnchor returns the label of a citation anchor already on the located quote that
+// no recorded event backs — a torn splice — or "" for the ordinary fresh path. The walk itself is
+// lens.OrphanAnchorAt, shared with `lens finding` and `blue prove`, which carry the same
+// two-act crash window; only the recorded set is this verb's.
 func adoptTornCiteAnchor(runDir, quote string) string {
 	rep, err := record.ReadBlueReport(runDir)
 	if err != nil {
 		return ""
 	}
-	report := string(rep)
-	_, end, err := bluedoc.LocateUnique("blue cite", report, quote)
+	labels, err := record.CitationLabels(runDir)
 	if err != nil {
-		return ""
+		return "" // cannot tell an orphan from a backed anchor; splice fresh rather than guess
 	}
 	recorded := map[string]bool{}
-	if labels, err := record.CitationLabels(runDir); err == nil {
-		for _, l := range labels {
-			recorded[l] = true
-		}
-	} else {
-		return "" // cannot tell orphan from backed; splice fresh rather than guess
+	for _, l := range labels {
+		recorded[l] = true
 	}
-	j := end
-	for j < len(report) {
-		if next := anchor.SkipRun(report, j); next > j {
-			for _, m := range citeToken.FindAllStringSubmatch(report[j:next], -1) {
-				if !recorded[m[1]] {
-					return m[1]
-				}
-			}
-			j = next
-			continue
-		}
-		if strings.ContainsRune(lens.TrailingPunct, rune(report[j])) {
-			j++
-			continue
-		}
-		break
-	}
-	return ""
+	return lens.OrphanAnchorAt(string(rep), quote, "cite", func(id string) bool { return recorded[id] })
 }
