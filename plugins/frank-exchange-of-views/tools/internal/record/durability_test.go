@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -229,7 +230,7 @@ func TestTheRosterAndTheRoleTableAgree(t *testing.T) {
 // writeAtomic must never leave a temp file behind, and must never publish a
 // half-written projection.
 func TestWriteAtomicLeavesNoTempAndPublishesWholeContent(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	target := filepath.Join(dir, "ledger.md")
 	content := []byte(strings.Repeat("projection line\n", 5000))
 	if err := writeAtomic(target, content); err != nil {
@@ -265,7 +266,7 @@ func TestWriteAtomicLeavesNoTempAndPublishesWholeContent(t *testing.T) {
 // Concurrent writers to the SAME projection: the lock plus atomic rename means a
 // reader never sees a partial file, whichever writer wins.
 func TestConcurrentWriteAtomicNeverPublishesAPartialFile(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	target := filepath.Join(dir, "ledger.md")
 	a := []byte(strings.Repeat("A", 200000))
 	b := []byte(strings.Repeat("B", 200000))

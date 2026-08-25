@@ -1,6 +1,9 @@
 package record
 
-import "testing"
+import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"testing"
+)
 
 // #327/#396, END TO END: a bench act at run END is recorded AFTER the rounds, not before them.
 //
@@ -46,7 +49,7 @@ func TestSynthesisSeatsAreRoundZeroByRule(t *testing.T) {
 // conflation this removes, one layer up: "no rounds have happened" would again be spelled the
 // same as "this happened in synthesis".
 func TestATerminalSeatOnAnEmptyRunIsUnknownRatherThanZero(t *testing.T) {
-	if got := RoundIn(tmpRun(t))("judge-terminal"); got != -1 {
+	if got := RoundIn(recordtest.TmpRun(t))("judge-terminal"); got != -1 {
 		t.Errorf("terminal round on an empty run = %d, want -1 (unknown); 0 would claim it happened in synthesis", got)
 	}
 }

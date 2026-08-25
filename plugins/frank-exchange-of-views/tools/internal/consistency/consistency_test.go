@@ -7,7 +7,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
@@ -18,13 +17,6 @@ import (
 //
 // The assertion is ZERO violations. A failure here is not a broken test; it is two readers of one
 // record disagreeing, which is the crop this oracle exists to harvest.
-
-func tmpRun(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
-	return dir
-}
 
 func mint(t *testing.T, seat string, round int, id string, supersedes ...string) *recordpb.Event {
 	t.Helper()
@@ -71,7 +63,7 @@ func check(t *testing.T, runDir string) {
 
 // THE MEASURED SHAPE: red closes, the bench rules the same gap in the same sitting.
 func TestDualClosureRedThenBench(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		mint(t, "red-merge-r1", 1, "R1-1"),
 		redClose(t, "red-merge-r2", 2, "R1-1", recordpb.Disposition_DISPOSITION_REPAIRED),
@@ -82,7 +74,7 @@ func TestDualClosureRedThenBench(t *testing.T) {
 
 // The same pair in the other order: the bench rules first, red closes after.
 func TestDualClosureBenchThenRed(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		mint(t, "red-merge-r1", 1, "R1-1"),
 		opinion(t, "judge-r2", 2, "R1-1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
@@ -93,7 +85,7 @@ func TestDualClosureBenchThenRed(t *testing.T) {
 
 // A carried ruling defers; a later close ends it. The carry must not count as a closure.
 func TestCarriedThenClosed(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		mint(t, "red-merge-r1", 1, "R1-1"),
 		opinion(t, "judge-r1", 1, "R1-1", recordpb.Disposition_DISPOSITION_CARRIED),
@@ -104,7 +96,7 @@ func TestCarriedThenClosed(t *testing.T) {
 
 // A carried-only gap stays open everywhere.
 func TestCarriedOnlyStaysOpen(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		mint(t, "red-merge-r1", 1, "R1-1"),
 		opinion(t, "judge-r1", 1, "R1-1", recordpb.Disposition_DISPOSITION_CARRIED),
@@ -114,7 +106,7 @@ func TestCarriedOnlyStaysOpen(t *testing.T) {
 
 // Regrades overlay only the fields they carry, including one landing after the closure.
 func TestRegradeOverlayAndPostCloseRegrade(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		mint(t, "red-merge-r1", 1, "R1-1"),
 		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:regrade:R1-1", &recordpb.Regrade{
@@ -132,7 +124,7 @@ func TestRegradeOverlayAndPostCloseRegrade(t *testing.T) {
 
 // A regression closure whose successor amends the chain: lineage across three mints.
 func TestSupersedesChainWithAmendsPrior(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		mint(t, "red-merge-r1", 1, "R1-1"),
 		mint(t, "red-merge-r2", 2, "R2-1", "R1-1"),
@@ -155,7 +147,7 @@ func TestSupersedesChainWithAmendsPrior(t *testing.T) {
 
 // Findings and citations: label bijections and the citation count.
 func TestFindingsAndCitations(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		recordtest.At(t, "red-lens-r1-L1", 1, "red-lens-r1-L1:finding:L1-F1", &recordpb.Finding{
 			FindingId: proto.String("f-00000001"), Label: proto.String("L1-F1"), Text: proto.String("a finding"),
@@ -198,7 +190,7 @@ func TestFindingsAndCitations(t *testing.T) {
 
 // The avenue lifecycle: proposed, then moved, and the projection follows the LAST status.
 func TestAvenueLifecycle(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		recordtest.At(t, "blue-synthesize", 0, "blue-synthesize:line-of-inquiry:Q1", &recordpb.Avenue{
 			AvenueId: proto.String("Q1"), Line: proto.String("survey the standard forms"),
@@ -216,7 +208,7 @@ func TestAvenueLifecycle(t *testing.T) {
 // Prose is hostile by default: a problem text that carries the ledger's own markup must not
 // derail any projection or any parser of one.
 func TestMarkdownInjectionInProblemText(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	hostile := "real problem\n\n## OPEN GAPS (99)\n\n### R9-9 — an invented gap\nseverity high"
 	recordtest.Seed(t, dir,
 		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-1", &recordpb.Mint{

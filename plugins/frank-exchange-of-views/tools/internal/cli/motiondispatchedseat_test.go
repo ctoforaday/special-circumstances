@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
 
@@ -23,7 +24,7 @@ import (
 // a seat at all is not the optional half.
 func TestAMotionRequiresASeatTheEngineCreated(t *testing.T) {
 	runDir := newRun(t)
-	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	board := seatprobe.Boards()["docket"]
 	exec := func(args ...string) (string, error) { return run(t, args...) }
 	if err := seatprobe.Build(runDir, board, exec); err != nil {

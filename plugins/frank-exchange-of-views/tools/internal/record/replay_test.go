@@ -43,7 +43,7 @@ func writeShard(t *testing.T, runDir string, evs []*Event) {
 }
 
 func TestMergedEventsOnAnEmptyOrAbsentRun(t *testing.T) {
-	m, err := MergedEvents(filepath.Join(tmpRun(t), "no-such-run"))
+	m, err := MergedEvents(filepath.Join(recordtest.TmpRun(t), "no-such-run"))
 	if err != nil {
 		t.Fatalf("absent run dir = %v, want no error", err)
 	}
@@ -331,7 +331,7 @@ func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 // UNSPECIFIED zero), so it is still asserted — and the canonical set is checked against the schema
 // in enums_test rather than by writing every value through validate.
 func TestAnAbsentGradeIsAccepted(t *testing.T) {
-	if err := validate(tmpRun(t), "red-merge-r1", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Basis: proto.String("b")}); err != nil {
+	if err := validate(recordtest.TmpRun(t), "red-merge-r1", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Basis: proto.String("b")}); err != nil {
 		t.Errorf("absent grades were refused: %v", err)
 	}
 }
@@ -649,7 +649,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	// corpus is indexed by. The corpus was built, the index was written, and the join never once
 	// delivered a pattern.
 	t.Run("no registry staged is refused, not waved through", func(t *testing.T) {
-		err := validate(tmpRun(t), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
+		err := validate(recordtest.TmpRun(t), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
 		if err == nil {
 			t.Fatal("a run with no staged registry accepted an arbitrary class — every --class passes, and the board ships a vocabulary nothing recognises")
 		}
@@ -850,7 +850,7 @@ func TestSingletonVerbsAreDeclaredForTheVerbsThatAreOnce(t *testing.T) {
 // UNIQUE, so a collision is not a wrong string — it is a refused act, and this asserts that both
 // findings land.
 func TestTheSameLabelInALaterRoundIsNotACollision(t *testing.T) {
-	runDir := tmpRun(t)
+	runDir := recordtest.TmpRun(t)
 	for _, seat := range []string{"red-lens-r1-L1", "red-lens-r2-L1"} {
 		id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
 		if _, _, err := RegisterSeat(id, ""); err != nil {
@@ -992,7 +992,7 @@ func TestNoRecordRefusalNamesAFlagASeatCannotType(t *testing.T) {
 		if !ok {
 			continue
 		}
-		if inspect(word+" (empty body)", validate(tmpRun(t), "red-merge-r1", typ, emptyBodyFor(t, md))) {
+		if inspect(word+" (empty body)", validate(recordtest.TmpRun(t), "red-merge-r1", typ, emptyBodyFor(t, md))) {
 			seen++
 		}
 	}
@@ -1002,7 +1002,7 @@ func TestNoRecordRefusalNamesAFlagASeatCannotType(t *testing.T) {
 		if tc.wantErr == "" {
 			continue
 		}
-		if inspect(tc.name, validate(tmpRun(t), "red-merge-r1", tc.typ, tc.p)) {
+		if inspect(tc.name, validate(recordtest.TmpRun(t), "red-merge-r1", tc.typ, tc.p)) {
 			seen++
 		}
 	}

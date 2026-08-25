@@ -2,6 +2,7 @@ package seat
 
 import (
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,7 +14,7 @@ import (
 // calls, and every subagent shares the parent's CLAUDE_CODE_SESSION_ID, so there is no
 // per-seat identity to key on. The marker on disk already knows the answer.
 func TestInferRunDirReadsTheLiveMarker(t *testing.T) {
-	proj := tmpRun(t)
+	proj := recordtest.TmpRun(t)
 	run := filepath.Join(proj, "research", "2026-07-18_topic")
 	mustMkdir(t, run)
 	mustMkdir(t, filepath.Join(proj, ".claude"))
@@ -26,7 +27,7 @@ func TestInferRunDirReadsTheLiveMarker(t *testing.T) {
 
 // A seat's cwd is usually deeper than the project root.
 func TestInferRunDirWalksUpFromASubdirectory(t *testing.T) {
-	proj := tmpRun(t)
+	proj := recordtest.TmpRun(t)
 	run := filepath.Join(proj, "research", "r")
 	mustMkdir(t, run)
 	mustMkdir(t, filepath.Join(proj, ".claude"))
@@ -48,7 +49,7 @@ func TestInferRunDirRefusesAnUnusableMarker(t *testing.T) {
 		{"not json at all", `this is not json`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			proj := tmpRun(t)
+			proj := recordtest.TmpRun(t)
 			mustMkdir(t, filepath.Join(proj, ".claude"))
 			writeMarker(t, proj, tc.body)
 			if got := InferRunDir(proj); got != "" {
@@ -59,15 +60,15 @@ func TestInferRunDirRefusesAnUnusableMarker(t *testing.T) {
 }
 
 func TestInferRunDirIsEmptyWithNoMarkerAnywhere(t *testing.T) {
-	if got := InferRunDir(tmpRun(t)); got != "" {
+	if got := InferRunDir(recordtest.TmpRun(t)); got != "" {
 		t.Fatalf("got %q, want empty when no run is live", got)
 	}
 }
 
 // An absolute runDir in the marker is used as-is rather than joined onto the project.
 func TestInferRunDirHonoursAnAbsoluteRunDir(t *testing.T) {
-	proj := tmpRun(t)
-	elsewhere := tmpRun(t)
+	proj := recordtest.TmpRun(t)
+	elsewhere := recordtest.TmpRun(t)
 	mustMkdir(t, filepath.Join(proj, ".claude"))
 	writeMarker(t, proj, `{"runs":[{"runDir":`+quote(elsewhere)+`}]}`)
 	if got := InferRunDir(proj); got != elsewhere {

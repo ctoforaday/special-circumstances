@@ -2,6 +2,7 @@ package seatprobe
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 	"os"
 	"os/exec"
@@ -64,7 +65,7 @@ func TestEveryProbeBoardBuildsThroughASubprocessWithASeparatedRecord(t *testing.
 	for name, b := range boards {
 		b := b
 		t.Run(name, func(t *testing.T) {
-			runDir := tmpRun(t)
+			runDir := recordtest.TmpRun(t)
 			// THE ROOT GOES TO THE SUBPROCESS ONLY, exactly as cmd/seatprobe declares it. Setting
 			// it with t.Setenv instead would put it in this process too, and this test would
 			// become the in-process one it exists to be different from.

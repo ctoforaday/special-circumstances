@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"os"
 	"path/filepath"
@@ -92,13 +93,13 @@ func TestBothProseChannelsProduceTheSameRecord(t *testing.T) {
 func recordOnce(t *testing.T, seatID string, args []string, prose func(dir string) []string) string {
 	t.Helper()
 	runDir := newRun(t)
-	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	exec := func(a ...string) (string, error) { return run(t, a...) }
 	if err := seatprobe.Build(runDir, seatprobe.Boards()["docket"], exec); err != nil {
 		t.Fatalf("stage the board: %v", err)
 	}
 	full := append(append([]string{}, args...), "--run", runDir, "--seat-id", seatID)
-	full = append(full, prose(tmpRun(t))...)
+	full = append(full, prose(recordtest.TmpRun(t))...)
 	if _, err := run(t, full...); err != nil {
 		t.Fatalf("%v: %v", args, err)
 	}

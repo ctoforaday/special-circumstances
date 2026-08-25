@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +14,7 @@ import (
 // corroborateRun is a run with a registered lens and a seeded report.
 func corroborateRun(t *testing.T) string {
 	t.Helper()
-	runDir := tmpRun(t)
+	runDir := recordtest.TmpRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
 		t.Fatal(err)
 	}

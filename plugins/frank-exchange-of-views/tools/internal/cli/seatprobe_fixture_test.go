@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"os"
 	"path/filepath"
 	"sort"
@@ -68,7 +69,7 @@ func TestWriteSeatProbeFixture(t *testing.T) {
 		sort.Strings(have)
 		t.Fatalf("no board %q — one of %s", name, strings.Join(have, ", "))
 	}
-	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	buildBoard(t, dest, board)
 	t.Logf("board %q written to %s for seat %s: %d gap(s), %d inquiry(s), %d expectation(s)",
 		board.Name, dest, board.Seat, len(board.Gaps), len(board.Inquiries), len(board.Expect))

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"os"
@@ -264,12 +265,12 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 			// then runs, the precondition looks broken, and the suite passes or fails
 			// by ambient state. Point it at an empty directory so "no run is live"
 			// is a fact of the test rather than of the machine.
-			t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
+			t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 			args := make([]string, len(tc.args))
 			copy(args, tc.args)
 			for i, a := range args {
 				if a == "X" {
-					args[i] = tmpRun(t)
+					args[i] = recordtest.TmpRun(t)
 				}
 			}
 			_, err := run(t, args...)
@@ -333,7 +334,7 @@ func TestUnknownVerbAnswersWithTheAvailableSet(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.role+"/"+tc.verb, func(t *testing.T) {
-			out, err := run(t, tc.verb, "--run", tmpRun(t), "--seat-id", record.SampleSeatOf(tc.role))
+			out, err := run(t, tc.verb, "--run", recordtest.TmpRun(t), "--seat-id", record.SampleSeatOf(tc.role))
 			if err == nil {
 				t.Fatalf("%s ran the %s verb", tc.role, tc.verb)
 			}
@@ -739,7 +740,7 @@ func TestProseChannelResolution(t *testing.T) {
 	t.Run("--file is read whole, less its terminating newline", func(t *testing.T) {
 		runDir := newRun(t)
 		body := "line one\nline two — with unicode ✓ and <angle> brackets"
-		f := filepath.Join(tmpRun(t), "prose.md")
+		f := filepath.Join(recordtest.TmpRun(t), "prose.md")
 		if err := os.WriteFile(f, []byte(body+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -759,7 +760,7 @@ func TestProseChannelResolution(t *testing.T) {
 	// Refusing costs the seat one turn and tells it exactly what to fix.
 	t.Run("--file and --text together are refused, not ranked", func(t *testing.T) {
 		runDir := newRun(t)
-		f := filepath.Join(tmpRun(t), "prose.md")
+		f := filepath.Join(recordtest.TmpRun(t), "prose.md")
 		if err := os.WriteFile(f, []byte("from the file"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -776,7 +777,7 @@ func TestProseChannelResolution(t *testing.T) {
 	t.Run("a missing --file is an error, not an empty payload", func(t *testing.T) {
 		runDir := newRun(t)
 		_, err := run(t, "position", "--run", runDir, "--seat-id", "red-merge-r1",
-			"--reason-file", filepath.Join(tmpRun(t), "no-such-file.md"))
+			"--reason-file", filepath.Join(recordtest.TmpRun(t), "no-such-file.md"))
 		if err == nil {
 			t.Fatal("a missing prose file was silently treated as empty")
 		}
@@ -936,7 +937,7 @@ func TestCloseFile(t *testing.T) {
 		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	f := filepath.Join(tmpRun(t), "closure.md")
+	f := filepath.Join(recordtest.TmpRun(t), "closure.md")
 	if err := os.WriteFile(f, []byte("the whole closure record"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -950,7 +951,7 @@ func TestCloseFile(t *testing.T) {
 
 	_, err := run(t, "close", "--run", runDir, "--seat-id", seatID, "--id", "R1-1",
 		"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
-		"--reason-file", filepath.Join(tmpRun(t), "gone.md"))
+		"--reason-file", filepath.Join(recordtest.TmpRun(t), "gone.md"))
 	if err == nil {
 		t.Fatal("a missing --file was ignored")
 	}
@@ -1378,7 +1379,7 @@ func TestVersionIsStampedOnTheFirstAct(t *testing.T) {
 
 func writeTemp(t *testing.T, body string) string {
 	t.Helper()
-	p := filepath.Join(tmpRun(t), "prose.md")
+	p := filepath.Join(recordtest.TmpRun(t), "prose.md")
 	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -1397,7 +1398,7 @@ func boardState(t *testing.T, runDir string) (*record.Board, error) {
 // this flag alone, and it cannot be carried in the environment — shell state does not
 // persist between tool calls and every subagent shares the parent's session id.
 func TestRunDirIsInferredFromTheLiveMarkerWhenTheFlagIsOmitted(t *testing.T) {
-	proj := tmpRun(t)
+	proj := recordtest.TmpRun(t)
 	runDir := filepath.Join(proj, "research", "live-run")
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
@@ -1422,7 +1423,7 @@ func TestRunDirIsInferredFromTheLiveMarkerWhenTheFlagIsOmitted(t *testing.T) {
 // An explicit --run always beats the marker: inference is a fallback for the seat
 // that forgot, never a second source of truth that can override what it was told.
 func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
-	proj := tmpRun(t)
+	proj := recordtest.TmpRun(t)
 	marker := filepath.Join(proj, "research", "marker-run")
 	explicit := filepath.Join(proj, "research", "explicit-run")
 	for _, d := range []string{marker, explicit, filepath.Join(proj, ".claude")} {
@@ -1454,7 +1455,7 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 // audit has to take on trust. An unrecordable discharge is indistinguishable from a
 // skipped duty, which is precisely what the event stream exists to prevent.
 func TestSpotCheckRecordsAnHonestlyEmptyRound(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 		t.Fatal(err)
@@ -1475,7 +1476,7 @@ func TestSpotCheckRecordsAnHonestlyEmptyRound(t *testing.T) {
 }
 
 func TestSpotCheckRefusesAnEmptyDischargeWithNoReason(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 		t.Fatal(err)
@@ -1490,7 +1491,7 @@ func TestSpotCheckRefusesAnEmptyDischargeWithNoReason(t *testing.T) {
 }
 
 func TestSpotCheckRefusesContradictoryFlags(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 		t.Fatal(err)
@@ -1506,7 +1507,7 @@ func TestSpotCheckRefusesContradictoryFlags(t *testing.T) {
 // array with no account of it, so "the archive was empty at round start" and "the seat skipped
 // its duty" were the same event.
 func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 		t.Fatal(err)
@@ -1536,9 +1537,9 @@ func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 // calls it --file. Seats typed --file here and were refused, twice, in one run. Post-
 // collapse the shared word is --reason-file, and this pins that close reads it.
 func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
-	t.Setenv("CLAUDE_PROJECT_DIR", tmpRun(t))
+	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
-	prose := filepath.Join(tmpRun(t), "closure.md")
+	prose := filepath.Join(recordtest.TmpRun(t), "closure.md")
 	if err := os.WriteFile(prose, []byte("verified at the leaf; digits match the cited arm"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -1641,17 +1642,4 @@ func setArmField(m protoreflect.Message, name string) (protoreflect.Message, pro
 		}
 	}
 	return m, nil
-}
-
-// tmpRun is tmpRun(t) with the release its record handle needs.
-//
-// WRAPPED UNCONDITIONALLY, and that is safe by construction: recordsql.Close on a path that was
-// never opened is a no-op, so a scratch directory pays nothing and a run directory cannot be
-// missed. Guessing which TempDir is a run is what left five packages still failing on Windows
-// after two rounds of wiring the ones whose variable happened to be called runDir.
-func tmpRun(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
-	return dir
 }

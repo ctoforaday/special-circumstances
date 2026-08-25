@@ -2,6 +2,7 @@ package seatprobe
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
@@ -19,7 +20,7 @@ func writeRun(t *testing.T, events []struct {
 	payload proto.Message
 }) string {
 	t.Helper()
-	runDir := tmpRun(t)
+	runDir := recordtest.TmpRun(t)
 	seen := map[string]bool{}
 	for _, e := range events {
 		if !seen[e.seat] {

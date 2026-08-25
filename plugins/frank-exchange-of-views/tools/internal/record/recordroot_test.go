@@ -3,6 +3,7 @@ package record
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
@@ -27,7 +28,7 @@ func recordsDirT(runDir string) string {
 // NOT PARALLEL, AND THAT IS STRUCTURAL: both the cache seam and the environment are process-wide.
 func isolate(t *testing.T) {
 	t.Helper()
-	cache := tmpRun(t)
+	cache := recordtest.TmpRun(t)
 	prev := cacheDirFn
 	cacheDirFn = func() (string, error) { return cache, nil }
 	t.Cleanup(func() { cacheDirFn = prev })
@@ -36,7 +37,7 @@ func isolate(t *testing.T) {
 
 func TestRecordsDirDefaultsUnderTheRun(t *testing.T) {
 	isolate(t)
-	run := tmpRun(t)
+	run := recordtest.TmpRun(t)
 	got, err := RecordsDir(run)
 	if err != nil {
 		t.Fatalf("resolve: %v", err)
@@ -53,7 +54,7 @@ func TestRecordsDirDefaultsUnderTheRun(t *testing.T) {
 
 func TestDeclaringARootAdoptsItThenResolvesWithoutTheEnvironment(t *testing.T) {
 	isolate(t)
-	run, root := tmpRun(t), filepath.Join(tmpRun(t), "elsewhere")
+	run, root := recordtest.TmpRun(t), filepath.Join(recordtest.TmpRun(t), "elsewhere")
 
 	t.Setenv(RecordRootEnv, root)
 	got, err := RecordsDir(run)
@@ -79,7 +80,7 @@ func TestDeclaringARootAdoptsItThenResolvesWithoutTheEnvironment(t *testing.T) {
 
 func TestTheMarkerNamesNoPathBecauseTheSeatReadsIt(t *testing.T) {
 	isolate(t)
-	run, root := tmpRun(t), filepath.Join(tmpRun(t), "elsewhere")
+	run, root := recordtest.TmpRun(t), filepath.Join(recordtest.TmpRun(t), "elsewhere")
 	t.Setenv(RecordRootEnv, root)
 	if _, err := RecordsDir(run); err != nil {
 		t.Fatalf("adopt: %v", err)
@@ -117,7 +118,7 @@ func TestTheMarkerNamesNoPathBecauseTheSeatReadsIt(t *testing.T) {
 // the seat to interpret, and the `find` command for recovering the path.
 func TestTheMarkerComposesNoInvocationTheSeatCannotRun(t *testing.T) {
 	isolate(t)
-	run, root := tmpRun(t), filepath.Join(tmpRun(t), "elsewhere")
+	run, root := recordtest.TmpRun(t), filepath.Join(recordtest.TmpRun(t), "elsewhere")
 	t.Setenv(RecordRootEnv, root)
 	if _, err := RecordsDir(run); err != nil {
 		t.Fatalf("adopt: %v", err)
@@ -162,7 +163,7 @@ func TestTheMarkerComposesNoInvocationTheSeatCannotRun(t *testing.T) {
 
 func TestALostPointerRefusesInsteadOfReportingAnEmptyBoard(t *testing.T) {
 	isolate(t)
-	run, root := tmpRun(t), filepath.Join(tmpRun(t), "elsewhere")
+	run, root := recordtest.TmpRun(t), filepath.Join(recordtest.TmpRun(t), "elsewhere")
 	t.Setenv(RecordRootEnv, root)
 	if _, err := RecordsDir(run); err != nil {
 		t.Fatalf("adopt: %v", err)
@@ -192,15 +193,15 @@ func TestALostPointerRefusesInsteadOfReportingAnEmptyBoard(t *testing.T) {
 
 func TestConflictingDeclarationsRefuse(t *testing.T) {
 	isolate(t)
-	run := tmpRun(t)
-	first := filepath.Join(tmpRun(t), "first")
+	run := recordtest.TmpRun(t)
+	first := filepath.Join(recordtest.TmpRun(t), "first")
 	t.Setenv(RecordRootEnv, first)
 	if _, err := RecordsDir(run); err != nil {
 		t.Fatalf("adopt: %v", err)
 	}
 
 	// Preferring either silently writes half the run into each root.
-	t.Setenv(RecordRootEnv, filepath.Join(tmpRun(t), "second"))
+	t.Setenv(RecordRootEnv, filepath.Join(recordtest.TmpRun(t), "second"))
 	if _, err := RecordsDir(run); err == nil {
 		t.Fatal("a second root was accepted for a run that already has one")
 	}
@@ -208,25 +209,25 @@ func TestConflictingDeclarationsRefuse(t *testing.T) {
 
 func TestTwoRunsCannotShareOneRoot(t *testing.T) {
 	isolate(t)
-	root := filepath.Join(tmpRun(t), "shared")
+	root := filepath.Join(recordtest.TmpRun(t), "shared")
 	t.Setenv(RecordRootEnv, root)
-	if _, err := RecordsDir(tmpRun(t)); err != nil {
+	if _, err := RecordsDir(recordtest.TmpRun(t)); err != nil {
 		t.Fatalf("first run: %v", err)
 	}
 	// Their shards would merge into one board wearing both runs' history — and the shard
 	// filenames carry seat ids, not run ids, so nothing downstream could tell them apart.
-	if _, err := RecordsDir(tmpRun(t)); err == nil {
+	if _, err := RecordsDir(recordtest.TmpRun(t)); err == nil {
 		t.Fatal("a second run adopted a root that already belongs to another")
 	}
 }
 
 func TestARunWithEventsInPlaceRefusesToSeparate(t *testing.T) {
 	isolate(t)
-	run := tmpRun(t)
+	run := recordtest.TmpRun(t)
 	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	t.Setenv(RecordRootEnv, filepath.Join(tmpRun(t), "elsewhere"))
+	t.Setenv(RecordRootEnv, filepath.Join(recordtest.TmpRun(t), "elsewhere"))
 	if _, err := RecordsDir(run); err == nil {
 		t.Fatal("a run with shards already on disk was separated, orphaning them where nothing reads them")
 	}
@@ -234,7 +235,7 @@ func TestARunWithEventsInPlaceRefusesToSeparate(t *testing.T) {
 
 func TestDeclaringTheDefaultPathChangesNothing(t *testing.T) {
 	isolate(t)
-	run := tmpRun(t)
+	run := recordtest.TmpRun(t)
 	t.Setenv(RecordRootEnv, filepath.Join(run, "records"))
 	if _, err := RecordsDir(run); err != nil {
 		t.Fatalf("resolve: %v", err)
@@ -250,7 +251,7 @@ func TestDeclaringTheDefaultPathChangesNothing(t *testing.T) {
 // above is a guard on the resolver; this is the behaviour a seat meets.
 func TestASeparatedRunKeepsNoEventsUnderTheRun(t *testing.T) {
 	isolate(t)
-	run, root := tmpRun(t), filepath.Join(tmpRun(t), "elsewhere")
+	run, root := recordtest.TmpRun(t), filepath.Join(recordtest.TmpRun(t), "elsewhere")
 	t.Setenv(RecordRootEnv, root)
 
 	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}, ""); err != nil {
@@ -293,7 +294,7 @@ func mustAbs(t *testing.T, p string) string {
 
 func TestADeletedRootRefusesInsteadOfReadingAsAnEmptyRun(t *testing.T) {
 	isolate(t)
-	run, root := tmpRun(t), filepath.Join(tmpRun(t), "elsewhere")
+	run, root := recordtest.TmpRun(t), filepath.Join(recordtest.TmpRun(t), "elsewhere")
 	t.Setenv(RecordRootEnv, root)
 	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}, ""); err != nil {
 		t.Fatalf("register: %v", err)
@@ -329,8 +330,8 @@ func TestADeletedRootRefusesInsteadOfReadingAsAnEmptyRun(t *testing.T) {
 // conflict naming two temp directories the operator never chose.
 func TestARebuiltRunDirectoryDoesNotInheritTheOldRoot(t *testing.T) {
 	isolate(t)
-	run := tmpRun(t)
-	first := filepath.Join(tmpRun(t), "first")
+	run := recordtest.TmpRun(t)
+	first := filepath.Join(recordtest.TmpRun(t), "first")
 	t.Setenv(RecordRootEnv, first)
 	if _, err := RecordsDir(run); err != nil {
 		t.Fatalf("adopt: %v", err)
@@ -344,7 +345,7 @@ func TestARebuiltRunDirectoryDoesNotInheritTheOldRoot(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	second := filepath.Join(tmpRun(t), "second")
+	second := filepath.Join(recordtest.TmpRun(t), "second")
 	t.Setenv(RecordRootEnv, second)
 	got, err := RecordsDir(run)
 	if err != nil {
@@ -361,11 +362,11 @@ func TestARebuiltRunDirectoryDoesNotInheritTheOldRoot(t *testing.T) {
 func TestAdoptionFailsIfTheMarkerCannotBeWritten(t *testing.T) {
 	isolate(t)
 	// A path that exists as a FILE cannot hold the marker inside it.
-	f := filepath.Join(tmpRun(t), "not-a-directory")
+	f := filepath.Join(recordtest.TmpRun(t), "not-a-directory")
 	if err := os.WriteFile(f, []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv(RecordRootEnv, filepath.Join(tmpRun(t), "elsewhere"))
+	t.Setenv(RecordRootEnv, filepath.Join(recordtest.TmpRun(t), "elsewhere"))
 	if _, err := RecordsDir(f); err == nil {
 		t.Fatal("adoption succeeded without writing the marker — a later resolve would then treat " +
 			"this run as deleted and silently hand it a fresh empty root")
@@ -382,7 +383,7 @@ func TestAdoptionFailsIfTheMarkerCannotBeWritten(t *testing.T) {
 // Work landing outside the run is indistinguishable from a seat that produced nothing — the
 // plausible zero, built by a helpful mkdir.
 func TestRegisterRefusesToCreateARunDirectory(t *testing.T) {
-	parent := tmpRun(t)
+	parent := recordtest.TmpRun(t)
 	missing := filepath.Join(parent, "research", "no-such-run")
 
 	_, _, err := RegisterSeat(Identity{RunDir: missing, SeatID: "red-merge-r1", Round: RoundIn(missing)("red-merge-r1")}, "")

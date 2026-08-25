@@ -1,7 +1,7 @@
 package seat
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -25,7 +25,7 @@ import (
 // That is the worst shape for a seat to meet: it followed the contract, wrote all round, and was
 // then told the board it had been writing to did not exist.
 func TestAReadHonoursTheInjectedRunLikeAWrite(t *testing.T) {
-	run := tmpRun(t)
+	run := recordtest.TmpRun(t)
 	t.Setenv(seatenv.Var, run)
 
 	c := &cobra.Command{Use: "show"}
@@ -48,7 +48,7 @@ func TestAReadHonoursTheInjectedRunLikeAWrite(t *testing.T) {
 // FEOV_SEAT — a variable with readers and no writer, so the guarantee was checked against a
 // source no run could produce.
 func TestBeginRefusesASeatIdThatContradictsTheDispatch(t *testing.T) {
-	run := tmpRun(t)
+	run := recordtest.TmpRun(t)
 	t.Setenv(seatenv.Var, run)
 	t.Setenv(seatenv.AgentVar, "agent_01")
 	if _, _, err := record.RegisterSeat(record.Identity{RunDir: run, SeatID: "blue-respond-r1", Round: 1}, ""); err != nil {
@@ -96,7 +96,7 @@ func TestTheContextCarriesWhichPathSuppliedTheRun(t *testing.T) {
 	}
 
 	t.Run("injected", func(t *testing.T) {
-		run := tmpRun(t)
+		run := recordtest.TmpRun(t)
 		t.Setenv(seatenv.Var, run)
 		if got := Of(newCmd()).RunVia; got != seatenv.RunFromEnv {
 			t.Errorf("Of().RunVia = %q with FEOV_RUN set, want %q", got, seatenv.RunFromEnv)
@@ -104,7 +104,7 @@ func TestTheContextCarriesWhichPathSuppliedTheRun(t *testing.T) {
 	})
 
 	t.Run("flag", func(t *testing.T) {
-		run := tmpRun(t)
+		run := recordtest.TmpRun(t)
 		t.Setenv(seatenv.Var, "")
 		c := newCmd()
 		if err := c.Flags().Set(flags.Run, run); err != nil {
@@ -118,7 +118,7 @@ func TestTheContextCarriesWhichPathSuppliedTheRun(t *testing.T) {
 	// THE STATE #512 EXISTS TO MAKE VISIBLE: no injection, no flag, and the tool locates the run
 	// from the project marker on its own.
 	t.Run("inferred", func(t *testing.T) {
-		project := tmpRun(t)
+		project := recordtest.TmpRun(t)
 		run := filepath.Join(project, "research", "r1")
 		if err := os.MkdirAll(filepath.Join(project, ".claude"), 0o755); err != nil {
 			t.Fatal(err)
@@ -154,7 +154,7 @@ func TestTheContextCarriesWhichPathSuppliedTheRun(t *testing.T) {
 // quietly to the real run: "" already means "nothing supplied one", and making it also mean
 // "you were refused" is two states in one byte with the healthy one winning by default.
 func TestARefusedRunIsCarriedNotHandedBack(t *testing.T) {
-	run := tmpRun(t)
+	run := recordtest.TmpRun(t)
 	t.Setenv(seatenv.Var, "")
 	t.Setenv(seatenv.VarWrapper, run)
 
@@ -191,17 +191,4 @@ func TestARefusedRunIsCarriedNotHandedBack(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "--run <runDir> is required") {
 		t.Errorf("Context{}.RequireRun = (%q, %v), want the missing-run message", empty, err)
 	}
-}
-
-// tmpRun is tmpRun(t) with the release its record handle needs.
-//
-// WRAPPED UNCONDITIONALLY, and that is safe by construction: recordsql.Close on a path that was
-// never opened is a no-op, so a scratch directory pays nothing and a run directory cannot be
-// missed. Guessing which TempDir is a run is what left five packages still failing on Windows
-// after two rounds of wiring the ones whose variable happened to be called runDir.
-func tmpRun(t *testing.T) string {
-	t.Helper()
-	dir := t.TempDir()
-	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
-	return dir
 }

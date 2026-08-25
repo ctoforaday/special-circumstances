@@ -1,6 +1,7 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
 
@@ -26,7 +27,7 @@ import (
 // It is asserted here rather than left to the CLI's flag requirement because the CLI is one writer
 // of many — the fuzzer, the probe harness and every fixture append through this path.
 func TestAnOutcomeWithoutAVerdictIsRefused(t *testing.T) {
-	runDir := tmpRun(t)
+	runDir := recordtest.TmpRun(t)
 	id := Identity{RunDir: runDir, SeatID: "judge-r1", Round: RoundIn(runDir)("judge-r1")}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)

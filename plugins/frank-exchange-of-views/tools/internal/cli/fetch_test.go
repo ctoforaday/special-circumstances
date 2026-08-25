@@ -2,6 +2,7 @@ package cli
 
 import (
 	"errors"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
 
@@ -38,7 +39,7 @@ func withFetcher(t *testing.T, f fetchcache.Fetcher) {
 }
 
 func TestFetchPrintsBodyAndCachesForReuse(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	f := &fakeFetcher{resp: map[string][]byte{"https://ex/a": []byte("source body")}}
 	withFetcher(t, f)
 
@@ -64,7 +65,7 @@ func TestFetchPrintsBodyAndCachesForReuse(t *testing.T) {
 }
 
 func TestFetchFailureIsANonZeroErrorNotAFriction(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	withFetcher(t, &fakeFetcher{err: errors.New("host unreachable")})
 
 	_, err := run(t, "fetch", "--seat-id", "operator", "--run", dir, "--url", "https://gone")
@@ -82,7 +83,7 @@ func TestFetchFailureIsANonZeroErrorNotAFriction(t *testing.T) {
 }
 
 func TestFetchRequiresRunAndURL(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	withFetcher(t, &fakeFetcher{resp: map[string][]byte{}})
 	if _, err := run(t, "fetch", "--seat-id", "operator", "--run", dir); err == nil {
 		t.Error("fetch without --url did not error")
@@ -93,7 +94,7 @@ func TestFetchRequiresRunAndURL(t *testing.T) {
 }
 
 func TestFetchJSONReportsCacheHit(t *testing.T) {
-	dir := tmpRun(t)
+	dir := recordtest.TmpRun(t)
 	f := &fakeFetcher{resp: map[string][]byte{"https://ex/j": []byte("jbody")}}
 	withFetcher(t, f)
 
