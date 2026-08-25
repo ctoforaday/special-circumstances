@@ -78,6 +78,16 @@ jobs:
           # mostly provides; that is a later rung if compile stays slow, taken on numbers.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
+      # EXPERIMENT (do not merge): is Defender real-time scanning ACTIVE at job runtime?
+      # The image BUILD disables it (Configure-WindowsDefender.ps1), but a build-time
+      # setting and a boot-time state are different facts. This step only REPORTS; it
+      # changes nothing. AMRunningMode "Passive"/"Not running" + RealTimeProtectionEnabled
+      # False settles the question without touching security posture.
+      - name: defender status (experiment, read-only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-MpComputerStatus | Select-Object AMRunningMode,AntivirusEnabled,RealTimeProtectionEnabled,BehaviorMonitorEnabled,OnAccessProtectionEnabled,IsTamperProtected | Format-List
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -211,6 +221,16 @@ jobs:
           # mostly provides; that is a later rung if compile stays slow, taken on numbers.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
+      # EXPERIMENT (do not merge): is Defender real-time scanning ACTIVE at job runtime?
+      # The image BUILD disables it (Configure-WindowsDefender.ps1), but a build-time
+      # setting and a boot-time state are different facts. This step only REPORTS; it
+      # changes nothing. AMRunningMode "Passive"/"Not running" + RealTimeProtectionEnabled
+      # False settles the question without touching security posture.
+      - name: defender status (experiment, read-only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-MpComputerStatus | Select-Object AMRunningMode,AntivirusEnabled,RealTimeProtectionEnabled,BehaviorMonitorEnabled,OnAccessProtectionEnabled,IsTamperProtected | Format-List
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -354,6 +374,16 @@ jobs:
           # mostly provides; that is a later rung if compile stays slow, taken on numbers.
           "GOCACHE=V:\gocache"   | Out-File -FilePath $env:GITHUB_ENV -Append
           "GOMODCACHE=V:\gomod"  | Out-File -FilePath $env:GITHUB_ENV -Append
+      # EXPERIMENT (do not merge): is Defender real-time scanning ACTIVE at job runtime?
+      # The image BUILD disables it (Configure-WindowsDefender.ps1), but a build-time
+      # setting and a boot-time state are different facts. This step only REPORTS; it
+      # changes nothing. AMRunningMode "Passive"/"Not running" + RealTimeProtectionEnabled
+      # False settles the question without touching security posture.
+      - name: defender status (experiment, read-only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-MpComputerStatus | Select-Object AMRunningMode,AntivirusEnabled,RealTimeProtectionEnabled,BehaviorMonitorEnabled,OnAccessProtectionEnabled,IsTamperProtected | Format-List
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
