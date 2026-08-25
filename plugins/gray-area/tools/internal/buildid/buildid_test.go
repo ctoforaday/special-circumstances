@@ -44,7 +44,13 @@ func TestAFreshlyBuiltBinaryReportsItsOwnCommit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	head, err := exec.Command("git", "-C", dir, "rev-parse", "--short=7", "HEAD").Output()
+	// THE REVISION GO STAMPS FROM, not this working tree's HEAD — they differ in every
+	// worktree, which is where this repo is developed (#532).
+	stampDir, ok := StampedFrom(dir)
+	if !ok {
+		t.Skip("not in a git checkout")
+	}
+	head, err := exec.Command("git", "-C", stampDir, "rev-parse", "--short=7", "HEAD").Output()
 	if err != nil {
 		t.Skip("not in a git checkout")
 	}

@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 )
 
 // THE FOUR STATES ARE FOUR, NOT TWO. The defect this closes (#450) is that a stale binary and a
@@ -70,7 +72,15 @@ func TestAnOrdinaryBuildCarriesItsRevisionWithNoFlags(t *testing.T) {
 		t.Skip("no go toolchain")
 	}
 	root := repoRoot(t)
-	head := HeadCommit(root)
+	// THE CHECKOUT GO STAMPS FROM. In a worktree `.git` is a file pointing at the main
+	// checkout, so the stamp carries the MAIN tree's revision and dirty flag — not this
+	// tree's. Asserting the local HEAD failed in every worktree while the toolchain was
+	// doing exactly what it documents (#532).
+	stampDir, ok := buildid.StampedFrom(root)
+	if !ok {
+		t.Skip("not in a git checkout with git on PATH")
+	}
+	head := HeadCommit(stampDir)
 	if head == "" {
 		t.Skip("not in a git checkout with git on PATH")
 	}
@@ -89,7 +99,7 @@ func TestAnOrdinaryBuildCarriesItsRevisionWithNoFlags(t *testing.T) {
 			"the mechanism this package reads has gone away, and every binary will now report Unstamped")
 	}
 	if s.Revision != head {
-		t.Errorf("stamp = %s, HEAD = %s — a freshly built binary must report the commit it was built from", s.Revision, head)
+		t.Errorf("stamp = %s, HEAD of the stamping checkout (%s) = %s — a freshly built binary must report the revision Go read", s.Revision, stampDir, head)
 	}
 	if got := Compare(s, head); got != Current && got != Dirty {
 		t.Errorf("a just-built binary judged %q; want current (or dirty if the tree has edits)", got)
