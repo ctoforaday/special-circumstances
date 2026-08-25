@@ -23,14 +23,13 @@
 package stopnudge
 
 import (
-	"encoding/json"
 	"errors"
-	"os"
 	"path/filepath"
 	"slices"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/statefile"
 )
 
 // Band names the severity that fired. They are ordered, and only the highest one that a
@@ -112,7 +111,10 @@ type Decision struct {
 	Band Band
 }
 
-var errNotConfigured = errors.New("stopnudge: no thresholds configured")
+var (
+	errNotConfigured   = errors.New("stopnudge: no thresholds configured")
+	errUnreadableState = errors.New("stopnudge: state record exists and cannot be read")
+)
 
 // Decide is the whole guard, and it WRITES BEFORE IT RETURNS ANYTHING TO EMIT.
 //
@@ -204,22 +206,26 @@ func highestBand(m freshness.Measures, th Thresholds) (Band, bool) {
 
 func statePath(dir string) string { return filepath.Join(dir, ".claude", "checkpoints", "nudge.json") }
 
-// load reads this session's state. A file belonging to a DIFFERENT session is not this
-// session's state: the counters reset and the bands clear, because a new session has a
-// fresh budget and has been told nothing yet.
+// load reads this session's state.
+//
+// A record belonging to a DIFFERENT session is not this session's state: the counters
+// reset and the bands clear, because a new session has a fresh budget and has been told
+// nothing yet.
+//
+// THIS COPY PREVIOUSLY LACKED THE RETRY AND THE TRI-STATE that freshness had. Both now
+// come from internal/statefile, so a transient read failure on Windows no longer silently
+// suppresses a nudge — and an unreadable record is still refused, which is this package's
+// own policy and stricter than the gauge's.
 func load(dir, sessionID string) (State, error) {
-	b, err := os.ReadFile(statePath(dir))
-	if errors.Is(err, os.ErrNotExist) {
+	st, status := statefile.Read[State](statePath(dir))
+	switch status {
+	case statefile.Absent:
 		return State{SessionID: sessionID}, nil
-	}
-	if err != nil {
-		return State{}, err
-	}
-	var st State
-	if err := json.Unmarshal(b, &st); err != nil {
-		// A corrupt record is not an empty one. Refusing here means one missed nudge;
-		// treating it as empty means re-emitting every band this session already spent.
-		return State{}, err
+	case statefile.Unreadable:
+		// A corrupt or unreadable record is NOT an empty one. Treating it as empty
+		// re-emits every band this session already spent, and on Stop a re-emission is a
+		// loop rather than a duplicate.
+		return State{}, errUnreadableState
 	}
 	if st.SessionID != sessionID {
 		return State{SessionID: sessionID}, nil
@@ -227,35 +233,11 @@ func load(dir, sessionID string) (State, error) {
 	return st, nil
 }
 
-// save writes atomically, for the same reason freshness.json does: a truncating write
+// save writes the record, atomically, before anything is emitted.
+//
+// The atomicity matters for the same reason it does in the gauge — a truncating write
 // leaves a window in which a concurrent reader sees an empty file and concludes no band
-// has been spent.
+// has been spent — and the implementation is shared rather than repeated.
 func save(dir string, st State) error {
-	b, err := json.Marshal(st)
-	if err != nil {
-		return err
-	}
-	p := statePath(dir)
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(p), ".nudge-*.tmp")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	if _, err := tmp.Write(b); err != nil {
-		tmp.Close()
-		_ = os.Remove(name)
-		return err
-	}
-	if err := tmp.Close(); err != nil {
-		_ = os.Remove(name)
-		return err
-	}
-	if err := os.Rename(name, p); err != nil {
-		_ = os.Remove(name)
-		return err
-	}
-	return nil
+	return statefile.Write(statePath(dir), st)
 }
