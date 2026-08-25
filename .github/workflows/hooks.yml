@@ -45,7 +45,12 @@ jobs:
           # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
           # of a pull request (measured on windows-latest, where one PR paid it six times).
           # The first push of a PR is still cold; iteration on it is warm.
-          cache: ${{ github.event_name == 'pull_request' }}
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
@@ -111,7 +116,12 @@ jobs:
           # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
           # of a pull request (measured on windows-latest, where one PR paid it six times).
           # The first push of a PR is still cold; iteration on it is warm.
-          cache: ${{ github.event_name == 'pull_request' }}
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
@@ -181,7 +191,12 @@ jobs:
           # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
           # of a pull request (measured on windows-latest, where one PR paid it six times).
           # The first push of a PR is still cold; iteration on it is warm.
-          cache: ${{ github.event_name == 'pull_request' }}
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
@@ -228,7 +243,12 @@ jobs:
           # PR-only, for the reason the first setup-go in this file states in full: a tag
           # run can only restore same-ref or default-branch caches, and neither is ever
           # written, because `push` (main and tags alike) stays cache-free.
-          cache: ${{ github.event_name == 'pull_request' }}
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
           cache-dependency-path: "**/go.sum"
           go-version: "1.25"
       - uses: actions/setup-node@v7
@@ -299,7 +319,12 @@ jobs:
           # PR-only, for the reason the first setup-go in this file states in full: a tag
           # run can only restore same-ref or default-branch caches, and neither is ever
           # written, because `push` (main and tags alike) stays cache-free.
-          cache: ${{ github.event_name == 'pull_request' }}
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
           cache-dependency-path: "**/go.sum"
           go-version: "1.25"
       - run: go vet ./...
@@ -389,7 +414,12 @@ jobs:
           # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
           # of a pull request (measured on windows-latest, where one PR paid it six times).
           # The first push of a PR is still cold; iteration on it is warm.
-          cache: ${{ github.event_name == 'pull_request' }}
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
@@ -424,7 +454,12 @@ jobs:
           # PR-only, for the reason the first setup-go in this file states in full: a tag
           # run can only restore same-ref or default-branch caches, and neither is ever
           # written, because `push` (main and tags alike) stays cache-free.
-          cache: ${{ github.event_name == 'pull_request' }}
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
           cache-dependency-path: "**/go.sum"
           go-version: "1.25"
       - uses: actions/setup-node@v7
@@ -559,7 +594,12 @@ jobs:
           # What this buys: the ~2 minutes of cold compile this job paid on EVERY iteration
           # of a pull request (measured on windows-latest, where one PR paid it six times).
           # The first push of a PR is still cold; iteration on it is warm.
-          cache: ${{ github.event_name == 'pull_request' }}
+          # zizmor cannot evaluate the expression below, so its cache-poisoning rule fires
+          # statically. The finding is answered, not suppressed-and-forgotten: the release
+          # job REBUILDS FROM SOURCE with caching disabled (the same expression is false on
+          # a tag), so published bytes never touch any cache — and `push` writes none, so a
+          # tag run has nothing to restore even if it looked.
+          cache: ${{ github.event_name == 'pull_request' }} # zizmor: ignore[cache-poisoning]
           # The modules are not at the repo root, and setup-go's default lookup is — with
           # nothing here, cache:true fails on a missing go.sum. Keyed on every module's
           # sum: a dependency bump anywhere invalidates all jobs' caches, which is rare
