@@ -21,7 +21,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"flag"
 	"fmt"
 	"io"
 	"io/fs"
@@ -32,9 +31,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hooklog"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 )
@@ -302,14 +301,7 @@ func fileFrom(in hookInput) string {
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, e env) int {
-	fs := flag.NewFlagSet("sc-quality-gate", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	showVersion := fs.Bool("version", false, "print version and exit")
-	if err := fs.Parse(args); err != nil {
-		return 0 // a bad flag is never worth failing the Edit/Write over
-	}
-	if *showVersion {
-		fmt.Fprintln(stdout, buildid.Line("sc-quality-gate"))
+	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-quality-gate")) {
 		return 0
 	}
 

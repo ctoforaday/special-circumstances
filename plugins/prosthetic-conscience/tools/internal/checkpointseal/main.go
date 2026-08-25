@@ -81,10 +81,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/transcript"
 )
 
@@ -466,30 +466,31 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 }
 
 func runWith(fixedEvent string, args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time) int {
-	fs := flag.NewFlagSet("sc-checkpoint-seal", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	showVersion := fs.Bool("version", false, "print version and exit")
-	// The flag is vestigial in production: each binary now serves one event and passes it
-	// to runEvent. It stays because the existing suite drives run() through it, and because
-	// a stale hooks.json from before the split still passes -event rather than nothing.
-	flagEvent := fs.String("event", "",
-		"the hook event this invocation serves: PreCompact | SessionEnd | SubagentStop")
-	if err := fs.Parse(args); err != nil {
-		return 0 // a bad flag is never worth wedging a compaction over
-	}
-	if *showVersion {
-		// THE NAME IT WAS INVOKED AS, not the name of the binary these three used to be.
-		// #201 step 3 split one merged sealer into three shims; this line kept printing
-		// the merged name, so sc-precompact, sc-sessionend and sc-subagentstop all
-		// identified as sc-checkpoint-seal. sc-doctor lists binaries by name and prints
-		// this line, so three rows carried one name and an operator could not tell WHICH
-		// was stale — the only question the line exists to answer.
+	// THE NAME IT WAS INVOKED AS, not the name of the binary these three used to be.
+	// #201 step 3 split one merged sealer into three shims; this line kept printing the
+	// merged name, so sc-precompact, sc-sessionend and sc-subagentstop all identified as
+	// sc-checkpoint-seal. sc-doctor lists binaries by name and prints this line, so three
+	// rows carried one name and an operator could not tell WHICH was stale — the only
+	// question the line exists to answer.
+	//
+	// This is why hookmain takes a FUNCTION rather than a string: the name is not knowable
+	// until -event has been parsed, and binaryFor is total over the unparsed case too.
+	var flagEvent *string
+	resolve := func() string {
 		name := fixedEvent
-		if name == "" {
+		if name == "" && flagEvent != nil {
 			name = *flagEvent // a stale hooks.json from before the split still passes -event
 		}
-		fmt.Fprintln(stdout, buildid.Line(binaryFor(name)))
-		return 0
+		return binaryFor(name)
+	}
+	if hookmain.Preamble(args, stdout, stderr, resolve, func(fs *flag.FlagSet) {
+		// The flag is vestigial in production: each binary now serves one event and passes
+		// it to runEvent. It stays because the existing suite drives run() through it, and
+		// because a stale hooks.json from before the split still passes -event.
+		flagEvent = fs.String("event", "",
+			"the hook event this invocation serves: PreCompact | SessionEnd | SubagentStop")
+	}) {
+		return 0 // a bad flag is never worth wedging a compaction over
 	}
 
 	raw, _ := io.ReadAll(stdin)

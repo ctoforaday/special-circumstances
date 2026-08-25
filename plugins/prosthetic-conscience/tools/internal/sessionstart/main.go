@@ -32,16 +32,14 @@ package sessionstart
 
 import (
 	"encoding/json"
-	"flag"
-	"fmt"
 	"io"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpointrestore"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookunit"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchain"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/toolchainnudge"
@@ -74,14 +72,7 @@ func merge(results []hookunit.Result) (text string, watch []string) {
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, units []hookunit.Unit) int {
-	fs := flag.NewFlagSet("sc-sessionstart", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	showVersion := fs.Bool("version", false, "print version and exit")
-	if err := fs.Parse(args); err != nil {
-		return 0 // a bad flag never wedges a session start
-	}
-	if *showVersion {
-		fmt.Fprintln(stdout, buildid.Line("sc-sessionstart"))
+	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-sessionstart")) {
 		return 0
 	}
 

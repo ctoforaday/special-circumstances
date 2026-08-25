@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 )
 
 // hookInput is the Stop payload. Every field here was MEASURED on client 2.1.240
@@ -52,7 +52,10 @@ func configured() Thresholds { return Thresholds{} }
 // go untested is the one that composes the response the client actually reads. A hook
 // whose emit path has never run is a hook whose first real emission is its first
 // execution of that code.
-func run(stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, th Thresholds) int {
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time, th Thresholds) int {
+	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-stop")) {
+		return 0 // a bad flag is never worth disturbing the session over
+	}
 	raw, _ := io.ReadAll(stdin)
 	var in hookInput
 	_ = json.Unmarshal(raw, &in)
@@ -108,10 +111,6 @@ func newest(n checkpoint.Note) time.Time {
 // Main is the process boundary: it wires the real environment in and returns the exit
 // code, so cmd/ stays a three-line shim and this stays testable.
 func Main() int {
-	if len(os.Args) > 1 && os.Args[1] == "-version" {
-		fmt.Println(buildid.Line("sc-stop"))
-		return 0
-	}
-	wd, _ := os.Getwd()
-	return run(os.Stdin, os.Stdout, os.Stderr, wd, time.Now(), configured())
+	return run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr,
+		os.Getenv("CLAUDE_PROJECT_DIR"), time.Now(), configured())
 }

@@ -47,7 +47,7 @@ func drive(t *testing.T, dir, payload string) (stdout, stderr string) {
 func driveWith(t *testing.T, dir, payload string, th Thresholds) (stdout, stderr string) {
 	t.Helper()
 	var o, e bytes.Buffer
-	run(strings.NewReader(payload), &o, &e, dir, time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC), th)
+	run(nil, strings.NewReader(payload), &o, &e, dir, time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC), th)
 	return o.String(), e.String()
 }
 
@@ -187,5 +187,56 @@ func TestTheEmitPathProducesTheMeasuredResponseShape(t *testing.T) {
 	// And it recorded the band BEFORE returning: a second boundary must be silent.
 	if again, _ := driveWith(t, dir, in, Thresholds{TurnsNotice: 30, TurnsWarn: 60, TurnsUrgent: 120}); again != "" {
 		t.Errorf("emitted twice for one band — the write did not happen before the emit:\n%s", again)
+	}
+}
+
+// CONFORMANCE (audit §6). This binary parsed -version by hand — `os.Args[1] == "-version"`
+// — which is a worse parser than the one it skipped: it matched the flag only in first
+// position and spelled only one of the two forms. Its ten siblings answered both.
+func TestVersionIsParsedLikeAFlagAndNamesThisBinary(t *testing.T) {
+	for _, args := range [][]string{{"-version"}, {"--version"}} {
+		var o, e bytes.Buffer
+		if code := run(args, strings.NewReader("{}"), &o, &e, t.TempDir(),
+			time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC), Thresholds{}); code != 0 {
+			t.Errorf("%v exited %d", args, code)
+		}
+		if got := strings.Fields(o.String()); len(got) == 0 || got[0] != "sc-stop" {
+			t.Errorf("%v printed %q, want it to start with sc-stop", args, o.String())
+		}
+	}
+}
+
+// THE PAYLOAD FALLBACK WAS DEAD CODE HERE. Main passed os.Getwd() where its eleven
+// siblings pass CLAUDE_PROJECT_DIR, and hookenv.ProjectDir prefers its first argument —
+// so with a working directory that is never empty, in.CWD could never be reached. Launched
+// from anywhere but the project root, the nudge read and wrote its state under the wrong
+// tree, silently, because a missing state file is an honest empty state.
+//
+// The assertion is POSITIVE — nudge.json appears under the payload's root — rather than
+// "no complaint on stderr". A no-match on an error string reads exactly like a pass, so
+// the reworded-message case and the broken case would be the same green.
+func TestTheProjectRootFallsBackToThePayloadWhenTheEnvIsUnset(t *testing.T) {
+	dir := withNote(t, "---\nschema: 3\nwritten_at: 2026-08-23T00:00:00Z\n---\n## Validation loop\n1. x\n")
+	tp := filepath.Join(dir, "t.jsonl")
+	var lines []string
+	for range 40 {
+		lines = append(lines, `{"type":"assistant","timestamp":"2026-08-23T00:30:00Z","message":{"usage":{"input_tokens":1,"cache_read_input_tokens":10,"cache_creation_input_tokens":0}}}`)
+	}
+	if err := os.WriteFile(tp, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var o, e bytes.Buffer
+	in := payload(t, map[string]any{"session_id": "s1", "cwd": dir, "transcript_path": tp})
+	// projectDir EMPTY: exactly what Main now passes when CLAUDE_PROJECT_DIR is unset.
+	run(nil, strings.NewReader(in), &o, &e, "",
+		time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC),
+		Thresholds{TurnsNotice: 30, TurnsWarn: 60, TurnsUrgent: 120})
+
+	if o.String() == "" {
+		t.Fatalf("no emission: the run never located the note the payload pointed at; stderr: %q", e.String())
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "checkpoints", "nudge.json")); err != nil {
+		t.Errorf("state was not written under the payload's root: %v", err)
 	}
 }

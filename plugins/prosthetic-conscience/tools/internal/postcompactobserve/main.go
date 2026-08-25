@@ -42,7 +42,6 @@ package postcompactobserve
 
 import (
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -52,10 +51,10 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/checkpoint"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookenv"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/hookmain"
 )
 
 // probe names the measurement, so a row can never be read as more than it is.
@@ -184,14 +183,7 @@ func appendRow(projectDir string, o observation, stderr io.Writer) {
 }
 
 func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir string, now time.Time) int {
-	fs := flag.NewFlagSet("sc-postcompact-observe", flag.ContinueOnError)
-	fs.SetOutput(stderr)
-	showVersion := fs.Bool("version", false, "print version and exit")
-	if err := fs.Parse(args); err != nil {
-		return 0
-	}
-	if *showVersion {
-		fmt.Fprintln(stdout, buildid.Line("sc-postcompact-observe"))
+	if hookmain.Preamble(args, stdout, stderr, hookmain.Named("sc-postcompact-observe")) {
 		return 0
 	}
 
