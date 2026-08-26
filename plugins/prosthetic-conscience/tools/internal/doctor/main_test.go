@@ -237,9 +237,10 @@ func TestAnUnverifiableMinimumIsNotReady(t *testing.T) {
 // would be discounted on the one axis it exists to be trusted on.
 func TestAToolThatMeetsItsMinimumIsStillReady(t *testing.T) {
 	got := verdict([]toolchain.Status{{
-		Tool:    toolchain.Tool{Name: "go", Tier: "required", MinVersion: "1.25"},
-		Found:   true,
-		Version: "1.25.3",
+		Tool:        toolchain.Tool{Name: "go", Tier: "required", MinVersion: "1.25"},
+		Found:       true,
+		Version:     "1.25.3",
+		VersionLine: "go version go1.25.3",
 	}}, nil)
 	if got != "READY" {
 		t.Errorf("verdict with go1.25.3 against a 1.25 minimum = %q, want READY", got)
@@ -264,5 +265,33 @@ func TestTheTooOldRowNamesTheRightRemedy(t *testing.T) {
 	}
 	if strings.Contains(out, "✓") {
 		t.Errorf("a too-old tool still renders a tick:\n%s", out)
+	}
+}
+
+// THE TICK'S POSITIVE TWIN, in the same file as the negative above.
+//
+// That negative is the only thing in this package pinning the tool table's glyph, and a
+// negative containment goes vacuous silently: change `%-18s ✓ %s` to spell the mark any other
+// way and "a too-old tool still renders a tick" passes forever while checking nothing. The
+// other ✓ assertions in this package are on "✓ built", a different renderer on a different
+// row, so they would keep passing too.
+//
+// Pinning it in both directions is the house pattern — toolchainnudge/hook_test.go does
+// exactly this with "LIVE" — and it means the pair moves together or fails loudly.
+func TestAHealthyToolRendersTheTick(t *testing.T) {
+	out := table([]toolchain.Status{{
+		Tool:        toolchain.Tool{Name: "go", Tier: "required", MinVersion: "1.25"},
+		Found:       true,
+		Version:     "1.25.3",
+		VersionLine: "go version go1.25.3",
+	}}, nil)
+	if !strings.Contains(out, "✓") {
+		t.Errorf("a healthy tool renders no tick, so the negative above now proves nothing:\n%s", out)
+	}
+	// VersionLine, not Version: displayVersionOf reads the line the probe captured, and a
+	// fixture that sets only Version renders a tick beside an empty column — which is how this
+	// test first failed, on its own fixture rather than on the code.
+	if !strings.Contains(out, "go") || !strings.Contains(out, "1.25.3") {
+		t.Errorf("the healthy row lost its name or version:\n%s", out)
 	}
 }

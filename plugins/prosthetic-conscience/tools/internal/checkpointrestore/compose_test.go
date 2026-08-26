@@ -293,3 +293,53 @@ func TestTruncationNeverSplitsARune(t *testing.T) {
 		}
 	}
 }
+
+// THE TWO TRUNCATION NOTICES NOTHING ASSERTED.
+//
+// TestDigestThatFitsSaysNothingAboutTruncation checks that a healthy digest carries none of
+// "Shortened to fit", "omitted here", "section truncated". The first has a positive twin
+// twelve lines above it; the other two had none anywhere — they existed in main.go and in
+// that one negative list, and nowhere else.
+//
+// Two things follow from that, and the second is the worse one. Reword either notice and the
+// negative passes while checking nothing. And the paths that PRODUCE them — a section reduced
+// to a pointer, a section cut mid-body — had no coverage at all, so a change that stopped
+// emitting them, or emitted them for the wrong section, would have been invisible.
+//
+// fitSections takes its budget as an argument, so both paths are reachable directly rather
+// than by inflating a note until the digest happens to spill.
+func TestBothTruncationNoticesAreEmittedAndNameTheNote(t *testing.T) {
+	const path = "p/CHECKPOINT.md"
+	parts := []string{
+		"## Validation loop\n" + strings.Repeat("1. go test ./... and then some more text\n", 40),
+		"## Open threads\n" + strings.Repeat("- a thread that runs on and on\n", 40),
+	}
+
+	// A budget that cannot hold either body in full: every section must survive as at least a
+	// heading plus a pointer, which is the invariant the stub exists for.
+	out, shortened := fitSections(parts, 200, path)
+	if len(out) != len(parts) {
+		t.Fatalf("fitSections dropped a section: %d in, %d out — no section may vanish", len(parts), len(out))
+	}
+	joined := strings.Join(out, "\n")
+	if !strings.Contains(joined, "[omitted here — read "+path+"]") {
+		t.Errorf("a section reduced to a pointer must say so and name the note:\n%s", joined)
+	}
+	for _, p := range parts {
+		head, _, _ := strings.Cut(p, "\n")
+		if !strings.Contains(joined, head) {
+			t.Errorf("heading %q vanished; a reader cannot ask for what they cannot see:\n%s", head, joined)
+		}
+	}
+
+	// A budget with room for part of a body: that section is cut and says how much went.
+	out, shortened = fitSections(parts, 900, path)
+	joined = strings.Join(out, "\n")
+	if !strings.Contains(joined, "[section truncated,") || !strings.Contains(joined, "read "+path+"]") {
+		t.Errorf("a section cut mid-body must say so and name the note:\n%s", joined)
+	}
+	if len(shortened) == 0 {
+		t.Error("fitSections reported no shortened sections while emitting a truncation notice — " +
+			"the caller uses that list to name them, so an empty one reads as 'nothing was cut'")
+	}
+}
