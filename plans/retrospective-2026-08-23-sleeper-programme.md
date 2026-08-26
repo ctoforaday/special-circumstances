@@ -1,0 +1,221 @@
+# Retrospective: the 2026-08-23 sleeper-service research programme
+
+Performance review of the two FEOV runs merged in PR #540 (`2026-08-23_sleeper-service-plan`,
+`2026-08-23_research-loop-counterparts`), from three evidence streams: the record tool's own
+audits (`verify`, capture's nine checks, chair scorecards, cost.md), a full sweep of all 61
+seat transcripts (33 MB, agent-by-agent), and leaf re-verification of the reports (arithmetic
+re-derived, proofs re-run, anchor/footnote integrity checked). Findings are graded; every one
+carries its evidence. Issues filed from this document: #589–#593; evidence added to #552.
+
+## Headline
+
+Both debates finished under their own power, every structural invariant holds, all 61 seats
+returned envelopes, nothing spun, nothing was laundered — and the deliverables are honest
+about their own debts. That is the good half, and it is real. The bad half concentrates in
+three places: **the model tier the operator asked for was never served** (silent substitution,
+caught only at capture); **assembly stripped the machine-checkable evidence layer** from both
+final reports (every tool-placed anchor gone, proof footnotes dangling); and **two of run A's
+six recorded proofs are defective as recorded** (wrong working directory — one enumerated
+nothing and called it ABSENT, one measured 0 and printed a hard-coded sentence asserting the
+opposite). None of the three was caught by red, the bench, or the in-run gates; two were
+caught by capture's audits and one only by this retrospective's re-runs.
+
+## What went right (verified, not assumed)
+
+- **Completion and integrity.** 61/61 seats returned results (journal parity clean both runs);
+  `verify` passes every applicable invariant on both records; no discarded events, no stray
+  shards, record-parity PASS.
+- **Convergence.** A: board mass 49 → 8 across four rounds, 21 of 23 gaps closed. B: 22.5 → 0,
+  16/16 closed. Red raised fresh material every round it sat; no recycled arguments.
+- **Discipline under a degraded harness.** With the identity-binding hook absent run-wide,
+  every seat carried `--seat-id` by hand, correctly, for the entire programme; zero
+  cross-identity writes.
+- **Shim compliance.** The session's constitution-by-path shim held: 32/32 seats (A) and 23/29
+  (B) read their constitution first and obeyed it; the six B seats that skipped later skill
+  reads all skipped small ones (mostly `terse-communication`) — noted below, but no seat acted
+  outside its role.
+- **No spinning.** No agent repeated a byte-identical failing call three times in either run;
+  the two failure chains (class-new bootstrap) changed approach and recovered.
+- **Honest verdicts.** Both runs stamped CEILING, derived from the record, with the unaudited
+  debt stated in the report head rather than smoothed. Both benches wrote explicit
+  "a human should re-examine" sections.
+- **Context safety.** Peak context 26% (A) / 29% (B) of the window; zero seats over the 50%
+  tripwire; no compaction events; no truncated turns.
+- **Report substance survives adversarial re-checking.** Every numeric claim re-derived here
+  checks out: the M/M/1 figures (749 items / 250.0 weeks at ρ=749/750; 13.3/4.76 at ρ=0.93;
+  the 3/7≈43% stability fraction; μ−λ≈0.004), the repo counts (336 Go files, 3 scaffold files
+  at 2ce929f), and R4-1/R4-5's repairs are present in the shipped text. Assembly text parity:
+  24/25 sampled blue sentences verbatim in the final report.
+- **Friction as designed.** 83 friction entries across the programme, specific and actionable —
+  they are what produced issues #550–#555.
+
+## Findings, graded
+
+### F1 — Silent model substitution: `fable` configured, `claude-opus-4-8` served (HIGH)
+
+All 44 bulk seats across both runs requested `claude-fable-5` and were served
+`claude-opus-4-8` on every turn (verified in the API responses; e.g. blue-lane-1: 1 request
+line for fable, 75 responses opus-4-8). Judgment seats got `claude-sonnet-5` as configured.
+Consequences: (a) the programme the operator asked for — fable research tier — never ran;
+(b) run B's certified report **describes its own methodology wrong** ("the blue/red pairing
+this run used is `fable` and `sonnet`") because seats and assembly only see config; (c) the
+per-seat `meta.json` `model` field records the *request*, so the harness's own metadata cannot
+distinguish substitution from service. Only capture's model-tier audit caught it, hours after
+the money was spent (~$379 total: $197.67 + $181.18, cost.md list rates).
+**Fix (#589):** the engine asserts served==configured at dispatch — the first API response
+names the serving model; log it on the record at register and refuse-or-warn per a flag; the
+report template states served models, not configured ones.
+
+### F2 — Assembly stripped the anchor layer; proof footnotes dangle (HIGH)
+
+Blue's living reports carry the full tool-placed layer (A: 11 `cite:`, 27 `fx:`, 6 `proof:`
+anchors; B: 14/20/2). The assembled `report.md` in **both** runs carries **zero** anchors of
+any kind, and references proof footnotes it never defines (A: `[^P1]`–`[^P6]`, 12 references,
+0 definitions; B: `[^P1]`–`[^P2]`, 4 references, 0 definitions — GitHub renders them broken).
+The protocol calls dropping one anchor "a hard refusal"; assembly dropped them all, silently,
+in both runs. The numeric `[^1..N]` bibliography survived. This is the roadmap's
+"assembly stops being an LLM" defect class with a newly measured corruption mode.
+**Fix (#590):** mechanical union-copy for assembly; until then, a capture audit that fails on
+(a) any anchor present in blue/report.md and absent from the assembled report, and (b) any
+footnote referenced but undefined. Note `blue_scorecard`'s existing `unbacked_citations`
+detector reads blue's surface, so it reported 0 while the deliverable shipped broken.
+
+### F3 — Proof integrity: wrong-cwd proofs, and a "measured" figure no proof backs (HIGH, run A)
+
+Re-running all six archived proofs: four reproduce byte-exact; two diverge because they were
+**recorded from the wrong working directory**:
+- `lane3_buildstate.sh` — recorded output contains `find: './plugins/sleeper-service': No such
+  file or directory`; every ABSENT verdict below it is vacuous (`[ -e ]` on a path that wasn't
+  visible). Run correctly from repo root it produces the true enumeration. The conclusions are
+  independently true (confirmed here via `git ls-tree` at the pin) — the recorded *evidence*
+  does not establish them.
+- `lane3_accumulation.py` — recorded `0 files, 0 bytes` for `ideas/`+`research/` (same cwd
+  error), immediately followed by the script's **hard-coded** narrative line "the store
+  already accumulates" — a printed conclusion its own measurement just contradicted.
+- The report's "measured, re-run at synthesis time, at 30 files / ~508KB" cites `[^P5]` —
+  dangling per F2 — and **no archived proof contains that figure**; it was measured in-context
+  and never recorded. This is red's own `pattern_ephemeral_instrument` gap-pattern, staged
+  into the run's inputs, and neither red's four archive spot-checks nor the bench caught any
+  of the three instances.
+**Fix (#591):** `prove` records cwd and exit code and refuses an output carrying shell error
+signatures; red's archive spot-check re-RUNS a sample rather than only reconciling; a
+"measured" claim in the report must resolve to a proof id or be labeled unrecorded.
+
+### F4 — `prove --quote` silent mis-anchor (MEDIUM-HIGH, run B — already #552, now with repro)
+
+Pinned in the transcript: proof `p-efab2cde`'s long, exact, uniquely-matching quote (single
+occurrence, byte offset 31633) was anchored at the unrelated shorter sentence "Status:
+Proposal (for discussion)" in a different section, with the tool reporting success; the
+shorter-quote retry `p-b66d1912` anchored correctly. Repro data added to #552.
+
+### F5 — Adversary form regressions (MEDIUM)
+
+- Red's `anchored_closures_pct`: **57 (A)** and **81 (B)** against target 100, baseline 89 —
+  in A, 43% of closures carried no tool-anchored attestation.
+- A's bench: **11 rulings without opinion form** (detector).
+- B closed **all 16 gaps with zero formal closings** — red discharged the closing duty inside
+  `mint --reason`, so at the ceiling the bench had no closings-based ruling basis, which is
+  exactly the posture #554 addresses. Where the constitution demands ceremony, the tool should
+  enforce it (the standing "enforce ceremony instead of asking for it" roadmap line).
+
+### F6 — Discovery tax (MEDIUM)
+
+~33–34% of all record-tool traffic in both runs was `--help` surface-walking (A: 198 help vs
+~410 writes; B: 209 of 622 calls), repeated per seat because the constitution demands a
+whole-tree read and nothing persists it. Worst: judge-terminal (A) 21 help vs 16 writes;
+red-merge-r1 (B) 25 help in 54 calls. Round-4 seats needed ~3 — the knowledge exists, it just
+dies with each seat. **Fix (#593):** setup stages each role's *generated* help tree as an
+input file (generated from the binary, so it cannot drift — the facts-are-fields "generate the
+derived carrier" preference); the constitution's read-first duty becomes one Read.
+
+### F7 — A shared wrong idiom hit six seats (MEDIUM-LOW)
+
+Six different seats across both runs piped `show work --json` into python expecting a
+`sitting` key that does not exist (`KeyError: 'sitting'`) — same guess, six independent seats,
+which means the schema is being inferred from somewhere common and wrong. Publish the actual
+schema in the verb's help (folded into #593), and note three of A's refusals were **swallowed
+inside exit-0 batched scripts** — per-call invocation keeps refusals visible to `is_error`
+accounting and the strike counter.
+
+### F8 — Environment gaps burned real tokens (MEDIUM-LOW)
+
+- OCR unconfigured (`MCP_PDF_OCR_COMMAND`/`PRESET` unset) and `pdftotext` absent: red-lens-r1-L1
+  (A) fell back to page-image renders — a **4.29 MB transcript, 3.61 MB of it base64 images**,
+  6× the next-largest seat, for one lens slice. Friction has ranked lossy PDF handling the #1
+  capability gap across prior runs; this run paid it again.
+- The identity-binding hook never reached either run (plugins installed mid-session; the
+  documented Setup-script field is the fix) — beyond ergonomics, it **blinded friction-parity**:
+  60 envelope entries (33+27) could not be joined to seats at capture.
+- `openai.com` 403 turned a leaf check into a permanently "open" question in B; the egress
+  proxy's reach is part of the evidence surface. **Fix (#592, area:dev):** provision OCR +
+  pdftotext, install plugins via the Setup script, and document the proxy's known-blocked hosts.
+
+### F9 — Citation-lens economics (MEDIUM-LOW)
+
+Per-seat citation-lens yield: A — 2 findings in round 1, then 0, 0, 0; B — 0, 0, 1, 0. The
+dark-side and logic lenses stayed productive every round. W2i already down-weights citation
+lenses; the evidence supports going further: dispatch the citation lens only when citations
+were added or changed since the last audited round.
+
+### F10 — Harness observations (LOW, for awareness)
+
+- A's blue-respond-r4 found stale scratchpad from "a prior interrupted attempt" of its own
+  sitting; the journal shows a clean 32/32 — an agent retry happened below the journal's
+  visibility. A sitting-attempt counter on the record would make this visible.
+- B's 29 seats ran strictly sequentially (two parallel workflows on a 4-CPU box; per-workflow
+  concurrency cap = 2). The programme's wall clock (~4.6 h overlapped) was acceptable, but
+  lane/lens parallelism inside each run largely did not materialize.
+
+### F11 — Orchestration self-review (the session driving the runs)
+
+- Launched both workflows before probing whether plugin agent types resolve mid-session — two
+  dead launches (cheap, ~2 s each, but a probe-first order was available and used only after).
+- The PR body understated F1 as "several bulk seats were served opus" when it was **all** of
+  them; corrected here and in #589. The PR merged before this retrospective; the record is
+  this document.
+- The 40 KB gap-pattern index was pasted verbatim into both Workflow arg payloads (~50 KB of
+  operator context) when setup had already staged the identical file in each run's `inputs/`;
+  the engine could take a path (seats already read staged inputs).
+- `maxRounds 4` bought both CEILING exits with repairs unaudited. The standing stop-and-resume
+  practice only endorses *reduced* ceilings, so the honest recovery is not a +1 resume but
+  either #554's grace-round mechanism or the cheap human path both benches explicitly invited:
+  read `show changes --id R4-1` / `--id R4-5` (A) and confirm or reject the bench's
+  leaf-verification. For future keeper runs on topics this size: ceiling 5–6.
+- What held up: worktree isolation (zero cross-run contamination), the constitution-by-path
+  shim (F: two compliance profiles above), disclosure discipline (every deviation is on the PR
+  and the record), and capture-per-protocol on both runs.
+
+## Report quality verdicts
+
+**Run A (the plan): substance sound, evidence layer partially broken.** The plan's six
+recommendations, the queueing analysis, and the build-state findings all survive independent
+re-derivation; the ship/withdraw reasoning is grounded and the CEILING debt honestly stated.
+Its defects are F2 (no anchors, dangling `[^P1..P6]`), F3 (two bad proofs + one unbacked
+"measured" figure), and the disclosed mis-titled bibliography entry (`[^2]`, the #551 debt).
+Recommendations are safe to act on — the specific *recorded evidence* for the build-state and
+accumulation figures is not the artifact to cite; this retrospective's re-runs are.
+
+**Run B (the positioning): argument sound, self-description wrong in one place.** The
+compare/contrast holds up (the absence-claim is stated as absence, the kernel finding is
+gated on its own prototype), but it describes its bulk tier as fable (F1), ships dangling
+`[^P1..P2]` (F2), and closed its entire board without formal closings (F5) — which is why its
+bench had to substitute at the ceiling.
+
+Neither run is red-PASSed. Both are CEILING. Every consumer of these reports should read the
+verdict stamp first, as the reports themselves insist.
+
+## Priority order for fixes
+
+1. **#589 served-model assertion** — cheap, prevents the whole F1 class, and makes cost/tier
+   decisions mean what they say.
+2. **#590 assembly anchor survival** — the deliverable currently loses its machine-checkable
+   layer every run; mechanical assembly is already on the roadmap, the capture audit is the
+   stopgap.
+3. **#591 proof cwd/exit integrity + re-running spot-checks** — the prototyping-and-testing
+   discipline is the operator's standing requirement; this run shows it can record artifacts
+   that look like proofs and aren't.
+4. **#552/#553/#554/#555** — already filed from the runs' own friction; this review adds repro
+   evidence and independent confirmation.
+5. **#592 environment provisioning**, **#593 help-tree staging + schema docs** — token
+   economics; together they address roughly a third of the record-tool traffic and the single
+   largest transcript in the programme.
