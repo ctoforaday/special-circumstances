@@ -277,7 +277,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if absErr != nil {
 		absRun = cfg.RunDir
 	}
-	rc := runConfig{Topic: topic, RunDir: absRun, Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes)}
+	rc := runConfig{Topic: topic, RunDir: absRun, Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect}
 	if b, err := marshalJSON(rc); err == nil {
 		os.WriteFile(filepath.Join(cfg.RunDir, "inputs", "run-config.json"), b, 0o644)
 	}
@@ -424,6 +424,19 @@ type runConfig struct {
 	JudgmentModel string  `json:"judgmentModel"`
 	MaxRounds     *string `json:"maxRounds"`
 	Lanes         *string `json:"lanes"`
+	// EventSchema is the event-shape EPOCH this run's events were written under.
+	//
+	// A run directory is created by `setup` and does not outlive the schema that made it — but
+	// `run-archive/` does, and CLAUDE.md calls it the only part of a run that survives the
+	// container, re-read by every later audit. When the record's storage moved to a database,
+	// six archived runs became unreadable by the current binary, and nothing in them said what
+	// shape they were in — so a later reader could only guess which binary to build.
+	//
+	// It is the EPOCH and deliberately not a binary version (#597): a release number moves for
+	// reasons the event shape does not care about, so recording one would tell a future reader
+	// what shipped rather than what it can read. This is the same number the setup preflight
+	// just checked the binary against, so the file states a fact the run has already verified.
+	EventSchema int `json:"eventSchema,omitempty"`
 }
 
 func ptrOrNil(s string) *string {
