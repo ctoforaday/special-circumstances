@@ -59,10 +59,14 @@ func newFriction() *cobra.Command {
 						"To WRITE friction, name your role: `<role> friction --reason \"<the capability gap and what it blocked>\"`, "+
 						"or `<role> friction --none --reason \"<what you reached for and found>\"` when nothing blocked you")
 			}
-			runDir := seat.Of(cmd).RunDir
-			if runDir == "" {
-				return feov.Errorf(feov.MissingField, "friction: --run <runDir> is required")
+			// A REFUSAL AND AN ABSENCE ARE DIFFERENT ANSWERS, and this read gave the same one to
+			// both: it took the path off seat.Of, where no error is reachable, and told an
+			// operator who HAD supplied --run that --run was required.
+			run, err := seat.Of(cmd).Run()
+			if err != nil {
+				return err
 			}
+			runDir := run.Dir()
 			b, err := record.FrictionJSONBytes(runDir)
 			if err != nil {
 				return err

@@ -38,6 +38,10 @@ import (
 // event durable and the write reconciled idempotently on retry — no wedge, no phantom op.
 func newEdit() *cobra.Command {
 	c := seat.Prose(seat.New("edit", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
 		reason, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -57,12 +61,12 @@ func newEdit() *cobra.Command {
 
 		// Crash-retry: a committed blue_edit for this key means the op is already on the
 		// stack — reconcile the write idempotently, do NOT append a second op.
-		prior, err := record.ExistingBlueEditByKey(s.RunDir, s.SeatID, key)
+		prior, err := record.ExistingBlueEditByKey(run.Dir(), s.SeatID, key)
 		if err != nil {
 			return nil, err
 		}
 		if prior {
-			if err := applyEdit(s.RunDir, oldStr, newStr); err != nil {
+			if err := applyEdit(run.Dir(), oldStr, newStr); err != nil {
 				return nil, err
 			}
 			return editResult{Idempotent: true}, nil
@@ -70,7 +74,7 @@ func newEdit() *cobra.Command {
 
 		// FRESH: validate against a consistent snapshot BEFORE committing the event, so a
 		// mis-quote or a marker-spanning edit never lands a phantom stack op.
-		peek, err := record.ReadBlueReport(s.RunDir)
+		peek, err := record.ReadBlueReport(run.Dir())
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +109,7 @@ func newEdit() *cobra.Command {
 		// Blue is not obliged to reach this state: a counter-edit simply does not set the
 		// flag, and record.DeclineStats counts that as blue exercising its right to disagree.
 		if gapID := seat.Str(cmd, flags.Answers); gapID != "" {
-			verbatim, err := record.ProposalAppliedVerbatim(s.RunDir, gapID, oldStr, newStr)
+			verbatim, err := record.ProposalAppliedVerbatim(run.Dir(), gapID, oldStr, newStr)
 			if err != nil {
 				return nil, err
 			}
@@ -116,7 +120,7 @@ func newEdit() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		if err := applyEdit(s.RunDir, oldStr, newStr); err != nil {
+		if err := applyEdit(run.Dir(), oldStr, newStr); err != nil {
 			return nil, err
 		}
 		return editResult{}, nil

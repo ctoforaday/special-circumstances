@@ -5,10 +5,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 )
 
-// existingRun makes a run directory that has actually been dispatched — the records directory
-// is what distinguishes one from any other path.
+// existingRun makes a run directory that has actually been dispatched. The DIRECTORY is what
+// distinguishes a real run from any other path; the records inside it are a separate question,
+// and one a run legitimately answers with "none yet".
 func existingRun(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
@@ -87,16 +90,40 @@ func TestTwoSpellingsResolveToTheSameRun(t *testing.T) {
 	}
 }
 
-// NewRun is for the one caller that legitimately holds a run before it has a record. It must
-// NOT accept the empty string either — creating a run is still not a reason to resolve nothing.
-func TestNewRunAllowsARunWithNoRecordYet(t *testing.T) {
-	fresh := filepath.Join(t.TempDir(), "research", "2026-01-01_new")
-	if err := os.MkdirAll(fresh, 0o755); err != nil {
+// A DISPATCHED RUN WITH NO RECORDS YET IS A REAL RUN, AND ITS EMPTY BOARD IS TRUE.
+//
+// This is the line #526 is actually about, and the first draft of OpenRun drew it in the wrong
+// place. Requiring a records/ directory conflates two states that could not be less alike:
+//
+//   - never dispatched — a typo. Nothing made this path. An empty board is a fiction.
+//   - dispatched, nothing filed yet — round 0, before the first claim. An empty board is the
+//     honest answer, and refusing it would refuse every run its opening move.
+//
+// A write CREATES records/ (store.go's MkdirAll), so the second state has no records directory
+// through no fault of its own. Measured when this was checked the other way: five tests across
+// fetch, friction and the operator read failed on runs that were entirely real.
+func TestARunWithNoRecordsYetOpens(t *testing.T) {
+	dispatched := filepath.Join(t.TempDir(), "research", "2026-01-01_fresh")
+	if err := os.MkdirAll(dispatched, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	r, err := NewRun(fresh)
+	r, err := OpenRun(dispatched)
 	if err != nil {
-		t.Fatalf("setup must be able to hold a run before its record exists: %v", err)
+		t.Fatalf("a dispatched run must open before its first write — that is round 0: %v", err)
+	}
+	if !r.Valid() {
+		t.Error("a dispatched run reports itself invalid")
+	}
+}
+
+// NewRun is for the one caller that holds a run before there is anything on disk to open. It
+// must NOT accept the empty string either — creating a run is still not a reason to resolve
+// nothing.
+func TestNewRunAllowsARunNotYetOnDisk(t *testing.T) {
+	unmade := filepath.Join(t.TempDir(), "research", "2026-01-01_new")
+	r, err := NewRun(unmade)
+	if err != nil {
+		t.Fatalf("setup must be able to resolve a run it is about to create: %v", err)
 	}
 	if !r.Valid() {
 		t.Error("a run being created is still a resolved run")
@@ -106,8 +133,8 @@ func TestNewRunAllowsARunWithNoRecordYet(t *testing.T) {
 	}
 	// And the same path is refused by OpenRun, which is the distinction the two constructors
 	// exist to draw.
-	if _, err := OpenRun(fresh); err == nil {
-		t.Error("OpenRun accepted a run with no record — that is the check every reader depends on")
+	if _, err := OpenRun(unmade); err == nil {
+		t.Error("OpenRun accepted a path nobody made — that is the check every reader depends on")
 	}
 }
 
@@ -123,5 +150,22 @@ func TestTheZeroValueIsNotARun(t *testing.T) {
 	}
 	if got := r.String(); got != "<unresolved run>" {
 		t.Errorf("String() = %q; an unresolved run must not print as a path", got)
+	}
+}
+
+// THE REFUSALS CARRY A CODE, because the --json edge reads one.
+//
+// feov.CodeOf returns the literal "error" for any error with no *feov.Error in its chain, so an
+// uncoded refusal does not fail loudly — it reports a generic code that is indistinguishable
+// from every other uncoded failure. The sites these two refusals replaced returned
+// feov.MissingField and a coded Conflict, so leaving them uncoded would have retired a
+// distinction the structured surface exposes, without retiring anything that says so.
+func TestTheRefusalsAreCoded(t *testing.T) {
+	if _, err := OpenRun(""); feov.CodeOf(err) != string(feov.MissingField) {
+		t.Errorf("an unsupplied run codes as %q, want %q", feov.CodeOf(err), feov.MissingField)
+	}
+	unmade := filepath.Join(t.TempDir(), "research", "2026-01-01_nothing-here")
+	if _, err := OpenRun(unmade); feov.CodeOf(err) != string(feov.NotFound) {
+		t.Errorf("a path nobody dispatched codes as %q, want %q", feov.CodeOf(err), feov.NotFound)
 	}
 }

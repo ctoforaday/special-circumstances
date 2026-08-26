@@ -27,9 +27,13 @@ func newMint() *cobra.Command {
 	var supersedes, foundBy flags.CSV
 
 	c := seat.Prose(seat.New("mint", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
 		// Crash-retry idempotency: --key (the stable local label, e.g. the source
 		// lens finding) makes a retried mint return the EXISTING id.
-		prior, err := record.ExistingMintByKey(s.RunDir, s.SeatID, seat.Str(cmd, flags.Key))
+		prior, err := record.ExistingMintByKey(run.Dir(), s.SeatID, seat.Str(cmd, flags.Key))
 		if err != nil {
 			return nil, err
 		}
@@ -43,7 +47,7 @@ func newMint() *cobra.Command {
 		// must be minted from the FACT the dispatcher supplies, not from a guess
 		// about a string's shape. The moment FEOV_ROUND is injected these diverge,
 		// and this call site would have kept the guess (#348).
-		gapID, err := record.MintGapID(s.RunDir, s.Round)
+		gapID, err := record.MintGapID(run.Dir(), s.Round)
 		if err != nil {
 			return nil, err
 		}
@@ -81,7 +85,7 @@ func newMint() *cobra.Command {
 		// the registry already has; class_new records whether THIS run coined it, which
 		// the registry knows and a seat no longer has to assert.
 		p.Class = proto.String(seat.Str(cmd, flags.Class))
-		p.ClassNew = proto.Bool(record.ClassCoinedInRun(s.RunDir, seat.Str(cmd, flags.Class)))
+		p.ClassNew = proto.Bool(record.ClassCoinedInRun(run.Dir(), seat.Str(cmd, flags.Class)))
 
 		// THE LOCATION IS MATCHED AGAINST THE REPORT, and it was not.
 		//
@@ -100,7 +104,7 @@ func newMint() *cobra.Command {
 		// "not found in report.md" and has an omission on its hands would otherwise conclude
 		// the verb cannot express what it is holding.
 		if loc := seat.Str(cmd, flags.Quote); strings.TrimSpace(loc) != "" {
-			report, err := record.ReadBlueReport(s.RunDir)
+			report, err := record.ReadBlueReport(run.Dir())
 			if err != nil {
 				return nil, err
 			}
@@ -126,7 +130,7 @@ func newMint() *cobra.Command {
 		// gap id are tool-assigned rather than claimed.
 		basis := "proposed"
 		if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
-			report, err := record.ReadBlueReport(s.RunDir)
+			report, err := record.ReadBlueReport(run.Dir())
 			if err != nil {
 				return nil, err
 			}
@@ -169,7 +173,7 @@ func newMint() *cobra.Command {
 		// prescriptions" a per-run number on the record, which is the measurement of the
 		// pathology the guard prevents. Same discipline as `blue cite`'s unreachable-source
 		// rejection — the tool records the block, never the seat's memory of it.
-		if board, berr := record.BoardState(s.RunDir); berr == nil {
+		if board, berr := record.BoardState(run.Dir()); berr == nil {
 			if prior, prescribed := record.EstoppelConflict(board, seat.Str(cmd, flags.Quote)); prior != "" &&
 				!contains(supersedes.Value(), prior) {
 				msg := fmt.Sprintf("merge mint: estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
