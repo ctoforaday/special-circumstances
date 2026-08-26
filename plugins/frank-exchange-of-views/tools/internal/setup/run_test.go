@@ -2,9 +2,12 @@ package setup
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -30,7 +33,26 @@ func runCfg(t *testing.T, exec ExecFunc) (Config, string) {
 	t.Helper()
 	home := t.TempDir()
 	runDir := filepath.Join(home, "research", "2026-01-01_probe")
+
+	// A PLUGIN-SHAPED LAYOUT, because that is the only shape setup runs in: the epoch comes
+	// from the requirements.json one directory above the binary, and a fixture without one is
+	// refused. Without BinDir the binary would resolve to the TEST binary's directory — a
+	// go-build scratch dir with no plugin in it — which is exactly the configuration the old
+	// compiled-in fallback let pass by comparing a number with itself.
+	//
+	// The manifest carries the epoch this binary compiles in, so the fixture tracks the
+	// binary instead of pinning a number somebody would have to move by hand.
+	binDir := filepath.Join(home, "plugin", "bin")
+	if err := os.MkdirAll(binDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	manifest := fmt.Sprintf(`{"eventSchema":%d}`+"\n", record.EventSchema)
+	if err := os.WriteFile(filepath.Join(home, "plugin", "requirements.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
 	return Config{
+		BinDir:        binDir,
 		RunDir:        runDir,
 		Topic:         "a probe",
 		Model:         "haiku",
@@ -52,10 +74,15 @@ func reports(epoch string) ExecFunc {
 	}
 }
 
-// DEFECT 1: the preflight must refuse WITHOUT anyone opting in. No --bin-dir is passed here,
-// which is exactly the documented launch. Before the fix this returned 0 and built the run.
-func TestSkewedBinaryRefusesEvenWithoutBinDir(t *testing.T) {
-	cfg, runDir := runCfg(t, reports("0.34.0"))
+// DEFECT 1: the preflight refuses WITHOUT anyone opting in. Arming it used to depend on
+// --bin-dir, a flag nothing in the plugin passed, so the documented launch returned 0 and
+// built the run against a skewed binary.
+//
+// The skew is now an EPOCH difference rather than a version difference: this binary writes a
+// shape the plugin beside it does not read, which is the only incompatibility that means
+// anything when nothing promises backwards compatibility.
+func TestSkewedBinaryRefusesEvenWithoutBinDirOptIn(t *testing.T) {
+	cfg, runDir := runCfg(t, reports("9"))
 	var out, errb bytes.Buffer
 
 	if code := Run(cfg, &out, &errb); code != 2 {
@@ -146,7 +173,7 @@ func TestNoManifestIsRefusedRatherThanCheckedAgainstItself(t *testing.T) {
 func TestMissingModelTierRefuses(t *testing.T) {
 	for _, drop := range []string{"model", "judgment"} {
 		t.Run(drop, func(t *testing.T) {
-			cfg, runDir := runCfg(t, reports("0.35.0"))
+			cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 			if drop == "model" {
 				cfg.Model = ""
 			} else {
@@ -169,7 +196,7 @@ func TestMissingModelTierRefuses(t *testing.T) {
 // A cite that does not exist at its pin refuses. Evidence that can still change underneath
 // the run is not evidence, so this must fail BEFORE the run exists.
 func TestPinMissRefuses(t *testing.T) {
-	cfg, runDir := runCfg(t, reports("0.35.0"))
+	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 	cfg.Cites = []string{"docs/gone.md@deadbeef"}
 	// rev-parse resolves (so pins are CHECKED, not skipped); cat-file -e fails (so the cite misses).
 	cfg.Git = func(args []string) GitResult {
@@ -195,7 +222,7 @@ func TestPinMissRefuses(t *testing.T) {
 // building a run called "--topic" is worse than refusing.
 func TestMissingRunDirRefuses(t *testing.T) {
 	for _, arg := range []string{"", "--topic"} {
-		cfg, _ := runCfg(t, reports("0.35.0"))
+		cfg, _ := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 		cfg.RunDir = arg
 		var out, errb bytes.Buffer
 		if code := Run(cfg, &out, &errb); code != 1 {
@@ -229,7 +256,7 @@ func TestUnrunnableBinaryRefuses(t *testing.T) {
 // printed — "(59 UNCLASSIFIED, not delivered)" — and it read as a nag in a long summary rather
 // than as "red is starting blind". The 2026-08-05 run shipped with 0 classes delivered.
 func TestMostlyUnclassifiedCorpusRefuses(t *testing.T) {
-	cfg, runDir := runCfg(t, reports("0.35.0"))
+	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 	mem := filepath.Join(t.TempDir(), "patterns")
 	if err := os.MkdirAll(mem, 0o755); err != nil {
 		t.Fatal(err)
@@ -266,7 +293,7 @@ func TestMostlyUnclassifiedCorpusRefuses(t *testing.T) {
 // remedy when gap-patterns reports "no memory dir" — so following the documented advice
 // discarded the curated corpus (57 files, 55 classified) for the raw accrual (60, 1).
 func TestMemoryDirAddsRatherThanReplaces(t *testing.T) {
-	cfg, _ := runCfg(t, reports("0.35.0"))
+	cfg, _ := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 	promoted := filepath.Join(cfg.Cwd, "feov-memory", "red-gap-patterns")
 	if err := os.MkdirAll(promoted, 0o755); err != nil {
 		t.Fatal(err)
@@ -305,7 +332,7 @@ func TestMemoryDirAddsRatherThanReplaces(t *testing.T) {
 // invented a fresh vocabulary each run, and both record-era runs had ZERO overlap between the
 // classes minted and the classes the memory corpus is indexed by.
 func TestClassRegistryIsStagedIntoTheRun(t *testing.T) {
-	cfg, runDir := runCfg(t, reports("0.35.0"))
+	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 	mem := filepath.Join(cfg.Cwd, "feov-memory")
 	if err := os.MkdirAll(mem, 0o755); err != nil {
 		t.Fatal(err)
@@ -338,7 +365,7 @@ func TestClassRegistryIsStagedIntoTheRun(t *testing.T) {
 // do its work, not one that will quietly do it wrong. The assertion moved with it, because a test
 // pinning the old sentence would have made removing the tolerance look like a regression.
 func TestAbsentRegistryIsAnnounced(t *testing.T) {
-	cfg, _ := runCfg(t, reports("0.35.0"))
+	cfg, _ := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 	var out, errb bytes.Buffer
 	if code := Run(cfg, &out, &errb); code != 0 {
 		t.Fatalf("exit %d: %s", code, errb.String())
@@ -356,7 +383,7 @@ func TestAbsentRegistryIsAnnounced(t *testing.T) {
 // reaches no seat however well it is composed — which is exactly what both record-era runs
 // did, at zero overlap, while every summary line looked healthy.
 func TestUnjoinablePatternClassesAreNamed(t *testing.T) {
-	cfg, _ := runCfg(t, reports("0.35.0"))
+	cfg, _ := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 	mem := filepath.Join(cfg.Cwd, "feov-memory")
 	patterns := filepath.Join(mem, "red-gap-patterns")
 	if err := os.MkdirAll(patterns, 0o755); err != nil {
@@ -397,7 +424,7 @@ func TestUnjoinablePatternClassesAreNamed(t *testing.T) {
 // says a run is open. What survives is the half that was always worth keeping: telling a human,
 // at the one moment one is present, that a previous run was never captured.
 func TestSetupOpensASecondRunAndNamesTheUnclosedOne(t *testing.T) {
-	cfg, runDir := runCfg(t, reports("0.35.0"))
+	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 	runlive.WriteRunLiveMarker(cfg.Cwd, "research/2026-08-01_abandoned", nil, time.Date(2026, 8, 1, 9, 0, 0, 0, time.UTC), "", "")
 
 	var out, errb bytes.Buffer
@@ -443,7 +470,7 @@ func TestSetupOpensASecondRunAndNamesTheUnclosedOne(t *testing.T) {
 // The same run is not a second run. Re-running setup on a run in progress is ordinary, and this
 // gate must not be the thing that breaks it.
 func TestSetupStaysIdempotentForTheRunItsMarkerNames(t *testing.T) {
-	cfg, runDir := runCfg(t, reports("0.35.0"))
+	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 	runlive.WriteRunLiveMarker(cfg.Cwd, runDir, nil, cfg.Now, "", "")
 
 	var out, errb bytes.Buffer
