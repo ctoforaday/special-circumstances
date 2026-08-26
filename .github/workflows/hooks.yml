@@ -1092,6 +1092,9 @@ jobs:
       - name: Cross-module fixtures agree (a shape both modules restate drifted once, silently)
         run: go run ./fixtureparity
         working-directory: scripts
+      - name: Fixtures stage the vocabulary the plugin ships (a renamed class would pass either way)
+        run: go run ./classgen -check
+        working-directory: scripts
       - name: Hook bootstrap guards degrade gracefully (empty-bin window must never crash-storm)
         # Enumerates EVERY plugin's hooks.json, not just prosthetic-conscience's.
         # Naming one plugin was correct while it shipped the only hooks; a second
