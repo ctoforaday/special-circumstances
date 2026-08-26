@@ -66,8 +66,8 @@ type MotionsJSON struct {
 	} `json:"counts"`
 }
 
-// MotionsJSONOf projects every motion on the record, current vocabulary and legacy alike.
-func MotionsJSONOf(b *Board) MotionsJSON {
+// motionsJSONOf projects every motion on the record, current vocabulary and legacy alike.
+func motionsJSONOf(b *Board) MotionsJSON {
 	out := MotionsJSON{Motions: []MotionJSON{}}
 	for _, m := range Motions(b) {
 		if m == nil {
@@ -110,7 +110,7 @@ func MotionsJSONBytes(runDir string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(MotionsJSONOf(b), "", "  ")
+	out, err := json.MarshalIndent(motionsJSONOf(b), "", "  ")
 	if err != nil {
 		return nil, err
 	}

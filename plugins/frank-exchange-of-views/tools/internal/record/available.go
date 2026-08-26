@@ -37,7 +37,7 @@ import (
 // does not arrive is not a second copy of it somewhere better-trafficked. It is one list, on the
 // one command a seat is told to run.
 
-// AvailableOf derives the acts this board affords this seat right now.
+// availableOf derives the acts this board affords this seat right now.
 //
 // EVERY ENTRY NAMES A CONDITION READ OFF THE RECORD, never a general encouragement. "You could
 // cite something" is not an affordance, it is advice; "claim c-3 is cited and nobody has verified
@@ -48,7 +48,7 @@ import (
 // (whether you disagree, whether the claim should go) that no derivation can make for the seat.
 // An affordance line for those would be an expectation that cannot be honestly met, which is the
 // defect TestEveryExpectationIsReachableOnItsBoard exists to catch one layer up.
-func AvailableOf(b *Board, role, seatID string) []Item {
+func availableOf(b *Board, role, seatID string) []Item {
 	out := []Item{}
 	if b == nil {
 		return out

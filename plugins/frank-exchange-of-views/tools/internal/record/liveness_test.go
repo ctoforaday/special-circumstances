@@ -37,8 +37,8 @@ func itoaT(i int) string { return string(rune('a' + i%26)) }
 
 func TestLastActivityRefusesARecordWithNoEvents(t *testing.T) {
 	dir := recordtest.TmpRun(t)
-	if _, err := LastActivity(dir); err == nil {
-		t.Fatal("LastActivity returned no error for a run that has recorded nothing — a run that " +
+	if _, err := lastActivity(dir); err == nil {
+		t.Fatal("lastActivity returned no error for a run that has recorded nothing — a run that " +
 			"never started and a run that went quiet would then arrive as the same age")
 	}
 }
@@ -46,7 +46,7 @@ func TestLastActivityRefusesARecordWithNoEvents(t *testing.T) {
 func TestLastActivityReadsTheNewestEventsOwnTimestamp(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
 	dir := runWithCadence(t, 8, 30*time.Second, now)
-	a, err := LastActivity(dir)
+	a, err := lastActivity(dir)
 	if err != nil {
 		t.Fatal(err)
 	}

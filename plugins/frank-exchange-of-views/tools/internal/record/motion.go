@@ -40,17 +40,17 @@ var MotionSubjects = []string{"grade", "petition", "inquiry"}
 // spellings would have reproduced it inside the new group.
 var MotionVerdicts = map[string][]EnumValue{
 	"grade": {
-		Ev("accepted", "the filer is right and the grade moves — say so, then MOVE it with `merge regrade`; accepting without regrading is a channel with no consequence"),
-		Ev("rejected", "the grade stands. Your --reason is what the filer appeals against, so it carries the argument, not the conclusion"),
+		ev("accepted", "the filer is right and the grade moves — say so, then MOVE it with `merge regrade`; accepting without regrading is a channel with no consequence"),
+		ev("rejected", "the grade stands. Your --reason is what the filer appeals against, so it carries the argument, not the conclusion"),
 	},
 	"petition": {
-		Ev("granted", "the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow"),
-		Ev("denied", "the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest"),
+		ev("granted", "the objection holds. The relief BINDS the seats that come after, so state it as an instruction they can follow"),
+		ev("denied", "the objection does not hold, and your reason must say why at the leaf — a refusal without one is a decoration the petitioner cannot contest"),
 	},
 	"inquiry": {
-		Ev("endorsed", "worth this run's time — blue should take it up"),
-		Ev("out_of_scope", "a real question, but not THIS question"),
-		Ev("too_thin", "in scope, and the hypothesis does not carry its budget as stated"),
+		ev("endorsed", "worth this run's time — blue should take it up"),
+		ev("out_of_scope", "a real question, but not THIS question"),
+		ev("too_thin", "in scope, and the hypothesis does not carry its budget as stated"),
 	},
 }
 
@@ -68,23 +68,23 @@ var MotionVerdicts = map[string][]EnumValue{
 // usually applied.
 var MotionFields = map[string]map[string][]EnumValue{
 	"grade": {"dimension": {
-		Ev("severity", "how bad the defect is in itself"),
-		Ev("likelihood", "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them"),
-		Ev("impact", "how bad the consequence is if it lands"),
+		ev("severity", "how bad the defect is in itself"),
+		ev("likelihood", "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them"),
+		ev("impact", "how bad the consequence is if it lands"),
 		// ALL FOUR AXES ARE THEIR FLAG NAMES. This value spent releases spelled `complexity_cost`
 		// — the PAYLOAD key — while the flag was `--cx`, and the comment here documented the trap
 		// rather than removing it: three dimensions matched their flags and the fourth matched
 		// neither, which is a trap a seat walks into by learning the pattern from the other three
 		// (measured). The flag is `--complexity` and so is the dimension; the payload key stays
 		// `complexity_cost`, which is a schema name no seat types.
-		Ev("complexity", "what fixing it costs — the axis to contest when the fix is worth more than the defect"),
+		ev("complexity", "what fixing it costs — the axis to contest when the fix is worth more than the defect"),
 	}},
 	"petition": {
 		// FROM THE SCHEMA, not typed here. These four words were hand-listed while PetitionClass
 		// carried a different four, and the write path resolves against the enum — so `ethical`
 		// and `constitutional` were advertised in --help and REFUSED at the write, 22 of 40 times
 		// in the fuzz. Derived, the two cannot disagree.
-		"class": EvsOf(recordpb.PetitionClass(0).Descriptor()),
+		"class": evsOf(recordpb.PetitionClass(0).Descriptor()),
 		// WHO THE GRANTED RELIEF BINDS. Set on the RULING, not the filing: what a petitioner asks
 		// for and what the bench orders are different facts, and only the second binds anyone.
 		//
@@ -96,7 +96,7 @@ var MotionFields = map[string]map[string][]EnumValue{
 		// AND THE WORSE HALF: the table said `blue | red | both`, RulingBinds said
 		// `all | filer | none`, NOTHING overlapped, and --binds is set exactly when a petition is
 		// GRANTED — so no granted petition could be recorded at all.
-		"binds": EvsOf(recordpb.RulingBinds(0).Descriptor()),
+		"binds": evsOf(recordpb.RulingBinds(0).Descriptor()),
 	},
 }
 
@@ -115,7 +115,7 @@ func MotionFieldEnum(subject, key string, flag string) (EnumField, bool) {
 	return EnumField{Key: key, Flag: flag, Values: values, Why: why}, true
 }
 
-// MotionIDOf returns the motion id an event JOINS ON, and whether the event is part of a motion
+// motionIDOf returns the motion id an event JOINS ON, and whether the event is part of a motion
 // exchange at all.
 //
 // THIS IS THE JOIN, AND IT IS THE ONE THING IN THIS FILE THAT MUST NOT BE INLINED PER CALLER.
@@ -129,7 +129,7 @@ func MotionFieldEnum(subject, key string, flag string) (EnumField, bool) {
 //
 // ok=false means "not a motion event" — distinct from a motion event whose id is empty, which is a
 // write the tool should never have produced and which callers still skip on their own terms.
-func MotionIDOf(e *Event) (string, bool) {
+func motionIDOf(e *Event) (string, bool) {
 	body, ok := recordpb.Body(e)
 	if !ok {
 		return "", false
@@ -145,7 +145,7 @@ func MotionIDOf(e *Event) (string, bool) {
 	return "", false
 }
 
-// MotionSubjectWord renders a subject as the word this tool's surfaces use, and the ONE
+// motionSubjectWord renders a subject as the word this tool's surfaces use, and the ONE
 // disagreement it has to bridge is stated here rather than in each caller.
 //
 // The schema calls the third subject `MOTION_SUBJECT_DIRECTION`. Every surface outside the schema
@@ -158,7 +158,7 @@ func MotionIDOf(e *Event) (string, bool) {
 //
 // So the rename is bridged in exactly one place, visibly, until the vocabularies are settled. Every
 // other value comes from the schema.
-func MotionSubjectWord(s recordpb.MotionSubject) string {
+func motionSubjectWord(s recordpb.MotionSubject) string {
 	if s == recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
 		return "inquiry"
 	}
@@ -166,7 +166,7 @@ func MotionSubjectWord(s recordpb.MotionSubject) string {
 }
 
 // MotionSubjectEnum resolves a surface's subject word back to the schema value. The inverse of
-// MotionSubjectWord, sharing its one special case so the pair cannot drift apart.
+// motionSubjectWord, sharing its one special case so the pair cannot drift apart.
 func MotionSubjectEnum(word string) (recordpb.MotionSubject, bool) {
 	if word == "inquiry" {
 		return recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION, true
@@ -178,13 +178,13 @@ func MotionSubjectEnum(word string) (recordpb.MotionSubject, bool) {
 	return recordpb.MotionSubject(vd.Number()), true
 }
 
-// MotionRulingWord renders whichever ruling the event actually carries.
+// motionRulingWord renders whichever ruling the event actually carries.
 //
 // THE VERDICT SET IS KEYED ON THE SUBJECT — that is what MotionVerdicts above says and what the
 // schema's three ruling enums enforce — so there is no single field to read. An arm nobody set
 // returns "", which is what Motion.Ruled() tests: a motion filed and never ruled must stay
 // distinguishable from one ruled with a verdict this binary does not know.
-func MotionRulingWord(r *recordpb.MotionRule) string {
+func motionRulingWord(r *recordpb.MotionRule) string {
 	switch v := r.GetRuling().(type) {
 	case *recordpb.MotionRule_Grade:
 		return enumWord(v.Grade)
@@ -329,7 +329,7 @@ func Motions(b *Board) []*Motion {
 				byID[id] = m
 				order = append(order, id)
 			}
-			m.Subject, m.Filer, m.Round = MotionSubjectWord(f.GetSubject()), e.GetSeatId(), int(e.GetRound())
+			m.Subject, m.Filer, m.Round = motionSubjectWord(f.GetSubject()), e.GetSeatId(), int(e.GetRound())
 			m.Basis, m.Relief = f.GetBasis(), f.GetRelief()
 			// THE SUBJECT-SPECIFIC FIELDS COME OFF THE SUBJECT'S OWN MESSAGE, which is what the
 			// `filing` oneof buys: a grade motion cannot carry a petition's `class`, so the loop
@@ -405,7 +405,7 @@ func Motions(b *Board) []*Motion {
 	// Reading a ruling's subject matter from the ruling event alone would key every one of them on
 	// the empty string and report a board with no rulings on it.
 	for _, e := range b.Events {
-		id, ok := MotionIDOf(e)
+		id, ok := motionIDOf(e)
 		if !ok || id == "" {
 			continue
 		}
@@ -419,7 +419,7 @@ func Motions(b *Board) []*Motion {
 		}
 		switch f := body.(type) {
 		case *recordpb.MotionRule:
-			m.Ruling, m.RulingBy, m.RulingRound = MotionRulingWord(f), e.GetSeatId(), int(e.GetRound())
+			m.Ruling, m.RulingBy, m.RulingRound = motionRulingWord(f), e.GetSeatId(), int(e.GetRound())
 			m.Opinion = f.GetOpinion()
 		case *recordpb.MotionAppeal:
 			m.Appealed, m.AppealReason = true, f.GetReason()
@@ -474,7 +474,7 @@ func RequireMotionSubjectRef(runDir string, subject recordpb.MotionSubject, id s
 // A fact recovered from tree position rather than read from the record is exactly what
 // facts-are-fields is about. The record carries the subject; this reads it.
 func RequireSubjectMatches(runDir, subject, id string) error {
-	got, err := MotionSubjectOf(runDir, id)
+	got, err := motionSubjectOf(runDir, id)
 	if err != nil {
 		return err
 	}
@@ -485,18 +485,18 @@ func RequireSubjectMatches(runDir, subject, id string) error {
 	return nil
 }
 
-// MotionSubjectOf reports what a motion is ABOUT, from the record rather than from the caller.
+// motionSubjectOf reports what a motion is ABOUT, from the record rather than from the caller.
 //
 // A direction has no filing event — the proposal is the filing — so an id that resolves to an
 // line of inquiry IS a direction motion by construction.
-func MotionSubjectOf(runDir, id string) (string, error) {
+func motionSubjectOf(runDir, id string) (string, error) {
 	m, err := MergedEvents(runDir)
 	if err != nil {
 		return "", err
 	}
 	for _, e := range m.Events {
 		if f, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && f.GetMotionId() == id {
-			return MotionSubjectWord(f.GetSubject()), nil
+			return motionSubjectWord(f.GetSubject()), nil
 		}
 	}
 	for _, e := range m.Events {
@@ -527,7 +527,7 @@ func RequireUnruledMotion(runDir, id string) error {
 	for _, e := range m.Events {
 		if f, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && f.GetMotionId() == id {
 			return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command",
-				id, MotionRulingWord(f), e.GetSeatId())
+				id, motionRulingWord(f), e.GetSeatId())
 		}
 	}
 	return nil

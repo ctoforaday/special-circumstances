@@ -45,58 +45,6 @@ func marshalCompact(v any) ([]byte, error) {
 // exact byte-identical encoding when it computes the telemetry JSONL on read.
 func MarshalCompact(v any) ([]byte, error) { return marshalCompact(v) }
 
-// ReadShard parses a shard through the five-stage read rule, and the three fates it returns are
-// three DIFFERENT facts that used to be one.
-//
-// Before, every unparseable line was dropped in silence. That tolerance is load-bearing — a crash
-// mid-append leaves a torn fragment as a shard's last bytes, appendLine heals it by terminating it
-// and writing the next event after it, and failing a whole replay over one fragment would trade a
-// plausible zero for a hard outage. But it also meant a format break rendered as an empty board,
-// indistinguishable from a run that did nothing.
-//
-// recordpb.ClassifyLine separates them, and this function only routes what it decides:
-//
-//   - LineEvent    -> kept.
-//   - LineFragment -> dropped, inert, exactly as before. A torn or incomplete write.
-//   - LineCorrupt  -> dropped from the replay AND returned as an anomaly. Loudness and fatality
-//     are different properties: a truncated body and a corrupted body are the same
-//     bytes, so a fatal verdict here would be an outage on a recoverable run —
-//     and because Append reads the seat's own shard for the next seq, that seat
-//     could never write again.
-//   - fatal        -> returned as an error, killing the read. Only the two VERSION FACTS are
-//     fatal: a pre-schema line (a format break) and a line from a newer release
-//     (a skew this binary cannot honestly interpret). Both are read off a field.
-//
-// THE ANOMALY RETURN IS THE THIRD VALUE, and it is a return rather than a log because the anomaly
-// footer is part of the rendered artifact (viewjson.Anomalies): a corrupt line has to reach a
-// human, and a caller that does not want it can say so by discarding it. Append is that caller —
-// it needs only the seq — while MergedEvents carries them onto every board projection.
-func ReadShard(path string) ([]*Event, []string, error) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil, nil
-		}
-		return nil, nil, err
-	}
-	var out []*Event
-	var anomalies []string
-	for i, line := range strings.Split(string(b), "\n") {
-		kind, ev, cerr := recordpb.ClassifyLine([]byte(line))
-		switch {
-		case kind.IsFatal():
-			// Named with the file and the line so the human can go and look. The classification
-			// error already says WHAT is wrong and what to do; it is wrapped, not restated.
-			return nil, nil, fmt.Errorf("record: %s line %d: %w", path, i+1, cerr)
-		case kind.IsAnomaly():
-			anomalies = append(anomalies, fmt.Sprintf("%s line %d: %v", filepath.Base(path), i+1, cerr))
-		case kind == recordpb.LineEvent:
-			out = append(out, ev)
-		}
-	}
-	return out, anomalies, nil
-}
-
 type shardInfo struct {
 	nonce  string
 	file   string

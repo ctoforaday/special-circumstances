@@ -33,12 +33,12 @@ import (
 // check. Stated so nobody reads the guard as exhaustive.
 const minEstoppelOverlap = 40
 
-// AppliedVerbatim maps each gap id whose concrete proposal blue applied EXACTLY to the text
+// appliedVerbatim maps each gap id whose concrete proposal blue applied EXACTLY to the text
 // red prescribed. Only these gaps estop red.
 //
 // The fact is recorded at edit time by the tool comparing bytes (`blue edit` sets
 // applied_verbatim), never by a seat asserting it.
-func AppliedVerbatim(b *Board) map[string]string {
+func appliedVerbatim(b *Board) map[string]string {
 	out := map[string]string{}
 	for _, e := range b.Events {
 		// THE BODY IS THE FILTER. "not a blue_edit" is the same set the `e.Type != "blue_edit"`
@@ -69,7 +69,7 @@ func EstoppelConflict(b *Board, quote string) (gapID, prescribed string) {
 	if len(q) == 0 {
 		return "", ""
 	}
-	for id, fixNew := range AppliedVerbatim(b) {
+	for id, fixNew := range appliedVerbatim(b) {
 		p := collapse(fixNew)
 		if len(p) < minEstoppelOverlap && len(q) < minEstoppelOverlap {
 			continue
@@ -95,7 +95,7 @@ func EstoppelConflict(b *Board, quote string) (gapID, prescribed string) {
 // A gap red offered text for and blue has not answered at all is neither applied nor
 // declined: it is unanswered, and it is left out of both rather than scored as agreement.
 func DeclineStats(b *Board) (offered, applied, declined int) {
-	verbatim := AppliedVerbatim(b)
+	verbatim := appliedVerbatim(b)
 	answered := map[string]bool{}
 	for _, e := range b.Events {
 		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {

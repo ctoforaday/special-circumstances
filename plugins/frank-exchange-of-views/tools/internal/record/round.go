@@ -70,7 +70,7 @@ func RoundIn(runDir string) func(string) int {
 			return n
 		}
 		if terminalSeats[seatID] {
-			if n, ok := LastRoundOn(runDir); ok {
+			if n, ok := lastRoundOn(runDir); ok {
 				return n
 			}
 		}
@@ -78,11 +78,11 @@ func RoundIn(runDir string) func(string) int {
 	}
 }
 
-// LastRoundOn is the highest round any seat has recorded acting in.
+// lastRoundOn is the highest round any seat has recorded acting in.
 //
 // The bool is not decoration: a run with no rounds on it yet and a run whose record cannot be read
 // both have no answer, and a caller that took 0 for either would be back where this started.
-func LastRoundOn(runDir string) (int, bool) {
+func lastRoundOn(runDir string) (int, bool) {
 	m, err := MergedEvents(runDir)
 	if err != nil {
 		return 0, false

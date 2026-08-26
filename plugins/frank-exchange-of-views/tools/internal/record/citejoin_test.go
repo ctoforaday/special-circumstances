@@ -77,7 +77,7 @@ func TestAnIndependentVerifyDoesNotDischargeACitation(t *testing.T) {
 // lens actually reads.
 func TestTheLensSeesTheAffordance(t *testing.T) {
 	b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{citeEvent(t, "c-a08c9764", "x")}}
-	// Asked of the SITTING, not of AvailableOf: "reaches the seat" is a claim about the one list
+	// Asked of the SITTING, not of availableOf: "reaches the seat" is a claim about the one list
 	// a seat reads, and this test passed for as long as the affordance existed on a surface the
 	// seat's completion check could not see.
 	got := SittingOf(b, "lens", "red-lens-r1-L1").Open

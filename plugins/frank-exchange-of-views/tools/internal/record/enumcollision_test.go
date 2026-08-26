@@ -33,7 +33,7 @@ var knownEnumKeyCollisions = map[string]string{
 		"type matches nothing and says so in words that read like a judgement. That is exactly " +
 		"what happened: verify's pass-closes-all-gaps scanned `outcome` for PASS and reported " +
 		"'gate not applicable' on every run ever recorded (#410). Any reader of this key MUST " +
-		"name its event type in a constant asserted against Enum(), the way passClosesAllGaps " +
+		"name its event type in a constant asserted against enum(), the way passClosesAllGaps " +
 		"does — see TestPassVerdictIsAWordItsEventTypeCanActuallyCarry.",
 }
 
@@ -86,20 +86,20 @@ func TestNoClassifiedCollisionHasGoneAway(t *testing.T) {
 // what decides whether a wrong read is loud or silent. Overlapping vocabularies would make a
 // cross-type read return a plausible value; disjoint ones make it return nothing at all.
 func TestTheVerdictCollisionIsStillDisjoint(t *testing.T) {
-	outcome, ok1 := Enum("outcome", "verdict")
-	verdict, ok2 := Enum("verdict", "verdict")
+	outcome, ok1 := enum("outcome", "verdict")
+	verdict, ok2 := enum("verdict", "verdict")
 	if !ok1 || !ok2 {
 		t.Fatal("the verdict/outcome collision is classified but one side no longer declares the key")
 	}
 	for _, v := range verdict.Values {
-		if outcome.Allows(v.Name) {
+		if outcome.allows(v.Name) {
 			t.Errorf("`verdict` and `outcome` now share the value %q. They were disjoint, which "+
 				"is what made a cross-type read silent; if they overlap, the failure mode has "+
 				"CHANGED and every reader of this key needs re-reading.", v.Name)
 		}
 	}
 	// And the specific word the #67 gate switches on must belong to exactly one of them.
-	if outcome.Allows("PASS") || !verdict.Allows("PASS") {
+	if outcome.allows("PASS") || !verdict.allows("PASS") {
 		t.Errorf("PASS must be a `verdict` word and not an `outcome` word; that asymmetry is the " +
 			"whole content of #410")
 	}
