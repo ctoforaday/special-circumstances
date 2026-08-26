@@ -64,7 +64,14 @@ var (
 	// The `for pair in windows/amd64 …` line: the published platform set.
 	rePairs = regexp.MustCompile(`for pair in ((?:[a-z0-9]+/[a-z0-9]+\s*)+);`)
 	// The -o template the build writes to.
-	reOutput = regexp.MustCompile(`-o "dist/([^"]+)"`)
+	// THE ASSET NAME IS THE CONTRACT; the directory it is written to is not.
+	//
+	// This pinned the literal `dist/`, which made it fail when build output moved OUT of the
+	// source tree — the release job was stamping every binary it published `+dirty`, because
+	// `dist/` sat untracked inside the tree the Go toolchain reads vcs.modified from. The
+	// output directory is now a shell variable and may move again; the final path segment is
+	// what sc-doctor has to be able to ask for, so that is what this captures.
+	reOutput = regexp.MustCompile(`-o "[^"]*/([^"/]+)"`)
 	// The windows extension rule.
 	reExtRule = regexp.MustCompile(`\[ "\$os" = "(windows)" \] && ext="(\.[a-z]+)"`)
 )
