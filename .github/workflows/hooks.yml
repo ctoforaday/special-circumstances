@@ -185,18 +185,45 @@ jobs:
           # WinFsp memfs regress the spawn-heavy packages (PR #563/#565). 4 GiB is ample for
           # TEMP alone (test databases + fuzz run dirs + one built binary) and small enough
           # to leave the runner's RAM for the test processes.
-          choco install imdisk-toolkit -y --no-progress | Out-Null
-          $imdisk = "$env:SystemRoot\System32\imdisk.exe"
-          if (-not (Test-Path $imdisk)) { $imdisk = "imdisk" }
+          #
+          # BEST EFFORT, AND LOUD ABOUT IT. The RAM disk is an optimisation whose own
+          # measurement put it near break-even, so a flaky package install must not fail the
+          # build — TMP already points at the dev drive, and leaving it there costs seconds
+          # rather than correctness. What it must never do is degrade SILENTLY: a run that
+          # quietly stopped using the RAM disk looks exactly like one that used it.
+          #
+          # MEASURED, the first time this bit: `choco install ... | Out-Null` threw the
+          # install's own log away, so a failed install surfaced two lines later as
+          # "The term 'imdisk' is not recognized" and took the whole Windows leg with it.
+          # The install's output is now kept and printed WHEN IT MATTERS, which is the
+          # only time anyone wants to read it.
+          $log = (choco install imdisk-toolkit -y --no-progress 2>&1 | Out-String)
+          $imdisk = (Get-Command imdisk.exe -ErrorAction SilentlyContinue).Source
+          if (-not $imdisk) {
+            foreach ($p in @("$env:SystemRoot\System32\imdisk.exe",
+                             "$env:ProgramFiles\ImDisk\imdisk.exe",
+                             "${env:ProgramFiles(x86)}\ImDisk\imdisk.exe")) {
+              if (Test-Path $p) { $imdisk = $p; break }
+            }
+          }
+          if (-not $imdisk) {
+            Write-Host "::warning::ImDisk did not install, so TEMP stays on the dev drive (V:). The run is slower, not wrong. choco said:"
+            Write-Host $log
+            exit 0
+          }
           & $imdisk -a -s 4G -m X: -p "/fs:ntfs /q /y"
           $deadline = (Get-Date).AddSeconds(30)
           while (-not (Test-Path "X:\")) {
-            if ((Get-Date) -gt $deadline) { throw "ImDisk never mounted X:" }
+            if ((Get-Date) -gt $deadline) {
+              Write-Host "::warning::ImDisk installed but never mounted X:, so TEMP stays on the dev drive (V:)."
+              exit 0
+            }
             Start-Sleep -Milliseconds 500
           }
           New-Item -ItemType Directory -Path "X:\tmp" | Out-Null
           "TMP=X:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
           "TEMP=X:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "TEMP is on the kernel-mode RAM disk (X:)."
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -358,18 +385,45 @@ jobs:
           # WinFsp memfs regress the spawn-heavy packages (PR #563/#565). 4 GiB is ample for
           # TEMP alone (test databases + fuzz run dirs + one built binary) and small enough
           # to leave the runner's RAM for the test processes.
-          choco install imdisk-toolkit -y --no-progress | Out-Null
-          $imdisk = "$env:SystemRoot\System32\imdisk.exe"
-          if (-not (Test-Path $imdisk)) { $imdisk = "imdisk" }
+          #
+          # BEST EFFORT, AND LOUD ABOUT IT. The RAM disk is an optimisation whose own
+          # measurement put it near break-even, so a flaky package install must not fail the
+          # build — TMP already points at the dev drive, and leaving it there costs seconds
+          # rather than correctness. What it must never do is degrade SILENTLY: a run that
+          # quietly stopped using the RAM disk looks exactly like one that used it.
+          #
+          # MEASURED, the first time this bit: `choco install ... | Out-Null` threw the
+          # install's own log away, so a failed install surfaced two lines later as
+          # "The term 'imdisk' is not recognized" and took the whole Windows leg with it.
+          # The install's output is now kept and printed WHEN IT MATTERS, which is the
+          # only time anyone wants to read it.
+          $log = (choco install imdisk-toolkit -y --no-progress 2>&1 | Out-String)
+          $imdisk = (Get-Command imdisk.exe -ErrorAction SilentlyContinue).Source
+          if (-not $imdisk) {
+            foreach ($p in @("$env:SystemRoot\System32\imdisk.exe",
+                             "$env:ProgramFiles\ImDisk\imdisk.exe",
+                             "${env:ProgramFiles(x86)}\ImDisk\imdisk.exe")) {
+              if (Test-Path $p) { $imdisk = $p; break }
+            }
+          }
+          if (-not $imdisk) {
+            Write-Host "::warning::ImDisk did not install, so TEMP stays on the dev drive (V:). The run is slower, not wrong. choco said:"
+            Write-Host $log
+            exit 0
+          }
           & $imdisk -a -s 4G -m X: -p "/fs:ntfs /q /y"
           $deadline = (Get-Date).AddSeconds(30)
           while (-not (Test-Path "X:\")) {
-            if ((Get-Date) -gt $deadline) { throw "ImDisk never mounted X:" }
+            if ((Get-Date) -gt $deadline) {
+              Write-Host "::warning::ImDisk installed but never mounted X:, so TEMP stays on the dev drive (V:)."
+              exit 0
+            }
             Start-Sleep -Milliseconds 500
           }
           New-Item -ItemType Directory -Path "X:\tmp" | Out-Null
           "TMP=X:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
           "TEMP=X:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "TEMP is on the kernel-mode RAM disk (X:)."
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
@@ -562,18 +616,45 @@ jobs:
           # WinFsp memfs regress the spawn-heavy packages (PR #563/#565). 4 GiB is ample for
           # TEMP alone (test databases + fuzz run dirs + one built binary) and small enough
           # to leave the runner's RAM for the test processes.
-          choco install imdisk-toolkit -y --no-progress | Out-Null
-          $imdisk = "$env:SystemRoot\System32\imdisk.exe"
-          if (-not (Test-Path $imdisk)) { $imdisk = "imdisk" }
+          #
+          # BEST EFFORT, AND LOUD ABOUT IT. The RAM disk is an optimisation whose own
+          # measurement put it near break-even, so a flaky package install must not fail the
+          # build — TMP already points at the dev drive, and leaving it there costs seconds
+          # rather than correctness. What it must never do is degrade SILENTLY: a run that
+          # quietly stopped using the RAM disk looks exactly like one that used it.
+          #
+          # MEASURED, the first time this bit: `choco install ... | Out-Null` threw the
+          # install's own log away, so a failed install surfaced two lines later as
+          # "The term 'imdisk' is not recognized" and took the whole Windows leg with it.
+          # The install's output is now kept and printed WHEN IT MATTERS, which is the
+          # only time anyone wants to read it.
+          $log = (choco install imdisk-toolkit -y --no-progress 2>&1 | Out-String)
+          $imdisk = (Get-Command imdisk.exe -ErrorAction SilentlyContinue).Source
+          if (-not $imdisk) {
+            foreach ($p in @("$env:SystemRoot\System32\imdisk.exe",
+                             "$env:ProgramFiles\ImDisk\imdisk.exe",
+                             "${env:ProgramFiles(x86)}\ImDisk\imdisk.exe")) {
+              if (Test-Path $p) { $imdisk = $p; break }
+            }
+          }
+          if (-not $imdisk) {
+            Write-Host "::warning::ImDisk did not install, so TEMP stays on the dev drive (V:). The run is slower, not wrong. choco said:"
+            Write-Host $log
+            exit 0
+          }
           & $imdisk -a -s 4G -m X: -p "/fs:ntfs /q /y"
           $deadline = (Get-Date).AddSeconds(30)
           while (-not (Test-Path "X:\")) {
-            if ((Get-Date) -gt $deadline) { throw "ImDisk never mounted X:" }
+            if ((Get-Date) -gt $deadline) {
+              Write-Host "::warning::ImDisk installed but never mounted X:, so TEMP stays on the dev drive (V:)."
+              exit 0
+            }
             Start-Sleep -Milliseconds 500
           }
           New-Item -ItemType Directory -Path "X:\tmp" | Out-Null
           "TMP=X:\tmp"  | Out-File -FilePath $env:GITHUB_ENV -Append
           "TEMP=X:\tmp" | Out-File -FilePath $env:GITHUB_ENV -Append
+          Write-Host "TEMP is on the kernel-mode RAM disk (X:)."
       - uses: actions/setup-go@v7
         with:
           # CACHED ON PULL REQUESTS ONLY, and the release path stays cache-free — which is
