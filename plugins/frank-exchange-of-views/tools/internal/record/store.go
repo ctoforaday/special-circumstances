@@ -2,8 +2,11 @@ package record
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
@@ -54,6 +57,15 @@ func openRun(runDir string) (*sql.DB, error) {
 // FAILURE is not an empty run. RecordsDir refuses on the former; this returns (nil, nil) only for
 // the latter, and every caller reads a nil handle as an empty record rather than as an error it
 // can ignore.
+//
+// A THIRD STATE EXISTS, and flattening it into the second is how six archived runs came to audit
+// clean over nothing. `dbName` absent does not mean "recorded nothing" when the directory is full
+// of a FORMER format's shards: the run recorded plenty, this binary just cannot read it. Read as
+// an empty run it produced `verify` output where every invariant said [ok] — vacuously true over
+// zero events — with a zero board and exit 0, which is the same bytes as a clean board. That is
+// the defect shape this package names in recordroot.go and builds the separated-record marker to
+// prevent ("turn a lost pointer into an error instead of an empty board"); legacy shards are the
+// same fault with a different cause, and get the same answer.
 func openRunForRead(runDir string) (*sql.DB, error) {
 	dir, err := RecordsDir(runDir)
 	if err != nil {
@@ -64,7 +76,44 @@ func openRunForRead(runDir string) (*sql.DB, error) {
 		return nil, err
 	}
 	if _, err := os.Stat(filepath.Join(abs, dbName)); os.IsNotExist(err) {
+		if shards := legacyShards(abs); len(shards) > 0 {
+			return nil, fmt.Errorf("record: %s holds %d event shard(s) of a FORMER record format "+
+				"(%s …) and no %s — this run recorded events that THIS BINARY CANNOT READ, which is "+
+				"not the same as a run that recorded nothing, and reporting it as an empty board "+
+				"would make every invariant pass over zero events. Read it with a binary of the "+
+				"event-schema epoch it was written under (runs set up after this landed record it "+
+				"as eventSchema in inputs/run-config.json; older ones predate the field, and this "+
+				"binary writes epoch %d), or re-run the research under this binary; a run "+
+				"directory is created by `setup` and does not outlive the schema that made it",
+				abs, len(shards), filepath.Base(shards[0]), dbName, EventSchema)
+		}
 		return nil, nil
 	}
 	return openRun(runDir)
+}
+
+// legacyShards names the per-seat JSONL event files the record kept before it became a database.
+// It is deliberately a SHAPE check and not a version negotiation: this binary owns exactly one
+// format, and everything else is something to refuse by name rather than to parse.
+//
+// The shape is the FORMER format's own naming rule — events-<seat>-<8 hex nonce>.jsonl — and not
+// the looser events-*.jsonl, because that rule is load-bearing in both directions. A file whose
+// nonce is absent or not hex was never a shard even then, and TestMergedEventsOnAnEmptyOrAbsentRun
+// has pinned since the JSONL era that such a file is ignored rather than parsed. Widening the
+// match here would refuse a run over a stray file that never carried an event.
+var legacyShardName = regexp.MustCompile(`^events-.+-[0-9a-f]{8}\.jsonl$`)
+
+func legacyShards(recordsDir string) []string {
+	entries, err := os.ReadDir(recordsDir)
+	if err != nil {
+		return nil
+	}
+	var shards []string
+	for _, e := range entries {
+		if !e.IsDir() && legacyShardName.MatchString(e.Name()) {
+			shards = append(shards, filepath.Join(recordsDir, e.Name()))
+		}
+	}
+	sort.Strings(shards)
+	return shards
 }
