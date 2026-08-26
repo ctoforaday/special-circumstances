@@ -4,6 +4,16 @@
 
 > **The deadlock, in the bench's words:** Run reached the round ceiling (max 4 rounds) with red's round-4 verdict (FAIL) still standing and no round 5 available for red to re-verify blue's round-4 repairs or issue a fresh PASS/FAIL. The bench's terminal sitting closed all three round-4 gaps (R4-1, R4-2, R4-3) as repaired by direct leaf-verification against the live report, substituting for the round-5 merge re-audit the ceiling foreclosed, and recorded one grade motion (M2, R4-3 complexity) as an unruled, persuasive-only declared holding because no verb on the bench's surface can rule an unruled grade motion once the round that would hear it is gone. The board now stands at 0 open / 16 closed, all sixteen gaps this run raised across four rounds disposed as repaired, none carried, none defect_accepted, none left open. VERIFIED is not available: it requires red's own affirmative PASS on the current board, which the ceiling foreclosed before it could be given. The ceiling, not a judged deadlock, is what stopped this run — CEILING is the correct stamp for a run stopped by the round limit while red's own last word on the record was FAIL.
 
+> **Post-run repair (2026-08-26), rendering only — no analytical content changed.** As assembled,
+> this report referenced its proof footnotes (`[^P…]`) without ever defining them, and wrote the
+> Proofs appendix headings as `### [^P…]`, which markdown reads as a second dangling reference
+> rather than a heading — so every proof footnote rendered broken. The definitions below were
+> recovered from this run's own record (the `proof` events carry each proof's id, script, sha256,
+> exit and the sentence it backs) and the appendix headings were de-referenced. Nothing in the
+> analysis, the verdict, the board or the debate record was touched. The defect itself is tracked
+> as #590 (assembly must not drop the tool-placed evidence layer); recovery needed the 0.72.0
+> binary that wrote the run, because the current record store cannot read this shard format (#595).
+
 ## Read this first
 
 **The bench asks a human to re-examine:** Two things a human should re-examine.
@@ -765,6 +775,8 @@ Computed by replaying the event record, not reported by any seat. These are the 
 [^12]: Self-Preference Bias in LLM-as-a-Judge. https://arxiv.org/abs/2410.21819 (accessed 2026-08-23)
 [^13]: Boundless Socratic Learning with Language Games (Schaul, 2024). https://arxiv.org/abs/2411.16905 (accessed 2026-08-23)
 [^14]: The Red Queen Gödel Machine — stationary-evaluation-criterion critique. https://arxiv.org/abs/2606.26294 (accessed 2026-08-23)
+[^P1]: Proof `p-efab2cde` — `blue/scripts/count_loop_implementation.sh` (sha256 `a27954170a21`), exit 0. Full script and output under **Proofs → P1** below; cached at `proofs/a27954170a214a6a9031c42bfb022bcb404afac20920a7be500d6fcd919288c1/` in the run directory. **Mis-anchored (#552):** the tool reported success but spliced this anchor at an unrelated shorter sentence ("Status: Proposal (for discussion)") instead of the uniquely-matching sentence it quoted. The retry `p-b66d1912` (P2) anchored correctly against the same script and output.
+[^P2]: Proof `p-b66d1912` — `blue/scripts/count_loop_implementation.sh` (sha256 `a27954170a21`), exit 0. Full script and output under **Proofs → P2** below; cached at `proofs/a27954170a214a6a9031c42bfb022bcb404afac20920a7be500d6fcd919288c1/` in the run directory.
 
 ## Proofs
 
@@ -774,7 +786,7 @@ Each of these is a computation this report ran, with the exact script and its ou
 in motion rather than a proof. Every script is cached under `proofs/<sha256>/` in the run
 directory, so any reader can run it again.
 
-### [^P1] settles the build-state claim (336 .go files, 3-file sleeper-service scaffold, zero dream/memory implementation primitives, both status lines) by running git ls-tree/git show against the pinned commit 2ce929f rather than asserting it from a lane's prose report
+### P1 — settles the build-state claim (336 .go files, 3-file sleeper-service scaffold, zero dream/memory implementation primitives, both status lines) by running git ls-tree/git show against the pinned commit 2ce929f rather than asserting it from a lane's prose report
 
 - **basis**: reproducible
 - **script**: `blue/scripts/count_loop_implementation.sh` (sha256 `a27954170a21`)
@@ -822,7 +834,7 @@ NONE FOUND
 Status: scaffold only (Phase 0). Design: [`plans/claude-port-plan.md`](../../plans/claude-port-plan.md) §3c.
 ```
 
-### [^P2] retry: the first prove call (P1, p-efab2cde) anchored at an unrelated sentence elsewhere in the report despite an exact, uniquely-matching substring existing at the intended location (confirmed byte-offset 31633, single occurrence) -- filing as friction separately. This retry uses a shorter, still-unique quote to see if anchor placement lands correctly.
+### P2 — retry: the first prove call (P1, p-efab2cde) anchored at an unrelated sentence elsewhere in the report despite an exact, uniquely-matching substring existing at the intended location (confirmed byte-offset 31633, single occurrence) -- filing as friction separately. This retry uses a shorter, still-unique quote to see if anchor placement lands correctly.
 
 - **basis**: reproducible
 - **script**: `blue/scripts/count_loop_implementation.sh` (sha256 `a27954170a21`)
