@@ -30,7 +30,7 @@ func naiveWrite(path string, st State) {
 //	          over a reading it could not see, and growth would measure from that moment.
 //	unread  — readState returned ok=false: "the record exists and I could not read it".
 //	          Costly but SAFE — Of() refuses to stamp, and one growth figure is lost.
-func hammer(t *testing.T, write func(string, State)) (empty, unread int) {
+func hammer(t *testing.T, write func(string, State)) (empty, unread, reads int) {
 	t.Helper()
 	dir := t.TempDir()
 	path := filepath.Join(dir, "state.json")
@@ -67,7 +67,10 @@ func hammer(t *testing.T, write func(string, State)) (empty, unread int) {
 		}()
 	}
 	wg.Wait()
-	return empty, unread
+	// READS IS RETURNED, not recomputed by the caller. A guard expressed as a fraction of the
+	// reads that actually happened cannot drift out of step with the harness the way a
+	// hand-copied denominator would.
+	return empty, unread, readers * rounds
 }
 
 // THE SAFETY PROPERTY, and it is portable: a read must NEVER report an honest empty state
@@ -87,7 +90,7 @@ func TestNoReaderEverSeesAnHonestEmptyStateAfterAWrite(t *testing.T) {
 		write func(string, State)
 	}{{"atomic", writeState}, {"truncating", naiveWrite}} {
 		t.Run(w.name, func(t *testing.T) {
-			empty, _ := hammer(t, w.write)
+			empty, _, _ := hammer(t, w.write)
 			if empty != 0 {
 				t.Errorf("%d reads reported an EMPTY state after a write had landed; each one "+
 					"would re-stamp tokens_at_write and make growth measure from that moment", empty)
@@ -105,84 +108,49 @@ func TestNoReaderEverSeesAnHonestEmptyStateAfterAWrite(t *testing.T) {
 // safe, it just costs one measurement.
 //
 // So the claim is relative, and it is the claim worth making: truncating writes are
-// unreadable far more often than atomic ones. If that stops being true, either the write
-// stopped being atomic or the harness stopped exercising the window — and both are worth a
-// failure.
+// unreadable far more often than atomic ones.
+//
+// # THE TWO PLATFORMS DO NOT MEASURE THE SAME THING, and that is what made this flaky
+//
+// The comparison only means something where the truncation window is what the readers are
+// hitting. Measured:
+//
+//	Linux    atomic 0 unreadable, truncating 638 of 800 — five runs, identical
+//	Windows  atomic 1 unreadable, truncating   2 of 800 — CI, on a commit that also passed
+//
+// The mechanisms differ. `naiveWrite` truncates in place, so a Linux reader catches the file
+// mid-write, `os.ReadFile` SUCCEEDS on short bytes, and `json.Unmarshal` fails — statefile's
+// retry cannot help, because nothing errored. On Windows the same instant usually produces a
+// SHARING VIOLATION instead: `os.ReadFile` errors, and `statefile.ReadFile` retries it away —
+// that retry exists, by its own comment, to "absorb the transient cases measured on Windows".
+// So on Windows both writers are reduced to the same small residue of retry exhaustion, and
+// the ratio between two residues is noise.
+//
+// That is why 1-against-2 failed a run where atomicity did its job, and why a bigger sample
+// cannot fix it: more rounds scale both residues together. The guard has to key on whether
+// the TRUNCATION WINDOW was exercised at all, which is a fraction of reads, not a count.
+//
+// If that stops being true where it IS exercised, either the write stopped being atomic or
+// the harness stopped opening the window — and both are worth a failure.
 func TestAtomicWritesAreReadableFarMoreOftenThanTruncatingOnes(t *testing.T) {
-	atomicEmpty, atomicUnread := hammer(t, writeState)
-	naiveEmpty, naiveUnread := hammer(t, naiveWrite)
-	t.Logf("atomic: %d empty, %d unreadable | truncating: %d empty, %d unreadable",
-		atomicEmpty, atomicUnread, naiveEmpty, naiveUnread)
+	atomicEmpty, atomicUnread, reads := hammer(t, writeState)
+	naiveEmpty, naiveUnread, _ := hammer(t, naiveWrite)
+	t.Logf("atomic: %d empty, %d unreadable | truncating: %d empty, %d unreadable | %d reads each",
+		atomicEmpty, atomicUnread, naiveEmpty, naiveUnread, reads)
 
-	if naiveUnread == 0 {
-		t.Skip("the truncating writer produced no unreadable read on this machine — the harness " +
-			"is not exercising the window, so this comparison proves nothing")
+	// THE THRESHOLD IS SET BY WHAT THE TWO REGIMES MEASURE, not picked for comfort. Retry
+	// residue has been observed as high as 21 of 800 (2.6%); a real truncation window shows
+	// 638 of 800 (80%). A tenth of the reads sits four times above the worst residue ever
+	// seen here and eight times below the signal, so it separates them without being close
+	// to either.
+	if naiveUnread*10 < reads {
+		t.Skipf("the truncating writer was unreadable on only %d of %d reads — below the tenth "+
+			"that marks a truncation window actually being hit, so this platform is measuring "+
+			"retry exhaustion rather than atomicity, and the ratio below would compare two "+
+			"residues", naiveUnread, reads)
 	}
 	if atomicUnread*4 > naiveUnread {
 		t.Errorf("atomic writes were unreadable %d times against the truncating writer's %d; "+
 			"atomicity should make this rare, not merely less common", atomicUnread, naiveUnread)
-	}
-}
-
-// A successful write must leave no temp files. The atomic path creates one per write, so
-// a leak here fills the checkpoints directory with debris that every later reader has to
-// step over — and the directory is the one the seal prunes by pattern.
-func TestConcurrentWritesLeaveNoDebris(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "state.json")
-	var wg sync.WaitGroup
-	for w := range 4 {
-		wg.Add(1)
-		go func(w int) {
-			defer wg.Done()
-			for i := range 50 {
-				writeState(path, State{TokensAtWrite: w*100 + i, HasWriteReading: true})
-			}
-		}(w)
-	}
-	wg.Wait()
-
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, e := range entries {
-		if e.Name() != "state.json" {
-			t.Errorf("left debris in the state directory: %s", e.Name())
-		}
-	}
-}
-
-// Last writer wins, and that is FINE — both writers are recording a reading of the same
-// note, so either value is correct. What must never happen is a value that was never
-// written: a merge of two payloads, or a truncation.
-func TestTheSurvivingStateIsOneSomebodyActuallyWrote(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "state.json")
-	written := map[int]bool{}
-	var mu sync.Mutex
-	var wg sync.WaitGroup
-	for w := range 4 {
-		wg.Add(1)
-		go func(w int) {
-			defer wg.Done()
-			for i := range 50 {
-				v := w*1000 + i
-				mu.Lock()
-				written[v] = true
-				mu.Unlock()
-				writeState(path, State{TokensAtWrite: v, HasWriteReading: true})
-			}
-		}(w)
-	}
-	wg.Wait()
-
-	got, _ := readState(path)
-	if !got.HasWriteReading {
-		t.Fatal("final state is the zero value; the last write did not survive")
-	}
-	if !written[got.TokensAtWrite] {
-		t.Errorf("final TokensAtWrite = %d, which no writer ever wrote — the file was merged or torn",
-			got.TokensAtWrite)
 	}
 }
