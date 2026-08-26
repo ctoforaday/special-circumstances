@@ -1,6 +1,7 @@
 package record
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"regexp"
 	"strings"
 
@@ -32,22 +33,46 @@ import (
 // the bound would refuse seats from the run's own earlier rounds. The shape is what can be checked
 // without a second copy of the engine's dispatch logic living over here and drifting.
 type seatShape struct {
-	role   string
-	re     *regexp.Regexp
+	role string
+	re   *regexp.Regexp
+	// base is the seat name internal/seatclass keys its tier class on. The shape table already
+	// owns the ID grammar, so this is where an id becomes a class — the alternative was a second
+	// regex ladder over seat ids living in seatclass, which is the same fact with two authors.
+	//
+	// EMPTY FOR THE OPERATOR, which is not a debating seat and rides no tier.
+	base   string
 	sample string // drives the drift test; never used at runtime
 }
 
 var seatShapes = []seatShape{
-	{"lens", regexp.MustCompile(`^red-lens-r\d+-L\d+$`), "red-lens-r1-L1"},
-	{"merge", regexp.MustCompile(`^red-merge-r\d+$`), "red-merge-r1"},
-	{"blue", regexp.MustCompile(`^blue-lane-\d+$`), "blue-lane-1"},
-	{"blue", regexp.MustCompile(`^blue-respond-r\d+$`), "blue-respond-r1"},
-	{"blue", regexp.MustCompile(`^blue-synthesize$`), "blue-synthesize"},
-	{"blue", regexp.MustCompile(`^frontier$`), "frontier"},
-	{"bench", regexp.MustCompile(`^judge-r\d+$`), "judge-r1"},
-	{"bench", regexp.MustCompile(`^judge-terminal$`), "judge-terminal"},
-	{"bench", regexp.MustCompile(`^assemble$`), "assemble"},
-	{OperatorRole, regexp.MustCompile(`^` + OperatorRole + `$`), OperatorRole},
+	{"lens", regexp.MustCompile(`^red-lens-r\d+-L\d+$`), "red-lens", "red-lens-r1-L1"},
+	{"merge", regexp.MustCompile(`^red-merge-r\d+$`), "red-merge", "red-merge-r1"},
+	{"blue", regexp.MustCompile(`^blue-lane-\d+$`), "blue-lane", "blue-lane-1"},
+	{"blue", regexp.MustCompile(`^blue-respond-r\d+$`), "blue-respond", "blue-respond-r1"},
+	{"blue", regexp.MustCompile(`^blue-synthesize$`), "blue-synthesize", "blue-synthesize"},
+	{"blue", regexp.MustCompile(`^frontier$`), "frontier", "frontier"},
+	{"bench", regexp.MustCompile(`^judge-r\d+$`), "judge", "judge-r1"},
+	{"bench", regexp.MustCompile(`^judge-terminal$`), "judge-terminal", "judge-terminal"},
+	{"bench", regexp.MustCompile(`^assemble$`), "assemble", "assemble"},
+	{OperatorRole, regexp.MustCompile(`^` + OperatorRole + `$`), "", OperatorRole},
+}
+
+// TierClassOfSeat maps a dispatched seat id to the tier class the engine dispatched it on, or ""
+// for a seat that rides no tier (the operator) and for an id no dispatch could have produced.
+//
+// "" IS TWO ANSWERS AND THAT IS DELIBERATE HERE, because both mean the same thing to the one
+// caller: there is no configured tier to hold this seat to. An unrecognised id is already refused
+// at the door by requireDispatchableSeat, so it cannot reach the tier check as a silent pass.
+func TierClassOfSeat(seatID string) string {
+	if petitioner, ok := strings.CutPrefix(seatID, petitionPrefix); ok && dispatchableSeatID(petitioner) {
+		return seatclass.ClassOf("judge-petition")
+	}
+	for _, s := range seatShapes {
+		if s.re.MatchString(seatID) {
+			return seatclass.ClassOf(s.base)
+		}
+	}
+	return ""
 }
 
 // petitionPrefix is handled apart from the table because its tail is ITSELF a seat id — the

@@ -218,6 +218,8 @@ CREATE TABLE "register" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "tool_version" TEXT,
   "agent_id" TEXT,
+  "served_model" TEXT,
+  "requested_model" TEXT,
   "run_via" TEXT
 ) STRICT;
 

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 )
 
 func TestTier(t *testing.T) {
@@ -134,5 +136,29 @@ func TestTierMismatch(t *testing.T) {
 	out = TierMismatch([]Row{{Seat: "red-merge", Round: 2, T: "opus"}}, "opus", "haiku")
 	if len(out) != 1 || out[0].Verdict != "FAIL" || out[0].Cls != "judgment" {
 		t.Errorf("judgment = %+v", out)
+	}
+}
+
+// THE PRICE TABLE AND THE TIER LADDER MUST STAY THE SAME ORDER.
+//
+// `dearer` ranked by Prices[t][0] while `Tier` scanned modeltier.Order, and the two agreed only
+// because the rows happened to be sorted the same way — an invariant nobody stated and nothing
+// checked. Ranking moved to the ladder; this is the check that the prices did not drift away from
+// it, which would make the cost report and the tier guard disagree about which model is dearer.
+func TestThePriceTableAgreesWithTheTierLadder(t *testing.T) {
+	for _, tier := range modeltier.Order {
+		if _, ok := Prices[tier]; !ok {
+			t.Errorf("tier %q is on the ladder and has no price row", tier)
+		}
+	}
+	if len(Prices) != len(modeltier.Order) {
+		t.Errorf("%d price rows against %d ladder tiers — one of the two has a tier the other has never heard of", len(Prices), len(modeltier.Order))
+	}
+	for i := 1; i < len(modeltier.Order); i++ {
+		lo, hi := Prices[modeltier.Order[i-1]], Prices[modeltier.Order[i]]
+		if !(hi[0] > lo[0]) {
+			t.Errorf("%s input price %v is not above %s's %v, so the ladder no longer orders by cost",
+				modeltier.Order[i], hi[0], modeltier.Order[i-1], lo[0])
+		}
 	}
 }

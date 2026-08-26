@@ -1355,6 +1355,25 @@ message Register {
   // that stays legible as NOT MEASURED rather than reading as an agent whose handle is empty.
   optional string agent_id = 2;
 
+  // WHICH MODEL ACTUALLY ANSWERED THIS SEAT, measured from the seat's own trajectory at register.
+  //
+  // run-config records what was REQUESTED. Nothing recorded what was SERVED, and the two came
+  // apart for 44 of 63 seats across the 2026-08-23 runs: every bulk seat asked for
+  // `claude-fable-5` and was answered by `claude-opus-4-8`, for ~$379, with the configured
+  // research tier never running. Seats and the assembler read only the request, so a certified
+  // report went out describing a methodology that had not happened.
+  //
+  // ABSENT IS NOT "the configured one". A seat whose trajectory could not be found or read
+  // carries neither field, and that stays legible as NOT MEASURED — the distinction the whole
+  // defect turned on.
+  optional string served_model = 4;
+
+  // requested_model is present ONLY when the harness DECLARED a substitution — the trajectory
+  // opens with a `fallback` block naming both ends. So this is a fact somebody else wrote, not a
+  // mismatch inferred by comparing served_model to run-config, and its absence means nothing said
+  // a substitution happened rather than that none did.
+  optional string requested_model = 5;
+
   // run_via says which path supplied the run directory. A run whose seats all resolve by
   // INFERENCE is a run the PreToolUse hook is not reaching, and nothing else records that.
   //
