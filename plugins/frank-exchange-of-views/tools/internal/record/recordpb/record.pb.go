@@ -5030,6 +5030,23 @@ type Register struct {
 	// ABSENT IS NOT "". A run whose hook never fired carries no agent_id on any register event, and
 	// that stays legible as NOT MEASURED rather than reading as an agent whose handle is empty.
 	AgentId *string `protobuf:"bytes,2,opt,name=agent_id,json=agentId,proto3,oneof" json:"agent_id,omitempty"`
+	// WHICH MODEL ACTUALLY ANSWERED THIS SEAT, measured from the seat's own trajectory at register.
+	//
+	// run-config records what was REQUESTED. Nothing recorded what was SERVED, and the two came
+	// apart for 44 of 63 seats across the 2026-08-23 runs: every bulk seat asked for
+	// `claude-fable-5` and was answered by `claude-opus-4-8`, for ~$379, with the configured
+	// research tier never running. Seats and the assembler read only the request, so a certified
+	// report went out describing a methodology that had not happened.
+	//
+	// ABSENT IS NOT "the configured one". A seat whose trajectory could not be found or read
+	// carries neither field, and that stays legible as NOT MEASURED — the distinction the whole
+	// defect turned on.
+	ServedModel *string `protobuf:"bytes,4,opt,name=served_model,json=servedModel,proto3,oneof" json:"served_model,omitempty"`
+	// requested_model is present ONLY when the harness DECLARED a substitution — the trajectory
+	// opens with a `fallback` block naming both ends. So this is a fact somebody else wrote, not a
+	// mismatch inferred by comparing served_model to run-config, and its absence means nothing said
+	// a substitution happened rather than that none did.
+	RequestedModel *string `protobuf:"bytes,5,opt,name=requested_model,json=requestedModel,proto3,oneof" json:"requested_model,omitempty"`
 	// run_via says which path supplied the run directory. A run whose seats all resolve by
 	// INFERENCE is a run the PreToolUse hook is not reaching, and nothing else records that.
 	//
@@ -5081,6 +5098,20 @@ func (x *Register) GetToolVersion() string {
 func (x *Register) GetAgentId() string {
 	if x != nil && x.AgentId != nil {
 		return *x.AgentId
+	}
+	return ""
+}
+
+func (x *Register) GetServedModel() string {
+	if x != nil && x.ServedModel != nil {
+		return *x.ServedModel
+	}
+	return ""
+}
+
+func (x *Register) GetRequestedModel() string {
+	if x != nil && x.RequestedModel != nil {
+		return *x.RequestedModel
 	}
 	return ""
 }
@@ -6028,13 +6059,17 @@ const file_record_proto_rawDesc = "" +
 	"_motion_idB\n" +
 	"\n" +
 	"\b_subjectB\t\n" +
-	"\a_reason\"\x9a\x01\n" +
+	"\a_reason\"\x95\x02\n" +
 	"\bRegister\x12&\n" +
 	"\ftool_version\x18\x01 \x01(\tH\x00R\vtoolVersion\x88\x01\x01\x12\x1e\n" +
-	"\bagent_id\x18\x02 \x01(\tH\x01R\aagentId\x88\x01\x01\x12\x1c\n" +
-	"\arun_via\x18\x03 \x01(\tH\x02R\x06runVia\x88\x01\x01B\x0f\n" +
+	"\bagent_id\x18\x02 \x01(\tH\x01R\aagentId\x88\x01\x01\x12&\n" +
+	"\fserved_model\x18\x04 \x01(\tH\x02R\vservedModel\x88\x01\x01\x12,\n" +
+	"\x0frequested_model\x18\x05 \x01(\tH\x03R\x0erequestedModel\x88\x01\x01\x12\x1c\n" +
+	"\arun_via\x18\x03 \x01(\tH\x04R\x06runVia\x88\x01\x01B\x0f\n" +
 	"\r_tool_versionB\v\n" +
-	"\t_agent_idB\n" +
+	"\t_agent_idB\x0f\n" +
+	"\r_served_modelB\x12\n" +
+	"\x10_requested_modelB\n" +
 	"\n" +
 	"\b_run_via\"R\n" +
 	"\fRoundVerdict\x126\n" +

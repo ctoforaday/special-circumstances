@@ -102,6 +102,15 @@ const (
 	// Unstamped: the binary carries no revision. NOT the same as current, and reported as its
 	// own word — an unanswerable question must not fold into the healthy answer.
 	Unstamped Staleness = "unstamped"
+	// NoReference: the binary IS stamped and nothing here says which commit it should carry.
+	//
+	// A SEPARATE WORD BECAUSE IT IS A SEPARATE FACT, and the one it used to share a word with
+	// pointed at the wrong party. An installed plugin lives in a cache directory, which is not
+	// a git checkout, so HeadCommit returned "" for every binary in every real installation —
+	// and the verdict line reported that as "carry no build stamp". The binaries were stamped
+	// throughout. What was missing was the reference, which is the doctor's end of the
+	// comparison, not the binary's.
+	NoReference Staleness = "no-reference"
 )
 
 // Compare judges a stamp against the current HEAD.
@@ -110,8 +119,11 @@ const (
 // is unanswerable rather than clean, so it returns Unstamped for the same reason a missing stamp
 // does: the comparison did not happen, and saying "current" would report a check that never ran.
 func Compare(s BuildStamp, head string) Staleness {
-	if !s.Known() || head == "" {
+	if !s.Known() {
 		return Unstamped
+	}
+	if head == "" {
+		return NoReference
 	}
 	if s.Revision != head {
 		return Stale

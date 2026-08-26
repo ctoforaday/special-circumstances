@@ -113,6 +113,9 @@ func newShowDiagnostics() *cobra.Command {
 	d.Flags().StringVar(&trajectory, flags.Trajectory, "", "path to the captured trajectory JSONL; inferred from the run when omitted")
 	d.Flags().StringVar(&format, flags.Format, "json", "json (the form a reader joins on) | markdown")
 	show.AddCommand(d)
+	// THE SECOND OPERATOR PROJECTION ON THIS GROUP: what the run asked its models for, beside
+	// what answered. See tiers.go.
+	show.AddCommand(newShowTiers())
 	return show
 }
 

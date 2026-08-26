@@ -114,7 +114,11 @@ const (
 	// from the wrong working directory, printed the shell's complaint, exited 0, and were cited
 	// as re-runnable enumerations of something they never enumerated.
 	ExpectError = "expect-error"
-	Ended       = "ended"
+	// AllowSubstitution is the operator's standing consent to a model tier the environment will
+	// not serve. It sits on `setup` and NOT on any seat verb, because a seat carrying it would be
+	// the party under test excusing itself; the decision is made once and recorded on the run.
+	AllowSubstitution = "allow-substitution"
+	Ended             = "ended"
 
 	// Confidence is how sure a seat is of a determination it just made — orthogonal to WHAT
 	// the determination was (--as). One word, one question, and the question is "how sure are
@@ -237,7 +241,7 @@ func All() []string {
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final,
 		Method, AccessDate,
-		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, RunID, ScriptPath,
+		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
 		Chair, Watch, Now, Serve,
 	}
 }

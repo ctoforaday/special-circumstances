@@ -10,9 +10,15 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/buildid"
 )
 
-// THE FOUR STATES ARE FOUR, NOT TWO. The defect this closes (#450) is that a stale binary and a
+// THE FIVE STATES ARE FIVE, NOT TWO. The defect this closes (#450) is that a stale binary and a
 // current one produced the same evidence. Collapsing "cannot tell" into "current" would rebuild
 // exactly that: a check that did not run, reported as a check that passed.
+//
+// The last row used to expect Unstamped for a STAMPED binary with no reference, and that expectation
+// was itself the bug: it made the verdict line say "carries no build stamp" about binaries that
+// carry one, in every real installation — an install directory is not a checkout, so HEAD was
+// always "" there and the sentence always blamed the binary. The two failures name different
+// parties and now have different words.
 func TestCompareSeparatesCannotTellFromClean(t *testing.T) {
 	head := "4bf16692af2bc2334eb9cbf08c54a9d8f8cb7162"
 	other := "62155fa54f9be1336081ce450f905fc0a7aef8eb"
@@ -27,7 +33,8 @@ func TestCompareSeparatesCannotTellFromClean(t *testing.T) {
 		{"different commit", BuildStamp{Revision: other}, head, Stale},
 		{"same commit, dirty tree", BuildStamp{Revision: head, Modified: true}, head, Dirty},
 		{"no stamp at all", BuildStamp{}, head, Unstamped},
-		{"stamped but HEAD unknown", BuildStamp{Revision: head}, "", Unstamped},
+		{"unstamped AND no reference — the binary's fault is named first", BuildStamp{}, "", Unstamped},
+		{"stamped but no reference to check against", BuildStamp{Revision: head}, "", NoReference},
 	} {
 		if got := Compare(c.s, c.head); got != c.want {
 			t.Errorf("%s: Compare = %q, want %q", c.name, got, c.want)

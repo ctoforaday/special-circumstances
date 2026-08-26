@@ -25,6 +25,7 @@ func newSetup() *cobra.Command {
 		binDir, memoryDir           string
 		runID, scriptPath           string
 		cites                       []string
+		allowSubstitution           bool
 	)
 	c := &cobra.Command{
 		Use:           "setup <runDir>",
@@ -41,20 +42,21 @@ func newSetup() *cobra.Command {
 			cwd, _ := os.Getwd()
 			home, _ := os.UserHomeDir()
 			cfg := setup.Config{
-				RunDir:        runDir,
-				Topic:         topic,
-				Model:         model,
-				JudgmentModel: judgmentModel,
-				Cites:         cites,
-				MaxRounds:     maxRounds,
-				Lanes:         lanes,
-				BinDir:        binDir,
-				MemoryDir:     memoryDir,
-				RunID:         runID,
-				ScriptPath:    scriptPath,
-				Cwd:           cwd,
-				Home:          home,
-				ProjectDir:    os.Getenv("CLAUDE_PROJECT_DIR"),
+				RunDir:            runDir,
+				Topic:             topic,
+				Model:             model,
+				JudgmentModel:     judgmentModel,
+				Cites:             cites,
+				MaxRounds:         maxRounds,
+				Lanes:             lanes,
+				BinDir:            binDir,
+				MemoryDir:         memoryDir,
+				RunID:             runID,
+				ScriptPath:        scriptPath,
+				AllowSubstitution: allowSubstitution,
+				Cwd:               cwd,
+				Home:              home,
+				ProjectDir:        os.Getenv("CLAUDE_PROJECT_DIR"),
 			}
 			if code := setup.Run(cfg, cmd.OutOrStdout(), cmd.ErrOrStderr()); code != 0 {
 				os.Exit(code)
@@ -71,6 +73,7 @@ func newSetup() *cobra.Command {
 	f.StringVar(&lanes, flags.Lanes, "", "the frontier lane count (recorded in run-config.json)")
 	f.StringVar(&binDir, flags.BinDir, "", "where the feov-record binary the SEATS will call lives (default: this executable's own directory); the version preflight always runs and always refuses on a miss")
 	f.StringVar(&memoryDir, flags.MemoryDir, "", "override the gap-pattern memory source (default: promoted corpus, then raw accrual)")
+	f.BoolVar(&allowSubstitution, flags.AllowSubstitution, false, "accept a run whose environment answers with a model other than the configured tier — recorded on the run, so every seat's register stops refusing it and the substitution stays visible on the record")
 	// THE MARKER OUTLIVES THE WORKFLOW THAT WROTE IT, so it has to name how to continue.
 	// A workflow killed by an idle SIGTERM never lifts .claude/run-live.json — it cannot, it is
 	// gone — and a marker naming only a directory tells a later reader that something WAS running
