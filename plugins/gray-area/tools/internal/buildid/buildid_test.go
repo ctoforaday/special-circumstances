@@ -3,7 +3,6 @@ package buildid
 import (
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 )
@@ -56,13 +55,10 @@ func TestAFreshlyBuiltBinaryReportsItsOwnCommit(t *testing.T) {
 	}
 	want := strings.TrimSpace(string(head))
 
-	// `.exe` on Windows or exec cannot find it: `go build -o probe` writes exactly `probe`, and
-	// the resulting error reads like a missing toolchain rather than a naming mistake.
-	name := "probe"
-	if runtime.GOOS == "windows" {
-		name += ".exe"
-	}
-	out := filepath.Join(t.TempDir(), name)
+	// ExeName, not a hand-rolled conditional. This module had no ExeName to call, so the rule
+	// about executable naming was stated here and enforced in the sibling module — the exact
+	// split that generating one buildid package removes.
+	out := filepath.Join(t.TempDir(), ExeName("probe"))
 	build := exec.Command("go", "build", "-o", out, "./cmd/gray-area")
 	build.Dir = dir
 	if b, err := build.CombinedOutput(); err != nil {
