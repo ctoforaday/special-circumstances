@@ -348,8 +348,8 @@ func TestAnEmptyReopenedIDNeverReachesTheProtectedSet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := ReopenedAnchors(b)
+	got := reopenedAnchors(b)
 	if len(got) != 1 || got[0] != "c-real" {
-		t.Errorf("ReopenedAnchors = %#v, want exactly [c-real] — a blank would make the lockdown expect an anchor no document can carry, and a duplicate would count one reopening twice", got)
+		t.Errorf("reopenedAnchors = %#v, want exactly [c-real] — a blank would make the lockdown expect an anchor no document can carry, and a duplicate would count one reopening twice", got)
 	}
 }

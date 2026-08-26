@@ -155,7 +155,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 	// Written down because the absence reads as an oversight to anyone who has just fixed the
 	// roleOf defect and is looking for more of it. The acts a lens genuinely has open to it —
 	// verifying a citation nobody checked, corroborating one blue never cited, re-running a proof
-	// nobody re-ran — come from AvailableOf and land on this same list carrying Blocks:false. A
+	// nobody re-ran — come from availableOf and land on this same list carrying Blocks:false. A
 	// lens therefore has an EMPTY blocking set and a non-empty work list, which is the accurate
 	// statement and was previously unsayable: the old shape could only express it as an empty
 	// work list, and a lens seat read that and stopped.
@@ -168,7 +168,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
 	// first. They carry Blocks:false, so they are visible without being owed.
-	s.Open = append(s.Open, AvailableOf(b, role, seatID)...)
+	s.Open = append(s.Open, availableOf(b, role, seatID)...)
 	s.Complete = !s.Blocked()
 	return s
 }

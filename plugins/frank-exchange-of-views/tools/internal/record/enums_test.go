@@ -311,7 +311,7 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 
 	// EVERY class in the live vocabulary is covered, so adding one without deciding its artifact
 	// meaning fails here rather than defaulting to unknown in a projection nobody re-reads.
-	for _, name := range ClosureClassNames() {
+	for _, name := range closureClassNames() {
 		if name == "amends_prior" {
 			continue
 		}

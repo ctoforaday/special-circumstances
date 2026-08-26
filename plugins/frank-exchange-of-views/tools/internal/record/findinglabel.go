@@ -48,12 +48,12 @@ func NextFindingLabel(runDir, seatID string) (string, error) {
 	return fmt.Sprintf("%s-F%d", role, n+1), nil
 }
 
-// ExistingFindingByKey returns the label of a prior finding this seat recorded
+// existingFindingByKey returns the label of a prior finding this seat recorded
 // under the same --key, so a crash-retried `lens finding` returns its existing
 // label instead of minting a duplicate with a fresh label. Mirrors
 // ExistingMintByKey: the retry dedup is this short-circuit BEFORE Append, not a
 // change to the event key (which stays the unique label).
-func ExistingFindingByKey(runDir, seatID, key string) (string, error) {
+func existingFindingByKey(runDir, seatID, key string) (string, error) {
 	if key == "" {
 		return "", nil
 	}
@@ -71,7 +71,7 @@ func ExistingFindingByKey(runDir, seatID, key string) (string, error) {
 }
 
 // FindingByKey returns the prior finding's (label, finding_id) for this seat's --key, or empty
-// strings when none exists. ExistingFindingByKey answers the seat's question — "did I already do
+// strings when none exists. existingFindingByKey answers the seat's question — "did I already do
 // this?" — with the label alone; the crash-window heal in `lens finding` also needs the ID, to
 // ask whether the SECOND append of the interrupted pair (the anchor event) ever landed.
 func FindingByKey(runDir, seatID, key string) (label, findingID string, err error) {

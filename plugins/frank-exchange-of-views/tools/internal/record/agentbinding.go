@@ -50,30 +50,6 @@ func SeatOfAgent(runDir, agentID string) (string, bool, error) {
 	return seat, found, nil
 }
 
-// AgentOfSeat is the inverse, for the audit direction: which agent is currently holding this
-// seat. Two agents claiming one seat is not refused at the write — a resume is exactly that
-// shape — so the question "did that happen, and when" is one a reader asks of the record
-// afterwards rather than one the tool answers at the door.
-func AgentOfSeat(runDir, seatID string) (string, bool, error) {
-	if seatID == "" {
-		return "", false, nil
-	}
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		return "", false, err
-	}
-	agent, found := "", false
-	for _, e := range m.Events {
-		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER || e.GetSeatId() != seatID {
-			continue
-		}
-		if a := e.GetRegister().GetAgentId(); a != "" {
-			agent, found = a, true
-		}
-	}
-	return agent, found, nil
-}
-
 // DiscardedForSeat IS NOT PORTED, and its absence is the honest answer rather than an omission.
 //
 // It reported the event keys a PREVIOUS sitting of this seat wrote and replay had since dropped,

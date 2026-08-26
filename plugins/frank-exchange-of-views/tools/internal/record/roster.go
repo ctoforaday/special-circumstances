@@ -56,12 +56,12 @@ var seatShapes = []seatShape{
 // regex stops being a schema and becomes a guess.
 const petitionPrefix = "judge-petition-"
 
-// DispatchableSeatID reports whether an id is one the engine's naming scheme can produce.
-func DispatchableSeatID(seatID string) bool {
+// dispatchableSeatID reports whether an id is one the engine's naming scheme can produce.
+func dispatchableSeatID(seatID string) bool {
 	if petitioner, ok := strings.CutPrefix(seatID, petitionPrefix); ok {
 		// A petition sitting is named for a real seat, and never for another petition sitting:
 		// there is no sitting about a sitting.
-		return !strings.HasPrefix(petitioner, petitionPrefix) && DispatchableSeatID(petitioner)
+		return !strings.HasPrefix(petitioner, petitionPrefix) && dispatchableSeatID(petitioner)
 	}
 	for _, s := range seatShapes {
 		if s.re.MatchString(seatID) {
@@ -71,13 +71,13 @@ func DispatchableSeatID(seatID string) bool {
 	return false
 }
 
-// RequireDispatchableSeat refuses an id no dispatch could have produced.
+// requireDispatchableSeat refuses an id no dispatch could have produced.
 //
 // It fires at `register` and nowhere else, deliberately. Register is where a seat asserts who it
 // is — every later call reads the binding that assertion created — so this is the one door worth
 // standing at, and putting it on every verb would only re-check a value the record now supplies.
-func RequireDispatchableSeat(seatID string) error {
-	if DispatchableSeatID(seatID) {
+func requireDispatchableSeat(seatID string) error {
+	if dispatchableSeatID(seatID) {
 		return nil
 	}
 	return feov.Errorf(feov.RoleViolation,

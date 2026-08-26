@@ -33,11 +33,11 @@ import (
 // to select rather than a seed: a run that queues its own successor is a loop with no human
 // in it.
 var InquiryStatuses = []EnumValue{
-	Ev("proposed", "put forward and not yet resolved — the default, and the state that owes a move"),
-	Ev("pursued", "you are following it, or you followed it; say what you learned in --reason"),
-	Ev("declined", "considered and judged not worth this run's time"),
-	Ev("abandoned", "you TRIED it and it died — the most valuable fate, because it stops a later run re-walking it"),
-	Ev("deferred", "worth taking, and not by THIS run. --reason says what a later run should pick it up FOR; it reaches the report as a proposal a human selects, never an automatic seed"),
+	ev("proposed", "put forward and not yet resolved — the default, and the state that owes a move"),
+	ev("pursued", "you are following it, or you followed it; say what you learned in --reason"),
+	ev("declined", "considered and judged not worth this run's time"),
+	ev("abandoned", "you TRIED it and it died — the most valuable fate, because it stops a later run re-walking it"),
+	ev("deferred", "worth taking, and not by THIS run. --reason says what a later run should pick it up FOR; it reaches the report as a proposal a human selects, never an automatic seed"),
 }
 
 // InquiryStatusNames is the bare vocabulary, for readers that only need the words.
@@ -47,13 +47,10 @@ func InquiryStatusNames() []string { return Names(InquiryStatuses) }
 // proposes one — directing research is what a gap's required_fix already does, and a second
 // spelling for it is the aliasing this vocabulary exists to prevent.
 var InquiryRulings = []EnumValue{
-	Ev("endorsed", "worth this run's time — blue should take it up"),
-	Ev("out_of_scope", "a real question, but not THIS question"),
-	Ev("too_thin", "in scope, and the hypothesis does not carry its budget as stated"),
+	ev("endorsed", "worth this run's time — blue should take it up"),
+	ev("out_of_scope", "a real question, but not THIS question"),
+	ev("too_thin", "in scope, and the hypothesis does not carry its budget as stated"),
 }
-
-// InquiryRulingNames is the bare vocabulary.
-func InquiryRulingNames() []string { return Names(InquiryRulings) }
 
 // MintInquiryID assigns the next run-unique line-of-inquiry id (Q1, Q2 …).
 //
@@ -325,7 +322,7 @@ func CurrentRound(b *Board) int {
 //
 // # It was written twice, both copies status-only, both described as round-aware
 //
-// This function and `AvailableOf`'s blue case each carried `Status == "proposed" || Status ==
+// This function and `availableOf`'s blue case each carried `Status == "proposed" || Status ==
 // "pursued"` and nothing else. The affordance's text says a line of inquiry "has no fate THIS ROUND";
 // this one's said "a line of inquiry still open LATE IN A RUN" and "nothing ever asked blue to choose
 // again once the round-0 plan was written". Neither read a round. `Inquiry.Round` was populated

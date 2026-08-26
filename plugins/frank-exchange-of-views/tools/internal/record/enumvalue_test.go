@@ -18,7 +18,7 @@ func TestEveryEnumValueSaysWhatItIsFor(t *testing.T) {
 			t.Errorf("%s declares no values", where)
 			return
 		}
-		if missing := Undescribed(vs); len(missing) > 0 {
+		if missing := undescribed(vs); len(missing) > 0 {
 			t.Errorf("%s: no stated meaning for %s.\nA value with no meaning is one a seat has to guess at, and the guessing is measured: on a probe board a seat answered a computation-kind gap in prose and never reached `prove`.", where, strings.Join(missing, ", "))
 		}
 		for _, v := range vs {

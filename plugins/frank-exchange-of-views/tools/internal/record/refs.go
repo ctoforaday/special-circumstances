@@ -385,7 +385,7 @@ func requirePassClosesAllGaps(runDir string) error {
 	// The remedy is a FINDING, not a gap: a lens structurally cannot mint, and the tool will not
 	// write the finding itself because that would mean inventing its three grades. Red grades its
 	// own finding and the merge decides whether to raise it.
-	if open := UnansweredContradictions(b); len(open) > 0 {
+	if open := unansweredContradictions(b); len(open) > 0 {
 		sort.Strings(open)
 		return fmt.Errorf("record: verdict PASS refused — red read a source that CONTRADICTS or does not support %d claim(s), and no finding was ever raised about them:\n  %s\n"+
 			"Each is red's own reading that the report says something its source does not. Raise it with `lens finding --quote \"<the claim>\" --reason \"<what the source actually says>\"` graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has. "+

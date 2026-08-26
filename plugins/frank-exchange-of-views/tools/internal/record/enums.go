@@ -89,8 +89,8 @@ var ClosureClasses = dispositionsWhere(func(closes bool) bool { return closes })
 // vocabulary replaced.
 var DeferringDispositions = dispositionsWhere(func(closes bool) bool { return !closes })
 
-// ClosureClassNames is the bare vocabulary, for the readers that only need the words.
-func ClosureClassNames() []string { return Names(ClosureClasses) }
+// closureClassNames is the bare vocabulary, for the readers that only need the words.
+func closureClassNames() []string { return Names(ClosureClasses) }
 
 // dispositionsWhere reads the vocabulary out of the descriptor.
 //
@@ -122,7 +122,7 @@ func dispositionsWhere(keep func(closes bool) bool) []EnumValue {
 			panic(fmt.Sprintf("record: disposition %s carries no meaning, so the set would reach a "+
 				"seat as a bare noun: %v", vd.Name(), err))
 		}
-		out = append(out, Ev(word, means))
+		out = append(out, ev(word, means))
 	}
 	return out
 }
@@ -223,23 +223,23 @@ type EnumField struct {
 var EnumFields = map[string][]EnumField{
 	"verdict": {{
 		Key: "verdict", Flag: flags.As, Values: []EnumValue{
-			Ev("PASS", "every gap on the board is resolved — this is CHECKED against the open board, not taken on your word"),
-			Ev("FAIL", "at least one gap is still open, or you are not satisfied it was answered"),
+			ev("PASS", "every gap on the board is resolved — this is CHECKED against the open board, not taken on your word"),
+			ev("FAIL", "at least one gap is still open, or you are not satisfied it was answered"),
 		},
 		Why: "a PASS is checked against the open board by exact match, so any other spelling skips the check entirely and records an unadjudicated pass",
 	}},
 	"outcome": {{
 		Key: "verdict", Flag: flags.As, Values: []EnumValue{
-			Ev("VERIFIED", "red passed the board and the bench agrees the question was answered"),
-			Ev("CEILING", "the round ceiling was reached with work still open — NOT a judged failure to verify, and the stamp says so"),
-			Ev("HALTED", "the bench ended the run on a safety, ethics, consent or integrity boundary"),
-			Ev("UNVERIFIED", "the run ended without the question being answered, and no ceiling or halt explains it"),
+			ev("VERIFIED", "red passed the board and the bench agrees the question was answered"),
+			ev("CEILING", "the round ceiling was reached with work still open — NOT a judged failure to verify, and the stamp says so"),
+			ev("HALTED", "the bench ended the run on a safety, ethics, consent or integrity boundary"),
+			ev("UNVERIFIED", "the run ended without the question being answered, and no ceiling or halt explains it"),
 		},
 		Why: "the report's verdict stamp switches on this word — an unrecognized one falls through to a bare stamp, so a lowercase CEILING loses the \"this is NOT a judged failure to verify\" caveat the stamp exists to carry",
 	}, {
 		Key: "ended", Flag: flags.Ended, Optional: true, Values: []EnumValue{
-			Ev("deadlock", "the bench JUDGED the exchange deadlocked — the one terminal state the record cannot derive, so --reason is the only account of it there will ever be"),
-			Ev("ceiling", "the run stopped against its safety or round ceiling rather than against a judgement"),
+			ev("deadlock", "the bench JUDGED the exchange deadlocked — the one terminal state the record cannot derive, so --reason is the only account of it there will ever be"),
+			ev("ceiling", "the run stopped against its safety or round ceiling rather than against a judgement"),
 		},
 		// A SWITCH OVER TWO BOOLEANS IS AN ENUM WITH A SILENT FOURTH STATE. `--deadlocked` and
 		// `--exhausted` were separate flags stored as separate fields and read back in a
@@ -282,39 +282,39 @@ var EnumFields = map[string][]EnumField{
 	"mint": {
 		{
 			Key: "check_kind", Flag: flags.CheckKind, Values: []EnumValue{
-				Ev("document", "reading a shipped artifact settles it — the check is answered by prose that quotes what is there"),
-				Ev("computation", "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind"),
-				Ev("source", "verifying an external source settles it — the claim stands or falls on what the cited material actually says"),
+				ev("document", "reading a shipped artifact settles it — the check is answered by prose that quotes what is there"),
+				ev("computation", "RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind"),
+				ev("source", "verifying an external source settles it — the claim stands or falls on what the cited material actually says"),
 			},
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever the 2026-08-05 smoke measured missing: blue wrote zero programs across the run, not because it ignored the invitation but because NOTHING ASKED — all ten of red's checks were document probes, and R1-1 was literally \"execute the assembly step\". Red could only ever ask whether the report SAYS something. A `computation` check is a demand that cannot be answered in prose",
 		},
 	},
 	"reproduce": {{
 		Key: "soundness", Flag: flags.As, Values: []EnumValue{
-			Ev("sound", "you READ the script and it computes what it claims to compute"),
-			Ev("unsound", "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible"),
+			ev("sound", "you READ the script and it computes what it claims to compute"),
+			ev("unsound", "it re-runs cleanly and establishes nothing, or something other than the claim it is anchored to — the dangerous cell, because it looks maximally credible"),
 		},
 		Why: "REPRODUCING IS NOT PROVING. Re-running a script and getting the same bytes measures DETERMINISM; `print(\"7 is prime\")` reproduces perfectly forever. Whether the script actually establishes the claim it is anchored to cannot be computed — red must READ it — so it is judged, and it is required. The dangerous cell is reproduces+unsound: a proof that looks maximally credible and establishes nothing",
 	}},
 	"verify": {{
 		Key: "outcome", Flag: flags.As, Values: []EnumValue{
-			Ev("supports", "you read the source at the leaf and it says what the claim says"),
+			ev("supports", "you read the source at the leaf and it says what the claim says"),
 			// UNDERSCORE, matching the schema. It was `supports-with-bridge` — the only hyphenated value in
 			// any set — so `--help` offered a word `SourceOutcomeOf` then refused: "not a source outcome
 			// this record can carry", for the value the tool had just told the seat to use. That is #342
 			// in miniature, and it survived because nothing compared the advertised set to the schema's.
-			Ev("supports_with_bridge", "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"),
-			Ev("weak", "it gestures at the claim, or is itself uncorroborated: thin support, not none"),
-			Ev("refutes", "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all"),
-			Ev("absent", "you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was"),
-			Ev("unreachable", "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"),
+			ev("supports_with_bridge", "it supports the claim but you had to bridge something — a summary, a secondary citation, a near-restatement"),
+			ev("weak", "it gestures at the claim, or is itself uncorroborated: thin support, not none"),
+			ev("refutes", "you read the source and it CONTRADICTS the claim — the strongest finding this verb can carry, and until 0.60.0 it had no field at all"),
+			ev("absent", "you read the source and the claim is simply not in it. Distinct from `refutes`: silence is not contradiction, and a reader deciding what to do about it needs to know which it was"),
+			ev("unreachable", "you could not read it — paywall, dead link, a format you could not extract. Say what you tried in --reason; an untried \"unable to corroborate\" is an incomplete audit"),
 		},
 		Why: "THE NEGATIVE HALF, WHICH DID NOT EXIST. Red could say how a citation held and had no way whatever to record that it did NOT — so the strongest adversarial finding available on this axis had to leave as prose, and the capture audit built to catch a report shipping a refuted citation went looking for a verdict no field could carry: it reported PASS over an empty file on every record-mode run (#296). This is WHAT THE SOURCE DID, and it is a different question from how sure you are of it, which is --confidence",
 	}, {
 		Key: "confidence", Flag: flags.Confidence, Values: []EnumValue{
-			Ev("high", "you read the source at the leaf and would defend this determination as it stands"),
-			Ev("medium", "you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement"),
-			Ev("low", "your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further"),
+			ev("high", "you read the source at the leaf and would defend this determination as it stands"),
+			ev("medium", "you are reasonably sure, but the reading bridges something — a summary, a secondary source, a near-restatement rather than the exact statement"),
+			ev("low", "your reading may be wrong: an ambiguous passage, thin evidence, or a source you could only partly read. This is a call for more evidence, NOT an automatic fail — blue digs further"),
 		},
 		Why: "CONFIDENCE IS IN THE DETERMINATION, WHATEVER THE DETERMINATION WAS. It is orthogonal to --outcome and always has been: `refutes` at low confidence (this source may contradict the claim, I am not certain) and `refutes` at high confidence (I read it, it says the opposite) are different facts, and a reader who cannot tell them apart cannot decide what to do about either.\n\nThe original plan specified exactly this — \"for each statement ↔ reference pair it assigns a confidence that the source actually corroborates the statement (facts are rarely black and white); low confidence → needs more evidence, blue digs further, not an automatic fail\" — and this field is what shipped from it.\n\nIt spent time called `--trust`, a rename made in #341 to dodge a collision with `blue confidence` (one word carrying two questions). That verb was DELETED in 0.54.0, so the collision has not existed for six releases while the dodge did — and the substitute word invited its own misreading: `trust` sounds like a property of the SOURCE, so its own value descriptions drifted into a support scale (\"the source supports the claim but you had to bridge something\"), and the axis read as a positive-only outcome. It is not one; it is how sure you are",
 	}},
@@ -329,10 +329,10 @@ func (e EnumField) Usage(what string) string {
 // Spelling is the set as a verb summary writes it: PASS|FAIL, no spaces.
 func (e EnumField) Spelling() string { return strings.Join(Names(e.Values), "|") }
 
-// Allows reports whether v is in the set. Exact and case-sensitive by construction: the
+// allows reports whether v is in the set. Exact and case-sensitive by construction: the
 // gates downstream compare literally, so anything looser here would re-open the hole one
 // layer down.
-func (e EnumField) Allows(v string) bool {
+func (e EnumField) allows(v string) bool {
 	for _, want := range e.Values {
 		if v == want.Name {
 			return true
@@ -341,8 +341,8 @@ func (e EnumField) Allows(v string) bool {
 	return false
 }
 
-// Enum returns one declared set by (event type, payload key), for the CLI's help.
-func Enum(typ, key string) (EnumField, bool) {
+// enum returns one declared set by (event type, payload key), for the CLI's help.
+func enum(typ, key string) (EnumField, bool) {
 	for _, e := range EnumFields[typ] {
 		if e.Key == key {
 			return e, true
@@ -351,11 +351,11 @@ func Enum(typ, key string) (EnumField, bool) {
 	return EnumField{}, false
 }
 
-// MustEnum is Enum for package-level flag registration, where a missing entry is a
+// MustEnum is enum for package-level flag registration, where a missing entry is a
 // programming error rather than a runtime condition — and a silently empty help string
 // would be the very defect this table exists to remove.
 func MustEnum(typ, key string) EnumField {
-	e, ok := Enum(typ, key)
+	e, ok := enum(typ, key)
 	if !ok {
 		panic("record: no declared enum for " + typ + "." + key)
 	}

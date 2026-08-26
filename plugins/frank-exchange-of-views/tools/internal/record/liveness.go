@@ -80,7 +80,7 @@ type Liveness struct {
 // false STALE costs an operator a pointless resume, while a false LIVE costs the whole run.
 const minStaleFloor = 6 * time.Minute
 
-// LastActivity reports the newest event on the record, by the event's OWN ts field.
+// lastActivity reports the newest event on the record, by the event's OWN ts field.
 //
 // NOT FILE MTIME. mtime is a fact about the filesystem standing in for a fact the record
 // already holds — the same substitution this package exists to refuse elsewhere. Events carry
@@ -88,7 +88,7 @@ const minStaleFloor = 6 * time.Minute
 //
 // An empty record is an ERROR, not a zero time: a run that has recorded nothing and a run whose
 // record cannot be read must not both arrive as "very old".
-func LastActivity(runDir string) (Activity, error) {
+func lastActivity(runDir string) (Activity, error) {
 	merged, err := MergedEvents(runDir)
 	if err != nil {
 		return Activity{}, err
@@ -157,7 +157,7 @@ func Assess(runDir string, now time.Time, ended bool) Liveness {
 	if ended {
 		return Liveness{State: StateEnded, Basis: "the run was captured"}
 	}
-	last, err := LastActivity(runDir)
+	last, err := lastActivity(runDir)
 	if err != nil {
 		return Liveness{State: StateUnmeasured, Basis: err.Error()}
 	}
