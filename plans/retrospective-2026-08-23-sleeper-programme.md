@@ -306,6 +306,41 @@ sourced from config, not from the record — the certified run-B sentence naming
 The measured fact and its projection (`show tiers`) now exist for a seat to quote; instructing
 the assembler to quote them is a prompt change, and it is not in this PR.
 
+## Addendum 3 (2026-08-26): re-running the archived proofs says something different
+
+**Correction to F3.** The retrospective records "re-ran all 6 archived proofs: 4 reproduce
+byte-exact, 2 diverge". Re-measured while building the proof re-run audit: **all six reproduce
+byte-exact**, from the run directory — which is the working directory `prove` actually uses.
+
+Both readings are of real runs; they differ in *where from*. The earlier "2 diverge" was measured
+from the REPO ROOT, where `./plugins/sleeper-service` exists and the script therefore prints a
+different tree. That divergence was evidence of the cwd bug, and describing it as
+non-reproducibility reads as a different defect than the one that happened.
+
+The distinction matters because it decides what a re-run audit can do:
+
+- `lane3_buildstate.sh` carries `# Re-arms: run from repo root` in its own header and takes
+  `root="${1:-.}"`. Executed with the run directory as cwd, its `find` fails **identically every
+  time**. The recorded output — error line, then a column of vacuous `ABSENT` verdicts — is
+  perfectly reproducible.
+- So **a re-run sample cannot catch the wrong-cwd class.** #591's ask 2 states its acceptance as
+  "a capture re-run sample catches a seeded wrong-cwd proof"; that acceptance is not achievable by
+  re-running, and the class it names is already closed by ask 1 — the error-signature refusal that
+  landed in #599 and does refuse this exact script.
+
+What a re-run does catch is the class the issue names in its own third bullet:
+`pattern_ephemeral_instrument` — a measurement of state that has since moved, recorded as though it
+were a computation. Also a script edited after it was recorded, and a proof whose stored artifact is
+gone. That is what the new `proof-rerun` capture audit is scoped to, and the PR says so rather than
+claiming the acceptance sentence.
+
+**A layered-defence note worth keeping.** Pointed at the 2026-08-23 archive, the new audit returns
+`SKIP — the record could not be read, so no proof could be re-run — which is NOT a run whose proofs
+reproduce`. That is #598 doing its job: without the legacy-format refusal, this audit would have
+enumerated zero proofs from an unreadable record and reported "this run recorded no proofs" — a
+clean-looking zero over six real ones, which is the defect this whole retrospective is about,
+rebuilt one layer up.
+
 ## Priority order for fixes
 
 1. **#589 served-model assertion** — cheap, prevents the whole F1 class, and makes cost/tier
