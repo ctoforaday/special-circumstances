@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"io"
 	"os"
 	"path/filepath"
@@ -33,23 +34,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/motion"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
-
-// The CHANGELOG THAT WAS HERE IS GONE (#407). 70 entries, ~1000 lines, 96% of this file,
-// with no reader but a person — and a person has `git log`, which cannot drift from the
-// commits it describes. Verified before deleting rather than assumed: every entry's headline
-// resolves to a real commit, and the bodies carry the same reasoning in more detail.
-//
-// Its one load-bearing part is kept and made reachable: the 48 "A stale binary …" sentences
-// are now fields in record.capabilityDeltas, which `setup`'s preflight PRINTS when it refuses
-// a skewed binary. The precedent is entry 0.68.0's own argument, which retired a hand-written
-// changelog for duplicating a canonical record — stated in entry 67 of one.
-//
-// versionsync_test.go asserts this equals recordToolVersion in the plugin manifest, which
-// is what setup preflights against. Without that test the two drift and the preflight
-// compares a stale number to itself.
-const Version = "0.72.0"
-
-func init() { record.ToolVersion = Version }
 
 // InvokedAs is the name this binary was actually run under, and every place the tool names
 // ITSELF uses it: the usage line, the refusals, the "did you mean" lists.
@@ -168,7 +152,7 @@ func NewRootFor(seatID string) *cobra.Command {
 
 A lens structurally cannot mint or close a board gap: no such verb exists in its
 namespace. Blue has no board verbs at all. The bench rules and never originates.`,
-		Version:       Version,
+		Version:       buildid.Revision(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
@@ -176,6 +160,11 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// The two flags EVERY verb needs, declared once and inherited. Persistent
 	// flags are the mechanism the first cut of this CLI re-implemented by
 	// re-declaring --run and --seat-id on all sixteen verbs.
+	// --schema PRINTS ONE INTEGER AND EXITS. setup compares it against the plugin's
+	// requirements.json, and giving it a flag of its own means nothing has to recover a number
+	// from --version's prose — the string-shaped hope this repository keeps deleting.
+	root.PersistentFlags().Bool(flags.Schema, false, "print the event-schema epoch this binary writes, and exit")
+
 	root.PersistentFlags().String(flags.Run, "", "the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed")
 	root.PersistentFlags().String(flags.SeatID, "", "your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at `register`, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed")
 	// --json makes every mutating verb emit a structured result and every failure a
@@ -449,6 +438,17 @@ func Execute() {
 // Exported for the same reason EmitTopLevelError is: the test harness drives the tree directly,
 // and a fix living only in Execute() would be invisible to every test.
 func ExecuteRoot(root *cobra.Command) error {
+	// BEFORE COBRA DISPATCHES ANYTHING. --schema is not a verb and must answer even when the
+	// argv would otherwise be refused: setup runs it against a binary it does not yet trust,
+	// and a preflight that cannot get an answer out of a working binary is worse than no
+	// preflight. One integer on stdout, nothing else, so the caller parses a number and not a
+	// sentence.
+	for _, a := range os.Args[1:] {
+		if a == "--"+flags.Schema {
+			fmt.Fprintln(root.OutOrStdout(), record.EventSchema)
+			return nil
+		}
+	}
 	cmd, err := root.ExecuteC()
 	if err == nil || cmd == nil || seat.Taught(err) || seat.RecordType(cmd) == "" {
 		return err

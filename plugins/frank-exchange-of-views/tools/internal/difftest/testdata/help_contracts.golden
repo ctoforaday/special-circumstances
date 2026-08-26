@@ -17,6 +17,7 @@ Flags:
   -h, --help               help for feov-record
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 
@@ -39,6 +40,7 @@ Flags:
   -h, --help               help for feov-record
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 
@@ -57,6 +59,7 @@ Flags:
   -h, --help               help for feov-record
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 
@@ -79,6 +82,7 @@ Flags:
   -h, --help               help for feov-record
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 
@@ -101,6 +105,7 @@ Flags:
   -h, --help               help for feov-record
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 
@@ -123,6 +128,7 @@ Flags:
   -h, --help               help for feov-record
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 
@@ -145,13 +151,14 @@ Flags:
   -h, --help               help for feov-record
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 
 $ feov-record --version
 exit 0
 stdout:
-feov-record version 0.72.0
+feov-record version <revision>
 
 $ feov-record nonsuch help
 exit 2
@@ -172,6 +179,7 @@ Flags:
   -h, --help               help for feov-record
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 

@@ -175,6 +175,8 @@ var tools = []gate{
 		why: "fixtures must stage the vocabulary the plugin actually ships"},
 	{id: "buildidgen", kind: kindTool, dir: "scripts", args: []string{"run", "./buildidgen", "-check"}, ciJob: "debate-sim",
 		why: "one authored buildid, copied into modules that cannot import it"},
+	{id: "schemagen", kind: kindTool, dir: "scripts", args: []string{"run", "./schemagen", "-check"}, ciJob: "debate-sim",
+		why: "the binary and the plugin must read the same event-schema epoch"},
 }
 
 // nodeSuites are the .mjs suites CI drives directly. Enumerated in the workflow because

@@ -35,6 +35,7 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -83,21 +84,6 @@ import (
 // without a golden re-record, and why it is a separate commit from the protobuf migration that
 // re-records all 24 of them.
 const MassMappingVersion = "v2"
-
-// ToolVersion is stamped on register events and answered by --version; setup
-// preflights it against the plugin manifest before the run exists.
-//
-// IT IS A DESTINATION, NOT A SOURCE. internal/cli owns the constant (root.go: `const Version`)
-// and assigns it here in init(); scripts/versionguard exempts this declaration by name for
-// exactly that reason. So there is one identity, not two, and no collapse is owed.
-//
-// The initializer is what needed fixing. It read "0.1.0" — a well-formed version number that
-// no shipped binary has ever carried, and that only survives to be stamped when init() did
-// NOT run: a caller using this package without internal/cli. That is the plausible zero in
-// its version-number costume. An event stamped 0.1.0 reads as a genuine old binary, and the
-// one question tool_version exists to answer (WHICH binary wrote this?) gets a confident
-// wrong answer instead of a visible gap. It now says what is true.
-var ToolVersion = "unset — internal/cli assigns the real version at init"
 
 var MASS = map[string]float64{
 	"trivial": 0.5, "low": 1, "low_medium": 1.5, "medium": 2,
@@ -214,7 +200,10 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// agent_id and run_via are ENGINE-OBSERVED, never typed by the seat. Both are set only when
 	// actually observed: an absent field says "not measured", which is the honest answer for a run
 	// whose hook never fired, and is a different fact from an agent whose handle is empty.
-	reg := &recordpb.Register{ToolVersion: proto.String(ToolVersion)}
+	// The COMMIT, not a release number. tool_version exists so a run that mixes binaries says
+	// so, and a revision identifies the binary exactly where a semver only identifies an
+	// intent to ship. buildid reads it from the build itself, so nothing has to remember it.
+	reg := &recordpb.Register{ToolVersion: proto.String(buildid.Revision())}
 	if agent := seatenv.AgentID(); agent != "" {
 		reg.AgentId = proto.String(agent)
 	}

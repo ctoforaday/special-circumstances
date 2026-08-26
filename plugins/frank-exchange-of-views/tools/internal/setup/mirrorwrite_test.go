@@ -61,7 +61,7 @@ func TestTheMirrorDoesNotClaimFilesItDidNotWrite(t *testing.T) {
 // The failure is induced the only way that does not depend on running as an unprivileged user:
 // `inputs` is made a FILE, so MkdirAll and WriteFile cannot succeed at that path.
 func TestAFailedClassJoinWriteRefusesTheRun(t *testing.T) {
-	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
+	cfg, runDir := runCfg(t, reports("0.35.0"))
 	mem := filepath.Join(t.TempDir(), "patterns")
 	if err := os.MkdirAll(mem, 0o755); err != nil {
 		t.Fatal(err)

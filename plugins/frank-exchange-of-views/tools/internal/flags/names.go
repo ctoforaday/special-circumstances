@@ -29,6 +29,10 @@ const (
 	Run    = "run"
 	SeatID = "seat-id"
 
+	// The event-schema epoch this binary writes, printed alone so `setup` can compare it
+	// with the plugin's without recovering a number from prose.
+	Schema = "schema"
+
 	// Output format, on the root as a persistent flag: --json emits a structured
 	// result (and structured errors) for machine consumers; the default is human text.
 	JSON = "json"
@@ -213,7 +217,7 @@ const (
 // and the CLI spoke a vocabulary this file did not describe.
 func All() []string {
 	return []string{
-		Run, SeatID, JSON,
+		Run, SeatID, Schema, JSON,
 		Reason, ReasonFile,
 		ID, IDs, Key, Quote, New, Answers, URL, Title, Format, Window,
 		Sitting, Trajectory,

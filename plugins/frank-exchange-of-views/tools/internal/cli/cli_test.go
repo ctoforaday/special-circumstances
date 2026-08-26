@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
@@ -1361,19 +1362,24 @@ func TestVerbsRefusePositionalArguments(t *testing.T) {
 	}
 }
 
-// The root answers --version with the stamped version, and that version is what
-// register writes into the record.
-func TestVersionIsStampedOnTheFirstAct(t *testing.T) {
-	runDir := newRun(t)
+// The register event carries the BUILD this binary came from, so a run that somehow mixes
+// binaries says which one wrote what.
+//
+// It used to carry a hand-maintained semver, which identified an intent to ship rather than
+// the artefact: two builds of the same release are indistinguishable under it, and that is
+// exactly the case tool_version exists to expose. A revision comes from the build itself, so
+// nothing has to remember to move it.
+func TestTheBuildIsStampedOnTheFirstAct(t *testing.T) {
+	runDir := recordtest.TmpRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
 		t.Fatal(err)
 	}
 	reg := lastBody(t, runDir, &recordpb.Register{})
-	if got := reg.GetToolVersion(); got != Version {
-		t.Errorf("tool_version = %q, want %q", got, Version)
+	if got := reg.GetToolVersion(); got != buildid.Revision() {
+		t.Errorf("tool_version = %q, want the build's revision %q", got, buildid.Revision())
 	}
-	if record.ToolVersion != Version {
-		t.Errorf("record.ToolVersion = %q, want the CLI's %q — a skewed binary would go unnoticed", record.ToolVersion, Version)
+	if reg.GetToolVersion() == "" {
+		t.Error("tool_version is empty — a run that mixed binaries could not be told apart from one that did not")
 	}
 }
 

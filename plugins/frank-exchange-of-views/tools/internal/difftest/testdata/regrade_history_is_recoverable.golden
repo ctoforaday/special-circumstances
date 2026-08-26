@@ -48,6 +48,7 @@ Flags:
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 $ regrade --run {RUN} --seat-id red-merge-r1 --id R1-1 --severity medium --likelihood low --reason blue narrowed the scope; consequence shrank
