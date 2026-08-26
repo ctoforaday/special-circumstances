@@ -1708,6 +1708,9 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		// the run's own proofs, re-run and compared. See proofrerun.go for why a seat's spot-check
 		// could not be the thing that does this.
 		ProofRerunAudit(runDir, proofRerunSample),
+		// Round 0's declared breadth against the lane seats that actually took theirs — the one
+		// run-config field nothing reconciled. See lanecoverage.go.
+		LaneCoverageAudit(runDir),
 	}
 
 	cwd, _ := os.Getwd()
