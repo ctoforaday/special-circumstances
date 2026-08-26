@@ -1176,6 +1176,9 @@ jobs:
       - name: Fixtures stage the vocabulary the plugin ships (a renamed class would pass either way)
         run: go run ./classgen -check
         working-directory: scripts
+      - name: Every module's buildid matches the one authored copy
+        run: go run ./buildidgen -check
+        working-directory: scripts
       - name: Hook bootstrap guards degrade gracefully (empty-bin window must never crash-storm)
         # Enumerates EVERY plugin's hooks.json, not just prosthetic-conscience's.
         # Naming one plugin was correct while it shipped the only hooks; a second

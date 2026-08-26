@@ -173,6 +173,8 @@ var tools = []gate{
 		why: "a file shape two modules must agree on drifted once and nothing failed"},
 	{id: "classgen", kind: kindTool, dir: "scripts", args: []string{"run", "./classgen", "-check"}, ciJob: "debate-sim",
 		why: "fixtures must stage the vocabulary the plugin actually ships"},
+	{id: "buildidgen", kind: kindTool, dir: "scripts", args: []string{"run", "./buildidgen", "-check"}, ciJob: "debate-sim",
+		why: "one authored buildid, copied into modules that cannot import it"},
 }
 
 // nodeSuites are the .mjs suites CI drives directly. Enumerated in the workflow because
