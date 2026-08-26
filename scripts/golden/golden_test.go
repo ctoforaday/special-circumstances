@@ -127,6 +127,15 @@ func TestEnumeratedTargetsExist(t *testing.T) {
 	}
 	repo := strings.TrimSpace(string(root))
 
+	// BOTH ROSTERS ARE THE TEST. Every assertion below is per-entry, so an emptied list
+	// verifies nothing and reports it as success — the shape scripts/check/parity_test.go and
+	// pluginparity both fatal on, in this same module, in the same words.
+	if len(mjsSuites) == 0 {
+		t.Fatal("mjsSuites is empty, so this test walked no suites and would pass forever")
+	}
+	if len(goModules) == 0 {
+		t.Fatal("goModules is empty, so this test walked no modules and would pass forever")
+	}
 	for _, s := range mjsSuites {
 		if _, err := os.Stat(filepath.Join(repo, s)); err != nil {
 			t.Errorf("mjsSuites names %s, which does not exist — `node --test` exits 0 on a missing path, so this would silently verify nothing", s)

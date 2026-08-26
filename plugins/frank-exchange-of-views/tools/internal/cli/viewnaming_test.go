@@ -149,6 +149,27 @@ func TestNoHelpOrErrorNamesAViewThatDoesNotExist(t *testing.T) {
 		walkAll(r)
 	}
 
+	// THE WALK ITSELF IS UNGUARDED WITHOUT THIS, and three sweeps below read from it.
+	//
+	// Every check in this test reports a finding per matching text, so an EMPTY texts reports
+	// nothing — which is the same output as a clean tree. This file's own comment names that
+	// shape ("the miss is indistinguishable from the honest zero") about the subcommand form,
+	// while the collection those checks read was itself unchecked. vocabulary_test.go and
+	// enum_help_test.go guard the identical walk; this one did not.
+	//
+	// Non-empty rather than len(texts): Short and Long are often blank, so a walk that visited
+	// only the roots would still produce entries and satisfy a length check.
+	nonEmpty := 0
+	for _, t := range texts {
+		if strings.TrimSpace(t) != "" {
+			nonEmpty++
+		}
+	}
+	if nonEmpty == 0 {
+		t.Fatal("walked the command tree and collected no help text at all — a broken walk would " +
+			"pass every sweep below silently forever")
+	}
+
 	named := regexp.MustCompile(`--view\s+([a-z][a-z-]*)`)
 	seen := map[string]bool{}
 	for _, text := range texts {
@@ -191,6 +212,11 @@ func TestNoHelpOrErrorNamesAViewThatDoesNotExist(t *testing.T) {
 		}
 	}
 
+	// The roster is the only thing driving the sweep below: emptied, it checks nothing and
+	// says so in the same silence as a clean tree.
+	if len(retiredViews) == 0 {
+		t.Fatal("retiredViews is empty, so the retired-projection sweep below verifies nothing")
+	}
 	for _, gone := range retiredViews {
 		if live[gone] {
 			t.Errorf("retiredViews names %q, which IS a live projection — remove it from the roster before it starts failing every rename", gone)
