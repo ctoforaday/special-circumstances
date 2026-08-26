@@ -439,6 +439,94 @@ func stripAgent(f string) string { return reAgentStrip.ReplaceAllString(f, "") }
 // The prose match is gone with it. The old check keyed on the strings REFUTED|ABSENT appearing
 // in a rendered row, which was a hope about string shape — and would have gone on returning zero
 // the moment anyone reworded the renderer.
+// FootnoteIntegrity checks that the assembled report DEFINES every footnote it references.
+//
+// # The defect this exists for, and why AssemblyScreen could not see it
+//
+// Assembly does not preserve blue's `<!--cite:…-->` anchors — it WEAVES them into visible
+// footnotes, which is the design and is why AssemblyScreen screens the url rather than the
+// anchor. The 2026-08-23 runs prove that weave can be LOSSY on one class and sound on another
+// in the same pass: 11 citation anchors became `[^1]`–`[^11]` with a complete bibliography,
+// while 6 proof anchors became `[^P1]`–`[^P6]` references with NO definitions and appendix
+// headings written as `### [^P1] …` — which markdown reads as a second reference, not a
+// heading. Both reports shipped and rendered literal `[^P1]` at every site: 12 broken
+// references in one, 4 in the other.
+//
+// Nothing caught it. The blue-side detectors (`unbacked_citations`, `dropped_finding_markers`)
+// read blue/report.md, where the anchors are all present and correct, so they reported 0 while
+// the DELIVERABLE was broken. This audit reads the assembled artifact, which is the only
+// surface where the weave's output can be judged.
+//
+// The rule is markdown's own and needs no heuristic: a definition is `[^id]:` at the start of a
+// line; every other `[^id]` is a reference; a reference with no definition renders as its own
+// source text. That precision matters — a reference may legitimately be followed by a colon in
+// prose ("…artifacts exist[^P1]: `skills/…`"), which is a reference, not a definition.
+func FootnoteIntegrity(runDir string) Audit {
+	assembled, err := os.ReadFile(filepath.Join(runDir, "report.md"))
+	if err != nil {
+		return Audit{Check: "footnote-integrity", Verdict: "SKIP",
+			Detail: fmt.Sprintf("no assembled report.md to read (%v) — this audit judges the weave's output, so before assembly there is nothing to judge", err)}
+	}
+	// CODE IS NOT PROSE, and a renderer does not look for footnotes inside it. A report that
+	// quotes a proof's output in a fenced block, or writes `[^P…]` inline while DESCRIBING the
+	// footnote surface, is not referencing anything — scanning those would report a dangling
+	// footnote at exactly the sites that talk about footnotes.
+	scanned := stripCode(string(assembled))
+	defined := map[string]bool{}
+	for _, m := range footnoteDef.FindAllStringSubmatch(scanned, -1) {
+		defined[m[1]] = true
+	}
+	referenced := map[string]bool{}
+	for _, loc := range footnoteRef.FindAllStringSubmatchIndex(scanned, -1) {
+		id := scanned[loc[2]:loc[3]]
+		// A definition matches the reference pattern too; tell them apart by position, exactly
+		// as a markdown renderer does — line start, immediately followed by a colon.
+		atLineStart := loc[0] == 0 || scanned[loc[0]-1] == '\n'
+		followedByColon := loc[1] < len(scanned) && scanned[loc[1]] == ':'
+		if atLineStart && followedByColon {
+			continue
+		}
+		referenced[id] = true
+	}
+	var dangling []string
+	for id := range referenced {
+		if !defined[id] {
+			dangling = append(dangling, "[^"+id+"]")
+		}
+	}
+	sort.Strings(dangling)
+	if len(dangling) > 0 {
+		return Audit{Check: "footnote-integrity", Verdict: "FAIL",
+			Detail: fmt.Sprintf("%d footnote(s) referenced in the assembled report with no definition: %s. They render as literal source text to every reader, and the evidence they were meant to carry is unreachable from the deliverable",
+				len(dangling), strings.Join(dangling, ", "))}
+	}
+	return Audit{Check: "footnote-integrity", Verdict: "PASS",
+		Detail: fmt.Sprintf("%d footnote(s) referenced, %d defined, none dangling", len(referenced), len(defined))}
+}
+
+var (
+	footnoteDef = regexp.MustCompile(`(?m)^\[\^([^\]]+)\]:`)
+	footnoteRef = regexp.MustCompile(`\[\^([^\]]+)\]`)
+	fencedBlock = regexp.MustCompile("(?s)```.*?```")
+	inlineCode  = regexp.MustCompile("`[^`\n]*`")
+)
+
+// stripCode blanks fenced and inline code, preserving newlines so line-start positions (which
+// separate a definition from a reference) still mean what they meant.
+func stripCode(s string) string {
+	blank := func(m string) string {
+		out := []rune(m)
+		for i, r := range out {
+			if r != '\n' {
+				out[i] = ' '
+			}
+		}
+		return string(out)
+	}
+	s = fencedBlock.ReplaceAllStringFunc(s, blank)
+	return inlineCode.ReplaceAllStringFunc(s, blank)
+}
+
 func AssemblyScreen(runDir string) Audit {
 	board, err := record.BoardState(runDir)
 	if err != nil {
@@ -1548,6 +1636,7 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		FrictionAudit(runDir, friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(runDir),
+		FootnoteIntegrity(runDir),
 		StrayRecordsAudit(repoRootOf(runDir), runDir),
 		RecordParityAudit(runDir, redRounds, blueBlocks),
 		BackfillAudit(runDir),
