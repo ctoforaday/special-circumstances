@@ -1642,6 +1642,10 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		BackfillAudit(runDir),
 		AttestationAudit(runDir, transcriptDir, agentFiles, 5),
 		ModelTierAudit(runDir, transcriptDir, agentFiles),
+		// THE LAST AUDIT, because it is the only one that EXECUTES anything: a bounded sample of
+		// the run's own proofs, re-run and compared. See proofrerun.go for why a seat's spot-check
+		// could not be the thing that does this.
+		ProofRerunAudit(runDir, proofRerunSample),
 	}
 
 	cwd, _ := os.Getwd()
