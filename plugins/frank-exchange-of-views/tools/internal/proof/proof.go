@@ -63,6 +63,13 @@ type Result struct {
 	Exit   int    `json:"exit"`
 	Script string `json:"script_path"`
 	Drift  string `json:"drift,omitempty"` // what moved on the second run, when something did
+	// Failed is the interpreter/shell error line found in the output, or "" when there is none.
+	//
+	// It is not an exit code and cannot be one: both proofs this check was built for exited 0.
+	// A shell script whose `find` cannot see its target prints the error, carries on, and ends
+	// clean; the caller decides what to do with that, because a proof MAY legitimately capture
+	// an error (see ErrorSignature).
+	Failed string `json:"failed,omitempty"`
 }
 
 // interpreterFor and its PATH resolution live in interpreter.go, which generalises what stood
@@ -113,6 +120,7 @@ func Run(runDir, scriptPath string) (*Result, error) {
 		res.Basis = Observed
 		res.Drift = describeDrift(first, second, exit1, exit2)
 	}
+	res.Failed = ErrorSignature(first)
 	if err := store(runDir, res, body); err != nil {
 		return nil, err
 	}
@@ -161,6 +169,42 @@ func describeDrift(a, b string, ea, eb int) string {
 		}
 		return "output differs between runs"
 	}
+}
+
+// ErrorSignature reports the first line of output that is the ENVIRONMENT failing rather than the
+// computation answering, or "" when the output holds none.
+//
+// WHY THIS IS NOT THE EXIT CODE. Both proofs that produced it exited 0. `Run` executes with the
+// RUN directory as its working directory; two lane scripts were authored against the repo root
+// (their own comments say "run from repo root"), so `find ./plugins/…` printed
+// "No such file or directory", the script carried on past it, and the run ended clean. One
+// recorded a file enumeration that enumerated nothing — every "ABSENT" verdict below it vacuous —
+// and the other recorded "0 files, 0 bytes" immediately above its own hard-coded line asserting
+// the opposite. Both were cited in a shipped report as re-runnable evidence.
+//
+// THE SIGNATURES ARE THE SHELL'S AND THE INTERPRETER'S, not the script's vocabulary. A proof about
+// error handling may legitimately print the word "error"; none of the lines below are ones a
+// script produces on purpose, and the one case that does — a proof whose POINT is to capture a
+// failing command — says so with `--expect-error` rather than being guessed at from the text.
+var errorSignatures = []string{
+	"No such file or directory",
+	"command not found",
+	"Permission denied",
+	"Traceback (most recent call last)",
+	"ModuleNotFoundError",
+	"cannot access",
+	": not found",
+}
+
+func ErrorSignature(output string) string {
+	for _, line := range strings.Split(output, "\n") {
+		for _, sig := range errorSignatures {
+			if strings.Contains(line, sig) {
+				return strings.TrimSpace(line)
+			}
+		}
+	}
+	return ""
 }
 
 // store writes the artifact: the script as executed and its output. Keyed by the SCRIPT's hash,
