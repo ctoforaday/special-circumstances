@@ -1708,6 +1708,9 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		// the run's own proofs, re-run and compared. See proofrerun.go for why a seat's spot-check
 		// could not be the thing that does this.
 		ProofRerunAudit(runDir, proofRerunSample),
+		// The proof axis's missing detector: does a claim framed as measured point at the
+		// measurement, and does the measurement reach the claim. See proofbacking.go.
+		ProofBackingAudit(runDir),
 	}
 
 	cwd, _ := os.Getwd()
