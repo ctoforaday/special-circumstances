@@ -67,13 +67,13 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 		b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
 			recordtest.Event(t, "blue-respond-r1", 0, &recordpb.BlueEdit{Answers: proto.String("R1-2")}),
 		}}
-		got := AvailableOf(b, "blue", "blue-respond-r1")
+		got := availableOf(b, "blue", "blue-respond-r1")
 		if !mentions(got, "gap R1-2 was answered by an edit and carries no manifest row") {
 			t.Fatalf("an edit answering R1-2 with no manifest row afforded nothing: %v", hows(got))
 		}
 		// And it stops once the receipt exists, or the line is a nag rather than a fact.
 		b.Events = append(b.Events, recordtest.Event(t, "blue-respond-r1", 0, &recordpb.ManifestRow{GapId: proto.String("R1-2")}))
-		if got := AvailableOf(b, "blue", "blue-respond-r1"); mentions(got, "gap R1-2 was answered by an edit and carries no manifest row") {
+		if got := availableOf(b, "blue", "blue-respond-r1"); mentions(got, "gap R1-2 was answered by an edit and carries no manifest row") {
 			t.Errorf("the manifest affordance survived its own discharge: %v", hows(got))
 		}
 	})
@@ -95,12 +95,12 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
 			}),
 		}}
-		got := AvailableOf(b, "merge", "red-merge-r1")
+		got := availableOf(b, "merge", "red-merge-r1")
 		if !mentions(got, "gap R1-1 had a grade motion ACCEPTED and no regrade") {
 			t.Fatalf("an accepted grade motion with no regrade afforded nothing: %v", hows(got))
 		}
 		b.Events = append(b.Events, recordtest.Event(t, "red-merge-r1", 0, &recordpb.Regrade{GapId: proto.String("R1-1")}))
-		if got := AvailableOf(b, "merge", "red-merge-r1"); mentions(got, "gap R1-1 had a grade motion ACCEPTED and no regrade") {
+		if got := availableOf(b, "merge", "red-merge-r1"); mentions(got, "gap R1-1 had a grade motion ACCEPTED and no regrade") {
 			t.Errorf("the regrade affordance survived the regrade: %v", hows(got))
 		}
 	})
@@ -124,7 +124,7 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_REJECTED},
 			}),
 		}}
-		if got := AvailableOf(b, "merge", "red-merge-r1"); mentions(got, "no regrade followed it") {
+		if got := availableOf(b, "merge", "red-merge-r1"); mentions(got, "no regrade followed it") {
 			t.Errorf("a REJECTED grade motion afforded a regrade: %v", hows(got))
 		}
 	})
@@ -165,7 +165,7 @@ func inquiryAt(t *testing.T, id, status string, round int) *Event {
 
 // A REAFFIRMED LINE STOPS NAGGING; A NEGLECTED ONE DOES NOT. They used to be the same bytes.
 //
-// StaleInquiries and AvailableOf each carried `Status == "proposed" || Status == "pursued"` and
+// StaleInquiries and availableOf each carried `Status == "proposed" || Status == "pursued"` and
 // nothing else, while the affordance's text said a line of inquiry "has no fate THIS ROUND" and
 // StaleInquiries' own doc said "a line of inquiry still open LATE IN A RUN". Neither read `Inquiry.Round`,
 // which was populated on every event.

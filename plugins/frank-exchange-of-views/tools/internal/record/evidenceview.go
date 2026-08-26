@@ -212,10 +212,10 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 		Proofs:      []EvidenceProofJSON{},
 		Independent: []EvidenceVerificationJSON{},
 	}
-	if out.UnansweredContradictions = UnansweredContradictions(b); out.UnansweredContradictions == nil {
+	if out.UnansweredContradictions = unansweredContradictions(b); out.UnansweredContradictions == nil {
 		out.UnansweredContradictions = []string{}
 	}
-	if out.Reopened = ReopenedAnchors(b); out.Reopened == nil {
+	if out.Reopened = reopenedAnchors(b); out.Reopened == nil {
 		out.Reopened = []string{}
 	}
 

@@ -168,7 +168,7 @@ func citationLabelsOf(events []*Event) []string {
 
 // ExistingCiteByKey returns the label of a prior blue cite this seat recorded under the
 // same --key, so a crash-retried `blue cite` returns its existing anchor label instead of
-// minting a duplicate. Mirrors ExistingFindingByKey: the retry dedup is a short-circuit
+// minting a duplicate. Mirrors existingFindingByKey: the retry dedup is a short-circuit
 // BEFORE the fetch and the marker insert, not a change to the event key (which stays the
 // unique citation label). A blue cite carries a `label`; red's `lens cite` does not, so
 // this scans only the blue side of the shared "cite" event type.
@@ -425,7 +425,7 @@ func ExistingCorroborationLabel(runDir, seatID, url, claim string) (string, erro
 	return "", nil
 }
 
-// UnansweredContradictions returns the claims where red read a source that CONTRADICTS the
+// unansweredContradictions returns the claims where red read a source that CONTRADICTS the
 // report and no finding was ever raised about it.
 //
 // THE NEGATIVE HALF OF THE CORROBORATION AXIS HAS TO REACH THE BOARD. A supporting corroboration
@@ -443,7 +443,7 @@ func ExistingCorroborationLabel(runDir, seatID, url, claim string) (string, erro
 // The match is deliberately loose — any finding by any lens quoting the same claim answers it.
 // A stricter join (same seat, same round) would refuse a contradiction one lens found and
 // another raised, which is the collaboration the lens roles exist for.
-func UnansweredContradictions(b *Board) []string {
+func unansweredContradictions(b *Board) []string {
 	if b == nil {
 		return nil
 	}
@@ -480,7 +480,7 @@ func contradicts(o recordpb.SourceOutcome) bool {
 		o == recordpb.SourceOutcome_SOURCE_OUTCOME_ABSENT
 }
 
-// ReopenedAnchors returns the anchors whose text has moved since they were placed — every id any
+// reopenedAnchors returns the anchors whose text has moved since they were placed — every id any
 // `blue edit` reported reopening, in first-seen order.
 //
 // THE REFERENCE STANDS; ITS REFERENT MOVED. That is deliberately not the same as the citation
@@ -492,7 +492,7 @@ func contradicts(o recordpb.SourceOutcome) bool {
 // documents are gone: `blue/report.md` holds only its current state, and the before-image an
 // edit replaced exists nowhere else. The one channel that text moves through is the only place
 // this fact can be captured at the moment it becomes true.
-func ReopenedAnchors(b *Board) []string {
+func reopenedAnchors(b *Board) []string {
 	if b == nil {
 		return nil
 	}

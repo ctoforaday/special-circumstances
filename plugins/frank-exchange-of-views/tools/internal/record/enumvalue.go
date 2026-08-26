@@ -53,8 +53,8 @@ type EnumValue struct {
 	Means string
 }
 
-// Ev is shorthand for a described value, so the tables stay readable.
-func Ev(name, means string) EnumValue { return EnumValue{Name: name, Means: means} }
+// ev is shorthand for a described value, so the tables stay readable.
+func ev(name, means string) EnumValue { return EnumValue{Name: name, Means: means} }
 
 // Names is the bare list, for the checks and messages that only need the words.
 func Names(vs []EnumValue) []string {
@@ -103,8 +103,8 @@ func CompletionHelp(vs []EnumValue) enumflag.Help[string] {
 	return h
 }
 
-// Allows reports whether a value is in the set.
-func Allows(vs []EnumValue, want string) bool {
+// allows reports whether a value is in the set.
+func allows(vs []EnumValue, want string) bool {
 	for _, v := range vs {
 		if v.Name == want {
 			return true
@@ -113,10 +113,10 @@ func Allows(vs []EnumValue, want string) bool {
 	return false
 }
 
-// Undescribed lists values with no stated meaning, sorted. The gate that consumes it is the whole
+// undescribed lists values with no stated meaning, sorted. The gate that consumes it is the whole
 // point of this file: a value nobody described is one a seat has to guess at, and guessing is what
 // produced the measured failure this design answers.
-func Undescribed(vs []EnumValue) []string {
+func undescribed(vs []EnumValue) []string {
 	var out []string
 	for _, v := range vs {
 		if strings.TrimSpace(v.Means) == "" {
@@ -169,7 +169,7 @@ func Refuse(flag, got string, vs []EnumValue, why string) error {
 	return fmt.Errorf("%s", strings.TrimRight(b.String(), "\n"))
 }
 
-// EvsOf builds the value list for an enum FROM ITS DESCRIPTOR, so a hand-written table stops
+// evsOf builds the value list for an enum FROM ITS DESCRIPTOR, so a hand-written table stops
 // being a second vocabulary and becomes a view of the schema's.
 //
 // THE DRIFT THIS ENDS WAS REAL AND SILENT. MotionFields listed the petition classes as
@@ -187,7 +187,7 @@ func Refuse(flag, got string, vs []EnumValue, why string) error {
 //
 // UNSPECIFIED IS SKIPPED: it is the absence of a choice, not one of them, and offering it in help
 // invites a seat to pass the zero value.
-func EvsOf(ed protoreflect.EnumDescriptor) []EnumValue {
+func evsOf(ed protoreflect.EnumDescriptor) []EnumValue {
 	vals := ed.Values()
 	out := make([]EnumValue, 0, vals.Len())
 	for i := 0; i < vals.Len(); i++ {
@@ -201,7 +201,7 @@ func EvsOf(ed protoreflect.EnumDescriptor) []EnumValue {
 			// meaning, which reads as a value nobody documented rather than one nobody decided.
 			means = "UNDOCUMENTED — " + err.Error()
 		}
-		out = append(out, Ev(recordpb.Spelling(v), means))
+		out = append(out, ev(recordpb.Spelling(v), means))
 	}
 	return out
 }

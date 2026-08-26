@@ -20,7 +20,7 @@ import (
 // The tool is the instruction: a refusal that can name the right word and does not is a turn spent
 // re-reading a command that was almost correct.
 func TestARefusalNamesWhichKindOfNearMissItWas(t *testing.T) {
-	vs := []EnumValue{Ev("endorsed", "worth this run's time"), Ev("too_thin", "does not carry its budget"), Ev("out_of_scope", "not THIS question")}
+	vs := []EnumValue{ev("endorsed", "worth this run's time"), ev("too_thin", "does not carry its budget"), ev("out_of_scope", "not THIS question")}
 
 	for _, c := range []struct{ name, got, want string }{
 		{"separator", "too-thin", `"too-thin" is "too_thin" with different punctuation`},

@@ -61,7 +61,7 @@ func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
 	seat := "red-lens-r1-L1"
 
 	// No prior finding under this key.
-	if got, err := ExistingFindingByKey(runDir, seat, "F1"); err != nil || got != "" {
+	if got, err := existingFindingByKey(runDir, seat, "F1"); err != nil || got != "" {
 		t.Fatalf("empty run: got %q, %v; want \"\"", got, err)
 	}
 
@@ -70,14 +70,14 @@ func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
 	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}, f); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := ExistingFindingByKey(runDir, seat, "F1"); got != "L1-F1" {
+	if got, _ := existingFindingByKey(runDir, seat, "F1"); got != "L1-F1" {
 		t.Errorf("retry lookup = %q, want L1-F1", got)
 	}
 	// A different key on the same seat, and the same key on a different seat, do not match.
-	if got, _ := ExistingFindingByKey(runDir, seat, "F2"); got != "" {
+	if got, _ := existingFindingByKey(runDir, seat, "F2"); got != "" {
 		t.Errorf("unrelated key matched: %q", got)
 	}
-	if got, _ := ExistingFindingByKey(runDir, "red-lens-r1-L2", "F1"); got != "" {
+	if got, _ := existingFindingByKey(runDir, "red-lens-r1-L2", "F1"); got != "" {
 		t.Errorf("another seat's key matched: %q", got)
 	}
 }

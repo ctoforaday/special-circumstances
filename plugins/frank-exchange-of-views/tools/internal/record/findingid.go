@@ -3,9 +3,6 @@ package record
 import (
 	"crypto/rand"
 	"encoding/hex"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // IDENTITY IS ASSIGNED, NOT CHOSEN — AND IT IS UNGUESSABLE ON PURPOSE.
@@ -46,22 +43,4 @@ func NewFindingID() string {
 		panic("record: entropy unavailable: " + err.Error())
 	}
 	return "f-" + hex.EncodeToString(b)
-}
-
-// FindingByID resolves a tool-assigned finding id to the event that created it.
-func FindingByID(runDir, id string) (*Event, error) {
-	if id == "" {
-		return nil, nil
-	}
-	m, err := MergedEvents(runDir)
-	if err != nil {
-		return nil, err
-	}
-	for _, e := range m.Events {
-		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
-		if ok && f.GetFindingId() == id {
-			return e, nil
-		}
-	}
-	return nil, feov.Errorf(feov.NotFound, "record: no finding or observation has id %s — list what exists with `show findings` rather than composing an id, which is how L6-F8 through L6-F16 came to be disposed without ever having been recorded", id)
 }

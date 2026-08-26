@@ -112,7 +112,7 @@ func isGrade(s string) bool { return flags.IsGrade(s) }
 // absent grade contributes zero rather than erroring.
 func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS[impact] }
 
-// RoundOf, RoundIn and LastRoundOn live in round.go now.
+// RoundOf, RoundIn and lastRoundOn live in round.go now.
 //
 // What stood here returned a bare int and read FEOV_ROUND first — an injected branch nothing in
 // the repository ever set, so in production the regex was not a fallback but the only path, and
@@ -174,7 +174,7 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// that takes a seat's word for who it is; everything after it reads the binding this call
 	// writes. So this is where an id no dispatch could have produced has to be refused — after
 	// it, the wrong id is not a claim any more, it is the record.
-	if err := RequireDispatchableSeat(seatID); err != nil {
+	if err := requireDispatchableSeat(seatID); err != nil {
 		return 0, "", err
 	}
 	// A SEAT RECORDS INTO A RUN THAT EXISTS. IT NEVER CREATES ONE.
