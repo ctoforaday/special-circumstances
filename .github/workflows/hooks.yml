@@ -1332,19 +1332,39 @@ jobs:
       - name: The tag and the manifest agree
         run: go run ./versionguard -tag "${GITHUB_REF_NAME}"
         working-directory: scripts
+      # BUILD OUTPUT LEAVES THE SOURCE TREE, and that is a correctness fix rather than tidiness.
+      #
+      # This wrote into `dist/` inside the plugin's tools directory. `dist/` is not ignored, so
+      # the tree was untracked-dirty before the first compile — and the Go toolchain stamps
+      # `vcs.modified` from the tree it builds in. EVERY published binary of EVERY plugin has
+      # therefore carried `+dirty` for as long as this job has existed.
+      #
+      # That is not cosmetic. sc-doctor reports Dirty as "what it contains is not recoverable
+      # from that commit alone", and stamping it on every official artifact drains the word
+      # exactly where it should carry the most weight: a genuinely dirty release build is now
+      # indistinguishable from a clean one.
+      #
+      # Building into RUNNER_TEMP fixes the stamp by making the claim TRUE — the source tree is
+      # untouched — rather than by adding `dist/` to .gitignore, which would make the tree merely
+      # COUNT as clean while build artifacts sat in it. Measured in a clean clone at
+      # prosthetic-conscience--v0.42.0: vcs.modified=false, and true again after `mkdir -p dist`.
       - name: Cross-compile
         working-directory: ${{ steps.plugin.outputs.dir }}
+        env:
+          DIST: ${{ runner.temp }}/dist
         run: |
-          mkdir -p dist
+          mkdir -p "$DIST"
           for cmd in cmd/*/; do
             name="$(basename "$cmd")"
             for pair in windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
               os="${pair%/*}"; arch="${pair#*/}"; ext=""
               [ "$os" = "windows" ] && ext=".exe"
-              GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w"                 -o "dist/${name}_${os}_${arch}${ext}" "./cmd/${name}"
+              GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w"                 -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
             done
           done
-          cd dist && sha256sum * > SHA256SUMS
+          # sha256sum runs IN the directory so the sums name bare files, which is what the
+          # verifier on the other end matches against.
+          cd "$DIST" && sha256sum * > SHA256SUMS
       # `gh` ships on every GitHub runner, so publishing needs no third-party action at
       # all — which retires the last one here, and with it zizmor/unpinned-uses. The
       # tag name and the artifact directory go through the environment rather than a
@@ -1377,7 +1397,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
-          DIST: ${{ steps.plugin.outputs.dir }}/dist
+          DIST: ${{ runner.temp }}/dist
         run: |
           if gh release view "$TAG" >/dev/null 2>&1; then
             tmp="$(mktemp -d)"
