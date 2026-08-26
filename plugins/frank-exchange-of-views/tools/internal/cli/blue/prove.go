@@ -64,6 +64,19 @@ func newProve() *cobra.Command {
 			return nil, err
 		}
 
+		// THE ENVIRONMENT FAILING IS NOT THE COMPUTATION ANSWERING, and exit 0 does not tell the
+		// two apart. `proof.Run` works in the RUN directory; a script authored against the repo
+		// root prints "No such file or directory", carries on, and ends clean — which is how a
+		// report came to cite an enumeration that enumerated nothing as re-runnable evidence.
+		// Refused rather than graded, because the artifact is otherwise indistinguishable from a
+		// real negative result, and the seat is one edit away from a correct one.
+		if res.Failed != "" && !seat.Given(cmd, flags.ExpectError) {
+			return nil, fmt.Errorf("blue prove: %s ran to exit %d, but its output carries an ENVIRONMENT error, not a result:\n    %s\n"+
+				"A proof runs with the RUN DIRECTORY as its working directory (%s), not the repository root — a script that reaches for repo paths must resolve them itself. "+
+				"Fix the script and re-run; if capturing this failure IS the point (proving a path is absent, a command missing), say so with --expect-error and it is recorded as the result it is",
+				script, res.Exit, res.Failed, s.RunDir)
+		}
+
 		// A TORN SPLICE IS ADOPTED, NOT DOUBLED — the same rule as `blue cite`, through the
 		// shared walk; only the recorded set (proof ids) is this verb's.
 		label := adoptTornProofAnchor(s.RunDir, location)
@@ -119,6 +132,7 @@ func newProve() *cobra.Command {
 	c.Flags().String(flags.Quote, "", flags.DescQuote+". The proof anchor is spliced there")
 	c.Flags().String(flags.Script, "", "REQUIRED — path under the run directory of the program that settles it (.py, .js, .mjs, .sh or .go)")
 	c.Flags().Var(flags.CitationAnchor().WithCheck(record.CitationExists), flags.Cites, "the citation label of the METHOD this applies — the source that says trial division or Miller-Rabin decides primality. The method is cited; the instance is computed")
+	c.Flags().Bool(flags.ExpectError, false, "this proof's POINT is a failing command (a path that must be absent, a tool that must be missing) — record the environment error as the result instead of refusing it")
 	c.Flags().String(flags.Key, "", flags.DescKey)
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this computation settles (R1-4) — REQUIRED to close a gap red minted with --check-kind computation, which prose cannot answer")
 	return c

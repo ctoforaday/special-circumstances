@@ -204,6 +204,53 @@ bench had to substitute at the ceiling.
 Neither run is red-PASSed. Both are CEILING. Every consumer of these reports should read the
 verdict stamp first, as the reports themselves insist.
 
+## Addendum (2026-08-26): what the fix work itself turned up
+
+Three things surfaced while implementing the fixes, and each changes something above.
+
+**F12 — the record's storage format moved, and every archived run now reads as a clean empty
+board (HIGH, #595).** Building the binary from `ac04072` and pointing it at the 2026-08-23 runs
+returns 0 gaps, 0 findings, 0 events, verdict unrecorded, **every invariant `[ok]`, exit 0,
+empty stderr**. The invariants pass vacuously over zero events. This is the sharpest instance
+yet of the shape this whole document is about — the miss and the honest zero as the same bytes —
+and it lands on `run-archive/`, which CLAUDE.md calls the only part of a run that outlives its
+container and says every audit re-reads. Fixed in the stack: the read path now refuses a record
+in a format it does not own, and `setup` records the writing binary's version so the refusal's
+advice is answerable.
+
+**F2 is narrower than stated above.** Assembly is *designed* to weave anchors into visible
+footnotes rather than preserve them — `AssemblyScreen`'s own comment says so, and the 11
+citation anchors did convert correctly into `[^1]`–`[^11]`. The defect is that the weave is
+**lossy per class**: the proof anchors became references with no definitions in the same pass.
+So the audit that ships is footnote *definedness* on the assembled artifact, not anchor
+survival — a rule markdown itself supplies, needing no heuristic. Re-run against the two
+reports as they shipped it fails both (6 and 2 dangling) and passes both as repaired, which is
+the strongest available evidence both that the gate works and that the repair is complete.
+
+**F3's remedy is one ask short of what the issue asked, deliberately.** #591 wanted `prove` to
+record cwd. It is not recorded: `cmd.Dir` is always the run directory, so the field would
+restate a constant, and a fact nothing can disagree with is not worth a field by this repo's
+own standard. The refusal names the working directory instead, where the seat that assumed
+otherwise will actually read it.
+
+**F12's fix met a change that landed mid-flight, and the collision is instructive.** While the
+stack was open, #597 introduced an event-schema **epoch** that explicitly *replaces* the record
+binary's version. The first cut of the F12 fix recorded `recordToolVersion` in the run config —
+reintroducing, under the retired name, the exact concept #597 had just removed on the grounds
+that "a release number moves for reasons the schema does not care about". The rebase turned that
+contradiction into a build error rather than a shipped inconsistency, and the fix now records
+`eventSchema`. The two mechanisms divide cleanly and neither subsumes the other: #597 guards the
+WRITE side (a stale binary cannot start a run), F12 the READ side (an archived run predating both
+still reads as a clean empty board without it).
+
+**Process note.** Two of these fixes were caught or corrected by the repo's own gates rather
+than by me: `TestMergedEventsOnAnEmptyOrAbsentRun` rejected my first shard-matching rule as too
+broad (it would have refused a run over a stray file), and
+`TestEveryRegisteredFlagIsInTheDeclaredVocabulary` caught that declaring a flag constant is not
+the same as registering the word; the compiler caught the third, above. All three are gates doing
+exactly their job, and they are worth naming here because the retrospective's own complaint is
+that gates passed over nothing.
+
 ## Priority order for fixes
 
 1. **#589 served-model assertion** — cheap, prevents the whole F1 class, and makes cost/tier

@@ -105,9 +105,16 @@ const (
 	// a closure's class, a bench disposition, a verification's outcome, a ruling, a run's
 	// verdict, a line of inquiry's fate. Every set is closed, and each verb documents its own
 	// through enumhelp.
-	As    = "as"
-	None  = "none"
-	Ended = "ended"
+	As   = "as"
+	None = "none"
+
+	// ExpectError says a proof's subject IS a failing command, so `blue prove` records the
+	// environment error rather than refusing it. Without it, an error signature in a proof's
+	// output is a refusal: two proofs shipped as evidence in the 2026-08-23 plan run had run
+	// from the wrong working directory, printed the shell's complaint, exited 0, and were cited
+	// as re-runnable enumerations of something they never enumerated.
+	ExpectError = "expect-error"
+	Ended       = "ended"
 
 	// Confidence is how sure a seat is of a determination it just made — orthogonal to WHAT
 	// the determination was (--as). One word, one question, and the question is "how sure are
@@ -224,7 +231,7 @@ func All() []string {
 		As, None, Ended, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher,
-		Problem, Fix, Check, CheckKind, Hypothesis, Script, Cites,
+		Problem, Fix, Check, CheckKind, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor,
 		Principle, Tension, ReviewFlag, Relief, Binds,
