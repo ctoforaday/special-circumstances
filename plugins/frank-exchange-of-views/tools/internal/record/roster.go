@@ -62,9 +62,9 @@ var seatShapes = []seatShape{
 //
 // "" IS TWO ANSWERS AND THAT IS DELIBERATE HERE, because both mean the same thing to the one
 // caller: there is no configured tier to hold this seat to. An unrecognised id is already refused
-// at the door by RequireDispatchableSeat, so it cannot reach the tier check as a silent pass.
+// at the door by requireDispatchableSeat, so it cannot reach the tier check as a silent pass.
 func TierClassOfSeat(seatID string) string {
-	if petitioner, ok := strings.CutPrefix(seatID, petitionPrefix); ok && DispatchableSeatID(petitioner) {
+	if petitioner, ok := strings.CutPrefix(seatID, petitionPrefix); ok && dispatchableSeatID(petitioner) {
 		return seatclass.ClassOf("judge-petition")
 	}
 	for _, s := range seatShapes {
