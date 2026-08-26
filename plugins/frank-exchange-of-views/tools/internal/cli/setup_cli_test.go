@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 	"os"
@@ -18,9 +20,38 @@ import (
 // in this package — and found the tools directory by counting ".." from the working
 // directory, the path-derivation the difftest harness's own comment records as having
 // broken when files moved. testbuild walks up to go.mod instead.
+// buildSetupBinary returns the binary INSIDE a plugin-shaped layout, because that is the
+// only shape `setup` will run in.
+//
+// setup resolves the event-schema epoch from the requirements.json beside the binary — one
+// directory up from its own — and refuses when there is none, since a binary with no plugin
+// has nothing to be checked against and "checked" would be a lie. testbuild hands back a
+// binary in a bare scratch directory, so the fixture builds the layout around it: a
+// <root>/bin/feov-record with <root>/requirements.json, exactly as an install looks.
 func buildSetupBinary(t *testing.T) string {
 	t.Helper()
-	return testbuild.Binary(t, "feov-record")
+	built := testbuild.Binary(t, "feov-record")
+
+	root := t.TempDir()
+	bin := filepath.Join(root, "bin")
+	if err := os.MkdirAll(bin, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The epoch the binary itself compiles in, so the fixture agrees with the binary rather
+	// than pinning a number that would have to move with it.
+	manifest := fmt.Sprintf(`{"eventSchema":%d}`+"\n", record.EventSchema)
+	if err := os.WriteFile(filepath.Join(root, "requirements.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(bin, filepath.Base(built))
+	b, err := os.ReadFile(built)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dst, b, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return dst
 }
 
 // toolsDir walks up from the test's cwd (internal/cli) to the tools module root.

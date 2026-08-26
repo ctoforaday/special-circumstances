@@ -32,13 +32,12 @@ type Config struct {
 	RunID      string
 	ScriptPath string
 
-	Cwd           string
-	Home          string
-	ProjectDir    string // CLAUDE_PROJECT_DIR
-	ExpectVersion string // the running binary's version (== requirements.json recordToolVersion)
-	Git           GitFunc
-	Exec          ExecFunc
-	Now           time.Time
+	Cwd        string
+	Home       string
+	ProjectDir string // CLAUDE_PROJECT_DIR
+	Git        GitFunc
+	Exec       ExecFunc
+	Now        time.Time
 }
 
 // Run reproduces the mjs main(): the four fail-fast gates (runDir→1; model tiers→2;
@@ -155,7 +154,18 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		// operator who is demonstrably holding a working binary.
 		recordBin = filepath.Join(filepath.Dir(self), "feov-record")
 	}
-	pre := PreflightRecordBinary(expectedRecordVersion(recordBin, cfg.ExpectVersion), recordBin, cfg.Exec)
+	// The manifest beside the binary is the only authority, and an unreadable one REFUSES
+	// rather than falling back to the binary's own number — that fallback made the check
+	// compare a value with itself in the documented flow, where setup and the seats are the
+	// same binary.
+	expect, err := expectedSchema(recordBin)
+	if err != nil {
+		fmt.Fprintln(stderr, "run-setup: RECORD BINARY PREFLIGHT FAILED — refusing to create the run:")
+		fmt.Fprintf(stderr, "  %v\n", err)
+		fmt.Fprintln(stderr, "  remedy: reinstall the plugin so its requirements.json sits beside the binary")
+		return 2
+	}
+	pre := PreflightRecordBinary(expect, recordBin, cfg.Exec)
 	if !pre.OK {
 		fmt.Fprintln(stderr, "run-setup: RECORD BINARY PREFLIGHT FAILED — refusing to create the run:")
 		fmt.Fprintf(stderr, "  %s\n", pre.Reason)

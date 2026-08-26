@@ -2,31 +2,25 @@ package cli
 
 import (
 	"encoding/json"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"os"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
-// THE PREFLIGHT WAS COMPARING A NUMBER TO ITSELF.
+// THE BINARY AND THE PLUGIN READ THE SAME EPOCH, or setup refuses every binary — including
+// the right one.
 //
-// The `feov-record setup` subcommand refuses to start a run when the record binary's version
-// disagrees with `recordToolVersion` in the plugin manifest, because — in its own words — "a
-// stale one on PATH silently writes events under an older contract".
+// scripts/schemagen generates record.EventSchema from requirements.json and gates the two in
+// CI, so this is the in-module half of that contract: it fails here, at the package that
+// ships the constant, rather than only in a gate somebody has to be running.
 //
-// Both sides read 0.1.0 for the whole of 2026-07-19, during which events gained `ts`,
-// findings gained a tool-assigned id, four flags were renamed with their aliases deleted,
-// and cross-reference and state validation landed. A binary predating all of it passed the
-// guard, because nothing made the manifest move when the contract did.
-//
-// The version is compiled in rather than stamped by ldflags, so a LOCAL build reports the
-// same contract a released one does — the release job builds with `-s -w` and no -X, so
-// anything stamped at link time would have been absent from every binary ever published.
-// This test is what keeps the compiled-in value honest.
-func TestRecordToolVersionMatchesTheManifest(t *testing.T) {
-	// internal/cli -> tools -> the plugin root. requirements.json, NOT
-	// .claude-plugin/plugin.json: that one has a published schema, and the extra
-	// field there made `claude plugin validate` warn on every single run. A
-	// permanently expected warning is how a validator stops being read.
+// What it deliberately no longer asserts is a RELEASE number. The predecessor kept a semver
+// constant in step with the manifest, which meant every release had to remember to move a
+// second number, and the check tracked shipping rather than compatibility. The epoch moves
+// only when the event shape does.
+func TestTheCompiledEpochMatchesTheManifest(t *testing.T) {
 	req, err := repotree.Plugin("requirements.json")
 	if err != nil {
 		t.Fatal(err)
@@ -36,41 +30,46 @@ func TestRecordToolVersionMatchesTheManifest(t *testing.T) {
 		t.Fatalf("cannot read requirements.json, which is what setup preflights against: %v", err)
 	}
 	var m struct {
-		RecordToolVersion string `json:"recordToolVersion"`
+		EventSchema *int `json:"eventSchema"`
 	}
 	if err := json.Unmarshal(b, &m); err != nil {
 		t.Fatal(err)
 	}
-	if m.RecordToolVersion == "" {
-		t.Fatal("requirements.json has no recordToolVersion — preflightRecordBinary then receives nil and the skew check silently never fires")
+	// A POINTER, so an ABSENT field cannot read as zero. Absent means the manifest stopped
+	// declaring the epoch, and setup would then have nothing to compare the binary against.
+	if m.EventSchema == nil {
+		t.Fatal("requirements.json declares no eventSchema — setup then has nothing to check the binary against")
 	}
-	if m.RecordToolVersion != Version {
-		t.Errorf("cli.Version = %q but requirements.json says recordToolVersion = %q.\nThese must move together: setup compares the binary's --version against the manifest, so a drift makes the preflight either reject every binary or — as it did all of 2026-07-19 — compare a stale number to itself and wave a pre-schema binary through.",
-			Version, m.RecordToolVersion)
+	if *m.EventSchema != record.EventSchema {
+		t.Errorf("record.EventSchema = %d but requirements.json reads %d.\n"+
+			"These are generated together by scripts/schemagen; regenerate with "+
+			"`(cd scripts && go run ./schemagen)`. While they disagree, setup refuses every "+
+			"binary or none, depending on which one moved.",
+			record.EventSchema, *m.EventSchema)
 	}
+}
 
-	// The plugin manifest must NOT carry it as well. Two copies would drift, and the
-	// copy in the schema-checked file is the one that costs a validator warning.
+// The plugin manifest must NOT carry the epoch as well: .claude-plugin/plugin.json has a
+// fixed published schema, so an unknown field there makes `claude plugin validate` warn on
+// every run — and a permanently expected warning is how a validator stops being read.
+func TestThePluginManifestDoesNotCarryTheEpoch(t *testing.T) {
 	manifest, err := repotree.Plugin(".claude-plugin", "plugin.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	pb, err := os.ReadFile(manifest)
+	b, err := os.ReadFile(manifest)
 	if err != nil {
-		t.Fatalf("cannot read the plugin manifest: %v", err)
-	}
-	var p struct {
-		RecordToolVersion string `json:"recordToolVersion"`
-		Version           string `json:"version"`
-	}
-	if err := json.Unmarshal(pb, &p); err != nil {
 		t.Fatal(err)
 	}
-	if p.RecordToolVersion != "" {
-		t.Errorf("recordToolVersion is back in .claude-plugin/plugin.json (%q). It belongs in requirements.json alone: plugin.json has a fixed published schema, so an unknown field there makes `claude plugin validate` warn on every run — and a second copy of the number is a second thing to forget to move.", p.RecordToolVersion)
+	var p map[string]any
+	if err := json.Unmarshal(b, &p); err != nil {
+		t.Fatal(err)
 	}
-	// And a reminder that they are DIFFERENT numbers by design.
-	if m.RecordToolVersion == p.Version {
-		t.Logf("note: recordToolVersion (%s) currently equals the plugin version. They answer different questions — what shape the events are in, versus what shipped — and are expected to diverge.", p.Version)
+	for _, k := range []string{"eventSchema", "recordToolVersion"} {
+		if _, ok := p[k]; ok {
+			t.Errorf("%s is in .claude-plugin/plugin.json. It belongs in requirements.json alone: "+
+				"plugin.json has a fixed published schema, so an unknown field there makes "+
+				"`claude plugin validate` warn on every run.", k)
+		}
 	}
 }

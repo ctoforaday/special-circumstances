@@ -3,6 +3,7 @@ package difftest
 import (
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -45,7 +46,24 @@ func TestGoldenHelpContracts(t *testing.T) {
 		}
 		b.WriteString("\n")
 	}
-	compareGolden(t, "help_contracts", b.String())
+	compareGolden(t, "help_contracts", scrubRevision(b.String()))
+}
+
+// scrubRevision replaces the build revision --version reports with a placeholder.
+//
+// The revision is the COMMIT, and it carries "+dirty" in a working tree, so a golden holding
+// it would be stale the moment after it was written and would have to be regenerated on every
+// commit — a golden that always differs teaches people to regenerate without reading, which
+// is worse than not having it.
+//
+// What this contract asserts is that --version ANSWERS and in what shape, not which build
+// answered. The placeholder keeps the first and drops the second. Scrubbed by pattern rather
+// than by comparing against buildid.Revision() in this process, because the test binary and
+// the binary under test are two builds and need not agree for the golden to be stable.
+var revisionLine = regexp.MustCompile(`(?m)^(feov-record version ).+$`)
+
+func scrubRevision(s string) string {
+	return revisionLine.ReplaceAllString(s, "${1}<revision>")
 }
 
 // TestGoldenErrorCatalogue pins every validation refusal.

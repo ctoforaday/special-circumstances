@@ -2,8 +2,10 @@ package setup
 
 import (
 	"bytes"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -61,7 +63,7 @@ func TestTheMirrorDoesNotClaimFilesItDidNotWrite(t *testing.T) {
 // The failure is induced the only way that does not depend on running as an unprivileged user:
 // `inputs` is made a FILE, so MkdirAll and WriteFile cannot succeed at that path.
 func TestAFailedClassJoinWriteRefusesTheRun(t *testing.T) {
-	cfg, runDir := runCfg(t, "0.35.0", reports("0.35.0"))
+	cfg, runDir := runCfg(t, reports(strconv.Itoa(record.EventSchema)))
 	mem := filepath.Join(t.TempDir(), "patterns")
 	if err := os.MkdirAll(mem, 0o755); err != nil {
 		t.Fatal(err)

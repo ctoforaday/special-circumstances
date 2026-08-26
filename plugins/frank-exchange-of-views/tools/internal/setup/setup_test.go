@@ -238,44 +238,43 @@ func TestPurgeStaleMirrors(t *testing.T) {
 	}
 }
 
-// PreflightRecordBinary: missing + skewed refuse; a matching version passes.
+// PreflightRecordBinary compares EPOCHS: not runnable refuses, a different shape refuses, an
+// equal one passes. There is no "how far behind" — nothing promises backwards compatibility,
+// so the only answers are same shape or different shape.
 func TestPreflightRecordBinary(t *testing.T) {
-	missing := PreflightRecordBinary("0.1.0", "feov-record", func(string, []string) ExecResult {
+	missing := PreflightRecordBinary(1, "feov-record", func(string, []string) ExecResult {
 		return ExecResult{Err: errors.New("ENOENT")}
 	})
 	if missing.OK || !has(missing.Reason, "not runnable") || !has(missing.Remedy, "doctor --fix") {
 		t.Errorf("missing: %+v", missing)
 	}
-	skewed := PreflightRecordBinary("0.2.0", "feov-record", func(string, []string) ExecResult {
-		return ExecResult{Status: 0, Stdout: "0.1.0\n"}
+	skewed := PreflightRecordBinary(2, "feov-record", func(string, []string) ExecResult {
+		return ExecResult{Status: 0, Stdout: "1\n"}
 	})
-	if skewed.OK || !has(skewed.Reason, "0.1.0") || !has(skewed.Reason, "expects 0.2.0") {
-		t.Errorf("skewed: %+v", skewed)
+	if skewed.OK || !has(skewed.Reason, "schema 1") || !has(skewed.Reason, "reads 2") {
+		t.Errorf("skewed must name both shapes: %+v", skewed)
 	}
-	good := PreflightRecordBinary("0.1.0", "feov-record", func(string, []string) ExecResult {
-		return ExecResult{Status: 0, Stdout: "feov-record version 0.1.0\n"}
+	good := PreflightRecordBinary(1, "feov-record", func(string, []string) ExecResult {
+		return ExecResult{Status: 0, Stdout: "1\n"}
 	})
-	if !good.OK || good.Version != "0.1.0" {
+	if !good.OK || good.Version != "1" {
 		t.Errorf("good: %+v", good)
 	}
-	// The absent (real-name) path is detected too.
-	absent := PreflightRecordBinary("0.1.0", "no-such-binary", func(string, []string) ExecResult {
+	// A BINARY THAT ANSWERS SOMETHING OTHER THAN A NUMBER IS REFUSED, not parsed hopefully.
+	// This is what an older binary does — it has no --schema, so cobra prints usage — and
+	// treating that output as an epoch is how a string-shaped check waves through the exact
+	// binary it exists to catch.
+	prose := PreflightRecordBinary(1, "feov-record", func(string, []string) ExecResult {
+		return ExecResult{Status: 0, Stdout: "feov-record version 0.72.0\n"}
+	})
+	if prose.OK || !has(prose.Reason, "not an epoch") {
+		t.Errorf("prose must be refused: %+v", prose)
+	}
+	absent := PreflightRecordBinary(1, "no-such-binary", func(string, []string) ExecResult {
 		return ExecResult{Err: errors.New("exec: not found")}
 	})
 	if absent.OK || !has(absent.Reason, "not runnable") {
 		t.Errorf("absent: %+v", absent)
-	}
-}
-
-// RecordToolVersion reads the requirements.json authority and returns a semver.
-func TestRecordToolVersion(t *testing.T) {
-	f := filepath.Join(t.TempDir(), "requirements.json")
-	write(t, f, `{"recordToolVersion":"0.17.0"}`)
-	if v := RecordToolVersion(f); v != "0.17.0" {
-		t.Errorf("RecordToolVersion = %q, want 0.17.0", v)
-	}
-	if RecordToolVersion(filepath.Join(t.TempDir(), "absent.json")) != "" {
-		t.Error("absent manifest should yield empty, not panic")
 	}
 }
 

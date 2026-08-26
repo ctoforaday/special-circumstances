@@ -56,6 +56,7 @@ Enumerated values:
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 $ close --run {RUN} --seat-id red-merge-r1 --id R9-9 --verified-by L1 --verified-with git show --verified-against 7bc501e:x
@@ -100,6 +101,7 @@ Enumerated values:
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 $ close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as repaired_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
@@ -144,6 +146,7 @@ Enumerated values:
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text
       --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 $ close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as repaired --verified-by L1 --verified-with WebFetch --verified-against https://example.invalid/spec#s3 --reason refetched; the source now resolves and supports the claim

@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -503,40 +504,32 @@ func PurgeStaleMirrors(mirrorRoot string, now time.Time, maxAgeDays int) int {
 	return purged
 }
 
-// expectedRecordVersion resolves what the binary at recordBin OUGHT to report.
+// expectedSchema is the epoch the plugin beside this binary declares.
 //
-// THE SECOND HALF OF THE SAME DEFECT. Arming the preflight is not enough if the number it
-// compares against comes from the binary running `setup` — in the documented flow that is the
-// SAME binary the seats will use, so the check reduces to a number compared with itself and
-// passes by construction. That exact failure already shipped once: both sides read 0.1.0 for
-// the whole of 2026-07-19 while the event schema changed underneath (see versionsync_test).
+// THE AUTHORITY IS THE MANIFEST, AND ONLY THE MANIFEST. It ships with the prompts this run
+// will drive, so it is the thing the binary has to agree with. The previous shape fell back
+// to the binary's own compiled-in number when the manifest could not be read — which, in the
+// documented flow where setup and the seats are the same binary, reduced the check to a
+// number compared with itself and passed by construction.
 //
-// The authority is requirements.json sitting beside the binary's plugin root — `bin/` in an
-// installed cache, `tools/` in a dev tree, both one level up. That is the manifest shipped
-// with the PROMPTS this run will drive, which is the thing the binary has to agree with. The
-// compiled-in constant remains the fallback for a binary living outside a plugin layout,
-// where there is no manifest to disagree with.
-func expectedRecordVersion(recordBin, compiledIn string) string {
+// So an unreadable manifest is a REFUSAL, not a default. A missing epoch means the check
+// cannot be made, and a check that cannot be made must not report success.
+func expectedSchema(recordBin string) (int, error) {
 	manifest := filepath.Join(filepath.Dir(filepath.Dir(recordBin)), "requirements.json")
-	if v := RecordToolVersion(manifest); v != "" {
-		return v
-	}
-	return compiledIn
-}
-
-// RecordToolVersion reads recordToolVersion from requirements.json (the version authority).
-func RecordToolVersion(manifestPath string) string {
-	b, err := os.ReadFile(manifestPath)
+	b, err := os.ReadFile(manifest)
 	if err != nil {
-		return ""
+		return 0, fmt.Errorf("cannot read %s (%v), so the binary's event schema cannot be checked against the plugin's", manifest, err)
 	}
 	var m struct {
-		RecordToolVersion string `json:"recordToolVersion"`
+		EventSchema *int `json:"eventSchema"`
 	}
-	if json.Unmarshal(b, &m) != nil {
-		return ""
+	if err := json.Unmarshal(b, &m); err != nil {
+		return 0, fmt.Errorf("%s is unparseable (%v), so the binary's event schema cannot be checked against the plugin's", manifest, err)
 	}
-	return m.RecordToolVersion
+	if m.EventSchema == nil {
+		return 0, fmt.Errorf("%s declares no eventSchema, so there is nothing to check the binary against", manifest)
+	}
+	return *m.EventSchema, nil
 }
 
 // ExecResult mirrors the spawnSync fields the mjs preflight reads.
@@ -578,8 +571,8 @@ type Preflight struct {
 	Version string
 }
 
-func PreflightRecordBinary(expectVersion, bin string, run ExecFunc) Preflight {
-	r := run(bin, []string{"--version"})
+func PreflightRecordBinary(expectSchema int, bin string, run ExecFunc) Preflight {
+	r := run(bin, []string{"--schema"})
 	if r.Err != nil || r.Status != 0 {
 		detail := fmt.Sprintf("exit %d", r.Status)
 		if r.Err != nil {
@@ -592,26 +585,29 @@ func PreflightRecordBinary(expectVersion, bin string, run ExecFunc) Preflight {
 				"(cd plugins/frank-exchange-of-views/tools && go build ./cmd/feov-record)",
 		}
 	}
-	got := lastField(strings.TrimSpace(r.Stdout))
-	if expectVersion != "" && got != "" && got != expectVersion {
-		// NAME WHAT THE OPERATOR LOSES, not just the two numbers (#407). "yours is 0.66.0, the
-		// plugin expects 0.68.0" is true and useless — it does not say whether to care. The
-		// capability deltas answer exactly that, and they used to be unreachable prose in
-		// root.go's changelog.
-		reason := fmt.Sprintf("%s is %s, the plugin expects %s — a skewed binary writes events under a different contract", bin, got, expectVersion)
-		if missing := record.DeltasBetween(got, expectVersion); len(missing) > 0 {
-			reason += fmt.Sprintf("\n  what yours cannot do (%d change(s) behind):", len(missing))
-			for _, m := range missing {
-				reason += "\n    - " + m
-			}
-		}
+	// A DEDICATED FLAG, so nothing parses a number out of prose. --version answers "which
+	// build is this" and --schema answers "what shape does it write"; reading the second out
+	// of the first is the string-shaped hope this repository keeps removing.
+	got, err := strconv.Atoi(strings.TrimSpace(r.Stdout))
+	if err != nil {
 		return Preflight{
 			OK:     false,
-			Reason: reason,
+			Reason: fmt.Sprintf("%s --schema printed %q, which is not an epoch — this binary predates the check or is not feov-record", bin, strings.TrimSpace(r.Stdout)),
 			Remedy: "refresh it with /prosthetic-conscience:doctor --fix (never mid-run)",
 		}
 	}
-	return Preflight{OK: true, Version: got}
+	if got != expectSchema {
+		// NO DELTA LIST. Nothing here promises backwards compatibility, so "how far behind"
+		// is not a question with an answer worth maintaining — the 49-entry changelog that
+		// used to answer it was a second copy of the git history, kept by hand.
+		return Preflight{
+			OK: false,
+			Reason: fmt.Sprintf("%s writes event schema %d, the plugin reads %d — the shapes differ, so this binary's events would not be readable by the prompts this run drives",
+				bin, got, expectSchema),
+			Remedy: "refresh it with /prosthetic-conscience:doctor --fix (never mid-run)",
+		}
+	}
+	return Preflight{OK: true, Version: strconv.Itoa(got)}
 }
 
 func (r ExecResult) errored() bool { return r.Err != nil || r.Status != 0 }

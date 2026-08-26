@@ -55,7 +55,6 @@ func newSetup() *cobra.Command {
 				Cwd:           cwd,
 				Home:          home,
 				ProjectDir:    os.Getenv("CLAUDE_PROJECT_DIR"),
-				ExpectVersion: Version,
 			}
 			if code := setup.Run(cfg, cmd.OutOrStdout(), cmd.ErrOrStderr()); code != 0 {
 				os.Exit(code)
