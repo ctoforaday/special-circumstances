@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -30,30 +31,20 @@ var Prices = map[string][4]float64{
 	"fable":  {10, 50, 1.00, 12.50},
 }
 
-// priceOrder pins the tier() scan order (JS iterates Object.keys(PRICES) in insertion order).
-var priceOrder = []string{"haiku", "sonnet", "opus", "fable"}
+// THE TIER LADDER MOVED TO internal/modeltier, AND ONLY THE PRICES STAYED.
+//
+// The tier check now also runs at `register`, inside internal/record — and record cannot import
+// this package (cost imports view, view imports record). Copying the substring ladder over there
+// would have made one fact two hand-kept readers, of the kind that fails quietly: the scan falls
+// back to the DEAREST row on a miss, so a copy that has not heard of a new model name answers with
+// a plausible tier instead of an error. modeltier is the leaf both sides import; these are
+// delegates so no call site had to move.
 
 // Tier picks the price row by substring; an UNRECOGNIZED model falls back to `fable` (the
 // dearest row) — an unknown model must over-report, never under-report.
-func Tier(m string) string {
-	lower := strings.ToLower(m)
-	for _, k := range priceOrder {
-		if strings.Contains(lower, k) {
-			return k
-		}
-	}
-	return "fable"
-}
+func Tier(m string) string { return modeltier.Of(m) }
 
-func recognized(m string) bool {
-	lower := strings.ToLower(m)
-	for _, k := range priceOrder {
-		if strings.Contains(lower, k) {
-			return true
-		}
-	}
-	return false
-}
+func recognized(m string) bool { return modeltier.Recognized(m) }
 
 // Row is one agent's summed, priced usage.
 type Row struct {
@@ -176,14 +167,10 @@ type Finding struct {
 	Why      string
 }
 
-func rankOf(t string) float64 {
-	if p, ok := Prices[t]; ok {
-		return p[0]
-	}
-	return math.Inf(1)
-}
-
-func dearer(a, b string) bool { return rankOf(a) > rankOf(b) }
+// dearer ranks by the LADDER rather than by Prices[t][0]. The two agreed only because the price
+// rows happened to be sorted the same way as the scan order, which is an invariant nobody stated
+// and nothing checked; modeltier makes the ladder and the rank the same list.
+func dearer(a, b string) bool { return modeltier.Dearer(a, b) }
 
 // TierMismatch compares each seat's ACTUAL price-tier to the tier its CLASS was configured to
 // run on (#111): dearer than configured is the fable trap (FAIL); cheaper is discounted
@@ -237,17 +224,10 @@ func TierMismatch(rows []Row, model, judgmentModel string) []Finding {
 }
 
 // TierConfig reads the run's configured model tiers from inputs/run-config.json (empty strings if
-// absent) — the one place the run-config field names are read as bare keys.
-func TierConfig(runDir string) (model, judgmentModel string) {
-	if b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json")); err == nil {
-		var cfg map[string]any
-		if json.Unmarshal(b, &cfg) == nil {
-			model, _ = cfg["model"].(string)
-			judgmentModel, _ = cfg["judgmentModel"].(string)
-		}
-	}
-	return
-}
+// absent). The keys are read in ONE place and it is modeltier.Config — record needs them too, at
+// register, and two readers of the same bare keys is how one of them comes to read a key that was
+// renamed.
+func TierConfig(runDir string) (model, judgmentModel string) { return modeltier.Config(runDir) }
 
 // DedupTierFindings drops duplicate findings keyed on (seat|round|verdict|actual). TierMismatch
 // can emit repeats, and both the cost report and the capture model-tier audit dedup on this same

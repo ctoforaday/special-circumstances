@@ -251,6 +251,61 @@ the same as registering the word; the compiler caught the third, above. All thre
 exactly their job, and they are worth naming here because the retrospective's own complaint is
 that gates passed over nothing.
 
+## Addendum 2 (2026-08-26): what building the served-model gate turned up
+
+Three corrections to what is written above, all measured while implementing #589.
+
+**F1 overstates the environment. `fable` is served — it just was not served to those runs.**
+F1 says the configured research tier "never ran". That is true of the 2026-08-23 programme and
+was read as a property of the environment. It is not: two subagents dispatched on 2026-08-26
+from this same container were served `claude-fable-5` for 52 and 30 turns respectively, with no
+fallback notice. So the substitution is INTERMITTENT, which is worse than a standing environment
+limitation — a run cannot be cleared once and trusted thereafter, and a check that fires only at
+setup would have passed on both readings.
+
+**The audit that "noticed" did not fail. Capture exited 0.**
+F1 credits capture's model-tier audit with catching the substitution "hours later". It caught it
+as a **WARN**, and capture exits 2 only on a FAIL — so the run's own mechanical auditor observed
+44 substituted seats and returned success. The grading was inherited from the cost guard, where
+DEARER-than-configured is the trap (money) and cheaper is "verification may be discounted".
+`claude-opus-4-8` is CHEAPER than `claude-fable-5`, so the measured incident took the soft
+branch. For a research debate the axis is wrong: what a tier buys is the strength of the party
+arguing each side, and a silently WEAKER adversary is the worse of the two failures, not the
+softer one. The tier check now fails in either direction.
+
+**It was measurable all along, on the seat's own first turn.**
+The retrospective established the substitution by reading `message.model` across whole
+transcripts — which is why it could only be done post-hoc. The harness in fact DECLARES it, as
+fields, on the seat's opening assistant line, before that seat's first tool call:
+
+```json
+{"type":"fallback","from":{"model":"claude-fable-5"},"to":{"model":"claude-opus-4-8"}}
+```
+
+and the trajectory is at `agent-<agent_id>.jsonl`, keyed by the same `agent_id` the PreToolUse
+hook already injects as `FEOV_AGENT_ID`. So `register` — every seat's first act, already
+engine-observed — can read it. Replaying all 63 trajectories through the new reader reproduces
+the retrospective's own numbers exactly: 44 declared `claude-fable-5 -> claude-opus-4-8`, 17
+judgment seats served `claude-sonnet-5` as configured, 2 unrelated (they are this retrospective's
+own diagnostic subagents, and they are the fable ones).
+
+**Process note, continued.** Two more gates corrected me, and the second is the more instructive:
+
+- `TestEverySetShapedFlagIsEitherDeclaredOrExempt` refused a new `--format` flag advertising a
+  closed set with no declared enforcement.
+- My own first shape check on the agent id was `^[0-9a-f]{6,64}$` — which matches every real id
+  ever measured, and would have silently and permanently refused every id the day the harness
+  changed the format, reporting each one as a seat with no trajectory. That is precisely the
+  defect class this retrospective is about, written by the person writing the fix for it. It was
+  caught by an existing test fixture using an id of a different shape. The check now refuses only
+  what would widen the glob, and an unrecognised id is SEARCHED FOR and honestly not found.
+
+**Still open on #589 after this change.** The report's own methodology self-description is
+sourced from config, not from the record — the certified run-B sentence naming its pairing as
+`fable` and `sonnet` would still be written that way if an operator consented to a substitution.
+The measured fact and its projection (`show tiers`) now exist for a seat to quote; instructing
+the assembler to quote them is a prompt change, and it is not in this PR.
+
 ## Priority order for fixes
 
 1. **#589 served-model assertion** — cheap, prevents the whole F1 class, and makes cost/tier

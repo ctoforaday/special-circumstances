@@ -1063,3 +1063,58 @@ func TestAnAbsentScorecardIsStillCreated(t *testing.T) {
 		t.Errorf("a card born this run gets its header: %q", b)
 	}
 }
+
+// THE RECORD'S ANSWER, AND WHY THE TRANSCRIPT PASS COULD NOT GIVE IT.
+//
+// The 2026-08-23 incident graded WARN here and capture exited 0: opus is CHEAPER than the
+// configured fable, and cheaper had been filed as "verification may be discounted". Now `register`
+// records what actually answered each seat, so the audit reads a declared substitution instead of
+// deducing a tier from a price — and a substitution fails in either direction.
+func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
+	run, tr := t.TempDir(), t.TempDir()
+	write(t, filepath.Join(run, "inputs", "run-config.json"),
+		`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`)
+	recordtest.Seed(t, run,
+		recordtest.At(t, "blue-lane-1", 1, "blue-lane-1:register:#1", &recordpb.Register{
+			ToolVersion:    proto.String("test"),
+			ServedModel:    proto.String("claude-opus-4-8"),
+			RequestedModel: proto.String("claude-fable-5"),
+		}),
+		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:register:#1", &recordpb.Register{
+			ToolVersion: proto.String("test"),
+			ServedModel: proto.String("claude-sonnet-5"),
+		}),
+	)
+	got := ModelTierAudit(run, tr, nil)
+	if got.Verdict != "FAIL" {
+		t.Fatalf("a declared substitution must FAIL (capture exits 2 on FAIL, and this one exited 0 for real): got %s — %s", got.Verdict, got.Detail)
+	}
+	for _, want := range []string{"blue-lane-1", "claude-fable-5", "claude-opus-4-8", "declared", "served measured on 2 of 2"} {
+		if !strings.Contains(got.Detail, want) {
+			t.Errorf("detail must carry %q; got:\n%s", want, got.Detail)
+		}
+	}
+	// The judgment seat was served as configured and must not be swept up with it.
+	if strings.Contains(got.Detail, "red-merge-r1") {
+		t.Errorf("a seat answered by its configured tier is not a finding; got:\n%s", got.Detail)
+	}
+}
+
+// A RUN WHERE NOTHING LOOKED MUST NOT READ AS A RUN THAT MATCHED. This is the plausible zero the
+// whole thread is about, one level up: the audit's own summary line.
+func TestModelTierAuditSaysWhenTheServedModelWasNeverMeasured(t *testing.T) {
+	run, tr := t.TempDir(), t.TempDir()
+	write(t, filepath.Join(run, "inputs", "run-config.json"),
+		`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`)
+	recordtest.Seed(t, run,
+		recordtest.At(t, "blue-lane-1", 1, "blue-lane-1:register:#1",
+			&recordpb.Register{ToolVersion: proto.String("test")}),
+	)
+	got := ModelTierAudit(run, tr, nil)
+	if !strings.Contains(got.Detail, "NOT MEASURED") {
+		t.Errorf("an unmeasured run must say so, not claim its seats matched; got:\n%s", got.Detail)
+	}
+	if got.Verdict == "FAIL" {
+		t.Errorf("not measured is not a failure either; got %s", got.Verdict)
+	}
+}
