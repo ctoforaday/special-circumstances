@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cost"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
@@ -1069,6 +1070,56 @@ func jsStringify(v any) string {
 
 // ---- AUDIT 9: model-tier ----
 
+// THE RECORD'S OWN ANSWER OUTRANKS THE PRICE HEURISTIC.
+//
+// This audit used to be transcript-only: classify each seat from its prompt head, price its turns,
+// and compare the resulting TIER to the configured one. That reading graded the measured incident
+// a WARNING and let capture exit 0 — `claude-fable-5` was configured and `claude-opus-4-8` was
+// served, which is CHEAPER, and cheaper had been filed as "verification may be discounted".
+//
+// The framing was wrong for a research debate. What a run's tier decides is not the bill, it is
+// how strong the adversary arguing each side actually was; a weaker model silently standing in is
+// the worse of the two failures, not the softer one. So a substitution FAILS in either direction.
+//
+// And it no longer has to be inferred from a price at all. `register` records served_model on the
+// record — measured from the seat's own trajectory, where the harness DECLARES a swap by naming
+// both ends — so a declared substitution is a fact this reads rather than a tier it deduces. The
+// transcript pass stays for what the record cannot cover: runs recorded before the field existed,
+// and seats that never registered.
+func recordTierFindings(runDir, model, judgmentModel string) (findings []string, measured, total int) {
+	board, err := record.BoardState(runDir)
+	if err != nil || board == nil {
+		return nil, 0, 0
+	}
+	for _, sm := range record.SeatModels(board) {
+		if sm.Class == "" {
+			continue
+		}
+		total++
+		if !sm.Measured() {
+			continue
+		}
+		measured++
+		configured := model
+		if sm.Class == "judgment" {
+			configured = judgmentModel
+		}
+		if configured == "" {
+			continue
+		}
+		want, got := modeltier.Of(configured), modeltier.Of(sm.Served)
+		switch {
+		case sm.Substituted():
+			findings = append(findings, fmt.Sprintf("FAIL %s (%s) asked for %s and was answered by %s — the harness declared the substitution",
+				sm.SeatID, sm.Class, sm.Requested, sm.Served))
+		case want != got:
+			findings = append(findings, fmt.Sprintf("FAIL %s (%s) was answered by %s (%s tier) against a configured %s (%s tier)",
+				sm.SeatID, sm.Class, sm.Served, got, configured, want))
+		}
+	}
+	return findings, measured, total
+}
+
 func ModelTierAudit(runDir, transcriptDir string, agentFiles []string) Audit {
 	model, judgmentModel := cost.TierConfig(runDir)
 	if model == "" && judgmentModel == "" {
@@ -1091,16 +1142,27 @@ func ModelTierAudit(runDir, transcriptDir string, agentFiles []string) Audit {
 			warns++
 		}
 	}
-	tiers := fmt.Sprintf("bulk=%s, judgment=%s", orQ(model), orQ(judgmentModel))
-	var detail string
-	if len(findings) > 0 {
-		fs := make([]string, len(findings))
-		for i, f := range findings {
-			fs[i] = f.Verdict + " " + f.Why
-		}
-		detail = tiers + "; " + strings.Join(fs, "; ")
-	} else {
-		detail = "every seat ran on its configured tier (" + tiers + ")"
+	recFindings, measured, seats := recordTierFindings(runDir, model, judgmentModel)
+	fails += len(recFindings)
+
+	tiers := fmt.Sprintf("configured bulk=%s, judgment=%s", orQ(model), orQ(judgmentModel))
+	// THE COVERAGE LINE IS NOT DECORATION. "every seat ran on its configured tier" over a run
+	// where nothing was measured is the plausible zero this audit exists to stop printing, so the
+	// served side always says how many seats it actually looked at.
+	served := fmt.Sprintf("served measured on %d of %d tier-bound seat(s) on the record", measured, seats)
+	if seats > 0 && measured == 0 {
+		served = fmt.Sprintf("served NOT MEASURED on any of %d tier-bound seat(s) — this run predates the field or its seats' trajectories were unreadable, and that is NOT the same as a run that matched its configuration", seats)
+	}
+	var fs []string
+	for _, f := range findings {
+		fs = append(fs, f.Verdict+" "+f.Why)
+	}
+	fs = append(fs, recFindings...)
+	detail := tiers + "; " + served
+	if len(fs) > 0 {
+		detail += "; " + strings.Join(fs, "; ")
+	} else if measured > 0 {
+		detail += "; every seat was answered by its configured tier"
 	}
 	v := "PASS"
 	if fails > 0 {

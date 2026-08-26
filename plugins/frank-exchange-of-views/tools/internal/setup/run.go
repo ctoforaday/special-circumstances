@@ -31,6 +31,10 @@ type Config struct {
 	// know them leaves them empty, and the marker omits the fields rather than carrying "".
 	RunID      string
 	ScriptPath string
+	// AllowSubstitution is the operator's standing consent to a served model that is not the
+	// configured tier. It is recorded on the run rather than passed per seat: the seat is the
+	// party whose adversary strength is in question, so the decision cannot be its to make.
+	AllowSubstitution bool
 
 	Cwd        string
 	Home       string
@@ -277,7 +281,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	if absErr != nil {
 		absRun = cfg.RunDir
 	}
-	rc := runConfig{Topic: topic, RunDir: absRun, Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect}
+	rc := runConfig{Topic: topic, RunDir: absRun, Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution}
 	if b, err := marshalJSON(rc); err == nil {
 		os.WriteFile(filepath.Join(cfg.RunDir, "inputs", "run-config.json"), b, 0o644)
 	}
@@ -437,6 +441,14 @@ type runConfig struct {
 	// what shipped rather than what it can read. This is the same number the setup preflight
 	// just checked the binary against, so the file states a fact the run has already verified.
 	EventSchema int `json:"eventSchema,omitempty"`
+	// AllowModelSubstitution records that the OPERATOR accepted, before the run, an environment
+	// that may answer with a model other than the configured tier. Absent means no: a run whose
+	// config predates the field never consented, and the failing direction of a gate has to be
+	// the safe one.
+	//
+	// It is written here and read at `register` (record.allowSubstitution), which is what makes
+	// the consent a FIELD an operator set rather than a flag a seat could type for itself.
+	AllowModelSubstitution bool `json:"allowModelSubstitution,omitempty"`
 }
 
 func ptrOrNil(s string) *string {
