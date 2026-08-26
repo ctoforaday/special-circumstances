@@ -118,7 +118,7 @@ const (
 	// not serve. It sits on `setup` and NOT on any seat verb, because a seat carrying it would be
 	// the party under test excusing itself; the decision is made once and recorded on the run.
 	AllowSubstitution = "allow-substitution"
-	Ended       = "ended"
+	Ended             = "ended"
 
 	// Confidence is how sure a seat is of a determination it just made — orthogonal to WHAT
 	// the determination was (--as). One word, one question, and the question is "how sure are
