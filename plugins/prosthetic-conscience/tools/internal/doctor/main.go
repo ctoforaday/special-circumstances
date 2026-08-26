@@ -181,8 +181,11 @@ func verdict(tools []toolchain.Status, bins []binStatus) string {
 		// Dirty does NOT degrade: built from HEAD with uncommitted edits is the ordinary state of
 		// a working tree, and degrading on it would make the verdict permanently wrong during
 		// development — the failure the NotApplicable arm above already names.
-		if head := HeadCommit(b.Root); head != "" {
-			if Compare(ReadBuildStamp(binPath(b)), head) == Stale {
+		// ReferenceCommit, not HeadCommit: in an INSTALL the reference is the commit the
+		// client recorded at install time, and using HEAD meant this arm never fired outside a
+		// checkout — inert in the only place it runs in production.
+		if ref := ReferenceCommit(b); ref != "" {
+			if Compare(ReadBuildStamp(binPath(b)), ref) == Stale {
 				degraded = true
 			}
 		}
@@ -206,7 +209,7 @@ func UnstampedCount(bins []binStatus) int {
 		if !b.Built {
 			continue
 		}
-		if Compare(ReadBuildStamp(binPath(b)), HeadCommit(b.Root)) == Unstamped {
+		if Compare(ReadBuildStamp(binPath(b)), ReferenceCommit(b)) == Unstamped {
 			n++
 		}
 	}
@@ -253,22 +256,23 @@ func table(tools []toolchain.Status, bins []binStatus) string {
 	// annotated, and the one line that matters would drown in fourteen that do not. So an
 	// unknowable HEAD means the check DOES NOT APPLY and is silent — not that everything is
 	// suspect. (The consumer's version of this question is answered by the plugin version.)
-	head := ""
-	if len(bins) > 0 {
-		head = HeadCommit(bins[0].Root)
-	}
 	for _, b := range bins {
+		// PER BINARY. This took its reference from bins[0] for the whole table, which was
+		// already wrong the moment a second plugin shipped Go binaries: feov's and this
+		// plugin's roots are different trees, and one plugin's HEAD says nothing about
+		// another's binaries.
+		ref := ReferenceCommit(b)
 		mark := "✓ built"
 		switch {
 		case !b.Built:
 			mark = "✗ not built (run -fix)"
-		case head == "":
-			// Not a checkout: staleness is not a question here, so say nothing about it.
+		case ref == "":
+			// Nothing to compare against: staleness is not a question here, so say nothing.
 		default:
 			// Only the non-current states earn extra words.
-			if s := ReadBuildStamp(binPath(b)); Compare(s, head) != Current {
-				v := Compare(s, head)
-				mark = fmt.Sprintf("! %s — %s", v, Describe(v, s, head))
+			if s := ReadBuildStamp(binPath(b)); Compare(s, ref) != Current {
+				v := Compare(s, ref)
+				mark = fmt.Sprintf("! %s — %s", v, Describe(v, s, ref))
 			}
 		}
 		fmt.Fprintf(&sb, "%-18s %s\n", b.Name, mark)
@@ -278,7 +282,7 @@ func table(tools []toolchain.Status, bins []binStatus) string {
 
 // binPath is where a binStatus's executable lives, matching binariesOf.
 func binPath(b binStatus) string {
-	return filepath.Join(b.Root, "bin", b.Name+buildid.ExeName(""))
+	return filepath.Join(b.Root, "bin", buildid.ExeName(b.Name))
 }
 
 // versionOf best-effort runs a check command and returns its first output line.
@@ -647,8 +651,17 @@ func run(args []string, stdout io.Writer, envRoot string, executable func() (str
 	// read identically to READY over a set verified current, which is the substitution the
 	// staleness arm above exists to refuse. It qualifies the verdict rather than changing it:
 	// unstamped is not evidence of a problem, only the absence of evidence against one.
+	// The two reasons a staleness question goes unanswered are reported SEPARATELY, because
+	// they name different parties. An unstamped binary is a build problem; a missing reference
+	// is the doctor having nothing to compare against, and saying "carries no build stamp"
+	// about a stamped binary sent every reader after the wrong thing.
 	if n := UnstampedCount(bins); n > 0 {
 		fmt.Fprintf(stdout, "VERDICT: %s (%d binar%s carry no build stamp — staleness NOT MEASURED for %s)\n",
+			v, n, map[bool]string{true: "y", false: "ies"}[n == 1], map[bool]string{true: "it", false: "them"}[n == 1])
+		return 0
+	}
+	if n := NoReferenceCount(bins); n > 0 {
+		fmt.Fprintf(stdout, "VERDICT: %s (%d stamped binar%s have no reference commit to check against — staleness NOT MEASURED for %s)\n",
 			v, n, map[bool]string{true: "y", false: "ies"}[n == 1], map[bool]string{true: "it", false: "them"}[n == 1])
 		return 0
 	}
