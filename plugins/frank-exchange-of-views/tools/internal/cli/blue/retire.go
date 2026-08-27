@@ -31,6 +31,10 @@ import (
 // account for is arithmetic, not judgement.
 func newRetire() *cobra.Command {
 	c := seat.Prose(seat.New("retire", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
 		// --reason is the prose channel (Prose provides it); it lands under `reason`,
 		// which validate requires — substance leaves the report only with its reason.
 		why, err := seat.Reason(cmd)
@@ -57,7 +61,7 @@ func newRetire() *cobra.Command {
 		// silent deletion.
 		claim := seat.Str(cmd, flags.Quote)
 		basis := record.RemovalAsserted
-		if md, rerr := record.ReadBlueReport(s.RunDir); rerr == nil {
+		if md, rerr := record.ReadBlueReport(run.Dir()); rerr == nil {
 			if strings.Contains(string(md), claim) {
 				return nil, feov.Errorf(feov.Conflict,
 					"blue retire: %q is still in the report. Retiring is how a removal is EXPLAINED, not how it is performed — remove the text with `blue edit` first, then retire the claim to say why it went and what replaced it",
@@ -66,7 +70,7 @@ func newRetire() *cobra.Command {
 			// Absent now. Whether it was ever THERE is a different question, and the record
 			// can answer it: a claim removed by a recorded edit appears in that edit's old
 			// span. Absent from both is a retirement of something nobody can show existed.
-			if record.ClaimAppearsInAnEdit(s.RunDir, claim) {
+			if record.ClaimAppearsInAnEdit(run.Dir(), claim) {
 				basis = record.RemovalVerified
 			}
 		}

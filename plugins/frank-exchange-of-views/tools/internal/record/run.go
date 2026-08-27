@@ -1,10 +1,11 @@
 package record
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 )
 
 // Run is a run directory that RESOLVED — the handle 28 functions currently take as a string.
@@ -42,35 +43,49 @@ type Run struct {
 
 // OpenRun resolves a run that MUST ALREADY EXIST, and refuses a path that names no run.
 //
-// The existence check is the point. RecordsDir answers where a run's events WOULD live, which
-// is a different question from whether they do, and every read verb wants the second. Without
-// it a typo'd --run is indistinguishable from an empty run, and an empty board is reported for
-// a directory nobody ever dispatched.
+// The existence check is the point: RecordsDir answers where a run's events WOULD live, which
+// is a different question from whether the run is real. Without it a typo'd --run resolves
+// like any other path and the read reports an empty board for a directory nobody dispatched.
+//
+// IT CHECKS THE RUN DIRECTORY, NOT THE RECORD DIRECTORY, and the difference is not cosmetic.
+// A first write CREATES the record directory (store.go's MkdirAll), so a run that exists and
+// has simply not been written to yet has no records/ — requiring one would refuse every
+// opening act of every run. Measured the moment this was written the other way: five tests
+// across fetch, friction and the operator read failed on runs that were entirely real.
+//
+// The run directory is what setup makes and what a typo gets wrong, which is exactly the
+// distinction wanted.
 func OpenRun(dir string) (Run, error) {
 	r, err := resolveRun(dir)
 	if err != nil {
 		return Run{}, err
 	}
-	if _, err := os.Stat(r.records); err != nil {
-		return Run{}, fmt.Errorf("record: %s names no run — its record directory %s is not there (%v). "+
-			"A mistyped path resolves like any other, so this is refused rather than reported as an "+
-			"empty board, which is the one answer that is never true", dir, r.records, err)
+	if _, err := os.Stat(r.dir); err != nil {
+		// CODED, because the --json edge reads CodeOf and an uncoded error flattens to the
+		// generic "error". These refusals sit where feov.MissingField and the seat's coded
+		// Conflict used to be returned, and a caller switching on the code would have seen that
+		// distinction quietly disappear.
+		return Run{}, feov.Wrap(feov.NotFound, err,
+			"record: %s names no run — the directory is not there (%v). "+
+				"A mistyped --run resolves like any other path, so this is refused rather than "+
+				"reported as an empty board, which is the one answer that is never true", dir, err)
 	}
 	return r, nil
 }
 
-// NewRun resolves a run that is being CREATED, where the records directory need not exist yet.
+// NewRun resolves a run that is being CREATED, where the directory need not exist yet.
 //
-// Separate from OpenRun deliberately: `setup` is the one caller that legitimately holds a run
-// before it has a record, and folding the two would mean weakening the check every reader
-// depends on to accommodate the single writer that does not.
+// Separate from OpenRun deliberately: `setup` is the one caller that holds a run before there
+// is anything on disk to open, and folding the two would mean dropping the existence check
+// every reader depends on to accommodate the single writer that cannot meet it.
 func NewRun(dir string) (Run, error) { return resolveRun(dir) }
 
 func resolveRun(dir string) (Run, error) {
 	if strings.TrimSpace(dir) == "" {
 		// The empty string is the state this type exists to stop carrying. It means "nobody
 		// supplied a run", and it must not resolve to anything.
-		return Run{}, fmt.Errorf("record: no run directory supplied")
+		return Run{}, feov.Errorf(feov.MissingField,
+			"record: no run directory supplied — pass --run <runDir>, or run inside a dispatch that injects it")
 	}
 	abs, err := filepath.Abs(dir)
 	if err != nil {

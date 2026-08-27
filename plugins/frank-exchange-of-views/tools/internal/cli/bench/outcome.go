@@ -31,6 +31,10 @@ import (
 // every reader took apart in a switch, which is an enum with a fourth state nobody defined.
 func newOutcome() *cobra.Command {
 	c := seat.New("outcome", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
 		// REQUIRED BY THE RECORD AND MARKED BY THE MECHANISM. This was a hand-rolled refusal in
 		// RunE, so `--help` could not say the flag was required and the message arrived only after
 		// the seat had composed the whole call.
@@ -44,7 +48,7 @@ func newOutcome() *cobra.Command {
 		// posture as seatenv's --run: where the tool can decide, a flag that disagrees is
 		// REFUSED naming both, rather than obeyed.
 		basis, basisWhy := record.VerdictAsserted, ""
-		if derived, why, ok := record.DeriveVerdict(s.RunDir); ok {
+		if derived, why, ok := record.DeriveVerdict(run.Dir()); ok {
 			basisWhy = why
 			if verdict != derived {
 				return nil, feov.Errorf(feov.Conflict,
