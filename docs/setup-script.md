@@ -55,6 +55,70 @@ the setup script runs before Claude Code launches, the snapshot is per
 environment rather than per repository, and in any environment not scoped to
 this repository the checkout is not there to call.
 
+## Research environments need three more things
+
+Everything above provisions the plugins. A **research environment** — one that
+will run `/frank-exchange-of-views:research` — needs three additions, each of
+which cost a measured programme real tokens or real evidence when it was
+missing (#592, from the 2026-08-23 retrospective).
+
+### 1. Document tooling, in the setup script
+
+Append to the script above, before its final `exit 0`:
+
+```bash
+# PDF reading. Without these a seat that meets a PDF falls back to PAGE-IMAGE
+# renders, silently: measured 2026-08-23, one lens slice produced a 4.29 MB
+# transcript, 3.61 MB of it base64 images — 6x the next-largest seat.
+sudo apt-get install -y poppler-utils tesseract-ocr 2>/dev/null \
+  || echo "SC: pdftotext/tesseract not installed — PDF evidence will be lossy"
+```
+
+And set **`MCP_PDF_OCR_PRESET=tesseract`** in the environment's variables.
+
+**Both halves are required and neither implies the other.** `pdftotext` reads a
+PDF's *text layer*; OCR handles a PDF that has none, and the pdf-reader MCP
+server only reaches for OCR when that variable names a preset. tesseract
+installed with the variable unset is a run that can read half of what it meets
+and looks, from the inside, exactly like a run that can read all of it.
+
+`feov-record setup` reports this as a `documents:` line and names each missing
+piece — a warning, never a refusal, because a run whose sources are all HTML
+never touches a PDF. `/prosthetic-conscience:doctor` carries both binaries as
+recommended rows.
+
+### 2. The plugins must be installed by the SETUP SCRIPT, not mid-session
+
+This is the whole reason this document exists, and it is worth restating for
+research runs specifically because the failure is invisible from inside one.
+A plugin installed during a session does not bind its **hooks** or its **agent
+registry** for that session. Measured: two runs went 61 seat-sittings with the
+identity-binding hook absent, and capture's friction-parity audit ran blind —
+60 envelope entries could not be joined to the seats that filed them.
+
+Nothing in the run said so. The seats worked, the report shipped, and the audit
+reported what an empty channel reports.
+
+### 3. Known-blocked egress hosts
+
+Where the environment reaches the network through a proxy, a host outside its
+allowlist answers **403** — the same status an origin uses to refuse a client.
+A seat cannot tell them apart from the status alone, and the difference is not
+cosmetic: one is a fact about the container, the other a fact about the source.
+
+Measured: `openai.com` returns 403 through the session proxy, and run B's
+deep-research-persistence question shipped "open rather than resolved" on that
+basis — an allowlist recorded as an epistemic outcome.
+
+`fetch` now says so on 403/405/407 when a proxy is configured, and its help
+carries the rule: **an unreached source is not evidence of absence.** Where a
+seat cannot establish which refusal it hit, it records the source as
+UNREACHABLE FROM HERE rather than the question as unresolved.
+
+If you know which hosts your environment blocks, list them in the environment's
+description so the operator reading a "blocked" grade can confirm it in one
+step rather than re-deriving it.
+
 ## Why it never exits non-zero
 
 A setup script that exits non-zero makes the whole session fail to start. Every
@@ -80,7 +144,7 @@ requests, not `git clone` of a public repository.
 | Requirement | Detail |
 |---|---|
 | Network access | Trusted (the default) or higher. **None** blocks the clone and the Go module fetches. |
-| Allowed domains | `github.com`, `codeload.github.com`, `proxy.golang.org`, `sum.golang.org` — all on the default Trusted list |
+| Allowed domains | `github.com`, `codeload.github.com`, `proxy.golang.org`, `sum.golang.org` — all on the default Trusted list. A **research** environment additionally needs whatever hosts its sources live on; anything outside the list answers 403, which a seat cannot distinguish from an origin refusing it (see above) |
 | Go toolchain | Pre-installed in cloud environments. `go.mod` declares 1.24; the toolchain resolves 1.25.0 on first build |
 | Runtime budget | Keep the setup script under roughly five minutes so the environment cache can build |
 

@@ -26,6 +26,28 @@
       }
     },
     {
+      "name": "pdftotext",
+      "purpose": "extracts a PDF's TEXT LAYER for the research seats (poppler-utils). MEASURED 2026-08-23: absent, run A's red-lens-r1-L1 fell back to page-image renders and produced a 4.29 MB transcript, 3.61 MB of it base64 page images — 6x the next-largest seat, for ONE lens slice. Lossy PDF handling has ranked the #1 capability gap in run friction across prior runs; without this the fallback is silent and the cost lands as context, not as an error",
+      "tier": "recommended",
+      "check_cmd": "pdftotext -v",
+      "install": {
+        "windows": "winget install --id oschwartz10612.Poppler -e",
+        "darwin": "brew install poppler",
+        "linux": "sudo apt-get install -y poppler-utils"
+      }
+    },
+    {
+      "name": "tesseract",
+      "purpose": "OCR for a PDF with no text layer — the other half of the same gap. The pdf-reader MCP server uses it only when MCP_PDF_OCR_PRESET=tesseract is set in the environment, so the BINARY being present is necessary and not sufficient; the variable is checked by feov-record setup, which is where a research run will notice",
+      "tier": "recommended",
+      "check_cmd": "tesseract --version",
+      "install": {
+        "windows": "winget install --id UB-Mannheim.TesseractOCR -e",
+        "darwin": "brew install tesseract",
+        "linux": "sudo apt-get install -y tesseract-ocr"
+      }
+    },
+    {
       "name": "buf",
       "purpose": "convert a raw record shard line to JSON for inspection (`buf convert internal/record/recordpb/record.proto --type feov.record.v1.Event --from -#format=txtpb --to -#format=json`) — diagnostics only; nothing in the build or a run needs it, and `scripts/protogen` deliberately does not",
       "tier": "optional",
