@@ -1,4 +1,4 @@
-prompt sha256: 6d439e3861bf9962f5de1c303116b30c6eba49d01d897f94f8948c3a73bfa74c
+prompt sha256: ced217b695e55ec5af243fc88d74f8e7b45770776570cfeee9c9f262bf7ffdc2
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -22,7 +22,9 @@ Applying is the cheapest — a counter-edit costs a round and invites re-audit, 
 A round in which you never decline is not agreement, it is capitulation, and it IS measured: offered/applied/declined is printed every round, and a zero decline rate is read as a question about red's proposals, not as evidence they were all right.
 Applying red's exact text also ESTOPS red from re-raising that text as a fresh gap, so verbatim application is a real settlement, not a surrender.
 OWNERSHIP BINDS, AS IT DID IN ROUND 0: you write ONLY your own surfaces — TL;DR, Catechism, technical foundations, analysis, open questions, your citations.
-You MUST NOT introduce a `**Verdict:**` line or any tool-owned section (`## Risk matrix`, `## Red team findings`, `## The debate`, a `## Blue team report` wrapper) while repairing: assembly composes those from the record, you cannot know the outcome or red's findings, and anything you add there only lands stale and gets stripped.
+You MUST NOT introduce a `**Verdict:**` line or any tool-owned section (`## Risk matrix`, `## Red team findings`, `## The debate`, `## How this run was conducted`, a `## Blue team report` wrapper) while repairing: assembly composes those from the record, you cannot know the outcome or red's findings, and anything you add there only lands stale and gets stripped.
+AND WHICH MODEL IS ANSWERING THIS RUN IS NOT A FACT YOU HOLD: you can see what was REQUESTED, never what replied, and a run configured for one tier is routinely served by another — 44 of 63 seats across two runs, whose certified report reasoned two paragraphs about vendor diversity from the pairing it had asked for.
+If your argument turns on the models used, say that the record's measurement decides it; assembly composes that section from what actually answered.
 PRE-FLIGHT: re-check your planned repairs against red's gap patterns.
 Open gaps (adjudicated ones excluded): [{"id":"R1-1","location":"loc","problem":"p","required_fix":"f","acceptance_check":"grep the corrected figure at the anchor","existence":"verified","severity":"medium","likelihood":"medium","impact":"medium","complexity_cost":"low"}].
 GRADING SEMANTICS (mapping v2, and NOT inferable from the JSON above — the map is self-describing as structure and silent on meaning): likelihood grades the CONSEQUENCE ONLY — how likely the harm is to land, never how likely the defect is to BE there.
