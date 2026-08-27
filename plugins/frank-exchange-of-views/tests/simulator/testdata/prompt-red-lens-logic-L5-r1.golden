@@ -1,4 +1,4 @@
-prompt sha256: fb9c1d7ccef6e8c9dbeec98a4a9885f51286bc1574878069e14712c36b86ae54
+prompt sha256: d9967e0bf9f5e732cf8f53ea1046e875b2a9ea2c94bfcb6ec47b47856897f99a
 
 Red audit, round 1, lens: logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance) STEELMAN DUTY: read the exploration space via the `lines-of-inquiry` projection (the tool renders it fresh from the line of inquiry events on the record).
 Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
@@ -26,8 +26,8 @@ SEAT_ID: red-lens-r1-L5.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, and not for when you are stuck.
-READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED: deciding first is what makes the reading pointless.
-Steps 1 and 2 happen ONCE, together, at the start.
+READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED.
+Steps 1 and 2 happen ONCE, together, at the start — before you have decided what to do, because deciding first is what makes the reading pointless.
 Step 3 happens per act.
 
   1.

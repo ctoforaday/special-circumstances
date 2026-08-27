@@ -241,7 +241,7 @@ const recordClause = (seatId, role) => {
   }
   return `${holdingsClause()}${scorecardClause()} SEAT_ID: ${seatId}. THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "${binDir}/feov-record", and the tool's own board is the ONLY source of truth for status. Routing around it into markdown is the failure this contract exists to prevent.
 
-THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, and not for when you are stuck. READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED: deciding first is what makes the reading pointless. Steps 1 and 2 happen ONCE, together, at the start. Step 3 happens per act.
+THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, and not for when you are stuck. READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED. Steps 1 and 2 happen ONCE, together, at the start — before you have decided what to do, because deciding first is what makes the reading pointless. Step 3 happens per act.
 
   1. "${binDir}/feov-record" --seat-id ${seatId} --help — your bootstrap: the one call you make before you have read anything, because the surface is scoped to whoever is asking and nothing has yet said who that is.
   2. Read ${runDir}/inputs/help-${role}.md — YOUR WHOLE SURFACE, IN ONE READ. Every verb you have, one line each saying what it is FOR, then the full page of each. GENERATED AT RUN SETUP from the binary you are about to call, so it cannot describe a surface you do not have and cannot be stale. Missing? Log friction and walk the tree with --help instead, group page by group page.

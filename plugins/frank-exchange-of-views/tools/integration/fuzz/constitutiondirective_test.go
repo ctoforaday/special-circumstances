@@ -29,6 +29,13 @@ func TestEveryConstitutionCarriesTheSurfaceDiscoveryDuty(t *testing.T) {
 		"Your surface comes from `--help`",
 		"what comes back IS your surface",
 		"A name you did not read in the help this sitting is a guess",
+		// AND WHERE THAT SURFACE NOW IS. The duty did not change when the walk was staged into a
+		// run input (#593) — the reading is still required and still comes first — but the ACT
+		// did, and a constitution still describing the five-or-six-call walk sends its seat to
+		// pay a tax setup already paid. Pinned here for the same reason the sentences above are:
+		// four hand-kept copies fork, and the first rewrite of this block dropped the sentence
+		// directly above without noticing, which is what this gate caught.
+		"THE STAGED SURFACE",
 	}
 	// AND THE CONSEQUENCE OF ABSENCE IS THE TOOL'S TO STATE, on the page where absence is
 	// discovered. All four constitutions used to carry "what is not listed does not exist for

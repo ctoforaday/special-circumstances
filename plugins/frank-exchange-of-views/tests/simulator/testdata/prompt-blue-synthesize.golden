@@ -1,4 +1,4 @@
-prompt sha256: eba6d40042fdb8a2ac5fc9437884bc5327a406f059f37956b4d597f305a9a234
+prompt sha256: c1891acc8e8ed9ccf01658ec85bd582db8c5f277b16cdf350e018af66822bacd
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -35,8 +35,8 @@ SEAT_ID: blue-synthesize.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, and not for when you are stuck.
-READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED: deciding first is what makes the reading pointless.
-Steps 1 and 2 happen ONCE, together, at the start.
+READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED.
+Steps 1 and 2 happen ONCE, together, at the start — before you have decided what to do, because deciding first is what makes the reading pointless.
 Step 3 happens per act.
 
   1.

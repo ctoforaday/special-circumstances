@@ -1026,20 +1026,31 @@ test('the record contract arms SEAT_ID and the binary path on every seat', async
   // clause says, including its defect, so the negative below is what keeps the old shape out.
   const lens = roleOf('red-lens')
   assert.ok(/REQUIRED/.test(lens), 'reading the help is stated as required, not suggested')
-  assert.ok(/--help — your whole surface/.test(lens), 'step 1: the root help, which IS the seat surface')
-  // AND THE PAGE SAYS WHICH ENTRIES HIDE COMMANDS, which it did not until the usage template
-  // stopped dropping cobra's command groups. The prompt used to carry that sentence — the tool
-  // describing its own output format, in the prompt, because the output would not describe
-  // itself. Step 2 is only followable if step 1's page marks its groups.
-  assert.ok(/marks which entries hold commands it does not list/.test(lens), 'step 2 has nothing to enumerate unless step 1 says which entries are groups')
-  assert.ok(lens.includes('<group> --help'), 'step 2: the group help')
+  // THE LADDER IS NOW BOOTSTRAP -> STAGED FILE -> COMMAND PAGE, and the middle rung changed
+  // MEDIUM without changing DUTY (#593). The walk was ~a third of all record-tool traffic in
+  // both 2026-08-23 runs; setup renders each role's whole surface into inputs/help-<role>.md, so
+  // the survey is a Read rather than five or six calls. What must NOT change is that the survey
+  // still precedes the DECISION — that is the property the measurements above are about, and it
+  // is asserted below independently of which rung carries it.
+  assert.ok(/--help — your bootstrap/.test(lens), 'step 1: the root help, the one call a seat can make before it has read anything')
+  assert.ok(/inputs\/help-lens\.md/.test(lens), 'step 2: the staged surface, named for THIS seat\'s own role')
+  assert.ok(/YOUR WHOLE SURFACE, IN ONE READ/.test(lens), 'step 2 is the whole surface, not a page of it')
+  assert.ok(/GENERATED AT RUN SETUP/.test(lens), 'step 2 says why the staged file cannot be stale — otherwise a seat is right to distrust it')
+  // THE FALLBACK IS STATED, AND IT IS THE OLD WALK. A staged file that is missing must produce
+  // friction and a walk, never a seat that read nothing: absence here is invisible from inside
+  // the seat, and a run where every seat quietly skipped its survey looks exactly like a run
+  // before this change.
+  assert.ok(/Log friction and walk the tree with --help instead, group page by group page/.test(lens),
+    'the fallback for a missing staged file is not stated — absence would read as a seat that chose not to look')
   assert.ok(lens.includes('<group> <command> --help'), 'step 3: the command help, before running it')
-  assert.ok(/for EVERY group that page listed/.test(lens), 'step 2 is exhaustive: every group, not the one holding the verb you want')
-  assert.ok(/including the groups nested inside those/.test(lens), 'step 2 reaches leaf depth — `motion` alone holds three subgroups')
   assert.ok(/before you have decided what to do/.test(lens), 'the traversal precedes the DECISION, not merely the act')
   assert.ok(!/BEFORE using any command in a group you have not yet opened/.test(lens),
     'the group rung fires on an act already chosen again — that trigger is what made the ceiling of this rule confirmation rather than survey')
   assert.ok(/<group> <command> --help — BEFORE you run it/.test(lens), 'the command rung is ordered before use')
+  // AND THE ONE-VERB-PER-BASH-CALL RULE RIDES THE SAME CLAUSE (#593, third ask): three refusals
+  // in one run were swallowed inside exit-0 batched shell, so the tool refused, the shell
+  // reported success, and the seat carried on believing the act had landed.
+  assert.ok(/ONE VERB PER BASH CALL/.test(lens), 'a refusal swallowed by a batched shell is invisible to the seat that needs to retry it')
   // ABSENCE IS STATED AS ABSENCE — ON THE PAGE WHERE THE SEAT LOOKS FOR THE THING. The prompt
   // carried a paragraph of it; the friction footer says it verbatim at the foot of EVERY help
   // page, including the one the seat opens at the moment it fails to find a verb, which is when

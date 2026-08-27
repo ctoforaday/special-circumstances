@@ -1,4 +1,4 @@
-prompt sha256: ad8fe428889bd9181a3acbdee1b473e8082d5a421ff36ef1d08d48f6983874a3
+prompt sha256: ae0cd441058c5486dcf08d2ae255c433b4a0a87a16034983d9efdb54c20f7106
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -64,8 +64,8 @@ SEAT_ID: blue-respond-r1.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, and not for when you are stuck.
-READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED: deciding first is what makes the reading pointless.
-Steps 1 and 2 happen ONCE, together, at the start.
+READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED.
+Steps 1 and 2 happen ONCE, together, at the start — before you have decided what to do, because deciding first is what makes the reading pointless.
 Step 3 happens per act.
 
   1.

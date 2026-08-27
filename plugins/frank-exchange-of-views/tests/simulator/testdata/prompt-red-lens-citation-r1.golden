@@ -1,4 +1,4 @@
-prompt sha256: 6bf49895bab70e8a266a3e8017749d61bbcf9b1066f58a96fd043850d4d0c28f
+prompt sha256: a598d3b78dbfc8df3f75ed4b7e9c5e80d5c80ea5b205d17a26d81f5a516bef46
 
 Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; citation ownership follows the slice (instance 1 owns the bibliography entries its sections cite).
 The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
@@ -32,8 +32,8 @@ SEAT_ID: red-lens-r1-L1.
 THE RECORD TOOL IS THE CONTRACT: every act of this seat happens through "/opt/feov/bin/feov-record", and the tool's own board is the ONLY source of truth for status.
 Routing around it into markdown is the failure this contract exists to prevent.
 THE HELP IS THE ONLY PAGE THAT INSTRUCTS, AND READING IT IS REQUIRED — not a suggestion, and not for when you are stuck.
-READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED: deciding first is what makes the reading pointless.
-Steps 1 and 2 happen ONCE, together, at the start.
+READ YOUR WHOLE SURFACE BEFORE YOU CHOOSE, NOT THE ONE PAGE FOR THE VERB YOU ALREADY PICKED.
+Steps 1 and 2 happen ONCE, together, at the start — before you have decided what to do, because deciding first is what makes the reading pointless.
 Step 3 happens per act.
 
   1.

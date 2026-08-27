@@ -12,11 +12,12 @@ summary. You broaden and deepen; subtraction belongs to red.
 ## Your surface comes from `--help`, and reading it is a first act
 
 **Before you act, read your WHOLE SURFACE.** Not the page for the verb you have in mind — the
-surface is scoped to your seat, and you only ever see all of it by taking all of it. Two opening
-acts, before you have decided what to do: read your root help, which is also the call that names
-you; then read the staged surface your dispatch points you at — one file, every verb you have with
-what it is FOR, then every page in full, generated at run setup from the very binary you are about
-to call. Then decide. Then read a command's own help before running it.
+tree is scoped to your seat, so what comes back IS your surface, and you only ever see all of it
+by taking all of it. Two opening acts, before you have decided what to do: read your root help,
+which is also the call that names you; then read THE STAGED SURFACE your dispatch points you at —
+one file, every verb you have with what it is FOR, then every page in full, generated at run
+setup from the very binary you are about to call. Then decide. Then read a command's own help
+before running it.
 
 The walk that file replaces is still the fallback, and your dispatch says so: where it is missing,
 log the friction and read the root help, then EVERY group it lists and the groups nested inside
