@@ -247,6 +247,14 @@ indistinguishable from one that never looked._
 
 **Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
 
+## How this run was conducted
+
+_Composed from the record, never from the run's configuration: these are the models that ANSWERED, measured at each seat's own first turn. A run can be configured for one tier and served by another, and a seat cannot see which — it reads the request._
+
+| tier | what answered | seats |
+|---|---|---|
+| judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
+
 ## Read this first
 
 **The bench asks a human to re-examine:** what a human should re-examine
