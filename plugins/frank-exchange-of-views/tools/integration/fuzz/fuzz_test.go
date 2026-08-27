@@ -1685,9 +1685,19 @@ func runOne(t *testing.T, wrapped, bin string, seed int64) (res outcome) {
 			_, _ = tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", seatOfRole(role))
 		}
 	}
+	// THE SET IS DERIVED, because this exclusion was four names written here by hand and two of
+	// them were wrong in opposite directions: `friction` stopped being a view entirely (it is
+	// the OPERATOR's read of the channel, never a projection), so the case excluded nothing;
+	// and `motions`, `telemetry` and `evidence` are JSON by name and were NOT excluded, so this
+	// loop drove three projections down "the markdown path" while the comment said their own
+	// oracles had them. An exclusion list that names a view which does not exist, and misses
+	// half the ones it is about, reads as a considered boundary and is neither.
+	jsonByName := map[string]bool{}
+	for _, v := range cli.JSONByNameViews() {
+		jsonByName[v] = true
+	}
 	for _, v := range cli.ViewNames() {
-		switch v {
-		case "board", "findings", "friction", "work":
+		if jsonByName[v] {
 			continue // JSON by name — driven by their own oracles, not the markdown path
 		}
 		if out, err := tracked(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {

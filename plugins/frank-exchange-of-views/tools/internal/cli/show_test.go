@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 )
 
 // READS THROUGH THE TOOL.
@@ -161,10 +163,19 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 	}
 
 	// --json on a JSON-by-name view is refused (no alias to that JSON).
-	// NAMES FROM ViewNames(), not a hand-kept list: `friction` sat here after it stopped being a
-	// view, and the assertion went on passing — it demands an error, and an unknown view is an
-	// error too. A stale name in a list like this checks nothing while reading as coverage.
-	for _, v := range []string{"board", "findings", "work", "motions", "reason", "telemetry"} {
+	//
+	// NAMES FROM seat.JSONByNameViews(), not a hand-kept list: `friction` sat here after it
+	// stopped being a view, and the assertion went on passing — it demands an error, and an
+	// unknown view is an error too. A stale name in a list like this checks nothing while
+	// reading as coverage.
+	//
+	// AND THE HAND-KEPT REPLACEMENT DID IT AGAIN, in the same six slots, under that very
+	// comment: `reason` is not a view either (it never was), and `evidence` — which IS JSON by
+	// name — was missing outright. So five of six names were checking the refusal and the
+	// sixth was checking that an unknown view errors, with `evidence`'s refusal unheld by
+	// anything. The list is derived now; a name cannot be here unless the table says so, and
+	// no marked view can be absent.
+	for _, v := range seat.JSONByNameViews() {
 		if _, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1", v, "--json"); err == nil {
 			t.Errorf("--view %s --json was accepted; it must refuse (that view is already JSON by name)", v)
 		}
