@@ -27,8 +27,12 @@ func init() { seat.HelpValues["NearMatchTopN"] = nearMatchTopN }
 
 func newNearMatch() *cobra.Command {
 	c := seat.New("near-match", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
 		cand := strings.TrimSpace(seat.Str(cmd, flags.Problem))
-		b, err := record.BoardState(s.RunDir)
+		b, err := record.BoardState(run.Dir())
 		if err != nil {
 			return nil, err
 		}

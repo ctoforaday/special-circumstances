@@ -40,14 +40,18 @@ func newClaimIndex() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			// Resolved, so the injected run reaches this read as it does every write.
-			runDir := seat.Of(cmd).RunDir
-			if runDir == "" {
-				runDir = seat.InferRunDir("")
+			// THE REFUSAL IS NOT AN ABSENCE, and this verb used to treat it as one.
+			//
+			// It read the path straight off seat.Of — where there is no error to consult even in
+			// principle — and answered "" by inferring from the marker. So a run that had been
+			// REFUSED fell through to inference and resolved quietly to a different one: the
+			// exact swallow seat.Context's own comment predicts, "" meaning both "nobody supplied
+			// a run" and "you were refused", with the healthy reading winning by default.
+			run, err := seat.Of(cmd).Run()
+			if err != nil {
+				return err
 			}
-			if runDir == "" {
-				return feov.Errorf(feov.MissingField, "claim-index: --run <runDir> is required")
-			}
+			runDir := run.Dir()
 			path := filepath.Join(runDir, "blue", "report.md")
 			md, err := os.ReadFile(path)
 			if err != nil {

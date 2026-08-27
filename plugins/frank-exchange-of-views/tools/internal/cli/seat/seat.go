@@ -89,14 +89,21 @@ func DispatchedAs(c *cobra.Command) string {
 
 // Context is what every verb needs and no verb should re-derive.
 type Context struct {
-	RunDir string
+	// runDir is PRIVATE so no verb can read the path without meeting the refusal.
+	//
+	// It was exported, and two readers took it straight off seat.Of(cmd) where there was no
+	// error to consult even in principle. One of them then did the thing this type's RunErr
+	// comment predicted in as many words — answered "" with InferRunDir(""), swallowing the
+	// refusal a layer down and resolving quietly to a different run. Run() is now the only way
+	// in, and it hands back a record.Run that a mistyped path cannot construct.
+	runDir string
 	SeatID string
 	Role   string
 	// Round is the seat's round as a FACT — injected by the dispatcher, not recovered from the
 	// seat id (#348). -1 means unknown, which is NOT round 0: round 0 is synthesis, and
 	// conflating the two is what produced the phantom-archive bug in #327.
 	Round int
-	// RunVia says which of the three paths supplied RunDir — the hook's injection, the seat's
+	// RunVia says which of the three paths supplied the run — the hook's injection, the seat's
 	// own --run, or the tool's inference from the marker. `register` records it, because a run
 	// whose seats all resolve by INFERENCE is a run the hook is not reaching, and nothing else
 	// distinguishes that from a healthy one (#512).
@@ -109,13 +116,37 @@ type Context struct {
 	// directory nobody had dispatched — the 2026-08-05 failure this whole mechanism exists to
 	// prevent, still live on every READ verb because only Begin honoured the refusal.
 	//
-	// Returning an empty RunDir instead does not fix it: five readers answer "" with
-	// `runDir = seat.InferRunDir("")`, so the refusal would be swallowed a second time, one
-	// layer down, and resolve quietly to the real run. "" already means "nothing supplied one";
-	// making it also mean "you were refused" is the same collapse the record keeps paying for —
-	// two states, one byte, and the healthy one wins by default.
+	// Returning an empty runDir instead does not fix it, and the reason is worth keeping after
+	// the fact: readers used to answer "" with a SECOND `seat.InferRunDir("")` below Of()'s own,
+	// so the refusal was swallowed one layer down and resolved quietly to the real run. Those
+	// fallbacks are gone now — reachable only on a refusal, they were only ever wrong — but the
+	// argument is what keeps them from coming back. "" already means "nothing supplied one";
+	// making it also mean "you were refused" is the collapse the record keeps paying for — two
+	// states, one byte, and the healthy one wins by default.
 	RunErr error
 }
+
+// Run resolves the seat's run, or returns why it could not.
+//
+// One door, and it cannot be walked past. The pair this replaces — an exported RunDir beside
+// a RunErr — could be half-read, and was: only Begin honoured the refusal, so every read verb
+// took the path and reported on a run nobody had dispatched (#526).
+//
+// OpenRun rather than NewRun: a verb holding a Context is acting on a run that already exists,
+// and the existence check is what turns a typo into a refusal instead of an empty board.
+func (c Context) Run() (record.Run, error) {
+	if c.RunErr != nil {
+		return record.Run{}, c.RunErr
+	}
+	return record.OpenRun(c.runDir)
+}
+
+// RunDirRaw is the unresolved string, for the two callers that legitimately have no run yet.
+//
+// `register` binds a seat before the seat has resolved anything, and the dispatcher's own
+// diagnostics report what was SUPPLIED rather than what resolved. Both want the argument, not
+// a handle. Named so that reaching for it is a decision: anything acting ON a run wants Run().
+func (c Context) RunDirRaw() string { return c.runDir }
 
 // Identity is what a record write needs to know about who is writing: the run, the seat, and the
 // ROUND AS A FACT rather than a regex over the id. Every `record.Append` goes through this, so
@@ -124,7 +155,7 @@ type Context struct {
 // Role is not carried. See record.Event.Role: the party on an event is derived from the seat id,
 // and this Context's Role answers a different question — which command group the verb sits under.
 func (c Context) Identity() record.Identity {
-	return record.Identity{RunDir: c.RunDir, SeatID: c.SeatID, Round: c.Round}
+	return record.Identity{RunDir: c.runDir, SeatID: c.SeatID, Round: c.Round}
 }
 
 // Of reads the seat context from the inherited persistent flags, inferring the run
@@ -151,7 +182,7 @@ func requireBound(cmd *cobra.Command, s Context) error {
 	if agent == "" || cmd == nil || cmd.Name() == "register" {
 		return nil
 	}
-	bound, found, err := record.SeatOfAgent(s.RunDir, agent)
+	bound, found, err := record.SeatOfAgent(s.runDir, agent)
 	if err != nil {
 		return err
 	}
@@ -198,7 +229,7 @@ func Of(cmd *cobra.Command) Context {
 	if id, rerr := seatenv.ResolveSeat(seatID, BoundSeat(runDir), record.RoundIn(runDir)); rerr == nil {
 		seatID, round = id.ID, id.Round
 	}
-	return Context{RunDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd), RunVia: via}
+	return Context{runDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd), RunVia: via}
 }
 
 // roleOf answers WHICH SEAT is running this command, from the identity the engine injected.
@@ -215,10 +246,10 @@ func (c Context) RequireRun(verb string) (string, error) {
 	if c.RunErr != nil {
 		return "", c.RunErr
 	}
-	if c.RunDir == "" {
+	if c.runDir == "" {
 		return "", feov.Errorf(feov.MissingField, "%s: --run <runDir> is required", verb)
 	}
-	return c.RunDir, nil
+	return c.runDir, nil
 }
 
 func roleOf(cmd *cobra.Command) string {
@@ -499,11 +530,11 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	// fact a seat must not be able to get wrong; every found_by, estoppel and parity check
 	// reads it, and this is the guarantee #348 shipped a message for and no code behind.
 	seatFlag, _ := cmd.Flags().GetString(flags.SeatID)
-	if _, err := seatenv.ResolveSeat(seatFlag, BoundSeat(Of(cmd).RunDir), record.RoundIn(Of(cmd).RunDir)); err != nil {
+	if _, err := seatenv.ResolveSeat(seatFlag, BoundSeat(Of(cmd).runDir), record.RoundIn(Of(cmd).runDir)); err != nil {
 		return Of(cmd), err
 	}
 	s := Of(cmd)
-	if s.RunDir == "" {
+	if s.runDir == "" {
 		return s, feov.Errorf(feov.MissingField, "--run <runDir> is required")
 	}
 	if s.SeatID == "" {
@@ -524,7 +555,7 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	if err := record.RequireDispatchedSeat(s.SeatID); err != nil {
 		return s, err
 	}
-	if err := CheckFlagReferences(cmd, s.RunDir); err != nil {
+	if err := CheckFlagReferences(cmd, s.runDir); err != nil {
 		return s, err
 	}
 	return s, nil

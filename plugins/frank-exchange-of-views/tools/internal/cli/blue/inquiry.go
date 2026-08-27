@@ -65,7 +65,11 @@ func newInquiry() *cobra.Command {
 
 func newInquiryPropose() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("propose", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
-		id, err := record.MintInquiryID(s.RunDir)
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
+		id, err := record.MintInquiryID(run.Dir())
 		if err != nil {
 			return nil, err
 		}
@@ -114,8 +118,12 @@ func newInquiryPropose() *cobra.Command {
 
 func newInquiryMove() *cobra.Command {
 	c := seat.Prose(seat.Records(seat.New("move", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
 		id := seat.Str(cmd, flags.ID)
-		if err := record.RequireInquiryRef(s.RunDir, id); err != nil {
+		if err := record.RequireInquiryRef(run.Dir(), id); err != nil {
 			return nil, err
 		}
 		st, known := record.AvenueStatusOf(seat.Str(cmd, flags.As))

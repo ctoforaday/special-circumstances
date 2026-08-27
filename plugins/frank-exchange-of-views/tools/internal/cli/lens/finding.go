@@ -26,6 +26,12 @@ func newFinding() *cobra.Command {
 	var severity, likelihood, impact flags.GradeValue
 
 	c := seat.Prose(seat.New("finding", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		// One resolution, at the door. Reading the path off the context is what let a refused
+		// run reach a verb as if it had resolved.
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
 		text, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -43,7 +49,7 @@ func newFinding() *cobra.Command {
 		// Crash-retry idempotency: a prior finding under this --key returns its
 		// label, no second event AND no second marker (BEFORE any write).
 		key := seat.Str(cmd, flags.Key)
-		if prior, priorID, err := record.FindingByKey(s.RunDir, s.SeatID, key); err != nil {
+		if prior, priorID, err := record.FindingByKey(run.Dir(), s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
 			// THE PAIR MAY BE HALF-APPENDED. The finding and its anchor event follow the splice
@@ -51,7 +57,7 @@ func newFinding() *cobra.Command {
 			// the anchor event missing — and this early return used to seal that state forever:
 			// the retry saw the finding, answered idempotently, and the immortal-marker detector
 			// never learned the marker exists. The retry now finishes the interrupted pair.
-			if anchored, aerr := record.AnchorEventExists(s.RunDir, priorID); aerr != nil {
+			if anchored, aerr := record.AnchorEventExists(run.Dir(), priorID); aerr != nil {
 				return nil, aerr
 			} else if !anchored {
 				ap := &recordpb.Anchor{Id: proto.String(priorID), Location: proto.String(seat.Str(cmd, flags.Quote))}
@@ -61,7 +67,7 @@ func newFinding() *cobra.Command {
 			}
 			return findingResult{Label: prior, Idempotent: true}, nil
 		}
-		label, err := record.NextFindingLabel(s.RunDir, s.SeatID)
+		label, err := record.NextFindingLabel(run.Dir(), s.SeatID)
 		if err != nil {
 			return nil, err
 		}
@@ -69,7 +75,7 @@ func newFinding() *cobra.Command {
 		// same shared walk. A crash after the splice below and before the appends leaves a
 		// marker on this quote that no event names; the retry would otherwise mint a fresh id
 		// and splice a rival beside the immortal orphan.
-		findingID := adoptTornFindingAnchor(s.RunDir, location)
+		findingID := adoptTornFindingAnchor(run.Dir(), location)
 		spliced := findingID != ""
 		if findingID == "" {
 			// Mint the id UP FRONT: it forms the marker, so it must exist before the
@@ -87,7 +93,7 @@ func newFinding() *cobra.Command {
 		// FOUND -> reject (a mis-quote): the transform returns an error, nothing is
 		// written, and the finding is not recorded. The events are appended ONLY
 		// after a confirmed write (so a failed write leaves no id in EXPECTED).
-		if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
+		if err := record.MutateBlueReport(run.Dir(), func(old []byte) ([]byte, error) {
 			if spliced {
 				return old, nil // the crashed first attempt already placed this marker
 			}

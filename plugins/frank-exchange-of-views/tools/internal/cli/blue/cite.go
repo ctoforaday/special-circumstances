@@ -35,6 +35,10 @@ import (
 // dangling citation — never a wedge, never a phantom event.
 func newCite() *cobra.Command {
 	c := seat.Prose(seat.New("cite", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
 		quote := seat.Str(cmd, flags.Quote)
 		if strings.TrimSpace(quote) == "" {
 			return nil, fmt.Errorf("blue cite requires --quote: the EXACT sentence to anchor the citation at, verbatim from blue/report.md and nothing else")
@@ -51,7 +55,7 @@ func newCite() *cobra.Command {
 		// Crash-retry idempotency: a prior cite under this --key returns its label, no
 		// second fetch AND no second anchor (BEFORE any effect).
 		key := seat.Str(cmd, flags.Key)
-		if prior, err := record.ExistingCiteByKey(s.RunDir, s.SeatID, key); err != nil {
+		if prior, err := record.ExistingCiteByKey(run.Dir(), s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
 			return citeResult{Label: prior, Idempotent: true}, nil
@@ -59,7 +63,7 @@ func newCite() *cobra.Command {
 
 		// Resolve the source through the run cache (fetch-once). A FAILURE is an unusable
 		// citation: reject AND auto-emit a friction event (unlike a bare `fetch` miss).
-		sha, _, _, err := fetchcache.Resolve(s.RunDir, url, fetchcache.Default)
+		sha, _, _, err := fetchcache.Resolve(run.Dir(), url, fetchcache.Default)
 		if err != nil {
 			msg := fmt.Sprintf("blue cite: could not load %s: %v — pick a reachable source or an archive.org snapshot", url, err)
 			if _, ferr := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(msg)}); ferr != nil {
@@ -76,7 +80,7 @@ func newCite() *cobra.Command {
 		// two tokens, one of them immortal and backing nothing. If the located quote already
 		// carries a citation anchor the record has never heard of, that anchor IS this cite's
 		// first attempt, and the retry finishes the interrupted act instead of starting a rival.
-		label := adoptTornCiteAnchor(s.RunDir, quote)
+		label := adoptTornCiteAnchor(run.Dir(), quote)
 		if label == "" {
 			// Mint the label UP FRONT: it forms the marker, so it must exist before the report
 			// write. Append will not re-mint (the label is already in the payload).
@@ -86,7 +90,7 @@ func newCite() *cobra.Command {
 			// Splice the invisible anchor at the located quote UNDER THE LOCK, atomically, via
 			// the shared anchor-insert (the same rule a finding is anchored by). Mis-quote or
 			// in-fence -> reject; nothing is written and no cite is recorded.
-			if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
+			if err := record.MutateBlueReport(run.Dir(), func(old []byte) ([]byte, error) {
 				next, aerr := lens.InsertAnchor(old, quote, marker)
 				switch {
 				case errors.Is(aerr, lens.ErrMisQuote):
