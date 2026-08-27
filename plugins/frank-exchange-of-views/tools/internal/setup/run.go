@@ -379,9 +379,6 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		v = "(version unreported)"
 	}
 	fmt.Fprintf(stdout, "  record binary: %s %s\n", recordBin, v)
-	// CAN THIS RUN READ A PDF — asked here because here is the last moment before seats exist,
-	// and a seat cannot install a binary or set a variable the MCP server read at startup.
-	ReportDocumentTooling(stdout, ProbeDocumentTooling(nil, nil))
 	fmt.Fprintf(stdout, "  run-live marker: %s\n", marker)
 	// LOUD, AND ACTIONABLE PER RUN. A notice that only said "something else is open" would be
 	// the skimmable version of the refusal it replaces; each row names its own capture command.

@@ -55,39 +55,24 @@ the setup script runs before Claude Code launches, the snapshot is per
 environment rather than per repository, and in any environment not scoped to
 this repository the checkout is not there to call.
 
-## Research environments need three more things
+## Research environments need two more things
 
 Everything above provisions the plugins. A **research environment** — one that
-will run `/frank-exchange-of-views:research` — needs three additions, each of
-which cost a measured programme real tokens or real evidence when it was
-missing (#592, from the 2026-08-23 retrospective).
+will run `/frank-exchange-of-views:research` — needs two additions, each of
+which cost a measured programme real evidence when it was missing (#592, from
+the 2026-08-23 retrospective).
 
-### 1. Document tooling, in the setup script
+> [!NOTE]
+> #592's third ask — PDF/OCR tooling — is deliberately **not** here. It was
+> drafted as a provisioning line and withdrawn: installing `pdftotext` and
+> `tesseract` makes a seat read PDFs *better* without making a single PDF part
+> of the **record**, which is the property that actually matters. Measured
+> across 66 seat transcripts, all 33 pdf-reader reads bypassed `fetch`
+> entirely, so better extraction would only have made an unrecorded read
+> cheaper and less visible. The tooling will come back as an implementation
+> detail of routing PDFs through `fetch` — see the issue tracking that.
 
-Append to the script above, before its final `exit 0`:
-
-```bash
-# PDF reading. Without these a seat that meets a PDF falls back to PAGE-IMAGE
-# renders, silently: measured 2026-08-23, one lens slice produced a 4.29 MB
-# transcript, 3.61 MB of it base64 images — 6x the next-largest seat.
-sudo apt-get install -y poppler-utils tesseract-ocr 2>/dev/null \
-  || echo "SC: pdftotext/tesseract not installed — PDF evidence will be lossy"
-```
-
-And set **`MCP_PDF_OCR_PRESET=tesseract`** in the environment's variables.
-
-**Both halves are required and neither implies the other.** `pdftotext` reads a
-PDF's *text layer*; OCR handles a PDF that has none, and the pdf-reader MCP
-server only reaches for OCR when that variable names a preset. tesseract
-installed with the variable unset is a run that can read half of what it meets
-and looks, from the inside, exactly like a run that can read all of it.
-
-`feov-record setup` reports this as a `documents:` line and names each missing
-piece — a warning, never a refusal, because a run whose sources are all HTML
-never touches a PDF. `/prosthetic-conscience:doctor` carries both binaries as
-recommended rows.
-
-### 2. The plugins must be installed by the SETUP SCRIPT, not mid-session
+### 1. The plugins must be installed by the SETUP SCRIPT, not mid-session
 
 This is the whole reason this document exists, and it is worth restating for
 research runs specifically because the failure is invisible from inside one.
@@ -99,7 +84,7 @@ identity-binding hook absent, and capture's friction-parity audit ran blind —
 Nothing in the run said so. The seats worked, the report shipped, and the audit
 reported what an empty channel reports.
 
-### 3. Known-blocked egress hosts
+### 2. Known-blocked egress hosts
 
 Where the environment reaches the network through a proxy, a host outside its
 allowlist answers **403** — the same status an origin uses to refuse a client.
