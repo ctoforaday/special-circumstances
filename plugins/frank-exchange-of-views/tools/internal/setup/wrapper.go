@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
@@ -54,7 +55,8 @@ type WrapperResult struct {
 
 // WriteRunWrapper writes <runDir>/.bin/feov-record (and .cmd) execing recordBin with the run
 // directory in the environment. runDir should already be absolute.
-func WriteRunWrapper(runDir, recordBin string) WrapperResult {
+func WriteRunWrapper(run record.Run, recordBin string) WrapperResult {
+	runDir := run.Dir()
 	target, err := resolveTarget(recordBin)
 	if err != nil {
 		return WrapperResult{Skipped: err.Error()}

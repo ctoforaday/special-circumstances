@@ -43,7 +43,7 @@ func TestTheWrapperDeliversTheRunToTheRealBinary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	res := WriteRunWrapper(run, target)
+	res := WriteRunWrapper(runOf(t, run), target)
 	if res.Skipped != "" {
 		t.Fatalf("WriteRunWrapper skipped: %s", res.Skipped)
 	}
@@ -75,7 +75,7 @@ func TestTheWrapperRefusesToWrapAWrapper(t *testing.T) {
 	if err := os.MkdirAll(first, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	res := WriteRunWrapper(first, target)
+	res := WriteRunWrapper(runOf(t, first), target)
 	if res.Skipped != "" {
 		t.Fatalf("first wrapper skipped: %s", res.Skipped)
 	}
@@ -84,7 +84,7 @@ func TestTheWrapperRefusesToWrapAWrapper(t *testing.T) {
 	if err := os.MkdirAll(second, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	again := WriteRunWrapper(second, filepath.Join(res.BinDir, WrapperName))
+	again := WriteRunWrapper(runOf(t, second), filepath.Join(res.BinDir, WrapperName))
 	if again.Skipped == "" {
 		t.Fatalf("wrapping run-a's wrapper for run-b was accepted (BinDir %q) — run-b's seats would file against run-a", again.BinDir)
 	}
@@ -102,9 +102,9 @@ func TestAnUnresolvableBinaryIsReportedNotSwallowed(t *testing.T) {
 		{"a path that does not exist", filepath.Join(run, "nope", "feov-record")},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			res := WriteRunWrapper(run, tc.bin)
+			res := WriteRunWrapper(runOf(t, run), tc.bin)
 			if res.Skipped == "" {
-				t.Errorf("WriteRunWrapper(%q) returned BinDir %q with no reason", tc.bin, res.BinDir)
+				t.Errorf("WriteRunWrapper(runOf(t, %q)) returned BinDir %q with no reason", tc.bin, res.BinDir)
 			}
 			if res.BinDir != "" {
 				t.Errorf("a skipped wrapper still reported BinDir %q, which the summary would print as usable", res.BinDir)
@@ -122,7 +122,7 @@ func TestTheWindowsTwinIsWrittenWithTheSameRun(t *testing.T) {
 	if err := os.MkdirAll(run, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	res := WriteRunWrapper(run, target)
+	res := WriteRunWrapper(runOf(t, run), target)
 	if res.Skipped != "" {
 		t.Fatalf("WriteRunWrapper skipped: %s", res.Skipped)
 	}
