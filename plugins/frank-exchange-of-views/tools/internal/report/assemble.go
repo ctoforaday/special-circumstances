@@ -120,6 +120,12 @@ func Assemble(runDir string) (string, error) {
 	// then the reviewer-facing "read this first" composed from the board and the bench's voice.
 	p(titleOr(blue))
 	p(verdictStamp(outcomeOf(evs)))
+	// WHAT ANSWERED, before what was found. A reader deciding how much weight this document
+	// carries needs the verdict and the adversary's actual strength in the same breath: a PASS
+	// from a tier nobody configured is not the PASS the run was set up to produce.
+	if c := conduct(board); c != "" {
+		p(c)
+	}
 	p(orientation(board, evs))
 	p(sectionOr(blue, "TL;DR"))
 	p(sectionOr(blue, "The Catechism"))
@@ -221,6 +227,12 @@ func blueEmbed(blue string) string {
 		// what left the report, written by the party that removed it — the record already
 		// carries the claim, the reason and the successor, checked at the write.
 		"claims withdrawn": true,
+		// Composed from register.served_model, and the one section a seat provably cannot
+		// author: a seat reads the run's CONFIGURATION and never learns what replied to it.
+		// Blue authoring this would ship the unmeasured premise beside the measured one, in
+		// the same document, and the reader would have no way to tell which is which — which
+		// is nearly what happened (#589), minus the measured half.
+		"how this run was conducted": true,
 	}
 	var out []string
 	fence, keep, inPreamble := false, false, true
