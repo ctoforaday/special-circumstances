@@ -159,20 +159,39 @@ func Closing(key string) *cobra.Command {
 //
 // THREE VIEWS ALSO CLAIMED "merge" AND THE LAST ONE SILENTLY WON, because the resolution loop
 // keeps overwriting. A default decided by slice order is a default nobody chose.
+// jsonByName marks a projection whose NATIVE form is already JSON, so `--json` on it is
+// refused ([[one-way-no-aliases]]: one canonical way to each form).
+//
+// IT IS A FIELD BECAUSE IT WAS TWO HAND-KEPT LISTS. The fact lived in the `long` prose (each
+// such view opens "STRUCTURED JSON:") and again in a switch case naming six views by hand, and
+// nothing held them together. TestDebateJSONViewAndOneWayContract's own comment records what
+// that costs: `friction` sat in a list like this after it stopped being a view, and the
+// assertion went on passing because it demands an error and an unknown view is an error too — a
+// stale name checking nothing while reading as coverage.
+//
+// MEASURED COST OF THE PROSE HALF (#593): six seats across two runs piped `show work --json`
+// into python and crashed on KeyError: 'sitting'. They had not guessed the schema wrong — the
+// schema is published and correct, and `sitting` is a real key on the bare projection. They read
+// a description shouting STRUCTURED JSON, reached for the tool's --json flag, and got a REFUSAL
+// whose envelope ({ok,code,error}) parses as cleanly as the projection does. The refusal's whole
+// justification is that "a wrong guess fails loudly"; delivered to a pipeline it failed silently,
+// as a missing key. So the warning now travels where the guess is formed, generated from this
+// field rather than remembered in prose.
 var views = []struct {
 	name, short, long, defaultFor string
+	jsonByName                    bool
 }{
-	{"report", "THE DOCUMENT UNDER AUDIT, as it stands now — read it through the tool, not off disk. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`", "THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`", ""},
-	{"board", "EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by `mint`, `close`, `regrade` and `retire`", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. STRUCTURED JSON by default (the form a seat acts on); `--format markdown` gives the human-verification rendering, open gaps then the closure archive with its prose. Written by `mint`, `close`, `regrade` and `retire`", ""},
-	{"findings", "THE RAW LENS FINDINGS, BEFORE the merge coalesces them into gaps — several findings can become one gap, and this is where you see which. Written by `finding`", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", ""},
-	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `opinion`", "**RUN THIS FIRST AND RUN IT AGAIN BEFORE YOU STOP.** STRUCTURED JSON: EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item — each with `blocks`, saying whether it is what is stopping you closing — and `sitting.complete` is true exactly when nothing blocking is left. An item with `blocks: false` is work this board affords you that nobody will refuse you for skipping: a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK. `complete: true` with items open means the gates are satisfied, NOT that there is nothing to do. Carries the shrinking working set too — OPEN gaps only (grades, class, location, a problem synopsis, found_by). AND `closed_index`, WHICH IS NOT DEBRIS: it is the ESTOPPEL REGISTER, and this description used to call it a shrinking working set, which reads as `done, ignore it` and is the opposite of what it is for. Each entry carries id, location, class, the `fate` that ended it, and `closed_by` — `bench` or `red`. THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. If you hold new evidence against a bench-ruled gap, it is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for. A `fate` of defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind any fate is on the record, not here: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose. Read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `opinion`", "*"},
-	{"motions", "WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`", "STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", ""},
-	{"debate", "WHAT EACH SIDE ARGUED, round by round — the transcript, in order. Written by `position`, `closing` and `opinion`", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", ""},
-	{"changes", "HOW THE REPORT GOT THAT WAY — every edit in round order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", ""},
-	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`", "STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", ""},
-	{"lines-of-inquiry", "WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", ""},
-	{"telemetry", "HOW THE NUMBERS MOVED ACROSS ROUNDS — a trend, not a snapshot: one line per round, and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "STRUCTURED JSONL, one line per round: open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring", ""},
-	{"scorecard", "HOW YOUR CHAIR IS DOING ON THIS QUESTION — your own side's performance, this run only. No selector: your chair is the seat you registered as. Computed from the record, so no verb fills it", "YOUR CHAIR'S IN-RUN SCORECARD — how the side you sit on is doing on THIS question, computed live from this run's record. Your own performance, not another party's: there is no selector, because your chair is the seat you registered as. A number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures, because a diagnostic gamed is itself a defect and a detector firing is a finding. Rows reading \"not computed\" are HONEST, not gaps to fill: the envelope-derived rows fill in at capture. Computed from the record, so no verb fills it", ""},
+	{"report", "THE DOCUMENT UNDER AUDIT, as it stands now — read it through the tool, not off disk. `changes` says how it got that way. Written by the round-0 synthesis and every `edit`, with anchors from `cite`, `finding` and `prove`", "THE ARTIFACT UNDER AUDIT — blue's living report, read THROUGH the tool instead of off disk; add --anchor <id> to read just the passage AT one anchor (with its section and line numbers) rather than the whole document. Anchors are shown AS THEY ARE: `blue edit` refuses an edit that drops one, so a token inside the span you are replacing is yours to carry into --new. TO LOOK ONE UP rather than carry it: `show findings` resolves `<!--fx:f-…-->`, `show evidence` resolves `<!--cite:c-…-->` and `<!--proof:p-…-->`. Written by the round-0 synthesis and every `blue edit`", "", false},
+	{"board", "EVERY GAP THE RUN HAS, yours or not — open and closed, with grades, fates and closure prose. `work` narrows this to what is yours and blocking. Written by `mint`, `close`, `regrade` and `retire`", "THE BOARD — open and closed gaps with grades, closures, anchors, observations and their fates, counts, and any replay anomalies. STRUCTURED JSON by default (the form a seat acts on); `--format markdown` gives the human-verification rendering, open gaps then the closure archive with its prose. Written by `mint`, `close`, `regrade` and `retire`", "", true},
+	{"findings", "THE RAW LENS FINDINGS, BEFORE the merge coalesces them into gaps — several findings can become one gap, and this is where you see which. Written by `finding`", "STRUCTURED JSON: every lens finding on the record (label, seat, round, role, grades, location, text) — the merge coalesces these into gaps; replaces the red/candidates/*.md files", "", true},
+	{"work", "WHAT IS OPEN TO YOU, AND WHETHER YOU MAY STOP — your pending work, not the whole board. Run it first and again before you finish. Written by `mint`, `close` and the bench's `opinion`", "**RUN THIS FIRST AND RUN IT AGAIN BEFORE YOU STOP.** STRUCTURED JSON: EVERYTHING OPEN TO YOU, in one list. `sitting.open` is every work item — each with `blocks`, saying whether it is what is stopping you closing — and `sitting.complete` is true exactly when nothing blocking is left. An item with `blocks: false` is work this board affords you that nobody will refuse you for skipping: a citation nobody verified, a source blue never cited, a proof nobody re-ran, a line of inquiry never revisited, a grade you could move, a motion you could file. IT IS STILL YOUR WORK. `complete: true` with items open means the gates are satisfied, NOT that there is nothing to do. Carries the shrinking working set too — OPEN gaps only (grades, class, location, a problem synopsis, found_by). AND `closed_index`, WHICH IS NOT DEBRIS: it is the ESTOPPEL REGISTER, and this description used to call it a shrinking working set, which reads as `done, ignore it` and is the opposite of what it is for. Each entry carries id, location, class, the `fate` that ended it, and `closed_by` — `bench` or `red`. THAT DISTINCTION IS LOAD-BEARING: red may reopen its OWN closure on new evidence, but a bench ruling is ESTOPPED and re-raising it is relitigation, not diligence. If you hold new evidence against a bench-ruled gap, it is a lineage successor — mint it under a new id naming the ruled gap in `supersedes`, and say what the ruling did not account for. A `fate` of defect_owed_elsewhere means still broken and NOT yours to fix; repaired_with_regression means a live successor exists. The reasoning behind any fate is on the record, not here: `show debate` carries the bench's opinions, `show board --format markdown` the closure archive with its prose. Read the one you are about to rely on or work around. Bare `show` defaults here for every role. Written by `mint`, `close` and the bench's `opinion`", "*", true},
+	{"motions", "WHAT HAS BEEN CONTESTED AND HOW IT WAS RULED — the ask in the filer's words, and the ruling if it has one. `debate` is what each side ARGUED; this is what was formally disputed. Written by `motion`, `rule` and `appeal`", "STRUCTURED JSON: every motion and its answer — id, subject, filer, the BASIS (the ask in the filer's words), and the ruling if it has one. An unruled motion blocks `merge verdict --as PASS`, and this is the only way to read what it asks. Written by `motion <subject> file`, `rule` and `appeal`", "", true},
+	{"debate", "WHAT EACH SIDE ARGUED, round by round — the transcript, in order. Written by `position`, `closing` and `opinion`", "the round-by-round transcript, every seat's sections in order (add --json for the STRUCTURED form: rounds with red/blue/lead sections as data, for the audits). Written by `position`, `closing` and `opinion`", "", false},
+	{"changes", "HOW THE REPORT GOT THAT WAY — every edit in round order, and with `--id <gap>` the fix red asked for beside the edits answering it. Written by `edit`", "every recorded edit to blue/report.md (the blue_edit diff stack), in round order; add --id <gap> to put red's required_fix and the edits answering it SIDE BY SIDE — the comparison that replaces inferring whether a gap was fixed. Written by `edit`", "", false},
+	{"evidence", "WHAT BACKS A CLAIM, AND WHAT RED MADE OF IT — the lookup table for an anchor you are holding while reading. Written by `cite`, `prove`, `verify` and `reproduce`", "STRUCTURED JSON: WHAT BACKS THE REPORT, AND WHAT HAS BEEN CHECKED OF IT — every source keyed by the `<!--cite:c-…-->` anchor in the text (url, title, sha256, the sentence it backs), every computation keyed by its `<!--proof:p-…-->` anchor WITH the sha256 `reproduce --id` wants and red's re-run (or null, meaning nobody re-ran it), and red's verified claims with their trust grades. THIS IS HOW YOU RESOLVE AN ANCHOR you are reading in the report. Written by `cite`, `prove`, `verify` and `reproduce`", "", true},
+	{"lines-of-inquiry", "WHICH DIRECTIONS WERE TAKEN AND WHICH WERE NOT — pursued, deferred, declined, abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule`", "the exploration space: lines taken, deferred, declined and abandoned, and the ones still undecided. Written by `line-of-inquiry` (propose and move) and `motion inquiry rule` (red's ruling)", "", false},
+	{"telemetry", "HOW THE NUMBERS MOVED ACROSS ROUNDS — a trend, not a snapshot: one line per round, and the signal the STOPPING judgment reads. Computed from the record, so no verb fills it", "STRUCTURED JSONL, one line per round: open count, max severity, mass under the pinned mapping, new mints BY SEVERITY AND BY CLASS with the class repeat rate, repair-regression ratio, and edge deltas — the trend the STOPPING judgment reads. The bench's signal for whether the findings are still changing character or merely recurring", "", true},
+	{"scorecard", "HOW YOUR CHAIR IS DOING ON THIS QUESTION — your own side's performance, this run only. No selector: your chair is the seat you registered as. Computed from the record, so no verb fills it", "YOUR CHAIR'S IN-RUN SCORECARD — how the side you sit on is doing on THIS question, computed live from this run's record. Your own performance, not another party's: there is no selector, because your chair is the seat you registered as. A number reading badly means RECOGNISE the failure and adapt — never perform the metric at the expense of the duty it measures, because a diagnostic gamed is itself a defect and a detector firing is a finding. Rows reading \"not computed\" are HONEST, not gaps to fill: the envelope-derived rows fill in at capture. Computed from the record, so no verb fills it", "", false},
 }
 
 // ViewNames is the projection vocabulary — the single source behind the help text, the
@@ -192,6 +211,45 @@ func showGroup(c *cobra.Command) *cobra.Command {
 	}
 	return c
 }
+
+// JSONByNameViews are the projections whose native form is already JSON. Derived from the
+// table, so the refusal below and the warning in each description cannot name different sets.
+func JSONByNameViews() []string {
+	out := []string{}
+	for _, v := range views {
+		if v.jsonByName {
+			out = append(out, v.name)
+		}
+	}
+	return out
+}
+
+func jsonByNameHelpSuffix(jsonByName bool) string {
+	if jsonByName {
+		return jsonByNameWarning
+	}
+	return ""
+}
+
+func viewIsJSONByName(name string) bool {
+	for _, v := range views {
+		if v.name == name {
+			return v.jsonByName
+		}
+	}
+	return false
+}
+
+// jsonByNameWarning is appended to every JSON-by-name view's help, at the point a seat forms the
+// guess rather than after it has already piped the answer somewhere.
+//
+// It names the CONSEQUENCE, not just the rule. "Do not pass --json" alone is what the refusal
+// already said, and six seats never saw it: they had piped stdout into python, where an
+// {ok,code,error} envelope parses exactly as well as the projection and surfaces as a missing
+// key. A seat that reads this knows the refusal is shaped like data before it writes the pipe.
+const jsonByNameWarning = " THIS PROJECTION IS ALREADY THE JSON — do not pass --json, which is REFUSED (there is one way to each form). " +
+	"The refusal is itself a JSON envelope ({\"ok\":false,…}), so a pipeline that reads stdout without checking `ok` " +
+	"sees a well-formed object missing every key it wanted: measured as six seats crashing on KeyError: 'sitting' across two runs."
 
 func ViewNames() []string {
 	out := make([]string, 0, len(views))
@@ -283,7 +341,7 @@ func Show() *cobra.Command {
 			// which renders Short, and a projection whose writer is unnamed teaches a name that
 			// does not work.
 			Short:        v.short,
-			Long:         v.long,
+			Long:         v.long + jsonByNameHelpSuffix(v.jsonByName),
 			Args:         cobra.NoArgs,
 			SilenceUsage: true,
 			RunE:         func(cmd *cobra.Command, _ []string) error { return renderView(cmd, v.name) },
@@ -371,12 +429,18 @@ func renderView(cmd *cobra.Command, want string) error {
 		// the friction reader is the OPERATOR command (cli/friction.go), never a seat view — so
 		// this case could not fire and the default's message below advertised it to seats by
 		// name. A seat that read it learned a projection it cannot open.
-		case "board", "findings", "motions", "work", "telemetry", "evidence":
-			return fmt.Errorf("%s show: show %s is already JSON by name — drop --json (it is the single way to that projection's JSON)", role, want)
+		// THE SET COMES FROM THE TABLE. It was six names written here by hand, and the
+		// contract test's own comment records a stale name surviving in a list like this
+		// while the assertion read as coverage.
 		case "":
 			return RefuseAndTeach(showGroup(cmd), fmt.Sprintf("%s show: name a projection. Each below names the verb that fills it", role))
 		default:
-			return fmt.Errorf("%s show: show %s has no --json form (only 'debate' does; board/findings/motions/work/telemetry/evidence are JSON by name)", role, want)
+			if viewIsJSONByName(want) {
+				return fmt.Errorf("%s show: show %s is already JSON by name — drop --json (it is the single way to that projection's JSON). "+
+					"This refusal is a JSON envelope, so a pipeline reading stdout without checking `ok` sees an object missing every key it wanted", role, want)
+			}
+			return fmt.Errorf("%s show: show %s has no --json form (only 'debate' does; %s are JSON by name)",
+				role, want, strings.Join(JSONByNameViews(), "/"))
 		}
 	}
 
