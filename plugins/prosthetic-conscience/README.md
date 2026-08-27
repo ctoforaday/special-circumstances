@@ -4,7 +4,7 @@
 
 The base plugin of [Special Circumstances](../../README.md). It carries the shared rule substrate the other plugins preload, plus the adversarial-partner behaviour for interactive work.
 
-**Status: shipping.** 21 skills, 5 commands, 2 agents, 8 hook binaries.
+**Status: shipping.** 22 skills, 5 commands, 2 agents, 10 hook binaries.
 
 ## The distinctive idea
 
@@ -12,22 +12,28 @@ The rules are **defense in depth, not duplication**. A skill states the *semanti
 
 ## Rules
 
-Nine load on every session, the rest by description. `design-by-contract` is the authoring grammar: BEFORE / During / AFTER · YOU MUST.
+Ten load on every session, the rest by description. `design-by-contract` is the authoring grammar: BEFORE / During / AFTER · YOU MUST.
 
-`agent-guardrails` · `anti-spinning` · `complete-the-concept` · `context-checkpointing` · `context-efficiency` · `critical-stance` · `design-by-contract` · `git-proficiency` · `markdown-proficiency` · `pair-programming` · `plan-act-reflect` · `project-memory` · `qlty-proficiency` · `refactoring-safety` · `scratch-policy` · `semantic-consent` · `spec-driven-development` · `terse-communication` · `test-driven-development` · `think-around-problem` · `validation-loop`
+`agent-guardrails` · `anti-spinning` · `complete-the-concept` · `context-checkpointing` · `context-efficiency` · `critical-stance` · `design-by-contract` · `facts-are-fields` · `git-proficiency` · `markdown-proficiency` · `pair-programming` · `plan-act-reflect` · `project-memory` · `qlty-proficiency` · `refactoring-safety` · `scratch-policy` · `semantic-consent` · `spec-driven-development` · `terse-communication` · `test-driven-development` · `think-around-problem` · `validation-loop`
 
 ## Hooks
 
-| Binary | Event | What it does |
+**One binary per event**, each composing the units that belong to it, so one process parses the payload once and emits one answer.
+
+| Binary | Event | Units it runs |
 |---|---|---|
-| `sc-secrets-gate` | PreToolUse | Blocks secrets leaving via web calls and shell |
-| `sc-push-freeze-guard` | PreToolUse | Refuses pushes to pinned paths while a research run is live |
-| `sc-posttooluse` | PostToolUse | The quality gate (`qlty fmt` + `qlty check`), as a unit over one shared context |
-| `sc-toolchain-nudge` | SessionStart | One line when a recommended tool is missing, silence when healthy |
-| `sc-checkpoint-seal` | PreCompact · SessionEnd · SubagentStop | Seals the note at every seam; tells the summarizer what to preserve, on PreCompact only |
-| `sc-checkpoint-restore` | SessionStart | Hands the note back — every source, compaction included |
+| `sc-pretooluse` | PreToolUse | Secrets gate (fails closed, can deny) · push-freeze guard (warns, never blocks) |
+| `sc-posttooluse` | PostToolUse | The quality gate (`qlty fmt` + `qlty check`), over one shared context |
+| `sc-strike-counter` | PostToolUseFailure | Counts (tool, target) repeats for anti-spinning; skips interrupts |
+| `sc-sessionstart` | SessionStart | Toolchain nudge · checkpoint restore — every source, compaction included |
+| `sc-precompact` | PreCompact | Seals the note, and tells the summarizer what to preserve |
+| `sc-sessionend` | SessionEnd | Seals the note on every reason, headless `other` included |
+| `sc-subagentstop` | SubagentStop | Seals a seat's note, keyed by `agent_id` |
 | `sc-postcompact-observe` | PostCompact | Scores what each summary kept; observation only |
 | `sc-filechanged-rearm` | FileChanged | Marks a check stale when its trigger surface moves |
+| `sc-stop` | Stop | The checkpoint-freshness nudge — registered and inert until its thresholds exist |
+
+`sc-doctor` is the eleventh binary and the one you invoke yourself, via `/prosthetic-conscience:doctor`.
 
 Every hook is wrapped in a bootstrap guard: a fresh plugin version ships from git *without* binaries, and an unguarded hook crash-storms every tool call in that window. The guard degrades to one stderr line pointing at `/prosthetic-conscience:doctor --fix`.
 
@@ -63,6 +69,6 @@ An explicit `/clear` gets a pointer rather than the digest. That carve-out is by
 
 - **Hook events are version-unstable.** Several events this plugin uses postdate its own design. The load-bearing path is deliberately built on `SessionStart`, the oldest of them: an older client loses observability and the seal's instruction fold-in, never continuity. `/doctor` reports what the installed client supports.
 - **The note is a claim, not a fact.** Restore hands back what the session *wrote down*, which may already be stale. `/resume` re-verifies before acting; the digest says so in its own text.
-- **`sc-quality-gate` depends on qlty being installed.** Absent, it degrades to silence rather than to a false pass.
+- **The quality gate depends on qlty being installed.** Absent, the `sc-posttooluse` unit degrades to silence rather than to a false pass.
 
 Design: [`plans/context-checkpointing.md`](../../plans/context-checkpointing.md) · [`plans/claude-port-plan.md`](../../plans/claude-port-plan.md) §3a. Measured hook payloads: [`plans/hook-surface-spike.md`](../../plans/hook-surface-spike.md).
