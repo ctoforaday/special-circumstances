@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/unwritable"
 )
 
 const note = `---
@@ -269,13 +271,12 @@ func TestTheObserverAlwaysExitsZero(t *testing.T) {
 		{"empty payload", noteDir, ``},
 		{"malformed payload", noteDir, `{`},
 		{"note present, transcript missing", noteDir, `{"session_id":"s1","transcript_path":"/nope/none.jsonl","trigger":"auto"}`},
+		// PROBED, NOT ASSUMED — this case asserts exit 0, which a successful write also
+		// produces, so where the chmod does not restrict the caller it passed while exercising
+		// nothing. Measured green in a root container against a writable directory.
 		{"unwritable checkpoints dir", func(t *testing.T) string {
 			d := noteDir(t)
-			cp := filepath.Join(d, ".claude", "checkpoints")
-			if err := os.Chmod(cp, 0o500); err != nil {
-				t.Fatal(err)
-			}
-			t.Cleanup(func() { _ = os.Chmod(cp, 0o755) })
+			unwritable.Dir(t, filepath.Join(d, ".claude", "checkpoints"))
 			return d
 		}, `{"session_id":"s1","trigger":"auto","compact_summary":"x"}`},
 	} {

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/unwritable"
 )
 
 const rowNote = "---\nschema: 3\nwritten_at: 2026-08-23T00:00:00Z\n---\n## Validation loop\n1. go test ./...\n"
@@ -279,10 +281,10 @@ func TestASealSurvivesAnUnwritableCheckpointsDirectory(t *testing.T) {
 	dir := t.TempDir()
 	cp := filepath.Join(dir, ".claude", "checkpoints")
 	writeNote(t, filepath.Join(cp, "CHECKPOINT.md"), rowNote)
-	if err := os.Chmod(cp, 0o500); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(cp, 0o755) })
+	// PROBED, NOT ASSUMED. This test asserts exit 0 — which a SUCCESSFUL write also produces —
+	// so where the chmod does not restrict the caller it passed while exercising nothing.
+	// Measured green in a root container against a directory it wrote to freely.
+	unwritable.Dir(t, cp)
 
 	_, _, code := call(t, input(t, hookInput{SessionID: "s1", HookEventName: evPreCompact}), dir,
 		time.Date(2026, 8, 23, 1, 0, 0, 0, time.UTC), "-event", evPreCompact)
