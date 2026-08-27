@@ -30,8 +30,8 @@ func TestAReadHonoursTheInjectedRunLikeAWrite(t *testing.T) {
 
 	c := &cobra.Command{Use: "show"}
 	c.Flags().String(flags.Run, "", "")
-	if got := Of(c).RunDir; got != run {
-		t.Fatalf("Of().RunDir = %q with FEOV_RUN=%q — a read that reaches for the flag instead "+
+	if got := Of(c).runDir; got != run {
+		t.Fatalf("Of().runDir = %q with FEOV_RUN=%q — a read that reaches for the flag instead "+
 			"of resolving will demand --run from a seat correctly omitting it", got, run)
 	}
 }
@@ -136,8 +136,8 @@ func TestTheContextCarriesWhichPathSuppliedTheRun(t *testing.T) {
 		if c.RunVia != seatenv.RunFromInference {
 			t.Errorf("Of().RunVia = %q with neither injection nor flag, want %q", c.RunVia, seatenv.RunFromInference)
 		}
-		if c.RunDir != run {
-			t.Errorf("Of().RunDir = %q, want the inferred %q", c.RunDir, run)
+		if c.runDir != run {
+			t.Errorf("Of().runDir = %q, want the inferred %q", c.runDir, run)
 		}
 	})
 }
@@ -167,10 +167,14 @@ func TestARefusedRunIsCarriedNotHandedBack(t *testing.T) {
 
 	s := Of(c)
 	if s.RunErr == nil {
-		t.Fatalf("Of() carried no refusal for a --run contradicting the dispatch (RunDir %q)", s.RunDir)
+		t.Fatalf("Of() carried no refusal for a --run contradicting the dispatch (runDir %q)", s.runDir)
 	}
-	if s.RunDir != "" {
-		t.Errorf("Of().RunDir = %q on a refused resolution — a caller holding one will use it", s.RunDir)
+	// THE REFUSAL IS NOW UNREACHABLE-PAST, not merely carried. The predecessor asserted the
+	// path was empty because "a caller holding one will use it" — true when the field was
+	// exported, and the reason two verbs did exactly that. There is no field to hold now:
+	// Run() is the only way to a path, and it hands back the refusal instead.
+	if r, err := s.Run(); err == nil {
+		t.Errorf("Run() resolved %s on a refused context — the refusal is reachable-past again", r)
 	}
 
 	// RequireRun answers the refusal itself, not a generic "required": a seat that DID pass

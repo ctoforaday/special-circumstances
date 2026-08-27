@@ -29,6 +29,10 @@ import (
 // mirror, so the frozen snapshot is the source, not a materialized cache.
 func newVerdict() *cobra.Command {
 	c := seat.New("verdict", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
 		v, ok := record.VerdictOf(seat.Str(cmd, flags.As))
 		if !ok {
 			// THE REFUSAL NAMES WHAT WOULD HAVE WORKED. `%q is not a verdict` tells a seat it
@@ -42,11 +46,11 @@ func newVerdict() *cobra.Command {
 		if _, err := record.Append(s.Identity(), &recordpb.RoundVerdict{Verdict: &v}); err != nil {
 			return nil, err
 		}
-		open, closed, err := view.Counts(s.RunDir)
+		open, closed, err := view.Counts(run.Dir())
 		if err != nil {
 			return nil, err
 		}
-		mirror, err := checkpoint(s.RunDir)
+		mirror, err := checkpoint(run.Dir())
 		if err != nil {
 			return nil, err
 		}

@@ -164,6 +164,10 @@ func backsTheClaim(o recordpb.SourceOutcome) bool {
 }
 
 func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayCite citing) (seat.Result, error) {
+	run, err := s.Run()
+	if err != nil {
+		return nil, err
+	}
 	body.Claim = proto.String(seat.Str(cmd, flags.Quote))
 	// ABSENT IS NOT EMPTY. Set unconditionally, an unpassed --access-date landed as "" and read
 	// as "the seat dated this source to nothing" rather than "the seat did not date it" — the
@@ -205,14 +209,14 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		// a crash-retried corroboration splices a SECOND anchor at the same sentence and records
 		// a second event — the duplication the url key used to prevent. Checked before the mint,
 		// as blue's cite checks its --key before the fetch.
-		if prior, err := record.ExistingCorroborationLabel(s.RunDir, s.SeatID, body.GetUrl(), body.GetClaim()); err != nil {
+		if prior, err := record.ExistingCorroborationLabel(run.Dir(), s.SeatID, body.GetUrl(), body.GetClaim()); err != nil {
 			return nil, err
 		} else if prior != "" {
 			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true}, nil
 		}
 		label := record.NewCitationID()
 		marker := "<!--cite:" + label + "-->"
-		if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
+		if err := record.MutateBlueReport(run.Dir(), func(old []byte) ([]byte, error) {
 			next, aerr := InsertAnchor(old, body.GetClaim(), marker)
 			switch {
 			case errors.Is(aerr, ErrMisQuote):

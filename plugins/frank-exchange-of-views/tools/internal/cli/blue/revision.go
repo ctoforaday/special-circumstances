@@ -26,6 +26,10 @@ func newRevision() *cobra.Command {
 	// hand-written in a file (retired, #251). #70 moved the count to the deterministic `count-claims` command and
 	// dropped this flag, so there is exactly one way the number is produced.
 	return seat.Prose(seat.New("revision", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
 		text, err := seat.Reason(cmd)
 		if err != nil {
 			return nil, err
@@ -44,7 +48,7 @@ func newRevision() *cobra.Command {
 		// was measured is not defiance but not-noticing: making `check_kind` visible moved
 		// `prove` from 0 uses in eighteen sittings to 1 in nine, which says a seat reading
 		// a property still does not read a debt.
-		return revisionResult{Owed: record.GapsAwaitingProof(s.RunDir)}, nil
+		return revisionResult{Owed: record.GapsAwaitingProof(run.Dir())}, nil
 	}))
 }
 
