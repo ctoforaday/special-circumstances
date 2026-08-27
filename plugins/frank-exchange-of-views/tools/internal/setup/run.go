@@ -36,6 +36,14 @@ type Config struct {
 	// party whose adversary strength is in question, so the decision cannot be its to make.
 	AllowSubstitution bool
 
+	// HelpTree renders one role's whole command surface, for staging into inputs/. It is
+	// injected because the tree lives in internal/cli, which imports THIS package to wire the
+	// setup command — so the dependency can only run one way. cli.HelpTreeFor in the real
+	// command; nil elsewhere, which StageHelpTrees reports rather than absorbs.
+	HelpTree func(role string) (string, error)
+	// HelpRoles are the roles to stage. record.SeatRoles() in the real command.
+	HelpRoles []string
+
 	Cwd        string
 	Home       string
 	ProjectDir string // CLAUDE_PROJECT_DIR
@@ -288,6 +296,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 
 	law := MirrorLaw(filepath.Join(cfg.Cwd, "law"), cfg.RunDir)
 	cards := MirrorScorecards(filepath.Join(cfg.Cwd, "feov-memory"), cfg.RunDir)
+	help := StageHelpTrees(cfg.RunDir, cfg.HelpRoles, cfg.HelpTree)
 	pinnedPaths := []string{}
 	for _, c := range cfg.Cites {
 		p, _ := splitPin(c)
@@ -359,6 +368,17 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		idxLine += fmt.Sprintf(" (%d harness-limit, classless by design)", len(patternIndex.HarnessLimit))
 	}
 	fmt.Fprintln(stdout, idxLine)
+	if help.Written {
+		// THE BYTES ARE PRINTED, because they are the cost this trades against. The tax it
+		// replaces was ~33% of both runs' record-tool traffic in help calls and 394 usage screens;
+		// what it costs instead is one read per seat of a stated size. An operator who thinks the
+		// trade is bad can see it here rather than infer it from a token bill.
+		fmt.Fprintf(stdout, "  help trees: %s staged into inputs/help-<role>.md (%d bytes total — ONE read replaces the tree walk)\n",
+			strings.Join(help.Roles, ", "), help.Bytes)
+	}
+	if help.Reason != "" {
+		fmt.Fprintf(stdout, "  help trees: %s\n", help.Reason)
+	}
 	if cards.Written {
 		fmt.Fprintf(stdout, "  scorecards: %s staged into inputs/\n", strings.Join(cards.Chairs, ", "))
 	} else {

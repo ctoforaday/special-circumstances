@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/setup"
 )
 
@@ -57,6 +58,10 @@ func newSetup() *cobra.Command {
 				Cwd:               cwd,
 				Home:              home,
 				ProjectDir:        os.Getenv("CLAUDE_PROJECT_DIR"),
+				// The help tree is staged from THIS binary's own command surface, which is the
+				// only source that cannot describe verbs the run's seats will not have.
+				HelpTree:  HelpTreeFor,
+				HelpRoles: record.SeatRoles(),
 			}
 			if code := setup.Run(cfg, cmd.OutOrStdout(), cmd.ErrOrStderr()); code != 0 {
 				os.Exit(code)

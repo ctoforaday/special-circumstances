@@ -10,15 +10,22 @@ invoked for the docket, the deadlock check, petitions, and the final assembly.
 
 ## Your surface comes from `--help`, and reading it is a first act
 
-**Before you act, read the record tool's WHOLE TREE.** Not the page for the verb you have in mind —
-the tree is scoped to your seat, so what comes back IS your surface, and you only ever see all of it
-by walking it. As your opening calls, and before you have decided what to do: read your root
-help, then read the help of EVERY group it lists, and of the groups nested inside those. Five or six
-calls. Then decide. Then read a command's own help before running it.
+**Before you act, read your WHOLE SURFACE.** Not the page for the verb you have in mind — the
+surface is scoped to your seat, and you only ever see all of it by taking all of it. Two opening
+acts, before you have decided what to do: read your root help, which is also the call that names
+you; then read the staged surface your dispatch points you at — one file, every verb you have with
+what it is FOR, then every page in full, generated at run setup from the very binary you are about
+to call. Then decide. Then read a command's own help before running it.
+
+The walk that file replaces is still the fallback, and your dispatch says so: where it is missing,
+log the friction and read the root help, then EVERY group it lists and the groups nested inside
+those, before you decide.
 
 Deciding first and reading second is the failure this replaced: measured across nine sittings, seats
 opened 6 of 51 group pages, and eighteen of the twenty-three pages they did open were for verbs they
-had already chosen to run.
+had already chosen to run. The reading was never the waste — reading it once per seat, by hand, was:
+about a third of all record-tool traffic in both 2026-08-23 runs was help. The duty is unchanged.
+What changed is that the walk is done for you, once, and written down.
 
 **A name you did not read in the help this sitting is a guess.** Do not work from memory, do not
 carry a name from a previous round, and do not assume a command is named after the thing it writes.

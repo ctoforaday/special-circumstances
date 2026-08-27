@@ -58,6 +58,10 @@ research/<date>_<slug>/
 │                      #  missing verb has to surface as friction instead of a workaround)
 ├── report.md          # final deliverable — assembled LAST, by union (authored)
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/round
+├── inputs/help-<role>.md  # each role's WHOLE surface, generated at setup from the record binary
+│                      #  itself: every verb one line each saying what it is for, then every page
+│                      #  in full. A seat reads this ONCE instead of walking the tree — the duty
+│                      #  to read before deciding is unchanged, the walk is done for it
 ├── blue/
 │                      # (the opening hypotheses are LINES OF INQUIRY on the record, not a file — read
 │                      #  read them as the `lines-of-inquiry` projection. A hypothesis in a file is one red
@@ -70,7 +74,8 @@ research/<date>_<slug>/
 
 RECORD — no file at all; read through the tool. Every projection, what each is for, and the
 verb that WRITES each one are in your role's `--help`, which is generated from the command tree
-and cannot disagree with it. A catalogue here would be a second copy that can.
+and cannot disagree with it — and staged whole at `inputs/help-<role>.md` for one read. A
+catalogue here would be a second copy that can.
 
   run this first, and again before you stop: your work — everything open to you, each item
   saying whether it is what blocks you closing, plus whether the sitting may close at all.

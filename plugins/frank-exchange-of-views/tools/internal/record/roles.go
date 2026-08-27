@@ -2,6 +2,7 @@ package record
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"sort"
 	"strings"
 )
 
@@ -176,6 +177,26 @@ func CheckSeatRole(role, seatID string) error {
 	return feov.Errorf(feov.RoleViolation, "seat %q does not belong to any role namespace (expected one of %s) — "+
 		"the engine assigns the seat id; a hand-invented one records under an identity no dispatch created",
 		seatID, strings.Join(prefixes, ", "))
+}
+
+// SeatRoles is the DEBATING roles, sorted — every role a seat can hold, which is roleSeats
+// minus the operator (a human running setup or capture is not a seat and has no dispatch).
+//
+// Derived, because this list was written out by hand in eight places across the cli tests and
+// the help gates — {"blue", "lens", "merge", "bench"}, in four different orders. A role added
+// to roleSeats would have been absent from every one of them, and each would have gone on
+// passing over the roles it did know: a gate that walks "every role" and silently walks four
+// of five reads exactly like a gate that walks all of them.
+func SeatRoles() []string {
+	out := make([]string, 0, len(roleSeats))
+	for role := range roleSeats {
+		if role == OperatorRole {
+			continue
+		}
+		out = append(out, role)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // SampleSeatOf is a seat id of the given role, for building that role's command tree in the gates

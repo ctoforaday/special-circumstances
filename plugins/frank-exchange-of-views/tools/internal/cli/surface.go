@@ -108,7 +108,12 @@ func CommandPaths() []string {
 	// trigger map and the gates, not an invocation. The motion subtree keeps its bare path: one
 	// motion is one object however many seats' trees it appears in.
 	seen := map[string]bool{}
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+	// record.SeatRoles(), not a hand-written four. This list appears verbatim in twenty-one
+	// places across this module, in four different orders; a role added to record.roleSeats
+	// would be absent from every one of them, and each would go on passing over the roles it
+	// happened to know — a walk of "every role" that walks four of five reads exactly like a
+	// walk of all of them. The other sites are swept in #618.
+	for _, role := range record.SeatRoles() {
 		var roleOut []string
 		out = nil
 		walk(NewRootFor(dispatchedSeatFor(role)), "")
@@ -148,7 +153,7 @@ func CommandPaths() []string {
 // repository keeps paying for.
 func AllRoots() map[string]*cobra.Command {
 	out := map[string]*cobra.Command{}
-	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+	for _, role := range record.SeatRoles() {
 		out[role] = NewRootFor(dispatchedSeatFor(role))
 	}
 	out[record.OperatorRole] = NewRootFor(record.OperatorRole)

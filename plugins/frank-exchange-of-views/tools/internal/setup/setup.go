@@ -226,6 +226,61 @@ func MirrorGapPatterns(memoryDirs []string, runDir string) MirrorResult {
 	return MirrorResult{Written: true, Files: len(parts), Sources: len(present)}
 }
 
+// HelpTreeResult reports which roles' surfaces were staged, and — when they were not — WHY, in
+// the same breath. A staging step that can silently do nothing is the defect this whole family of
+// mirrors has been repaired for twice.
+type HelpTreeResult struct {
+	Written bool
+	Reason  string
+	Roles   []string
+	Bytes   int
+}
+
+// StageHelpTrees writes each role's whole command surface to inputs/help-<role>.md.
+//
+// WHY THE RENDERER IS A PARAMETER. The tree lives in internal/cli, and internal/cli imports THIS
+// package to wire the setup command — so setup cannot import it back. Passing the renderer in
+// keeps the direction honest and, more usefully, makes the dependency visible: a caller that has
+// no tree to render says so by passing nil, and gets a stated refusal rather than an empty
+// inputs/ that reads like a run whose seats simply had nothing to learn.
+//
+// render is cli.HelpTreeFor in the real command.
+func StageHelpTrees(runDir string, roles []string, render func(role string) (string, error)) HelpTreeResult {
+	if render == nil {
+		return HelpTreeResult{Reason: "no help renderer supplied — the surface was NOT staged, and every seat will walk the tree itself"}
+	}
+	if len(roles) == 0 {
+		return HelpTreeResult{Reason: "no roles to stage"}
+	}
+	outDir := filepath.Join(runDir, "inputs")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return HelpTreeResult{Reason: "could not create inputs/: " + err.Error()}
+	}
+	res := HelpTreeResult{}
+	var failed []string
+	for _, role := range roles {
+		body, err := render(role)
+		if err != nil {
+			failed = append(failed, role+" ("+err.Error()+")")
+			continue
+		}
+		// EACH ROLE IS REPORTED ON ITS OWN. A partial staging that reported success for the whole
+		// set would hand three seats their surface and leave the fourth walking the tree, with the
+		// summary saying all four were served — MirrorGapPatterns's defect, one directory over.
+		if err := os.WriteFile(filepath.Join(outDir, "help-"+role+".md"), []byte(body), 0o644); err != nil {
+			failed = append(failed, role+" ("+err.Error()+")")
+			continue
+		}
+		res.Roles = append(res.Roles, role)
+		res.Bytes += len(body)
+	}
+	res.Written = len(res.Roles) > 0
+	if len(failed) > 0 {
+		res.Reason = "NOT staged for " + strings.Join(failed, ", ")
+	}
+	return res
+}
+
 // ScorecardResult reports the chairs staged and the per-chair prompt headlines.
 type ScorecardResult struct {
 	Written   bool
