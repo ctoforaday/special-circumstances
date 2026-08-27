@@ -50,6 +50,10 @@ import (
 // tool's authority behind a claim nobody checked.
 func newReproduce() *cobra.Command {
 	c := seat.Prose(seat.New("reproduce", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
 		sha := seat.Str(cmd, flags.ID)
 		if sha == "" {
 			// THE WAY THROUGH, NAMED. This message used to say the sha was "listed in the report
@@ -58,7 +62,7 @@ func newReproduce() *cobra.Command {
 			// document had the token this verb does not take and no path to the one it does.
 			return nil, fmt.Errorf("lens reproduce requires --id: the sha256 of the proof to re-run. Reading the report and holding a `<!--proof:p-…-->` anchor, resolve it with `lens show evidence --run <runDir>` — every proof is listed there with its anchor, its sha256, its script, and whether anyone has re-run it yet")
 		}
-		ok, got, want, err := proof.Reproduce(s.RunDir, sha)
+		ok, got, want, err := proof.Reproduce(run.Dir(), sha)
 		if err != nil {
 			return nil, err
 		}

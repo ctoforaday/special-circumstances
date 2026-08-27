@@ -38,6 +38,10 @@ import (
 // actually does, which beats its documentation), and the report must not read the two alike.
 func newProve() *cobra.Command {
 	c := seat.Prose(seat.New("prove", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
+		run, err := s.Run()
+		if err != nil {
+			return nil, err
+		}
 		location, script := seat.Str(cmd, flags.Quote), seat.Str(cmd, flags.Script)
 		if strings.TrimSpace(location) == "" {
 			return nil, fmt.Errorf("blue prove requires --quote: the EXACT sentence in blue/report.md this computation backs — a proof anchored to nothing is a script nobody can connect to a claim")
@@ -47,13 +51,13 @@ func newProve() *cobra.Command {
 		}
 
 		// Crash-retry: a committed proof for this key is already recorded.
-		if prior, err := record.ExistingProofByKey(s.RunDir, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
+		if prior, err := record.ExistingProofByKey(run.Dir(), s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
 			return nil, err
 		} else if prior != "" {
 			return proveResult{SHA: prior, Idempotent: true}, nil
 		}
 
-		res, err := proof.Run(s.RunDir, script)
+		res, err := proof.Run(run.Dir(), script)
 		if err != nil {
 			// A proof that will not run is not evidence, and the failure is a capability
 			// signal — the same treatment `blue cite` gives an unreachable source.
@@ -74,12 +78,12 @@ func newProve() *cobra.Command {
 			return nil, fmt.Errorf("blue prove: %s ran to exit %d, but its output carries an ENVIRONMENT error, not a result:\n    %s\n"+
 				"A proof runs with the RUN DIRECTORY as its working directory (%s), not the repository root — a script that reaches for repo paths must resolve them itself. "+
 				"Fix the script and re-run; if capturing this failure IS the point (proving a path is absent, a command missing), say so with --expect-error and it is recorded as the result it is",
-				script, res.Exit, res.Failed, s.RunDir)
+				script, res.Exit, res.Failed, run.Dir())
 		}
 
 		// A TORN SPLICE IS ADOPTED, NOT DOUBLED — the same rule as `blue cite`, through the
 		// shared walk; only the recorded set (proof ids) is this verb's.
-		label := adoptTornProofAnchor(s.RunDir, location)
+		label := adoptTornProofAnchor(run.Dir(), location)
 		spliced := label != ""
 		if label == "" {
 			label = record.NewProofID()
@@ -87,7 +91,7 @@ func newProve() *cobra.Command {
 		marker := "<!--proof:" + label + "-->"
 		// Spliced under the report lock at the quoted sentence, by the SAME machinery a
 		// citation anchor uses: one immortal-anchor mechanism, three classes.
-		if err := record.MutateBlueReport(s.RunDir, func(old []byte) ([]byte, error) {
+		if err := record.MutateBlueReport(run.Dir(), func(old []byte) ([]byte, error) {
 			if spliced {
 				return old, nil // the crashed first attempt already placed this marker
 			}

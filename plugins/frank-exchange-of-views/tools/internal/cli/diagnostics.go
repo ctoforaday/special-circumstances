@@ -60,18 +60,16 @@ func newShowDiagnostics() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			sc := seat.Of(cmd)
-			// BEFORE the inference fallback, never after: falling back on a REFUSED resolution
-			// resolves quietly to the real run and hides the contradiction the seat needs to see.
-			if sc.RunErr != nil {
-				return sc.RunErr
+			// seat.Of ALREADY inferred if nothing was supplied — it ends its own resolution with
+			// InferRunDir. What used to sit here was a SECOND inference, reached only when the
+			// first had produced nothing, which by then meant the run had been REFUSED rather
+			// than omitted. Inferring there resolved quietly to a different run than the one the
+			// seat was told it could not have. Run() returns that refusal instead.
+			run, err := sc.Run()
+			if err != nil {
+				return err
 			}
-			runDir := sc.RunDir
-			if runDir == "" {
-				runDir = seat.InferRunDir("")
-			}
-			if runDir == "" {
-				return feov.Errorf(feov.MissingField, "show diagnostics: --run <runDir> is required")
-			}
+			runDir := run.Dir()
 			traj := trajectory
 			if traj == "" {
 				traj = inferTrajectory(runDir)
