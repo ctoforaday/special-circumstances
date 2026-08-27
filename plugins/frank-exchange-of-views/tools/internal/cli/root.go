@@ -169,7 +169,8 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	root.PersistentFlags().String(flags.SeatID, "", "your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at `register`, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed")
 	// --json makes every mutating verb emit a structured result and every failure a
 	// structured error, so a machine consumer parses fields instead of prose. On READS the
-	// format is primarily view-selected: board/findings/friction are JSON by name, the rest
+	// format is primarily view-selected: board/findings/work/motions/telemetry/evidence are JSON
+	// by name (seat.JSONByNameViews is the set; each one says so in its own --help), the rest
 	// are markdown. --json opts a markdown view into its structured form where one exists
 	// (today only `show --view debate --json`); it is an error on a JSON-by-name view or a
 	// markdown view with no JSON form, so there is exactly one way to reach each form.

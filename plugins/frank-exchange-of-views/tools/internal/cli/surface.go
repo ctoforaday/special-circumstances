@@ -34,6 +34,11 @@ import (
 // and works around it, so the capability is simply absent for the run.
 func ViewNames() []string { return seat.ViewNames() }
 
+// JSONByNameViews returns the projections whose native form is already JSON — the set on which
+// `--json` is refused. Re-exported for the same reason ViewNames is: the fuzz sweep and the
+// contract test each carried their own copy, and both had drifted (see the callers).
+func JSONByNameViews() []string { return seat.JSONByNameViews() }
+
 // CommandFlags returns every invocable command path with the flag names it declares.
 //
 // The companion to CommandPaths, and for the same reason: a hand-kept list of what a verb
