@@ -146,7 +146,7 @@ The run lands in `research/<date>_<slug>/`:
 | `trajectories/` | Per-seat execution journals |
 | `cost.md` | Per-seat, per-round token and dollar accounting |
 
-The debate transcript, the gap board, the citation ledger and the friction log are **not files**: they are views rendered from the event log on demand (`show --view debate`, `--view friction`, …), so there is never a second copy to drift from the record.
+The debate transcript and the gap board are **not files**: they are projections rendered from the event log on demand (`show debate`, `show board`), so there is never a second copy to drift from the record.
 
 A real run ships in the repo as evidence: [`research/2026-08-23_research-loop-counterparts/`](research/2026-08-23_research-loop-counterparts/). It is *ceiling-terminated* — it hit its round budget while still converging — and the report says so in its own verdict line, naming the debt it leaves (a final blue revision no red pass audited). That is the point: the record makes the residual honesty checkable.
 
