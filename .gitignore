@@ -26,7 +26,12 @@ Thumbs.db
 # run is in progress, and it means nothing in another checkout. It went unlisted for the same
 # reason strikes.json did: the file only exists while a run is actually live, and none had been
 # launched in this repository, so `git status` never once mentioned it.
-.claude/run-live.json
+# ANY .claude/, not just the root one. A leading-slash-free pattern with a slash INSIDE it is
+# anchored to the repository root, so this matched only ./.claude/run-live.json — and
+# `feov-record setup` writes the marker under CLAUDE_PROJECT_DIR, which is whatever directory the
+# operator (or a smoke run from tools/) was standing in. One did, and the marker staged cleanly
+# into a commit: a file naming a run directory on THIS disk, in a checkout where it means nothing.
+**/.claude/run-live.json
 .claude/spike/
 .claude/*.log
 
