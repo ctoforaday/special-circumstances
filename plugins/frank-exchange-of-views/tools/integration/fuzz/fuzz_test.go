@@ -1177,8 +1177,18 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// The refusal is the production behaviour under test. Honouring it means a clean board
 			// with an outstanding motion FAILs the round — which is exactly right, and is the only
 			// way the motion arm of that gate is ever exercised end to end.
-			if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
-				return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+			// RED DOES NOT PASS IN A FORCED-UNVERIFIED RUN, and that is not a thumb on the
+			// scale — debate.js's verdict is `redPASS ? VERIFIED : ceilingUnaudited ? CEILING :
+			// UNVERIFIED`, so a run whose red ever passes CANNOT reach the value this drives.
+			// Leaving it to the docket is what made the first version of this test flake: with
+			// concurrent seats the interleaving decides the draws, so a seeded run no longer
+			// reproduces its own board, and the run reached VERIFIED on the second attempt.
+			// A terminal path driven on purpose has to be forced at every condition the engine
+			// reads, not at one of them.
+			if !r.forceUnverified {
+				if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
+					return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+				}
 			}
 			// Refused over something that is not a gap. Record the verdict the tool WILL take, so
 			// the record and the harness agree about how this round ended.
