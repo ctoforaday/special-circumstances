@@ -504,6 +504,17 @@ func (r *runner) mint(seatID string) string {
 	// COMMAND CHAINS, not minds — the seat boundary is only where the JS happens to cut. And
 	// because the outcome is chosen rather than emergent, it is ASSERTABLE.
 	directive := directives[r.rng.Intn(len(directives))]
+	// A FORCED-UNVERIFIED RUN MINTS ONLY CONTESTED GAPS, and this is the condition the first
+	// three attempts at this test each missed in turn. debate.js sits the bench only when the
+	// docket is contested (`if (contested.length > 0)`), and the bench is what declares the
+	// deadlock that makes the exit UNVERIFIED rather than CEILING. Left to the draw, a run whose
+	// gaps all happened to be repairable never contested anything, the judge never sat, and the
+	// run reached the round ceiling — which is a different verdict and a passing sweep saying so.
+	// DISPUTE-LOST specifically: blue contests and red REJECTS, so the docket is contested AND
+	// the gap stays open, which are the two things the deadlock arm reads.
+	if r.forceUnverified {
+		directive = dirDisputeLost
+	}
 	kind := checkKinds[r.rng.Intn(len(checkKinds))]
 	if directive == dirProve || directive == dirProveDrifts {
 		// The demand and the answer must agree: a gap settled by computing is minted as a
@@ -1185,10 +1196,24 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// reproduces its own board, and the run reached VERIFIED on the second attempt.
 			// A terminal path driven on purpose has to be forced at every condition the engine
 			// reads, not at one of them.
-			if !r.forceUnverified {
-				if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
-					return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+			// AND IT FAILS OVER SOMETHING REAL. Skipping the PASS branch alone dropped through
+			// to the refusal arm below, which returns FAIL with an EMPTY gaps array — and the
+			// engine refuses that as a degenerate merge, correctly. On a cleared board there is
+			// nothing left to fail over, so this mints one: red keeps the round open the only
+			// way the protocol allows, and the gap it mints is also what keeps the board
+			// non-empty for the deadlock exit the bench declares later.
+			if r.forceUnverified {
+				if id := r.mint(seatID); id != "" {
+					_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
+					return map[string]any{"verdict": "FAIL",
+						"gaps":              []any{map[string]any{"id": id, "supersedes": arr()}},
+						"closures":          arr(),
+						"dispute_responses": responses,
+						"petitions":         r.maybePetition("merge", seatID), "friction": arr()}
 				}
+			}
+			if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
+				return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 			}
 			// Refused over something that is not a gap. Record the verdict the tool WILL take, so
 			// the record and the harness agree about how this round ended.
@@ -3369,17 +3394,33 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	if v, _ := result["verdict"].(string); v != "UNVERIFIED" {
 		t.Fatalf("expected verdict UNVERIFIED, got %q — the terminal path this test exists to drive did not run", v)
 	}
-	// AND THE BOARD AGREES WITH THE STAMP. UNVERIFIED-with-nothing-open is the self-contradiction
-	// debate.js guards against upstream; asserting the verdict alone would pass on a run that
-	// reached it for the wrong reason.
+	// AND THE RECORD SAYS SO, not just the returned map. This is the assertion the enum gate
+	// actually depends on: `outcome --as UNVERIFIED` has to be a value the tool WROTE.
+	//
+	// It asserted `len(r.openGaps()) > 0` first, on the reasoning that UNVERIFIED-with-nothing-
+	// open is a contradiction. That reasoning is debate.js's and it holds where debate.js
+	// applies it — at the decision — but not here: the bench disposes the docket in its terminal
+	// sitting, so an empty board AFTER the run is ordinary. Measured, it failed 12 of 12 while
+	// the verdict itself was right every time, which makes it an assertion about the wrong
+	// moment rather than a defect it caught.
 	board, err := record.BoardState(runDir)
 	if err != nil {
 		t.Fatalf("board: %v", err)
 	}
-	if len(r.openGaps()) == 0 {
-		t.Fatal("UNVERIFIED with an empty board — the run converged and was stamped unverified, which is the contradiction, not the path")
+	recorded, ended := "", ""
+	for _, e := range board.Events {
+		if o, ok := recordpb.BodyAs[*recordpb.Outcome](e); ok {
+			recorded = strings.ToUpper(recordpb.Word(o.GetVerdict()))
+			ended = o.GetEnded()
+		}
 	}
-	if len(board.Events) == 0 {
-		t.Fatal("no events on the record")
+	if recorded != "UNVERIFIED" {
+		t.Fatalf("the record carries outcome %q, not UNVERIFIED — the enum value this test exists to write was not written", recorded)
+	}
+	// THE REASON, not only the stamp. UNVERIFIED is reachable two ways in principle and this
+	// test drives exactly one of them: the judged-deadlock exit. Without this, a run that
+	// reached the same word down some other path would satisfy the test and teach nothing.
+	if ended != "deadlock" {
+		t.Fatalf("outcome ended %q, expected deadlock — UNVERIFIED was reached, but not by the path this drives", ended)
 	}
 }
