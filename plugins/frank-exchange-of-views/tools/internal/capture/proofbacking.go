@@ -54,17 +54,17 @@ import (
 // checkable without a heuristic is the anchor↔record join, and that is what runs.
 
 // ProofBackingAudit joins the proofs on the record against the proof anchors in blue's report.
-func ProofBackingAudit(runDir string) Audit {
+func ProofBackingAudit(run record.Run) Audit {
 	// BLUE'S REPORT, NOT THE ASSEMBLED ONE, and the two are not interchangeable here. Assembly
 	// WEAVES proof anchors into visible [^Pn] footnotes and the raw tokens are gone by design
 	// (the thing FootnoteIntegrity judges). The anchors only exist to be joined in blue/report.md.
-	blue := filepath.Join(runDir, "blue", "report.md")
+	blue := filepath.Join(run.Dir(), "blue", "report.md")
 	md, err := os.ReadFile(blue)
 	if err != nil {
 		return Audit{Check: "proof-backing", Verdict: "SKIP",
 			Detail: fmt.Sprintf("no blue/report.md to read (%v) — proof anchors live there and are woven away at assembly, so there is nothing to join", err)}
 	}
-	proofs, err := record.RecordedProofs(runDir)
+	proofs, err := record.RecordedProofs(run)
 	if err != nil {
 		return Audit{Check: "proof-backing", Verdict: "SKIP",
 			Detail: fmt.Sprintf("the record could not be read (%v), so no proof could be joined to the report — NOT a run whose claims all resolve", err)}
@@ -90,7 +90,7 @@ func ProofBackingAudit(runDir string) Audit {
 	// ALL is not a run this audit can speak about: every real sitting registers, so an event-less
 	// record beside a written report means the two artifacts are not a pair, and convicting the
 	// report on that is the false-positive shape this whole audit tier exists to refuse.
-	board, berr := record.BoardState(runDir)
+	board, berr := record.BoardState(run)
 	if berr != nil || board == nil || len(board.Events) == 0 {
 		return Audit{Check: "proof-backing", Verdict: "SKIP",
 			Detail: fmt.Sprintf("blue/report.md anchors %d proof(s) and this run's record carries no events at all, so the two cannot be joined — every real sitting registers, so this is a report without its record rather than %d claims pointing at nothing",

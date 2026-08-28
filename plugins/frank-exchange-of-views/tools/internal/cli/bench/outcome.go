@@ -48,7 +48,7 @@ func newOutcome() *cobra.Command {
 		// posture as seatenv's --run: where the tool can decide, a flag that disagrees is
 		// REFUSED naming both, rather than obeyed.
 		basis, basisWhy := record.VerdictAsserted, ""
-		if derived, why, ok := record.DeriveVerdict(run.Dir()); ok {
+		if derived, why, ok := record.DeriveVerdict(run); ok {
 			basisWhy = why
 			if verdict != derived {
 				return nil, feov.Errorf(feov.Conflict,

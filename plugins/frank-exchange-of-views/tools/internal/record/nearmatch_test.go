@@ -49,7 +49,7 @@ func TestNearMatchRanksDuplicateAboveUnrelated(t *testing.T) {
 		gapSpec{"R1-1", "the cache eviction races the concurrent reader and returns stale entries", "cache.go:88", true},
 		gapSpec{"R1-2", "the documentation heading uses the wrong capitalization", "README.md:1", true})
 
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestNearMatchLocationBonus(t *testing.T) {
 	mintBoard(t, runDir,
 		gapSpec{"R1-1", "an off-by-one in the loop bound", "parser.go:42", true})
 
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestNearMatchScoresClosedGaps(t *testing.T) {
 	mintBoard(t, runDir,
 		gapSpec{"R1-1", "the retry backoff overflows on the tenth attempt", "retry.go:12", false})
 
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestNearMatchTopNAndNoOverlap(t *testing.T) {
 		specs = append(specs, gapSpec{id, "shared token alpha beta gamma delta " + id, "file.go", true})
 	}
 	mintBoard(t, runDir, specs...)
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

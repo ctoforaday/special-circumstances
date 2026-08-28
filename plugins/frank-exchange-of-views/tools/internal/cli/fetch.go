@@ -47,12 +47,11 @@ func newFetch() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			runDir := run.Dir()
 			url, _ := cmd.Flags().GetString(flags.URL)
 			if url == "" {
 				return feov.Errorf(feov.MissingField, "fetch: --url <url> is required")
 			}
-			sha, body, hit, err := fetchcache.Resolve(runDir, url, fetchcache.Default)
+			sha, body, hit, err := fetchcache.Resolve(run, url, fetchcache.Default)
 			if err != nil {
 				// A bare read failure is operational, not a seat-input fault — no existing
 				// coded category fits, and it is NOT a friction (only the DECISION to cite an

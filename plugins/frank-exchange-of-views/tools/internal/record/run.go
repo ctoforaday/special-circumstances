@@ -39,6 +39,11 @@ import (
 type Run struct {
 	dir     string // absolute run directory
 	records string // resolved records directory, from RecordsDir
+	// separated is true when the record lives OUTSIDE the run directory. It decides what a
+	// missing record directory MEANS at read time, and the two answers are opposites: a local
+	// run that has not been written to yet is an honest empty board, while a separated run whose
+	// root has gone is the lie this package exists to refuse.
+	separated bool
 }
 
 // OpenRun resolves a run that MUST ALREADY EXIST, and refuses a path that names no run.
@@ -95,7 +100,7 @@ func resolveRun(dir string) (Run, error) {
 	if err != nil {
 		return Run{}, err
 	}
-	return Run{dir: abs, records: records}, nil
+	return Run{dir: abs, records: records, separated: !strings.HasPrefix(records, abs+string(filepath.Separator))}, nil
 }
 
 // Dir is the run directory, absolute.
@@ -103,6 +108,15 @@ func (r Run) Dir() string { return r.dir }
 
 // Records is where this run's events live, resolved once when the handle was made.
 func (r Run) Records() string { return r.records }
+
+// Separated reports whether the record lives outside the run directory.
+//
+// Read-time meaning, not trivia: RESOLUTION now happens once, when the handle is made, so a
+// handle that outlives a change to the record root would otherwise read the old path and find
+// nothing — and "nothing" is the honest answer for a fresh local run and a lie for a separated
+// one whose root was deleted. `dashboard --watch` holds a handle across regenerations, so the
+// window is real rather than theoretical.
+func (r Run) Separated() bool { return r.separated }
 
 // Valid reports whether this is a resolved run rather than the zero value.
 //

@@ -32,7 +32,7 @@ func newNearMatch() *cobra.Command {
 			return nil, err
 		}
 		cand := strings.TrimSpace(seat.Str(cmd, flags.Problem))
-		b, err := record.BoardState(run.Dir())
+		b, err := record.BoardState(run)
 		if err != nil {
 			return nil, err
 		}

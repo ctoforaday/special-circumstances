@@ -98,11 +98,11 @@ type Merged struct {
 //
 // `ORDER BY id` is the insertion order, assigned by the thing doing the inserting. There is no key
 // to get wrong.
-func MergedEvents(runDir string) (Merged, error) {
+func MergedEvents(run Run) (Merged, error) {
 	// A RESOLUTION FAILURE IS NOT AN EMPTY RUN. openRunForRead keeps the two apart: RecordsDir
 	// refuses an unreachable separated record, and a nil handle means the honest zero — a run that
 	// exists and has recorded nothing yet.
-	db, err := openRunForRead(runDir)
+	db, err := openRunForRead(run)
 	if err != nil {
 		return Merged{}, err
 	}
@@ -343,8 +343,8 @@ type Board struct {
 	Observations []*Observation
 }
 
-func BoardState(runDir string) (*Board, error) {
-	m, err := MergedEvents(runDir)
+func BoardState(run Run) (*Board, error) {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return nil, err
 	}
@@ -467,8 +467,8 @@ func BoardState(runDir string) (*Board, error) {
 	return b, nil
 }
 
-func allGapIDs(runDir string) (map[string]bool, error) {
-	m, err := MergedEvents(runDir)
+func allGapIDs(run Run) (map[string]bool, error) {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return nil, err
 	}
@@ -486,8 +486,8 @@ func allGapIDs(runDir string) (map[string]bool, error) {
 // A `--carried-from` closure claims to restate an earlier one, and a claim about the
 // record is checked against the record — the same rule mint applies to `supersedes`,
 // which refuses an ancestor no mint event created.
-func priorClosureRounds(runDir, gapID string) ([]int, error) {
-	m, err := MergedEvents(runDir)
+func priorClosureRounds(run Run, gapID string) ([]int, error) {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return nil, err
 	}
@@ -502,8 +502,8 @@ func priorClosureRounds(runDir, gapID string) ([]int, error) {
 
 // MintGapID assigns ids tool-side, sequentially per round — the collision class
 // that made four different "R5-1"s in one round simply cannot occur.
-func MintGapID(runDir string, round int) (string, error) {
-	m, err := MergedEvents(runDir)
+func MintGapID(run Run, round int) (string, error) {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return "", err
 	}
@@ -519,11 +519,11 @@ func MintGapID(runDir string, round int) (string, error) {
 // ExistingMintByKey gives crash-retry idempotency: a seat whose message died
 // after a successful mint retries the SAME command, and --key (its stable local
 // label) returns the EXISTING id instead of double-minting.
-func ExistingMintByKey(runDir, seatID, key string) (string, error) {
+func ExistingMintByKey(run Run, seatID, key string) (string, error) {
 	if key == "" {
 		return "", nil
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return "", err
 	}
@@ -571,11 +571,8 @@ type classRegistry struct {
 //
 // An unreachable record root is not this function's error to report: MergedEvents fails loudly on
 // it, and every caller reaches that first, so erroring twice only makes the diagnosis harder.
-func loadRegistry(runDir string) (*classRegistry, error) {
-	recDir, err := RecordsDir(runDir)
-	if err != nil {
-		return nil, nil
-	}
+func loadRegistry(run Run) (*classRegistry, error) {
+	recDir := run.Records()
 	p := filepath.Join(recDir, "class-registry.json")
 	b, err := os.ReadFile(p)
 	if err != nil {
@@ -590,12 +587,12 @@ func loadRegistry(runDir string) (*classRegistry, error) {
 
 // knownClasses is the registry as it stands for this run: the staged corpus plus every slug the
 // run has coined. An absent registry is an ERROR, not a licence — see below.
-func knownClasses(runDir string) (map[string]bool, []string, error) {
-	reg, err := loadRegistry(runDir)
+func knownClasses(run Run) (map[string]bool, []string, error) {
+	reg, err := loadRegistry(run)
 	if err != nil {
 		return nil, nil, err
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -635,8 +632,19 @@ func knownClasses(runDir string) (map[string]bool, []string, error) {
 // tolerance, which is how `--class anything-at-all` reached the board with nothing objecting. They
 // declare their vocabulary now, which is both the honest fixture and the thing that makes the check
 // mean something in the runs that matter.
-func StageForRun(runDir string, slugs ...string) error {
-	recDir, err := RecordsDir(runDir)
+func StageForRun(run Run, slugs ...string) error {
+	// RE-RESOLVED, DELIBERATELY, AND THIS IS THE ONE PLACE THAT DOES.
+	//
+	// A Run caches its record directory, which is sound only while the inputs to that resolution
+	// hold still. Here they do not: the seat probe separates a run by letting the FIRST register
+	// subprocess adopt a root and write the separation marker, so the marker appears AFTER the
+	// caller's handle was made. A handle resolved before it carries <run>/records, and staging
+	// the registry there puts it where the tool will never read — the probe then reports "no
+	// gap-class registry is staged" on every board, which is what it did.
+	//
+	// seatprobe.Build's own comment already says the ordering is load-bearing for exactly this
+	// reason. Caching the resolution is what made it load-bearing a second time.
+	recDir, err := RecordsDir(run.Dir())
 	if err != nil {
 		return err
 	}
@@ -661,8 +669,8 @@ func StageForRun(runDir string, slugs ...string) error {
 // already knows — so the assertion could be wrong in both directions, and the boolean's real
 // meaning was "I also passed --definition, --neighbor and --distinguisher". Coining is
 // `merge class new` now; this derives the fact from what that verb wrote.
-func ClassCoinedInRun(runDir, slug string) bool {
-	m, err := MergedEvents(runDir)
+func ClassCoinedInRun(run Run, slug string) bool {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return false
 	}
@@ -675,8 +683,8 @@ func ClassCoinedInRun(runDir, slug string) bool {
 }
 
 // validateClass holds a MINT to a class the registry recognises.
-func validateClass(runDir string, mint *recordpb.Mint) error {
-	known, slugs, err := knownClasses(runDir)
+func validateClass(run Run, mint *recordpb.Mint) error {
+	known, slugs, err := knownClasses(run)
 	if err != nil {
 		return err
 	}
@@ -699,7 +707,7 @@ func validateClass(runDir string, mint *recordpb.Mint) error {
 // remain are the FLAG WORDS the refusal names, which are the seat's vocabulary and not the
 // schema's — they stayed strings on purpose, because a seat reading this message types `--neighbor`
 // and has never seen a field name.
-func validateClassNew(runDir string, coined *recordpb.ClassNew) error {
+func validateClassNew(run Run, coined *recordpb.ClassNew) error {
 	if coined.GetSlug() == "" {
 		return fmt.Errorf("record: class new requires --class (the slug being coined)")
 	}
@@ -715,7 +723,7 @@ func validateClassNew(runDir string, coined *recordpb.ClassNew) error {
 			return fmt.Errorf("record: class new requires --%s — a class coined without one of definition, neighbor and distinguisher is a synonym, and the registry stops discriminating", f.flag)
 		}
 	}
-	known, _, err := knownClasses(runDir)
+	known, _, err := knownClasses(run)
 	if err != nil {
 		return err
 	}

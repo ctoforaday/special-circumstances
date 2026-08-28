@@ -16,15 +16,15 @@ import (
 func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	runDir := newRun(t)
 	for _, s := range []string{"blue-respond-r1", "red-merge-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s, Round: RoundIn(mustRun(t, runDir))(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Mint{GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_COMPUTATION), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Mint{GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_COMPUTATION), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
 	basis := "the defect is presentational, so `certain` severity prices a rewrite as a data error"
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, &recordpb.Motion{
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Basis:    proto.String(basis),
@@ -37,7 +37,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	}
 
 	// And once answered, the answer sits beside the ask rather than replacing it.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.MotionRule{
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Opinion:  proto.String("the grades stand"),
@@ -70,7 +70,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	b, _ = BoardState(runDir)
+	b, _ = BoardState(mustRun(t, runDir))
 	j = motionsJSONOf(b)
 	m = j.Motions[0]
 	if !m.Ruled || m.Ruling != "rejected" || m.Opinion == "" {
@@ -89,14 +89,14 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 func TestThePassRefusalNamesTheRead(t *testing.T) {
 	runDir := newRun(t)
 	for _, sid := range []string{"blue-respond-r1", "red-merge-r1"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: sid, Round: RoundIn(runDir)(sid)}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid, Round: RoundIn(mustRun(t, runDir))(sid)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Mint{GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Mint{GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: RoundIn(runDir)("blue-respond-r1")}, &recordpb.Motion{
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Basis:    proto.String("b"),
@@ -110,7 +110,7 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	}
 	// The board must be otherwise CLEAN, or the open-gap arm answers first and the motion arm
 	// — the one under test — is never reached.
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Close{
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Close{
 		GapId:        proto.String("R1-1"),
 		AnchorSeat:   proto.String("L1"),
 		AnchorTool:   proto.String("Read"),
@@ -120,7 +120,7 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := requirePassClosesAllGaps(runDir)
+	err := requirePassClosesAllGaps(mustRun(t, runDir))
 	if err == nil {
 		t.Fatal("PASS was allowed over an unruled motion")
 	}

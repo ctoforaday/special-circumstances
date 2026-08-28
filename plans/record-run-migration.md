@@ -109,6 +109,72 @@ that test exists to cover. Wrapping it in a resolver would have fataled the fixt
 its own subject; it became `record.Run{}`. The script had no way to tell that argument from the
 53 others, and it surfaced only because the compiler stopped there.
 
+### `internal/record` itself (fourth step)
+
+77 signatures, plus the packages that call them and every test call site. `Identity` carries a
+`Run` instead of a `RunDir string`.
+
+**The defect it surfaced: `RegisterSeat` guarded that the run directory exists; `Append` never
+did.** So `Identity{RunDir: ""}` reaching `Append` resolved `""` through `filepath.Abs("")` to
+the WORKING DIRECTORY and wrote the event into `<cwd>/records` — the "second blackboard beside
+the real run, and reported success" incident that `RegisterSeat`'s own refusal text describes,
+still live on the write path. And `""` was reachable: `seat.Context.Identity()` read `c.runDir`,
+which is empty exactly when the run was REFUSED, and five verbs call `.Identity()` without
+resolving first. A `Run` cannot hold the empty string, so the state stops existing; `Append`
+asserts `Valid()` anyway, because a zero `Run` can still arrive from a struct literal.
+
+### CACHING THE RESOLUTION IS THE PART THAT NEEDED CARE, AND IT BROKE TWO THINGS
+
+The type's premise — resolve once, at construction — is sound only while the INPUTS to that
+resolution hold still. Twice they do not, and both were caught by tests rather than by review:
+
+1. **The separation marker appears mid-flow.** The seat probe separates a run by letting the
+   FIRST `register` subprocess adopt a root and write the marker, so the marker arrives AFTER
+   the caller's handle was made. A handle resolved before it carries `<run>/records`, and
+   `StageForRun` then wrote the class registry where the tool would never read — "no gap-class
+   registry is staged" on every board, and `records/` left inside the run. `seatprobe.Build`'s
+   own comment already warned that this ordering is load-bearing; caching the resolution made it
+   load-bearing a second time, in a way ordering could no longer protect. `StageForRun`
+   re-resolves deliberately and says why — it is the one function that straddles the moment
+   separation is established.
+2. **A root deleted after the handle was made.** Resolution moving to construction meant a
+   SEPARATED run whose root vanished afterwards read as an honest empty board. `dashboard
+   --watch` holds a handle across regenerations, so the window is real. `Run` now carries
+   `separated`, and `openRunForRead` re-checks that case — the one place where a missing record
+   directory means a lie rather than a fresh run.
+
+**The general rule, which the plan did not have before:** a cached resolution is a snapshot.
+Where the thing resolved can change under it — a marker written by a subprocess, a root deleted
+by an operator, an environment that differs across a process boundary — the read must re-resolve
+or re-check, and must say which it is doing.
+
+### Two more the mechanical pass could not see
+
+- **Function TYPES.** `flags.Checker` and a table of minters in `idnamespace_test` are function
+  types; Go requires exact parameter identity, so no call-site rewriting reaches them. The three
+  flag validators keep `runDir string` because `flags` cannot import `record` (the reverse edge
+  exists) and resolve at entry instead — the refusal is gained even though the parameter was not.
+- **Fixtures whose paths are deliberately not on disk.** `HarvestClasses` and
+  `HarvestPrecedents` take only `slugOf(run)`, and their fixtures pass synthetic paths like
+  `/runs/run-alpha`. Resolving those with the existence check fatals the fixture on its own
+  subject — the same shape as `blueRows("")`. They use the non-checking constructor.
+
+### What the tooling got wrong, since the tooling is the method here
+
+- Driving a fixer off `go vet` reports only the FIRST type error per package, so "4 errors"
+  meant four PACKAGES and every fix revealed the next one behind it. `go test -c -gcflags=-e`
+  gives them all; the flat count had looked like a plateau for ten passes.
+- The fixer matched `variable of type string` but not `value of type string`, so every
+  `t.TempDir()` argument was invisible to it and reappeared each pass untouched.
+- It wrapped arguments in scopes with no `*testing.T`, producing `undefined: t`.
+- It compared source text to the compiler's NORMALISED echo (`20 * time.Second` vs
+  `20*time.Second`), silently declining twelve matches while reporting "skipped 8". **A tool that
+  counts only the refusals it anticipated reports a plausible zero for the rest** — which is the
+  defect class this whole workstream exists to remove, reproduced in the instrument.
+- An argument splitter that understood `"` but not backticks mis-parsed a raw string containing
+  `{`, ate a paren and mangled a function's closing braces. Found by running `gofmt -e` over
+  every touched file, not by the compiler, which had stopped earlier for another reason.
+
 ## III. Remaining
 
 **`internal/record` itself is the whole of what is left**, and it is ONE step rather than a

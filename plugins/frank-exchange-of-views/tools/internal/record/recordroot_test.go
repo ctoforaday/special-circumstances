@@ -184,10 +184,13 @@ func TestALostPointerRefusesInsteadOfReportingAnEmptyBoard(t *testing.T) {
 			"read an empty directory and render a board of zeros for a run that has a full record")
 	}
 
-	// And the refusal has to survive the whole way up: MergedEvents flattens IsNotExist into an
-	// empty merge, which is the honest zero this must never be confused with.
-	if _, err := MergedEvents(run); err == nil {
-		t.Fatal("MergedEvents returned a clean empty merge for an unreachable record")
+	// AND THE REFUSAL SURVIVES THE WHOLE WAY UP — through the handle, which is where resolution
+	// now happens. A run whose pointer is gone cannot be resolved at all, so there is no Run to
+	// hand a reader, which is a stronger answer than the old one: the reader is not merely told
+	// no, it is never given the thing it would have read with.
+	if _, err := NewRun(run); err == nil {
+		t.Fatal("a separated run with no pointer resolved into a handle — every projection " +
+			"reached through it would render a board of zeros for a run with a full record")
 	}
 }
 
@@ -224,7 +227,7 @@ func TestTwoRunsCannotShareOneRoot(t *testing.T) {
 func TestARunWithEventsInPlaceRefusesToSeparate(t *testing.T) {
 	isolate(t)
 	run := recordtest.TmpRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, run), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, run))("blue-respond-r1")}, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	t.Setenv(RecordRootEnv, filepath.Join(recordtest.TmpRun(t), "elsewhere"))
@@ -254,10 +257,10 @@ func TestASeparatedRunKeepsNoEventsUnderTheRun(t *testing.T) {
 	run, root := recordtest.TmpRun(t), filepath.Join(recordtest.TmpRun(t), "elsewhere")
 	t.Setenv(RecordRootEnv, root)
 
-	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, run), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, run))("blue-respond-r1")}, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	if _, err := Append(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}, &recordpb.Friction{Text: proto.String("the verb I wanted was not there")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, run), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, run))("blue-respond-r1")}, &recordpb.Friction{Text: proto.String("the verb I wanted was not there")}); err != nil {
 		t.Fatalf("append: %v", err)
 	}
 	t.Setenv(RecordRootEnv, "")
@@ -274,7 +277,7 @@ func TestASeparatedRunKeepsNoEventsUnderTheRun(t *testing.T) {
 	}
 
 	// And the board still reads, through the tool, with no environment set.
-	m, err := MergedEvents(run)
+	m, err := MergedEvents(mustRun(t, run))
 	if err != nil {
 		t.Fatalf("merge: %v", err)
 	}
@@ -296,7 +299,7 @@ func TestADeletedRootRefusesInsteadOfReadingAsAnEmptyRun(t *testing.T) {
 	isolate(t)
 	run, root := recordtest.TmpRun(t), filepath.Join(recordtest.TmpRun(t), "elsewhere")
 	t.Setenv(RecordRootEnv, root)
-	if _, _, err := RegisterSeat(Identity{RunDir: run, SeatID: "blue-respond-r1", Round: RoundIn(run)("blue-respond-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, run), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, run))("blue-respond-r1")}, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	t.Setenv(RecordRootEnv, "")
@@ -307,6 +310,9 @@ func TestADeletedRootRefusesInsteadOfReadingAsAnEmptyRun(t *testing.T) {
 	// this process is holding one. That is not a test artefact: anything deleting a board while a
 	// handle on it is live meets the same refusal, which is the platform being explicit about a
 	// lifetime Linux lets you ignore.
+	// Resolved WHILE the root is still present, so the read below goes through a handle that was
+	// legitimately made and has since been invalidated by something outside it.
+	healthy := mustRun(t, run)
 	if err := recordsql.CloseUnder(root); err != nil {
 		t.Fatal(err)
 	}
@@ -317,8 +323,17 @@ func TestADeletedRootRefusesInsteadOfReadingAsAnEmptyRun(t *testing.T) {
 		t.Fatal("a pointer to a deleted root resolved — MergedEvents would then take its IsNotExist " +
 			"arm and report a run that had a full record as a board of zeros")
 	}
-	if _, err := MergedEvents(run); err == nil {
-		t.Fatal("MergedEvents reported a clean empty merge for a record whose directory is gone")
+	// AND THROUGH A HANDLE THAT WAS RESOLVED WHILE THE ROOT WAS STILL THERE. This is the case
+	// the type could quietly have lost: resolution happens once, so a handle made before the
+	// deletion carries a path that now points at nothing, and the read would take its
+	// IsNotExist arm and report the honest zero. `dashboard --watch` holds exactly such a handle
+	// across regenerations, so the window is real. openRunForRead re-checks a SEPARATED run's
+	// root for this reason.
+	if _, err := MergedEvents(healthy); err == nil {
+		t.Fatal("MergedEvents reported a clean empty merge through a handle whose root was deleted after it resolved")
+	}
+	if _, err := NewRun(run); err == nil {
+		t.Fatal("a run pointing at a deleted root resolved into a handle")
 	}
 }
 
@@ -386,7 +401,7 @@ func TestRegisterRefusesToCreateARunDirectory(t *testing.T) {
 	parent := recordtest.TmpRun(t)
 	missing := filepath.Join(parent, "research", "no-such-run")
 
-	_, _, err := RegisterSeat(Identity{RunDir: missing, SeatID: "red-merge-r1", Round: RoundIn(missing)("red-merge-r1")}, "")
+	_, _, err := RegisterSeat(Identity{Run: mustRun(t, missing), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, missing))("red-merge-r1")}, "")
 	if err == nil {
 		t.Fatal("a seat created a run directory from nothing and reported success — the exact failure that produced a second blackboard beside a live run")
 	}
@@ -405,7 +420,7 @@ func TestRegisterRefusesToCreateARunDirectory(t *testing.T) {
 	if err := os.MkdirAll(real, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := RegisterSeat(Identity{RunDir: real, SeatID: "red-merge-r1", Round: RoundIn(real)("red-merge-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, real), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, real))("red-merge-r1")}, ""); err != nil {
 		t.Errorf("an existing run directory was refused: %v", err)
 	}
 }

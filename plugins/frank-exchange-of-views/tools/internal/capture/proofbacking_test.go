@@ -1,6 +1,7 @@
 package capture
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,7 +42,7 @@ func proofBackingRun(t *testing.T, onRecord []string, anchored []string) string 
 
 func TestProofBackingPassesWhenEveryProofIsAnchoredAndEveryAnchorResolves(t *testing.T) {
 	run := proofBackingRun(t, []string{"p-aaaa1111", "p-bbbb2222"}, []string{"p-aaaa1111", "p-bbbb2222"})
-	got := ProofBackingAudit(run)
+	got := ProofBackingAudit(runtest.Open(t, run))
 	if got.Verdict != "PASS" {
 		t.Fatalf("got %s — %s", got.Verdict, got.Detail)
 	}
@@ -55,7 +56,7 @@ func TestProofBackingPassesWhenEveryProofIsAnchoredAndEveryAnchorResolves(t *tes
 // own authority.
 func TestProofBackingCatchesAComputationTheReportNeverPointsAt(t *testing.T) {
 	run := proofBackingRun(t, []string{"p-aaaa1111", "p-bbbb2222"}, []string{"p-aaaa1111"})
-	got := ProofBackingAudit(run)
+	got := ProofBackingAudit(runtest.Open(t, run))
 	if got.Verdict != "FAIL" {
 		t.Fatalf("an unanchored proof must FAIL: got %s — %s", got.Verdict, got.Detail)
 	}
@@ -74,7 +75,7 @@ func TestProofBackingCatchesAComputationTheReportNeverPointsAt(t *testing.T) {
 // is computed from the two sets here instead of recovered from the sentence.
 func TestProofBackingCatchesAnAnchorThatResolvesToNothing(t *testing.T) {
 	run := proofBackingRun(t, []string{"p-aaaa1111"}, []string{"p-aaaa1111", "p-cccc3333"})
-	got := ProofBackingAudit(run)
+	got := ProofBackingAudit(runtest.Open(t, run))
 	if got.Verdict != "FAIL" {
 		t.Fatalf("an unresolved anchor must FAIL: got %s — %s", got.Verdict, got.Detail)
 	}
@@ -89,7 +90,7 @@ func TestProofBackingCatchesAnAnchorThatResolvesToNothing(t *testing.T) {
 // fixing one should not be told the other is the same thing.
 func TestProofBackingReportsBothDirectionsSeparately(t *testing.T) {
 	run := proofBackingRun(t, []string{"p-aaaa1111"}, []string{"p-cccc3333"})
-	got := ProofBackingAudit(run)
+	got := ProofBackingAudit(runtest.Open(t, run))
 	if got.Verdict != "FAIL" {
 		t.Fatalf("got %s — %s", got.Verdict, got.Detail)
 	}
@@ -105,13 +106,13 @@ func TestProofBackingWillNotReportAnUncheckedRunAsAClearOne(t *testing.T) {
 	// No blue/report.md at all.
 	bare := t.TempDir()
 	recordtest.Seed(t, bare)
-	if got := ProofBackingAudit(bare); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "woven away at assembly") {
+	if got := ProofBackingAudit(runtest.Open(t, bare)); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "woven away at assembly") {
 		t.Errorf("absent blue report: got %s — %s", got.Verdict, got.Detail)
 	}
 
 	// A run with neither proofs nor anchors has nothing to join, and that is not a finding.
 	empty := proofBackingRun(t, nil, nil)
-	if got := ProofBackingAudit(empty); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "recorded no proofs") {
+	if got := ProofBackingAudit(runtest.Open(t, empty)); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "recorded no proofs") {
 		t.Errorf("no proofs and no anchors: got %s — %s", got.Verdict, got.Detail)
 	}
 
@@ -125,7 +126,7 @@ func TestProofBackingWillNotReportAnUncheckedRunAsAClearOne(t *testing.T) {
 	write(t, filepath.Join(reportOnly, "blue", "report.md"),
 		"a claim<!--proof:p-aaaa1111--> and another<!--proof:p-bbbb2222-->\n")
 	recordtest.Seed(t, reportOnly) // a record with no events at all
-	got0 := ProofBackingAudit(reportOnly)
+	got0 := ProofBackingAudit(runtest.Open(t, reportOnly))
 	if got0.Verdict != "SKIP" {
 		t.Fatalf("a report with no record behind it must not be convicted: got %s — %s", got0.Verdict, got0.Detail)
 	}
@@ -145,7 +146,7 @@ func TestProofBackingWillNotReportAnUncheckedRunAsAClearOne(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(broken, "records", "record.db"), []byte("not a database"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got := ProofBackingAudit(broken)
+	got := ProofBackingAudit(runtest.Open(t, broken))
 	if got.Verdict != "SKIP" || !strings.Contains(got.Detail, "NOT a run whose claims all resolve") {
 		t.Errorf("unreadable record: got %s — %s", got.Verdict, got.Detail)
 	}

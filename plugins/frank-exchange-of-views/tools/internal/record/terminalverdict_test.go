@@ -24,10 +24,10 @@ import (
 func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "judge-terminal", Round: RoundIn(runDir)("judge-terminal")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal", Round: RoundIn(mustRun(t, runDir))("judge-terminal")}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "judge-terminal", Round: RoundIn(runDir)("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED), Prose: proto.String("ended on safety grounds")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal", Round: RoundIn(mustRun(t, runDir))("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED), Prose: proto.String("ended on safety grounds")}); err != nil {
 		t.Fatal(err)
 	}
 	// The rendered artifact says something else. It is the derived carrier; the event is the fact.
@@ -40,7 +40,7 @@ func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	// it: a hardcoded "HALTED" was really asserting how the payload record happened to store the
 	// seat's uppercase word.
 	want := recordpb.Word(recordpb.RunOutcome_RUN_OUTCOME_HALTED)
-	if got := TerminalVerdict(runDir); got != want {
+	if got := TerminalVerdict(mustRun(t, runDir)); got != want {
 		t.Errorf("readTerminalVerdict = %q, want %q — the record holds the verdict as a field and the report is a rendering of it", got, want)
 	}
 }
@@ -61,7 +61,7 @@ func TestTerminalVerdictIsEmptyWhenTheRecordCannotSay(t *testing.T) {
 		[]byte("# report\n\n**Verdict:** UNVERIFIED — the run ended without the question being answered.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if got := TerminalVerdict(runDir); got != "" {
+	if got := TerminalVerdict(mustRun(t, runDir)); got != "" {
 		t.Errorf("readTerminalVerdict = %q from a run whose record carries no terminal act — the word was read out of prose no record backs", got)
 	}
 }
