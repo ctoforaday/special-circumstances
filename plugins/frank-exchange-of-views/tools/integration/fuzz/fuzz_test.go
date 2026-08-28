@@ -1467,13 +1467,21 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	// verdict, which is exactly what the tripwire flagged: 24 of 60, purely for a missing file.
 	_ = os.MkdirAll(filepath.Join(r.runDir, "inputs"), 0o755)
 	_ = os.WriteFile(filepath.Join(r.runDir, "inputs", "run-config.json"),
-		[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","maxRounds":"3","lanes":"1"}`), 0o644)
+		[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","maxRounds":"4","lanes":"3"}`), 0o644)
 
 	loop := eventloop.NewEventLoop()
 	loop.Run(func(vm *goja.Runtime) {
+		// THE SHAPE PRODUCTION ACTUALLY RUNS (#630). This drove `lanes: 1` under a
+		// laneFloorOverride — the --smoke shape, which debate.js:82 REFUSES by default and
+		// which the floor exists to stop ("run 2 silently ran under-provisioned at lanes=2").
+		// At width one the blue lane fan-out (debate.js:725), red's lens-pass fan-out (:824)
+		// and the per-lane method diversity (:560) were all exercised at a width no keeper run
+		// uses. Both committed runs' inputs/run-config.json say lanes 3, maxRounds 4; so does
+		// this. The override's own branch stays covered by debate.test.mjs, which is where a
+		// JS-level guard belongs.
 		vm.Set("args", map[string]any{
 			"topic": "fuzz", "runDir": r.runDir, "binDir": binDir(r.bin),
-			"lanes": 1, "laneFloorOverride": "fuzz", "maxRounds": 3,
+			"lanes": 3, "maxRounds": 4,
 			// #111: both tiers are REQUIRED — nil refuses dispatch. Both haiku so the tier oracle
 			// expects every dispatched seat to carry exactly "haiku".
 			"model": "haiku", "judgmentModel": "haiku",
@@ -2402,7 +2410,10 @@ func TestFuzzDebate(t *testing.T) {
 	// statistics on debate semantics, which are platform-independent and keep full depth on
 	// Linux. The full 1000-run confidence sweep is on demand:
 	// FUZZ_N=1000 go test ./integration/fuzz -run TestFuzzDebate -timeout 1200s.
-	n := 60
+	// THE DEFAULT IS THE QUORUM, so the default sweep is always one that can assert the surface.
+	// 60 was a number the gates did not depend on; at production shape a run costs ~2.2x what the
+	// smoke shape cost, and the sweep needs exactly enough runs for the coverage gates to hold.
+	n := surfaceQuorum
 	if testing.Short() {
 		n = 15
 	}
