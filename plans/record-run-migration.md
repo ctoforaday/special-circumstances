@@ -39,6 +39,34 @@ across fetch, friction and the operator read failed on runs that were entirely r
     only on a refusal, and therefore only ever wrong. Removed.
   - `cli/friction.go` told operators who HAD supplied `--run` that `--run` was required.
 
+### `setup` (second step)
+
+All seven exported functions take `record.Run`; the orchestrator resolves ONCE via `NewRun`
+before anything is written, and `cmd/seatprobe` opens its probe run with `OpenRun` (the
+directory exists by then, so the stronger constructor is the right one).
+
+Two things fell out:
+
+- **`absRun` is gone.** It was `filepath.Abs(cfg.RunDir)` computed sixty lines below first use,
+  with `if absErr != nil { absRun = cfg.RunDir }` — a silent fallback to the relative path. Only
+  two sites used it, so a run was laid out in a mix of spellings. `run.Dir()` is absolute by
+  construction.
+- **An unresolvable run used to build completely and report success.** Measured against the
+  pre-migration code: a run directory carrying `.records-elsewhere` with no pointer and no
+  `FEOV_RECORD_ROOT` — a copied run directory, or a cleaned cache — made `run-setup` **exit 0
+  with empty stderr**, having written the skeleton, mirrors, run-live marker and class join.
+  `StageClassRegistry`'s "cannot resolve the record directory" appeared as a reason string
+  inside the success summary. `BuildSkeleton` had swallowed the resolution error deliberately
+  (`if recDir, err := record.RecordsDir(runDir); err == nil`) on the grounds that laying out a
+  directory is setup's job. Regression test:
+  `TestAnUnresolvableRunIsRefusedBeforeTheSkeletonExists`, null-run against the old code.
+
+**Left alone deliberately:** `runlive.WriteRunLiveMarker` still receives `cfg.RunDir` verbatim,
+not `run.Dir()`. The marker stores the path as given and `SameRun` normalises when comparing, so
+switching it to absolute would change what lands in `run-live.json` for every reader of that
+file — a different concept with its own carriers ([[facts-are-fields]] clause 4). Worth doing;
+not worth doing silently inside this one.
+
 ### The packages above `record` (third step)
 
 `view`, `report`, `dashboard`, `scorecard`, `cost`, `consistency`, `capture`, plus
@@ -83,8 +111,22 @@ its own subject; it became `record.Run{}`. The script had no way to tell that ar
 
 ## III. Remaining
 
-**43 functions in `internal/record` still take `runDir string`** — 26 exported, 17 unexported —
-called from 24 packages:
+**`internal/record` itself is the whole of what is left**, and it is ONE step rather than a
+series. Everything above it now holds a handle and converts at the boundary; nothing else can
+be peeled off.
+
+**The plan's original claim — that the unexported functions would move "last and nearly for
+free" once every exported entry point held a `Run` — was wrong, and the third step disproved
+it.** It assumed migration flows inward from callers. It does not. `MergedEvents` is the ROOT
+of record's internal call graph, with `BoardState` and 19 board readers directly on top of it,
+so its signature cannot move without taking the package with it. Measured: changing
+`MergedEvents` alone produced compile errors in 19 record-internal functions before a single
+external caller was reached.
+
+Size, so the shape is not a surprise: **84 signatures** in `internal/record` still name
+`runDir`, and ~27 non-test external call sites depend on them, dominated by `BoardState`
+(~100 references, ~73 of them in tests). The 25 packages that call `record` all convert at
+their own boundary today:
 
 ```
 cmd/seatprobe        internal/cli/enumhelp  internal/graph      internal/seatenv
@@ -93,21 +135,17 @@ internal/cli         internal/cli/merge     internal/hookgate   internal/setup
 internal/cli/bench   internal/cli/motion    internal/report     internal/verify
 internal/cli/blue    internal/cli/seat      internal/scorecard  internal/view
 internal/consistency internal/dashboard     internal/fetchcache internal/flags
+internal/cost
 ```
 
-`gopls` is not installed, so there is no rename-symbol sweep: each package migrates as its own
-green step, driven by what the compiler refuses. Do NOT batch them — the value of the type is
-in the refusals it forces at each site, and a sweep only compiles.
-
-**The claim that the unexported ones move "last and nearly for free" was wrong, and the third
-step disproved it.** It assumed migration flows inward from callers. It does not:
-`MergedEvents` is the ROOT of record's internal call graph — `BoardState` and 19 board readers
-sit on top of it — so changing its signature migrates the whole package in one commit. There is
-no smaller green step inside `record`. That is why the third step migrated the packages ABOVE
-record and left record's own signatures alone.
-
-So the remaining work is one atomic change, not a series: `record` migrates as a single unit, or
-not at all. Its external call sites (~27 non-test, dominated by `BoardState`) then follow.
+**The earlier guidance here said "do NOT batch them — a sweep only compiles." That still holds
+ACROSS package boundaries and no longer holds inside `record`.** The distinction the first
+draft missed: batching is dangerous where each site needs a JUDGEMENT — which constructor, and
+where the refusal goes — and that judgement lives at the boundaries, which are now done. Inside
+`record` the parameter is threaded, not decided, so a mechanical change there is verified by the
+compiler rather than merely permitted by it. The one thing a sweep still cannot see is an
+argument that is deliberately degenerate: `blueRows("")` was exactly that, and it took a human
+read (see above).
 
 ## IV. Order
 

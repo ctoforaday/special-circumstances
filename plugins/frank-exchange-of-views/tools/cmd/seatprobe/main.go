@@ -348,7 +348,13 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDi
 		if err != nil {
 			return "", err
 		}
-		if r := setup.MirrorGapPatterns(mem, runDir); !r.Written {
+		// OpenRun, not NewRun: the probe created this directory two hundred lines up, so a run
+		// that does not resolve here is a real fault rather than a run awaiting its first write.
+		probeRun, err := record.OpenRun(runDir)
+		if err != nil {
+			return "", err
+		}
+		if r := setup.MirrorGapPatterns(mem, probeRun); !r.Written {
 			return "", fmt.Errorf("red's gap-pattern corpus did not stage (%s) — the dispatched prompt names the file in its first instruction, so a run without it is measuring a broken read", r.Reason)
 		}
 		// THE FIXTURE, AND NOTHING ELSE. A caller driving its own dispatch — the interview, which

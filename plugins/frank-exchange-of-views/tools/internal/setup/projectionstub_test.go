@@ -28,7 +28,7 @@ import (
 // An absent file is honest. A husk is a promise that something will fill it.
 func TestSetupStubsNoFileTheToolRenders(t *testing.T) {
 	runDir := t.TempDir()
-	setup.BuildSkeleton(runDir, "a topic")
+	setup.BuildSkeleton(runOf(t, runDir), "a topic")
 
 	rendered := map[string]bool{}
 	for _, v := range cli.ViewNames() {
@@ -77,7 +77,7 @@ func TestSetupStubsNoFileTheToolRenders(t *testing.T) {
 // a husk nobody notices.
 func TestEveryStubHasAWriter(t *testing.T) {
 	runDir := t.TempDir()
-	res := setup.BuildSkeleton(runDir, "a topic")
+	res := setup.BuildSkeleton(runOf(t, runDir), "a topic")
 
 	// report.md ← `bench assemble`; blue/report.md ← the synthesizer, then every `blue edit`.
 	//
