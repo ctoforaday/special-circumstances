@@ -105,8 +105,8 @@ func motionsJSONOf(b *Board) MotionsJSON {
 }
 
 // MotionsJSONBytes renders the motions view as indented JSON.
-func MotionsJSONBytes(runDir string) ([]byte, error) {
-	b, err := BoardState(runDir)
+func MotionsJSONBytes(run Run) ([]byte, error) {
+	b, err := BoardState(run)
 	if err != nil {
 		return nil, err
 	}

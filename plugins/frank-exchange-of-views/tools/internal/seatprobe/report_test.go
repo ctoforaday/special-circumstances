@@ -2,6 +2,7 @@ package seatprobe
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"testing"
 )
@@ -23,7 +24,7 @@ func TestSeatChoiceReport(t *testing.T) {
 	if !ok {
 		t.Fatalf("no board %q — set FEOV_PROBE_BOARD to one of the declared boards", name)
 	}
-	out, err := Report(surface(), runDir, []string{board.Seat}, board.Expect, nil)
+	out, err := Report(surface(), runtest.Open(t, runDir), []string{board.Seat}, board.Expect, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

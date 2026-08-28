@@ -2,6 +2,7 @@ package seatprobe
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"os"
 
@@ -97,7 +98,7 @@ func TestReportSeparatesRecordedFromInvoked(t *testing.T) {
 	})
 
 	attempts := map[string]map[string]int{"blue-respond-r1": {"show": 9}}
-	out, err := Report(surface(), runDir, []string{"blue-respond-r1"}, nil, attempts)
+	out, err := Report(surface(), runtest.Open(t, runDir), []string{"blue-respond-r1"}, nil, attempts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +113,7 @@ func TestReportSeparatesRecordedFromInvoked(t *testing.T) {
 
 	// And with no trajectory the report must SAY it did not measure, rather than presenting a
 	// record-only count as the whole picture — the absent case and the honest zero again.
-	out, err = Report(surface(), runDir, []string{"blue-respond-r1"}, nil, nil)
+	out, err = Report(surface(), runtest.Open(t, runDir), []string{"blue-respond-r1"}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

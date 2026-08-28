@@ -61,7 +61,7 @@ func newRetire() *cobra.Command {
 		// silent deletion.
 		claim := seat.Str(cmd, flags.Quote)
 		basis := record.RemovalAsserted
-		if md, rerr := record.ReadBlueReport(run.Dir()); rerr == nil {
+		if md, rerr := record.ReadBlueReport(run); rerr == nil {
 			if strings.Contains(string(md), claim) {
 				return nil, feov.Errorf(feov.Conflict,
 					"blue retire: %q is still in the report. Retiring is how a removal is EXPLAINED, not how it is performed — remove the text with `blue edit` first, then retire the claim to say why it went and what replaced it",
@@ -70,7 +70,7 @@ func newRetire() *cobra.Command {
 			// Absent now. Whether it was ever THERE is a different question, and the record
 			// can answer it: a claim removed by a recorded edit appears in that edit's old
 			// span. Absent from both is a retirement of something nobody can show existed.
-			if record.ClaimAppearsInAnEdit(run.Dir(), claim) {
+			if record.ClaimAppearsInAnEdit(run, claim) {
 				basis = record.RemovalVerified
 			}
 		}

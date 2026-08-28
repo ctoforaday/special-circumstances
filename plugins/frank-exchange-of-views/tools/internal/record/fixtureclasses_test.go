@@ -19,7 +19,7 @@ func newRun(t *testing.T) string {
 	t.Helper()
 	// tmpRun already releases this run's handle; newRun only adds the class vocabulary.
 	dir := recordtest.TmpRun(t)
-	if err := StageForRun(dir, fixtureClasses...); err != nil {
+	if err := StageForRun(mustRun(t, dir), fixtureClasses...); err != nil {
 		t.Fatalf("stage the class registry: %v", err)
 	}
 	return dir

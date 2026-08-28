@@ -88,14 +88,14 @@ const minStaleFloor = 6 * time.Minute
 //
 // An empty record is an ERROR, not a zero time: a run that has recorded nothing and a run whose
 // record cannot be read must not both arrive as "very old".
-func lastActivity(runDir string) (Activity, error) {
-	merged, err := MergedEvents(runDir)
+func lastActivity(run Run) (Activity, error) {
+	merged, err := MergedEvents(run)
 	if err != nil {
 		return Activity{}, err
 	}
 	if len(merged.Events) == 0 {
 		return Activity{}, fmt.Errorf("record: no events in %s — a run that has written nothing "+
-			"is not a run that has gone quiet, and reporting it as an age would make the two the same", runDir)
+			"is not a run that has gone quiet, and reporting it as an age would make the two the same", run.Dir())
 	}
 	var newest Activity
 	newest.Events = len(merged.Events)
@@ -110,7 +110,7 @@ func lastActivity(runDir string) (Activity, error) {
 	}
 	if newest.At.IsZero() {
 		return Activity{}, fmt.Errorf("record: %d event(s) in %s and not one carried a parseable ts — "+
-			"the ordering key replay depends on is absent, so nothing here can be aged", len(merged.Events), runDir)
+			"the ordering key replay depends on is absent, so nothing here can be aged", len(merged.Events), run.Dir())
 	}
 	return newest, nil
 }
@@ -153,15 +153,15 @@ func staleThreshold(events []*Event) (time.Duration, string, bool) {
 // Assess is the whole verdict. `ended` is the caller's answer to "has capture run" — the one
 // fact the record cannot supply, because it is about the run's disposition rather than its
 // contents.
-func Assess(runDir string, now time.Time, ended bool) Liveness {
+func Assess(run Run, now time.Time, ended bool) Liveness {
 	if ended {
 		return Liveness{State: StateEnded, Basis: "the run was captured"}
 	}
-	last, err := lastActivity(runDir)
+	last, err := lastActivity(run)
 	if err != nil {
 		return Liveness{State: StateUnmeasured, Basis: err.Error()}
 	}
-	merged, err := MergedEvents(runDir)
+	merged, err := MergedEvents(run)
 	if err != nil {
 		return Liveness{State: StateUnmeasured, Basis: err.Error(), Last: last}
 	}
@@ -235,8 +235,8 @@ func (l Liveness) Says() string {
 // remover is `capture`, so a killed run left it watching forever, #270), and capture's own
 // liveness audit, which cannot tell a finished run from a killed one without it. The record
 // knows what the marker cannot.
-func TerminalVerdict(runDir string) string {
-	b, err := BoardState(runDir)
+func TerminalVerdict(run Run) string {
+	b, err := BoardState(run)
 	if err != nil {
 		return ""
 	}
@@ -251,7 +251,7 @@ func TerminalVerdict(runDir string) string {
 	}
 	// Or what the record decides for itself. ok is false only where the record genuinely
 	// cannot — a judged deadlock — and that is a real answer, not a gap to paper over.
-	if v, _, ok := DeriveVerdict(runDir); ok {
+	if v, _, ok := DeriveVerdict(run); ok {
 		return v
 	}
 	return ""

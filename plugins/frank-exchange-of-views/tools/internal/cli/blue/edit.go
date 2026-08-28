@@ -61,12 +61,12 @@ func newEdit() *cobra.Command {
 
 		// Crash-retry: a committed blue_edit for this key means the op is already on the
 		// stack — reconcile the write idempotently, do NOT append a second op.
-		prior, err := record.ExistingBlueEditByKey(run.Dir(), s.SeatID, key)
+		prior, err := record.ExistingBlueEditByKey(run, s.SeatID, key)
 		if err != nil {
 			return nil, err
 		}
 		if prior {
-			if err := applyEdit(run.Dir(), oldStr, newStr); err != nil {
+			if err := applyEdit(run, oldStr, newStr); err != nil {
 				return nil, err
 			}
 			return editResult{Idempotent: true}, nil
@@ -74,7 +74,7 @@ func newEdit() *cobra.Command {
 
 		// FRESH: validate against a consistent snapshot BEFORE committing the event, so a
 		// mis-quote or a marker-spanning edit never lands a phantom stack op.
-		peek, err := record.ReadBlueReport(run.Dir())
+		peek, err := record.ReadBlueReport(run)
 		if err != nil {
 			return nil, err
 		}
@@ -109,7 +109,7 @@ func newEdit() *cobra.Command {
 		// Blue is not obliged to reach this state: a counter-edit simply does not set the
 		// flag, and record.DeclineStats counts that as blue exercising its right to disagree.
 		if gapID := seat.Str(cmd, flags.Answers); gapID != "" {
-			verbatim, err := record.ProposalAppliedVerbatim(run.Dir(), gapID, oldStr, newStr)
+			verbatim, err := record.ProposalAppliedVerbatim(run, gapID, oldStr, newStr)
 			if err != nil {
 				return nil, err
 			}
@@ -120,7 +120,7 @@ func newEdit() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		if err := applyEdit(run.Dir(), oldStr, newStr); err != nil {
+		if err := applyEdit(run, oldStr, newStr); err != nil {
 			return nil, err
 		}
 		return editResult{}, nil
@@ -185,8 +185,8 @@ func validateEdit(report, old, new string) (string, error) {
 
 // applyEdit performs the span replacement under the blue-report flock. IDEMPOTENT: on a
 // crash-retry where the write already landed (old gone, new present) it is a no-op.
-func applyEdit(runDir, old, new string) error {
-	return record.MutateBlueReport(runDir, func(cur []byte) ([]byte, error) {
+func applyEdit(run record.Run, old, new string) error {
+	return record.MutateBlueReport(run, func(cur []byte) ([]byte, error) {
 		report := string(cur)
 		next, err := planEdit(report, old, new)
 		if err != nil {

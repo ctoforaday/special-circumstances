@@ -41,21 +41,47 @@ import (
 // The subject is named as the FLAG, not the verb: this refusal arrives while the seat is looking
 // at one command, so "--id names gap R9-9, which no mint event created" is the whole sentence it
 // needs. validate's copy keeps the verb too, because there it can be reached by any caller.
-func GapExists(runDir, id string) error { return requireGap(runDir, id, "the", "--id") }
-
-// InquiryExists resolves a inquiry.
-func InquiryExists(runDir, id string) error { return requireInquiry(runDir, id, "the", "--id") }
-
-// CitationExists resolves a citation anchor.
-func CitationExists(runDir, label string) error {
-	return requireCitation(runDir, label, "the", "--cites")
+func GapExists(runDir string, id string) error {
+	run, err := OpenRun(runDir)
+	if err != nil {
+		return err
+	}
+	return requireGap(run, id, "the", "--id")
 }
 
-func requireGap(runDir, id, verb, flag string) error {
+// InquiryExists resolves a inquiry.
+func InquiryExists(runDir string, id string) error {
+	run, err := OpenRun(runDir)
+	if err != nil {
+		return err
+	}
+	return requireInquiry(run, id, "the", "--id")
+}
+
+// THESE THREE KEEP A `runDir string`, AND IT IS NOT AN OVERSIGHT.
+//
+// They are flags.Checker values — `flags.GapID().WithCheck(record.GapExists)` — and
+// flags.Checker cannot name record.Run, because `record` imports `flags` and the reverse edge
+// is an import cycle. So the string survives at exactly the boundary where the flag machinery
+// hands one over, and each resolves it immediately: OpenRun still refuses a path nobody
+// dispatched, so the check gains the refusal even though the parameter did not.
+//
+// The alternative is real but larger than this change: move the flag-NAME constants `record`
+// reaches for into a leaf package, which breaks the cycle and lets Checker take a Run.
+// CitationExists resolves a citation anchor.
+func CitationExists(runDir string, label string) error {
+	run, err := OpenRun(runDir)
+	if err != nil {
+		return err
+	}
+	return requireCitation(run, label, "the", "--cites")
+}
+
+func requireGap(run Run, id, verb, flag string) error {
 	if id == "" {
 		return nil
 	}
-	ids, err := allGapIDs(runDir)
+	ids, err := allGapIDs(run)
 	if err != nil {
 		return err
 	}
@@ -66,9 +92,9 @@ func requireGap(runDir, id, verb, flag string) error {
 }
 
 // requireGaps is the list form, naming the first that does not resolve.
-func requireGaps(runDir string, ids []string, verb, flag string) error {
+func requireGaps(run Run, ids []string, verb, flag string) error {
 	for _, id := range ids {
-		if err := requireGap(runDir, id, verb, flag); err != nil {
+		if err := requireGap(run, id, verb, flag); err != nil {
 			return err
 		}
 	}
@@ -80,11 +106,11 @@ func requireGaps(runDir string, ids []string, verb, flag string) error {
 // found_by is the credit chain from a lens's work to the board gap it earned, and it is
 // read back by the capture-recapture estimate. An invented label inflates the count of
 // lens-sourced gaps with a finding nobody made.
-func requireFindings(runDir string, labels []string, verb, flag string) error {
+func requireFindings(run Run, labels []string, verb, flag string) error {
 	if len(labels) == 0 {
 		return nil
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return err
 	}
@@ -112,11 +138,11 @@ func requireFindings(runDir string, labels []string, verb, flag string) error {
 // cite a citation that does not exist and the assembled report would carry the link as though it
 // meant something. That is the same hole `lens verify --anchor` had until 0.60.0, on the same
 // axis, one verb over.
-func requireCitation(runDir, label, verb, flag string) error {
+func requireCitation(run Run, label, verb, flag string) error {
 	if label == "" {
 		return nil
 	}
-	known, err := CitationLabels(runDir)
+	known, err := CitationLabels(run)
 	if err != nil {
 		return err
 	}
@@ -137,11 +163,11 @@ func requireCitation(runDir, label, verb, flag string) error {
 // `blue line-of-inquiry --id` required only that an id be PRESENT. A move naming an unknown line of inquiry wrote
 // a status change for a line of inquiry that was never opened — and the lines-of-inquiry view
 // renders it, so the run shows a direction being abandoned that nothing ever proposed.
-func requireInquiry(runDir, id, verb, flag string) error {
+func requireInquiry(run Run, id, verb, flag string) error {
 	if id == "" {
 		return nil
 	}
-	b, err := BoardState(runDir)
+	b, err := BoardState(run)
 	if err != nil {
 		return err
 	}
@@ -154,11 +180,11 @@ func requireInquiry(runDir, id, verb, flag string) error {
 		verb, flag, id)
 }
 
-func requireSeat(runDir, seatID, verb, flag string) error {
+func requireSeat(run Run, seatID, verb, flag string) error {
 	if seatID == "" {
 		return nil
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return err
 	}
@@ -185,8 +211,8 @@ func requireSeat(runDir, seatID, verb, flag string) error {
 // cost nothing today and exist for the cheaper tier.
 
 // gapState answers what a gap IS, not merely whether it exists.
-func gapState(runDir, id string) (closed bool, err error) {
-	b, err := BoardState(runDir)
+func gapState(run Run, id string) (closed bool, err error) {
+	b, err := BoardState(run)
 	if err != nil {
 		return false, err
 	}
@@ -198,11 +224,11 @@ func gapState(runDir, id string) (closed bool, err error) {
 }
 
 // requireOpenGap refuses an act that only makes sense on a live gap.
-func requireOpenGap(runDir, id, verb, flag, why string) error {
+func requireOpenGap(run Run, id, verb, flag, why string) error {
 	if id == "" {
 		return nil
 	}
-	closed, err := gapState(runDir, id)
+	closed, err := gapState(run, id)
 	if err != nil {
 		return err
 	}
@@ -214,12 +240,12 @@ func requireOpenGap(runDir, id, verb, flag, why string) error {
 
 // requireClosedGap is the mirror: spot-check re-verifies the ARCHIVE, so naming a gap that
 // was never closed is not a sample of anything.
-func requireClosedGaps(runDir string, ids []string, verb, flag string) error {
+func requireClosedGaps(run Run, ids []string, verb, flag string) error {
 	for _, id := range ids {
 		if id == "" {
 			continue
 		}
-		closed, err := gapState(runDir, id)
+		closed, err := gapState(run, id)
 		if err != nil {
 			return err
 		}
@@ -250,8 +276,8 @@ func requireClosedGaps(runDir string, ids []string, verb, flag string) error {
 //
 // Checked at verdict because that is the seat's terminal act and the last moment it is
 // still there to close them.
-func requireSupersededAreClosed(runDir string) error {
-	b, err := BoardState(runDir)
+func requireSupersededAreClosed(run Run) error {
+	b, err := BoardState(run)
 	if err != nil {
 		return err
 	}
@@ -286,8 +312,8 @@ func requireSupersededAreClosed(runDir string) error {
 // 2026-07-20 run recorded PASS with 9 PLAIN open gaps (one HIGH) that no lineage check saw,
 // and the envelope then reported 0 outstanding. This is the complete enforcement, at the
 // write path so no verdict route can bypass it. A FAIL is always allowed.
-func requirePassClosesAllGaps(runDir string) error {
-	b, err := BoardState(runDir)
+func requirePassClosesAllGaps(run Run) error {
+	b, err := BoardState(run)
 	if err != nil {
 		return err
 	}
@@ -407,11 +433,11 @@ func requirePassClosesAllGaps(runDir string) error {
 //
 // Tokens break on anything outside [A-Za-z0-9-], so "R1-5: Quantify…" yields "R1-5" with
 // its trailing colon shed, and a longer id is never matched by a shorter one's prefix.
-func gapNamedIn(runDir, prose string) (string, error) {
+func gapNamedIn(run Run, prose string) (string, error) {
 	if strings.TrimSpace(prose) == "" {
 		return "", nil
 	}
-	ids, err := allGapIDs(runDir)
+	ids, err := allGapIDs(run)
 	if err != nil {
 		return "", err
 	}

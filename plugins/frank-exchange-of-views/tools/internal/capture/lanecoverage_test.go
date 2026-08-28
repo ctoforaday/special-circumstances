@@ -1,6 +1,7 @@
 package capture
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -31,7 +32,7 @@ func laneRun(t *testing.T, lanes string, registered ...int) string {
 // THE DEFECT, SEEDED: a run configured for three lanes that only ever seated two. Before this
 // audit that board was byte-identical to a two-lane run's.
 func TestLaneCoverageNamesTheLaneThatNeverRegistered(t *testing.T) {
-	got := LaneCoverageAudit(laneRun(t, "3", 1, 2))
+	got := LaneCoverageAudit(runtest.Open(t, laneRun(t, "3", 1, 2)))
 	if got.Verdict != "WARN" {
 		t.Fatalf("a lane shortfall must be reported: got %s — %s", got.Verdict, got.Detail)
 	}
@@ -48,14 +49,14 @@ func TestLaneCoverageNamesTheLaneThatNeverRegistered(t *testing.T) {
 
 // A gap in the middle is still a gap. Counting alone would call 1 and 3 a complete two-lane run.
 func TestLaneCoverageCatchesAGapRatherThanOnlyAShortTail(t *testing.T) {
-	got := LaneCoverageAudit(laneRun(t, "3", 1, 3))
+	got := LaneCoverageAudit(runtest.Open(t, laneRun(t, "3", 1, 3)))
 	if got.Verdict != "WARN" || !strings.Contains(got.Detail, "blue-lane-2 never registered") {
 		t.Fatalf("got %s — %s", got.Verdict, got.Detail)
 	}
 }
 
 func TestLaneCoveragePassesWhenEveryDeclaredLaneTookItsSeat(t *testing.T) {
-	got := LaneCoverageAudit(laneRun(t, "3", 1, 2, 3))
+	got := LaneCoverageAudit(runtest.Open(t, laneRun(t, "3", 1, 2, 3)))
 	if got.Verdict != "PASS" {
 		t.Fatalf("got %s — %s", got.Verdict, got.Detail)
 	}
@@ -63,7 +64,7 @@ func TestLaneCoveragePassesWhenEveryDeclaredLaneTookItsSeat(t *testing.T) {
 	run := laneRun(t, "2", 1, 2)
 	recordtest.Seed(t, run, recordtest.At(t, "blue-lane-1", 0, "blue-lane-1:register:#2",
 		&recordpb.Register{ToolVersion: proto.String("test")}))
-	if got := LaneCoverageAudit(run); got.Verdict != "PASS" {
+	if got := LaneCoverageAudit(runtest.Open(t, run)); got.Verdict != "PASS" {
 		t.Errorf("a re-dispatch is not an extra lane: got %s — %s", got.Verdict, got.Detail)
 	}
 }
@@ -71,7 +72,7 @@ func TestLaneCoveragePassesWhenEveryDeclaredLaneTookItsSeat(t *testing.T) {
 // AN EXCESS IS NOT AMBIGUOUS, so it is not a warning: no dispatch of this config could produce a
 // lane the config never asked for.
 func TestLaneCoverageFailsOnALaneTheConfigNeverAskedFor(t *testing.T) {
-	got := LaneCoverageAudit(laneRun(t, "2", 1, 2, 3))
+	got := LaneCoverageAudit(runtest.Open(t, laneRun(t, "2", 1, 2, 3)))
 	if got.Verdict != "FAIL" {
 		t.Fatalf("a lane beyond the declared count must FAIL: got %s — %s", got.Verdict, got.Detail)
 	}
@@ -93,7 +94,7 @@ func TestLaneCoverageWillNotReportAnUncheckedRunAsAClearOne(t *testing.T) {
 			run := t.TempDir()
 			write(t, filepath.Join(run, "inputs", "run-config.json"), tc.cfg)
 			recordtest.Seed(t, run)
-			got := LaneCoverageAudit(run)
+			got := LaneCoverageAudit(runtest.Open(t, run))
 			if got.Verdict != "SKIP" || !strings.Contains(got.Detail, tc.want) {
 				t.Errorf("got %s — %s", got.Verdict, got.Detail)
 			}
@@ -112,7 +113,7 @@ func TestLaneCoverageWillNotReportAnUncheckedRunAsAClearOne(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(broken, "records", "record.db"), []byte("not a database"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got := LaneCoverageAudit(broken)
+	got := LaneCoverageAudit(runtest.Open(t, broken))
 	if got.Verdict != "SKIP" || !strings.Contains(got.Detail, "NOT a run whose lanes all registered") {
 		t.Errorf("an unreadable record must not read as full coverage; got %s — %s", got.Verdict, got.Detail)
 	}

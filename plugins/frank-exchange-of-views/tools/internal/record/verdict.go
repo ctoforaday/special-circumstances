@@ -47,8 +47,8 @@ const (
 //
 // The order matters: a halt outranks a pass, because a run stopped on safety or integrity
 // grounds did not end by passing however clean the board looked when it stopped.
-func DeriveVerdict(runDir string) (verdict, why string, ok bool) {
-	b, err := BoardState(runDir)
+func DeriveVerdict(run Run) (verdict, why string, ok bool) {
+	b, err := BoardState(run)
 	if err != nil {
 		return "", "the record could not be read: " + err.Error(), false
 	}
@@ -92,7 +92,7 @@ func DeriveVerdict(runDir string) (verdict, why string, ok bool) {
 	case passed:
 		return "VERIFIED", "the merge recorded a PASS verdict", true
 	}
-	if ceiling := configuredMaxRounds(runDir); ceiling > 0 && maxRound >= ceiling {
+	if ceiling := configuredMaxRounds(run); ceiling > 0 && maxRound >= ceiling {
 		return "CEILING", "the record reaches round " + strconv.Itoa(maxRound) + " against a ceiling of " + strconv.Itoa(ceiling), true
 	}
 	// No pass, no halt, and the ceiling not reached: the run ended early, which the engine
@@ -104,8 +104,8 @@ func DeriveVerdict(runDir string) (verdict, why string, ok bool) {
 
 // configuredMaxRounds reads the ceiling setup recorded; 0 when it is absent or unparseable,
 // which degrades CEILING to underivable rather than inventing a bound.
-func configuredMaxRounds(runDir string) int {
-	b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json"))
+func configuredMaxRounds(run Run) int {
+	b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json"))
 	if err != nil {
 		return 0
 	}

@@ -3,6 +3,7 @@ package difftest
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"sort"
@@ -103,7 +104,7 @@ func TestGolden(t *testing.T) {
 			// staged meant `--class` accepted any string, so every mint in every golden here
 			// passed a check that was not running. Staging it is what makes the golden a record
 			// of the shipped behaviour rather than of an unconfigured corner of it.
-			if err := record.StageForRun(runDir, goldenClasses...); err != nil {
+			if err := record.StageForRun(runtest.Open(t, runDir), goldenClasses...); err != nil {
 				t.Fatalf("stage the class registry: %v", err)
 			}
 			seed(t, runDir, sc.seed)

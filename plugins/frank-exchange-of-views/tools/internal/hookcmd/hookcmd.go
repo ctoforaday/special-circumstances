@@ -101,6 +101,10 @@ func Pre(stdin io.Reader, stdout io.Writer) error {
 	// unusable marker → empty → no rewrite, matching InferRunDir's "say nothing rather than
 	// guess".
 	runDir := seat.InferRunDir(cwdOf(raw))
+	// NewRun: the hook fires against whatever the marker points at, and a hook is the wrong
+	// place to refuse a run — it advises, it does not gate. The reads below degrade to empty on
+	// an unresolved run exactly as they did when this was a string.
+	run, _ := record.NewRun(runDir)
 	switch outcome, payload := hookgate.PreOutcome(in, runDir); outcome {
 	case hookgate.OutcomeDeny:
 		// A DENIAL THIS GATE CANNOT EXPLAIN IS THE ONE IT MUST RECORD. When the refusal is "I
@@ -108,7 +112,7 @@ func Pre(stdin io.Reader, stdout io.Writer) error {
 		// tool — so it goes on the record as friction, not just into a reason string the run
 		// forgets. hookgate stays free of I/O; the write lives here.
 		if hookgate.InputUnreadable(in) {
-			fileToolFriction(runDir, in.ToolName)
+			fileToolFriction(run, in.ToolName)
 		}
 		emitPreDeny(stdout, payload)
 	case hookgate.OutcomeRewrite:
@@ -203,8 +207,8 @@ func emitPreAsk(stdout io.Writer, reason string) {
 //
 // The write must never turn a hook into a failure: this gate's job is to answer, and a seat is
 // not blocked because the bookkeeping failed.
-func fileToolFriction(runDir, toolName string) {
-	if runDir == "" {
+func fileToolFriction(run record.Run, toolName string) {
+	if run.Dir() == "" {
 		return
 	}
 	f := &recordpb.Friction{
@@ -216,7 +220,7 @@ func fileToolFriction(runDir, toolName string) {
 	// Round -1 is UNKNOWN, and record.Identity is explicit that this is not round 0 — a hook
 	// fires outside any seat's round, and conflating the two produced the phantom-archive bug
 	// this field was added to prevent.
-	_, _ = record.Append(record.Identity{RunDir: runDir, SeatID: "hookgate", Round: -1}, f)
+	_, _ = record.Append(record.Identity{Run: run, SeatID: "hookgate", Round: -1}, f)
 }
 
 // emitPreDeny writes the PreToolUse deny document (exit stays 0).

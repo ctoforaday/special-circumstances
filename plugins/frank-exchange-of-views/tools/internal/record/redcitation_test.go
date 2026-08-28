@@ -36,7 +36,7 @@ func corroboration(label, url, claim string, outcome recordpb.SourceOutcome) *re
 // claims. `blue cite` never had this problem because it keys on its minted label.
 func TestOneSourceCorroboratesManyClaims(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
+	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func TestOneSourceCorroboratesManyClaims(t *testing.T) {
 				"One source bearing on several claims is the ordinary case; keyed on the URL, only the first could ever record.", i+1, err)
 		}
 	}
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestOneSourceCorroboratesManyClaims(t *testing.T) {
 // reader of the document at all.
 func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
+	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -86,7 +86,7 @@ func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srcs, err := CitedSources(runDir)
+	srcs, err := CitedSources(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +110,7 @@ func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 	}
 
 	// The lockdown's EXPECTED set must agree, or red's anchor reads as one blue dropped.
-	labels, err := CitationLabels(runDir)
+	labels, err := CitationLabels(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,8 +137,8 @@ func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 // grades nobody chose, feeding the mass calculation that decides what a gap is worth.
 func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	lens := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
-	merge := Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: 1}
+	lens := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: 1}
+	merge := Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: 1}
 	for _, id := range []Identity{lens, merge} {
 		if _, _, err := RegisterSeat(id, ""); err != nil {
 			t.Fatal(err)
@@ -149,7 +149,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := requirePassClosesAllGaps(runDir)
+	err := requirePassClosesAllGaps(mustRun(t, runDir))
 	if err == nil {
 		t.Fatal("a PASS was allowed over a contradiction red recorded and nobody raised")
 	}
@@ -172,7 +172,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := requirePassClosesAllGaps(runDir); err != nil {
+	if err := requirePassClosesAllGaps(mustRun(t, runDir)); err != nil {
 		t.Errorf("the contradiction was raised as a finding and the PASS is still blocked: %v", err)
 	}
 
@@ -181,7 +181,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	if _, err := Append(lens, corroboration(NewCitationID(), "https://example.org/agrees", "another claim entirely", recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)); err != nil {
 		t.Fatal(err)
 	}
-	if err := requirePassClosesAllGaps(runDir); err != nil {
+	if err := requirePassClosesAllGaps(mustRun(t, runDir)); err != nil {
 		t.Errorf("a SUPPORTING corroboration blocked a PASS — only a contradiction owes a finding: %v", err)
 	}
 }
@@ -198,7 +198,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 // same as blue's. Before this they were spliced into the report and protected by nothing.
 func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
+	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -207,11 +207,11 @@ func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	byRunDir, err := CitationLabels(runDir)
+	byRunDir, err := CitationLabels(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 // outstanding" and "nobody checked" are the same absence.
 func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
+	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +248,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,7 +281,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	b, _ = BoardState(runDir)
+	b, _ = BoardState(mustRun(t, runDir))
 	if got := EvidenceJSONOf(b).UnansweredContradictions; len(got) != 0 {
 		t.Errorf("unanswered_contradictions = %v after the finding was raised, want empty", got)
 	}
@@ -294,7 +294,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 // production code and it was sitting in code written the same day.
 func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: 1}
+	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +311,7 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 		{"no claim", "https://example.org/s", ""},
 		{"neither", "", ""},
 	} {
-		got, err := ExistingCorroborationLabel(runDir, "red-lens-r1-L1", tc.url, tc.claim)
+		got, err := ExistingCorroborationLabel(mustRun(t, runDir), "red-lens-r1-L1", tc.url, tc.claim)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
@@ -320,7 +320,7 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 		}
 	}
 	// And the complete pair DOES find it, or the guard above would pass by never matching at all.
-	if got, err := ExistingCorroborationLabel(runDir, "red-lens-r1-L1", "https://example.org/s", "the claim"); err != nil || got != label {
+	if got, err := ExistingCorroborationLabel(mustRun(t, runDir), "red-lens-r1-L1", "https://example.org/s", "the claim"); err != nil || got != label {
 		t.Errorf("the complete pair returned %q (err %v), want %q — the negative cases above prove nothing if the positive never matches", got, err, label)
 	}
 }
@@ -333,7 +333,7 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 // and a sweep showed neither half was tested alone.
 func TestAnEmptyReopenedIDNeverReachesTheProtectedSet(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	id := Identity{RunDir: runDir, SeatID: "blue-respond-r1", Round: 1}
+	id := Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -344,7 +344,7 @@ func TestAnEmptyReopenedIDNeverReachesTheProtectedSet(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

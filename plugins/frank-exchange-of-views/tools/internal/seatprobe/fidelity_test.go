@@ -2,6 +2,7 @@ package seatprobe
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"os"
 	"path/filepath"
@@ -252,7 +253,7 @@ func TestEveryBoardSentToTheTranscriptStagesOne(t *testing.T) {
 			}
 			return "", nil
 		}
-		if err := Build(t.TempDir(), b, exec); err != nil {
+		if err := Build(runtest.Open(t, t.TempDir()), b, exec); err != nil {
 			t.Errorf("board %q: build: %v", name, err)
 			continue
 		}

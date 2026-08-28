@@ -3,6 +3,7 @@ package seatprobe
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
@@ -24,7 +25,7 @@ func writeRun(t *testing.T, events []struct {
 	seen := map[string]bool{}
 	for _, e := range events {
 		if !seen[e.seat] {
-			if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: e.seat, Round: record.RoundIn(runDir)(e.seat)}, ""); err != nil {
+			if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: e.seat, Round: record.RoundIn(runtest.Open(t, runDir))(e.seat)}, ""); err != nil {
 				t.Fatal(err)
 			}
 			seen[e.seat] = true
@@ -32,7 +33,7 @@ func writeRun(t *testing.T, events []struct {
 		if e.payload == nil {
 			continue
 		}
-		if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: e.seat, Round: record.RoundIn(runDir)(e.seat)}, e.payload); err != nil {
+		if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: e.seat, Round: record.RoundIn(runtest.Open(t, runDir))(e.seat)}, e.payload); err != nil {
 			t.Fatalf("append for %s: %v", e.seat, err)
 		}
 	}
@@ -52,7 +53,7 @@ func TestUnusedListsOnlyWhatTheRoleOffers(t *testing.T) {
 		{seat: "blue-respond-r1", payload: &recordpb.Position{Text: proto.String("the round's narrative")}},
 	})
 
-	c, err := Read(surface(), runDir, "blue-respond-r1")
+	c, err := Read(surface(), runtest.Open(t, runDir), "blue-respond-r1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +88,7 @@ func TestTheVerbIsRecoveredFromTheEventType(t *testing.T) {
 	}{
 		{seat: "blue-respond-r1", payload: &recordpb.BlueEdit{Old: proto.String("a"), New: proto.String("b"), Text: proto.String("why")}},
 	})
-	c, err := Read(surface(), runDir, "blue-respond-r1")
+	c, err := Read(surface(), runtest.Open(t, runDir), "blue-respond-r1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +120,7 @@ func TestAnUnmetExpectationNamesTheSubstitute(t *testing.T) {
 	}
 	runDir := writeRun(t, evs)
 
-	got, err := Check(surface(), runDir, []Expectation{{Seat: "blue-respond-r1", Verb: "prove", Because: "the board is arithmetic"}})
+	got, err := Check(surface(), runtest.Open(t, runDir), []Expectation{{Seat: "blue-respond-r1", Verb: "prove", Because: "the board is arithmetic"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +144,7 @@ func TestNoFrictionIsNotReportedAsACleanBoard(t *testing.T) {
 	}{
 		{seat: "blue-respond-r1", payload: &recordpb.Position{Text: proto.String("n")}},
 	})
-	out, err := Report(surface(), runDir, []string{"blue-respond-r1"}, nil, nil)
+	out, err := Report(surface(), runtest.Open(t, runDir), []string{"blue-respond-r1"}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

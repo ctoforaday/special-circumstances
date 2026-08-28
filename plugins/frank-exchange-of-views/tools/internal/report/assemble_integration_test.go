@@ -66,7 +66,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	seen := map[string]bool{}
 	add := func(seatID string, body proto.Message) {
 		t.Helper()
-		id := record.Identity{RunDir: runDir, SeatID: seatID, Round: record.RoundIn(runDir)(seatID)}
+		id := record.Identity{Run: runtest.Open(t, runDir), SeatID: seatID, Round: record.RoundIn(runtest.Open(t, runDir))(seatID)}
 		if !seen[seatID] {
 			if _, _, err := record.RegisterSeat(id, ""); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)

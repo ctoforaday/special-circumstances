@@ -1,6 +1,7 @@
 package capture
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -75,7 +76,7 @@ func transcriptWith(t *testing.T, commands ...string) (string, []string) {
 func TestAPreciseAnchorWithShortWordsReconcilesByItsID(t *testing.T) {
 	run := attestRun(t, "show report --anchor f-0dd40334", "report text at line 103")
 	tr, files := transcriptWith(t, `feov-record red-merge-r2 show report --anchor f-0dd40334`)
-	got := AttestationAudit(run, tr, files, 3)
+	got := AttestationAudit(runtest.Open(t, run), tr, files, 3)
 	if got.Verdict != "PASS" {
 		t.Errorf("a closure citing an id the transcript carries must reconcile.\ngot %s: %s", got.Verdict, got.Detail)
 	}
@@ -85,7 +86,7 @@ func TestAPreciseAnchorWithShortWordsReconcilesByItsID(t *testing.T) {
 func TestAClosureCitingAnIDNobodyRanIsAFinding(t *testing.T) {
 	run := attestRun(t, "show report --anchor f-0dd40334", "report text at line 103")
 	tr, files := transcriptWith(t, `feov-record red-merge-r2 show board`)
-	got := AttestationAudit(run, tr, files, 3)
+	got := AttestationAudit(runtest.Open(t, run), tr, files, 3)
 	if got.Verdict != "FAIL" {
 		t.Fatalf("an id in no tool call must be a finding; got %s: %s", got.Verdict, got.Detail)
 	}
@@ -98,7 +99,7 @@ func TestAClosureCitingAnIDNobodyRanIsAFinding(t *testing.T) {
 func TestAnUnmeasurableAnchorIsReportedAsNotMeasuredRatherThanAsDishonesty(t *testing.T) {
 	run := attestRun(t, "show report", "report text at line 103")
 	tr, files := transcriptWith(t, `feov-record red-merge-r2 show report`)
-	got := AttestationAudit(run, tr, files, 3)
+	got := AttestationAudit(runtest.Open(t, run), tr, files, 3)
 	if got.Verdict == "FAIL" {
 		t.Errorf("an anchor with nothing to join on is not evidence of a dishonest record.\ngot %s: %s", got.Verdict, got.Detail)
 	}
@@ -113,7 +114,7 @@ func TestAnUnmeasurableAnchorIsReportedAsNotMeasuredRatherThanAsDishonesty(t *te
 func TestADistinctiveProseTargetStillReconciles(t *testing.T) {
 	run := attestRun(t, "show evidence", "evidence projection and report text")
 	tr, files := transcriptWith(t, `feov-record red-merge-r2 show evidence --projection full`)
-	if got := AttestationAudit(run, tr, files, 3); got.Verdict != "PASS" {
+	if got := AttestationAudit(runtest.Open(t, run), tr, files, 3); got.Verdict != "PASS" {
 		t.Errorf("distinctive prose must still reconcile; got %s: %s", got.Verdict, got.Detail)
 	}
 }

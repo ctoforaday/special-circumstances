@@ -130,7 +130,13 @@ func dispatchedSeat() string {
 	if err != nil {
 		return seatenv.Dispatched(nil)
 	}
-	return seatenv.Dispatched(seat.BoundSeat(runDir))
+	// NewRun, matching seat.Of: this asks whether an agent has registered, and must answer for a
+	// run that is not yet on disk rather than refusing before the question is put.
+	run, rerr := record.NewRun(runDir)
+	if rerr != nil {
+		return seatenv.Dispatched(nil)
+	}
+	return seatenv.Dispatched(seat.BoundSeat(run))
 }
 
 // NewRootFor builds THIS SEAT'S surface at the root, or the operator's when no seat was dispatched.

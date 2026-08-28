@@ -209,14 +209,14 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		// a crash-retried corroboration splices a SECOND anchor at the same sentence and records
 		// a second event — the duplication the url key used to prevent. Checked before the mint,
 		// as blue's cite checks its --key before the fetch.
-		if prior, err := record.ExistingCorroborationLabel(run.Dir(), s.SeatID, body.GetUrl(), body.GetClaim()); err != nil {
+		if prior, err := record.ExistingCorroborationLabel(run, s.SeatID, body.GetUrl(), body.GetClaim()); err != nil {
 			return nil, err
 		} else if prior != "" {
 			return verifyResult{Label: prior, Source: body.GetTitle(), Outcome: recordpb.Word(body.GetOutcome()), Idempotent: true}, nil
 		}
 		label := record.NewCitationID()
 		marker := "<!--cite:" + label + "-->"
-		if err := record.MutateBlueReport(run.Dir(), func(old []byte) ([]byte, error) {
+		if err := record.MutateBlueReport(run, func(old []byte) ([]byte, error) {
 			next, aerr := InsertAnchor(old, body.GetClaim(), marker)
 			switch {
 			case errors.Is(aerr, ErrMisQuote):

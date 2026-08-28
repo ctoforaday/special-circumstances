@@ -2,6 +2,7 @@ package seatprobe
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"strings"
 	"testing"
@@ -30,7 +31,7 @@ func TestBuildDoesNotBindTheSeatsItStages(t *testing.T) {
 		return "", nil
 	}
 	runDir := recordtest.TmpRun(t)
-	if err := Build(runDir, Boards()["arithmetic"], exec); err != nil {
+	if err := Build(runtest.Open(t, runDir), Boards()["arithmetic"], exec); err != nil {
 		t.Fatalf("build: %v", err)
 	}
 	if len(registers) == 0 {

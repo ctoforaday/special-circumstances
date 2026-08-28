@@ -130,8 +130,8 @@ func collapse(s string) string { return strings.Join(strings.Fields(s), " ") }
 // authoring, and it must be audited as blue's text; only an identical pair estops red from
 // re-arguing what it wrote itself. Whitespace is NOT normalized here for that reason: the
 // looser the match, the more of blue's own writing red is barred from auditing.
-func ProposalAppliedVerbatim(runDir, gapID, old, new string) (bool, error) {
-	b, err := BoardState(runDir)
+func ProposalAppliedVerbatim(run Run, gapID, old, new string) (bool, error) {
+	b, err := BoardState(run)
 	if err != nil {
 		return false, err
 	}
@@ -205,11 +205,11 @@ func proofNames(b *Board, gapID string) bool {
 // against the board at write time, never a gap id mentioned in prose — the convention
 // blue_edit's --answers replaced after it measured 73% reliable, which is reliable enough to
 // look like a key and not reliable enough to be one.
-func ProofAnswers(runDir, gapID string) bool {
+func ProofAnswers(run Run, gapID string) bool {
 	if gapID == "" {
 		return false
 	}
-	b, err := BoardState(runDir)
+	b, err := BoardState(run)
 	if err != nil {
 		return false
 	}
@@ -237,11 +237,11 @@ const (
 
 // ClaimAppearsInAnEdit reports whether a claim's text appears in the OLD span of any recorded
 // blue_edit — the record's evidence that the text was in the report and was taken out.
-func ClaimAppearsInAnEdit(runDir, claim string) bool {
+func ClaimAppearsInAnEdit(run Run, claim string) bool {
 	if claim == "" {
 		return false
 	}
-	b, err := BoardState(runDir)
+	b, err := BoardState(run)
 	if err != nil {
 		return false
 	}
@@ -263,8 +263,8 @@ func ClaimAppearsInAnEdit(runDir, claim string) bool {
 // Measured: projecting check_kind moved `prove` from 0 uses across eighteen sittings to 1 across
 // nine. A seat reading "check_kind: computation" learns a property of the gap; it does not learn
 // that it owes a program, and only the second changes what the sitting produces.
-func GapsAwaitingProof(runDir string) []string {
-	b, err := BoardState(runDir)
+func GapsAwaitingProof(run Run) []string {
+	b, err := BoardState(run)
 	if err != nil {
 		return nil
 	}
