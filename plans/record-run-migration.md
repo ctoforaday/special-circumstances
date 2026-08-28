@@ -39,6 +39,48 @@ across fetch, friction and the operator read failed on runs that were entirely r
     only on a refusal, and therefore only ever wrong. Removed.
   - `cli/friction.go` told operators who HAD supplied `--run` that `--run` was required.
 
+### The packages above `record` (third step)
+
+`view`, `report`, `dashboard`, `scorecard`, `cost`, `consistency`, `capture`, plus
+`seat.RequireRun` and the CLI verbs behind it. 34 files, +235/-190.
+
+**This was planned as "the read-heavy leaves" and they are not leaves.** `view` is a shared
+dependency, so changing `view.Telemetry` and `view.Markdown` propagated through eight packages
+to the CLI boundary in one connected component. There was no smaller green cut once those two
+signatures moved. Scoping a step by "which packages sound peripheral" does not survive contact
+with the import graph; scope it by what the compiler can stop at.
+
+**Two refusals added where nothing had ever validated the path.** `capture <runDir> …` and
+`dashboard <runDir> …` take the run as a BARE ARGUMENT — the hook's injection reaches `--run`,
+not `argv` — and passed `args[0]` straight through.
+
+Measured by null run, and NOT what I first wrote here: neither verb reported an empty board.
+Both proceeded and failed further down on errors that name the wrong thing — `capture` on a
+missing `journal.jsonl` in the TRANSCRIPT directory, `dashboard` on being unable to write
+`dashboard.html` into a directory that does not exist. The defect is a misdirected error, not a
+plausible zero, and the distinction matters: I had written the stronger claim before the null
+run produced the evidence, which is the same order of operations this rule exists to forbid.
+
+This is #526's shape in the one place seat-resolution could not reach, since the value never
+passes through `seat.Context`. Regression test:
+`TestAPositionalRunDirectoryNobodyMadeIsRefused`. Its limit is worth stating: `OpenRun` refuses
+a path that does not EXIST, so `--run /tmp` — a real directory that is not a run — still passes.
+
+`seat.RequireRun` now returns a `record.Run` instead of a string, keeping its verb-named
+"`--run` is required" for the unsupplied case and adding the existence refusal beneath it.
+
+**`internal/record/runtest`** exists because `recordtest` cannot import `record`: files in
+`package record` import `recordtest`, so the reverse edge would make record's own test binary a
+cycle. `runtest` is imported only by tests of other packages.
+
+### What the mechanical rewrite could not see
+
+54 test call sites were wrapped by script. One could not be, and it is the instructive one:
+`blueRows("")` passes the empty string DELIBERATELY — it means "no run", and it is the case
+that test exists to cover. Wrapping it in a resolver would have fataled the fixture on exactly
+its own subject; it became `record.Run{}`. The script had no way to tell that argument from the
+53 others, and it surfaced only because the compiler stopped there.
+
 ## III. Remaining
 
 **43 functions in `internal/record` still take `runDir string`** — 26 exported, 17 unexported —
@@ -57,8 +99,15 @@ internal/consistency internal/dashboard     internal/fetchcache internal/flags
 green step, driven by what the compiler refuses. Do NOT batch them — the value of the type is
 in the refusals it forces at each site, and a sweep only compiles.
 
-The 17 unexported ones move last and nearly for free: once every exported entry point holds a
-`Run`, they are being handed a resolved directory already.
+**The claim that the unexported ones move "last and nearly for free" was wrong, and the third
+step disproved it.** It assumed migration flows inward from callers. It does not:
+`MergedEvents` is the ROOT of record's internal call graph — `BoardState` and 19 board readers
+sit on top of it — so changing its signature migrates the whole package in one commit. There is
+no smaller green step inside `record`. That is why the third step migrated the packages ABOVE
+record and left record's own signatures alone.
+
+So the remaining work is one atomic change, not a series: `record` migrates as a single unit, or
+not at all. Its external call sites (~27 non-test, dominated by `BoardState`) then follow.
 
 ## IV. Order
 

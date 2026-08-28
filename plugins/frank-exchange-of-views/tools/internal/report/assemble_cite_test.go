@@ -1,6 +1,7 @@
 package report
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -99,7 +100,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	path, err := Assemble(runDir)
+	path, err := Assemble(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatalf("Assemble: %v", err)
 	}

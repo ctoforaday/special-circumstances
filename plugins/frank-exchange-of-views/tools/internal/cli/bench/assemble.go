@@ -27,11 +27,11 @@ func newAssemble() *cobra.Command {
 	}
 	c.RunE = func(cmd *cobra.Command, _ []string) error {
 		// Resolved, so the injected run reaches this read as it does every write.
-		runDir, rerr := seat.Of(cmd).RequireRun("bench assemble")
+		run, rerr := seat.Of(cmd).RequireRun("bench assemble")
 		if rerr != nil {
 			return rerr
 		}
-		path, err := report.Assemble(runDir)
+		path, err := report.Assemble(run)
 		if err != nil {
 			return err
 		}
