@@ -50,6 +50,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/eventloop"
@@ -87,10 +88,40 @@ func sourceURL(path string) string {
 	return sourceSrvURL + path
 }
 
+// lockedRand is the seed's generator, safe for the concurrent seats phase 3 introduces.
+//
+// A WRAPPER RATHER THAN A MUTEX AT EVERY CALL SITE: there are 23 draws across this file, all
+// Intn, and a lock the caller has to remember is a lock somebody eventually does not. The type
+// makes the guarantee structural — a draw cannot be taken without it.
+//
+// It does NOT preserve per-seed determinism, and that is stated rather than hidden: the SEQUENCE
+// is deterministic, but which seat takes which draw depends on the interleaving, so a seed no
+// longer reproduces its own run. That cost is #630's, argued there; the run directory is kept on
+// failure and the record carries the true ordering, which is what a failing seed is read from.
+type lockedRand struct {
+	mu sync.Mutex
+	r  *rand.Rand
+}
+
+func newLockedRand(seed int64) *lockedRand {
+	return &lockedRand{r: rand.New(rand.NewSource(seed))}
+}
+
+func (l *lockedRand) Intn(n int) int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.r.Intn(n)
+}
+
 // runner shells the real binary for one run's seats. runDir + bin are fixed per fuzz iteration.
 type runner struct {
+	// mu guards every mutable field below. The seats run concurrently as of #630 phase 3, and
+	// these were single-threaded by accident rather than by design. It is held around the state
+	// itself and NEVER across r.exec — a lock spanning a subprocess would put the serialization
+	// back one layer down and buy nothing but a slower version of the old behaviour.
+	mu          sync.Mutex
 	bin, runDir string
-	rng         *rand.Rand
+	rng         *lockedRand
 	registered  map[string]bool
 	classMade   bool
 	// #277: the gap ids minted with --check-kind computation. Such a gap CANNOT be closed
@@ -132,6 +163,15 @@ type runner struct {
 	// the judge-petition sitting hearPetitions dispatches next. Each: {who, class}. Mirrors the
 	// disputes machinery (raised) so the fuzz drives the petition/petition-rule path end to end.
 	petitioned []map[string]any
+	// forceUnverified drives the run to the UNVERIFIED terminal verdict, which the random sweep
+	// reaches about once in sixty — debate.js computes UNVERIFIED only when the bench declares
+	// deadlock AND gaps remain open, and a bench that disposes its whole docket clears the board
+	// and earns red a further sitting instead. A 1-in-60 outcome cannot carry an enum gate: the
+	// sweep failed on `outcome --as UNVERIFIED` at N=40 having passed at N=60 on luck, which is a
+	// flake either way. So it is driven the way HALTED is — deterministically, by a dedicated
+	// test — rather than exempted. coverage_test.go says why an exemption is the wrong answer
+	// here, and it is right.
+	forceUnverified bool
 	// forceHalt makes the judge-petition sitting rule HALT (the dedicated halt-path test), instead
 	// of the granted/denied the random path uses. A halt ends the run HALTED; kept out of the
 	// random oracle on purpose (it reshapes every downstream expectation).
@@ -347,7 +387,7 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 func (r *runner) exec(args ...string) (string, error) {
 	cmd := exec.Command(r.bin, append(args, "--run", r.runDir)...)
 	out, err := cmd.CombinedOutput()
-	noteExec(args, err)
+	noteExec(args, err, out)
 	if err != nil {
 		err = fmt.Errorf("%s: %w\n  %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
 	}
@@ -355,10 +395,16 @@ func (r *runner) exec(args ...string) (string, error) {
 }
 
 func (r *runner) register(role, seatID string) {
+	r.mu.Lock()
 	if r.registered[seatID] {
+		r.mu.Unlock()
 		return
 	}
 	r.registered[seatID] = true
+	r.mu.Unlock()
+	// OUTSIDE THE LOCK, deliberately: this is the invocation three concurrent lanes make against
+	// a run directory whose database may not exist yet, and holding the lock across it would
+	// serialize exactly the contention phase 3 exists to produce.
 	_, _ = r.exec("register", "--seat-id", seatID)
 }
 
@@ -459,6 +505,17 @@ func (r *runner) mint(seatID string) string {
 	// COMMAND CHAINS, not minds — the seat boundary is only where the JS happens to cut. And
 	// because the outcome is chosen rather than emergent, it is ASSERTABLE.
 	directive := directives[r.rng.Intn(len(directives))]
+	// A FORCED-UNVERIFIED RUN MINTS ONLY CONTESTED GAPS, and this is the condition the first
+	// three attempts at this test each missed in turn. debate.js sits the bench only when the
+	// docket is contested (`if (contested.length > 0)`), and the bench is what declares the
+	// deadlock that makes the exit UNVERIFIED rather than CEILING. Left to the draw, a run whose
+	// gaps all happened to be repairable never contested anything, the judge never sat, and the
+	// run reached the round ceiling — which is a different verdict and a passing sweep saying so.
+	// DISPUTE-LOST specifically: blue contests and red REJECTS, so the docket is contested AND
+	// the gap stays open, which are the two things the deadlock arm reads.
+	if r.forceUnverified {
+		directive = dirDisputeLost
+	}
 	kind := checkKinds[r.rng.Intn(len(checkKinds))]
 	if directive == dirProve || directive == dirProveDrifts {
 		// The demand and the answer must agree: a gap settled by computing is minted as a
@@ -643,7 +700,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	round, _ := record.RoundOf(seatID)
 	if prior := r.closedInARoundBefore(round); len(prior) > 0 {
 		carried := prior[r.rng.Intn(len(prior))]
-		carry := []string{"merge", "carry", "--seat-id", seatID, "--id", carried,
+		carry := []string{"carry", "--seat-id", seatID, "--id", carried,
 			"--carried-from", strconv.Itoa(round - 1), "--as", "repaired"}
 		// THE EXEMPTION ITSELF, half the time. A carry restates a closure an earlier round already
 		// argued, so it owes no fresh argument — and nothing drove the no-reason form, which is
@@ -761,7 +818,7 @@ var petitionClasses = []string{"ethical", "safety", "integrity", "constitutional
 // regradeDims are the grade axes a regrade can move (each maps to its flag below).
 var regradeDims = []string{"severity", "likelihood", "impact", "cx"}
 
-func pick[T any](rng *rand.Rand, xs []T) T { return xs[rng.Intn(len(xs))] }
+func pick[T any](rng *lockedRand, xs []T) T { return xs[rng.Intn(len(xs))] }
 
 // extras fires a RANDOM subset of a role's REMAINING verb surface, so no two fuzz paths
 // look alike and every seat exercises far more than its happy path. Only verbs that keep
@@ -1132,6 +1189,30 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// The refusal is the production behaviour under test. Honouring it means a clean board
 			// with an outstanding motion FAILs the round — which is exactly right, and is the only
 			// way the motion arm of that gate is ever exercised end to end.
+			// RED DOES NOT PASS IN A FORCED-UNVERIFIED RUN, and that is not a thumb on the
+			// scale — debate.js's verdict is `redPASS ? VERIFIED : ceilingUnaudited ? CEILING :
+			// UNVERIFIED`, so a run whose red ever passes CANNOT reach the value this drives.
+			// Leaving it to the docket is what made the first version of this test flake: with
+			// concurrent seats the interleaving decides the draws, so a seeded run no longer
+			// reproduces its own board, and the run reached VERIFIED on the second attempt.
+			// A terminal path driven on purpose has to be forced at every condition the engine
+			// reads, not at one of them.
+			// AND IT FAILS OVER SOMETHING REAL. Skipping the PASS branch alone dropped through
+			// to the refusal arm below, which returns FAIL with an EMPTY gaps array — and the
+			// engine refuses that as a degenerate merge, correctly. On a cleared board there is
+			// nothing left to fail over, so this mints one: red keeps the round open the only
+			// way the protocol allows, and the gap it mints is also what keeps the board
+			// non-empty for the deadlock exit the bench declares later.
+			if r.forceUnverified {
+				if id := r.mint(seatID); id != "" {
+					_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
+					return map[string]any{"verdict": "FAIL",
+						"gaps":              []any{map[string]any{"id": id, "supersedes": arr()}},
+						"closures":          arr(),
+						"dispute_responses": responses,
+						"petitions":         r.maybePetition("merge", seatID), "friction": arr()}
+				}
+			}
 			if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
 				return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
 			}
@@ -1235,6 +1316,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				deadlock = false
 				break
 			}
+		}
+		if r.forceUnverified {
+			// DEADLOCK WITH ONE GAP LEFT UNRULED. Both halves are needed and neither alone does
+			// it: deadlock with a CLEARED board hits the relief arm (debate.js grants red one
+			// further sitting, which passes, and the run is VERIFIED), while open gaps without
+			// deadlock just runs to the ceiling and stamps CEILING.
+			//
+			// ONE, not all of them. Disposing nothing starves red — it returns FAIL with an
+			// empty gaps array in round 3 and the engine refuses the degenerate merge, which is
+			// a correct refusal and not the path this drives. Leaving a single gap unruled keeps
+			// every other party's flow ordinary and the board non-empty at the exit.
+			if n := len(res); n > 0 {
+				res = res[:n-1]
+			}
+			return map[string]any{"resolutions": res, "deadlock": true, "friction": arr()}
 		}
 		return map[string]any{"resolutions": res, "deadlock": deadlock, "friction": arr()}
 
@@ -1353,7 +1449,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// Red verifies a cited source by reading the CACHED bytes (#256): the same
 				// `fetch` any seat uses. Driving it here is what makes the cache path — miss,
 				// store, hit — real in the fuzz rather than unit-tested only.
-				_, _ = r.exec("fetch", "--url", sourceURL("/"+seatID))
+				_, _ = r.exec("fetch", "--seat-id", seatID, "--url", sourceURL("/"+seatID))
 				r.extras("lens", seatID, nil)
 			}
 		}
@@ -1416,7 +1512,7 @@ type outcome struct {
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
 // (falling back to the label), records the model tier the dispatch carried (#111 oracle), and
 // resolves the promise with r's envelope for that seat.
-func (r *runner) installAgent(vm *goja.Runtime) {
+func (r *runner) installAgent(loop *eventloop.EventLoop, vm *goja.Runtime) {
 	vm.Set("agent", func(call goja.FunctionCall) goja.Value {
 		prompt := ""
 		if len(call.Arguments) > 0 {
@@ -1445,9 +1541,36 @@ func (r *runner) installAgent(vm *goja.Runtime) {
 			}
 			r.models = append(r.models, mdl)
 		}
-		env := r.envelopeFor(seatID, prompt)
-		p, resolve, _ := vm.NewPromise()
-		resolve(vm.ToValue(env))
+		// THE SEAT'S WORK LEAVES THE LOOP (#630 phase 3).
+		//
+		// This built the envelope INLINE and resolved an already-settled promise, so the
+		// preamble's `parallel` — `Promise.all(t.map(x => x()))` — ran each thunk to completion
+		// before starting the next. debate.js's lane and lens fan-outs were therefore serial in
+		// the fuzz however wide they were configured, and the ~270 binary invocations of a run
+		// went one at a time. Nothing ever contended for the record's locks, which is why #557's
+		// window sat unreachable in the one harness that reaches a seat before the database
+		// exists.
+		//
+		// Now the promise is returned PENDING and the work runs on a goroutine, so a thunk
+		// returns immediately and its siblings start. Three lanes hit `register` on a fresh run
+		// directory at once, which is the cross-process contention this exists for.
+		//
+		// goja is single-threaded and the Runtime must not be touched from here: the envelope is
+		// built off-loop with no VM access, and vm.ToValue happens back ON the loop.
+		p, resolve, reject := vm.NewPromise()
+		go func() {
+			env := r.envelopeFor(seatID, prompt)
+			loop.RunOnLoop(func(vm *goja.Runtime) {
+				if env == nil {
+					// A seat that produced nothing is a rejection, not a silent fulfilment with
+					// an empty envelope — debate.js reads fields off it and would fail further
+					// from the cause.
+					_ = reject(vm.ToValue("seat " + seatID + " produced no envelope"))
+					return
+				}
+				_ = resolve(vm.ToValue(env))
+			})
+		}()
 		return vm.ToValue(p)
 	})
 }
@@ -1468,13 +1591,35 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	// verdict, which is exactly what the tripwire flagged: 24 of 60, purely for a missing file.
 	_ = os.MkdirAll(filepath.Join(r.runDir, "inputs"), 0o755)
 	_ = os.WriteFile(filepath.Join(r.runDir, "inputs", "run-config.json"),
-		[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","maxRounds":"3","lanes":"1"}`), 0o644)
+		[]byte(`{"topic":"fuzz","model":"haiku","judgmentModel":"haiku","maxRounds":"4","lanes":"3"}`), 0o644)
 
+	// STARTED, NOT Run(). `loop.Run` returns once the JS job queue drains, which was correct
+	// while agent() resolved inline — the whole debate settled inside one call. Phase 3 (#630)
+	// resolves a seat's promise from a goroutine, so the queue can be momentarily empty with
+	// work still outstanding, and Run would return mid-debate leaving __result pending. The
+	// fuzz would then report "never settled (hang)" for every run: a harness artefact wearing
+	// the exact words of a real defect.
+	//
+	// So the loop runs until the debate SAYS it is done, through __settle below.
 	loop := eventloop.NewEventLoop()
-	loop.Run(func(vm *goja.Runtime) {
+	loop.Start()
+	defer loop.Stop()
+
+	// Buffered: __settle may fire before the receive, and an unbuffered send on the loop
+	// goroutine would deadlock against a loop.Stop() this function has not reached yet.
+	done := make(chan string, 1)
+	loop.RunOnLoop(func(vm *goja.Runtime) {
+		// THE SHAPE PRODUCTION ACTUALLY RUNS (#630). This drove `lanes: 1` under a
+		// laneFloorOverride — the --smoke shape, which debate.js:82 REFUSES by default and
+		// which the floor exists to stop ("run 2 silently ran under-provisioned at lanes=2").
+		// At width one the blue lane fan-out (debate.js:725), red's lens-pass fan-out (:824)
+		// and the per-lane method diversity (:560) were all exercised at a width no keeper run
+		// uses. Both committed runs' inputs/run-config.json say lanes 3, maxRounds 4; so does
+		// this. The override's own branch stays covered by debate.test.mjs, which is where a
+		// JS-level guard belongs.
 		vm.Set("args", map[string]any{
 			"topic": "fuzz", "runDir": r.runDir, "binDir": binDir(r.bin),
-			"lanes": 1, "laneFloorOverride": "fuzz", "maxRounds": 3,
+			"lanes": 3, "maxRounds": 4,
 			// #111: both tiers are REQUIRED — nil refuses dispatch. Both haiku so the tier oracle
 			// expects every dispatched seat to carry exactly "haiku".
 			"model": "haiku", "judgmentModel": "haiku",
@@ -1483,15 +1628,52 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 			settledErr = "preamble: " + err.Error()
 			return
 		}
-		r.installAgent(vm)
+		r.installAgent(loop, vm)
+		// __settle is how the debate tells Go it is over, from inside JS. Polling the promise
+		// state from outside cannot do it: with async seats there is no moment at which "the
+		// queue is empty" means "the debate finished".
+		vm.Set("__settle", func(call goja.FunctionCall) goja.Value {
+			msg := ""
+			if len(call.Arguments) > 0 {
+				msg = call.Argument(0).String()
+			}
+			select {
+			case done <- msg:
+			default: // already settled; the first word wins
+			}
+			return goja.Undefined()
+		})
 		if _, err := vm.RunString(wrapped); err != nil {
-			settledErr = "run: " + err.Error()
+			done <- "run: " + err.Error()
+			return
+		}
+		// ATTACHED IN JS, because a rejection has to reach the same channel a fulfilment does.
+		// "" is the fulfilled signal; every other string is the failure, so an empty rejection
+		// reason cannot read as success.
+		if _, err := vm.RunString(`globalThis.__result.then(
+			function(){ __settle(""); },
+			function(e){ __settle("debate rejected: " + String(e)); })`); err != nil {
+			done <- "attaching the settle handler: " + err.Error()
 		}
 	})
-	if settledErr != "" {
-		return nil, settledErr
+
+	// THE HANG IS STILL DETECTED, and now it is the only thing this wait can mean. The bound is
+	// generous because a production-shaped run drives 270 invocations of a real binary; it is a
+	// stuck-run tripwire, not a performance assertion.
+	select {
+	case msg := <-done:
+		if msg != "" {
+			return nil, msg
+		}
+	case <-time.After(10 * time.Minute):
+		return nil, "debate never settled (hang)"
 	}
-	loop.Run(func(vm *goja.Runtime) {
+
+	// READ THE RESULT BACK ON THE LOOP. Touching the Runtime from this goroutine is the one
+	// thing goja does not allow, and it is not diagnosable when it goes wrong.
+	read := make(chan struct{})
+	loop.RunOnLoop(func(vm *goja.Runtime) {
+		defer close(read)
 		v := vm.Get("__result")
 		pr, ok := v.Export().(*goja.Promise)
 		if v == nil || !ok {
@@ -1509,6 +1691,7 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 			}
 		}
 	})
+	<-read
 	return result, settledErr
 }
 
@@ -1530,7 +1713,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64) (res outcome) {
 	if err := record.StageForRun(runDir, fuzzClasses...); err != nil {
 		return outcome{seed: seed, runDir: runDir, err: "stage the class registry: " + err.Error()}
 	}
-	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(seed)), registered: map[string]bool{}}
+	r := &runner{bin: bin, runDir: runDir, rng: newLockedRand(seed), registered: map[string]bool{}}
 
 	res = outcome{seed: seed, runDir: runDir}
 	// NAMED RETURN + defer, because this function returns from a dozen places — an oracle that
@@ -2123,7 +2306,7 @@ func TestFuzzHaltPath(t *testing.T) {
 	wrapped := debateWrapped(t)
 	runDir, _ := os.MkdirTemp("", "fuzz-halt-")
 	defer os.RemoveAll(runDir)
-	r := &runner{bin: bin, runDir: runDir, rng: rand.New(rand.NewSource(1)), registered: map[string]bool{}, forceHalt: true}
+	r := &runner{bin: bin, runDir: runDir, rng: newLockedRand(1), registered: map[string]bool{}, forceHalt: true}
 
 	result, settledErr := driveDebate(r, wrapped)
 	if settledErr != "" {
@@ -2388,6 +2571,17 @@ func truncate(s string) string {
 // is swept without anyone remembering to edit a list here.
 var viewNamesForFuzz = seat.ViewNames()
 
+// surfaceQuorum is the run count at or above which the coverage gates can hold the sweep to the
+// FULL surface. Below it a low-frequency path can flake to zero and fail an honest run.
+//
+// MEASURED, not guessed: across a default 60-run sweep the scarcest path is `motion inquiry
+// appeal` at 9 invocations (0.15/run), which gives ~10% odds of never firing at N=15 against
+// ~0.25% at N=40. The number is shape-dependent — lane-driven verbs scale with `lanes`, dispute-
+// driven ones with `maxRounds` — so it is a floor for THIS shape, and a shape change re-tunes it.
+// That is why the gates below assert the tally rather than trusting this constant to stand in
+// for coverage (#630).
+const surfaceQuorum = 40
+
 func TestFuzzDebate(t *testing.T) {
 	bin := buildBinary(t)
 	wrapped := debateWrapped(t)
@@ -2402,7 +2596,10 @@ func TestFuzzDebate(t *testing.T) {
 	// statistics on debate semantics, which are platform-independent and keep full depth on
 	// Linux. The full 1000-run confidence sweep is on demand:
 	// FUZZ_N=1000 go test ./integration/fuzz -run TestFuzzDebate -timeout 1200s.
-	n := 60
+	// THE DEFAULT IS THE QUORUM, so the default sweep is always one that can assert the surface.
+	// 60 was a number the gates did not depend on; at production shape a run costs ~2.2x what the
+	// smoke shape cost, and the sweep needs exactly enough runs for the coverage gates to hold.
+	n := surfaceQuorum
 	if testing.Short() {
 		n = 15
 	}
@@ -2505,9 +2702,23 @@ func TestFuzzDebate(t *testing.T) {
 	// gated verb fires with per-run probability well above ~20%, so P(missed across the default 60
 	// runs) is negligible; if a verb ever flakes here it is a real coverage regression, not noise.
 	// The full surface needs enough runs for every verb (incl. the ~10%/run ones like regrade) to
-	// fire; below ~40 runs a low-frequency verb could flake to zero, so the -short smoke keeps only
-	// the cite/finding floor (the original false-green guard) and the default+ size asserts all.
-	if completed >= 40 {
+	// fire; below the quorum a low-frequency verb could flake to zero, so the -short smoke keeps
+	// only the cite/finding floor (the original false-green guard) and the default+ size asserts
+	// all.
+	//
+	// A SWEEP UNDER QUORUM NOW SAYS SO. These gates used to fall silent below 40 and print the
+	// same green as a sweep that ran them — so `-short` (N=15) has been running this package with
+	// its three coverage gates inactive and nothing on the record saying which. That is #428's
+	// class (a gate that did not fire rendered as a gate that held) inside the sweep built to
+	// detect exactly it.
+	measured := completed >= surfaceQuorum
+	if !measured {
+		t.Logf("NOT MEASURED: %d runs is under the surface quorum of %d, so these gates did NOT run: "+
+			"the per-verb event gate, the citation/provenance floors, the full-surface command gate, "+
+			"and the flag/enum coverage sweeps. This is not a pass over them — only the cite/finding "+
+			"floor below was checked. Run the default sweep to assert the surface.", completed, surfaceQuorum)
+	}
+	if measured {
 		for _, k := range verbsWithEvents {
 			if coverExempt[k] {
 				continue
@@ -2522,7 +2733,7 @@ func TestFuzzDebate(t *testing.T) {
 	// two assert the chain that actually matters ran end to end through the real binary: a source
 	// was FETCHED into <run>/cache (loopback server, see sourceURL) and an INVISIBLE anchor was
 	// spliced into blue/report.md. Zero of either across the whole sweep is a false green.
-	if completed >= 40 {
+	if measured {
 		if citeAnchors == 0 {
 			t.Errorf("fuzz spliced ZERO <!--cite:--> anchors across %d runs — `blue cite` never anchored (false green); the citation axis is unexercised", completed)
 		}
@@ -2542,7 +2753,7 @@ func TestFuzzDebate(t *testing.T) {
 			t.Errorf("fuzz recorded ZERO verbatim applications across %d runs — nothing ever estopped red, so the stage-4 guard is unexercised (false green)", completed)
 		}
 	}
-	if completed < 40 {
+	if !measured {
 		for _, k := range []string{"cite", "finding"} {
 			if dcov[k] == 0 {
 				t.Errorf("fuzz drove ZERO %s events across %d runs — the lens record channel is unexercised (false green)", k, completed)
@@ -2559,7 +2770,7 @@ func TestFuzzDebate(t *testing.T) {
 	// invisible to the event gate above.
 	//
 	// The only hand-written list left is exemptSurfaces, and each entry states its reason.
-	if completed >= 40 {
+	if measured {
 		if un := unreachedSurfaces(); len(un) > 0 {
 			t.Errorf("%d command path(s) exist in the tool and were NEVER invoked across %d runs (false green — add a drive, or an exemption with its reason):\n  %s",
 				len(un), completed, strings.Join(un, "\n  "))
@@ -2575,7 +2786,15 @@ func TestFuzzDebate(t *testing.T) {
 		if un := unreachedEnumValues(); len(un) > 0 {
 			t.Errorf("%d enum value(s) were never driven:\n  %s", len(un), strings.Join(un, "\n  "))
 		}
-		t.Log(execReport())
+	}
+	// AT EVERY SIZE, both of these. The tally is the sweep's own trajectory and costs nothing to
+	// print; withholding it under quorum hid the evidence for the gate below on exactly the runs
+	// most likely to need it. And a path that never succeeded is a coverage hole at ANY N — it
+	// needs no quorum, because one refusal per invocation is not a sampling accident.
+	t.Log(execReport())
+	if un := neverSucceeded(); len(un) > 0 {
+		t.Errorf("%d command path(s) were driven and NEVER SUCCEEDED — the surface gate counts invocations, so these read as covered while their success path has never run:\n  %s",
+			len(un), strings.Join(un, "\n  "))
 	}
 	if len(failures) > 0 {
 		// EIGHT, AND IT SAYS SO WHEN IT TRUNCATES. Sixty seeds failing the same way is a wall of
@@ -2820,7 +3039,9 @@ func (r *runner) reproveOpenProofs(seatID string) {
 			} `json:"result"`
 		}
 		if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) == nil && env.Result.Matches {
+			r.mu.Lock()
 			r.reproduced[id] = true
+			r.mu.Unlock()
 		}
 	}
 }
@@ -3142,3 +3363,75 @@ func seatOfRole(role string) string {
 // name and the mint has a real registry to be checked against — not to give the generator a
 // menu to pick from, which would test the picking rather than the check.
 var fuzzClasses = []string{"self-attestation", "policy-without-mechanism", "metric-conflation"}
+
+// TestFuzzUnverifiedPath drives the UNVERIFIED terminal verdict deterministically.
+//
+// IT USED TO BE LUCK. debate.js computes UNVERIFIED only for a run that is not halted, whose red
+// never passed, and which did NOT stop at the ceiling — the judged-deadlock exit with gaps still
+// open. In the random sweep that happens about once in sixty runs, because a bench that disposes
+// its whole docket clears the board and the engine grants red a further sitting instead, which
+// then passes. So `outcome --as UNVERIFIED` was an enum value the coverage gate demanded and the
+// sweep supplied by chance: it passed at N=60 with 2 occurrences and 1 at N=40, then failed at
+// N=40 with none. Roughly a one-in-three flake, and it had been one all along.
+//
+// coverage_test.go already refused the other answer, in writing: `outcome --as UNVERIFIED` was
+// once exempted on a claim that the engine had no path to it, a real run falsified that, and the
+// note left behind says an unreachable value should make the sweep SAY so rather than earn an
+// exemption explaining why it never was. So this drives it, the way TestFuzzHaltPath drives
+// HALTED — a terminal shape too disruptive for the random sweep gets a dedicated run, and its
+// invocations land in the same package-level tally the gate reads.
+func TestFuzzUnverifiedPath(t *testing.T) {
+	bin := buildBinary(t)
+	wrapped := debateWrapped(t)
+	runDir, _ := os.MkdirTemp("", "fuzz-unverified-")
+	defer os.RemoveAll(runDir)
+	// THE SAME RUN THE SWEEP BUILDS, because driveDebate is only half of one. Without the seeded
+	// report a lens finding has no anchor quote to attach to and is refused, so red mints nothing
+	// and round 3 is a FAIL with an empty gaps array — the engine's degenerate-merge refusal,
+	// which is correct and is not this path. Without the class registry every `mint` is refused
+	// for an unknown class. runOne does both before it drives; so does this.
+	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
+	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
+		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time.\n"), 0o644)
+	if err := record.StageForRun(runDir, fuzzClasses...); err != nil {
+		t.Fatalf("staging the class registry: %v", err)
+	}
+	r := &runner{bin: bin, runDir: runDir, rng: newLockedRand(1), registered: map[string]bool{}, forceUnverified: true}
+
+	result, settledErr := driveDebate(r, wrapped)
+	if settledErr != "" {
+		t.Fatalf("unverified run did not settle cleanly: %s", settledErr)
+	}
+	if v, _ := result["verdict"].(string); v != "UNVERIFIED" {
+		t.Fatalf("expected verdict UNVERIFIED, got %q — the terminal path this test exists to drive did not run", v)
+	}
+	// AND THE RECORD SAYS SO, not just the returned map. This is the assertion the enum gate
+	// actually depends on: `outcome --as UNVERIFIED` has to be a value the tool WROTE.
+	//
+	// It asserted `len(r.openGaps()) > 0` first, on the reasoning that UNVERIFIED-with-nothing-
+	// open is a contradiction. That reasoning is debate.js's and it holds where debate.js
+	// applies it — at the decision — but not here: the bench disposes the docket in its terminal
+	// sitting, so an empty board AFTER the run is ordinary. Measured, it failed 12 of 12 while
+	// the verdict itself was right every time, which makes it an assertion about the wrong
+	// moment rather than a defect it caught.
+	board, err := record.BoardState(runDir)
+	if err != nil {
+		t.Fatalf("board: %v", err)
+	}
+	recorded, ended := "", ""
+	for _, e := range board.Events {
+		if o, ok := recordpb.BodyAs[*recordpb.Outcome](e); ok {
+			recorded = strings.ToUpper(recordpb.Word(o.GetVerdict()))
+			ended = o.GetEnded()
+		}
+	}
+	if recorded != "UNVERIFIED" {
+		t.Fatalf("the record carries outcome %q, not UNVERIFIED — the enum value this test exists to write was not written", recorded)
+	}
+	// THE REASON, not only the stamp. UNVERIFIED is reachable two ways in principle and this
+	// test drives exactly one of them: the judged-deadlock exit. Without this, a run that
+	// reached the same word down some other path would satisfy the test and teach nothing.
+	if ended != "deadlock" {
+		t.Fatalf("outcome ended %q, expected deadlock — UNVERIFIED was reached, but not by the path this drives", ended)
+	}
+}

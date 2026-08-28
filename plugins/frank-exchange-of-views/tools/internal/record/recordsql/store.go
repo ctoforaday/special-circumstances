@@ -221,18 +221,68 @@ func openUncached(path string) (*sql.DB, error) {
 	// now load-bearing, not incidental.
 	db.SetMaxOpenConns(1)
 
-	var n int
-	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'`).Scan(&n); err != nil {
+	if err := ensureSchema(db); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("recordsql: reading %s: %w", path, err)
-	}
-	if n == 0 {
-		if err := applySchema(db); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("recordsql: applying the schema to %s: %w", path, err)
-		}
+		return nil, fmt.Errorf("recordsql: preparing %s: %w", path, err)
 	}
 	return db, nil
+}
+
+// ensureSchema applies the schema if this database does not have it, DECIDING INSIDE THE
+// TRANSACTION THAT WOULD CREATE IT (#557).
+//
+// It used to read whether `events` existed and then apply, with nothing between. Two openers of a
+// FRESH database both saw zero and both applied; the second failed with "table … already exists".
+// Nothing ever hit it, for two reasons that are accidents rather than guarantees: the in-process
+// handle cache means one process cannot race itself, and the cross-process test creates the
+// schema before spawning its children. Production was covered by the same accident — `setup`
+// makes the run directory, and its database, before dispatching a seat.
+//
+// The fuzz is the harness that removes the accident. It builds its run directory directly rather
+// than through `setup`, so the first seat command is what creates the schema — and once the lanes
+// run concurrently (#630 phase 3), round 0 opens a fresh database from three processes at once.
+//
+// WHY THIS AND NOT `CREATE TABLE IF NOT EXISTS`: the two differ on a HALF-CREATED schema, and the
+// DDL is ~171 statements applied in one transaction precisely so that a crash mid-apply leaves
+// nothing rather than a partial record. IF NOT EXISTS would make each statement independently
+// survivable and turn a torn apply into a database that looks complete. Deciding inside the
+// transaction keeps the all-or-nothing property and closes the race with it.
+//
+// The DSN carries _txlock=immediate, so Begin takes the WRITE lock before any read: a second
+// opener queues on busy_timeout rather than racing, and re-reads after the first commits. A
+// writer waiting for a writer is a queue; that is the same property the seat write path relies on.
+func ensureSchema(db *sql.DB) error {
+	// The fast path stays lock-free: an existing database is the overwhelmingly common case, and
+	// taking a write lock on every open would put every reader behind the writer queue.
+	if hasEvents(db) {
+		return nil
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }() // no-op after Commit; the whole point on the loser's path
+	// RE-READ UNDER THE LOCK. This is the half that makes it a check-then-create no longer: the
+	// loser of the race arrives here after the winner committed and sees the table it would have
+	// created.
+	var n int
+	if err := tx.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'`).Scan(&n); err != nil {
+		return err
+	}
+	if n > 0 {
+		return nil
+	}
+	return applySchemaTx(tx)
+}
+
+// hasEvents reports whether the record's table is already there. A read error answers "no" and
+// lets the transactional path produce the real diagnosis rather than two spellings of one fault.
+func hasEvents(db *sql.DB) bool {
+	var n int
+	if err := db.QueryRow(`SELECT count(*) FROM sqlite_master WHERE type='table' AND name='events'`).Scan(&n); err != nil {
+		return false
+	}
+	return n > 0
 }
 
 // applySchema creates the whole record in ONE transaction.
@@ -252,15 +302,22 @@ func openUncached(path string) (*sql.DB, error) {
 // SQLite's own forum states the mechanism: an autocommitted statement fsyncs on its own, so
 // batching replaces one-fsync-per-statement with one fsync at COMMIT.
 func applySchema(db *sql.DB) error {
-	schema, err := Schema()
-	if err != nil {
-		return err
-	}
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }() // no-op after a successful Commit
+	return applySchemaTx(tx)
+}
+
+// applySchemaTx is the apply itself, on a transaction the CALLER owns — because the existence
+// check and the apply have to be one atomic act (#557), and a function that opens its own
+// transaction cannot be part of someone else's decision.
+func applySchemaTx(tx *sql.Tx) error {
+	schema, err := Schema()
+	if err != nil {
+		return err
+	}
 	if _, err := tx.Exec(schema); err != nil {
 		return err
 	}
