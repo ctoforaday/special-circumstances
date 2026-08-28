@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/unwritable"
 )
 
 func at(min int) time.Time { return time.Date(2026, 8, 23, 0, min, 0, 0, time.UTC) }
@@ -109,24 +109,23 @@ func TestAnUnusableStateLocationSuppressesTheEmission(t *testing.T) {
 }
 
 // The same property against an unwritable DIRECTORY, which is the shape a real machine
-// produces (a permissions mistake, a read-only mount). Unix only, and skipped rather than
-// silently passing: os.Chmod does not restrict a directory on Windows, so the arm would
-// exercise nothing while reporting green — and a test that passes without testing is
-// worse than one that says it did not run.
+// produces (a permissions mistake, a read-only mount). Skipped rather than silently passing
+// wherever the chmod does not actually restrict this process — os.Chmod does not restrict a
+// directory on Windows, and a sufficiently privileged caller writes through it on Unix — so
+// the arm never exercises nothing while reporting green. A test that passes without testing
+// is worse than one that says it did not run, and [[unwritable]] holds that by PROBING the
+// restriction rather than predicting it.
 func TestAnUnwritableStateFileSuppressesTheEmission(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("os.Chmod cannot make a directory unwritable on Windows; " +
-			"TestAnUnusableStateLocationSuppressesTheEmission covers the same property portably")
-	}
 	dir := t.TempDir()
 	cp := filepath.Join(dir, ".claude", "checkpoints")
 	if err := os.MkdirAll(cp, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Chmod(cp, 0o500); err != nil { // readable, not writable
-		t.Fatal(err)
-	}
-	t.Cleanup(func() { _ = os.Chmod(cp, 0o755) })
+	// unwritable.Dir owns both skips now — Windows, where os.Chmod is a no-op, AND a caller
+	// privileged enough to write through 0o500, which this arm did NOT handle and which failed
+	// it outright in a root container. TestAnUnusableStateLocationSuppressesTheEmission covers
+	// the same property portably in both cases.
+	unwritable.Dir(t, cp)
 
 	if d := Decide(dir, "s1", false, stale(), "CHECKPOINT.md", at(1), bands(), at(10)); d.Emit != "" {
 		t.Errorf("emitted despite being unable to record the band:\n%s", d.Emit)

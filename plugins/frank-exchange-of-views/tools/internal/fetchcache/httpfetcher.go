@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -75,7 +77,7 @@ func (h *httpFetcher) Fetch(rawURL string) ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch: %s returned HTTP %d", rawURL, resp.StatusCode)
+		return nil, fmt.Errorf("fetch: %s returned HTTP %d%s", rawURL, resp.StatusCode, egressNote(resp.StatusCode))
 	}
 	// Read one byte past the cap so an over-size body is DETECTED, not silently truncated
 	// into a citation.
@@ -87,4 +89,46 @@ func (h *httpFetcher) Fetch(rawURL string) ([]byte, error) {
 		return nil, fmt.Errorf("fetch: %s exceeds the %d-byte cap — cite a smaller source or a specific page", rawURL, h.maxBytes)
 	}
 	return b, nil
+}
+
+// AN EGRESS BLOCK IS NOT AN EPISTEMIC RESULT, and telling them apart is the seat's job the
+// moment a fetch fails.
+//
+// MEASURED 2026-08-23 (#592): openai.com returns 403 through the session proxy. Run B's
+// deep-research-persistence question came back "open rather than resolved" on the strength of
+// that 403 — a fact about this container's allowlist, recorded as a fact about the world. The
+// two are indistinguishable in "returned HTTP 403", which is all the seat saw.
+//
+// THE NOTE STATES A POSSIBILITY, NEVER A VERDICT. A 403 from an origin that dislikes our user
+// agent and a 403 from a proxy refusing the host produce the same status line; nothing in the
+// response reliably separates them, and a message asserting "blocked at the proxy" would trade
+// one unfounded certainty for another. So it names both readings and the check that decides,
+// and it fires only where a proxy is actually configured — in a direct-egress environment the
+// question does not arise and the extra sentence would be noise.
+func egressNote(status int) string {
+	switch status {
+	case http.StatusForbidden, http.StatusMethodNotAllowed, http.StatusProxyAuthRequired:
+	default:
+		return ""
+	}
+	if proxyEnv() == "" {
+		return ""
+	}
+	return " — THIS MAY BE THE EGRESS PROXY REFUSING THE HOST rather than the origin refusing us, " +
+		"and the two are different findings: a proxy block is a fact about this container's allowlist, " +
+		"an origin refusal is a fact about the source. Do not record an unreached source as evidence of " +
+		"absence. Check which it is before grading (the proxy's own status endpoint, or the same URL from " +
+		"a host outside this environment), and where you cannot, say the source was UNREACHABLE FROM HERE " +
+		"rather than that the question is unresolved."
+}
+
+// proxyEnv reports the configured egress proxy, if any. Both spellings, because the
+// environment sets the upper-case form and Go's own ProxyFromEnvironment reads either.
+func proxyEnv() string {
+	for _, k := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"} {
+		if v := strings.TrimSpace(os.Getenv(k)); v != "" {
+			return v
+		}
+	}
+	return ""
 }

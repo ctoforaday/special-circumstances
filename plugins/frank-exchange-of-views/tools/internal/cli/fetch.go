@@ -28,9 +28,10 @@ import (
 // records an unusable citation.
 func newFetch() *cobra.Command {
 	c := &cobra.Command{
-		Use:           "fetch",
-		Short:         "cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes",
-		Long:          "fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints them; a later fetch of the same URL is served from cache so every seat reads identical content. It writes no record event. A fetch failure is a non-zero error (pick another source); it does not itself log friction.",
+		Use:   "fetch",
+		Short: "cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes",
+		Long: "fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints them; a later fetch of the same URL is served from cache so every seat reads identical content. It writes no record event. A fetch failure is a non-zero error (pick another source); it does not itself log friction. " +
+			"AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE. Where this session runs behind an egress proxy, a host outside its allowlist answers 403 — the same status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or a fact about the SOURCE, and the two are different findings. The refusal says so where it can. Measured 2026-08-23: openai.com 403s through the proxy, and a research question shipped `open rather than resolved` on that basis. Where you cannot tell which it was, record that the source was UNREACHABLE FROM HERE rather than that the question is unresolved.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
