@@ -39,10 +39,38 @@ across fetch, friction and the operator read failed on runs that were entirely r
     only on a refusal, and therefore only ever wrong. Removed.
   - `cli/friction.go` told operators who HAD supplied `--run` that `--run` was required.
 
+### `setup` (second step)
+
+All seven exported functions take `record.Run`; the orchestrator resolves ONCE via `NewRun`
+before anything is written, and `cmd/seatprobe` opens its probe run with `OpenRun` (the
+directory exists by then, so the stronger constructor is the right one).
+
+Two things fell out:
+
+- **`absRun` is gone.** It was `filepath.Abs(cfg.RunDir)` computed sixty lines below first use,
+  with `if absErr != nil { absRun = cfg.RunDir }` — a silent fallback to the relative path. Only
+  two sites used it, so a run was laid out in a mix of spellings. `run.Dir()` is absolute by
+  construction.
+- **An unresolvable run used to build completely and report success.** Measured against the
+  pre-migration code: a run directory carrying `.records-elsewhere` with no pointer and no
+  `FEOV_RECORD_ROOT` — a copied run directory, or a cleaned cache — made `run-setup` **exit 0
+  with empty stderr**, having written the skeleton, mirrors, run-live marker and class join.
+  `StageClassRegistry`'s "cannot resolve the record directory" appeared as a reason string
+  inside the success summary. `BuildSkeleton` had swallowed the resolution error deliberately
+  (`if recDir, err := record.RecordsDir(runDir); err == nil`) on the grounds that laying out a
+  directory is setup's job. Regression test:
+  `TestAnUnresolvableRunIsRefusedBeforeTheSkeletonExists`, null-run against the old code.
+
+**Left alone deliberately:** `runlive.WriteRunLiveMarker` still receives `cfg.RunDir` verbatim,
+not `run.Dir()`. The marker stores the path as given and `SameRun` normalises when comparing, so
+switching it to absolute would change what lands in `run-live.json` for every reader of that
+file — a different concept with its own carriers ([[facts-are-fields]] clause 4). Worth doing;
+not worth doing silently inside this one.
+
 ## III. Remaining
 
-**43 functions in `internal/record` still take `runDir string`** — 26 exported, 17 unexported —
-called from 24 packages:
+**43 functions in `internal/record` still take `runDir string`** — 26 exported, 17 unexported.
+`setup` and `cmd/seatprobe` now hold handles rather than strings; the remaining caller packages:
 
 ```
 cmd/seatprobe        internal/cli/enumhelp  internal/graph      internal/seatenv

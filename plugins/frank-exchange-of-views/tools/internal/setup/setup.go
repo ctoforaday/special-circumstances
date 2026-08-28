@@ -76,16 +76,17 @@ type SkeletonResult struct {
 	Skipped []string
 }
 
-func BuildSkeleton(runDir, topic string) SkeletonResult {
+func BuildSkeleton(run record.Run, topic string) SkeletonResult {
+	runDir := run.Dir()
 	res := SkeletonResult{Created: []string{}, Skipped: []string{}}
 	for _, d := range dirs {
 		os.MkdirAll(filepath.Join(runDir, d), 0o755)
 	}
-	// Resolution failure is not fatal to a skeleton: setup's job is to lay out a directory, and
-	// the first record verb reports an unreachable root far better than a half-built run does.
-	if recDir, err := record.RecordsDir(runDir); err == nil {
-		os.MkdirAll(recDir, 0o755)
-	}
+	// Resolved once, when the handle was made. This used to re-resolve here and swallow the
+	// error on the grounds that a half-built skeleton is worse than an unreachable root — a fair
+	// argument, and no longer one anybody has to make: a run that cannot resolve never becomes a
+	// record.Run, so run-setup refuses it before laying down a single directory.
+	os.MkdirAll(run.Records(), 0o755)
 	for _, s := range stubs {
 		rel, name := s[0], s[1]
 		p := filepath.Join(runDir, filepath.FromSlash(rel))
@@ -106,7 +107,8 @@ type PinResult struct {
 	Path    string
 }
 
-func BuildPinned(runDir, head string, cites []string) PinResult {
+func BuildPinned(run record.Run, head string, cites []string) PinResult {
+	runDir := run.Dir()
 	p := filepath.Join(runDir, "inputs", "PINNED.md")
 	if exists(p) {
 		return PinResult{Written: false, Path: p}
@@ -152,7 +154,8 @@ type MirrorResult struct {
 }
 
 // MirrorLaw stages the repo's law/ corpus read-only into inputs/law.
-func MirrorLaw(repoLawDir, runDir string) MirrorResult {
+func MirrorLaw(repoLawDir string, run record.Run) MirrorResult {
+	runDir := run.Dir()
 	outDir := filepath.Join(runDir, "inputs", "law")
 	if exists(outDir) {
 		return MirrorResult{Written: false, Reason: "already staged"}
@@ -175,7 +178,8 @@ func MirrorLaw(repoLawDir, runDir string) MirrorResult {
 
 // MirrorGapPatterns concatenates red's gap-pattern memory into inputs/red-gap-patterns.md,
 // first-source-wins deduped by filename. dirs are tried in order (promoted before raw).
-func MirrorGapPatterns(memoryDirs []string, runDir string) MirrorResult {
+func MirrorGapPatterns(memoryDirs []string, run record.Run) MirrorResult {
+	runDir := run.Dir()
 	out := filepath.Join(runDir, "inputs", "red-gap-patterns.md")
 	if exists(out) {
 		return MirrorResult{Written: false, Reason: "already staged"}
@@ -236,7 +240,8 @@ type ScorecardResult struct {
 
 // MirrorScorecards stages each chair's scorecard into inputs/ and extracts the
 // prompt headline — the emitted HEADLINE line where present, else the parsed rows.
-func MirrorScorecards(memoryDir, runDir string) ScorecardResult {
+func MirrorScorecards(memoryDir string, run record.Run) ScorecardResult {
+	runDir := run.Dir()
 	if memoryDir == "" || !exists(memoryDir) {
 		return ScorecardResult{Written: false, Reason: "no feov-memory dir", Headlines: map[string][]string{}}
 	}
@@ -699,7 +704,7 @@ func scorecardFiles(dir string) []string {
 // — it means every mint is REFUSED. That is the right way round: a run that cannot name its
 // own vocabulary produces a board nobody can interpret afterwards, and the reasons below say
 // which of the two failures the operator is looking at.
-func StageClassRegistry(repoMemoryDir, runDir string) MirrorResult {
+func StageClassRegistry(repoMemoryDir string, run record.Run) MirrorResult {
 	src := filepath.Join(repoMemoryDir, "class-registry.json")
 	b, err := os.ReadFile(src)
 	if err != nil {
@@ -720,11 +725,7 @@ func StageClassRegistry(repoMemoryDir, runDir string) MirrorResult {
 	// to measure. That used to mean `--class` silently accepted any string; it now means the
 	// seat cannot mint at all. Loud either way is the improvement, but the resolver still has
 	// to agree with the reader or the run is broken.
-	recDir, err := record.RecordsDir(runDir)
-	if err != nil {
-		return MirrorResult{Written: false, Reason: "cannot resolve the record directory: " + err.Error()}
-	}
-	dst := filepath.Join(recDir, "class-registry.json")
+	dst := filepath.Join(run.Records(), "class-registry.json")
 	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
 		return MirrorResult{Written: false, Reason: "cannot create the record directory: " + err.Error()}
 	}

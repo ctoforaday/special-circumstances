@@ -41,7 +41,7 @@ func has(s, sub string) bool { return strings.Contains(s, sub) }
 //	        migration, stubbed for months after the last writer went away
 func TestBuildSkeletonCreatesStubsOnlyForFilesSomethingWrites(t *testing.T) {
 	dir := t.TempDir()
-	res := BuildSkeleton(dir, "test topic")
+	res := BuildSkeleton(runOf(t, dir), "test topic")
 	if len(res.Created) != 2 {
 		t.Fatalf("created = %d, want 3: %v", len(res.Created), res.Created)
 	}
@@ -63,7 +63,7 @@ func TestBuildSkeletonCreatesStubsOnlyForFilesSomethingWrites(t *testing.T) {
 func TestBuildSkeletonIdempotent(t *testing.T) {
 	dir := t.TempDir()
 	write(t, filepath.Join(dir, "blue", "report.md"), "PRE-STAGED CONTENT\n")
-	res := BuildSkeleton(dir, "topic")
+	res := BuildSkeleton(runOf(t, dir), "topic")
 	found := false
 	for _, s := range res.Skipped {
 		if s == "blue/report.md" {
@@ -84,8 +84,8 @@ func TestBuildSkeletonIdempotent(t *testing.T) {
 // BuildPinned: HEAD row + per-cite pins honoring explicit @pin; pre-staged PINNED kept.
 func TestBuildPinned(t *testing.T) {
 	dir := t.TempDir()
-	BuildSkeleton(dir, "topic")
-	r := BuildPinned(dir, "abc1234", []string{"research/old-run@def5678", "ideas/backlog.md"})
+	BuildSkeleton(runOf(t, dir), "topic")
+	r := BuildPinned(runOf(t, dir), "abc1234", []string{"research/old-run@def5678", "ideas/backlog.md"})
 	if !r.Written {
 		t.Fatal("PINNED.md not written")
 	}
@@ -96,7 +96,7 @@ func TestBuildPinned(t *testing.T) {
 	if !has(txt, "ideas/backlog.md") {
 		t.Error("cite path missing")
 	}
-	if again := BuildPinned(dir, "zzz9999", nil); again.Written {
+	if again := BuildPinned(runOf(t, dir), "zzz9999", nil); again.Written {
 		t.Error("pre-staged PINNED was overwritten")
 	}
 }
@@ -104,11 +104,11 @@ func TestBuildPinned(t *testing.T) {
 // MirrorGapPatterns: concatenates memory files; absent/empty memory is a stated no-op.
 func TestMirrorGapPatterns(t *testing.T) {
 	dir := t.TempDir()
-	BuildSkeleton(dir, "topic")
+	BuildSkeleton(runOf(t, dir), "topic")
 	mem := t.TempDir()
 	write(t, filepath.Join(mem, "pattern_a.md"), "# pattern A\n")
 	write(t, filepath.Join(mem, "pattern_b.md"), "# pattern B\n")
-	r := MirrorGapPatterns([]string{mem}, dir)
+	r := MirrorGapPatterns([]string{mem}, runOf(t, dir))
 	if r.Files != 2 {
 		t.Fatalf("files = %d, want 2", r.Files)
 	}
@@ -116,7 +116,7 @@ func TestMirrorGapPatterns(t *testing.T) {
 	if !has(out, "pattern A") || !has(out, "pattern B") || !has(out, "read-only copy") {
 		t.Error("mirror content wrong")
 	}
-	if none := MirrorGapPatterns([]string{filepath.Join(mem, "nope")}, t.TempDir()); none.Written {
+	if none := MirrorGapPatterns([]string{filepath.Join(mem, "nope")}, runOf(t, t.TempDir())); none.Written {
 		t.Error("absent memory should be a no-op")
 	}
 }
@@ -178,7 +178,7 @@ func TestMirrorLaw(t *testing.T) {
 	write(t, filepath.Join(repo, "law", "README.md"), "# law\nstatute > precedent > argument\n")
 	write(t, filepath.Join(repo, "law", "precedents.md"), "# precedents\n## some-holding [AFFIRMED 2026-07-18]\n")
 	run := t.TempDir()
-	r := MirrorLaw(filepath.Join(repo, "law"), run)
+	r := MirrorLaw(filepath.Join(repo, "law"), runOf(t, run))
 	if r.Files != 2 {
 		t.Fatalf("files = %d, want 2", r.Files)
 	}
@@ -186,7 +186,7 @@ func TestMirrorLaw(t *testing.T) {
 	if !has(staged, "read-only copy") || !has(staged, "AFFIRMED") {
 		t.Error("law not mirrored with provenance banner")
 	}
-	if none := MirrorLaw(filepath.Join(repo, "nope"), t.TempDir()); none.Written {
+	if none := MirrorLaw(filepath.Join(repo, "nope"), runOf(t, t.TempDir())); none.Written {
 		t.Error("absent law dir should be a no-op")
 	}
 }
@@ -282,7 +282,7 @@ func TestPreflightRecordBinary(t *testing.T) {
 func TestMirrorScorecardsEmptyCorpus(t *testing.T) {
 	mem, runDir := t.TempDir(), t.TempDir()
 	os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755)
-	r := MirrorScorecards(mem, runDir)
+	r := MirrorScorecards(mem, runOf(t, runDir))
 	if r.Written {
 		t.Error("empty corpus should not be written")
 	}
@@ -298,7 +298,7 @@ func TestMirrorScorecardsHeadlineRanked(t *testing.T) {
 	// A card whose emitted HEADLINE puts the tripped detector first.
 	write(t, filepath.Join(mem, "blue-scorecard.md"),
 		"# blue scorecard\n\n## run-6\n\n- `x` [benchmark] — A: **1**\n\nHEADLINE: tripped 7 [DETECTOR] · bench_one 1 [BENCHMARK] · bench_two 2 [BENCHMARK]\n")
-	r := MirrorScorecards(mem, runDir)
+	r := MirrorScorecards(mem, runOf(t, runDir))
 	if len(r.Headlines["blue"]) != 3 || !strings.HasPrefix(r.Headlines["blue"][0], "tripped 7") {
 		t.Errorf("headline not ranked from the emitted line: %v", r.Headlines["blue"])
 	}
@@ -315,7 +315,7 @@ func TestMirrorScorecardsFallbackParsesColonClause(t *testing.T) {
 		"- `anchored_closures_pct` [benchmark] — Attestation-format invariant: **89**",
 		"",
 	}, "\n"))
-	r := MirrorScorecards(mem, runDir)
+	r := MirrorScorecards(mem, runOf(t, runDir))
 	joined := strings.Join(r.Headlines["red"], " | ")
 	if !has(joined, "unrecorded_claim_loss 4") {
 		t.Errorf("colon-bearing clause not read by the fallback: %v", r.Headlines["red"])

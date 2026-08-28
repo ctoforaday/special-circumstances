@@ -28,7 +28,7 @@ func TestTheMirrorDoesNotClaimFilesItDidNotWrite(t *testing.T) {
 
 	// A run directory with NO inputs/ — the condition every caller outside run.go presents.
 	run := t.TempDir()
-	r := MirrorGapPatterns([]string{corpus}, run)
+	r := MirrorGapPatterns([]string{corpus}, runOf(t, run))
 
 	staged := filepath.Join(run, "inputs", "red-gap-patterns.md")
 	_, statErr := os.Stat(staged)
