@@ -3,6 +3,7 @@ package report
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
@@ -64,7 +65,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := Assemble(runDir); err != nil {
+	if _, err := Assemble(runtest.Open(t, runDir)); err != nil {
 		t.Fatalf("assemble: %v", err)
 	}
 	shipped, err := os.ReadFile(filepath.Join(runDir, "report.md"))

@@ -94,8 +94,8 @@ func isZero(v any) bool {
 // ReadTelemetry returns the board telemetry series, computed on read from the
 // record via the shared view library; nil when the run has no rounds. The series
 // is never materialized to disk — the record is the source.
-func ReadTelemetry(runDir string) []map[string]any {
-	rows, err := view.Telemetry(runDir)
+func ReadTelemetry(run record.Run) []map[string]any {
+	rows, err := view.Telemetry(run)
 	if err != nil {
 		return nil
 	}
@@ -103,8 +103,8 @@ func ReadTelemetry(runDir string) []map[string]any {
 }
 
 // ReadResults gathers the journal's `.result` envelopes (post-capture); [] mid-run.
-func ReadResults(runDir string) []map[string]any {
-	b, err := os.ReadFile(filepath.Join(runDir, "trajectories", "journal.jsonl"))
+func ReadResults(run record.Run) []map[string]any {
+	b, err := os.ReadFile(filepath.Join(run.Dir(), "trajectories", "journal.jsonl"))
 	if err != nil {
 		return []map[string]any{}
 	}
@@ -259,7 +259,7 @@ func BucketFindingsByRole(findings []record.FindingJSON) (objJSON, bool) {
 
 // ---- row builders ----
 
-func blueRows(runDir string, results []map[string]any, telemetry []map[string]any, board *record.Board) []Row {
+func blueRows(run record.Run, results []map[string]any, telemetry []map[string]any, board *record.Board) []Row {
 	var rows []Row
 
 	// repair_regression_ratio
@@ -394,7 +394,7 @@ func blueRows(runDir string, results []map[string]any, telemetry []map[string]an
 	for id := range expectedSet {
 		expected = append(expected, id)
 	}
-	md, _ := os.ReadFile(filepath.Join(runDir, "blue", "report.md"))
+	md, _ := os.ReadFile(filepath.Join(run.Dir(), "blue", "report.md"))
 	// The shared EXPECTED⊄PRESENT check — the same helper the blue-report lockdown's
 	// PostToolUse backstop uses, so the detector and the live gate cannot drift.
 	droppedMarkers := len(claimcount.MissingAnchorIDs(expected, string(md)))
@@ -624,10 +624,10 @@ func benchRows(results []map[string]any, board *record.Board) []Row {
 
 // Compute assembles all three chairs. board may be nil (BoardState failed → record rows read
 // "needs the tool"); telemetry is read from runDir; results are the journal envelopes.
-func Compute(runDir string, results []map[string]any, board *record.Board) map[string][]Row {
-	telemetry := ReadTelemetry(runDir)
+func Compute(run record.Run, results []map[string]any, board *record.Board) map[string][]Row {
+	telemetry := ReadTelemetry(run)
 	return map[string][]Row{
-		"blue":  blueRows(runDir, results, telemetry, board),
+		"blue":  blueRows(run, results, telemetry, board),
 		"red":   redRows(results, telemetry, board),
 		"bench": benchRows(results, board),
 	}

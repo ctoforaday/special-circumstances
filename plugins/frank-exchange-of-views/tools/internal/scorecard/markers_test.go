@@ -3,6 +3,7 @@ package scorecard
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
@@ -35,7 +36,7 @@ func TestDroppedFindingMarkersDetector(t *testing.T) {
 	seedReport(t, runDir, "A claim.<!--fx:f-a--> Stray.<!--fx:f-orphan-->")
 	board := &record.Board{Events: []*record.Event{anchorEv(t, "f-a"), anchorEv(t, "f-b")}}
 
-	r := rowByMetric(blueRows(runDir, nil, nil, board), "dropped_finding_markers")
+	r := rowByMetric(blueRows(runtest.Open(t, runDir), nil, nil, board), "dropped_finding_markers")
 	if r == nil || r.Value == nil {
 		t.Fatalf("row not computed: %+v", r)
 	}
@@ -49,7 +50,7 @@ func TestDroppedFindingMarkersAllPresent(t *testing.T) {
 	runDir := t.TempDir()
 	seedReport(t, runDir, "One.<!--fx:f-a--> Two.<!--fx:f-b-->")
 	board := &record.Board{Events: []*record.Event{anchorEv(t, "f-a"), anchorEv(t, "f-b")}}
-	r := rowByMetric(blueRows(runDir, nil, nil, board), "dropped_finding_markers")
+	r := rowByMetric(blueRows(runtest.Open(t, runDir), nil, nil, board), "dropped_finding_markers")
 	if v, _ := r.Value.(int); v != 0 {
 		t.Errorf("dropped = %v, want 0 (both markers present)", r.Value)
 	}
@@ -69,7 +70,7 @@ func TestUnbackedCitationsDetector(t *testing.T) {
 	seedReport(t, runDir, "A cited claim<!--cite:c-a-->. Another claim with a hand-typed [^b] footnote.")
 	board := &record.Board{Events: []*record.Event{citeEv(t, "c-a"), citeEv(t, "c-b")}}
 
-	r := rowByMetric(blueRows(runDir, nil, nil, board), "unbacked_citations")
+	r := rowByMetric(blueRows(runtest.Open(t, runDir), nil, nil, board), "unbacked_citations")
 	if r == nil || r.Value == nil {
 		t.Fatalf("row not computed: %+v", r)
 	}
@@ -83,7 +84,7 @@ func TestUnbackedCitationsBijectiveIsZero(t *testing.T) {
 	runDir := t.TempDir()
 	seedReport(t, runDir, "One<!--cite:c-a-->. Two<!--cite:c-b-->.")
 	board := &record.Board{Events: []*record.Event{citeEv(t, "c-a"), citeEv(t, "c-b")}}
-	r := rowByMetric(blueRows(runDir, nil, nil, board), "unbacked_citations")
+	r := rowByMetric(blueRows(runtest.Open(t, runDir), nil, nil, board), "unbacked_citations")
 	if v, _ := r.Value.(int); v != 0 {
 		t.Errorf("unbacked = %v, want 0 (both citation anchors present)", r.Value)
 	}

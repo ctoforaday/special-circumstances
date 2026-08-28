@@ -3,6 +3,7 @@ package cli
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -71,7 +72,7 @@ func gapID(out string) string {
 // shared view library — the same bytes `show --view <name>` prints.
 func readProjection(t *testing.T, runDir, name string) string {
 	t.Helper()
-	b, err := view.Markdown(runDir, name, "")
+	b, err := view.Markdown(runtest.Open(t, runDir), name, "")
 	if err != nil {
 		t.Fatalf("projection %s: %v", name, err)
 	}

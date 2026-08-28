@@ -3,6 +3,7 @@ package view
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"testing"
 )
@@ -46,7 +47,7 @@ func runWithMintAtR1AndCloseAtR2(t *testing.T) string {
 }
 
 func TestTheConvergedRoundGetsATelemetryRow(t *testing.T) {
-	rows, err := Telemetry(runWithMintAtR1AndCloseAtR2(t))
+	rows, err := Telemetry(runtest.Open(t, runWithMintAtR1AndCloseAtR2(t)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +69,7 @@ func TestTheConvergedRoundGetsATelemetryRow(t *testing.T) {
 // AND THE CLOSURE IS ACTUALLY IN THE ROW, not merely a row with the right number on it — the
 // round existing and the round carrying its work are different claims.
 func TestTheConvergedRoundsClosureReachesItsRow(t *testing.T) {
-	rows, err := Telemetry(runWithMintAtR1AndCloseAtR2(t))
+	rows, err := Telemetry(runtest.Open(t, runWithMintAtR1AndCloseAtR2(t)))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"math"
 	"strings"
@@ -30,9 +31,9 @@ func writeShard(t *testing.T, runDir string, evs []*record.Event) {
 // md is view.Markdown or a fatal.
 func md(t *testing.T, runDir, name string) string {
 	t.Helper()
-	b, err := Markdown(runDir, name, "")
+	b, err := Markdown(runtest.Open(t, runDir), name, "")
 	if err != nil {
-		t.Fatalf("Markdown(%q): %v", name, err)
+		t.Fatalf("Markdown(runtest.Open(t, %q)): %v", name, err)
 	}
 	return string(b)
 }
@@ -202,7 +203,7 @@ func TestMassSumIgnoresUngradedGaps(t *testing.T) {
 
 func TestMarkdownOnAnEmptyRun(t *testing.T) {
 	runDir := t.TempDir()
-	open, closed, err := Counts(runDir)
+	open, closed, err := Counts(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,12 +213,12 @@ func TestMarkdownOnAnEmptyRun(t *testing.T) {
 	// THE REAL SET, not a copy of it. This loop used to carry its own list, which is how two
 	// renderers kept being exercised after their last caller went away.
 	for _, name := range MarkdownViews() {
-		if _, err := Markdown(runDir, name, ""); err != nil {
+		if _, err := Markdown(runtest.Open(t, runDir), name, ""); err != nil {
 			t.Errorf("projection %s errored on an empty run: %v", name, err)
 		}
 	}
 	// Telemetry with no rounds is EMPTY, not a blank line.
-	b, err := TelemetryJSONL(runDir)
+	b, err := TelemetryJSONL(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +236,7 @@ func TestMarkdownLedgerAndArchive(t *testing.T) {
 		recordtest.At(t, seatID, 1, seatID+":mint:R1-3", &recordpb.Mint{GapId: proto.String("R1-3"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("an unclassed problem"), Location: proto.String("§4")}),
 		recordtest.At(t, seatID, 1, seatID+":close:R1-2", &recordpb.Close{GapId: proto.String("R1-2"), Prose: proto.String("verified at the leaf"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION), Successor: proto.String("R1-3"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:f")}),
 	})
-	open, closed, err := Counts(runDir)
+	open, closed, err := Counts(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -358,7 +359,7 @@ func TestTelemetryIsComputed(t *testing.T) {
 			Prose:        proto.String("verified at the leaf"),
 		}),
 	})
-	raw, err := TelemetryJSONL(runDir)
+	raw, err := TelemetryJSONL(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -429,7 +430,7 @@ func TestTelemetryCarriesTheClassDistributionAndRepeatRate(t *testing.T) {
 		mint(r2, "R2-2", "co-resident-rules-disagree", 2),
 	})
 
-	raw, err := TelemetryJSONL(runDir)
+	raw, err := TelemetryJSONL(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -478,7 +479,7 @@ func TestTelemetryUndefinedSeverityKey(t *testing.T) {
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("R1-1"), Problem: proto.String("p")}),
 	})
-	raw, err := TelemetryJSONL(runDir)
+	raw, err := TelemetryJSONL(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

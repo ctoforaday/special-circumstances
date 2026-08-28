@@ -194,11 +194,11 @@ func LivenessAudit(runDir string, now time.Time) Audit {
 // (rounds with a red sitting), read in-process. Telemetry is now DERIVED from the record via the
 // shared view library (never a materialized file), so it cannot be "absent": the check is whether
 // the derived series covers every red round. SKIP when there were no red rounds.
-func TelemetryAudit(runDir string, redRounds int) Audit {
+func TelemetryAudit(run record.Run, redRounds int) Audit {
 	if redRounds == 0 {
 		return Audit{Check: "telemetry", Verdict: "SKIP", Detail: "the debate record shows 0 red round(s)"}
 	}
-	lines, err := view.Telemetry(runDir)
+	lines, err := view.Telemetry(run)
 	if err != nil {
 		return Audit{Check: "telemetry", Verdict: "FAIL", Detail: fmt.Sprintf("telemetry could not be computed from the record: %v", err)}
 	}
@@ -1120,8 +1120,8 @@ func recordTierFindings(runDir, model, judgmentModel string) (findings []string,
 	return findings, measured, total
 }
 
-func ModelTierAudit(runDir, transcriptDir string, agentFiles []string) Audit {
-	model, judgmentModel := cost.TierConfig(runDir)
+func ModelTierAudit(run record.Run, transcriptDir string, agentFiles []string) Audit {
+	model, judgmentModel := cost.TierConfig(run)
 	if model == "" && judgmentModel == "" {
 		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "no run-config models (pre-#111 run)"}
 	}
@@ -1142,7 +1142,7 @@ func ModelTierAudit(runDir, transcriptDir string, agentFiles []string) Audit {
 			warns++
 		}
 	}
-	recFindings, measured, seats := recordTierFindings(runDir, model, judgmentModel)
+	recFindings, measured, seats := recordTierFindings(run.Dir(), model, judgmentModel)
 	fails += len(recFindings)
 
 	tiers := fmt.Sprintf("configured bulk=%s, judgment=%s", orQ(model), orQ(judgmentModel))
@@ -1461,12 +1461,12 @@ type ScorecardResult struct {
 	Reason  string
 }
 
-func WriteScorecards(runDir string, results []map[string]any, memoryDir string, board *record.Board) ScorecardResult {
+func WriteScorecards(run record.Run, results []map[string]any, memoryDir string, board *record.Board) ScorecardResult {
 	if _, err := os.Stat(memoryDir); err != nil {
 		return ScorecardResult{Written: false, Reason: fmt.Sprintf("no %s — scorecards need the tracked memory dir", memoryDir)}
 	}
-	cards := scorecard.Compute(runDir, results, board)
-	label := labelOf(runDir)
+	cards := scorecard.Compute(run, results, board)
+	label := labelOf(run.Dir())
 	rows := 0
 	chairs := 0
 	var failed []string
@@ -1615,18 +1615,18 @@ func perSeatRoundTable(costMd string) string {
 // process.cwd().
 // `now` is injected so the one non-deterministic input — how long ago the record stopped moving —
 // is controllable in a test, the same way WriteRunLiveMarker takes its clock.
-func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report string, exitFail bool, err error) {
+func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, report string, exitFail bool, err error) {
 	var lines []string
 
 	// Mechanics: journal copy, transcript tarball, cost.md.
-	if err = copyFile(filepath.Join(transcriptDir, "journal.jsonl"), filepath.Join(runDir, "trajectories", "journal.jsonl")); err != nil {
+	if err = copyFile(filepath.Join(transcriptDir, "journal.jsonl"), filepath.Join(run.Dir(), "trajectories", "journal.jsonl")); err != nil {
 		return nil, "", false, err
 	}
 	agentFiles, err := listAgentFiles(transcriptDir)
 	if err != nil {
 		return nil, "", false, err
 	}
-	tarPath := filepath.Join(runDir, "trajectories", "agent-transcripts.tar.gz")
+	tarPath := filepath.Join(run.Dir(), "trajectories", "agent-transcripts.tar.gz")
 	if terr := writeTarball(transcriptDir, tarPath, agentFiles); terr != nil {
 		lines = append(lines, "tarball: FAILED — "+jsSlice(terr.Error(), 200))
 	} else {
@@ -1635,11 +1635,11 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 	// THE RECORD ITSELF, to the one place that outlives the container. Reported either way: an
 	// archive that silently did not happen is a run whose evidence is gone the next time the
 	// container is reclaimed, and nothing would have said so.
-	if arc, aerr := ArchiveRecord(runDir, repoRootOf(runDir)); aerr != nil {
+	if arc, aerr := ArchiveRecord(run.Dir(), repoRootOf(run.Dir())); aerr != nil {
 		lines = append(lines, "record archive: FAILED — "+jsSlice(aerr.Error(), 200))
 	} else {
 		rel := arc
-		if r, rerr := filepath.Rel(repoRootOf(runDir), arc); rerr == nil {
+		if r, rerr := filepath.Rel(repoRootOf(run.Dir()), arc); rerr == nil {
 			rel = r
 		}
 		if st, serr := os.Stat(arc); serr == nil {
@@ -1649,11 +1649,11 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		}
 	}
 
-	costF, cerr := os.Create(filepath.Join(runDir, "cost.md"))
+	costF, cerr := os.Create(filepath.Join(run.Dir(), "cost.md"))
 	if cerr != nil {
 		return nil, "", false, cerr
 	}
-	if rerr := cost.Report(transcriptDir, runDir, costF); rerr != nil {
+	if rerr := cost.Report(transcriptDir, run, costF); rerr != nil {
 		costF.Close()
 		lines = append(lines, "cost.md: FAILED — "+jsSlice(rerr.Error(), 200))
 	} else {
@@ -1663,15 +1663,15 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		// report carries the cost breakdown. report.md is assembled mid-run WITHOUT transcript
 		// access (the transcript dir reaches only capture), so this is the one stage that can.
 		// Slices the already-rendered cost.md (kept byte-identical) rather than re-generate.
-		if msg := appendCostToReport(filepath.Join(runDir, "report.md"), filepath.Join(runDir, "cost.md")); msg != "" {
+		if msg := appendCostToReport(filepath.Join(run.Dir(), "report.md"), filepath.Join(run.Dir(), "cost.md")); msg != "" {
 			lines = append(lines, msg)
 		}
 	}
 
-	results, friction := ReadJournal(filepath.Join(runDir, "trajectories"))
+	results, friction := ReadJournal(filepath.Join(run.Dir(), "trajectories"))
 
 	// Record-backed reads, in-process (the JS spawned `merge show` views).
-	board, _ := record.BoardState(runDir)
+	board, _ := record.BoardState(run.Dir())
 	redRounds, blueBlocks := 0, 0
 	onRecord := []record.FrictionEntryJSON{}
 	if board != nil {
@@ -1693,31 +1693,31 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 	}
 
 	audits = []Audit{
-		LivenessAudit(runDir, now),
-		TelemetryAudit(runDir, redRounds),
-		FrictionAudit(runDir, friction, onRecord),
+		LivenessAudit(run.Dir(), now),
+		TelemetryAudit(run, redRounds),
+		FrictionAudit(run.Dir(), friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),
-		AssemblyScreen(runDir),
-		FootnoteIntegrity(runDir),
-		StrayRecordsAudit(repoRootOf(runDir), runDir),
-		RecordParityAudit(runDir, redRounds, blueBlocks),
-		BackfillAudit(runDir),
-		AttestationAudit(runDir, transcriptDir, agentFiles, 5),
-		ModelTierAudit(runDir, transcriptDir, agentFiles),
+		AssemblyScreen(run.Dir()),
+		FootnoteIntegrity(run.Dir()),
+		StrayRecordsAudit(repoRootOf(run.Dir()), run.Dir()),
+		RecordParityAudit(run.Dir(), redRounds, blueBlocks),
+		BackfillAudit(run.Dir()),
+		AttestationAudit(run.Dir(), transcriptDir, agentFiles, 5),
+		ModelTierAudit(run, transcriptDir, agentFiles),
 		// THE LAST AUDIT, because it is the only one that EXECUTES anything: a bounded sample of
 		// the run's own proofs, re-run and compared. See proofrerun.go for why a seat's spot-check
 		// could not be the thing that does this.
-		ProofRerunAudit(runDir, proofRerunSample),
+		ProofRerunAudit(run.Dir(), proofRerunSample),
 		// Round 0's declared breadth against the lane seats that actually took theirs — the one
 		// run-config field nothing reconciled. See lanecoverage.go.
-		LaneCoverageAudit(runDir),
+		LaneCoverageAudit(run.Dir()),
 		// The proof axis's missing detector: does a claim framed as measured point at the
 		// measurement, and does the measurement reach the claim. See proofbacking.go.
-		ProofBackingAudit(runDir),
+		ProofBackingAudit(run.Dir()),
 	}
 
 	cwd, _ := os.Getwd()
-	sc := WriteScorecards(runDir, results, filepath.Join(cwd, "feov-memory"), board)
+	sc := WriteScorecards(run, results, filepath.Join(cwd, "feov-memory"), board)
 	// BOTH LINES WHEN BOTH ARE TRUE. The old form printed the counts OR the reason, so a
 	// partial failure — some chairs written, one unwritable — showed the cheerful line and
 	// swallowed the reason entirely.
@@ -1728,7 +1728,7 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		lines = append(lines, "scorecards: "+sc.Reason)
 	}
 
-	prec := HarvestPrecedents(runDir, results, filepath.Join(cwd, "law"), board)
+	prec := HarvestPrecedents(run.Dir(), results, filepath.Join(cwd, "law"), board)
 	// The divergence has to REACH the report. Computing it and then printing "no rulings this
 	// run" would rebuild the same defect one level up: the miss folded back into the zero.
 	divergence := ""
@@ -1748,7 +1748,7 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 
 	// THE CLASS HARVEST, beside the precedent one and for the same reason: a run's coinage that
 	// reaches nothing outside the run directory is a run's coinage lost (#515).
-	cls := HarvestClasses(runDir, filepath.Join(cwd, "law"), board)
+	cls := HarvestClasses(run.Dir(), filepath.Join(cwd, "law"), board)
 	switch {
 	case cls.Written:
 		lines = append(lines, fmt.Sprintf("class harvest: %d class(es) -> %s (PROPOSED, not staged into any run until adopted)", cls.Count, cls.Path))
@@ -1760,7 +1760,7 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		lines = append(lines, "class harvest: no classes coined this run")
 	}
 
-	lines = append(lines, closeRunLiveMarker(cwd, runDir))
+	lines = append(lines, closeRunLiveMarker(cwd, run.Dir()))
 
 	var out []string
 	out = append(out,
@@ -1780,7 +1780,7 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 	}
 	out = append(out, "")
 	report = strings.Join(out, "\n")
-	if werr := os.WriteFile(filepath.Join(runDir, "run-record-audit.md"), []byte(report), 0o644); werr != nil {
+	if werr := os.WriteFile(filepath.Join(run.Dir(), "run-record-audit.md"), []byte(report), 0o644); werr != nil {
 		return nil, "", false, werr
 	}
 	for _, a := range audits {

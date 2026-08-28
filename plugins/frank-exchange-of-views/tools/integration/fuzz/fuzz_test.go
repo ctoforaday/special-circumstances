@@ -33,6 +33,7 @@ import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/consistency"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/testbuild"
 	"math/rand"
@@ -2447,7 +2448,7 @@ func TestFuzzDebate(t *testing.T) {
 			// see, because each exercises one reader against its own fixture. A violation keeps
 			// the run directory like any other failure, so the disagreement can be inspected.
 			if o.err == "" {
-				if violations, cerr := consistency.Check(o.runDir); cerr != nil {
+				if violations, cerr := consistency.Check(runtest.Open(t, o.runDir)); cerr != nil {
 					o.err = "consistency oracle: " + cerr.Error()
 				} else if len(violations) > 0 {
 					o.err = "consistency violations:\n  " + strings.Join(violations, "\n  ")

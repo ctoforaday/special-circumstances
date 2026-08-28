@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"os"
 	"time"
 
@@ -29,7 +30,14 @@ func newCapture() *cobra.Command {
 				fmt.Fprintln(cmd.ErrOrStderr(), "usage: "+InvokedAs()+" capture <runDir> <workflow-transcript-dir>")
 				os.Exit(1)
 			}
-			audits, report, exitFail, err := capture.Run(args[0], args[1], time.Now())
+			// A POSITIONAL PATH IS THE EASIEST ONE TO GET WRONG — nothing injects it and nothing
+			// checks it. Opened rather than passed through, so a mistyped directory is refused
+			// instead of audited as a run that recorded nothing.
+			run, err := record.OpenRun(args[0])
+			if err != nil {
+				return err
+			}
+			audits, report, exitFail, err := capture.Run(run, args[1], time.Now())
 			if err != nil {
 				return err
 			}
