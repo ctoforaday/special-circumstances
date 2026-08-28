@@ -346,7 +346,7 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 func (r *runner) exec(args ...string) (string, error) {
 	cmd := exec.Command(r.bin, append(args, "--run", r.runDir)...)
 	out, err := cmd.CombinedOutput()
-	noteExec(args, err)
+	noteExec(args, err, out)
 	if err != nil {
 		err = fmt.Errorf("%s: %w\n  %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
 	}
@@ -642,7 +642,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	round, _ := record.RoundOf(seatID)
 	if prior := r.closedInARoundBefore(round); len(prior) > 0 {
 		carried := prior[r.rng.Intn(len(prior))]
-		carry := []string{"merge", "carry", "--seat-id", seatID, "--id", carried,
+		carry := []string{"carry", "--seat-id", seatID, "--id", carried,
 			"--carried-from", strconv.Itoa(round - 1), "--as", "repaired"}
 		// THE EXEMPTION ITSELF, half the time. A carry restates a closure an earlier round already
 		// argued, so it owes no fresh argument — and nothing drove the no-reason form, which is
@@ -1352,7 +1352,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// Red verifies a cited source by reading the CACHED bytes (#256): the same
 				// `fetch` any seat uses. Driving it here is what makes the cache path — miss,
 				// store, hit — real in the fuzz rather than unit-tested only.
-				_, _ = r.exec("fetch", "--url", sourceURL("/"+seatID))
+				_, _ = r.exec("fetch", "--seat-id", seatID, "--url", sourceURL("/"+seatID))
 				r.extras("lens", seatID, nil)
 			}
 		}
@@ -2377,6 +2377,17 @@ func truncate(s string) string {
 // is swept without anyone remembering to edit a list here.
 var viewNamesForFuzz = seat.ViewNames()
 
+// surfaceQuorum is the run count at or above which the coverage gates can hold the sweep to the
+// FULL surface. Below it a low-frequency path can flake to zero and fail an honest run.
+//
+// MEASURED, not guessed: across a default 60-run sweep the scarcest path is `motion inquiry
+// appeal` at 9 invocations (0.15/run), which gives ~10% odds of never firing at N=15 against
+// ~0.25% at N=40. The number is shape-dependent — lane-driven verbs scale with `lanes`, dispute-
+// driven ones with `maxRounds` — so it is a floor for THIS shape, and a shape change re-tunes it.
+// That is why the gates below assert the tally rather than trusting this constant to stand in
+// for coverage (#630).
+const surfaceQuorum = 40
+
 func TestFuzzDebate(t *testing.T) {
 	bin := buildBinary(t)
 	wrapped := debateWrapped(t)
@@ -2494,9 +2505,23 @@ func TestFuzzDebate(t *testing.T) {
 	// gated verb fires with per-run probability well above ~20%, so P(missed across the default 60
 	// runs) is negligible; if a verb ever flakes here it is a real coverage regression, not noise.
 	// The full surface needs enough runs for every verb (incl. the ~10%/run ones like regrade) to
-	// fire; below ~40 runs a low-frequency verb could flake to zero, so the -short smoke keeps only
-	// the cite/finding floor (the original false-green guard) and the default+ size asserts all.
-	if completed >= 40 {
+	// fire; below the quorum a low-frequency verb could flake to zero, so the -short smoke keeps
+	// only the cite/finding floor (the original false-green guard) and the default+ size asserts
+	// all.
+	//
+	// A SWEEP UNDER QUORUM NOW SAYS SO. These gates used to fall silent below 40 and print the
+	// same green as a sweep that ran them — so `-short` (N=15) has been running this package with
+	// its three coverage gates inactive and nothing on the record saying which. That is #428's
+	// class (a gate that did not fire rendered as a gate that held) inside the sweep built to
+	// detect exactly it.
+	measured := completed >= surfaceQuorum
+	if !measured {
+		t.Logf("NOT MEASURED: %d runs is under the surface quorum of %d, so these gates did NOT run: "+
+			"the per-verb event gate, the citation/provenance floors, the full-surface command gate, "+
+			"and the flag/enum coverage sweeps. This is not a pass over them — only the cite/finding "+
+			"floor below was checked. Run the default sweep to assert the surface.", completed, surfaceQuorum)
+	}
+	if measured {
 		for _, k := range verbsWithEvents {
 			if coverExempt[k] {
 				continue
@@ -2511,7 +2536,7 @@ func TestFuzzDebate(t *testing.T) {
 	// two assert the chain that actually matters ran end to end through the real binary: a source
 	// was FETCHED into <run>/cache (loopback server, see sourceURL) and an INVISIBLE anchor was
 	// spliced into blue/report.md. Zero of either across the whole sweep is a false green.
-	if completed >= 40 {
+	if measured {
 		if citeAnchors == 0 {
 			t.Errorf("fuzz spliced ZERO <!--cite:--> anchors across %d runs — `blue cite` never anchored (false green); the citation axis is unexercised", completed)
 		}
@@ -2531,7 +2556,7 @@ func TestFuzzDebate(t *testing.T) {
 			t.Errorf("fuzz recorded ZERO verbatim applications across %d runs — nothing ever estopped red, so the stage-4 guard is unexercised (false green)", completed)
 		}
 	}
-	if completed < 40 {
+	if !measured {
 		for _, k := range []string{"cite", "finding"} {
 			if dcov[k] == 0 {
 				t.Errorf("fuzz drove ZERO %s events across %d runs — the lens record channel is unexercised (false green)", k, completed)
@@ -2548,7 +2573,7 @@ func TestFuzzDebate(t *testing.T) {
 	// invisible to the event gate above.
 	//
 	// The only hand-written list left is exemptSurfaces, and each entry states its reason.
-	if completed >= 40 {
+	if measured {
 		if un := unreachedSurfaces(); len(un) > 0 {
 			t.Errorf("%d command path(s) exist in the tool and were NEVER invoked across %d runs (false green — add a drive, or an exemption with its reason):\n  %s",
 				len(un), completed, strings.Join(un, "\n  "))
@@ -2564,7 +2589,15 @@ func TestFuzzDebate(t *testing.T) {
 		if un := unreachedEnumValues(); len(un) > 0 {
 			t.Errorf("%d enum value(s) were never driven:\n  %s", len(un), strings.Join(un, "\n  "))
 		}
-		t.Log(execReport())
+	}
+	// AT EVERY SIZE, both of these. The tally is the sweep's own trajectory and costs nothing to
+	// print; withholding it under quorum hid the evidence for the gate below on exactly the runs
+	// most likely to need it. And a path that never succeeded is a coverage hole at ANY N — it
+	// needs no quorum, because one refusal per invocation is not a sampling accident.
+	t.Log(execReport())
+	if un := neverSucceeded(); len(un) > 0 {
+		t.Errorf("%d command path(s) were driven and NEVER SUCCEEDED — the surface gate counts invocations, so these read as covered while their success path has never run:\n  %s",
+			len(un), strings.Join(un, "\n  "))
 	}
 	if len(failures) > 0 {
 		// EIGHT, AND IT SAYS SO WHEN IT TRUNCATES. Sixty seeds failing the same way is a wall of
