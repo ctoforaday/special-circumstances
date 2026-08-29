@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -327,7 +328,7 @@ func seatRunForContracts(t *testing.T) string {
 		"--reason", "the computation a probe re-runs"); err != nil {
 		t.Fatalf("seed proof: %v", err)
 	}
-	b, err := record.BoardState(runDir)
+	b, err := record.BoardState(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

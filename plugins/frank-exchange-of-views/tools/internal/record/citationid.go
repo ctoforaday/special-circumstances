@@ -95,8 +95,8 @@ func citedSource(body proto.Message) (Source, bool) {
 // first is the thing that changed: a supporting corroboration mints a label and splices an
 // anchor, so it MUST be in this set or the blue-report lockdown reads red's anchor as a citation
 // blue dropped. See citedSource for why red's evidence stopped being excluded.
-func CitedSources(runDir string) ([]Source, error) {
-	m, err := MergedEvents(runDir)
+func CitedSources(run Run) ([]Source, error) {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +132,8 @@ func CitedSources(runDir string) ([]Source, error) {
 // anchors actually present to catch a dropped citation, and it is the EXPECTED set behind
 // the unbacked_citations detector. Only blue cites carry a `label`; red's `lens cite` does
 // not, so this is exactly the set of tool-inserted citation anchors that must be present.
-func CitationLabels(runDir string) ([]string, error) {
-	m, err := MergedEvents(runDir)
+func CitationLabels(run Run) ([]string, error) {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return nil, err
 	}
@@ -172,11 +172,11 @@ func citationLabelsOf(events []*Event) []string {
 // BEFORE the fetch and the marker insert, not a change to the event key (which stays the
 // unique citation label). A blue cite carries a `label`; red's `lens cite` does not, so
 // this scans only the blue side of the shared "cite" event type.
-func ExistingCiteByKey(runDir, seatID, key string) (string, error) {
+func ExistingCiteByKey(run Run, seatID, key string) (string, error) {
 	if key == "" {
 		return "", nil
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return "", err
 	}
@@ -241,11 +241,11 @@ func NewProofID() string {
 // ExistingProofByKey gives `blue prove` crash-retry idempotency: a seat whose message died
 // after the event landed re-runs the same key and gets the recorded sha back rather than
 // executing the script a second time and splicing a second anchor.
-func ExistingProofByKey(runDir, seatID, key string) (string, error) {
+func ExistingProofByKey(run Run, seatID, key string) (string, error) {
 	if key == "" {
 		return "", nil
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return "", err
 	}
@@ -311,8 +311,8 @@ type ProofVerification struct {
 // The OUTPUT and the SCRIPT BODY are deliberately not here: they live on disk under
 // <run>/proofs/<sha256>/ and can be large. The assembler reads them from the artifact so the
 // report shows the exact bytes that ran, rather than a copy the record made of them.
-func RecordedProofs(runDir string) ([]Proof, error) {
-	m, err := MergedEvents(runDir)
+func RecordedProofs(run Run) ([]Proof, error) {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return nil, err
 	}
@@ -400,11 +400,11 @@ func RecordedProofs(runDir string) ([]Proof, error) {
 // Keyed on (source, claim) rather than on a seat-supplied `--key` like blue's cite, because the
 // pair IS the act — corroborating one claim from one source twice is one corroboration, and a
 // retry should not need the seat to have anticipated it.
-func ExistingCorroborationLabel(runDir, seatID, url, claim string) (string, error) {
+func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, error) {
 	if url == "" || claim == "" {
 		return "", nil
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return "", err
 	}

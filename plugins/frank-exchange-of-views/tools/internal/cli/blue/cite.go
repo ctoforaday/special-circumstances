@@ -55,7 +55,7 @@ func newCite() *cobra.Command {
 		// Crash-retry idempotency: a prior cite under this --key returns its label, no
 		// second fetch AND no second anchor (BEFORE any effect).
 		key := seat.Str(cmd, flags.Key)
-		if prior, err := record.ExistingCiteByKey(run.Dir(), s.SeatID, key); err != nil {
+		if prior, err := record.ExistingCiteByKey(run, s.SeatID, key); err != nil {
 			return nil, err
 		} else if prior != "" {
 			return citeResult{Label: prior, Idempotent: true}, nil
@@ -63,7 +63,7 @@ func newCite() *cobra.Command {
 
 		// Resolve the source through the run cache (fetch-once). A FAILURE is an unusable
 		// citation: reject AND auto-emit a friction event (unlike a bare `fetch` miss).
-		entry, _, _, err := fetchcache.Resolve(run.Dir(), url, fetchcache.Default)
+		entry, _, _, err := fetchcache.Resolve(run, url, fetchcache.Default)
 		if err != nil {
 			msg := fmt.Sprintf("blue cite: could not load %s: %v — pick a reachable source or an archive.org snapshot", url, err)
 			if _, ferr := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(msg)}); ferr != nil {
@@ -80,7 +80,7 @@ func newCite() *cobra.Command {
 		// two tokens, one of them immortal and backing nothing. If the located quote already
 		// carries a citation anchor the record has never heard of, that anchor IS this cite's
 		// first attempt, and the retry finishes the interrupted act instead of starting a rival.
-		label := adoptTornCiteAnchor(run.Dir(), quote)
+		label := adoptTornCiteAnchor(run, quote)
 		if label == "" {
 			// Mint the label UP FRONT: it forms the marker, so it must exist before the report
 			// write. Append will not re-mint (the label is already in the payload).
@@ -90,7 +90,7 @@ func newCite() *cobra.Command {
 			// Splice the invisible anchor at the located quote UNDER THE LOCK, atomically, via
 			// the shared anchor-insert (the same rule a finding is anchored by). Mis-quote or
 			// in-fence -> reject; nothing is written and no cite is recorded.
-			if err := record.MutateBlueReport(run.Dir(), func(old []byte) ([]byte, error) {
+			if err := record.MutateBlueReport(run, func(old []byte) ([]byte, error) {
 				next, aerr := lens.InsertAnchor(old, quote, marker)
 				switch {
 				case errors.Is(aerr, lens.ErrMisQuote):
@@ -146,12 +146,12 @@ func (r citeResult) Human() string {
 // no recorded event backs — a torn splice — or "" for the ordinary fresh path. The walk itself is
 // lens.OrphanAnchorAt, shared with `lens finding` and `blue prove`, which carry the same
 // two-act crash window; only the recorded set is this verb's.
-func adoptTornCiteAnchor(runDir, quote string) string {
-	rep, err := record.ReadBlueReport(runDir)
+func adoptTornCiteAnchor(run record.Run, quote string) string {
+	rep, err := record.ReadBlueReport(run)
 	if err != nil {
 		return ""
 	}
-	labels, err := record.CitationLabels(runDir)
+	labels, err := record.CitationLabels(run)
 	if err != nil {
 		return "" // cannot tell an orphan from a backed anchor; splice fresh rather than guess
 	}

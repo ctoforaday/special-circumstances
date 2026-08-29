@@ -542,6 +542,15 @@ jobs:
       - run: go test -race ./internal/record/
         env:
           CGO_ENABLED: "1"
+      # And ONE test out of integration/fuzz, not the package. The fuzz runner's seats are
+      # concurrent as of #630 phase 3, and its run handle was briefly resolved lazily — a real
+      # race that two full debate runs under -race did not report, because the window closes
+      # before a sibling seat arrives. TestTheRunHandleIsImmutableAfterConstruction forces it
+      # in ~1s. Racing the whole package would cost minutes to re-check what -race already
+      # covers elsewhere; racing nothing leaves that test unable to fail.
+      - run: go test -race -run TestTheRunHandleIsImmutableAfterConstruction ./integration/fuzz/
+        env:
+          CGO_ENABLED: "1"
 
   gray-area:
     # The trajectory-capture runtime. Its own Go module, so neither the

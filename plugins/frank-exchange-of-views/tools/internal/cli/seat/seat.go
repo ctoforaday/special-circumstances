@@ -148,6 +148,14 @@ func (c Context) Run() (record.Run, error) {
 // a handle. Named so that reaching for it is a decision: anything acting ON a run wants Run().
 func (c Context) RunDirRaw() string { return c.runDir }
 
+// handle resolves this context's run WITHOUT the existence check, for the internal best-effort
+// reads that must work on a context whose run may not be on disk. Anything acting on the run
+// wants Run(), which refuses. Unexported for exactly that reason.
+func (c Context) handle() record.Run {
+	r, _ := record.NewRun(c.runDir)
+	return r
+}
+
 // Identity is what a record write needs to know about who is writing: the run, the seat, and the
 // ROUND AS A FACT rather than a regex over the id. Every `record.Append` goes through this, so
 // when the dispatcher starts injecting a round (#290) it lands in one place instead of 32.
@@ -155,7 +163,10 @@ func (c Context) RunDirRaw() string { return c.runDir }
 // Role is not carried. See record.Event.Role: the party on an event is derived from the seat id,
 // and this Context's Role answers a different question — which command group the verb sits under.
 func (c Context) Identity() record.Identity {
-	return record.Identity{RunDir: c.runDir, SeatID: c.SeatID, Round: c.Round}
+	// The zero Run when this context was REFUSED. Append asserts Valid() and refuses rather
+	// than writing, so a caller that skipped Run() still cannot record into an unresolved run —
+	// which is what the old `RunDir: ""` did, into the working directory.
+	return record.Identity{Run: c.handle(), SeatID: c.SeatID, Round: c.Round}
 }
 
 // Of reads the seat context from the inherited persistent flags, inferring the run
@@ -182,7 +193,7 @@ func requireBound(cmd *cobra.Command, s Context) error {
 	if agent == "" || cmd == nil || cmd.Name() == "register" {
 		return nil
 	}
-	bound, found, err := record.SeatOfAgent(s.runDir, agent)
+	bound, found, err := record.SeatOfAgent(s.handle(), agent)
 	if err != nil {
 		return err
 	}
@@ -203,12 +214,15 @@ func requireBound(cmd *cobra.Command, s Context) error {
 // directory has just been resolved and nothing has read the record yet — and because a nil one is
 // the honest way to say "there is no run to look in", which is a different state from "this agent
 // has not registered".
-func BoundSeat(runDir string) func() (string, error) {
-	if runDir == "" || seatenv.AgentID() == "" {
+func BoundSeat(run record.Run) func() (string, error) {
+	// `!run.Valid()` is the same test the empty string used to make, and now it cannot be
+	// confused with a run whose path merely happens to be short: a Run is valid or it resolved
+	// from nothing.
+	if !run.Valid() || seatenv.AgentID() == "" {
 		return nil
 	}
 	return func() (string, error) {
-		seat, _, err := record.SeatOfAgent(runDir, seatenv.AgentID())
+		seat, _, err := record.SeatOfAgent(run, seatenv.AgentID())
 		return seat, err
 	}
 }
@@ -226,7 +240,11 @@ func Of(cmd *cobra.Command) Context {
 	// Begin, and the ROUND arrives as a field rather than being read back out of the id.
 	seatID, _ := cmd.Flags().GetString(flags.SeatID)
 	round := -1
-	if id, rerr := seatenv.ResolveSeat(seatID, BoundSeat(runDir), record.RoundIn(runDir)); rerr == nil {
+	// NewRun, not OpenRun: Of() must hand back a Context even for a run that is not on disk —
+	// these two are best-effort reads whose errors are already discarded, and the existence
+	// check belongs at Run(), where a verb actually acts on the run.
+	run, _ := record.NewRun(runDir)
+	if id, rerr := seatenv.ResolveSeat(seatID, BoundSeat(run), record.RoundIn(run)); rerr == nil {
 		seatID, round = id.ID, id.Round
 	}
 	return Context{runDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd), RunVia: via}
@@ -533,7 +551,7 @@ func Begin(cmd *cobra.Command) (Context, error) {
 	// fact a seat must not be able to get wrong; every found_by, estoppel and parity check
 	// reads it, and this is the guarantee #348 shipped a message for and no code behind.
 	seatFlag, _ := cmd.Flags().GetString(flags.SeatID)
-	if _, err := seatenv.ResolveSeat(seatFlag, BoundSeat(Of(cmd).runDir), record.RoundIn(Of(cmd).runDir)); err != nil {
+	if _, err := seatenv.ResolveSeat(seatFlag, BoundSeat(Of(cmd).handle()), record.RoundIn(Of(cmd).handle())); err != nil {
 		return Of(cmd), err
 	}
 	s := Of(cmd)

@@ -50,7 +50,7 @@ func newVerdict() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		mirror, err := checkpoint(run.Dir())
+		mirror, err := checkpoint(run)
 		if err != nil {
 			return nil, err
 		}
@@ -63,8 +63,8 @@ func newVerdict() *cobra.Command {
 
 // checkpoint copies records/ to a per-run directory under the user cache, keyed
 // by a hash of the run dir so two runs never collide.
-func checkpoint(runDir string) (string, error) {
-	sum := sha1.Sum([]byte(runDir))
+func checkpoint(run record.Run) (string, error) {
+	sum := sha1.Sum([]byte(run.Dir()))
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", err
@@ -73,10 +73,7 @@ func checkpoint(runDir string) (string, error) {
 	if err := os.MkdirAll(mirror, 0o755); err != nil {
 		return "", err
 	}
-	src, err := record.RecordsDir(runDir)
-	if err != nil {
-		return "", err
-	}
+	src := run.Records()
 	if _, err := os.Stat(src); err == nil {
 		if err := copyDir(src, mirror); err != nil {
 			return "", err

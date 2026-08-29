@@ -162,7 +162,7 @@ func sliceStr(s string, n int) string {
 // scorecardSection renders THIS run's scorecards, computed IN-PROCESS from the record via the
 // shared scorecard library — never by re-parsing a rendered markdown file. "" when nothing computes.
 func scorecardSection(run record.Run) string {
-	board, _ := record.BoardState(run.Dir())
+	board, _ := record.BoardState(run)
 	cards := scorecard.Compute(run, scorecard.ReadResults(run), board)
 	chairs := make([]string, 0, len(cards))
 	for c := range cards {

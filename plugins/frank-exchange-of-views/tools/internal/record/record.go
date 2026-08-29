@@ -139,7 +139,15 @@ type Event = recordpb.Event
 // `blue-respond-r1` is party `blue` and command-group `grade`. Passing the wrong one would
 // silently re-label who wrote every motion event.
 type Identity struct {
-	RunDir string
+	// Run, not a path. RunDir was a string, and the empty string reached Append as a legitimate
+	// value: openRun("") resolves through filepath.Abs("") to the WORKING DIRECTORY and writes
+	// the event into <cwd>/records. That is the second-blackboard incident RegisterSeat's own
+	// refusal describes forty lines below — RegisterSeat guarded it, Append never did.
+	//
+	// A Run cannot hold the empty string, so the state stops existing rather than being checked
+	// for. Valid() is asserted at the write anyway, because a zero Run can still arrive from a
+	// struct literal that skipped the constructor.
+	Run    Run
 	SeatID string
 	// Round is the seat's round as resolved by its caller. -1 means unknown, which is NOT round
 	// 0 — round 0 is synthesis, and conflating them produced the phantom-archive bug in #327.
@@ -155,7 +163,7 @@ type Identity struct {
 // the register event because a run whose seats all resolve by INFERENCE is a run the PreToolUse
 // hook is not reaching, and the hook records that nowhere (#512).
 func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err error) {
-	runDir, seatID := id.RunDir, id.SeatID
+	run, seatID := id.Run, id.SeatID
 	if seatID == "" || !seatIDRe.MatchString(seatID) {
 		return 0, "", fmt.Errorf("record: invalid --seat-id %s", strconv.Quote(seatID))
 	}
@@ -181,15 +189,21 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	//
 	// The check is CHEAP AND EXACT: does the run directory exist? It is not a guess about what a
 	// run should contain, so it cannot reject a legitimately sparse one.
-	if st, err := os.Stat(runDir); err != nil || !st.IsDir() {
-		abs, _ := filepath.Abs(runDir)
+	// A Run resolved and made this absolute already, so the relative-path half of the old
+	// message no longer describes anything reachable. What remains is the half that still is:
+	// the directory has to EXIST, because a seat records into a run `setup` already made.
+	if !run.Valid() {
+		return 0, "", feov.Errorf(feov.MissingField,
+			"record: this registration names no run — pass --run <runDir>, or run inside a dispatch that injects it")
+	}
+	if st, err := os.Stat(run.Dir()); err != nil || !st.IsDir() {
 		return 0, "", feov.Errorf(feov.NotFound,
-			"record: no run directory at %s (resolved to %s) — a seat records into a run `setup` already made and never creates one. A RELATIVE --run resolves against YOUR working directory, which is how a seat once built a second blackboard beside the real run and reported success; pass the absolute path the engine gave you",
-			runDir, abs)
+			"record: no run directory at %s — a seat records into a run `setup` already made and never creates one",
+			run.Dir())
 	}
 	// REGISTER IS WHERE A SEPARATION IS ADOPTED. It is every seat's first record action, so
 	// resolving here means the root is bound (and its pointer written) before any event exists.
-	db, err := openRun(runDir)
+	db, err := openRun(run)
 	if err != nil {
 		return 0, "", err
 	}
@@ -259,7 +273,7 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// `verify` and `capture` can hold the run to it even if this seat works around the error the
 	// way the friction footer teaches. Refusing BEFORE the write would leave the one piece of
 	// evidence unrecorded in exactly the case it matters.
-	if err := tierGate(runDir, seatID, served); err != nil {
+	if err := tierGate(run, seatID, served); err != nil {
 		return dispatch, dbName, err
 	}
 	// WHAT THE TWO RETURNS ARE NOW. The first was a NONCE, an opaque sitting id a seat could do
@@ -288,7 +302,7 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 // That decision is theirs and it is made ONCE, at setup, where it is written to run-config as a
 // field. It is deliberately not a flag on this verb: a seat typing --allow-substitution would be
 // the party under test excusing itself.
-func tierGate(runDir, seatID string, o servedmodel.Observation) error {
+func tierGate(run Run, seatID string, o servedmodel.Observation) error {
 	if o.Served == "" {
 		return nil // NOT MEASURED — already said so on stderr; a silence here would be a claim.
 	}
@@ -296,7 +310,7 @@ func tierGate(runDir, seatID string, o servedmodel.Observation) error {
 	if class == "" {
 		return nil // the operator and anything off the roster ride no tier
 	}
-	model, judgmentModel := modeltier.Config(runDir)
+	model, judgmentModel := modeltier.Config(run.Dir())
 	configured := model
 	if class == "judgment" {
 		configured = judgmentModel
@@ -312,7 +326,7 @@ func tierGate(runDir, seatID string, o servedmodel.Observation) error {
 	if o.Substituted() {
 		declared = fmt.Sprintf(" The harness declared the substitution itself: %s -> %s.", o.Requested, o.Served)
 	}
-	if allowSubstitution(runDir) {
+	if allowSubstitution(run) {
 		fmt.Fprintf(os.Stderr, "register: MODEL SUBSTITUTION, ALLOWED BY THIS RUN'S CONFIG — %s is a %s seat, configured %s (%s tier), served %s (%s tier).%s\n",
 			seatID, class, configured, want, o.Served, got, declared)
 		return nil
@@ -332,8 +346,8 @@ func tierGate(runDir, seatID string, o servedmodel.Observation) error {
 //
 // ABSENT MEANS NO. A run whose config predates the field, or whose config cannot be read, is a run
 // that never consented to a substitution — the failing direction of a gate has to be the safe one.
-func allowSubstitution(runDir string) bool {
-	b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json"))
+func allowSubstitution(run Run) bool {
+	b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json"))
 	if err != nil {
 		return false
 	}
@@ -395,12 +409,12 @@ var singleton = map[recordpb.EventType]bool{
 var keyFields = []protoreflect.Name{"gap_id", "label", "id", "observation", "anchor", "url"}
 
 // requireGradeMotionAsksForAChange refuses a grade motion proposing the grade already on the board.
-func requireGradeMotionAsksForAChange(runDir string, g *recordpb.GradeMotion) error {
+func requireGradeMotionAsksForAChange(run Run, g *recordpb.GradeMotion) error {
 	proposed := g.GetProposed()
 	if proposed == recordpb.Grade_GRADE_UNSPECIFIED {
 		return nil // an absent proposal is the required-field sweep's refusal, not this one's
 	}
-	b, err := BoardState(runDir)
+	b, err := BoardState(run)
 	if err != nil {
 		return nil // a board that cannot be read does not block the filing; requireGap already ran
 	}
@@ -521,13 +535,21 @@ func ParseStamp(ts string) (time.Time, error) {
 // SetBody refuses it by name instead: every EventType names a body message, so "no body" is not a
 // state an event can be in.
 func Append(id Identity, body proto.Message) (*Event, error) {
-	runDir, seatID := id.RunDir, id.SeatID
+	run, seatID := id.Run, id.SeatID
+	// THE GUARD RegisterSeat HAS AND Append DID NOT. A write into an unresolved run is the one
+	// failure this package is least able to report afterwards: it succeeds, and the events are
+	// somewhere nobody reads.
+	if !run.Valid() {
+		return nil, feov.Errorf(feov.MissingField,
+			"record: this write names no run — pass --run <runDir>, or run inside a dispatch that injects it. "+
+				"An unresolved run used to resolve to the WORKING DIRECTORY and the events landed beside the real board")
+	}
 	ev := &Event{}
 	typ, err := recordpb.SetBody(ev, body)
 	if err != nil {
 		return nil, err
 	}
-	db, err := openRun(runDir)
+	db, err := openRun(run)
 	if err != nil {
 		return nil, err
 	}
@@ -541,7 +563,7 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	if f, ok := body.(*recordpb.Finding); ok && f.FindingId == nil {
 		f.FindingId = proto.String(NewFindingID())
 	}
-	if err := validate(runDir, seatID, typ, body); err != nil {
+	if err := validate(run, seatID, typ, body); err != nil {
 		return nil, err
 	}
 	// SEQ AND THE INSERT ARE ONE TRANSACTION. The shard version read the file, counted the lines
@@ -612,7 +634,7 @@ func insertEvent(db *sql.DB, ev *Event) error {
 // filing fields, and the ruling vocabulary — each is now a closed enum or a oneof case. Where the
 // schema replaced a VALUE check with a STRUCTURAL one, the structural check is made here rather
 // than assumed: see the filing/ruling arms below.
-func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message) error {
+func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message) error {
 	// THE UNCONDITIONAL REQUIREMENTS COME FROM THE FIELDS THEMSELVES, once, before any verb's own
 	// rules run. What stays below is everything an annotation CANNOT say: requirements that depend
 	// on another field's value, references that must resolve against the record, and the closed
@@ -649,7 +671,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 			return fmt.Errorf("record: anchor requires location (the section + quoted sentence the marker sits at)")
 		}
 	case *recordpb.ClassNew:
-		return validateClassNew(runDir, b)
+		return validateClassNew(run, b)
 	case *recordpb.Mint:
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
@@ -692,14 +714,14 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 				return fmt.Errorf("record: mint requires --%s — it multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungraded", g.flag)
 			}
 		}
-		if err := validateClass(runDir, b); err != nil {
+		if err := validateClass(run, b); err != nil {
 			return err
 		}
-		ids, err := allGapIDs(runDir)
+		ids, err := allGapIDs(run)
 		if err != nil {
 			return err
 		}
-		if err := requireFindings(runDir, b.GetFoundBy(), "mint", "--found-by"); err != nil {
+		if err := requireFindings(run, b.GetFoundBy(), "mint", "--found-by"); err != nil {
 			return err
 		}
 		for _, anc := range b.GetSupersedes() {
@@ -712,10 +734,10 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		// and a dangling reference is refused HERE rather than accepted and dropped at
 		// replay. It is optional — a proof can back a claim nobody challenged — but a
 		// `computation` gap can be closed ONLY by one that names it (see merge close).
-		if err := requireGap(runDir, b.GetAnswers(), "blue prove", "--answers"); err != nil {
+		if err := requireGap(run, b.GetAnswers(), "blue prove", "--answers"); err != nil {
 			return err
 		}
-		if err := requireCitation(runDir, b.GetCites(), "blue prove", "--cites"); err != nil {
+		if err := requireCitation(run, b.GetCites(), "blue prove", "--cites"); err != nil {
 			return err
 		}
 	case *recordpb.BlueEdit:
@@ -724,7 +746,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		// --answers names the gap this edit responds to, and it is checked against the board
 		// like every other reference in this file (refs.go: twelve of twelve were once
 		// unchecked, and a dangling reference is ACCEPTED here and DROPPED at replay).
-		if err := requireGap(runDir, b.GetAnswers(), "blue edit", "--answers"); err != nil {
+		if err := requireGap(run, b.GetAnswers(), "blue edit", "--answers"); err != nil {
 			return err
 		}
 		// And the convention it replaces is REFUSED, not merely deprecated. Measured on the
@@ -740,7 +762,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		if b.GetAnswers() == "" {
 			// --reason lands in BlueEdit.text: the flag a seat types and the field the schema
 			// carries are two vocabularies, and this is the one place the edit's argument lives.
-			named, err := gapNamedIn(runDir, b.GetText())
+			named, err := gapNamedIn(run, b.GetText())
 			if err != nil {
 				return err
 			}
@@ -749,7 +771,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 			}
 		}
 	case *recordpb.Close:
-		ids, err := allGapIDs(runDir)
+		ids, err := allGapIDs(run)
 		if err != nil {
 			return err
 		}
@@ -781,7 +803,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		// It is here for the cheaper tier, where an anchor is exactly the work a seat
 		// under pressure would rather skip.
 		if !anchored && b.CarriedFrom != nil {
-			prior, err := priorClosureRounds(runDir, b.GetGapId())
+			prior, err := priorClosureRounds(run, b.GetGapId())
 			if err != nil {
 				return err
 			}
@@ -789,12 +811,12 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 				return fmt.Errorf("record: carry claims gap %s was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `merge close` with --verified-by/--verified-with/--verified-against", b.GetGapId())
 			}
 		}
-		if err := requireGap(runDir, b.GetSuccessor(), "close", "--superseded-by"); err != nil {
+		if err := requireGap(run, b.GetSuccessor(), "close", "--superseded-by"); err != nil {
 			return err
 		}
 		// The residue has to go somewhere STILL LIVE. A successor that is itself closed
 		// is a dead end wearing a forwarding address.
-		if err := requireOpenGap(runDir, b.GetSuccessor(), "close", "--superseded-by",
+		if err := requireOpenGap(run, b.GetSuccessor(), "close", "--superseded-by",
 			"the unresolved remainder cannot be carried into a gap that is already finished"); err != nil {
 			return err
 		}
@@ -803,7 +825,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		// close is exempt: restating an earlier closure is exactly what it means, and it
 		// is separately checked against a real prior closure below.
 		if b.CarriedFrom == nil {
-			if err := requireOpenGap(runDir, b.GetGapId(), "close", "--id",
+			if err := requireOpenGap(run, b.GetGapId(), "close", "--id",
 				"closing it twice double-counts closure history and corrupts the repair_regression denominator; use `merge carry --carried-from <round>` to RESTATE an earlier closure"); err != nil {
 				return err
 			}
@@ -841,14 +863,14 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		if b.GetGapId() == "" {
 			return fmt.Errorf("record: %s requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)", "closing")
 		}
-		if err := requireGap(runDir, b.GetGapId(), "closing", "--id"); err != nil {
+		if err := requireGap(run, b.GetGapId(), "closing", "--id"); err != nil {
 			return err
 		}
 	case *recordpb.ManifestRow:
 		if b.GetGapId() == "" {
 			return fmt.Errorf("record: %s requires --id (the gap this is about; a receipt naming no gap cannot be audited against anything)", "manifest-row")
 		}
-		if err := requireGap(runDir, b.GetGapId(), "manifest-row", "--id"); err != nil {
+		if err := requireGap(run, b.GetGapId(), "manifest-row", "--id"); err != nil {
 			return err
 		}
 		// A MANIFEST ROW IS THE RECEIPT. An empty one says a repair was audited and shows
@@ -899,10 +921,10 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 			return fmt.Errorf("record: a finding must carry a label — the tool assigns L{role}-F{N}; an unlabelled finding can never be credited in a gap's found_by and its work is lost")
 		}
 	case *recordpb.Regrade:
-		if err := requireGap(runDir, b.GetGapId(), "regrade", "--id"); err != nil {
+		if err := requireGap(run, b.GetGapId(), "regrade", "--id"); err != nil {
 			return err
 		}
-		if err := requireOpenGap(runDir, b.GetGapId(), "regrade", "--id",
+		if err := requireOpenGap(run, b.GetGapId(), "regrade", "--id",
 			"a grade only decides what happens NEXT to a gap, so moving one on a finished gap changes a number nobody reads"); err != nil {
 			return err
 		}
@@ -931,10 +953,10 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		// at replay; one against a gap already disposed of asks for a different disposition than
 		// the one that has been made.
 		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_GRADE {
-			if err := requireGap(runDir, b.GetGrade().GetGapId(), "motion grade file", "--id"); err != nil {
+			if err := requireGap(run, b.GetGrade().GetGapId(), "motion grade file", "--id"); err != nil {
 				return err
 			}
-			if err := requireOpenGap(runDir, b.GetGrade().GetGapId(), "motion grade file", "--id",
+			if err := requireOpenGap(run, b.GetGrade().GetGapId(), "motion grade file", "--id",
 				"a grade motion asks for a DIFFERENT disposition, and the disposition has already been made"); err != nil {
 				return err
 			}
@@ -947,19 +969,19 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 			// Read from the BOARD, not from the filer's claim about it, and a dimension this
 			// binary cannot resolve is an ERROR rather than a skipped check: GradeAt's zero would
 			// differ from every real proposal and quietly accept everything on a new axis.
-			if err := requireGradeMotionAsksForAChange(runDir, b.GetGrade()); err != nil {
+			if err := requireGradeMotionAsksForAChange(run, b.GetGrade()); err != nil {
 				return err
 			}
 		}
 	case *recordpb.MotionAppeal:
-		return RequireMotionSubjectRef(runDir, b.GetSubject(), b.GetMotionId())
+		return RequireMotionSubjectRef(run, b.GetSubject(), b.GetMotionId())
 	case *recordpb.MotionRule:
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), which EnumFields cannot express: it is
 		// keyed by event TYPE, and one `motion-rule` carries granted|denied for a petition and
 		// accepted|rejected for a grade. So the check lives here, and the CLI's help is generated
 		// from the SAME table (MotionVerdictEnum) — one source, two readers, which is the rule
 		// enums.go exists to keep.
-		if err := RequireMotionSubjectRef(runDir, b.GetSubject(), b.GetMotionId()); err != nil {
+		if err := RequireMotionSubjectRef(run, b.GetSubject(), b.GetMotionId()); err != nil {
 			return err
 		}
 		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED {
@@ -992,22 +1014,22 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 	case *recordpb.RoundVerdict:
 		// The seat's terminal act is where completion duties belong: it is the last
 		// moment the seat is still there to discharge them.
-		if err := requireSupersededAreClosed(runDir); err != nil {
+		if err := requireSupersededAreClosed(run); err != nil {
 			return err
 		}
 		// A PASS is a claim that nothing is left open. Enforce it here, at the one write
 		// path, so no verdict route can record a PASS over an unadjudicated board (the
 		// 2026-07-20 rubber-stamp: PASS with 9 open gaps).
 		if b.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
-			if err := requirePassClosesAllGaps(runDir); err != nil {
+			if err := requirePassClosesAllGaps(run); err != nil {
 				return err
 			}
 		}
 	case *recordpb.SpotCheck:
-		if err := requireGaps(runDir, b.GetIds(), "spot-check", "--ids"); err != nil {
+		if err := requireGaps(run, b.GetIds(), "spot-check", "--ids"); err != nil {
 			return err
 		}
-		if err := requireClosedGaps(runDir, b.GetIds(), "spot-check", "--ids"); err != nil {
+		if err := requireClosedGaps(run, b.GetIds(), "spot-check", "--ids"); err != nil {
 			return err
 		}
 	case *recordpb.Avenue:
@@ -1021,7 +1043,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 		// `avenue_id`, and the seat-facing verb is `line of inquiry` — and the schema's name is
 		// the one that survives. Named here because it is a rename by judgement, not a match.
 		if b.GetSupersedesStatus() != "" {
-			if err := requireInquiry(runDir, b.GetAvenueId(), "blue line of inquiry", "--id"); err != nil {
+			if err := requireInquiry(run, b.GetAvenueId(), "blue line of inquiry", "--id"); err != nil {
 				return err
 			}
 		}
@@ -1107,7 +1129,7 @@ func validate(runDir, seatID string, typ recordpb.EventType, body proto.Message)
 			return fmt.Errorf("record: verify requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
 		}
 	case *recordpb.Opinion:
-		if err := requireGap(runDir, b.GetGapId(), "opinion", "--id"); err != nil {
+		if err := requireGap(run, b.GetGapId(), "opinion", "--id"); err != nil {
 			return err
 		}
 		// THE PRESENCE LOOP THAT STOOD HERE WAS THE TWELFTH RESTATEMENT, and like the other ten

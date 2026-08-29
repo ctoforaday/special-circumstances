@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // fetchSummary is what `fetch` prints instead of the document (#629 D1, D2).
@@ -42,13 +43,13 @@ type fetchSummary struct {
 	OCRDerived    bool   `json:"ocr_derived,omitempty"`
 }
 
-// summarize projects a cache entry into what the seat is shown. Paths are absolute-as-given —
-// whatever runDir the seat is working in — because the seat's next act is to Read one of them.
-func summarize(runDir string, e fetchcache.Entry, bodyLen int, hit bool) fetchSummary {
+// summarize projects a cache entry into what the seat is shown. Paths are absolute — a Run
+// resolves its directory once, at construction — because the seat's next act is to Read one.
+func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchSummary {
 	s := fetchSummary{
 		URL:           e.URL,
 		Sha256:        e.Sha,
-		Path:          fetchcache.Path(runDir, e.Sha),
+		Path:          fetchcache.Path(run, e.Sha),
 		ContentType:   e.ContentType,
 		Filename:      e.Filename,
 		Bytes:         bodyLen,
@@ -64,7 +65,7 @@ func summarize(runDir string, e fetchcache.Entry, bodyLen int, hit bool) fetchSu
 	// never written is worse than no field at all: a seat would Read it, get a not-found, and
 	// have to guess whether the tool or the document was at fault.
 	if e.TextSha != "" {
-		s.TextPath = fetchcache.TextPath(runDir, e.Sha)
+		s.TextPath = fetchcache.TextPath(run, e.Sha)
 	}
 	return s
 }

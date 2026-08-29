@@ -28,7 +28,7 @@ func TestLegacyShardsAreRefusedRatherThanReadAsEmpty(t *testing.T) {
 		}
 	}
 
-	db, err := openRunForRead(run)
+	db, err := openRunForRead(mustRun(t, run))
 	if err == nil {
 		t.Fatalf("a run holding legacy shards was read as an empty record (db=%v) — every invariant "+
 			"then passes over zero events and the audit reports a clean board", db)
@@ -50,7 +50,7 @@ func TestEmptyRecordsDirIsStillAnEmptyRun(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(run, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	db, err := openRunForRead(run)
+	db, err := openRunForRead(mustRun(t, run))
 	if err != nil {
 		t.Fatalf("a run that has recorded nothing is a legal state, not a refusal: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestUnrelatedFilesDoNotTripTheLegacyRefusal(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	db, err := openRunForRead(run)
+	db, err := openRunForRead(mustRun(t, run))
 	if err != nil {
 		t.Fatalf("only the former format's event shards refuse; got %v", err)
 	}

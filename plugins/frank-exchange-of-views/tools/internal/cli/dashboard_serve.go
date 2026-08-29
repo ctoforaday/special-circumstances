@@ -38,7 +38,7 @@ import (
 //     through the written snapshot, which needs no listening socket.
 //
 // render is the per-request page (rendered fresh from the record, no materialized file).
-func serveDashboard(out io.Writer, runDir string, port int, render func() string) error {
+func serveDashboard(out io.Writer, run record.Run, port int, render func() string) error {
 	// THE SERVER LIVES ONLY WHILE THE RUN DOES. Refuse to start when the run is not live, rather
 	// than serving a finished run "until killed" — that mode left a dashboard exposed on the LAN
 	// with nothing to end it, which is precisely the exposure-with-no-owner the teardown exists to
@@ -46,7 +46,7 @@ func serveDashboard(out io.Writer, runDir string, port int, render func() string
 	// completed run is reviewed through the static snapshot, which needs no listening socket.
 	if _, err := os.Stat(runLiveMarker); err != nil {
 		return fmt.Errorf("dashboard --serve: this run is not live (no %s) — the served dashboard exists only for the duration of a run; for a finished run drop --serve and read the written %s",
-			runLiveMarker, filepath.Join(runDir, "dashboard.html"))
+			runLiveMarker, filepath.Join(run.Dir(), "dashboard.html"))
 	}
 	secret, err := randToken()
 	if err != nil {
@@ -64,7 +64,7 @@ func serveDashboard(out io.Writer, runDir string, port int, render func() string
 		TLSConfig: &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS12},
 	}
 
-	fmt.Fprintf(out, "serving %s dashboard on port %d over HTTPS — capability URL, rendered fresh per request:\n", filepath.Base(runDir), port)
+	fmt.Fprintf(out, "serving %s dashboard on port %d over HTTPS — capability URL, rendered fresh per request:\n", filepath.Base(run.Dir()), port)
 	if len(ips) == 0 {
 		fmt.Fprintf(out, "  https://<this-host-ip>:%d/%s\n", port, secret)
 	}
@@ -74,7 +74,7 @@ func serveDashboard(out io.Writer, runDir string, port int, render func() string
 	fmt.Fprintln(out, "  (self-signed cert — your browser will warn once; the URL secret is the only key; self-tears-down when the run ends)")
 
 	// Self-teardown: watch the run-live marker and close the server on the live→ended transition.
-	go watchAndShutdown(srv, runDir)
+	go watchAndShutdown(srv, run)
 
 	if err := srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
 		return err
@@ -111,11 +111,11 @@ var runLiveMarker = filepath.Join(".claude", "run-live.json")
 //
 // The RECORD is the second signal and the more truthful one: once the bench records the run's
 // outcome, the run is over whatever the filesystem still says.
-func watchAndShutdown(srv *http.Server, runDir string) {
+func watchAndShutdown(srv *http.Server, run record.Run) {
 	tick := time.NewTicker(3 * time.Second)
 	defer tick.Stop()
 	for range tick.C {
-		if ended, _ := runHasEnded(runLiveMarker, runDir); ended {
+		if ended, _ := runHasEnded(runLiveMarker, run); ended {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			_ = srv.Shutdown(ctx)
 			cancel()
@@ -198,11 +198,11 @@ func selfSignedCert(ips []net.IP) (tls.Certificate, error) {
 //
 // It returns WHY as well as whether, so a watcher can tell the operator that a run ended without
 // being captured rather than exiting silently — that gap is the thing worth knowing.
-func runHasEnded(marker, runDir string) (bool, string) {
+func runHasEnded(marker string, run record.Run) (bool, string) {
 	if _, err := os.Stat(marker); err != nil {
 		return true, "run-live marker gone"
 	}
-	if v := record.TerminalVerdict(runDir); v != "" {
+	if v := record.TerminalVerdict(run); v != "" {
 		// IN THE SEAT'S OWN SPELLING. RunOutcome is stored as the schema's word (`unverified`) and
 		// typed by the bench in capitals (`--as UNVERIFIED`); this line is read by an OPERATOR
 		// looking for the state a seat recorded, so it shouts the word the seat used rather than

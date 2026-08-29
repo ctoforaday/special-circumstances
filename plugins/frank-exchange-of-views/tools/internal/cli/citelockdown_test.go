@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"sort"
 	"strings"
 	"testing"
@@ -72,7 +73,7 @@ func TestCiteAnchorBijection(t *testing.T) {
 
 func assertBijection(t *testing.T, runDir string) {
 	t.Helper()
-	events, err := record.CitationLabels(runDir)
+	events, err := record.CitationLabels(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

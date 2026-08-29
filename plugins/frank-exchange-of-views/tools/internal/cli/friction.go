@@ -66,8 +66,7 @@ func newFriction() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			runDir := run.Dir()
-			b, err := record.FrictionJSONBytes(runDir)
+			b, err := record.FrictionJSONBytes(run)
 			if err != nil {
 				return err
 			}

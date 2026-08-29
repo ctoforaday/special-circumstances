@@ -30,15 +30,11 @@ const dbName = "record.db"
 // the property the second-blackboard incident (#358) turned on.
 var ()
 
-func openRun(runDir string) (*sql.DB, error) {
-	dir, err := RecordsDir(runDir)
-	if err != nil {
-		return nil, err
-	}
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		return nil, err
-	}
+func openRun(run Run) (*sql.DB, error) {
+	// RESOLVED ALREADY, AND ABSOLUTE ALREADY. Both openers began with RecordsDir followed by
+	// filepath.Abs — the exact pair record.Run performs once at construction — so every read and
+	// every write repeated it, and the two copies could disagree about the same run.
+	abs := run.Records()
 	if err := os.MkdirAll(abs, 0o755); err != nil {
 		return nil, err
 	}
@@ -66,14 +62,22 @@ func openRun(runDir string) (*sql.DB, error) {
 // the defect shape this package names in recordroot.go and builds the separated-record marker to
 // prevent ("turn a lost pointer into an error instead of an empty board"); legacy shards are the
 // same fault with a different cause, and get the same answer.
-func openRunForRead(runDir string) (*sql.DB, error) {
-	dir, err := RecordsDir(runDir)
-	if err != nil {
-		return nil, err
-	}
-	abs, err := filepath.Abs(dir)
-	if err != nil {
-		return nil, err
+func openRunForRead(run Run) (*sql.DB, error) {
+	// RESOLVED ALREADY, AND ABSOLUTE ALREADY. Both openers began with RecordsDir followed by
+	// filepath.Abs — the exact pair record.Run performs once at construction — so every read and
+	// every write repeated it, and the two copies could disagree about the same run.
+	abs := run.Records()
+	// A SEPARATED RUN WHOSE ROOT IS GONE IS NOT AN EMPTY RUN, and this check has to be here
+	// rather than only at resolution. The handle resolved once; the root can vanish afterwards,
+	// and `dashboard --watch` reads through the same handle every fifteen seconds. Without this
+	// the Stat below takes its IsNotExist arm and returns the honest zero for a record that
+	// exists and is simply unreachable.
+	if run.Separated() {
+		if _, err := os.Stat(abs); err != nil {
+			return nil, fmt.Errorf("record: run %s keeps its record at %s, which is no longer there (%v) — "+
+				"the events are gone or the directory moved. This is NOT an empty run and will not be "+
+				"reported as one; re-declare the root with %s=<path> if it moved", run.Dir(), abs, err, RecordRootEnv)
+		}
 	}
 	if _, err := os.Stat(filepath.Join(abs, dbName)); os.IsNotExist(err) {
 		if shards := legacyShards(abs); len(shards) > 0 {
@@ -89,7 +93,7 @@ func openRunForRead(runDir string) (*sql.DB, error) {
 		}
 		return nil, nil
 	}
-	return openRun(runDir)
+	return openRun(run)
 }
 
 // legacyShards names the per-seat JSONL event files the record kept before it became a database.

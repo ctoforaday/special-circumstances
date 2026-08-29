@@ -51,12 +51,11 @@ func newShowTiers() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			runDir := run.Dir()
-			board, err := record.BoardState(runDir)
+			board, err := record.BoardState(run)
 			if err != nil {
 				return fmt.Errorf("show tiers: %w", err)
 			}
-			rep := tierReport(runDir, board)
+			rep := tierReport(run, board)
 			out := cmd.OutOrStdout()
 			switch format {
 			case "json":
@@ -111,9 +110,9 @@ type TierReport struct {
 	Substituted     int       `json:"substituted"`
 }
 
-func tierReport(runDir string, b *record.Board) TierReport {
-	bulk, judgment := modeltier.Config(runDir)
-	rep := TierReport{RunDir: runDir, ConfiguredBulk: bulk, ConfiguredJudge: judgment}
+func tierReport(run record.Run, b *record.Board) TierReport {
+	bulk, judgment := modeltier.Config(run.Dir())
+	rep := TierReport{RunDir: run.Dir(), ConfiguredBulk: bulk, ConfiguredJudge: judgment}
 	for _, sm := range record.SeatModels(b) {
 		if sm.Class == "" {
 			continue // the operator and anything off the roster ride no tier

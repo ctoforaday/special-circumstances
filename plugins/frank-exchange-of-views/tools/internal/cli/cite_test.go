@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"regexp"
 	"strings"
@@ -24,7 +25,7 @@ var citeAnchorRe = regexp.MustCompile(`<!--cite:(c-[0-9a-f]+)-->`)
 // source of truth for it and the test has to read the record rather than the command's output.
 func firstCiteEvent(t *testing.T, runDir string) *recordpb.Cite {
 	t.Helper()
-	m, err := record.MergedEvents(runDir)
+	m, err := record.MergedEvents(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,7 +70,7 @@ func TestBlueCiteAnchorsInvisiblyAndRecordsEvent(t *testing.T) {
 	}
 	// The source was cached at <run>/cache/<sha256>.
 	sha := fetchcache.Sha(body)
-	if _, statErr := os.Stat(fetchcache.Path(runDir, sha)); statErr != nil {
+	if _, statErr := os.Stat(fetchcache.Path(runtest.Open(t, runDir), sha)); statErr != nil {
 		t.Errorf("source not cached: %v", statErr)
 	}
 	// The one cite event carries the full citation record.

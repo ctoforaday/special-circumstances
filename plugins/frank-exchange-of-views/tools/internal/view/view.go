@@ -118,7 +118,7 @@ func massSum(gaps []*record.Gap) float64 {
 // the worse outcome — every caller reading "0 anomalies" as a clean board, in the same words it
 // used when the number meant something.
 func Counts(run record.Run) (open, closed int, err error) {
-	b, err := record.BoardState(run.Dir())
+	b, err := record.BoardState(run)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -137,7 +137,7 @@ func Counts(run record.Run) (open, closed int, err error) {
 // Rows are decoded the way the consumers previously decoded the file (UseNumber),
 // so numeric leaves are json.Number and nested objects are map[string]any.
 func Telemetry(run record.Run) ([]map[string]any, error) {
-	b, err := record.BoardState(run.Dir())
+	b, err := record.BoardState(run)
 	if err != nil {
 		return nil, err
 	}
@@ -171,7 +171,7 @@ func Telemetry(run record.Run) ([]map[string]any, error) {
 // old materialized telemetry file held, for callers that need the wire shape rather than
 // decoded rows.
 func TelemetryJSONL(run record.Run) ([]byte, error) {
-	b, err := record.BoardState(run.Dir())
+	b, err := record.BoardState(run)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +225,7 @@ func Markdown(run record.Run, name, scope string) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("unknown markdown view %q (have: %s)", name, strings.Join(MarkdownViews(), ", "))
 	}
-	b, err := record.BoardState(run.Dir())
+	b, err := record.BoardState(run)
 	if err != nil {
 		return nil, err
 	}

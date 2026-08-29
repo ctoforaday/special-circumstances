@@ -51,7 +51,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	// A blue seat that recorded nothing in round 2 is simply absent from the record — there is no
 	// empty shard file to write, which is what the call here used to produce.
 
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,7 +108,7 @@ func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:position", &recordpb.Position{Text: proto.String("red")}),
 	})
-	out, err := DebateJSONBytes(runDir)
+	out, err := DebateJSONBytes(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,7 +153,7 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 		}),
 	})
 
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -216,7 +216,7 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 			FoundBy: []string{"L1-F1", "L5-F3"},
 		}),
 	})
-	b, err := BoardJSONBytes(runDir)
+	b, err := BoardJSONBytes(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +261,7 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 			FoundBy:         []string{"L1-F1"},
 		}),
 	})
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +303,7 @@ func TestRedsArgumentReachesTheBoard(t *testing.T) {
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
 	})
-	b, err := BoardState(runDir)
+	b, err := BoardState(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
