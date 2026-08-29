@@ -1695,7 +1695,25 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 	return result, settledErr
 }
 
-func runOne(t *testing.T, wrapped, bin string, seed int64) (res outcome) {
+// unverifiedSeed is the one seed in the sweep whose run is FORCED to the UNVERIFIED terminal
+// verdict rather than left to the draw.
+//
+// THE SWEEP WAS STILL HOPING. #630 built the machinery to drive this deterministically —
+// `runner.forceUnverified`, and TestFuzzUnverifiedPath which sets it — and the comment at
+// forceUnverified says exactly why it is needed: "Left to the draw, a run whose gaps all
+// happened to be repairable never contested anything, the judge never sat, and the run reached
+// the round ceiling." But `execValues` is in-memory package state and TestFuzzUnverifiedPath
+// sits ~600 lines BELOW TestFuzzDebate's coverage assertion, with no t.Parallel() in the file.
+// Go runs them in source order, so the deterministic driver could never contribute to the gate
+// that needs it, and the gate went on asking the 40-run draw for a value that occurs about once
+// in sixty.
+//
+// MEASURED on origin/main at 65b27a9d with no other diff: red 3 of 4 runs, failing on
+// `outcome --as UNVERIFIED`. One forced run costs one seed's worth of natural variation and
+// makes the value a fact rather than a coin flip (#637).
+const unverifiedSeed = 1
+
+func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool) (res outcome) {
 	runDir, _ := os.MkdirTemp("", "fuzz-run-")
 	// A lens finding anchors into blue/report.md and is rejected unless its --location
 	// quote is present (slice 1b). Seed a report carrying the fuzzer's finding quote
@@ -1713,7 +1731,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64) (res outcome) {
 	if err := record.StageForRun(runDir, fuzzClasses...); err != nil {
 		return outcome{seed: seed, runDir: runDir, err: "stage the class registry: " + err.Error()}
 	}
-	r := &runner{bin: bin, runDir: runDir, rng: newLockedRand(seed), registered: map[string]bool{}}
+	r := &runner{bin: bin, runDir: runDir, rng: newLockedRand(seed), registered: map[string]bool{}, forceUnverified: forceUnverified}
 
 	res = outcome{seed: seed, runDir: runDir}
 	// NAMED RETURN + defer, because this function returns from a dozen places — an oracle that
@@ -2638,7 +2656,7 @@ func TestFuzzDebate(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
-			o := runOne(t, wrapped, bin, seed)
+			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed)
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot

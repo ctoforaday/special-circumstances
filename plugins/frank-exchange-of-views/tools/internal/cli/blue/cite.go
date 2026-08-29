@@ -63,7 +63,7 @@ func newCite() *cobra.Command {
 
 		// Resolve the source through the run cache (fetch-once). A FAILURE is an unusable
 		// citation: reject AND auto-emit a friction event (unlike a bare `fetch` miss).
-		sha, _, _, err := fetchcache.Resolve(run.Dir(), url, fetchcache.Default)
+		entry, _, _, err := fetchcache.Resolve(run.Dir(), url, fetchcache.Default)
 		if err != nil {
 			msg := fmt.Sprintf("blue cite: could not load %s: %v — pick a reachable source or an archive.org snapshot", url, err)
 			if _, ferr := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(msg)}); ferr != nil {
@@ -109,7 +109,7 @@ func newCite() *cobra.Command {
 		body := &recordpb.Cite{
 			Label:      proto.String(label),
 			Url:        proto.String(url),
-			Sha256:     proto.String(sha),
+			Sha256:     proto.String(entry.Sha),
 			Title:      proto.String(title),
 			Location:   proto.String(quote),
 			AccessDate: proto.String(record.Now().Format("2006-01-02")),
@@ -118,7 +118,7 @@ func newCite() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return citeResult{Label: label, URL: url, Sha256: sha}, nil
+		return citeResult{Label: label, URL: url, Sha256: entry.Sha}, nil
 	}))
 
 	c.Flags().String(flags.Quote, "", flags.DescQuote+". The invisible citation anchor is spliced here, so a mis-quote is rejected rather than guessed at")
