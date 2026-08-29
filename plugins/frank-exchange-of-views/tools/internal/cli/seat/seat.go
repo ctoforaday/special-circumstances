@@ -242,14 +242,17 @@ func Of(cmd *cobra.Command) Context {
 // having supplied a run at all (the engine is not dispatching you). Collapsing them into
 // "--run is required" tells a seat that DID pass --run to pass it, which is the message that
 // sends it looking in the wrong place.
-func (c Context) RequireRun(verb string) (string, error) {
+func (c Context) RequireRun(verb string) (record.Run, error) {
 	if c.RunErr != nil {
-		return "", c.RunErr
+		return record.Run{}, c.RunErr
 	}
 	if c.runDir == "" {
-		return "", feov.Errorf(feov.MissingField, "%s: --run <runDir> is required", verb)
+		return record.Run{}, feov.Errorf(feov.MissingField, "%s: --run <runDir> is required", verb)
 	}
-	return c.runDir, nil
+	// The verb-named message above is kept for the UNSUPPLIED case, because "scorecard: --run
+	// is required" tells an operator which invocation to fix and record's own wording cannot.
+	// Everything past it is the same refusal Run() gives, for the same reason.
+	return record.OpenRun(c.runDir)
 }
 
 func roleOf(cmd *cobra.Command) string {

@@ -2,6 +2,7 @@ package report
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,7 +35,7 @@ func TestProofsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T) {
 	seedProof(t, runDir, sha, "console.log('divisors of 9:', 3);", "divisors of 9: 3\n")
 
 	md := "Nine is composite by trial division<!--proof:p-deadbeef-->.\n"
-	out := weaveProofs(runDir, md, []record.Proof{{
+	out := weaveProofs(runtest.Open(t, runDir), md, []record.Proof{{
 		Label: "p-deadbeef", SHA: sha, Basis: "reproducible",
 		Script: "nine.js", Reason: "trial division settles it", Cites: "c-1234",
 	}})
@@ -64,7 +65,7 @@ func TestAnObservedProofIsLabelledInTheReport(t *testing.T) {
 	const sha = "feed0000"
 	seedProof(t, runDir, sha, "console.log(Math.random());", "0.42\n")
 
-	out := weaveProofs(runDir, "The sampled rate varies<!--proof:p-1-->.\n", []record.Proof{{
+	out := weaveProofs(runtest.Open(t, runDir), "The sampled rate varies<!--proof:p-1-->.\n", []record.Proof{{
 		Label: "p-1", SHA: sha, Basis: "observed", Script: "s.js",
 		Drift: "output differs from byte 2 between runs", Reason: "live sample",
 	}})
@@ -77,7 +78,7 @@ func TestAnObservedProofIsLabelledInTheReport(t *testing.T) {
 // one that admits the artifact is gone.
 func TestAMissingArtifactIsStatedNotSkipped(t *testing.T) {
 	runDir := newRun(t)
-	out := weaveProofs(runDir, "A claim<!--proof:p-9-->.\n", []record.Proof{{
+	out := weaveProofs(runtest.Open(t, runDir), "A claim<!--proof:p-9-->.\n", []record.Proof{{
 		Label: "p-9", SHA: "notonthisdisk", Basis: "reproducible", Script: "gone.js",
 	}})
 	if !strings.Contains(out, "missing from this run directory") {
@@ -91,7 +92,7 @@ func TestADanglingProofAnchorIsMarkedUnresolved(t *testing.T) {
 	// A VALID hex id with no event behind it. (An id-shaped-but-not-hex token like
 	// "p-nothing" is not an anchor at all — the regex correctly ignores it, which is a
 	// different case and not the one under test.)
-	out := weaveProofs(recordtest.TmpRun(t), "A claim<!--proof:p-abcdef01-->.\n", nil)
+	out := weaveProofs(runtest.Open(t, recordtest.TmpRun(t)), "A claim<!--proof:p-abcdef01-->.\n", nil)
 	if !strings.Contains(out, "unresolved proof") {
 		t.Errorf("a dangling proof anchor vanished silently:\n%s", out)
 	}
@@ -100,7 +101,7 @@ func TestADanglingProofAnchorIsMarkedUnresolved(t *testing.T) {
 // With no proofs the report is returned unchanged — no empty section.
 func TestNoProofsLeavesTheReportAlone(t *testing.T) {
 	const md = "A report with no computations in it.\n"
-	if got := weaveProofs(recordtest.TmpRun(t), md, nil); got != md {
+	if got := weaveProofs(runtest.Open(t, recordtest.TmpRun(t)), md, nil); got != md {
 		t.Errorf("an empty Proofs section was appended:\n%s", got)
 	}
 }
@@ -109,7 +110,7 @@ func TestNoProofsLeavesTheReportAlone(t *testing.T) {
 func TestOneProofUsedTwiceSharesItsNumber(t *testing.T) {
 	runDir := newRun(t)
 	seedProof(t, runDir, "s1", "x", "y")
-	out := weaveProofs(runDir, "First<!--proof:p-a-->. Second<!--proof:p-a-->.\n",
+	out := weaveProofs(runtest.Open(t, runDir), "First<!--proof:p-a-->. Second<!--proof:p-a-->.\n",
 		[]record.Proof{{Label: "p-a", SHA: "s1", Basis: "reproducible", Script: "a.js"}})
 	if strings.Count(out, "[^P1]") != 3 { // two references plus the section heading
 		t.Errorf("a proof used twice did not share one number:\n%s", out)

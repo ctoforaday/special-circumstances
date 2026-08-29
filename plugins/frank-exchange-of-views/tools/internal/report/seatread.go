@@ -2,6 +2,7 @@ package report
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"os"
 	"path/filepath"
 )
@@ -31,8 +32,8 @@ import (
 // So the anchors stay. They are not noise to be cleaned up before blue sees them; they are the
 // part blue is responsible for carrying across an edit. Assembly resolves them at the END,
 // once, for a reader who will never edit again.
-func BlueReportForReading(runDir string) ([]byte, error) {
-	path := filepath.Join(runDir, "blue", "report.md")
+func BlueReportForReading(run record.Run) ([]byte, error) {
+	path := filepath.Join(run.Dir(), "blue", "report.md")
 	md, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {

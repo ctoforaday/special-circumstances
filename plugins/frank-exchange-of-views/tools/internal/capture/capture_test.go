@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
@@ -105,21 +106,21 @@ func TestTelemetryAudit(t *testing.T) {
 	// Telemetry is DERIVED from the record now, so the audit checks that the computed series
 	// (one row per round with a minted gap) covers every red round.
 	two := recordWithRounds(t, 2)
-	if got := TelemetryAudit(two, 2).Verdict; got != "PASS" {
+	if got := TelemetryAudit(runtest.Open(t, two), 2).Verdict; got != "PASS" {
 		t.Errorf("2 telemetry rounds cover 2 red rounds: want PASS, got %s", got)
 	}
 	// One telemetry round, three red rounds on the record → FAIL.
 	one := recordWithRounds(t, 1)
-	if got := TelemetryAudit(one, 3).Verdict; got != "FAIL" {
+	if got := TelemetryAudit(runtest.Open(t, one), 3).Verdict; got != "FAIL" {
 		t.Errorf("1 telemetry round vs 3 red: want FAIL, got %s", got)
 	}
 	// No board rounds with red rounds on record → FAIL (the derived series is empty); with
 	// no red rounds → SKIP.
 	empty := t.TempDir()
-	if got := TelemetryAudit(empty, 2).Verdict; got != "FAIL" {
+	if got := TelemetryAudit(runtest.Open(t, empty), 2).Verdict; got != "FAIL" {
 		t.Errorf("empty telemetry with red rounds: want FAIL, got %s", got)
 	}
-	if got := TelemetryAudit(empty, 0).Verdict; got != "SKIP" {
+	if got := TelemetryAudit(runtest.Open(t, empty), 0).Verdict; got != "SKIP" {
 		t.Errorf("empty telemetry, no red rounds: want SKIP, got %s", got)
 	}
 }
@@ -398,14 +399,14 @@ func TestModelTierAudit(t *testing.T) {
 	write(t, filepath.Join(tr, "agent-m.jsonl"),
 		`{"prompt":"Red merge, round 1"}`+"\n"+
 			`{"message":{"role":"assistant","model":"claude-fable-5","usage":{"input_tokens":10,"output_tokens":5}}}`+"\n")
-	got := ModelTierAudit(run, tr, []string{"agent-m.jsonl"})
+	got := ModelTierAudit(runtest.Open(t, run), tr, []string{"agent-m.jsonl"})
 	if got.Verdict != "FAIL" {
 		t.Errorf("judgment seat dearer than configured: want FAIL, got %s (%s)", got.Verdict, got.Detail)
 	}
 	// No models in run-config → SKIP.
 	bare := t.TempDir()
 	write(t, filepath.Join(bare, "inputs", "run-config.json"), `{}`)
-	if got := ModelTierAudit(bare, tr, []string{"agent-m.jsonl"}).Verdict; got != "SKIP" {
+	if got := ModelTierAudit(runtest.Open(t, bare), tr, []string{"agent-m.jsonl"}).Verdict; got != "SKIP" {
 		t.Errorf("no run-config models: want SKIP, got %s", got)
 	}
 }
@@ -563,7 +564,7 @@ func TestWriteScorecardsAppends(t *testing.T) {
 	if err := os.MkdirAll(runB, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	a := WriteScorecards(runA, nil, memory, nil)
+	a := WriteScorecards(runtest.Open(t, runA), nil, memory, nil)
 	if !a.Written || a.Chairs < 1 {
 		t.Fatalf("every chair gets a card: %+v", a)
 	}
@@ -575,7 +576,7 @@ func TestWriteScorecardsAppends(t *testing.T) {
 	if !strings.Contains(string(first), "## 2026-07-01_first-run") {
 		t.Errorf("the run directory name labels the series")
 	}
-	WriteScorecards(runB, nil, memory, nil)
+	WriteScorecards(runtest.Open(t, runB), nil, memory, nil)
 	second, _ := os.ReadFile(card)
 	s := string(second)
 	if !strings.Contains(s, "## 2026-07-01_first-run") || !strings.Contains(s, "## 2026-07-18_second-run") {
@@ -588,7 +589,7 @@ func TestWriteScorecardsAppends(t *testing.T) {
 		t.Errorf("chronological, because appended")
 	}
 	// No memory dir → not written.
-	r := WriteScorecards(runA, nil, filepath.Join(memory, "no-such-dir"), nil)
+	r := WriteScorecards(runtest.Open(t, runA), nil, filepath.Join(memory, "no-such-dir"), nil)
 	if r.Written || !strings.Contains(r.Reason, "scorecards need the tracked memory dir") {
 		t.Errorf("absent memory dir: want not-written, got %+v", r)
 	}
@@ -953,7 +954,7 @@ func TestAnUnreadableScorecardIsNotOverwritten(t *testing.T) {
 	if err := os.MkdirAll(runA, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if r := WriteScorecards(runA, nil, memory, nil); !r.Written {
+	if r := WriteScorecards(runtest.Open(t, runA), nil, memory, nil); !r.Written {
 		t.Fatalf("seeding the history failed: %+v", r)
 	}
 	card := filepath.Join(memory, "red-scorecard.md")
@@ -971,7 +972,7 @@ func TestAnUnreadableScorecardIsNotOverwritten(t *testing.T) {
 	if err := os.MkdirAll(runB, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	got := WriteScorecards(runB, nil, memory, nil)
+	got := WriteScorecards(runtest.Open(t, runB), nil, memory, nil)
 
 	if got.Written {
 		t.Error("a chair that could not be written must not report Written — that is the whole defect")
@@ -1018,7 +1019,7 @@ func TestAFailedScorecardWriteIsReported(t *testing.T) {
 	if err := os.MkdirAll(runA, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if r := WriteScorecards(runA, nil, memory, nil); !r.Written {
+	if r := WriteScorecards(runtest.Open(t, runA), nil, memory, nil); !r.Written {
 		t.Fatalf("seeding failed: %+v", r)
 	}
 	card := filepath.Join(memory, "red-scorecard.md")
@@ -1032,7 +1033,7 @@ func TestAFailedScorecardWriteIsReported(t *testing.T) {
 	if err := os.MkdirAll(runB, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	got := WriteScorecards(runB, nil, memory, nil)
+	got := WriteScorecards(runtest.Open(t, runB), nil, memory, nil)
 	if got.Written {
 		t.Error("a refused write must not report Written")
 	}
@@ -1051,7 +1052,7 @@ func TestAnAbsentScorecardIsStillCreated(t *testing.T) {
 	if err := os.MkdirAll(runA, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	got := WriteScorecards(runA, nil, memory, nil)
+	got := WriteScorecards(runtest.Open(t, runA), nil, memory, nil)
 	if !got.Written || got.Chairs < 1 || got.Reason != "" {
 		t.Fatalf("a fresh memory dir must write every chair cleanly: %+v", got)
 	}
@@ -1085,7 +1086,7 @@ func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
 			ServedModel: proto.String("claude-sonnet-5"),
 		}),
 	)
-	got := ModelTierAudit(run, tr, nil)
+	got := ModelTierAudit(runtest.Open(t, run), tr, nil)
 	if got.Verdict != "FAIL" {
 		t.Fatalf("a declared substitution must FAIL (capture exits 2 on FAIL, and this one exited 0 for real): got %s — %s", got.Verdict, got.Detail)
 	}
@@ -1110,7 +1111,7 @@ func TestModelTierAuditSaysWhenTheServedModelWasNeverMeasured(t *testing.T) {
 		recordtest.At(t, "blue-lane-1", 1, "blue-lane-1:register:#1",
 			&recordpb.Register{ToolVersion: proto.String("test")}),
 	)
-	got := ModelTierAudit(run, tr, nil)
+	got := ModelTierAudit(runtest.Open(t, run), tr, nil)
 	if !strings.Contains(got.Detail, "NOT MEASURED") {
 		t.Errorf("an unmeasured run must say so, not claim its seats matched; got:\n%s", got.Detail)
 	}

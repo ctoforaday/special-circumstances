@@ -1,6 +1,7 @@
 package view
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"strings"
 	"testing"
 
@@ -72,7 +73,7 @@ func TestChangesScopedPutsRequiredFixBesideTheEdits(t *testing.T) {
 	runDir := t.TempDir()
 	seedChanges(t, runDir)
 
-	b, err := Markdown(runDir, "changes", "R1-1")
+	b, err := Markdown(runtest.Open(t, runDir), "changes", "R1-1")
 	if err != nil {
 		t.Fatalf("scoped changes: %v", err)
 	}
@@ -112,7 +113,7 @@ func TestChangesScopedSaysNoneRatherThanRenderingEmpty(t *testing.T) {
 		}),
 	})
 
-	b, err := Markdown(runDir, "changes", "R1-1")
+	b, err := Markdown(runtest.Open(t, runDir), "changes", "R1-1")
 	if err != nil {
 		t.Fatalf("scoped changes: %v", err)
 	}
@@ -131,7 +132,7 @@ func TestChangesScopedRefusesAnUnknownGap(t *testing.T) {
 	runDir := t.TempDir()
 	seedChanges(t, runDir)
 
-	if _, err := Markdown(runDir, "changes", "R9-99"); err == nil {
+	if _, err := Markdown(runtest.Open(t, runDir), "changes", "R9-99"); err == nil {
 		t.Fatal("a view scoped to a gap nobody minted rendered a comparison anyway")
 	} else if !strings.Contains(err.Error(), "R9-99") {
 		t.Errorf("the refusal must name the id: %v", err)

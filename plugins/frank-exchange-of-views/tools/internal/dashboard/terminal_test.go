@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +47,7 @@ func runWithStubbedReportButNoOutcome(t *testing.T) string {
 }
 
 func TestAStubbedReportIsNotATerminalRun(t *testing.T) {
-	m := BuildModel(runWithStubbedReportButNoOutcome(t), t.TempDir(), Config{}, 0)
+	m := BuildModel(runtest.Open(t, runWithStubbedReportButNoOutcome(t)), t.TempDir(), Config{}, 0)
 	if m.Terminal {
 		t.Error("a run whose report.md is setup's stub, with no terminal act on the record, is NOT " +
 			"complete. Terminal read a filename; the fact lives on the `outcome` event.")
@@ -59,7 +60,7 @@ func TestAStubbedReportIsNotATerminalRun(t *testing.T) {
 // AND THE PAGE MUST NOT SAY IT EITHER — the field and the sentence it gates are separate failures,
 // and only the sentence is what an operator actually reads.
 func TestTheLiveRunPageDoesNotAnnounceCompletion(t *testing.T) {
-	m := BuildModel(runWithStubbedReportButNoOutcome(t), t.TempDir(), Config{}, 0)
+	m := BuildModel(runtest.Open(t, runWithStubbedReportButNoOutcome(t)), t.TempDir(), Config{}, 0)
 	html := RenderHTML(m)
 	for _, bad := range []string{"run complete", "the assembler wrote the report"} {
 		if strings.Contains(html, bad) {
@@ -78,7 +79,7 @@ func TestARecordedOutcomeIsTerminal(t *testing.T) {
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
 	}))
-	m := BuildModel(dir, t.TempDir(), Config{}, 0)
+	m := BuildModel(runtest.Open(t, dir), t.TempDir(), Config{}, 0)
 	if !m.Terminal {
 		t.Error("the bench recorded an outcome; the run is terminal")
 	}

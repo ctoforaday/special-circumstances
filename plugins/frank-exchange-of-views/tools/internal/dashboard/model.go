@@ -78,7 +78,10 @@ type CostRow struct {
 
 // Model is what renderHtml consumes — the Go analogue of buildModel's returned object.
 type Model struct {
-	RunDir          string
+	// Run, not a path: the model is built from a resolved run and both its readers want that
+	// same run, so carrying the string would mean one of them re-deriving what the other
+	// already holds. No JSON tag — this struct is consumed by renderHtml alone.
+	Run             record.Run
 	Telemetry       []map[string]any
 	Latest          map[string]any
 	Seats           []Seat
@@ -131,10 +134,10 @@ func numOr(v any, d float64) float64 {
 // BuildModel gathers the run's instruments — the Go port of buildModel. It reads the record
 // IN-PROCESS (BoardState → the JSON views) rather than spawning the tool; nowMs is injected
 // (the CLI defaults it to the real clock) so tests are deterministic.
-func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
+func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64) Model {
 	// Config: file (setup) then non-empty CLI overrides.
 	var fileCfg Config
-	if b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json")); err == nil {
+	if b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json")); err == nil {
 		_ = json.Unmarshal(b, &fileCfg)
 	}
 	merged := fileCfg
@@ -156,7 +159,7 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 
 	// Telemetry: computed on read from the record via the shared view library — no
 	// materialized board-telemetry.jsonl, no markdown/jsonl intermediate.
-	telemetry, _ := view.Telemetry(runDir)
+	telemetry, _ := view.Telemetry(run)
 	journal := jsonl(filepath.Join(transcriptDir, "journal.jsonl"))
 
 	// Lifecycle by agentId; identity by transcript-head classification; times from the file.
@@ -271,9 +274,9 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 	// Resolution failure lands in the same arm as "no record yet", and here that is RIGHT: both
 	// mean the tiles have nothing truthful to show, and "unavailable" is what this branch already
 	// exists to render. It is a dashboard — the loud version of the diagnosis belongs to the tool.
-	recDir, recErr := record.RecordsDir(runDir)
+	recDir, recErr := record.RecordsDir(run.Dir())
 	if _, statErr := os.Stat(recDir); recErr == nil && statErr == nil {
-		if board, err := record.BoardState(runDir); err == nil {
+		if board, err := record.BoardState(run.Dir()); err == nil {
 			bj := record.BoardJSONOf(board)
 			fj := record.FindingsJSONOf(board)
 			frj := record.FrictionJSONOf(board)
@@ -342,16 +345,16 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 	}
 	eta := projectCompletion(seats, nowMs)
 
-	terminalVerdict := record.TerminalVerdict(runDir)
+	terminalVerdict := record.TerminalVerdict(run.Dir())
 	return Model{
-		RunDir: runDir, Telemetry: telemetry, Latest: latest, Seats: seats,
+		Run: run, Telemetry: telemetry, Latest: latest, Seats: seats,
 		Cost: costTotal, CostRows: costRows, APIRounds: apiRounds, Agents: agents, Friction: friction,
 		Shards: shards, BlueClaims: blueClaims, Steps: steps, Rates: rates,
 		Judiciary: jud, Eta: eta, Config: merged,
 		// ONE READ, TWO USES, so the pair cannot disagree — and Terminal now answers from the
 		// record like its neighbour instead of from a filename.
 		//
-		// It was `fileExists(runDir/report.md)`. setup.go's skeleton CREATES report.md (its own
+		// It was `fileExists(run.Dir()/report.md)`. setup.go's skeleton CREATES report.md (its own
 		// comment documents that file as `bench assemble`'s output and stubs it anyway), so
 		// Terminal was true from the moment setup ran, before a seat was dispatched, for the
 		// entire life of every run. Measured 2026-08-22: the dashboard rendered "run complete —
@@ -364,7 +367,7 @@ func BuildModel(runDir, transcriptDir string, cfg Config, nowMs float64) Model {
 		TerminalVerdict: terminalVerdict, Terminal: terminalVerdict != "",
 		// ASSESSED AT THE INJECTED CLOCK, not time.Now(), so a test can put the record in the
 		// past and watch this flip.
-		Live:      record.Assess(runDir, time.UnixMilli(int64(nowMs)).UTC(), terminalVerdict != ""),
+		Live:      record.Assess(run.Dir(), time.UnixMilli(int64(nowMs)).UTC(), terminalVerdict != ""),
 		Generated: nowISO(nowMs),
 	}
 }
@@ -400,10 +403,10 @@ func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 // this run's outcome? Exported for the dashboard SERVER, whose lifetime was keyed only to the
 // run-live marker — a file whose only remover is `capture`, so a killed run left the server
 // watching forever (#270). The record knows what the marker cannot.
-func TerminalVerdict(runDir string) string { return readTerminalVerdict(runDir) }
+func TerminalVerdict(run record.Run) string { return readTerminalVerdict(run) }
 
-func readTerminalVerdict(runDir string) string {
-	b, err := record.BoardState(runDir)
+func readTerminalVerdict(run record.Run) string {
+	b, err := record.BoardState(run.Dir())
 	if err != nil {
 		return ""
 	}
@@ -425,7 +428,7 @@ func readTerminalVerdict(runDir string) string {
 	}
 	// Or what the record decides for itself. ok is false only where the record genuinely
 	// cannot — a judged deadlock — and that is a real answer, not a gap to paper over.
-	if v, _, ok := record.DeriveVerdict(runDir); ok {
+	if v, _, ok := record.DeriveVerdict(run.Dir()); ok {
 		return v
 	}
 	return ""

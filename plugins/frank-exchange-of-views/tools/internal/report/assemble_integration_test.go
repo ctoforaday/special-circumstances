@@ -1,6 +1,7 @@
 package report
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -110,7 +111,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
 	})
 
-	path, err := Assemble(runDir)
+	path, err := Assemble(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatalf("Assemble: %v", err)
 	}

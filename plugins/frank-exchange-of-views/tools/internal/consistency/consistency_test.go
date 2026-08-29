@@ -1,6 +1,7 @@
 package consistency
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"path/filepath"
 	"testing"
 
@@ -52,7 +53,7 @@ func opinion(t *testing.T, seat string, round int, id string, d recordpb.Disposi
 
 func check(t *testing.T, runDir string) {
 	t.Helper()
-	violations, err := Check(runDir)
+	violations, err := Check(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatalf("oracle: %v", err)
 	}

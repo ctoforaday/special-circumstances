@@ -103,10 +103,10 @@ func weaveCitations(md string, sources []record.Source) string {
 	return b.String()
 }
 
-func Assemble(runDir string) (string, error) {
-	blue := readOr(filepath.Join(runDir, "blue", "report.md"), "")
+func Assemble(run record.Run) (string, error) {
+	blue := readOr(filepath.Join(run.Dir(), "blue", "report.md"), "")
 
-	board, err := record.BoardState(runDir)
+	board, err := record.BoardState(run.Dir())
 	if err != nil {
 		return "", fmt.Errorf("assemble: board: %w", err)
 	}
@@ -173,7 +173,7 @@ func Assemble(runDir string) (string, error) {
 	// Resolve the citation layer: rewrite every "<!--cite:c-…-->" anchor to a visible [^N]
 	// and append the composed "## Bibliography" from the cite events. Findings are STRIPPED,
 	// citations are RESOLVED — orthogonal passes over the same document, strip first.
-	sources, err := record.CitedSources(runDir)
+	sources, err := record.CitedSources(run.Dir())
 	if err != nil {
 		return "", fmt.Errorf("assemble: cited sources: %w", err)
 	}
@@ -182,13 +182,13 @@ func Assemble(runDir string) (string, error) {
 	// Resolve the PROOF layer the same way (#277). Without this pass the anchor shipped RAW
 	// into the deliverable and the computation appeared nowhere in it — the evidence existed
 	// on the record, in the cache and to the auditor, and was invisible to the reader.
-	proofs, err := record.RecordedProofs(runDir)
+	proofs, err := record.RecordedProofs(run.Dir())
 	if err != nil {
 		return "", fmt.Errorf("assemble: recorded proofs: %w", err)
 	}
-	out = collapseBlanks(weaveProofs(runDir, out, proofs))
+	out = collapseBlanks(weaveProofs(run, out, proofs))
 
-	path := filepath.Join(runDir, "report.md")
+	path := filepath.Join(run.Dir(), "report.md")
 	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
 		return "", fmt.Errorf("assemble: write report.md: %w", err)
 	}

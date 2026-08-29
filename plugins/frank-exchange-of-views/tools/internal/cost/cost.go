@@ -10,6 +10,7 @@ package cost
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"io"
 	"math"
 	"os"
@@ -227,7 +228,7 @@ func TierMismatch(rows []Row, model, judgmentModel string) []Finding {
 // absent). The keys are read in ONE place and it is modeltier.Config — record needs them too, at
 // register, and two readers of the same bare keys is how one of them comes to read a key that was
 // renamed.
-func TierConfig(runDir string) (model, judgmentModel string) { return modeltier.Config(runDir) }
+func TierConfig(run record.Run) (model, judgmentModel string) { return modeltier.Config(run.Dir()) }
 
 // DedupTierFindings drops duplicate findings keyed on (seat|round|verdict|actual). TierMismatch
 // can emit repeats, and both the cost report and the capture model-tier audit dedup on this same
@@ -250,7 +251,7 @@ func mtok(n int) string { return strconv.FormatFloat(float64(n)/1e6, 'f', 2, 64)
 
 // Report writes cost.md to out, byte-for-byte as cost-audit.mjs main() does (each console.log
 // is one line + '\n'). With runDir it appends the tier check and the board-telemetry join.
-func Report(transcriptDir, runDir string, out io.Writer) error {
+func Report(transcriptDir string, run record.Run, out io.Writer) error {
 	entries, err := os.ReadDir(transcriptDir)
 	if err != nil {
 		return err
@@ -312,15 +313,15 @@ func Report(transcriptDir, runDir string, out io.Writer) error {
 	p(fmt.Sprintf("- Cache traffic is %d%% of all tokens; harness panel counters (input+output only) understate real flow accordingly.", CacheShare(tInp, tOut, tCr, tCw)))
 	p("- Known physics (runs 3-4 baseline): lens cost tracks CORPUS size (full re-read x additive growth); merge cost tracks the CUMULATIVE ARCHIVE of closed cases (countermeasure: the ledger/archive shard split); judgment-seat premium is cache-RATE-driven (~5x sonnet-intro cache rates at the session tier), not volume-driven; burn is spiky at the judgment seats.")
 
-	if runDir != "" {
-		reportTierCheck(runDir, rows, p)
-		reportTelemetry(runDir, p)
+	if run.Dir() != "" {
+		reportTierCheck(run, rows, p)
+		reportTelemetry(run, p)
 	}
 	return nil
 }
 
-func reportTierCheck(runDir string, rows []Row, p func(string)) {
-	model, judgmentModel := TierConfig(runDir)
+func reportTierCheck(run record.Run, rows []Row, p func(string)) {
+	model, judgmentModel := TierConfig(run)
 	findings := DedupTierFindings(TierMismatch(rows, model, judgmentModel))
 	p("\n## Tier check\n")
 	if len(findings) == 0 {
@@ -339,8 +340,8 @@ func reportTierCheck(runDir string, rows []Row, p func(string)) {
 	}
 }
 
-func reportTelemetry(runDir string, p func(string)) {
-	lines, err := view.Telemetry(runDir)
+func reportTelemetry(run record.Run, p func(string)) {
+	lines, err := view.Telemetry(run)
 	if err != nil || len(lines) == 0 {
 		p("\n## Board telemetry\n\n(no telemetry rounds on the record — pre-telemetry run, or no gaps minted yet)")
 		return

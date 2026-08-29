@@ -1,6 +1,7 @@
 package dashboard
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,10 +30,11 @@ func judFixture() Judiciary {
 	return j
 }
 
-func baseModel(runDir string) Model {
+func baseModel(t *testing.T, runDir string) Model {
+	t.Helper()
 	tel := telFixture()
 	return Model{
-		RunDir: runDir, Telemetry: tel, Latest: tel[len(tel)-1],
+		Run: runtest.Open(t, runDir), Telemetry: tel, Latest: tel[len(tel)-1],
 		Cost: 12.34, APIRounds: 20, Agents: 5,
 		Friction:   Friction{Count: 2, Last: "red-merge-r1: needed a PDF extractor"},
 		Shards:     Shards{LedgerExists: true, OpenRows: 2, OpenBySeverity: map[string]int{"high": 1, "medium": 1}, Findings: 9, Citations: 4, ClosureIndexRows: 3, ArchiveRecords: 3},
@@ -69,7 +71,7 @@ func fixtureRunDir(t *testing.T) string {
 // not silently accept its return.
 func TestRenderHTMLTerminal(t *testing.T) {
 	runDir := fixtureRunDir(t)
-	m := baseModel(runDir)
+	m := baseModel(t, runDir)
 	m.Terminal = true
 	m.TerminalVerdict = "VERIFIED"
 	m.Eta = Eta{State: "complete"}
@@ -93,7 +95,7 @@ func TestRenderHTMLTerminal(t *testing.T) {
 // fixed m.Generated), so the ETA paragraph and "running 3 min" reproduce.
 func TestRenderHTMLLive(t *testing.T) {
 	runDir := fixtureRunDir(t)
-	m := baseModel(runDir)
+	m := baseModel(t, runDir)
 	m.Terminal = false
 	m.Eta = Eta{State: "running", LowMin: 5, HighMin: 12, PerRoundLowMin: 8, PerRoundHighMin: 15, Basis: "3 completed seat(s) in this run", Unmeasured: []string{"assembly"}}
 	// generated == the clock; oldest live seat started 3 min before → "running 3 min".
@@ -140,7 +142,7 @@ func TestBuildModelConfigAndCost(t *testing.T) {
 	_ = os.WriteFile(filepath.Join(tr, "journal.jsonl"),
 		[]byte(`{"agentId":"a","result":{"verdict":"FAIL","gaps":[]}}`+"\n"), 0o644)
 
-	m := BuildModel(runDir, tr, Config{Lanes: "9"}, 1737000000000)
+	m := BuildModel(runtest.Open(t, runDir), tr, Config{Lanes: "9"}, 1737000000000)
 	if m.Config.Model != "haiku" || m.Config.MaxRounds != "6" {
 		t.Errorf("file config not merged: %+v", m.Config)
 	}
