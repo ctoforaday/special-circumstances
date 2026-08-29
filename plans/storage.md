@@ -1,9 +1,15 @@
-# Storage: JSONL now; embedded SQLite is the leading target (trigger = #62)
+# Storage: the record IS an embedded SQLite database (trigger = #62)
 
-Status: **REOPENED** (2026-07-20). First cut said "DECIDED: keep JSONL" on three hard
-constraints; two did not survive review and are struck below. What survives rules out a
-*Postgres/framework* store but not an *embedded SQLite* one — which is now the leading
-target, with the #62 concurrency work as its trigger.
+Status: **LANDED** (2026-08-28). First cut said "DECIDED: keep JSONL" on three hard
+constraints; two did not survive review and are struck below. What survived ruled out a
+*Postgres/framework* store but not an *embedded SQLite* one — and the embedded store is what
+shipped: `modernc.org/sqlite` (pure Go, no cgo), `internal/record/recordsql`, and one
+`record.db` per run directory. JSONL is not a fallback and not a reader: a pre-database run
+directory is **refused by name** rather than read as an empty board
+(`internal/record/legacyformat_test.go`) — which is the one thing the file format could not do,
+because six archived runs read under the new binary reported a clean zero with every invariant
+passing vacuously. The sections below are kept as the reasoning that got here; where a
+paragraph has since been falsified by the record it is corrected in place, not deleted.
 
 > **EVIDENCE ADDED 2026-08-23.** Two findings from the record-store debate and this session's
 > work, both bearing on what a SQL backend has to be responsible for.
@@ -15,12 +21,30 @@ target, with the #62 concurrency work as its trigger.
 > `law/precedents.md`.* So the store is not being asked to become the authority; the authority
 > has a home and it is reviewed by a person. That narrows what indexing has to serve.
 >
-> **A whole class of cross-run machinery is built and has never executed.** No archived run has
+> ~~**A whole class of cross-run machinery is built and has never executed.** No archived run has
 > ever reached round 3, and the bench sits at the END of a round, so `adjudicated` is empty at
-> every seat in all four captured runs. The estoppel delivery on both sides (#499, #517, #524) is
-> correct in code and unexercised in the record. If a backend changes what a run can read across
-> runs, that becomes a live question rather than a settled one — and the first run to reach round
-> 3 is what proves the existing half either way.
+> every seat in all four captured runs.~~
+>
+> **FALSIFIED 2026-08-28, by the record it appealed to.** The struck paragraph was mine and it was
+> wrong within hours of being written. `2026-08-23_sleeper-service-plan` reached **round 4** —
+> `red-lens-r4-{L1,L2,L5,L6}`, `red-merge-r4`, `blue-respond-r4`, and `judge-r2`, `judge-r3`,
+> `judge-r4`, `judge-terminal` — and the estoppel machinery ran:
+>
+> - **10 opinions, 10/10 carrying `settled`**; 7 `reopens_on` + 3 `final` = 10, so every single
+>   opinion answered the estoppel question. #502's stated mechanism risk — *"a new required field
+>   is a field the bench can default"* — did not materialise.
+> - The `settled` sentences are real propositions, not filler: *"Blue may not be held to an
+>   uncaveated medium-high impact label for R3-2; medium is the settled figure by unanimous
+>   agreement of bench, red and blue."*
+> - Three mints name superseded gaps — `R3-1←[R1-1]`, `R3-3←[R1-2,R2-3]`, `R4-3←[R3-1]` — a
+>   three-generation lineage, which is #499's designed successor path running for real.
+>
+> What remains unexercised is narrower than the struck claim and is #524's thesis, now with a live
+> instance instead of a hypothetical: **two of those rulings went blue's way and blue never saw
+> them.** Under current code blue receives a bare subtraction from the docket, not the sentence
+> that says why. That raises #524's priority; it does not lower it.
+>
+> The claim also under-counted the corpus: **six** archived runs, not four.
 >
 > **Adjacent, landed since this plan was written:** the run-live marker is now a LIST
 > (#529/#530), so more than one run can be open at once and `internal/runlive` owns the file.
