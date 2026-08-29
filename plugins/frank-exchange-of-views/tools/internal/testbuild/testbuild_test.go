@@ -91,3 +91,44 @@ func TestModuleRootIsFoundByGoMod(t *testing.T) {
 		t.Errorf("moduleRoot %q does not contain cmd/feov-record: %v", root, err)
 	}
 }
+
+// THE SANDBOX IS LIVE, which is the half a static guard cannot see. TestEveryPackageThatBuilds
+// CleansUp proves every consumer routes through Main; this proves what routing through it buys.
+func TestTheTestBinaryHasItsOwnHome(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if realHomeSet && home == realHome {
+		t.Fatalf("os.UserHomeDir() is still the developer's own %q — the sandbox did not take, "+
+			"and every `merge verdict` this binary drives writes a mirror into it", home)
+	}
+	// Under TMPDIR, so it goes out with the temp filesystem rather than persisting.
+	if rel, err := filepath.Rel(os.TempDir(), home); err != nil || strings.HasPrefix(rel, "..") {
+		t.Errorf("the sandbox home %q is not under TMPDIR %q", home, os.TempDir())
+	}
+	// And it must be writable: the point is that the writes still HAPPEN, somewhere harmless.
+	probe := filepath.Join(home, ".cache", "feov", "probe")
+	if err := os.MkdirAll(probe, 0o755); err != nil {
+		t.Errorf("the sandbox home is not writable: %v", err)
+	}
+}
+
+// The TOOLCHAIN keeps the real home even while the command under test does not. A build that
+// inherited the sandbox would re-resolve the module graph and relink from cold, once per test
+// binary — which is the cost this package was written to remove.
+func TestTheBuildKeepsTheRealHome(t *testing.T) {
+	if !realHomeSet {
+		t.Skip("no HOME in this environment, so there is nothing for the build to keep")
+	}
+	want := homeKey() + "=" + realHome
+	var got []string
+	for _, kv := range buildEnv() {
+		if strings.HasPrefix(kv, homeKey()+"=") {
+			got = append(got, kv)
+		}
+	}
+	if len(got) != 1 || got[0] != want {
+		t.Errorf("buildEnv carries %v for %s, want exactly [%q]", got, homeKey(), want)
+	}
+}
