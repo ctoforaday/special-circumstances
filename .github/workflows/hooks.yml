@@ -759,6 +759,62 @@ jobs:
         env:
           CGO_ENABLED: "1"
 
+  stackguard:
+    # A stacked pull request must not merge into a base that is already in main.
+    #
+    # #633 did exactly that on 2026-08-28: #631 merged its base `record-run-read-leaves` into
+    # main at 17:00 without deleting the branch, and #633 merged INTO that branch at 19:47.
+    # GitHub marked #633 MERGED; main never received a line of its 131 files. Every check on
+    # it passed, because every check asked whether the content was good and none asked where
+    # it was going.
+    #
+    # TWO TRIGGERS, BECAUSE ONE CANNOT COVER IT. The pull-request leg refuses a stack opened
+    # onto an already-merged base — and would NOT have caught #633, whose base was still live
+    # when its checks ran. The push-to-main leg is the one that would: every time main moves it
+    # asks whether that push just absorbed the base of an open pull request. On the real
+    # timeline it fires at 17:00, three hours before the mis-merge.
+    #
+    # fetch-depth 0, because the check resolves origin/<base> and asks whether it is an
+    # ancestor of origin/main. A shallow clone answers that question wrong rather than not at
+    # all, which is why stackguard resolves the ref explicitly and exits 2 when it cannot.
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    permissions:
+      contents: read
+      # The sweep leg reads open pull requests. The pull-request leg needs none of this — it is
+      # pure git — but a job-level block is per-job, not per-step.
+      pull-requests: read
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: scripts/go.mod
+          cache: ${{ github.event_name != 'push' }}  # zizmor: ignore[cache-poisoning]
+          cache-dependency-path: scripts/go.sum
+      # The guard's own suite runs first and unconditionally. It reconstructs #633's branch
+      # shape in a scratch repository and asserts the answer flips when the base merges — a
+      # containment check that stopped answering would otherwise report every stack as live,
+      # which is byte-identical to a clean board.
+      - run: go test ./stackguard/
+        working-directory: scripts
+      - if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: go run ./stackguard -base "$BASE_REF"
+        working-directory: scripts
+      - if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: go run ./stackguard -sweep
+        working-directory: scripts
+
   rule-sweep:
     # A rule patch must name its class and sweep its siblings
     # (feov-memory/protocol-class-registry.md). Every protocol patch that shipped

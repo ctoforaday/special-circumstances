@@ -145,6 +145,20 @@ var raceScope = map[string][]string{
 	"scripts": {"./..."},
 }
 
+// narrowRace are -race legs scoped to ONE NAMED TEST rather than to a package.
+//
+// Deliberately not entries in raceScope: that map is module -> scope and the parity test holds
+// it to exactly what CI races, so putting "./integration/fuzz/" there would claim the whole
+// package is raced when one test is. Under-claiming is the other half of the same defect,
+// which is why these are declared here instead of left out — a CI gate with no local
+// counterpart is the drift this command's package comment opens with.
+var narrowRace = []gate{
+	{id: "feov-record:race-runhandle", kind: kindRace, dir: "plugins/frank-exchange-of-views/tools",
+		args:  []string{"test", "-race", noCache, "-run", "^TestTheRunHandleIsImmutableAfterConstruction$", "./integration/fuzz/"},
+		ciJob: "feov-record",
+		why:   "the fuzz runner's seats are concurrent; its run handle was briefly resolved lazily, and two full debate runs under -race did not report it"},
+}
+
 // tools are the scripts/ commands CI runs.
 var tools = []gate{
 	{id: "rulesweep", kind: kindTool, dir: "scripts", args: []string{"run", "./rulesweep"}, needsBase: true, ciJob: "rule-sweep",
@@ -155,6 +169,15 @@ var tools = []gate{
 		why: "prose about a thing that no longer exists costs every seat context it cannot act on"},
 	{id: "archaeology-selftest", kind: kindTool, dir: "scripts", args: []string{"run", "./archaeology", "-selftest"}, ciJob: "rule-sweep",
 		why: "a matcher whose patterns went stale reports zero findings, which is a clean diff's bytes"},
+	{id: "stackguard", kind: kindTool, dir: "scripts", args: []string{"run", "./stackguard"}, needsBase: true, ciJob: "stackguard",
+		why: "a stacked pull request merged into an already-merged base lands in a branch nobody reads (#633)"},
+	// The sweep is a SECOND declaration rather than a flag on the first, because it is a
+	// different question asked at a different moment: -base checks this pull request at open
+	// time, -sweep checks every open pull request each time main moves. Folding them would let
+	// the table claim the push-side coverage while CI ran only the pull-request leg.
+	{id: "stackguard-sweep", kind: kindTool, dir: "scripts", args: []string{"run", "./stackguard", "-sweep"}, ciJob: "stackguard",
+		skip: "reads OPEN pull requests over the API; it is a push-to-main gate, and there is no local push to main",
+		why:  "the base of an open stack can be merged AFTER that stack's checks went green — #633's actual timeline"},
 	{id: "golden", kind: kindTool, dir: "scripts", args: []string{"run", "./golden"}, ciJob: "goldens",
 		why: "a stale golden is an unrecorded behaviour change"},
 	{id: "mjsparity", kind: kindTool, dir: "scripts", args: []string{"run", "./mjsparity"}, ciJob: "debate-sim",
@@ -205,6 +228,7 @@ func gateSet() []gate {
 				why: "the concurrency guards are the ones that fail in production, not in a suite"})
 		}
 	}
+	gs = append(gs, narrowRace...)
 	gs = append(gs, tools...)
 	for _, s := range nodeSuites {
 		gs = append(gs, gate{id: "node:" + baseName(s), kind: kindNode, dir: ".", args: []string{"--test", s}, ciJob: "debate-sim",
