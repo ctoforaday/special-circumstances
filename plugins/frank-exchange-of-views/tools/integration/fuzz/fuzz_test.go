@@ -1714,7 +1714,16 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 const unverifiedSeed = 1
 
 func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool) (res outcome) {
-	runDir, _ := os.MkdirTemp("", "fuzz-run-")
+	runDir, err := os.MkdirTemp("", "fuzz-run-")
+	if err != nil {
+		// A FULL TMPDIR IS THE LIKELY CAUSE, AND IT HAS TO SAY SO. Discarded, this left runDir
+		// empty — and every filepath.Join below then resolves RELATIVE TO THE PACKAGE
+		// DIRECTORY, so the sweep seeds a blue/report.md inside the checkout and drives sixty
+		// debates against it, failing with a message that names anything except the disk.
+		// TMPDIR is a 2 GB tmpfs both in CI and in the record-run validation loop, so running
+		// it out is the expected failure here rather than an exotic one.
+		return outcome{seed: seed, err: "temp dir for the run: " + err.Error()}
+	}
 	// A lens finding anchors into blue/report.md and is rejected unless its --location
 	// quote is present (slice 1b). Seed a report carrying the fuzzer's finding quote
 	// ("§ fuzz") so findings are accepted and the coverage gate sees them.
@@ -2322,7 +2331,12 @@ var coverExempt = map[string]bool{
 func TestFuzzHaltPath(t *testing.T) {
 	bin := buildBinary(t)
 	wrapped := debateWrapped(t)
-	runDir, _ := os.MkdirTemp("", "fuzz-halt-")
+	runDir, err := os.MkdirTemp("", "fuzz-halt-")
+	if err != nil {
+		// Not swallowed: an empty runDir resolves every path below against the package
+		// directory, which turns a full TMPDIR into a failure that names anything but the disk.
+		t.Fatalf("temp dir for the run: %v", err)
+	}
 	defer os.RemoveAll(runDir)
 	r := &runner{bin: bin, runDir: runDir, rng: newLockedRand(1), registered: map[string]bool{}, forceHalt: true}
 
@@ -3401,7 +3415,12 @@ var fuzzClasses = []string{"self-attestation", "policy-without-mechanism", "metr
 func TestFuzzUnverifiedPath(t *testing.T) {
 	bin := buildBinary(t)
 	wrapped := debateWrapped(t)
-	runDir, _ := os.MkdirTemp("", "fuzz-unverified-")
+	runDir, err := os.MkdirTemp("", "fuzz-unverified-")
+	if err != nil {
+		// Not swallowed: an empty runDir resolves every path below against the package
+		// directory, which turns a full TMPDIR into a failure that names anything but the disk.
+		t.Fatalf("temp dir for the run: %v", err)
+	}
 	defer os.RemoveAll(runDir)
 	// THE SAME RUN THE SWEEP BUILDS, because driveDebate is only half of one. Without the seeded
 	// report a lens finding has no anchor quote to attach to and is refused, so red mints nothing

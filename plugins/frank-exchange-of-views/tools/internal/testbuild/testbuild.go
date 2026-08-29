@@ -51,6 +51,39 @@ import (
 	"testing"
 )
 
+// Main runs the test binary and then removes the shared build directory.
+//
+// A consumer that calls Binary MUST route its tests through this. The directory is created
+// once per test binary and shared by every call in it, so no single test owns it and
+// t.Cleanup cannot remove it — the first test to finish would delete the path the next one
+// is about to execute. The process exit is the only moment at which every caller is done,
+// and TestMain is the only hook Go offers there.
+//
+// MEASURED, which is why this exists: one `go test ./...` of this module left five
+// sc-testbuild directories holding one linked feov-record apiece — 186 MB, on a fully green
+// run. TMPDIR is a 2 GB tmpfs both in CI (.github/workflows/hooks.yml sets
+// TMPDIR=/dev/shm/tmp) and in the record-run plan's validation loop, and that plan already
+// records what a full one looks like: `[build failed]` for every package in the module while
+// `go build ./...` exits 0.
+//
+// TestEveryPackageThatBuildsCleansUp fails a package that forgets to call this.
+func Main(m *testing.M) {
+	code := m.Run()
+	Cleanup()
+	os.Exit(code)
+}
+
+// Cleanup removes the shared build directory, if one was ever created.
+//
+// Called from Main after m.Run has returned, so every test goroutine that could read dir has
+// finished — which is what makes the unsynchronized read here safe, and why this is not
+// exported for use at any other moment.
+func Cleanup() {
+	if dir != "" {
+		_ = os.RemoveAll(dir)
+	}
+}
+
 // ExeName is the file name a built command must have on THIS platform.
 //
 // Required on Windows (an extensionless file will not start) and refused on Linux by any
