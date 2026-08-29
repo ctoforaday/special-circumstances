@@ -289,3 +289,28 @@ func TestSelectGatesMatchesAndReportsEmpty(t *testing.T) {
 		t.Errorf("-only nosuchgate selected %d, want 0 so main can refuse", len(got))
 	}
 }
+
+// A -race leg scoped to ONE TEST is still a gate, and the module-wide raceScope cannot hold it.
+//
+// #641 added `go test -race -run TestTheRunHandleIsImmutableAfterConstruction ./integration/fuzz/`
+// to feov-record and declared it nowhere: raceScope is asserted to be EXACTLY ./internal/record/,
+// so the new leg was invisible to this file — a CI gate with no local counterpart, which is the
+// first thing this command's package comment names.
+func TestTheNarrowRaceLegsAreDeclared(t *testing.T) {
+	wf := workflow(t)
+	for _, g := range narrowRace {
+		var name string
+		for i, a := range g.args {
+			if a == "-run" && i+1 < len(g.args) {
+				name = strings.Trim(g.args[i+1], "^$")
+			}
+		}
+		if name == "" {
+			t.Fatalf("%s declares no -run name; a narrow race leg that races everything is not narrow", g.id)
+		}
+		if !strings.Contains(jobBlock(t, wf, g.ciJob), name) {
+			t.Errorf("%s claims the %s job runs %q under -race, and the workflow does not mention it",
+				g.id, g.ciJob, name)
+		}
+	}
+}
