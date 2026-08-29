@@ -113,6 +113,25 @@ func (l *lockedRand) Intn(n int) int {
 	return l.r.Intn(n)
 }
 
+// run is the runner's resolved handle. NewRun rather than OpenRun: a runner is constructed
+// before the directory necessarily exists, and a fuzz iteration that cannot resolve should
+// fail on the assertion it was testing, not here.
+//
+// RESOLVED BY THE CONSTRUCTOR, NOT ON FIRST USE. It was written lazily — resolve once, cache,
+// return the cached handle — on a base where the seats were serial. Phase 3 made them
+// concurrent, and `envelopeFor` runs on a goroutine per seat, so every board read below reaches
+// this from several goroutines at once: the lazy write is a data race that no reordering of the
+// draws would make safe. A cached resolution is a snapshot, and a snapshot taken lazily is
+// taken at a moment the caller does not control. newRunner does it once, up front, where both
+// call sites already hold a runDir that resolves.
+func (r *runner) run() record.Run { return r.runHandle }
+
+// newRunner resolves the run once and hands back a runner whose handle is immutable.
+func newRunner(bin, runDir string, rng *lockedRand) *runner {
+	run, _ := record.NewRun(runDir)
+	return &runner{bin: bin, runDir: runDir, runHandle: run, rng: rng, registered: map[string]bool{}}
+}
+
 // runner shells the real binary for one run's seats. runDir + bin are fixed per fuzz iteration.
 type runner struct {
 	// mu guards every mutable field below. The seats run concurrently as of #630 phase 3, and
@@ -121,9 +140,13 @@ type runner struct {
 	// back one layer down and buy nothing but a slower version of the old behaviour.
 	mu          sync.Mutex
 	bin, runDir string
-	rng         *lockedRand
-	registered  map[string]bool
-	classMade   bool
+	// runHandle is runDir RESOLVED, filled by the constructor and never written again. It is
+	// the one field mu does not guard, and deliberately so: it is immutable after construction,
+	// which is what makes it safe to read from the concurrent seats above.
+	runHandle  record.Run
+	rng        *lockedRand
+	registered map[string]bool
+	classMade  bool
 	// #277: the gap ids minted with --check-kind computation. Such a gap CANNOT be closed
 	// until a proof answers it, so closeGap satisfies it first — otherwise the fuzzer
 	// accumulates unclosable gaps and every open-gap-scaled drive grows with them (measured:
@@ -424,7 +447,7 @@ func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 // currentGrade reads the gap's grade at one axis, in the words a seat types. Empty when the board
 // cannot be read or the axis is unknown — the caller treats that as "no constraint".
 func (r *runner) currentGrade(gapID, dim string) string {
-	b, err := record.BoardState(r.runDir)
+	b, err := record.BoardState(r.run())
 	if err != nil {
 		return ""
 	}
@@ -1686,13 +1709,69 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 		case goja.PromiseStatePending:
 			settledErr = "debate never settled (hang)"
 		case goja.PromiseStateFulfilled:
-			if m, ok := pr.Result().Export().(map[string]any); ok {
-				result = m
+			m, ok := pr.Result().Export().(map[string]any)
+			if !ok {
+				// A FULFILLED PROMISE THAT IS NOT AN OBJECT IS NOT A SETTLED DEBATE. The old
+				// form left `result` nil and `settledErr` empty, which every caller reads as
+				// "the run succeeded" — and the verdict then goes missing downstream instead of
+				// here, where the actual value is still in hand to name.
+				settledErr = fmt.Sprintf("debate fulfilled with %T, not an object: %s",
+					pr.Result().Export(), truncate(pr.Result().String()))
+				return
 			}
+			result = m
 		}
 	})
 	<-read
 	return result, settledErr
+}
+
+// readVerdict pulls the terminal verdict out of debate.js's settled result, and REFUSES a
+// result that does not carry one.
+//
+// THE ABSENCE OF A VERDICT IS A FAILURE, NEVER A CATEGORY (#637). debate.js computes
+//
+//	const verdict = halted ? 'HALTED' : redEnv && redEnv.verdict === 'PASS' ? 'VERIFIED'
+//	              : ceilingUnaudited ? 'CEILING' : 'UNVERIFIED'
+//
+// and returns it on every path it can reach, so the value is always one of four non-empty
+// strings. A missing or non-string verdict therefore means THIS side failed to read the
+// result — it never means the debate reached a nameless outcome.
+//
+// Tolerated, that miss reached the sweep's tally as `verdicts[""]++`, which counts exactly
+// like a real verdict and is not one: the run that opened #637 recorded
+// `verdicts=map[:29 CEILING:8 VERIFIED:3]`, 29 of 40 runs settling into a key no reader can
+// distinguish from an outcome. That is the plausible zero [[facts-are-fields]] clause 3
+// forbids — and worse than a bare zero, because the sweep's own coverage gates then pass over
+// a distribution whose largest bucket means "we did not look".
+//
+// The error names the value AND the keys that were present, because "no verdict" alone does
+// not separate a result that arrived empty from one that arrived with a different shape.
+func readVerdict(result map[string]any) (string, error) {
+	raw, present := result["verdict"]
+	if !present {
+		return "", fmt.Errorf("debate settled with no verdict: result has no %q key (keys present: %v)",
+			"verdict", sortedKeys(result))
+	}
+	s, ok := raw.(string)
+	if !ok {
+		return "", fmt.Errorf("debate settled with a non-string verdict: %#v (%T)", raw, raw)
+	}
+	if s == "" {
+		return "", fmt.Errorf("debate settled with an EMPTY verdict string (keys present: %v)", sortedKeys(result))
+	}
+	return s, nil
+}
+
+// sortedKeys renders a result's keys in a stable order, so two failures of the same shape
+// produce the same message and can be told apart from two different shapes.
+func sortedKeys(m map[string]any) []string {
+	ks := make([]string, 0, len(m))
+	for k := range m {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	return ks
 }
 
 // unverifiedSeed is the one seed in the sweep whose run is FORCED to the UNVERIFIED terminal
@@ -1737,10 +1816,15 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// `mint` for its whole life without ever exercising the check the flag's help describes. When
 	// the exemption went, the coverage gate here reported it in one line — ZERO mint events across
 	// 60 runs — which is what that gate is for.
-	if err := record.StageForRun(runDir, fuzzClasses...); err != nil {
+	stageRun, srErr := record.NewRun(runDir)
+	if srErr != nil {
+		return outcome{seed: seed, runDir: runDir, err: "resolve the run: " + srErr.Error()}
+	}
+	if err := record.StageForRun(stageRun, fuzzClasses...); err != nil {
 		return outcome{seed: seed, runDir: runDir, err: "stage the class registry: " + err.Error()}
 	}
-	r := &runner{bin: bin, runDir: runDir, rng: newLockedRand(seed), registered: map[string]bool{}, forceUnverified: forceUnverified}
+	r := newRunner(bin, runDir, newLockedRand(seed))
+	r.forceUnverified = forceUnverified
 
 	res = outcome{seed: seed, runDir: runDir}
 	// NAMED RETURN + defer, because this function returns from a dozen places — an oracle that
@@ -1752,9 +1836,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		res.err = settledErr
 		return res
 	}
-	if s, ok := result["verdict"].(string); ok {
-		res.verdict = s
+	verdict, verr := readVerdict(result)
+	if verr != nil {
+		res.err = verr.Error()
+		return res
 	}
+	res.verdict = verdict
 	if n, ok := result["rounds"].(int64); ok {
 		res.rounds = int(n)
 	}
@@ -1780,7 +1867,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// `board` is already exercised above; `findings`/`friction` are JSON by name; `debate --json`
 	// is the structured debate the capture audits count sections from. A broken view is what
 	// would silently blank a dashboard tile or make an audit read an empty transcript.
-	ids := mintedGapIDs(runDir)
+	ids := mintedGapIDs(stageRun)
 	// EVERY PROJECTION, ON EVERY ROLE. `show` became a GROUP (0.56.0), so each projection is its
 	// own command path — and the coverage gate immediately reported 34 paths never invoked,
 	// because the sweep had only ever driven the handful it asserted on. A view that only the
@@ -1810,7 +1897,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// whose anchors sit at the top, at the bottom, adjacent to each other, or inside a section
 	// that a later edit rewrote around them. The window's line arithmetic is where an
 	// off-by-one lives, and a fixture with the anchor comfortably in the middle never asks.
-	if a := someReportAnchor(runDir); a != "" {
+	if a := someReportAnchor(stageRun); a != "" {
 		// EVERY ROLE, BOTH FLAGS. `show report` is defined once in internal/cli/seat, so a
 		// window that worked on the merge and not on blue would mean the projection had grown
 		// a per-role surface — and --window 0 is the degenerate size that must still resolve to
@@ -1891,7 +1978,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 			return res
 		}
 	}
-	if ids := mintedGapIDs(runDir); len(ids) > 0 {
+	if ids := mintedGapIDs(stageRun); len(ids) > 0 {
 		for _, role := range []string{"blue", "lens", "bench"} {
 			_, _ = tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", seatOfRole(role))
 		}
@@ -1920,7 +2007,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// takes a different path (it resolves the gap and renders the comparison), so the unscoped
 	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
 	// rendered empty — the read-side twin of requireGap.
-	if ids := mintedGapIDs(runDir); len(ids) > 0 {
+	if ids := mintedGapIDs(stageRun); len(ids) > 0 {
 		if out, err := tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 			res.err = "show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
@@ -1948,7 +2035,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// IGNORE is the sharpest: if --answers stopped recording provenance, an ignored gap and a
 	// repaired one would look identical — and that join is what #267's whole measurement axis
 	// is built on.
-	if board, err := record.BoardState(runDir); err == nil {
+	if board, err := record.BoardState(runtest.Open(t, runDir)); err == nil {
 		answered, disputed, proved := map[string]bool{}, map[string]bool{}, map[string]bool{}
 		// THE SWITCH IS ON THE BODY, not on a type string beside it. Each arm reaches straight for
 		// a field, so binding the message and the type in one step removes the pair that could
@@ -2036,7 +2123,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// count silently (measured on a real run; see #344). It is `motion direction appeal` now: its
 	// own event, with its own reason, filed against the ruling and independent of what the line's
 	// status does next.
-	if board, err := record.BoardState(runDir); err == nil {
+	if board, err := record.BoardState(runtest.Open(t, runDir)); err == nil {
 		contests := map[string]string{}
 		// THE PRE-#344 ARM IS GONE. It read a `line-of-inquiry` event carrying `contests_ruling`,
 		// kept because "a stored record carries it and the oracle runs against replayed records as
@@ -2049,7 +2136,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 			}
 		}
 		for _, a := range record.Inquiries(board) {
-			ruling := record.InquiryRuling(runDir, a.ID)
+			ruling := record.InquiryRuling(runtest.Open(t, runDir), a.ID)
 			if ruling == "" || a.Status == "proposed" {
 				continue // never ruled, or blue has not answered yet
 			}
@@ -2081,7 +2168,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// `asserted` retire means either the fake regressed to phantom retirements or the
 	// edit-tracking that evidences them broke. A phantom retire cancels real claim loss in the
 	// scorecard's additive-integrity detector, so it must not pass unnoticed here either.
-	if board, err := record.BoardState(runDir); err == nil {
+	if board, err := record.BoardState(runtest.Open(t, runDir)); err == nil {
 		for _, e := range board.Events {
 			r, ok := recordpb.BodyAs[*recordpb.Retire](e)
 			if ok && r.GetRemovalBasis() != record.RemovalVerified {
@@ -2108,7 +2195,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	//
 	// An asserted verdict with `ended: deadlock` is the sanctioned case and passes. An asserted
 	// verdict WITHOUT one still means the derivation stopped working, and still fails here.
-	if board, err := record.BoardState(runDir); err == nil {
+	if board, err := record.BoardState(runtest.Open(t, runDir)); err == nil {
 		for _, e := range board.Events {
 			o, ok := recordpb.BodyAs[*recordpb.Outcome](e)
 			if !ok {
@@ -2148,7 +2235,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// board with open gaps and nothing anywhere would notice. The assembler is now told the
 	// verdict the way a real seat is (debate.js states it in the prompt), which makes the
 	// agreement between outcome and board checkable for the first time.
-	if board, err := record.BoardState(runDir); err == nil {
+	if board, err := record.BoardState(runtest.Open(t, runDir)); err == nil {
 		openCount := 0
 		for _, id := range board.GapOrder {
 			if g := board.Gaps[id]; g != nil && g.Open {
@@ -2196,7 +2283,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// class (prose written under one key, read under another) is invisible to verify but caught
 	// here, on every run.
 	// One replay of the record serves both remaining oracles (prose + coverage tally).
-	board, berr := record.BoardState(runDir)
+	board, berr := record.BoardState(runtest.Open(t, runDir))
 	if berr != nil {
 		res.err = "board: " + berr.Error()
 		return res
@@ -2338,7 +2425,8 @@ func TestFuzzHaltPath(t *testing.T) {
 		t.Fatalf("temp dir for the run: %v", err)
 	}
 	defer os.RemoveAll(runDir)
-	r := &runner{bin: bin, runDir: runDir, rng: newLockedRand(1), registered: map[string]bool{}, forceHalt: true}
+	r := newRunner(bin, runDir, newLockedRand(1))
+	r.forceHalt = true
 
 	result, settledErr := driveDebate(r, wrapped)
 	if settledErr != "" {
@@ -2350,7 +2438,7 @@ func TestFuzzHaltPath(t *testing.T) {
 	if h, _ := result["halted"].(bool); !h {
 		t.Fatal("forceHalt run did not end halted — the judicial-halt terminal path is unexercised")
 	}
-	board, err := record.BoardState(runDir)
+	board, err := record.BoardState(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatalf("board: %v", err)
 	}
@@ -2865,8 +2953,8 @@ func buildBinary(t *testing.T) string {
 // someReportAnchor returns one anchor id this run actually put in the report, or "" before any
 // finding has been recorded. Read from the RECORD (the `finding` event's label) rather than by
 // scanning report.md for a token, so the oracle is not testing the reader with the reader.
-func someReportAnchor(runDir string) string {
-	b, err := record.BoardState(runDir)
+func someReportAnchor(run record.Run) string {
+	b, err := record.BoardState(run)
 	if err != nil {
 		return ""
 	}
@@ -2878,8 +2966,8 @@ func someReportAnchor(runDir string) string {
 	return ""
 }
 
-func mintedGapIDs(runDir string) []string {
-	b, err := record.BoardState(runDir)
+func mintedGapIDs(run record.Run) []string {
+	b, err := record.BoardState(run)
 	if err != nil {
 		return nil
 	}
@@ -2906,7 +2994,7 @@ func mintedGapIDs(runDir string) []string {
 // recentlyEditedOut returns text a recorded edit removed and which is absent from the report
 // now — a claim whose retirement the record can evidence.
 func (r *runner) recentlyEditedOut() string {
-	b, err := record.BoardState(r.runDir)
+	b, err := record.BoardState(r.run())
 	if err != nil {
 		return ""
 	}
@@ -2970,12 +3058,12 @@ func rulingFor(line string) string {
 
 // ruleOpenInquiries has red rule every line of inquiry that has no ruling yet, from the line it carries.
 func (r *runner) ruleOpenInquiries(seatID string) {
-	b, err := record.BoardState(r.runDir)
+	b, err := record.BoardState(r.run())
 	if err != nil {
 		return
 	}
 	for _, a := range record.Inquiries(b) {
-		if rulingFor(a.Line) == "" || directionRuling(b, r.runDir, a.ID) != "" {
+		if rulingFor(a.Line) == "" || directionRuling(b, r.run(), a.ID) != "" {
 			continue
 		}
 		_, _ = r.exec("motion", "inquiry", "rule", "--seat-id", seatID, "--id", a.ID,
@@ -2989,8 +3077,8 @@ func (r *runner) ruleOpenInquiries(seatID string) {
 // motion-ruled line of inquiry would read as unruled and be ruled again each round — the drive would
 // have looked correct and measured nothing, because a second ruling on a settled line is not a
 // path the run takes.
-func directionRuling(b *record.Board, runDir, inquiryID string) string {
-	if v := record.InquiryRuling(runDir, inquiryID); v != "" {
+func directionRuling(b *record.Board, run record.Run, inquiryID string) string {
+	if v := record.InquiryRuling(run, inquiryID); v != "" {
 		return v
 	}
 	for _, m := range record.Motions(b) {
@@ -3004,12 +3092,12 @@ func directionRuling(b *record.Board, runDir, inquiryID string) string {
 // answerInquiryRulings is blue's move after red has ruled: comply, or CONTEST by pursuing
 // anyway with an argument. Which one is decided by the line, not by a coin.
 func (r *runner) answerInquiryRulings(seatID string) {
-	b, err := record.BoardState(r.runDir)
+	b, err := record.BoardState(r.run())
 	if err != nil {
 		return
 	}
 	for _, a := range record.Inquiries(b) {
-		ruling := directionRuling(b, r.runDir, a.ID)
+		ruling := directionRuling(b, r.run(), a.ID)
 		if ruling == "" || a.Status != "proposed" {
 			continue
 		}
@@ -3040,7 +3128,7 @@ func (r *runner) answerInquiryRulings(seatID string) {
 }
 
 func (r *runner) reproveOpenProofs(seatID string) {
-	b, err := record.BoardState(r.runDir)
+	b, err := record.BoardState(r.run())
 	if err != nil {
 		return
 	}
@@ -3079,7 +3167,7 @@ func (r *runner) reproveOpenProofs(seatID string) {
 }
 
 func (r *runner) scenarioOf(gapID string) string {
-	b, err := record.BoardState(r.runDir)
+	b, err := record.BoardState(r.run())
 	if err != nil {
 		return ""
 	}
@@ -3212,7 +3300,7 @@ func (r *runner) counterEdit(seatID, gapID string) {
 
 // proposalFor returns the concrete pair for ONE gap, when it carries one.
 func (r *runner) proposalFor(gapID string) (string, string, string) {
-	b, err := record.BoardState(r.runDir)
+	b, err := record.BoardState(r.run())
 	if err != nil {
 		return "", "", ""
 	}
@@ -3226,7 +3314,7 @@ func (r *runner) proposalFor(gapID string) (string, string, string) {
 }
 
 func (r *runner) someProposal() (string, string, string) {
-	b, err := record.BoardState(r.runDir)
+	b, err := record.BoardState(r.run())
 	if err != nil {
 		return "", "", ""
 	}
@@ -3430,10 +3518,11 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
 	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
 		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time.\n"), 0o644)
-	if err := record.StageForRun(runDir, fuzzClasses...); err != nil {
+	r := newRunner(bin, runDir, newLockedRand(1))
+	if err := record.StageForRun(r.run(), fuzzClasses...); err != nil {
 		t.Fatalf("staging the class registry: %v", err)
 	}
-	r := &runner{bin: bin, runDir: runDir, rng: newLockedRand(1), registered: map[string]bool{}, forceUnverified: true}
+	r.forceUnverified = true
 
 	result, settledErr := driveDebate(r, wrapped)
 	if settledErr != "" {
@@ -3451,7 +3540,7 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	// sitting, so an empty board AFTER the run is ordinary. Measured, it failed 12 of 12 while
 	// the verdict itself was right every time, which makes it an assertion about the wrong
 	// moment rather than a defect it caught.
-	board, err := record.BoardState(runDir)
+	board, err := record.BoardState(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatalf("board: %v", err)
 	}
@@ -3470,5 +3559,87 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	// reached the same word down some other path would satisfy the test and teach nothing.
 	if ended != "deadlock" {
 		t.Fatalf("outcome ended %q, expected deadlock — UNVERIFIED was reached, but not by the path this drives", ended)
+	}
+}
+
+// THE GUARD THAT WOULD HAVE NAMED #637's 29 RUNS. Every case below reached the sweep's
+// distribution as `verdicts[""]++` before this change — a bucket that counts like a verdict,
+// sorts like a verdict, and satisfies a coverage gate like a verdict, while meaning "this side
+// could not read the result".
+//
+// The gate is on readVerdict rather than on a driven debate deliberately: the miss is a
+// PROPERTY OF THE READ, not of any particular run, and a test that had to reproduce the
+// upstream conditions would be exactly as unreliable as the symptom it chases.
+func TestReadVerdictRefusesAResultThatCarriesNoVerdict(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		result  map[string]any
+		wantErr string // a substring the message must carry
+	}{
+		{
+			// The measured shape: driveDebate returned (nil, "") because the promise fulfilled
+			// with something that was not an object, and every caller read that as success.
+			name:    "a nil result is not a settled debate",
+			result:  nil,
+			wantErr: "no verdict",
+		},
+		{
+			name:    "a result carrying other keys but no verdict",
+			result:  map[string]any{"rounds": int64(3), "runDir": "/tmp/x"},
+			wantErr: "no verdict",
+		},
+		{
+			name:    "a verdict that is not a string",
+			result:  map[string]any{"verdict": 7},
+			wantErr: "non-string verdict",
+		},
+		{
+			name:    "an explicitly empty verdict",
+			result:  map[string]any{"verdict": ""},
+			wantErr: "EMPTY verdict",
+		},
+	} {
+		got, err := readVerdict(tc.result)
+		if err == nil {
+			t.Errorf("%s: readVerdict returned %q and NO error — the miss is still indistinguishable "+
+				"from a terminal verdict", tc.name, got)
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.wantErr) {
+			t.Errorf("%s: error = %q, want it to mention %q", tc.name, err, tc.wantErr)
+		}
+		if got != "" {
+			t.Errorf("%s: readVerdict returned %q alongside an error; a refused read yields nothing", tc.name, got)
+		}
+	}
+}
+
+// AND THE FOUR REAL VERDICTS STILL PASS. debate.js computes exactly these; a guard that also
+// rejected one of them would turn a working sweep red and be indistinguishable, from the
+// outside, from the bug it replaced.
+func TestReadVerdictAcceptsEveryVerdictDebateJSComputes(t *testing.T) {
+	for _, want := range []string{"HALTED", "VERIFIED", "CEILING", "UNVERIFIED"} {
+		got, err := readVerdict(map[string]any{"verdict": want, "rounds": int64(1)})
+		if err != nil {
+			t.Errorf("readVerdict rejected %q, which debate.js line 1166 can produce: %v", want, err)
+		}
+		if got != want {
+			t.Errorf("readVerdict(%q) = %q", want, got)
+		}
+	}
+}
+
+// The keys are named in the failure, and named STABLY — two failures of one shape must produce
+// one message, or a reader cannot tell a recurring defect from a family of them.
+func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
+	m := map[string]any{"runDir": "", "verdict": "", "rounds": 0, "lanes": 0, "deadlocked": false}
+	first := fmt.Sprint(sortedKeys(m))
+	for i := 0; i < 50; i++ {
+		if got := fmt.Sprint(sortedKeys(m)); got != first {
+			t.Fatalf("sortedKeys is order-dependent: %s vs %s", got, first)
+		}
+	}
+	if first != "[deadlocked lanes rounds runDir verdict]" {
+		t.Errorf("sortedKeys = %s, want sorted order", first)
 	}
 }

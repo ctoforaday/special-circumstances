@@ -381,9 +381,6 @@ func renderView(cmd *cobra.Command, want string) error {
 	if rerr != nil {
 		return rerr
 	}
-	// record's own reads still take the path; the packages above it take the handle. The
-	// conversion is HERE, once, rather than at each of the fifteen calls below.
-	runDir := run.Dir()
 	// --id SCOPES a view that supports scoping, and is an ERROR on one that does not
 	// ([[one-way-no-aliases]]: a wrong guess fails loudly rather than being ignored). Silently
 	// dropping it is the worse failure — a seat that asked for one gap's edits and received
@@ -422,7 +419,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	if asJSON, _ := cmd.Flags().GetBool(flags.JSON); asJSON {
 		switch want {
 		case "debate":
-			b, err := record.DebateJSONBytes(runDir)
+			b, err := record.DebateJSONBytes(run)
 			if err != nil {
 				return err
 			}
@@ -494,7 +491,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		}
 		// The role and seat are passed so the board CAN carry the sitting; whether it does is
 		// the duty arm's decision, and unset means the board is exactly what it always was.
-		b, err := record.BoardJSONBytesFor(runDir, role, Of(cmd).SeatID)
+		b, err := record.BoardJSONBytesFor(run, role, Of(cmd).SeatID)
 		if err != nil {
 			return err
 		}
@@ -505,7 +502,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// (coalesces findings into gaps), so it reads structured fields, not prose it must
 	// parse. This is the channel that replaced red/candidates/*.md.
 	if want == "findings" {
-		b, err := record.FindingsJSONBytes(runDir)
+		b, err := record.FindingsJSONBytes(run)
 		if err != nil {
 			return err
 		}
@@ -544,7 +541,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// evidence is JSON by name: it is a LOOKUP TABLE keyed by the anchor token a seat is holding,
 	// and a markdown rendering of it would be a table to parse rather than a field to read.
 	if want == "evidence" {
-		b, err := record.EvidenceJSONBytes(runDir)
+		b, err := record.EvidenceJSONBytes(run)
 		if err != nil {
 			return err
 		}
@@ -552,7 +549,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		return nil
 	}
 	if want == "motions" {
-		b, err := record.MotionsJSONBytes(runDir)
+		b, err := record.MotionsJSONBytes(run)
 		if err != nil {
 			return err
 		}
@@ -564,7 +561,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// full board JSON is not, and it is the ONE command a seat is told to run: everything open
 	// to it, whether it may close, and which items are what stop it closing.
 	if want == "work" {
-		b, err := record.WorkJSONBytes(runDir, role, Of(cmd).SeatID)
+		b, err := record.WorkJSONBytes(run, role, Of(cmd).SeatID)
 		if err != nil {
 			return err
 		}
@@ -581,7 +578,7 @@ func renderView(cmd *cobra.Command, want string) error {
 				"a scorecard grades a side of the debate, and this role is not one", role, role)
 		}
 		var board *record.Board
-		if b, err := record.BoardState(runDir); err == nil {
+		if b, err := record.BoardState(run); err == nil {
 			board = b
 		}
 		rows := scorecard.Compute(run, scorecard.ReadResults(run), board)[chair]

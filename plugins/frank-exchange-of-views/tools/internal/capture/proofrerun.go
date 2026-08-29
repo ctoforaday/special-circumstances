@@ -110,8 +110,8 @@ func recordedProofs(b *record.Board) []recordedProof {
 
 // ProofRerunAudit re-runs a bounded sample of the run's recorded proofs and compares each against
 // the output it recorded.
-func ProofRerunAudit(runDir string, sample int) Audit {
-	board, err := record.BoardState(runDir)
+func ProofRerunAudit(run record.Run, sample int) Audit {
+	board, err := record.BoardState(run)
 	if err != nil || board == nil {
 		return Audit{Check: "proof-rerun", Verdict: "SKIP", Detail: "the record could not be read, so no proof could be re-run — which is NOT a run whose proofs reproduce"}
 	}
@@ -127,7 +127,7 @@ func ProofRerunAudit(runDir string, sample int) Audit {
 	var notes []string
 	for _, p := range proofs[:sample] {
 		ran++
-		matches, got, want, err := proof.Reproduce(runDir, p.sha)
+		matches, got, want, err := proof.Reproduce(run.Dir(), p.sha)
 		switch {
 		case err != nil:
 			// A PROOF THAT CANNOT BE RE-RUN IS THE ONE THING A PROOF IS FOR. The recorded output

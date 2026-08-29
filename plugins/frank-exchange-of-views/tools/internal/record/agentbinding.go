@@ -31,11 +31,11 @@ import (
 // THE LAST REGISTER WINS. A re-dispatch writes a fresh register event, so a resumed seat
 // legitimately arrives under a NEW agent id claiming a seat that is already bound. Treating that
 // as a conflict would refuse every resume; the binding is simply the most recent claim.
-func SeatOfAgent(runDir, agentID string) (string, bool, error) {
+func SeatOfAgent(run Run, agentID string) (string, bool, error) {
 	if agentID == "" {
 		return "", false, nil
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return "", false, err
 	}

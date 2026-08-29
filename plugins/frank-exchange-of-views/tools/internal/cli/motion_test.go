@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"strings"
 	"testing"
 
@@ -34,7 +35,7 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 		t.Fatalf("appeal: %v", err)
 	}
 
-	b, err := record.BoardState(runDir)
+	b, err := record.BoardState(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

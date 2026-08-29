@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"os"
 	"path/filepath"
@@ -95,7 +96,7 @@ func recordOnce(t *testing.T, seatID string, args []string, prose func(dir strin
 	runDir := newRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	exec := func(a ...string) (string, error) { return run(t, a...) }
-	if err := seatprobe.Build(runDir, seatprobe.Boards()["docket"], exec); err != nil {
+	if err := seatprobe.Build(runtest.Open(t, runDir), seatprobe.Boards()["docket"], exec); err != nil {
 		t.Fatalf("stage the board: %v", err)
 	}
 	full := append(append([]string{}, args...), "--run", runDir, "--seat-id", seatID)

@@ -62,7 +62,7 @@ func newFile(subject string, required []string) *cobra.Command {
 						subject, f, subject)
 				}
 			}
-			id, err := record.MintMotionID(run.Dir())
+			id, err := record.MintMotionID(run)
 			if err != nil {
 				return err
 			}
@@ -205,10 +205,10 @@ func newRule(subject, ruler string) *cobra.Command {
 			// later refusal is phrased in terms of it: a lens typing `motion grade rule` at a
 			// petition should be told it named the wrong subgroup, not that grade motions belong
 			// to the merge — which is true, irrelevant, and sends it to the wrong fix.
-			if err := record.RequireMotionSubjectRef(run.Dir(), mustSubject(subject), id); err != nil {
+			if err := record.RequireMotionSubjectRef(run, mustSubject(subject), id); err != nil {
 				return err
 			}
-			if err := record.RequireSubjectMatches(run.Dir(), subject, id); err != nil {
+			if err := record.RequireSubjectMatches(run, subject, id); err != nil {
 				return err
 			}
 			// NO requireRuler HERE ANY MORE. This verb only exists in the gavel-holder's tree, so
@@ -216,7 +216,7 @@ func newRule(subject, ruler string) *cobra.Command {
 			// verb set draws everywhere else, instead of a runtime comparison of two copies of the
 			// acting role.
 			// A motion is answered ONCE; pressing it is an appeal, which keeps both positions.
-			if err := record.RequireUnruledMotion(run.Dir(), id); err != nil {
+			if err := record.RequireUnruledMotion(run, id); err != nil {
 				return err
 			}
 			opinion, err := prose(cmd, "rule", "an unreasoned ruling is the decoration the filer cannot contest, and contesting it is the whole reason a ruling is not a command")
@@ -325,10 +325,10 @@ func newAppeal(subject string) *cobra.Command {
 				return err
 			}
 			id := seat.Str(cmd, flags.ID)
-			if err := record.RequireRuledMotion(run.Dir(), mustSubject(subject), id); err != nil {
+			if err := record.RequireRuledMotion(run, mustSubject(subject), id); err != nil {
 				return err
 			}
-			if err := record.RequireSubjectMatches(run.Dir(), subject, id); err != nil {
+			if err := record.RequireSubjectMatches(run, subject, id); err != nil {
 				return err
 			}
 			reason, err := prose(cmd, "appeal", "why you are pressing on. Going against a ruling without saying why is the disagreement disappearing, which is what the record exists to prevent")

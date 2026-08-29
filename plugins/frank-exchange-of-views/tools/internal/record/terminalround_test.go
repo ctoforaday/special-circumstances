@@ -17,12 +17,12 @@ import (
 func TestATerminalSeatIsRecordedAfterTheRoundsRatherThanBeforeThem(t *testing.T) {
 	runDir := newRun(t)
 	for _, s := range []string{"red-merge-r1", "red-merge-r2", "red-merge-r3"} {
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: s, Round: RoundIn(runDir)(s)}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s, Round: RoundIn(mustRun(t, runDir))(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	got := RoundIn(runDir)("judge-terminal")
+	got := RoundIn(mustRun(t, runDir))("judge-terminal")
 	if got == 0 {
 		t.Fatal("the terminal sitting is recorded at round 0 — synthesis — so every reader orders the run's LAST act before its first")
 	}
@@ -35,11 +35,11 @@ func TestATerminalSeatIsRecordedAfterTheRoundsRatherThanBeforeThem(t *testing.T)
 // before the round loop, so 0 is exact — and the fix must not turn a correct 0 into an unknown.
 func TestSynthesisSeatsAreRoundZeroByRule(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r4", Round: 4}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r4", Round: 4}, ""); err != nil {
 		t.Fatal(err)
 	}
 	for _, s := range []string{"frontier", "blue-synthesize", "blue-lane-2"} {
-		if got := RoundIn(runDir)(s); got != 0 {
+		if got := RoundIn(mustRun(t, runDir))(s); got != 0 {
 			t.Errorf("%s resolved to round %d; it runs in synthesis, which IS round 0 — and the record showing 4 must not drag it there", s, got)
 		}
 	}
@@ -49,7 +49,7 @@ func TestSynthesisSeatsAreRoundZeroByRule(t *testing.T) {
 // conflation this removes, one layer up: "no rounds have happened" would again be spelled the
 // same as "this happened in synthesis".
 func TestATerminalSeatOnAnEmptyRunIsUnknownRatherThanZero(t *testing.T) {
-	if got := RoundIn(recordtest.TmpRun(t))("judge-terminal"); got != -1 {
+	if got := RoundIn(mustRun(t, recordtest.TmpRun(t)))("judge-terminal"); got != -1 {
 		t.Errorf("terminal round on an empty run = %d, want -1 (unknown); 0 would claim it happened in synthesis", got)
 	}
 }

@@ -752,6 +752,25 @@ let deadlocked = false
 let benchClearedOnce = false
 const allPriorGapIds = new Set() // every gap id from every prior round — the docket window is the whole debate, not one round
 const adjudicated = [] // judge-ruled gaps (closed / not_a_defect / defect_accepted / routed) — out of red's verdict
+// WHAT A RULING OBLIGES BLUE TO DO, derived from the fate rather than restated in prose.
+//
+// Red's duty is "do not re-raise this gap" and an id enforces it. Blue's is "do not re-argue this
+// claim in the report", which no id can enforce — blue's artifact IS the report, and that is where
+// a settled proposition gets restated. And blue needs the inverse red never does: what it may now
+// ASSERT. Two of these five fates are blue WINS, and under the bare subtraction blue was handed
+// they looked exactly like the three that are not: the gap simply stopped appearing. A run in
+// 2026-08-23 ruled twice in blue's favour on one gap, the second time final, and blue-respond saw
+// an absence both times.
+//
+// Keyed on the resolution so a new fate cannot quietly inherit another's instruction; an unmapped
+// one falls through to a LOUD default rather than an empty string.
+const BLUE_DUTY_BY_RESOLUTION = {
+  not_a_defect: 'THE BENCH FOUND NO DEFECT — your position was vindicated. Keep the text as it stands; do not "repair" what the bench has just blessed. You may rely on this ruling as established for the rest of the run.',
+  defect_accepted: 'YOUR RISK-ACCEPTANCE ARGUMENT WAS ACCEPTED. Record the acceptance where the report discusses the risk; do not spend a round fixing what the bench agreed may stand.',
+  repaired: 'Your fix was accepted. Stop working this one.',
+  defect_owed_elsewhere: 'The finding was UPHELD and the fix is owned outside this debate. Stop trying to fix it in the report; expect the debt to be named rather than closed here.',
+  moot: 'Adjudicated out of existence. Drop it.',
+}
 const infraDebts = [] // defect_owed_elsewhere rulings (W1.9) — the lead's named debts, surfaced at assembly and in the final envelope
 
 // Carried-ruling persistence (run-4 §6.4 item 6 — the re-docket loop): a carried gap does
@@ -1035,6 +1054,17 @@ YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is do
 
   const adjudicatedIds = new Set(adjudicated.map(x => x.gap_id))
   const openGaps = redEnv.gaps.filter(g => !adjudicatedIds.has(g.id))
+  // NOTHING IS WITHHELD FROM BLUE SILENTLY EITHER — the same rule the bench's withheld list
+  // follows below, applied to the seat that was still getting the subtraction.
+  const blueRulings = adjudicated.map(x => ({
+    gap_id: x.gap_id,
+    resolution: x.resolution,
+    settled: x.settled,
+    reopens_on: x.reopens_on,
+    final: x.final,
+    your_duty: BLUE_DUTY_BY_RESOLUTION[x.resolution]
+      || `this fate has no standing instruction in the protocol — read the bench's opinion on the record and report the omission as friction rather than guessing at it`,
+  }))
   blueEnv = await agent(
     `Blue response, round ${round}, topic "${topic}". Red's verdict: FAIL.${reliefFor('blue')} YOUR FIRST READ COMES AFTER THE TREE WALK BELOW, NOT BEFORE IT: pull your working set — the board, the transcript, and ${runDir}/inputs/red-gap-patterns.md — in one pass rather than three, concatenating them into a single file under your session scratchpad (an ABSOLUTE path, never under ${runDir}) and reading that.
 
@@ -1046,7 +1076,7 @@ WHERE RED PROPOSED EXACT TEXT you have THREE paths and you are not obliged to ta
 
 OWNERSHIP BINDS, AS IT DID IN ROUND 0: you write ONLY your own surfaces — TL;DR, Catechism, technical foundations, analysis, open questions, your citations. You MUST NOT introduce a \`**Verdict:**\` line or any tool-owned section (\`## Risk matrix\`, \`## Red team findings\`, \`## The debate\`, \`## How this run was conducted\`, a \`## Blue team report\` wrapper) while repairing: assembly composes those from the record, you cannot know the outcome or red's findings, and anything you add there only lands stale and gets stripped. AND WHICH MODEL IS ANSWERING THIS RUN IS NOT A FACT YOU HOLD: you can see what was REQUESTED, never what replied, and a run configured for one tier is routinely served by another — 44 of 63 seats across two runs, whose certified report reasoned two paragraphs about vendor diversity from the pairing it had asked for. If your argument turns on the models used, say that the record's measurement decides it; assembly composes that section from what actually answered.
 
-PRE-FLIGHT: re-check your planned repairs against red's gap patterns. Open gaps (adjudicated ones excluded): ${JSON.stringify(openGaps)}. GRADING SEMANTICS (mapping ${MASS_MAPPING_VERSION}, and NOT inferable from the JSON above — the map is self-describing as structure and silent on meaning): likelihood grades the CONSEQUENCE ONLY — how likely the harm is to land, never how likely the defect is to BE there. A typo you have confirmed, whose harm is trivial, is a LOW likelihood; reading likelihood as confidence-that-it-exists is the v1 semantics this mapping replaced. A claim red graded LOW is where your evidence is thinnest, and it is worth strengthening before red returns to it. Red's corroborations are on the RECORD, not in this prompt: read what red actually verified and at what confidence, rather than a hand-copied snapshot of one round.
+PRE-FLIGHT: re-check your planned repairs against red's gap patterns. Open gaps (adjudicated ones excluded): ${JSON.stringify(openGaps)}.${blueRulings.length ? ` GAPS THE BENCH HAS RULED, AND WHAT EACH RULING OBLIGES OF YOU: ${JSON.stringify(blueRulings)}. These are excluded from the open list above, and the exclusion is a RULING, not an oversight. You were previously handed it as a bare SUBTRACTION — a ruled gap simply stopped appearing — and a vindication and an upheld finding are the same absence, so you could not tell a fate you had WON from one you had merely lost sight of. THE BAR IS ON THE PROPOSITION, NOT THE GAP: what you may no longer re-argue in the report is the sentence under settled, not everything the finding touched. WHERE A RULING WENT YOUR WAY IT IS YOURS TO INVOKE — say so on the record and rely on it, rather than quietly re-fixing text the bench has already blessed. A ruling marked final does not reopen; one carrying a reopens_on condition reopens only on that condition and not on a re-reading. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, because a fate you never read is one you can neither honour nor invoke.` : ''} GRADING SEMANTICS (mapping ${MASS_MAPPING_VERSION}, and NOT inferable from the JSON above — the map is self-describing as structure and silent on meaning): likelihood grades the CONSEQUENCE ONLY — how likely the harm is to land, never how likely the defect is to BE there. A typo you have confirmed, whose harm is trivial, is a LOW likelihood; reading likelihood as confidence-that-it-exists is the v1 semantics this mapping replaced. A claim red graded LOW is where your evidence is thinnest, and it is worth strengthening before red returns to it. Red's corroborations are on the RECORD, not in this prompt: read what red actually verified and at what confidence, rather than a hand-copied snapshot of one round.
 
 BEFORE drafting, read the transcript — the gap JSON above is a lossy summary of it, and it carries any accepted grade-dispute deltas pending their contest window, red's latest narrative, and the bench's latest resolutions. Any gap the judge CARRIED comes with a stated research direction you owe.
 

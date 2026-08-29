@@ -206,8 +206,8 @@ type Choices struct {
 }
 
 // Read replays a run and reports one seat's choices.
-func Read(sf Surface, runDir, seatID string) (*Choices, error) {
-	b, err := record.BoardState(runDir)
+func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
+	b, err := record.BoardState(run)
 	if err != nil {
 		return nil, err
 	}
@@ -289,10 +289,10 @@ type Verdict struct {
 // Check reports which expectations a run met. It never returns an error for an unmet one: this
 // package produces a REPORT, not a gate. Agent behaviour is not deterministic, and a flaky gate
 // is one the next person turns off.
-func Check(sf Surface, runDir string, expect []Expectation) ([]Verdict, error) {
+func Check(sf Surface, run record.Run, expect []Expectation) ([]Verdict, error) {
 	out := make([]Verdict, 0, len(expect))
 	for _, e := range expect {
-		c, err := Read(sf, runDir, e.Seat)
+		c, err := Read(sf, run, e.Seat)
 		if err != nil {
 			return nil, err
 		}
@@ -328,11 +328,11 @@ func substituteFor(c *Choices, want string) string {
 // Report renders the choice report. attempts maps seat id -> verb -> count, read from the
 // trajectory by Attempted; pass nil when no trajectory was captured, and the report says so
 // rather than presenting a record-only count as the whole picture.
-func Report(sf Surface, runDir string, seats []string, expect []Expectation, attempts map[string]map[string]int) (string, error) {
+func Report(sf Surface, run record.Run, seats []string, expect []Expectation, attempts map[string]map[string]int) (string, error) {
 	var b strings.Builder
 	b.WriteString("# Seat choice report\n\nWhich verbs each seat REACHED FOR, of those its role offers.\n\n")
 	for _, s := range seats {
-		c, err := Read(sf, runDir, s)
+		c, err := Read(sf, run, s)
 		if err != nil {
 			return "", err
 		}
@@ -391,7 +391,7 @@ func Report(sf Surface, runDir string, seats []string, expect []Expectation, att
 		b.WriteString("\n")
 	}
 
-	verdicts, err := Check(sf, runDir, expect)
+	verdicts, err := Check(sf, run, expect)
 	if err != nil {
 		return "", err
 	}

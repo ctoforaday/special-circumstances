@@ -155,7 +155,7 @@ func frictionRun(t *testing.T, seat, agentID string, wrote string) string {
 
 func recordFriction(t *testing.T, runDir string) []record.FrictionEntryJSON {
 	t.Helper()
-	b, err := record.BoardState(runDir)
+	b, err := record.BoardState(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +169,7 @@ func TestASeatThatParaphrasesItselfStillReconciles(t *testing.T) {
 	run := frictionRun(t, "blue-synthesize", "a24445d32ad697bd4", "friction")
 	env := []EnvelopeFriction{{AgentID: "a24445d32ad697bd4",
 		Text: "blue-synthesize: citation-hygiene: entirely different wording from the record"}}
-	got := FrictionAudit(run, env, recordFriction(t, run))
+	got := FrictionAudit(runtest.Open(t, run), env, recordFriction(t, run))
 	if got.Verdict != "PASS" {
 		t.Errorf("the seat opened the channel; the envelope is a re-worded copy, not a second duty.\ngot %s: %s", got.Verdict, got.Detail)
 	}
@@ -180,7 +180,7 @@ func TestASeatThatParaphrasesItselfStillReconciles(t *testing.T) {
 func TestASeatThatToldOnlyTheHarnessIsAFinding(t *testing.T) {
 	run := frictionRun(t, "red-merge-r1", "a78f5dfdc4aa2ea54", "")
 	env := []EnvelopeFriction{{AgentID: "a78f5dfdc4aa2ea54", Text: "needed a PDF extractor for X"}}
-	got := FrictionAudit(run, env, recordFriction(t, run))
+	got := FrictionAudit(runtest.Open(t, run), env, recordFriction(t, run))
 	if got.Verdict != "FAIL" {
 		t.Fatalf("friction the record never got: want FAIL, got %s (%s)", got.Verdict, got.Detail)
 	}
@@ -195,7 +195,7 @@ func TestASeatThatToldOnlyTheHarnessIsAFinding(t *testing.T) {
 func TestTheAttestedEmptyCaseCountsAsOpeningTheChannel(t *testing.T) {
 	run := frictionRun(t, "judge-r2", "a7e42caf6c06aec62", "friction-none")
 	env := []EnvelopeFriction{{AgentID: "a7e42caf6c06aec62", Text: "No capability gaps encountered."}}
-	if got := FrictionAudit(run, env, recordFriction(t, run)); got.Verdict != "PASS" {
+	if got := FrictionAudit(runtest.Open(t, run), env, recordFriction(t, run)); got.Verdict != "PASS" {
 		t.Errorf("a filed friction-none IS the channel being used; got %s: %s", got.Verdict, got.Detail)
 	}
 }
@@ -206,7 +206,7 @@ func TestTheAttestedEmptyCaseCountsAsOpeningTheChannel(t *testing.T) {
 func TestAnUnjoinableEntryIsReportedRatherThanBlamed(t *testing.T) {
 	run := frictionRun(t, "blue-respond-r2", "", "")
 	env := []EnvelopeFriction{{AgentID: "", Text: "Friction channel closed: no capability gaps."}}
-	got := FrictionAudit(run, env, recordFriction(t, run))
+	got := FrictionAudit(runtest.Open(t, run), env, recordFriction(t, run))
 	if got.Verdict == "FAIL" {
 		t.Errorf("an entry with no agent binding is unmeasurable, not a duty skipped.\ngot %s: %s", got.Verdict, got.Detail)
 	}
@@ -266,7 +266,7 @@ func TestAssemblyScreenFailsOnARefutedCitationStillInTheReport(t *testing.T) {
 			// The assembled report still cites it.
 			write(t, filepath.Join(dir, "report.md"), "A claim, sourced.[^1]\n\n[^1]: https://example.test/refuted\n")
 
-			got := AssemblyScreen(dir)
+			got := AssemblyScreen(runtest.Open(t, dir))
 			if got.Verdict != "FAIL" {
 				t.Fatalf("verdict = %s, want FAIL — the report cites a source red found against (%s)", got.Verdict, got.Detail)
 			}
@@ -282,7 +282,7 @@ func TestAssemblyScreenPassesWhenTheRefutedSourceIsGone(t *testing.T) {
 	dir := screenRun(t, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES, "https://example.test/refuted")
 	write(t, filepath.Join(dir, "report.md"), "A claim, now sourced elsewhere.[^1]\n\n[^1]: https://example.test/other\n")
 
-	got := AssemblyScreen(dir)
+	got := AssemblyScreen(runtest.Open(t, dir))
 	if got.Verdict != "PASS" {
 		t.Fatalf("verdict = %s, want PASS (%s)", got.Verdict, got.Detail)
 	}
@@ -298,7 +298,7 @@ func TestAssemblyScreenPassesWhenTheRefutedSourceIsGone(t *testing.T) {
 func TestAssemblyScreenIgnoresSupportingVerdicts(t *testing.T) {
 	dir := screenRun(t, recordpb.SourceOutcome_SOURCE_OUTCOME_WEAK, "https://example.test/thin")
 	write(t, filepath.Join(dir, "report.md"), "A claim.[^1]\n\n[^1]: https://example.test/thin\n")
-	if got := AssemblyScreen(dir); got.Verdict != "PASS" {
+	if got := AssemblyScreen(runtest.Open(t, dir)); got.Verdict != "PASS" {
 		t.Errorf("verdict = %s on a `weak` verification, want PASS (%s)", got.Verdict, got.Detail)
 	}
 }
@@ -306,11 +306,11 @@ func TestAssemblyScreenIgnoresSupportingVerdicts(t *testing.T) {
 // THE TWO SKIPS STAY DISTINGUISHABLE: nothing to screen, and nothing assembled yet.
 func TestAssemblyScreenSkipsAreDistinct(t *testing.T) {
 	bare := t.TempDir()
-	if got := AssemblyScreen(bare); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "nothing to screen") {
+	if got := AssemblyScreen(runtest.Open(t, bare)); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "nothing to screen") {
 		t.Errorf("no citations: want SKIP naming the empty set, got %s (%s)", got.Verdict, got.Detail)
 	}
 	unassembled := screenRun(t, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES, "https://example.test/refuted")
-	got := AssemblyScreen(unassembled)
+	got := AssemblyScreen(runtest.Open(t, unassembled))
 	if got.Verdict != "SKIP" || !strings.Contains(got.Detail, "no assembled report.md") {
 		t.Errorf("pre-assembly: want SKIP naming the missing artifact, got %s (%s)", got.Verdict, got.Detail)
 	}
@@ -358,10 +358,10 @@ func seedRevisions(t *testing.T, runDir string, rounds int) {
 func TestRecordParityAudit(t *testing.T) {
 	dir := fixtureRun(t, 2, 2)
 	seedRevisions(t, dir, 2)
-	if got := RecordParityAudit(dir, 2, 2).Verdict; got != "PASS" {
+	if got := RecordParityAudit(runtest.Open(t, dir), 2, 2).Verdict; got != "PASS" {
 		t.Errorf("2 red, 2 blue, 2 recorded round records: want PASS, got %s", got)
 	}
-	got := RecordParityAudit(dir, 3, 1)
+	got := RecordParityAudit(runtest.Open(t, dir), 3, 1)
 	if got.Verdict != "FAIL" {
 		t.Errorf("3 red, 1 blue is below the redRounds-1 floor: want FAIL, got %s", got.Verdict)
 	}
@@ -371,18 +371,18 @@ func TestRecordParityAudit(t *testing.T) {
 	// PASS exit: 2 red, 1 blue (blue never took the final turn), 1 round record → floored PASS.
 	passExit := fixtureRun(t, 2, 2)
 	seedRevisions(t, passExit, 1)
-	if got := RecordParityAudit(passExit, 2, 1).Verdict; got != "PASS" {
+	if got := RecordParityAudit(runtest.Open(t, passExit), 2, 1).Verdict; got != "PASS" {
 		t.Errorf("a PASS exit is floored to redRounds-1: want PASS, got %s", got)
 	}
 	// THE DEFECT THE OLD SOURCE HID: a hand-written CHANGELOG present, round records absent.
 	// Counting the file passed this; counting the record fails it, which is the point.
 	unrecorded := fixtureRun(t, 2, 2)
 	write(t, filepath.Join(unrecorded, "blue", "CHANGELOG.md"), "## Round 1"+"\n"+"edits"+"\n"+"## Round 2"+"\n"+"more"+"\n")
-	if got := RecordParityAudit(unrecorded, 2, 2); got.Verdict != "FAIL" {
+	if got := RecordParityAudit(runtest.Open(t, unrecorded), 2, 2); got.Verdict != "FAIL" {
 		t.Errorf("a CHANGELOG with no revision events must FAIL, got %s (%s)", got.Verdict, got.Detail)
 	}
 	// No red rounds → SKIP.
-	if got := RecordParityAudit(dir, 0, 0).Verdict; got != "SKIP" {
+	if got := RecordParityAudit(runtest.Open(t, dir), 0, 0).Verdict; got != "SKIP" {
 		t.Errorf("no red rounds: want SKIP, got %s", got)
 	}
 }
@@ -462,7 +462,7 @@ func TestHarvestPrecedents(t *testing.T) {
 		}),
 	}}
 
-	r := HarvestPrecedents(runDir, nil, filepath.Join(repo, "law"), board)
+	r := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(repo, "law"), board)
 	if r.Count != 4 {
 		t.Fatalf("want 4 rulings harvested (2 opinions, 1 petition, 1 declaration), got %d", r.Count)
 	}
@@ -511,7 +511,7 @@ func TestHarvestPrecedents(t *testing.T) {
 	}
 
 	// No law/ dir → not written, reason names law.
-	noLaw := HarvestPrecedents(runDir, nil, filepath.Join(repo, "absent"), board)
+	noLaw := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(repo, "absent"), board)
 	if noLaw.Written || !strings.Contains(noLaw.Reason, "law") {
 		t.Errorf("absent law dir: want not-written with law reason, got %+v", noLaw)
 	}
@@ -527,7 +527,7 @@ func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
 		{"rulings": []any{map[string]any{"petitioner": "blue", "ruling": "denied", "reason": "no"}}},
 	}
 
-	r := HarvestPrecedents(runDir, claimed, filepath.Join(t.TempDir(), "law"), &record.Board{})
+	r := HarvestPrecedents(runtest.New(t, runDir), claimed, filepath.Join(t.TempDir(), "law"), &record.Board{})
 	if r.Written || r.Count != 0 {
 		t.Fatalf("the record holds nothing, so nothing is promoted: %+v", r)
 	}
@@ -539,7 +539,7 @@ func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
 	}
 
 	// The honest quiet run: no record rulings AND no envelope claims. Silent, as it should be.
-	quiet := HarvestPrecedents(runDir, nil, filepath.Join(t.TempDir(), "law"), &record.Board{})
+	quiet := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(t.TempDir(), "law"), &record.Board{})
 	if quiet.Reason != "" || quiet.EnvelopeClaimed != 0 {
 		t.Errorf("a genuinely quiet run must not be reported as a divergence: %+v", quiet)
 	}
@@ -548,7 +548,7 @@ func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
 // A nil board is the harvest having no record to read at all. It must not panic and must not
 // promote anything — the caller passes the same board the record-backed audits use.
 func TestHarvestWithNoBoardPromotesNothing(t *testing.T) {
-	r := HarvestPrecedents(filepath.Join(t.TempDir(), "2026-08-15_nil"), nil, t.TempDir(), nil)
+	r := HarvestPrecedents(runtest.New(t, filepath.Join(t.TempDir(), "2026-08-15_nil")), nil, t.TempDir(), nil)
 	if r.Written || r.Count != 0 {
 		t.Errorf("no board, no promotion: %+v", r)
 	}
@@ -752,7 +752,7 @@ func TestCaptureSaysWhatHappenedToTheMarker(t *testing.T) {
 // Fprintf. There are no shards, so it produced a run whose record was EMPTY and LivenessAudit
 // answered "no events in this run" for every case — a fixture failing in a way that reads like the
 // audit having an opinion.
-func writeRunForLiveness(t *testing.T, n int, gap time.Duration, last time.Time, outcome bool) string {
+func writeRunForLiveness(t *testing.T, n int, gap time.Duration, last time.Time, outcome bool) record.Run {
 	t.Helper()
 	dir := t.TempDir()
 	stamp := "2006-01-02T15:04:05.000000000Z07:00"
@@ -773,7 +773,7 @@ func writeRunForLiveness(t *testing.T, n int, gap time.Duration, last time.Time,
 		}), ts))
 	}
 	recordtest.Seed(t, dir, evs...)
-	return dir
+	return runtest.Open(t, dir)
 }
 
 // THE PAIR IS THE POINT. Both runs are equally silent; only one of them finished. This audit's
@@ -835,7 +835,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 
 	// AN EMPTY RECORD IS REFUSED, because an archive preserving nothing is indistinguishable
 	// from a preserved run once it is sitting in run-archive/.
-	if _, err := ArchiveRecord(run, repo); err == nil {
+	if _, err := ArchiveRecord(runtest.Open(t, run), repo); err == nil {
 		t.Fatal("ArchiveRecord wrote an archive for a run with no shards")
 	}
 
@@ -847,7 +847,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := ArchiveRecord(run, repo)
+	out, err := ArchiveRecord(runtest.Open(t, run), repo)
 	if err != nil {
 		t.Fatal(err)
 	}

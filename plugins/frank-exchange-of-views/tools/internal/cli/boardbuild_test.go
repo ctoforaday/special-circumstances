@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
@@ -46,7 +47,7 @@ func TestEveryProbeBoardStillBuilds(t *testing.T) {
 			// function; a gate that rebuilt the steps here would be asserting its own reading of
 			// the build rather than the build the probe actually runs.
 			exec := func(args ...string) (string, error) { return run(t, args...) }
-			if err := seatprobe.Build(runDir, b, exec); err != nil {
+			if err := seatprobe.Build(runtest.Open(t, runDir), b, exec); err != nil {
 				t.Fatalf("board %q no longer builds: %v\n\n"+
 					"The board is a fixture for a write path that has since moved. Until it builds, every\n"+
 					"dispatch against it dies before a seat sees it — and the probe reports a FAILED board,\n"+

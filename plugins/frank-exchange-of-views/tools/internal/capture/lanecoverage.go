@@ -48,8 +48,8 @@ var laneSeat = regexp.MustCompile(`^blue-lane-(\d+)$`)
 // The three answers are kept apart: a declared count, a run that declared none (older runs, and
 // `--lanes` is optional), and a config that could not be read at all. Only the first can be
 // checked, and the other two must not read as agreement.
-func declaredLanes(runDir string) (n int, declared bool) {
-	b, err := os.ReadFile(filepath.Join(runDir, "inputs", "run-config.json"))
+func declaredLanes(run record.Run) (n int, declared bool) {
+	b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json"))
 	if err != nil {
 		return 0, false
 	}
@@ -104,13 +104,13 @@ func registeredLanes(b *record.Board) []int {
 }
 
 // LaneCoverageAudit joins the declared lane count to the lane seats that actually registered.
-func LaneCoverageAudit(runDir string) Audit {
-	want, declared := declaredLanes(runDir)
+func LaneCoverageAudit(run record.Run) Audit {
+	want, declared := declaredLanes(run)
 	if !declared {
 		return Audit{Check: "lane-coverage", Verdict: "SKIP",
 			Detail: "this run declared no lane count in run-config, so there is nothing to hold its lanes to — NOT a run whose lanes were checked"}
 	}
-	board, err := record.BoardState(runDir)
+	board, err := record.BoardState(run)
 	if err != nil || board == nil {
 		return Audit{Check: "lane-coverage", Verdict: "SKIP",
 			Detail: fmt.Sprintf("run-config declares %d lane(s) and the record could not be read, so none of them could be confirmed — NOT a run whose lanes all registered", want)}

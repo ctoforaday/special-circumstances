@@ -64,10 +64,10 @@ func TestEventStampsResolveSubMillisecondEvents(t *testing.T) {
 // And the whole path, end to end: an appended event carries a stamp at all.
 func TestAppendedEventCarriesAStamp(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: RoundIn(mustRun(t, runDir))("red-lens-r1-L1")}, ""); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}, &recordpb.Observe{Label: proto.String("L1-O1")})
+	ev, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: RoundIn(mustRun(t, runDir))("red-lens-r1-L1")}, &recordpb.Observe{Label: proto.String("L1-O1")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 			Now = c.now
 
 			runDir := recordtest.TmpRun(t)
-			id := Identity{RunDir: runDir, SeatID: "red-lens-r1-L1", Round: RoundIn(runDir)("red-lens-r1-L1")}
+			id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: RoundIn(mustRun(t, runDir))("red-lens-r1-L1")}
 			if _, _, err := RegisterSeat(id, ""); err != nil {
 				t.Fatal(err)
 			}
@@ -125,7 +125,7 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 				wrote = append(wrote, label)
 			}
 
-			m, err := MergedEvents(runDir)
+			m, err := MergedEvents(mustRun(t, runDir))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -151,7 +151,7 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 
 // #396: THE ROUND IS CARRIED TO THE WRITE, NOT RECOVERED AT IT.
 //
-// `Append` used to stamp `Round: RoundIn(runDir)(seatID)` — a regex over the seat id, 0 on a miss —
+// `Append` used to stamp `Round: RoundIn(mustRun(t, runDir))(seatID)` — a regex over the seat id, 0 on a miss —
 // while the caller had already resolved the round as a field and `Begin` had already refused an
 // unresolvable seat. The fact was in hand and thrown away one frame later.
 //
@@ -168,7 +168,7 @@ func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
 		t.Fatal("fixture assumption: judge-terminal's NAME cannot answer which round it is in")
 	}
 
-	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: 7}, &recordpb.Friction{Text: proto.String("a capability gap")})
+	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge-terminal", Round: 7}, &recordpb.Friction{Text: proto.String("a capability gap")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +178,7 @@ func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
 	// And every other event this seat wrote carries it too — both write sites take the seam. Read
 	// from the record rather than from a named shard file: there is no filename to compose, which
 	// is one fewer place for the test to encode where the events live.
-	m, err := MergedEvents(dir)
+	m, err := MergedEvents(mustRun(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,7 +217,7 @@ func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{RunDir: dir, SeatID: "judge-terminal", Round: -1}, &recordpb.Friction{Text: proto.String("a capability gap")})
+	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge-terminal", Round: -1}, &recordpb.Friction{Text: proto.String("a capability gap")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +241,7 @@ func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
 func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	seat := "red-merge-r1"
-	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
+	id := Identity{Run: mustRun(t, runDir), SeatID: seat, Round: RoundIn(mustRun(t, runDir))(seat)}
 
 	for dispatch := 1; dispatch <= 2; dispatch++ {
 		n, _, err := RegisterSeat(id, "")
@@ -260,7 +260,7 @@ func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 
 	// BOTH SITTINGS ARE ON THE RECORD. Nothing selects a winner, so the second does not displace
 	// the first — which is the other half of what the shard layout got wrong.
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +288,7 @@ func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 func TestARepeatedSingletonActIsRefusedInTheSeatsOwnTerms(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	seat := "red-merge-r1"
-	id := Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}
+	id := Identity{Run: mustRun(t, runDir), SeatID: seat, Round: RoundIn(mustRun(t, runDir))(seat)}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
