@@ -41,8 +41,7 @@ func newCountClaims() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			runDir := run.Dir()
-			path := filepath.Join(runDir, "blue", "report.md")
+			path := filepath.Join(run.Dir(), "blue", "report.md")
 			md, err := os.ReadFile(path)
 			if err != nil {
 				return feov.Errorf(feov.MissingField, "count-claims: cannot read %s: %v", path, err)

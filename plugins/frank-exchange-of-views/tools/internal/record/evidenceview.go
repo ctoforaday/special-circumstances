@@ -363,8 +363,8 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 }
 
 // EvidenceJSONBytes renders the evidence view as indented JSON.
-func EvidenceJSONBytes(runDir string) ([]byte, error) {
-	b, err := BoardState(runDir)
+func EvidenceJSONBytes(run Run) ([]byte, error) {
+	b, err := BoardState(run)
 	if err != nil {
 		return nil, err
 	}

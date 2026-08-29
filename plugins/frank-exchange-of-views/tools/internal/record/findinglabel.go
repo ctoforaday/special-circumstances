@@ -29,12 +29,12 @@ func RoleOf(seatID string) string {
 // in run 3). The sequence spans ALL rounds so a `found_by` credit naming a label
 // is unambiguous run-wide; the scan mirrors MintGapID. A seat id with no role is
 // an error — a finding that cannot name its lens cannot be attributed.
-func NextFindingLabel(runDir, seatID string) (string, error) {
+func NextFindingLabel(run Run, seatID string) (string, error) {
 	role := RoleOf(seatID)
 	if role == "" {
 		return "", fmt.Errorf("finding label: seat id %q carries no lens role (expected …-L<n>)", seatID)
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return "", err
 	}
@@ -53,11 +53,11 @@ func NextFindingLabel(runDir, seatID string) (string, error) {
 // label instead of minting a duplicate with a fresh label. Mirrors
 // ExistingMintByKey: the retry dedup is this short-circuit BEFORE Append, not a
 // change to the event key (which stays the unique label).
-func existingFindingByKey(runDir, seatID, key string) (string, error) {
+func existingFindingByKey(run Run, seatID, key string) (string, error) {
 	if key == "" {
 		return "", nil
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return "", err
 	}
@@ -74,11 +74,11 @@ func existingFindingByKey(runDir, seatID, key string) (string, error) {
 // strings when none exists. existingFindingByKey answers the seat's question — "did I already do
 // this?" — with the label alone; the crash-window heal in `lens finding` also needs the ID, to
 // ask whether the SECOND append of the interrupted pair (the anchor event) ever landed.
-func FindingByKey(runDir, seatID, key string) (label, findingID string, err error) {
+func FindingByKey(run Run, seatID, key string) (label, findingID string, err error) {
 	if key == "" {
 		return "", "", nil
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return "", "", err
 	}
@@ -94,11 +94,11 @@ func FindingByKey(runDir, seatID, key string) (label, findingID string, err erro
 // AnchorEventExists reports whether an anchor event names this finding id. The finding and its
 // anchor event are appended as a PAIR after the splice, so "finding recorded, anchor missing" is
 // exactly the state a crash between the two appends leaves.
-func AnchorEventExists(runDir, findingID string) (bool, error) {
+func AnchorEventExists(run Run, findingID string) (bool, error) {
 	if findingID == "" {
 		return false, nil
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return false, err
 	}

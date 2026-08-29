@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"strings"
 	"testing"
 
@@ -31,7 +32,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 	}
 
 	evidence := func() record.EvidenceJSON {
-		b, err := record.BoardState(runDir)
+		b, err := record.BoardState(runtest.Open(t, runDir))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -64,7 +65,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 		t.Fatalf("reopened = %v, want the corroboration's citation — the footnote now backs a sentence nobody read", got)
 	}
 	// The anchor is still THERE: reopening is not losing, and the no-loss promise still holds.
-	md, err := record.ReadBlueReport(runDir)
+	md, err := record.ReadBlueReport(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +78,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 // seat sees in `show report` and copies into its quote.
 func anchoredLine(t *testing.T, runDir string) (string, string) {
 	t.Helper()
-	md, err := record.ReadBlueReport(runDir)
+	md, err := record.ReadBlueReport(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

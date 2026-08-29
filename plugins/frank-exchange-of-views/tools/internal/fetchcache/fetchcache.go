@@ -26,6 +26,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,16 +70,16 @@ type Response struct {
 var Default Fetcher = NewHTTPFetcher()
 
 // Dir is a run's cache directory, <run>/cache.
-func Dir(runDir string) string { return filepath.Join(runDir, "cache") }
+func Dir(run record.Run) string { return filepath.Join(run.Dir(), "cache") }
 
 // Path is the cache file for a given content hash, <run>/cache/<sha256>.
-func Path(runDir, sha string) string { return filepath.Join(Dir(runDir), sha) }
+func Path(run record.Run, sha string) string { return filepath.Join(Dir(run), sha) }
 
 // indexPath is the url->sha256 manifest, a JSON-lines file. "index" is not a 64-char hex
 // string, so it never collides with a content file in the same directory. JSONL (not a
 // tab-delimited line) so a URL carrying a tab or newline round-trips instead of corrupting
 // the manifest — the caller's URL is untrusted text.
-func indexPath(runDir string) string { return filepath.Join(Dir(runDir), "index") }
+func indexPath(run record.Run) string { return filepath.Join(Dir(run), "index") }
 
 // Entry is one line of the manifest: what this run fetched from a URL, and what it turned
 // out to be. It is the record BOTH sides of the cache speak — Store writes exactly this and
@@ -125,14 +126,14 @@ func Sha(b []byte) string {
 }
 
 // Read returns the cached bytes for a content hash.
-func Read(runDir, sha string) ([]byte, error) { return os.ReadFile(Path(runDir, sha)) }
+func Read(run record.Run, sha string) ([]byte, error) { return os.ReadFile(Path(run, sha)) }
 
 // Lookup returns the cached entry and bytes for url if this run has already fetched it AND
 // the content file is still present. A first match in the index wins (download-once: the first
 // fetch's hash is canonical). A missing content file behind an index line is treated as a
 // miss, so a crash between the content write and the index append self-heals on re-fetch.
-func Lookup(runDir, url string) (e Entry, b []byte, ok bool, err error) {
-	f, err := os.Open(indexPath(runDir))
+func Lookup(run record.Run, url string) (e Entry, b []byte, ok bool, err error) {
+	f, err := os.Open(indexPath(run))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return Entry{}, nil, false, nil // no reads yet this run
@@ -147,7 +148,7 @@ func Lookup(runDir, url string) (e Entry, b []byte, ok bool, err error) {
 		if json.Unmarshal(sc.Bytes(), &got) != nil || got.URL != url {
 			continue
 		}
-		bytes, rerr := Read(runDir, got.Sha)
+		bytes, rerr := Read(run, got.Sha)
 		if rerr != nil {
 			continue // index points at a content file that is gone → treat as a miss
 		}
@@ -160,15 +161,15 @@ func Lookup(runDir, url string) (e Entry, b []byte, ok bool, err error) {
 // caller supplies everything measured about the fetch except the hash; Store fills Sha and
 // returns the completed entry. The content write is atomic (temp + rename) and dedups on the
 // hash; the index line is appended only if that exact line is not already present.
-func Store(runDir string, e Entry, b []byte) (Entry, error) {
-	if err := os.MkdirAll(Dir(runDir), 0o755); err != nil {
+func Store(run record.Run, e Entry, b []byte) (Entry, error) {
+	if err := os.MkdirAll(Dir(run), 0o755); err != nil {
 		return Entry{}, err
 	}
 	e.Sha = Sha(b)
-	if err := writeAtomic(Path(runDir, e.Sha), b); err != nil {
+	if err := writeAtomic(Path(run, e.Sha), b); err != nil {
 		return Entry{}, err
 	}
-	if err := appendIndexIfAbsent(runDir, e); err != nil {
+	if err := appendIndexIfAbsent(run, e); err != nil {
 		return Entry{}, err
 	}
 	return e, nil
@@ -181,16 +182,16 @@ func Store(runDir string, e Entry, b []byte) (Entry, error) {
 // whether it exists at all are FIELDS on the index Entry, and a reader consults those. The
 // suffix exists so a human listing the directory can see which blob is which — and because
 // the alternative, a second content-addressed name, would need its own index to find.
-func TextPath(runDir, sha string) string { return Path(runDir, sha) + ".txt" }
+func TextPath(run record.Run, sha string) string { return Path(run, sha) + ".txt" }
 
 // StoreText writes an extraction beside its source document and returns the extraction's own
 // sha256. It does NOT touch the index — the caller folds the hash into the Entry it stores,
 // so one write produces one record rather than two that can disagree.
-func StoreText(runDir, sourceSha string, text []byte) (string, error) {
-	if err := os.MkdirAll(Dir(runDir), 0o755); err != nil {
+func StoreText(run record.Run, sourceSha string, text []byte) (string, error) {
+	if err := os.MkdirAll(Dir(run), 0o755); err != nil {
 		return "", err
 	}
-	if err := writeAtomic(TextPath(runDir, sourceSha), text); err != nil {
+	if err := writeAtomic(TextPath(run, sourceSha), text); err != nil {
 		return "", err
 	}
 	return Sha(text), nil
@@ -230,12 +231,12 @@ func writeAtomic(dst string, b []byte) error {
 // present. A duplicate line would be harmless (Lookup takes the first match), so the
 // read-then-append is best-effort, not locked: two identical appends still resolve to the
 // same bytes.
-func appendIndexIfAbsent(runDir string, e Entry) error {
+func appendIndexIfAbsent(run record.Run, e Entry) error {
 	entry, err := json.Marshal(e)
 	if err != nil {
 		return err
 	}
-	if existing, err := os.ReadFile(indexPath(runDir)); err == nil {
+	if existing, err := os.ReadFile(indexPath(run)); err == nil {
 		for _, l := range strings.Split(string(existing), "\n") {
 			if l == string(entry) {
 				return nil
@@ -244,7 +245,7 @@ func appendIndexIfAbsent(runDir string, e Entry) error {
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	f, err := os.OpenFile(indexPath(runDir), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
+	f, err := os.OpenFile(indexPath(run), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
 		return err
 	}
@@ -269,8 +270,8 @@ func appendIndexIfAbsent(runDir string, e Entry) error {
 // a perfectly good cached source; what it is not is readable. So the reason travels on the
 // Entry and the fetch succeeds, rather than the whole read failing and a seat concluding the
 // source was unreachable.
-func Resolve(runDir, url string, f Fetcher) (e Entry, b []byte, hit bool, err error) {
-	if got, cached, ok, lerr := Lookup(runDir, url); lerr != nil {
+func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool, err error) {
+	if got, cached, ok, lerr := Lookup(run, url); lerr != nil {
 		return Entry{}, nil, false, lerr
 	} else if ok {
 		return got, cached, true, nil
@@ -282,7 +283,7 @@ func Resolve(runDir, url string, f Fetcher) (e Entry, b []byte, hit bool, err er
 	entry := Entry{URL: url, ContentType: MediaType(resp.ContentType)}
 	entry.Sha = Sha(resp.Body)
 
-	ex := DefaultExtractor.Extract(Dir(runDir), entry.ContentType, resp.Body)
+	ex := DefaultExtractor.Extract(Dir(run), entry.ContentType, resp.Body)
 	entry.Filename = Label(ex.Title, resp.Disposition, url)
 	entry.Pages = ex.Pages
 	if ex.Attempted {
@@ -291,7 +292,7 @@ func Resolve(runDir, url string, f Fetcher) (e Entry, b []byte, hit bool, err er
 		entry.Extractor = ex.ExtractorID
 		entry.OCRDerived = ex.OCRDerived
 		if extracted {
-			textSha, terr := StoreText(runDir, entry.Sha, []byte(ex.Text))
+			textSha, terr := StoreText(run, entry.Sha, []byte(ex.Text))
 			if terr != nil {
 				return Entry{}, nil, false, terr
 			}
@@ -304,7 +305,7 @@ func Resolve(runDir, url string, f Fetcher) (e Entry, b []byte, hit bool, err er
 			entry.TextReason = ex.Reason
 		}
 	}
-	stored, serr := Store(runDir, entry, resp.Body)
+	stored, serr := Store(run, entry, resp.Body)
 	if serr != nil {
 		return Entry{}, nil, false, serr
 	}

@@ -2,6 +2,7 @@ package seat
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -51,7 +52,7 @@ func TestBeginRefusesASeatIdThatContradictsTheDispatch(t *testing.T) {
 	run := recordtest.TmpRun(t)
 	t.Setenv(seatenv.Var, run)
 	t.Setenv(seatenv.AgentVar, "agent_01")
-	if _, _, err := record.RegisterSeat(record.Identity{RunDir: run, SeatID: "blue-respond-r1", Round: 1}, ""); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, run), SeatID: "blue-respond-r1", Round: 1}, ""); err != nil {
 		t.Fatal(err)
 	}
 

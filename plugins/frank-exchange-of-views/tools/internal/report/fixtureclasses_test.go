@@ -2,6 +2,7 @@ package report
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -20,7 +21,7 @@ import (
 func newRun(t *testing.T) string {
 	t.Helper()
 	dir := recordtest.TmpRun(t)
-	if err := record.StageForRun(dir, fixtureClasses...); err != nil {
+	if err := record.StageForRun(runtest.Open(t, dir), fixtureClasses...); err != nil {
 		t.Fatalf("stage the class registry: %v", err)
 	}
 	return dir

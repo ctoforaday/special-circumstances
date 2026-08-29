@@ -29,7 +29,7 @@ import (
 // is the point — deleting it with its old carrier would have dropped a guard over a live defect.
 func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	dir := newRun(t)
-	blue := Identity{RunDir: dir, SeatID: "blue-respond-r1", Round: 1}
+	blue := Identity{Run: mustRun(t, dir), SeatID: "blue-respond-r1", Round: 1}
 	if _, err := Append(blue, &recordpb.Avenue{
 		AvenueId: proto.String("Q1"),
 		Status:   recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
@@ -37,14 +37,14 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	merge := Identity{RunDir: dir, SeatID: "red-merge-r1", Round: 1}
+	merge := Identity{Run: mustRun(t, dir), SeatID: "red-merge-r1", Round: 1}
 	if _, err := Append(merge, &recordpb.InquiryReview{
 		Reason: proto.String("read the lines against the report as it now stands"),
 	}); err != nil {
 		t.Fatal(err)
 	}
 
-	b, err := BoardState(dir)
+	b, err := BoardState(mustRun(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,10 +53,10 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	}
 
 	// Now a LATER seat registers, and does nothing else.
-	if _, _, err := RegisterSeat(Identity{RunDir: dir, SeatID: "judge-r2", Round: 2}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "judge-r2", Round: 2}, ""); err != nil {
 		t.Fatal(err)
 	}
-	b, err = BoardState(dir)
+	b, err = BoardState(mustRun(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,14 +71,14 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 
 	// AND THE DUTY STILL BINDS. A round-2 seat doing real work advances the round, and the
 	// round-1 review no longer answers for it — or this removed the check rather than repairing it.
-	if _, err := Append(Identity{RunDir: dir, SeatID: "blue-respond-r2", Round: 2}, &recordpb.Avenue{
+	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "blue-respond-r2", Round: 2}, &recordpb.Avenue{
 		AvenueId: proto.String("Q2"),
 		Status:   recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
 		Line:     proto.String("another"),
 	}); err != nil {
 		t.Fatal(err)
 	}
-	b, err = BoardState(dir)
+	b, err = BoardState(mustRun(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -352,7 +352,7 @@ func reportPathFrom(in Input) string {
 // moved-but-present anchor is red's semantic-audit job, not this check). readReport reads the
 // report bytes; anchorIDs supplies the EXPECTED set — the union of finding anchors and
 // citation labels (both injected so the logic stays pure and testable).
-func PostDropped(in Input, anchorIDs func(runDir string) ([]string, error), readReport func(path string) (string, error)) ([]string, error) {
+func PostDropped(in Input, anchorIDs func(record.Run) ([]string, error), readReport func(path string) (string, error)) ([]string, error) {
 	if in.AgentType == AuthorAgentType {
 		return nil, nil
 	}
@@ -360,8 +360,14 @@ func PostDropped(in Input, anchorIDs func(runDir string) ([]string, error), read
 	if path == "" {
 		return nil, nil // the call did not touch a report.md → nothing to check
 	}
-	runDir := filepath.Dir(filepath.Dir(path)) // strip /blue/report.md
-	expected, err := anchorIDs(runDir)
+	// DERIVED FROM THE REPORT PATH, which is the only run this hook ever knows about. NewRun
+	// rather than OpenRun: the directory is implied by a file the tool call just touched, so it
+	// exists by construction, and a hook advises rather than gates.
+	run, rerr := record.NewRun(filepath.Dir(filepath.Dir(path))) // strip /blue/report.md
+	if rerr != nil {
+		return nil, rerr
+	}
+	expected, err := anchorIDs(run)
 	if err != nil {
 		return nil, err
 	}
@@ -381,12 +387,12 @@ func PostDropped(in Input, anchorIDs func(runDir string) ([]string, error), read
 // anchors (from `anchor` events) and citation labels (from blue `cite` events), so the
 // backstop catches a dropped anchor of either class. Finding ids (f-…) and citation ids
 // (c-…) never collide, so the concatenation is a clean union.
-func DefaultAnchorIDs(runDir string) ([]string, error) {
-	findings, err := record.AnchorIDs(runDir)
+func DefaultAnchorIDs(run record.Run) ([]string, error) {
+	findings, err := record.AnchorIDs(run)
 	if err != nil {
 		return nil, err
 	}
-	cites, err := record.CitationLabels(runDir)
+	cites, err := record.CitationLabels(run)
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"io"
 	"net"
 	"net/http"
@@ -127,7 +128,7 @@ func TestServeRefusesWhenTheRunIsNotLive(t *testing.T) {
 	runLiveMarker = filepath.Join(dir, "absent-run-live.json")
 	t.Cleanup(func() { runLiveMarker = prev })
 
-	err := serveDashboard(io.Discard, dir, 0, func() string { return "<html></html>" })
+	err := serveDashboard(io.Discard, runtest.Open(t, dir), 0, func() string { return "<html></html>" })
 	if err == nil {
 		t.Fatal("serveDashboard bound a socket for a run that is not live")
 	}
@@ -149,13 +150,13 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 	if err := os.WriteFile(marker, []byte(`{"runs":[{"runDir":"x"}]}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if ended, why := runHasEnded(marker, runDir); ended {
+	if ended, why := runHasEnded(marker, runtest.Open(t, runDir)); ended {
 		t.Fatalf("a live run must not end the watch: %q", why)
 	}
 
 	// The clean end: capture removed the marker.
 	gone := filepath.Join(recordtest.TmpRun(t), "absent.json")
-	ended, why := runHasEnded(gone, runDir)
+	ended, why := runHasEnded(gone, runtest.Open(t, runDir))
 	if !ended || !strings.Contains(why, "marker gone") {
 		t.Errorf("an absent marker is the clean end: ended=%v why=%q", ended, why)
 	}
@@ -167,7 +168,7 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 			Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED),
 			Prose:   proto.String("the run ended without the question being answered"),
 		}))
-	ended, why = runHasEnded(marker, runDir)
+	ended, why = runHasEnded(marker, runtest.Open(t, runDir))
 	if !ended {
 		t.Fatal("a run whose outcome is on the record has ended, whatever the filesystem says")
 	}

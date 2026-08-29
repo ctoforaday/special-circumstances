@@ -37,7 +37,7 @@ func itoaT(i int) string { return string(rune('a' + i%26)) }
 
 func TestLastActivityRefusesARecordWithNoEvents(t *testing.T) {
 	dir := recordtest.TmpRun(t)
-	if _, err := lastActivity(dir); err == nil {
+	if _, err := lastActivity(mustRun(t, dir)); err == nil {
 		t.Fatal("lastActivity returned no error for a run that has recorded nothing — a run that " +
 			"never started and a run that went quiet would then arrive as the same age")
 	}
@@ -46,7 +46,7 @@ func TestLastActivityRefusesARecordWithNoEvents(t *testing.T) {
 func TestLastActivityReadsTheNewestEventsOwnTimestamp(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
 	dir := runWithCadence(t, 8, 30*time.Second, now)
-	a, err := lastActivity(dir)
+	a, err := lastActivity(mustRun(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestLastActivityReadsTheNewestEventsOwnTimestamp(t *testing.T) {
 }
 
 func TestAssessSaysEndedOnceCaptured(t *testing.T) {
-	l := Assess(recordtest.TmpRun(t), time.Now(), true)
+	l := Assess(mustRun(t, recordtest.TmpRun(t)), time.Now(), true)
 	if l.State != StateEnded {
 		t.Errorf("state = %s, want ENDED", l.State)
 	}
@@ -71,7 +71,7 @@ func TestAssessSaysEndedOnceCaptured(t *testing.T) {
 func TestAssessSaysLiveWhileTheRecordIsMoving(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
 	dir := runWithCadence(t, 10, 20*time.Second, now)
-	l := Assess(dir, now.Add(30*time.Second), false)
+	l := Assess(mustRun(t, dir), now.Add(30*time.Second), false)
 	if l.State != StateLive {
 		t.Fatalf("state = %s (%s), want LIVE", l.State, l.Says())
 	}
@@ -85,7 +85,7 @@ func TestAssessSaysLiveWhileTheRecordIsMoving(t *testing.T) {
 func TestAssessSaysStaleWhenTheRecordStopped(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
 	dir := runWithCadence(t, 10, 20*time.Second, now)
-	l := Assess(dir, now.Add(41*time.Minute), false)
+	l := Assess(mustRun(t, dir), now.Add(41*time.Minute), false)
 	if l.State != StateStale {
 		t.Fatalf("state = %s, want STALE — a run silent for 41 minutes at a 20s cadence is not live", l.State)
 	}
@@ -108,7 +108,7 @@ func TestAssessSaysStaleWhenTheRecordStopped(t *testing.T) {
 func TestAssessSaysNotMeasuredRatherThanGuessing(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
 	dir := runWithCadence(t, 3, time.Minute, now)
-	l := Assess(dir, now.Add(2*time.Hour), false)
+	l := Assess(mustRun(t, dir), now.Add(2*time.Hour), false)
 	if l.State != StateUnmeasured {
 		t.Fatalf("state = %s, want NOT MEASURED with only 3 events", l.State)
 	}
@@ -123,8 +123,8 @@ func TestAssessSaysNotMeasuredRatherThanGuessing(t *testing.T) {
 // THE THRESHOLD IS DERIVED, NOT A CONSTANT — a slow run must not be called dead for being slow.
 func TestThresholdFollowsTheRunsOwnCadence(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
-	slow := Assess(runWithCadence(t, 10, 8*time.Minute, now), now.Add(time.Minute), false)
-	fast := Assess(runWithCadence(t, 10, 5*time.Second, now), now.Add(time.Minute), false)
+	slow := Assess(mustRun(t, runWithCadence(t, 10, 8*time.Minute, now)), now.Add(time.Minute), false)
+	fast := Assess(mustRun(t, runWithCadence(t, 10, 5*time.Second, now)), now.Add(time.Minute), false)
 	if slow.Threshold <= fast.Threshold {
 		t.Errorf("a run writing every 8m got threshold %s, one writing every 5s got %s — the "+
 			"threshold is not following the cadence", slow.Threshold, fast.Threshold)

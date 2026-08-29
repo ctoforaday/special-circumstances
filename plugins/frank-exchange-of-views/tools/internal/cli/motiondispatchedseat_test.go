@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"strings"
 	"testing"
 
@@ -27,7 +28,7 @@ func TestAMotionRequiresASeatTheEngineCreated(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	board := seatprobe.Boards()["docket"]
 	exec := func(args ...string) (string, error) { return run(t, args...) }
-	if err := seatprobe.Build(runDir, board, exec); err != nil {
+	if err := seatprobe.Build(runtest.Open(t, runDir), board, exec); err != nil {
 		t.Fatal(err)
 	}
 

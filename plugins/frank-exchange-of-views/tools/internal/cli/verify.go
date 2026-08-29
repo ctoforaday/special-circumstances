@@ -39,8 +39,7 @@ func newVerify() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			runDir := run.Dir()
-			board, err := record.BoardState(runDir)
+			board, err := record.BoardState(run)
 			if err != nil {
 				return fmt.Errorf("verify: %w", err)
 			}

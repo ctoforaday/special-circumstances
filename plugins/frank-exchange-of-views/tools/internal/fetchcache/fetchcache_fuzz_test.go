@@ -1,6 +1,7 @@
 package fetchcache
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"testing"
 	"unicode/utf8"
 )
@@ -24,7 +25,7 @@ func FuzzStoreRoundTrips(f *testing.F) {
 		}
 		run := t.TempDir()
 
-		stored, err := Store(run, Entry{URL: url}, body)
+		stored, err := Store(runtest.Open(t, run), Entry{URL: url}, body)
 		if err != nil {
 			t.Fatalf("Store: %v", err)
 		}
@@ -33,12 +34,12 @@ func FuzzStoreRoundTrips(f *testing.F) {
 		}
 
 		// Dedup: storing the same bytes again yields the same hash and no error.
-		if again, err := Store(run, Entry{URL: url}, body); err != nil || again.Sha != stored.Sha {
+		if again, err := Store(runtest.Open(t, run), Entry{URL: url}, body); err != nil || again.Sha != stored.Sha {
 			t.Fatalf("re-Store: sha=%s err=%v, want stable %s", again.Sha, err, stored.Sha)
 		}
 
 		// Round-trip: Lookup returns the exact bytes under this URL.
-		got, gotBody, ok, err := Lookup(run, url)
+		got, gotBody, ok, err := Lookup(runtest.Open(t, run), url)
 		if err != nil {
 			t.Fatalf("Lookup: %v", err)
 		}

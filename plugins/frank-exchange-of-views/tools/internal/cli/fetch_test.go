@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // errFake is the canned failure the offline Fetcher returns when a test drives the
@@ -78,7 +79,7 @@ func TestFetchNeverPrintsTheBodyAndCachesForReuse(t *testing.T) {
 	}
 	// And it must still say where the body IS, or the seat has lost the source entirely.
 	sha := fetchcache.Sha([]byte(body))
-	if !strings.Contains(out, fetchcache.Path(dir, sha)) {
+	if !strings.Contains(out, fetchcache.Path(runtest.Open(t, dir), sha)) {
 		t.Errorf("summary does not name the cache path; a seat cannot read what it cannot locate. got:\n%s", out)
 	}
 	if !strings.Contains(out, "content_type: text/html") {
@@ -195,7 +196,7 @@ func TestAnEmptyExtractionWritesNoFileAndStatesWhy(t *testing.T) {
 	if got.TextPath != "" {
 		t.Errorf("text_path = %q for an empty extraction; it must name nothing", got.TextPath)
 	}
-	if _, statErr := os.Stat(fetchcache.TextPath(dir, got.Sha256)); !os.IsNotExist(statErr) {
+	if _, statErr := os.Stat(fetchcache.TextPath(runtest.Open(t, dir), got.Sha256)); !os.IsNotExist(statErr) {
 		t.Errorf("an empty .txt was written; it is indistinguishable from a successful empty extraction (stat err: %v)", statErr)
 	}
 }

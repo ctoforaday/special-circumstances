@@ -34,7 +34,7 @@ func TestConcurrentSeatsRace(t *testing.T) {
 		go func(s int) {
 			defer wg.Done()
 			seatID := fmt.Sprintf("red-lens-r1-L%d", s)
-			if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, ""); err != nil {
+			if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID, Round: RoundIn(mustRun(t, runDir))(seatID)}, ""); err != nil {
 				errs <- err
 				return
 			}
@@ -46,13 +46,13 @@ func TestConcurrentSeatsRace(t *testing.T) {
 					Impact:     recordtest.P(recordpb.Grade_GRADE_HIGH),
 					Text:       proto.String(strings.Repeat("finding prose ", 20)),
 				}
-				if _, err := Append(Identity{RunDir: runDir, SeatID: seatID, Round: RoundIn(runDir)(seatID)}, f); err != nil {
+				if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seatID, Round: RoundIn(mustRun(t, runDir))(seatID)}, f); err != nil {
 					errs <- err
 					continue
 				}
 				// A concurrent READER (the replay every projection now runs on demand)
 				// racing the appenders: no write may be lost to a racing read.
-				if _, err := BoardState(runDir); err != nil {
+				if _, err := BoardState(mustRun(t, runDir)); err != nil {
 					errs <- err
 				}
 			}
@@ -68,7 +68,7 @@ func TestConcurrentSeatsRace(t *testing.T) {
 	// whether a TRANSACTION did, which is the same question against the mechanism that replaced
 	// the one the test was written for — and a stronger one, because the writers share a file
 	// rather than each owning their own.
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	// An empty lock file for the per-seat pointer lock an append acquires, as a crashed
@@ -122,13 +122,13 @@ func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := time.Now()
-	if _, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("over an abandoned lock")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("over an abandoned lock")}); err != nil {
 		t.Fatalf("append over an abandoned lock file: %v", err)
 	}
 	if elapsed := time.Since(start); elapsed > lockWait {
 		t.Errorf("append waited %v on an unheld lock — the bounded wait was served instead of acquiring", elapsed)
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

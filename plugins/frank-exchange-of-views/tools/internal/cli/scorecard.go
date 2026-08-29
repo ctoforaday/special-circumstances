@@ -53,7 +53,7 @@ func newScorecard() *cobra.Command {
 			// A run with no record yet (BoardState errors) leaves board nil — the record-derived
 			// rows then read "needs the tool", exactly as the JS did when the view spawn failed.
 			var board *record.Board
-			if b, err := record.BoardState(run.Dir()); err == nil {
+			if b, err := record.BoardState(run); err == nil {
 				board = b
 			}
 			rows := scorecard.Compute(run, scorecard.ReadResults(run), board)[chair]
