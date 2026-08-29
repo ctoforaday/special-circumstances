@@ -66,6 +66,18 @@ import (
 // that is deliberate: the defect class this tool exists for is a green check that never looked,
 // so a stackguard which cannot reach git or the API must not resemble a stackguard that looked
 // and found nothing.
+//
+// 1 AND 2 ARE THE SAME CODE IN CI, AND NOTHING HERE DEPENDS ON THEM NOT BEING. The workflow
+// invokes this with `go run`, which collapses every non-zero exit to 1 — measured, and already
+// known to this repository: scripts/check BUILDS tool gates rather than `go run`ing them for
+// exactly this reason, and says so at check/main.go's kindTool branch. So `check` sees the real
+// code and CI sees 1 either way.
+//
+// That costs nothing HERE because both codes must fail the job: a stranded stack and an
+// unanswerable question are both "do not merge". The distinction is for the reader of the
+// output, which is why the reason is always printed rather than encoded in the status. A tool
+// whose exit codes carried a meaning CI could not observe would be this repository's own
+// [[facts-are-fields]] defect wearing a status code.
 const (
 	exitClean = 0
 	exitFound = 1
