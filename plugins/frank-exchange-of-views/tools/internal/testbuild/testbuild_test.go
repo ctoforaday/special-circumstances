@@ -10,6 +10,10 @@ import (
 	"testing"
 )
 
+// This package builds too, so it owes the same cleanup its consumers do — and it was one of
+// the five directories the leak measurement found.
+func TestMain(m *testing.M) { Main(m) }
+
 // The binary must actually RUN, which is the assertion the .exe divergence needed and did
 // not have. A builder that produced an unstartable file passed every test that only checked
 // `go build` exited 0 — and on Windows that is exactly what an extensionless -o produces.

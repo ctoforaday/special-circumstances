@@ -214,6 +214,17 @@ func TestEveryPublishedPlatformCompiles(t *testing.T) {
 			if _, err := os.Stat(outPath); err != nil {
 				t.Errorf("%s/%s built but produced no file at the contracted name %q",
 					goos, goarch, filepath.Base(outPath))
+				continue
+			}
+			// ONE BINARY ON DISK AT A TIME, NOT SIXTY-SIX. The question this test asks is
+			// answered the moment the file exists under its contracted name; keeping it
+			// afterwards buys nothing and costs the peak. Eleven commands times six platforms,
+			// unstripped and all held at once, put this module's TMPDIR at 243 MB (sampled at
+			// 2s, so a floor) — and TMPDIR is a 2 GB tmpfs in CI, which hooks.yml points at
+			// /dev/shm/tmp, so that peak is RAM there. The TempDir still sweeps whatever a
+			// failure leaves behind.
+			if err := os.Remove(outPath); err != nil {
+				t.Errorf("removing the probe binary for %s/%s: %v", goos, goarch, err)
 			}
 		}
 	}
