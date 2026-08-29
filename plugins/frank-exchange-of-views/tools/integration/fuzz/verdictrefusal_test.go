@@ -5,26 +5,26 @@ import (
 	"testing"
 )
 
-// A DEBATE THAT SETTLES FULFILLED WITHOUT A VERDICT MUST BE A FAILURE, NOT A MAP KEY.
+// THE GOJA-LEVEL HALF OF #639's REFUSAL, WHICH ITS OWN TESTS DO NOT REACH.
 //
-// Both reads off the result map were `if v, ok := ...; ok {}` with no else, so a fulfilment
-// this side could not read left `result` nil and `settledErr` empty, and runOne recorded a
-// PASSING run whose verdict was "". The sweep's tally then carried that "" next to the empty
-// verdicts of genuinely failed runs — `verdicts=map[:29 CEILING:8 VERIFIED:3]` in #637 — with
-// nothing in the line able to say which kind it had counted.
+// `readVerdict` is covered thoroughly by TestReadVerdictRefusesAResultThatCarriesNoVerdict, and
+// that is the right level for the map it inspects. But driveDebate has a SEPARATE refusal one
+// layer down — a promise that fulfils with something that is not an object at all — and nothing
+// drives it. It is the branch that produced the shape #637 measured: an unreadable fulfilment
+// left `result` nil AND `settledErr` empty, so every caller read it as a run that succeeded and
+// reported nothing, which is byte-identical to a genuinely failed run's empty verdict key.
 //
-// These drive driveDebate directly: no seat is dispatched, so no binary is needed and the
-// whole file runs in milliseconds. The point is the refusal, which is otherwise a branch
-// nothing executes until the next incident.
+// Reaching it needs the real event loop, so these drive driveDebate itself. No seat is
+// dispatched, so no binary is needed and the whole file runs in milliseconds.
 func TestDriveDebateRefusesAFulfilmentItCannotRead(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		wrapped string
 		want    string
 	}{
-		{"a number", `globalThis.__result = Promise.resolve(42);`, "non-object result"},
-		{"a string", `globalThis.__result = Promise.resolve("done");`, "non-object result"},
-		{"null", `globalThis.__result = Promise.resolve(null);`, "non-object result"},
+		{"a number", `globalThis.__result = Promise.resolve(42);`, "not an object"},
+		{"a string", `globalThis.__result = Promise.resolve("done");`, "not an object"},
+		{"null", `globalThis.__result = Promise.resolve(null);`, "not an object"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			r := &runner{runDir: t.TempDir(), rng: newLockedRand(1), registered: map[string]bool{}}
