@@ -1686,9 +1686,19 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 		case goja.PromiseStatePending:
 			settledErr = "debate never settled (hang)"
 		case goja.PromiseStateFulfilled:
-			if m, ok := pr.Result().Export().(map[string]any); ok {
-				result = m
+			// A FULFILMENT THIS SIDE CANNOT READ IS NOT A DEBATE THAT REPORTED NOTHING.
+			// The type assertion used to be `if m, ok := ...; ok { result = m }`, so a
+			// fulfilment exporting to anything but a map left result nil AND settledErr
+			// empty. runOne then read `result["verdict"]` off a nil map, got "" with no
+			// error, and the sweep tallied a PASSING run with an empty verdict — the same
+			// map key a genuinely failed run contributes. #637's `verdicts=map[:29 ...]`
+			// is unreadable for exactly that reason: the tally cannot say which it saw.
+			m, ok := pr.Result().Export().(map[string]any)
+			if !ok {
+				settledErr = "debate fulfilled with a non-object result: " + truncate(pr.Result().String())
+				return
 			}
+			result = m
 		}
 	})
 	<-read
@@ -1743,12 +1753,24 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		res.err = settledErr
 		return res
 	}
-	if s, ok := result["verdict"].(string); ok {
-		res.verdict = s
+	// THE SWEEP REFUSES A VERDICT-LESS RUN RATHER THAN TALLYING ONE. Both reads below were
+	// `if ok {}` with no else, so a result missing either field produced the zero value and no
+	// error: verdict "" joined the histogram as if it were a terminal state, and rounds 0 joined
+	// the round histogram as if the debate had run no rounds. A settled debate has both; a run
+	// that has neither is a failure, and it now says so in the failure list where its cause can
+	// be read, instead of appearing as a bare key in a map (#637, [[facts-are-fields]] clause 3).
+	s, ok := result["verdict"].(string)
+	if !ok || s == "" {
+		res.err = "the debate settled FULFILLED but reported no verdict — the result map carries no usable `verdict`"
+		return res
 	}
-	if n, ok := result["rounds"].(int64); ok {
-		res.rounds = int(n)
+	res.verdict = s
+	n, ok := result["rounds"].(int64)
+	if !ok || n <= 0 {
+		res.err = fmt.Sprintf("the debate settled FULFILLED with verdict %s but reported no round count", s)
+		return res
 	}
+	res.rounds = int(n)
 	// Oracle #111 (map-free): both tiers were configured haiku, so every dispatched seat must have
 	// carried model "haiku" — none unset, none on another tier. This needs no bulk-seat list; the
 	// SEAT_CLASS<->dispatch binding is proved separately by debate-dispatch.test.mjs.
