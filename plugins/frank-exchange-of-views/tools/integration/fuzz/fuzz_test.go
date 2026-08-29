@@ -1686,13 +1686,69 @@ func driveDebate(r *runner, wrapped string) (result map[string]any, settledErr s
 		case goja.PromiseStatePending:
 			settledErr = "debate never settled (hang)"
 		case goja.PromiseStateFulfilled:
-			if m, ok := pr.Result().Export().(map[string]any); ok {
-				result = m
+			m, ok := pr.Result().Export().(map[string]any)
+			if !ok {
+				// A FULFILLED PROMISE THAT IS NOT AN OBJECT IS NOT A SETTLED DEBATE. The old
+				// form left `result` nil and `settledErr` empty, which every caller reads as
+				// "the run succeeded" — and the verdict then goes missing downstream instead of
+				// here, where the actual value is still in hand to name.
+				settledErr = fmt.Sprintf("debate fulfilled with %T, not an object: %s",
+					pr.Result().Export(), truncate(pr.Result().String()))
+				return
 			}
+			result = m
 		}
 	})
 	<-read
 	return result, settledErr
+}
+
+// readVerdict pulls the terminal verdict out of debate.js's settled result, and REFUSES a
+// result that does not carry one.
+//
+// THE ABSENCE OF A VERDICT IS A FAILURE, NEVER A CATEGORY (#637). debate.js computes
+//
+//	const verdict = halted ? 'HALTED' : redEnv && redEnv.verdict === 'PASS' ? 'VERIFIED'
+//	              : ceilingUnaudited ? 'CEILING' : 'UNVERIFIED'
+//
+// and returns it on every path it can reach, so the value is always one of four non-empty
+// strings. A missing or non-string verdict therefore means THIS side failed to read the
+// result — it never means the debate reached a nameless outcome.
+//
+// Tolerated, that miss reached the sweep's tally as `verdicts[""]++`, which counts exactly
+// like a real verdict and is not one: the run that opened #637 recorded
+// `verdicts=map[:29 CEILING:8 VERIFIED:3]`, 29 of 40 runs settling into a key no reader can
+// distinguish from an outcome. That is the plausible zero [[facts-are-fields]] clause 3
+// forbids — and worse than a bare zero, because the sweep's own coverage gates then pass over
+// a distribution whose largest bucket means "we did not look".
+//
+// The error names the value AND the keys that were present, because "no verdict" alone does
+// not separate a result that arrived empty from one that arrived with a different shape.
+func readVerdict(result map[string]any) (string, error) {
+	raw, present := result["verdict"]
+	if !present {
+		return "", fmt.Errorf("debate settled with no verdict: result has no %q key (keys present: %v)",
+			"verdict", sortedKeys(result))
+	}
+	s, ok := raw.(string)
+	if !ok {
+		return "", fmt.Errorf("debate settled with a non-string verdict: %#v (%T)", raw, raw)
+	}
+	if s == "" {
+		return "", fmt.Errorf("debate settled with an EMPTY verdict string (keys present: %v)", sortedKeys(result))
+	}
+	return s, nil
+}
+
+// sortedKeys renders a result's keys in a stable order, so two failures of the same shape
+// produce the same message and can be told apart from two different shapes.
+func sortedKeys(m map[string]any) []string {
+	ks := make([]string, 0, len(m))
+	for k := range m {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	return ks
 }
 
 // unverifiedSeed is the one seed in the sweep whose run is FORCED to the UNVERIFIED terminal
@@ -1743,9 +1799,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		res.err = settledErr
 		return res
 	}
-	if s, ok := result["verdict"].(string); ok {
-		res.verdict = s
+	verdict, verr := readVerdict(result)
+	if verr != nil {
+		res.err = verr.Error()
+		return res
 	}
+	res.verdict = verdict
 	if n, ok := result["rounds"].(int64); ok {
 		res.rounds = int(n)
 	}
@@ -3451,5 +3510,87 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	// reached the same word down some other path would satisfy the test and teach nothing.
 	if ended != "deadlock" {
 		t.Fatalf("outcome ended %q, expected deadlock — UNVERIFIED was reached, but not by the path this drives", ended)
+	}
+}
+
+// THE GUARD THAT WOULD HAVE NAMED #637's 29 RUNS. Every case below reached the sweep's
+// distribution as `verdicts[""]++` before this change — a bucket that counts like a verdict,
+// sorts like a verdict, and satisfies a coverage gate like a verdict, while meaning "this side
+// could not read the result".
+//
+// The gate is on readVerdict rather than on a driven debate deliberately: the miss is a
+// PROPERTY OF THE READ, not of any particular run, and a test that had to reproduce the
+// upstream conditions would be exactly as unreliable as the symptom it chases.
+func TestReadVerdictRefusesAResultThatCarriesNoVerdict(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		result  map[string]any
+		wantErr string // a substring the message must carry
+	}{
+		{
+			// The measured shape: driveDebate returned (nil, "") because the promise fulfilled
+			// with something that was not an object, and every caller read that as success.
+			name:    "a nil result is not a settled debate",
+			result:  nil,
+			wantErr: "no verdict",
+		},
+		{
+			name:    "a result carrying other keys but no verdict",
+			result:  map[string]any{"rounds": int64(3), "runDir": "/tmp/x"},
+			wantErr: "no verdict",
+		},
+		{
+			name:    "a verdict that is not a string",
+			result:  map[string]any{"verdict": 7},
+			wantErr: "non-string verdict",
+		},
+		{
+			name:    "an explicitly empty verdict",
+			result:  map[string]any{"verdict": ""},
+			wantErr: "EMPTY verdict",
+		},
+	} {
+		got, err := readVerdict(tc.result)
+		if err == nil {
+			t.Errorf("%s: readVerdict returned %q and NO error — the miss is still indistinguishable "+
+				"from a terminal verdict", tc.name, got)
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.wantErr) {
+			t.Errorf("%s: error = %q, want it to mention %q", tc.name, err, tc.wantErr)
+		}
+		if got != "" {
+			t.Errorf("%s: readVerdict returned %q alongside an error; a refused read yields nothing", tc.name, got)
+		}
+	}
+}
+
+// AND THE FOUR REAL VERDICTS STILL PASS. debate.js computes exactly these; a guard that also
+// rejected one of them would turn a working sweep red and be indistinguishable, from the
+// outside, from the bug it replaced.
+func TestReadVerdictAcceptsEveryVerdictDebateJSComputes(t *testing.T) {
+	for _, want := range []string{"HALTED", "VERIFIED", "CEILING", "UNVERIFIED"} {
+		got, err := readVerdict(map[string]any{"verdict": want, "rounds": int64(1)})
+		if err != nil {
+			t.Errorf("readVerdict rejected %q, which debate.js line 1166 can produce: %v", want, err)
+		}
+		if got != want {
+			t.Errorf("readVerdict(%q) = %q", want, got)
+		}
+	}
+}
+
+// The keys are named in the failure, and named STABLY — two failures of one shape must produce
+// one message, or a reader cannot tell a recurring defect from a family of them.
+func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
+	m := map[string]any{"runDir": "", "verdict": "", "rounds": 0, "lanes": 0, "deadlocked": false}
+	first := fmt.Sprint(sortedKeys(m))
+	for i := 0; i < 50; i++ {
+		if got := fmt.Sprint(sortedKeys(m)); got != first {
+			t.Fatalf("sortedKeys is order-dependent: %s vs %s", got, first)
+		}
+	}
+	if first != "[deadlocked lanes rounds runDir verdict]" {
+		t.Errorf("sortedKeys = %s, want sorted order", first)
 	}
 }
