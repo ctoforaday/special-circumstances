@@ -561,6 +561,11 @@ jobs:
             echo "::error::the run-handle race guard did not run; -run matched no test (renamed or deleted?)"
             exit 1
           }
+        # EXPLICIT, because this job sets no default shell and the Windows leg therefore runs
+        # pwsh — where `$(...)`, `<<<` and `grep` are not syntax. The single-line form this
+        # replaced ran on Windows by accident: pwsh could execute a bare `go test` line, so the
+        # shell question never came up until the assertion made the step a script.
+        shell: bash
         env:
           CGO_ENABLED: "1"
 
