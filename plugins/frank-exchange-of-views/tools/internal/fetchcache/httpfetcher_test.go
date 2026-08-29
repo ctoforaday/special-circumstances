@@ -39,12 +39,12 @@ func TestHTTPFetcherReturnsBodyUnderCap(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	b, err := NewHTTPFetcher().Fetch(srv.URL)
+	resp, err := NewHTTPFetcher().Fetch(srv.URL)
 	if err != nil {
 		t.Fatalf("Fetch under cap: %v", err)
 	}
-	if string(b) != "small source" {
-		t.Errorf("body = %q, want %q", b, "small source")
+	if string(resp.Body) != "small source" {
+		t.Errorf("body = %q, want %q", resp.Body, "small source")
 	}
 }
 
