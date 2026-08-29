@@ -548,7 +548,19 @@ jobs:
       # before a sibling seat arrives. TestTheRunHandleIsImmutableAfterConstruction forces it
       # in ~1s. Racing the whole package would cost minutes to re-check what -race already
       # covers elsewhere; racing nothing leaves that test unable to fail.
-      - run: go test -race -run TestTheRunHandleIsImmutableAfterConstruction ./integration/fuzz/
+      #
+      # THE PASS IS ASSERTED, NOT INFERRED FROM THE EXIT CODE. `go test -run <name>` exits 0
+      # when the pattern matches NOTHING — it prints "ok ... [no tests to run]" — so a renamed
+      # or deleted test would leave this step green forever while guarding nothing. That is the
+      # plausible zero this leg exists to refuse, so the step greps for the test's own PASS line
+      # and fails loudly when it is absent.
+      - run: |
+          out=$(go test -race -v -run '^TestTheRunHandleIsImmutableAfterConstruction$' ./integration/fuzz/ 2>&1)
+          echo "$out"
+          grep -q '^--- PASS: TestTheRunHandleIsImmutableAfterConstruction' <<<"$out" || {
+            echo "::error::the run-handle race guard did not run; -run matched no test (renamed or deleted?)"
+            exit 1
+          }
         env:
           CGO_ENABLED: "1"
 
