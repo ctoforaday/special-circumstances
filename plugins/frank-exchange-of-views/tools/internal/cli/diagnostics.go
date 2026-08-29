@@ -69,17 +69,16 @@ func newShowDiagnostics() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			runDir := run.Dir()
 			traj := trajectory
 			if traj == "" {
-				traj = inferTrajectory(runDir)
+				traj = inferTrajectory(run)
 			}
 			if traj == "" {
 				return feov.Errorf(feov.NotFound,
 					"show diagnostics: no trajectory found for %s, and it is what carries the help a seat RECEIVED — "+
-						"the record says what a seat wrote, never what it was shown. Pass --trajectory <path>", runDir)
+						"the record says what a seat wrote, never what it was shown. Pass --trajectory <path>", run.Dir())
 			}
-			report, err := diagnose(runDir, traj, sitting)
+			report, err := diagnose(run, traj, sitting)
 			if err != nil {
 				return err
 			}
@@ -153,7 +152,7 @@ type SeatDiagnostic struct {
 
 // RunDiagnostic is the whole run's answer.
 type RunDiagnostic struct {
-	RunDir     string           `json:"runDir"`
+	RunDir     string           `json:"run.Dir()"`
 	Trajectory string           `json:"trajectory"`
 	Seats      []SeatDiagnostic `json:"seats"`
 }
@@ -168,9 +167,9 @@ func toolName() string {
 	return filepath.Base(exe)
 }
 
-func diagnose(runDir, traj, seatID string) (RunDiagnostic, error) {
-	out := RunDiagnostic{RunDir: runDir, Trajectory: traj}
-	m, err := record.MergedEvents(runDir)
+func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
+	out := RunDiagnostic{RunDir: run.Dir(), Trajectory: traj}
+	m, err := record.MergedEvents(run)
 	if err != nil {
 		return out, err
 	}
@@ -329,12 +328,12 @@ func keys(m map[string]bool) []string {
 
 // inferTrajectory looks where a probe puts one, then where a run does. Empty when neither is
 // there — a MISSING trajectory must refuse rather than report a run in which no seat saw anything.
-func inferTrajectory(runDir string) string {
-	probe := filepath.Join(filepath.Dir(runDir), ".probe", filepath.Base(runDir)+".jsonl")
+func inferTrajectory(run record.Run) string {
+	probe := filepath.Join(filepath.Dir(run.Dir()), ".probe", filepath.Base(run.Dir())+".jsonl")
 	if st, err := os.Stat(probe); err == nil && !st.IsDir() {
 		return probe
 	}
-	inRun := filepath.Join(runDir, "trajectories", "journal.jsonl")
+	inRun := filepath.Join(run.Dir(), "trajectories", "journal.jsonl")
 	if st, err := os.Stat(inRun); err == nil && !st.IsDir() {
 		return inRun
 	}

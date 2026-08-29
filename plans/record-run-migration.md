@@ -1,8 +1,15 @@
 # record.Run — migrating 43 functions off `runDir string`
 
-Status: **in progress.** The type exists and one caller-side package (`cli/seat`) has moved.
-This file is the thread, because the change spans more pull requests than one context holds
-and a PR boundary is not a completion boundary.
+Status: **landed**, across #612, #621, #631 and #633, with §III naming the four signatures that
+keep a string on purpose. This file is the thread, because the change spanned more pull requests
+than one context holds and a PR boundary is not a completion boundary.
+
+**#633 did not reach `main` on its first merge, and the failure is worth keeping.** It was
+stacked on #631's branch `record-run-read-leaves`. #631 merged to `main` at 17:00; #633 merged
+at 19:47 INTO that branch, which by then was already merged and stale — so GitHub marked #633
+MERGED and `main` never received a line of it. A stacked pull request whose base branch is
+merged but not DELETED is not retargeted; the second merge lands somewhere nobody reads. The
+tell is cheap and nothing checked it: `git merge-base --is-ancestor <merge-commit> origin/main`.
 
 ## I. What the type is for
 
@@ -109,43 +116,115 @@ that test exists to cover. Wrapping it in a resolver would have fataled the fixt
 its own subject; it became `record.Run{}`. The script had no way to tell that argument from the
 53 others, and it surfaced only because the compiler stopped there.
 
+### `internal/record` itself (fourth step)
+
+77 signatures, plus the packages that call them and every test call site. `Identity` carries a
+`Run` instead of a `RunDir string`.
+
+**The defect it surfaced: `RegisterSeat` guarded that the run directory exists; `Append` never
+did.** So `Identity{RunDir: ""}` reaching `Append` resolved `""` through `filepath.Abs("")` to
+the WORKING DIRECTORY and wrote the event into `<cwd>/records` — the "second blackboard beside
+the real run, and reported success" incident that `RegisterSeat`'s own refusal text describes,
+still live on the write path. And `""` was reachable: `seat.Context.Identity()` read `c.runDir`,
+which is empty exactly when the run was REFUSED, and five verbs call `.Identity()` without
+resolving first. A `Run` cannot hold the empty string, so the state stops existing; `Append`
+asserts `Valid()` anyway, because a zero `Run` can still arrive from a struct literal.
+
+### CACHING THE RESOLUTION IS THE PART THAT NEEDED CARE, AND IT BROKE TWO THINGS
+
+The type's premise — resolve once, at construction — is sound only while the INPUTS to that
+resolution hold still. Twice they do not, and both were caught by tests rather than by review:
+
+1. **The separation marker appears mid-flow.** The seat probe separates a run by letting the
+   FIRST `register` subprocess adopt a root and write the marker, so the marker arrives AFTER
+   the caller's handle was made. A handle resolved before it carries `<run>/records`, and
+   `StageForRun` then wrote the class registry where the tool would never read — "no gap-class
+   registry is staged" on every board, and `records/` left inside the run. `seatprobe.Build`'s
+   own comment already warned that this ordering is load-bearing; caching the resolution made it
+   load-bearing a second time, in a way ordering could no longer protect. `StageForRun`
+   re-resolves deliberately and says why — it is the one function that straddles the moment
+   separation is established.
+2. **A root deleted after the handle was made.** Resolution moving to construction meant a
+   SEPARATED run whose root vanished afterwards read as an honest empty board. `dashboard
+   --watch` holds a handle across regenerations, so the window is real. `Run` now carries
+   `separated`, and `openRunForRead` re-checks that case — the one place where a missing record
+   directory means a lie rather than a fresh run.
+
+3. **The cache itself became shared state.** Found when #633 was re-merged onto a `main` that
+   had since taken #630 phase 3, which made the fuzz's seats concurrent. The fuzz runner
+   resolved its handle LAZILY — `if !r.runHandle.Valid() { r.runHandle, _ = NewRun(...) }` —
+   which was single-threaded when written and races once `envelopeFor` runs on a goroutine per
+   seat without holding `r.mu`. Neither branch was wrong alone; the defect exists only in the
+   merge, so no test on either side could have caught it. The runner resolves in its constructor
+   now, and `runHandle` is the one field the mutex does not guard BECAUSE it is never written
+   again.
+
+   **The null run is the part worth keeping, because the first one FAILED TO REPRODUCE.** The
+   lazy version under `-race` through two full debate runs reported no race at all. That is not
+   evidence of safety and was nearly read as such: the window is narrow — the first seat to
+   arrive writes before its siblings read — so the fuzz's own scheduling is not a detector for
+   it. Eight goroutines calling `run()` with nothing else to do reproduced it immediately (read
+   at the `Valid()` guard, write on the next line), and the same probe is clean against the
+   constructor version. `TestTheRunHandleIsImmutableAfterConstruction` is that probe, and
+   `hooks.yml` runs THAT ONE TEST on the race leg — the feov module races only
+   `./internal/record/`, so left out it would have been a guard that cannot fire.
+
+**The general rule, which the plan did not have before:** a cached resolution is a snapshot.
+Where the thing resolved can change under it — a marker written by a subprocess, a root deleted
+by an operator, an environment that differs across a process boundary — the read must re-resolve
+or re-check, and must say which it is doing. And where the cache is filled LAZILY, the snapshot
+is taken at a moment the caller does not control, on whichever goroutine arrives first: prefer
+resolving at construction, where the timing is stated and the field can be immutable.
+
+### Two more the mechanical pass could not see
+
+- **Function TYPES.** `flags.Checker` and a table of minters in `idnamespace_test` are function
+  types; Go requires exact parameter identity, so no call-site rewriting reaches them. The three
+  flag validators keep `runDir string` because `flags` cannot import `record` (the reverse edge
+  exists) and resolve at entry instead — the refusal is gained even though the parameter was not.
+- **Fixtures whose paths are deliberately not on disk.** `HarvestClasses` and
+  `HarvestPrecedents` take only `slugOf(run)`, and their fixtures pass synthetic paths like
+  `/runs/run-alpha`. Resolving those with the existence check fatals the fixture on its own
+  subject — the same shape as `blueRows("")`. They use the non-checking constructor.
+
+### What the tooling got wrong, since the tooling is the method here
+
+- Driving a fixer off `go vet` reports only the FIRST type error per package, so "4 errors"
+  meant four PACKAGES and every fix revealed the next one behind it. `go test -c -gcflags=-e`
+  gives them all; the flat count had looked like a plateau for ten passes.
+- The fixer matched `variable of type string` but not `value of type string`, so every
+  `t.TempDir()` argument was invisible to it and reappeared each pass untouched.
+- It wrapped arguments in scopes with no `*testing.T`, producing `undefined: t`.
+- It compared source text to the compiler's NORMALISED echo (`20 * time.Second` vs
+  `20*time.Second`), silently declining twelve matches while reporting "skipped 8". **A tool that
+  counts only the refusals it anticipated reports a plausible zero for the rest** — which is the
+  defect class this whole workstream exists to remove, reproduced in the instrument.
+- An argument splitter that understood `"` but not backticks mis-parsed a raw string containing
+  `{`, ate a paren and mangled a function's closing braces. Found by running `gofmt -e` over
+  every touched file, not by the compiler, which had stopped earlier for another reason.
+
 ## III. Remaining
 
-**`internal/record` itself is the whole of what is left**, and it is ONE step rather than a
-series. Everything above it now holds a handle and converts at the boundary; nothing else can
-be peeled off.
+**The migration is done, and what is left is named rather than implied.** Every package above
+`record` holds a handle, `record` itself takes one, and `Identity` carries a `Run`. Four
+signatures keep a `runDir string` ON PURPOSE, and each has a reason that is not "not yet":
 
-**The plan's original claim — that the unexported functions would move "last and nearly for
-free" once every exported entry point held a `Run` — was wrong, and the third step disproved
-it.** It assumed migration flows inward from callers. It does not. `MergedEvents` is the ROOT
-of record's internal call graph, with `BoardState` and 19 board readers directly on top of it,
-so its signature cannot move without taking the package with it. Measured: changing
-`MergedEvents` alone produced compile errors in 19 record-internal functions before a single
-external caller was reached.
+- **`record.RecordsDir`** — it BUILDS a `Run`. The sweep migrated it and made it circular.
+- **`record.GapExists`, `InquiryExists`, `CitationExists`** — the three `flags.Checker`
+  validators. `flags` cannot import `record` (the reverse edge exists), and Go function types
+  require exact parameter identity, so no amount of call-site rewriting reaches them. They
+  resolve via `OpenRun` at entry, so the REFUSAL is gained even though the parameter was not.
 
-Size, so the shape is not a surprise: **84 signatures** in `internal/record` still name
-`runDir`, and ~27 non-test external call sites depend on them, dominated by `BoardState`
-(~100 references, ~73 of them in tests). The 25 packages that call `record` all convert at
-their own boundary today:
+**Two threads this migration deliberately did not pull, carried here so they are tracked rather
+than remembered** ([[complete-the-concept]]: a PR boundary is not a completion boundary):
 
-```
-cmd/seatprobe        internal/cli/enumhelp  internal/graph      internal/seatenv
-internal/capture     internal/cli/lens      internal/hookcmd    internal/seatprobe
-internal/cli         internal/cli/merge     internal/hookgate   internal/setup
-internal/cli/bench   internal/cli/motion    internal/report     internal/verify
-internal/cli/blue    internal/cli/seat      internal/scorecard  internal/view
-internal/consistency internal/dashboard     internal/fetchcache internal/flags
-internal/cost
-```
-
-**The earlier guidance here said "do NOT batch them — a sweep only compiles." That still holds
-ACROSS package boundaries and no longer holds inside `record`.** The distinction the first
-draft missed: batching is dangerous where each site needs a JUDGEMENT — which constructor, and
-where the refusal goes — and that judgement lives at the boundaries, which are now done. Inside
-`record` the parameter is threaded, not decided, so a mechanical change there is verified by the
-compiler rather than merely permitted by it. The one thing a sweep still cannot see is an
-argument that is deliberately degenerate: `blueRows("")` was exactly that, and it took a human
-read (see above).
+1. **`runlive.WriteRunLiveMarker` still receives `cfg.RunDir` verbatim**, not `run.Dir()`. The
+   marker stores the path as given and `SameRun` normalises when comparing, so switching it to
+   absolute changes what lands in `run-live.json` for every reader of that file — a different
+   concept with its own carriers ([[facts-are-fields]] clause 4).
+2. **The flag-name constants belong in a leaf package.** That is the real fix for the three
+   validators above: it removes the import edge that forces `flags` to speak in strings. It is
+   larger than this change was, and is recorded here rather than implied by their comment.
 
 ## IV. Order
 

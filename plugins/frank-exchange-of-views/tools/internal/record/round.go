@@ -64,13 +64,13 @@ func RoundOf(seatID string) (round int, known bool) {
 //
 // UNKNOWN STAYS UNKNOWN when the record cannot answer either — an empty run, or a seat that is not
 // part of the debate at all. Returning 0 there would rebuild the conflation one layer up.
-func RoundIn(runDir string) func(string) int {
+func RoundIn(run Run) func(string) int {
 	return func(seatID string) int {
 		if n, known := RoundOf(seatID); known {
 			return n
 		}
 		if terminalSeats[seatID] {
-			if n, ok := lastRoundOn(runDir); ok {
+			if n, ok := lastRoundOn(run); ok {
 				return n
 			}
 		}
@@ -82,8 +82,8 @@ func RoundIn(runDir string) func(string) int {
 //
 // The bool is not decoration: a run with no rounds on it yet and a run whose record cannot be read
 // both have no answer, and a caller that took 0 for either would be back where this started.
-func lastRoundOn(runDir string) (int, bool) {
-	m, err := MergedEvents(runDir)
+func lastRoundOn(run Run) (int, bool) {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return 0, false
 	}

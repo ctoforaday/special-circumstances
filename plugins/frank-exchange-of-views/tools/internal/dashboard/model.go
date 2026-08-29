@@ -274,9 +274,8 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	// Resolution failure lands in the same arm as "no record yet", and here that is RIGHT: both
 	// mean the tiles have nothing truthful to show, and "unavailable" is what this branch already
 	// exists to render. It is a dashboard — the loud version of the diagnosis belongs to the tool.
-	recDir, recErr := record.RecordsDir(run.Dir())
-	if _, statErr := os.Stat(recDir); recErr == nil && statErr == nil {
-		if board, err := record.BoardState(run.Dir()); err == nil {
+	if _, statErr := os.Stat(run.Records()); statErr == nil {
+		if board, err := record.BoardState(run); err == nil {
 			bj := record.BoardJSONOf(board)
 			fj := record.FindingsJSONOf(board)
 			frj := record.FrictionJSONOf(board)
@@ -345,7 +344,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	}
 	eta := projectCompletion(seats, nowMs)
 
-	terminalVerdict := record.TerminalVerdict(run.Dir())
+	terminalVerdict := record.TerminalVerdict(run)
 	return Model{
 		Run: run, Telemetry: telemetry, Latest: latest, Seats: seats,
 		Cost: costTotal, CostRows: costRows, APIRounds: apiRounds, Agents: agents, Friction: friction,
@@ -367,7 +366,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		TerminalVerdict: terminalVerdict, Terminal: terminalVerdict != "",
 		// ASSESSED AT THE INJECTED CLOCK, not time.Now(), so a test can put the record in the
 		// past and watch this flip.
-		Live:      record.Assess(run.Dir(), time.UnixMilli(int64(nowMs)).UTC(), terminalVerdict != ""),
+		Live:      record.Assess(run, time.UnixMilli(int64(nowMs)).UTC(), terminalVerdict != ""),
 		Generated: nowISO(nowMs),
 	}
 }
@@ -406,7 +405,7 @@ func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 func TerminalVerdict(run record.Run) string { return readTerminalVerdict(run) }
 
 func readTerminalVerdict(run record.Run) string {
-	b, err := record.BoardState(run.Dir())
+	b, err := record.BoardState(run)
 	if err != nil {
 		return ""
 	}
@@ -428,7 +427,7 @@ func readTerminalVerdict(run record.Run) string {
 	}
 	// Or what the record decides for itself. ok is false only where the record genuinely
 	// cannot — a judged deadlock — and that is a real answer, not a gap to paper over.
-	if v, _, ok := record.DeriveVerdict(run.Dir()); ok {
+	if v, _, ok := record.DeriveVerdict(run); ok {
 		return v
 	}
 	return ""

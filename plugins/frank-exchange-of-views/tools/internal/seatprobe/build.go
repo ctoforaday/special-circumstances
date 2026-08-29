@@ -47,11 +47,11 @@ var Seats = []struct{ Role, ID string }{
 }
 
 // Build materialises a board into runDir.
-func Build(runDir string, b Board, exec Exec) error {
-	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
+func Build(run record.Run, b Board, exec Exec) error {
+	if err := os.MkdirAll(filepath.Join(run.Dir(), "blue"), 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run.Dir(), "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
 		return err
 	}
 	// THE BUILD REGISTERS THESE SEATS AS THE HARNESS, NOT AS THE AGENT THAT WILL HOLD THEM.
@@ -72,7 +72,7 @@ func Build(runDir string, b Board, exec Exec) error {
 	// No handle is set here, so these registers carry no agent_id — which is exactly right: the
 	// harness staging a fixture is not a seat, and the record says so by the field's absence.
 	for _, s := range Seats {
-		if _, err := exec("register", "--run", runDir, "--seat-id", s.ID); err != nil {
+		if _, err := exec("register", "--run", run.Dir(), "--seat-id", s.ID); err != nil {
 			return fmt.Errorf("register %s: %w", s.ID, err)
 		}
 	}
@@ -85,7 +85,7 @@ func Build(runDir string, b Board, exec Exec) error {
 	// temp root so the seat cannot read the board off disk, and it does that by handing the record
 	// ROOT to the tool subprocess in its environment — which this function does not carry. Staged
 	// before the first register, `RecordsDir` resolves in THIS process, finds no separation marker,
-	// and creates <runDir>/records; the first register subprocess then refuses to separate a run
+	// and creates <run.Dir()>/records; the first register subprocess then refuses to separate a run
 	// that already keeps events locally. Staged here, the marker exists and the registry lands
 	// where the tool will read it.
 	//
@@ -93,12 +93,12 @@ func Build(runDir string, b Board, exec Exec) error {
 	// first mint; fixing that in the wrong place stopped 9 of 9 on their first register. The probe
 	// refused to score either one ("this run is not a result"), which is the only reason both were
 	// five-minute diagnoses rather than runs reported with a thinner board.
-	if err := record.StageForRun(runDir, BoardClasses...); err != nil {
+	if err := record.StageForRun(run, BoardClasses...); err != nil {
 		return fmt.Errorf("stage the class registry: %w", err)
 	}
 
 	for i, g := range b.Gaps {
-		if _, err := exec("mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		if _, err := exec("mint", "--run", run.Dir(), "--seat-id", "red-merge-r1",
 			"--key", g.Key, "--class", g.Class,
 			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
@@ -119,7 +119,7 @@ func Build(runDir string, b Board, exec Exec) error {
 			if c.text == "" {
 				continue
 			}
-			if _, err := exec("closing", "--run", runDir, "--seat-id", c.seat,
+			if _, err := exec("closing", "--run", run.Dir(), "--seat-id", c.seat,
 				"--id", gapID, "--reason", c.text); err != nil {
 				return fmt.Errorf("closing %s by %s: %w", gapID, c.seat, err)
 			}
@@ -129,7 +129,7 @@ func Build(runDir string, b Board, exec Exec) error {
 		}
 		// A CLOSED gap so the archive is not empty: `spot-check` against an empty one has nothing
 		// to sample, so a board that wants the duty exercised has to give it something.
-		if _, err := exec("close", "--run", runDir, "--seat-id", "red-merge-r1",
+		if _, err := exec("close", "--run", run.Dir(), "--seat-id", "red-merge-r1",
 			"--id", gapID, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
 			return fmt.Errorf("close %s: %w", gapID, err)
@@ -139,7 +139,7 @@ func Build(runDir string, b Board, exec Exec) error {
 	// RED'S ROUND-1 NARRATIVE, so the transcript blue is sent to read exists. Filed AFTER the gaps
 	// it accounts for and BEFORE anything that answers it, which is the order a real round has.
 	if b.RedNarrative != "" {
-		if _, err := exec("position", "--run", runDir, "--seat-id", "red-merge-r1",
+		if _, err := exec("position", "--run", run.Dir(), "--seat-id", "red-merge-r1",
 			"--reason", b.RedNarrative); err != nil {
 			return fmt.Errorf("red narrative: %w", err)
 		}
@@ -155,7 +155,7 @@ func Build(runDir string, b Board, exec Exec) error {
 		// reports a failed board as a harness fault rather than as a fixture speaking a retired
 		// model. That is `facts-are-fields` in a fixture — the record MINTS the id and says so on
 		// stdout, and composing it from a loop index is a hope about someone else's counter.
-		out, err := exec("line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
+		out, err := exec("line-of-inquiry", "propose", "--run", run.Dir(), "--seat-id", "blue-respond-r1",
 			"--reason", a.Line, "--hypothesis", a.Hypothesis)
 		if err != nil {
 			return fmt.Errorf("line of inquiry %d: %w", i+1, err)
@@ -168,7 +168,7 @@ func Build(runDir string, b Board, exec Exec) error {
 			return fmt.Errorf("line of inquiry %d: the tool did not report a minted id in %q — the ruling "+
 				"below needs the id the RECORD assigned, and guessing one is how this broke before", i+1, out)
 		}
-		if _, err := exec("motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
+		if _, err := exec("motion", "inquiry", "rule", "--run", run.Dir(), "--seat-id", "red-merge-r1",
 			"--id", id, "--as", a.Ruled,
 			"--reason", rulingReason(a.RuledWhy, a.Ruled)); err != nil {
 			return fmt.Errorf("rule %s: %w", id, err)
@@ -176,7 +176,7 @@ func Build(runDir string, b Board, exec Exec) error {
 	}
 
 	for i, m := range b.Motions {
-		args := []string{"motion", m.Subject, "file", "--run", runDir, "--seat-id", m.Filer,
+		args := []string{"motion", m.Subject, "file", "--run", run.Dir(), "--seat-id", m.Filer,
 			"--reason", m.Basis}
 		switch m.Subject {
 		case "grade":
@@ -191,7 +191,7 @@ func Build(runDir string, b Board, exec Exec) error {
 			continue
 		}
 		ruler := map[string]string{"grade": "red-merge-r1", "petition": "judge-r2"}[m.Subject]
-		if _, err := exec("motion", m.Subject, "rule", "--run", runDir, "--seat-id", ruler,
+		if _, err := exec("motion", m.Subject, "rule", "--run", run.Dir(), "--seat-id", ruler,
 			"--id", fmt.Sprintf("M%d", i+1), "--as", m.Ruled,
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {
 			return fmt.Errorf("rule motion %d: %w", i+1, err)
@@ -199,11 +199,11 @@ func Build(runDir string, b Board, exec Exec) error {
 	}
 
 	for i, pr := range b.Proofs {
-		script := filepath.Join(runDir, fmt.Sprintf("probe-proof-%d.py", i+1))
+		script := filepath.Join(run.Dir(), fmt.Sprintf("probe-proof-%d.py", i+1))
 		if err := os.WriteFile(script, []byte(pr.Script+"\n"), 0o644); err != nil {
 			return err
 		}
-		args := []string{"prove", "--run", runDir, "--seat-id", "blue-respond-r1",
+		args := []string{"prove", "--run", run.Dir(), "--seat-id", "blue-respond-r1",
 			"--quote", pr.Location, "--script", script,
 			"--reason", "the computation behind this sentence"}
 		if pr.Answers != "" {
@@ -217,7 +217,7 @@ func Build(runDir string, b Board, exec Exec) error {
 	for i, claim := range b.Claims {
 		// A REACHABLE url, because `cite` FETCHES and caches. An unreachable one is refused and
 		// logged as friction, which is correct behaviour and useless here.
-		if _, err := exec("cite", "--run", runDir, "--seat-id", "blue-respond-r1",
+		if _, err := exec("cite", "--run", run.Dir(), "--seat-id", "blue-respond-r1",
 			"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
 			"--title", "the pinned source", "--url", "https://example.com/",
 			"--reason", "the source this claim rests on"); err != nil {

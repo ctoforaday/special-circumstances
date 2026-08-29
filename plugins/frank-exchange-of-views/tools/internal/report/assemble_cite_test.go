@@ -86,7 +86,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: "blue-synthesize", Round: record.RoundIn(runDir)("blue-synthesize")}, ""); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize", Round: record.RoundIn(runtest.Open(t, runDir))("blue-synthesize")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	cite := &recordpb.Cite{
@@ -96,7 +96,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		Title:      proto.String("Coherence Proof"),
 		AccessDate: proto.String("2026-08-03"),
 	}
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "blue-synth-r0", Round: record.RoundIn(runDir)("blue-synth-r0")}, cite); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synth-r0", Round: record.RoundIn(runtest.Open(t, runDir))("blue-synth-r0")}, cite); err != nil {
 		t.Fatal(err)
 	}
 

@@ -182,7 +182,7 @@ func walk(events []*record.Event) *groundTruth {
 
 // Check derives the ground truth for a run and holds every projection to it.
 func Check(run record.Run) ([]string, error) {
-	m, err := record.MergedEvents(run.Dir())
+	m, err := record.MergedEvents(run)
 	if err != nil {
 		return nil, fmt.Errorf("consistency: reading the record: %w", err)
 	}
@@ -194,7 +194,7 @@ func Check(run record.Run) ([]string, error) {
 	}
 
 	// ---- the replay itself ----
-	board, err := record.BoardState(run.Dir())
+	board, err := record.BoardState(run)
 	if err != nil {
 		// The walk tolerates what the replay refuses (a mutation on an unknown gap), so a record
 		// the replay cannot read at all is itself the finding.
@@ -382,7 +382,7 @@ func Check(run record.Run) ([]string, error) {
 		// id from the finding or its anchor event; a p- id from the proof. Every splice precedes
 		// its append, so BOTH directions of each bijection are invariants of a settled record.
 		citeSet := map[string]bool{}
-		if labels, lerr := record.CitationLabels(run.Dir()); lerr != nil {
+		if labels, lerr := record.CitationLabels(run); lerr != nil {
 			add("anchor-record", "deriving expected citation labels: %v", lerr)
 		} else {
 			for _, l := range labels {

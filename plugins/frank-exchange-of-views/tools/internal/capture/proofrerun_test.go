@@ -1,6 +1,7 @@
 package capture
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -64,7 +65,7 @@ func TestProofRerunCatchesARecordedOutputThatNoLongerReproduces(t *testing.T) {
 	seedProofEvents(t, run, res)
 
 	// It reproduces while the state it measured is unchanged.
-	if got := ProofRerunAudit(run, 3); got.Verdict != "PASS" {
+	if got := ProofRerunAudit(runtest.Open(t, run), 3); got.Verdict != "PASS" {
 		t.Fatalf("unchanged state: want PASS, got %s — %s", got.Verdict, got.Detail)
 	}
 
@@ -72,7 +73,7 @@ func TestProofRerunCatchesARecordedOutputThatNoLongerReproduces(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(run, "corpus.txt"), []byte("one\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got := ProofRerunAudit(run, 3)
+	got := ProofRerunAudit(runtest.Open(t, run), 3)
 	if got.Verdict != "FAIL" {
 		t.Fatalf("an ephemeral instrument must FAIL: got %s — %s", got.Verdict, got.Detail)
 	}
@@ -99,7 +100,7 @@ func TestProofRerunDoesNotFailAProofRecordedAsObserved(t *testing.T) {
 	}
 	seedProofEvents(t, run, res)
 
-	got := ProofRerunAudit(run, 3)
+	got := ProofRerunAudit(runtest.Open(t, run), 3)
 	if got.Verdict == "FAIL" {
 		t.Fatalf("an observed proof must not FAIL for moving: %s", got.Detail)
 	}
@@ -117,7 +118,7 @@ func TestProofRerunFailsAProofThatCannotBeReRunAtAll(t *testing.T) {
 	if err := os.RemoveAll(filepath.Join(run, "proofs", res.SHA)); err != nil {
 		t.Fatal(err)
 	}
-	got := ProofRerunAudit(run, 3)
+	got := ProofRerunAudit(runtest.Open(t, run), 3)
 	if got.Verdict != "FAIL" {
 		t.Fatalf("a proof with no artifact must FAIL, got %s — %s", got.Verdict, got.Detail)
 	}
@@ -130,7 +131,7 @@ func TestProofRerunFailsAProofThatCannotBeReRunAtAll(t *testing.T) {
 func TestProofRerunSeparatesNoProofsFromNoRecord(t *testing.T) {
 	empty := t.TempDir()
 	recordtest.Seed(t, empty)
-	if got := ProofRerunAudit(empty, 3); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "recorded no proofs") {
+	if got := ProofRerunAudit(runtest.Open(t, empty), 3); got.Verdict != "SKIP" || !strings.Contains(got.Detail, "recorded no proofs") {
 		t.Errorf("a run with no proofs: got %s — %s", got.Verdict, got.Detail)
 	}
 	// A record that cannot be READ is the third state, and it is the one worth being careful
@@ -144,7 +145,7 @@ func TestProofRerunSeparatesNoProofsFromNoRecord(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(broken, "records", "record.db"), []byte("not a database"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got := ProofRerunAudit(broken, 3)
+	got := ProofRerunAudit(runtest.Open(t, broken), 3)
 	if got.Verdict != "SKIP" {
 		t.Fatalf("unreadable record: got %s — %s", got.Verdict, got.Detail)
 	}
@@ -166,7 +167,7 @@ func TestProofRerunSamplesTheUnauditedFirstAndSaysHowManyItRan(t *testing.T) {
 	recordtest.Seed(t, run, recordtest.At(t, "red-lens-r1-L1", 1, "red-lens-r1-L1:reproduce:#1",
 		&recordpb.Reproduce{ProofSha: proto.String(rs[0].SHA), Reproduced: proto.Bool(true)}))
 
-	got := ProofRerunAudit(run, 2)
+	got := ProofRerunAudit(runtest.Open(t, run), 2)
 	if !strings.Contains(got.Detail, "re-ran 2 of 4") {
 		t.Errorf("the sample size must reach the report; got:\n%s", got.Detail)
 	}

@@ -33,7 +33,7 @@ const fableSonnet = `{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"
 
 func TestTheGateStopsTheRunTheRetrospectiveMeasured(t *testing.T) {
 	run := runWithTiers(t, fableSonnet)
-	err := tierGate(run, "blue-lane-1", servedmodel.Observation{
+	err := tierGate(mustRun(t, run), "blue-lane-1", servedmodel.Observation{
 		Served: "claude-opus-4-8", Requested: "claude-fable-5", Declared: true})
 	if err == nil {
 		t.Fatal("a bulk seat answered by opus against a configured fable must refuse")
@@ -48,10 +48,10 @@ func TestTheGateStopsTheRunTheRetrospectiveMeasured(t *testing.T) {
 // The judgment tier was served as configured in that same run, and must not be swept up with it.
 func TestASeatAnsweredByItsConfiguredTierPasses(t *testing.T) {
 	run := runWithTiers(t, fableSonnet)
-	if err := tierGate(run, "red-merge-r1", servedmodel.Observation{Served: "claude-sonnet-5"}); err != nil {
+	if err := tierGate(mustRun(t, run), "red-merge-r1", servedmodel.Observation{Served: "claude-sonnet-5"}); err != nil {
 		t.Fatalf("judgment seat on its configured sonnet: %v", err)
 	}
-	if err := tierGate(run, "blue-lane-2", servedmodel.Observation{Served: "claude-fable-5"}); err != nil {
+	if err := tierGate(mustRun(t, run), "blue-lane-2", servedmodel.Observation{Served: "claude-fable-5"}); err != nil {
 		t.Fatalf("bulk seat on its configured fable: %v", err)
 	}
 }
@@ -60,7 +60,7 @@ func TestASeatAnsweredByItsConfiguredTierPasses(t *testing.T) {
 // declaration is evidence about the swap rather than the swap itself.
 func TestAnUndeclaredMismatchAlsoRefuses(t *testing.T) {
 	run := runWithTiers(t, fableSonnet)
-	if err := tierGate(run, "judge-r1", servedmodel.Observation{Served: "claude-haiku-4-5"}); err == nil {
+	if err := tierGate(mustRun(t, run), "judge-r1", servedmodel.Observation{Served: "claude-haiku-4-5"}); err == nil {
 		t.Fatal("a judgment seat answered by haiku against a configured sonnet must refuse")
 	}
 }
@@ -70,7 +70,7 @@ func TestAnUndeclaredMismatchAlsoRefuses(t *testing.T) {
 // the exact substitution of a miss for a clean board this whole change is about.
 func TestAnUnmeasuredSeatIsNotJudged(t *testing.T) {
 	run := runWithTiers(t, fableSonnet)
-	if err := tierGate(run, "blue-lane-1", servedmodel.Observation{}); err != nil {
+	if err := tierGate(mustRun(t, run), "blue-lane-1", servedmodel.Observation{}); err != nil {
 		t.Fatalf("nothing measured, nothing to judge: %v", err)
 	}
 }
@@ -78,7 +78,7 @@ func TestAnUnmeasuredSeatIsNotJudged(t *testing.T) {
 // A run that declared no tier for a class cannot hold a seat to one.
 func TestARunWithNoDeclaredTierDoesNotRefuse(t *testing.T) {
 	run := runWithTiers(t, `{}`)
-	if err := tierGate(run, "blue-lane-1", servedmodel.Observation{Served: "claude-opus-4-8"}); err != nil {
+	if err := tierGate(mustRun(t, run), "blue-lane-1", servedmodel.Observation{Served: "claude-opus-4-8"}); err != nil {
 		t.Fatalf("no configured tier: %v", err)
 	}
 }
@@ -89,7 +89,7 @@ func TestSeatsThatRideNoTierAreNotGated(t *testing.T) {
 	if got := TierClassOfSeat(OperatorRole); got != "" {
 		t.Fatalf("the operator has no tier class, got %q", got)
 	}
-	if err := tierGate(run, OperatorRole, servedmodel.Observation{Served: "claude-haiku-4-5"}); err != nil {
+	if err := tierGate(mustRun(t, run), OperatorRole, servedmodel.Observation{Served: "claude-haiku-4-5"}); err != nil {
 		t.Fatalf("operator: %v", err)
 	}
 }
@@ -98,7 +98,7 @@ func TestSeatsThatRideNoTierAreNotGated(t *testing.T) {
 // the seat is the party whose adversary strength is in question.
 func TestTheOperatorsStandingConsentLetsTheRunProceed(t *testing.T) {
 	run := runWithTiers(t, `{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5","allowModelSubstitution":true}`)
-	if err := tierGate(run, "blue-lane-1", servedmodel.Observation{
+	if err := tierGate(mustRun(t, run), "blue-lane-1", servedmodel.Observation{
 		Served: "claude-opus-4-8", Requested: "claude-fable-5", Declared: true}); err != nil {
 		t.Fatalf("consented substitution must proceed: %v", err)
 	}
@@ -107,13 +107,13 @@ func TestTheOperatorsStandingConsentLetsTheRunProceed(t *testing.T) {
 // ABSENT MEANS NO. A run whose config predates the field never consented to anything, and the
 // failing direction of a gate has to be the safe one.
 func TestConsentIsNotInferredFromAnAbsentField(t *testing.T) {
-	if allowSubstitution(runWithTiers(t, fableSonnet)) {
+	if allowSubstitution(mustRun(t, runWithTiers(t, fableSonnet))) {
 		t.Error("an absent allowModelSubstitution must not read as consent")
 	}
-	if allowSubstitution(t.TempDir()) {
+	if allowSubstitution(mustRun(t, t.TempDir())) {
 		t.Error("an unreadable run-config must not read as consent")
 	}
-	if allowSubstitution(runWithTiers(t, `{ not json`)) {
+	if allowSubstitution(mustRun(t, runWithTiers(t, `{ not json`))) {
 		t.Error("an unparseable run-config must not read as consent")
 	}
 }

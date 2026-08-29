@@ -54,7 +54,7 @@ func newDashboard() *cobra.Command {
 			// record in-process — the same JIT discipline the projections follow — behind a
 			// per-run secret URL, and the page's own 20s meta-refresh keeps a browser current.
 			if serve != 0 {
-				return serveDashboard(cmd.OutOrStdout(), run.Dir(), serve, func() string {
+				return serveDashboard(cmd.OutOrStdout(), run, serve, func() string {
 					return dashboard.RenderHTML(dashboard.BuildModel(run, transcriptDir, cfg, clock()))
 				})
 			}
@@ -82,7 +82,7 @@ func newDashboard() *cobra.Command {
 			defer ticker.Stop()
 			for range ticker.C {
 				_ = generate()
-				if ended, why := runHasEnded(marker, run.Dir()); ended {
+				if ended, why := runHasEnded(marker, run); ended {
 					_ = generate()
 					fmt.Fprintln(cmd.OutOrStdout(), why+" — final render written, watcher exiting")
 					return nil

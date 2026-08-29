@@ -107,7 +107,7 @@ func TestFindingRetryFinishesTheHalfAppendedPair(t *testing.T) {
 	if !strings.Contains(out, "L1-F1") {
 		t.Errorf("the retry did not answer idempotently with the prior label: %q", out)
 	}
-	anchored, err := record.AnchorEventExists(runDir, "f-0badf00d")
+	anchored, err := record.AnchorEventExists(runtest.Open(t, runDir), "f-0badf00d")
 	if err != nil {
 		t.Fatal(err)
 	}

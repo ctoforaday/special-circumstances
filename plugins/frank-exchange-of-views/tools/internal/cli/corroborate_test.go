@@ -116,7 +116,7 @@ func TestACorroborationOfAnAbsentClaimIsRefused(t *testing.T) {
 	}
 	// AND NOTHING WAS RECORDED. A rejected splice must leave no event behind, or the record
 	// carries a corroboration whose footnote does not exist.
-	srcs, err := record.CitedSources(runDir)
+	srcs, err := record.CitedSources(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

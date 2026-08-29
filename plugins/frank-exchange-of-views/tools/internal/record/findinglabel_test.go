@@ -29,27 +29,27 @@ func TestNextFindingLabel(t *testing.T) {
 	runDir := newRun(t)
 
 	// First finding for L2 → L2-F1.
-	if got, err := NextFindingLabel(runDir, "red-lens-r1-L2"); err != nil || got != "L2-F1" {
+	if got, err := NextFindingLabel(mustRun(t, runDir), "red-lens-r1-L2"); err != nil || got != "L2-F1" {
 		t.Fatalf("first L2 label = %q, %v; want L2-F1", got, err)
 	}
 	mustFinding(t, runDir, "red-lens-r1-L2", "L2-F1")
 
 	// Second L2, same round → L2-F2. A DIFFERENT role is independent → L5-F1.
-	if got, _ := NextFindingLabel(runDir, "red-lens-r1-L2"); got != "L2-F2" {
+	if got, _ := NextFindingLabel(mustRun(t, runDir), "red-lens-r1-L2"); got != "L2-F2" {
 		t.Errorf("second L2 label = %q, want L2-F2", got)
 	}
-	if got, _ := NextFindingLabel(runDir, "red-lens-r1-L5"); got != "L5-F1" {
+	if got, _ := NextFindingLabel(mustRun(t, runDir), "red-lens-r1-L5"); got != "L5-F1" {
 		t.Errorf("first L5 label = %q, want L5-F1 (roles are independent)", got)
 	}
 	mustFinding(t, runDir, "red-lens-r1-L2", "L2-F2")
 
 	// A LATER round continues L2's run-wide sequence, not a fresh per-round count.
-	if got, _ := NextFindingLabel(runDir, "red-lens-r2-L2"); got != "L2-F3" {
+	if got, _ := NextFindingLabel(mustRun(t, runDir), "red-lens-r2-L2"); got != "L2-F3" {
 		t.Errorf("round-2 L2 label = %q, want L2-F3 (sequence spans rounds)", got)
 	}
 
 	// A seat with no lens role cannot be attributed → error, never a silent label.
-	if _, err := NextFindingLabel(runDir, "red-merge-r1"); err == nil {
+	if _, err := NextFindingLabel(mustRun(t, runDir), "red-merge-r1"); err == nil {
 		t.Error("a roleless seat id must error, not receive a finding label")
 	}
 }
@@ -61,23 +61,23 @@ func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
 	seat := "red-lens-r1-L1"
 
 	// No prior finding under this key.
-	if got, err := existingFindingByKey(runDir, seat, "F1"); err != nil || got != "" {
+	if got, err := existingFindingByKey(mustRun(t, runDir), seat, "F1"); err != nil || got != "" {
 		t.Fatalf("empty run: got %q, %v; want \"\"", got, err)
 	}
 
 	// Record one under key F1 with label L1-F1.
 	f := &recordpb.Finding{Label: proto.String("L1-F1"), FindingKey: proto.String("F1"), Text: proto.String("x")}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}, f); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seat, Round: RoundIn(mustRun(t, runDir))(seat)}, f); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := existingFindingByKey(runDir, seat, "F1"); got != "L1-F1" {
+	if got, _ := existingFindingByKey(mustRun(t, runDir), seat, "F1"); got != "L1-F1" {
 		t.Errorf("retry lookup = %q, want L1-F1", got)
 	}
 	// A different key on the same seat, and the same key on a different seat, do not match.
-	if got, _ := existingFindingByKey(runDir, seat, "F2"); got != "" {
+	if got, _ := existingFindingByKey(mustRun(t, runDir), seat, "F2"); got != "" {
 		t.Errorf("unrelated key matched: %q", got)
 	}
-	if got, _ := existingFindingByKey(runDir, "red-lens-r1-L2", "F1"); got != "" {
+	if got, _ := existingFindingByKey(mustRun(t, runDir), "red-lens-r1-L2", "F1"); got != "" {
 		t.Errorf("another seat's key matched: %q", got)
 	}
 }
@@ -85,7 +85,7 @@ func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
 func mustFinding(t *testing.T, runDir, seat, label string) {
 	t.Helper()
 	f := &recordpb.Finding{Label: proto.String(label), FindingKey: proto.String(label), Text: proto.String("x")}
-	if _, err := Append(Identity{RunDir: runDir, SeatID: seat, Round: RoundIn(runDir)(seat)}, f); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seat, Round: RoundIn(mustRun(t, runDir))(seat)}, f); err != nil {
 		t.Fatal(err)
 	}
 }

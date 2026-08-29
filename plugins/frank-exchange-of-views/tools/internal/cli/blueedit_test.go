@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,7 +40,7 @@ func readReport(t *testing.T, runDir string) string {
 
 func countType(t *testing.T, runDir string, typ recordpb.EventType) int {
 	t.Helper()
-	m, err := record.MergedEvents(runDir)
+	m, err := record.MergedEvents(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -180,7 +181,7 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 		New:     proto.String("climbing fast"),
 		Text:    proto.String("r"),
 	}
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: blueSeat, Round: record.RoundIn(runDir)(blueSeat)}, intent); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: blueSeat, Round: record.RoundIn(runtest.Open(t, runDir))(blueSeat)}, intent); err != nil {
 		t.Fatal(err)
 	}
 	// Retry with the same key → reconcile forward.

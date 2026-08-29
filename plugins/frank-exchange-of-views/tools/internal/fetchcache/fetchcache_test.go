@@ -3,6 +3,7 @@ package fetchcache
 import (
 	"errors"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -34,7 +35,7 @@ func TestResolveMissThenHit(t *testing.T) {
 	body := []byte("the source bytes both sides read")
 	f := &stubFetcher{resp: map[string][]byte{"https://ex/1": body}}
 
-	e1, got, hit, err := Resolve(run, "https://ex/1", f)
+	e1, got, hit, err := Resolve(runtest.Open(t, run), "https://ex/1", f)
 	if err != nil {
 		t.Fatalf("first Resolve: %v", err)
 	}
@@ -50,12 +51,12 @@ func TestResolveMissThenHit(t *testing.T) {
 	if e1.Sha != Sha(body) {
 		t.Errorf("sha = %q, want %q", e1.Sha, Sha(body))
 	}
-	if _, err := os.Stat(Path(run, e1.Sha)); err != nil {
+	if _, err := os.Stat(Path(runtest.Open(t, run), e1.Sha)); err != nil {
 		t.Errorf("cache file not written: %v", err)
 	}
 
 	// Second read: same URL → served from cache, Fetch NOT re-entered.
-	e2, got2, hit2, err := Resolve(run, "https://ex/1", f)
+	e2, got2, hit2, err := Resolve(runtest.Open(t, run), "https://ex/1", f)
 	if err != nil {
 		t.Fatalf("second Resolve: %v", err)
 	}
@@ -74,18 +75,18 @@ func TestResolveFailureCachesNothing(t *testing.T) {
 	run := t.TempDir()
 	f := &stubFetcher{err: errors.New("host unreachable")}
 
-	_, _, _, err := Resolve(run, "https://gone/x", f)
+	_, _, _, err := Resolve(runtest.Open(t, run), "https://gone/x", f)
 	if err == nil {
 		t.Fatal("Resolve of an unreachable URL returned nil error")
 	}
 	// No cache dir/index written on a pure failure — nothing to serve, nothing to leak.
-	if entries, _ := os.ReadDir(Dir(run)); len(entries) != 0 {
+	if entries, _ := os.ReadDir(Dir(runtest.Open(t, run))); len(entries) != 0 {
 		t.Errorf("a failed fetch left %d cache entries, want 0", len(entries))
 	}
 	// A retry after the source comes back succeeds and caches (failure was not sticky).
 	f.err = nil
 	f.resp = map[string][]byte{"https://gone/x": []byte("now up")}
-	if _, _, hit, err := Resolve(run, "https://gone/x", f); err != nil || hit {
+	if _, _, hit, err := Resolve(runtest.Open(t, run), "https://gone/x", f); err != nil || hit {
 		t.Errorf("retry after recovery: hit=%v err=%v, want (false,nil)", hit, err)
 	}
 }
@@ -93,11 +94,11 @@ func TestResolveFailureCachesNothing(t *testing.T) {
 func TestStoreDedupsOnContent(t *testing.T) {
 	run := t.TempDir()
 	body := []byte("identical bytes")
-	se1, err := Store(run, Entry{URL: "https://a"}, body)
+	se1, err := Store(runtest.Open(t, run), Entry{URL: "https://a"}, body)
 	if err != nil {
 		t.Fatal(err)
 	}
-	se2, err := Store(run, Entry{URL: "https://b"}, body) // different URL, same bytes
+	se2, err := Store(runtest.Open(t, run), Entry{URL: "https://b"}, body) // different URL, same bytes
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +106,7 @@ func TestStoreDedupsOnContent(t *testing.T) {
 		t.Errorf("same bytes hashed differently: %s vs %s", se1.Sha, se2.Sha)
 	}
 	// One content file (content-addressed dedup), two index lines (two URLs).
-	files, _ := filepath.Glob(filepath.Join(Dir(run), "*"))
+	files, _ := filepath.Glob(filepath.Join(Dir(runtest.Open(t, run)), "*"))
 	content := 0
 	for _, f := range files {
 		if filepath.Base(f) == se1.Sha {
@@ -115,10 +116,10 @@ func TestStoreDedupsOnContent(t *testing.T) {
 	if content != 1 {
 		t.Errorf("content files for one hash = %d, want 1", content)
 	}
-	if g1, _, ok1, _ := Lookup(run, "https://a"); !ok1 || g1.Sha != se1.Sha {
+	if g1, _, ok1, _ := Lookup(runtest.Open(t, run), "https://a"); !ok1 || g1.Sha != se1.Sha {
 		t.Errorf("Lookup a missed or resolved to the wrong hash (ok=%v), want %s", ok1, se1.Sha)
 	}
-	if g2, _, ok2, _ := Lookup(run, "https://b"); !ok2 || g2.Sha != se2.Sha {
+	if g2, _, ok2, _ := Lookup(runtest.Open(t, run), "https://b"); !ok2 || g2.Sha != se2.Sha {
 		t.Errorf("Lookup b missed or resolved to the wrong hash (ok=%v), want %s", ok2, se2.Sha)
 	}
 }
@@ -128,21 +129,21 @@ func TestStoreDedupsOnContent(t *testing.T) {
 // hit that reads a phantom.
 func TestLookupTreatsMissingContentAsMiss(t *testing.T) {
 	run := t.TempDir()
-	if err := os.MkdirAll(Dir(run), 0o755); err != nil {
+	if err := os.MkdirAll(Dir(runtest.Open(t, run)), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	// Hand-write an index entry for a sha whose content file does not exist.
-	if err := os.WriteFile(indexPath(run), []byte(`{"sha":"deadbeef","url":"https://orphan"}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(indexPath(runtest.Open(t, run)), []byte(`{"sha":"deadbeef","url":"https://orphan"}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, ok, err := Lookup(run, "https://orphan"); err != nil || ok {
+	if _, _, ok, err := Lookup(runtest.Open(t, run), "https://orphan"); err != nil || ok {
 		t.Errorf("Lookup of an orphaned index line = (ok=%v,err=%v), want (false,nil)", ok, err)
 	}
 }
 
 func TestLookupUncachedURLIsMiss(t *testing.T) {
 	run := t.TempDir()
-	if _, _, ok, err := Lookup(run, "https://never"); err != nil || ok {
+	if _, _, ok, err := Lookup(runtest.Open(t, run), "https://never"); err != nil || ok {
 		t.Errorf("Lookup before any fetch = (ok=%v,err=%v), want (false,nil)", ok, err)
 	}
 }
@@ -154,19 +155,19 @@ func TestAnIndexLineWithoutTheNewFieldsStillResolves(t *testing.T) {
 	run := t.TempDir()
 	body := []byte("bytes cached by a binary that knew nothing of content types")
 	sha := Sha(body)
-	if err := os.MkdirAll(Dir(run), 0o755); err != nil {
+	if err := os.MkdirAll(Dir(runtest.Open(t, run)), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(Path(run, sha), body, 0o644); err != nil {
+	if err := os.WriteFile(Path(runtest.Open(t, run), sha), body, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	// The old two-field shape, verbatim.
 	line := `{"sha":"` + sha + `","url":"https://old/entry"}` + "\n"
-	if err := os.WriteFile(indexPath(run), []byte(line), 0o644); err != nil {
+	if err := os.WriteFile(indexPath(runtest.Open(t, run)), []byte(line), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	got, gotBody, ok, err := Lookup(run, "https://old/entry")
+	got, gotBody, ok, err := Lookup(runtest.Open(t, run), "https://old/entry")
 	if err != nil {
 		t.Fatalf("Lookup on a pre-#629 index: %v", err)
 	}
@@ -204,7 +205,7 @@ func TestResolveRecordsWhatTheResponseSaidAndWhatWasExtracted(t *testing.T) {
 	}}
 	t.Cleanup(func() { DefaultExtractor = prev })
 
-	got, _, _, err := Resolve(run, "https://ex/paper", f)
+	got, _, _, err := Resolve(runtest.Open(t, run), "https://ex/paper", f)
 	if err != nil {
 		t.Fatalf("Resolve: %v", err)
 	}
@@ -227,7 +228,7 @@ func TestResolveRecordsWhatTheResponseSaidAndWhatWasExtracted(t *testing.T) {
 
 	// And a second Resolve returns the SAME entry from the index, not a re-derived one: the
 	// facts must survive the round-trip through JSON, or a cache hit silently loses them.
-	again, _, hit, err := Resolve(run, "https://ex/paper", f)
+	again, _, hit, err := Resolve(runtest.Open(t, run), "https://ex/paper", f)
 	if err != nil || !hit {
 		t.Fatalf("second Resolve: hit=%v err=%v", hit, err)
 	}

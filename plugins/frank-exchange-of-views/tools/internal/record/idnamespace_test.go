@@ -41,7 +41,7 @@ type idKind struct {
 	// The finding label is the one exception below, with its reason.
 	pattern *regexp.Regexp
 	// mint produces the next id of this kind in a run directory.
-	mint func(runDir string) (string, error)
+	mint func(run Run) (string, error)
 }
 
 func idKinds() []idKind {
@@ -49,7 +49,7 @@ func idKinds() []idKind {
 		{
 			name:    "gap",
 			pattern: flags.GapID().Shape(),
-			mint:    func(runDir string) (string, error) { return MintGapID(runDir, 1) },
+			mint:    func(run Run) (string, error) { return MintGapID(run, 1) },
 		},
 		{
 			name:    "line-of-inquiry",
@@ -67,7 +67,7 @@ func idKinds() []idKind {
 			// minter here is exercised with a seat id, so the two describe different halves of
 			// the same vocabulary. Restated deliberately, which is what an exception looks like.
 			pattern: regexp.MustCompile(`^[A-Za-z0-9]+-F\d+$`),
-			mint:    func(runDir string) (string, error) { return NextFindingLabel(runDir, "red-lens-r1-L1") },
+			mint:    func(run Run) (string, error) { return NextFindingLabel(run, "red-lens-r1-L1") },
 		},
 	}
 }
@@ -92,7 +92,7 @@ func TestNoIDKindCanBeReadAsAnother(t *testing.T) {
 			t.Fatal(err)
 		}
 		for i := 0; i < 12; i++ {
-			id, err := k.mint(runDir)
+			id, err := k.mint(mustRun(t, runDir))
 			if err != nil {
 				t.Fatalf("%s: mint %d: %v", k.name, i, err)
 			}
@@ -177,7 +177,7 @@ func TestEveryIDKindHasADistinctPrefixLetter(t *testing.T) {
 // writeSeat registers the seat every minter counts events from.
 func writeSeat(t *testing.T, runDir string) error {
 	t.Helper()
-	_, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, "")
+	_, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, "")
 	return err
 }
 
@@ -186,13 +186,13 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 	t.Helper()
 	switch kind {
 	case "gap":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Mint{GapId: proto.String(id), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Mint{GapId: proto.String(id), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		return err
 	case "line-of-inquiry":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Avenue{AvenueId: proto.String(id), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("a line"), Reason: proto.String("r")})
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Avenue{AvenueId: proto.String(id), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("a line"), Reason: proto.String("r")})
 		return err
 	case "motion":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Motion{
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Motion{
 			MotionId: proto.String(id),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 			Basis:    proto.String("b"),
@@ -202,7 +202,7 @@ func appendMintedFor(t *testing.T, runDir, kind, id string) error {
 		})
 		return err
 	case "finding":
-		_, err := Append(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, &recordpb.Finding{FindingId: proto.String(id), Label: proto.String(id), Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
+		_, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Finding{FindingId: proto.String(id), Label: proto.String(id), Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)})
 		return err
 	}
 	return fmt.Errorf("no recorder for id kind %q — add one, or the minter never advances and this test compares twelve copies of the same id", kind)

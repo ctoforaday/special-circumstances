@@ -398,8 +398,8 @@ func closureBody(g *Gap) proto.Message {
 
 // BoardJSONBytes renders the board as indented JSON. Indented because a seat reads this in
 // a terminal transcript and a single 40KB line is unreadable to the thing consuming it.
-func BoardJSONBytes(runDir string) ([]byte, error) {
-	return BoardJSONBytesFor(runDir, "", "")
+func BoardJSONBytes(run Run) ([]byte, error) {
+	return BoardJSONBytesFor(run, "", "")
 }
 
 // BoardJSONBytesFor is the board.
@@ -414,8 +414,8 @@ func BoardJSONBytes(runDir string) ([]byte, error) {
 // reads, it can no longer tell whether the other says something different. There is one work list,
 // it is what bare `show` returns for every role, and it is the command a seat is told to run. The
 // board is the gaps; the work is the work.
-func BoardJSONBytesFor(runDir, role, seatID string) ([]byte, error) {
-	b, err := BoardState(runDir)
+func BoardJSONBytesFor(run Run, role, seatID string) ([]byte, error) {
+	b, err := BoardState(run)
 	if err != nil {
 		return nil, err
 	}
@@ -677,8 +677,8 @@ func roundOfSeatOnBoard(b *Board, seatID string) int {
 	return r
 }
 
-func WorkJSONBytes(runDir, role, seatID string) ([]byte, error) {
-	b, err := BoardState(runDir)
+func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
+	b, err := BoardState(run)
 	if err != nil {
 		return nil, err
 	}
@@ -769,8 +769,8 @@ func FindingsJSONOf(b *Board) FindingsJSON {
 
 // FindingsJSONBytes renders the findings view as indented JSON (a seat reads it in a
 // terminal transcript).
-func FindingsJSONBytes(runDir string) ([]byte, error) {
-	b, err := BoardState(runDir)
+func FindingsJSONBytes(run Run) ([]byte, error) {
+	b, err := BoardState(run)
 	if err != nil {
 		return nil, err
 	}
@@ -830,8 +830,8 @@ func FrictionJSONOf(b *Board) FrictionJSON {
 }
 
 // FrictionJSONBytes renders the friction view as indented JSON.
-func FrictionJSONBytes(runDir string) ([]byte, error) {
-	b, err := BoardState(runDir)
+func FrictionJSONBytes(run Run) ([]byte, error) {
+	b, err := BoardState(run)
 	if err != nil {
 		return nil, err
 	}
@@ -955,8 +955,8 @@ func DebateJSONOf(b *Board) DebateJSON {
 }
 
 // DebateJSONBytes renders the structured debate as indented JSON.
-func DebateJSONBytes(runDir string) ([]byte, error) {
-	b, err := BoardState(runDir)
+func DebateJSONBytes(run Run) ([]byte, error) {
+	b, err := BoardState(run)
 	if err != nil {
 		return nil, err
 	}

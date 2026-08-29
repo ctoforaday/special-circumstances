@@ -57,8 +57,8 @@ var InquiryRulings = []EnumValue{
 // Run-unique rather than round-scoped, unlike a gap: a line of inquiry OUTLIVES the round that
 // proposed it — that is the whole point of giving it a lifecycle — so a round-scoped id
 // would have to be re-minted to survive, which is the bug this replaces.
-func MintInquiryID(runDir string) (string, error) {
-	m, err := MergedEvents(runDir)
+func MintInquiryID(run Run) (string, error) {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return "", err
 	}
@@ -264,11 +264,11 @@ func Inquiries(b *Board) []*Inquiry {
 // requireInquiry refuses a reference to a line of inquiry no proposal created — the same discipline
 // every other cross-reference gets (refs.go), for the same reason: a dangling reference is
 // accepted at write time and dropped at replay.
-func RequireInquiryRef(runDir, id string) error {
+func RequireInquiryRef(run Run, id string) error {
 	if id == "" {
 		return nil
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return err
 	}
@@ -380,8 +380,8 @@ func StaleInquiries(b *Board) []*Inquiry {
 // pursuing a line red called out-of-scope looked exactly like blue pursuing one red endorsed.
 // Red's ruling is an argument rather than a command — blue may pursue anyway — but the
 // disagreement should be a fact, not something a reader reconstructs from two lists.
-func InquiryRuling(runDir, inquiryID string) string {
-	b, err := BoardState(runDir)
+func InquiryRuling(run Run, inquiryID string) string {
+	b, err := BoardState(run)
 	if err != nil {
 		return ""
 	}

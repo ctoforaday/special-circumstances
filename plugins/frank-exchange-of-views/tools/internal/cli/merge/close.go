@@ -56,8 +56,8 @@ func newClose() *cobra.Command {
 		// The guard reads the board, like the estoppel guard above it. A run whose board
 		// cannot be read does not block the closure: refusing on infrastructure would
 		// strand a round, and the check is a demand, not a safety property.
-		if kind, gerr := computationGapKind(run.Dir(), seat.Str(cmd, flags.ID)); gerr == nil && kind {
-			if !record.ProofAnswers(run.Dir(), seat.Str(cmd, flags.ID)) {
+		if kind, gerr := computationGapKind(run, seat.Str(cmd, flags.ID)); gerr == nil && kind {
+			if !record.ProofAnswers(run, seat.Str(cmd, flags.ID)) {
 				return nil, fmt.Errorf("merge close: %s was minted --check-kind computation, and no proof answers it. Its acceptance check is settled by RUNNING something, not by reading the report — so closing it on prose would accept the one kind of evidence you declared insufficient. Blue settles it with `blue prove --location \"<the sentence>\" --script <path> --answers %s`; if the demand was wrong, regrade or supersede the gap rather than closing it unproved",
 					seat.Str(cmd, flags.ID), seat.Str(cmd, flags.ID))
 			}
@@ -174,11 +174,11 @@ func (r closeResult) Human() string {
 }
 
 // computationGapKind reports whether the named gap was minted as a computation check.
-func computationGapKind(runDir, gapID string) (bool, error) {
+func computationGapKind(run record.Run, gapID string) (bool, error) {
 	if gapID == "" {
 		return false, nil
 	}
-	b, err := record.BoardState(runDir)
+	b, err := record.BoardState(run)
 	if err != nil {
 		return false, err
 	}
