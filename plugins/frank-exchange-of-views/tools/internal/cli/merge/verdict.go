@@ -1,8 +1,6 @@
 package merge
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -63,13 +61,16 @@ func newVerdict() *cobra.Command {
 
 // checkpoint copies records/ to a per-run directory under the user cache, keyed
 // by a hash of the run dir so two runs never collide.
+//
+// The path comes from record.MirrorDir rather than being composed here, because the reaper in
+// capture and the orphan purge in run-setup have to name the SAME directory this writes to,
+// and three hand-assembled copies of one path is three chances for a purge that silently
+// matches nothing.
 func checkpoint(run record.Run) (string, error) {
-	sum := sha1.Sum([]byte(run.Dir()))
-	home, err := os.UserHomeDir()
+	mirror, err := record.MirrorDir(run.Dir())
 	if err != nil {
 		return "", err
 	}
-	mirror := filepath.Join(home, ".cache", "feov", "run-mirror", hex.EncodeToString(sum[:])[:12])
 	if err := os.MkdirAll(mirror, 0o755); err != nil {
 		return "", err
 	}
