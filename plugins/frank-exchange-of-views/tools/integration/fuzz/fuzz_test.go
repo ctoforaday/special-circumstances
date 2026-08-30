@@ -195,6 +195,13 @@ type runner struct {
 	// test — rather than exempted. coverage_test.go says why an exemption is the wrong answer
 	// here, and it is right.
 	forceUnverified bool
+	// provedExpectedError fires the --expect-error drive once per run. A proof whose FAILURE is
+	// the result — proving a path is absent, a command missing — is a distinct contract from the
+	// answering proof beside it, and the sweep had never passed the flag that says so.
+	provedExpectedError bool
+	// registering closes when a seat's register HAS LANDED. `registered` above answers whether
+	// one was started; this answers whether it finished, which is what every append needs.
+	registering map[string]chan struct{}
 	// forceHalt makes the judge-petition sitting rule HALT (the dedicated halt-path test), instead
 	// of the granted/denied the random path uses. A halt ends the run HALTED; kept out of the
 	// random oracle on purpose (it reshapes every downstream expectation).
@@ -418,17 +425,39 @@ func (r *runner) exec(args ...string) (string, error) {
 }
 
 func (r *runner) register(role, seatID string) {
+	// A SEAT'S OWN REGISTER MUST LAND BEFORE ITS OWN APPENDS, and the flag alone did not say so.
+	//
+	// This set `registered[seatID] = true`, released the lock, and THEN ran the register. A second
+	// goroutine reaching the same seat in that window saw the flag, returned immediately, and
+	// appended — while the register was still in flight. `verify` then refused the run with
+	// `register-before-append: a seat emitted an event before registering`, on about one seed in
+	// forty, attributed to whatever drive happened to be second.
+	//
+	// The flag answered "has someone started registering this seat", and every caller read it as
+	// "is this seat registered". Two questions, one bool.
+	//
+	// The waiter keeps the contention the comment below was protecting: seats still race each
+	// other, three lanes still hit a run directory whose database may not exist. What is
+	// serialized is one seat against ITSELF, which was never concurrency — it was a missing
+	// happens-before.
 	r.mu.Lock()
-	if r.registered[seatID] {
+	if done, seen := r.registering[seatID]; seen {
 		r.mu.Unlock()
+		<-done // another goroutine is registering this seat; its register must land first
 		return
 	}
+	done := make(chan struct{})
+	if r.registering == nil {
+		r.registering = map[string]chan struct{}{}
+	}
+	r.registering[seatID] = done
 	r.registered[seatID] = true
 	r.mu.Unlock()
 	// OUTSIDE THE LOCK, deliberately: this is the invocation three concurrent lanes make against
 	// a run directory whose database may not exist yet, and holding the lock across it would
 	// serialize exactly the contention phase 3 exists to produce.
 	_, _ = r.exec("register", "--seat-id", seatID)
+	close(done)
 }
 
 // UNDERSCORES, because that is what the grade enum spells. This was `low-medium` and
@@ -691,6 +720,25 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 		if err := os.WriteFile(filepath.Join(r.runDir, name), []byte("console.log('answers "+id+"');"), 0o644); err == nil {
 			_, _ = r.exec("prove", "--seat-id", "blue-respond-r1", "--quote", "§ fuzz",
 				"--script", name, "--answers", id, "--reason", "fuzz: settling the computation check")
+		}
+		// A PROOF WHOSE FAILURE IS THE RESULT, once per run. `prove` refuses a script that exits
+		// non-zero — correctly, because a broken proof usually means a broken script — UNLESS the
+		// seat says the failure is the finding, which is what --expect-error asserts. That is a
+		// second contract on the same verb and nothing had ever driven it; the flag gate could
+		// not say so while cli.CommandFlags() came back empty (#654). It deliberately does NOT
+		// pass --answers: a proof that something is absent settles no computation check.
+		r.mu.Lock()
+		first := !r.provedExpectedError
+		r.provedExpectedError = true
+		r.mu.Unlock()
+		if first {
+			absent := "fuzz-absent-" + id + ".js"
+			body := "console.error('no such path: the thing this proof shows is missing'); process.exit(3);"
+			if err := os.WriteFile(filepath.Join(r.runDir, absent), []byte(body), 0o644); err == nil {
+				_, _ = r.exec("prove", "--seat-id", "blue-respond-r1", "--quote", "§ fuzz",
+					"--script", absent, "--expect-error",
+					"--reason", "fuzz: the absence IS the result, recorded as such")
+			}
 		}
 	}
 	// A regression close carries lineage forward: it mints a successor and closes WITH it
@@ -1304,8 +1352,18 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// act — deferring a gap with a stated direction — had never been driven once. The
 			// enum-coverage gate found it the moment #342 closed the disposition set.
 			if r.scenarioOf(id) != dirDisputeLost {
+				// A CARRIED RULING IS THE ONE THING THAT IS NOT FINAL, and this drove `--final`
+				// on it. The two flags are the assertable answers to one question and the schema
+				// refuses a ruling that says both or neither, so driving `--final` everywhere
+				// left the `reopens_on` arm of the estoppel model unexercised — a gap the flag
+				// gate could not report while cli.CommandFlags() came back empty (#654).
+				//
+				// Carried is exactly the disposition that reopens: the gap stays live and owes
+				// blue a direction, so what reopens it is blue taking that direction. Driving it
+				// here fixes the coverage hole and the contradiction in one move.
 				_, _ = r.exec("opinion", "--seat-id", seatID, "--id", id, "--as", "carried",
-					"--principle", "thoroughness", "--tension", "cost", "--review-flag", "false", "--settled", "the proposition this ruling bars", "--final",
+					"--principle", "thoroughness", "--tension", "cost", "--review-flag", "false", "--settled", "the proposition this ruling bars",
+					"--reopens-on", "blue pursuing the stated direction and reporting what it found",
 					"--reason", "fuzz: carried with a stated direction for "+id)
 			}
 			if r.scenarioOf(id) == dirDisputeLost {
@@ -2912,6 +2970,32 @@ func TestFuzzDebate(t *testing.T) {
 	// most likely to need it. And a path that never succeeded is a coverage hole at ANY N — it
 	// needs no quorum, because one refusal per invocation is not a sampling accident.
 	t.Log(execReport())
+	// THE SAME SWEEP, READ AS A GRAPH (#535 step 1). Emitted here rather than from a test of its
+	// own for the reason #635 was filed about: a second test reading this package-level tally
+	// would run at whatever point its declaration order put it, and a gate that reads a tally
+	// before its writers have run reports a plausible zero. Here the writers are done and the
+	// quorum is already known.
+	t.Log(graphReport())
+	if measured {
+		// A GRAPH WITH NO EDGES RENDERS AS "0 seats · 0 edges" AND READS LIKE A QUIET RUN. If
+		// seatOfArgs stops recovering the seat — a flag rename, a harness that stops passing
+		// --seat-id — every edge silently vanishes and the report still prints, still green,
+		// naming no seat and therefore accusing no verb of being unreachable. The floor is
+		// deliberately loose: this asserts the instrument ran, not how much it found.
+		// AND THE OTHER SIDE OF THE JOIN, which this gate missed on its first run: it guarded the
+		// edges and not the map they are diffed against, so `cli.CommandRecords()` came back
+		// EMPTY and the report rendered "0 of 0 recording verbs reached" — a sentence that reads
+		// like full coverage and means the opposite. Pinned permanently in internal/cli by
+		// TestTheSurfaceWalkersAllSeeTheSameTree; repeated here because this report is the thing
+		// a reader believes.
+		if len(cli.CommandRecords()) == 0 {
+			t.Error("cli.CommandRecords() is EMPTY — the graph's verb->event side measured nothing and rendered it as \"0 of 0 recording verbs reached\" (#654)")
+		}
+		if seats, edges, _, _ := graphEdges(); seats < 2 || edges == 0 {
+			t.Errorf("the observed graph recorded %d seat(s) and %d edge(s) across %d runs — the sweep drove the surface, so this is the EMITTER failing to attribute it, not a quiet run",
+				seats, edges, completed)
+		}
+	}
 	if un := neverSucceeded(); len(un) > 0 {
 		t.Errorf("%d command path(s) were driven and NEVER SUCCEEDED — the surface gate counts invocations, so these read as covered while their success path has never run:\n  %s",
 			len(un), strings.Join(un, "\n  "))

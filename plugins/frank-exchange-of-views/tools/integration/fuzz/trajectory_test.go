@@ -34,6 +34,18 @@ var (
 	// reader hunting, "26 refused: --seat-id IS REQUIRED HERE" names the fix. The refusal
 	// text is what the tool said; r.exec already attaches the tool's output to the error.
 	execFailWhy = map[string]string{}
+	// execEdges is the OBSERVED GRAPH: seat id -> command path -> invocations.
+	//
+	// #535 step 1. execRuns above is keyed on the path alone, so the seat that ran it is thrown
+	// away at the moment it is known — and "the surface was driven" is a different claim from
+	// "this seat can reach this verb". The second is what says whether a verb nobody has ever run
+	// is unreachable in principle or merely unused, which is the question #525's census could not
+	// answer and #535 exists to make answerable.
+	//
+	// Keyed on the seat rather than the role, and the operator's own calls are kept under their
+	// seat id too: an edge only the harness walks is still an edge, and hiding it would make the
+	// graph flatter than the run.
+	execEdges = map[string]map[string]int{}
 )
 
 // noteExec records one invocation. Called from BOTH paths that shell the binary — the
@@ -46,6 +58,12 @@ func noteExec(args []string, err error, out []byte) {
 		return
 	}
 	execRuns[k]++
+	if seat := seatOfArgs(args); seat != "" {
+		if execEdges[seat] == nil {
+			execEdges[seat] = map[string]int{}
+		}
+		execEdges[seat][k]++
+	}
 	if err != nil {
 		execFail[k]++
 		if _, seen := execFailWhy[k]; !seen {
@@ -85,6 +103,23 @@ var (
 	execFlags  = map[string]map[string]bool{}
 	execValues = map[string]map[string]bool{}
 )
+
+// seatOfArgs recovers the acting SEAT ID from an invocation — "blue-respond-r3", not "blue".
+//
+// roleOfArgs below collapses that to a role, which is what the parity oracles want. The graph
+// wants the seat: "blue ran edit" is true of a lane and of a respond seat four rounds apart, and
+// a graph that cannot tell them apart cannot say which sitting reached a verb.
+func seatOfArgs(args []string) string {
+	for i, a := range args {
+		switch {
+		case a == "--seat-id" && i+1 < len(args):
+			return args[i+1]
+		case strings.HasPrefix(a, "--seat-id="):
+			return strings.TrimPrefix(a, "--seat-id=")
+		}
+	}
+	return ""
+}
 
 // roleOfArgs recovers the acting role from the --seat-id in an invocation, which is the only
 // place it appears now.

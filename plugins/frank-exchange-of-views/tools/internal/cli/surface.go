@@ -47,8 +47,30 @@ func JSONByNameViews() []string { return seat.JSONByNameViews() }
 // have half its flags never passed, and an unpassed flag is code no run has executed.
 func CommandFlags() map[string][]string {
 	out := map[string][]string{}
-	var walk func(c *cobra.Command, prefix string)
-	walk = func(c *cobra.Command, prefix string) {
+	for path, c := range commandsByPath() {
+		var fs []string
+		c.Flags().VisitAll(func(f *pflag.Flag) { fs = append(fs, f.Name) })
+		out[path] = fs
+	}
+	return out
+}
+
+// commandsByPath is the ONE walk of the whole surface: join key -> the command it names.
+//
+// THE TREE IS PER-ROLE, AND A WALKER THAT FORGETS THAT MEASURES THE OPERATOR ONLY. CommandPaths
+// carries that knowledge — it walks NewRootFor(dispatchedSeatFor(role)) for each role and
+// re-composes `role + " " + path` into the key — and CommandFlags did not: it walked the bare
+// newRoot(), which with no seat is the operator's tree, and returned a map with NO ENTRIES. Every
+// consumer of that map has been iterating nothing and reporting a clean board (#654).
+//
+// So the composition lives here once and the callers read it, rather than each restating the same
+// role-keying and drifting apart again. The key rules are CommandPaths': one command mounted in
+// several trees keeps ONE key (`motion …`, `fetch`, `count-claims`), because those are one
+// contract however many seats can reach them.
+func commandsByPath() map[string]*cobra.Command {
+	out := map[string]*cobra.Command{}
+	var walk func(c *cobra.Command, prefix string, key func(string) string)
+	walk = func(c *cobra.Command, prefix string, key func(string) string) {
 		for _, sub := range c.Commands() {
 			name := sub.Name()
 			if name == "help" || name == "completion" {
@@ -56,15 +78,49 @@ func CommandFlags() map[string][]string {
 			}
 			path := strings.TrimSpace(prefix + " " + name)
 			if sub.HasSubCommands() {
-				walk(sub, path)
+				walk(sub, path, key)
+				if sub.Runnable() && sub.Annotations[BareIsACapability] == "yes" {
+					out[key(path)] = sub
+				}
 				continue
 			}
-			var fs []string
-			sub.Flags().VisitAll(func(f *pflag.Flag) { fs = append(fs, f.Name) })
-			out[path] = fs
+			out[key(path)] = sub
 		}
 	}
-	walk(newRoot(), "")
+	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		r := role
+		walk(NewRootFor(dispatchedSeatFor(r)), "", func(p string) string {
+			if strings.HasPrefix(p, "motion") || p == "fetch" || p == "count-claims" {
+				return p
+			}
+			return r + " " + p
+		})
+	}
+	walk(NewRootFor(""), "", func(p string) string { return p })
+	return out
+}
+
+// CommandRecords returns every command path that RECORDS an event, mapped to the event type it
+// writes — "merge mint" -> "mint", "blue edit" -> "blue_edit".
+//
+// THE THIRD EDGE OF THE SURFACE GRAPH, and the one nothing derived before. CommandPaths answers
+// "what verbs exist" and CommandFlags "what does each accept"; neither says what a verb DOES to
+// the record, which is the edge that makes a run a graph rather than a list of invocations. The
+// annotation is already on every seat command because `seat` writes it there and the refusal path
+// reads it back — this only walks the tree and collects it, so there is no second statement of
+// the fact and nothing to keep in step by hand.
+//
+// A path absent from this map records nothing (a `show`, a `graph`, a `verify`); that is a real
+// answer and not a miss, which is why the map is keyed on the paths that DO record rather than
+// carrying empty strings for the ones that do not. A map that came back EMPTY would be a miss,
+// and its caller says so rather than reporting "0 of 0".
+func CommandRecords() map[string]string {
+	out := map[string]string{}
+	for path, c := range commandsByPath() {
+		if t := seat.RecordType(c); t != "" {
+			out[path] = t
+		}
+	}
 	return out
 }
 
