@@ -110,7 +110,7 @@ func newOCRPages() *cobra.Command {
 			}
 			if entry.ContentType != "application/pdf" {
 				return fmt.Errorf("sha %s is %s, and only application/pdf renders to pages; its "+
-					"content is at %s", sha, contentTypeOrUnknown(entry.ContentType), fetchcache.Path(run, sha))
+					"content is at %s", sha, fetchcache.ContentTypeOrUnknown(entry.ContentType), fetchcache.Path(run, sha))
 			}
 			// THE GUARD THAT MAKES THIS VERB CHEAP TO USE WRONGLY. Rendering a document whose text
 			// was already extracted spends a model to re-derive, less accurately, what is already a
@@ -167,15 +167,6 @@ func newOCRPages() *cobra.Command {
 	c.Flags().BoolVar(&force, flags.Force, false, "render even though a text layer was already extracted")
 	_ = c.MarkFlagRequired(flags.Sha)
 	return c
-}
-
-// contentTypeOrUnknown keeps an absent Content-Type from rendering as an empty string in the
-// middle of a sentence, where it reads as a missing word rather than a missing measurement.
-func contentTypeOrUnknown(ct string) string {
-	if ct == "" {
-		return "of no recorded content type"
-	}
-	return ct
 }
 
 // ocrReadSummary is what `ocr read` prints: what was read, by what, and where it disagreed.
@@ -268,15 +259,8 @@ func newOCRRead() *cobra.Command {
 			// a second reading returns different text, so silently redoing it would replace a
 			// record a seat may already have cited from.
 			if prev, had, rerr := fetchcache.ReadReadingRecord(run, sha); rerr == nil && had && !force {
-				same := len(prev.RenderShas) == len(rd.PageShas)
-				for i := range prev.RenderShas {
-					if same && prev.RenderShas[i] != rd.PageShas[i] {
-						same = false
-					}
-				}
-				if same {
-					s := readSummaryOf(run, sha, prev, true)
-					return printOCRRead(cmd, s)
+				if fetchcache.SameRenders(prev.RenderShas, rd.PageShas) {
+					return printOCRRead(cmd, readSummaryOf(run, sha, prev, true))
 				}
 			}
 

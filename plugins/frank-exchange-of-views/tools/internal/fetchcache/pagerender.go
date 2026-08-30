@@ -132,9 +132,19 @@ func RenderPages(run record.Run, sha string, body []byte, dpi int) (RenderRecord
 	// crash leaves images with no record, which reads as "not rendered" and re-renders — the
 	// same ordering the whole function relies on. What it costs is the previous render, and
 	// that is a cache of something the document can always reproduce.
+	// AND THE READING OF THOSE PIXELS GOES WITH THEM. The reading record and its per-pass
+	// exhibits already died here — they live inside this directory — but the assembled
+	// transcription does not, and it was being left behind: a <sha>.ocr.txt on disk marking
+	// disagreements against pass files that no longer existed, attesting to a model, a time and
+	// a set of image hashes whose record had just been deleted. That is a transcription
+	// outliving its own provenance, which is the state this whole design exists to prevent, and
+	// it read to a seat exactly like a reading that was still current.
 	dir := PagesDir(run, sha)
 	if err := os.RemoveAll(dir); err != nil {
 		return RenderRecord{}, fmt.Errorf("clearing the previous render of %s: %w", sha, err)
+	}
+	if err := os.Remove(OCRTextPath(run, sha)); err != nil && !os.IsNotExist(err) {
+		return RenderRecord{}, fmt.Errorf("clearing the previous reading of %s: %w", sha, err)
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return RenderRecord{}, err

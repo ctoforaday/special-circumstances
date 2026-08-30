@@ -215,6 +215,11 @@ const (
 	Sha   = "sha"
 	DPI   = "dpi"
 	Force = "force"
+	// OCR sits on `fetch`, where it is ON by default: a PDF with no text layer is read
+	// automatically rather than handed back as a dead end with two more commands a seat has
+	// to already know about. --ocr=false is the operator saying "cache it, do not spend a
+	// model on it".
+	OCR = "ocr"
 
 	// The operator `scorecard` command: a chair's in-run self-read.
 	Chair = "chair"
@@ -250,7 +255,7 @@ func All() []string {
 		Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
 		Chair, Watch, Now, Serve,
-		Sha, DPI, Force,
+		Sha, DPI, Force, OCR,
 	}
 }
 
