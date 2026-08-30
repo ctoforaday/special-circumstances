@@ -311,3 +311,38 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	}
 	return stored, resp.Body, false, nil
 }
+
+// LookupSha returns the index entry for a content hash, and whether one exists.
+//
+// Lookup answers "have we fetched this URL"; this answers "what do we know about these
+// bytes". A verb that operates on something already cached — `ocr`, which takes a --sha a
+// seat read out of a fetch summary — needs the second question, and had no way to ask it.
+//
+// FIRST MATCH WINS, the same rule Lookup states, because it is the same index and one file
+// must not have two merge semantics. A reader that took the LAST match here while Lookup
+// took the first would make "the entry for this document" mean two different lines.
+//
+// The content file is NOT required to still be present. Lookup treats a missing file as a
+// cache miss because its caller is about to serve those bytes; this caller wants the
+// RECORD — what the document is, whether text came out of it — and answering "no entry" for
+// a document the index plainly describes would be a false statement about the index.
+func LookupSha(run record.Run, sha string) (Entry, bool, error) {
+	f, err := os.Open(indexPath(run))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return Entry{}, false, nil // no reads yet this run
+		}
+		return Entry{}, false, err
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
+	for sc.Scan() {
+		var got Entry
+		if json.Unmarshal(sc.Bytes(), &got) != nil || got.Sha != sha {
+			continue
+		}
+		return got, true, nil
+	}
+	return Entry{}, false, sc.Err()
+}
