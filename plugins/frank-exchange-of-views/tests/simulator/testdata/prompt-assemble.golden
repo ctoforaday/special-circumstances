@@ -1,4 +1,4 @@
-prompt sha256: cd3541f0abce2d9a0ab6c4eba272798798ece31314d5150e533fe3534fb9ff64
+prompt sha256: 33ff03c70bd8a37a574c0049551ff7cca7f08f16e0ade7ef5f5b0e729b9cebc0
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 2 round(s).
@@ -9,7 +9,9 @@ THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER.
 If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale.
 And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so.
 You keep no memory between runs, so this is the whole of your continuity.
-THEN ASSEMBLE, and verify research/2026-01-01_golden/report.md exists and reads correctly at the top: the verdict stamp is the outcome's, the sections are blue's and the record's.
+THEN ASSEMBLE.
+It writes a SET — research/2026-01-01_golden/report.md (the research), docket.md, debate.md, judgments.md, evidence.md, run.md, CHANGELOG.md, a README.md index and a tabbed report.html — and a document with nothing in it is not written at all, so a missing judgments.md means no motions were filed rather than a failure.
+Verify research/2026-01-01_golden/report.md exists and reads correctly at the top: the verdict stamp is the outcome's, the sections are blue's and the record's.
 A tool cannot mis-author a synthesis surface — the run-5 catechism defect, where 6/7 answers regressed once assembly authored the catechism, is structurally impossible now, and the TL;DR is blue's, inside the audited report, rather than written after red's final audit where nothing checks it.
 THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope.
 Collated friction so far (report any of your own as well): [].

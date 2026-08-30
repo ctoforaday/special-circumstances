@@ -31,6 +31,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	// Aliased: this package's own `Run` returns a named result called `report`, and the two
+	// spellings would shadow each other at exactly the call site that needs the constant.
+	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
@@ -462,17 +465,49 @@ func stripAgent(f string) string { return reAgentStrip.ReplaceAllString(f, "") }
 // line; every other `[^id]` is a reference; a reference with no definition renders as its own
 // source text. That precision matters — a reference may legitimately be followed by a colon in
 // prose ("…artifacts exist[^P1]: `skills/…`"), which is a reference, not a definition.
+// PER DOCUMENT, AND THAT IS NOT A DETAIL. A footnote definition cannot cross a file boundary,
+// so once the report is a set, a definition in evidence.md does nothing for a reference in
+// report.md — and an audit that concatenated the set before scanning would report a clean
+// board for exactly the defect this check exists to catch.
 func FootnoteIntegrity(runDir string) Audit {
-	assembled, err := os.ReadFile(filepath.Join(runDir, "report.md"))
-	if err != nil {
-		return Audit{Check: "footnote-integrity", Verdict: "SKIP",
-			Detail: fmt.Sprintf("no assembled report.md to read (%v) — this audit judges the weave's output, so before assembly there is nothing to judge", err)}
+	refs, defs := 0, 0
+	var dangling []string
+	read := 0
+	for _, name := range reportdoc.Files() {
+		body, err := os.ReadFile(filepath.Join(runDir, name))
+		if err != nil {
+			continue
+		}
+		read++
+		r, d, bad := footnotesIn(string(body))
+		refs += r
+		defs += d
+		for _, id := range bad {
+			dangling = append(dangling, name+":[^"+id+"]")
+		}
 	}
+	if read == 0 {
+		return Audit{Check: "footnote-integrity", Verdict: "SKIP",
+			Detail: "no assembled document to read — this audit judges the weave's output, so before assembly there is nothing to judge"}
+	}
+	sort.Strings(dangling)
+	if len(dangling) > 0 {
+		return Audit{Check: "footnote-integrity", Verdict: "FAIL",
+			Detail: fmt.Sprintf("%d footnote(s) referenced with no definition in the document that carries them: %s. They render as literal source text to every reader, and the evidence they were meant to carry is unreachable from the deliverable",
+				len(dangling), strings.Join(dangling, ", "))}
+	}
+	return Audit{Check: "footnote-integrity", Verdict: "PASS",
+		Detail: fmt.Sprintf("%d document(s) scanned; %d footnote(s) referenced, %d defined, none dangling", read, refs, defs)}
+}
+
+// footnotesIn counts one document's references and definitions and returns the ids referenced
+// in it with no definition in it.
+func footnotesIn(body string) (refs, defs int, dangling []string) {
 	// CODE IS NOT PROSE, and a renderer does not look for footnotes inside it. A report that
 	// quotes a proof's output in a fenced block, or writes `[^P…]` inline while DESCRIBING the
 	// footnote surface, is not referencing anything — scanning those would report a dangling
 	// footnote at exactly the sites that talk about footnotes.
-	scanned := stripCode(string(assembled))
+	scanned := stripCode(body)
 	defined := map[string]bool{}
 	for _, m := range footnoteDef.FindAllStringSubmatch(scanned, -1) {
 		defined[m[1]] = true
@@ -489,20 +524,12 @@ func FootnoteIntegrity(runDir string) Audit {
 		}
 		referenced[id] = true
 	}
-	var dangling []string
 	for id := range referenced {
 		if !defined[id] {
-			dangling = append(dangling, "[^"+id+"]")
+			dangling = append(dangling, id)
 		}
 	}
-	sort.Strings(dangling)
-	if len(dangling) > 0 {
-		return Audit{Check: "footnote-integrity", Verdict: "FAIL",
-			Detail: fmt.Sprintf("%d footnote(s) referenced in the assembled report with no definition: %s. They render as literal source text to every reader, and the evidence they were meant to carry is unreachable from the deliverable",
-				len(dangling), strings.Join(dangling, ", "))}
-	}
-	return Audit{Check: "footnote-integrity", Verdict: "PASS",
-		Detail: fmt.Sprintf("%d footnote(s) referenced, %d defined, none dangling", len(referenced), len(defined))}
+	return len(referenced), len(defined), dangling
 }
 
 var (
@@ -538,12 +565,22 @@ func AssemblyScreen(runDir string) Audit {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no citations on the record — nothing to screen"}
 	}
 
-	assembled, rerr := os.ReadFile(filepath.Join(runDir, "report.md"))
-	if rerr != nil {
+	// THE WHOLE SET, not report.md. A refuted source cited in the debate transcript points the
+	// reader at rejected evidence exactly as one in the analysis does, and a screen that reads
+	// a seventh of the deliverable reports the other six as clean.
+	var assembled strings.Builder
+	for _, name := range reportdoc.Files() {
+		body, rerr := os.ReadFile(filepath.Join(runDir, name))
+		if rerr != nil {
+			continue
+		}
+		assembled.Write(body)
+	}
+	if assembled.Len() == 0 {
 		// Before assembly there is nothing to screen, and saying so beats a PASS that means
 		// "the file I was looking for was not there".
 		return Audit{Check: "assembly-screen", Verdict: "SKIP",
-			Detail: fmt.Sprintf("%d citation(s) on the record and no assembled report.md yet — the screen runs against the assembled artifact (%v)", ev.Counts.Sources, rerr)}
+			Detail: fmt.Sprintf("%d citation(s) on the record and no assembled document yet — the screen runs against the assembled artifact", ev.Counts.Sources)}
 	}
 
 	var carried []string
@@ -562,7 +599,7 @@ func AssemblyScreen(runDir string) Audit {
 		// screened against the PRE-assembly anchor AND the source's own url, which survives into
 		// the composed bibliography. Either surviving means the reader is still being pointed at
 		// a source red found against.
-		if s.URL != "" && strings.Contains(string(assembled), s.URL) {
+		if s.URL != "" && strings.Contains(assembled.String(), s.URL) {
 			carried = append(carried, fmt.Sprintf("%s (%s)", s.Anchor, s.URL))
 		}
 	}
@@ -1567,11 +1604,16 @@ func writeTarball(transcriptDir, outPath string, agentFiles []string) error {
 
 // ---- orchestration ----
 
-// appendCostToReport folds the per-seat-round cost table from cost.md into report.md as a ## Cost
-// section, so the final report carries the cost breakdown. No-op (returns "") when report.md is
-// absent (a run that never reached assembly), already carries a ## Cost section (idempotent
-// across re-runs), or
-// cost.md has no table. cost.md itself is left byte-identical.
+// appendCostToReport folds the per-seat-round cost table from cost.md into the run document as
+// a ## Cost section. No-op (returns "") when the target is absent (a run that never reached
+// assembly), already carries a ## Cost section (idempotent across re-runs), or cost.md has no
+// table. cost.md itself is left byte-identical.
+//
+// THE HEADING THE TABLE BRINGS IS DEMOTED, NOT DUPLICATED. The first cut wrote "## Cost" and
+// then pasted a slice that opens with its own "## Per seat-round" — so every archived report
+// carries a Cost section of exactly nine bytes: a heading, and nothing under it. An empty
+// section reads as a section that found nothing, which is a different claim from one whose
+// content is sitting immediately below it under another name.
 func appendCostToReport(reportPath, costPath string) string {
 	report, err := os.ReadFile(reportPath)
 	if err != nil {
@@ -1588,11 +1630,12 @@ func appendCostToReport(reportPath, costPath string) string {
 	if table == "" {
 		return ""
 	}
+	table = strings.Replace(table, "## Per seat-round", "### Per seat-round", 1)
 	body := strings.TrimRight(string(report), "\n") + "\n\n## Cost\n\n" + table + "\n"
 	if err := os.WriteFile(reportPath, []byte(body), 0o644); err != nil {
-		return "report.md: cost append FAILED — " + jsSlice(err.Error(), 200)
+		return filepath.Base(reportPath) + ": cost append FAILED — " + jsSlice(err.Error(), 200)
 	}
-	return "report.md: cost breakdown folded in (## Cost)"
+	return filepath.Base(reportPath) + ": cost breakdown folded in (## Cost)"
 }
 
 // perSeatRoundTable slices the "## Per seat-round" table out of a rendered cost.md — from that
@@ -1659,11 +1702,12 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 	} else {
 		costF.Close()
 		lines = append(lines, "cost.md: written (telemetry join included)")
-		// Fold the per-seat-round cost table into report.md as a ## Cost section — the final
-		// report carries the cost breakdown. report.md is assembled mid-run WITHOUT transcript
-		// access (the transcript dir reaches only capture), so this is the one stage that can.
-		// Slices the already-rendered cost.md (kept byte-identical) rather than re-generate.
-		if msg := appendCostToReport(filepath.Join(runDir, "report.md"), filepath.Join(runDir, "cost.md")); msg != "" {
+		// Fold the per-seat-round cost table into run.md as a ## Cost section — what the run
+		// cost is a fact about the RUN, and run.md is the document whose subject that is. The
+		// set is assembled mid-run WITHOUT transcript access (the transcript dir reaches only
+		// capture), so this is the one stage that can. Slices the already-rendered cost.md
+		// (kept byte-identical) rather than re-generate.
+		if msg := appendCostToReport(filepath.Join(runDir, reportdoc.FileRun), filepath.Join(runDir, "cost.md")); msg != "" {
 			lines = append(lines, msg)
 		}
 	}
