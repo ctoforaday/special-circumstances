@@ -209,6 +209,13 @@ const (
 	RunID         = "run-id"
 	ScriptPath    = "script-path"
 
+	// The operator `ocr` command: rasterise a document with no text layer so a seat can read
+	// it (#644). --sha names a document ALREADY in the run cache, which is why there is no
+	// --url here: ocr never fetches, it operates on what fetch already stored.
+	Sha   = "sha"
+	DPI   = "dpi"
+	Force = "force"
+
 	// The operator `scorecard` command: a chair's in-run self-read.
 	Chair = "chair"
 
@@ -243,6 +250,7 @@ func All() []string {
 		Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
 		Chair, Watch, Now, Serve,
+		Sha, DPI, Force,
 	}
 }
 
