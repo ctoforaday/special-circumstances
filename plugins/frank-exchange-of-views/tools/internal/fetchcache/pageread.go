@@ -68,6 +68,9 @@ Rules:
 type AnthropicPageReader struct{}
 
 func (AnthropicPageReader) ReadPage(ctx context.Context, model string, png []byte) (string, int64, int64, error) {
+	if err := imageWithinAPILimit(len(png)); err != nil {
+		return "", 0, 0, err
+	}
 	client := anthropic.NewClient()
 	msg, err := client.Messages.New(ctx, anthropic.MessageNewParams{
 		Model:     anthropic.Model(model),
@@ -95,6 +98,41 @@ func (AnthropicPageReader) ReadPage(ctx context.Context, model string, png []byt
 		}
 	}
 	return sb.String(), msg.Usage.InputTokens, msg.Usage.OutputTokens, nil
+}
+
+// MaxImageBytes is the largest page image the reader will send, in PNG bytes.
+//
+// THE PUBLISHED LIMIT IS ON THE BASE64 FORM — 10 MB per image on the Claude API — and base64
+// inflates by 4/3, so the binary ceiling is 7.5 MB. Stating it in the units the caller has (a
+// file on disk) is the point: a limit expressed in the encoded form is one every caller has to
+// convert before it can be checked, and most will not.
+//
+// It is a real ceiling, not a theoretical one. A letter page of scan-like noise measures
+// 3.37 MB at 200 DPI, 7.33 MB at 300 and 12.69 MB at 400 — and `ocr pages` accepts --dpi up to
+// 400. Above ~200 DPI the resolution buys nothing anyway: the model's high-resolution tier caps
+// an image at 2576 px on the long edge and 4784 visual tokens (one per 28x28 patch), and a
+// letter page at 200 DPI is 1700x2200 = 4819 tokens — already at the ceiling. Everything past
+// that is downscaled by the API before the model ever sees it.
+const MaxImageBytes = 7 << 20 // 7 MB binary ~= 9.3 MB base64, inside the 10 MB limit
+
+// imageWithinAPILimit refuses a page image the API would reject, by name and before the call.
+//
+// IT IS A SEPARATE FUNCTION SO IT CAN BE TESTED WITHOUT A MODEL. Checked inline in ReadPage,
+// the only way to exercise the boundary would be to hand ReadPage an image at exactly the
+// limit and let it proceed — into a real API call, in a package where nothing else does that.
+// A pure function of a length is the whole rule, and the whole rule is testable offline.
+//
+// `ocr pages` accepts --dpi up to 400 and will happily render past this, so without the guard
+// the operator gets an opaque request-too-large from inside the SDK with nothing connecting it
+// to the flag that caused it.
+func imageWithinAPILimit(n int) error {
+	if n <= MaxImageBytes {
+		return nil
+	}
+	return fmt.Errorf("page image is %.1f MB, which base64-encodes to %.1f MB and exceeds the "+
+		"API's %d MB per-image limit; re-render lower with `ocr pages --dpi 200` (200 DPI is "+
+		"already at the model's resolution ceiling for a letter-size page, so nothing is lost)",
+		float64(n)/(1<<20), float64(n)*4/3/(1<<20), MaxImageBytes*4/3/(1<<20))
 }
 
 // MaxReadPages bounds one invocation.

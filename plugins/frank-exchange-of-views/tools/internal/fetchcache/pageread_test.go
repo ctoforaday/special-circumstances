@@ -277,3 +277,33 @@ func TestFirstRuneDifferenceCountsCharactersNotBytes(t *testing.T) {
 		}
 	}
 }
+
+// AN OVER-LIMIT IMAGE IS REFUSED BY NAME, NOT BY THE API. `ocr pages` accepts --dpi up to 400,
+// and a letter page of scan-like noise measures 12.69 MB of PNG at that resolution — 16.92 MB
+// once base64-encoded, past the API's 10 MB per-image ceiling. Without this the operator gets
+// an opaque request-too-large from inside the SDK, with nothing connecting it to the flag that
+// caused it.
+//
+// The rule is a pure function of a length precisely so this test needs no model: asserting it
+// through ReadPage would mean handing ReadPage a legal image and letting it call out.
+func TestAnImageOverTheAPILimitIsRefusedBeforeTheCall(t *testing.T) {
+	err := imageWithinAPILimit(MaxImageBytes + 1)
+	if err == nil {
+		t.Fatal("an image past the per-image limit was accepted")
+	}
+	for _, want := range []string{"per-image limit", "--dpi 200", "base64"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal = %q, want it to mention %q", err, want)
+		}
+	}
+	// THE LIMIT ITSELF IS USABLE. A guard that refused its own boundary would be a different
+	// bug wearing this one's clothes.
+	if err := imageWithinAPILimit(MaxImageBytes); err != nil {
+		t.Errorf("an image at exactly the limit was refused: %v", err)
+	}
+	// And the binary ceiling really does leave room once base64 inflates it by 4/3.
+	if MaxImageBytes*4/3 >= 10<<20 {
+		t.Errorf("MaxImageBytes=%d base64-encodes to %d, past the API's 10 MB limit",
+			MaxImageBytes, MaxImageBytes*4/3)
+	}
+}
