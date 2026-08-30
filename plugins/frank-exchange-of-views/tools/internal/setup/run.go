@@ -246,9 +246,13 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 
 	skel := BuildSkeleton(run, topic)
-	mirrorsPurged := PurgeStaleMirrors(filepath.Join(cfg.Home, ".cache", "feov", "run-mirror"), cfg.Now, 30)
-	if mirrorsPurged > 0 {
-		fmt.Fprintf(stdout, "  mirror purge: %d stale checkpoint mirror(s) removed\n", mirrorsPurged)
+	if mirrorRoot, mErr := record.MirrorRoot(); mErr != nil {
+		// LOUD, not folded into the zero: a purge that could not resolve its own directory has
+		// not checked anything, and reporting that as "0 removed" is the same line a clean
+		// board prints.
+		fmt.Fprintf(stderr, "  mirror purge: NOT RUN — %v\n", mErr)
+	} else if n := record.PurgeStaleMirrors(mirrorRoot, cfg.Now, 30); n > 0 {
+		fmt.Fprintf(stdout, "  mirror purge: %d stale checkpoint mirror(s) removed\n", n)
 	}
 	pinned := BuildPinned(run, head, cfg.Cites)
 

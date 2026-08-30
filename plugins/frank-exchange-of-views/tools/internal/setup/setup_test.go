@@ -223,21 +223,6 @@ func TestBuildPatternIndexHarnessLimitDistinct(t *testing.T) {
 	}
 }
 
-// PurgeStaleMirrors: 30-day purge removes stale, keeps fresh.
-func TestPurgeStaleMirrors(t *testing.T) {
-	mirrors := t.TempDir()
-	os.Mkdir(filepath.Join(mirrors, "oldrun"), 0o755)
-	os.Mkdir(filepath.Join(mirrors, "newrun"), 0o755)
-	old := time.Now().Add(-40 * 24 * time.Hour)
-	os.Chtimes(filepath.Join(mirrors, "oldrun"), old, old)
-	if n := PurgeStaleMirrors(mirrors, time.Now(), 30); n != 1 {
-		t.Fatalf("purged = %d, want 1", n)
-	}
-	if exists(filepath.Join(mirrors, "oldrun")) || !exists(filepath.Join(mirrors, "newrun")) {
-		t.Error("stale should be purged, fresh kept")
-	}
-}
-
 // PreflightRecordBinary compares EPOCHS: not runnable refuses, a different shape refuses, an
 // equal one passes. There is no "how far behind" — nothing promises backwards compatibility,
 // so the only answers are same shape or different shape.

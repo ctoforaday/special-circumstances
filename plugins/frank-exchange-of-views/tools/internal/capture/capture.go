@@ -1649,6 +1649,10 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		}
 	}
 
+	if line := reapOrphanMirrors(now); line != "" {
+		lines = append(lines, line)
+	}
+
 	costF, cerr := os.Create(filepath.Join(run.Dir(), "cost.md"))
 	if cerr != nil {
 		return nil, "", false, cerr
@@ -1902,6 +1906,39 @@ func ArchiveRecord(run record.Run, repoRoot string) (string, error) {
 	}
 	return out, nil
 }
+
+// reapOrphanMirrors removes the checkpoint mirrors of runs that STOPPED, and reports only
+// when it has something to say.
+//
+// AND NEVER THIS RUN'S. plans/record-tool.md has capture DELETE the mirror "after records/ is
+// committed" — but capture does not commit. It writes an untracked tarball into the working
+// tree and a human commits it later, so at the moment capture finishes, the record's only
+// durable copy does not exist yet. Dropping the mirror here would remove the recovery path
+// exactly when its replacement is most exposed to the add -A / checkout / stash classes the
+// mirror was built to survive. So the reap is by AGE, and this run's mirror was rewritten at
+// its last round: it is the freshest thing in the directory and cannot be the oldest.
+//
+// It belongs here because run-setup was the only caller, and nobody runs run-setup between
+// research runs — a crashed run's mirror sat until someone happened to start a new one.
+// Capture happens once per run, at its end.
+//
+// A BARE ZERO IS TWO DIFFERENT ANSWERS, so the one that means "not checked" is spoken and the
+// one that means "nothing stale" is not: an unresolvable root reports NOT RUN, a clean board
+// reports nothing, and those can no longer be read as the same line.
+func reapOrphanMirrors(now time.Time) string {
+	root, err := record.MirrorRoot()
+	if err != nil {
+		return "mirror purge: NOT RUN — " + jsSlice(err.Error(), 200)
+	}
+	if n := record.PurgeStaleMirrors(root, now, mirrorOrphanDays); n > 0 {
+		return fmt.Sprintf("mirror purge: %d stale checkpoint mirror(s) removed", n)
+	}
+	return ""
+}
+
+// mirrorOrphanDays is longer than any run, which is the only property it needs: a live run
+// refreshes its mirror every round, so what crosses this line stopped writing weeks ago.
+const mirrorOrphanDays = 30
 
 // ---- gap-class harvest ----
 

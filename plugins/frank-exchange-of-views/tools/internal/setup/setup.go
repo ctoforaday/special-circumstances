@@ -22,7 +22,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
@@ -483,31 +482,12 @@ func ValidatePins(cites []string, head string, git GitFunc) PinValidation {
 
 // ---- purge, preflight, version ----
 
-// PurgeStaleMirrors removes checkpoint mirrors older than maxAgeDays (default 30).
-func PurgeStaleMirrors(mirrorRoot string, now time.Time, maxAgeDays int) int {
-	if !exists(mirrorRoot) {
-		return 0
-	}
-	entries, err := os.ReadDir(mirrorRoot)
-	if err != nil {
-		return 0
-	}
-	purged := 0
-	cutoff := time.Duration(maxAgeDays) * 24 * time.Hour
-	for _, e := range entries {
-		p := filepath.Join(mirrorRoot, e.Name())
-		info, err := os.Stat(p)
-		if err != nil {
-			continue
-		}
-		if now.Sub(info.ModTime()) > cutoff {
-			if os.RemoveAll(p) == nil {
-				purged++
-			}
-		}
-	}
-	return purged
-}
+// PurgeStaleMirrors moved to record.PurgeStaleMirrors, beside the path it purges.
+//
+// It lived here and composed ~/.cache/feov/run-mirror at the call site, while merge/verdict.go
+// composed the same path to WRITE it — two hand-assembled copies of one location, where a
+// mismatch is a purge that returns 0 and reads exactly like a clean board. capture now reaps
+// too, which would have made three.
 
 // expectedSchema is the epoch the plugin beside this binary declares.
 //

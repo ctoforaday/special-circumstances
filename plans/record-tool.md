@@ -69,12 +69,25 @@ incident classes (add -A / checkout / stash) threaten it: (a) `red-merge.mjs
 verdict` runs an automatic `checkpoint` — mirrors `records/` to
 `~/.cache/feov/run-mirror/<runDirHash>/` (user cache, NOT OS temp — temp purge
 must not void the sole recovery path) every round; recovery = copy back.
-MIRROR LIFECYCLE: created at first checkpoint, refreshed each round, DELETED by
-capture after `records/` is committed; mirrors older than 30 days are purged by
-the next setup run (orphan cleanup for crashed runs). (b) capture commits
-`records/` with the run record — git-tracked from then on; a post-capture
-copy-back is impossible by construction (the mirror is gone). (c) the
-freeze-guard warning classes stand. Window: at most one round's events —
+MIRROR LIFECYCLE: created at first checkpoint, refreshed each round, and reaped
+by AGE — mirrors untouched for 30 days are removed, by `run-setup` and by
+`capture`. A live run rewrites its mirror every round, so what crosses that line
+stopped writing weeks ago; the reap is orphan cleanup for crashed runs and
+nothing else. (b) capture writes `records/` to `run-archive/<slug>.tar.gz`, and
+a HUMAN commits it — capture invokes no git at all. So a post-capture copy-back
+is still possible, and deliberately: at the moment capture returns, the archive
+is an UNTRACKED file in the working tree, exposed to the same add -A / checkout
+/ stash classes this paragraph opens with, and the mirror is still the recovery
+path until someone commits. (c) the freeze-guard warning classes stand.
+
+CORRECTED 2026-08-29. This paragraph read "DELETED by capture after `records/`
+is committed", and neither half was ever true: capture does not commit, and
+capture did not delete. Written as a completed design, it was read as one — the
+stage looked implemented, and the actual reaper (`PurgeStaleMirrors`) was
+reachable only from `run-setup`, which nobody runs between research runs, so a
+crashed run's mirror sat until someone happened to start a new one. Building the
+delete as specified would have removed the recovery path at the moment its
+replacement was least durable. The reap was widened to `capture` instead. Window: at most one round's events —
 BETTER than today, where a sweep loses every untracked round at once.
 
 VERB SETS (complete against everything the engine currently records — audit gap
@@ -259,7 +272,7 @@ R4 [MODIFY] lib/record.mjs: live class registry + within-run recurrence
     plugins/frank-exchange-of-views/tests/simulator/record.test.mjs  [NEW R1]
     <runDir>/records/events-<seatId>-<nonce>.jsonl   (per-process shards)
     <runDir>/records/registry-extensions.jsonl        (run-local --class-new)
-    ~/.cache/feov/run-mirror/<runDirHash>/            (checkpoint mirror, capture-deleted)
+    ~/.cache/feov/run-mirror/<runDirHash>/            (checkpoint mirror, age-reaped at 30d)
 
 ## Plan-audit disposition (sitting 4, 2026-07-18): PASS with notes — all folded
 
