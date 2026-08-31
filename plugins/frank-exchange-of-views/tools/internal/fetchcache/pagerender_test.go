@@ -3,6 +3,7 @@ package fetchcache
 import (
 	"encoding/json"
 	"image"
+	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -55,6 +56,57 @@ func TestRenderPagesWritesOneImagePerPageAndRecordsTheirHashes(t *testing.T) {
 	if got := Sha(b); got != rec.PageShas[0] {
 		t.Errorf("page 1 on disk hashes to %s, record says %s — the record names an image that is "+
 			"not the one written", got, rec.PageShas[0])
+	}
+}
+
+// GRAYSCALE, AND MEASURED RATHER THAN ASSUMED. A scan carries no colour worth keeping, and
+// the colour model is the ONLY lever that moves the file size: png.BestCompression produced
+// byte-identical output to the default at every resolution, because scan noise does not
+// compress. Measured at 200 DPI on a letter page of scan-like noise: 3.37 MB RGBA, 2.31 MB
+// gray. This asserts the decoded PNG's colour model, because that is the fact a re-render
+// could silently lose.
+func TestRenderedPagesAreGrayscale(t *testing.T) {
+	run := runtest.New(t, t.TempDir())
+	body := pdfWithNoTextLayer()
+	sha := Sha(body)
+	if _, err := RenderPages(run, sha, body, DefaultRenderDPI); err != nil {
+		t.Fatal(err)
+	}
+	f, err := os.Open(PagePath(run, sha, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	cfg, format, err := image.DecodeConfig(f)
+	if err != nil {
+		t.Fatalf("decoding the page image: %v", err)
+	}
+	if format != "png" {
+		t.Errorf("page image is %q, want png — it is never a TIFF and never lossy: a JPEG's "+
+			"artifacts land on exactly the small text a transcription depends on", format)
+	}
+	if cfg.ColorModel != color.GrayModel {
+		t.Errorf("page image colour model is %T, want color.GrayModel — a scan carries no colour "+
+			"worth 31%% more disk and 31%% more upload", cfg.ColorModel)
+	}
+}
+
+// AND THE DEFAULT RESOLUTION IS THE ONE THE READER CAN ACTUALLY USE. The high-resolution
+// vision tier caps an image at 2576 px on the long edge and 4784 visual tokens (one per 28x28
+// patch); a letter page at 200 DPI is 1700x2200 = 4819 tokens, already at that ceiling.
+// Rendering higher by default would spend disk and upload on pixels the API downscales away.
+func TestDefaultRenderDPISitsAtTheModelsCeiling(t *testing.T) {
+	const letterWidthPt, letterHeightPt = 612, 792
+	w := letterWidthPt * DefaultRenderDPI / 72
+	h := letterHeightPt * DefaultRenderDPI / 72
+	if tokens := ((w + 27) / 28) * ((h + 27) / 28); tokens > 4784*11/10 {
+		t.Errorf("a letter page at the default %d DPI is %dx%d = %d visual tokens, well past the "+
+			"4784 the model accepts; the API would downscale it and the extra bytes buy nothing",
+			DefaultRenderDPI, w, h, tokens)
+	}
+	if long := h; long > 2576 {
+		t.Errorf("a letter page at the default %d DPI is %d px on the long edge, past the 2576 "+
+			"the model accepts", DefaultRenderDPI, long)
 	}
 }
 

@@ -87,7 +87,7 @@ func newOCRPages() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "pages",
 		Short: "rasterise every page of a cached PDF and name the images",
-		Long: "pages renders each page of the cached document --sha to a PNG under <run>/cache/<sha>.pages/ and writes a render record beside them holding the resolution, one hash per page image, and the renderer's library@semver. It prints a summary naming the directory and the page range — never an image, and never the document. " +
+		Long: "pages renders each page of the cached document --sha to a GRAYSCALE PNG under <run>/cache/<sha>.pages/ and writes a render record beside them holding the resolution, one hash per page image, and the renderer's library@semver. The default 200 DPI is the resolution the reader can actually use — the model caps an image at 2576 px on the long edge, and a letter page at 200 DPI is already there, so rendering higher spends disk on pixels the API downscales away. It prints a summary naming the directory and the page range — never an image, and never the document. " +
 			"A DOCUMENT THAT ALREADY HAS TEXT IS REFUSED. Where fetch extracted a text layer, its extraction is already on disk and reading the pixels instead spends a model to re-derive it, less accurately. --force renders anyway, for the case where the text layer is present but wrong.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
