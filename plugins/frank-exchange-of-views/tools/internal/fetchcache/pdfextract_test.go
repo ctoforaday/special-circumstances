@@ -75,6 +75,41 @@ func pdfWithNoTextLayer() []byte {
 	}, false)
 }
 
+// multiPagePDFWithNoTextLayer is pdfWithNoTextLayer with n pages, all sharing one image.
+//
+// A SECOND PAGE IS WHAT MAKES ORDER TESTABLE. Every claim about reading a document — that each
+// page is read once, that the assembly is the pages in order — is trivially satisfied by a
+// one-page fixture, so the one-page case cannot fail the way the real corpus would: IEEE 1012
+// is 80 pages, and a loop that read page 1 eighty times would pass every single-page test.
+func multiPagePDFWithNoTextLayer(n int) []byte {
+	const hexPixels = "000000FFFFFF000000FFFFFF>" // 4 RGB pixels, ASCIIHexDecode-terminated
+	// Objects: 1 catalog, 2 pages, 3..n+2 the pages, n+3 the shared image.
+	imgObj := n + 3
+	kids := make([]string, n)
+	for i := range kids {
+		kids[i] = fmt.Sprintf("%d 0 R", i+3)
+	}
+	objects := []string{
+		"<< /Type /Catalog /Pages 2 0 R >>",
+		fmt.Sprintf("<< /Type /Pages /Kids [%s] /Count %d >>", strings.Join(kids, " "), n),
+	}
+	// Each page carries its content stream inline rather than referencing a shared one, so a
+	// renderer cannot collapse the pages into one.
+	for i := 0; i < n; i++ {
+		objects = append(objects, fmt.Sprintf(
+			"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents %d 0 R "+
+				"/Resources << /XObject << /Im1 %d 0 R >> >> >>", imgObj+1+i, imgObj))
+	}
+	objects = append(objects, fmt.Sprintf(
+		"<< /Type /XObject /Subtype /Image /Width 2 /Height 2 /ColorSpace /DeviceRGB "+
+			"/BitsPerComponent 8 /Filter /ASCIIHexDecode /Length %d >>\nstream\n%s\nendstream",
+		len(hexPixels), hexPixels))
+	for i := 0; i < n; i++ {
+		objects = append(objects, stream("q 612 0 0 792 0 0 cm /Im1 Do Q"))
+	}
+	return buildPDF(objects, false)
+}
+
 func TestPDFExtractorReadsATextLayerAndItsTitle(t *testing.T) {
 	got := PDFExtractor{}.Extract(t.TempDir(), "application/pdf", pdfWithTextLayer())
 	if !got.Attempted {

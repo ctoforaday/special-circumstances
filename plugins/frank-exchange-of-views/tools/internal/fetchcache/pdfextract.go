@@ -7,6 +7,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/klippa-app/go-pdfium"
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/klippa-app/go-pdfium/webassembly"
 	"github.com/tetratelabs/wazero"
@@ -84,6 +85,37 @@ func extractorIdentity() string {
 // already the run's scratch space and is already excluded from the record.
 const wazeroCacheDir = ".wazero"
 
+// pdfiumInstance starts a PDFium instance sharing the run's compiled-module cache, and
+// returns it with the closer that releases both it and its pool.
+//
+// SHARED BY EXTRACTION AND RENDERING, which is the reason it exists. Both open the same
+// document through the same runtime, and a second hand-rolled copy of this setup would be
+// free to drift on the one line that matters — RuntimeConfig, without which every call pays
+// the 3,968 ms module compile rather than the 220 ms warm start. Two copies of a
+// performance-critical wiring is exactly the shape that ends up half-applied.
+//
+// The error text is caller-ready: Extract folds it straight into a Reason a seat reads, so
+// it names the stage rather than the symptom.
+func pdfiumInstance(cacheDir string) (pdfium.Pdfium, func(), error) {
+	cache, err := wazero.NewCompilationCacheWithDir(filepath.Join(cacheDir, wazeroCacheDir))
+	if err != nil {
+		return nil, nil, fmt.Errorf("wazero compilation cache unavailable: %w", err)
+	}
+	pool, err := webassembly.Init(webassembly.Config{
+		MinIdle: 1, MaxIdle: 1, MaxTotal: 1,
+		RuntimeConfig: wazero.NewRuntimeConfig().WithCompilationCache(cache),
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("pdf runtime failed to start: %w", err)
+	}
+	inst, err := pool.GetInstance(0)
+	if err != nil {
+		pool.Close()
+		return nil, nil, fmt.Errorf("pdf runtime unavailable: %w", err)
+	}
+	return inst, func() { inst.Close(); pool.Close() }, nil
+}
+
 func (PDFExtractor) Extract(cacheDir, mediaType string, body []byte) Extraction {
 	if mediaType != "application/pdf" {
 		// NOT A REFUSAL — a statement that nobody looked. Attempted stays false, so the record
@@ -93,26 +125,12 @@ func (PDFExtractor) Extract(cacheDir, mediaType string, body []byte) Extraction 
 	}
 	out := Extraction{Attempted: true, ExtractorID: extractorIdentity()}
 
-	cache, err := wazero.NewCompilationCacheWithDir(filepath.Join(cacheDir, wazeroCacheDir))
+	inst, closer, err := pdfiumInstance(cacheDir)
 	if err != nil {
-		out.Reason = fmt.Sprintf("wazero compilation cache unavailable: %v", err)
+		out.Reason = err.Error()
 		return out
 	}
-	pool, err := webassembly.Init(webassembly.Config{
-		MinIdle: 1, MaxIdle: 1, MaxTotal: 1,
-		RuntimeConfig: wazero.NewRuntimeConfig().WithCompilationCache(cache),
-	})
-	if err != nil {
-		out.Reason = fmt.Sprintf("pdf runtime failed to start: %v", err)
-		return out
-	}
-	defer pool.Close()
-	inst, err := pool.GetInstance(0)
-	if err != nil {
-		out.Reason = fmt.Sprintf("pdf runtime unavailable: %v", err)
-		return out
-	}
-	defer inst.Close()
+	defer closer()
 
 	doc, err := inst.OpenDocument(&requests.OpenDocument{File: &body})
 	if err != nil {

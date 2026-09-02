@@ -57,12 +57,15 @@ seatId by construction, with a same-label-next-round collision test in R1's
 suite. A torn round (mint without close) renders as open state; nothing is
 lost, nothing blocks.
 
-RENDER LOCUS (audit-3 gap 7, dissolving ordering contracts): every MUTATING
-verb on every CLI triggers a re-render of its affected projections as a side
-effect (local node process, zero tokens — cost cleared by audit-3), and every
-CLI exposes read-only `render`. Readers therefore never depend on another
-seat's verb order: the projection is current as of the last mutation, and the
-bench's prompt FIRST ACTION is `bench.mjs render` as a belt.
+RENDER LOCUS (audit-3 gap 7, dissolving ordering contracts): readers never
+depend on another seat's verb order, because a projection is never a stored
+thing that could be stale. SUPERSEDED 2026-08-30 — as designed here, every
+mutating verb re-rendered its affected projections as a side effect and every
+CLI exposed a read-only `render`; neither exists. `internal/view` generates
+every view ON READ from the append-only event log, never materialising it to
+disk, so "current as of the last mutation" is replaced by "current, always" and
+the belt (`bench.mjs render` as a FIRST ACTION) has nothing left to protect
+against. The gap this closes is the same one; the mechanism is not.
 
 LOSS DISCIPLINE — the log lives on the untracked live blackboard, so the W1.13
 incident classes (add -A / checkout / stash) threaten it: (a) `red-merge.mjs
@@ -234,8 +237,10 @@ R4 [MODIFY] lib/record.mjs: live class registry + within-run recurrence
   2KB.
 - Registry poisoning via --class-new: low x med x low — run-local until human
   promotion (two-tier authority).
-- Prompt/tool-help drift: med x low x low — help text lives beside the code; a
-  simulator test asserts every exposed verb appears in its own help.
+- Prompt/tool-help drift: med x low x low — help text lives beside the code, and
+  the guard is stronger than this line claimed: seat/help.go PANICS at init for a
+  verb with no help document, so a verb cannot ship without one. (There is no
+  such simulator test; the tree-walk assertions are Go tests in internal/cli.)
 
 ## V. Verification plan
 
@@ -291,17 +296,20 @@ two grounded empirically in the run-5 corpus). Sitting 4: PASS. Notes, binding o
 
 ## Amendment (operator, 2026-07-18): lock-file defense on shared surfaces
 
-The shards are single-writer, but two surfaces are shared and now LOCKED
-(dependency-free — mkdir as the atomic primitive every lockfile package wraps):
-the per-seat pointer (racing registers) and the PROJECTIONS (concurrent
-render-on-mutation from parallel lenses; Windows rename-over-existing throws
-under contention rather than last-writer-wins). Lock: mkdir-acquire, 10s
-stale-steal by mtime (crashed holders never deadlock a seat), 5s bounded wait
-then proceed-unlocked (a lost render self-heals on the next mutation — full-
-state projections make this safe), retry-wrapped renames for the antivirus/
-indexer EPERM class. Tested: 6 truly parallel lens processes with per-verb
-renders (all events land, no lock or temp leaks, final render complete) and
-stale-lock stealing inside the wait bound.
+The shards are single-writer, but the per-seat pointer is shared (racing
+registers) and is LOCKED. The 5s bounded wait then proceed-unlocked stands
+(`lockWait` in internal/record/lock.go).
+
+SUPERSEDED 2026-08-30 in its mechanism. This specified mkdir-acquire with a 10s
+stale-steal by mtime, and named the PROJECTIONS as the second locked surface.
+Both are gone. The lock is flock — LockFileEx on Windows, flock(2) on Unix —
+whose own comment in lock.go rejects precisely the heuristic written here: the
+kernel releases a dead holder's lock, so a crashed holder needs no timeout and,
+more to the point, a merely SLOW holder is never robbed, which an mtime steal
+cannot promise. And projections are no longer written at all (see RENDER LOCUS
+above), so there is no render-on-mutation to serialise and no rename-over-
+existing to lose under contention. Retry-wrapped renames remain, for the
+antivirus/indexer EPERM class.
 
 ## Amendment (operator challenge, 2026-07-18): Go for seat-side runtime; markdown never parsed
 
