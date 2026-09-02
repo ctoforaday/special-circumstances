@@ -2849,7 +2849,15 @@ func TestFuzzDebate(t *testing.T) {
 				if violations, cerr := consistency.Check(runtest.Open(t, o.runDir)); cerr != nil {
 					o.err = "consistency oracle: " + cerr.Error()
 				} else if len(violations) > 0 {
-					o.err = "consistency violations:\n  " + strings.Join(violations, "\n  ")
+					// THE EVIDENCE TRAVELS WITH THE VIOLATION, because the run directory does
+					// not. "A violation keeps the run directory so the disagreement can be
+					// inspected" is true on a developer's machine and false everywhere this
+					// actually fires: #645 was seen once in ~160 sweeps, inside a CI job, and by
+					// the time anyone read the log the directory was gone with the container.
+					// A rare violation whose evidence is unreachable can only ever be reported,
+					// never diagnosed — so the anchor layer's two sides go into the failure text
+					// itself, where the log keeps them.
+					o.err = "consistency violations:\n  " + strings.Join(violations, "\n  ") + anchorEvidence(o.runDir)
 				}
 			}
 			// The oracle opened this run's cached handle in-process; release it or the
