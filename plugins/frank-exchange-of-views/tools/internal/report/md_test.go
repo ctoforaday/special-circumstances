@@ -49,8 +49,12 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 		`<pre><code class="language-bash">## not a heading`,
 		"echo &#39;x&#39; &gt; y", // escaped, and NOT parsed as a heading or a quote
 		"<hr>",
-		`<sup class="fnref"><a href="#fn-1">1</a></sup>`,
+		// The FIRST citation of an id carries the return anchor its References entry links
+		// back to; the entry itself closes the loop with a .fnback arrow.
+		`<sup class="fnref" id="fnref-1"><a href="#fn-1">1</a></sup>`,
 		`<li id="fn-1">`,
+		`<a class="fnback" href="#fnref-1"`,
+		`<h2>References</h2>`,
 		`<a href="https://example.invalid/a">`,
 	} {
 		if !strings.Contains(got, want) {

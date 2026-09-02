@@ -151,7 +151,8 @@ func mdToHTML(md, file string, anchor anchors) string {
 			closeList(&listStack)
 			// data-nolink: the label IS the definition of that footnote, so the id-linker must
 			// leave it alone. A label that links away reads as a reference to somewhere else.
-			foot = append(foot, `<li id="fn-`+escape(m[1])+`"><span class="fnlabel" data-nolink>`+escape(m[1])+`</span> `+inline(m[2])+`</li>`)
+			foot = append(foot, `<li id="fn-`+escape(m[1])+`"><span class="fnlabel" data-nolink>`+escape(m[1])+`</span> `+inline(m[2])+
+				` <a class="fnback" href="#fnref-`+escape(m[1])+`" aria-label="back to the citing text">&#8617;</a></li>`)
 			continue
 		}
 
@@ -191,7 +192,9 @@ func mdToHTML(md, file string, anchor anchors) string {
 		if strings.Contains(t, "|") && i+1 < len(lines) && reTableSep.MatchString(lines[i+1]) {
 			flushPara()
 			closeList(&listStack)
-			b.WriteString("<table><thead><tr>")
+			// The wrapper is what scrolls: a wide table inside it pans on a phone instead of
+			// stretching the whole page and dragging every paragraph with it.
+			b.WriteString("<div class=\"tblwrap\"><table><thead><tr>")
 			for _, c := range splitRow(t) {
 				b.WriteString("<th>" + inline(c) + "</th>")
 			}
@@ -208,7 +211,7 @@ func mdToHTML(md, file string, anchor anchors) string {
 				b.WriteString("</tr>\n")
 			}
 			i--
-			b.WriteString("</tbody></table>\n")
+			b.WriteString("</tbody></table></div>\n")
 			continue
 		}
 
@@ -251,10 +254,30 @@ func mdToHTML(md, file string, anchor anchors) string {
 	flushPara()
 	closeList(&listStack)
 	if len(foot) > 0 {
-		b.WriteString("<section class=\"footnotes\"><h2>Notes</h2><ol class=\"fn\">\n" + strings.Join(foot, "\n") + "\n</ol></section>\n")
+		// "References", because that is what the entries are — the citation layer the
+		// research protocol requires — and a reader looking for a bibliography must be able
+		// to find it by its own name.
+		b.WriteString("<section class=\"footnotes\"><h2>References</h2><ol class=\"fn\">\n" + strings.Join(foot, "\n") + "\n</ol></section>\n")
 	}
-	return b.String()
+	return withFirstRefAnchors(b.String())
 }
+
+// withFirstRefAnchors gives the FIRST in-text citation of each id an anchor the References
+// entry can link back to. Every later citation of the same id stays a plain marker: one
+// return address per entry, and it is the earliest, which is where the claim was made.
+func withFirstRefAnchors(html string) string {
+	seen := map[string]bool{}
+	return reFnrefSup.ReplaceAllStringFunc(html, func(m string) string {
+		id := reFnrefSup.FindStringSubmatch(m)[1]
+		if seen[id] {
+			return m
+		}
+		seen[id] = true
+		return `<sup class="fnref" id="fnref-` + id + `">` + m[len(`<sup class="fnref">`):]
+	})
+}
+
+var reFnrefSup = regexp.MustCompile(`<sup class="fnref"><a href="#fn-([^"]+)">`)
 
 // openList emits whatever open/close tags are needed to reach the requested kind and depth.
 func openList(stack *[]string, kind string, indent int) string {

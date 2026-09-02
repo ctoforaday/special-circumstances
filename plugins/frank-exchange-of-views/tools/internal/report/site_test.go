@@ -25,15 +25,29 @@ func siteFixture(t *testing.T) (string, *record.Board) {
 	return RenderSite("# Whether the cache is coherent", docs, board), board
 }
 
-// ONE FILE. A reader opens it out of a tarball months later, offline — so nothing it needs may
-// live anywhere else. This is the property the whole tier is for, and it is the one a later
-// convenience (a CDN stylesheet, a font, an icon set) silently takes away.
+// ONE FILE. A reader opens it out of a tarball months later, offline — so nothing the page
+// NEEDS may live anywhere else. This is the property the whole tier is for, and it is the one
+// a later convenience (a CDN stylesheet, a font, an icon set) silently takes away.
+//
+// One address is allowed, and it is an enhancement, not a need: the pinned mermaid module,
+// imported only when a document carries a diagram fence, degrading offline to the fenced
+// source with a note. It must appear exactly once, inside the script, never as a fetched
+// resource attribute — the page must render complete before it resolves.
 func TestTheSiteIsSelfContained(t *testing.T) {
 	html, _ := siteFixture(t)
-	for _, forbidden := range []string{"http://", "https://cdn", "<link", "<img", "src=\"http"} {
+	for _, forbidden := range []string{"http://", "<link", "<img", "src=\"http"} {
 		if strings.Contains(html, forbidden) {
 			t.Errorf("the site reaches outside itself (%q) — it must open offline from an archive", forbidden)
 		}
+	}
+	if got := strings.Count(html, mermaidCDN); got != 1 {
+		t.Errorf("the pinned mermaid URL must appear exactly once (the dynamic import), got %d", got)
+	}
+	if got := strings.Count(html, "https://cdn"); got != strings.Count(html, mermaidCDN) {
+		t.Errorf("a CDN reference other than the pinned mermaid URL crept in")
+	}
+	if !strings.Contains(html, "rendering it needs network access") {
+		t.Errorf("the offline fallback note for diagrams is missing — without it an offline miss is silent")
 	}
 	for _, want := range []string{"<!DOCTYPE html>", "<style>", "<script>"} {
 		if !strings.Contains(html, want) {
