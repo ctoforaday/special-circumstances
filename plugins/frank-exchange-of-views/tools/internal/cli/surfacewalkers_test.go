@@ -17,6 +17,7 @@ func TestTheSurfaceWalkersAllSeeTheSameTree(t *testing.T) {
 	paths := CommandPaths()
 	flags := CommandFlags()
 	records := CommandRecords()
+	refs := CommandReferences()
 
 	// THE FLOOR FIRST. Every assertion below is vacuously true over an empty collection, which is
 	// exactly how this defect survived: the comparison passed because there was nothing to
@@ -29,6 +30,13 @@ func TestTheSurfaceWalkersAllSeeTheSameTree(t *testing.T) {
 	}
 	if len(records) == 0 {
 		t.Fatal("CommandRecords() is EMPTY — the observed-graph report renders \"0 of 0 recording verbs reached\", which reads exactly like full coverage")
+	}
+	// CommandReferences fails in ONE direction: it type-asserts flag values, so a change to the
+	// flag types stops the assertion matching and the map comes back empty — reported as "0
+	// checked flag(s)", which reads like a surface where nothing is checked rather than a walker
+	// that stopped looking. #654 one edge over.
+	if len(refs) == 0 {
+		t.Fatal("CommandReferences() is EMPTY — no flag was seen to carry an existence check, which is a broken derivation rather than an unchecked surface (#535 step 2)")
 	}
 
 	// CommandFlags is keyed on the same paths CommandPaths returns: same walk, same composition.
@@ -43,6 +51,13 @@ func TestTheSurfaceWalkersAllSeeTheSameTree(t *testing.T) {
 	for p := range flags {
 		if !known[p] {
 			t.Errorf("CommandFlags names %q, which CommandPaths does not — the keys must join, or every gate that looks a path up in both silently misses", p)
+		}
+	}
+	// References is a SUBSET too, and joins on the same key: a reference edge pointing at a path
+	// CommandPaths does not know is an edge to nothing.
+	for p := range refs {
+		if !known[p] {
+			t.Errorf("CommandReferences names %q, which CommandPaths does not — the reference edge joins on this key and would point at nothing", p)
 		}
 	}
 	// Records is a SUBSET: most paths write no event, and that is a real answer rather than a miss.
