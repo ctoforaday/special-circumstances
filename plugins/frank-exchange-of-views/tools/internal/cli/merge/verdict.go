@@ -1,8 +1,6 @@
 package merge
 
 import (
-	"crypto/sha1"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -46,11 +44,11 @@ func newVerdict() *cobra.Command {
 		if _, err := record.Append(s.Identity(), &recordpb.RoundVerdict{Verdict: &v}); err != nil {
 			return nil, err
 		}
-		open, closed, err := view.Counts(run.Dir())
+		open, closed, err := view.Counts(run)
 		if err != nil {
 			return nil, err
 		}
-		mirror, err := checkpoint(run.Dir())
+		mirror, err := checkpoint(run)
 		if err != nil {
 			return nil, err
 		}
@@ -63,20 +61,20 @@ func newVerdict() *cobra.Command {
 
 // checkpoint copies records/ to a per-run directory under the user cache, keyed
 // by a hash of the run dir so two runs never collide.
-func checkpoint(runDir string) (string, error) {
-	sum := sha1.Sum([]byte(runDir))
-	home, err := os.UserHomeDir()
+//
+// The path comes from record.MirrorDir rather than being composed here, because the reaper in
+// capture and the orphan purge in run-setup have to name the SAME directory this writes to,
+// and three hand-assembled copies of one path is three chances for a purge that silently
+// matches nothing.
+func checkpoint(run record.Run) (string, error) {
+	mirror, err := record.MirrorDir(run.Dir())
 	if err != nil {
 		return "", err
 	}
-	mirror := filepath.Join(home, ".cache", "feov", "run-mirror", hex.EncodeToString(sum[:])[:12])
 	if err := os.MkdirAll(mirror, 0o755); err != nil {
 		return "", err
 	}
-	src, err := record.RecordsDir(runDir)
-	if err != nil {
-		return "", err
-	}
+	src := run.Records()
 	if _, err := os.Stat(src); err == nil {
 		if err := copyDir(src, mirror); err != nil {
 			return "", err

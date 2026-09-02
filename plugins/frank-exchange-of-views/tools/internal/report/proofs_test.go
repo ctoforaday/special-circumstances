@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 )
 
 // seedProof lays down the on-disk artifact a proof event points at.
@@ -60,7 +61,7 @@ func TestProofsAreWovenIntoTheDeliverableWithSourceAndOutput(t *testing.T) {
 		}
 	}
 
-	ev := evidenceDoc(runDir, proofs, map[string]bool{"p-deadbeef": true})
+	ev := evidenceDoc(runtest.Open(t, runDir), proofs, map[string]bool{"p-deadbeef": true})
 	for _, want := range []string{
 		"## Proofs",                // the section
 		"<a id=\"p-deadbeef\">",    // the anchor the footnote links to
@@ -119,7 +120,7 @@ func TestAnObservedProofIsLabelledInTheReport(t *testing.T) {
 	const sha = "feed0000"
 	seedProof(t, runDir, sha, "console.log(Math.random());", "0.42\n")
 
-	out := evidenceDoc(runDir, []record.Proof{{
+	out := evidenceDoc(runtest.Open(t, runDir), []record.Proof{{
 		Label: "p-1", SHA: sha, Basis: "observed", Script: "s.js",
 		Drift: "output differs from byte 2 between runs", Reason: "live sample",
 	}}, map[string]bool{"p-1": true})
@@ -132,7 +133,7 @@ func TestAnObservedProofIsLabelledInTheReport(t *testing.T) {
 // one that admits the artifact is gone.
 func TestAMissingArtifactIsStatedNotSkipped(t *testing.T) {
 	runDir := newRun(t)
-	out := evidenceDoc(runDir, []record.Proof{{
+	out := evidenceDoc(runtest.Open(t, runDir), []record.Proof{{
 		Label: "p-9", SHA: "notonthisdisk", Basis: "reproducible", Script: "gone.js",
 	}}, map[string]bool{"p-9": true})
 	if !strings.Contains(out, "missing from this run directory") {
@@ -145,7 +146,7 @@ func TestAMissingArtifactIsStatedNotSkipped(t *testing.T) {
 func TestAnUnanchoredProofIsShownAndLabelled(t *testing.T) {
 	runDir := newRun(t)
 	seedProof(t, runDir, "s5", "x", "y")
-	out := evidenceDoc(runDir, []record.Proof{{
+	out := evidenceDoc(runtest.Open(t, runDir), []record.Proof{{
 		Label: "p-5", SHA: "s5", Basis: "reproducible", Script: "e.js", Reason: "nobody cited it",
 	}}, map[string]bool{})
 	if !strings.Contains(out, "anchored to nothing") {
@@ -172,7 +173,7 @@ func TestNoProofsLeavesTheReportAlone(t *testing.T) {
 	if got != md || used != nil {
 		t.Errorf("an empty proof layer was appended:\n%s", got)
 	}
-	if ev := evidenceDoc(recordtest.TmpRun(t), nil, nil); ev != "" {
+	if ev := evidenceDoc(runtest.Open(t, recordtest.TmpRun(t)), nil, nil); ev != "" {
 		t.Errorf("evidence.md was composed for a run with no proofs:\n%s", ev)
 	}
 }

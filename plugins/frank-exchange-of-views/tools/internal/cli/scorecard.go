@@ -38,23 +38,25 @@ func newScorecard() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			// Resolved so the injected run reaches reads too, not only writes.
-			runDir, rerr := seat.Of(cmd).RequireRun("scorecard")
+			run, rerr := seat.Of(cmd).RequireRun("scorecard")
 			if rerr != nil {
 				return rerr
 			}
 			chair, _ := cmd.Flags().GetString(flags.Chair)
 			cards := map[string]bool{"blue": true, "red": true, "bench": true}
-			if runDir == "" || !cards[chair] {
-				fmt.Fprintln(cmd.ErrOrStderr(), "usage: "+InvokedAs()+" scorecard --run <runDir> --chair blue|red|bench")
+			// The run is no longer part of this test: RequireRun refused an unsupplied one
+			// above, so `run.Dir() == ""` could only ever be false by the time it was read.
+			if !cards[chair] {
+				fmt.Fprintln(cmd.ErrOrStderr(), "usage: "+InvokedAs()+" scorecard --run <run.Dir()> --chair blue|red|bench")
 				os.Exit(2)
 			}
 			// A run with no record yet (BoardState errors) leaves board nil — the record-derived
 			// rows then read "needs the tool", exactly as the JS did when the view spawn failed.
 			var board *record.Board
-			if b, err := record.BoardState(runDir); err == nil {
+			if b, err := record.BoardState(run); err == nil {
 				board = b
 			}
-			rows := scorecard.Compute(runDir, scorecard.ReadResults(runDir), board)[chair]
+			rows := scorecard.Compute(run, scorecard.ReadResults(run), board)[chair]
 			fmt.Fprint(cmd.OutOrStdout(), scorecard.RenderChair(chair, rows, "this run")+"\n")
 			return nil
 		},

@@ -377,7 +377,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// could record all round and then be told its board did not exist. Measured with the
 	// identity injected: register, friction and revision all succeeded; `show` and
 	// `claim-index` demanded the flag.
-	runDir, rerr := Of(cmd).RequireRun(role)
+	run, rerr := Of(cmd).RequireRun(role)
 	if rerr != nil {
 		return rerr
 	}
@@ -419,7 +419,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	if asJSON, _ := cmd.Flags().GetBool(flags.JSON); asJSON {
 		switch want {
 		case "debate":
-			b, err := record.DebateJSONBytes(runDir)
+			b, err := record.DebateJSONBytes(run)
 			if err != nil {
 				return err
 			}
@@ -473,11 +473,11 @@ func renderView(cmd *cobra.Command, want string) error {
 		case "", "json":
 			// The default arm, below.
 		case "markdown", "md":
-			led, err := view.Markdown(runDir, "ledger", "")
+			led, err := view.Markdown(run, "ledger", "")
 			if err != nil {
 				return err
 			}
-			arc, err := view.Markdown(runDir, "archive", "")
+			arc, err := view.Markdown(run, "archive", "")
 			if err != nil {
 				return err
 			}
@@ -491,7 +491,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		}
 		// The role and seat are passed so the board CAN carry the sitting; whether it does is
 		// the duty arm's decision, and unset means the board is exactly what it always was.
-		b, err := record.BoardJSONBytesFor(runDir, role, Of(cmd).SeatID)
+		b, err := record.BoardJSONBytesFor(run, role, Of(cmd).SeatID)
 		if err != nil {
 			return err
 		}
@@ -502,7 +502,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// (coalesces findings into gaps), so it reads structured fields, not prose it must
 	// parse. This is the channel that replaced red/candidates/*.md.
 	if want == "findings" {
-		b, err := record.FindingsJSONBytes(runDir)
+		b, err := record.FindingsJSONBytes(run)
 		if err != nil {
 			return err
 		}
@@ -514,7 +514,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// The artifact under audit, through the tool rather than off disk. Anchors intact: they are
 	// what `blue edit` holds a seat responsible for carrying across an edit.
 	if want == "report" {
-		b, err := report.BlueReportForReading(runDir)
+		b, err := report.BlueReportForReading(run)
 		if err != nil {
 			return err
 		}
@@ -541,7 +541,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// evidence is JSON by name: it is a LOOKUP TABLE keyed by the anchor token a seat is holding,
 	// and a markdown rendering of it would be a table to parse rather than a field to read.
 	if want == "evidence" {
-		b, err := record.EvidenceJSONBytes(runDir)
+		b, err := record.EvidenceJSONBytes(run)
 		if err != nil {
 			return err
 		}
@@ -549,7 +549,7 @@ func renderView(cmd *cobra.Command, want string) error {
 		return nil
 	}
 	if want == "motions" {
-		b, err := record.MotionsJSONBytes(runDir)
+		b, err := record.MotionsJSONBytes(run)
 		if err != nil {
 			return err
 		}
@@ -561,7 +561,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// full board JSON is not, and it is the ONE command a seat is told to run: everything open
 	// to it, whether it may close, and which items are what stop it closing.
 	if want == "work" {
-		b, err := record.WorkJSONBytes(runDir, role, Of(cmd).SeatID)
+		b, err := record.WorkJSONBytes(run, role, Of(cmd).SeatID)
 		if err != nil {
 			return err
 		}
@@ -578,10 +578,10 @@ func renderView(cmd *cobra.Command, want string) error {
 				"a scorecard grades a side of the debate, and this role is not one", role, role)
 		}
 		var board *record.Board
-		if b, err := record.BoardState(runDir); err == nil {
+		if b, err := record.BoardState(run); err == nil {
 			board = b
 		}
-		rows := scorecard.Compute(runDir, scorecard.ReadResults(runDir), board)[chair]
+		rows := scorecard.Compute(run, scorecard.ReadResults(run), board)[chair]
 		fmt.Fprint(cmd.OutOrStdout(), scorecard.RenderChair(chair, rows, "this run")+"\n")
 		return nil
 	}
@@ -589,7 +589,7 @@ func renderView(cmd *cobra.Command, want string) error {
 	// judgment reads. It is a SERIES, not a snapshot, and the series is the whole
 	// point: a single round's numbers cannot show a trend changing character.
 	if want == "telemetry" {
-		b, err := view.TelemetryJSONL(runDir)
+		b, err := view.TelemetryJSONL(run)
 		if err != nil {
 			return err
 		}
@@ -616,7 +616,7 @@ func renderView(cmd *cobra.Command, want string) error {
 
 	scope := Str(cmd, flags.ID)
 
-	b, err := view.Markdown(runDir, want, scope)
+	b, err := view.Markdown(run, want, scope)
 	if err != nil {
 		return err
 	}

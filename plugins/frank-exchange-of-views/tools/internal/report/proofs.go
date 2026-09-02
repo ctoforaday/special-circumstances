@@ -98,7 +98,7 @@ func weaveProofRefs(md string, proofs []record.Proof) (string, []string) {
 // record: the report must show the exact bytes that ran, not a copy the record made of them.
 // A missing artifact is stated, never silently skipped — a proof section quietly short of a
 // proof is worse than one that says the artifact is gone.
-func evidenceDoc(runDir string, proofs []record.Proof, anchored map[string]bool) string {
+func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool) string {
 	if len(proofs) == 0 {
 		return ""
 	}
@@ -164,7 +164,7 @@ func evidenceDoc(runDir string, proofs []record.Proof, anchored map[string]bool)
 		}
 		b.WriteString("\n")
 
-		script, output := readArtifact(runDir, p.SHA)
+		script, output := readArtifact(run, p.SHA)
 		b.WriteString("```" + fenceLang(p.Script) + "\n" + strings.TrimRight(script, "\n") + "\n```\n\n")
 		b.WriteString("Output:\n\n")
 		b.WriteString("```\n" + strings.TrimRight(output, "\n") + "\n```\n\n")
@@ -179,8 +179,8 @@ func oneLine(s string) string {
 
 // readArtifact returns the script and output as they were recorded, or an explicit note in
 // their place. Silence here would let a report claim a proof it cannot show.
-func readArtifact(runDir, sha string) (script, output string) {
-	dir := filepath.Join(runDir, "proofs", sha)
+func readArtifact(run record.Run, sha string) (script, output string) {
+	dir := filepath.Join(run.Dir(), "proofs", sha)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return "(the script artifact is missing from this run directory)", "(the output artifact is missing from this run directory)"

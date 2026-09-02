@@ -130,7 +130,13 @@ func dispatchedSeat() string {
 	if err != nil {
 		return seatenv.Dispatched(nil)
 	}
-	return seatenv.Dispatched(seat.BoundSeat(runDir))
+	// NewRun, matching seat.Of: this asks whether an agent has registered, and must answer for a
+	// run that is not yet on disk rather than refusing before the question is put.
+	run, rerr := record.NewRun(runDir)
+	if rerr != nil {
+		return seatenv.Dispatched(nil)
+	}
+	return seatenv.Dispatched(seat.BoundSeat(run))
 }
 
 // NewRootFor builds THIS SEAT'S surface at the root, or the operator's when no seat was dispatched.
@@ -225,6 +231,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 			newCountClaims(),     // operator/blue: deterministic claim_count over blue/report.md
 			newFriction(),        // operator: the friction channel — seats write it, the human reads it
 			newFetch(),           // operator: cached, hash-verified web read — feeds the run source cache
+			newOCR(),             // operator: render a scan's pages so a seat can read what has no text layer
 			newSetup(),           // operator: build a research run's blackboard
 			newScorecard(),       // operator: a chair's in-run self-read scorecard
 			newDashboard(),       // operator: the live run dashboard.html

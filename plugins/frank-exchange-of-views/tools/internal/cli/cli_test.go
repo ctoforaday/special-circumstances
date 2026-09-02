@@ -8,6 +8,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"os"
@@ -53,7 +54,11 @@ func testDispatchedSeat(args []string) string {
 			runDir = r
 		}
 	}
-	return seatenv.Dispatched(seat.BoundSeat(runDir))
+	run, err := record.NewRun(runDir)
+	if err != nil {
+		return seatenv.Dispatched(nil)
+	}
+	return seatenv.Dispatched(seat.BoundSeat(run))
 }
 
 // run executes one command against a fresh root and captures what the seat sees.
@@ -167,7 +172,7 @@ func help(t *testing.T, args ...string) string {
 // events reads the merged event log the way every projection does.
 func events(t *testing.T, runDir string) []*record.Event {
 	t.Helper()
-	m, err := record.MergedEvents(runDir)
+	m, err := record.MergedEvents(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -541,7 +546,7 @@ func TestListFieldsAreAlwaysRenderedEvenWhenEmpty(t *testing.T) {
 		"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	b, err := record.BoardJSONBytes(runDir)
+	b, err := record.BoardJSONBytes(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1396,7 +1401,7 @@ func writeTemp(t *testing.T, body string) string {
 // rather than what they say.
 func boardState(t *testing.T, runDir string) (*record.Board, error) {
 	t.Helper()
-	return record.BoardState(runDir)
+	return record.BoardState(runtest.Open(t, runDir))
 }
 
 // The other half of the contract: when a run IS live, a seat that forgot --run is

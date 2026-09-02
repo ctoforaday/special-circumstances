@@ -542,6 +542,32 @@ jobs:
       - run: go test -race ./internal/record/
         env:
           CGO_ENABLED: "1"
+      # And ONE test out of integration/fuzz, not the package. The fuzz runner's seats are
+      # concurrent as of #630 phase 3, and its run handle was briefly resolved lazily — a real
+      # race that two full debate runs under -race did not report, because the window closes
+      # before a sibling seat arrives. TestTheRunHandleIsImmutableAfterConstruction forces it
+      # in ~1s. Racing the whole package would cost minutes to re-check what -race already
+      # covers elsewhere; racing nothing leaves that test unable to fail.
+      #
+      # THE PASS IS ASSERTED, NOT INFERRED FROM THE EXIT CODE. `go test -run <name>` exits 0
+      # when the pattern matches NOTHING — it prints "ok ... [no tests to run]" — so a renamed
+      # or deleted test would leave this step green forever while guarding nothing. That is the
+      # plausible zero this leg exists to refuse, so the step greps for the test's own PASS line
+      # and fails loudly when it is absent.
+      - run: |
+          out=$(go test -race -v -run '^TestTheRunHandleIsImmutableAfterConstruction$' ./integration/fuzz/ 2>&1)
+          echo "$out"
+          grep -q '^--- PASS: TestTheRunHandleIsImmutableAfterConstruction' <<<"$out" || {
+            echo "::error::the run-handle race guard did not run; -run matched no test (renamed or deleted?)"
+            exit 1
+          }
+        # EXPLICIT, because this job sets no default shell and the Windows leg therefore runs
+        # pwsh — where `$(...)`, `<<<` and `grep` are not syntax. The single-line form this
+        # replaced ran on Windows by accident: pwsh could execute a bare `go test` line, so the
+        # shell question never came up until the assertion made the step a script.
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
 
   gray-area:
     # The trajectory-capture runtime. Its own Go module, so neither the
@@ -732,6 +758,62 @@ jobs:
       - run: go test -race ./...
         env:
           CGO_ENABLED: "1"
+
+  stackguard:
+    # A stacked pull request must not merge into a base that is already in main.
+    #
+    # #633 did exactly that on 2026-08-28: #631 merged its base `record-run-read-leaves` into
+    # main at 17:00 without deleting the branch, and #633 merged INTO that branch at 19:47.
+    # GitHub marked #633 MERGED; main never received a line of its 131 files. Every check on
+    # it passed, because every check asked whether the content was good and none asked where
+    # it was going.
+    #
+    # TWO TRIGGERS, BECAUSE ONE CANNOT COVER IT. The pull-request leg refuses a stack opened
+    # onto an already-merged base — and would NOT have caught #633, whose base was still live
+    # when its checks ran. The push-to-main leg is the one that would: every time main moves it
+    # asks whether that push just absorbed the base of an open pull request. On the real
+    # timeline it fires at 17:00, three hours before the mis-merge.
+    #
+    # fetch-depth 0, because the check resolves origin/<base> and asks whether it is an
+    # ancestor of origin/main. A shallow clone answers that question wrong rather than not at
+    # all, which is why stackguard resolves the ref explicitly and exits 2 when it cannot.
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    permissions:
+      contents: read
+      # The sweep leg reads open pull requests. The pull-request leg needs none of this — it is
+      # pure git — but a job-level block is per-job, not per-step.
+      pull-requests: read
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: scripts/go.mod
+          cache: ${{ github.event_name != 'push' }}  # zizmor: ignore[cache-poisoning]
+          cache-dependency-path: scripts/go.sum
+      # The guard's own suite runs first and unconditionally. It reconstructs #633's branch
+      # shape in a scratch repository and asserts the answer flips when the base merges — a
+      # containment check that stopped answering would otherwise report every stack as live,
+      # which is byte-identical to a clean board.
+      - run: go test ./stackguard/
+        working-directory: scripts
+      - if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: go run ./stackguard -base "$BASE_REF"
+        working-directory: scripts
+      - if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: go run ./stackguard -sweep
+        working-directory: scripts
 
   rule-sweep:
     # A rule patch must name its class and sweep its siblings

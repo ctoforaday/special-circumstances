@@ -9,6 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -136,7 +137,7 @@ func TestStaleDocumentsAreRemovedOnReassembly(t *testing.T) {
 	if err := os.WriteFile(stale, []byte("yesterday's motions"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Write(runDir, "# run", []Doc{{File: FileReport, Nav: "Report", Body: "today"}}, "index"); err != nil {
+	if _, err := Write(runtest.Open(t, runDir), "# run", []Doc{{File: FileReport, Nav: "Report", Body: "today"}}, "index"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(stale); !os.IsNotExist(err) {

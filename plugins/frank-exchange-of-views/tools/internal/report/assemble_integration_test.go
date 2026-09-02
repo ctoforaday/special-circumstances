@@ -1,6 +1,7 @@
 package report
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -66,7 +67,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	seen := map[string]bool{}
 	add := func(seatID string, body proto.Message) {
 		t.Helper()
-		id := record.Identity{RunDir: runDir, SeatID: seatID, Round: record.RoundIn(runDir)(seatID)}
+		id := record.Identity{Run: runtest.Open(t, runDir), SeatID: seatID, Round: record.RoundIn(runtest.Open(t, runDir))(seatID)}
 		if !seen[seatID] {
 			if _, _, err := record.RegisterSeat(id, ""); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)
@@ -111,7 +112,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
 	})
 
-	path, err := Assemble(runDir)
+	path, err := Assemble(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatalf("Assemble: %v", err)
 	}
@@ -235,7 +236,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	seen := map[string]bool{}
 	add := func(seatID string, body proto.Message) {
 		t.Helper()
-		id := record.Identity{RunDir: runDir, SeatID: seatID, Round: record.RoundIn(runDir)(seatID)}
+		id := record.Identity{Run: runtest.Open(t, runDir), SeatID: seatID, Round: record.RoundIn(runtest.Open(t, runDir))(seatID)}
 		if !seen[seatID] {
 			if _, _, err := record.RegisterSeat(id, ""); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)
@@ -281,7 +282,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
 	})
 
-	if _, err := Assemble(runDir); err != nil {
+	if _, err := Assemble(runtest.Open(t, runDir)); err != nil {
 		t.Fatalf("Assemble: %v", err)
 	}
 

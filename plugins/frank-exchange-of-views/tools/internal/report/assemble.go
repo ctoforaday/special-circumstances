@@ -103,22 +103,22 @@ func weaveCitations(md string, sources []record.Source) string {
 	return b.String()
 }
 
-func Assemble(runDir string) (string, error) {
-	docs, err := AssembleAll(runDir)
+func Assemble(run record.Run) (string, error) {
+	docs, err := AssembleAll(run)
 	if err != nil {
 		return "", err
 	}
-	board, err := record.BoardState(runDir)
+	board, err := record.BoardState(run)
 	if err != nil {
 		return "", fmt.Errorf("assemble: board: %w", err)
 	}
-	title := Title(runDir)
+	title := Title(run)
 
 	// The site is rendered BEFORE the index, because the index links it only if it is there.
-	if err := os.WriteFile(filepath.Join(runDir, "report.html"), []byte(RenderSite(title, docs, board)), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run.Dir(), "report.html"), []byte(RenderSite(title, docs, board)), 0o644); err != nil {
 		return "", fmt.Errorf("assemble: write report.html: %w", err)
 	}
-	return Write(runDir, title, docs, indexDoc(runDir, title, docs, board, board.Events))
+	return Write(run, title, docs, indexDoc(run, title, docs, board, board.Events))
 }
 
 func readOr(path, fallback string) string {

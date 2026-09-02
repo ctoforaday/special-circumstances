@@ -286,6 +286,10 @@ func trajectoryPath(runDir string) string {
 
 func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDir string, reportOnly, keep, recordsInRun, ask, buildOnly bool, surface seatprobe.Surface) (string, error) {
 	recordRoot := ""
+	// Declared before the branch and resolved inside it: the directory the handle names is
+	// created a few lines down, so there is no one point that serves both paths.
+	var probeRun record.Run
+	var err error
 	if !reportOnly {
 		if !keep {
 			if err := os.RemoveAll(runDir); err != nil {
@@ -293,6 +297,9 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDi
 			}
 		}
 		if err := os.MkdirAll(runDir, 0o755); err != nil {
+			return "", err
+		}
+		if probeRun, err = record.OpenRun(runDir); err != nil {
 			return "", err
 		}
 		// THE RECORD LEAVES THE RUN DIRECTORY, and that is what makes the probe's number mean
@@ -336,7 +343,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDi
 			}
 			return string(out), nil
 		}
-		if err := seatprobe.Build(runDir, b, run); err != nil {
+		if err := seatprobe.Build(probeRun, b, run); err != nil {
 			return "", fmt.Errorf("build: %w", err)
 		}
 		// RED'S MEMORY, STAGED AS run-setup STAGES IT. This used to be an arm — `none` mounted
@@ -348,7 +355,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDi
 		if err != nil {
 			return "", err
 		}
-		if r := setup.MirrorGapPatterns(mem, runDir); !r.Written {
+		if r := setup.MirrorGapPatterns(mem, probeRun); !r.Written {
 			return "", fmt.Errorf("red's gap-pattern corpus did not stage (%s) — the dispatched prompt names the file in its first instruction, so a run without it is measuring a broken read", r.Reason)
 		}
 		// THE FIXTURE, AND NOTHING ELSE. A caller driving its own dispatch — the interview, which
@@ -364,6 +371,15 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDi
 		}
 		if err := dispatch(b, runDir, bin, constDir, model, debateScript(debatePath), ask); err != nil {
 			return "", fmt.Errorf("dispatch: %w", err)
+		}
+	}
+	// --report-only points at a run built by an earlier invocation; the branch above built its
+	// own. Either way it exists by now, so OpenRun rather than NewRun — a run that does not
+	// resolve here is a real fault, not one awaiting its first write.
+	if !probeRun.Valid() {
+		probeRun, err = record.OpenRun(runDir)
+		if err != nil {
+			return "", err
 		}
 	}
 
@@ -394,7 +410,7 @@ func probe(b seatprobe.Board, runDir, bin, constDir, model, debatePath, memoryDi
 	} else {
 		attempts = nil // NOT MEASURED, and the report says so rather than counting zero
 	}
-	report, err := seatprobe.Report(surface, runDir, []string{b.Seat}, b.Expect, attempts)
+	report, err := seatprobe.Report(surface, probeRun, []string{b.Seat}, b.Expect, attempts)
 	if err != nil {
 		return "", err
 	}

@@ -162,7 +162,7 @@ func jsString(v any) string {
 // from them is worth having. What is not allowed is for the artifact to be silent about it. A
 // STALE record at capture time means the last seat stopped writing long before anyone ran this,
 // which is the signature of a workflow that died rather than finished.
-func LivenessAudit(runDir string, now time.Time) Audit {
+func LivenessAudit(run record.Run, now time.Time) Audit {
 	// QUIET IS NOT THE SIGNAL — a finished run is quiet BECAUSE it finished, and the first draft
 	// of this audit failed both of the day's real runs for exactly that. Silence separates
 	// nothing; what separates them is whether the bench ever recorded an outcome.
@@ -170,8 +170,8 @@ func LivenessAudit(runDir string, now time.Time) Audit {
 	//	quiet + an outcome on the record  -> it ran its course and was captured later
 	//	still moving, no outcome yet      -> captured mid-run, unusual but the operator's call
 	//	quiet + NO outcome                -> it stopped without finishing: TERMINATED
-	verdict := record.TerminalVerdict(runDir)
-	l := record.Assess(runDir, now, verdict != "")
+	verdict := record.TerminalVerdict(run)
+	l := record.Assess(run, now, verdict != "")
 	if verdict != "" {
 		return Audit{Check: "liveness", Verdict: "PASS", Detail: fmt.Sprintf(
 			"the run reached a terminal outcome on the record (%s) — it finished under its own power", verdict)}
@@ -197,11 +197,11 @@ func LivenessAudit(runDir string, now time.Time) Audit {
 // (rounds with a red sitting), read in-process. Telemetry is now DERIVED from the record via the
 // shared view library (never a materialized file), so it cannot be "absent": the check is whether
 // the derived series covers every red round. SKIP when there were no red rounds.
-func TelemetryAudit(runDir string, redRounds int) Audit {
+func TelemetryAudit(run record.Run, redRounds int) Audit {
 	if redRounds == 0 {
 		return Audit{Check: "telemetry", Verdict: "SKIP", Detail: "the debate record shows 0 red round(s)"}
 	}
-	lines, err := view.Telemetry(runDir)
+	lines, err := view.Telemetry(run)
 	if err != nil {
 		return Audit{Check: "telemetry", Verdict: "FAIL", Detail: fmt.Sprintf("telemetry could not be computed from the record: %v", err)}
 	}
@@ -277,14 +277,14 @@ type EnvelopeFriction struct {
 // any register event — deliberately, so "not measured" stays legible rather than reading as an
 // agent whose handle is the empty string. Those entries are counted out loud and are NOT findings:
 // an unjoinable entry is a thing this audit cannot see, not a duty a seat skipped.
-func FrictionAudit(runDir string, envelope []EnvelopeFriction, onRecord []record.FrictionEntryJSON) Audit {
+func FrictionAudit(run record.Run, envelope []EnvelopeFriction, onRecord []record.FrictionEntryJSON) Audit {
 	wroteToRecord := map[string]bool{}
 	for _, fr := range onRecord {
 		wroteToRecord[fr.SeatID] = true
 	}
 	var silent, unjoinable []string
 	for _, e := range envelope {
-		seat, found, err := record.SeatOfAgent(runDir, e.AgentID)
+		seat, found, err := record.SeatOfAgent(run, e.AgentID)
 		if err != nil || !found || seat == "" {
 			unjoinable = append(unjoinable, jsSlice(e.Text, 90))
 			continue
@@ -469,12 +469,12 @@ func stripAgent(f string) string { return reAgentStrip.ReplaceAllString(f, "") }
 // so once the report is a set, a definition in evidence.md does nothing for a reference in
 // report.md — and an audit that concatenated the set before scanning would report a clean
 // board for exactly the defect this check exists to catch.
-func FootnoteIntegrity(runDir string) Audit {
+func FootnoteIntegrity(run record.Run) Audit {
 	refs, defs := 0, 0
 	var dangling []string
 	read := 0
 	for _, name := range reportdoc.Files() {
-		body, err := os.ReadFile(filepath.Join(runDir, name))
+		body, err := os.ReadFile(filepath.Join(run.Dir(), name))
 		if err != nil {
 			continue
 		}
@@ -555,8 +555,8 @@ func stripCode(s string) string {
 	return inlineCode.ReplaceAllStringFunc(s, blank)
 }
 
-func AssemblyScreen(runDir string) Audit {
-	board, err := record.BoardState(runDir)
+func AssemblyScreen(run record.Run) Audit {
+	board, err := record.BoardState(run)
 	if err != nil {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
@@ -570,7 +570,7 @@ func AssemblyScreen(runDir string) Audit {
 	// a seventh of the deliverable reports the other six as clean.
 	var assembled strings.Builder
 	for _, name := range reportdoc.Files() {
-		body, rerr := os.ReadFile(filepath.Join(runDir, name))
+		body, rerr := os.ReadFile(filepath.Join(run.Dir(), name))
 		if rerr != nil {
 			continue
 		}
@@ -620,8 +620,8 @@ func AssemblyScreen(runDir string) Audit {
 // `plugins/`. Derived rather than passed: capture is invoked with a run directory and a
 // transcript directory, and threading a third path through every caller for one audit would be
 // more surface than the audit is worth.
-func repoRootOf(runDir string) string {
-	dir, err := filepath.Abs(runDir)
+func repoRootOf(run record.Run) string {
+	dir, err := filepath.Abs(run.Dir())
 	if err != nil {
 		return ""
 	}
@@ -732,12 +732,12 @@ func StrayRecordsAudit(repoRoot, runDir string) Audit {
 // carried a 6,847-byte CHANGELOG and exactly ONE revision event, from one of three eligible
 // blue seats. The old regex pair (`^#+.*Round \d+` then `Round (\d+)`) read the plausible
 // number and passed; the record shows the round records were never filed. See #268.
-func RecordParityAudit(runDir string, redRounds, blueBlocks int) Audit {
+func RecordParityAudit(run record.Run, redRounds, blueBlocks int) Audit {
 	if redRounds == 0 {
 		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no red rounds on record"}
 	}
 	rounds := map[int]bool{}
-	if board, err := record.BoardState(runDir); err == nil {
+	if board, err := record.BoardState(run); err == nil {
 		for _, e := range board.Events {
 			if e.GetType() == recordpb.EventType_EVENT_TYPE_REVISION {
 				rounds[int(e.GetRound())] = true
@@ -802,8 +802,8 @@ const (
 	backfillSpanRatio = 0.15
 )
 
-func BackfillAudit(runDir string) Audit {
-	board, err := record.BoardState(runDir)
+func BackfillAudit(run record.Run) Audit {
+	board, err := record.BoardState(run)
 	if err != nil {
 		// ABSENT IS NOT CLEAN. A run whose record cannot be read has not been audited, and
 		// saying so is the whole point — the shape this audit replaced reported a plausible
@@ -907,8 +907,8 @@ type Claim struct {
 // and anchor_target as FIELDS; archiveMD concatenates them into a pipe-delimited line; and this
 // function split that line back apart on "|" and re-derived the gap id with `^(R\d+-\d+)`.
 // Fields to string to regex to fields, with a markdown file in the middle purely as a courier.
-func AttestationAudit(runDir, transcriptDir string, agentFiles []string, sampleFloor int) Audit {
-	board, err := record.BoardState(runDir)
+func AttestationAudit(run record.Run, transcriptDir string, agentFiles []string, sampleFloor int) Audit {
+	board, err := record.BoardState(run)
 	if err != nil {
 		return Audit{Check: "attestation-integrity", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
@@ -1123,8 +1123,8 @@ func jsStringify(v any) string {
 // both ends — so a declared substitution is a fact this reads rather than a tier it deduces. The
 // transcript pass stays for what the record cannot cover: runs recorded before the field existed,
 // and seats that never registered.
-func recordTierFindings(runDir, model, judgmentModel string) (findings []string, measured, total int) {
-	board, err := record.BoardState(runDir)
+func recordTierFindings(run record.Run, model, judgmentModel string) (findings []string, measured, total int) {
+	board, err := record.BoardState(run)
 	if err != nil || board == nil {
 		return nil, 0, 0
 	}
@@ -1157,8 +1157,8 @@ func recordTierFindings(runDir, model, judgmentModel string) (findings []string,
 	return findings, measured, total
 }
 
-func ModelTierAudit(runDir, transcriptDir string, agentFiles []string) Audit {
-	model, judgmentModel := cost.TierConfig(runDir)
+func ModelTierAudit(run record.Run, transcriptDir string, agentFiles []string) Audit {
+	model, judgmentModel := cost.TierConfig(run)
 	if model == "" && judgmentModel == "" {
 		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "no run-config models (pre-#111 run)"}
 	}
@@ -1179,7 +1179,7 @@ func ModelTierAudit(runDir, transcriptDir string, agentFiles []string) Audit {
 			warns++
 		}
 	}
-	recFindings, measured, seats := recordTierFindings(runDir, model, judgmentModel)
+	recFindings, measured, seats := recordTierFindings(run, model, judgmentModel)
 	fails += len(recFindings)
 
 	tiers := fmt.Sprintf("configured bulk=%s, judgment=%s", orQ(model), orQ(judgmentModel))
@@ -1303,8 +1303,8 @@ var (
 	reSep         = regexp.MustCompile(`[\\/]`)
 )
 
-func slugOf(runDir string) string {
-	s := reTrailingSep.ReplaceAllString(runDir, "")
+func slugOf(run record.Run) string {
+	s := reTrailingSep.ReplaceAllString(run.Dir(), "")
 	parts := reSep.Split(s, -1)
 	return parts[len(parts)-1]
 }
@@ -1409,8 +1409,8 @@ func rulingsClaimedByEnvelopes(results []map[string]any) int {
 	return n
 }
 
-func HarvestPrecedents(runDir string, results []map[string]any, lawDir string, board *record.Board) HarvestResult {
-	slug := slugOf(runDir)
+func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, board *record.Board) HarvestResult {
+	slug := slugOf(run)
 	rulings := rulingsFromRecord(board)
 	claimed := rulingsClaimedByEnvelopes(results)
 	if len(rulings) == 0 {
@@ -1498,12 +1498,12 @@ type ScorecardResult struct {
 	Reason  string
 }
 
-func WriteScorecards(runDir string, results []map[string]any, memoryDir string, board *record.Board) ScorecardResult {
+func WriteScorecards(run record.Run, results []map[string]any, memoryDir string, board *record.Board) ScorecardResult {
 	if _, err := os.Stat(memoryDir); err != nil {
 		return ScorecardResult{Written: false, Reason: fmt.Sprintf("no %s — scorecards need the tracked memory dir", memoryDir)}
 	}
-	cards := scorecard.Compute(runDir, results, board)
-	label := labelOf(runDir)
+	cards := scorecard.Compute(run, results, board)
+	label := labelOf(run)
 	rows := 0
 	chairs := 0
 	var failed []string
@@ -1562,8 +1562,8 @@ func trimTrailingNewlines(s string) string {
 }
 
 // labelOf mirrors JS `runDir.split(/[\\/]/).filter(Boolean).pop() || 'run'`.
-func labelOf(runDir string) string {
-	parts := reSep.Split(runDir, -1)
+func labelOf(run record.Run) string {
+	parts := reSep.Split(run.Dir(), -1)
 	for i := len(parts) - 1; i >= 0; i-- {
 		if parts[i] != "" {
 			return parts[i]
@@ -1658,18 +1658,18 @@ func perSeatRoundTable(costMd string) string {
 // process.cwd().
 // `now` is injected so the one non-deterministic input — how long ago the record stopped moving —
 // is controllable in a test, the same way WriteRunLiveMarker takes its clock.
-func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report string, exitFail bool, err error) {
+func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, report string, exitFail bool, err error) {
 	var lines []string
 
 	// Mechanics: journal copy, transcript tarball, cost.md.
-	if err = copyFile(filepath.Join(transcriptDir, "journal.jsonl"), filepath.Join(runDir, "trajectories", "journal.jsonl")); err != nil {
+	if err = copyFile(filepath.Join(transcriptDir, "journal.jsonl"), filepath.Join(run.Dir(), "trajectories", "journal.jsonl")); err != nil {
 		return nil, "", false, err
 	}
 	agentFiles, err := listAgentFiles(transcriptDir)
 	if err != nil {
 		return nil, "", false, err
 	}
-	tarPath := filepath.Join(runDir, "trajectories", "agent-transcripts.tar.gz")
+	tarPath := filepath.Join(run.Dir(), "trajectories", "agent-transcripts.tar.gz")
 	if terr := writeTarball(transcriptDir, tarPath, agentFiles); terr != nil {
 		lines = append(lines, "tarball: FAILED — "+jsSlice(terr.Error(), 200))
 	} else {
@@ -1678,11 +1678,11 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 	// THE RECORD ITSELF, to the one place that outlives the container. Reported either way: an
 	// archive that silently did not happen is a run whose evidence is gone the next time the
 	// container is reclaimed, and nothing would have said so.
-	if arc, aerr := ArchiveRecord(runDir, repoRootOf(runDir)); aerr != nil {
+	if arc, aerr := ArchiveRecord(run, repoRootOf(run)); aerr != nil {
 		lines = append(lines, "record archive: FAILED — "+jsSlice(aerr.Error(), 200))
 	} else {
 		rel := arc
-		if r, rerr := filepath.Rel(repoRootOf(runDir), arc); rerr == nil {
+		if r, rerr := filepath.Rel(repoRootOf(run), arc); rerr == nil {
 			rel = r
 		}
 		if st, serr := os.Stat(arc); serr == nil {
@@ -1692,11 +1692,15 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		}
 	}
 
-	costF, cerr := os.Create(filepath.Join(runDir, "cost.md"))
+	if line := reapOrphanMirrors(now); line != "" {
+		lines = append(lines, line)
+	}
+
+	costF, cerr := os.Create(filepath.Join(run.Dir(), "cost.md"))
 	if cerr != nil {
 		return nil, "", false, cerr
 	}
-	if rerr := cost.Report(transcriptDir, runDir, costF); rerr != nil {
+	if rerr := cost.Report(transcriptDir, run, costF); rerr != nil {
 		costF.Close()
 		lines = append(lines, "cost.md: FAILED — "+jsSlice(rerr.Error(), 200))
 	} else {
@@ -1707,15 +1711,15 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		// set is assembled mid-run WITHOUT transcript access (the transcript dir reaches only
 		// capture), so this is the one stage that can. Slices the already-rendered cost.md
 		// (kept byte-identical) rather than re-generate.
-		if msg := appendCostToReport(filepath.Join(runDir, reportdoc.FileRun), filepath.Join(runDir, "cost.md")); msg != "" {
+		if msg := appendCostToReport(filepath.Join(run.Dir(), reportdoc.FileRun), filepath.Join(run.Dir(), "cost.md")); msg != "" {
 			lines = append(lines, msg)
 		}
 	}
 
-	results, friction := ReadJournal(filepath.Join(runDir, "trajectories"))
+	results, friction := ReadJournal(filepath.Join(run.Dir(), "trajectories"))
 
 	// Record-backed reads, in-process (the JS spawned `merge show` views).
-	board, _ := record.BoardState(runDir)
+	board, _ := record.BoardState(run)
 	redRounds, blueBlocks := 0, 0
 	onRecord := []record.FrictionEntryJSON{}
 	if board != nil {
@@ -1737,31 +1741,31 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 	}
 
 	audits = []Audit{
-		LivenessAudit(runDir, now),
-		TelemetryAudit(runDir, redRounds),
-		FrictionAudit(runDir, friction, onRecord),
+		LivenessAudit(run, now),
+		TelemetryAudit(run, redRounds),
+		FrictionAudit(run, friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),
-		AssemblyScreen(runDir),
-		FootnoteIntegrity(runDir),
-		StrayRecordsAudit(repoRootOf(runDir), runDir),
-		RecordParityAudit(runDir, redRounds, blueBlocks),
-		BackfillAudit(runDir),
-		AttestationAudit(runDir, transcriptDir, agentFiles, 5),
-		ModelTierAudit(runDir, transcriptDir, agentFiles),
+		AssemblyScreen(run),
+		FootnoteIntegrity(run),
+		StrayRecordsAudit(repoRootOf(run), run.Dir()),
+		RecordParityAudit(run, redRounds, blueBlocks),
+		BackfillAudit(run),
+		AttestationAudit(run, transcriptDir, agentFiles, 5),
+		ModelTierAudit(run, transcriptDir, agentFiles),
 		// THE LAST AUDIT, because it is the only one that EXECUTES anything: a bounded sample of
 		// the run's own proofs, re-run and compared. See proofrerun.go for why a seat's spot-check
 		// could not be the thing that does this.
-		ProofRerunAudit(runDir, proofRerunSample),
+		ProofRerunAudit(run, proofRerunSample),
 		// Round 0's declared breadth against the lane seats that actually took theirs — the one
 		// run-config field nothing reconciled. See lanecoverage.go.
-		LaneCoverageAudit(runDir),
+		LaneCoverageAudit(run),
 		// The proof axis's missing detector: does a claim framed as measured point at the
 		// measurement, and does the measurement reach the claim. See proofbacking.go.
-		ProofBackingAudit(runDir),
+		ProofBackingAudit(run),
 	}
 
 	cwd, _ := os.Getwd()
-	sc := WriteScorecards(runDir, results, filepath.Join(cwd, "feov-memory"), board)
+	sc := WriteScorecards(run, results, filepath.Join(cwd, "feov-memory"), board)
 	// BOTH LINES WHEN BOTH ARE TRUE. The old form printed the counts OR the reason, so a
 	// partial failure — some chairs written, one unwritable — showed the cheerful line and
 	// swallowed the reason entirely.
@@ -1772,7 +1776,7 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		lines = append(lines, "scorecards: "+sc.Reason)
 	}
 
-	prec := HarvestPrecedents(runDir, results, filepath.Join(cwd, "law"), board)
+	prec := HarvestPrecedents(run, results, filepath.Join(cwd, "law"), board)
 	// The divergence has to REACH the report. Computing it and then printing "no rulings this
 	// run" would rebuild the same defect one level up: the miss folded back into the zero.
 	divergence := ""
@@ -1792,7 +1796,7 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 
 	// THE CLASS HARVEST, beside the precedent one and for the same reason: a run's coinage that
 	// reaches nothing outside the run directory is a run's coinage lost (#515).
-	cls := HarvestClasses(runDir, filepath.Join(cwd, "law"), board)
+	cls := HarvestClasses(run, filepath.Join(cwd, "law"), board)
 	switch {
 	case cls.Written:
 		lines = append(lines, fmt.Sprintf("class harvest: %d class(es) -> %s (PROPOSED, not staged into any run until adopted)", cls.Count, cls.Path))
@@ -1804,7 +1808,7 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 		lines = append(lines, "class harvest: no classes coined this run")
 	}
 
-	lines = append(lines, closeRunLiveMarker(cwd, runDir))
+	lines = append(lines, closeRunLiveMarker(cwd, run.Dir()))
 
 	var out []string
 	out = append(out,
@@ -1824,7 +1828,7 @@ func Run(runDir, transcriptDir string, now time.Time) (audits []Audit, report st
 	}
 	out = append(out, "")
 	report = strings.Join(out, "\n")
-	if werr := os.WriteFile(filepath.Join(runDir, "run-record-audit.md"), []byte(report), 0o644); werr != nil {
+	if werr := os.WriteFile(filepath.Join(run.Dir(), "run-record-audit.md"), []byte(report), 0o644); werr != nil {
 		return nil, "", false, werr
 	}
 	for _, a := range audits {
@@ -1882,11 +1886,8 @@ func listAgentFiles(dir string) ([]string, error) {
 //
 // It does not reintroduce ffc4bf4's hazard: seats read their own run directory and the inputs
 // mirrored into it, never run-archive/, and a gzipped tar is not prose a glob can wander into.
-func ArchiveRecord(runDir, repoRoot string) (string, error) {
-	recs, err := record.RecordsDir(runDir)
-	if err != nil {
-		return "", err
-	}
+func ArchiveRecord(run record.Run, repoRoot string) (string, error) {
+	recs := run.Records()
 	var files []struct {
 		name string
 		path string
@@ -1908,7 +1909,7 @@ func ArchiveRecord(runDir, repoRoot string) (string, error) {
 		return "", err
 	}
 	shards := len(files)
-	_ = add(filepath.Join(runDir, "proofs"), "proofs/")
+	_ = add(filepath.Join(run.Dir(), "proofs"), "proofs/")
 	// AN EMPTY ARCHIVE IS A REFUSAL, not a small file. A tarball with no shards in it is exactly
 	// what a run whose record never resolved would produce, and it would sit in run-archive/
 	// looking like a kept run forever.
@@ -1920,7 +1921,7 @@ func ArchiveRecord(runDir, repoRoot string) (string, error) {
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return "", err
 	}
-	out := filepath.Join(outDir, filepath.Base(filepath.Clean(runDir))+".tar.gz")
+	out := filepath.Join(outDir, filepath.Base(filepath.Clean(run.Dir()))+".tar.gz")
 	f, err := os.Create(out)
 	if err != nil {
 		return "", err
@@ -1949,6 +1950,39 @@ func ArchiveRecord(runDir, repoRoot string) (string, error) {
 	}
 	return out, nil
 }
+
+// reapOrphanMirrors removes the checkpoint mirrors of runs that STOPPED, and reports only
+// when it has something to say.
+//
+// AND NEVER THIS RUN'S. plans/record-tool.md has capture DELETE the mirror "after records/ is
+// committed" — but capture does not commit. It writes an untracked tarball into the working
+// tree and a human commits it later, so at the moment capture finishes, the record's only
+// durable copy does not exist yet. Dropping the mirror here would remove the recovery path
+// exactly when its replacement is most exposed to the add -A / checkout / stash classes the
+// mirror was built to survive. So the reap is by AGE, and this run's mirror was rewritten at
+// its last round: it is the freshest thing in the directory and cannot be the oldest.
+//
+// It belongs here because run-setup was the only caller, and nobody runs run-setup between
+// research runs — a crashed run's mirror sat until someone happened to start a new one.
+// Capture happens once per run, at its end.
+//
+// A BARE ZERO IS TWO DIFFERENT ANSWERS, so the one that means "not checked" is spoken and the
+// one that means "nothing stale" is not: an unresolvable root reports NOT RUN, a clean board
+// reports nothing, and those can no longer be read as the same line.
+func reapOrphanMirrors(now time.Time) string {
+	root, err := record.MirrorRoot()
+	if err != nil {
+		return "mirror purge: NOT RUN — " + jsSlice(err.Error(), 200)
+	}
+	if n := record.PurgeStaleMirrors(root, now, mirrorOrphanDays); n > 0 {
+		return fmt.Sprintf("mirror purge: %d stale checkpoint mirror(s) removed", n)
+	}
+	return ""
+}
+
+// mirrorOrphanDays is longer than any run, which is the only property it needs: a live run
+// refreshes its mirror every round, so what crosses this line stopped writing weeks ago.
+const mirrorOrphanDays = 30
 
 // ---- gap-class harvest ----
 
@@ -2008,8 +2042,8 @@ func classesFromRecord(board *record.Board) []coinedClass {
 // ONE FILE PER CLASS PER RUN, keyed on both. Two runs coining the same slug with different
 // definitions then land as two files a reviewer sees side by side, rather than one silently
 // overwriting the other — the collision has an arbiter, and the arbiter is a person.
-func HarvestClasses(runDir string, lawDir string, board *record.Board) HarvestResult {
-	slug := slugOf(runDir)
+func HarvestClasses(run record.Run, lawDir string, board *record.Board) HarvestResult {
+	slug := slugOf(run)
 	classes := classesFromRecord(board)
 	if len(classes) == 0 {
 		return HarvestResult{Written: false, Count: 0}

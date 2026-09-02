@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"os"
 	"path/filepath"
 	"time"
@@ -31,10 +32,16 @@ func newDashboard() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 2 {
-				fmt.Fprintln(cmd.ErrOrStderr(), "usage: "+InvokedAs()+" dashboard <runDir> <workflow-transcript-dir> [--watch] [--model M] [--judgment-model M] [--max-rounds N] [--lanes N]")
+				fmt.Fprintln(cmd.ErrOrStderr(), "usage: "+InvokedAs()+" dashboard <run.Dir()> <workflow-transcript-dir> [--watch] [--model M] [--judgment-model M] [--max-rounds N] [--lanes N]")
 				os.Exit(1)
 			}
-			runDir, transcriptDir := args[0], args[1]
+			transcriptDir := args[1]
+			// Same reasoning as capture: a positional run directory nobody validated renders a
+			// dashboard of zeros for a path that was simply mistyped.
+			run, err := record.OpenRun(args[0])
+			if err != nil {
+				return err
+			}
 			cfg := dashboard.Config{Model: model, JudgmentModel: judgmentModel, MaxRounds: maxRounds, Lanes: lanes}
 			clock := func() float64 {
 				if now != 0 {
@@ -47,14 +54,14 @@ func newDashboard() *cobra.Command {
 			// record in-process — the same JIT discipline the projections follow — behind a
 			// per-run secret URL, and the page's own 20s meta-refresh keeps a browser current.
 			if serve != 0 {
-				return serveDashboard(cmd.OutOrStdout(), runDir, serve, func() string {
-					return dashboard.RenderHTML(dashboard.BuildModel(runDir, transcriptDir, cfg, clock()))
+				return serveDashboard(cmd.OutOrStdout(), run, serve, func() string {
+					return dashboard.RenderHTML(dashboard.BuildModel(run, transcriptDir, cfg, clock()))
 				})
 			}
 
-			out := filepath.Join(runDir, "dashboard.html")
+			out := filepath.Join(run.Dir(), "dashboard.html")
 			generate := func() error {
-				html := dashboard.RenderHTML(dashboard.BuildModel(runDir, transcriptDir, cfg, clock()))
+				html := dashboard.RenderHTML(dashboard.BuildModel(run, transcriptDir, cfg, clock()))
 				return os.WriteFile(out, []byte(html), 0o644)
 			}
 			if err := generate(); err != nil {
@@ -75,7 +82,7 @@ func newDashboard() *cobra.Command {
 			defer ticker.Stop()
 			for range ticker.C {
 				_ = generate()
-				if ended, why := runHasEnded(marker, runDir); ended {
+				if ended, why := runHasEnded(marker, run); ended {
 					_ = generate()
 					fmt.Fprintln(cmd.OutOrStdout(), why+" — final render written, watcher exiting")
 					return nil

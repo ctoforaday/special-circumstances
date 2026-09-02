@@ -23,15 +23,12 @@ import (
 // new bytes. To REJECT (write nothing — e.g. a finding whose quote is not in the
 // report), transform returns a non-nil error; MutateBlueReport propagates it and does
 // not write. On success it returns the write error, or nil.
-func MutateBlueReport(runDir string, transform func(old []byte) ([]byte, error)) error {
-	path := filepath.Join(runDir, "blue", "report.md")
+func MutateBlueReport(run Run, transform func(old []byte) ([]byte, error)) error {
+	path := filepath.Join(run.Dir(), "blue", "report.md")
 	// The report stays in the run directory even when the record does not: it is blue's
 	// deliverable and red must audit its actual text. Only the LOCK follows the record, because
 	// that is what the concurrent writers coordinate through.
-	recDir, err := RecordsDir(runDir)
-	if err != nil {
-		return err
-	}
+	recDir := run.Records()
 	var retErr error
 	withLock(recDir, "blue-report", func() {
 		old, err := os.ReadFile(path)
@@ -58,12 +55,9 @@ func MutateBlueReport(runDir string, transform func(old []byte) ([]byte, error))
 // ReadBlueReport returns the current blue/report.md bytes under the blue-report flock — a
 // consistent snapshot for `blue edit` to validate a span against before it applies the
 // mutation. Returns nil bytes (no error) if the file is absent.
-func ReadBlueReport(runDir string) ([]byte, error) {
-	path := filepath.Join(runDir, "blue", "report.md")
-	recDir, err := RecordsDir(runDir)
-	if err != nil {
-		return nil, err
-	}
+func ReadBlueReport(run Run) ([]byte, error) {
+	path := filepath.Join(run.Dir(), "blue", "report.md")
+	recDir := run.Records()
 	var out []byte
 	var retErr error
 	withLock(recDir, "blue-report", func() {

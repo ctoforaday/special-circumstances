@@ -43,13 +43,130 @@
 package testbuild
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 )
+
+// Main runs the test binary inside a sandbox: its own HOME, and the shared build directory
+// removed at exit.
+//
+// Two leaks, one hook, because TestMain is the only place either can be closed — the HOME has
+// to be in place before the first test spawns anything, and the build directory cannot be
+// removed until the last one has stopped using it. sandboxHome documents the cache half.
+//
+// A consumer that calls Binary MUST route its tests through this. The directory is created
+// once per test binary and shared by every call in it, so no single test owns it and
+// t.Cleanup cannot remove it — the first test to finish would delete the path the next one
+// is about to execute. The process exit is the only moment at which every caller is done,
+// and TestMain is the only hook Go offers there.
+//
+// MEASURED, which is why this exists: one `go test ./...` of this module left five
+// sc-testbuild directories holding one linked feov-record apiece — 186 MB, on a fully green
+// run. TMPDIR is a 2 GB tmpfs both in CI (.github/workflows/hooks.yml sets
+// TMPDIR=/dev/shm/tmp) and in the record-run plan's validation loop, and that plan already
+// records what a full one looks like: `[build failed]` for every package in the module while
+// `go build ./...` exits 0.
+//
+// TestEveryPackageThatBuildsCleansUp fails a package that forgets to call this.
+func Main(m *testing.M) {
+	restore, err := sandboxHome()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "testbuild:", err)
+		os.Exit(1)
+	}
+	code := m.Run()
+	restore()
+	Cleanup()
+	os.Exit(code)
+}
+
+// homeKey is the environment variable os.UserHomeDir reads on this platform.
+func homeKey() string {
+	if runtime.GOOS == "windows" {
+		return "USERPROFILE"
+	}
+	return "HOME"
+}
+
+// realHome is the developer's own home, captured at package initialisation — BEFORE Main can
+// redirect it, and regardless of whether Main is ever called.
+var realHome, realHomeSet = os.LookupEnv(homeKey())
+
+// sandboxHome points HOME at a temporary directory for the life of this test binary and
+// returns the undo.
+//
+// The command under test writes into the USER CACHE, and a test has no business writing into
+// the developer's. `merge verdict` checkpoints the run's whole records/ tree to
+// ~/.cache/feov/run-mirror/<sha1(runDir)[:12]> on every round, keyed by the run directory —
+// and a test's run directory is a t.TempDir(), so every run mints a mirror under a key nothing
+// will ever look up again. Measured before this: 10,008 orphaned mirrors, 182,665 files,
+// 15.0 GB, of which one `go test ./...` of this module contributed 69 directories and 135 MB.
+// The 30-day purge in internal/setup is reachable only from run-setup, so on a developer box
+// it effectively never runs.
+//
+// Under a temporary HOME the same writes land inside TMPDIR and go out with it. Production
+// behaviour is untouched, and the goldens still record a real run-mirror path for the
+// harness's normalizer to match — which is why this is done here rather than by teaching
+// verdict.go to skip the mirror for temp run directories.
+func sandboxHome() (func(), error) {
+	h, err := os.MkdirTemp("", "sc-testhome-")
+	if err != nil {
+		return nil, fmt.Errorf("no temp HOME: %w", err)
+	}
+	key := homeKey()
+	if err := os.Setenv(key, h); err != nil {
+		_ = os.RemoveAll(h)
+		return nil, fmt.Errorf("setting %s: %w", key, err)
+	}
+	return func() {
+		if realHomeSet {
+			_ = os.Setenv(key, realHome)
+		} else {
+			_ = os.Unsetenv(key)
+		}
+		_ = os.RemoveAll(h)
+	}, nil
+}
+
+// buildEnv is the environment for `go build`: this process's, with HOME put back to the real
+// one.
+//
+// THE TOOLCHAIN RESOLVES ITS CACHES THROUGH HOME. GOPATH defaults to $HOME/go and the build
+// cache to the user cache directory, so a build inheriting the sandboxed HOME would miss the
+// module cache and the build cache entirely — re-resolving the module graph and relinking from
+// cold, once per test binary, which is the cost this package exists to remove. The sandbox is
+// for the COMMAND UNDER TEST; the toolchain that builds it belongs in the real cache.
+func buildEnv() []string {
+	env := os.Environ()
+	key := homeKey() + "="
+	out := make([]string, 0, len(env)+1)
+	for _, kv := range env {
+		if !strings.HasPrefix(kv, key) {
+			out = append(out, kv)
+		}
+	}
+	if realHomeSet {
+		out = append(out, key+realHome)
+	}
+	return out
+}
+
+// Cleanup removes the shared build directory, if one was ever created.
+//
+// Called from Main after m.Run has returned, so every test goroutine that could read dir has
+// finished — which is what makes the unsynchronized read here safe, and why this is not
+// exported for use at any other moment.
+func Cleanup() {
+	if dir != "" {
+		_ = os.RemoveAll(dir)
+	}
+}
 
 // ExeName is the file name a built command must have on THIS platform.
 //
@@ -111,6 +228,7 @@ func Binary(t *testing.T, name string) string {
 			b.path = filepath.Join(dir, ExeName(name))
 			cmd := exec.Command("go", "build", "-o", b.path, "./cmd/"+name)
 			cmd.Dir = root
+			cmd.Env = buildEnv()
 			b.out, b.err = cmd.CombinedOutput()
 		}
 		mu.Lock()

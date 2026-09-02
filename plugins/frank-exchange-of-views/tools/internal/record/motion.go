@@ -216,8 +216,8 @@ func enumWord(v protoreflect.Enum) string {
 // that filed it — a grade dispute rejected in round 2 is re-disputed in round 3 and appealed to
 // the bench in round 4 — so a round-scoped id would have to be re-minted to survive, and the
 // re-mint is where the thread breaks.
-func MintMotionID(runDir string) (string, error) {
-	m, err := MergedEvents(runDir)
+func MintMotionID(run Run) (string, error) {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return "", err
 	}
@@ -442,14 +442,14 @@ func Motions(b *Board) []*Motion {
 // the proposal is the filing — so it joins on the LINE's own id, and the thing that must exist
 // is the line of inquiry, not a motion event. Passing the subject keeps that difference in one place
 // instead of pushing it into each RunE.
-func RequireMotionSubjectRef(runDir string, subject recordpb.MotionSubject, id string) error {
+func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string) error {
 	if id == "" {
 		return fmt.Errorf("record: --id is required — a ruling names the motion it answers, and that join is the whole of #312")
 	}
 	if subject == recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
-		return RequireInquiryRef(runDir, id)
+		return RequireInquiryRef(run, id)
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return err
 	}
@@ -473,8 +473,8 @@ func RequireMotionSubjectRef(runDir string, subject recordpb.MotionSubject, id s
 //
 // A fact recovered from tree position rather than read from the record is exactly what
 // facts-are-fields is about. The record carries the subject; this reads it.
-func RequireSubjectMatches(runDir, subject, id string) error {
-	got, err := motionSubjectOf(runDir, id)
+func RequireSubjectMatches(run Run, subject, id string) error {
+	got, err := motionSubjectOf(run, id)
 	if err != nil {
 		return err
 	}
@@ -489,8 +489,8 @@ func RequireSubjectMatches(runDir, subject, id string) error {
 //
 // A direction has no filing event — the proposal is the filing — so an id that resolves to an
 // line of inquiry IS a direction motion by construction.
-func motionSubjectOf(runDir, id string) (string, error) {
-	m, err := MergedEvents(runDir)
+func motionSubjectOf(run Run, id string) (string, error) {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return "", err
 	}
@@ -519,8 +519,8 @@ func motionSubjectOf(runDir, id string) (string, error) {
 // Two writers disagreeing about one fate is the defect the line of inquiry code already guards against by
 // giving moves a single writer; a ruling had no such guard. The escalation path is an APPEAL,
 // which is a new event that preserves both positions, rather than a second ruling that erases one.
-func RequireUnruledMotion(runDir, id string) error {
-	m, err := MergedEvents(runDir)
+func RequireUnruledMotion(run Run, id string) error {
+	m, err := MergedEvents(run)
 	if err != nil {
 		return err
 	}
@@ -540,11 +540,11 @@ func RequireUnruledMotion(runDir, id string) error {
 // has no honest sentence for. The check covers every subject rather than the one that surfaced it:
 // appealing an unruled grade is the same nonsense as appealing an unruled direction, and fixing
 // only the instance is how the class survives.
-func RequireRuledMotion(runDir string, subject recordpb.MotionSubject, id string) error {
-	if err := RequireMotionSubjectRef(runDir, subject, id); err != nil {
+func RequireRuledMotion(run Run, subject recordpb.MotionSubject, id string) error {
+	if err := RequireMotionSubjectRef(run, subject, id); err != nil {
 		return err
 	}
-	m, err := MergedEvents(runDir)
+	m, err := MergedEvents(run)
 	if err != nil {
 		return err
 	}

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -28,7 +29,7 @@ const corroborated = "§2 the finding prose lands in a quoted sentence."
 // returns its PATH, which reads like markdown to a Contains check and always fails to match.
 func assembled(t *testing.T, runDir string) string {
 	t.Helper()
-	path, err := report.Assemble(runDir)
+	path, err := report.Assemble(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +116,7 @@ func TestACorroborationOfAnAbsentClaimIsRefused(t *testing.T) {
 	}
 	// AND NOTHING WAS RECORDED. A rejected splice must leave no event behind, or the record
 	// carries a corroboration whose footnote does not exist.
-	srcs, err := record.CitedSources(runDir)
+	srcs, err := record.CitedSources(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

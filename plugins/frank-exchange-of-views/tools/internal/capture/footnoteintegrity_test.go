@@ -1,6 +1,7 @@
 package capture
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,7 +33,7 @@ None of the plan's artifacts exist[^P1]: `+"`skills/x`"+`, and the wait halves[^
 
 - **basis**: reproducible
 `)
-	a := FootnoteIntegrity(run)
+	a := FootnoteIntegrity(runtest.Open(t, run))
 	if a.Verdict != "FAIL" {
 		t.Fatalf("verdict = %s, want FAIL — a reader sees literal [^P1] here\n%s", a.Verdict, a.Detail)
 	}
@@ -51,7 +52,7 @@ None of the plan's artifacts exist[^P1]: `+"`skills/x`"+`, and the wait halves[^
 // "exist[^P1]:" as defining P1 and pass a report that is broken.
 func TestFootnoteIntegrityDoesNotMistakeAMidLineColonForADefinition(t *testing.T) {
 	run := writeReport(t, "Artifacts exist[^P1]: none of them.\n")
-	if a := FootnoteIntegrity(run); a.Verdict != "FAIL" {
+	if a := FootnoteIntegrity(runtest.Open(t, run)); a.Verdict != "FAIL" {
 		t.Fatalf("a mid-line `[^P1]:` is a reference, not a definition; verdict = %s (%s)", a.Verdict, a.Detail)
 	}
 }
@@ -62,7 +63,7 @@ func TestFootnoteIntegrityPassesAWellFormedReport(t *testing.T) {
 [^1]: Someone, A Paper (2024). http://example.invalid (accessed 2026-08-23)
 [^P1]: Proof `+"`p-abd56845`"+` — `+"`blue/candidates/lane3_buildstate.sh`"+`, exit 0.
 `)
-	a := FootnoteIntegrity(run)
+	a := FootnoteIntegrity(runtest.Open(t, run))
 	if a.Verdict != "PASS" {
 		t.Fatalf("verdict = %s, want PASS: %s", a.Verdict, a.Detail)
 	}
@@ -79,7 +80,7 @@ func TestFootnoteIntegrityIgnoresFootnotesInsideCode(t *testing.T) {
 	run := writeReport(t, "This report referenced its proof footnotes (`[^P…]`) without defining them.\n\n"+
 		"```\n[^P9]: quoted output that is not this document's footnote\n```\n\n"+
 		"A real one[^1].\n\n[^1]: Someone, A Paper (2024). http://example.invalid\n")
-	a := FootnoteIntegrity(run)
+	a := FootnoteIntegrity(runtest.Open(t, run))
 	if a.Verdict != "PASS" {
 		t.Fatalf("footnote-shaped text inside code is not a reference; verdict = %s (%s)", a.Verdict, a.Detail)
 	}
@@ -91,7 +92,7 @@ func TestFootnoteIntegrityIgnoresFootnotesInsideCode(t *testing.T) {
 // Before assembly there is nothing to judge, and saying so beats a PASS that means "the file I
 // was looking for was not there" — the distinction AssemblyScreen already draws.
 func TestFootnoteIntegritySkipsBeforeAssembly(t *testing.T) {
-	if a := FootnoteIntegrity(t.TempDir()); a.Verdict != "SKIP" {
+	if a := FootnoteIntegrity(runtest.Open(t, t.TempDir())); a.Verdict != "SKIP" {
 		t.Fatalf("verdict = %s, want SKIP (%s)", a.Verdict, a.Detail)
 	}
 }

@@ -64,10 +64,10 @@ func Files() []string { return append([]string(nil), docOrder...) }
 // AssembleAll composes the run's whole report set from the record and blue's audited report.
 // It writes nothing; Assemble does that. Docs with an empty body are omitted entirely — a run
 // with no motions has no judgments.md, and no empty heading standing in for one.
-func AssembleAll(runDir string) ([]Doc, error) {
-	blue := readOr(filepath.Join(runDir, "blue", "report.md"), "")
+func AssembleAll(run record.Run) ([]Doc, error) {
+	blue := readOr(filepath.Join(run.Dir(), "blue", "report.md"), "")
 
-	board, err := record.BoardState(runDir)
+	board, err := record.BoardState(run)
 	if err != nil {
 		return nil, fmt.Errorf("assemble: board: %w", err)
 	}
@@ -122,11 +122,11 @@ func AssembleAll(runDir string) ([]Doc, error) {
 	var jud sections
 	jud.add(motions(board))
 
-	var run sections
-	run.add(frictionLog(evs))
+	var runsec sections
+	runsec.add(frictionLog(evs))
 	// The record's own invariant check, rendered for the human the report is for. See
 	// recordVerification: a section, never a gate.
-	run.add(recordVerification(board))
+	runsec.add(recordVerification(board))
 
 	var chg sections
 	chg.add(revisionHistory(evs))
@@ -145,7 +145,7 @@ func AssembleAll(runDir string) ([]Doc, error) {
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",
 			Blurb: "the computations this run ran, with the exact script, the output, the sha256, and red's independent re-run", Body: ""},
 		{File: FileRun, Nav: "Run", Title: "the run",
-			Blurb: "how the machinery behaved: the friction the seats hit, the record's own invariant check, and what the run cost", Body: run.String()},
+			Blurb: "how the machinery behaved: the friction the seats hit, the record's own invariant check, and what the run cost", Body: runsec.String()},
 		{File: FileChangelog, Nav: "Changelog", Title: "changelog",
 			Blurb: "the provenance of this report: every revision, every claim withdrawn, and any post-run repair", Body: chg.String()},
 	}
@@ -157,11 +157,11 @@ func AssembleAll(runDir string) ([]Doc, error) {
 	// in six of the seven documents. Each document therefore numbers and defines the citations
 	// it actually contains, and the proof layer is numbered ONCE for the whole run (record
 	// order) so that a P3 in the debate and a P3 in the report are the same computation.
-	sources, err := record.CitedSources(runDir)
+	sources, err := record.CitedSources(run)
 	if err != nil {
 		return nil, fmt.Errorf("assemble: cited sources: %w", err)
 	}
-	proofs, err := record.RecordedProofs(runDir)
+	proofs, err := record.RecordedProofs(run)
 	if err != nil {
 		return nil, fmt.Errorf("assemble: recorded proofs: %w", err)
 	}
@@ -188,7 +188,7 @@ func AssembleAll(runDir string) ([]Doc, error) {
 	// is not on the record is still stated (it is a defect, and a silent drop reads as clean).
 	for i := range docs {
 		if docs[i].File == FileEvidence {
-			docs[i].Body = evidenceDoc(runDir, proofs, used)
+			docs[i].Body = evidenceDoc(run, proofs, used)
 		}
 	}
 
@@ -203,8 +203,8 @@ func AssembleAll(runDir string) ([]Doc, error) {
 }
 
 // Title returns the run's short title — the H1 every document in the set opens with.
-func Title(runDir string) string {
-	t, _ := heading(readOr(filepath.Join(runDir, "blue", "report.md"), ""))
+func Title(run record.Run) string {
+	t, _ := heading(readOr(filepath.Join(run.Dir(), "blue", "report.md"), ""))
 	return t
 }
 
@@ -254,7 +254,7 @@ func navBar(current string, set []Doc) string {
 // indexDoc is the run directory's front door: what this run asked, what it answered, and which
 // document holds what. It is written for a human opening an archived run months later with no
 // memory of it, which is the only reader a run directory reliably gets.
-func indexDoc(runDir, title string, set []Doc, board *record.Board, evs []*record.Event) string {
+func indexDoc(run record.Run, title string, set []Doc, board *record.Board, evs []*record.Event) string {
 	var b strings.Builder
 	b.WriteString(title + "\n\n")
 	b.WriteString(navBar("", set) + "\n\n---\n\n")
@@ -263,7 +263,7 @@ func indexDoc(runDir, title string, set []Doc, board *record.Board, evs []*recor
 	for _, d := range set {
 		fmt.Fprintf(&b, "- **[%s](%s)** — %s\n", d.Nav, d.File, d.Blurb)
 	}
-	if _, err := os.Stat(filepath.Join(runDir, "report.html")); err == nil {
+	if _, err := os.Stat(filepath.Join(run.Dir(), "report.html")); err == nil {
 		b.WriteString("\n[**report.html**](report.html) is the same set with real tabs and cross-document links — one self-contained file, no server and no network.\n")
 	}
 	b.WriteString("\nThe record these were rendered from is `records/`; the computations are cached under `proofs/`. Both survive the run; every document here can be rebuilt from them with `feov-record bench assemble`.\n")
@@ -336,27 +336,27 @@ func supersededAsks(evs []*record.Event) string {
 // Write renders the set to disk and returns report.md's path. Files in the set that this run
 // produced no content for are REMOVED rather than left stale: a run re-assembled after its
 // motions were withdrawn must not keep yesterday's judgments.md next to today's report.
-func Write(runDir, title string, docs []Doc, index string) (string, error) {
+func Write(run record.Run, title string, docs []Doc, index string) (string, error) {
 	want := map[string]bool{FileIndex: true}
 	for _, d := range docs {
 		want[d.File] = true
-		path := filepath.Join(runDir, d.File)
+		path := filepath.Join(run.Dir(), d.File)
 		// The link bar is applied HERE, over the set that actually exists, so it can never
 		// link a file nobody wrote.
 		if err := os.WriteFile(path, []byte(render(d, title, docs)), 0o644); err != nil {
 			return "", fmt.Errorf("assemble: write %s: %w", d.File, err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(runDir, FileIndex), []byte(index), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run.Dir(), FileIndex), []byte(index), 0o644); err != nil {
 		return "", fmt.Errorf("assemble: write %s: %w", FileIndex, err)
 	}
 	for _, name := range docOrder {
 		if want[name] {
 			continue
 		}
-		if err := os.Remove(filepath.Join(runDir, name)); err != nil && !os.IsNotExist(err) {
+		if err := os.Remove(filepath.Join(run.Dir(), name)); err != nil && !os.IsNotExist(err) {
 			return "", fmt.Errorf("assemble: remove stale %s: %w", name, err)
 		}
 	}
-	return filepath.Join(runDir, FileReport), nil
+	return filepath.Join(run.Dir(), FileReport), nil
 }

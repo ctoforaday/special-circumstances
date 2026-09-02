@@ -1,6 +1,7 @@
 package fetchcache
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"testing"
 	"unicode/utf8"
 )
@@ -24,29 +25,29 @@ func FuzzStoreRoundTrips(f *testing.F) {
 		}
 		run := t.TempDir()
 
-		sha, err := Store(run, url, body)
+		stored, err := Store(runtest.Open(t, run), Entry{URL: url}, body)
 		if err != nil {
 			t.Fatalf("Store: %v", err)
 		}
-		if sha != Sha(body) {
-			t.Fatalf("Store sha %s != Sha(body) %s — hash not content-stable", sha, Sha(body))
+		if stored.Sha != Sha(body) {
+			t.Fatalf("Store sha %s != Sha(body) %s — hash not content-stable", stored.Sha, Sha(body))
 		}
 
 		// Dedup: storing the same bytes again yields the same hash and no error.
-		if sha2, err := Store(run, url, body); err != nil || sha2 != sha {
-			t.Fatalf("re-Store: sha=%s err=%v, want stable %s", sha2, err, sha)
+		if again, err := Store(runtest.Open(t, run), Entry{URL: url}, body); err != nil || again.Sha != stored.Sha {
+			t.Fatalf("re-Store: sha=%s err=%v, want stable %s", again.Sha, err, stored.Sha)
 		}
 
 		// Round-trip: Lookup returns the exact bytes under this URL.
-		gotSha, gotBody, ok, err := Lookup(run, url)
+		got, gotBody, ok, err := Lookup(runtest.Open(t, run), url)
 		if err != nil {
 			t.Fatalf("Lookup: %v", err)
 		}
 		if !ok {
 			t.Fatalf("Lookup miss for a URL just stored (%q)", url)
 		}
-		if gotSha != sha || string(gotBody) != string(body) {
-			t.Fatalf("Lookup round-trip mismatch: sha %s/%s, body %d/%d bytes", gotSha, sha, len(gotBody), len(body))
+		if got.Sha != stored.Sha || string(gotBody) != string(body) {
+			t.Fatalf("Lookup round-trip mismatch: sha %s/%s, body %d/%d bytes", got.Sha, stored.Sha, len(gotBody), len(body))
 		}
 	})
 }

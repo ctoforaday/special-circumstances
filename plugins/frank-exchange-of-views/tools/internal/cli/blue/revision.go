@@ -48,7 +48,7 @@ func newRevision() *cobra.Command {
 		// was measured is not defiance but not-noticing: making `check_kind` visible moved
 		// `prove` from 0 uses in eighteen sittings to 1 in nine, which says a seat reading
 		// a property still does not read a debt.
-		return revisionResult{Owed: record.GapsAwaitingProof(run.Dir())}, nil
+		return revisionResult{Owed: record.GapsAwaitingProof(run)}, nil
 	}))
 }
 

@@ -4,6 +4,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
@@ -50,7 +51,7 @@ func TestCiteRetryAfterTornSpliceAdoptsTheOrphan(t *testing.T) {
 	if ev.GetLabel() != "c-0badf00d" {
 		t.Errorf("the retry minted %s instead of adopting the orphan c-0badf00d — the orphan now backs nothing forever", ev.GetLabel())
 	}
-	violations, err := consistency.Check(runDir)
+	violations, err := consistency.Check(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +107,7 @@ func TestFindingRetryFinishesTheHalfAppendedPair(t *testing.T) {
 	if !strings.Contains(out, "L1-F1") {
 		t.Errorf("the retry did not answer idempotently with the prior label: %q", out)
 	}
-	anchored, err := record.AnchorEventExists(runDir, "f-0badf00d")
+	anchored, err := record.AnchorEventExists(runtest.Open(t, runDir), "f-0badf00d")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,7 +143,7 @@ func TestProveRetryAfterTornSpliceAdoptsTheOrphan(t *testing.T) {
 
 func assertNoAnchorViolations(t *testing.T, runDir string) {
 	t.Helper()
-	violations, err := consistency.Check(runDir)
+	violations, err := consistency.Check(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

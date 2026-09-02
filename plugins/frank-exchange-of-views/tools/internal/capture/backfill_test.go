@@ -3,6 +3,7 @@ package capture
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
@@ -57,7 +58,7 @@ func TestBackfillAuditWarnsOnAClosingBurst(t *testing.T) {
 		base + 300*time.Millisecond, base + 400*time.Millisecond, base + 500*time.Millisecond}
 	bfSeat(t, dir, "red-lens-r1-L1", t0, offs)
 
-	a := BackfillAudit(dir)
+	a := BackfillAudit(runtest.Open(t, dir))
 	if a.Verdict != "WARN" {
 		t.Fatalf("verdict = %q, want WARN\n%s", a.Verdict, a.Detail)
 	}
@@ -78,7 +79,7 @@ func TestBackfillAuditPassesWhenRecordingIsSpreadAcrossTheSitting(t *testing.T) 
 		7 * time.Minute, 9 * time.Minute, 10 * time.Minute}
 	bfSeat(t, dir, "red-lens-r1-L1", t0, offs)
 
-	a := BackfillAudit(dir)
+	a := BackfillAudit(runtest.Open(t, dir))
 	if a.Verdict != "PASS" {
 		t.Fatalf("verdict = %q, want PASS\n%s", a.Verdict, a.Detail)
 	}
@@ -95,7 +96,7 @@ func TestBackfillAuditDoesNotJudgeASeatBelowTheEventFloor(t *testing.T) {
 	offs := []time.Duration{10 * time.Minute, 10*time.Minute + time.Millisecond, 10*time.Minute + 2*time.Millisecond}
 	bfSeat(t, dir, "red-lens-r1-L1", t0, offs)
 
-	a := BackfillAudit(dir)
+	a := BackfillAudit(runtest.Open(t, dir))
 	if a.Verdict != "PASS" {
 		t.Fatalf("verdict = %q, want PASS (nothing measurable is not a failure)\n%s", a.Verdict, a.Detail)
 	}
@@ -121,7 +122,7 @@ func TestBackfillAuditReportsUnparseableStampsRatherThanDroppingThem(t *testing.
 		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:finding:F1", &recordpb.Finding{}),
 		"not-a-timestamp"))
 
-	a := BackfillAudit(dir)
+	a := BackfillAudit(runtest.Open(t, dir))
 	if !strings.Contains(a.Detail, "NOT MEASURED") {
 		t.Fatalf("an unparseable ts must be reported, not silently skipped:\n%s", a.Detail)
 	}
@@ -143,7 +144,7 @@ func TestBackfillAuditSkipsASeatWithNoRegister(t *testing.T) {
 	}
 	recordtest.Seed(t, dir, evs...)
 
-	a := BackfillAudit(dir)
+	a := BackfillAudit(runtest.Open(t, dir))
 	if a.Verdict != "PASS" {
 		t.Fatalf("verdict = %q, want PASS\n%s", a.Verdict, a.Detail)
 	}
@@ -154,7 +155,7 @@ func TestBackfillAuditSkipsASeatWithNoRegister(t *testing.T) {
 
 // A run with no record at all is SKIP, not PASS. Absent is not clean.
 func TestBackfillAuditSkipsWhenThereIsNoRecord(t *testing.T) {
-	a := BackfillAudit(t.TempDir())
+	a := BackfillAudit(runtest.Open(t, t.TempDir()))
 	if a.Verdict != "SKIP" {
 		t.Fatalf("verdict = %q, want SKIP — an unread record is not a passed audit\n%s", a.Verdict, a.Detail)
 	}

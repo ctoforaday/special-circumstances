@@ -149,7 +149,7 @@ func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := newRun(t)
-			_, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: tc.id, Round: RoundIn(runDir)(tc.id)}, "")
+			_, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: tc.id, Round: RoundIn(mustRun(t, runDir))(tc.id)}, "")
 			if err == nil {
 				t.Fatalf("RegisterSeat accepted %q — the id becomes a FILENAME", tc.id)
 			}
@@ -175,7 +175,7 @@ func TestRegisterSeatAcceptsTheEngineAssignedShapes(t *testing.T) {
 		"frontier", "judge-r1", "judge-terminal", "judge-petition-red-merge-r1", "assemble", "operator",
 	} {
 		runDir := newRun(t)
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: id, Round: RoundIn(runDir)(id)}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: id, Round: RoundIn(mustRun(t, runDir))(id)}, ""); err != nil {
 			t.Errorf("RegisterSeat(%q) = %v, want accepted", id, err)
 		}
 	}
@@ -199,7 +199,7 @@ func TestRegisterSeatRefusesAnIdNoDispatchProduces(t *testing.T) {
 		"Red-Merge-R1",                  // the right shape in the wrong case
 	} {
 		runDir := newRun(t)
-		if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: id, Round: 1}, ""); err == nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: id, Round: 1}, ""); err == nil {
 			t.Errorf("RegisterSeat(%q) was accepted; it binds for the whole run and no dispatch created it", id)
 		}
 	}
@@ -334,11 +334,11 @@ func TestConcurrentWriteAtomicNeverPublishesAPartialFile(t *testing.T) {
 func TestReleaseHeldLocksIsSafeWhenNothingIsHeld(t *testing.T) {
 	releaseHeldLocks()
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: RoundIn(runDir)("red-merge-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	releaseHeldLocks()
-	if _, err := BoardState(runDir); err != nil {
+	if _, err := BoardState(mustRun(t, runDir)); err != nil {
 		t.Errorf("board replay after a spurious release: %v", err)
 	}
 }

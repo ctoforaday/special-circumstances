@@ -48,6 +48,12 @@ var notVersions = map[string]string{
 		"and has nothing to do with what is shipped",
 	"ToolVersion": "the mutable variable const Version is assigned INTO at init; the constant " +
 		"is the source, this is the destination",
+	"extractorFallbackVersion": "a DEPENDENCY's version, not this repo's — the PDF extractor " +
+		"identity that #629 D3 keys cached extractions on. The shipping binary never reads it: " +
+		"extractorIdentity() takes the real version out of the linked module graph, and this " +
+		"constant answers only where that graph is empty (a `go test` binary carries deps=0). " +
+		"It is checked against go.mod itself by TestExtractorFallbackMatchesGoMod, so it cannot " +
+		"drift from the module it names",
 }
 
 // THE PER-BINARY `const version` CLASS IS GONE, AND THAT IS WHY THERE IS NO ALLOWLIST HERE.

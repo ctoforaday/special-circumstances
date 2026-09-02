@@ -20,7 +20,7 @@ func TestMutateBlueReportWritesAndReads(t *testing.T) {
 	if err := os.WriteFile(blueReportPath(runDir), []byte("hello world"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	err := MutateBlueReport(runDir, func(old []byte) ([]byte, error) {
+	err := MutateBlueReport(mustRun(t, runDir), func(old []byte) ([]byte, error) {
 		if string(old) != "hello world" {
 			t.Errorf("transform saw %q, want %q", old, "hello world")
 		}
@@ -45,7 +45,7 @@ func TestMutateBlueReportRejectWritesNothing(t *testing.T) {
 		t.Fatal(err)
 	}
 	sentinel := errors.New("quote not found")
-	err := MutateBlueReport(runDir, func(old []byte) ([]byte, error) {
+	err := MutateBlueReport(mustRun(t, runDir), func(old []byte) ([]byte, error) {
 		return nil, sentinel
 	})
 	if !errors.Is(err, sentinel) {
@@ -69,7 +69,7 @@ func TestMutateBlueReportConcurrentInsertsBothLand(t *testing.T) {
 	done := make(chan error, 2)
 	for _, mark := range []string{"<!--fx:f-1-->", "<!--fx:f-2-->"} {
 		go func() {
-			done <- MutateBlueReport(runDir, func(old []byte) ([]byte, error) {
+			done <- MutateBlueReport(mustRun(t, runDir), func(old []byte) ([]byte, error) {
 				return append(append([]byte{}, old...), []byte(mark)...), nil
 			})
 		}()

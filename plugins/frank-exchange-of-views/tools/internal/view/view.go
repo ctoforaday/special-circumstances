@@ -117,8 +117,8 @@ func massSum(gaps []*record.Gap) float64 {
 // a foreign key, so there is nothing left to count. Returning a constant 0 in its place would be
 // the worse outcome — every caller reading "0 anomalies" as a clean board, in the same words it
 // used when the number meant something.
-func Counts(runDir string) (open, closed int, err error) {
-	b, err := record.BoardState(runDir)
+func Counts(run record.Run) (open, closed int, err error) {
+	b, err := record.BoardState(run)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -136,8 +136,8 @@ func Counts(runDir string) (open, closed int, err error) {
 // record — the single source that replaced the materialized board-telemetry.jsonl.
 // Rows are decoded the way the consumers previously decoded the file (UseNumber),
 // so numeric leaves are json.Number and nested objects are map[string]any.
-func Telemetry(runDir string) ([]map[string]any, error) {
-	b, err := record.BoardState(runDir)
+func Telemetry(run record.Run) ([]map[string]any, error) {
+	b, err := record.BoardState(run)
 	if err != nil {
 		return nil, err
 	}
@@ -170,8 +170,8 @@ func Telemetry(runDir string) ([]map[string]any, error) {
 // (one line per round, trailing newline when non-empty) — the byte-exact form the
 // old materialized telemetry file held, for callers that need the wire shape rather than
 // decoded rows.
-func TelemetryJSONL(runDir string) ([]byte, error) {
-	b, err := record.BoardState(runDir)
+func TelemetryJSONL(run record.Run) ([]byte, error) {
+	b, err := record.BoardState(run)
 	if err != nil {
 		return nil, err
 	}
@@ -220,12 +220,12 @@ func MarkdownViews() []string {
 // Markdown returns one markdown projection, rendered in-memory from the record.
 // Byte-identical to what render.go formerly wrote to disk.
 // scope narrows a view that supports it (today: `changes`, by gap id). "" is unscoped.
-func Markdown(runDir, name, scope string) ([]byte, error) {
+func Markdown(run record.Run, name, scope string) ([]byte, error) {
 	render, ok := markdownViews[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown markdown view %q (have: %s)", name, strings.Join(MarkdownViews(), ", "))
 	}
-	b, err := record.BoardState(runDir)
+	b, err := record.BoardState(run)
 	if err != nil {
 		return nil, err
 	}

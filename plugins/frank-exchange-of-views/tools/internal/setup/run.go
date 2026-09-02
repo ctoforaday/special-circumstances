@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"io"
 	"os"
@@ -231,20 +232,37 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	skel := BuildSkeleton(cfg.RunDir, topic)
-	mirrorsPurged := PurgeStaleMirrors(filepath.Join(cfg.Home, ".cache", "feov", "run-mirror"), cfg.Now, 30)
-	if mirrorsPurged > 0 {
-		fmt.Fprintf(stdout, "  mirror purge: %d stale checkpoint mirror(s) removed\n", mirrorsPurged)
+	// RESOLVED ONCE, BEFORE ANYTHING IS WRITTEN. Everything below used to take the raw string
+	// and each site decided for itself whether to make it absolute — so a run was laid out with
+	// a mix of spellings, and the one absolute form was computed sixty lines later with a silent
+	// fallback to the relative path when it failed.
+	//
+	// NewRun rather than OpenRun because this is the caller that legitimately holds a run before
+	// there is anything on disk to open: BuildSkeleton, three lines down, is what creates it.
+	run, err := record.NewRun(cfg.RunDir)
+	if err != nil {
+		fmt.Fprintf(stderr, "run-setup: %v\n", err)
+		return 2
 	}
-	pinned := BuildPinned(cfg.RunDir, head, cfg.Cites)
+
+	skel := BuildSkeleton(run, topic)
+	if mirrorRoot, mErr := record.MirrorRoot(); mErr != nil {
+		// LOUD, not folded into the zero: a purge that could not resolve its own directory has
+		// not checked anything, and reporting that as "0 removed" is the same line a clean
+		// board prints.
+		fmt.Fprintf(stderr, "  mirror purge: NOT RUN — %v\n", mErr)
+	} else if n := record.PurgeStaleMirrors(mirrorRoot, cfg.Now, 30); n > 0 {
+		fmt.Fprintf(stdout, "  mirror purge: %d stale checkpoint mirror(s) removed\n", n)
+	}
+	pinned := BuildPinned(run, head, cfg.Cites)
 
 	// The registry is staged BEFORE any seat can mint, because it is what makes `--class` mean
 	// anything at all (#299).
-	registry := StageClassRegistry(filepath.Join(cfg.Cwd, "feov-memory"), cfg.RunDir)
+	registry := StageClassRegistry(filepath.Join(cfg.Cwd, "feov-memory"), run)
 
 	// The index was built and GATED above, before any run state existed; this only mirrors the
 	// files into the run and writes the class join the engine hands to a repairing seat.
-	mirror := MirrorGapPatterns(memDirs, cfg.RunDir)
+	mirror := MirrorGapPatterns(memDirs, run)
 
 	// THE CLASS JOIN IS THE DELIVERY CHANNEL, so a failure to write it is the same condition the
 	// unclassified gate forty lines up refuses the run over: red opens blind while its memory
@@ -260,7 +278,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// Files: 55` on a discarded write error. That one was caught by reusing it somewhere the
 	// caller had not already created `inputs/`; this one sits on the line that actually feeds a
 	// seat, and nothing was reusing it.
-	joinPath := filepath.Join(cfg.RunDir, "inputs", "gap-patterns-by-class.json")
+	joinPath := filepath.Join(run.Dir(), "inputs", "gap-patterns-by-class.json")
 	b, err := marshalJSON(patternIndex.ByClass)
 	if err != nil {
 		fmt.Fprintf(stderr, "run-setup: could not encode the gap-pattern class join: %v\n", err)
@@ -277,17 +295,13 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	absRun, absErr := filepath.Abs(cfg.RunDir)
-	if absErr != nil {
-		absRun = cfg.RunDir
-	}
-	rc := runConfig{Topic: topic, RunDir: absRun, Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution}
+	rc := runConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution}
 	if b, err := marshalJSON(rc); err == nil {
-		os.WriteFile(filepath.Join(cfg.RunDir, "inputs", "run-config.json"), b, 0o644)
+		os.WriteFile(filepath.Join(run.Dir(), "inputs", "run-config.json"), b, 0o644)
 	}
 
-	law := MirrorLaw(filepath.Join(cfg.Cwd, "law"), cfg.RunDir)
-	cards := MirrorScorecards(filepath.Join(cfg.Cwd, "feov-memory"), cfg.RunDir)
+	law := MirrorLaw(filepath.Join(cfg.Cwd, "law"), run)
+	cards := MirrorScorecards(filepath.Join(cfg.Cwd, "feov-memory"), run)
 	pinnedPaths := []string{}
 	for _, c := range cfg.Cites {
 		p, _ := splitPin(c)
@@ -297,7 +311,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// Written AFTER the marker deliberately: the wrapper is the carrier that does not move when
 	// the marker does, and writing it second makes the ordering obvious to anyone reading for
 	// which of the two is derived from the other. Neither is — that is the point.
-	wrapper := WriteRunWrapper(absRun, recordBin)
+	wrapper := WriteRunWrapper(run, recordBin)
 
 	fmt.Fprintf(stdout, "run-setup: %s\n", cfg.RunDir)
 	fmt.Fprintf(stdout, "  skeleton: %d created, %d pre-staged (kept)\n", len(skel.Created), len(skel.Skipped))
@@ -366,7 +380,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	}
 	if len(cards.Headlines) > 0 {
 		if b, err := marshalJSON(cards.Headlines); err == nil {
-			os.WriteFile(filepath.Join(cfg.RunDir, "inputs", "scorecards.json"), b, 0o644)
+			os.WriteFile(filepath.Join(run.Dir(), "inputs", "scorecards.json"), b, 0o644)
 		}
 		fmt.Fprintln(stdout, `  scorecards arg: pass inputs/scorecards.json as the workflow's "scorecards" arg`)
 		fmt.Fprintf(stdout, "    %s\n", compactJSON(cards.Headlines))

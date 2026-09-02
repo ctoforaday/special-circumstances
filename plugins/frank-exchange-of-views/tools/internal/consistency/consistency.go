@@ -181,8 +181,8 @@ func walk(events []*record.Event) *groundTruth {
 }
 
 // Check derives the ground truth for a run and holds every projection to it.
-func Check(runDir string) ([]string, error) {
-	m, err := record.MergedEvents(runDir)
+func Check(run record.Run) ([]string, error) {
+	m, err := record.MergedEvents(run)
 	if err != nil {
 		return nil, fmt.Errorf("consistency: reading the record: %w", err)
 	}
@@ -194,7 +194,7 @@ func Check(runDir string) ([]string, error) {
 	}
 
 	// ---- the replay itself ----
-	board, err := record.BoardState(runDir)
+	board, err := record.BoardState(run)
 	if err != nil {
 		// The walk tolerates what the replay refuses (a mutation on an unknown gap), so a record
 		// the replay cannot read at all is itself the finding.
@@ -300,7 +300,7 @@ func Check(runDir string) ([]string, error) {
 	}
 
 	// ---- the markdown renders ----
-	if ledger, err := view.Markdown(runDir, "ledger", ""); err != nil {
+	if ledger, err := view.Markdown(run, "ledger", ""); err != nil {
 		add("ledger-md", "render failed: %v", err)
 	} else {
 		s := string(ledger)
@@ -318,7 +318,7 @@ func Check(runDir string) ([]string, error) {
 			}
 		}
 	}
-	if archive, err := view.Markdown(runDir, "archive", ""); err != nil {
+	if archive, err := view.Markdown(run, "archive", ""); err != nil {
 		add("archive-md", "render failed: %v", err)
 	} else {
 		for id, g := range gt.gaps {
@@ -328,7 +328,7 @@ func Check(runDir string) ([]string, error) {
 		}
 	}
 	if len(gt.avenues) > 0 {
-		if inq, err := view.Markdown(runDir, "lines-of-inquiry", ""); err != nil {
+		if inq, err := view.Markdown(run, "lines-of-inquiry", ""); err != nil {
 			add("inquiry-md", "render failed: %v", err)
 		} else {
 			for id := range gt.avenues {
@@ -340,7 +340,7 @@ func Check(runDir string) ([]string, error) {
 	}
 
 	// ---- telemetry ----
-	if rows, err := view.Telemetry(runDir); err != nil {
+	if rows, err := view.Telemetry(run); err != nil {
 		add("telemetry", "derivation failed: %v", err)
 	} else if len(rows) > 0 {
 		last := rows[len(rows)-1]
@@ -372,7 +372,7 @@ func Check(runDir string) ([]string, error) {
 	// an anchor token no event backs — and the crash-retry mints a FRESH label and splices a
 	// second anchor beside the orphan. Neither direction of the mismatch is legal in a settled
 	// record, and this rule is what makes the torn state visible at all.
-	if rep, rerr := os.ReadFile(filepath.Join(runDir, "blue", "report.md")); rerr == nil {
+	if rep, rerr := os.ReadFile(filepath.Join(run.Dir(), "blue", "report.md")); rerr == nil {
 		inReport := map[string]bool{}
 		for _, m := range anchorToken.FindAllStringSubmatch(string(rep), -1) {
 			inReport[m[1]] = true
@@ -382,7 +382,7 @@ func Check(runDir string) ([]string, error) {
 		// id from the finding or its anchor event; a p- id from the proof. Every splice precedes
 		// its append, so BOTH directions of each bijection are invariants of a settled record.
 		citeSet := map[string]bool{}
-		if labels, lerr := record.CitationLabels(runDir); lerr != nil {
+		if labels, lerr := record.CitationLabels(run); lerr != nil {
 			add("anchor-record", "deriving expected citation labels: %v", lerr)
 		} else {
 			for _, l := range labels {

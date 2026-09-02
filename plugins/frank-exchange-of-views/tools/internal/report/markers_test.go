@@ -3,6 +3,7 @@ package report
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
 	"os"
 	"path/filepath"
@@ -39,7 +40,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, s := range []string{"red-merge-r1", "blue-respond-r1", "judge-terminal"} {
-		if _, _, err := record.RegisterSeat(record.Identity{RunDir: runDir, SeatID: s, Round: record.RoundIn(runDir)(s)}, ""); err != nil {
+		if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: s, Round: record.RoundIn(runtest.Open(t, runDir))(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -57,14 +58,14 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 		Likelihood:      recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Impact:          recordtest.P(recordpb.Grade_GRADE_HIGH),
 	}
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "red-merge-r1", Round: record.RoundIn(runDir)("red-merge-r1")}, mint); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-merge-r1", Round: record.RoundIn(runtest.Open(t, runDir))("red-merge-r1")}, mint); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(record.Identity{RunDir: runDir, SeatID: "judge-terminal", Round: record.RoundIn(runDir)("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), Prose: proto.String("the round ceiling arrived before red could pass the final revision")}); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge-terminal", Round: record.RoundIn(runtest.Open(t, runDir))("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), Prose: proto.String("the round ceiling arrived before red could pass the final revision")}); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := Assemble(runDir); err != nil {
+	if _, err := Assemble(runtest.Open(t, runDir)); err != nil {
 		t.Fatalf("assemble: %v", err)
 	}
 	shipped, err := os.ReadFile(filepath.Join(runDir, "report.md"))

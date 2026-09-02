@@ -50,7 +50,7 @@ func NewHTTPFetcher() Fetcher {
 	}
 }
 
-func (h *httpFetcher) Fetch(rawURL string) ([]byte, error) {
+func (h *httpFetcher) Fetch(rawURL string) (*Response, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("fetch: unparseable url %q: %w", rawURL, err)
@@ -79,6 +79,14 @@ func (h *httpFetcher) Fetch(rawURL string) ([]byte, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("fetch: %s returned HTTP %d%s", rawURL, resp.StatusCode, egressNote(resp.StatusCode))
 	}
+	// THE HEADERS ARE READ HERE OR NEVER. Content-Type is the source's own statement of what it
+	// just sent, available for exactly the length of this function and previously discarded at
+	// the end of it. Everything downstream then had to sniff magic bytes or read an extension
+	// off a URL that may not have one.
+	out := &Response{
+		ContentType: resp.Header.Get("Content-Type"),
+		Disposition: resp.Header.Get("Content-Disposition"),
+	}
 	// Read one byte past the cap so an over-size body is DETECTED, not silently truncated
 	// into a citation.
 	b, err := io.ReadAll(io.LimitReader(resp.Body, h.maxBytes+1))
@@ -88,7 +96,8 @@ func (h *httpFetcher) Fetch(rawURL string) ([]byte, error) {
 	if int64(len(b)) > h.maxBytes {
 		return nil, fmt.Errorf("fetch: %s exceeds the %d-byte cap — cite a smaller source or a specific page", rawURL, h.maxBytes)
 	}
-	return b, nil
+	out.Body = b
+	return out, nil
 }
 
 // AN EGRESS BLOCK IS NOT AN EPISTEMIC RESULT, and telling them apart is the seat's job the

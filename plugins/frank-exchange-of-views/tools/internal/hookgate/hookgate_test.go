@@ -2,6 +2,7 @@ package hookgate
 
 import (
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"strings"
 	"testing"
 )
@@ -60,7 +61,7 @@ func TestPreDecisionAllowlist(t *testing.T) {
 // §V.4 — the PostToolUse backstop: a non-author call that dropped a marker returns the
 // missing ids; a clean call or the author returns nil.
 func TestPostDropped(t *testing.T) {
-	anchors := func(runDir string) ([]string, error) { return []string{"f-a", "f-b"}, nil }
+	anchors := func(record.Run) ([]string, error) { return []string{"f-a", "f-b"}, nil }
 	// Report readers standing in for two states.
 	both := func(path string) (string, error) { return "x <!--fx:f-a--> y <!--fx:f-b--> z", nil }
 	dropped := func(path string) (string, error) { return "x <!--fx:f-a--> y z", nil } // f-b gone
@@ -89,7 +90,7 @@ func TestPostDropped(t *testing.T) {
 // same way a dropped finding marker is (the EXPECTED set is the union of both).
 func TestPostDroppedCatchesCitationAndBothClasses(t *testing.T) {
 	// EXPECTED union: a finding and a citation.
-	anchors := func(runDir string) ([]string, error) { return []string{"f-a", "c-1"}, nil }
+	anchors := func(record.Run) ([]string, error) { return []string{"f-a", "c-1"}, nil }
 	intact := func(path string) (string, error) { return "x <!--fx:f-a--> y <!--cite:c-1--> z", nil }
 	citeGone := func(path string) (string, error) { return "x <!--fx:f-a--> y z", nil }   // c-1 dropped
 	findGone := func(path string) (string, error) { return "x y <!--cite:c-1--> z", nil } // f-a dropped
