@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
 // A SEAT REGISTERS BEFORE IT APPENDS — pinned deterministically, because the sweep only hit this
@@ -24,7 +25,13 @@ import (
 // closable in round 1, which is what made it rare.
 func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	bin := buildBinary(t)
-	runDir := t.TempDir()
+	// recordtest.TmpRun, NOT t.TempDir. This test opens a record, and the record layer caches a
+	// *sql.DB per run: on Linux an open file can still be unlinked so a missed release is
+	// invisible, and on Windows TempDir's own RemoveAll cannot delete the locked record.db and
+	// the test fails in cleanup. TmpRun exists precisely for that, and its comment notes it had
+	// already been copied eight times without its release — this was the ninth, caught by the
+	// windows leg of CI and by nothing local.
+	runDir := recordtest.TmpRun(t)
 	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
 		t.Fatal(err)
 	}
