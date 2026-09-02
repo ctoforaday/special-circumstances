@@ -85,10 +85,20 @@ func RenderSite(title string, docs []Doc, board *record.Board) string {
 		page.Badges = template.HTML(fmt.Sprintf("<span class=\"badge %s\">%s</span>%s", cls, escape(verdict), countBadges(board)))
 	}
 	for i, d := range docs {
+		body := siteLinks(linkIDs(bodies[i], anchor, d.File), files)
+		if d.File == FileRun {
+			// The trajectory opens the run document: "how did the board converge" is the
+			// first question behind the verdict, and it is a picture. Markdown cannot carry
+			// it (GitHub strips inline SVG), so it is drawn HERE, in the reading tier, while
+			// the durable tier keeps the same numbers as text.
+			if c := boardChart(board); c != "" {
+				body = "<h2>The board, by round</h2>\n" + c + body
+			}
+		}
 		page.Docs = append(page.Docs, siteDoc{
 			File: d.File, Slug: slugFile(d.File), Nav: d.Nav, Blurb: d.Blurb,
 			Selected: i == 0,
-			Body:     template.HTML(siteLinks(linkIDs(bodies[i], anchor, d.File), files)),
+			Body:     template.HTML(body),
 		})
 	}
 

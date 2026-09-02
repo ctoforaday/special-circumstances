@@ -164,6 +164,34 @@ a.cite:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
 }
 .fnback { font-family: var(--sans); text-decoration: none; margin-left: .3rem; }
 
+/* The board-trajectory chart. Series colors are their own validated pair (contrast and
+   color-vision separation checked on both surfaces), never the status palette. */
+:root { --chart-minted: #c2410c; --chart-closed: #2563eb; }
+@media (prefers-color-scheme: dark) {
+  :root { --chart-minted: #c77c33; --chart-closed: #5b8fd4; }
+}
+figure.chart { margin: 1rem 0 2rem; }
+figure.chart svg { width: 100%; height: auto; display: block; }
+.chart-legend { font: .78rem/1 var(--sans); color: var(--muted); margin: 0 0 .4rem; display: flex; gap: 1.1rem; }
+.chart-legend .chip { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: .35rem; vertical-align: -1px; }
+.chip-minted { background: var(--chart-minted); }
+.chip-closed { background: var(--chart-closed); }
+figure.chart .grid { stroke: var(--rule); stroke-width: 1; }
+figure.chart .tick { font: 11px var(--sans); fill: var(--muted); }
+figure.chart polyline.minted { fill: none; stroke: var(--chart-minted); stroke-width: 2; }
+figure.chart polyline.closed { fill: none; stroke: var(--chart-closed); stroke-width: 2; }
+figure.chart .minted-dot { fill: var(--bg); stroke: var(--chart-minted); stroke-width: 2; }
+figure.chart .closed-dot { fill: var(--bg); stroke: var(--chart-closed); stroke-width: 2; }
+figure.chart .endlabel { font: 600 12px var(--sans); fill: var(--fg); }
+figure.chart .hcol .xhair, figure.chart .hcol .tip { opacity: 0; pointer-events: none; transition: opacity .1s; }
+figure.chart .hcol:hover .xhair, figure.chart .hcol:hover .tip { opacity: 1; }
+figure.chart .xhair { stroke: var(--rule-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+figure.chart .tip rect { fill: var(--panel); stroke: var(--rule); }
+figure.chart .tip text { font: 11px var(--sans); fill: var(--muted); }
+figure.chart .tip .tip-t { font: 600 11px var(--sans); fill: var(--fg); }
+figure.chart figcaption { font: .78rem/1.5 var(--sans); color: var(--muted); margin-top: .3rem; }
+.chart-data summary { font: .78rem var(--sans); color: var(--muted); cursor: pointer; margin-top: .4rem; }
+
 figure.mermaid { margin: 1.5rem 0; text-align: center; }
 figure.mermaid svg { max-width: 100%; height: auto; }
 figure.mermaid details { text-align: left; margin-top: .5rem; }
