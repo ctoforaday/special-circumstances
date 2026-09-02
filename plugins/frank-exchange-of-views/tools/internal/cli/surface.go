@@ -100,6 +100,40 @@ func commandsByPath() map[string]*cobra.Command {
 	return out
 }
 
+// CommandReferences returns, per command path, each flag that carries an EXISTENCE CHECK and the
+// entity type that flag names — "merge close" -> {"id": "gap-id", "superseded-by": "gap-id"}.
+//
+// THE THIRD EDGE OF THE SURFACE GRAPH (#535). CommandPaths says what verbs exist, CommandRecords
+// what each writes to the record; this says what each must POINT AT that already exists. A verb
+// that refuses an id the record does not carry is a transition with a precondition, and the
+// precondition is the part a graph needs to say whether an entity can get stuck.
+//
+// DERIVED, NOT DECLARED, and that is the point. Nothing here is annotated: a typed flag built as
+// flags.GapID().WithCheck(record.GapExists) already knows both halves — the check is the
+// referenceChecker method set, and the entity is pflag's own Type(). So the map cannot drift from
+// the flags, because it IS the flags. #535's rule for this work was "generated on both sides or
+// not built".
+//
+// The interface is re-declared rather than imported for the same reason `seat` re-declares it:
+// a method set is structural in Go, and stating it here keeps the dependency from running the
+// wrong way.
+func CommandReferences() map[string]map[string]string {
+	type referenceChecker interface{ Check(string) error }
+	out := map[string]map[string]string{}
+	for path, c := range commandsByPath() {
+		c.Flags().VisitAll(func(f *pflag.Flag) {
+			if _, ok := f.Value.(referenceChecker); !ok {
+				return
+			}
+			if out[path] == nil {
+				out[path] = map[string]string{}
+			}
+			out[path][f.Name] = f.Value.Type()
+		})
+	}
+	return out
+}
+
 // CommandRecords returns every command path that RECORDS an event, mapped to the event type it
 // writes — "merge mint" -> "mint", "blue edit" -> "blue_edit".
 //

@@ -3028,6 +3028,23 @@ func TestFuzzDebate(t *testing.T) {
 	// before its writers have run reports a plausible zero. Here the writers are done and the
 	// quorum is already known.
 	t.Log(graphReport())
+	t.Log(permittedReport())
+	// THE PERMITTED SIDE HAS ITS OWN FLOOR, and it is not the observed side's. The reference edge
+	// is derived by type-asserting flag values, so it fails in exactly one direction: a change to
+	// the flag types stops the assertion matching, the map comes back EMPTY, and the report says
+	// "0 checked flag(s)" — which reads like a surface where nothing is checked rather than a
+	// walker that stopped looking. Same shape as #654, one edge over.
+	// The walker's own floor and its join with CommandPaths live in internal/cli, beside the
+	// other walkers' (TestTheSurfaceWalkersAllSeeTheSameTree) — one home for "is this walker
+	// broken", rather than a second copy here that could disagree with it. What belongs HERE is
+	// the vocabulary check, because the kinds are what this report renders.
+	for path, byFlag := range cli.CommandReferences() {
+		for flag, kind := range byFlag {
+			if referenceKinds[kind] == "" {
+				t.Errorf("%s --%s is checked against entity kind %q, which is not in referenceKinds: add it with what it points at, so a new entity class arrives rather than joining silently", path, flag, kind)
+			}
+		}
+	}
 	if measured {
 		// A GRAPH WITH NO EDGES RENDERS AS "0 seats · 0 edges" AND READS LIKE A QUIET RUN. If
 		// seatOfArgs stops recovering the seat — a flag rename, a harness that stops passing
