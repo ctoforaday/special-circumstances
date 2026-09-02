@@ -52,8 +52,9 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 		// Citations render NUMBERED, in first-citation order, as bracketed links — and the
 		// FIRST citation of an id carries the return anchor its References entry links back
 		// to; the entry itself closes the loop with a .fnback arrow and keeps the markdown
-		// tier's slug as a muted tag.
-		`<a class="cite" id="fnref-1" href="#fn-1">[1]</a>`,
+		// tier's slug as a muted tag. The title is the pre-tap scent the number lost: the
+		// slug plus the entry's opening text.
+		`<a class="cite" id="fnref-1" href="#fn-1" title="1 — the source. https://example.invalid/a">[1]</a>`,
 		`<li id="fn-1">`,
 		`<span class="fnlabel" data-nolink>1</span>`,
 		`<a class="fnback" href="#fnref-1"`,
@@ -129,9 +130,10 @@ func TestCitationsAreNumberedByFirstUse(t *testing.T) {
 		"[^zulu]: Z, defined second. https://example.invalid/z\n"
 	got := mdToHTML(md, FileReport, anchors{})
 	for _, want := range []string{
-		`<a class="cite" id="fnref-zulu" href="#fn-zulu">[1]</a>`,
-		`<a class="cite" id="fnref-alpha" href="#fn-alpha">[2]</a>`,
-		`<a class="cite" href="#fn-zulu">[1]</a>`, // the repeat: same number, no second anchor
+		`<a class="cite" id="fnref-zulu" href="#fn-zulu" title="zulu — Z, defined second. https://example.invalid/z">[1]</a>`,
+		`<a class="cite" id="fnref-alpha" href="#fn-alpha" title="alpha — A, defined first. https://example.invalid/a">[2]</a>`,
+		// the repeat: same number and scent, no second anchor
+		`<a class="cite" href="#fn-zulu" title="zulu — Z, defined second. https://example.invalid/z">[1]</a>`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %q in:\n%s", want, got)

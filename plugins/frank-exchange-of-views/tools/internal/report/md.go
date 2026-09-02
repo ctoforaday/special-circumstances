@@ -276,18 +276,43 @@ func mdToHTML(md, file string, anchor anchors) string {
 // nothing cites keeps its place at the end, unnumbered in text but present in the list —
 // dropping it would un-say a source the author recorded.
 func numberCitations(html string) string {
+	// The number is opaque where the slug was not, so every marker carries the scent back as
+	// a title: hover (or a long-press preview) says which source this is before any tap. The
+	// text comes from the entry itself, cut short — a tooltip is a scent, not the reference.
+	scent := map[string]string{}
+	for _, li := range reFnItem.FindAllString(html, -1) {
+		id := reFnItem.FindStringSubmatch(li)[1]
+		text := li
+		if i := strings.Index(text, `<span class="fnlabel"`); i >= 0 {
+			text = text[:i]
+		}
+		text = strings.TrimSpace(reTag.ReplaceAllString(text, ""))
+		if len(text) > 140 {
+			if cut := strings.LastIndexByte(text[:140], ' '); cut > 60 {
+				text = text[:cut]
+			} else {
+				text = text[:140]
+			}
+			text += "…"
+		}
+		scent[id] = text
+	}
 	num := map[string]int{}
 	var order []string
 	html = reFnrefSup.ReplaceAllStringFunc(html, func(m string) string {
 		id := reFnrefSup.FindStringSubmatch(m)[1]
+		title := id
+		if s := scent[id]; s != "" {
+			title = id + " — " + s
+		}
 		n, seen := num[id]
 		if !seen {
 			n = len(order) + 1
 			num[id] = n
 			order = append(order, id)
-			return fmt.Sprintf(`<a class="cite" id="fnref-%s" href="#fn-%s">[%d]</a>`, id, id, n)
+			return fmt.Sprintf(`<a class="cite" id="fnref-%s" href="#fn-%s" title="%s">[%d]</a>`, id, id, title, n)
 		}
-		return fmt.Sprintf(`<a class="cite" href="#fn-%s">[%d]</a>`, id, n)
+		return fmt.Sprintf(`<a class="cite" href="#fn-%s" title="%s">[%d]</a>`, id, title, n)
 	})
 	if len(order) == 0 {
 		return html
@@ -320,6 +345,7 @@ var (
 	reFnrefSup = regexp.MustCompile(`<sup class="fnref"><a href="#fn-([^"]+)">[^<]*</a></sup>`)
 	reFnList   = regexp.MustCompile(`(?s)<ol class="fn">\n.*?\n</ol>`)
 	reFnItem   = regexp.MustCompile(`<li id="fn-([^"]+)">.*?</li>`)
+	reTag      = regexp.MustCompile(`<[^>]*>`)
 )
 
 // openList emits whatever open/close tags are needed to reach the requested kind and depth.
