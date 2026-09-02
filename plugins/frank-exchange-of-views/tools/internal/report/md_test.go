@@ -49,10 +49,13 @@ func TestMarkdownSubsetRenders(t *testing.T) {
 		`<pre><code class="language-bash">## not a heading`,
 		"echo &#39;x&#39; &gt; y", // escaped, and NOT parsed as a heading or a quote
 		"<hr>",
-		// The FIRST citation of an id carries the return anchor its References entry links
-		// back to; the entry itself closes the loop with a .fnback arrow.
-		`<sup class="fnref" id="fnref-1"><a href="#fn-1">1</a></sup>`,
+		// Citations render NUMBERED, in first-citation order, as bracketed links — and the
+		// FIRST citation of an id carries the return anchor its References entry links back
+		// to; the entry itself closes the loop with a .fnback arrow and keeps the markdown
+		// tier's slug as a muted tag.
+		`<a class="cite" id="fnref-1" href="#fn-1">[1]</a>`,
 		`<li id="fn-1">`,
+		`<span class="fnlabel" data-nolink>1</span>`,
 		`<a class="fnback" href="#fnref-1"`,
 		`<h2>References</h2>`,
 		`<a href="https://example.invalid/a">`,
@@ -114,5 +117,27 @@ func TestHardBreaksSurvive(t *testing.T) {
 	got := mdToHTML("cache.go:88  \nseverity high  \nrequired_fix: lock\n", FileDocket, anchors{})
 	if strings.Count(got, "<br>") != 2 {
 		t.Errorf("hard breaks were dropped, so four facts render as one sentence:\n%s", got)
+	}
+}
+
+// The reader of the rendered tier sees arXiv-style numbers assigned by FIRST CITATION, and the
+// References list is reordered to match — entry [1] is the first source the text cites, even
+// when the author defined it last. The slugs survive underneath: anchors and tags, both tiers.
+func TestCitationsAreNumberedByFirstUse(t *testing.T) {
+	md := "First claim[^zulu]. Second claim[^alpha], and zulu again[^zulu].\n\n" +
+		"[^alpha]: A, defined first. https://example.invalid/a\n" +
+		"[^zulu]: Z, defined second. https://example.invalid/z\n"
+	got := mdToHTML(md, FileReport, anchors{})
+	for _, want := range []string{
+		`<a class="cite" id="fnref-zulu" href="#fn-zulu">[1]</a>`,
+		`<a class="cite" id="fnref-alpha" href="#fn-alpha">[2]</a>`,
+		`<a class="cite" href="#fn-zulu">[1]</a>`, // the repeat: same number, no second anchor
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q in:\n%s", want, got)
+		}
+	}
+	if zi, ai := strings.Index(got, `<li id="fn-zulu">`), strings.Index(got, `<li id="fn-alpha">`); zi < 0 || ai < 0 || zi > ai {
+		t.Errorf("References not reordered to citation order (zulu at %d, alpha at %d):\n%s", zi, ai, got)
 	}
 }

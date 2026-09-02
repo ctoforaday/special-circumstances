@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{.TitleText}}</title>
+<style>
+{{.CSS}}</style>
+</head>
+<body>
+<header class="masthead">
+<h1>{{.TitleHTML}}</h1>
+{{if .Badges}}<p class="badges">{{.Badges}}</p>
+{{end}}</header>
+<div class="chrome">
+<button id="tocbtn" aria-expanded="false" aria-controls="toc" hidden>&#9776; Contents</button>
+{{if .MultiDoc}}<nav class="tabs" role="tablist">
+{{range .Docs}}<button role="tab" data-doc="{{.File}}"{{if .Selected}} aria-selected="true"{{end}} title="{{.Blurb}}">{{.Nav}}</button>
+{{end}}</nav>
+{{end}}<input id="filter" type="search" placeholder="filter sections&#8230;" aria-label="filter this document — type to hide sections that do not match" autocomplete="off">
+</div>
+<div id="tocbackdrop" hidden></div>
+<div class="layout">
+<nav id="toc" aria-label="Contents" hidden></nav>
+<main>
+{{range .Docs}}<article id="doc-{{.Slug}}" data-doc="{{.File}}"{{if not .Selected}} hidden{{end}}>
+<p class="blurb">{{.Blurb}}</p>
+{{.Body}}</article>
+{{end}}</main>
+</div>
+<footer>
+<p>Rendered from this run's own record by <code>feov-record bench assemble</code>. The markdown set beside this file is the same content, one document per file; <code>records/</code> and <code>proofs/</code> are what both were derived from.</p>
+</footer>
+<script>
+{{.JS}}</script>
+</body>
+</html>

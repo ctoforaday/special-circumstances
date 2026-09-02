@@ -151,7 +151,10 @@ func mdToHTML(md, file string, anchor anchors) string {
 			closeList(&listStack)
 			// data-nolink: the label IS the definition of that footnote, so the id-linker must
 			// leave it alone. A label that links away reads as a reference to somewhere else.
-			foot = append(foot, `<li id="fn-`+escape(m[1])+`"><span class="fnlabel" data-nolink>`+escape(m[1])+`</span> `+inline(m[2])+
+			// The number leads (the <ol> renders it); the slug trails as a muted tag, because
+			// it is the markdown tier's name for this entry and grep must find it here too.
+			foot = append(foot, `<li id="fn-`+escape(m[1])+`">`+inline(m[2])+
+				` <span class="fnlabel" data-nolink>`+escape(m[1])+`</span>`+
 				` <a class="fnback" href="#fnref-`+escape(m[1])+`" aria-label="back to the citing text">&#8617;</a></li>`)
 			continue
 		}
@@ -259,25 +262,65 @@ func mdToHTML(md, file string, anchor anchors) string {
 		// to find it by its own name.
 		b.WriteString("<section class=\"footnotes\"><h2>References</h2><ol class=\"fn\">\n" + strings.Join(foot, "\n") + "\n</ol></section>\n")
 	}
-	return withFirstRefAnchors(b.String())
+	return numberCitations(b.String())
 }
 
-// withFirstRefAnchors gives the FIRST in-text citation of each id an anchor the References
-// entry can link back to. Every later citation of the same id stays a plain marker: one
-// return address per entry, and it is the earliest, which is where the claim was made.
-func withFirstRefAnchors(html string) string {
-	seen := map[string]bool{}
-	return reFnrefSup.ReplaceAllStringFunc(html, func(m string) string {
+// numberCitations renders the citation layer the way a reader of arXiv or PubMed expects:
+// in-text markers become bracketed NUMBERED links — [1], [2] — assigned in order of first
+// citation, and the References list is REORDERED to match, so entry 3 is the third source the
+// reader met. The slug ids stay underneath (in the anchors and as a muted tag on each entry):
+// they are the markdown tier's names, and grep must keep finding them in both tiers.
+//
+// The FIRST citation of each id also carries the anchor its entry links back to: one return
+// address per entry, and it is the earliest, which is where the claim was made. A definition
+// nothing cites keeps its place at the end, unnumbered in text but present in the list —
+// dropping it would un-say a source the author recorded.
+func numberCitations(html string) string {
+	num := map[string]int{}
+	var order []string
+	html = reFnrefSup.ReplaceAllStringFunc(html, func(m string) string {
 		id := reFnrefSup.FindStringSubmatch(m)[1]
-		if seen[id] {
-			return m
+		n, seen := num[id]
+		if !seen {
+			n = len(order) + 1
+			num[id] = n
+			order = append(order, id)
+			return fmt.Sprintf(`<a class="cite" id="fnref-%s" href="#fn-%s">[%d]</a>`, id, id, n)
 		}
-		seen[id] = true
-		return `<sup class="fnref" id="fnref-` + id + `">` + m[len(`<sup class="fnref">`):]
+		return fmt.Sprintf(`<a class="cite" href="#fn-%s">[%d]</a>`, id, n)
+	})
+	if len(order) == 0 {
+		return html
+	}
+	// Reorder the References list to citation order. The list is this package's own output —
+	// one <li id="fn-..."> per line — so the shape is known, not guessed at.
+	return reFnList.ReplaceAllStringFunc(html, func(list string) string {
+		items := reFnItem.FindAllString(list, -1)
+		byID := map[string]string{}
+		for _, li := range items {
+			byID[reFnItem.FindStringSubmatch(li)[1]] = li
+		}
+		var out []string
+		for _, id := range order {
+			if li, ok := byID[id]; ok {
+				out = append(out, li)
+				delete(byID, id)
+			}
+		}
+		for _, li := range items { // whatever nothing cited, in author order, after
+			if id := reFnItem.FindStringSubmatch(li)[1]; byID[id] != "" {
+				out = append(out, li)
+			}
+		}
+		return `<ol class="fn">` + "\n" + strings.Join(out, "\n") + "\n</ol>"
 	})
 }
 
-var reFnrefSup = regexp.MustCompile(`<sup class="fnref"><a href="#fn-([^"]+)">`)
+var (
+	reFnrefSup = regexp.MustCompile(`<sup class="fnref"><a href="#fn-([^"]+)">[^<]*</a></sup>`)
+	reFnList   = regexp.MustCompile(`(?s)<ol class="fn">\n.*?\n</ol>`)
+	reFnItem   = regexp.MustCompile(`<li id="fn-([^"]+)">.*?</li>`)
+)
 
 // openList emits whatever open/close tags are needed to reach the requested kind and depth.
 func openList(stack *[]string, kind string, indent int) string {
