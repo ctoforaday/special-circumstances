@@ -746,10 +746,22 @@ await hearPetitions(blueEnv, 'blue-synthesize')
 let round = 0
 let redEnv = null
 let deadlocked = false
-// One-shot relief for the bench-cleared board (see the deadlock arm below). A cleared docket
-// is not a deadlock, but granting red its sitting must not be repeatable, or the bench can
-// extend the run indefinitely one clearance at a time.
-let benchClearedOnce = false
+// WHAT HAPPENED TO A BOARD THE BENCH CLEARED TO ZERO, as ONE field with three values.
+//
+// It carries the one-shot relief (see the deadlock arm below): a cleared docket is not a
+// deadlock, but granting red its sitting must not be repeatable, or the bench can extend the run
+// indefinitely one clearance at a time. `benchClearedBoard === 'relief_granted'` IS "the relief
+// is spent", so the guard reads the same variable the terminal report does rather than a second
+// boolean beside it that could disagree with it.
+//
+// Three values because a boolean answered two questions with one false: a run where the bench
+// never cleared the board, and a run where it cleared it on the LAST round with no further round
+// to grant. Those are different terminal facts — the second OWES red a sitting.
+//
+//   null                       the bench never cleared the board on a deadlock ruling
+//   'relief_granted'           red was given a further round to verdict against the empty docket
+//   'ceiling_owed_red_a_sitting'  it cleared on the last round; red's sitting is what is owed
+let benchClearedBoard = null
 const allPriorGapIds = new Set() // every gap id from every prior round — the docket window is the whole debate, not one round
 const adjudicated = [] // judge-ruled gaps (closed / not_a_defect / defect_accepted / routed) — out of red's verdict
 // WHAT A RULING OBLIGES BLUE TO DO, derived from the fate rather than restated in prose.
@@ -1156,9 +1168,28 @@ Every docketed gap gets a written ruling: its fate, the principle you applied, t
     if (judge.deadlock) {
       const ruled = new Set(adjudicated.map(x => x.gap_id))
       const stillOpen = redEnv.gaps.filter(g => !ruled.has(g.id))
-      if (stillOpen.length === 0 && !benchClearedOnce && round < maxRounds) {
-        benchClearedOnce = true
+      if (stillOpen.length === 0 && benchClearedBoard === null && round < maxRounds) {
+        benchClearedBoard = 'relief_granted'
         log(`round ${round}: the bench cleared the board to zero — NOT deadlock. Red owns PASS/FAIL and has not verdicted against an empty docket; granting one further round so it can. This relief fires once.`)
+      } else if (stillOpen.length === 0 && benchClearedBoard === null) {
+        // THE CEILING CANNOT MAKE CONVERGENCE INTO DEADLOCK (#535 step 4, found by the
+        // exhaustive schedule enumeration in integration/fuzz/termination_test.go).
+        //
+        // The relief above was bounded twice on purpose, and one of the two bounds was doing
+        // something it was never meant to do. `round < maxRounds` exists because there is no
+        // further round to grant on the last one — but falling through to the `else` re-stamped
+        // that budget fact as DEADLOCK, and the run ended UNVERIFIED with ZERO gaps outstanding.
+        // That is the same self-contradictory stamp the relief was written to prevent, arriving
+        // by the third road: 15 of 343 enumerated schedules reached it.
+        //
+        // The parties did not fail to converge here. They converged in the bench's hands and the
+        // budget ran out before red could verdict against the board — which is exactly the class
+        // CEILING was created for, and what is owed is nameable: red's sitting against a cleared
+        // docket. So leave `deadlocked` false and break; `exhausted` is already true at this
+        // round and the terminal taxonomy stamps CEILING.
+        benchClearedBoard = 'ceiling_owed_red_a_sitting'
+        log(`round ${round}: the bench cleared the board to zero on the LAST round — not deadlock and not relief, the run ran out of budget before red could verdict against an empty docket. Stamping the ceiling; red's sitting is what is owed.`)
+        break
       } else {
         deadlocked = true
         break
@@ -1236,7 +1267,7 @@ phase('Assemble')
 const assembleEnv = await agent(
   `Final assembly for topic "${topic}", run directory ${runDir}. Debate outcome: ${verdict} after ${round} round(s)${deadlocked ? ' by judged deadlock' : ''}${exhausted ? ' by safety ceiling' : ''}. THE REPORT IS ASSEMBLED FROM THE RECORD — you author NOTHING, you copy NOTHING, you fill in NO inputs. There are no <FILL> fields and no sections for you to write; do not hand-write report.md and do not copy anything into it yourself.
 
-FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${deadlocked ? ', ended by judged DEADLOCK' : exhausted ? ', ended against the CEILING' : ''}, and your account of the sitting goes with it — where a run ended by judged deadlock that account is the only evidence the determination will ever have.
+FIRST, STAMP HOW THIS RUN ENDED: it is ${verdict}${deadlocked ? ', ended by judged DEADLOCK' : exhausted ? ', ended against the CEILING' : ''}${benchClearedBoard === 'ceiling_owed_red_a_sitting' ? ', and WHAT IT OWES IS NAMEABLE: the bench cleared the board to zero on the final round, so the parties converged in the bench\'s hands and the run ran out of budget before red — who owns PASS/FAIL — could verdict against the empty docket. Record that sitting as what is owed; do NOT report this as a failure to converge' : ''}, and your account of the sitting goes with it — where a run ended by judged deadlock that account is the only evidence the determination will ever have.
 
 THEN, TWO THINGS YOU MAY HOLD AND THIS IS YOUR LAST CHANCE TO RECORD EITHER. If you hold something that binds how the RECORD IS READ but moves no gap — a construction of a term, a correction of what the record MEANS rather than what it says, a holding worth offering as precedent — state it, and state it in its own right rather than folding it into an unrelated rationale. And if anything in this run needs A HUMAN to re-examine it — an unresolved tension, a claim that held only because nobody could reach the source, a boundary you ruled close to — say so. You keep no memory between runs, so this is the whole of your continuity.
 
@@ -1249,6 +1280,12 @@ return {
   rounds: round,
   lanes,
   deadlocked,
+  // What became of a board the bench cleared to zero on a deadlock ruling: null (it never did),
+  // 'relief_granted' (red was given a further round to verdict against the empty docket), or
+  // 'ceiling_owed_red_a_sitting' (it cleared on the last round, so there was no round to grant and
+  // red's sitting is what the run ran out of budget before buying). Without it, an empty board
+  // under UNVERIFIED reads as a contradiction and a CEILING cannot say what is owed.
+  bench_cleared_board: benchClearedBoard,
   // The board's open count (via the assemble seat) is authoritative — it reflects every
   // closure and judge ruling. Fall back to red's docket length only if the seat could not
   // report it (no binDir / structured return), which is the old, over-counting behaviour.
