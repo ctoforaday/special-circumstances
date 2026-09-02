@@ -3,6 +3,7 @@ package fetchcache
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
@@ -13,11 +14,12 @@ import (
 
 // NOTHING HERE CALLS A MODEL. DefaultPageReader is a variable for exactly this reason: a test
 // that needed credentials would be a test nobody can run, and one that spent money on every
-// `go test ./...` would be worse. The stub is where the two-pass behaviour is actually
-// exercised, because what is under test is the COMPARISON, not the transcription.
+// `go test ./...` would be worse. The stub counts its calls, because after #659 the call COUNT
+// is itself a load-bearing claim — one page is one call, and a change that quietly reinstates a
+// second pass doubles every bill this tool produces.
 type stubReader struct {
-	// perCall returns the text for the nth call (1-based), so a test can make two passes of
-	// one page disagree — which is the case the whole record exists to represent.
+	// perCall returns the text for the nth call (1-based), so a test can make successive pages
+	// differ and can prove which call produced which page.
 	perCall func(n int) (string, error)
 	calls   int
 	in, out int64
@@ -49,10 +51,17 @@ func renderOnePage(t *testing.T) (record.Run, string, RenderRecord) {
 	return run, sha, rd
 }
 
-func TestReadingAgreesWhenBothPassesSayTheSameThing(t *testing.T) {
-	withReader(t, &stubReader{in: 1200, out: 40, perCall: func(int) (string, error) {
+// ONE PAGE IS ONE MODEL CALL, and this is the assertion #659 turns on.
+//
+// The verb read every page twice until the cost of the second pass was weighed against
+// evidence nobody had gathered. A regression to two passes would not fail any other test here
+// — the text, the record and the attestation would all still be right — it would simply double
+// the price of every document silently. So the call count is asserted directly.
+func TestAPageCostsExactlyOneModelCall(t *testing.T) {
+	sr := &stubReader{in: 1200, out: 40, perCall: func(int) (string, error) {
 		return "Hello leaf verification\n", nil
-	}})
+	}}
+	withReader(t, sr)
 	run, sha, rd := renderOnePage(t)
 
 	got, err := ReadRenderedPages(context.Background(), run, sha, "test-model", rd)
@@ -62,30 +71,23 @@ func TestReadingAgreesWhenBothPassesSayTheSameThing(t *testing.T) {
 	if len(got.Pages) != 1 {
 		t.Fatalf("Pages = %d, want 1", len(got.Pages))
 	}
-	p := got.Pages[0]
-	if !p.Agreed {
-		t.Errorf("identical passes reported as disagreeing")
+	if sr.calls != 1 {
+		t.Errorf("the model was called %d times for one page, want 1 — a second pass doubles "+
+			"the cost of every document and #659 ruled one until an error rate justifies more", sr.calls)
 	}
-	if p.FirstDifferenceAt != -1 {
-		t.Errorf("FirstDifferenceAt = %d on agreement, want -1", p.FirstDifferenceAt)
+	if got.InTokens != 1200 || got.OutTok != 40 {
+		t.Errorf("tokens = %d in / %d out, want one call's worth (1200/40)", got.InTokens, got.OutTok)
 	}
-	if len(p.PassShas) != PassCount {
-		t.Errorf("PassShas = %d, want %d — every pass is recorded, not just the winner", len(p.PassShas), PassCount)
-	}
-	if len(got.Divergences()) != 0 {
-		t.Errorf("Divergences = %v on an agreed page", got.Divergences())
-	}
-	// THE ATTESTATION, which is what replaces reproducibility here.
+
+	// THE ATTESTATION, which is what replaces reproducibility here. It states provenance —
+	// which model read which images when — and NOT accuracy: one reading corroborates nothing.
 	if got.Model != "test-model" || got.ReadAt.IsZero() || got.DPI != rd.DPI {
 		t.Errorf("attestation incomplete: model=%q readAt=%v dpi=%d", got.Model, got.ReadAt, got.DPI)
 	}
 	if len(got.RenderShas) != 1 || got.RenderShas[0] != rd.PageShas[0] {
 		t.Error("the reading does not name the exact images it read — a re-render would go unnoticed")
 	}
-	if got.InTokens != 2400 || got.OutTok != 80 {
-		t.Errorf("tokens = %d in / %d out, want both passes counted (2400/80)", got.InTokens, got.OutTok)
-	}
-	// The agreed text is the deliverable, and both passes survive as evidence.
+
 	body, err := os.ReadFile(OCRTextPath(run, sha))
 	if err != nil {
 		t.Fatalf("assembled text: %v", err)
@@ -96,99 +98,61 @@ func TestReadingAgreesWhenBothPassesSayTheSameThing(t *testing.T) {
 	if Sha(body) != got.TextSha {
 		t.Error("text_sha does not hash the text on disk")
 	}
-	for pass := 1; pass <= PassCount; pass++ {
-		if _, err := os.Stat(PassPath(run, sha, 1, pass)); err != nil {
-			t.Errorf("pass %d was not kept: %v — a disagreement with no exhibit is an accusation", pass, err)
-		}
+
+	// The page's own transcription sits beside its image, and the record's hash is of that text.
+	pageText, err := os.ReadFile(PageTextPath(run, sha, 1))
+	if err != nil {
+		t.Fatalf("page text was not kept: %v — a citation lands on a page, and a reader "+
+			"checking it against the scan wants that page's text beside that page's image", err)
+	}
+	if Sha(pageText) != got.Pages[0].TextSha {
+		t.Error("the page's recorded text_sha does not hash the page text on disk")
+	}
+	if got.Pages[0].Length != len([]rune(string(pageText))) {
+		t.Errorf("Length = %d, want the transcription's rune count %d",
+			got.Pages[0].Length, len([]rune(string(pageText))))
 	}
 }
 
-// THE CASE THE WHOLE DESIGN EXISTS FOR. Two readings that differ must not be resolved by
-// picking one: an uncorroborated reading in the position a citation is taken from is exactly
-// the fluent-failure #644 names.
-func TestReadingMarksADisagreementInPlaceAndNeverPicksAWinner(t *testing.T) {
-	withReader(t, &stubReader{perCall: func(n int) (string, error) {
-		if n == 1 {
-			return "the method of types", nil
-		}
-		return "the method of typos", nil
-	}})
-	run, sha, rd := renderOnePage(t)
+// EVERY PAGE IS READ, IN ORDER, AND THE ASSEMBLY IS THE PAGES. A loop that skipped a page or
+// reused one page's text for another would leave the record looking complete.
+func TestEveryPageIsReadOnceAndAssembledInOrder(t *testing.T) {
+	sr := &stubReader{perCall: func(n int) (string, error) {
+		return fmt.Sprintf("page %d body", n), nil
+	}}
+	withReader(t, sr)
+	run := runtest.New(t, t.TempDir())
+	body := multiPagePDFWithNoTextLayer(3)
+	sha := Sha(body)
+	rd, err := RenderPages(run, sha, body, MinRenderDPI)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	got, err := ReadRenderedPages(context.Background(), run, sha, "test-model", rd)
+	got, err := ReadRenderedPages(context.Background(), run, sha, "m", rd)
 	if err != nil {
 		t.Fatalf("ReadRenderedPages: %v", err)
 	}
-	p := got.Pages[0]
-	if p.Agreed {
-		t.Fatal("two different readings were reported as agreeing")
+	if sr.calls != 3 || len(got.Pages) != 3 {
+		t.Fatalf("%d calls for %d recorded pages, want 3 and 3 — one call a page", sr.calls, len(got.Pages))
 	}
-	if p.FirstDifferenceAt != 17 {
-		t.Errorf("FirstDifferenceAt = %d, want 17 (the 'e'/'o' of types/typos)", p.FirstDifferenceAt)
-	}
-	if len(got.Divergences()) != 1 || got.Divergences()[0] != 1 {
-		t.Errorf("Divergences = %v, want [1]", got.Divergences())
-	}
-
 	text, err := os.ReadFile(OCRTextPath(run, sha))
 	if err != nil {
 		t.Fatal(err)
 	}
-	// NEITHER READING may appear as if it were the page's text.
-	for _, forbidden := range []string{"the method of types", "the method of typos"} {
-		if strings.Contains(string(text), forbidden) {
-			t.Errorf("the assembled text contains %q — a disagreement was silently resolved", forbidden)
+	if want := "page 1 body\n\npage 2 body\n\npage 3 body"; string(text) != want {
+		t.Errorf("assembled text = %q, want %q", text, want)
+	}
+	for i := 1; i <= 3; i++ {
+		if got.Pages[i-1].Page != i {
+			t.Errorf("Pages[%d].Page = %d, want %d", i-1, got.Pages[i-1].Page, i)
 		}
-	}
-	if !strings.Contains(string(text), "disagree") {
-		t.Errorf("the assembled text does not mark the disagreement:\n%s", text)
-	}
-	// And both sides are on disk to be compared.
-	one, _ := os.ReadFile(PassPath(run, sha, 1, 1))
-	two, _ := os.ReadFile(PassPath(run, sha, 1, 2))
-	if string(one) == string(two) || len(one) == 0 || len(two) == 0 {
-		t.Error("the two passes were not both kept")
-	}
-}
-
-// WHITESPACE IS NOT A DISAGREEMENT. A check that fired on a trailing newline would be ignored
-// within a week, which is the failure mode of a guard that cries wolf.
-func TestReadingIgnoresWhitespaceDifferencesButNotStructuralOnes(t *testing.T) {
-	withReader(t, &stubReader{perCall: func(n int) (string, error) {
-		if n == 1 {
-			return "line one\nline two", nil
-		}
-		return "  line one   \r\nline two\n\n  ", nil // same content, different whitespace
-	}})
-	run, sha, rd := renderOnePage(t)
-	got, err := ReadRenderedPages(context.Background(), run, sha, "m", rd)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !got.Pages[0].Agreed {
-		t.Error("passes differing only in trailing whitespace and line endings were called a disagreement")
-	}
-
-	// But a merged line IS a different reading of the page.
-	withReader(t, &stubReader{perCall: func(n int) (string, error) {
-		if n == 1 {
-			return "line one\nline two", nil
-		}
-		return "line one line two", nil
-	}})
-	run2, sha2, rd2 := renderOnePage(t)
-	got2, err := ReadRenderedPages(context.Background(), run2, sha2, "m", rd2)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got2.Pages[0].Agreed {
-		t.Error("one pass merged two lines and that was reported as agreement")
 	}
 }
 
 // A READER THAT FAILED MUST NOT LOOK LIKE A BLANK PAGE. An empty string is a legitimate
-// reading — #644's own prompt tells the model to return nothing for a blank page — so a
-// failure has to arrive as an error or the two are indistinguishable.
+// reading — the prompt tells the model to return nothing for a blank page — so a failure has
+// to arrive as an error or the two are indistinguishable.
 func TestReadingPropagatesAReaderFailureRatherThanRecordingAnEmptyPage(t *testing.T) {
 	withReader(t, &stubReader{perCall: func(int) (string, error) {
 		return "", errors.New("credentials refused (401)")
@@ -215,18 +179,39 @@ func TestReadingAcceptsAGenuinelyBlankPage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("a blank page was treated as a failure: %v", err)
 	}
-	if !got.Pages[0].Agreed {
-		t.Error("two blank readings disagreed")
+	if got.Pages[0].Length != 0 {
+		t.Errorf("Length = %d, want 0 for a blank page", got.Pages[0].Length)
 	}
-	if got.Pages[0].Lengths[0] != 0 {
-		t.Errorf("Lengths = %v, want 0 for a blank page", got.Pages[0].Lengths)
+}
+
+// THE STORED TEXT IS TIDIED AT ITS EDGES AND UNTOUCHED IN ITS MIDDLE.
+//
+// Line endings and trailing whitespace are noise in an artifact about to be cited from.
+// Paragraph structure is not noise — it is how the page reads, and flattening it would be
+// this normalisation editing the content instead of tidying it.
+func TestStoredTextSettlesLineEndingsButKeepsParagraphStructure(t *testing.T) {
+	withReader(t, &stubReader{perCall: func(int) (string, error) {
+		return "  line one   \r\n\r\nline two\n\n  ", nil
+	}})
+	run, sha, rd := renderOnePage(t)
+	if _, err := ReadRenderedPages(context.Background(), run, sha, "m", rd); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(PageTextPath(run, sha, 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "line one\n\nline two"; string(got) != want {
+		t.Errorf("stored text = %q, want %q — CRLF and trailing space settled, the paragraph "+
+			"break between them kept", got, want)
 	}
 }
 
 // THE CAP REFUSES; IT DOES NOT TRUNCATE. Reading the first N pages and recording it as the
 // document's reading would be a false statement nothing downstream could detect.
 func TestReadingRefusesADocumentOverTheCapRatherThanReadingPartOfIt(t *testing.T) {
-	withReader(t, &stubReader{perCall: func(int) (string, error) { return "x", nil }})
+	sr := &stubReader{perCall: func(int) (string, error) { return "x", nil }}
+	withReader(t, sr)
 	run := runtest.New(t, t.TempDir())
 	over := make([]string, MaxReadPages+1)
 	for i := range over {
@@ -237,10 +222,28 @@ func TestReadingRefusesADocumentOverTheCapRatherThanReadingPartOfIt(t *testing.T
 	if err == nil {
 		t.Fatal("a document over the cap was read")
 	}
-	for _, want := range []string{"cap", "model calls"} {
+	for _, want := range []string{"cap", "model call"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal = %q, want it to mention %q", err, want)
 		}
+	}
+	// AND IT REFUSED BEFORE SPENDING ANYTHING. A cap that reads the document and then declines
+	// to record it has already paid the bill it exists to prevent.
+	if sr.calls != 0 {
+		t.Errorf("the model was called %d times for a document the cap refused", sr.calls)
+	}
+}
+
+// THE CAP IS DENOMINATED IN MODEL CALLS. It was 50 pages when a page cost two calls; one pass
+// makes the same 100-call budget 100 pages. This pins the reasoning so that halving the cost
+// again, or restoring a second pass, has to face the arithmetic rather than leave a number
+// nobody can account for.
+func TestThePageCapSpendsTheSameCallBudgetItAlwaysDid(t *testing.T) {
+	const budgetInCalls = 100
+	if MaxReadPages != budgetInCalls {
+		t.Errorf("MaxReadPages = %d, want %d — one model call a page, and the cap is that "+
+			"call budget. Change this deliberately, with the budget restated.",
+			MaxReadPages, budgetInCalls)
 	}
 }
 
@@ -257,24 +260,6 @@ func TestReadReadingRecordReportsAbsenceAndRefusesAMisfiledRecord(t *testing.T) 
 	}
 	if _, _, err := ReadReadingRecord(run, "x"); err == nil || !strings.Contains(err.Error(), "names document") {
 		t.Errorf("a record naming another document was accepted: %v", err)
-	}
-}
-
-// The offset is in RUNES. A byte offset into a CJK transcription points inside a character
-// and reads as a wrong answer to the human it is shown to.
-func TestFirstRuneDifferenceCountsCharactersNotBytes(t *testing.T) {
-	for _, tc := range []struct {
-		name, a, b string
-		want       int
-	}{
-		{"ascii", "abcdef", "abcXef", 3},
-		{"multibyte before the difference", "日本語です", "日本語でした", 4},
-		{"a prefix differs where the shorter ends", "abc", "abcdef", 3},
-		{"identical", "same", "same", 4},
-	} {
-		if got := firstRuneDifference(tc.a, tc.b); got != tc.want {
-			t.Errorf("%s: firstRuneDifference(%q,%q) = %d, want %d", tc.name, tc.a, tc.b, got, tc.want)
-		}
 	}
 }
 

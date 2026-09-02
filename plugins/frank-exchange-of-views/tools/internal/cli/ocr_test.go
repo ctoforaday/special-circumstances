@@ -239,32 +239,6 @@ func TestOCRReadRecordsTheReadingAndMarksItOCRDerived(t *testing.T) {
 	}
 }
 
-// A DIVERGENCE IS NAMED BY PAGE. A count alone would tell a reader something is wrong and not
-// where, which is not actionable and so gets ignored.
-func TestOCRReadNamesTheDivergentPages(t *testing.T) {
-	no := false
-	dir, sha := cacheScan(t, &no, "application/pdf")
-	if _, err := run(t, "ocr", "pages", "--seat-id", "operator", "--sha", sha, "--dpi", "72", "--run", dir); err != nil {
-		t.Fatal(err)
-	}
-	withCLIReader(t, func(n int) (string, error) {
-		if n == 1 {
-			return "verification and validation", nil
-		}
-		return "verification and vaIidation", nil
-	})
-	out, err := run(t, "ocr", "read", "--seat-id", "operator", "--sha", sha, "--run", dir)
-	if err != nil {
-		t.Fatalf("ocr read: %v\n%s", err, out)
-	}
-	if !strings.Contains(out, "divergent_pages: 1") {
-		t.Errorf("the divergent page was not named:\n%s", out)
-	}
-	if !strings.Contains(out, "Nothing picked a winner") {
-		t.Errorf("the summary does not say the disagreement was left unresolved:\n%s", out)
-	}
-}
-
 // A SECOND READ OF THE SAME IMAGES IS NOT FREE AND IS NOT IDEMPOTENT. Re-reading would spend
 // a model again AND replace text a seat may already have cited from, with different bytes.
 func TestOCRReadReusesAnExistingReadingOfTheSameImages(t *testing.T) {

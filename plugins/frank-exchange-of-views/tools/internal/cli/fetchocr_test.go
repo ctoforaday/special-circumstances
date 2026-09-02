@@ -66,8 +66,8 @@ func fetchScanned(t *testing.T, sr fetchcache.ScanReader, ex fetchcache.Extracti
 // text back, without knowing that two more verbs exist.
 func TestFetchReadsAScannedPDFAutomatically(t *testing.T) {
 	sr := &stubScanReader{rec: fetchcache.ReadingRecord{
-		ReadAt: time.Now(), TextSha: "textsha", InTokens: 12000, OutTok: 400,
-		Pages: []fetchcache.PageReading{{Page: 1, Agreed: true, FirstDifferenceAt: -1}},
+		ReadAt: time.Now(), TextSha: "textsha", DPI: 200, InTokens: 12000, OutTok: 400,
+		Pages: []fetchcache.PageReading{{Page: 1, TextSha: "p1", Length: 42}},
 	}}
 	out, err := fetchScanned(t, sr, scannedPDF(1))
 	if err != nil {
@@ -82,6 +82,7 @@ func TestFetchReadsAScannedPDFAutomatically(t *testing.T) {
 		".ocr.txt",
 		"text_sha256: textsha",
 		"model: " + defaultReadModel,
+		"dpi: 200",
 		"input_tokens: 12000",
 		"output_tokens: 400",
 	} {
@@ -93,28 +94,6 @@ func TestFetchReadsAScannedPDFAutomatically(t *testing.T) {
 	// beside a text_path is two answers to one question, and a seat has no way to pick.
 	if strings.Contains(out, "text_extracted: false") || strings.Contains(out, "text_reason:") {
 		t.Errorf("the summary still says there is no text after reading it:\n%s", out)
-	}
-}
-
-// A DISAGREEMENT REACHES THE SEAT. The two-pass check is worthless if the pages it flags are
-// named only in a record nobody opens.
-func TestFetchNamesTheDivergentPages(t *testing.T) {
-	sr := &stubScanReader{rec: fetchcache.ReadingRecord{
-		TextSha: "t", Pages: []fetchcache.PageReading{
-			{Page: 1, Agreed: true, FirstDifferenceAt: -1},
-			{Page: 2, Agreed: false, FirstDifferenceAt: 17},
-			{Page: 3, Agreed: false, FirstDifferenceAt: 4},
-		},
-	}}
-	out, err := fetchScanned(t, sr, scannedPDF(3))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(out, "divergent_pages: 2,3") {
-		t.Errorf("summary does not name the divergent pages. got:\n%s", out)
-	}
-	if !strings.Contains(out, "Nothing picked a winner") {
-		t.Errorf("summary does not say the disagreement was left unresolved. got:\n%s", out)
 	}
 }
 
@@ -181,7 +160,7 @@ func TestFetchReadsOnlyAPDFWithNoTextLayer(t *testing.T) {
 func TestFetchJSONCarriesTheReadingsFacts(t *testing.T) {
 	sr := &stubScanReader{rec: fetchcache.ReadingRecord{
 		TextSha: "textsha", InTokens: 7, OutTok: 3,
-		Pages: []fetchcache.PageReading{{Page: 1, Agreed: false, FirstDifferenceAt: 2}},
+		Pages: []fetchcache.PageReading{{Page: 1, TextSha: "p1", Length: 9}},
 	}}
 	out, err := fetchScanned(t, sr, scannedPDF(1), "--json")
 	if err != nil {
@@ -196,9 +175,6 @@ func TestFetchJSONCarriesTheReadingsFacts(t *testing.T) {
 	}
 	if !strings.HasSuffix(got.TextPath, ".ocr.txt") {
 		t.Errorf("text_path = %q, want the reading's own file", got.TextPath)
-	}
-	if len(got.Divergences) != 1 || got.Divergences[0] != 1 {
-		t.Errorf("divergent_pages = %v, want [1]", got.Divergences)
 	}
 	if got.InTokens != 7 || got.OutTokens != 3 {
 		t.Errorf("tokens = %d/%d, want 7/3", got.InTokens, got.OutTokens)

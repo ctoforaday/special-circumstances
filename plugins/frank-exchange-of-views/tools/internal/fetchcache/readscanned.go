@@ -59,9 +59,9 @@ func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry, m
 	}
 	if e.Pages > MaxReadPages {
 		return ReadingRecord{}, fmt.Errorf("the document has %d pages, over the %d-page cap on one "+
-			"automatic read (%d model calls at two passes a page); nothing was rendered. Read it "+
-			"deliberately with `ocr pages --sha %s` then `ocr read --sha %s`",
-			e.Pages, MaxReadPages, 2*MaxReadPages, e.Sha, e.Sha)
+			"automatic read (one model call a page); nothing was rendered. Read it deliberately "+
+			"with `ocr pages --sha %s` then `ocr read --sha %s`",
+			e.Pages, MaxReadPages, e.Sha, e.Sha)
 	}
 
 	rd, have, err := ReadRenderRecord(run, e.Sha)

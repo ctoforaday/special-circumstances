@@ -38,11 +38,11 @@ func TestReadScannedRendersAndReadsInOneCall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadScanned: %v", err)
 	}
-	if len(rec.Pages) != 1 || !rec.Pages[0].Agreed {
-		t.Fatalf("reading = %+v, want one agreed page", rec.Pages)
+	if len(rec.Pages) != 1 {
+		t.Fatalf("reading = %+v, want one page", rec.Pages)
 	}
-	if sr.calls != PassCount {
-		t.Errorf("model called %d times, want %d — one page, two passes", sr.calls, PassCount)
+	if sr.calls != 1 {
+		t.Errorf("model called %d times, want 1 — one page, one call", sr.calls)
 	}
 	if rec.DPI != MinRenderDPI {
 		t.Errorf("DPI = %d, want the resolution it was told to render at", rec.DPI)
@@ -155,17 +155,17 @@ func TestReadScannedRereadsWhenTheImagesChanged(t *testing.T) {
 }
 
 // A TRANSCRIPTION MUST NOT OUTLIVE THE IMAGES IT DESCRIBES. Found by a mutation pass, not by
-// a test: the reading record and both passes live inside the pages directory and were already
-// wiped on a re-render, while the assembled text sat beside the document and survived — a
-// file marking disagreements against exhibits that no longer existed, attesting to image
-// hashes whose record had just been deleted. It read exactly like a current reading.
+// a test: the reading record and the per-page text live inside the pages directory and were
+// already wiped on a re-render, while the assembled text sat beside the document and survived
+// — a transcription of pixels nobody kept, attesting to image hashes whose record had just
+// been deleted. It read exactly like a current reading.
 func TestARerenderClearsTheReadingOfTheOldPixels(t *testing.T) {
 	withReader(t, &stubReader{perCall: func(int) (string, error) { return "old pixels", nil }})
 	run, e := storeScanned(t, 1)
 	if _, err := (RenderAndRead{}).ReadScanned(context.Background(), run, e, "m", 72); err != nil {
 		t.Fatal(err)
 	}
-	for _, p := range []string{OCRTextPath(run, e.Sha), PassPath(run, e.Sha, 1, 1)} {
+	for _, p := range []string{OCRTextPath(run, e.Sha), PageTextPath(run, e.Sha, 1)} {
 		if _, err := os.Stat(p); err != nil {
 			t.Fatalf("the reading did not write %s: %v", p, err)
 		}
@@ -174,7 +174,7 @@ func TestARerenderClearsTheReadingOfTheOldPixels(t *testing.T) {
 	if _, err := RenderPages(run, e.Sha, pdfWithNoTextLayer(), 150); err != nil {
 		t.Fatal(err)
 	}
-	for _, p := range []string{OCRTextPath(run, e.Sha), PassPath(run, e.Sha, 1, 1)} {
+	for _, p := range []string{OCRTextPath(run, e.Sha), PageTextPath(run, e.Sha, 1)} {
 		if _, err := os.Stat(p); !os.IsNotExist(err) {
 			t.Errorf("%s survived a re-render: a transcription of pixels nobody kept, with no "+
 				"record left saying which model read them (%v)", p, err)

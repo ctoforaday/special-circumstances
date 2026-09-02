@@ -51,11 +51,8 @@ type fetchSummary struct {
 	OCRReason string `json:"ocr_reason,omitempty"`
 	Model     string `json:"model,omitempty"`
 	DPI       int    `json:"dpi,omitempty"`
-	// Divergences names the pages whose two readings disagreed. A COUNT ALONE WOULD BE
-	// USELESS: the point of the two-pass check is to send a human to a specific page.
-	Divergences []int `json:"divergent_pages,omitempty"`
-	InTokens    int64 `json:"input_tokens,omitempty"`
-	OutTokens   int64 `json:"output_tokens,omitempty"`
+	InTokens  int64  `json:"input_tokens,omitempty"`
+	OutTokens int64  `json:"output_tokens,omitempty"`
 }
 
 // applyReading folds a model's reading of the page images into the summary.
@@ -81,7 +78,6 @@ func (s *fetchSummary) applyReading(run record.Run, r fetchcache.ReadingRecord) 
 	s.Extractor = ""
 	s.Model = r.Model
 	s.DPI = r.DPI
-	s.Divergences = r.Divergences()
 	s.InTokens, s.OutTokens = r.InTokens, r.OutTok
 }
 
@@ -172,11 +168,6 @@ func (s fetchSummary) render() string {
 		line("dpi", fmt.Sprint(s.DPI))
 		line("input_tokens", fmt.Sprint(s.InTokens))
 		line("output_tokens", fmt.Sprint(s.OutTokens))
-	}
-	if len(s.Divergences) > 0 {
-		line("divergent_pages", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(s.Divergences)), ","), "[]"))
-		line("divergence_note", "the two readings disagree on these pages; the text marks each in place "+
-			"and both passes are kept beside the page image. Nothing picked a winner.")
 	}
 	return b.String()
 }

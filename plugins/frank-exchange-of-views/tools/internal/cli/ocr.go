@@ -180,13 +180,10 @@ type ocrReadSummary struct {
 	// OCRDerived is always true here and is printed anyway. It is the field that keeps text a
 	// machine read off pixels distinguishable from text an author embedded, and a reader who
 	// does not see it stated has to infer it from the verb that produced the file.
-	OCRDerived bool `json:"ocr_derived"`
-	// Divergences names the pages whose two readings disagreed. A COUNT ALONE WOULD BE USELESS:
-	// the point of the check is to send a human to a specific page.
-	Divergences []int `json:"divergences,omitempty"`
-	InTokens    int64 `json:"input_tokens"`
-	OutTokens   int64 `json:"output_tokens"`
-	Reused      bool  `json:"reused"`
+	OCRDerived bool  `json:"ocr_derived"`
+	InTokens   int64 `json:"input_tokens"`
+	OutTokens  int64 `json:"output_tokens"`
+	Reused     bool  `json:"reused"`
 }
 
 func (s ocrReadSummary) render() string {
@@ -206,37 +203,33 @@ func (s ocrReadSummary) render() string {
 	line("input_tokens", fmt.Sprint(s.InTokens))
 	line("output_tokens", fmt.Sprint(s.OutTokens))
 	line("reused", fmt.Sprint(s.Reused))
-	if len(s.Divergences) > 0 {
-		line("divergent_pages", strings.Trim(strings.Join(strings.Fields(fmt.Sprint(s.Divergences)), ","), "[]"))
-		line("divergence_note", "the two readings disagree on these pages; the text marks each in place "+
-			"and both passes are kept beside the page image. Nothing picked a winner.")
-	}
 	return b.String()
 }
 
-// newOCRRead asks a model what the rendered pages say — twice — and records both answers.
+// newOCRRead asks a model what the rendered pages say, and records the answer.
 //
 // THIS IS THE ONE VERB IN THIS TOOL THAT CALLS OUT. Everything else here is local: fetch
 // serves cached bytes, extraction runs PDFium in-process, rendering rasterises. This spends a
-// model, per page, twice, and that is why it is a separate opt-in verb rather than part of
-// fetch — a seat asking for a URL does not expect to spend money, and one document in four
-// needs this.
+// model, one call per page. It remains a separate verb even though fetch now reads a scanned
+// PDF on its own (#659): fetch reads only what its own extractor found no text layer in, and
+// this is how an operator reads pages that door will not open — a re-render at another DPI, a
+// document already cached, a --force re-read.
 //
 // WHAT IT PRODUCES IS NOT REPRODUCIBLE, AND THE RECORD SAYS SO. #636 keyed an extraction to
 // library@semver so an audit could re-run it and compare hashes. A model re-reading a page
 // returns different bytes, so that check does not exist here. What replaces it is an
-// attestation — which model, when, against which image hashes — plus the two-pass agreement.
-// That is weaker, and it is stated rather than left to be discovered by a `reproduce` that
-// fails mysteriously.
+// attestation — which model, when, against which image hashes — and that is provenance, not
+// accuracy: one reading, uncorroborated. It is stated rather than left to be discovered by a
+// `reproduce` that fails mysteriously.
 func newOCRRead() *cobra.Command {
 	var sha, model string
 	var force bool
 
 	c := &cobra.Command{
 		Use:   "read",
-		Short: "ask a model what the rendered pages say, twice, and record both answers",
-		Long: "read sends each page image rendered by `ocr pages` to a model and asks for a transcription — TWICE, independently. Where the two readings agree, the agreed text is written to <run>/cache/<sha>.ocr.txt. Where they DISAGREE, the text marks the page in place and keeps both passes beside the image: nothing picks a winner, because an uncorroborated reading in the position a citation is taken from is the failure this check exists to catch. " +
-			"THIS VERB SPENDS A MODEL, per page, twice. It needs credentials (ANTHROPIC_API_KEY, or `ant auth login`) and it is the only verb here that calls out of the machine. " +
+		Short: "ask a model what the rendered pages say, and record the transcription",
+		Long: "read sends each page image rendered by `ocr pages` to a model and asks for a transcription. The assembled text is written to <run>/cache/<sha>.ocr.txt and each page's own transcription beside its image. " +
+			"THIS VERB SPENDS A MODEL, one call per page. It needs credentials (ANTHROPIC_API_KEY, or `ant auth login`) and it is the only verb here that calls out of the machine. " +
 			"WHAT IT WRITES IS NOT REPRODUCIBLE: a re-read returns different bytes. The record carries an attestation — model, time, and the hashes of the images actually read — in place of the re-derivation an extraction supports.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
@@ -290,8 +283,8 @@ func readSummaryOf(run record.Run, sha string, r fetchcache.ReadingRecord, reuse
 	return ocrReadSummary{
 		Sha: r.Sha, Model: r.Model, Pages: len(r.Pages), DPI: r.DPI,
 		TextPath: fetchcache.OCRTextPath(run, sha), TextSha: r.TextSha,
-		OCRDerived: true, Divergences: r.Divergences(),
-		InTokens: r.InTokens, OutTokens: r.OutTok, Reused: reused,
+		OCRDerived: true,
+		InTokens:   r.InTokens, OutTokens: r.OutTok, Reused: reused,
 	}
 }
 
