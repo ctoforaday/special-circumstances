@@ -716,6 +716,22 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// gap, which is the branch a probabilistic prove would mostly skip, and the refusal is
 	// still covered by the integration tests that assert it.
 	if r.computationGaps[id] {
+		// A SEAT REGISTERS BEFORE IT APPENDS, AND THIS ONE DID NOT (#664).
+		//
+		// closeGap is driven from the RED-MERGE branch, and it proves as `blue-respond-r1` —
+		// `blue prove` RECORDS a `prove` event, so that is an append. In round 1 red-merge-r1
+		// runs BEFORE blue-respond-r1 ever registers, so a computation gap that becomes
+		// closable in round 1 appends as a seat the record has never seen, and `verify` refuses
+		// the run with `register-before-append`.
+		//
+		// It is rare rather than constant because it needs a computation gap closable that
+		// early — measured at roughly 1 run in 200, which is exactly why it read as a flake and
+		// survived the #656 waiter: that ordered a seat against ITSELF for callers going through
+		// register(), and this path never called register() at all.
+		//
+		// register() is idempotent and waits for the register to land, so this is a no-op on
+		// every later round and the ordering it needs on the first.
+		r.register("blue", "blue-respond-r1")
 		name := "fuzz-answer-" + id + ".js"
 		if err := os.WriteFile(filepath.Join(r.runDir, name), []byte("console.log('answers "+id+"');"), 0o644); err == nil {
 			_, _ = r.exec("prove", "--seat-id", "blue-respond-r1", "--quote", "§ fuzz",
