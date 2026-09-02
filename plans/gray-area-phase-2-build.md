@@ -1,5 +1,8 @@
 # Gray Area Phase 2 — implementation spec
 
+> STATUS 2026-09-02: shipped — historical record (all three verbs on main: `gray-area rework`,
+> `stalls`, `pr`; `internal/prbody/` and `Finding.Unmeasured` verified present).
+
 > Parent: [`gray-area-phase-2.md`](gray-area-phase-2.md) — the scope proposal and the two rulings.
 > That document argued for a narrower scope; the operator chose **Phase 2 whole, gated on #189**,
 > and #189 closed on 2026-08-18 (`gray-area.md` §11.11). **The gate is discharged. This is the
@@ -99,7 +102,7 @@ census rather than trust this list**.
 | `internal/prbody` (new) | reads a pull request body into `claims.Claim`s, splitting act from result |
 | `cmd/gray-area` | three new verbs beside `tools` and `checkpoint`; the usage text and its goldens move |
 | `plugins/gray-area/README.md` | the shipped documentation |
-| `commands/` | a command doc per new verb, on the model of `audit-checkpoint.md` |
+| `commands/` | a command doc per new verb, on the model of `audit-checkpoint.md`. **As shipped (2026-09-02):** one doc per *inspection surface*, not per verb — `audit-repetition.md` fronts both `rework` and `stalls`; `audit-pr-body.md` fronts `pr` |
 | `.claude-plugin/plugin.json` | **no version bump** — versions move at a release boundary (#444) |
 | `scripts/check/gates.go` | only if a new CI gate appears |
 | `plans/gray-area.md` §7 | the phase table's Phase 2 row |

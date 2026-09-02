@@ -1,5 +1,7 @@
 # The full change list — waves to the reform debate and through it
 
+> STATUS 2026-09-02: in progress (remaining: W2d's recurrence escalator + class_mass telemetry, W2f's calibration computation, and the queued perf/experiment pass; runs resumed 2026-08 — run-archive/ holds six runs from 2026-08-22/23).
+
 Consolidated 2026-07-18 from: ideas/backlog.md, run-5 friction (research/2026-07-17_
 sleeper-service-design/friction.md + envelope), plans/constitutional-reform.md §8,
 ideas/gap-classes-proposal.md, ideas/experiments-queue.md, the post-capture
@@ -10,9 +12,7 @@ ratifies. Nothing in wave 3 ships before ratification (house gate).
 
 ## WAVE 0 — operational preconditions (no code)
 
-- [ ] Update dance to latest (FEOV 0.9.2 + PC 0.9.0 after this wave merges/tags) (closing arguments + judiciary dashboard are merged
-      but the plugin cache still runs 0.7.0): /plugin update → /reload-plugins →
-      /reload-skills → doctor --fix.
+- REMOVED 2026-09-02: superseded by the release-boundary update dance (CLAUDE.md); the versions it targeted are long past (frank-exchange-of-views now 1.64.0, prosthetic-conscience 0.42.0, per plugin.json).
 
 ## WAVE 1 — mechanical PRs (friction-demanded plumbing; no debate needed)
 
@@ -128,9 +128,13 @@ them — plan from the pre-run gate section at the end of this file.
 
 - [ ] Parallel blue-response via lane/union (~25-35 min), overlapped red-merge
       (~15-20 min), seat checkpointing for judgment seats (~12 min on crashes).
+      NOT DONE (2026-09-02): blue-respond is still a single sequential seat in
+      debate.js; only round-0 lanes and red lens passes run parallel().
 - [ ] E-queue: E1 variance pair → E2 reform A/B → E3 null → E4 peer-review
       benchmark → E5 surprise ledger (re-anchored to the future build) → E6 lens
       economics → E7 (conditional) → E8 measurements.
+      NOT DONE (2026-09-02): run-archive/ holds topic runs (2026-08-22/23) only;
+      no E-series experiment run recorded.
 
 ## Parked / doubt-flagged (unchanged status)
 
@@ -155,8 +159,12 @@ WAVE 2 (revised) — implement the known constitutional changes, PR series:
       clauses, repair_regression_rate + supersedes-edge delta telemetry.
 - [x] W2c. Petitions (script-routed short-circuit) + judicial opinions + RECOMPUTE-OR-CITE assembly gate (E0.5f) +
       JUDICIAL RECORD assembly section + judicial_halt.
-- [ ] W2d. Gap classes: class field, append-only registry, recurrence escalator,
+- [~] W2d. Gap classes: class field, append-only registry, recurrence escalator,
       class_mass telemetry (seed vocabulary from E0.5g).
+      PARTIAL (2026-09-02): class field + registry shipped (generated —
+      recordtest/classes_gen.go, 38 classes; scripts/classgen; PR #301
+      stage-class-registry). The recurrence escalator and class_mass telemetry
+      are NOT DONE — no match for either anywhere under plugins/ or scripts/.
 - [x] W2e. law/ + feov-memory/ structure: statute/precedent two-tier authority,
       craft memory compiled to manifest lines at setup, capture STATS + deltas.
 - [~] W2f. Records layer: seats/board/friction JSONL + structured per-claim
@@ -166,6 +174,10 @@ WAVE 2 (revised) — implement the known constitutional changes, PR series:
       parses, per-claim confidence has a verb but no calibration computation, and
       the dashboard still regexes prose. Those close when the run records exist to
       read, which needs the first run.
+      CORRECTED 2026-09-02: two of the three since closed — capture's audits read
+      the record in-process (capture.go via record.BoardState; PRs #298, #422),
+      and internal/dashboard imports no regexp. The calibration computation
+      remains NOT DONE (no calibration code under tools/).
 - [x] W2g. MASS mapping v2 (existence vs consequence split) — new telemetry
       series version; catechism/TL;DR into blue's round-0 template.
 
@@ -253,15 +265,34 @@ REMAINING BEFORE THE FIRST RUN — the rulebook-audit items the operator approve
    add metadata.classes frontmatter, and deliver by CLASS JOIN at the repair step
    rather than by staging the corpus at seat start. First because it is the one
    with measured evidence that the current shape does nothing.
+   DONE (2026-09-02): shipped — debate.js carries "MEMORY AS DUTY, delivered by
+   CLASS JOIN (rulebook audit item 8)"; setup.go writes the class-join
+   PatternIndex and refuses a run when the join cannot be written
+   (mirrorwrite_test.go). Whether the join ever returns nothing is still
+   unmeasured (docs/gap-pattern-memory-delivery.md, its own recommendation).
 2. THE META-FINDING. Extend the class registry to protocol-rule defects, so a
    rule patch must name its class and sweep siblings. This is what stops the
    four-for-four recurrence pattern (patch an instance, the class re-emerges at
    the adjacent seat) that the audit found.
+   DONE (2026-09-02): shipped as its own registry, not an extension —
+   feov-memory/protocol-class-registry.md ("a rule patch names its class and
+   sweeps the siblings before it ships"), enforced mechanically by
+   scripts/rulesweep (PR #416 fixed its false green).
 3. FULL-RE-READ / ADDITIVE DECOUPLING (item 1). Now unblocked: "additive" becomes
    a claims-level invariant the record layer enforces, which frees prose to
    compact and shrinks every audit seat's read.
+   DONE (2026-09-02): the blue-synthesize and blue-respond prompts make
+   compaction legal and claim loss the failure — "substance leaves only by being
+   retired on the record" (debate.js; cli/blue/retire.go).
 4. LINES OF INQUIRY (item 3). Needs blue's record CLI, which exists; it also
    gives the steelman duty (item 2) its surface.
+   DONE (2026-09-02): the frontier phase records each hypothesis as a line of
+   inquiry with an id and a fate (debate.js; record/inquiry.go,
+   cli/blue/inquiry.go).
 
 THEN the first run: smoke first (waves 1-2 + record dual-mode via binDir +
 petitions + law + scorecards end to end), then the reform-shakedown keeper.
+DONE (2026-09-02): runs resumed — run-archive/ holds six archived runs dated
+2026-08-22/23 (is-7-prime ×2, record-store-authority, sqlite-schema-source,
+research-loop-counterparts, sleeper-service-plan). Whether the smoke-then-keeper
+order was followed is not recoverable from the archive names alone.

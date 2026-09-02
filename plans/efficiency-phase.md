@@ -1,5 +1,7 @@
 # Efficiency phase — the ratified cost levers, built without cheapening judgment
 
+> STATUS 2026-09-02: shipped — historical record. Landed Jul 2026 as #20 (PR-A), #21 (PR-B), #22 (PR-C). Most surfaces it modified were since retired into the record tool: the red/ledger.md + red/archive.md shards and debate.md write-paths (ledger/archive collapsed into `show board`, #379), the .mjs instruments (ported to Go, #121; scripts/ now holds only debate.js). The ToolSearch grants and requirements.json survive in current form.
+
 Source of authority: run 4, `research/2026-07-14_efficiency-investigation/report.md` (UNVERIFIED,
 4 rounds, 10 residual gaps — none above MEDIUM). This plan implements what that debate RATIFIED,
 defers what it HELD, and does not resurrect what it REJECTED. Cross-inputs: run 4's 39-entry

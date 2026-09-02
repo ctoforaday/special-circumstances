@@ -1,5 +1,7 @@
 # Red's evidence reaches the reader
 
+> STATUS 2026-09-02: shipped — historical record (carriers verified in-tree: `Verify.Label` in recordpb, `CitationLabelsOf`, `ExistingCorroborationLabel`, `LocateUniqueReplacing`, the PASS refusal over unanswered contradictions at `record/refs.go:414`; the §V.7 mutate sweep remains the one open item)
+
 ## I. Summary & goals
 
 **No `Verify` event reaches the report.** Neither `lens verify` (a citation red audited) nor
@@ -156,6 +158,8 @@ All paths absolute; `export PATH=$PATH:/usr/local/go/bin`; `GOTOOLCHAIN=go1.25.0
 6. `cd tests/simulator && node --test` → 93+ pass, 0 fail.
 7. Still owed from the parent plan: `cd scripts && go run ./mutate` — attempted 2026-08-22 and
    INTERRUPTED before producing results (it restored `record.go` cleanly). Not yet run.
+   **UNVERIFIED (2026-09-02):** a mutate sweep leaves no repo artifact; nothing shows it has
+   run since — settling this needs a run record or a fresh sweep.
 
 **Result, 2026-08-22.** All of 1–6 green: tools 37 packages / 0 failures, fuzz 0/60 with the new
 gate and its remedy both driven, simulator 93 pass / 0 fail. The difftest goldens did not move

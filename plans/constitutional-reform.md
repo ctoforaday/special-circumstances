@@ -1,5 +1,7 @@
 # Plan: Constitutional reform — telos, memory, and the bench
 
+> STATUS 2026-09-02: shipped in substance — historical record. Implemented implement-first (the ratifying debate was cancelled on evidence — see change-waves.md, RE-SEQUENCED 2026-07-18) as change-waves W2a–W2i: constitutions, petitions, judicial_halt, JUDICIAL RECORD, law/ + feov-memory/, scorecards all live. The 0.10.0 target dissolved into the release train (frank-exchange-of-views now 1.64.0). Still unbuilt: the calibration computation and class_mass telemetry (no such code under tools/). Corrections inline where the shipped shape moved.
+
 Status: DRAFT for review → plan-audit → FEOV debate (constitutional changes to the
 engine are exactly the class of change the engine should debate). Supersedes and
 absorbs Addendum C of proposal-gap-classes.md. Target: FEOV 0.10.0 (post-#26).
@@ -62,6 +64,8 @@ conduct-audit dodge patterns (hedging-instead-of-fixing, parking, additive
 violations, scope-lawyering, off-channel grade lobbying, closure-shopping) define
 what losing looks like."
 
+**CORRECTED 2026-09-02:** shipped, then reversed in the shipped constitution itself — agents/blue-researcher.md now reads "THE PASS IS EVIDENCE, NOT THE GOAL" and names the old win-condition frame as an invitation to the very dodges it forbade. The dodge-patterns-as-losing clause survived the reversal.
+
 CRAFT. Keep: additive mandate, pragmatist economics, propagation duty, research
 protocol. Replace the citation-hygiene pre-flight with the CORRECTNESS MANIFEST
 (per repair/claim batch): figures recomputed; universal claims enumerated against
@@ -87,6 +91,8 @@ compiles into a NAMED MANIFEST LINE the self-audit must answer per repair — th
 checklist executes at the moment of the act. A memory entry that cannot be phrased
 as a manifest question does not ship. Blue writes its own memory at round end;
 capture computes the stats.
+
+**CORRECTED 2026-09-02:** the delivery rule moved again on further evidence — compiled-manifest-lines-at-setup was superseded by CLASS JOIN at the repair step (rulebook-audit item 8; debate.js: "MEMORY AS DUTY, delivered by CLASS JOIN"; setup.go PatternIndex). Read-at-seat-start remains dead, as measured here.
 
 METRICS (capture-computed, memory-recorded): repair_regression_rate (score),
 claim survival rate, calibration curve, propagation completeness (chains caught by
@@ -246,6 +252,8 @@ down: one run's local conclusion must not leak into the next run's premises.)
 Setup mirrors both corpora into `inputs/` (existing pattern); seats write their
 own craft files during the run (red already does).
 
+**CORRECTED 2026-09-02:** the shipped `feov-memory/` shape differs — per-seat scorecards (blue/red/bench-scorecard.md), the class registries (class-registry-seed.md, class-registry.json, protocol-class-registry.md) and `red-gap-patterns/`; there is no `blue-researcher.md`/`red-auditor.md` craft file. `law/` shipped as designed (README.md, precedents.md, proposed/).
+
 Poisoning guard (P4): memories persist and steer future runs, and they are
 agent-written — an unreviewed memory write is autonomy eroding a consent gate.
 Therefore: memory deltas appear in the run's commit diff (git-tracked), capture
@@ -267,11 +275,16 @@ doctrine).
   section in assembly template; targeted-trajectory access for the judge
   (transcript dir paths passed to bench sittings — conduct-relevant only).
 - Telemetry: repair_regression_rate, class_mass (from gap-classes), petition
-  count, per-round ruling mix.
+  count, per-round ruling mix. **class_mass NOT DONE (2026-09-02):** no match
+  anywhere under plugins/ or scripts/.
 - Capture: memory-delta listing; calibration computations; docket extraction to
   run record; reversal-rate bookkeeping hook (human review outcomes recorded via
   a small `docket-review.md` the human fills — next run's setup folds outcomes
-  into precedent).
+  into precedent). **CORRECTED 2026-09-02:** docket extraction shipped without a
+  `docket-review.md` — capture harvests docket rulings with a placeholder
+  `holding:` field the human reviewer fills (capture.go, law/README.md).
+  **Calibration computations NOT DONE (2026-09-02):** no calibration code under
+  tools/.
 - Dashboard: bench section grows petitions + opinions + halt state; per-seat
   quality tiles from telemetry.
 
@@ -336,10 +349,18 @@ METRIC TAXONOMY (separate what is optimized from what merely explains):
 2. FEOV debate on the plan itself (constitutional changes debated by the engine
    they govern — with the CURRENT constitution, which is itself a test of whether
    the reform survives adversarial review under the old regime).
+   REMOVED 2026-09-02: superseded — the debate was demoted from ratifier to
+   first-shakedown and cancelled on evidence; see change-waves.md, RE-SEQUENCED
+   2026-07-18.
 3. Implement behind 0.10.0; simulator tests per clause (petition routing, halt
    state, manifest enforcement shape-checks, docket assembly, memory mirroring).
 4. Smoke run (--smoke) exercising: one petition, one bench sitting with memory
    reads, docket assembly.
 5. A/B: one reformed keeper run vs the three baseline curves (§9 predictions).
+   **NOT DONE (2026-09-02):** run-archive/ holds topic runs (2026-08-22/23)
+   only; no A/B-vs-baseline run recorded (change-waves E-queue, also open).
 6. Human review of the first docket + memory deltas; reversal outcomes seed
    precedent; iterate.
+   **UNVERIFIED (2026-09-02):** law/precedents.md and law/proposed/ exist, but
+   whether a human review pass affirmed or reversed anything is not recoverable
+   from the tree alone; would need the review commits or the docket record.

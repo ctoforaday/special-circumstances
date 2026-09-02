@@ -1,5 +1,7 @@
 # Checkpoint freshness — making the note's staleness measurable
 
+> STATUS 2026-09-02: in progress (Phase 1 and the Phase 2 build slices are merged to main — the 01CQ worktree branch's commits landed as patch-equivalent twins via the cf-1…cf-4 branch line, bracketed by pull requests #536 and #539; a 64-row baseline exists in that worktree's `seals.jsonl`, all three triggers present; thresholds are still unset — `stopnudge.configured()` returns the zero value — so the nudge is inert and Phase 3 has not started)
+
 > Phase 5 of [`context-checkpointing.md`](context-checkpointing.md) §13, which reads in full:
 > *"Staleness **nudge** (non-blocking), preferring `PostToolUseFailure` over a mutation counter,
 > only if Phase 4 shows stale seals."* That sentence has never been actionable, because nothing
@@ -847,6 +849,70 @@ correctness change and the stamping is pure observation.
 
 ### Phase 2 — the nudge on `Stop`, guarded
 
+**NOT DONE (2026-09-02):** the build slices (guard, registration) are merged, but thresholds have never been chosen — `stopnudge.configured()` still returns `Thresholds{}` — so the nudge has never emitted and none of this phase's live gates has been run.
+
+**Threshold analysis (2026-09-02), against the Phase 1 baseline.** 64 rows in the 01CQ worktree's
+`seals.jsonl`, `at` spanning 2026-08-23T18:44Z…2026-08-28T05:51Z, `nudge_enabled: false` and
+`nudge_answered: "n/a"` on all 64. Each distribution filters on ITS OWN measured flag (§V's rule);
+percentiles are nearest-rank over the sorted measured values. Wall-clock age is reported for the
+reader and gates nothing — it is `at − written_at` (`reaffirmed_at` appears on 0 rows), and
+`written_at` is agent-typed (see below).
+
+| Measure | measured n / 64 | min | P50 | P75 | P90 | max |
+|---|---|---|---|---|---|---|
+| `note_age_turns` | 22 | 0 | 16 | 39 | 47 | 68 |
+| `note_growth_tokens` | 57 | 7,836 | 66,764 | 109,902 | 157,844 | 218,143 |
+| `note_branch_commits` | 64 | 0 | 10 | 12 | 17 | 52 |
+| wall-clock age (hours, not a gauge measure) | 64 | −1.0 | 6.2 | 10.2 | 15.8 | 28.8 |
+
+**Proposed `stopnudge.Thresholds`, at §III's preregistered rule** (NOTICE = P50, WARN = P75,
+URGENT = P90 of each measure's own distribution) — the exact percentile values, unrounded, because
+no rounding rule was preregistered and rounding after seeing the data is the freedom §III forecloses:
+
+```go
+stopnudge.Thresholds{
+    TurnsNotice: 16, TurnsWarn: 39, TurnsUrgent: 47,
+    GrowthNotice: 66_764, GrowthWarn: 109_902, GrowthUrgent: 157_844,
+}
+```
+
+**A proposal, not a wiring**: `stopnudge.configured()` still returns the zero value and this block
+changes no code. Findings to weigh before wiring — the first two are §III's "report and re-decide
+with the human" case, not licence to adjust quietly:
+
+- **`Thresholds` has no branch fields.** §III's rule names three measures, but the built struct
+  carries turns and growth only, and `highestBand` reads nothing else. The branch edges
+  (10 / 12 / 17) are computed and recorded here with nowhere to go; wiring them is a struct change,
+  not a value choice. Decide whether branch work joins the any-of, or record that it was cut.
+- **`TurnsNotice = 16` sits below the F7 floor (`floorTurns = 20`)**, so NOTICE-by-turns can never
+  fire at its own edge — the effective turns NOTICE is 20. Growth's P50 (66,764) clears its floor
+  (50,000), so NOTICE stays reachable, but the proposed turns edge is decorative as written.
+- **The turns distribution is right-censored, so its edges undershoot.** `turns_measured` holds on
+  22/64 rows, and selectively: mean wall-clock age 2.0 h where measured against 10.5 h where not —
+  the bounded scan reaches `written_at` only for young notes, so the stalest notes are exactly the
+  ones the turns percentiles never saw. `ctxusage` anticipated this mechanism for a partial count;
+  here it biases the baseline itself. The measured values are also bimodal: 10 of 22 are ≤ 2
+  (seals just after a write), then a jump to 16.
+- **The 64 rows are not independent samples.** One `session_id` covers all 64; the trigger split is
+  62/1/1 (`seat_return`/`precompact`/`sessionend`) — §V's three-trigger assertion passes, but the
+  per-trigger medians #507 wants are n = 1 outside seat returns, so no trigger comparison is
+  readable from this baseline. 9 distinct `body_sha` over 64 rows, with runs of 18/15/14 seals of
+  one note version: the percentiles are dominated by whichever note version had the most seat
+  returns. (#506's split, for the record: `handles_measured` on 62; median growth 84,477 over the
+  27 rows with live handles against 46,605 over the 35 without — same non-independence caveat.)
+- **Growth is growth-since-stamp, not since write**, exactly as the `stamped_at` row warns:
+  `growth_since` trails `written_at` by up to 28.6 h on one note version, so growth understates for
+  that cohort. 7/64 rows are growth-unmeasured (first sight of a note version, `tokens_at_write`
+  absent) — excluded, never zeroed.
+- **7 rows carry a `written_at` in the FUTURE of their own `at`** (by up to ~1 h; all round
+  five-minute values), which is why wall-clock age reaches −1.0 h. `written_at` is agent-typed
+  prose-adjacent frontmatter and the agent's clock is a guess; turns/growth/commits are
+  machine-measured and unaffected, but no wall-clock figure from this record should gate anything.
+  F6's drift query returns empty over the 64 rows.
+- **Scope caveat, stated once for every number above: one machine, one repository,
+  2026-08-23…08-28, nudge off.** These edges describe that week's working style on that box, not a
+  population.
+
 Thresholds from Phase 1, at §III's preregistered percentiles. **Two cost gates, not one** (criterion
 3): the transcript read p95 over 100 invocations **fails above 5 ms**; branch work p95 **fails above
 200 ms** and must be served from the per-`HEAD` cache on a repeat call.
@@ -1006,6 +1072,8 @@ Two properties, both from §11, that this acceptance test MUST respect:
 the boundary, and assert the negative: a short session below the F7 floor emits **zero**.
 
 ### Phase 3 — the falsification
+
+**NOT DONE (2026-09-02):** no seal row has ever carried `nudge_enabled: true` — 64 of 64 rows in the only collected record (the 01CQ worktree's `seals.jsonl`) read `false`, so there is no "after" population yet.
 
 Twenty more boundaries with the nudge live.
 

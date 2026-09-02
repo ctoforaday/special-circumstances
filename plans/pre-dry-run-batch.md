@@ -1,5 +1,7 @@
 # Pre-dry-run batch — path-free, poison-free, self-report retired
 
+> STATUS 2026-09-02: shipped — historical record. Phase A landed as #56 (`6e85df68`), Phase B1 recorded below; Phase B2 was superseded by the Go scorecard (tombstone at B2). §V's deferred list is annotated with what has since shipped.
+
 Written 2026-07-19. Approved scope (operator, this session): the prompt-only
 tool-is-the-contract §VIII/§IV.C batch **and** the Go self-report/telemetry
 retirement, all before the next controlled dry run. This overrides §III's
@@ -76,6 +78,7 @@ CLI on scorecards.mjs** (`node scorecards.mjs --run <dir> --chair <role>`), whic
 seat invokes via Bash — reusing the single implementation. B1 (telemetry-in-tool) is
 unaffected: the tool becomes the ONE computer of the telemetry LINE; scorecards.mjs
 still only READS it. Split Phase B into B1 (telemetry, Go) and B2 (scorecard CLI, JS).
+(SUPERSEDED 2026-09-02 for the B2 half — see the Phase B2 tombstone below.)
 
 ### Phase B1 — Go telemetry (the self-report retirement)
 
@@ -138,9 +141,11 @@ and EXTENDED the canonical render computation instead:
   plugin 0.25.0 → 0.26.0.
 
 ### Phase B2 — scorecard in-run read (JS, not Go)
-Thin CLI on scorecards.mjs: `node scorecards.mjs --run <dir> --chair <role>` prints the
-chair's computed rows; the chair's prompt (recordClause / scorecardClause) instructs it to
-run that before the open docket. Reuses the ONE scorecard implementation (§CORRECTION).
+REMOVED 2026-09-02: superseded by the Go scorecard. `scorecards.mjs` no longer exists in the
+tree; the one implementation is `tools/internal/scorecard` ("Ported from scorecards.mjs",
+`cli/scorecard.go`), with the seat-facing in-run read `show scorecard` and the operator
+command `scorecard --chair`. The §CORRECTION's premise (the mjs module as the sole reader)
+died with the mjs stack, so its ruling was reversed by the port, not violated.
 
 ## IV. §V Verification loop (written, run every phase)
 
@@ -156,6 +161,8 @@ run that before the open docket. Reuses the ONE scorecard implementation (§CORR
    `research/2026-07-18_gray-area-telemetry/` (the Opus baseline) and the
    smoke-c haiku baseline. This run also produces the first clean timestamped
    parity measurement §III of tool-is-the-contract wanted.
+   **UNVERIFIED (2026-09-02):** `research/` is gitignored and `run-archive/` starts at
+   2026-08-22, so no repo artifact settles whether this comparison run happened.
 
 ## V. Deferred past this batch (still real, not in scope here)
 
@@ -163,10 +170,21 @@ run that before the open docket. Reuses the ONE scorecard implementation (§CORR
   `--supersedes`/`--not-a-reopen`), verdict-refuses-on-outstanding-duties,
   `found_by` foreign key (`mint --from-finding`), register-as-precondition,
   pattern-duty flag (`manifest-row --pattern-checked`), round-record derived.
+  **SHIPPED SINCE, in changed form (2026-09-02 audit), except one:** `merge near-match` is
+  its own verb (`cli/merge/nearmatch.go`) with `mint --supersedes` estoppel; verdict PASS
+  refuses over outstanding duties (`record/refs.go:414`); `mint --found-by` takes lens
+  finding labels; register-as-precondition is `record/roles.go`'s refusal of an identity no
+  dispatch created; round is derived at the write (#435). **NOT BUILT (2026-09-02):** no
+  `--pattern-checked` (or any pattern-duty flag) exists anywhere under `tools/`.
 - JS-renderer for SPA citations via claude-in-chrome MCP on red/blue/judge
   allowlists (red-verbatim-citations §follow-up).
+  **NOT DONE (2026-09-02):** no browser tool on any agent allowlist; no JavaScript-rendering
+  dependency in `tools/go.mod`.
 - Bench sharpening: escalate leaf-node contradictions over rigor-asymmetry
   (from the smoke-c R1-4 vacuous-conditional miss).
+  **NOT DONE (2026-09-02):** no rigor-asymmetry/escalation wording in debate.js or
+  agents/lead-judge.md (though the unanswered-contradictions PASS gate now forces leaf-node
+  contradictions onto the board by another route).
 
 ## VI. Rule-sweep classes for this batch's commits
 

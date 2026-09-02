@@ -1,5 +1,7 @@
 # The record tool: a record-management library + bespoke per-seat CLIs
 
+> STATUS 2026-09-02: shipped — historical record. The concept is production (event-log record, per-seat verbs, views on read, prompts as tool contracts), but on carriers this plan does not name: Go `feov-record` + `tools/internal/record` instead of the mjs paths, SQLite `record.db` instead of JSONL shards, and the tool-is-the-contract cutover instead of the R2.5 parity gate. R4's within-run recurrence escalator was never built.
+
 Rev 5 (2026-07-18) — post plan-audit FAIL #3 (seven gaps: prose-verb dedup, shadow renders, render inventory, CHANGELOG fate, bench friction, setup accounting, render locus). Rev 4 was post FAIL #2 (six gaps, two empirically grounded
 in the run-5 corpus: 8 duplicate seat dispatches in 58 starts; transcripts carry
 no seat label). Rev 3 was post FAIL #1 (eight gaps). Origin:
@@ -56,6 +58,12 @@ AND reported. Lens labels restart each round; keys are round-qualified through
 seatId by construction, with a same-label-next-round collision test in R1's
 suite. A torn round (mint without close) renders as open state; nothing is
 lost, nothing blocks.
+
+SUPERSEDED 2026-09-02 in its substrate: the shards shipped, then the record cut
+over to SQLite — one `record.db` per run (`internal/record/recordsql`), and
+`store.go` now REFUSES a directory holding `events-*-<nonce>.jsonl` shards as a
+FORMER format. Per-shard seq, render-time shard-merge, and nonce winner
+selection went with the shards; see plans/record-sqlite.md.
 
 RENDER LOCUS (audit-3 gap 7, dissolving ordering contracts): readers never
 depend on another seat's verb order, because a projection is never a stored
@@ -190,6 +198,13 @@ R2.5 PARITY RUN (the one-run parallel period): the first live run post-R2 runs
    bodies compare presence-not-text. Verdict lines land in run-record-audit.md.
    Zero-FAIL is the gate to R3, at which point renders switch from shadow to
    the real paths.
+   **SUPERSEDED 2026-09-02:** the zero-FAIL parity gate never gated R3. The mjs
+   seats never served a live run; the Go-tool dual run (2026-07-18) DIVERGED
+   (record 9 open / 9 closed vs hand-written 3 / 15), and the cutover proceeded
+   by making the record authoritative instead — plans/tool-is-the-contract.md,
+   whose §III also found the archive parity measurement contaminated (271
+   events with no `ts`). record-parity-check.mjs was deleted with the capture
+   port to Go.
 R3 [MODIFY] debate.js: prompts shrink to tool contracts; RETIRE the
    count-consistency throw at the merge (counts are renders) and the
    ledger/archive/telemetry prompt paragraphs; KEEP — corrected per audit-2
@@ -204,11 +219,23 @@ R3 [MODIFY] debate.js: prompts shrink to tool contracts; RETIRE the
    record-join. [MODIFY] the three constitutions: the deletion list minus the
    two retained judgment clauses; every deleted paragraph ships in the same
    diff as the tool clause replacing it.
+   **SUPERSEDED 2026-09-02:** the deletion happened, but piecemeal, not as one
+   paragraph-for-clause diff — prompts became tool contracts (`debate.js`
+   refuses to dispatch without `binDir`; the seat surface is `--help`), and
+   capture's retire/keep list lives in the Go port (`feov-record capture`, nine
+   integrity audits reading the record in-process).
 R4 [MODIFY] lib/record.mjs: live class registry + within-run recurrence
    escalator (recalibrated per the seed data: counts reset when a class reaches
    zero open instances; cross-run class pressure routes to craft memory, never
    the docket) + scorecard and judicial-record renders (absorbs W2h and W2c's
    record surfaces).
+   **PARTLY BUILT (2026-09-02):** the carrier is Go, not lib/record.mjs
+   (deleted). The live class registry with `class-new` exists
+   (`internal/record`, staged registry at setup), and the scorecard and
+   judicial surfaces exist (`internal/scorecard`; capture harvests rulings
+   into `law/proposed/`). **NOT BUILT (2026-09-02):** the within-run recurrence
+   escalator — no recurrence counter exists anywhere under tools/ (grep finds
+   only a gap-class slug).
 
 ## IV. Risk & Mitigation (likelihood x impact x complexity-to-mitigate)
 
@@ -244,11 +271,16 @@ R4 [MODIFY] lib/record.mjs: live class registry + within-run recurrence
 
 ## V. Verification plan
 
-- `node --test plugins/frank-exchange-of-views/tests/simulator/record.test.mjs`
+- ~~`node --test plugins/frank-exchange-of-views/tests/simulator/record.test.mjs`
   (R1 gates: atomicity, merge-determinism property test, idempotency,
-  validation refusals, render fixtures) and the full simulator suite green.
-- `node plugins/frank-exchange-of-views/skills/research-protocol/scripts/record-parity-check.mjs <runDir>`
-  — spec in III/R2.5; exit 2 on divergence; runs at the parity run's capture.
+  validation refusals, render fixtures) and the full simulator suite green.~~
+  **RETIRED 2026-09-02:** deleted with the mjs oracle; the audited semantics
+  live in the Go suites (`internal/record`, `internal/difftest`) and the
+  golden transcripts.
+- ~~`node plugins/frank-exchange-of-views/skills/research-protocol/scripts/record-parity-check.mjs <runDir>`
+  — spec in III/R2.5; exit 2 on divergence; runs at the parity run's capture.~~
+  **RETIRED 2026-09-02:** the file is deleted and the gate never ran as
+  specified — see the R2.5 marker in §III.
 - ~~The record-join audit runs in every capture from R2 on; its verdict line
   lands in run-record-audit.md (PASS / FLAGGED list / back-fill WARN).~~
   **RETIRED 2026-08-15 (#223).** Seat bypass by hand-appended events was the
@@ -258,11 +290,19 @@ R4 [MODIFY] lib/record.mjs: live class registry + within-run recurrence
   keeps the WARN tier and the verdict line.
 - Smoke (`/research --smoke`) after R2 and after R3: one round exercising every
   seat CLI end-to-end; capture audits green.
-- The R3 constitutional-deletion PR diff IS the review surface: every deleted
+- ~~The R3 constitutional-deletion PR diff IS the review surface: every deleted
   paragraph must show its replacing tool clause in the same diff (reviewer
-  checklist in the PR body).
+  checklist in the PR body).~~ **SUPERSEDED 2026-09-02:** no such single PR
+  existed; the deletion landed piecemeal (see the R3 marker in §III).
 
 ## Appendix: directory tree (formal-deviation fix)
+
+SUPERSEDED 2026-09-02: of this scripts/ tree only debate.js survives. The seat
+CLIs and record-parity-check.mjs were retired with the Go port; setup and
+capture became `feov-record setup` / `feov-record capture`; the shards path
+became `<runDir>/records/record.db`. The mirror path and its 30-day age reap
+are live as written (`record.MirrorRoot`, `PurgeStaleMirrors`, called from both
+setup and capture).
 
     plugins/frank-exchange-of-views/skills/research-protocol/scripts/
       lib/record.mjs            [NEW R1]  append/validate/mint/replay/merge/render
@@ -465,6 +505,8 @@ diff runs to hundreds of lines, it is rubber-stamped, and real drift ships insid
 the noise. Countermeasures shipped in scripts/golden.mjs: one command for both
 languages, a change report at update time, staleness failing in CI, and orphan
 detection. Convention: a testdata change rides its OWN commit.
+(PORTED 2026-09-02 note: golden.mjs is now the Go `scripts/golden/`, same
+countermeasures — the every-dev-script-to-Go port.)
 
 Libraries evaluated and declined, with the trigger stated so this is not
 re-litigated from scratch: google/golden is ARCHIVED (read-only since 2022);

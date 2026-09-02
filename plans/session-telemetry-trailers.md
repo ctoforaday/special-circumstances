@@ -1,8 +1,11 @@
 # Session-Telemetry Commit Annotations
 
+> STATUS 2026-09-02: not started (no `sc-telemetry` binary, no `/session-stats` command, no
+> `prepare-commit-msg` shim — nothing in the tree or in any branch's history)
+
 **Status:** Proposal — under review
 **Depends on:** prosthetic-conscience Go hook toolchain (`plugins/prosthetic-conscience/tools/`), capability-gating (`requirements.json`), `/sc-doctor` install flow
-**Relates to:** memory-architecture.md (trajectory data), the planned `sc-secrets-gate` (redaction patterns)
+**Relates to:** memory-architecture.md (trajectory data), the planned `sc-secrets-gate` (redaction patterns — SHIPPED since, as `tools/internal/secrets/` + `tools/internal/secretsgate/`)
 
 ---
 
@@ -198,6 +201,9 @@ plugins/prosthetic-conscience/
     main.go                        # subcommand dispatch
     main_test.go                   # table-driven, fixture JSONL transcripts
   tools/internal/transcript/       # transcript parser (line-tolerant, versioned)
+                                   # NAME TAKEN (2026-09-02): a tools/internal/transcript/ package
+                                   # now exists for checkpoint-seal (reads which files a session
+                                   # WROTE); it is not this parser — this design must extend or rename
   tools/internal/toolchain/        # existing: capability gating, hook IO
   hooks/hooks.json                 # + SessionStart, + PreToolUse(Bash∩git commit)
   hooks/prepare-commit-msg         # 3-line sh shim → sc-telemetry trailers

@@ -1,5 +1,7 @@
 # Rulebook audit — where our own conventions cost us
 
+> STATUS 2026-09-02: largely shipped — the meta-finding and items 1–9 are live in the plugins (dated markers inline). Still open: the hooks-replace-instructions design (seat prompts still carry the harness trivia) and item 9's discovery-shaped refinement.
+
 Operator-directed, 2026-07-18: scan the human-imposed rules for ones that do not
 earn their keep. Evidence base: a full sweep of `research/*/friction.md` and the
 E0.5 post-capture findings across runs 2-5 plus both smokes, classifying every
@@ -8,6 +10,8 @@ entry by root cause — (A) harness/tool limitation, (B) protocol-rule friction,
 larger set and belongs to the efficiency/platform queue.
 
 Nothing in this file is shipped. Each entry states the change and its status.
+**CORRECTED 2026-09-02:** true when written; most entries have since shipped —
+see the dated markers on each item.
 
 ## THE META-FINDING (the reason this file exists)
 
@@ -29,6 +33,9 @@ protocol-rule defects, so a rule patch must name its class and sweep siblings
 before it ships. This is the only change in this file that stops the recurrence
 pattern rather than adding a fifth patch to it. Ships BEFORE the first run, with
 everything else here.
+**DONE (2026-09-02):** shipped as its own registry —
+feov-memory/protocol-class-registry.md, enforced by scripts/rulesweep (false
+green fixed, PR #416).
 
 Second-order use (see the memory entry below): red's gap-pattern memory should be
 CLASSES, not instances, for the same reason — instance-level patterns invite blue
@@ -59,6 +66,9 @@ DEPENDS ON: the record layer (W2f / R2g) — the invariant needs claim records t
 be enforceable. Until then the prose-level rule is the only thing preventing run
 3's dominant failure class (blue quietly dropping content under pressure), so it
 stays.
+**DONE (2026-09-02):** shipped — blue's prompts make compaction legal and claim
+loss the failure ("substance leaves only by being retired on the record",
+debate.js; cli/blue/retire.go).
 
 ## 2. The disconfirming-search quota (AGREED, as amended)
 
@@ -79,6 +89,8 @@ same shape at assembly (against-cases silently drop their strongest items).
 CONVERGES WITH #3: declined and abandoned avenues ARE case-against material, so
 the Lines of Inquiry record below is the surface this duty audits. One
 instrument, not two.
+**DONE (2026-09-02):** the STEELMAN DUTY rides red lenses 5 and 6 (not the
+citation slices), pinned by the simulator (tests/simulator/debate.test.mjs).
 
 ## 3. Alternatives considered -> LINES OF INQUIRY (AGREED, expanded by operator)
 
@@ -122,6 +134,10 @@ self-attested and starts leaving artifacts.
 
 DEPENDS ON: blue's record CLI (W2f / R2g) — `avenue` is a new verb in blue's verb
 set, and the report section is a projection like every other board.
+**DONE (2026-09-02):** shipped as `inquiry`, not `avenue` (record/inquiry.go,
+cli/blue/inquiry.go); the three statuses live in view.go plus a fourth for
+kept-but-not-yet-walked lines; the frontier phase records every hypothesis as a
+line of inquiry with an id (debate.js).
 
 ## 4. semantic-consent's no-inference clause (AGREED)
 
@@ -141,6 +157,8 @@ in-scope calls; ask for irreversible, outward-facing, or scope-changing ones. Th
 rule should describe the behaviour that already works rather than prohibit it.
 The consent boundary is unchanged where it matters — state-modifying and
 destructive actions still require explicit semantic agreement.
+**DONE (2026-09-02):** the shipped skill splits by reversibility exactly so
+(plugins/prosthetic-conscience/skills/semantic-consent/SKILL.md).
 
 ## 5. Retry counts contradict (AGREED — SHIPPING NOW)
 
@@ -153,6 +171,8 @@ the incident-tested number); `plan-act-reflect` references it instead of stating
 a rival number. No third rule invented.
 
 STATUS: shipping as a prosthetic-conscience PR with a version bump.
+**DONE (2026-09-02):** anti-spinning is "the single authority" on the limit and
+plan-act-reflect defers to it by name (both SKILL.md files).
 
 ## 6. Footnotes as a lived state (AGREED EARLIER — plans item, not queued)
 
@@ -190,6 +210,10 @@ same wave leaves no comparable baseline on either axis at the first run.
 MEASUREMENT FIRST: a footnote-mechanics friction row in the W2h scorecard, so the
 next run says whether this is still bleeding post-mitigation. The friction
 evidence above is all PRE-mitigation; the residual cost is unmeasured.
+**DONE (2026-09-02):** citations are record rows with tool-minted ids
+(record/citationid.go); lanes are forbidden to mint labels ("a hand-typed label
+backs nothing", debate.js) and footnote markdown is rendered at assembly
+(report/assemble.go; integrity audited, PRs #596, #604).
 
 ## 7. Two enum gaps (AGREED)
 
@@ -207,6 +231,9 @@ composition defects masquerade as this-round closure events.
 
 Both are the same shape as the judge-enum misfit: an enum that does not cover the
 traffic actually observed. Small engine change; ships before the first run.
+**DONE (2026-09-02):** the derived verdict has a CEILING class
+(record/verdict.go), and closure amendment ships as the `amends_prior` class,
+which refuses to answer artifact-state from the class alone (record/enums.go).
 
 ## 8. Memory sharing between seats (AGREED IN PRINCIPLE — design open)
 
@@ -246,6 +273,11 @@ instances, so narrow pattern-matching does not discharge the duty.
 
 BEARS ON: the untracked `.claude/agent-memory/` decision — the value of those 56
 files is as compiled duty lines, not as a corpus someone reads.
+**DONE (2026-09-02):** shipped as candidate 3 with candidate 1's discharge
+point — CLASS JOIN at the repair step ("MEMORY AS DUTY, delivered by CLASS
+JOIN", debate.js; setup.go PatternIndex, write-refusal tested). Whether the join
+ever returns empty is still unmeasured
+(docs/gap-pattern-memory-delivery.md).
 
 ## 9. Can the bench see into the parties? (OPEN — the operator's question)
 
@@ -270,6 +302,11 @@ converts surveillance into evidence. Refinement to decide: make inspection
 DEMANDABLE by a party (discovery-shaped) as well as available on the bench's own
 motion, with any own-motion inspection docketed; anything the bench relies on is
 quoted into the opinion.
+**DONE (2026-09-02), in the proposed shape:** bench sittings carry an INTEGRITY
+INSPECTION clause — may read seat trajectories, one question only (is the record
+honest?), never the merits, every inspection DECLARED in the opinion with
+reliance quoted (debate.js). The discovery-shaped refinement (party-demandable
+inspection) is NOT DONE — no such mechanism found.
 
 ## PR #41 review docket (operator, 2026-07-18) — triaged now vs later
 
@@ -291,6 +328,10 @@ would make the reviewer read build-it-then-rewrite-it in one pass, and the
 reviewer has already said reviewing this sucks. Ship the working shape, then
 change the shape under test.
 
+**DONE (2026-09-02):** landed — cli/seat/seat.go's package comment records the
+Verb table / RoleCommand factory / Args shim retired for cobra-native commands;
+each verb now builds itself next to its own flags.
+
 ### DESIGN — hooks replace instructions
 
 Every seat prompt carries paragraphs of harness trivia: the Glob/Grep
@@ -305,6 +346,11 @@ of prose guidance: a paragraph read at seat start is not present at the moment
 the tool call fails — the same salience problem measured for memory (E0.5:
 lanes read the patterns and regressed anyway).
 
+**NOT DONE (2026-09-02):** debate.js prompts still carry the HARNESS NOTES and
+speed-clause trivia (Grep-counts-lines, heredoc mangling, the W1.11 Glob/Grep
+limit), and no hook answering these at failure time exists in either plugin's
+hook set.
+
 ### DESIGN — the gap JSON does not carry its own semantics
 
 Blue is handed gaps as JSON and repairs from it. The map is self-describing as
@@ -313,6 +359,10 @@ CONSEQUENCE ONLY and that existence is a separate axis (MASS v2, W2g). A seat
 reading the JSON directly would apply v1 semantics and never know. Candidates:
 carry mapping_version in the payload; name the axis semantics at the point of
 use; or have the record tool emit the gap with its grading contract attached.
+**DONE (2026-09-02):** the second and third candidates landed — enums travel
+with their descriptions from the record tool (described enums, PR #366;
+recordpb/descriptions.go), and MASS_MAPPING_VERSION is parity-pinned between
+engine and record (record/massparity_test.go).
 
 ### R3 CLEANUP (correct today, wrong later)
 
@@ -321,6 +371,8 @@ use; or have the record tool emit the gap with its grading contract attached.
   until the R2.5 parity gate passes — and becomes exactly the hand-write-the-
   artifact failure the record layer exists to end. Retire it with the
   hand-written artifacts, not before.
+  **DONE (2026-09-02):** retired — no prompt in debate.js instructs a hand
+  append to friction.md; friction travels by envelope and record (PR #376).
 - Reviewer asked whether the HARNESS NOTES grep guidance is superseded by the
   tool: it is not. That is Grep-tool trivia, not record work — it belongs to the
   hooks-replace-instructions item above.

@@ -1,5 +1,11 @@
 # Model-tier flags — group seats by cognitive demand, not by pipeline stage
 
+> STATUS 2026-09-02: not started — the grouping and rationale stand; the flags are unbuilt
+> (`debate.js` still exposes only `model` and `judgmentModel`, with `assemble` still on the
+> judgment tier). The 2026-08 tier-gate work (#602/#606: `internal/modeltier`, a register-time
+> served-vs-configured gate, `show tiers`) is adjacent, not this plan — it verifies which model
+> ANSWERED a seat, it does not split the tiers by cognitive demand.
+
 Status: DESIGN / queued (non-smoke runs). Not built. Smoke stays all-cheap by design (the
 baseline). Derived in the 2026-07-20 debug-run conversation; this file is the permanent
 rationale the eventual flags' help text should cite.
@@ -69,6 +75,9 @@ Three tiers keyed to the groups, plus assemble taking none:
 - `constructionModel` — blue lanes, blue-synthesize, red L5/L6. Defaults to the session
   model (the current keeper-run default of "omit `model`" exists because the bulk tier
   secretly carries BOTH construction frontiers — the inventor and the skeptic).
+  **CORRECTED (2026-09-02):** the omit-default no longer exists — the engine now REFUSES an
+  unset `model` or `judgmentModel` (tiers must be passed explicitly; the #111 trap). When
+  built, the sketch's "defaults to the session model" must become an explicit value too.
 - `lookupModel` — red L1–L4, blue-respond. The safe place to save money.
 - `judgmentModel` — red-merge, judge. (Drop `assemble` from it; assemble is modelless.)
 
