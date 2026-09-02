@@ -38,7 +38,7 @@ validated, and a fact recovered from a filename or a prose substring is one only
 to be mediated. Both fail the same way — **by returning a plausible zero**, which reads
 exactly like a clean board. See [[facts-are-fields]].
 
-`report.md` is the instructive non-exception: prose, because its audience is human. But
+The report set is the instructive non-exception: prose, because its audience is human. But
 every point of *argument* in it carries a tool-placed anchor — `cite:` where a source backs
 a claim, `fx:` where red challenged, `proof:` where a computation settles it — and dropping
 one is a hard refusal. Write for the reader; put what the machinery depends on in a field.
@@ -56,7 +56,18 @@ research/<date>_<slug>/
 │                      #  record with `show <name>` and never from disk — which is the
 │                      #  point: a run can be configured so that is the ONLY way, and then a
 │                      #  missing verb has to surface as friction instead of a workaround)
-├── report.md          # final deliverable — assembled LAST, by union (authored)
+├── README.md          # the run's front door: verdict, gaps, and what each document holds
+├── report.md          # THE RESEARCH — verdict, Catechism, foundations, analysis, risks, open questions
+├── docket.md          # every gap red minted: still-open, closed, and the findings not raised to a gap
+├── debate.md          # the adversarial record, round by round, and the bench's terminal disposition
+├── judgments.md       # motions — every contested question and how it was ruled
+├── evidence.md        # the computations, with script, output and sha256
+├── run.md             # friction, the record's invariant check, and cost
+├── CHANGELOG.md       # this report's own provenance: revisions, withdrawn claims, repairs
+├── report.html        # the same set with real tabs and cross-document links — one file, no server
+│                      # (ALL of the above are assembled LAST, from the record, by `assemble`. The
+│                      #  set exists because 70–76% of the single file was process record and the
+│                      #  research it was commissioned for was a quarter of its own deliverable.)
 ├── inputs/PINNED.md   # the evidence base, pinned: repo HEAD at launch + cited corpora's commit/round
 ├── blue/
 │                      # (the opening hypotheses are LINES OF INQUIRY on the record, not a file — read
@@ -130,7 +141,25 @@ full-re-read MUST without a confidence discount.
 
 ## Report structure
 
-The final `report.md` (see `references/report_template.md`): verdict stamp (VERIFIED/UNVERIFIED + rounds) → **the Catechism** (`references/catechism_template.md` — the worth-our-time decision, adapted from Heilmeier) → analytical core (foundations / analysis / risk matrix graded likelihood × impact × complexity, including risk-accepted items with rationale) → **blue's report in full** → **red's findings in full** → debate record → **open questions carried past this run** (blue's final envelope, verbatim) → footnotes (with access dates; volatility noted for living sources).
+The deliverable is a SET, not a file (see `references/report_template.md`), and every document
+in it opens with a link bar to the others.
+
+`report.md` is the research: verdict stamp (the word alone — its argument opens *Read this
+first*) → **the Catechism** (`references/catechism_template.md` — the worth-our-time decision,
+adapted from Heilmeier) → analytical core (foundations / analysis / risk matrix graded
+likelihood × impact × complexity, including risk-accepted items with rationale) → the three
+inquiry areas → **open questions carried past this run** (blue's final envelope, verbatim) →
+footnotes (with access dates; volatility noted for living sources).
+
+The process record is beside it, one document per audience: `docket.md` (red's findings in
+full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `evidence.md` (the
+computations), `run.md` (friction, record verification, cost), `CHANGELOG.md` (the report's own
+revisions and withdrawn claims). Nothing is summarized away by the split — the union is the
+directory, indexed by `README.md`.
+
+THE CITATION AND PROOF LAYERS ARE WOVEN PER DOCUMENT. A footnote definition cannot cross a file
+boundary, so each document numbers and defines the references it actually carries; proof numbers
+are run-wide, so `P3` is the same computation wherever it is cited.
 
 ## Friction (the complaint channel)
 

@@ -311,7 +311,7 @@ func TestAssemblyScreenSkipsAreDistinct(t *testing.T) {
 	}
 	unassembled := screenRun(t, recordpb.SourceOutcome_SOURCE_OUTCOME_REFUTES, "https://example.test/refuted")
 	got := AssemblyScreen(runtest.Open(t, unassembled))
-	if got.Verdict != "SKIP" || !strings.Contains(got.Detail, "no assembled report.md") {
+	if got.Verdict != "SKIP" || !strings.Contains(got.Detail, "no assembled document") {
 		t.Errorf("pre-assembly: want SKIP naming the missing artifact, got %s (%s)", got.Verdict, got.Detail)
 	}
 }
@@ -631,8 +631,14 @@ func TestAppendCostToReport(t *testing.T) {
 		t.Fatal("expected a fold-in message")
 	}
 	got, _ := os.ReadFile(report)
-	if !strings.Contains(string(got), "## Cost\n\n## Per seat-round") {
+	// THE HEADING THE SLICE BRINGS IS DEMOTED, so the fold produces ONE section with a table
+	// under it. Pasted as-is, "## Cost" is a heading with nothing beneath it and the table
+	// belongs to a sibling — nine bytes of section, in every archived report.
+	if !strings.Contains(string(got), "## Cost\n\n### Per seat-round") {
 		t.Errorf("cost table not folded under ## Cost:\n%s", got)
+	}
+	if strings.Contains(string(got), "## Cost\n\n## ") {
+		t.Errorf("## Cost shipped as an empty heading with the table under a sibling:\n%s", got)
 	}
 	if !strings.Contains(string(got), "red-lens | $0.42") {
 		t.Errorf("table rows missing:\n%s", got)

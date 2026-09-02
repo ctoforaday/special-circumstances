@@ -139,7 +139,11 @@ The run lands in `research/<date>_<slug>/`:
 
 | Artifact | Contents |
 |---|---|
-| `report.md` | The deliverable — verdict, TL;DR, the audited report |
+| `README.md` | The run's front door — verdict, gaps, and what each document below holds |
+| `report.md` | The research — verdict, TL;DR, the Catechism, foundations, analysis, risks, open questions |
+| `docket.md`, `debate.md`, `judgments.md` | The adversarial record: red's board, the round-by-round transcript, the motions and their rulings |
+| `evidence.md`, `run.md`, `CHANGELOG.md` | The computations in full; the friction, record check and cost; the report's own revisions |
+| `report.html` | The whole set with real tabs and cross-document links — one self-contained file, no server |
 | `records/*.jsonl` | The append-only event log — the authoritative record of every act |
 | `blue/`, `red/` | The seats' working surfaces — blue's living report and its candidate drafts |
 | `inputs/` | The brief, the pinned configuration, the scorecards — what the run was asked to do |

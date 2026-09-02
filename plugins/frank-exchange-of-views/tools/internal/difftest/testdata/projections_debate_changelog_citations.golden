@@ -245,6 +245,10 @@ indistinguishable from one that never looked._
 ═══ REPORT ═══
 # _(blue/report.md has no title — not authored here)_
 
+**Report** · [Docket](docket.md) · [Debate](debate.md) · [Run](run.md) · [Changelog](CHANGELOG.md)
+
+---
+
 **Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
 
 ## How this run was conducted
@@ -259,7 +263,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 **The bench asks a human to re-examine:** what a human should re-examine
 
-1 open gap(s) remain, most severe first — full statements in **Red team findings** below.
+1 open gap(s) remain, most severe first — full statements in [the docket](docket.md).
 
 1. **[medium]** docketed (R1-1) — 
 
@@ -285,7 +289,7 @@ _(blue/report.md has no "## Analysis" section — not authored here; blue owns t
 |---|---|---|---|---|
 | docketed | medium | medium | — | — |
 
-The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.
+The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in [the docket](docket.md).
 
 ## Research areas
 
@@ -312,69 +316,3 @@ A claim sits under S2.
 ## S4
 
 A claim sits under S4.
-
-## Red team findings (in full)
-
-### Open gaps (1)
-
-### R1-1 — docketed
-
-severity medium | medium x medium | cx — | class scope-creep
-required_fix: 
-fix_basis: **proposed** — prose only. Red did not state an exact replacement, so nothing checked this demand against the report's current text.
-acceptance_check: x
-
-### Closure index (0)
-
-_(nothing closed)_
-
-### Blue's correctness manifest (1)
-
-Blue's self-audit of its own repairs — what it checked for each gap and what checking it showed. An unmanifested repair is unchecked by blue's own standard, which is a stronger thing to be able to say than "we think it was checked".
-
-- **R1-1** (blue-respond-r1, r1): figures recomputed; check run: pass
-
-## The debate
-
-### Round 1
-
-### RED
-red's round position
-
-### RED CLOSING — R1-1
-red's closing
-
-### BLUE
-blue's round position
-
-### BLUE CLOSING — R1-1
-blue's closing
-
-### LEAD
-- R1-1: carried — principle: correctness over economy; tension: thoroughness vs cost; review: the figure was never recomputed
-the rationale body
-
-### Bench disposition
-
-**Certification** — what a human should re-examine
-
-## Report revision history
-
-### Round 1 — blue-respond-r1
-
-repairs landed
-
-## Record verification
-
-Computed by replaying the event record, not reported by any seat. These are the invariants that must hold if the record is internally consistent.
-
-- **ok** — `gaps-disposed` — every closed gap carries a reason (a closure class or a bench disposition)
-- **ok** — `found-by-resolves` — every found_by credit names a real finding
-- **ok** — `dialectic-refs-resolve` — every closing/dispute/opinion names a gap that exists
-- **ok** — `supersedes-resolve` — every supersedes ancestor is a real gap
-- **n/a** — `pass-closes-all-gaps` — the verdict is unrecorded, so there is no PASS to contradict
-- **FAIL** — `register-before-append` — a seat emitted an event before registering
-    - blue-respond-r1 (first event was position)
-- **ok** — `archive-spot-check-floor` — every round that entered with a non-empty archive sampled it
-
-**5 held · 1 did not apply · 1 violated.** A violated invariant is a record-integrity finding: the report's content may still be sound, but the record it was assembled from contradicts itself, so treat every count derived from it as suspect until the violation is explained. An invariant that did not apply checked NOTHING — it is not a pass, and one that never applies across runs is a gate worth questioning rather than a clean bill.

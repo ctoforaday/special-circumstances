@@ -61,6 +61,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
 )
 
 // Capture only seat-id characters — NOT the trailing "." in "SEAT_ID: red-merge-r1." — or the
@@ -2648,11 +2649,10 @@ var basisFields = []struct{ evType, key, value, want string }{
 }
 
 func basisRenders(t *testing.T, board *record.Board, runDir string) string {
-	report, err := os.ReadFile(filepath.Join(runDir, "report.md"))
+	rpt, err := assembledSet(runDir)
 	if err != nil {
-		return "no report.md: " + err.Error()
+		return err.Error()
 	}
-	rpt := string(report)
 	var missing []string
 	for _, bf := range basisFields {
 		present := false
@@ -2689,12 +2689,33 @@ func gapIsOpen(board *record.Board, id string) bool {
 	return g != nil && g.Open
 }
 
-func proseRenders(t *testing.T, board *record.Board, runDir string) string {
-	report, err := os.ReadFile(filepath.Join(runDir, "report.md"))
-	if err != nil {
-		return "no report.md: " + err.Error()
+// assembledSet is EVERY document the assembler wrote, concatenated.
+//
+// The deliverable is a set, and "did this prose reach the reader" is a question about the set:
+// a friction line lands in run.md, a motion in judgments.md, a withdrawn claim in CHANGELOG.md.
+// An oracle that reads report.md alone measures a seventh of the artifact and reports the other
+// six as clean — which is the exact failure shape these gates exist to catch, one level up.
+func assembledSet(runDir string) (string, error) {
+	var b strings.Builder
+	for _, name := range reportdoc.Files() {
+		body, err := os.ReadFile(filepath.Join(runDir, name))
+		if err != nil {
+			continue
+		}
+		b.Write(body)
+		b.WriteString("\n")
 	}
-	rpt := string(report)
+	if b.Len() == 0 {
+		return "", fmt.Errorf("no assembled document in %s", runDir)
+	}
+	return b.String(), nil
+}
+
+func proseRenders(t *testing.T, board *record.Board, runDir string) string {
+	rpt, err := assembledSet(runDir)
+	if err != nil {
+		return err.Error()
+	}
 	var missing, unclassified []string
 	seen := map[string]bool{}
 	for _, e := range board.Events {
