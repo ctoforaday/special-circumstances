@@ -81,13 +81,28 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 	if s := verdictStamp(nil); !strings.Contains(s, "no terminal outcome recorded") {
 		t.Errorf("missing outcome must be flagged: %q", s)
 	}
+	// THE STAMP IS A FIELD. It carries the word and the clause naming how the run ended, and
+	// nothing else — a fact a reader can skim, badge or grep has to be one token. The argument
+	// that used to sit inline is verdictGloss, asserted directly below.
 	ceiling := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING)}
-	if s := verdictStamp(ceiling); !strings.Contains(s, "CEILING-TERMINATED") || !strings.Contains(s, "never audited by a red pass") || !strings.Contains(s, "travels OUT of the run") {
-		t.Errorf("CEILING stamp must name the re-audit debt and not read as a failure: %q", s)
+	if s := verdictStamp(ceiling); s != "**Verdict:** CEILING-TERMINATED" {
+		t.Errorf("the verdict field must be the word alone: %q", s)
+	}
+	if g := verdictGloss(ceiling); !strings.Contains(g, "CEILING-TERMINATED") || !strings.Contains(g, "never audited by a red pass") || !strings.Contains(g, "travels OUT of the run") {
+		t.Errorf("the CEILING gloss must name the re-audit debt and not read as a failure: %q", g)
 	}
 	halted := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED)}
-	if s := verdictStamp(halted); !strings.Contains(s, "HALTED") || !strings.Contains(s, "Bench disposition") {
-		t.Errorf("HALTED stamp must point at the recorded halt opinion: %q", s)
+	if s := verdictStamp(halted); s != "**Verdict:** HALTED" {
+		t.Errorf("the verdict field must be the word alone: %q", s)
+	}
+	if g := verdictGloss(halted); !strings.Contains(g, "HALTED") || !strings.Contains(g, "halt opinion") {
+		t.Errorf("the HALTED gloss must point at the recorded halt opinion: %q", g)
+	}
+	// A missing outcome is flagged by the STAMP, and assembly does not repeat it into
+	// "Read this first" — the gloss exists to carry an argument the field cannot hold, and
+	// there is no argument here.
+	if g := verdictGloss(nil); !strings.Contains(g, "no terminal outcome recorded") {
+		t.Errorf("a missing outcome must still be answerable from the gloss: %q", g)
 	}
 	deadlock := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED), Ended: proto.String("deadlock")}
 	if s := verdictStamp(deadlock); !strings.Contains(s, "UNVERIFIED by judged deadlock") {
@@ -307,11 +322,11 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 // so a verdict the record itself decided read as the same word as one the bench simply asserted.
 func TestVerdictBasisReachesTheReader(t *testing.T) {
 	derived := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_VERIFIED), VerdictBasis: proto.String(record.VerdictDerived)}
-	if s := verdictStamp(derived); !strings.Contains(s, "derived from the record") {
+	if s := verdictGloss(derived); !strings.Contains(s, "derived from the record") {
 		t.Errorf("a DERIVED verdict must say so — it is the difference between a mechanical result and a claim: %q", s)
 	}
 	asserted := &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_VERIFIED), VerdictBasis: proto.String(record.VerdictAsserted)}
-	s := verdictStamp(asserted)
+	s := verdictGloss(asserted)
 	if !strings.Contains(s, "asserted by the bench") {
 		t.Errorf("an ASSERTED verdict must say so, or it reads as a derived one: %q", s)
 	}
@@ -320,7 +335,7 @@ func TestVerdictBasisReachesTheReader(t *testing.T) {
 	}
 	// An outcome that carries no basis says nothing rather than guessing, because guessing here
 	// would invent the very distinction the field preserves.
-	if s := verdictStamp(&recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_VERIFIED)}); strings.Contains(s, "basis") {
+	if s := verdictGloss(&recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_VERIFIED)}); strings.Contains(s, "basis") {
 		t.Errorf("no recorded basis must produce no basis claim: %q", s)
 	}
 	// EVERY VERDICT BRANCH CARRIES IT. The first cut appended the note only to the default arm,
@@ -333,7 +348,7 @@ func TestVerdictBasisReachesTheReader(t *testing.T) {
 		recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED,
 	} {
 		o := &recordpb.Outcome{Verdict: verdict.Enum(), VerdictBasis: proto.String(record.VerdictDerived)}
-		if s := verdictStamp(o); !strings.Contains(s, "derived from the record") {
+		if s := verdictGloss(o); !strings.Contains(s, "derived from the record") {
 			t.Errorf("%s dropped its basis — every terminal verdict says how it was reached: %q", recordpb.Word(verdict), s)
 		}
 	}
@@ -476,7 +491,7 @@ func TestOrientationRanksAndPromotesBench(t *testing.T) {
 	evs := []*record.Event{
 		recordtest.Event(t, "", 0, &recordpb.Certify{Statement: proto.String("re-examine the cost model before shipping")}),
 	}
-	o := orientation(board, evs)
+	o := orientation(board, evs, "")
 	// The bench's certify is promoted to the top.
 	if !strings.Contains(o, "re-examine the cost model before shipping") {
 		t.Errorf("orientation must promote the bench's certify statement:\n%s", o)
@@ -492,7 +507,7 @@ func TestOrientationRanksAndPromotesBench(t *testing.T) {
 		t.Errorf("a closed gap must not appear in Read this first:\n%s", o)
 	}
 	// Empty board says so, invents nothing.
-	empty := orientation(&record.Board{}, nil)
+	empty := orientation(&record.Board{}, nil, "")
 	if !strings.Contains(empty, "no open gaps remain") {
 		t.Errorf("an empty board should say nothing is outstanding:\n%s", empty)
 	}

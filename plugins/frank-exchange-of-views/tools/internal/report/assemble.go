@@ -104,95 +104,21 @@ func weaveCitations(md string, sources []record.Source) string {
 }
 
 func Assemble(run record.Run) (string, error) {
-	blue := readOr(filepath.Join(run.Dir(), "blue", "report.md"), "")
-
+	docs, err := AssembleAll(run)
+	if err != nil {
+		return "", err
+	}
 	board, err := record.BoardState(run)
 	if err != nil {
 		return "", fmt.Errorf("assemble: board: %w", err)
 	}
-	bj := record.BoardJSONOf(board)
-	evs := board.Events
+	title := Title(run)
 
-	var b strings.Builder
-	p := func(s string) { b.WriteString(strings.TrimRight(s, "\n")); b.WriteString("\n\n") }
-
-	// Blue-authored head (lifted) + the tool's verdict stamp between the title and the TL;DR,
-	// then the reviewer-facing "read this first" composed from the board and the bench's voice.
-	p(titleOr(blue))
-	p(verdictStamp(outcomeOf(evs)))
-	// WHAT ANSWERED, before what was found. A reader deciding how much weight this document
-	// carries needs the verdict and the adversary's actual strength in the same breath: a PASS
-	// from a tier nobody configured is not the PASS the run was set up to produce.
-	if c := conduct(board); c != "" {
-		p(c)
+	// The site is rendered BEFORE the index, because the index links it only if it is there.
+	if err := os.WriteFile(filepath.Join(run.Dir(), "report.html"), []byte(RenderSite(title, docs, board)), 0o644); err != nil {
+		return "", fmt.Errorf("assemble: write report.html: %w", err)
 	}
-	p(orientation(board, evs))
-	p(sectionOr(blue, "TL;DR"))
-	p(sectionOr(blue, "The Catechism"))
-	p(sectionOr(blue, "Technical foundations"))
-	p(sectionOr(blue, "Analysis"))
-
-	// Tool-composed from the record.
-	p(riskMatrix(bj))
-	// THREE DESCRIPTIVE AREAS, and every line of inquiry lands in exactly one. See below.
-	p(inquiries(board, "Research areas", accepted))
-	p(inquiries(board, "Future research directions", deferred))
-	p(inquiries(board, "Alternatives considered", rejected))
-	p(sectionOr(blue, "Open questions"))
-	// The embed carries ONLY blue content not already composed above — its lifted synthesis
-	// surfaces and any tool-owned sections it wrongly authored are dropped (see blueEmbed).
-	// If nothing genuinely additional survives, the section is omitted rather than left empty.
-	if extra := blueEmbed(blue); extra != "" {
-		p("## Blue team report (sections not composed above)\n\n" + extra)
-	}
-	p(redFindings(board))
-	p(debate(board, evs))
-	// Every adjudicated exchange, joined on its id (#344).
-	if m := motions(board); m != "" {
-		p(m)
-	}
-	if f := frictionLog(evs); f != "" {
-		p(f)
-	}
-	if w := withdrawnClaims(evs); w != "" {
-		p(w)
-	}
-	if r := revisionHistory(evs); r != "" {
-		p(r)
-	}
-	// The record's own invariant check, rendered for the human the report is for. See
-	// recordVerification: a section, never a gate.
-	p(recordVerification(board))
-
-	// Strip finding-markers from the WHOLE composed report, not just blue's lifted
-	// content: a finding's location/reason text can carry a "<!--fx:...-->" token into
-	// the record-derived findings/transcript sections, and only a final-output strip
-	// catches those. No raw marker ships (the leak fix).
-	out := StripFindingMarkers(collapseBlanks(b.String()))
-
-	// Resolve the citation layer: rewrite every "<!--cite:c-…-->" anchor to a visible [^N]
-	// and append the composed "## Bibliography" from the cite events. Findings are STRIPPED,
-	// citations are RESOLVED — orthogonal passes over the same document, strip first.
-	sources, err := record.CitedSources(run)
-	if err != nil {
-		return "", fmt.Errorf("assemble: cited sources: %w", err)
-	}
-	out = collapseBlanks(weaveCitations(out, sources))
-
-	// Resolve the PROOF layer the same way (#277). Without this pass the anchor shipped RAW
-	// into the deliverable and the computation appeared nowhere in it — the evidence existed
-	// on the record, in the cache and to the auditor, and was invisible to the reader.
-	proofs, err := record.RecordedProofs(run)
-	if err != nil {
-		return "", fmt.Errorf("assemble: recorded proofs: %w", err)
-	}
-	out = collapseBlanks(weaveProofs(run, out, proofs))
-
-	path := filepath.Join(run.Dir(), "report.md")
-	if err := os.WriteFile(path, []byte(out), 0o644); err != nil {
-		return "", fmt.Errorf("assemble: write report.md: %w", err)
-	}
-	return path, nil
+	return Write(run, title, docs, indexDoc(run, title, docs, board, board.Events))
 }
 
 func readOr(path, fallback string) string {
@@ -286,6 +212,56 @@ func titleOr(blue string) string {
 	return "# _(blue/report.md has no title — not authored here)_"
 }
 
+// titleLimit is where a heading stops being a heading. Nothing derives from the number; it is
+// the width past which a title is a paragraph wearing an H1.
+const titleLimit = 80
+
+// heading splits blue's H1 into a TITLE and the QUESTION it was assembled from.
+//
+// Blue writes the whole research brief into its H1 — the archived runs carry 240-character
+// ones — and an H1 that long is a paragraph in a font size, useless in a table of contents, a
+// tab strip, a window title or a link. The full text is not dropped: it renders directly
+// beneath as **Question:**, which is the field it always was. Where the title is already short
+// enough, no question line is emitted and nothing changes.
+//
+// THE CUT IS AT A PUNCTUATION BOUNDARY BLUE ITSELF WROTE, never mid-clause: a colon, an
+// em-dash clause, or a sentence end. A title truncated at N characters would read as a defect;
+// one cut at the author's own boundary reads as a title.
+func heading(blue string) (title, question string) {
+	h1 := titleOr(blue)
+	full := strings.TrimSpace(strings.TrimPrefix(h1, "# "))
+	// The suffix is a convention of the template, not part of the subject.
+	subject := strings.TrimSpace(strings.TrimSuffix(full, " — research report"))
+	if len([]rune(subject)) <= titleLimit {
+		return "# " + full, ""
+	}
+	short := subject
+	for _, sep := range []string{": ", " — ", ". ", "; "} {
+		if i := strings.Index(subject, sep); i > 0 && len([]rune(subject[:i])) <= titleLimit {
+			short = subject[:i]
+			break
+		}
+	}
+	if short == subject {
+		// No boundary the author wrote sits inside the limit — take whole words up to it and
+		// say so with an ellipsis rather than inventing a break.
+		var w []string
+		n := 0
+		for _, word := range strings.Fields(subject) {
+			if n+len([]rune(word))+1 > titleLimit {
+				break
+			}
+			w = append(w, word)
+			n += len([]rune(word)) + 1
+		}
+		if len(w) == 0 {
+			return "# " + full, ""
+		}
+		short = strings.Join(w, " ") + "…"
+	}
+	return "# " + short, "**Question:** " + subject
+}
+
 // section returns the "## heading" block verbatim (heading included), or "" if absent. It
 // tracks fenced code blocks so a "## " line inside ``` or ~~~ is not read as a heading.
 func section(md, heading string) string {
@@ -357,16 +333,17 @@ func verdictStamp(o *recordpb.Outcome) string {
 	if o == nil {
 		return "**Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_"
 	}
-	// EVERY branch carries the basis. The first cut appended it only to the default arm, so
-	// CEILING and HALTED — which returned early — dropped it; the fuzz failed 35 of 60 runs on
-	// exactly that, because a ceiling termination IS derived (rounds against the configured
-	// ceiling) and is the most common way a run ends.
-	basis := basisNote(o.GetVerdictBasis()) + verdictWhy(o)
+	return "**Verdict:** " + verdictWord(o)
+}
+
+// verdictWord is the verdict as a FIELD — the word, and the clause naming how the run ended,
+// and nothing else. Everything that used to trail it inline lives in verdictGloss now.
+func verdictWord(o *recordpb.Outcome) string {
 	switch o.GetVerdict() {
 	case recordpb.RunOutcome_RUN_OUTCOME_CEILING:
-		return "**Verdict:** CEILING-TERMINATED — the run hit its round ceiling while still converging. This is NOT a judged failure to verify and must not be read as one: gaps remain open, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run." + basis
+		return "CEILING-TERMINATED"
 	case recordpb.RunOutcome_RUN_OUTCOME_HALTED:
-		return "**Verdict:** HALTED — the bench ended this run. The halt opinion is on the record below (Bench disposition) and is relayed to the human verbatim, never smoothed." + basis
+		return "HALTED"
 	default:
 		by := ""
 		// `ended` stays a STRING in the schema — it is not one of the enums — so this compare is
@@ -380,8 +357,36 @@ func verdictStamp(o *recordpb.Outcome) string {
 		// An UNSET verdict spells "" (recordpb.Word maps the zero back to the empty string), so
 		// this renders the same blank the absent payload key produced rather than the word
 		// `unspecified`, which no seat ever chose.
-		return fmt.Sprintf("**Verdict:** %s%s%s", strings.ToUpper(recordpb.Word(o.GetVerdict())), by, basis)
+		return strings.ToUpper(recordpb.Word(o.GetVerdict())) + by
 	}
+}
+
+// verdictGloss is everything the stamp used to carry INLINE: what the verdict means, the basis
+// it rests on, the derivation's reasoning, and — on a judged deadlock — the bench's own words.
+//
+// IT IS THE SAME TEXT, MOVED, and the move is the point. A field a reader can skim, badge or
+// grep has to be one token; the CEILING arm alone put four hundred characters of argument into
+// the position where a word belongs, so the document's most consequential fact was the hardest
+// thing on the page to find. Nothing is dropped — orientation carries this as the first
+// paragraph a reader meets, which is where the argument was always addressed.
+func verdictGloss(o *recordpb.Outcome) string {
+	if o == nil {
+		return "_(no terminal outcome recorded — `bench outcome` was not run before assembly.)_"
+	}
+	var lead string
+	switch o.GetVerdict() {
+	case recordpb.RunOutcome_RUN_OUTCOME_CEILING:
+		lead = "**CEILING-TERMINATED** — the run hit its round ceiling while still converging. This is NOT a judged failure to verify and must not be read as one: gaps remain open, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
+	case recordpb.RunOutcome_RUN_OUTCOME_HALTED:
+		lead = "**HALTED** — the bench ended this run. The halt opinion is on the record ([the debate](" + FileDebate + "), under Bench disposition) and is relayed to the human verbatim, never smoothed."
+	default:
+		lead = "**" + verdictWord(o) + "**"
+	}
+	// EVERY branch carries the basis. The first cut appended it only to the default arm, so
+	// CEILING and HALTED — which returned early — dropped it; the fuzz failed 35 of 60 runs on
+	// exactly that, because a ceiling termination IS derived (rounds against the configured
+	// ceiling) and is the most common way a run ends.
+	return strings.TrimSpace(lead + basisNote(o.GetVerdictBasis()) + verdictWhy(o))
 }
 
 // verdictWhy carries the DERIVATION'S OWN REASONING and, on a deadlock, the bench's.
@@ -432,7 +437,7 @@ func basisNote(basis string) string {
 // PROMOTES the bench's already-evented voice (certify/halt), which otherwise sits buried in
 // the debate's Bench-disposition line. When the bench never certified/halted (as in a
 // ceiling-terminated run), only the ranked gaps show; nothing is invented to fill the space.
-func orientation(board *record.Board, evs []*record.Event) string {
+func orientation(board *record.Board, evs []*record.Event, gloss string) string {
 	type ranked struct {
 		g    *record.Gap
 		rank int
@@ -449,34 +454,79 @@ func orientation(board *record.Board, evs []*record.Event) string {
 
 	var b strings.Builder
 	b.WriteString("## Read this first\n\n")
-	// The bench's terminal ask, if any — promoted from the record, not buried below.
-	//
-	// ONE FLAG, TWO FIELDS. The seat types `--reason` for both acts and the schema keeps each on
-	// the message's own prose channel: a certify's is `statement`, a halt's is `opinion`
-	// (recordpb/required.go declares both). Neither is a `reason` field, and inventing one would
-	// have been the migration's easiest silent defect.
+	// What the verdict MEANS, before what is outstanding under it. The stamp above is the field;
+	// this is its argument, and it opens the document because it is what the reader came for.
+	if gloss != "" {
+		b.WriteString(gloss + "\n\n")
+	}
+	voice := benchVoice(evs)
+	if voice.halt != "" {
+		b.WriteString("**The bench HALTED this run:** " + voice.halt + "\n\n")
+	}
+	if voice.ask != "" {
+		b.WriteString("**The bench asks a human to re-examine:** " + voice.ask + "\n\n")
+	}
+	// SUPERSEDED ASKS ARE NOT PARALLEL ASKS. The first cut printed one block per certify event,
+	// so a bench that certified twice — the ordinary shape of a re-certification — shipped two
+	// near-identical paragraphs under one heading, and the reader had no way to tell a second
+	// ask from a restatement of the first. The earlier acts are history, and history has a
+	// document: CHANGELOG.md carries them in order.
+	if voice.superseded > 0 {
+		fmt.Fprintf(&b, "_(the bench certified %d time(s) before this; the earlier statements are in the run's CHANGELOG.)_\n\n", voice.superseded)
+	}
+	if len(open) == 0 {
+		// AND IT MUST NOT CONTRADICT THE PARAGRAPH ABOVE IT. This line shipped verbatim under
+		// two blocks headed "asks a human to re-examine", telling the reader in the same breath
+		// that there was nothing to re-examine. An empty BOARD is not an empty docket when the
+		// bench has spoken.
+		if voice.ask != "" || voice.halt != "" {
+			b.WriteString("_(no open gaps remain on the board — what the bench asked for above is what is outstanding.)_")
+		} else {
+			b.WriteString("_(no open gaps remain — nothing outstanding to re-examine)_")
+		}
+		return b.String()
+	}
+	fmt.Fprintf(&b, "%d open gap(s) remain, most severe first — full statements in [the docket](%s).\n\n", len(open), FileDocket)
+	for i, r := range open {
+		fmt.Fprintf(&b, "%d. **[%s]** %s (%s) — %s\n", i+1, gradeWord(r.g.Severity), concise(r.g.Mint.GetProblem()), r.g.ID, concise(r.g.Mint.GetRequiredFix()))
+	}
+	return strings.TrimRight(b.String(), "\n")
+}
+
+// benchAsk is the bench's terminal voice: the LAST certify statement and the LAST halt opinion
+// on the record, with a count of the certifies they replaced.
+//
+// ONE FLAG, TWO FIELDS. The seat types `--reason` for both acts and the schema keeps each on
+// the message's own prose channel: a certify's is `statement`, a halt's is `opinion`
+// (recordpb/required.go declares both). Neither is a `reason` field, and inventing one would
+// have been the migration's easiest silent defect.
+type benchAsk struct {
+	ask        string
+	halt       string
+	superseded int
+}
+
+// benchVoice reduces the certify/halt events to the terminal one of each. A bench that
+// certifies again has CHANGED ITS STATEMENT, not added a second one.
+func benchVoice(evs []*record.Event) benchAsk {
+	var v benchAsk
 	for _, e := range evs {
 		if c, ok := recordpb.BodyAs[*recordpb.Certify](e); ok {
 			if s := c.GetStatement(); s != "" {
-				b.WriteString("**The bench asks a human to re-examine:** " + s + "\n\n")
+				if v.ask != "" {
+					v.superseded++
+				}
+				v.ask = s
 			}
 			continue
 		}
 		if h, ok := recordpb.BodyAs[*recordpb.Halt](e); ok {
 			if s := h.GetOpinion(); s != "" {
-				b.WriteString("**The bench HALTED this run:** " + s + "\n\n")
+				v.halt = s
 			}
 		}
 	}
-	if len(open) == 0 {
-		b.WriteString("_(no open gaps remain — nothing outstanding to re-examine)_")
-		return b.String()
-	}
-	fmt.Fprintf(&b, "%d open gap(s) remain, most severe first — full statements in **Red team findings** below.\n\n", len(open))
-	for i, r := range open {
-		fmt.Fprintf(&b, "%d. **[%s]** %s (%s) — %s\n", i+1, gradeWord(r.g.Severity), concise(r.g.Mint.GetProblem()), r.g.ID, concise(r.g.Mint.GetRequiredFix()))
-	}
-	return strings.TrimRight(b.String(), "\n")
+	return v
 }
 
 // sevRank orders a gap by one grade, using the canonical MASS weight (record.MASS) scaled to an
@@ -523,7 +573,7 @@ func riskMatrix(bj record.BoardJSON) string {
 		b.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
 			cell(concise(risk)), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), cell(concise(g.RequiredFix))))
 	}
-	b.WriteString("\nThe matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in **Red team findings** below.")
+	b.WriteString("\nThe matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in [the docket](" + FileDocket + ").")
 	return b.String()
 }
 
@@ -749,7 +799,11 @@ func redFindings(board *record.Board) string {
 			foundBy := provenance(g.Mint, findings)
 			// `class` is a registry SLUG, not a grade — it goes through `grade` only for that
 			// helper's em-dash-when-empty arm, exactly as it did before.
-			open = append(open, fmt.Sprintf("### %s — %s\n%s\nseverity %s | %s x %s | cx %s | class %s%s\nrequired_fix: %s%s\nacceptance_check: %s%s",
+			// THE HARD BREAKS ARE LOAD-BEARING. Joined by bare newlines, these four facts —
+			// the location, the grades, the demanded fix and the check that would settle it —
+			// render as ONE sentence-shaped paragraph, because that is what markdown does with
+			// a single newline. Forty-five kilobytes of the archived docket read that way.
+			open = append(open, fmt.Sprintf("### %s — %s\n%s  \nseverity %s | %s x %s | cx %s | class %s%s  \nrequired_fix: %s%s  \nacceptance_check: %s%s",
 				g.ID, g.Mint.GetProblem(),
 				g.Mint.GetLocation(),
 				gradeWord(g.Severity), gradeWord(g.Likelihood), gradeWord(g.Impact), gradeWord(g.ComplexityCost), grade(g.Mint.GetClass()),
@@ -1025,7 +1079,7 @@ func unmintedFindings(board *record.Board) string {
 		//
 		// `--reason` LANDS ON `text`: Finding's only prose channel, the same flag/field split
 		// recordpb/required.go declares for Verify.text and Close.prose.
-		rows = append(rows, fmt.Sprintf("### %s%s\nseverity %s | %s x %s | %s\n%s",
+		rows = append(rows, fmt.Sprintf("### %s%s\nseverity %s | %s x %s | %s  \n%s",
 			head, loc,
 			gradeWord(f.GetSeverity()), gradeWord(f.GetLikelihood()), gradeWord(f.GetImpact()),
 			e.GetSeatId(),

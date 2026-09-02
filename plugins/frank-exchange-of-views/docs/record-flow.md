@@ -62,9 +62,11 @@ flowchart TB
 
 Citations are tool-managed end to end: blue never hand-types a footnote. A source is fetched
 **once** to a hash-addressed cache both sides read; `blue cite` splices an invisible immortal
-`<!--cite:c-…-->` anchor at the cited sentence; assembly resolves those anchors into the visible
-bibliography. The set of `cite` events is a strict **bijection** with the anchors in the document —
-the lockdown forbids removing one by a raw edit — so the record shows exactly what the report cites.
+`<!--cite:c-…-->` anchor at the cited sentence; assembly resolves those anchors into a visible
+bibliography in EACH DOCUMENT OF THE REPORT SET that carries them — a footnote definition cannot
+cross a file boundary, so the layer is woven per file, never globally and split afterwards. The
+set of `cite` events is a strict **bijection** with the anchors in the document — the lockdown
+forbids removing one by a raw edit — so the record shows exactly what the report cites.
 
 ```mermaid
 flowchart TB
@@ -79,7 +81,7 @@ flowchart TB
   end
   RPT["blue/report.md<br/>invisible &lt;!--cite:c-…--&gt; anchor at the sentence"]
   RED["red lens / merge<br/>fetch --url &lt;cited url&gt; (cache HIT = blue's exact bytes)"]
-  ASM["assembly (report.md)<br/>weave anchor → [^N] + compose ## Bibliography"]
+  ASM["assembly (the report set)<br/>weave anchor → [^N] + compose ## Bibliography, PER DOCUMENT"]
   DET["scorecard unbacked_citations<br/>(cite labels ⊄ report anchors)"]
   LOCK["blue edit lockdown<br/>(rejects an edit dropping/splitting a &lt;!--cite:--&gt; anchor)"]
 
