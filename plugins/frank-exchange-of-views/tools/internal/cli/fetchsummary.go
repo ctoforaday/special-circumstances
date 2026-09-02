@@ -41,6 +41,44 @@ type fetchSummary struct {
 	TextReason    string `json:"text_reason,omitempty"`
 	Extractor     string `json:"extractor,omitempty"`
 	OCRDerived    bool   `json:"ocr_derived,omitempty"`
+
+	// The automatic read's own facts (#644). They appear ONLY where the document was a PDF
+	// with no text layer — the one case fetch spends a model on — and they are separate
+	// fields from the extraction's because they answer a different question. TextReason says
+	// why the DOCUMENT had no text layer; OCRReason says why there is no reading of its
+	// pixels either, and a seat that saw only the first would conclude the source is
+	// unreadable when in fact automatic reading was simply switched off.
+	OCRReason string `json:"ocr_reason,omitempty"`
+	Model     string `json:"model,omitempty"`
+	DPI       int    `json:"dpi,omitempty"`
+	InTokens  int64  `json:"input_tokens,omitempty"`
+	OutTokens int64  `json:"output_tokens,omitempty"`
+}
+
+// applyReading folds a model's reading of the page images into the summary.
+//
+// IT OVERWRITES TextExtracted, and that is the point of the whole change: the extraction
+// said false with a reason, the read then succeeded, and what the seat must be told is that
+// the text IS there — with `ocr_derived: true` beside it so nobody mistakes a transcription
+// for an author's text layer. The path is the reading's own file, never TextPath: two
+// producers writing one name is how a re-render at another resolution silently replaces the
+// text a citation was taken from.
+func (s *fetchSummary) applyReading(run record.Run, r fetchcache.ReadingRecord) {
+	yes := true
+	s.TextExtracted = &yes
+	s.TextReason = ""
+	s.TextPath = fetchcache.OCRTextPath(run, r.Sha)
+	s.TextSha256 = r.TextSha
+	s.OCRDerived = true
+	// THE EXTRACTOR DID NOT PRODUCE THIS TEXT, so its id must not be left beside it. PDFium
+	// opened the document, counted 80 pages and found no glyphs; the transcription came from a
+	// model. Leaving `extractor: pdfium@v1.19.8` on a reading would name a producer an audit
+	// could re-run to get different bytes — and `model` is the word `ocr read` already uses for
+	// this fact, so it is the word used here rather than a second one meaning the same thing.
+	s.Extractor = ""
+	s.Model = r.Model
+	s.DPI = r.DPI
+	s.InTokens, s.OutTokens = r.InTokens, r.OutTok
 }
 
 // summarize projects a cache entry into what the seat is shown. Paths are absolute — a Run
@@ -68,6 +106,17 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		s.TextPath = fetchcache.TextPath(run, e.Sha)
 	}
 	return s
+}
+
+// applicableToOCR reports whether this is the one case fetch spends a model on: a PDF the
+// extractor looked at and found no text layer in.
+//
+// THE THREE-STATE POINTER IS LOAD-BEARING HERE. nil means nothing looked — an HTML page, an
+// index line written by an older binary — and rendering either to pixels would be absurd. A
+// plain bool would have collapsed that into the same false the scanned standard produces,
+// and fetch would rasterise every web page it read.
+func applicableToOCR(e fetchcache.Entry) bool {
+	return e.ContentType == "application/pdf" && e.TextExtracted != nil && !*e.TextExtracted
 }
 
 // render is the human-facing form: the same fields, one per line, in the order a seat needs
@@ -108,6 +157,17 @@ func (s fetchSummary) render() string {
 		line("text_extracted", "false")
 		line("text_reason", s.TextReason)
 		line("extractor", s.Extractor)
+	}
+	// THE REASON IS PRINTED WHETHER OR NOT THERE IS TEXT. Where a reading succeeded it is
+	// empty and this line does not appear; where it did not — switched off, over the page cap,
+	// credentials refused — it is the only thing standing between the seat and the conclusion
+	// that the source itself is unreadable.
+	line("ocr_reason", s.OCRReason)
+	if s.OCRDerived {
+		line("model", s.Model)
+		line("dpi", fmt.Sprint(s.DPI))
+		line("input_tokens", fmt.Sprint(s.InTokens))
+		line("output_tokens", fmt.Sprint(s.OutTokens))
 	}
 	return b.String()
 }

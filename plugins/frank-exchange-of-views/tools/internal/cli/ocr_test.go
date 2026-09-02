@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -172,5 +173,95 @@ func TestOCRPagesReusesAnExistingRenderAtTheSameResolution(t *testing.T) {
 	}
 	if !strings.Contains(out, "reused: false") || !strings.Contains(out, "dpi: 150") {
 		t.Errorf("a render at a new dpi was served from the old one:\n%s", out)
+	}
+}
+
+// stubCLIReader answers without a network call. Every `ocr read` test uses one — a test that
+// needed credentials could not run in CI, and one that spent money on `go test ./...` would
+// be a worse thing than the bug it caught.
+type stubCLIReader struct {
+	perCall func(n int) (string, error)
+	n       int
+}
+
+func (s *stubCLIReader) ReadPage(_ context.Context, _ string, _ []byte) (string, int64, int64, error) {
+	s.n++
+	t, err := s.perCall(s.n)
+	return t, 100, 10, err
+}
+
+func withCLIReader(t *testing.T, fn func(n int) (string, error)) {
+	t.Helper()
+	prev := fetchcache.DefaultPageReader
+	fetchcache.DefaultPageReader = &stubCLIReader{perCall: fn}
+	t.Cleanup(func() { fetchcache.DefaultPageReader = prev })
+}
+
+// READING REQUIRES RENDERED PAGES, and says which verb makes them. A seat that reaches this
+// has the sha but not the images, and "no render record" alone leaves it guessing.
+func TestOCRReadRefusesWhenNothingIsRendered(t *testing.T) {
+	no := false
+	dir, sha := cacheScan(t, &no, "application/pdf")
+	_, err := run(t, "ocr", "read", "--seat-id", "operator", "--sha", sha, "--run", dir)
+	if err == nil {
+		t.Fatal("read ran against a document with no rendered pages")
+	}
+	if !strings.Contains(err.Error(), "ocr pages") {
+		t.Errorf("refusal = %q, want it to name the verb that renders", err)
+	}
+}
+
+func TestOCRReadRecordsTheReadingAndMarksItOCRDerived(t *testing.T) {
+	no := false
+	dir, sha := cacheScan(t, &no, "application/pdf")
+	if _, err := run(t, "ocr", "pages", "--seat-id", "operator", "--sha", sha, "--dpi", "72", "--run", dir); err != nil {
+		t.Fatal(err)
+	}
+	withCLIReader(t, func(int) (string, error) { return "IEEE Std 1012-1998", nil })
+
+	out, err := run(t, "ocr", "read", "--seat-id", "operator", "--sha", sha, "--run", dir)
+	if err != nil {
+		t.Fatalf("ocr read: %v\n%s", err, out)
+	}
+	// ocr_derived is the field that keeps a machine's reading distinguishable from an author's
+	// text, and it is stated rather than left to be inferred from the verb that wrote the file.
+	if !strings.Contains(out, "ocr_derived: true") {
+		t.Errorf("summary does not state ocr_derived:\n%s", out)
+	}
+	for _, want := range []string{"model:", "text_path:", "text_sha:", "input_tokens:"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("summary missing %q:\n%s", want, out)
+		}
+	}
+	// NEVER THE TEXT ITSELF. The summary names a path, exactly as fetch does.
+	if strings.Contains(out, "IEEE Std 1012-1998") {
+		t.Error("the summary carried the transcription instead of naming the file")
+	}
+}
+
+// A SECOND READ OF THE SAME IMAGES IS NOT FREE AND IS NOT IDEMPOTENT. Re-reading would spend
+// a model again AND replace text a seat may already have cited from, with different bytes.
+func TestOCRReadReusesAnExistingReadingOfTheSameImages(t *testing.T) {
+	no := false
+	dir, sha := cacheScan(t, &no, "application/pdf")
+	if _, err := run(t, "ocr", "pages", "--seat-id", "operator", "--sha", sha, "--dpi", "72", "--run", dir); err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	withCLIReader(t, func(int) (string, error) { calls++; return "once", nil })
+
+	if _, err := run(t, "ocr", "read", "--seat-id", "operator", "--sha", sha, "--run", dir); err != nil {
+		t.Fatal(err)
+	}
+	first := calls
+	out, err := run(t, "ocr", "read", "--seat-id", "operator", "--sha", sha, "--run", dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != first {
+		t.Errorf("a second read spent %d more model calls; want the existing reading reused", calls-first)
+	}
+	if !strings.Contains(out, "reused: true") {
+		t.Errorf("the reuse was not reported:\n%s", out)
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // ocrSummary is what `ocr pages` prints: where the images are, and the facts a seat needs to
@@ -74,6 +75,7 @@ func newOCR() *cobra.Command {
 		SilenceErrors: true,
 	}
 	c.AddCommand(newOCRPages())
+	c.AddCommand(newOCRRead())
 	return c
 }
 
@@ -85,7 +87,7 @@ func newOCRPages() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "pages",
 		Short: "rasterise every page of a cached PDF and name the images",
-		Long: "pages renders each page of the cached document --sha to a PNG under <run>/cache/<sha>.pages/ and writes a render record beside them holding the resolution, one hash per page image, and the renderer's library@semver. It prints a summary naming the directory and the page range — never an image, and never the document. " +
+		Long: "pages renders each page of the cached document --sha to a GRAYSCALE PNG under <run>/cache/<sha>.pages/ and writes a render record beside them holding the resolution, one hash per page image, and the renderer's library@semver. The default 200 DPI is the resolution the reader can actually use — the model caps an image at 2576 px on the long edge, and a letter page at 200 DPI is already there, so rendering higher spends disk on pixels the API downscales away. It prints a summary naming the directory and the page range — never an image, and never the document. " +
 			"A DOCUMENT THAT ALREADY HAS TEXT IS REFUSED. Where fetch extracted a text layer, its extraction is already on disk and reading the pixels instead spends a model to re-derive it, less accurately. --force renders anyway, for the case where the text layer is present but wrong.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
@@ -108,7 +110,7 @@ func newOCRPages() *cobra.Command {
 			}
 			if entry.ContentType != "application/pdf" {
 				return fmt.Errorf("sha %s is %s, and only application/pdf renders to pages; its "+
-					"content is at %s", sha, contentTypeOrUnknown(entry.ContentType), fetchcache.Path(run, sha))
+					"content is at %s", sha, fetchcache.ContentTypeOrUnknown(entry.ContentType), fetchcache.Path(run, sha))
 			}
 			// THE GUARD THAT MAKES THIS VERB CHEAP TO USE WRONGLY. Rendering a document whose text
 			// was already extracted spends a model to re-derive, less accurately, what is already a
@@ -167,11 +169,134 @@ func newOCRPages() *cobra.Command {
 	return c
 }
 
-// contentTypeOrUnknown keeps an absent Content-Type from rendering as an empty string in the
-// middle of a sentence, where it reads as a missing word rather than a missing measurement.
-func contentTypeOrUnknown(ct string) string {
-	if ct == "" {
-		return "of no recorded content type"
+// ocrReadSummary is what `ocr read` prints: what was read, by what, and where it disagreed.
+type ocrReadSummary struct {
+	Sha      string `json:"sha"`
+	Model    string `json:"model"`
+	Pages    int    `json:"pages"`
+	DPI      int    `json:"dpi"`
+	TextPath string `json:"text_path"`
+	TextSha  string `json:"text_sha"`
+	// OCRDerived is always true here and is printed anyway. It is the field that keeps text a
+	// machine read off pixels distinguishable from text an author embedded, and a reader who
+	// does not see it stated has to infer it from the verb that produced the file.
+	OCRDerived bool  `json:"ocr_derived"`
+	InTokens   int64 `json:"input_tokens"`
+	OutTokens  int64 `json:"output_tokens"`
+	Reused     bool  `json:"reused"`
+}
+
+func (s ocrReadSummary) render() string {
+	var b strings.Builder
+	line := func(k, v string) {
+		if v != "" {
+			fmt.Fprintf(&b, "%s: %s\n", k, v)
+		}
 	}
-	return ct
+	line("sha", s.Sha)
+	line("model", s.Model)
+	line("pages", fmt.Sprint(s.Pages))
+	line("dpi", fmt.Sprint(s.DPI))
+	line("text_path", s.TextPath)
+	line("text_sha", s.TextSha)
+	line("ocr_derived", "true")
+	line("input_tokens", fmt.Sprint(s.InTokens))
+	line("output_tokens", fmt.Sprint(s.OutTokens))
+	line("reused", fmt.Sprint(s.Reused))
+	return b.String()
+}
+
+// newOCRRead asks a model what the rendered pages say, and records the answer.
+//
+// THIS IS THE ONE VERB IN THIS TOOL THAT CALLS OUT. Everything else here is local: fetch
+// serves cached bytes, extraction runs PDFium in-process, rendering rasterises. This spends a
+// model, one call per page. It remains a separate verb even though fetch now reads a scanned
+// PDF on its own (#659): fetch reads only what its own extractor found no text layer in, and
+// this is how an operator reads pages that door will not open — a re-render at another DPI, a
+// document already cached, a --force re-read.
+//
+// WHAT IT PRODUCES IS NOT REPRODUCIBLE, AND THE RECORD SAYS SO. #636 keyed an extraction to
+// library@semver so an audit could re-run it and compare hashes. A model re-reading a page
+// returns different bytes, so that check does not exist here. What replaces it is an
+// attestation — which model, when, against which image hashes — and that is provenance, not
+// accuracy: one reading, uncorroborated. It is stated rather than left to be discovered by a
+// `reproduce` that fails mysteriously.
+func newOCRRead() *cobra.Command {
+	var sha, model string
+	var force bool
+
+	c := &cobra.Command{
+		Use:   "read",
+		Short: "ask a model what the rendered pages say, and record the transcription",
+		Long: "read sends each page image rendered by `ocr pages` to a model and asks for a transcription. The assembled text is written to <run>/cache/<sha>.ocr.txt and each page's own transcription beside its image. " +
+			"THIS VERB SPENDS A MODEL, one call per page. It needs credentials (ANTHROPIC_API_KEY, or `ant auth login`) and it is the only verb here that calls out of the machine. " +
+			"WHAT IT WRITES IS NOT REPRODUCIBLE: a re-read returns different bytes. The record carries an attestation — model, time, and the hashes of the images actually read — in place of the re-derivation an extraction supports.",
+		Args:          cobra.NoArgs,
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			run, err := seat.Of(cmd).Run()
+			if err != nil {
+				return err
+			}
+			rd, have, err := fetchcache.ReadRenderRecord(run, sha)
+			if err != nil {
+				return err
+			}
+			if !have {
+				return fmt.Errorf("nothing is rendered for sha %s — run `ocr pages --sha %s` first; "+
+					"this verb reads images, it does not make them", sha, sha)
+			}
+
+			// A READING ALREADY EXISTS, AND RE-READING COSTS REAL MONEY. It is also not idempotent:
+			// a second reading returns different text, so silently redoing it would replace a
+			// record a seat may already have cited from.
+			if prev, had, rerr := fetchcache.ReadReadingRecord(run, sha); rerr == nil && had && !force {
+				if fetchcache.SameRenders(prev.RenderShas, rd.PageShas) {
+					return printOCRRead(cmd, readSummaryOf(run, sha, prev, true))
+				}
+			}
+
+			rec, err := fetchcache.ReadRenderedPages(cmd.Context(), run, sha, model, rd)
+			if err != nil {
+				return err
+			}
+			return printOCRRead(cmd, readSummaryOf(run, sha, rec, false))
+		},
+	}
+	c.Flags().StringVar(&sha, flags.Sha, "", "sha256 of a document whose pages ocr pages has already rendered")
+	c.Flags().StringVar(&model, flags.Model, defaultReadModel, "the model that reads the pages")
+	c.Flags().BoolVar(&force, flags.Force, false, "read again even though a reading of these exact images exists")
+	_ = c.MarkFlagRequired(flags.Sha)
+	return c
+}
+
+// defaultReadModel is the model that reads a page unless the operator names another.
+//
+// The most capable model is the default DELIBERATELY. This is transcription of a degraded
+// scan feeding citation at the leaf, where a misread word becomes a quotation nobody can
+// tell is wrong; the cheaper failure mode is silent. Choosing a lesser model to save tokens
+// is the operator's call to make explicitly, not this tool's to make quietly.
+const defaultReadModel = "claude-opus-5"
+
+func readSummaryOf(run record.Run, sha string, r fetchcache.ReadingRecord, reused bool) ocrReadSummary {
+	return ocrReadSummary{
+		Sha: r.Sha, Model: r.Model, Pages: len(r.Pages), DPI: r.DPI,
+		TextPath: fetchcache.OCRTextPath(run, sha), TextSha: r.TextSha,
+		OCRDerived: true,
+		InTokens:   r.InTokens, OutTokens: r.OutTok, Reused: reused,
+	}
+}
+
+func printOCRRead(cmd *cobra.Command, s ocrReadSummary) error {
+	if jsonMode, _ := cmd.Flags().GetBool(flags.JSON); jsonMode {
+		b, err := json.MarshalIndent(s, "", "  ")
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(cmd.OutOrStdout(), string(b))
+		return nil
+	}
+	fmt.Fprint(cmd.OutOrStdout(), s.render())
+	return nil
 }
