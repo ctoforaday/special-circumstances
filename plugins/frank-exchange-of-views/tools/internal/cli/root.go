@@ -178,7 +178,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 	// format is primarily view-selected: board/findings/work/motions/telemetry/evidence are JSON
 	// by name (seat.JSONByNameViews is the set; each one says so in its own --help), the rest
 	// are markdown. --json opts a markdown view into its structured form where one exists
-	// (today only `show --view debate --json`); it is an error on a JSON-by-name view or a
+	// (today only `show debate --json`); it is an error on a JSON-by-name view or a
 	// markdown view with no JSON form, so there is exactly one way to reach each form.
 	root.PersistentFlags().Bool(flags.JSON, false, "emit a structured JSON result (and structured errors) instead of human text")
 

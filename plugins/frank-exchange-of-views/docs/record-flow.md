@@ -2,7 +2,7 @@
 
 The canonical channel between seats is the **record** (the append-only event log, written
 only through `feov-record`). Non-prose actions — findings, citations, gaps, closures,
-disputes, opinions — are events; the markdown files are *projections* of the record for a
+motions, opinions — are events; the markdown files are *projections* of the record for a
 human reading afterward, never the channel. This diagram is kept current with the code
 ([[fuzzers-and-diagrams-track-code]]); update it in the same PR as any record/protocol change.
 

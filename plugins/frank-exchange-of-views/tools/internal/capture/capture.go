@@ -781,7 +781,7 @@ func RecordParityAudit(run record.Run, redRounds, blueBlocks int) Audit {
 // WHAT SURVIVED. Exactly one signal: back-fill. A seat that does its work and then dumps every
 // record call in a burst at the end has produced a retrospective narration, and any audit that
 // treats those events as contemporaneous evidence is reading a story. That signal does not need
-// the transcript, because `ts` is stamped BY THE TOOL at write time (nextStamp) and `register` is
+// the transcript, because `ts` is stamped BY THE TOOL at write time and `register` is
 // every seat's first record action — so the record already knows when a seat started and when it
 // wrote.
 //
