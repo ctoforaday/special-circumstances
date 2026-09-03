@@ -195,8 +195,12 @@ func CheckOrphanedHandles() error {
 	}
 	b.WriteString("\nEach path above is a database this process still holds open while the directory it lived\n" +
 		"in has already been removed. On Linux that removal SUCCEEDS and the test passes; on Windows\n" +
-		"it fails the test with `TempDir RemoveAll cleanup: ... being used by another process`.\n" +
-		"The test named in the path took its run directory from t.TempDir() without releasing the\n" +
-		"handle — use recordtest.TmpRun(t) instead, which is t.TempDir plus that release.")
+		"it fails with `RemoveAll cleanup: ... being used by another process`.\n\n" +
+		"The test that owns the path never released the handle. Two remedies, and WHICH ONE depends\n" +
+		"on where the directory came from — the first run of this check found both shapes:\n" +
+		"  - the directory is a t.TempDir()  -> use recordtest.TmpRun(t), which is t.TempDir plus\n" +
+		"    the release;\n" +
+		"  - the test manages the directory itself (os.MkdirTemp, a fixture path) -> release it\n" +
+		"    with recordsql.CloseUnder(dir) BEFORE removing it, in that order.")
 	return errors.New(b.String())
 }

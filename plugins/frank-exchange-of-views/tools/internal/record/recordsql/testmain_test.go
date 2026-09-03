@@ -19,9 +19,10 @@ func TestMain(m *testing.M) {
 		for _, p := range orphans {
 			fmt.Fprintln(os.Stderr, " ", p)
 		}
-		fmt.Fprintln(os.Stderr, "\nA test took its run directory from t.TempDir() without releasing the cached handle.\n"+
-			"On Linux the removal succeeds and the test passes; on Windows it fails the cleanup.\n"+
-			"Release it with CloseUnder(dir) in a t.Cleanup — which is what recordtest.TmpRun does.")
+		fmt.Fprintln(os.Stderr, "\nA test removed its run directory without releasing the cached handle — whether the\n"+
+			"directory came from t.TempDir or from os.MkdirTemp. On Linux the removal succeeds and the\n"+
+			"test passes; on Windows it fails the cleanup. Release it with CloseUnder(dir) before the\n"+
+			"removal — which is what recordtest.TmpRun does in a t.Cleanup.")
 		if code == 0 {
 			code = 1
 		}

@@ -2506,7 +2506,15 @@ func TestFuzzHaltPath(t *testing.T) {
 		// directory, which turns a full TMPDIR into a failure that names anything but the disk.
 		t.Fatalf("temp dir for the run: %v", err)
 	}
-	defer os.RemoveAll(runDir)
+	// RELEASE, THEN REMOVE — in that order, and in one defer so the order is the order it reads
+	// in. Two defers express it backwards (LIFO), which is the same "the two lines matter in the
+	// opposite order to how they read" trap that has now been walked into eleven times. The sweep
+	// in runOne releases; these dedicated-path tests copied its MkdirTemp/RemoveAll shape without
+	// it, and on Linux the removal succeeds anyway so nothing said a word (#666).
+	defer func() {
+		_ = recordsql.CloseUnder(runDir)
+		_ = os.RemoveAll(runDir)
+	}()
 	r := newRunner(bin, runDir, newLockedRand(1))
 	r.forceHalt = true
 
@@ -3662,7 +3670,15 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 		// directory, which turns a full TMPDIR into a failure that names anything but the disk.
 		t.Fatalf("temp dir for the run: %v", err)
 	}
-	defer os.RemoveAll(runDir)
+	// RELEASE, THEN REMOVE — in that order, and in one defer so the order is the order it reads
+	// in. Two defers express it backwards (LIFO), which is the same "the two lines matter in the
+	// opposite order to how they read" trap that has now been walked into eleven times. The sweep
+	// in runOne releases; these dedicated-path tests copied its MkdirTemp/RemoveAll shape without
+	// it, and on Linux the removal succeeds anyway so nothing said a word (#666).
+	defer func() {
+		_ = recordsql.CloseUnder(runDir)
+		_ = os.RemoveAll(runDir)
+	}()
 	// THE SAME RUN THE SWEEP BUILDS, because driveDebate is only half of one. Without the seeded
 	// report a lens finding has no anchor quote to attach to and is refused, so red mints nothing
 	// and round 3 is a FAIL with an empty gaps array — the engine's degenerate-merge refusal,
