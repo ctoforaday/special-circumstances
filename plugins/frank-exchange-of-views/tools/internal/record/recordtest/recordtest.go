@@ -14,9 +14,11 @@
 package recordtest
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -148,4 +150,53 @@ func TmpRun(t *testing.T) string {
 	dir := t.TempDir()
 	t.Cleanup(func() { _ = recordsql.CloseUnder(dir) })
 	return dir
+}
+
+// Main is the TestMain for any package whose tests open a record. It runs the suite, then refuses
+// to exit clean while a cached database handle outlived the directory it lived in.
+//
+// WHY THIS EXISTS RATHER THAN ANOTHER COMMENT ON TmpRun. The helper's own doc already explained
+// the trap, at length, and the trap was walked into nine times anyway — because the person about
+// to make the mistake is not reading the helper. They are writing `t.TempDir()` in a new file,
+// which is the obviously correct thing to write and IS correct in most tests. Nothing connected
+// the two at the moment of writing, and the one platform that would object is the one nobody runs
+// locally: the tenth instance would have been found by a Windows CI leg, one push and one
+// round-trip later, exactly as the ninth was.
+//
+// So the check moved to where the mistake lands rather than where it is described. It measures
+// the leak itself — a cached handle whose file is gone — so it holds for a run directory obtained
+// any way at all, not just the spellings a source sweep would have known to look for.
+//
+// It runs AFTER m.Run, which is the only point where every test's cleanup has fired.
+func Main(m *testing.M) {
+	code := m.Run()
+	if err := CheckOrphanedHandles(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		if code == 0 {
+			code = 1
+		}
+	}
+	os.Exit(code)
+}
+
+// CheckOrphanedHandles reports cached record handles whose database file is gone.
+//
+// Separate from Main so a package with its own TestMain — one already sandboxing a build
+// directory, say — can run it as a post-suite hook without giving up the TestMain it has.
+func CheckOrphanedHandles() error {
+	orphans := recordsql.OrphanedHandles()
+	if len(orphans) == 0 {
+		return nil
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "recordtest: %d record handle(s) outlived the directory holding them:\n", len(orphans))
+	for _, p := range orphans {
+		fmt.Fprintf(&b, "  %s\n", p)
+	}
+	b.WriteString("\nEach path above is a database this process still holds open while the directory it lived\n" +
+		"in has already been removed. On Linux that removal SUCCEEDS and the test passes; on Windows\n" +
+		"it fails the test with `TempDir RemoveAll cleanup: ... being used by another process`.\n" +
+		"The test named in the path took its run directory from t.TempDir() without releasing the\n" +
+		"handle — use recordtest.TmpRun(t) instead, which is t.TempDir plus that release.")
+	return errors.New(b.String())
 }

@@ -74,7 +74,15 @@ import (
 // `go build ./...` exits 0.
 //
 // TestEveryPackageThatBuildsCleansUp fails a package that forgets to call this.
-func Main(m *testing.M) {
+// after are post-suite checks, run once every test's cleanup has fired and before the process
+// exits. A non-nil error is printed and fails the package.
+//
+// It is variadic because TestMain is a package's ONE hook and packages need more than one thing
+// from it: this package sandboxes a build directory, and a package that also opens records owes
+// recordtest.CheckOrphanedHandles. Without somewhere to put the second, a package had to choose,
+// and the one it dropped would be the one whose absence is silent. The hook is a func rather than
+// an import so testbuild stays ignorant of the record layer.
+func Main(m *testing.M, after ...func() error) {
 	restore, err := sandboxHome()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "testbuild:", err)
@@ -82,6 +90,14 @@ func Main(m *testing.M) {
 	}
 	code := m.Run()
 	restore()
+	for _, check := range after {
+		if err := check(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			if code == 0 {
+				code = 1
+			}
+		}
+	}
 	Cleanup()
 	os.Exit(code)
 }
