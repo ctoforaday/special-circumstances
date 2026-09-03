@@ -1,4 +1,4 @@
-package fuzz
+package surface
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
