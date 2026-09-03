@@ -155,6 +155,9 @@ stdout:
 closed R1-1 (repaired)
 
 ═══ EVENTS ═══
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"refetch","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"source moved","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-merge-r1","ts":1,"type":"EVENT_TYPE_MINT"}
+{"close":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"DISPOSITION_REPAIRED","gap_id":"R1-1","prose":"refetched; the source now resolves and supports the claim"},"key":"red-merge-r1:close:R1-1","round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_CLOSE"}
 
 ═══ RENDERS ═══
 -- debate

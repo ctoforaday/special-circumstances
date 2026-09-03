@@ -1,51 +1,18 @@
-$ merge petition --run {RUN} --seat-id red-merge-r1 --class safety --reason the design erodes a consent gate --relief halt and escalate
-exit 2
-stderr:
-feov-record: no command named "merge" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+$ register --run {RUN} --seat-id red-merge-r1
+exit 0
+stdout:
+registered red-merge-r1
 
-feov-record — the red merge seat — the board's only writer.
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-Usage:
-  feov-record [flags]
-  feov-record [command]
-
-Available Commands:
-  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
-  close           close a gap with the verification you did THIS round, naming what you checked it against
-  closing         your closing argument on one docketed gap, when the bench is about to rule on it
-  completion      Generate the autocompletion script for the specified shell
-  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
-  help            Help about any command
-  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
-  mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
-  position        your round narrative — the argument the other side answers, rendered as this round's RED section
-  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  regrade         move a grade on a gap that already exists, with the reason it moved
-  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
-  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
-
-Command groups — each holds commands THIS page does not list:
-  class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
-
-Flags:
-  -h, --help               help for feov-record
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
-  -v, --version            version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
+$ motion petition file --run {RUN} --seat-id red-merge-r1 --class safety --reason the design erodes a consent gate --relief halt and escalate
+exit 0
+stdout:
+motion M1 filed (petition)
 
 $ register --run {RUN} --seat-id judge-petition-red-merge-r1
 exit 0
@@ -58,49 +25,10 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ bench petition-rule --run {RUN} --seat-id judge-petition-red-merge-r1 --petitioner red-merge-r1 --class safety --as granted --reason the relief binds the coming seats
-exit 2
-stderr:
-feov-record: no command named "bench" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
-
-feov-record — the bench — opinions, halt, certification. Never originates.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
-
-Usage:
-  feov-record [flags]
-  feov-record [command]
-
-Available Commands:
-  assemble     assemble <run>/report.md from the record — blue's audited sections lifted verbatim, the rest composed from the event log; no inputs
-  certify      what a human should re-examine after the run ends — the bench keeps no memory between runs, so this is it
-  completion   Generate the autocompletion script for the specified shell
-  count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
-  declare      a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
-  fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction     a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
-  halt         stop the run at a safety or consent boundary, when continuing would itself be the harm
-  help         Help about any command
-  opinion      dispose of one contested gap with a written ruling — the bench's answer to a docketed item
-  outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
-  register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-
-Command groups — each holds commands THIS page does not list:
-  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
-
-Flags:
-  -h, --help               help for feov-record
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
-  -v, --version            version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
+$ motion petition rule --run {RUN} --seat-id judge-petition-red-merge-r1 --id M1 --as granted --binds both --reason the relief binds the coming seats
+exit 0
+stdout:
+motion M1 ruled granted
 
 $ halt --run {RUN} --seat-id judge-petition-red-merge-r1 --reason continuing would compromise the consent gate
 exit 0
@@ -108,10 +36,21 @@ stdout:
 JUDICIAL HALT recorded — capture relays this verbatim
 
 ═══ EVENTS ═══
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:motion:#1","motion":{"basis":"the design erodes a consent gate","motion_id":"M1","petition":{"class":"PETITION_CLASS_SAFETY"},"relief":"halt and escalate","subject":"MOTION_SUBJECT_PETITION"},"round":1,"seat_id":"red-merge-r1","ts":1,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge-petition-red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"judge-petition-red-merge-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"judge-petition-red-merge-r1:motion_rule:#1","motion_rule":{"binds":"RULING_BINDS_BOTH","motion_id":"M1","opinion":"the relief binds the coming seats","petition":"PETITION_RULING_GRANTED","subject":"MOTION_SUBJECT_PETITION"},"round":1,"seat_id":"judge-petition-red-merge-r1","ts":3,"type":"EVENT_TYPE_MOTION_RULE"}
+{"halt":{"opinion":"continuing would compromise the consent gate"},"key":"judge-petition-red-merge-r1:halt:#1","round":1,"seat_id":"judge-petition-red-merge-r1","ts":4,"type":"EVENT_TYPE_HALT"}
 
 ═══ RENDERS ═══
 -- debate
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
+
+## Round 1
+
+### LEAD
+- **PETITION GRANTED** — binds **both**
+the relief binds the coming seats
 
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
@@ -124,7 +63,7 @@ indistinguishable from one that never looked._
 ═══ REPORT ═══
 # _(blue/report.md has no title — not authored here)_
 
-**Report** · [Docket](docket.md) · [Debate](debate.md) · [Run](run.md)
+**Report** · [Docket](docket.md) · [Debate](debate.md) · [Judgments](judgments.md) · [Run](run.md)
 
 ---
 
@@ -136,7 +75,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 | tier | what answered | seats |
 |---|---|---|
-| judgment | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
+| judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
 
 ## Read this first
 

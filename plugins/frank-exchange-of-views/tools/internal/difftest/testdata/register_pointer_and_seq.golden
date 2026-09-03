@@ -36,6 +36,12 @@ stdout:
 finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
 ═══ EVENTS ═══
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-respond-r2:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"blue-respond-r2","ts":1,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-respond-r2:revision","revision":{"text":"first pass"},"round":2,"seat_id":"blue-respond-r2","ts":2,"type":"EVENT_TYPE_REVISION"}
+{"friction":{"text":"no PDF extraction"},"key":"blue-respond-r2:friction:#1","round":2,"seat_id":"blue-respond-r2","ts":3,"type":"EVENT_TYPE_FRICTION"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"L5-F1","likelihood":"GRADE_HIGH","location":"## S2","severity":"GRADE_MEDIUM","text":"unfounded leap"},"key":"red-lens-r1-L5:finding:L5-F1","round":1,"seat_id":"red-lens-r1-L5","ts":4,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-L5:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-L5","ts":5,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
 -- debate

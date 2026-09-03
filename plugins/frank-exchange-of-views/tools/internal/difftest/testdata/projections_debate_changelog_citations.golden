@@ -44,101 +44,10 @@ exit 0
 stdout:
 manifest row recorded for R1-1
 
-$ blue dispute --run {RUN} --seat-id blue-respond-r1 --id R1-1 --dimension likelihood --proposed low --reason the harm needs two failures
-exit 2
-stderr:
-feov-record: no command named "blue" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
-
-feov-record — blue seats — revisions, manifest rows, directions. No board verbs at all.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
-
-Usage:
-  feov-record [flags]
-  feov-record [command]
-
-Available Commands:
-  cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         your closing argument on one docketed gap, when the bench is about to rule on it
-  completion      Generate the autocompletion script for the specified shell
-  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  edit            change the report — the only path into report.md, and how every repair lands
-  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
-  help            Help about any command
-  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
-  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
-  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  retire          take a claim out of the report, when it cannot stand and no edit will save it
-  revision        the round record — what changed this round, once, after your edits have landed
-
-Command groups — each holds commands THIS page does not list:
-  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
-
-Flags:
-  -h, --help               help for feov-record
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
-  -v, --version            version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
-
-$ blue confidence --run {RUN} --seat-id blue-respond-r1 --quote C7 --confidence medium
-exit 2
-stderr:
-feov-record: no command named "blue" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
-
-feov-record — blue seats — revisions, manifest rows, directions. No board verbs at all.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
-
-Usage:
-  feov-record [flags]
-  feov-record [command]
-
-Available Commands:
-  cite            attach a source to a sentence, when a claim needs evidence a reader can follow to the leaf
-  claim-index     locate every site of each FOOTNOTED claim in your report (read-only)
-  closing         your closing argument on one docketed gap, when the bench is about to rule on it
-  completion      Generate the autocompletion script for the specified shell
-  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  edit            change the report — the only path into report.md, and how every repair lands
-  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
-  help            Help about any command
-  manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
-  position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
-  prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
-  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  retire          take a claim out of the report, when it cannot stand and no edit will save it
-  revision        the round record — what changed this round, once, after your edits have landed
-
-Command groups — each holds commands THIS page does not list:
-  line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
-
-Flags:
-  -h, --help               help for feov-record
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
-  -v, --version            version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
+$ motion grade file --run {RUN} --seat-id blue-respond-r1 --id R1-1 --dimension likelihood --proposed low --reason the harm needs two failures
+exit 0
+stdout:
+motion M1 filed (grade)
 
 $ verify --run {RUN} --seat-id red-lens-r1-L1 --quote throughput doubled --title https://example.invalid/paper --trust high --access-date 2026-07-18
 exit 2
@@ -211,6 +120,18 @@ stdout:
 certification recorded
 
 ═══ EVENTS ═══
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:position","position":{"text":"red's round position"},"round":1,"seat_id":"red-merge-r1","ts":1,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_MINT"}
+{"closing":{"gap_id":"R1-1","text":"red's closing"},"key":"red-merge-r1:closing:R1-1","round":1,"seat_id":"red-merge-r1","ts":3,"type":"EVENT_TYPE_CLOSING"}
+{"key":"blue-respond-r1:position","position":{"text":"blue's round position"},"round":1,"seat_id":"blue-respond-r1","ts":4,"type":"EVENT_TYPE_POSITION"}
+{"closing":{"gap_id":"R1-1","text":"blue's closing"},"key":"blue-respond-r1:closing:R1-1","round":1,"seat_id":"blue-respond-r1","ts":5,"type":"EVENT_TYPE_CLOSING"}
+{"key":"blue-respond-r1:revision","revision":{"text":"repairs landed"},"round":1,"seat_id":"blue-respond-r1","ts":6,"type":"EVENT_TYPE_REVISION"}
+{"key":"blue-respond-r1:manifest_row:R1-1","manifest_row":{"gap_id":"R1-1","row":"figures recomputed; check run: pass"},"round":1,"seat_id":"blue-respond-r1","ts":7,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond-r1:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"R1-1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":1,"seat_id":"blue-respond-r1","ts":8,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"judge-r1","ts":9,"type":"EVENT_TYPE_REGISTER"}
+{"key":"judge-r1:opinion:R1-1","opinion":{"disposition":"DISPOSITION_CARRIED","final":true,"gap_id":"R1-1","principle":"correctness over economy","rationale":"the rationale body","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"round":1,"seat_id":"judge-r1","ts":10,"type":"EVENT_TYPE_OPINION"}
+{"certify":{"statement":"what a human should re-examine"},"key":"judge-r1:certify:#1","round":1,"seat_id":"judge-r1","ts":11,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══
 -- debate
@@ -245,7 +166,7 @@ indistinguishable from one that never looked._
 ═══ REPORT ═══
 # _(blue/report.md has no title — not authored here)_
 
-**Report** · [Docket](docket.md) · [Debate](debate.md) · [Run](run.md) · [Changelog](CHANGELOG.md)
+**Report** · [Docket](docket.md) · [Debate](debate.md) · [Judgments](judgments.md) · [Run](run.md) · [Changelog](CHANGELOG.md)
 
 ---
 
