@@ -3,6 +3,7 @@ package recordsql
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -17,7 +18,7 @@ import (
 // clean up after themselves — a test of the leak detector that leaks would trip this package's own
 // TestMain, which would be a funny way to find out.
 
-func TestOrphanedHandlesReportsADatabaseWhoseDirectoryIsGone(t *testing.T) {
+func TestOrphanedHandlesReportsADatabaseWhoseFileIsGone(t *testing.T) {
 	dir := t.TempDir()
 	inner := filepath.Join(dir, "run", "records")
 	if err := os.MkdirAll(inner, 0o755); err != nil {
@@ -41,8 +42,24 @@ func TestOrphanedHandlesReportsADatabaseWhoseDirectoryIsGone(t *testing.T) {
 		}
 	}
 
-	// This is the Linux half of the trap, performed deliberately: removing a directory out from
-	// under an open handle SUCCEEDS, and nothing about the removal complains.
+	// THE OS HANDLE IS DROPPED FIRST, AND THE CACHE ENTRY IS LEFT BEHIND. That is exactly the
+	// state OrphanedHandles reports — a cached path with no file — and constructing it this way
+	// is the only way to construct it on BOTH platforms.
+	//
+	// The first draft of this test removed the directory out from under a LIVE handle, which is a
+	// POSIX manoeuvre. Windows refuses it, and refusing it is the entire defect this gate exists
+	// for — so that test could only ever run where the defect is silent, and the Windows leg
+	// failed it with the very message the gate is about. A test of a cross-platform detector must
+	// not be built out of the one operation the platforms disagree on.
+	openMu.Lock()
+	db := openCache[abs]
+	openMu.Unlock()
+	if db == nil {
+		t.Fatalf("Open did not cache a handle for %s", abs)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("closing the handle: %v", err)
+	}
 	if err := os.RemoveAll(filepath.Join(dir, "run")); err != nil {
 		t.Fatalf("removing the run directory: %v", err)
 	}
@@ -54,7 +71,51 @@ func TestOrphanedHandlesReportsADatabaseWhoseDirectoryIsGone(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatalf("OrphanedHandles did not report %s after its directory was removed; it reported %v", abs, OrphanedHandles())
+		t.Fatalf("OrphanedHandles did not report %s after its file was removed; it reported %v", abs, OrphanedHandles())
+	}
+}
+
+// THE PLATFORM DIFFERENCE ITSELF, asserted rather than assumed.
+//
+// The whole gate rests on it and it is stated in comments across three packages with nothing
+// checking it: on Linux an open file can be unlinked, so the removal SUCCEEDS, the test passes,
+// and the leak is invisible; on Windows the same removal FAILS, which is why every one of the
+// eleven instances was caught there, a push and a CI round-trip after it was written.
+//
+// It SKIPS on Windows rather than asserting the failure text — the message belongs to the OS and
+// pinning it would be pinning someone else's wording. What is asserted is the half the gate needs:
+// where the removal succeeds, the cache is left holding a path with no file behind it.
+func TestUnlinkingAnOpenDatabaseIsHowTheLeakGoesUnnoticed(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows refuses to remove a directory holding an open file — this test performs the manoeuvre that platform makes impossible, which is precisely why the leak is invisible on Linux and fatal here")
+	}
+	dir := t.TempDir()
+	inner := filepath.Join(dir, "run", "records")
+	if err := os.MkdirAll(inner, 0o755); err != nil {
+		t.Fatalf("making the run: %v", err)
+	}
+	path := filepath.Join(inner, "record.db")
+	if _, err := Open(path); err != nil {
+		t.Fatalf("opening: %v", err)
+	}
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		t.Fatalf("resolving: %v", err)
+	}
+	t.Cleanup(func() { _ = CloseUnder(dir) })
+
+	// The handle stays OPEN across this removal. That is the whole experiment.
+	if err := os.RemoveAll(filepath.Join(dir, "run")); err != nil {
+		t.Fatalf("removing a directory holding an open database failed on %s, which this gate's whole design assumes it does not: %v", runtime.GOOS, err)
+	}
+	var found bool
+	for _, p := range OrphanedHandles() {
+		if p == abs {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("the database was unlinked while open and OrphanedHandles did not report %s; it reported %v", abs, OrphanedHandles())
 	}
 }
 

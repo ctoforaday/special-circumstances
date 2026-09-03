@@ -165,7 +165,13 @@ func CloseUnder(dir string) error {
 // itself, so there is no pattern to evade and no exemption list to keep.
 //
 // Reported paths name the test that leaked them: `t.TempDir` builds its directory out of the
-// test's own name, so the path IS the attribution.
+// test's own name, so the path IS the attribution. A directory the test made itself
+// (`os.MkdirTemp`) gives only its prefix, which is where both of the first two catches came from.
+//
+// IT REPORTS NOTHING ON WINDOWS, AND THAT IS NOT A HOLE. This is the LINUX-SIDE instrument for a
+// defect Windows already refuses natively: there the removal fails and takes the test with it, so
+// there is no orphan to find. The point is to fail on the platform the author is actually running,
+// rather than a push and a CI round-trip later.
 func OrphanedHandles() []string {
 	openMu.Lock()
 	defer openMu.Unlock()
