@@ -41,8 +41,8 @@ import (
 // DROPPING the timestamp instead would also make the comparison pass, and would stop it
 // noticing a REORDER — the one failure this schema exists to catch. Ranking keeps order
 // under test while letting the absolute clock differ, which is the only part that may.
-// rankTimestamps replaces each event's clock with its POSITION in the canonical
-// (TS, SeatID, Seq) order, via the same eventRanks the goldens use.
+// rankTimestamps replaces each event's clock with its POSITION in the record's own order,
+// which is the order recordsql returns.
 //
 // It ranked DISTINCT CLOCK VALUES until CI caught it: two events landing inside one clock
 // tick leave one fewer distinct instant, every later rank shifts, and two runs of the same
@@ -50,22 +50,17 @@ import (
 // non-deterministic — the exact property it exists to assert, broken in its own harness.
 // Position in the merge order is stable however coarse the clock is, and a genuine
 // reordering still shows up as a diff.
-func rankTimestamps(m map[string][]map[string]any) map[string][]map[string]any {
-	rank := eventRanks(m)
-	out := make(map[string][]map[string]any, len(m))
-	for k, evs := range m {
-		cp := make([]map[string]any, len(evs))
-		for i, ev := range evs {
-			c := make(map[string]any, len(ev))
-			for key, v := range ev {
-				c[key] = v
-			}
-			if _, ok := c["ts"]; ok {
-				c["ts"] = rank[fmt.Sprintf("%s#%v", k, ev["seq"])]
-			}
-			cp[i] = c
+func rankTimestamps(evs []map[string]any) []map[string]any {
+	out := make([]map[string]any, len(evs))
+	for i, ev := range evs {
+		c := make(map[string]any, len(ev))
+		for key, v := range ev {
+			c[key] = v
 		}
-		out[k] = cp
+		if _, ok := c["ts"]; ok {
+			c["ts"] = i
+		}
+		out[i] = c
 	}
 	return out
 }
@@ -105,7 +100,7 @@ func TestReplayDeterminism(t *testing.T) {
 }
 
 type replayResult struct {
-	events map[string][]map[string]any
+	events []map[string]any
 	output []string
 }
 

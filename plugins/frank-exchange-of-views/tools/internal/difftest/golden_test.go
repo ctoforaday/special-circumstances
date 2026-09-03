@@ -6,7 +6,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
@@ -43,56 +42,6 @@ import (
 // reaches every suite in the repo, Go and mjs alike. scripts/golden.mjs relies
 // on that.
 var update = os.Getenv("UPDATE_GOLDENS") == "1"
-
-// eventRanks maps each event to its position in the canonical merge order, counting from
-// zero, keyed by the event's identity (shard file + seq).
-//
-// RANKED BY POSITION, NOT BY DISTINCT TIMESTAMP. The first version ranked the set of
-// distinct clock values, which was reproducible on one machine and NOT on another: when
-// two events land inside the same clock tick there is one fewer distinct instant, so every
-// later rank shifts by one and the whole golden moves. CI found it immediately — `ts:9`
-// locally against `ts:8` on the runner — and the cause was speed, not semantics. Ranking
-// distinct instants fixed the machine-PATH dependence these goldens used to have and left
-// a machine-SPEED dependence in its place.
-//
-// The canonical order is (TS, SeatID, Seq), the same key BoardState replays by. Ranking
-// position in THAT order is stable no matter how coarse the clock is: events sharing a
-// tick are separated by seat and sequence, deterministically. A real reordering still
-// changes the golden, which is the property this field was added to protect after
-// replay-by-filename silently dropped the bench's closures.
-func eventRanks(events map[string][]map[string]any) map[string]int {
-	type ref struct {
-		ts, seat string
-		seq      float64
-		id       string
-	}
-	var all []ref
-	for name, evs := range events {
-		for _, ev := range evs {
-			r := ref{id: name}
-			r.ts, _ = ev["ts"].(string)
-			r.seat, _ = ev["seatId"].(string)
-			r.seq, _ = ev["seq"].(float64)
-			r.id = fmt.Sprintf("%s#%v", name, ev["seq"])
-			all = append(all, r)
-		}
-	}
-	sort.Slice(all, func(i, j int) bool {
-		a, b := all[i], all[j]
-		if a.ts != b.ts {
-			return a.ts < b.ts
-		}
-		if a.seat != b.seat {
-			return a.seat < b.seat
-		}
-		return a.seq < b.seq
-	})
-	rank := make(map[string]int, len(all))
-	for i, r := range all {
-		rank[r.id] = i
-	}
-	return rank
-}
 
 func TestGolden(t *testing.T) {
 	bin := buildBinary(t)
@@ -150,19 +99,20 @@ func TestGolden(t *testing.T) {
 			//
 			// Normalized here rather than faked in the binary: a production code path
 			// whose only purpose is to lie about the clock is the worse trade.
-			rank := eventRanks(st.events)
-
+			// THE CLOCK IS REPLACED BY POSITION, and position now comes from the record rather
+			// than from a sort this harness performs. The events arrive in `events.id` order —
+			// one sequence the store assigns at the write — so ranking them is reading them.
+			// The old key was (TS, SeatID, Seq) across shard files, and it had to be
+			// reconstructed because a run's events lived in several files that each knew only
+			// their own order.
 			transcript.WriteString("═══ EVENTS ═══\n")
-			for _, name := range sortedKeys(st.events) {
-				fmt.Fprintf(&transcript, "-- %s\n", name)
-				for _, ev := range st.events[name] {
-					if _, ok := ev["ts"]; ok {
-						ev["ts"] = rank[fmt.Sprintf("%s#%v", name, ev["seq"])]
-					}
-					b, _ := json.Marshal(ev)
-					transcript.Write(b)
-					transcript.WriteString("\n")
+			for i, ev := range st.events {
+				if _, ok := ev["ts"]; ok {
+					ev["ts"] = i
 				}
+				b, _ := json.Marshal(ev)
+				transcript.Write(b)
+				transcript.WriteString("\n")
 			}
 
 			// RENDERS: the markdown projections, pulled through the SAME path a seat uses —
@@ -249,15 +199,6 @@ func compareGolden(t *testing.T, name, got string) {
 		t.Errorf("%s differs from its golden (-want +got).\nIf this change is INTENTIONAL, regenerate with UPDATE_GOLDENS=1 go test ./internal/difftest and justify the diff in the commit.\n%s",
 			name, diff)
 	}
-}
-
-func sortedKeys[V any](m map[string]V) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
 }
 
 // goldenClasses is the vocabulary the scenarios mint under. It deliberately EXCLUDES the slugs
