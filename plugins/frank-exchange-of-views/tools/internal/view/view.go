@@ -221,13 +221,21 @@ func MarkdownViews() []string {
 // Byte-identical to what render.go formerly wrote to disk.
 // scope narrows a view that supports it (today: `changes`, by gap id). "" is unscoped.
 func Markdown(run record.Run, name, scope string) ([]byte, error) {
-	render, ok := markdownViews[name]
-	if !ok {
-		return nil, fmt.Errorf("unknown markdown view %q (have: %s)", name, strings.Join(MarkdownViews(), ", "))
-	}
 	b, err := record.BoardState(run)
 	if err != nil {
 		return nil, err
+	}
+	return MarkdownFrom(b, name, scope)
+}
+
+// MarkdownFrom renders one markdown projection from a board already folded. A caller rendering
+// several views of the same state folds once and passes it here — every extra Markdown call is
+// another full replay of the record, which is the whole render price paid again for bytes the
+// caller already had.
+func MarkdownFrom(b *record.Board, name, scope string) ([]byte, error) {
+	render, ok := markdownViews[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown markdown view %q (have: %s)", name, strings.Join(MarkdownViews(), ", "))
 	}
 	return render(b, scope)
 }
