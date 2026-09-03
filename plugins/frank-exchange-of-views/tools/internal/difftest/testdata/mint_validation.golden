@@ -231,6 +231,8 @@ stdout:
 minted R1-1
 
 ═══ EVENTS ═══
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"grep the sites","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"complexity_cost":"GRADE_LOW","fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"a real one","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-merge-r1","ts":1,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
 -- debate

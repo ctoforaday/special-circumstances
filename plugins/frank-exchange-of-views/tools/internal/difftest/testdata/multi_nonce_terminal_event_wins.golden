@@ -36,6 +36,11 @@ stdout:
 verdict FAIL (2 open, 0 closed) and checkpointed to {MIRROR}
 
 ═══ EVENTS ═══
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"from the stale dispatch","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-merge-r1","ts":1,"type":"EVENT_TYPE_MINT"}
+{"key":"red-merge-r1:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:mint:R1-2","mint":{"acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-2","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"from the live dispatch","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-merge-r1","ts":3,"type":"EVENT_TYPE_MINT"}
+{"key":"red-merge-r1:verdict","round":1,"seat_id":"red-merge-r1","ts":4,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 
 ═══ RENDERS ═══
 -- debate

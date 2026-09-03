@@ -110,6 +110,7 @@ Global Flags:
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 ═══ EVENTS ═══
+{"key":"judge-r2:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"judge-r2","ts":0,"type":"EVENT_TYPE_REGISTER"}
 
 ═══ RENDERS ═══
 -- debate

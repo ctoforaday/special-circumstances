@@ -40,56 +40,36 @@ exit 2
 stderr:
 feov-record: merge: record: spot-check --ids names gap R1-1, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it
 
-$ merge dispute-respond --run {RUN} --seat-id red-merge-r2 --id R1-1 --as rejected --reason the consequence stands
-exit 2
-stderr:
-feov-record: no command named "merge" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
+$ register --run {RUN} --seat-id blue-respond-r2
+exit 0
+stdout:
+registered blue-respond-r2
 
-feov-record — the red merge seat — the board's only writer.
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-Usage:
-  feov-record [flags]
-  feov-record [command]
+$ motion grade file --run {RUN} --seat-id blue-respond-r2 --id R1-1 --dimension likelihood --proposed high --reason the second failure is not required
+exit 0
+stdout:
+motion M1 filed (grade)
 
-Available Commands:
-  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
-  close           close a gap with the verification you did THIS round, naming what you checked it against
-  closing         your closing argument on one docketed gap, when the bench is about to rule on it
-  completion      Generate the autocompletion script for the specified shell
-  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
-  help            Help about any command
-  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
-  mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
-  position        your round narrative — the argument the other side answers, rendered as this round's RED section
-  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  regrade         move a grade on a gap that already exists, with the reason it moved
-  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
-  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
-
-Command groups — each holds commands THIS page does not list:
-  class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
-
-Flags:
-  -h, --help               help for feov-record
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
-  -v, --version            version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
+$ motion grade rule --run {RUN} --seat-id red-merge-r2 --id M1 --as rejected --reason the consequence stands
+exit 0
+stdout:
+motion M1 ruled rejected
 
 ═══ EVENTS ═══
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 first","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-merge-r1","ts":1,"type":"EVENT_TYPE_MINT"}
+{"key":"red-merge-r1:mint:R1-2","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"R1-2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 second","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_MINT"}
+{"key":"red-merge-r2:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"red-merge-r2","ts":3,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r2:mint:R2-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"R2-1","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r2 first","required_fix":"","severity":"GRADE_LOW"},"round":2,"seat_id":"red-merge-r2","ts":4,"type":"EVENT_TYPE_MINT"}
+{"key":"blue-respond-r2:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"blue-respond-r2","ts":5,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-respond-r2:motion:#1","motion":{"basis":"the second failure is not required","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"R1-1","proposed":"GRADE_HIGH"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":2,"seat_id":"blue-respond-r2","ts":6,"type":"EVENT_TYPE_MOTION"}
+{"key":"red-merge-r2:motion_rule:#1","motion_rule":{"grade":"GRADE_RULING_REJECTED","motion_id":"M1","opinion":"the consequence stands","subject":"MOTION_SUBJECT_GRADE"},"round":2,"seat_id":"red-merge-r2","ts":7,"type":"EVENT_TYPE_MOTION_RULE"}
 
 ═══ RENDERS ═══
 -- debate
@@ -106,7 +86,7 @@ indistinguishable from one that never looked._
 ═══ REPORT ═══
 # _(blue/report.md has no title — not authored here)_
 
-**Report** · [Docket](docket.md) · [Debate](debate.md) · [Run](run.md)
+**Report** · [Docket](docket.md) · [Debate](debate.md) · [Judgments](judgments.md) · [Run](run.md)
 
 ---
 
@@ -118,6 +98,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 | tier | what answered | seats |
 |---|---|---|
+| bulk | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
 | judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
 
 ## Read this first

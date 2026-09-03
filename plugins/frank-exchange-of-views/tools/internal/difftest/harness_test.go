@@ -32,7 +32,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // cmd is one CLI invocation. Role selects the seat contract; the Go side takes it
@@ -203,48 +205,72 @@ func sortNonceLists(s string) string {
 	})
 }
 
-// collect reads the comparable state of a run dir: shard events (parsed) keyed by
-// normalized filename, plus the active-pointer files. Projections are no longer
-// materialized to disk — they derive on read — so there is nothing to snapshot.
+// collect reads the comparable state of a run: the record's events, in the order the record
+// itself keeps them.
+//
+// IT READS THE RECORD, NOT THE DIRECTORY. This used to walk `records/` for
+// `events-<seat>-<nonce>.jsonl` shards and parse each line as JSON. The store stopped writing that
+// shape when the record became one SQLite database, so the walk found nothing, and EVERY golden's
+// EVENTS section has been empty since — while the determinism fuzz compared two empty maps and
+// called the record reproducible. Both read as green. It is the plausible zero this harness exists
+// to catch, reproduced inside the harness: "no events" in exactly the words a run that recorded
+// none would produce.
+//
+// The active-pointer half went the same way and is not restored: `.active-<seat>` was the
+// shard-era register pointer, nothing writes one now, and nothing ever read the field this
+// function filled with them.
 type state struct {
-	events  map[string][]map[string]any
-	pointer map[string]string
+	events []map[string]any
+}
+
+// toolVersionField matches the build stamp a register event carries.
+//
+// SAME REASON AS revisionLine, one layer in: the stamp is a build id, so pinning it verbatim makes
+// a golden that differs on every commit — and a golden that always differs teaches people to
+// regenerate without reading. What these goldens assert is that a register event RECORDS which
+// build wrote it, not which build that was.
+var toolVersionField = regexp.MustCompile(`"tool_version":"[^"]*"`)
+
+func scrubToolVersion(s string) string {
+	// REVISION, not <revision>: encoding/json escapes angle brackets, so the version line's
+	// placeholder spelling would land in the golden as "\u003crevision\u003e" — unreadable in
+	// exactly the diff a reviewer is meant to read. All-caps matches this harness's other
+	// placeholders (NONCE001, FINDING001).
+	return toolVersionField.ReplaceAllString(s, `"tool_version":"REVISION"`)
 }
 
 func collect(t *testing.T, runDir string, m *nonceMapper) state {
 	t.Helper()
-	recs := filepath.Join(runDir, "records")
-	st := state{events: map[string][]map[string]any{}, pointer: map[string]string{}}
-	entries, err := os.ReadDir(recs)
-	if err != nil {
-		return st
+	dbPath := filepath.Join(runDir, "records", "record.db")
+	if _, err := os.Stat(dbPath); err != nil {
+		// A scenario that never reaches the record — pure help, a refused flag — has none to read,
+		// and that is a real state rather than a failure.
+		return state{}
 	}
-	for _, e := range entries {
-		name := e.Name()
-		switch {
-		case strings.HasPrefix(name, ".lock-"), strings.Contains(name, ".tmp-"):
-			continue // policy 5
-		case strings.HasPrefix(name, ".active-"):
-			b, _ := os.ReadFile(filepath.Join(recs, name))
-			st.pointer[name] = m.normalize(string(b))
-		case shardRe.MatchString(name):
-			b, _ := os.ReadFile(filepath.Join(recs, name))
-			var evs []map[string]any
-			for _, line := range strings.Split(m.normalize(string(b)), "\n") {
-				if strings.TrimSpace(line) == "" {
-					continue
-				}
-				var ev map[string]any
-				if err := json.Unmarshal([]byte(line), &ev); err != nil {
-					// A deliberately torn line is part of the fixture, not a failure:
-					// record it verbatim so both sides must tear identically.
-					evs = append(evs, map[string]any{"__unparseable": line})
-					continue
-				}
-				evs = append(evs, ev)
-			}
-			st.events[m.normalize(name)] = evs
+	db, err := recordsql.Open(dbPath)
+	if err != nil {
+		t.Fatalf("difftest: opening the record: %v", err)
+	}
+	defer func() { _ = recordsql.Close(dbPath) }()
+	evs, err := recordsql.Events(db)
+	if err != nil {
+		t.Fatalf("difftest: reading the record: %v", err)
+	}
+	st := state{}
+	for _, ev := range evs {
+		// protojson renders the event FOR A HUMAN READING A DIFF, and the map round-trip below
+		// re-encodes it — so protojson's build-unstable inter-field whitespace never reaches a
+		// golden. This is a transcript, not the record: the encoding argument the record settled
+		// for itself is not reopened by how a test prints one.
+		b, err := (protojson.MarshalOptions{UseProtoNames: true}).Marshal(ev)
+		if err != nil {
+			t.Fatalf("difftest: rendering event %s: %v", ev.GetKey(), err)
 		}
+		var one map[string]any
+		if err := json.Unmarshal([]byte(scrubToolVersion(m.normalize(string(b)))), &one); err != nil {
+			t.Fatalf("difftest: re-reading rendered event %s: %v", ev.GetKey(), err)
+		}
+		st.events = append(st.events, one)
 	}
 	return st
 }

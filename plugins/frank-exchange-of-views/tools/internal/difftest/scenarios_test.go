@@ -170,9 +170,8 @@ func scenarios() []scenario {
 				base("closing", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1", "--reason", "blue's closing"),
 				base("revision", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--reason", "repairs landed"),
 				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1", "--reason", "figures recomputed; check run: pass"),
-				base("blue", "dispute", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1",
+				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1",
 					"--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"),
-				base("blue", "confidence", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--quote", "C7", "--confidence", "medium"),
 				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--quote", "throughput doubled",
 					"--title", "https://example.invalid/paper", "--trust", "high", "--access-date", "2026-07-18"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge-r1"),
@@ -183,13 +182,14 @@ func scenarios() []scenario {
 			},
 		},
 		{
-			name: "bench_petitions_and_halt", // oracle: W2c verbs
+			name: "bench_petitions_and_halt", // oracle: W2c verbs, filed and ruled as motions
 			cmds: []cmd{
-				base("merge", "petition", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "safety",
+				base("register", "--run", "{RUN}", "--seat-id", "red-merge-r1"),
+				base("motion", "petition", "file", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "safety",
 					"--reason", "the design erodes a consent gate", "--relief", "halt and escalate"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge-petition-red-merge-r1"),
-				base("bench", "petition-rule", "--run", "{RUN}", "--seat-id", "judge-petition-red-merge-r1", "--petitioner", "red-merge-r1",
-					"--class", "safety", "--as", "granted", "--reason", "the relief binds the coming seats"),
+				base("motion", "petition", "rule", "--run", "{RUN}", "--seat-id", "judge-petition-red-merge-r1", "--id", "M1",
+					"--as", "granted", "--binds", "both", "--reason", "the relief binds the coming seats"),
 				base("halt", "--run", "{RUN}", "--seat-id", "judge-petition-red-merge-r1", "--reason", "continuing would compromise the consent gate"),
 			},
 		},
@@ -224,7 +224,7 @@ func scenarios() []scenario {
 			},
 		},
 		{
-			name: "sequential_ids_across_rounds", // oracle: mintGapId is sequential per round
+			name: "sequential_ids_across_rounds", // oracle: gap ids restart per round, motion ids do not
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-merge-r1"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "a", "--check-kind", "document", "--check", "x",
@@ -235,7 +235,10 @@ func scenarios() []scenario {
 				base("mint", "--run", "{RUN}", "--seat-id", "red-merge-r2", "--class", "a", "--check-kind", "document", "--check", "x",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "r2 first"),
 				base("spot-check", "--run", "{RUN}", "--seat-id", "red-merge-r2", "--ids", "R1-1, R1-2", "--reason", "both re-read"),
-				base("merge", "dispute-respond", "--run", "{RUN}", "--seat-id", "red-merge-r2", "--id", "R1-1", "--as", "rejected",
+				base("register", "--run", "{RUN}", "--seat-id", "blue-respond-r2"),
+				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond-r2", "--id", "R1-1",
+					"--dimension", "likelihood", "--proposed", "high", "--reason", "the second failure is not required"),
+				base("motion", "grade", "rule", "--run", "{RUN}", "--seat-id", "red-merge-r2", "--id", "M1", "--as", "rejected",
 					"--reason", "the consequence stands"),
 			},
 		},
