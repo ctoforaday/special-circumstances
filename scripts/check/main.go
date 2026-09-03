@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/scripts/internal/gitx"
+	"github.com/ctoforaday/special-circumstances/scripts/internal/goldenmods"
 )
 
 // result is one gate's outcome. SKIPPED is its own state, never folded into PASS: a run that
@@ -72,10 +73,52 @@ func main() {
 	}
 
 	var results []result
-	for _, g := range selected {
+	for _, g := range subsumeGoldenLegs(selected) {
 		results = append(results, runGate(root, g, *base))
 	}
 	os.Exit(report(results))
+}
+
+// subsumeGoldenLegs tells the golden gate which of its go legs THIS run already executes.
+//
+// golden's go leg per module is `go test -count=1 ./...` — byte-for-byte the module's `:test`
+// gate — so a check run that includes both runs the same suite twice, sequentially: ~620s of a
+// ~1550s local run re-deriving a result the run already has (#626). The subsumption is only
+// claimed when the module's test gate is actually in the selected set (an `-only golden` run
+// still drives the leg itself), and golden REPORTS the leg as subsumed rather than dropping it —
+// a leg that vanishes from the output is indistinguishable from one that passed. The module list
+// is internal/goldenmods, the one record both tools read; if the lists lived apart, this would
+// be a hope about two files agreeing.
+func subsumeGoldenLegs(selected []gate) []gate {
+	testGateOf := map[string]string{}
+	for _, m := range modules {
+		testGateOf[m.dir] = m.ciJob + ":test"
+	}
+	present := map[string]bool{}
+	for _, g := range selected {
+		if g.skip == "" {
+			present[g.id] = true
+		}
+	}
+	var pairs []string
+	for _, mod := range goldenmods.Modules {
+		if id := testGateOf[mod]; id != "" && present[id] {
+			pairs = append(pairs, mod+"="+id)
+		}
+	}
+	if len(pairs) == 0 {
+		return selected
+	}
+	out := make([]gate, len(selected))
+	copy(out, selected)
+	for i, g := range out {
+		if g.id == "golden" && g.skip == "" {
+			args := make([]string, len(g.args), len(g.args)+1)
+			copy(args, g.args)
+			out[i].args = append(args, "-subsume="+strings.Join(pairs, ","))
+		}
+	}
+	return out
 }
 
 func selectGates(gs []gate, only string) []gate {

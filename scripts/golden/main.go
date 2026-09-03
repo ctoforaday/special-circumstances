@@ -62,6 +62,7 @@ import (
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/scripts/internal/gitx"
+	"github.com/ctoforaday/special-circumstances/scripts/internal/goldenmods"
 )
 
 // mjsSuites are the .mjs suites that carry goldens. Enumerated, never globbed: `node
@@ -71,10 +72,16 @@ var mjsSuites = []string{
 	"plugins/frank-exchange-of-views/tests/simulator/prompts.test.mjs",
 }
 
-// goModules are the Go modules whose suites carry goldens.
-var goModules = []string{
-	"plugins/frank-exchange-of-views/tools",
-}
+// goModules are the Go modules whose suites carry goldens. The list itself lives in
+// internal/goldenmods so `check` reads the same record when deciding what its own test
+// gates subsume (#626); this var stays swappable for the tests that fake a module.
+var goModules = goldenmods.Modules
+
+// subsumed maps a module dir to the check gate that already ran its exact go leg in the
+// same invocation. Set only by -subsume on a plain verify run; a subsumed leg is REPORTED,
+// never silently absent — a leg that vanishes from the output is indistinguishable from
+// one that passed.
+var subsumed = map[string]string{}
 
 // runLegs drives every golden-carrying suite in both languages and reports whether any
 // failed. Extracted so -review can run the SAME legs twice — once to verify, once to
@@ -110,6 +117,13 @@ func runLegs(root string, update bool) bool {
 
 	// ---- go ----
 	for _, mod := range goModules {
+		// A SUBSUMED LEG IS STATED, NOT SKIPPED SILENTLY. check passes -subsume only for a
+		// module whose `:test` gate runs this exact command in the same invocation (#626) —
+		// and never on an update run, where the gate does not record.
+		if by, ok := subsumed[mod]; ok && !update {
+			fmt.Printf("\n── go goldens in %s: not re-run — %s runs `go test -count=1 ./...` here in this same check\n", mod, by)
+			continue
+		}
 		// -count=1 defeats Go's TEST CACHE. Without it an update run can be satisfied
 		// from cache — the leg reports ok, writes nothing, and the goldens on disk stay
 		// stale while the command says "recorded". That happened: CI, which has no cache,
@@ -149,6 +163,7 @@ func main() {
 	accept := flag.String("accept", "", "with -review: comma-separated goldens to keep (bare filename is enough); everything else is reverted")
 	acceptAll := flag.Bool("accept-all", false, "with -review: keep every proposal; requires -reason")
 	reason := flag.String("reason", "", "with -accept-all: why this whole batch is a deliberate contract change")
+	subsume := flag.String("subsume", "", "comma-separated module=gate pairs whose go leg the named gate already ran in this same check invocation (passed by scripts/check, #626)")
 	flag.Parse()
 
 	root, err := gitx.Root()
@@ -157,6 +172,13 @@ func main() {
 		os.Exit(1)
 	}
 	watchSignals()
+
+	// Verify runs only. An update or review run must drive every leg itself — the gate that
+	// "already ran this" ran it without UPDATE_GOLDENS, so it recorded nothing.
+	if *subsume != "" && (*update || *review) {
+		fmt.Fprintln(os.Stderr, "golden: -subsume is a verify-run optimization; -update and -review must drive every leg themselves.")
+		os.Exit(2)
+	}
 
 	if *review {
 		if *update {
@@ -168,6 +190,16 @@ func main() {
 	if *accept != "" || *acceptAll || *reason != "" {
 		fmt.Fprintln(os.Stderr, "golden: -accept/-accept-all/-reason only mean anything with -review; without it nothing would be reviewed before being accepted.")
 		os.Exit(2)
+	}
+	if *subsume != "" {
+		for _, pair := range strings.Split(*subsume, ",") {
+			mod, by, ok := strings.Cut(strings.TrimSpace(pair), "=")
+			if !ok || mod == "" || by == "" {
+				fmt.Fprintf(os.Stderr, "golden: -subsume %q — want module=gate pairs\n", pair)
+				os.Exit(2)
+			}
+			subsumed[mod] = by
+		}
 	}
 
 	failed := runLegs(root, *update)
