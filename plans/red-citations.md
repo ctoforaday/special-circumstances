@@ -157,9 +157,28 @@ All paths absolute; `export PATH=$PATH:/usr/local/go/bin`; `GOTOOLCHAIN=go1.25.0
    commit that regenerates it.
 6. `cd tests/simulator && node --test` → 93+ pass, 0 fail.
 7. Still owed from the parent plan: `cd scripts && go run ./mutate` — attempted 2026-08-22 and
-   INTERRUPTED before producing results (it restored `record.go` cleanly). Not yet run.
-   **UNVERIFIED (2026-09-02):** a mutate sweep leaves no repo artifact; nothing shows it has
-   run since — settling this needs a run record or a fresh sweep.
+   INTERRUPTED before producing results (it restored `record.go` cleanly).
+   **RUN 2026-09-03, PARTLY. The result is a split, not a number.**
+   - `-filter internal/claimcount` → 1 survivor / 2 behavioural. EXPLAINED and benign:
+     `j >= 0` → `j > 0` on a `strings.Index` result, where a `-->` closer at index 0 cannot
+     occur because content precedes it. Equivalent mutant.
+   - `-filter internal/anchor` → 19 survivors / 21 behavioural. **This is a test-coverage
+     finding, not a weak-assertion one, and the number would mislead without its cause:**
+     the package holds only `window_test.go`, so `anchor.go` — which places the citation and
+     finding anchors, 13 of the 19 survivors — has NO package-local test at all. The narrow
+     stage runs a mutant against its own package only, so what survived is what nothing in
+     `internal/anchor` tests; `internal/record` and `internal/cli` exercise it from outside.
+     `-confirm` would settle which, at ~8 minutes per survivor (~2.5 hours here) — not paid.
+     **The gap is real either way: anchor.go's own package asserts nothing about it.**
+   - `internal/record` (`citationid.go`, `refs.go`) — **NOT SWEEPABLE at acceptable cost, and
+     this is the tool's own documented failure mode rather than a thing still owed.** A 50-minute
+     run produced ZERO mutants: the package's suite is ~60s per mutant under load, and
+     `scripts/mutate`'s header records the same measurement ("two hours of sweeping
+     `internal/record` completed about eight mutants and produced no output at all"). Sweeping
+     these two files needs a faster package suite first, or a checkout-per-worker parallel
+     runner. Recording it as INFEASIBLE-AS-BUILT so it is not re-attempted blind a third time.
+   - `internal/cli` (`blue/cite.go`, `lens/anchor.go`) — not attempted, same reason, worse: that
+     package's suite runs 20+ minutes once.
 
 **Result, 2026-08-22.** All of 1–6 green: tools 37 packages / 0 failures, fuzz 0/60 with the new
 gate and its remedy both driven, simulator 93 pass / 0 fail. The difftest goldens did not move
