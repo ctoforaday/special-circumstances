@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/klippa-app/go-pdfium"
+	"github.com/klippa-app/go-pdfium/references"
 	"github.com/klippa-app/go-pdfium/requests"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -186,27 +188,17 @@ func RenderPages(run record.Run, sha string, body []byte, dpi int) (RenderRecord
 
 	shas := make([]string, 0, pc.PageCount)
 	for i := 0; i < pc.PageCount; i++ {
-		rendered, rerr := inst.RenderPageInDPI(&requests.RenderPageInDPI{
-			Page: requests.Page{ByIndex: &requests.PageByIndex{Document: doc.Document, Index: i}},
-			DPI:  dpi,
-		})
+		b, rerr := renderPagePNG(inst, doc.Document, i, dpi)
 		if rerr != nil {
 			// NAMED AND FATAL. A page that silently did not render would leave the record one
 			// image short of the document, and nothing downstream could tell that from a
 			// document with fewer pages.
-			return RenderRecord{}, fmt.Errorf("page %d of %d did not render: %w", i+1, pc.PageCount, rerr)
+			return RenderRecord{}, fmt.Errorf("page %d of %d: %w", i+1, pc.PageCount, rerr)
 		}
-		if rendered.Result.RenderedImage == nil {
-			return RenderRecord{}, fmt.Errorf("page %d of %d rendered to no image", i+1, pc.PageCount)
-		}
-		var buf bytes.Buffer
-		if err := png.Encode(&buf, toGray(rendered.Result.RenderedImage)); err != nil {
-			return RenderRecord{}, fmt.Errorf("encoding page %d: %w", i+1, err)
-		}
-		if err := writeAtomic(PagePath(run, sha, i+1), buf.Bytes()); err != nil {
+		if err := writeAtomic(PagePath(run, sha, i+1), b); err != nil {
 			return RenderRecord{}, err
 		}
-		shas = append(shas, Sha(buf.Bytes()))
+		shas = append(shas, Sha(b))
 	}
 
 	rec := RenderRecord{
@@ -224,6 +216,39 @@ func RenderPages(run record.Run, sha string, body []byte, dpi int) (RenderRecord
 		return RenderRecord{}, err
 	}
 	return rec, nil
+}
+
+// renderPagePNG rasterises ONE page to grayscale PNG bytes and releases the bitmap before
+// returning.
+//
+// THE RELEASE IS THE LOAD-BEARING LINE. go-pdfium under WebAssembly documents the contract on
+// the response itself: "you MUST call Cleanup() when you are done with the image object to
+// release resources." The first real-document run of this path never called it, so every
+// page's raster (~15 MB at 200 DPI letter, plus the wasm-side allocation) stayed live until
+// process exit — ~60 MB a page, and the 80-page IEEE 1012 scan was OOM-killed at 1.6 GB
+// before its first model call (#671). The encode happens BEFORE the release because the
+// pixel buffer is documented invalid after Cleanup, and toGray may return the pdfium-backed
+// image unwrapped rather than a copy.
+//
+// index is 0-based, pdfium's own numbering; callers wrap errors with the 1-based page number
+// a citation would use.
+func renderPagePNG(inst pdfium.Pdfium, doc references.FPDF_DOCUMENT, index, dpi int) ([]byte, error) {
+	rendered, err := inst.RenderPageInDPI(&requests.RenderPageInDPI{
+		Page: requests.Page{ByIndex: &requests.PageByIndex{Document: doc, Index: index}},
+		DPI:  dpi,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("did not render: %w", err)
+	}
+	defer rendered.Cleanup()
+	if rendered.Result.RenderedImage == nil {
+		return nil, fmt.Errorf("rendered to no image")
+	}
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, toGray(rendered.Result.RenderedImage)); err != nil {
+		return nil, fmt.Errorf("encoding: %w", err)
+	}
+	return buf.Bytes(), nil
 }
 
 // toGray converts a rendered page to a single-channel image.
