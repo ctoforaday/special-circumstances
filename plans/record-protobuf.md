@@ -691,6 +691,16 @@ table above is a `grep -rl Payload` derivation, so anything that reads shard byt
 is invisible to it. `internal/difftest` (5 files) is exactly that, and it is the harness
 guarding this entire change:
 
+> **THE PREDICTION CAME TRUE AND NOTHING ACTED ON IT (marked 2026-09-03, PR #680).** The three
+> difftest rows below were correct: the harness read shard bytes as raw JSON, and when the store
+> became one SQLite database the walk found nothing. `ev["seq"]` went `nil`, the `%s#%v` rank key
+> collapsed exactly as row 2 says — and the suite stayed GREEN, because an empty EVENTS section
+> compares equal to an empty EVENTS section. Every golden lost its events at the cutover and the
+> determinism fuzz spent the interval comparing two empty maps. A prediction written into a plan is
+> not a guard: nothing re-read this table when the store changed under it. `collect()` now reads
+> through `recordsql.Events`, the rank is the record's own `events.id` order, and 16 of 18
+> scenarios carry events again.
+
 | Site | Binds | Breaks how |
 |---|---|---|
 | `difftest/golden_test.go:70-73` | `ev["ts"]`, `ev["seatId"]`, `ev["seq"]` | §II.1 renames the envelope to snake_case, so `ev["seatId"]` returns `""` |

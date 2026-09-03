@@ -1,6 +1,6 @@
 # Plans
 
-Planning and design artifacts for Special Circumstances. Each arrives as its own pull request for review; once agreed and built, the relevant pieces graduate into the plugins and the planning doc stays here as historical record. The directory therefore holds both live proposals and shipped plans (~39 files today) — deliberately separated from the repo's "real" documentation (`README.md`, the per-plugin READMEs). **The authoritative state of any plan is the dated `> STATUS` line under its own title** (shipped — historical record / in progress / superseded / not started), not this index.
+Planning and design artifacts for Special Circumstances. Each arrives as its own pull request for review; once agreed and built, the relevant pieces graduate into the plugins and the planning doc stays here as historical record. The directory therefore holds both live proposals and shipped plans — deliberately separated from the repo's "real" documentation (`README.md`, the per-plugin READMEs). **The authoritative state of any plan is the dated status marker at the top of its own file** — a `> STATUS` line (shipped — historical record / in progress / superseded / not started), or a retirement banner where a plan was retired outright — never this index, which is an entry point and not a register.
 
 Entry points:
 
