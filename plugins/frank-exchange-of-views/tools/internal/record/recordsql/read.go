@@ -26,6 +26,17 @@ import (
 // reader's job was to drop it and say so. A transaction cannot leave a half event, so there is no
 // anomaly to report and no honest-zero problem — the absence of anomalies is now a fact rather than
 // a hope, which is why this signature has no place to put them.
+//
+// # Bodies load per TABLE, not per event
+//
+// This read is always the WHOLE record, and every body-table row belongs to it — `event_id` is a
+// primary key referencing `events(id)`, so a full scan of each table touched by the record reads
+// exactly the rows the per-event queries used to fetch one at a time. That turns a query count
+// proportional to the number of EVENTS (one body row, one per list field, two per oneof arm — the
+// N+1 every projection paid on every render) into one proportional to the number of TABLES the
+// record's event types use, which the schema bounds. Validation still walks the events in record
+// order, so the first refusal an interleaved read would have raised is the same refusal this one
+// raises.
 func Events(db *sql.DB) ([]*recordpb.Event, error) {
 	rows, err := db.Query(`SELECT id, seat_id, round, ts, type, key FROM events ORDER BY id`)
 	if err != nil {
@@ -66,10 +77,8 @@ func Events(db *sql.DB) ([]*recordpb.Event, error) {
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	for i, ev := range out {
-		if err := loadBody(db, ids[i], ev); err != nil {
-			return nil, err
-		}
+	if err := loadBodies(db, ids, out); err != nil {
+		return nil, err
 	}
 	return out, nil
 }
@@ -83,139 +92,268 @@ func eventTypeOf(word string) (recordpb.EventType, bool) {
 	return recordpb.EventType(vd.Number()), true
 }
 
-// loadBody fills an event's body from its table, by the same descriptor walk the write used.
+// tableBatch is one body table's whole contribution to the read: its descriptor walk done once,
+// its rows, lists and arms each fetched by one scan.
+type tableBatch struct {
+	md      protoreflect.MessageDescriptor
+	table   string
+	scalars []protoreflect.FieldDescriptor // non-list, non-message: the row's columns
+	oneofs  []protoreflect.OneofDescriptor // non-synthetic: each carries a `_case` discriminator
+	rows    map[int64][]any                // scalar values, then one case word per oneof, aligned
+	lists   map[string]map[int64][]string  // list-field name → event → values in ord order
+	arms    map[string]*armBatch           // arm-field name → its table's scan
+}
+
+type armBatch struct {
+	scalars []protoreflect.FieldDescriptor
+	rows    map[int64][]any
+}
+
+// loadBodies fills every event's body from its table, by the same descriptor walk the write used.
 //
 // The message is minted BY THE EVENT — `NewField` on the oneof arm — rather than built dynamically
 // and assigned. A dynamic message satisfies the descriptor and not the Go type, so it round-trips
 // through the schema and then fails at the first `BodyAs[*recordpb.Mint]`, which is every reader.
 // Asking the event for its own field gets the concrete type by construction.
-func loadBody(db *sql.DB, id int64, ev *recordpb.Event) error {
-	evm := ev.ProtoReflect()
-	od := evm.Descriptor().Oneofs().ByName("body")
-	arm := od.Fields().ByName(protoreflect.Name(recordpb.Word(ev.GetType())))
-	if arm == nil || arm.Message() == nil {
-		return fmt.Errorf("recordsql: no body message for %s", recordpb.Word(ev.GetType()))
-	}
-	msg := evm.NewField(arm).Message()
-	md := arm.Message()
-
-	if err := scanInto(db, TableName(md), id, msg); err != nil {
-		return err
-	}
-	// Repeated fields come back as their own rows, in the order they were written.
-	for i := 0; i < md.Fields().Len(); i++ {
-		fd := md.Fields().Get(i)
-		if !fd.IsList() {
-			continue
+func loadBodies(db *sql.DB, ids []int64, evs []*recordpb.Event) error {
+	// The event's own arm on the envelope, resolved per event; the batches, resolved per table.
+	arms := make([]protoreflect.FieldDescriptor, len(evs))
+	msgs := make([]protoreflect.Message, len(evs))
+	batches := map[string]*tableBatch{}
+	for i, ev := range evs {
+		evm := ev.ProtoReflect()
+		od := evm.Descriptor().Oneofs().ByName("body")
+		arm := od.Fields().ByName(protoreflect.Name(recordpb.Word(ev.GetType())))
+		if arm == nil || arm.Message() == nil {
+			return fmt.Errorf("recordsql: no body message for %s", recordpb.Word(ev.GetType()))
 		}
-		vals, err := scanList(db, TableName(md)+"_"+string(fd.Name()), id)
-		if err != nil {
+		arms[i] = arm
+		msgs[i] = evm.NewField(arm).Message()
+		md := arm.Message()
+		if _, ok := batches[TableName(md)]; !ok {
+			batches[TableName(md)] = newTableBatch(md)
+		}
+	}
+	for _, b := range batches {
+		if err := b.load(db); err != nil {
 			return err
 		}
-		if len(vals) == 0 {
-			continue
-		}
-		l := msg.Mutable(fd).List()
-		for _, v := range vals {
-			l.Append(protoreflect.ValueOfString(v))
-		}
 	}
-	// The oneof's message arms, found through the discriminator the write recorded.
-	for i := 0; i < md.Oneofs().Len(); i++ {
-		sub := md.Oneofs().Get(i)
-		if sub.IsSynthetic() {
-			continue
-		}
-		which, err := armOf(db, TableName(md), id, string(sub.Name())+"_case")
-		if err != nil {
+	// Validation walks the events in record order, so which refusal fires first does not depend
+	// on which table happened to load first.
+	for i, ev := range evs {
+		b := batches[TableName(arms[i].Message())]
+		if err := b.fill(ids[i], msgs[i]); err != nil {
 			return err
 		}
-		if which == "" {
-			continue
-		}
-		fd := sub.Fields().ByName(protoreflect.Name(which))
-		if fd == nil || fd.Message() == nil {
-			continue
-		}
-		inner := msg.NewField(fd).Message()
-		if err := scanInto(db, TableName(md)+"_"+which, id, inner); err != nil {
-			return err
-		}
-		msg.Set(fd, protoreflect.ValueOfMessage(inner))
+		ev.ProtoReflect().Set(arms[i], protoreflect.ValueOfMessage(msgs[i]))
 	}
-	evm.Set(arm, protoreflect.ValueOfMessage(msg))
 	return nil
 }
 
-// scanInto reads one row into a message, setting ONLY the columns that are non-NULL.
-//
-// A NULL column leaves the field UNSET rather than zero, which is the round trip the whole schema
-// turns on: a mint with no severity comes back ungraded, not graded zero, and `Has` answers the
-// same question after a write-read cycle that it answered before one.
-func scanInto(db *sql.DB, table string, id int64, msg protoreflect.Message) error {
-	md := msg.Descriptor()
-	var fields []protoreflect.FieldDescriptor
-	var names []string
+func newTableBatch(md protoreflect.MessageDescriptor) *tableBatch {
+	b := &tableBatch{md: md, table: TableName(md)}
 	for i := 0; i < md.Fields().Len(); i++ {
 		fd := md.Fields().Get(i)
 		if fd.IsList() || fd.Message() != nil {
 			continue
 		}
-		fields = append(fields, fd)
-		names = append(names, fmt.Sprintf("%q", fd.Name()))
+		b.scalars = append(b.scalars, fd)
 	}
-	if len(fields) == 0 {
-		return nil
-	}
-	cols := make([]any, len(fields))
-	for i := range cols {
-		cols[i] = new(any)
-	}
-	q := "SELECT " + join(names, ", ") + fmt.Sprintf(" FROM %q WHERE \"event_id\" = ?", table)
-	if err := db.QueryRow(q, id).Scan(cols...); err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("recordsql: event %d has no %s body — an envelope with no body replays as a seat that did nothing", id, table)
+	for i := 0; i < md.Oneofs().Len(); i++ {
+		if od := md.Oneofs().Get(i); !od.IsSynthetic() {
+			b.oneofs = append(b.oneofs, od)
 		}
-		return fmt.Errorf("recordsql: reading %s for event %d: %w", table, id, err)
 	}
-	for i, fd := range fields {
-		v := *(cols[i].(*any))
+	return b
+}
+
+func (b *tableBatch) load(db *sql.DB) error {
+	var cols []string
+	for _, fd := range b.scalars {
+		cols = append(cols, fmt.Sprintf("%q", fd.Name()))
+	}
+	for _, od := range b.oneofs {
+		cols = append(cols, fmt.Sprintf("%q", string(od.Name())+"_case"))
+	}
+	var err error
+	if b.rows, err = scanTable(db, b.table, cols); err != nil {
+		return err
+	}
+	b.lists = map[string]map[int64][]string{}
+	for i := 0; i < b.md.Fields().Len(); i++ {
+		fd := b.md.Fields().Get(i)
+		if !fd.IsList() {
+			continue
+		}
+		vals, err := scanLists(db, b.table+"_"+string(fd.Name()))
+		if err != nil {
+			return err
+		}
+		b.lists[string(fd.Name())] = vals
+	}
+	// Only the arms some event in the record actually filed get a scan — the discriminators
+	// just read say which those are.
+	b.arms = map[string]*armBatch{}
+	for oi, od := range b.oneofs {
+		for _, row := range b.rows {
+			which := wordAt(row, len(b.scalars)+oi)
+			if which == "" {
+				continue
+			}
+			fd := od.Fields().ByName(protoreflect.Name(which))
+			if fd == nil || fd.Message() == nil {
+				continue
+			}
+			if _, ok := b.arms[which]; ok {
+				continue
+			}
+			a := &armBatch{}
+			amd := fd.Message()
+			var acols []string
+			for i := 0; i < amd.Fields().Len(); i++ {
+				afd := amd.Fields().Get(i)
+				if afd.IsList() || afd.Message() != nil {
+					continue
+				}
+				a.scalars = append(a.scalars, afd)
+				acols = append(acols, fmt.Sprintf("%q", afd.Name()))
+			}
+			if a.rows, err = scanTable(db, b.table+"_"+which, acols); err != nil {
+				return err
+			}
+			b.arms[which] = a
+		}
+	}
+	return nil
+}
+
+// fill assembles one event's body from the batch, setting ONLY the columns that were non-NULL.
+//
+// A NULL column leaves the field UNSET rather than zero, which is the round trip the whole schema
+// turns on: a mint with no severity comes back ungraded, not graded zero, and `Has` answers the
+// same question after a write-read cycle that it answered before one.
+func (b *tableBatch) fill(id int64, msg protoreflect.Message) error {
+	row, ok := b.rows[id]
+	if !ok && len(b.scalars) > 0 {
+		return fmt.Errorf("recordsql: event %d has no %s body — an envelope with no body replays as a seat that did nothing", id, b.table)
+	}
+	for i, fd := range b.scalars {
+		v := row[i]
 		if v == nil {
 			continue // absent, and absent is not zero
 		}
 		pv, err := protoValue(fd, v)
 		if err != nil {
-			return fmt.Errorf("recordsql: %s.%s: %w", table, fd.Name(), err)
+			return fmt.Errorf("recordsql: %s.%s: %w", b.table, fd.Name(), err)
 		}
 		msg.Set(fd, pv)
+	}
+	// Repeated fields came back as their own rows, in the order they were written.
+	for name, vals := range b.lists {
+		v := vals[id]
+		if len(v) == 0 {
+			continue
+		}
+		l := msg.Mutable(b.md.Fields().ByName(protoreflect.Name(name))).List()
+		for _, s := range v {
+			l.Append(protoreflect.ValueOfString(s))
+		}
+	}
+	// The oneof's message arms, found through the discriminator the write recorded.
+	for oi, od := range b.oneofs {
+		which := wordAt(row, len(b.scalars)+oi)
+		if which == "" {
+			continue
+		}
+		fd := od.Fields().ByName(protoreflect.Name(which))
+		if fd == nil || fd.Message() == nil {
+			continue
+		}
+		a := b.arms[which]
+		arow, ok := a.rows[id]
+		if !ok && len(a.scalars) > 0 {
+			return fmt.Errorf("recordsql: event %d has no %s body — an envelope with no body replays as a seat that did nothing", id, b.table+"_"+which)
+		}
+		inner := msg.NewField(fd).Message()
+		for i, afd := range a.scalars {
+			v := arow[i]
+			if v == nil {
+				continue
+			}
+			pv, err := protoValue(afd, v)
+			if err != nil {
+				return fmt.Errorf("recordsql: %s.%s: %w", b.table+"_"+which, afd.Name(), err)
+			}
+			inner.Set(afd, pv)
+		}
+		msg.Set(fd, protoreflect.ValueOfMessage(inner))
 	}
 	return nil
 }
 
-func scanList(db *sql.DB, table string, id int64) ([]string, error) {
-	rows, err := db.Query(fmt.Sprintf("SELECT \"value\" FROM %q WHERE \"event_id\" = ? ORDER BY \"ord\"", table), id)
+// scanTable reads a whole body table into memory, keyed by event. Every row belongs to this read:
+// `event_id` is a primary key referencing `events(id)`, and the read is always the whole record.
+func scanTable(db *sql.DB, table string, cols []string) (map[int64][]any, error) {
+	out := map[int64][]any{}
+	if len(cols) == 0 {
+		return out, nil
+	}
+	q := `SELECT "event_id", ` + join(cols, ", ") + fmt.Sprintf(" FROM %q", table)
+	rows, err := db.Query(q)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("recordsql: reading %s: %w", table, err)
 	}
 	defer rows.Close()
-	var out []string
 	for rows.Next() {
-		var v string
-		if err := rows.Scan(&v); err != nil {
-			return nil, err
+		targets := make([]any, len(cols)+1)
+		var id int64
+		targets[0] = &id
+		for i := 1; i < len(targets); i++ {
+			targets[i] = new(any)
 		}
-		out = append(out, v)
+		if err := rows.Scan(targets...); err != nil {
+			return nil, fmt.Errorf("recordsql: reading %s: %w", table, err)
+		}
+		vals := make([]any, len(cols))
+		for i := range vals {
+			vals[i] = *(targets[i+1].(*any))
+		}
+		out[id] = vals
 	}
 	return out, rows.Err()
 }
 
-func armOf(db *sql.DB, table string, id int64, col string) (string, error) {
-	var arm *string
-	err := db.QueryRow(fmt.Sprintf("SELECT %q FROM %q WHERE \"event_id\" = ?", col, table), id).Scan(&arm)
-	if err != nil || arm == nil {
-		return "", nil
+func scanLists(db *sql.DB, table string) (map[int64][]string, error) {
+	rows, err := db.Query(fmt.Sprintf("SELECT \"event_id\", \"value\" FROM %q ORDER BY \"event_id\", \"ord\"", table))
+	if err != nil {
+		return nil, err
 	}
-	return *arm, nil
+	defer rows.Close()
+	out := map[int64][]string{}
+	for rows.Next() {
+		var id int64
+		var v string
+		if err := rows.Scan(&id, &v); err != nil {
+			return nil, err
+		}
+		out[id] = append(out[id], v)
+	}
+	return out, rows.Err()
+}
+
+// wordAt is a discriminator column read back: TEXT, or NULL when the oneof was never filed.
+func wordAt(row []any, i int) string {
+	if i >= len(row) {
+		return ""
+	}
+	switch v := row[i].(type) {
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	}
+	return ""
 }
 
 // protoValue turns a stored column back into a field value. An enum resolves through BySpelling, so
