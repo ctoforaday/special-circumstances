@@ -473,11 +473,17 @@ func renderView(cmd *cobra.Command, want string) error {
 		case "", "json":
 			// The default arm, below.
 		case "markdown", "md":
-			led, err := view.Markdown(run, "ledger", "")
+			// One fold for both renders: ledger and archive are two views of the same board,
+			// and each view.Markdown call would replay the whole record again.
+			board, err := record.BoardState(run)
 			if err != nil {
 				return err
 			}
-			arc, err := view.Markdown(run, "archive", "")
+			led, err := view.MarkdownFrom(board, "ledger", "")
+			if err != nil {
+				return err
+			}
+			arc, err := view.MarkdownFrom(board, "archive", "")
 			if err != nil {
 				return err
 			}

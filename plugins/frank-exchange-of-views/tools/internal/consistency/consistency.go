@@ -300,7 +300,7 @@ func Check(run record.Run) ([]string, error) {
 	}
 
 	// ---- the markdown renders ----
-	if ledger, err := view.Markdown(run, "ledger", ""); err != nil {
+	if ledger, err := view.MarkdownFrom(board, "ledger", ""); err != nil {
 		add("ledger-md", "render failed: %v", err)
 	} else {
 		s := string(ledger)
@@ -318,7 +318,7 @@ func Check(run record.Run) ([]string, error) {
 			}
 		}
 	}
-	if archive, err := view.Markdown(run, "archive", ""); err != nil {
+	if archive, err := view.MarkdownFrom(board, "archive", ""); err != nil {
 		add("archive-md", "render failed: %v", err)
 	} else {
 		for id, g := range gt.gaps {
@@ -328,7 +328,7 @@ func Check(run record.Run) ([]string, error) {
 		}
 	}
 	if len(gt.avenues) > 0 {
-		if inq, err := view.Markdown(run, "lines-of-inquiry", ""); err != nil {
+		if inq, err := view.MarkdownFrom(board, "lines-of-inquiry", ""); err != nil {
 			add("inquiry-md", "render failed: %v", err)
 		} else {
 			for id := range gt.avenues {
