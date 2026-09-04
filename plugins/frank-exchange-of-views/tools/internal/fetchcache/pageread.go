@@ -191,8 +191,10 @@ type ReadingRecord struct {
 	// ReadAt is when. A model changes underneath a fixed name, so the name alone does not
 	// identify what did the reading.
 	ReadAt time.Time `json:"read_at"`
-	// RenderShas binds this reading to the exact images it read. A re-render at a new DPI
-	// makes the reading stale, and this is what lets a reader notice rather than assume.
+	// RenderShas binds this reading to the exact images it read. On the deliberate path those
+	// images are on disk under `ocr pages`; on fetch's automatic path they were released as
+	// they were read and these hashes are the only identity the pixels have. A re-render at a
+	// new DPI makes the reading stale, and this is what lets a reader notice rather than assume.
 	RenderShas []string `json:"render_shas"`
 	// DPI the images were rendered at, carried so a poor reading can be attributed.
 	DPI      int           `json:"dpi"`
