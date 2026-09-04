@@ -414,7 +414,8 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
      second is the assertion that fails a `ClosedByBench` predicate, and the first alone does not.
    - **N2** — three boards, because two predicates are in play and only the third tells them apart:
      one bench closure plus one anchored red closure returns `1, 1`, not `1, 2`; an all-bench board
-     does not render `"no closed gaps this run"`; and **a gap blue closed WITH an anchor triple that
+     does not render `"no closed gaps this run"` **while a genuinely empty board still does** — two
+     boards, because the new else-branch text has to be true of both and only the pair says so; and **a gap blue closed WITH an anchor triple that
      the bench later ruled on stays in both counts**. That last board returns `1, 1` under the
      correct predicate and `0, 0` under a `ClosedByBench` one.
    - **N3** — the merge sitting's outstanding line for an unruled `petition` NAMES the bench; **and**
