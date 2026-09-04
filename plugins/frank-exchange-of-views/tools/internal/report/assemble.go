@@ -131,7 +131,7 @@ func readOr(path, fallback string) string {
 
 // blueEmbed returns the parts of blue/report.md NOT already composed elsewhere. Blue's lifted
 // synthesis surfaces are dropped (they appear at the top), and the sections blue must never
-// author — the risk matrix, red findings, the debate, a verdict, and now the footnotes /
+// author — the risk matrix, the board, the debate, a verdict, and now the footnotes /
 // bibliography — are dropped as fabrication (the tool composes those from the record; blue
 // cannot know red's findings or the run's outcome, and citations are tool-managed, woven from
 // the cite events at assembly). What survives is genuinely ADDITIONAL blue content. Empty
@@ -146,8 +146,14 @@ func blueEmbed(blue string) string {
 		// bibliography are now tool-composed too (woven from the cite events), so a
 		// blue-authored one is dropped rather than shipped alongside the composed one.
 		"risk matrix": true, "the expansions": true, "expansions": true,
-		"alternatives considered": true, "red team findings": true,
-		"the debate": true, "blue team report": true, "verdict": true,
+		"alternatives considered": true, "the board": true,
+		// THE RETIRED HEADING STAYS IN THIS MAP. The section is `## The board` now, but a seat
+		// on a cached or stale prompt still authors `## Red team findings` — and it is still
+		// fabrication, because blue still cannot know red's findings. Dropping the key with
+		// the rename would let exactly that through, and keeping it can drop nothing
+		// legitimate: no composer emits the old heading any more.
+		"red team findings": true,
+		"the debate":        true, "blue team report": true, "verdict": true,
 		"footnotes": true, "bibliography": true,
 		// Composed from the retire events. A blue-authored one would be a SECOND account of
 		// what left the report, written by the party that removed it — the record already
@@ -196,7 +202,7 @@ func blueEmbed(blue string) string {
 }
 
 // normalizeHeading folds a heading to a comparison key: lowercase, single-spaced, and with a
-// trailing "(in full)" stripped — so "Red Team Findings (in full)" matches "red team findings".
+// trailing "(in full)" stripped — so "The Board (in full)" matches "the board".
 func normalizeHeading(h string) string {
 	h = strings.ToLower(strings.Join(strings.Fields(h), " "))
 	return strings.TrimSpace(strings.TrimSuffix(h, " (in full)"))
@@ -486,7 +492,7 @@ func orientation(board *record.Board, evs []*record.Event, gloss string) string 
 		}
 		return b.String()
 	}
-	fmt.Fprintf(&b, "%d open gap(s) remain, most severe first — full statements in [the docket](%s).\n\n", len(open), FileDocket)
+	fmt.Fprintf(&b, "%d open gap(s) remain, most severe first — full statements in [the board](%s).\n\n", len(open), FileDocket)
 	for i, r := range open {
 		fmt.Fprintf(&b, "%d. **[%s]** %s (%s) — %s\n", i+1, gradeWord(r.g.Severity), concise(r.g.Mint.GetProblem()), r.g.ID, concise(r.g.Mint.GetRequiredFix()))
 	}
@@ -573,7 +579,7 @@ func riskMatrix(bj record.BoardJSON) string {
 		b.WriteString(fmt.Sprintf("| %s | %s | %s | %s | %s |\n",
 			cell(concise(risk)), grade(g.Likelihood), grade(g.Impact), grade(g.ComplexityCost), cell(concise(g.RequiredFix))))
 	}
-	b.WriteString("\nThe matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in [the docket](" + FileDocket + ").")
+	b.WriteString("\nThe matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in [the board](" + FileDocket + ").")
 	return b.String()
 }
 
@@ -666,7 +672,7 @@ func inquiries(board *record.Board, heading string, want func(string) bool) stri
 		// verdict on each line — a vocabulary that made PRESENCE the question. Presence is not a
 		// question: the lines reach the report on the WORKLIST generated from this projection, so
 		// blue cannot cut them, and what remains (did blue's body deliver the research) is an
-		// ORDINARY GAP that renders under Red team findings with an id, a grade and a PASS gate.
+		// ORDINARY GAP that renders under The board with an id, a grade and a PASS gate.
 		// record.Inquiry's own header states the same decision from the projection's side.
 		//
 		// What replaced it is ONE per-round `InquiryReview`, read by record.InquiryReviewDue.
@@ -764,10 +770,16 @@ func provenance(m *recordpb.Mint, findings map[string]*recordpb.Finding) string 
 	return "\nsurfaced by:\n" + strings.Join(lines, "\n")
 }
 
-// redFindings composes the full findings from the board's gaps: every open gap with its
-// grades and required fix, then the closure index. This is the ledger's content, drawn from
-// the replayed board rather than read back from the projection file.
-func redFindings(board *record.Board) string {
+// boardSection composes the board from the replayed gaps: every open gap with its grades and
+// required fix, then the closure index — and, appended below, blue's correctness manifest and
+// red's archive spot-checks. This is the ledger's content, drawn from the replayed board rather
+// than read back from the projection file.
+//
+// IT IS NOT "RED'S FINDINGS", AND THE NAME SAID IT WAS. Three parties write into this section:
+// red mints the gaps, blue attests its repairs, and the bench disposes of what reaches it. A
+// heading naming one of them made the report attribute the other two's output to red — and the
+// misattribution was load-bearing, because the correctness manifest it carries is an accusation.
+func boardSection(board *record.Board) string {
 	// Label -> the finding it names, so a gap can quote the evidence it was minted from.
 	findings := map[string]*recordpb.Finding{}
 	for _, e := range board.Events {
@@ -844,7 +856,7 @@ func redFindings(board *record.Board) string {
 		}
 	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "## Red team findings (in full)\n\n### Open gaps (%d)\n\n", len(open))
+	fmt.Fprintf(&b, "## The board\n\n### Open gaps (%d)\n\n", len(open))
 	if len(open) == 0 {
 		b.WriteString("_(none open)_\n")
 	} else {

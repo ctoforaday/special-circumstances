@@ -3,7 +3,7 @@ package report
 // THE REPORT IS A SET, NOT A FILE.
 //
 // Measured on the two archived runs, 70–76% of the single assembled report.md was process
-// record — the debate transcript, red's findings in full, a friction log LARGER THAN THE ENTIRE
+// record — the debate transcript, the board in full, a friction log LARGER THAN THE ENTIRE
 // RESEARCH ARGUMENT (60–65 KB against 15 KB of analysis), revision history, cost. The research
 // the run was commissioned to produce was 24–30% of the document it was delivered in. Six
 // audiences were unioned into one artifact, so no reader could be addressed and none could be
@@ -114,7 +114,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	}
 
 	var docket sections
-	docket.add(redFindings(board))
+	docket.add(boardSection(board))
 
 	var deb sections
 	deb.add(debate(board, evs))
@@ -136,8 +136,13 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Title: "", Body: r.String(),
 			Blurb: "the research: the verdict and what it means, the Catechism, the foundations, the analysis, the risks, the open questions"},
-		{File: FileDocket, Nav: "Docket", Title: "the docket",
-			Blurb: "every gap red minted: what is still open, what was closed and how, and the findings the merge weighed without minting", Body: docket.String()},
+		// THE FILE KEEPS ITS NAME AND THE DOCUMENT GETS A TRUE ONE. `docket.md` is a published
+		// URL — the shipped READMEs, the skill, the bench's constitution and the site's link
+		// rewriter all name it — so renaming the file buys consistency in a string no machine
+		// reads. The nav, title and blurb are what a human reads beside the heading, and all
+		// three said this was red's when three parties write into it.
+		{File: FileDocket, Nav: "Board", Title: "the board",
+			Blurb: "the board all three parties wrote: every gap red minted and how each was closed, blue's correctness manifest for the repairs it made, and red's archive spot-checks", Body: docket.String()},
 		{File: FileDebate, Nav: "Debate", Title: "the debate",
 			Blurb: "the adversarial record round by round — red's audits, blue's answers, the closings, and the bench's terminal disposition", Body: deb.String()},
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",

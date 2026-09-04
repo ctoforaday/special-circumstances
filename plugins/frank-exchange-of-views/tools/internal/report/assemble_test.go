@@ -63,7 +63,7 @@ func TestRiskMatrixFromBoard(t *testing.T) {
 		t.Errorf("short open gap row wrong:\n%s", m)
 	}
 	// A long problem is distilled to its FIRST SENTENCE in the cell; the full text lives in
-	// Red team findings, so the matrix stays a scan surface.
+	// The board, so the matrix stays a scan surface.
 	if !strings.Contains(m, "Blue claims JSON float-loss above 2^53 causes H1 failure.") || strings.Contains(m, "does not manifest") {
 		t.Errorf("long problem not distilled to first sentence in the matrix cell:\n%s", m)
 	}
@@ -452,7 +452,10 @@ func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 		"## TL;DR", "lifted to the top.", "",
 		"## Analysis", "also lifted.", "",
 		"## Risk Matrix", "blue fabricated a risk matrix.", "", // tool-owned — dropped
-		"## Red Team Findings (in full)", "blue cannot know red's findings.", "", // dropped
+		"## The Board", "blue cannot know red's findings.", "", // tool-owned — dropped
+		// THE RETIRED HEADING IS STILL DROPPED, and this case is the whole reason the key stays
+		// in the map. A seat on a cached prompt authors the old name; it is still fabrication.
+		"## Red Team Findings (in full)", "blue authored the retired heading.", "", // dropped
 		"## Blue Team Report (in full)", "[to be filled]", "", // recursive stub — dropped
 		"## Footnotes", "[^a]: a citation blue tried to author.", "", // DROPPED — citations are tool-composed now
 		"## Appendix: raw benchmarks", "novel blue content.", "", // KEPT — genuinely additional
@@ -464,7 +467,7 @@ func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 			t.Errorf("blueEmbed dropped content it should keep (%q):\n%s", kept, got)
 		}
 	}
-	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "blue cannot know", "[to be filled]", "**Verdict:**", "UNVERIFIED", "## Footnotes", "a citation blue tried to author"} {
+	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "blue cannot know", "blue authored the retired heading", "[to be filled]", "**Verdict:**", "UNVERIFIED", "## Footnotes", "a citation blue tried to author"} {
 		if strings.Contains(got, dropped) {
 			t.Errorf("blueEmbed kept content it should drop (%q):\n%s", dropped, got)
 		}
@@ -524,7 +527,7 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 			recordtest.Event(t, "red-lens-r1-L5", 0, &recordpb.Finding{Label: proto.String("L5-F3"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
 		},
 	}
-	got := redFindings(board)
+	got := boardSection(board)
 	if !strings.Contains(got, "Lens findings not raised to a gap (1)") {
 		t.Errorf("exactly one un-minted finding should be surfaced:\n%s", got)
 	}
@@ -566,7 +569,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 			}),
 		},
 	}
-	got := redFindings(board)
+	got := boardSection(board)
 	if !strings.Contains(got, "what red actually observed at the leaf") {
 		t.Errorf("the minted finding's own words are absent — the gap cites L5-F1 and nothing defines it:\n%s", got)
 	}
@@ -596,7 +599,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 		},
 		Events: board.Events,
 	}
-	if got := redFindings(closedBoard); !strings.Contains(got, "what red actually observed at the leaf") {
+	if got := boardSection(closedBoard); !strings.Contains(got, "what red actually observed at the leaf") {
 		t.Errorf("a CLOSED gap dropped the evidence it was minted from, and nothing else renders it:\n%s", got)
 	}
 }

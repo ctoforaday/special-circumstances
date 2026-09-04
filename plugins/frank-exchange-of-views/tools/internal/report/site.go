@@ -111,7 +111,7 @@ func RenderSite(title string, docs []Doc, board *record.Board) string {
 	return b.String()
 }
 
-// siteLinks rewrites the markdown set's own cross-file links — `[the docket](docket.md)`,
+// siteLinks rewrites the markdown set's own cross-file links — `[the board](docket.md)`,
 // `[evidence.md](evidence.md#p-deadbeef)` — into tab switches.
 //
 // WITHOUT THIS THEY ARE DEAD. In the markdown tier they are exactly right: a relative link to

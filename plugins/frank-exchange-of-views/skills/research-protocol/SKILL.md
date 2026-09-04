@@ -58,7 +58,7 @@ research/<date>_<slug>/
 │                      #  missing verb has to surface as friction instead of a workaround)
 ├── README.md          # the run's front door: verdict, gaps, and what each document holds
 ├── report.md          # THE RESEARCH — verdict, Catechism, foundations, analysis, risks, open questions
-├── docket.md          # every gap red minted: still-open, closed, and the findings not raised to a gap
+├── docket.md          # the board: every gap and how it closed, blue's manifest, red's spot-checks
 ├── debate.md          # the adversarial record, round by round, and the bench's terminal disposition
 ├── judgments.md       # motions — every contested question and how it was ruled
 ├── evidence.md        # the computations, with script, output and sha256
@@ -151,7 +151,7 @@ likelihood × impact × complexity, including risk-accepted items with rationale
 inquiry areas → **open questions carried past this run** (blue's final envelope, verbatim) →
 footnotes (with access dates; volatility noted for living sources).
 
-The process record is beside it, one document per audience: `docket.md` (red's findings in
+The process record is beside it, one document per audience: `docket.md` (the board in
 full), `debate.md` (the transcript), `judgments.md` (motions and rulings), `evidence.md` (the
 computations), `run.md` (friction, record verification, cost), `CHANGELOG.md` (the report's own
 revisions and withdrawn claims). Nothing is summarized away by the split — the union is the

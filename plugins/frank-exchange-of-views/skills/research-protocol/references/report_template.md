@@ -11,7 +11,7 @@
                records/ event log; the views are rendered from it on read, never materialized.
 
   WHY A SET. Measured on the archived runs, 70–76% of the single report.md was process record —
-  the transcript, red's findings in full, a friction log LARGER THAN THE ENTIRE RESEARCH
+  the transcript, the board in full, a friction log LARGER THAN THE ENTIRE RESEARCH
   ARGUMENT — and the research the run was commissioned for was a quarter of its own deliverable.
   Six audiences were unioned into one artifact, so none could be addressed, revised or linked
   without the other five. NOTHING IS DROPPED BY THE SPLIT: every section still ships, in exactly
@@ -84,7 +84,7 @@
 
 # docket.md — the board
 
-## Red team findings (in full)           <!-- [RECORD] open gaps with grades + the closure index; then the lens findings
+## The board                             <!-- [RECORD] open gaps with grades + the closure index; then the lens findings
                                               credited by no gap's found_by — red's leaf audit the merge weighed and did
                                               not mint. A finding is addressed by COALESCENCE and nothing else since #327
                                               retired observe/dispose. Then red's archive spot-checks and blue's

@@ -148,7 +148,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"## Read this first",
 		"(R1-1)",
 		// The link bar: the current document named, its siblings linked.
-		"**Report** · [Docket](docket.md)",
+		"**Report** · [Board](docket.md)",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("report.md missing %q\n---\n%s", want, got)
@@ -158,7 +158,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// THE SPLIT IS THE POINT: the process record is in the set, and NOT in the research
 	// document. A reader who wants the transcript follows a link; one who wants the answer is
 	// not handed 70% of a run's telemetry to scroll past.
-	for _, want := range []string{"## Red team findings (in full)", "R1-1 — eviction races the reader"} {
+	for _, want := range []string{"## The board", "R1-1 — eviction races the reader"} {
 		if !strings.Contains(docket, want) {
 			t.Errorf("docket.md missing %q\n---\n%s", want, docket)
 		}
@@ -175,7 +175,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	}
 	// The index is the run directory's front door, and names every document it wrote.
-	for _, want := range []string{"**Verdict**", "## The documents", "[Docket](docket.md)", "[Debate](debate.md)"} {
+	for _, want := range []string{"**Verdict**", "## The documents", "[Board](docket.md)", "[Debate](debate.md)"} {
 		if !strings.Contains(index, want) {
 			t.Errorf("README.md missing %q\n---\n%s", want, index)
 		}
