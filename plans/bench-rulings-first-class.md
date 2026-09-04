@@ -423,6 +423,15 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
    `go test -count=1 $(go list ./... | grep -v integration/fuzz)` and then the fuzz alone with a
    stated timeout. [[facts-are-fields]] clause 3, inside the verification step of the plan that
    quotes it.
+
+   **The timeout is a property of the BOX, not of the change — measured both ways rather than
+   assumed either way.** `integration/fuzz` passes solo in **1330s (22 minutes)** on this machine
+   against Go's 10-minute default, and `internal/fetchcache`'s slowest test passes solo in 29s
+   after timing out the package under load. CI's Linux leg runs the same fuzz in ~370-400s, so a
+   dev box here is roughly 3.5x slower and **cannot** run `go test ./...` green without
+   `-timeout`. State the timeout explicitly (`-timeout 25m`) rather than reading the default's
+   panic as a failure — and do not read it as a pass either: it is the one shape where "the tests
+   did not complete" and "the tests failed" print the same word.
 2. Per goal, and each pair chosen so the wrong fix fails it:
    - **N1** — a bench-only closure with no manifest row is ABSENT from the unmanifested list; **and**
      a gap blue closed with no manifest row, which the bench later ruled on, is STILL PRESENT. The
