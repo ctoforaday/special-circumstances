@@ -2498,6 +2498,7 @@ var coverExempt = map[string]bool{
 // halt event is on the record, and the halted run STILL passes verify (a safety exit is a valid
 // record, not a broken one). This is the dedicated coverage for `halt`, which the sweep exempts.
 func TestFuzzHaltPath(t *testing.T) {
+	releaseGate(t)
 	bin := buildBinary(t)
 	wrapped := debateWrapped(t)
 	runDir, err := os.MkdirTemp("", "fuzz-halt-")
@@ -2813,6 +2814,7 @@ var viewNamesForFuzz = seat.ViewNames()
 const surfaceQuorum = 40
 
 func TestFuzzDebate(t *testing.T) {
+	releaseGate(t)
 	bin := buildBinary(t)
 	wrapped := debateWrapped(t)
 
@@ -3662,6 +3664,7 @@ var fuzzClasses = []string{"self-attestation", "policy-without-mechanism", "metr
 // HALTED — a terminal shape too disruptive for the random sweep gets a dedicated run, and its
 // invocations land in the same package-level tally the gate reads.
 func TestFuzzUnverifiedPath(t *testing.T) {
+	releaseGate(t)
 	bin := buildBinary(t)
 	wrapped := debateWrapped(t)
 	runDir, err := os.MkdirTemp("", "fuzz-unverified-")

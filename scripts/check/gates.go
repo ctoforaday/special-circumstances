@@ -267,6 +267,12 @@ func gateSet() []gate {
 		gate{id: "release", kind: kindRelease, dir: ".", ciJob: "release",
 			skip: "only meaningful on a tag",
 			why:  "cross-compile and publish"},
+		// The feov sweeps' release leg. Declared for the reason every release gate is: a
+		// gate that cannot run here must still appear in the report. Locally the same
+		// sweeps run with FEOV_RELEASE_GATE=1 against releasegate/fuzz.
+		gate{id: "release-fuzz-sweep", kind: kindRelease, dir: "plugins/frank-exchange-of-views/tools", ciJob: "release",
+			skip: "only meaningful on a feov tag; the release job runs releasegate/fuzz with FEOV_RELEASE_GATE=1",
+			why:  "the debate sweeps hold at the boundary where the binary ships"},
 		// The RELEASE BOUNDARY invariant (#405). Declared and skipped for the same reason as
 		// `release` itself — it runs in the release job, on a tag, before anything is published
 		// — but declared, because a gate that cannot run here must still appear in the report.

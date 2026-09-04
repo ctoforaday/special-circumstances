@@ -517,27 +517,29 @@ jobs:
       # (cli 180s -> 411s). Net negative at machine level; the premise ignored
       # inter-package parallelism.
       #
-      # SHALLOW ON WINDOWS PULL REQUESTS, FULL EVERYWHERE ELSE. Once the RAM disk owns the
-      # I/O bill, the Windows leg's remaining cost is releasegate/fuzz, which shells the
-      # real binary ~50-70 times per run and pays Windows process-spawn cost on every one:
-      # 573s of the leg's 12-minute `go test ./...` (run 32813820292), against 106s for
-      # recordsql. -short takes the fuzz from 60 runs to 15. What a run proves about the
-      # PLATFORM — the .exe build, the spawns, the temp plumbing — run 15 proves as well as
-      # run 60; the depth beyond that is statistics on debate semantics, platform-
-      # independent and still at full depth on the Linux twin of this job, on every main
-      # push and tag build (a pull request is the only event that shallows), and on the
-      # nightly schedule.
+      # SWEEPS AT THE BOUNDARY, GUARDS ON EVERY RUN (ruled 2026-09-04). releasegate/fuzz's
+      # binary-driving sweeps — the debate fuzz, the shipped-hook resolution, the schedule
+      # enumeration — skip unless FEOV_RELEASE_GATE=1, which is set here only on the
+      # nightly, and by the release job on a feov tag (where the sweep's own PASS line is
+      # asserted, so a typo'd variable cannot skip its way to green). The package's cheap
+      # literal-surface guards run on every event, in ~2s. Measured at the split: the
+      # 573s Windows fuzz bill (run 32813820292) leaves pull requests entirely. What a
+      # sweep run proved about the PLATFORM — the .exe build, the spawns, the temp
+      # plumbing — the guards and the rest of the suite still prove; the depth was always
+      # statistics on debate semantics, which are platform-independent and keep full depth
+      # on the nightly and the tag.
       #
-      # The packages where Windows has actually caught defects (record, recordsql: the DSN
-      # truncation, the unclosed handle — plans commit f772105) carry NO testing.Short()
-      # guard, so -short leaves them at FULL depth. The invariant to keep: a Short gear
-      # added to those packages reopens exactly the hole this arrangement routes around.
-      # seatprobe's separated-build test inverts its guard on Windows for the same reason,
-      # stated there.
+      # -short remains for the packages that carry their own Short gears. record and
+      # recordsql still run FULL depth everywhere: the DSN truncation and the unclosed
+      # handle were Windows catches (plans commit f772105), and a Short gear added to
+      # those packages reopens exactly that hole. seatprobe's separated-build test inverts
+      # its guard on Windows for the same reason, stated there.
       #
       # Both ternary arms are workflow literals, so this ${{ }} expands no external input —
       # which is why it may sit in the run line where rule-sweep's base ref may not.
       - run: go test ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
+        env:
+          FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
       #
@@ -1448,6 +1450,29 @@ jobs:
         working-directory: scripts
         env:
           PLUGIN_DIR: ${{ steps.plugin.outputs.dir }}
+      # THE FUZZ SWEEPS, AT THE BOUNDARY WHERE THE BINARY SHIPS (ruled 2026-09-04). Pull
+      # requests run only releasegate/fuzz's cheap guards; the binary-driving sweeps run
+      # here, at full depth, before anything is published — and on the nightly, so a
+      # regression is caught between releases rather than bisected at one.
+      #
+      # THE PASS IS ASSERTED, NOT INFERRED FROM THE EXIT CODE: the sweeps skip when
+      # FEOV_RELEASE_GATE is unset, so a typo'd variable would exit 0 having measured
+      # nothing — the same plausible zero the run-handle step refuses, answered the same
+      # way. Only a frank-exchange-of-views tag runs this; the other plugins' releases
+      # have no fuzz sweep to hold.
+      - name: The debate sweeps hold at the release boundary
+        if: steps.plugin.outputs.plugin == 'frank-exchange-of-views'
+        working-directory: ${{ steps.plugin.outputs.dir }}
+        shell: bash
+        env:
+          FEOV_RELEASE_GATE: "1"
+        run: |
+          out=$(go test -v -count=1 ./releasegate/fuzz/ 2>&1) || { echo "$out" | tail -80; exit 1; }
+          echo "$out" | grep -E "^(--- |ok)" | tail -30
+          grep -q '^--- PASS: TestFuzzDebate' <<<"$out" || {
+            echo "::error::the release sweep did not run TestFuzzDebate; the gate guarded nothing"
+            exit 1
+          }
       # BUILD OUTPUT LEAVES THE SOURCE TREE, and that is a correctness fix rather than tidiness.
       #
       # This wrote into `dist/` inside the plugin's tools directory. `dist/` is not ignored, so

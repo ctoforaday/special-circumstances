@@ -221,6 +221,7 @@ func scheduleName(sched []move) string {
 // TestTheRoundLoopTerminatesConsistentlyOnEverySchedule enumerates every sequence of moves up to
 // the round ceiling and asserts the terminal properties on what the shipped loop returned.
 func TestTheRoundLoopTerminatesConsistentlyOnEverySchedule(t *testing.T) {
+	releaseGate(t)
 	if testing.Short() {
 		t.Skip("drives debate.js once per schedule")
 	}
