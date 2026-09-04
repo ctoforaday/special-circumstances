@@ -551,9 +551,15 @@ jobs:
       # the tests. Their logic still runs in the plain `go test` leg above. The previous
       # shape raced ONE hand-picked test (the run-handle guard) to cover a harness race —
       # a harness race can flake a test run but cannot ship, so it went with the rest.
-      - run: go test -race $(go list -deps ./cmd/feov-record | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')
+      # An empty list is refused rather than raced: `go test -race` with no packages would
+      # test the current directory and pass while measuring almost nothing. scripts/check
+      # holds this derivation and the local gate's (expandScope) to the same target.
+      - run: |
+          pkgs="$(go list -deps ./cmd/feov-record | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')"
+          test -n "$pkgs"
+          echo "$pkgs" | xargs go test -race
         # EXPLICIT, because this job sets no default shell and the Windows leg therefore
-        # runs pwsh — where `$(...)` piping into grep is not this syntax.
+        # runs pwsh — where `$(...)`, pipes into grep, and xargs are not this syntax.
         shell: bash
         env:
           CGO_ENABLED: "1"

@@ -127,12 +127,20 @@ var modules = []struct{ dir, ciJob string }{
 }
 
 // raceScope is what each job passes to `go test -race`. NOT uniform, and the difference is
-// deliberate: feov-record races only internal/record because the full suite under -race
-// exceeds the runner's patience. Encoding the real scopes means this table cannot claim
-// coverage the workflow does not have.
+// deliberate. Encoding the real scopes means this table cannot claim coverage the workflow
+// does not have.
+//
+// feov-record races the SHIPPED BINARY'S IMPORT GRAPH and nothing else (ruled 2026-09-03: no
+// race-instrumenting the test harnesses). The scope is a deps: marker expanded at run time —
+// by expandScope here and by `go list -deps | grep` in the workflow — because the graph is
+// the record and a hand-copied package list beside it would be free to drift. What the
+// module's harness packages (integration/fuzz, testbuild, difftest) do with their
+// concurrency is SPAWN the real binary, which no race detector observes from the parent.
+// This is also the module's slowest gate now: the graph includes fetchcache and cli, whose
+// suites are minutes, not seconds.
 var raceScope = map[string][]string{
 	"plugins/prosthetic-conscience/tools":   {"./..."},
-	"plugins/frank-exchange-of-views/tools": {"./internal/record/"},
+	"plugins/frank-exchange-of-views/tools": {depsScopePrefix + "./cmd/feov-record"},
 	"plugins/gray-area/tools":               {"./..."},
 	// scripts WAS the one module with no -race leg, absent on purpose while it was
 	// straight-line tooling. It stopped being that: golden/interrupt.go guards signal state
@@ -145,6 +153,10 @@ var raceScope = map[string][]string{
 	"scripts": {"./..."},
 }
 
+// depsScopePrefix marks a race scope that is a binary's module-local import graph, resolved
+// in the gate's own directory when the gate runs. See expandScope.
+const depsScopePrefix = "deps:"
+
 // narrowRace are -race legs scoped to ONE NAMED TEST rather than to a package.
 //
 // Deliberately not entries in raceScope: that map is module -> scope and the parity test holds
@@ -152,12 +164,13 @@ var raceScope = map[string][]string{
 // package is raced when one test is. Under-claiming is the other half of the same defect,
 // which is why these are declared here instead of left out — a CI gate with no local
 // counterpart is the drift this command's package comment opens with.
-var narrowRace = []gate{
-	{id: "feov-record:race-runhandle", kind: kindRace, dir: "plugins/frank-exchange-of-views/tools",
-		args:  []string{"test", "-race", noCache, "-run", "^TestTheRunHandleIsImmutableAfterConstruction$", "./integration/fuzz/"},
-		ciJob: "feov-record",
-		why:   "the fuzz runner's seats are concurrent; its run handle was briefly resolved lazily, and two full debate runs under -race did not report it"},
-}
+//
+// CURRENTLY EMPTY, and the machinery stays. The one entry — feov-record's run-handle guard,
+// #641 — raced the fuzz harness's own runner, and the 2026-09-03 scope ruling (race the
+// shipped binary's source, never the harnesses) retired it: a harness race can flake a test
+// run but cannot ship. The test itself remains in integration/fuzz, un-raced, with the local
+// -race invocation documented on it.
+var narrowRace = []gate{}
 
 // tools are the scripts/ commands CI runs.
 var tools = []gate{
