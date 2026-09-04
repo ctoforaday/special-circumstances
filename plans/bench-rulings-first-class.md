@@ -32,9 +32,18 @@ Each row is the August claim, re-run against today's tree. Line numbers are toda
 | 5 | The docket has no record, so nothing can notice an undisposed item | **LIVE.** No `docket` subject: `MotionSubjects` is `{"grade", "petition", "inquiry"}` (`record/motion.go:35`). `seatprobe/boards.go:606` still states the rule as prose — "A gap that reaches the bench and gets no opinion is a docket item nobody disposed of" — and nothing enforces it |
 | 6 | Dead renderers report a clean board while measuring nothing | **FIXED ELSEWHERE, and fixed properly.** The `### Grade disputes` and `### Petitions` blocks are gone. The unanswered-petition count now joins through `record.Motions` (`assemble.go:1203-1220`), and its comment says why: "It read the retired `petition`/`petition-rule` types, so after the collapse it saw zero of each and the unanswered-petition warning below could never fire — silence that read as 'no petitions went unanswered'" |
 
-A seventh defect, found by the August audit rather than listed among its six, is also still live:
+A seventh defect, found by the August audit rather than listed among its six, has since been fixed —
+and is kept in this table rather than deleted, because the re-audit initially re-filed it as live and
+was corrected at the gate. **A defect this document claimed and the tree disproves is worth more here
+than a clean row**:
 
-| 7 | Merge's unruled-motion sweep covers *every* subject, including `petition`, which only the bench rules | **LIVE.** `sitting.go:129-133` sweeps all of `Motions(b)`; the bench's own case (`:162-166`) is a hand-written petition-only check. Red can still be refused PASS over an item it structurally cannot resolve |
+| 7 | Merge's unruled-motion sweep covers *every* subject, including `petition`, which only the bench rules — red is refused PASS over an item it cannot resolve, and the remedy string it prints is an instruction it is forbidden to follow | **FIXED ELSEWHERE, by a better design than this plan proposed, and the plan was wrong to call it live.** The refusal is not in `sitting.go` at all: it is `requirePassClosesAllGaps` (`record/refs.go:315`). It still sweeps **every** subject — deliberately, because an unruled petition genuinely does block a PASS — and the wedge was closed by making the message **name the gavel-holder** and give the blocked seat the one act still open to it: "IF THE GAVEL NAMED ABOVE IS YOURS… Where it is not… issue `--as FAIL` so the round ends on the record". Invariant at `record/gavel_test.go:54-95`, which fails on `"PASS was allowed over an unruled petition"`. **The August remedy — scope each seat's sweep to the subjects it rules — would make that test fail and call it a fix.** Withdrawn |
+
+**The residue row 7 leaves, and it is the only part of it Scope 1 keeps.** The *refusal*
+(`refs.go:345-368`) names who holds the gavel; the *sitting view* (`sitting.go:127-133`) does not — it
+says only "motion M1 was filed and never ruled — PASS is refused while it stands". Two surfaces
+describing one blockage, one of which names the way out. `sitting.go`'s own header forbids exactly
+this: "a seat told it was finished by one surface and refused by another learns to trust neither".
 
 ### What the fix mechanism now is — and it is better than the plan's
 
@@ -62,10 +71,10 @@ Renumbered; the August G1–G10 are not preserved, because four of them are met.
 
 | # | Criterion | How it is measured | Scope |
 |---|---|---|---|
-| N1 | Blue is not charged for repairs it did not make | `correctnessManifest`'s unmanifested set excludes `ClosedByBench`; a test asserts a bench-closed gap is absent from it | 1 |
-| N2 | `anchored_closures_pct` measures something reachable | Bench closures leave both numerator and denominator; the scorecard row's note **states its denominator** rather than leaving a reader to infer it | 1 |
-| N3 | No seat is refused PASS over work only another seat can do | A merge sitting with an unruled `petition` is `Complete: true`; a bench sitting with the same is `Complete: false` | 1 |
-| N4 | The gavel has one source | `seatprobe`'s `motionRuler` map is deleted and reads `recordpb.SubjectRuler`; no hand-written subject→role table remains | 1 |
+| N1 | Blue is not charged for repairs it did not make | `correctnessManifest`'s unmanifested set excludes gaps **no blue or red `Close` event ever touched** — NOT `ClosedByBench`, which is a last-closer flag (`replay.go:438` clears it on a later `Close`, `:460` sets it on a later `Opinion`) and would drop a gap blue closed and the bench later ruled on. Tests assert both orderings: bench-only closure absent from the list, **and** a blue close followed by a bench ruling still present | 1 |
+| N2 | `anchored_closures_pct` measures something reachable | Bench closures leave both numerator and denominator; the row's note **states its denominator**. Asserted over an **all-bench-closure** board too, where the new denominator is 0 and the row must not fall through to `"no closed gaps this run"` (`scorecard.go:509-511`) — a false statement, and the same plausible zero N2 exists to remove | 1 |
+| N3 | The two surfaces describing one blockage agree | The sitting view's outstanding line for an unruled motion **names the ruling seat**, as the refusal does. It does NOT change **who** is blocked: a test asserts a merge sitting with an unruled `petition` is still `Complete: false`, matching `gavel_test.go` | 1 |
+| N4 | The gavel has one source | `seatprobe`'s `motionRuler` map is deleted; `NewSurface` resolves the ruler through `record.MotionSubjectEnum` + `recordpb.SubjectRuler`, and an unknown or un-annotated subject is **loud** — today `motionRuler[subject]` returns `""` and files the verb under `byRole[""]`, offering it to no role, which reads as coverage. Measured by a test that a subject with no ruler fails surface construction, not by a grep | 1 |
 | N5 | Every bench disposition has a motion id and joins to what it settled | `record.Motions` returns a `docket` motion for every bench-disposed gap; zero gaps with `ClosedByBench` and no motion id | 2 |
 | N6 | An undisposed docket item blocks the bench's sitting | `sitting.go`'s `case "bench"` reports it in `Outstanding`; a bench that leaves one is `Complete: false` | 2 |
 | N7 | No renderer, comment or branch survives for a verb that cannot be written | The `opinion` census returns 0 non-test, non-English-word hits after the sweep | 2 |
@@ -143,25 +152,33 @@ document are gone:
 
 ## III. Proposed Changes (the spec)
 
-### Scope 1 — the three miscounts and the fourth ruler copy `[MODIFY]`
+### Scope 1 — two miscounts, one divergence, and a copied schema fact `[MODIFY]`
 
-**Independent of everything else.** No contract change, no new verb, no agent-facing edit. This
-scope is separable precisely because defects 3, 4 and 7 are arithmetic over the board that already
-exists, and the August plan's claim that docketing-as-a-motion makes them "free" was already
-withdrawn once, at round 1, under audit.
+**Independent of everything else.** No contract change, no new verb, no agent-facing edit. Every
+edit here is over the board that already exists.
+
+**Scope 1 changes who is told what, never who is blocked.** The refusal semantics are settled
+(`gavel_test.go`), and nothing below moves them. That is the boundary the first draft of this scope
+crossed without noticing.
 
 | Site | Change | Goal |
 |---|---|---|
-| `report/assemble.go:910-915` | the unmanifested loop skips `g.ClosedByBench`. The prose at `:927` narrows with it: it is a statement about **blue's** repairs and must say so | N1 |
-| `scorecard/scorecard.go:124-135` | `ComputeAnchoredClosures` takes the bench closures out of **both** counts. Its `BoardJSON` input carries `ClosedByBench` already (`viewjson.go:128`), so no signature change | N2 |
-| `scorecard/scorecard.go` — the row's `Note` | states the denominator in words. A ratio whose denominator a reader must infer is the shape that let this row read `target 100` against an unreachable measure for months | N2 |
-| `record/sitting.go:129-133` | merge's sweep is scoped to the subjects merge rules, via `recordpb.SubjectRuler` | N3 |
-| `record/sitting.go:162-166` | the bench's hand-written petition-only check becomes the same sweep, scoped to the subjects the bench rules | N3 |
-| `seatprobe/seatprobe.go:68,95` | delete `motionRuler`; read `recordpb.SubjectRuler` | N4 |
+| `report/assemble.go:910-915` | the unmanifested loop skips gaps **no `Close` event ever touched**. NOT `g.ClosedByBench`: `replay.go:432-438`'s own comment records that the flag used to latch and was made to follow the LAST closing event, after the consistency oracle caught mixed attribution on the bench-then-red seed. Excluding on it drops a gap blue closed and the bench later ruled on — a receipt genuinely missing, silently removed from the one section whose purpose is to say so. The prose at `:927` narrows with the predicate: it is a statement about **blue's** repairs and must say so | N1 |
+| `scorecard/scorecard.go:124-135` | `ComputeAnchoredClosures` takes bench closures out of **both** counts. `GapJSON` carries `ClosedByBench` (`viewjson.go:128`, set at `:180`, closed gaps appended at `:237`), so no signature change — verified at the gate rather than assumed | N2 |
+| `scorecard/scorecard.go:500-512` | **both** branches of the row, not only the value branch. The `Note` states the denominator in words; the else branch at `:509-511` currently reads `"no closed gaps this run"`, which becomes FALSE the moment the denominator excludes an all-bench-closure board — the same plausible zero, arriving through the fix | N2 |
+| `record/sitting.go:127-133` | the outstanding line **names the ruling seat**, resolved the way `refs.go:353-359` resolves it. The sweep still covers every subject and the seat is still blocked — this is the view catching up to the refusal, not a change to it | N3 |
+| `record/sitting.go:162-166` | the bench's hand-written petition-only check reads the same helper, so the two cases cannot disagree about who rules what | N3 |
+| `seatprobe/seatprobe.go:68,95` | delete `motionRuler`. `NewSurface` (`:70-107`) takes `[]string` command paths and has **no error path**, so this row is not a substitution: name the `record.MotionSubjectEnum` conversion and give the miss a **loud** failure at surface construction. Today an unknown subject yields `""` and files the verb under `byRole[""]` — offered to no role, reading as coverage | N4 |
 
-**Not folded in:** `seatprobe/build.go:193`'s
-`map[string]string{"grade": "red-merge-r1", "petition": "judge-r2"}` maps subjects to probe **seat
-ids**, not roles. It is a different fact and stays hand-written — an accepted copy, named as one.
+**Not folded in, and there are TWO of them — the second was found at the gate:**
+
+- `seatprobe/build.go:193` — `map[string]string{"grade": "red-merge-r1", "petition": "judge-r2"}`
+  maps subjects to probe **seat ids**, not roles. A different fact; stays hand-written.
+- `cli/seatprobe_fixture_test.go:156` — `map[string]string{"grade": "red-merge-r1", "petition":
+  "judge-r1"}`, a **second** copy of that same seat-id table, and it **disagrees**: `judge-r1` where
+  `build.go` says `judge-r2`. Both are accepted copies only if the disagreement is deliberate.
+  **Reconcile or explain it in the Scope 1 PR** — an unexplained disagreement between two copies of
+  one fact is the defect N4 is about, one layer down, and neither is reached by the enum.
 
 ### Scope 2 — the `docket` motion subject, and `bench opinion` retired `[NEW]` / `[DELETE]`
 
@@ -326,6 +343,10 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
 
 | # | Risk | Likelihood × Impact | Mitigation |
 |---|---|---|---|
+| S1 | **Scope 1 moves a refusal while claiming to move a message.** The first draft of N3 did exactly this: it would have scoped merge's sweep by ruler, letting a merge seat PASS over an unruled petition — which `gavel_test.go` refuses by name | med × **high** | Stated as the scope's boundary in §III, and gated: §V asserts the merge sitting is STILL `Complete: false`. `gavel_test.go` must pass unmodified; if a Scope 1 edit requires touching it, the edit is out of scope |
+| S2 | **The N1 predicate replaces one silent zero with another.** Excluding on the wrong key hides a genuinely missing receipt instead of a miscount | med × high | The predicate is the absence of a `Close` event, not `ClosedByBench`; §V asserts the blue-close-then-bench-rule ordering, which is the case that separates the two |
+| S3 | **N2's fix makes the row lie in a new case.** An all-bench-closure run now has denominator 0 and falls to `"no closed gaps this run"` | med × med | Both branches are named as sites; §V asserts the all-bench board |
+| S4 | **Deleting `seatprobe`'s map converts a wrong answer into no answer.** `NewSurface` has no error path, so an unresolvable subject would surface as `byRole[""]` — a verb offered to nobody, which the coverage gate reads as fine | med × med | The miss is loud at surface construction. Asserted by a test, not by the absence of a grep hit |
 | R1 | **The `opinion` prose-key clobber, a fourth time.** `opinion` is both an event type and a prose key; `a12362c` records three sweeps that clobbered the key while retargeting the type | high × med | The guarded sites are enumerated in Scope 2 as explicit NO CHANGE rows. A mechanical rename is forbidden; the sweep is a reviewed list |
 | R2 | **The replay pre-pass is forgotten and the bug lands silently.** A single pass drops every ruling that replays before its filing — rendering the gap as one nobody disposed of | med × high | §II states the property; a test writes the ruling's shard first and asserts the gap closes |
 | R3 | **Any-seat filing is a new capability.** An adversarial blue could docket every gap it dislikes to buy rounds | med × low | The bench rules each one and `carried` is a real disposition, so the cost lands on the filer's round budget. Watched, not gated: the capture auditor already reports per-seat act counts. Gating it before it has been seen would be an invented obligation |
@@ -341,14 +362,34 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
 
 **Scope 1**
 
-1. `go test ./internal/report/... ./internal/scorecard/... ./internal/record/... ./internal/seatprobe/...`
-2. New assertions, one per goal: a bench-closed gap is absent from `correctnessManifest`'s
-   unmanifested set (N1); `ComputeAnchoredClosures` over a board with one bench closure and one
-   anchored red closure returns `1, 1` and not `1, 2` (N2); a merge sitting with an unruled
-   `petition` is `Complete: true` **and** a bench sitting with the same is `Complete: false` — both
-   directions, because the one-directional version passes on a sweep that checks nothing (N3).
-3. `grep -rn 'map\[string\]string{"grade"' --include=*.go tools` returns only `build.go`'s seat-id
-   map (N4).
+1. `go test ./internal/report/... ./internal/scorecard/... ./internal/record/... ./internal/seatprobe/... ./internal/cli/...`
+   — and `record/gavel_test.go` must pass **unmodified**. It is the boundary marker for S1: a Scope 1
+   edit that needs it changed is not a Scope 1 edit.
+2. Per goal, and each pair chosen so the wrong fix fails it:
+   - **N1** — a bench-only closure with no manifest row is ABSENT from the unmanifested list; **and**
+     a gap blue closed with no manifest row, which the bench later ruled on, is STILL PRESENT. The
+     second is the assertion that fails a `ClosedByBench` predicate, and the first alone does not.
+   - **N2** — `ComputeAnchoredClosures` over one bench closure plus one anchored red closure returns
+     `1, 1`, not `1, 2`; **and** over an all-bench-closure board the rendered row does not read
+     `"no closed gaps this run"`.
+   - **N3** — the merge sitting's outstanding line for an unruled `petition` NAMES the bench; **and**
+     that sitting is still `Complete: false`. The second is the one that catches a fix which
+     "resolves" the divergence by dropping the item.
+   - **N4** — a `MotionSubject` with no ruler annotation makes surface construction FAIL. Asserting
+     that a known subject resolves is not this check: it passes against the `""` that is the defect.
+3. Reconcile `build.go:193` and `cli/seatprobe_fixture_test.go:156` — the same seat-id table,
+   disagreeing on `judge-r1` vs `judge-r2`. Either make them agree or record why they differ. **Not
+   a grep gate:** the August census (`grep -rn 'map\[string\]string{"grade"'`) returns THREE hits
+   today, not one, and a literal-shape census cannot evidence "no hand-written subject→role table
+   remains" — a no-match reads the same as an honest zero, which is the failure this document is
+   named for. N4 is carried by the test in step 2, not by this step.
+4. **Driveable check on real data — Scope 1's own arm, and it is not optional.** Assemble the report
+   and the scorecard from a real run directory containing at least one bench-closed gap, and **read**
+   them: the correctness-manifest section must not accuse blue of the bench's closures, and the
+   `anchored_closures_pct` row must state its denominator. Arm 1's rationale is this scope exactly —
+   "the report was green on every test it had, and the reasoning was missing from the artifact a
+   human reads". Note the trap recorded below: the record is written OUTSIDE the run directory by
+   default, so assembling without it reports an empty board, **which reads exactly like a clean one**.
 
 **Scope 2**
 
