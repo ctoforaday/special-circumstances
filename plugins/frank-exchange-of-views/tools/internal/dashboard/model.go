@@ -47,10 +47,14 @@ type Shards struct {
 type Step struct{ Name, State string }
 
 type Rate struct {
-	Round     any
+	// Round and Open are POINTERS because the schema makes them optional: a row that carries no
+	// round is a different thing from round 0, and the dashboard prints "—" for the first and a
+	// number for the second. They were `any` holding a json.Number or a nil map entry, which
+	// collapsed those two cases into whatever anyStr made of them.
+	Round     *int32
 	Opened    int
 	Closed    int
-	Open      any
+	Open      *int32
 	CloseRate int
 }
 
@@ -82,8 +86,8 @@ type Model struct {
 	// same run, so carrying the string would mean one of them re-deriving what the other
 	// already holds. No JSON tag — this struct is consumed by renderHtml alone.
 	Run             record.Run
-	Telemetry       []map[string]any
-	Latest          map[string]any
+	Telemetry       []*recordpb.TelemetryLine
+	Latest          *recordpb.TelemetryLine
 	Seats           []Seat
 	Cost            float64
 	CostRows        []CostRow
@@ -338,7 +342,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	steps := buildSteps(seats, merged.MaxRounds)
 	rates := buildRates(telemetry)
 
-	var latest map[string]any
+	var latest *recordpb.TelemetryLine
 	if len(telemetry) > 0 {
 		latest = telemetry[len(telemetry)-1]
 	}
@@ -611,24 +615,21 @@ func buildSteps(seats []Seat, maxRoundsStr string) []Step {
 	return steps
 }
 
-func buildRates(telemetry []map[string]any) []Rate {
+func buildRates(telemetry []*recordpb.TelemetryLine) []Rate {
 	rates := make([]Rate, 0, len(telemetry))
 	for i, t := range telemetry {
 		prevOpen := 0.0
 		if i > 0 {
-			prevOpen = numOr(telemetry[i-1]["open_count"], 0)
+			prevOpen = float64(telemetry[i-1].GetOpenCount())
 		}
-		minted := 0.0
-		if nm, ok := t["new_mint"].(map[string]any); ok {
-			minted = numOr(nm["count"], 0)
-		}
-		open := numOr(t["open_count"], 0)
+		minted := float64(t.GetNewMint().GetCount())
+		open := float64(t.GetOpenCount())
 		closed := prevOpen + minted - open
 		closeRate := 0
 		if minted+prevOpen > 0 {
 			closeRate = int(round(100 * closed / (prevOpen + minted)))
 		}
-		rates = append(rates, Rate{Round: t["round"], Opened: int(minted), Closed: int(closed), Open: t["open_count"], CloseRate: closeRate})
+		rates = append(rates, Rate{Round: t.Round, Opened: int(minted), Closed: int(closed), Open: t.OpenCount, CloseRate: closeRate})
 	}
 	return rates
 }

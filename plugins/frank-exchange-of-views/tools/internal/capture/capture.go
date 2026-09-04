@@ -205,10 +205,13 @@ func TelemetryAudit(run record.Run, redRounds int) Audit {
 	if err != nil {
 		return Audit{Check: "telemetry", Verdict: "FAIL", Detail: fmt.Sprintf("telemetry could not be computed from the record: %v", err)}
 	}
-	rounds := map[string]bool{}
+	// A ROW WITHOUT A ROUND IS NOT COUNTED, and with the row typed that is now the only way to
+	// miss: the field is optional in the schema, so presence is the question, and a key that was
+	// never written can no longer masquerade as one that was absent.
+	rounds := map[int32]bool{}
 	for _, j := range lines {
-		if r, ok := j["round"]; ok && r != nil {
-			rounds[jsString(r)] = true
+		if j.Round != nil {
+			rounds[j.GetRound()] = true
 		}
 	}
 	v := "FAIL"

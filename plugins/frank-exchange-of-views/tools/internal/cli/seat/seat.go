@@ -71,6 +71,25 @@ const SeatKey = "feov.seat-id"
 // Read from HERE and not from the environment: the tests drive cobra in-process with SetArgs, so
 // os.Args carries nothing, and a refusal that read the env would name an empty seat in exactly the
 // runs that check it names the right one.
+// GradeOrNil is SetGrade for a proto body: the typed value when the seat passed it, and nil when
+// it did not. ABSENT AND ZERO ARE DIFFERENT and the distinction is the whole reason this returns a
+// pointer — Grade's zero is UNSPECIFIED, so writing it for an omitted flag would record a grade the
+// seat never gave, and every downstream reader would see a graded axis rather than an ungraded one.
+//
+// It refuses rather than guesses on a word the schema does not know: record.GradeOf returns false,
+// and nil here means the field stays absent, which is what the pre-migration record did when the
+// key was never set.
+func GradeOrNil(g *flags.GradeValue) *recordpb.Grade {
+	if !g.Given() {
+		return nil
+	}
+	v, ok := record.GradeOf(string(g.Grade))
+	if !ok {
+		return nil
+	}
+	return &v
+}
+
 func SetRole(root *cobra.Command, role, seatID string) {
 	if root.Annotations == nil {
 		root.Annotations = map[string]string{}
@@ -816,73 +835,6 @@ func OptStr(cmd *cobra.Command, name string) *string {
 func Given(cmd *cobra.Command, name string) bool {
 	f := cmd.Flags().Lookup(name)
 	return f != nil && f.Changed
-}
-
-// Set copies a flag into the payload only when the seat passed it.
-func Set(cmd *cobra.Command, p *record.Payload, key, name string) *record.Payload {
-	if Given(cmd, name) {
-		p.Set(key, Str(cmd, name))
-	}
-	return p
-}
-
-// SetReason reads the seat's prose (--reason / --reason-file / stdin) and, when non-empty, sets it
-// under key. It folds the read+error-guard+conditional-set that every prose-bearing verb otherwise
-// hand-rolls (evidence / basis / rationale / prose / reason) — close.go documents that a verb which
-// opts out of the shared READ drifts by construction; the same holds for the SET.
-func SetReason(cmd *cobra.Command, p *record.Payload, key string) error {
-	r, err := Reason(cmd)
-	if err != nil {
-		return err
-	}
-	if r != "" {
-		p.Set(key, r)
-	}
-	return nil
-}
-
-// SetGrade writes a typed grade only when the seat passed it. The typed value
-// carries the absent/present distinction itself, so this never consults the flag
-// set — one fewer place for the two to disagree.
-func SetGrade(p *record.Payload, key string, g *flags.GradeValue) *record.Payload {
-	if g.Given() {
-		p.Set(key, string(g.Grade))
-	}
-	return p
-}
-
-// GradeOrNil is SetGrade for a proto body: the typed value when the seat passed it, and nil when
-// it did not. ABSENT AND ZERO ARE DIFFERENT and the distinction is the whole reason this returns a
-// pointer — Grade's zero is UNSPECIFIED, so writing it for an omitted flag would record a grade the
-// seat never gave, and every downstream reader would see a graded axis rather than an ungraded one.
-//
-// It refuses rather than guesses on a word the schema does not know: record.GradeOf returns false,
-// and nil here means the field stays absent, which is what the pre-migration record did when the
-// key was never set.
-func GradeOrNil(g *flags.GradeValue) *recordpb.Grade {
-	if !g.Given() {
-		return nil
-	}
-	v, ok := record.GradeOf(string(g.Grade))
-	if !ok {
-		return nil
-	}
-	return &v
-}
-
-// SetList writes a comma-list field. These are ALWAYS present in the event, even
-// empty: a gap with no ancestors records "supersedes": [], because an absent key
-// would read as "lineage unknown" where the truth is "lineage none".
-func SetList(p *record.Payload, key string, c *flags.CSV) *record.Payload {
-	return p.Set(key, c.Value())
-}
-
-// SetSame is Set where the payload key and the flag name agree.
-func SetSame(cmd *cobra.Command, p *record.Payload, names ...string) *record.Payload {
-	for _, n := range names {
-		Set(cmd, p, n, n)
-	}
-	return p
 }
 
 // GroupTitles are the two headings a seat's root help renders its surface under.
