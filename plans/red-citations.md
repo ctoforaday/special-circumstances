@@ -170,13 +170,18 @@ All paths absolute; `export PATH=$PATH:/usr/local/go/bin`; `GOTOOLCHAIN=go1.25.0
      `internal/anchor` tests; `internal/record` and `internal/cli` exercise it from outside.
      `-confirm` would settle which, at ~8 minutes per survivor (~2.5 hours here) — not paid.
      **The gap is real either way: anchor.go's own package asserts nothing about it.**
-   - `internal/record` (`citationid.go`, `refs.go`) — **NOT SWEEPABLE at acceptable cost, and
-     this is the tool's own documented failure mode rather than a thing still owed.** A 50-minute
-     run produced ZERO mutants: the package's suite is ~60s per mutant under load, and
-     `scripts/mutate`'s header records the same measurement ("two hours of sweeping
-     `internal/record` completed about eight mutants and produced no output at all"). Sweeping
-     these two files needs a faster package suite first, or a checkout-per-worker parallel
-     runner. Recording it as INFEASIBLE-AS-BUILT so it is not re-attempted blind a third time.
+   - `internal/record` (`citationid.go`, `refs.go`) — SLOW, and **running**. A first 50-minute
+     attempt produced no output, which I initially recorded as "zero mutants" and as
+     INFEASIBLE-AS-BUILT. **That was wrong, and the way it was wrong is the point: a KILLED mutant
+     prints nothing.** An empty log is what a working sweep and a broken one both look like, so
+     silence was read as failure on no evidence — the plausible zero, committed to a plan by the
+     agent citing the rule against it.
+     Measured instead, 2026-09-04: `-selftest` passes (the tool mutates and observes); the sweep
+     runs in a SANDBOX COPY (`mutate/sandbox.go`), so polling the real tree for writes measures
+     nothing and my first probe did exactly that; polling the sandbox showed **1 mutation per
+     ~150s** under concurrent load. So the earlier silent 50 minutes was roughly 20 mutants, all
+     killed. Feasible, just slow — and the rate is a property of the load and of
+     `internal/record`'s ~60s suite, not of the tool.
    - `internal/cli` (`blue/cite.go`, `lens/anchor.go`) — not attempted, same reason, worse: that
      package's suite runs 20+ minutes once.
 
