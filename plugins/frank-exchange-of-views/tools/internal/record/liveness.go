@@ -236,18 +236,10 @@ func (l Liveness) Says() string {
 // liveness audit, which cannot tell a finished run from a killed one without it. The record
 // knows what the marker cannot.
 func TerminalVerdict(run Run) string {
-	b, err := BoardState(run)
-	if err != nil {
-		return ""
-	}
-	// The bench's own terminal act, latest wins.
-	for i := len(b.Events) - 1; i >= 0; i-- {
-		if b.Events[i].GetType() != recordpb.EventType_EVENT_TYPE_OUTCOME {
-			continue
-		}
-		if v := recordpb.Word(b.Events[i].GetOutcome().GetVerdict()); v != "" {
-			return v
-		}
+	// The bench's own terminal act, latest wins — one query (queries.go), not a fold, and the
+	// same query the dashboard reads so the two surfaces cannot fold the answer differently.
+	if v := RecordedOutcome(run); v != "" {
+		return v
 	}
 	// Or what the record decides for itself. ok is false only where the record genuinely
 	// cannot — a judged deadlock — and that is a real answer, not a gap to paper over.

@@ -167,14 +167,14 @@ func requireInquiry(run Run, id, verb, flag string) error {
 	if id == "" {
 		return nil
 	}
-	b, err := BoardState(run)
+	// Inquiries(b) keys every line of inquiry on Avenue events carrying a non-empty avenue_id,
+	// so membership is one existence question.
+	found, err := recordHas(run, `SELECT 1 FROM "avenue" WHERE "avenue_id" = ? LIMIT 1`, id)
 	if err != nil {
 		return err
 	}
-	for _, a := range Inquiries(b) {
-		if a != nil && a.ID == id {
-			return nil
-		}
+	if found {
+		return nil
 	}
 	return fmt.Errorf("record: %s %s=%s names no line of inquiry on the record — `show lines-of-inquiry` lists every one with its id and fate. Propose it first (`blue line of inquiry --line …`, which ASSIGNS the id); --id moves a line of inquiry that already exists",
 		verb, flag, id)
@@ -210,17 +210,17 @@ func requireSeat(run Run, seatID, verb, flag string) error {
 // pattern, not an error. The rules that survived had zero violations in the run, so they
 // cost nothing today and exist for the cheaper tier.
 
-// gapState answers what a gap IS, not merely whether it exists.
+// gapState answers what a gap IS, not merely whether it exists. The gap view's "open" is read
+// off the disposition vocabulary (a red close OR the earliest closing bench opinion), which is
+// the same rule the fold applied — an unknown gap answers not-closed, as before: requireGap owns
+// existence.
 func gapState(run Run, id string) (closed bool, err error) {
-	b, err := BoardState(run)
-	if err != nil {
+	var open bool
+	found, err := queryRow(run, []any{&open}, `SELECT "open" FROM "gap" WHERE "gap_id" = ?`, id)
+	if err != nil || !found {
 		return false, err
 	}
-	g, ok := b.Gaps[id]
-	if !ok {
-		return false, nil
-	}
-	return !g.Open, nil
+	return !open, nil
 }
 
 // requireOpenGap refuses an act that only makes sense on a live gap.
@@ -277,25 +277,37 @@ func requireClosedGaps(run Run, ids []string, verb, flag string) error {
 // Checked at verdict because that is the seat's terminal act and the last moment it is
 // still there to close them.
 func requireSupersededAreClosed(run Run) error {
-	b, err := BoardState(run)
+	// One join instead of two passes over the fold: every superseded ancestor still open, with
+	// the LAST gap that claimed to replace it — the same last-writer answer the map produced.
+	// An ancestor named in supersedes but never minted drops out of the join, as it dropped out
+	// of the board lookup.
+	db, err := openRunForRead(run)
 	if err != nil {
 		return err
 	}
-	superseded := map[string]string{} // ancestor -> the gap that claimed to replace it
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
-		if g == nil || g.Mint == nil {
-			continue
-		}
-		for _, anc := range g.Mint.GetSupersedes() {
-			superseded[anc] = id
-		}
+	if db == nil {
+		return nil // no record yet: nothing superseded, nothing stranded
 	}
+	rows, err := db.Query(`SELECT s."value",
+	    (SELECT m2."gap_id" FROM "mint_supersedes" s2 JOIN "mint" m2 ON m2."event_id" = s2."event_id"
+	      WHERE s2."value" = s."value" ORDER BY s2."event_id" DESC LIMIT 1)
+	  FROM "mint_supersedes" s
+	  JOIN "gap" g ON g."gap_id" = s."value" AND g."open"
+	  GROUP BY s."value"`)
+	if err != nil {
+		return fmt.Errorf("record: asking the record for stranded ancestors: %w", err)
+	}
+	defer rows.Close()
 	var stranded []string
-	for anc, successor := range superseded {
-		if g, ok := b.Gaps[anc]; ok && g.Open {
-			stranded = append(stranded, fmt.Sprintf("%s (superseded by %s)", anc, successor))
+	for rows.Next() {
+		var anc, successor string
+		if err := rows.Scan(&anc, &successor); err != nil {
+			return err
 		}
+		stranded = append(stranded, fmt.Sprintf("%s (superseded by %s)", anc, successor))
+	}
+	if err := rows.Err(); err != nil {
+		return err
 	}
 	if len(stranded) == 0 {
 		return nil

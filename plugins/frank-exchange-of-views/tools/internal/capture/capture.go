@@ -739,15 +739,7 @@ func RecordParityAudit(run record.Run, redRounds, blueBlocks int) Audit {
 	if redRounds == 0 {
 		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no red rounds on record"}
 	}
-	rounds := map[int]bool{}
-	if board, err := record.BoardState(run); err == nil {
-		for _, e := range board.Events {
-			if e.GetType() == recordpb.EventType_EVENT_TYPE_REVISION {
-				rounds[int(e.GetRound())] = true
-			}
-		}
-	}
-	clRounds := len(rounds)
+	clRounds := record.RoundsWithRevision(run)
 	ok := blueBlocks >= redRounds-1 && clRounds >= redRounds-1
 	v := "FAIL"
 	if ok {

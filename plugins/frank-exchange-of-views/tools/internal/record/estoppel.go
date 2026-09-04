@@ -1,6 +1,7 @@
 package record
 
 import (
+	"database/sql"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -131,18 +132,17 @@ func collapse(s string) string { return strings.Join(strings.Fields(s), " ") }
 // re-arguing what it wrote itself. Whitespace is NOT normalized here for that reason: the
 // looser the match, the more of blue's own writing red is barred from auditing.
 func ProposalAppliedVerbatim(run Run, gapID, old, new string) (bool, error) {
-	b, err := BoardState(run)
-	if err != nil {
-		return false, err
-	}
-	g, ok := b.Gaps[gapID]
-	if !ok || g.Mint == nil {
-		return false, nil
-	}
 	// THE SPAN IS THE GAP'S OWN `location`. It was a separate `fix_old` holding the same
 	// sentence, matched by a second matcher — a gap's location and the span its proposal
-	// replaces were never two facts.
-	return g.Mint.GetLocation() == old && g.Mint.GetFixNew() == new, nil
+	// replaces were never two facts. The compare stays in Go so it stays byte-exact; the
+	// record only hands back the pair.
+	var loc, fixNew sql.NullString
+	found, err := queryRow(run, []any{&loc, &fixNew},
+		`SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found {
+		return false, err
+	}
+	return loc.String == old && fixNew.String == new, nil
 }
 
 // THE THREE FRICTION-KIND WORDS ARE GONE, and the deletion is the point rather than a tidy-up.
@@ -209,11 +209,10 @@ func ProofAnswers(run Run, gapID string) bool {
 	if gapID == "" {
 		return false
 	}
-	b, err := BoardState(run)
-	if err != nil {
-		return false
-	}
-	return proofNames(b, gapID)
+	// A read error folds into false, as the board-read error did: estoppel never blocks on an
+	// unreadable record.
+	found, err := recordHas(run, `SELECT 1 FROM "proof" WHERE "answers" = ? LIMIT 1`, gapID)
+	return err == nil && found
 }
 
 // RemovalVerified / RemovalAsserted say how far a recorded retirement can be trusted, on the
@@ -241,16 +240,12 @@ func ClaimAppearsInAnEdit(run Run, claim string) bool {
 	if claim == "" {
 		return false
 	}
-	b, err := BoardState(run)
-	if err != nil {
-		return false
-	}
-	for _, e := range b.Events {
-		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok && strings.Contains(ed.GetOld(), claim) {
-			return true
-		}
-	}
-	return false
+	// instr answers presence exactly as strings.Contains did (a NULL old span yields NULL,
+	// which is not > 0 — the same miss as Contains on an empty string). A read error folds
+	// into false, as the board-read error did.
+	found, err := recordHas(run,
+		`SELECT 1 FROM "blue_edit" WHERE instr("old", ?) > 0 LIMIT 1`, claim)
+	return err == nil && found
 }
 
 // GapsAwaitingProof lists the OPEN gaps minted --check-kind computation that no proof answers,
@@ -264,19 +259,32 @@ func ClaimAppearsInAnEdit(run Run, claim string) bool {
 // nine. A seat reading "check_kind: computation" learns a property of the gap; it does not learn
 // that it owes a program, and only the second changes what the sitting produces.
 func GapsAwaitingProof(run Run) []string {
-	b, err := BoardState(run)
+	// Board order is mint order, which is event order — the join the fold walked per gap,
+	// asked once. Read errors fold into nil, as the board-read error did.
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return nil
+	}
+	rows, err := db.Query(`SELECT g."gap_id"
+	  FROM "gap" g JOIN "mint" m ON m."gap_id" = g."gap_id"
+	  WHERE g."open" AND g."check_kind" = ?
+	    AND NOT EXISTS (SELECT 1 FROM "proof" p WHERE p."answers" = g."gap_id")
+	  ORDER BY m."event_id"`,
+		recordpb.Word(recordpb.CheckKind_CHECK_KIND_COMPUTATION))
 	if err != nil {
 		return nil
 	}
+	defer rows.Close()
 	var out []string
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
-		if g == nil || !g.Open || g.Mint == nil {
-			continue
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil
 		}
-		if g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION && !proofNames(b, id) {
-			out = append(out, id)
-		}
+		out = append(out, id)
+	}
+	if rows.Err() != nil {
+		return nil
 	}
 	return out
 }

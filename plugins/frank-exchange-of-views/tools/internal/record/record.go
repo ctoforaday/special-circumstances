@@ -436,20 +436,21 @@ func requireGradeMotionAsksForAChange(run Run, g *recordpb.GradeMotion) error {
 	if proposed == recordpb.Grade_GRADE_UNSPECIFIED {
 		return nil // an absent proposal is the required-field sweep's refusal, not this one's
 	}
-	b, err := BoardState(run)
-	if err != nil {
-		return nil // a board that cannot be read does not block the filing; requireGap already ran
-	}
-	gap := b.Gaps[g.GetGapId()]
-	if gap == nil {
-		return nil // requireGap answered this already
-	}
-	current, known := gap.GradeAt(g.GetDimension())
-	if !known {
-		return fmt.Errorf("record: motion grade file: %q is not an axis this binary can read a grade at, so it cannot tell whether your motion asks for a change — add it to Gap.GradeAt",
+	col := gradeAtColumn(g.GetDimension())
+	if col == "" {
+		return fmt.Errorf("record: motion grade file: %q is not an axis this binary can read a grade at, so it cannot tell whether your motion asks for a change — add it to gradeAtColumn",
 			recordpb.Word(g.GetDimension()))
 	}
-	if current != proposed {
+	// The CURRENT grade is the latest regrade that touched the axis, else the mint's — the same
+	// overlay the board fold applies, asked of the record (queries.go).
+	current, found, err := gradeAt(run, g.GetGapId(), col)
+	if err != nil {
+		return nil // a record that cannot be read does not block the filing; requireGap already ran
+	}
+	if !found {
+		return nil // requireGap answered this already
+	}
+	if current != recordpb.Word(proposed) {
 		return nil
 	}
 	return fmt.Errorf("record: motion grade file: %s is already %s at %s, so this motion asks for no change — "+
