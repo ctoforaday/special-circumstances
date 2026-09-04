@@ -533,6 +533,36 @@ func RequireUnruledMotion(run Run, id string) error {
 	return nil
 }
 
+// RequireUnappealedMotion refuses a SECOND appeal on a motion already appealed.
+//
+// FOUND BY THE STATE GRAPH (#673), and it is RequireUnruledMotion's defect one verb over. Probing
+// every act from every state of a motion, `appeal` on an already-appealed motion was ACCEPTED and
+// left the state alone while rewriting `appeal_reason` — three appeals in a row, each silently
+// replacing the last, the report showing only the third.
+//
+// The reasoning above applies unchanged: both events stay on the record and replay keeps whichever
+// came last, so the earlier position simply stops being the answer. It is WORSE here than for a
+// ruling, because an appeal is not an answer to be overturned — debate.js tells blue "the appeal is
+// where your ARGUMENT is recorded", so the thing quietly dropped is the argument itself.
+//
+// A SECOND APPEAL IS NOT THE MOVE FOR NEW GROUNDS, and the refusal says what is: a grade dispute
+// pressed again belongs in a NEW motion for the new round, which is the path the engine already
+// drives (`grade_dispute_re_raised`). That keeps both arguments, which is the whole point of an
+// appeal being an event rather than a field.
+func RequireUnappealedMotion(run Run, id string) error {
+	m, err := MergedEvents(run)
+	if err != nil {
+		return err
+	}
+	for _, e := range m.Events {
+		if f, ok := recordpb.BodyAs[*recordpb.MotionAppeal](e); ok && f.GetMotionId() == id {
+			return fmt.Errorf("record: motion %s is already appealed by %s (%q). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. If you are pressing on new grounds, file a NEW motion for this round: two motions keep two arguments, which is what an appeal being an event rather than a field is for",
+				id, e.GetSeatId(), f.GetReason())
+		}
+	}
+	return nil
+}
+
 // RequireRuledMotion additionally refuses an appeal against a motion NOBODY HAS RULED.
 //
 // An appeal is the filer pressing on AFTER an answer; against no answer there is nothing to press

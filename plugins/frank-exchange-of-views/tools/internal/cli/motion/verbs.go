@@ -331,6 +331,12 @@ func newAppeal(subject string) *cobra.Command {
 			if err := record.RequireSubjectMatches(run, subject, id); err != nil {
 				return err
 			}
+			// #673: a second appeal REPLACED the first in every reader. The state graph found it
+			// by probing every act from every state — accepted, the state unchanged, the argument
+			// rewritten.
+			if err := record.RequireUnappealedMotion(run, id); err != nil {
+				return err
+			}
 			reason, err := prose(cmd, "appeal", "why you are pressing on. Going against a ruling without saying why is the disagreement disappearing, which is what the record exists to prevent")
 			if err != nil {
 				return err
