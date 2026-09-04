@@ -129,7 +129,7 @@ func TestTheEmptyDenominatorNoteIsTrueOfBothWaysToGetOne(t *testing.T) {
 		"all bench":      boardOf(map[string]*record.Gap{"G1": benchGap()}, "G1"),
 		"nothing closed": boardOf(map[string]*record.Gap{"G1": {Open: true}}, "G1"),
 	} {
-		row := rowByMetric(redRows(nil, nil, board), "anchored_closures_pct")
+		row := rowByMetric(redRows(record.Run{}, nil, nil, board), "anchored_closures_pct")
 		if row == nil {
 			t.Fatalf("%s: no anchored_closures_pct row", name)
 		}

@@ -524,7 +524,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	return rows
 }
 
-func redRows(results []map[string]any, telemetry []*recordpb.TelemetryLine, board *record.Board) []Row {
+func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.TelemetryLine, board *record.Board) []Row {
 	var rows []Row
 
 	// anchored_closures_pct
@@ -549,20 +549,43 @@ func redRows(results []map[string]any, telemetry []*recordpb.TelemetryLine, boar
 		rows = append(rows, Row{Clause: "Attestation-format invariant", Metric: "anchored_closures_pct", Cls: "benchmark", Note: n})
 	}
 
-	// convergence_vs_verdict_flags — A LOST PRODUCER, REPORTED AS SUCH RATHER THAN AS ZERO.
+	// convergence_vs_verdict_flags — DERIVED FROM THE RECORD, not read off a key.
 	//
-	// This counted telemetry rows whose `convergence_vs_verdict_flag` was truthy. NOTHING HAS EVER
-	// WRITTEN THAT KEY: it appears nowhere in the tool, nowhere in the engine, and nowhere in the
-	// schema, so the map lookup missed on every row of every run and the detector reported 0 —
-	// which reads as "no soft fails" and meant "never measured". `feov-memory/red-scorecard.md`
-	// carries that 0 for seven captured runs.
+	// This counted telemetry rows whose `convergence_vs_verdict_flag` was truthy. NOTHING EVER
+	// WROTE THAT KEY: debate.js computes the detector each round and writes it to a LOG LINE, so
+	// the lookup missed on every row and the metric reported 0 for seven captured runs — "no soft
+	// fails" in the words it would use for "never measured".
 	//
-	// Typing the telemetry line is what exposed it: a missing map key is silent, a missing field
-	// is a compile error. It is NOT modelled in TelemetryLine for the same reason `accepted_deltas`
-	// is reserved rather than encoded (see the schema) — a field nobody writes would carry the
-	// plausible zero forward wearing the schema's authority. The metric now states the absence.
-	rows = append(rows, Row{Clause: "Never-hard-fail", Metric: "convergence_vs_verdict_flags", Cls: "detector",
-		Note: "NOT MEASURED — no producer writes a convergence-vs-verdict flag; the previous 0 was a missing map key, not a clean board"})
+	// It is now a QUESTION ASKED OF THE RECORD (`record.ConvergenceVsVerdict`, the
+	// convergence_vs_verdict view), which is what the architecture says a metric is: a projection,
+	// never a self-report. The engine's log line stays — it is live-run visibility, which a
+	// scorecard written afterwards cannot provide — but it is no longer the only carrier.
+	//
+	// AND A FAILURE TO ASK IS NOT A ZERO. If the record cannot answer, the row says so rather than
+	// printing a count, because that substitution is the entire defect being repaired here.
+	if conv, err := record.ConvergenceVsVerdict(run); err != nil {
+		rows = append(rows, Row{Clause: "Never-hard-fail", Metric: "convergence_vs_verdict_flags", Cls: "detector",
+			Note: "could not be computed from the record: " + err.Error()})
+	} else {
+		flags := 0
+		for _, c := range conv {
+			if c.Divergent {
+				flags++
+			}
+		}
+		// NO ROUNDS MEANS NO VALUE, NOT A VALUE OF ZERO — and this is the one line where the
+		// repair could most easily undo itself. A Row carrying both a Value and a Note renders
+		// the VALUE, so emitting `0` alongside "nothing was verdicted" would print a bare 0 and
+		// reproduce the defect being fixed, in a metric that now looks computed. A run with
+		// nothing adjudicated gets prose; only a run with rounds to judge gets a number.
+		r := Row{Clause: "Never-hard-fail", Metric: "convergence_vs_verdict_flags", Cls: "detector"}
+		if len(conv) == 0 {
+			r.Note = "no round has been verdicted on the record yet — the detector has nothing to judge"
+		} else {
+			r.Value = flags
+		}
+		rows = append(rows, r)
+	}
 
 	// citation_yield_by_round (object value)
 	if yield, ok := citationYieldByRole(board); ok {
@@ -672,7 +695,7 @@ func Compute(run record.Run, results []map[string]any, board *record.Board) map[
 	telemetry := ReadTelemetry(run)
 	return map[string][]Row{
 		"blue":  blueRows(run, results, telemetry, board),
-		"red":   redRows(results, telemetry, board),
+		"red":   redRows(run, results, telemetry, board),
 		"bench": benchRows(results, board),
 	}
 }
