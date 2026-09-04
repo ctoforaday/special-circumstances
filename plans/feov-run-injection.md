@@ -1,5 +1,7 @@
 # FEOV_RUN injection — the seat stops typing the run directory
 
+> STATUS 2026-09-02: shipped 2026-08-06 — historical record; twice superseded in part (banners below). `hookgate.PreOutcome` and the `setup`-written wrapper (`FEOV_RUN_FROM_WRAPPER`, `setup/wrapper.go`) are the live contract.
+
 > **SUPERSEDED IN PART, 2026-08-22 (#510).** The position matcher this plan designs was removed:
 > injection is now unconditional on every Bash command in a live run, and it carries `FEOV_AGENT_ID`
 > as well as `FEOV_RUN`. The mention-vs-invocation reasoning below describes a harm the mechanism
@@ -399,6 +401,8 @@ Found during implementation, and not in any revision of this plan:
 - **The tracked `tools/feov-record` binary reports 0.17.0** against a 0.36.0 manifest, and
   nothing in the repo references it. With #282's preflight it would now be refused rather than
   used. It is a stray build artifact, not a carrier — removal is a call for gb, not a rebuild.
+  **RESOLVED 2026-09-02: deleted by #293 (`3e5ffa33`, "stop committing binaries — delete the
+  stray one, and gate the class"); `git ls-files` no longer lists it.**
 
 ## Original hand-over note (superseded above)
 

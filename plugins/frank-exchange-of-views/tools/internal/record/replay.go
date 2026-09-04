@@ -1,7 +1,6 @@
 package record
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -22,28 +21,19 @@ import (
 // (HTML never escaped, because seat prose routinely contains angle brackets) belonged to a JSON
 // encoder that is no longer in the path at all.
 //
-// recordpb.Marshal itself stays: recordpb's own stability test pins the canonical byte shape, and
-// that is a property of the ENCODING rather than of any writer.
+// AND THE ENCODING FOLLOWED IT. `recordpb.Marshal`/`Unmarshal` stayed on the argument that a
+// stability test pins the canonical byte shape, "a property of the ENCODING rather than of any
+// writer". The argument does not survive the writer AND the reader both being gone: no line is
+// produced, none is consumed, and no run was ever recorded in that format. What the stability
+// test really guarded — every field carrying explicit presence, so a zero cannot masquerade as
+// unset — is enforced descriptor-side for EVERY field by recordpb's correspondence test, which
+// is why deleting the encoder cost no guard.
 
-// marshalCompact is the JSON rule for the non-event values written to disk — the telemetry JSONL
-// that view.Telemetry writes and the dashboard, cost and scorecard re-decode as raw JSON keys. A
-// PROJECTION, not a record, which is why it survives the record ceasing to be a file.
-//
-// SetEscapeHTML(false) is mandatory: that projection is compared byte-for-byte against the
-// oracle's JSON.stringify, which does not escape <, > or &.
-func marshalCompact(v any) ([]byte, error) {
-	var b bytes.Buffer
-	enc := json.NewEncoder(&b)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
-		return nil, err
-	}
-	return bytes.TrimRight(b.Bytes(), "\n"), nil
-}
-
-// MarshalCompact is the exported form for the view package, which needs the
-// exact byte-identical encoding when it computes the telemetry JSONL on read.
-func MarshalCompact(v any) ([]byte, error) { return marshalCompact(v) }
+// THE PROJECTION ENCODER IS GONE WITH THE ROUND TRIP. `marshalCompact` (and its exported twin)
+// existed so the telemetry line could be built as an untyped map, encoded to JSON, and decoded
+// straight back into another untyped map inside the same process. view.Telemetry now hands its
+// consumers the typed TelemetryLine and serializes once, at the boundary, from the schema — so
+// there is no longer a non-event value on this path needing a hand-kept JSON rule.
 
 type shardInfo struct {
 	nonce  string
@@ -375,10 +365,11 @@ func BoardState(run Run) (*Board, error) {
 	for _, e := range ordered {
 		body, ok := recordpb.Body(e)
 		if !ok {
-			// NO BODY IS NOT AN EMPTY BODY. The read rule drops a bodyless line as an incomplete
-			// write before it ever reaches here (ClassifyLine stage 3), so this is reachable only
-			// from an event built in memory — and falling through in silence is the shape that let
-			// the bench's closures vanish. It is announced instead.
+			// NO BODY IS NOT AN EMPTY BODY. A stored event cannot arrive here bodyless: the body is
+			// its own row, written in the same transaction, and recordsql refuses to load an event
+			// whose type names no body table. So this is reachable only from an event built in
+			// memory — and falling through in silence is the shape that let the bench's closures
+			// vanish. It is announced instead.
 			return nil, fmt.Errorf(
 				"record: event %s by %s carries NO BODY — the write path refuses a bodyless event, so this "+
 					"record disagrees with the schema that produced it",

@@ -1,5 +1,7 @@
 # FEOV handoff / memento — checkpoint 2026-07-24
 
+> STATUS 2026-09-02: superseded by events — stale session checkpoint; nothing below is a live queue. #62 is closed, the runs happened (2026-08-05, 2026-08-22/23), and Stage 2.5's agent-proxy design was superseded by the record-run driver (plans/record-run-migration.md). Still open from its queue, tracked on the issue board: #63, #64, #68, #72, #84–#86, #101.
+
 Resuming **frank-exchange-of-views** (the research-debate engine). This is the pickup point.
 Read it, then `gh issue list` for the live queue. **Verify before trusting** — several claims this
 run were wrong on first telling and caught only by checking (a subagent that did the wrong task; a
@@ -41,6 +43,8 @@ git-author assumption never checked at the leaf; #70 that looked bounded and was
   verdict) are ephemeral; record them via a lead-mechanics channel emitted by an AGENT PROXY (the
   script is sandboxed, can't call the tool). **#87 (friction verb bypassed) folds in here** — same
   "sandboxed orchestrator can't persist to the record" problem. This is the next #62 step.
+  **SUPERSEDED 2026-09-02:** the agent-proxy design never shipped; orchestration is moving into
+  the tool itself (record-run driver, #605–#641). #87 closed.
 - **Stage 3** — retire debate.md as write AND read target; update the parity-audit.
 
 ## Queue order (build before the ONE final run)
@@ -55,6 +59,7 @@ git-author assumption never checked at the leaf; #70 that looked bounded and was
 
 ## Fixed-pending-a-run — the ONE run closes these (never close a bug until a RUN confirms, [[bug-state-tracking]])
 #83, #94, #66, #67, #78, #65, #74, #75, #76, #79. Re-verify with a `/research` run + `verify`.
+**DONE (2026-09-02):** all ten closed.
 
 ## Earned pitfalls (this session)
 - **rule-sweep gates more than SKILL.md** — also `agents/*.md`, `scripts/debate.js`, `references/*.md`,

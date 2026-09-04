@@ -1,5 +1,10 @@
 # Hook-surface spike record — Phase 0
 
+> STATUS 2026-09-02: shipped — historical measurement record. The findings graduated into the
+> shipped hooks (`sc-strike-counter`, the consolidated `sc-posttooluse`, `sc-filechanged-rearm`,
+> the stop/subagent guards); the two forward-looking recommendations are marked DONE inline.
+> The measurements stand as history, per client (§5's index names which client each row is from).
+
 > Measured hook payloads from a live client. This is the **evidence** both `gray-area.md` and
 > `context-checkpointing.md` build against; it is not a design document.
 > Re-run it against whatever client a consumer actually runs — that is the whole point (R9/G5).
@@ -101,6 +106,8 @@ Everything a counter needs, keyed on `(tool_name, target)` out of `tool_input`.
 **`is_interrupt` is load-bearing and was not anticipated in #127.** `anti-spinning` also says *honor
 the cancel* — a user interrupt must not be counted as a strike, or the rule's two halves fight each
 other. The field distinguishes them. #127's mechanism should key on `is_interrupt == false`.
+**DONE (2026-09-02):** `sc-strike-counter` decodes `is_interrupt` and does not count an
+interrupt as a strike (`internal/strikecounter/main.go`).
 
 ### 2a. `PostToolUseFailure` CAN inject (measured 2026-08-03, #234)
 
@@ -398,6 +405,11 @@ chosen on.
 two writes are CONCURRENT BY DESIGN, not merely possible — the known limit recorded in
 `internal/hooklog` is a live condition on every markdown write, not an edge case. Single-
 writer consolidation is the fix; a lock would be the alternative.
+
+**DONE (2026-09-02):** shipped as the consolidated `sc-posttooluse` — one process whose units
+RETURN their log lines and one writer appends them in order; the recall-index unit was retired
+2026-08-04 with the retrieval layer. `internal/posttooluse/main.go` cites this section (§4b) as
+the reason parity, not speedup, was the merge's floor.
 
 ## 5. Status of the load-bearing claims
 

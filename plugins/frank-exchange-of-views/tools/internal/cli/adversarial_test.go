@@ -117,6 +117,19 @@ func adversarialCases() []adversarialCase {
 				"has no honest sentence for.",
 		},
 		{
+			name: "a motion cannot be appealed twice",
+			setup: []seatStep{mint, fileGrade,
+				{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
+				{"motion", "grade", "appeal", "--seat-id", "blue-respond-r1", "--id", "M1", "--reason", "the first argument, which must survive"}},
+			act:     seatStep{"motion", "grade", "appeal", "--seat-id", "blue-respond-r1", "--id", "M1", "--reason", "a second argument that would replace the first"},
+			refused: "already appealed",
+			guards: "FOUND BY THE STATE GRAPH (#673), not by reading: probing every act from every " +
+				"state, `appeal` on an already-appealed motion was ACCEPTED, left the state alone, " +
+				"and rewrote appeal_reason — three in a row, the report showing only the last. It is " +
+				"RequireUnruledMotion's defect one verb over, and worse: a ruling replaced is an " +
+				"answer overturned, while an appeal replaced is the ARGUMENT itself going quiet.",
+		},
+		{
 			name:    "a petition has no appeal, and says so",
 			setup:   []seatStep{filePetition, {"motion", "petition", "rule", "--seat-id", "judge-r1", "--id", "M1", "--as", "denied", "--reason", "denied on the papers"}},
 			act:     seatStep{"motion", "petition", "appeal", "--seat-id", "blue-respond-r1", "--id", "M1", "--reason", "pressing a petition"},

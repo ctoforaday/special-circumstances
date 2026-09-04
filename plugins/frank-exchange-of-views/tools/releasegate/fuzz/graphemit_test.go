@@ -58,6 +58,56 @@ func graphEdges() (seats int, edges int, reached map[string][]string, unreachedR
 	return seats, edges, reached, unreachedRecording
 }
 
+// referenceKinds are the entity classes a checked flag may name, each with what it points at.
+//
+// A CLOSED SET, so a new one ARRIVES rather than joins. The kinds are pflag's own Type() strings
+// on the typed flag values, so nothing here is hand-kept except the judgement that these three
+// are the entities a verb can be made to point at — and a fourth appearing is a change to the
+// surface's shape that should be seen, not absorbed.
+var referenceKinds = map[string]string{
+	"gap-id":          "a board gap, checked with record.GapExists",
+	"citation-anchor": "a c-<hex> citation label, checked with record.CitationExists",
+	"inquiry-id":      "a line of inquiry, checked with record.InquiryExists",
+}
+
+// permittedReport renders the PERMITTED surface — what the tree allows — beside the observed one.
+//
+// #535 step 2, and it is deliberately smaller than that issue describes, because most of what it
+// asks for already existed when it was written. The verb-level permitted-vs-observed diff is
+// unreachedSurfaces(), which walks cli.CommandPaths() against the exec tally and GATES on it;
+// building a second one would have been a duplicate wearing a new name. What was genuinely
+// missing is the third edge: which flags must POINT AT something that already exists, and what.
+//
+// That edge is derived, not declared. A typed flag built as flags.GapID().WithCheck(GapExists)
+// carries both halves already — the check is a method set, the entity is pflag's Type() — so the
+// map cannot drift from the flags because it IS the flags.
+func permittedReport() string {
+	paths := cli.CommandPaths()
+	records := cli.CommandRecords()
+	refs := cli.CommandReferences()
+	edges := 0
+	for _, m := range refs {
+		edges += len(m)
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "permitted surface (#535 step 2): %d command paths · %d record an event · %d checked flag(s) over %d path(s)",
+		len(paths), len(records), edges, len(refs))
+	var rp []string
+	for p := range refs {
+		rp = append(rp, p)
+	}
+	sort.Strings(rp)
+	for _, p := range rp {
+		var fs []string
+		for f, kind := range refs[p] {
+			fs = append(fs, "--"+f+" ("+kind+")")
+		}
+		sort.Strings(fs)
+		fmt.Fprintf(&b, "\n  %-26s %s", p, strings.Join(fs, ", "))
+	}
+	return b.String()
+}
+
 // graphReport is the human-facing rendering, logged beside execReport so the two tallies of one
 // sweep are read together. Every recording verb appears with the event it writes, so a reader
 // never has to hold the annotation in their head to know what an edge costs the record.

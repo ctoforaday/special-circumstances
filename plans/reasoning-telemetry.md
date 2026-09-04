@@ -1,5 +1,8 @@
 # Reasoning telemetry — what is observable, and how to expose thinking summaries
 
+> STATUS 2026-09-02: shipped — historical record (research complete; its consumer, Phase 3 of
+> `gray-area.md` §7, is not built, and #126's verification debt is still open).
+
 > Design research for **Gray Area** (the fourth plugin). Companion to [`gray-area.md`](gray-area.md).
 > Status: research complete, no code. Supersedes one load-bearing finding in PR #3.
 
@@ -187,6 +190,9 @@ and never cross it.
 ---
 
 ## 4. Recommended capture posture
+
+**NOT DONE (2026-09-02):** no surface adopts either switch — `--thinking-display` appears nowhere
+under `plugins/` or `scripts/`.
 
 | Surface | Setting | Rationale |
 |---|---|---|

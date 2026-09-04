@@ -299,7 +299,8 @@ jobs:
           go-version: "1.25"
       - run: go test ./...
       # This module had no race leg at all, while gray-area ran `-race ./...` and
-      # feov-record ran it over internal/record. It passes clean today (measured, exit 0,
+      # feov-record races its shipped binary's import graph (see that job for the scope
+      # rule). It passes clean today (measured, exit 0,
       # zero DATA RACE), so the leg costs nothing now and only gets more expensive later.
       #
       # What it does NOT buy, stated so nobody reads a green leg as more than it is:
@@ -516,38 +517,61 @@ jobs:
       # (cli 180s -> 411s). Net negative at machine level; the premise ignored
       # inter-package parallelism.
       #
-      # SHALLOW ON WINDOWS PULL REQUESTS, FULL EVERYWHERE ELSE. Once the RAM disk owns the
-      # I/O bill, the Windows leg's remaining cost is integration/fuzz, which shells the
-      # real binary ~50-70 times per run and pays Windows process-spawn cost on every one:
-      # 573s of the leg's 12-minute `go test ./...` (run 32813820292), against 106s for
-      # recordsql. -short takes the fuzz from 60 runs to 15. What a run proves about the
-      # PLATFORM — the .exe build, the spawns, the temp plumbing — run 15 proves as well as
-      # run 60; the depth beyond that is statistics on debate semantics, platform-
-      # independent and still at full depth on the Linux twin of this job, on every main
-      # push and tag build (a pull request is the only event that shallows), and on the
-      # nightly schedule.
+      # SWEEPS AT THE BOUNDARY, GUARDS ON EVERY RUN (ruled 2026-09-04). releasegate/fuzz's
+      # binary-driving sweeps — the debate fuzz, the shipped-hook resolution, the schedule
+      # enumeration — skip unless FEOV_RELEASE_GATE=1, which is set here only on the
+      # nightly, and by the release job on a feov tag (where the sweep's own PASS line is
+      # asserted, so a typo'd variable cannot skip its way to green). The package's cheap
+      # literal-surface guards run on every event, in ~2s. Measured at the split: the
+      # 573s Windows fuzz bill (run 32813820292) leaves pull requests entirely. What a
+      # sweep run proved about the PLATFORM — the .exe build, the spawns, the temp
+      # plumbing — the guards and the rest of the suite still prove; the depth was always
+      # statistics on debate semantics, which are platform-independent and keep full depth
+      # on the nightly and the tag.
       #
-      # The packages where Windows has actually caught defects (record, recordsql: the DSN
-      # truncation, the unclosed handle — plans commit f772105) carry NO testing.Short()
-      # guard, so -short leaves them at FULL depth. The invariant to keep: a Short gear
-      # added to those packages reopens exactly the hole this arrangement routes around.
-      # seatprobe's separated-build test inverts its guard on Windows for the same reason,
-      # stated there.
+      # -short remains for the packages that carry their own Short gears. record and
+      # recordsql still run FULL depth everywhere: the DSN truncation and the unclosed
+      # handle were Windows catches (plans commit f772105), and a Short gear added to
+      # those packages reopens exactly that hole. seatprobe's separated-build test inverts
+      # its guard on Windows for the same reason, stated there.
       #
       # Both ternary arms are workflow literals, so this ${{ }} expands no external input —
       # which is why it may sit in the run line where rule-sweep's base ref may not.
       - run: go test ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
+        env:
+          FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
-      - run: go test -race ./internal/record/
+      #
+      # THE RACE SCOPE IS THE SHIPPED BINARY'S OWN IMPORT GRAPH, derived at run time from
+      # `go list -deps` — not ./..., and not a hand-kept package list free to drift from
+      # the graph it names. The module's test-only packages (releasegate/fuzz, testbuild,
+      # difftest, goldentest, the probe/hook shims) spend their concurrency SPAWNING the
+      # real binary as subprocesses, which no race detector observes from the parent;
+      # instrumenting those harnesses pays the race tax on the module's slowest packages
+      # without watching the product. Ruled 2026-09-03: race the feov binary's source, not
+      # the tests. Their logic still runs in the plain `go test` leg above. The previous
+      # shape raced ONE hand-picked test (the run-handle guard) to cover a harness race —
+      # a harness race can flake a test run but cannot ship, so it went with the rest.
+      # An empty list is refused rather than raced: `go test -race` with no packages would
+      # test the current directory and pass while measuring almost nothing. scripts/check
+      # holds this derivation and the local gate's (expandScope) to the same target.
+      - run: |
+          pkgs="$(go list -deps ./cmd/feov-record | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')"
+          test -n "$pkgs"
+          echo "$pkgs" | xargs go test -race
+        # EXPLICIT, because this job sets no default shell and the Windows leg therefore
+        # runs pwsh — where `$(...)`, pipes into grep, and xargs are not this syntax.
+        shell: bash
         env:
           CGO_ENABLED: "1"
-      # And ONE test out of integration/fuzz, not the package. The fuzz runner's seats are
-      # concurrent as of #630 phase 3, and its run handle was briefly resolved lazily — a real
-      # race that two full debate runs under -race did not report, because the window closes
-      # before a sibling seat arrives. TestTheRunHandleIsImmutableAfterConstruction forces it
-      # in ~1s. Racing the whole package would cost minutes to re-check what -race already
-      # covers elsewhere; racing nothing leaves that test unable to fail.
+      # And ONE test out of releasegate/fuzz — the harness carve-out from the scope rule
+      # above, kept BY RULING ("keep fuzz on the hook", #686). The fuzz runner's seats are
+      # concurrent as of #630 phase 3, and its run handle was briefly resolved lazily — a
+      # real race two full debate runs under -race never reported, because the window closes
+      # before a sibling seat arrives. A harness race cannot ship, but it makes fuzz verdicts
+      # flaky, and a flaky verdict is a measurement defect; the ~1s dedicated test is what
+      # keeps the harness accountable without paying the race tax on the whole package.
       #
       # THE PASS IS ASSERTED, NOT INFERRED FROM THE EXIT CODE. `go test -run <name>` exits 0
       # when the pattern matches NOTHING — it prints "ok ... [no tests to run]" — so a renamed
@@ -555,16 +579,14 @@ jobs:
       # plausible zero this leg exists to refuse, so the step greps for the test's own PASS line
       # and fails loudly when it is absent.
       - run: |
-          out=$(go test -race -v -run '^TestTheRunHandleIsImmutableAfterConstruction$' ./integration/fuzz/ 2>&1)
+          out=$(go test -race -v -run '^TestTheRunHandleIsImmutableAfterConstruction$' ./releasegate/fuzz/ 2>&1)
           echo "$out"
           grep -q '^--- PASS: TestTheRunHandleIsImmutableAfterConstruction' <<<"$out" || {
             echo "::error::the run-handle race guard did not run; -run matched no test (renamed or deleted?)"
             exit 1
           }
         # EXPLICIT, because this job sets no default shell and the Windows leg therefore runs
-        # pwsh — where `$(...)`, `<<<` and `grep` are not syntax. The single-line form this
-        # replaced ran on Windows by accident: pwsh could execute a bare `go test` line, so the
-        # shell question never came up until the assertion made the step a script.
+        # pwsh — where `$(...)`, `<<<` and `grep` are not syntax.
         shell: bash
         env:
           CGO_ENABLED: "1"
@@ -1414,6 +1436,43 @@ jobs:
       - name: The tag and the manifest agree
         run: go run ./versionguard -tag "${GITHUB_REF_NAME}"
         working-directory: scripts
+      # THE MUTATION GATE, AT THE ONE BOUNDARY WHERE THE SWEEP IS A GATE (ruled 2026-09-03).
+      # Day to day it stays an on-demand audit with no threshold — a gated score invites
+      # killing equivalent mutants with contorted tests. What a RELEASE must prove is that
+      # the EXPLAINING happened: every survivor in the tagged plugin's module is either
+      # killed by a test or judged in writing in its mutation-survivors.json, and no
+      # judgement outlives the survivor it explained. Records are born at each plugin's
+      # first gated release, not grandfathered: a record whose entries nobody judged is an
+      # allowlist wearing a schema. Expect that first release to fail here, once, with the
+      # full backlog printed — that is the decision working, not the gate broken.
+      - name: Every mutation survivor in the released module is explained
+        run: go run ./mutate -gate -module "$PLUGIN_DIR"
+        working-directory: scripts
+        env:
+          PLUGIN_DIR: ${{ steps.plugin.outputs.dir }}
+      # THE FUZZ SWEEPS, AT THE BOUNDARY WHERE THE BINARY SHIPS (ruled 2026-09-04). Pull
+      # requests run only releasegate/fuzz's cheap guards; the binary-driving sweeps run
+      # here, at full depth, before anything is published — and on the nightly, so a
+      # regression is caught between releases rather than bisected at one.
+      #
+      # THE PASS IS ASSERTED, NOT INFERRED FROM THE EXIT CODE: the sweeps skip when
+      # FEOV_RELEASE_GATE is unset, so a typo'd variable would exit 0 having measured
+      # nothing — the same plausible zero the run-handle step refuses, answered the same
+      # way. Only a frank-exchange-of-views tag runs this; the other plugins' releases
+      # have no fuzz sweep to hold.
+      - name: The debate sweeps hold at the release boundary
+        if: steps.plugin.outputs.plugin == 'frank-exchange-of-views'
+        working-directory: ${{ steps.plugin.outputs.dir }}
+        shell: bash
+        env:
+          FEOV_RELEASE_GATE: "1"
+        run: |
+          out=$(go test -v -count=1 ./releasegate/fuzz/ 2>&1) || { echo "$out" | tail -80; exit 1; }
+          echo "$out" | grep -E "^(--- |ok)" | tail -30
+          grep -q '^--- PASS: TestFuzzDebate' <<<"$out" || {
+            echo "::error::the release sweep did not run TestFuzzDebate; the gate guarded nothing"
+            exit 1
+          }
       # BUILD OUTPUT LEAVES THE SOURCE TREE, and that is a correctness fix rather than tidiness.
       #
       # This wrote into `dist/` inside the plugin's tools directory. `dist/` is not ignored, so

@@ -62,7 +62,17 @@ func NewCommandFor(actingRole string) *cobra.Command {
 	// without knowing whose ruling it would be. Both readers take it off the MotionSubject enum
 	// now, so a subject cannot be added with a gavel in one place and not the other.
 	c.AddCommand(subject(actingRole, "grade",
-		"contest a gap's grade: the merge rules, and a rejected dispute may be appealed to the bench",
+		// "TO THE BENCH" NAMED AN ACTOR THAT CANNOT RESPOND (#673). `rule` is the merge's verb, and
+		// RequireUnruledMotion refuses a second ruling in terms — so no bench act can answer an
+		// appeal, and the state graph shows `appealed` with no exit. A seat reading the old line
+		// filed an appeal and waited for a sitting that the protocol has no way to hold.
+		//
+		// What replaces it says the two things a seat actually needs, and says them the way the
+		// appeal verb's own help already does ("the losing side may answer it on the record"):
+		// the appeal is worth filing because it is where the ARGUMENT lands, and nothing further
+		// arrives. debate.js presses blue to appeal whether or not it yields, so a line that only
+		// said "the ruling stands" would have read as "do not bother".
+		"contest a gap's grade: the merge rules, and a rejected dispute may be appealed — an appeal records the argument, not a second ruling",
 		[]string{flags.ID, flags.Dimension, flags.Proposed}))
 	c.AddCommand(subject(actingRole, "petition",
 		"an ethical | safety | integrity | constitutional objection: the BENCH rules, before the debate continues",

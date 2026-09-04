@@ -1,8 +1,12 @@
 # Gray Area — trajectory mining and the hook surface
 
+> STATUS 2026-09-02: in progress (Phases 0–2 and 5 shipped as `plugins/gray-area/` v0.9.0; Phase 3
+> instrumented reasoning and Phase 4 bench symmetry remain).
+
 > Foundations for the **fourth plugin**. Seeded by PR #3 (the Memento proposal), retargeted by the
 > operator on 2026-07-18 from "a checkpoint system" to "a trajectory-evidence plugin".
-> Status: design research. No code. Companion: [`reasoning-telemetry.md`](reasoning-telemetry.md).
+> Status: design research at time of writing — the plugin has since been built; see the STATUS line.
+> Companion: [`reasoning-telemetry.md`](reasoning-telemetry.md).
 
 **Named for** the GCU *Gray Area* (*Excession*) — the Culture's mind-reader, the ship that
 establishes what actually happened by reading directly, and is shunned by other Minds for doing it.
@@ -243,10 +247,10 @@ moved out with §4.
 | Component | Kind | Responsibility |
 |---|---|---|
 | `hooks` → `SubagentStop` | hook | Capture `agent_id`, `agent_type` and `agent_transcript_path` per seat into the run's trajectory manifest, at the moment the seat finishes |
-| `hooks` → `SessionEnd` | hook | Close the manifest for a main session; reason-matched |
+| `hooks` → `SessionEnd` | hook | Close the manifest for a main session; reason-matched. **NOT BUILT (2026-09-02):** `hooks/hooks.json` registers `SessionStart` and `SubagentStop` only |
 | `tools/gray-area` | Go CLI | The miner: act-vs-claim, rework, stalls, frustration surface — every answer provenance-stamped, refusing to answer without one |
-| `commands/inspect.md` | command | Run an inspection; declared, with what it relied on quoted |
-| `commands/trawl.md` | command | Exploration queries over a run — summarizing permitted, findings not |
+| `commands/inspect.md` | command | Run an inspection; declared, with what it relied on quoted. **SUPERSEDED 2026-09-02:** shipped as one command per inspection — `audit-checkpoint`, `audit-pr-body`, `audit-repetition`, `audit-seat-coverage` |
+| `commands/trawl.md` | command | Exploration queries over a run — summarizing permitted, findings not. **NOT BUILT (2026-09-02):** no exploration command exists under `plugins/gray-area/commands/` |
 | `requirements.json` | manifest | `git`; the miner is a Go binary on the same doctor/fetch path as `feov-record` |
 
 **Boundary with `prosthetic-conscience`, stated so neither side drifts across it:** continuity owns
@@ -268,10 +272,10 @@ than broken where its event is absent.
 | Phase | Work | Verify |
 |---|---|---|
 | **0. Hook reality spike** | Register no-op hooks for `SubagentStart`, `SubagentStop` and `SessionEnd` that log full input JSON. Run a `/research` run with subagents. | Logged JSON matches §3. Specifically: `agent_transcript_path` present, readable, and pointing at the seat's own file — not the parent's |
-| **1. Capture** | `SubagentStop` writes a per-seat trajectory manifest for a run | A completed `/research` run yields one manifest row per seat with a resolvable transcript path, and no glob of the projects directory anywhere |
-| **2. The miner** ✅ | Go CLI over the manifest: act-vs-claim, rework, stalls. Provenance on every answer | ~~Re-derive by machine the two hand analyses from the 2026-07-18 run and reconcile against the hand results~~ — **not runnable, see below.** Substitute: parse a live-generated transcript, resolve the aliased-invocation case, and refuse to emit any row without provenance. **All three shipped 2026-08-18** (#471): `gray-area rework`, `gray-area stalls`, `gray-area pr`. Act-vs-claim over checkpoint notes shipped earlier still, under Phase 5. Spec and what the real data falsified: `plans/gray-area-phase-2-build.md`. NOT shipped and not claimed: the *frustration surface* named in §6's table, and any seat-scoped coverage number — #469 leaves the missed-seat direction unproven |
-| **3. Instrumented reasoning** | Launch runs with `--thinking-display summarized`; summaries feed exploration queries only | Summary text is present in seat transcripts **and** the miner refuses to return it on an adjudication query |
-| **4. Bench symmetry** | The same inspections aimed at the bench | An inspection of the bench produces the same declared, cited output shape as one aimed at a seat |
+| **1. Capture** ✅ | `SubagentStop` writes a per-seat trajectory manifest for a run | A completed `/research` run yields one manifest row per seat with a resolvable transcript path, and no glob of the projects directory anywhere. **Shipped** (marked 2026-09-02): `cmd/gray-area-capture`, wired on `SubagentStop` and `SessionStart`; §11.7–§11.11 are its evidence trail |
+| **2. The miner** ✅ | Go CLI over the manifest: act-vs-claim, rework, stalls. Provenance on every answer | ~~Re-derive by machine the two hand analyses from the 2026-07-18 run and reconcile against the hand results~~ — **not runnable, see below.** Substitute: parse a live-generated transcript, resolve the aliased-invocation case, and refuse to emit any row without provenance. **All three shipped 2026-08-18** (#471): `gray-area rework`, `gray-area stalls`, `gray-area pr`. Act-vs-claim over checkpoint notes shipped earlier still, under Phase 5. Spec and what the real data falsified: `plans/gray-area-phase-2-build.md`. NOT shipped and not claimed: the *frustration surface* named in §6's table, and any seat-scoped coverage number — #469 leaves the missed-seat direction unproven. **CORRECTED 2026-09-02:** `gray-area coverage` (#473) now measures the missed-seat direction on demand, reporting `UNNAMED` rows and exiting non-zero when it cannot measure (`gray-area-phase-2-build.md` §4); #469 itself remains open, and the frustration surface remains unbuilt |
+| **3. Instrumented reasoning** | Launch runs with `--thinking-display summarized`; summaries feed exploration queries only. **NOT DONE (2026-09-02):** no `--thinking-display` use anywhere under `plugins/` or `scripts/`, and no summary-refusal path in the miner | Summary text is present in seat transcripts **and** the miner refuses to return it on an adjudication query |
+| **4. Bench symmetry** | The same inspections aimed at the bench. **NOT DONE (2026-09-02).** | An inspection of the bench produces the same declared, cited output shape as one aimed at a seat |
 | **5. Checkpoints as a mined input** ✅ | Read sealed notes as declared claims and adjudicate them against the trajectory | A checkpoint asserting a validation step that the trajectory shows never ran is reported as a finding, with provenance — **met**, see §10.7 |
 
 **Continuity is not a phase here.** It ships in `prosthetic-conscience` on its own schedule (§4) and
@@ -303,7 +307,8 @@ accident. Two consequences:
    divergence is explained. **Trigger surface:** any change to the trajectory parser or to the
    record schema re-arms this check, and it demands a sibling sweep across all consumers, not an
    instance fix.
-4. A forced compaction on a live run resumes on the correct validation step.
+4. REMOVED 2026-09-02: a forced-compaction resume check is continuity's, which moved to
+   `prosthetic-conscience` (§4); it lives in `plans/context-checkpointing.md`, not in this plugin's loop.
 5. An adjudication query returns provenance (uuid, file, offset) or returns nothing.
 
 ---

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 )
 
@@ -69,7 +70,7 @@ func esc(s string) string {
 func f1(f float64) string { return strconv.FormatFloat(f, 'f', 1, 64) }
 
 // massSvg ports the mass-trend inline SVG.
-func massSvg(telemetry []map[string]any) string {
+func massSvg(telemetry []*recordpb.TelemetryLine) string {
 	if len(telemetry) == 0 {
 		return `<p class="muted">no telemetry yet — red-merge appends the first line at round 1</p>`
 	}
@@ -85,13 +86,13 @@ func massSvg(telemetry []map[string]any) string {
 	}
 	max := 1.0
 	for _, t := range telemetry {
-		if m := numOr(t["mass"], 0); m > max {
+		if m := t.GetMass(); m > max {
 			max = m
 		}
 	}
 	ys := make([]float64, n)
 	for i, t := range telemetry {
-		ys[i] = H - pad - (numOr(t["mass"], 0)/max)*(H-2*pad)
+		ys[i] = H - pad - (t.GetMass()/max)*(H-2*pad)
 	}
 	pts := make([]string, n)
 	for i := range xs {
@@ -100,14 +101,14 @@ func massSvg(telemetry []map[string]any) string {
 	var dots strings.Builder
 	for i, t := range telemetry {
 		dots.WriteString(fmt.Sprintf(`<circle cx="%s" cy="%s" r="4" fill="var(--series-1)"><title>round %s: mass %s, open %s</title></circle>`,
-			f1(xs[i]), f1(ys[i]), esc(anyStr(t["round"])), esc(anyStr(t["mass"])), esc(anyStr(t["open_count"]))))
-		dots.WriteString(fmt.Sprintf(`<text x="%s" y="%s" text-anchor="middle" class="axis">r%s</text>`, f1(xs[i]), f1(H-10), esc(anyStr(t["round"]))))
+			f1(xs[i]), f1(ys[i]), esc(intOrDash(t.Round)), esc(floatOrDash(t.Mass)), esc(intOrDash(t.OpenCount))))
+		dots.WriteString(fmt.Sprintf(`<text x="%s" y="%s" text-anchor="middle" class="axis">r%s</text>`, f1(xs[i]), f1(H-10), esc(intOrDash(t.Round))))
 	}
 	last := telemetry[n-1]
 	return fmt.Sprintf(`<svg viewBox="0 0 %s %s" role="img" aria-label="board mass by round">
 <polyline points="%s" fill="none" stroke="var(--series-1)" stroke-width="2"/>%s
 <text x="%s" y="%s" text-anchor="end" class="label">%s</text>
-</svg>`, anyStr(W), anyStr(H), strings.Join(pts, " "), dots.String(), f1(xs[n-1]-8), f1(ys[n-1]-10), esc(anyStr(last["mass"])))
+</svg>`, anyStr(W), anyStr(H), strings.Join(pts, " "), dots.String(), f1(xs[n-1]-8), f1(ys[n-1]-10), esc(floatOrDash(last.Mass)))
 }
 
 // summarizeResult ports the envelope summarizer.
@@ -206,27 +207,26 @@ func scorecardSection(run record.Run) string {
 	return "<h2>scorecards — this run</h2>" + strings.Join(blocks, "")
 }
 
-func sevRow(t map[string]any) string {
-	nm, ok := t["new_mint"].(map[string]any)
-	if !ok {
+func sevRow(t *recordpb.TelemetryLine) string {
+	tallies := t.GetNewMint().GetBySeverity()
+	if len(tallies) == 0 {
 		return "—"
 	}
-	bs, ok := nm["by_severity"].(map[string]any)
-	if !ok || len(bs) == 0 {
-		return "—"
-	}
-	keys := make([]string, 0, len(bs))
-	for k := range bs {
-		keys = append(keys, k)
-	}
-	sort.Slice(keys, func(i, j int) bool { return sevRank[keys[i]] > sevRank[keys[j]] })
-	parts := make([]string, 0, len(keys))
-	for _, k := range keys {
-		code := sevCode[k]
+	// SORTED BY SEVERITY RANK FOR DISPLAY, which is this file's concern and unchanged. The
+	// producer's order is first-appearance and deliberate (the schema chose `repeated` over a map
+	// so ordering is owned rather than left to an encoder); neither order is the other's business.
+	sorted := append([]*recordpb.SeverityTally(nil), tallies...)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sevRank[recordpb.Word(sorted[i].GetGrade())] > sevRank[recordpb.Word(sorted[j].GetGrade())]
+	})
+	parts := make([]string, 0, len(sorted))
+	for _, tl := range sorted {
+		word := recordpb.Word(tl.GetGrade())
+		code := sevCode[word]
 		if code == "" {
-			code = k
+			code = word
 		}
-		parts = append(parts, esc(anyStr(bs[k]))+esc(code))
+		parts = append(parts, esc(strconv.Itoa(int(tl.GetCount())))+esc(code))
 	}
 	return strings.Join(parts, " ")
 }
@@ -312,15 +312,15 @@ func RenderHTML(m Model) string {
 	// Tiles.
 	w(`<div class="tiles" style="margin-top:12px">` + "\n")
 	tile := func(v, label string) { w(`<div class="tile"><b>` + v + `</b><span>` + label + "</span></div>\n") }
-	tile(latestField(m, "mass"), "board mass")
+	tile(latestTile(m, func(t *recordpb.TelemetryLine) string { return floatOrDash(t.Mass) }), "board mass")
 	openGaps := "—"
 	if m.Shards.LedgerExists {
 		openGaps = esc(itoa(m.Shards.OpenRows))
 	} else if m.Latest != nil {
-		openGaps = esc(anyStr(m.Latest["open_count"]))
+		openGaps = esc(intOrDash(m.Latest.OpenCount))
 	}
 	tile(openGaps, "open gaps")
-	tile(latestField(m, "max_severity"), "max severity")
+	tile(latestTile(m, func(t *recordpb.TelemetryLine) string { return gradeOrDash(t.MaxSeverity) }), "max severity")
 	tile(intPtr(m.BlueClaims), "blue claims")
 	tile(intUnavail(m.Shards.Findings), "lens findings")
 	tile(intUnavail(m.Shards.Citations), "citations checked")
@@ -363,7 +363,7 @@ func RenderHTML(m Model) string {
 		// The `deltas` column read accepted_deltas, a telemetry key nothing writes, so it showed
 		// 0 on every row ever rendered. Removed rather than left looking measured — see cost.go.
 		rateRows = append(rateRows, fmt.Sprintf(`<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td><td>%d%%</td><td>%s</td><td class="nowrap">%s</td><td>%s</td></tr>`,
-			esc(anyStr(r.Round)), r.Opened, r.Closed, esc(anyStr(r.Open)), r.CloseRate, esc(orDash(t["max_severity"])), sevRow(t), esc(orDash(t["mass"]))))
+			esc(intOrDash(r.Round)), r.Opened, r.Closed, esc(intOrDash(r.Open)), r.CloseRate, esc(gradeOrDash(t.MaxSeverity)), sevRow(t), esc(floatOrDash(t.Mass))))
 	}
 	w(strings.Join(rateRows, "\n") + "\n</table></div>\n")
 
@@ -562,11 +562,40 @@ func orDefault(s, d string) string {
 	return s
 }
 
-func latestField(m Model, key string) string {
+// THE DASH IS FOR ABSENCE, and these three say which absence they mean.
+//
+// latestField took a string key against a map, so "the run has no telemetry yet", "this field was
+// never written" and "this field is legitimately unset this round" all arrived as one nil. With the
+// row typed, the first is a nil message and the rest are nil FIELDS, and a key that no producer
+// writes cannot be asked for at all — it is not on the type.
+// latestTile reads one field off the final telemetry row, or "—" when there is no row at all.
+// The field is named by a function rather than a string key: a typo used to be a dash.
+func latestTile(m Model, field func(*recordpb.TelemetryLine) string) string {
 	if m.Latest == nil {
 		return "—"
 	}
-	return esc(anyStr(m.Latest[key]))
+	return esc(field(m.Latest))
+}
+
+func intOrDash(v *int32) string {
+	if v == nil {
+		return "—"
+	}
+	return strconv.Itoa(int(*v))
+}
+
+func floatOrDash(v *float64) string {
+	if v == nil {
+		return "—"
+	}
+	return strconv.FormatFloat(*v, 'f', -1, 64)
+}
+
+func gradeOrDash(g *recordpb.Grade) string {
+	if g == nil {
+		return "—"
+	}
+	return recordpb.Word(*g)
 }
 
 func intPtr(p *int) string {

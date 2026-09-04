@@ -185,6 +185,55 @@ func TestARerenderClearsTheReadingOfTheOldPixels(t *testing.T) {
 	}
 }
 
+// THE AUTOMATIC PATH KEEPS THE TEXT, NOT THE PIXELS. Each page is rasterised, read, and
+// released (#671); what lands on disk is the transcription, its per-page texts, and a record
+// whose RenderShas still name exactly which images were read. No page PNG and no render
+// record — an operator who wants images has `ocr pages`.
+func TestReadScannedPersistsNoImages(t *testing.T) {
+	withReader(t, &stubReader{perCall: func(int) (string, error) { return "text", nil }})
+	run, e := storeScanned(t, 1)
+
+	rec, err := (RenderAndRead{}).ReadScanned(context.Background(), run, e, "m", MinRenderDPI)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rec.RenderShas) != 1 || rec.RenderShas[0] == "" {
+		t.Errorf("RenderShas = %v, want one hash per page read — the images' only identity", rec.RenderShas)
+	}
+	for _, p := range []string{PagePath(run, e.Sha, 1), renderRecordPath(run, e.Sha)} {
+		if _, serr := os.Stat(p); !os.IsNotExist(serr) {
+			t.Errorf("%s exists after an automatic read; the fetch path keeps text, never pixels (%v)", p, serr)
+		}
+	}
+	for _, p := range []string{PageTextPath(run, e.Sha, 1), OCRTextPath(run, e.Sha)} {
+		if _, serr := os.Stat(p); serr != nil {
+			t.Errorf("the reading did not persist %s: %v", p, serr)
+		}
+	}
+}
+
+// A MALFORMED READING RECORD IS AN ERROR, NOT AN ABSENCE. Treated as absence, the path would
+// silently re-spend a model call per page over a record a seat may already have cited from.
+func TestReadScannedRefusesACorruptReadingRecord(t *testing.T) {
+	sr := &stubReader{perCall: func(int) (string, error) { return "x", nil }}
+	withReader(t, sr)
+	run, e := storeScanned(t, 1)
+	if _, err := (RenderAndRead{}).ReadScanned(context.Background(), run, e, "m", MinRenderDPI); err != nil {
+		t.Fatal(err)
+	}
+	calls := sr.calls
+	if err := os.WriteFile(readingRecordPath(run, e.Sha), []byte("{not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := (RenderAndRead{}).ReadScanned(context.Background(), run, e, "m", MinRenderDPI)
+	if err == nil || !strings.Contains(err.Error(), "unreadable") {
+		t.Errorf("err = %v, want the record named as unreadable", err)
+	}
+	if sr.calls != calls {
+		t.Errorf("the model was called %d more times over a corrupt record", sr.calls-calls)
+	}
+}
+
 func TestSameRendersComparesOrderAndLength(t *testing.T) {
 	for _, tc := range []struct {
 		name string

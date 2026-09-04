@@ -1,5 +1,7 @@
 # Storage: the record IS an embedded SQLite database (trigger = #62)
 
+> STATUS 2026-09-02: shipped — historical record. `internal/record/recordsql` is production; `export --jsonl` was never built (marked below) and #68 was answered by the event-schema epoch (#597), not migrations.
+
 Status: **LANDED** (2026-08-28). First cut said "DECIDED: keep JSONL" on three hard
 constraints; two did not survive review and are struck below. What survived ruled out a
 *Postgres/framework* store but not an *embedded SQLite* one — and the embedded store is what
@@ -65,6 +67,8 @@ paragraph has since been falsified by the record it is corrected in place, not d
 - Remaining costs are thin: a driver dependency, loss of native `git diff` on raw events
   (mitigate with `export --jsonl`), and inertia. No *urgent* forcing function at today's scale.
 
+**NOT BUILT (2026-09-02):** no `export` verb exists anywhere in the tool (`grep -rn '"export"' tools/` finds nothing outside prose) — the `export --jsonl` mitigation this file cites four times was never implemented. The diffable-artifact need was met by projections instead.
+
 ## Context
 
 The record model stores events as append-only per-seat JSONL shards
@@ -128,6 +132,7 @@ for real when #62 is designed, not before.
 - **Schema evolution / versioning** (#68): version + upcasters on read. On SQLite this is a
   migration; on JSONL a read-time upcast registry. Latent until the first schema change with
   historical events on disk.
+  **SUPERSEDED 2026-09-02:** answered by the event-schema epoch (#597) plus no-migrations-by-design — every run creates its own database, `setup` refuses a binary whose epoch differs (`internal/record/schema_gen.go`), and a pre-epoch run is refused by name rather than upcast.
 
 ## Coupling (corrects the first cut's "decoupling")
 

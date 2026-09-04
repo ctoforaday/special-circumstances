@@ -2,9 +2,13 @@ package recordsql
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net/url"
+	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
@@ -145,6 +149,40 @@ func CloseUnder(dir string) error {
 		delete(openCache, k)
 	}
 	return first
+}
+
+// OrphanedHandles returns cached databases whose FILE IS GONE — the exact shape of the leak
+// recordtest.TmpRun exists to prevent, measured rather than pattern-matched.
+//
+// WHY THE MISSING FILE IS THE SIGNAL. A test that opens a record under `t.TempDir()` and never
+// releases the handle leaves this cache holding a path the test framework then removes. On Linux
+// the removal SUCCEEDS — an open file can be unlinked — so the test passes and nothing says a
+// word; on Windows the same removal fails and the test is refused. One platform's silence is the
+// whole reason the mistake has been made nine times.
+//
+// A cached path with no file behind it can only mean the directory was removed while this cache
+// still held the handle. That is not a heuristic about how the test was WRITTEN — it is the leak
+// itself, so there is no pattern to evade and no exemption list to keep.
+//
+// Reported paths name the test that leaked them: `t.TempDir` builds its directory out of the
+// test's own name, so the path IS the attribution. A directory the test made itself
+// (`os.MkdirTemp`) gives only its prefix, which is where both of the first two catches came from.
+//
+// IT REPORTS NOTHING ON WINDOWS, AND THAT IS NOT A HOLE. This is the LINUX-SIDE instrument for a
+// defect Windows already refuses natively: there the removal fails and takes the test with it, so
+// there is no orphan to find. The point is to fail on the platform the author is actually running,
+// rather than a push and a CI round-trip later.
+func OrphanedHandles() []string {
+	openMu.Lock()
+	defer openMu.Unlock()
+	var out []string
+	for k := range openCache {
+		if _, err := os.Stat(k); errors.Is(err, fs.ErrNotExist) {
+			out = append(out, k)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // CloseAll releases every cached handle. For a process shutting down, not for a test cleanup.

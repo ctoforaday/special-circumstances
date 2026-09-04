@@ -182,6 +182,7 @@ stderr:
 feov-record: merge: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `merge class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
 
 ═══ EVENTS ═══
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
 
 ═══ RENDERS ═══
 -- debate

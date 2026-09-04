@@ -1,5 +1,7 @@
 # Scorecards: every constitutional clause gets a number the seat can see
 
+> STATUS 2026-09-02: shipped in changed form — the loop now lives in the Go tool (capture `WriteScorecards` → `feov-memory/<chair>-scorecard.md`; setup `MirrorScorecards` stages `inputs/`; dashboard `scorecardSection`; seat-facing `show scorecard`, "ported from scorecards.mjs" per `cli/scorecard.go`). The prompt-injection half of step 2 was REVERSED by priors-are-poison (plans/pre-dry-run-batch.md §II.5): a chair reads its IN-RUN scorecard, never a prior run's numbers.
+
 Corollary to the reform (user, 2026-07-18): a seat improves on metrics it can see and
 is actively measured against — so telos and LOSS conditions alike must be measurable,
 auditable numbers that reach the dashboard AND the seat itself. Proven negatively on
@@ -12,9 +14,12 @@ path is a dead letter by construction.
 Metrics today land in cost.md and audit files THAT NO FUTURE SEAT READS. The loop:
 1. CAPTURE computes every scorecard number (scripts, not prose) → writes
    `feov-memory/<chair>-scorecard.md` STATS (run-over-run series, taxonomy-labeled).
-2. SETUP mirrors each chair's scorecard into `inputs/` and the engine injects the
-   headline numbers into that chair's seat prompts ("your repair_regression_ratio
-   last run: 0.63; citation-parity target ~0.05").
+2. SETUP mirrors each chair's scorecard into `inputs/`.
+   REMOVED 2026-09-02: the second half — injecting prior-run headline numbers into seat
+   prompts — superseded by priors-are-poison (plans/pre-dry-run-batch.md §II.5); the
+   engine's scorecardClause (debate.js:203) instead points the chair at its in-run
+   `show scorecard`, and the staged headlines (`inputs/scorecards.json`, setup/run.go)
+   feed operator analytics only.
 3. DASHBOARD renders a per-chair scoreboard section (benchmarks bold, diagnostics
    muted — the taxonomy is visible, not just the values).
 Goodhart guard: every scorecard row carries its class — BENCHMARK (optimize me),
@@ -71,6 +76,11 @@ has an instrument. Current aspirational set: NONE (every clause above has a path
 W2h (this spec) rides existing waves: the scriptable-now rows land with W2b telemetry;
 calibration unblocks at W2f; reversal rate at W2e. The scorecard file format + setup
 mirroring + dashboard section are one small PR after W2b.
+**SHIPPED (2026-09-02 audit):** file format, setup mirroring and dashboard section all
+exist — in Go, not the mjs stack this spec assumed (`capture.go` WriteScorecards,
+`setup/setup.go` MirrorScorecards, `dashboard/render.go` scorecardSection; class taxonomy
+benchmark/diagnostic/detector carried in `internal/scorecard/scorecard.go`). Per-row Status
+entries above are the 2026-07-18 snapshot of the retired mjs-era system, not the current tree.
 
 ## E0.5 amendments (2026-07-18)
 

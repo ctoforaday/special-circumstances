@@ -205,10 +205,13 @@ func TelemetryAudit(run record.Run, redRounds int) Audit {
 	if err != nil {
 		return Audit{Check: "telemetry", Verdict: "FAIL", Detail: fmt.Sprintf("telemetry could not be computed from the record: %v", err)}
 	}
-	rounds := map[string]bool{}
+	// A ROW WITHOUT A ROUND IS NOT COUNTED, and with the row typed that is now the only way to
+	// miss: the field is optional in the schema, so presence is the question, and a key that was
+	// never written can no longer masquerade as one that was absent.
+	rounds := map[int32]bool{}
 	for _, j := range lines {
-		if r, ok := j["round"]; ok && r != nil {
-			rounds[jsString(r)] = true
+		if j.Round != nil {
+			rounds[j.GetRound()] = true
 		}
 	}
 	v := "FAIL"
@@ -781,7 +784,7 @@ func RecordParityAudit(run record.Run, redRounds, blueBlocks int) Audit {
 // WHAT SURVIVED. Exactly one signal: back-fill. A seat that does its work and then dumps every
 // record call in a burst at the end has produced a retrospective narration, and any audit that
 // treats those events as contemporaneous evidence is reading a story. That signal does not need
-// the transcript, because `ts` is stamped BY THE TOOL at write time (nextStamp) and `register` is
+// the transcript, because `ts` is stamped BY THE TOOL at write time and `register` is
 // every seat's first record action — so the record already knows when a seat started and when it
 // wrote.
 //

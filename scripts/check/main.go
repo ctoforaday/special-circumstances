@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/scripts/internal/gitx"
+	"github.com/ctoforaday/special-circumstances/scripts/internal/goldenmods"
 )
 
 // result is one gate's outcome. SKIPPED is its own state, never folded into PASS: a run that
@@ -72,10 +73,52 @@ func main() {
 	}
 
 	var results []result
-	for _, g := range selected {
+	for _, g := range subsumeGoldenLegs(selected) {
 		results = append(results, runGate(root, g, *base))
 	}
 	os.Exit(report(results))
+}
+
+// subsumeGoldenLegs tells the golden gate which of its go legs THIS run already executes.
+//
+// golden's go leg per module is `go test -count=1 ./...` — byte-for-byte the module's `:test`
+// gate — so a check run that includes both runs the same suite twice, sequentially: ~620s of a
+// ~1550s local run re-deriving a result the run already has (#626). The subsumption is only
+// claimed when the module's test gate is actually in the selected set (an `-only golden` run
+// still drives the leg itself), and golden REPORTS the leg as subsumed rather than dropping it —
+// a leg that vanishes from the output is indistinguishable from one that passed. The module list
+// is internal/goldenmods, the one record both tools read; if the lists lived apart, this would
+// be a hope about two files agreeing.
+func subsumeGoldenLegs(selected []gate) []gate {
+	testGateOf := map[string]string{}
+	for _, m := range modules {
+		testGateOf[m.dir] = m.ciJob + ":test"
+	}
+	present := map[string]bool{}
+	for _, g := range selected {
+		if g.skip == "" {
+			present[g.id] = true
+		}
+	}
+	var pairs []string
+	for _, mod := range goldenmods.Modules {
+		if id := testGateOf[mod]; id != "" && present[id] {
+			pairs = append(pairs, mod+"="+id)
+		}
+	}
+	if len(pairs) == 0 {
+		return selected
+	}
+	out := make([]gate, len(selected))
+	copy(out, selected)
+	for i, g := range out {
+		if g.id == "golden" && g.skip == "" {
+			args := make([]string, len(g.args), len(g.args)+1)
+			copy(args, g.args)
+			out[i].args = append(args, "-subsume="+strings.Join(pairs, ","))
+		}
+	}
+	return out
 }
 
 func selectGates(gs []gate, only string) []gate {
@@ -107,6 +150,50 @@ func anyNeedsBase(gs []gate) bool {
 // runGate executes one gate and captures its output. Output is CAPTURED rather than streamed
 // so the summary is readable; a failing gate prints its output in full, a passing one prints
 // nothing. Twelve gates streaming at once is how a real failure gets scrolled past.
+// expandScope replaces a deps:<target> scope marker with the module-local packages in the
+// target's import graph, resolved in dir at the moment the gate runs — the same derivation
+// the workflow's race step performs, so neither carrier holds a copy the other could drift
+// from. The module path comes from the module itself (`go list -m`), not a constant here.
+//
+// AN EMPTY EXPANSION IS AN ERROR, NEVER AN EMPTY GATE. `go test -race` with no packages
+// would test the current directory and report a pass that measured almost nothing — the
+// plausible zero again. A target that resolves to no module-local packages means the marker
+// or the module is broken, and the gate says so instead of going green.
+func expandScope(dir string, args []string) ([]string, error) {
+	out := make([]string, 0, len(args))
+	for _, a := range args {
+		if !strings.HasPrefix(a, depsScopePrefix) {
+			out = append(out, a)
+			continue
+		}
+		target := strings.TrimPrefix(a, depsScopePrefix)
+		mod := exec.Command("go", "list", "-m")
+		mod.Dir = dir
+		modOut, err := mod.Output()
+		if err != nil {
+			return nil, fmt.Errorf("expanding %s: go list -m in %s: %w", a, dir, err)
+		}
+		modPath := strings.TrimSpace(string(modOut))
+		deps := exec.Command("go", "list", "-deps", target)
+		deps.Dir = dir
+		depsOut, err := deps.Output()
+		if err != nil {
+			return nil, fmt.Errorf("expanding %s: go list -deps %s in %s: %w", a, target, dir, err)
+		}
+		var pkgs []string
+		for _, p := range strings.Split(strings.TrimSpace(string(depsOut)), "\n") {
+			if strings.HasPrefix(p, modPath) {
+				pkgs = append(pkgs, p)
+			}
+		}
+		if len(pkgs) == 0 {
+			return nil, fmt.Errorf("scope %s expanded to no packages under module %s — not measured, not clean", a, modPath)
+		}
+		out = append(out, pkgs...)
+	}
+	return out, nil
+}
+
 func runGate(root string, g gate, base string) result {
 	if g.skip != "" {
 		return result{gate: g, status: "SKIP", details: g.skip}
@@ -157,7 +244,11 @@ func runGate(root string, g gate, base string) result {
 		args = append(args, toolFlags(g)...)
 		cmd = exec.Command(bin, args...)
 	default:
-		cmd = exec.Command("go", g.args...)
+		args, err := expandScope(dir, g.args)
+		if err != nil {
+			return result{gate: g, status: "FAIL", took: time.Since(start), details: err.Error()}
+		}
+		cmd = exec.Command("go", args...)
 	}
 	cmd.Dir = dir
 	out, err := cmd.CombinedOutput()

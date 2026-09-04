@@ -127,12 +127,20 @@ var modules = []struct{ dir, ciJob string }{
 }
 
 // raceScope is what each job passes to `go test -race`. NOT uniform, and the difference is
-// deliberate: feov-record races only internal/record because the full suite under -race
-// exceeds the runner's patience. Encoding the real scopes means this table cannot claim
-// coverage the workflow does not have.
+// deliberate. Encoding the real scopes means this table cannot claim coverage the workflow
+// does not have.
+//
+// feov-record races the SHIPPED BINARY'S IMPORT GRAPH and nothing else (ruled 2026-09-03: no
+// race-instrumenting the test harnesses). The scope is a deps: marker expanded at run time —
+// by expandScope here and by `go list -deps | grep` in the workflow — because the graph is
+// the record and a hand-copied package list beside it would be free to drift. What the
+// module's harness packages (releasegate/fuzz, testbuild, difftest) do with their
+// concurrency is SPAWN the real binary, which no race detector observes from the parent.
+// This is also the module's slowest gate now: the graph includes fetchcache and cli, whose
+// suites are minutes, not seconds.
 var raceScope = map[string][]string{
 	"plugins/prosthetic-conscience/tools":   {"./..."},
-	"plugins/frank-exchange-of-views/tools": {"./internal/record/"},
+	"plugins/frank-exchange-of-views/tools": {depsScopePrefix + "./cmd/feov-record"},
 	"plugins/gray-area/tools":               {"./..."},
 	// scripts WAS the one module with no -race leg, absent on purpose while it was
 	// straight-line tooling. It stopped being that: golden/interrupt.go guards signal state
@@ -145,16 +153,25 @@ var raceScope = map[string][]string{
 	"scripts": {"./..."},
 }
 
+// depsScopePrefix marks a race scope that is a binary's module-local import graph, resolved
+// in the gate's own directory when the gate runs. See expandScope.
+const depsScopePrefix = "deps:"
+
 // narrowRace are -race legs scoped to ONE NAMED TEST rather than to a package.
 //
 // Deliberately not entries in raceScope: that map is module -> scope and the parity test holds
-// it to exactly what CI races, so putting "./integration/fuzz/" there would claim the whole
+// it to exactly what CI races, so putting "./releasegate/fuzz/" there would claim the whole
 // package is raced when one test is. Under-claiming is the other half of the same defect,
 // which is why these are declared here instead of left out — a CI gate with no local
 // counterpart is the drift this command's package comment opens with.
+//
+// The run-handle guard is the HARNESS CARVE-OUT from the scope rule above, kept by ruling
+// ("keep fuzz on the hook", #686). A harness race cannot ship, but it makes fuzz verdicts
+// flaky, and a flaky verdict is a measurement defect; one dedicated ~1s test keeps the
+// harness accountable without paying the race tax on the whole package.
 var narrowRace = []gate{
 	{id: "feov-record:race-runhandle", kind: kindRace, dir: "plugins/frank-exchange-of-views/tools",
-		args:  []string{"test", "-race", noCache, "-run", "^TestTheRunHandleIsImmutableAfterConstruction$", "./integration/fuzz/"},
+		args:  []string{"test", "-race", noCache, "-run", "^TestTheRunHandleIsImmutableAfterConstruction$", "./releasegate/fuzz/"},
 		ciJob: "feov-record",
 		why:   "the fuzz runner's seats are concurrent; its run handle was briefly resolved lazily, and two full debate runs under -race did not report it"},
 }
@@ -184,6 +201,12 @@ var tools = []gate{
 		why: "node --test exits 0 on a path that does not exist"},
 	{id: "mutate-selftest", kind: kindTool, dir: "scripts", args: []string{"run", "./mutate", "-selftest"}, ciJob: "debate-sim",
 		why: "a mutation sweep that cannot mutate flatters the suite"},
+	// Declared and SKIPPED, like the release gates it runs beside: the sweep takes minutes
+	// to hours and only a tag decides which module it judges. Running it here would sweep
+	// the default module on every check invocation for a verdict nothing local consumes.
+	{id: "mutate-gate", kind: kindTool, dir: "scripts", args: []string{"run", "./mutate", "-gate"}, ciJob: "release",
+		skip: "only meaningful on a tag; the release job sweeps the tagged plugin's module",
+		why:  "a release must prove every mutation survivor was JUDGED, not merely counted"},
 	{id: "validatejson", kind: kindTool, dir: "scripts", args: []string{"run", "./validatejson"}, ciJob: "debate-sim",
 		why: "manifests break silently"},
 	{id: "frontmatter", kind: kindTool, dir: "scripts", args: []string{"run", "./frontmatter"}, ciJob: "debate-sim",
@@ -244,6 +267,12 @@ func gateSet() []gate {
 		gate{id: "release", kind: kindRelease, dir: ".", ciJob: "release",
 			skip: "only meaningful on a tag",
 			why:  "cross-compile and publish"},
+		// The feov sweeps' release leg. Declared for the reason every release gate is: a
+		// gate that cannot run here must still appear in the report. Locally the same
+		// sweeps run with FEOV_RELEASE_GATE=1 against releasegate/fuzz.
+		gate{id: "release-fuzz-sweep", kind: kindRelease, dir: "plugins/frank-exchange-of-views/tools", ciJob: "release",
+			skip: "only meaningful on a feov tag; the release job runs releasegate/fuzz with FEOV_RELEASE_GATE=1",
+			why:  "the debate sweeps hold at the boundary where the binary ships"},
 		// The RELEASE BOUNDARY invariant (#405). Declared and skipped for the same reason as
 		// `release` itself — it runs in the release job, on a tag, before anything is published
 		// — but declared, because a gate that cannot run here must still appear in the report.

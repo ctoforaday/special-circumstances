@@ -34,6 +34,7 @@ import (
 // never the exit status is not a channel." A change to the ROOT's argument parsing broke a contract documented on
 // the leaf. This asserts it at the process boundary, which is the altitude it lives at.
 func TestTheShippedHooksResolveAgainstTheBuiltBinary(t *testing.T) {
+	releaseGate(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("hooks.json's command is /bin/sh; the binary's argv contract is covered by the same gate on Linux")
 	}

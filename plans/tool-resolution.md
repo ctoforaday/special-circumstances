@@ -1,5 +1,7 @@
 # Tool resolution: discover once, shim where PATH already reaches, never rewrite
 
+> STATUS 2026-09-02: not started — no implementation ever landed. No `toolpath` or `shim` package exists under `plugins/prosthetic-conscience/tools/internal/`, and `sc-doctor` still resolves external tools by `exec.LookPath` alone (`internal/toolchain/toolchain.go`). The one §III item that happened is the `requirements.json` audit (its `_comment` now states the plugin-binary rule). The plan's environment was a specific Windows machine; the current machine is Linux.
+
 ## I. Summary & Goals
 
 A tool that is installed and working is reported missing because the process checking it
@@ -143,18 +145,24 @@ manifest stale, never silently trust it.
 
 1. `plugins/prosthetic-conscience/tools/internal/toolpath/` — new package: `Resolve(name)`,
    `Discover()`, `Load()`, `Save()`. Known-roots table lives here, platform-tagged.
+   **NOT BUILT (2026-09-02):** no such package; nothing writes or reads `toolpaths.json`.
 2. `plugins/prosthetic-conscience/tools/cmd/sc-doctor/` — call `Discover()`; write
    `toolpaths.json`; report a found-but-off-PATH tool as **`present at <path>, not on
    PATH`** rather than as missing, with the PATH command as the remedy.
+   **NOT BUILT (2026-09-02):** `toolchain.Probe` still answers presence with `exec.LookPath` only (`internal/toolchain/toolchain.go:102`).
 3. `plugins/prosthetic-conscience/tools/internal/shim/` — new package: create/list/remove
    shims in the user bin directory. `.cmd` wrapper on Windows, symlink on POSIX. Refuses
    to shim a tool that already resolves (shadowing guard).
+   **NOT BUILT (2026-09-02).**
 4. `sc-doctor --fix` wiring: create the user bin dir if absent, shim each
    present-but-unresolvable tool, and PRINT what it created. No hook is registered — the
    advisory design was dropped once the user-bin PATH entry was verified.
+   **NOT BUILT (2026-09-02):** today's `--fix` provisions the suite's own hook binaries; it creates no shims.
 5. `plugins/frank-exchange-of-views/requirements.json` — audit for the same defect that
    put a plugin-shipped binary in an external-tool manifest (already fixed once).
+   **DONE 2026-09-02 (verified):** the manifest lists external tools only (node, uv, buf) and its `_comment` states the plugin-binary rule explicitly.
 6. `plugins/prosthetic-conscience/.claude-plugin/plugin.json` — version bump.
+   **SUPERSEDED 2026-09-02:** versions move at a release boundary, not per change (repository policy in CLAUDE.md).
 
 ## IV. Risk & Mitigation (likelihood x impact x complexity-to-mitigate)
 
@@ -170,6 +178,8 @@ manifest stale, never silently trust it.
 | Writing a machine-local file into the plugin cache | med x low | Cache dir already receives `--fix`-installed binaries; the file is regenerable and never committed |
 
 ## V. Verification plan
+
+**NOT DONE (2026-09-02):** nothing below ever ran as this plan's loop, because §III was never implemented.
 
 1. `go test -count=1 -cover ./...` in `plugins/prosthetic-conscience/tools` — the new
    `toolpath` package covered including: manifest hit, PATH hit, known-root hit, not-found,

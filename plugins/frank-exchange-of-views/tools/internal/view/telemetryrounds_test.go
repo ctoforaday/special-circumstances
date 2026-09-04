@@ -5,6 +5,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"google.golang.org/protobuf/proto"
+	"strconv"
 	"testing"
 )
 
@@ -53,8 +54,8 @@ func TestTheConvergedRoundGetsATelemetryRow(t *testing.T) {
 	}
 	seen := map[string]bool{}
 	for _, r := range rows {
-		if v, ok := r["round"]; ok && v != nil {
-			seen[jsText(v)] = true
+		if r.Round != nil {
+			seen[strconv.Itoa(int(r.GetRound()))] = true
 		}
 	}
 	for _, want := range []string{"1", "2"} {
@@ -74,20 +75,21 @@ func TestTheConvergedRoundsClosureReachesItsRow(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, r := range rows {
-		if v, ok := r["round"]; !ok || v == nil || jsText(v) != "2" {
+		if r.Round == nil || r.GetRound() != 2 {
 			continue
 		}
 		// repair_regression.closures is the field, and it is the one that matters: scorecard's
 		// repair_regression_ratio reported "no telemetry rounds with closures" on the measured
 		// run, which was this defect wearing the name of a metric.
-		rr, ok := r["repair_regression"].(map[string]any)
+		rr := r.GetRepairRegression()
+		ok := rr != nil
 		if !ok {
 			t.Fatalf("round 2's row carries no repair_regression block: %v", r)
 		}
-		if jsText(rr["closures"]) != "1" {
+		if rr.GetClosures() != 1 {
 			t.Errorf("round 2 closed the run's only gap; its row says closures=%v.\n\n"+
 				"A round present in the series but empty of its own work is the same silence one "+
-				"level in.", rr["closures"])
+				"level in.", rr.GetClosures())
 		}
 		return
 	}

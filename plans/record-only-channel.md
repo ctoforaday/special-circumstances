@@ -1,5 +1,7 @@
 # The record as the only inter-agent channel (#62) — design + staging
 
+> STATUS 2026-09-02: shipped — historical record, except the orchestrator-mechanics channel (Stage 2.5, marked NOT BUILT below). Stages 1–3 are production: hand-written debate.md is gone (`internal/setup/setup.go` renders it as a projection, `show --view debate` in `internal/view/view.go`), envelopes carry routing refs only (debate.js says "ROUTING REF ONLY — no prose"), and `verify` exists as a root read-only command.
+
 **Decision (2026-07-23):** the clean one-way answer. Exactly ONE channel for inter-agent
 CONTENT: the event record. `debate.md` becomes a rendered, read-only VIEW (never hand-written);
 envelopes carry orchestration REFS (gap ids, "rule on these"), never a second copy of the content.
@@ -22,6 +24,8 @@ orchestration-trim, NOT a from-scratch projection.
 ## Verbs that already exist (no schema work)
 `closing --id --reason` · `dispute --id --dimension --proposed --reason` (blue) ·
 `dispute-respond` (merge) · `position` · `opinion`. All event through the tool.
+
+**CORRECTED 2026-09-02:** the dispute vocabulary later collapsed into motions — `motion` file/rule/appeal (`internal/cli/motion/verbs.go`); `dispute`/`dispute-respond` are no longer verb names. `closing`, `position`, `opinion` remain event types (`recordpb`).
 
 ## Staging — each stage reaches a CONSISTENT state and is run-verifiable
 
@@ -62,6 +66,8 @@ terminal — it records the mechanics events debate.js hands it in its prompt). 
 `lead` (mechanics), distinct from `bench` (judgment). This is what makes the record COMPLETE —
 both the agents' content AND the routing. Likely its own stage (Stage 2.5) or folded into Stage 3.
 
+**NOT BUILT (2026-09-02):** no `lead` mechanics channel exists — `internal/record/roles.go` roleSeats holds operator/lens/merge/blue/bench only, and the schema (`recordpb/record.pb.go`) has no docket-composed/round-opened/deadlock event types. Pieces landed by other routes: halts are on the record (#333) and the verdict is derived rather than computed off-record (#309).
+
 ## Diagnostic / cross-check surface — READ-ONLY (added 2026-07-23)
 A first-class `verify` / `stats` command set over a run's record, replacing ad-hoc grep/python
 forensics. STRICTLY READ-ONLY — inspection, never a second mutation path (one-way holds).
@@ -70,6 +76,7 @@ forensics. STRICTLY READ-ONLY — inspection, never a second mutation path (one-
   no open gaps (#67 post-hoc); no dual-write divergence (debate.md vs events) DURING the transition.
 - `stats <run>`: event-type tallies, coverage (findings→gaps, minted vs un-minted, dialectic per
   gap), so a run's completeness is a number, not an eyeball.
+  **CORRECTED 2026-09-02:** shipped folded into `verify`, not as a separate command — `internal/cli/verify.go` prints `verify.Run` checks plus `verify.Compute` stats in one report.
 - Pairs with the retirement: as debate.md goes, `verify` is HOW we trust the record is complete.
 - Sequence: build `verify` EARLY (even before Stage 1) — it becomes the run-verification harness
   for every subsequent stage, turning "inspect by hand" into "run verify."
@@ -84,6 +91,7 @@ forensics. STRICTLY READ-ONLY — inspection, never a second mutation path (one-
 
 ## Validation loop (every stage)
 cd tools: go build ./... ; go test ./... -count=1 ; (UPDATE_GOLDENS for difftest if tool changed)
-cd .. : node --test tests/simulator/*.test.mjs ; node scripts/rule-sweep.mjs --base origin/main
+cd .. : node --test tests/simulator/*.test.mjs
+REMOVED 2026-09-02: `node scripts/rule-sweep.mjs` no longer exists; superseded by the Go `scripts/rulesweep`.
 then: a driven run (local binary + branch debate.js) exercising the stage's events; inspect the
 assembled report + `show --view debate` on a FRESH record.

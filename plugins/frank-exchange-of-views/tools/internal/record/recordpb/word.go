@@ -35,9 +35,10 @@ func Word(e protoreflect.Enum) string {
 	}
 	vd := e.Descriptor().Values().ByNumber(n)
 	if vd == nil {
-		// A number this binary's schema does not declare. The read path refuses such a line
-		// before it reaches any reader (ClassifyLine stage 4/5), so this is reachable only from
-		// an in-memory value — and a blank is the honest answer, not a panic.
+		// A number this binary's schema does not declare. Such a value cannot come off the record:
+		// `events.type` references `enum_event_type`, so a word outside the vocabulary cannot be
+		// stored, and the read refuses one that somehow is. So this is reachable only from an
+		// in-memory value — and a blank is the honest answer, not a panic.
 		return ""
 	}
 	return Spelling(vd)

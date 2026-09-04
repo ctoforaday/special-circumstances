@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"io"
 	"math"
 	"os"
@@ -355,45 +356,54 @@ func reportTelemetry(run record.Run, p func(string)) {
 	p("|---|---|---|---|---|---|---|")
 	for _, t := range lines {
 		p(fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s |",
-			telField(t, "round"), telField(t, "open_count"), telField(t, "max_severity"),
-			newMintCount(t), telField(t, "mass"), telField(t, "realized_open"), telField(t, "mapping_version")))
+			telInt(t.Round), telInt(t.OpenCount), telGrade(t.MaxSeverity),
+			newMintCount(t), telFloat(t.Mass), telInt(t.RealizedOpen), telStr(t.MappingVersion)))
 	}
 	p("\nTelemetry is the convenience copy, never the evidence of record — actuation reviews recompute from the git-tracked ledger.")
 }
 
-// telField renders a telemetry field with the JS `?? '?'` fallback: '?' only for absent/null.
-func telField(m map[string]any, key string) string {
-	v, ok := m[key]
-	if !ok || v == nil {
+// THE '?' IS FOR AN ABSENT FIELD, and typing the row is what makes that honest.
+//
+// These read `map[string]any` and returned '?' when a key was missing or nil — which also hid a
+// key that was never written by anything (see scorecard's convergence_vs_verdict_flags). A proto
+// getter cannot miss a field that exists; these helpers now distinguish only the one thing that is
+// genuinely optional in the schema, which is PRESENCE.
+func telInt(v *int32) string {
+	if v == nil {
 		return "?"
 	}
-	return telVal(v)
+	return strconv.Itoa(int(*v))
 }
 
-func telVal(v any) string {
-	switch x := v.(type) {
-	case json.Number:
-		return x.String()
-	case string:
-		return x
-	case bool:
-		if x {
-			return "true"
-		}
-		return "false"
-	default:
-		return fmt.Sprintf("%v", v)
+func telFloat(v *float64) string {
+	if v == nil {
+		return "?"
 	}
+	// 'f' with -1 precision matches what the JSON encoder printed for these values, which is what
+	// this column showed before the row was typed: 2.0 renders "2", 1.5 renders "1.5".
+	return strconv.FormatFloat(*v, 'f', -1, 64)
 }
 
-func newMintCount(m map[string]any) string {
-	nm, ok := m["new_mint"].(map[string]any)
-	if !ok {
+func telStr(v *string) string {
+	if v == nil {
 		return "?"
 	}
-	c, ok := nm["count"]
-	if !ok || c == nil {
+	return *v
+}
+
+// telGrade prints the grade's own spelling, and '?' when nothing was graded — the absence
+// TelemetryLine's max_severity comment protects.
+func telGrade(g *recordpb.Grade) string {
+	if g == nil {
 		return "?"
 	}
-	return telVal(c)
+	return recordpb.Word(*g)
+}
+
+func newMintCount(t *recordpb.TelemetryLine) string {
+	nm := t.GetNewMint()
+	if nm == nil {
+		return "?"
+	}
+	return telInt(nm.Count)
 }

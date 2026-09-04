@@ -1,5 +1,7 @@
 # Code-quality audit — `plugins/prosthetic-conscience/tools`
 
+> STATUS 2026-09-02: shipped — historical record. All six items verified on main (internal/hookmain, internal/statefile with AppendRow, buildid.ExeName, the projectroot guard; stopnudge and freshness both read through statefile), landed via #564/#570/#573. The in-text hashes are pre-squash branch commits — e.g. `65a4679` reached main as `da3c4765`.
+
 > 42 non-test files, 53 test files. Audited 2026-08-25 against Go practice and this repo's own
 > stated principles. Every claim below carries the command that produced it, so a reader can
 > re-run rather than trust — the standard §III applies to censuses applies here too.
