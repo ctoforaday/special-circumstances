@@ -1,10 +1,11 @@
 package record
 
 import (
+	"testing"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
-	"testing"
 )
 
 // gapSpec is one gap to seed onto the board for the near-match tests.

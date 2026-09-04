@@ -4,9 +4,10 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"sort"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 
 	"github.com/thediveo/enumflag/v2"
 )

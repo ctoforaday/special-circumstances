@@ -180,15 +180,6 @@ func adoptTornProofAnchor(run record.Run, quote string) string {
 	if err != nil {
 		return ""
 	}
-	m, err := record.MergedEvents(run)
-	if err != nil {
-		return ""
-	}
-	recorded := map[string]bool{}
-	for _, e := range m.Events {
-		if pr, ok := recordpb.BodyAs[*recordpb.Proof](e); ok {
-			recorded[pr.GetProofId()] = true
-		}
-	}
-	return lens.OrphanAnchorAt(string(rep), quote, "proof", func(id string) bool { return recorded[id] })
+	return lens.OrphanAnchorAt(string(rep), quote, "proof",
+		func(id string) bool { return record.ProofMarkerRecorded(run, id) })
 }

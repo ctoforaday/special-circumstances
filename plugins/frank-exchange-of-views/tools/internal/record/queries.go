@@ -104,6 +104,55 @@ func RoundsWithRevision(run Run) int {
 	return n
 }
 
+// RegisteredSeats lists the seat ids that registered in this run, in event order — every seat
+// the BUILD registered, whether or not it then sat.
+func RegisteredSeats(run Run) ([]string, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return nil, err
+	}
+	if db == nil {
+		return nil, nil
+	}
+	rows, err := db.Query(`SELECT e."seat_id" FROM "register" r JOIN "events" e ON e."id" = r."event_id" ORDER BY r."event_id"`)
+	if err != nil {
+		return nil, fmt.Errorf("record: asking the record for its registered seats: %w", err)
+	}
+	defer rows.Close()
+	var out []string
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
+// FindingMarkerRecorded reports whether any finding OR anchor event names this marker id — the
+// membership question the torn-splice heal asks of an fx marker already sitting on the report.
+// Read errors fold into false: the caller then takes the ordinary fresh path, exactly as it did
+// when the merged read failed. Its proof twin below keeps the two namespaces as separate as the
+// folds kept them.
+func FindingMarkerRecorded(run Run, id string) bool {
+	if id == "" {
+		return false
+	}
+	found, err := recordHas(run, `SELECT 1 FROM "finding" WHERE "finding_id" = ?
+	  UNION SELECT 1 FROM "anchor" WHERE "id" = ? LIMIT 1`, id, id)
+	return err == nil && found
+}
+
+// ProofMarkerRecorded is FindingMarkerRecorded's twin for proof markers.
+func ProofMarkerRecorded(run Run, id string) bool {
+	if id == "" {
+		return false
+	}
+	found, err := recordHas(run, `SELECT 1 FROM "proof" WHERE "proof_id" = ? LIMIT 1`, id)
+	return err == nil && found
+}
+
 // gradeAtColumn names the regrade/mint column for a contested dimension; "" is a dimension this
 // binary cannot read a grade at — the same refusal Gap.GradeAt returns false for.
 func gradeAtColumn(d recordpb.GradeDimension) string {

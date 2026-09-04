@@ -2,9 +2,11 @@ package record
 
 import (
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
-	"google.golang.org/protobuf/proto"
 	"strings"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -176,27 +178,16 @@ func ExistingCiteByKey(run Run, seatID, key string) (string, error) {
 	if key == "" {
 		return "", nil
 	}
-	m, err := MergedEvents(run)
-	if err != nil {
+	// key is non-empty (guarded above), so a NULL cite_key can never match it — the same
+	// property the fold's absent-key zero value had, held by the comparison itself.
+	var label sql.NullString
+	if _, err := queryRow(run, []any{&label},
+		`SELECT c."label" FROM "cite" c JOIN "events" e ON e."id" = c."event_id"
+		  WHERE e."seat_id" = ? AND c."cite_key" = ? ORDER BY c."event_id" LIMIT 1`,
+		seatID, key); err != nil {
 		return "", err
 	}
-	for i := range m.Events {
-		e := m.Events[i]
-		if e.GetSeatId() != seatID {
-			continue
-		}
-		body, ok := recordpb.Body(e)
-		if !ok {
-			continue
-		}
-		// key is non-empty (guarded above), so GetCiteKey()'s zero value for an ABSENT
-		// cite_key can never match it — the old `Payload.Str("cite_key") == key` had the same
-		// property for the same reason.
-		if c, isCite := body.(*recordpb.Cite); isCite && c.GetCiteKey() == key {
-			return c.GetLabel(), nil
-		}
-	}
-	return "", nil
+	return label.String, nil
 }
 
 // TWO KINDS OF `cite` EVENT SHARE ONE TYPE — and conflating them inflates red's audit metric.
@@ -245,28 +236,16 @@ func ExistingProofByKey(run Run, seatID, key string) (string, error) {
 	if key == "" {
 		return "", nil
 	}
-	m, err := MergedEvents(run)
-	if err != nil {
+	// The schema carries the one fact once, on Proof.proof_sha; reproduce writes the same value
+	// and every joiner reads it back under this name.
+	var sha sql.NullString
+	if _, err := queryRow(run, []any{&sha},
+		`SELECT p."proof_sha" FROM "proof" p JOIN "events" e ON e."id" = p."event_id"
+		  WHERE e."seat_id" = ? AND p."proof_key" = ? ORDER BY p."event_id" LIMIT 1`,
+		seatID, key); err != nil {
 		return "", err
 	}
-	for i := range m.Events {
-		e := m.Events[i]
-		if e.GetSeatId() != seatID {
-			continue
-		}
-		body, ok := recordpb.Body(e)
-		if !ok {
-			continue
-		}
-		// The proof's sha was written under the payload key `sha256` and is READ BACK under
-		// `proof_sha` by every joiner — reproduce writes `proof_sha` for the same value, and
-		// `lens reproduce --id` takes it. The schema carries the one fact once, on
-		// Proof.proof_sha; this is that same value, not a rename of a different field.
-		if p, isProof := body.(*recordpb.Proof); isProof && p.GetProofKey() == key {
-			return p.GetProofSha(), nil
-		}
-	}
-	return "", nil
+	return sha.String, nil
 }
 
 // Proof is one recorded computation, drawn from a blue `prove` event — the composer input
@@ -404,25 +383,15 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 	if url == "" || claim == "" {
 		return "", nil
 	}
-	m, err := MergedEvents(run)
-	if err != nil {
+	var label string
+	if _, err := queryRow(run, []any{&label},
+		`SELECT v."label" FROM "verify" v JOIN "events" e ON e."id" = v."event_id"
+		  WHERE e."seat_id" = ? AND v."url" = ? AND v."claim" = ? AND COALESCE(v."label", '') != ''
+		  ORDER BY v."event_id" LIMIT 1`,
+		seatID, url, claim); err != nil {
 		return "", err
 	}
-	for i := range m.Events {
-		e := m.Events[i]
-		if e.GetSeatId() != seatID {
-			continue
-		}
-		body, ok := recordpb.Body(e)
-		if !ok {
-			continue
-		}
-		if v, isVerify := body.(*recordpb.Verify); isVerify &&
-			v.GetLabel() != "" && v.GetUrl() == url && v.GetClaim() == claim {
-			return v.GetLabel(), nil
-		}
-	}
-	return "", nil
+	return label, nil
 }
 
 // unansweredContradictions returns the claims where red read a source that CONTRADICTS the

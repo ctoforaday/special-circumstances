@@ -1,12 +1,12 @@
 package record
 
 import (
+	"testing"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
 )
-
-import "testing"
 
 // board builds a Board with the gaps and events a spot-check audit reads.
 func spotBoard(gaps map[string]*Gap, evs ...*Event) *Board {

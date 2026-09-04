@@ -1,11 +1,9 @@
 package record
 
 import (
+	"database/sql"
 	"fmt"
 	"regexp"
-	"strings"
-
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // A lens role segment in a seat id: "red-lens-r3-L2" -> "L2". The role is the
@@ -34,16 +32,14 @@ func NextFindingLabel(run Run, seatID string) (string, error) {
 	if role == "" {
 		return "", fmt.Errorf("finding label: seat id %q carries no lens role (expected …-L<n>)", seatID)
 	}
-	m, err := MergedEvents(run)
-	if err != nil {
-		return "", err
-	}
+	// substr, not LIKE: a prefix compared byte-for-byte cannot be surprised by a metacharacter
+	// the way a pattern could, and HasPrefix was a byte compare.
 	prefix := role + "-F"
-	n := 0
-	for _, e := range m.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && strings.HasPrefix(f.GetLabel(), prefix) {
-			n++
-		}
+	var n int
+	if _, err := queryRow(run, []any{&n},
+		`SELECT count(*) FROM "finding" WHERE substr(COALESCE("label", ''), 1, ?) = ?`,
+		len(prefix), prefix); err != nil {
+		return "", err
 	}
 	return fmt.Sprintf("%s-F%d", role, n+1), nil
 }
@@ -57,17 +53,8 @@ func existingFindingByKey(run Run, seatID, key string) (string, error) {
 	if key == "" {
 		return "", nil
 	}
-	m, err := MergedEvents(run)
-	if err != nil {
-		return "", err
-	}
-	for _, e := range m.Events {
-		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
-		if ok && e.GetSeatId() == seatID && f.GetFindingKey() == key {
-			return f.GetLabel(), nil
-		}
-	}
-	return "", nil
+	label, _, err := FindingByKey(run, seatID, key)
+	return label, err
 }
 
 // FindingByKey returns the prior finding's (label, finding_id) for this seat's --key, or empty
@@ -78,17 +65,14 @@ func FindingByKey(run Run, seatID, key string) (label, findingID string, err err
 	if key == "" {
 		return "", "", nil
 	}
-	m, err := MergedEvents(run)
-	if err != nil {
+	var l, id sql.NullString
+	if _, err := queryRow(run, []any{&l, &id},
+		`SELECT f."label", f."finding_id" FROM "finding" f JOIN "events" e ON e."id" = f."event_id"
+		  WHERE e."seat_id" = ? AND f."finding_key" = ? ORDER BY f."event_id" LIMIT 1`,
+		seatID, key); err != nil {
 		return "", "", err
 	}
-	for _, e := range m.Events {
-		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
-		if ok && e.GetSeatId() == seatID && f.GetFindingKey() == key {
-			return f.GetLabel(), f.GetFindingId(), nil
-		}
-	}
-	return "", "", nil
+	return l.String, id.String, nil
 }
 
 // AnchorEventExists reports whether an anchor event names this finding id. The finding and its
@@ -98,14 +82,5 @@ func AnchorEventExists(run Run, findingID string) (bool, error) {
 	if findingID == "" {
 		return false, nil
 	}
-	m, err := MergedEvents(run)
-	if err != nil {
-		return false, err
-	}
-	for _, e := range m.Events {
-		if a, ok := recordpb.BodyAs[*recordpb.Anchor](e); ok && a.GetId() == findingID {
-			return true, nil
-		}
-	}
-	return false, nil
+	return recordHas(run, `SELECT 1 FROM "anchor" WHERE "id" = ? LIMIT 1`, findingID)
 }

@@ -3,9 +3,9 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -169,7 +169,7 @@ func toolName() string {
 
 func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 	out := RunDiagnostic{RunDir: run.Dir(), Trajectory: traj}
-	m, err := record.MergedEvents(run)
+	registered, err := record.RegisteredSeats(run)
 	if err != nil {
 		return out, err
 	}
@@ -184,12 +184,6 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 	// to one of several registered seats, so there is no honest way to split it.
 	ids := []string{seatID}
 	if seatID == "" {
-		var registered []string
-		for _, e := range m.Events {
-			if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
-				registered = append(registered, e.GetSeatId())
-			}
-		}
 		sort.Strings(registered)
 		return out, feov.Errorf(feov.MissingField,
 			"show diagnostics: --sitting names whose sitting this trajectory is. A run's record carries every seat "+
@@ -197,7 +191,7 @@ func diagnose(run record.Run, traj, seatID string) (RunDiagnostic, error) {
 				"an exposure of zero they were never given the chance to earn",
 			strings.Join(dedupeSeats(registered), ", "))
 	}
-	if !registeredIn(m.Events, seatID) {
+	if !slices.Contains(registered, seatID) {
 		return out, feov.Errorf(feov.NotFound,
 			"show diagnostics: %q never registered in this run, so there is no sitting to report on", seatID)
 	}
@@ -361,13 +355,4 @@ func dedupeSeats(in []string) []string {
 		}
 	}
 	return out
-}
-
-func registeredIn(evs []*record.Event, seatID string) bool {
-	for _, e := range evs {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && e.GetSeatId() == seatID {
-			return true
-		}
-	}
-	return false
 }

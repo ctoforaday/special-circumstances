@@ -35,9 +35,10 @@ package record
 
 import (
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"sort"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // Activity is the record's own answer to "when did anything last happen here".
@@ -88,11 +89,7 @@ const minStaleFloor = 6 * time.Minute
 //
 // An empty record is an ERROR, not a zero time: a run that has recorded nothing and a run whose
 // record cannot be read must not both arrive as "very old".
-func lastActivity(run Run) (Activity, error) {
-	merged, err := MergedEvents(run)
-	if err != nil {
-		return Activity{}, err
-	}
+func lastActivity(run Run, merged Merged) (Activity, error) {
 	if len(merged.Events) == 0 {
 		return Activity{}, fmt.Errorf("record: no events in %s — a run that has written nothing "+
 			"is not a run that has gone quiet, and reporting it as an age would make the two the same", run.Dir())
@@ -157,13 +154,16 @@ func Assess(run Run, now time.Time, ended bool) Liveness {
 	if ended {
 		return Liveness{State: StateEnded, Basis: "the run was captured"}
 	}
-	last, err := lastActivity(run)
+	// ONE read of the record for both questions. This read the whole stream twice — once for
+	// the newest event, once for the cadence — and the two reads could even disagree if an
+	// event landed between them.
+	merged, err := MergedEvents(run)
 	if err != nil {
 		return Liveness{State: StateUnmeasured, Basis: err.Error()}
 	}
-	merged, err := MergedEvents(run)
+	last, err := lastActivity(run, merged)
 	if err != nil {
-		return Liveness{State: StateUnmeasured, Basis: err.Error(), Last: last}
+		return Liveness{State: StateUnmeasured, Basis: err.Error()}
 	}
 	age := now.Sub(last.At)
 	thr, basis, ok := staleThreshold(merged.Events)

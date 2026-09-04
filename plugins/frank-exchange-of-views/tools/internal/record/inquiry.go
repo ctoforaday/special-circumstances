@@ -58,27 +58,14 @@ var InquiryRulings = []EnumValue{
 // proposed it — that is the whole point of giving it a lifecycle — so a round-scoped id
 // would have to be re-minted to survive, which is the bug this replaces.
 func MintInquiryID(run Run) (string, error) {
-	m, err := MergedEvents(run)
-	if err != nil {
+	// A PROPOSAL, NOT A MOVE. `supersedes_status` is PRESENT on a move and absent on a
+	// proposal — the schema says so in as many words — so the id counter reads presence (a
+	// NULL column), not the string. A move whose marker was written empty would still carry a
+	// non-NULL column and is not counted, exactly as the fold's pointer test had it.
+	var n int
+	if _, err := queryRow(run, []any{&n},
+		`SELECT count(*) FROM "avenue" WHERE COALESCE("avenue_id", '') != '' AND "supersedes_status" IS NULL`); err != nil {
 		return "", err
-	}
-	n := 0
-	for _, e := range m.Events {
-		// THE BODY IS THE TYPE. `line-of-inquiry` is carried by the `Avenue` message
-		// (EVENT_TYPE_AVENUE) — the schema kept the pre-rename spelling for the message and its
-		// id field, so `inquiry_id` is `avenue_id` here. Matching on the body cannot go stale
-		// against the enum the way `e.Type == "line-of-inquiry"` could.
-		av, ok := recordpb.BodyAs[*recordpb.Avenue](e)
-		if !ok {
-			continue
-		}
-		// A PROPOSAL, NOT A MOVE. `supersedes_status` is PRESENT on a move and absent on a
-		// proposal — the schema says so in as many words — so the id counter reads the pointer,
-		// not the string. `GetSupersedesStatus() == ""` would count a move whose marker was
-		// written empty as a fresh proposal and mint an id that already exists.
-		if av.GetAvenueId() != "" && av.SupersedesStatus == nil {
-			n++
-		}
 	}
 	return fmt.Sprintf("Q%d", n+1), nil
 }
@@ -268,17 +255,15 @@ func RequireInquiryRef(run Run, id string) error {
 	if id == "" {
 		return nil
 	}
-	m, err := MergedEvents(run)
+	// EVERY Avenue event answers this, proposal or move, exactly as the fold's type test did —
+	// the check is that the id was ever WRITTEN by the line-of-inquiry verb, not that the
+	// event was the proposal.
+	found, err := recordHas(run, `SELECT 1 FROM "avenue" WHERE "avenue_id" = ? LIMIT 1`, id)
 	if err != nil {
 		return err
 	}
-	for _, e := range m.Events {
-		// EVERY Avenue event answers this, proposal or move, exactly as the old type test did —
-		// the check is that the id was ever WRITTEN by the line-of-inquiry verb, not that the
-		// event was the proposal.
-		if av, ok := recordpb.BodyAs[*recordpb.Avenue](e); ok && av.GetAvenueId() == id {
-			return nil
-		}
+	if found {
+		return nil
 	}
 	return fmt.Errorf("record: --id names line of inquiry %s, which no line of inquiry event proposed — a dangling reference is accepted here and dropped at replay", id)
 }

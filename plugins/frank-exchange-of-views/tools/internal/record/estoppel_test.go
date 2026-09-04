@@ -1,12 +1,12 @@
 package record
 
 import (
+	"testing"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
 )
-
-import "testing"
 
 // board assembles a Board directly from events, so these tests exercise the estoppel logic
 // rather than the shard reader (which record_test.go already covers).

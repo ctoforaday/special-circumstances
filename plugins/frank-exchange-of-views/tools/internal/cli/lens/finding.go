@@ -160,18 +160,6 @@ func adoptTornFindingAnchor(run record.Run, quote string) string {
 	if err != nil {
 		return ""
 	}
-	m, err := record.MergedEvents(run)
-	if err != nil {
-		return ""
-	}
-	recorded := map[string]bool{}
-	for _, e := range m.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
-			recorded[f.GetFindingId()] = true
-		}
-		if a, ok := recordpb.BodyAs[*recordpb.Anchor](e); ok {
-			recorded[a.GetId()] = true
-		}
-	}
-	return OrphanAnchorAt(string(rep), quote, "fx", func(id string) bool { return recorded[id] })
+	return OrphanAnchorAt(string(rep), quote, "fx",
+		func(id string) bool { return record.FindingMarkerRecorded(run, id) })
 }
