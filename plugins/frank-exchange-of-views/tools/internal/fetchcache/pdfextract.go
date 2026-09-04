@@ -2,6 +2,7 @@ package fetchcache
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"runtime/debug"
 	"strings"
@@ -96,21 +97,49 @@ const wazeroCacheDir = ".wazero"
 //
 // The error text is caller-ready: Extract folds it straight into a Reason a seat reads, so
 // it names the stage rather than the symptom.
-// moduleCacheDir redirects the compiled-module cache away from the run, and is set by THIS
-// PACKAGE'S TESTS ALONE — production leaves it empty and the cache stays under the run, which is
-// the behaviour the constant above describes.
-//
-// WHY THE TESTS NEED A DOOR PRODUCTION DOES NOT. The 3,968 ms compile is amortised per CACHE
-// DIRECTORY, and the cache directory is derived from the run. That is right for the product — a
-// `fetch` process handles one run — and exactly wrong for a test binary, where every test builds
-// its own run under its own `t.TempDir()` and therefore its own empty cache. 21 tests touch PDFium
-// here and each one paid the full compile: 68s for a package whose actual work is milliseconds,
-// and past the 10-minute default timeout under `-race`, where the instrumented compile is ~10x.
-// fetchcache is in the binary's import graph, so that is CI's race leg (hooks.yml).
-//
-// It is a directory rather than a bool because the tests still need the cache to WORK — sharing
-// one warm cache is the entire point, and a flag disabling it would trade the same 68s back.
+// moduleCacheDir redirects the compiled-module cache away from the run. Production leaves it
+// empty and the cache stays under the run, which is the behaviour the constant above describes;
+// UseSharedModuleCache is the only thing that sets it.
 var moduleCacheDir string
+
+// moduleCacheName is the shared cache's directory, and it is FIXED rather than unique because
+// that is the cleanup design. See UseSharedModuleCache.
+const moduleCacheName = "feov-pdfium-module-cache"
+
+// UseSharedModuleCache points the compiled-module cache at ONE directory for the lifetime of a
+// test binary, and returns the release that removes it. IT IS FOR TESTS, and it is exported
+// because two packages need it — this one and internal/cli, whose `ocr` tests drive the real
+// rasteriser through the CLI. The alternative was the same fixed-name-and-cleanup reasoning
+// hand-written in two TestMains, free to drift on the half that is silent when it breaks.
+//
+// WHY A TEST BINARY NEEDS A DOOR PRODUCTION DOES NOT. The 3,968 ms compile is amortised per CACHE
+// DIRECTORY, and that directory is derived from the run. Right for the product — a `fetch` process
+// handles one run — and exactly wrong for a test binary, where every test builds its own run under
+// its own t.TempDir() and so its own empty cache. Measured: 21 tests in this package and 6 in
+// internal/cli each paid the full compile; 68s and ~15s respectively, and past the 10-minute
+// default timeout under -race, where the instrumented compile runs about 10x. fetchcache is in
+// cmd/feov-record's import graph, so that is CI's race leg.
+//
+// THE FIXED NAME IS THE CLEANUP. The obvious shape — MkdirTemp plus a removal before os.Exit —
+// cleans up on every path except the one that matters: `go test` PANICS the process on a timeout,
+// which is exactly how this package was failing, and a panic runs no deferred removal. Measured:
+// that shape leaked a 5 MB module per crash, forever. A fixed name cannot accumulate — a crash
+// leaves ONE directory, the next run uses it warm and removes it on the way out.
+//
+// SAFE TO REUSE AND SAFE TO DELETE, holding nothing but wazero's compilation of a module that
+// ships in the binary — keyed by content and wazero version, reproducible at any time for the
+// 3,968 ms it costs. Two concurrent test binaries sharing it can at worst make each other
+// recompile; there is no state here to corrupt.
+//
+// The release returns an error so it drops straight into testbuild.Main's post-suite hooks.
+func UseSharedModuleCache() (func() error, error) {
+	dir := filepath.Join(os.TempDir(), moduleCacheName)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("shared PDFium module cache unavailable: %w", err)
+	}
+	moduleCacheDir = dir
+	return func() error { return os.RemoveAll(dir) }, nil
+}
 
 func pdfiumInstance(cacheDir string) (pdfium.Pdfium, func(), error) {
 	if moduleCacheDir != "" {
