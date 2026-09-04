@@ -2,6 +2,7 @@ package scorecard
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"strings"
 	"testing"
@@ -59,17 +60,85 @@ func TestBucketFindingsByRoleKeyOrder(t *testing.T) {
 	}
 }
 
+// closedGap builds a replayed gap closed by a `close` event carrying the given anchor fields.
+func closedGap(c *recordpb.Close) *record.Gap {
+	return &record.Gap{HasClosed: true, Closure: c}
+}
+
+// benchGap builds a gap the BENCH disposed of: a bench body, no `close` body — the shape that
+// can never carry an anchor, and the reason this kernel takes the board.
+func benchGap() *record.Gap {
+	return &record.Gap{HasClosed: true, BenchClosure: &recordpb.Opinion{}, ClosedByBench: true}
+}
+
+func boardOf(gaps map[string]*record.Gap, order ...string) *record.Board {
+	return &record.Board{Gaps: gaps, GapOrder: order}
+}
+
 func TestComputeAnchoredClosures(t *testing.T) {
-	bj := record.BoardJSON{Closed: []record.GapJSON{
-		{Closure: map[string]any{"anchor_seat": "L1", "anchor_tool": "grep", "anchor_target": "x"}}, // anchored (triple)
-		{Closure: map[string]any{"carried_from": "1"}},                                              // anchored (carried)
-		{Closure: map[string]any{"anchor_seat": "L1", "anchor_target": "x"}},                        // partial — NOT
-		{Closure: map[string]any{}},                                                                 // NOT
-		{Closure: nil},                                                                              // NOT (skip)
-	}}
-	a, total := ComputeAnchoredClosures(bj)
-	if a != 2 || total != 5 {
-		t.Errorf("ComputeAnchoredClosures = %d/%d, want 2/5", a, total)
+	full := &recordpb.Close{AnchorSeat: proto.String("L1"), AnchorTool: proto.String("grep"), AnchorTarget: proto.String("x")}
+	partial := &recordpb.Close{AnchorSeat: proto.String("L1"), AnchorTarget: proto.String("x")}
+
+	gaps := map[string]*record.Gap{
+		"G1": closedGap(full),                                            // anchored (triple)
+		"G2": closedGap(&recordpb.Close{CarriedFrom: proto.String("1")}), // anchored (carried)
+		"G3": closedGap(partial),                                         // partial — NOT
+		"G4": closedGap(&recordpb.Close{}),                               // NOT
+		"G5": {Open: true},                                               // open — not counted at all
+	}
+	a, total := ComputeAnchoredClosures(boardOf(gaps, "G1", "G2", "G3", "G4", "G5"))
+	if a != 2 || total != 4 {
+		t.Errorf("ComputeAnchoredClosures = %d/%d, want 2/4", a, total)
+	}
+}
+
+// A BENCH DISPOSITION IS NOT AN UNANCHORED REPAIR, IT IS NOT A REPAIR. It carries no
+// seat|tool|target and no carried_from — nothing was re-run — so counting it in the denominator
+// made `target 100` unreachable on any run where the bench closed anything.
+func TestBenchDispositionsLeaveBothCounts(t *testing.T) {
+	full := &recordpb.Close{AnchorSeat: proto.String("L1"), AnchorTool: proto.String("grep"), AnchorTarget: proto.String("x")}
+	a, total := ComputeAnchoredClosures(boardOf(map[string]*record.Gap{
+		"G1": closedGap(full),
+		"G2": benchGap(),
+	}, "G1", "G2"))
+	if a != 1 || total != 1 {
+		t.Errorf("a bench disposition is still in the ratio: got %d/%d, want 1/1", a, total)
+	}
+}
+
+// THE ORDERING THAT SEPARATES THE PREDICATE FROM THE FLAG, and the whole reason this does not
+// read ClosedByBench. Blue closes with a full anchor triple; the bench afterwards rules on the
+// same gap. ClosedByBench is TRUE there — it follows the last closing event — while the closure
+// on the board is blue's, anchored. Keyed on the flag this gap vanishes from both counts and a
+// genuinely anchored repair goes unmeasured.
+func TestABlueCloseTheBenchLaterRuledOnStaysCounted(t *testing.T) {
+	g := closedGap(&recordpb.Close{AnchorSeat: proto.String("L1"), AnchorTool: proto.String("grep"), AnchorTarget: proto.String("x")})
+	g.BenchClosure = &recordpb.Opinion{}
+	g.ClosedByBench = true // the LAST closer was the bench; the closure is still blue's
+
+	a, total := ComputeAnchoredClosures(boardOf(map[string]*record.Gap{"G1": g}, "G1"))
+	if a != 1 || total != 1 {
+		t.Errorf("blue's anchored close was dropped because the bench later ruled on it: got %d/%d, want 1/1", a, total)
+	}
+}
+
+// THE ELSE BRANCH HAS TO BE TRUE OF BOTH EMPTY BOARDS. An all-bench board and a board with no
+// closures at all now reach the same note, and "no closed gaps this run" was false of the first.
+func TestTheEmptyDenominatorNoteIsTrueOfBothWaysToGetOne(t *testing.T) {
+	for name, board := range map[string]*record.Board{
+		"all bench":      boardOf(map[string]*record.Gap{"G1": benchGap()}, "G1"),
+		"nothing closed": boardOf(map[string]*record.Gap{"G1": {Open: true}}, "G1"),
+	} {
+		row := rowByMetric(redRows(nil, nil, board), "anchored_closures_pct")
+		if row == nil {
+			t.Fatalf("%s: no anchored_closures_pct row", name)
+		}
+		if strings.Contains(row.Note, "no closed gaps this run") {
+			t.Errorf("%s: the note claims nothing closed: %q", name, row.Note)
+		}
+		if !strings.Contains(row.Note, "repair") {
+			t.Errorf("%s: the note does not say what the denominator is: %q", name, row.Note)
+		}
 	}
 }
 

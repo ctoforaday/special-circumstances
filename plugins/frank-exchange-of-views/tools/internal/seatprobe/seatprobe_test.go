@@ -1,6 +1,7 @@
 package seatprobe
 
 import (
+	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -182,4 +183,25 @@ func TestEveryBoardExpectationArguesItsCase(t *testing.T) {
 			}
 		}
 	}
+}
+
+// AN UNRESOLVABLE SUBJECT MUST BE LOUD, because this surface is what the coverage gate measures
+// itself against.
+//
+// The gavel was a hand-written map here. A subject it did not carry resolved to "" and the verb
+// was filed under byRole[""] — offered to no role, and demanded by no board, so the gate that
+// exists to catch an unreachable verb reported full coverage of a surface with a verb missing
+// from it. A miss that reads as coverage is worse than a crash: the crash is at construction and
+// stops every probe run at once.
+func TestAnUnknownMotionSubjectFailsSurfaceConstruction(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("an unknown motion subject built a surface silently — the verb lands under no role and the coverage gate reads that as fine")
+		}
+		if !strings.Contains(fmt.Sprint(r), "diverged") {
+			t.Errorf("the panic does not say the tree and the schema disagree: %v", r)
+		}
+	}()
+	NewSurface([]string{"motion nonesuch rule"})
 }

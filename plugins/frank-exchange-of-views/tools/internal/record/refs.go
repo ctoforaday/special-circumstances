@@ -336,7 +336,10 @@ func requirePassClosesAllGaps(run Run) error {
 	// The gate counts what is on the RECORD, both vocabularies, because a pre-collapse record
 	// replayed under this binary must be judged by the same standard it was written to.
 	var unruled []string
-	// AND WHICH SEAT HOLDS THE GAVEL FOR EACH. Naming the id alone told a blocked merge seat to
+	// AND WHICH SEAT HOLDS THE GAVEL FOR EACH — see rulerPhrase, which the SITTING VIEW shares so
+	// the two surfaces describing one blockage cannot describe it differently.
+	//
+	// Naming the id alone told a blocked merge seat to
 	// rule motions it structurally cannot: a PETITION is the bench's, requireRuler refuses the
 	// merge outright, and with a clean gap board there was then no verdict the seat could legally
 	// give. The role comes off the MotionSubject enum, which is where the CLI's gavel check reads
@@ -347,16 +350,11 @@ func requirePassClosesAllGaps(run Run) error {
 		if m.Ruled() {
 			continue
 		}
-		subj, known := MotionSubjectEnum(m.Subject)
-		if !known {
-			unruled = append(unruled, m.ID+" ("+m.Subject+", a subject this binary does not know — it cannot say who rules it)")
-			continue
-		}
-		ruler, err := recordpb.SubjectRuler(subj)
+		phrase, err := rulerPhrase(m.Subject)
 		if err != nil {
 			return err
 		}
-		unruled = append(unruled, m.ID+" ("+m.Subject+", ruled by the "+ruler+" seat)")
+		unruled = append(unruled, m.ID+" ("+phrase+")")
 	}
 	if len(unruled) != 0 {
 		sort.Strings(unruled)
@@ -452,4 +450,34 @@ func gapNamedIn(run Run, prose string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+// rulerPhrase names a motion's subject and the seat holding its gavel, for a message that is
+// REFUSING or LISTING that motion.
+//
+// ONE PHRASE, TWO SURFACES, BECAUSE THEY DESCRIBE ONE BLOCKAGE. The refusal
+// (requirePassClosesAllGaps) and the sitting view (SittingOf) both tell a seat that a motion is
+// unruled, and only the refusal named who could rule it. A seat reading "motion M1 was filed and
+// never ruled" on its work list and "M1 (petition, ruled by the bench seat)" from the gate is
+// being told two different things about one fact, and sitting.go's own header says what that
+// costs: "a seat told it was finished by one surface and refused by another learns to trust
+// neither".
+//
+// THE UNKNOWN SUBJECT IS STATED, NEVER EMPTY. SittingOf returns no error and cannot propagate the
+// second failure mode, so this function must not hand it a blank name to interpolate: the natural
+// shape, `"ruled by the " + ruler + " seat"` with an empty ruler, renders `ruled by the  seat` —
+// a miss that looks like a typo rather than a broken lookup. An unknown subject says so in words.
+// The err return carries only the case a caller CAN discharge: a known subject whose enum value
+// declares no ruler, which is a schema defect rather than a bad input, and which
+// TestEveryMotionSubjectNamesItsRuler already refuses at the descriptor.
+func rulerPhrase(subject string) (string, error) {
+	subj, known := MotionSubjectEnum(subject)
+	if !known {
+		return subject + ", a subject this binary does not know — it cannot say who rules it", nil
+	}
+	ruler, err := recordpb.SubjectRuler(subj)
+	if err != nil {
+		return "", err
+	}
+	return subject + ", ruled by the " + ruler + " seat", nil
 }

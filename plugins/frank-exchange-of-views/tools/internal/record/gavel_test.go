@@ -86,3 +86,54 @@ func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 		t.Errorf("the rule-it instruction is unconditional, which is what walked a merge seat into requireRuler: %v", err)
 	}
 }
+
+// THE SITTING VIEW AND THE PASS REFUSAL DESCRIBE ONE BLOCKAGE, SO THEY NAME THE SAME GAVEL.
+//
+// The refusal was rewritten to say who rules each unruled motion, after a blocked merge seat
+// followed an unconditional "rule it" instruction into a second refusal. The sitting view — the
+// list a seat reads to find out what it owes — still said only that the motion stood, so the item
+// the seat could not rule looked exactly like the ones it could.
+//
+// WHAT THIS DOES NOT CHANGE IS WHO IS BLOCKED. An unruled petition still refuses a merge PASS:
+// the run is not finished until the bench answers it. Both halves are asserted, because a "fix"
+// that resolved the divergence by dropping the item would pass the first alone.
+func TestTheSittingViewNamesTheGavelAndStillBlocks(t *testing.T) {
+	runDir := recordtest.TmpRun(t)
+	for _, sid := range []string{"blue-respond-r1", "red-merge-r1"} {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid, Round: RoundIn(mustRun(t, runDir))(sid)}, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.Motion{
+		MotionId: proto.String("M1"),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
+		Basis:    proto.String("the run is proceeding past a safety objection"),
+		Filing: &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{
+			Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_SAFETY),
+		}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	b, err := BoardState(mustRun(t, runDir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := SittingOf(b, "merge", "red-merge-r1")
+
+	var line string
+	for _, o := range s.Open {
+		if strings.Contains(o.What, "M1") {
+			line = o.What
+		}
+	}
+	if line == "" {
+		t.Fatal("the unruled petition is not on the merge seat's outstanding list at all")
+	}
+	if !strings.Contains(line, "bench") {
+		t.Errorf("the sitting view does not say the BENCH rules this, so the seat reads it as work it owes: %q", line)
+	}
+	if s.Complete {
+		t.Error("the merge sitting is complete over an unruled petition — naming the gavel must not change WHO is blocked")
+	}
+}

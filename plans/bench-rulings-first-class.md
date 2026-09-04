@@ -210,10 +210,14 @@ by prefix and follows it — the single exception, and not a backstop for the re
 - `seatprobe/build.go:193` — `map[string]string{"grade": "red-merge-r1", "petition": "judge-r2"}`
   maps subjects to probe **seat ids**, not roles. A different fact; stays hand-written.
 - `cli/seatprobe_fixture_test.go:156` — `map[string]string{"grade": "red-merge-r1", "petition":
-  "judge-r1"}`, a **second** copy of that same seat-id table, and it **disagrees**: `judge-r1` where
-  `build.go` says `judge-r2`. Both are accepted copies only if the disagreement is deliberate.
-  **Reconcile or explain it in the Scope 1 PR** — an unexplained disagreement between two copies of
-  one fact is the defect N4 is about, one layer down, and neither is reached by the enum.
+  "judge-r1"}`, which **disagrees** with `build.go`'s `judge-r2`. **Explained rather than
+  reconciled, at implementation:** they are not two copies of one fact. Each names the judge seat
+  that exists in ITS OWN run — the fixture registers `judge-r1` (`seatprobe_fixture_test.go:91`)
+  and the probe boards seat the bench as `judge-r2` (`boards.go:564`). Making them agree would
+  break one of them. Neither can be folded into the enum, which knows roles and not seat ids.
+  What they DO share is a real cost, named so Scope 2 does not rediscover it: each needs a new
+  entry when a bench-ruled subject is added, and a missing one yields `--seat-id ""` and a probe
+  failure at a layer that does not explain itself.
 
 ### Scope 2 — the `docket` motion subject, and `bench opinion` retired `[NEW]` / `[DELETE]`
 
@@ -408,6 +412,17 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
    same failure mode as every other census in this document. `record/gavel_test.go` must pass
    **unmodified**: it is the boundary marker for S1, and a Scope 1 edit that needs it changed is not
    a Scope 1 edit.
+
+   **AND READ WHICH PACKAGES REPORTED, NOT ONLY THE FAILURE LINES. Measured here, not
+   anticipated.** `integration/fuzz` panics on Go's 10-minute default timeout, and **a panic in one
+   package aborts the whole run**: the first execution of this step printed four `ok` lines, one
+   `FAIL integration/fuzz` and a stack trace — and `grep FAIL | grep -v fuzz` over that output
+   returned nothing, which reads exactly like a green module. `internal/dashboard`,
+   `internal/report` and `internal/record` had never run at all. The step is not "no FAIL lines",
+   it is **every package accounted for**; while the fuzz is slow the honest form is two commands,
+   `go test -count=1 $(go list ./... | grep -v integration/fuzz)` and then the fuzz alone with a
+   stated timeout. [[facts-are-fields]] clause 3, inside the verification step of the plan that
+   quotes it.
 2. Per goal, and each pair chosen so the wrong fix fails it:
    - **N1** — a bench-only closure with no manifest row is ABSENT from the unmanifested list; **and**
      a gap blue closed with no manifest row, which the bench later ruled on, is STILL PRESENT. The

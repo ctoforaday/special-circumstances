@@ -75,7 +75,7 @@ func availableOf(b *Board, role, seatID string) []Item {
 		}
 		// A repair with no receipt is one nobody audited, including its author.
 		for _, id := range gapsEditedWithoutManifest(b, seatID) {
-			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a closed gap with no row as a repair nobody audited, including its author")
+			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
 		}
 	case "merge":
 		if anyClosedGap(b) && !seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_SPOT_CHECK) {
