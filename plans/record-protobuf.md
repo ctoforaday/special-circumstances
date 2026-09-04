@@ -1,5 +1,7 @@
 # Record on protobuf: a schema a writer can refuse
 
+> STATUS 2026-09-02: in progress (the §II.2a telemetry-line cutover, the difftest legacy scenarios, and part of the PR4 doc surfaces remain). PR0–PR2 landed (#556) and PR3's production sweep landed (#475); the store has since cut over to SQLite (plans/record-sqlite.md), retiring textproto shards as storage — see the dated markers below.
+
 Status: **DRAFT, revision 5** (2026-08-17). Revisions 1–4 each went to the plan-auditor and
 FAILED — 12 gaps, then 13, then 8, then 7. Every one is folded in.
 
@@ -210,6 +212,12 @@ protojson while it was the standing choice; they are kept because (a) the canoni
 problem is IDENTICAL for both encodings, and (b) §II.2(0) records why textproto won. Where a
 measurement is protojson-specific it says so.
 
+**SUPERSEDED 2026-09-02 as the store:** the record has since cut over to SQLite — one
+`record.db` per run, columns derived from the descriptors (`internal/record/recordsql`;
+plans/record-sqlite.md) — so no shard line is written at all. `recordpb.Marshal` and the
+canonical byte shape survive, pinned by `stability_test.go`, but textproto is no longer what a
+record is on disk.
+
 Verified against `google.golang.org/protobuf@v1.36.12` on 2026-08-16 by running it and reading
 its `internal/` ordering code. Revision 1 got two of three wrong.
 
@@ -413,6 +421,12 @@ reliance on `GenericKeyOrder` and of keeping `undefined` as a magic string key i
 enum value. The repeated form is the better schema and the rewrite is five files. What is not
 acceptable is taking it *silently*, which is what revision 4 did.
 
+**NOT DONE (2026-09-02):** `view.go` still builds the telemetry line with `record.NewPayload`
++ `MarshalCompact` (`view.go:531-550`), `dashboard/render.go:210,214` still reads `new_mint`
+and `by_severity` as JSON objects, and `recordpb.TelemetryLine` has no production writer.
+`Payload` and `MarshalCompact` survive in the tree for exactly this line — 24 files still
+mention `Payload`, 7 `NewPayload()` sites.
+
 `internal/cost`, `dashboard/render.go` and `dashboard/model.go` join §III.1 as a **fourth
 axis**, and §V.4 gets the command that finds telemetry-key bindings.
 
@@ -472,6 +486,11 @@ help must not drift from check because it is built from it. Proto enums carry no
 section was rewritten 2026-08-17 to describe what exists; the earlier four-stage design and the
 three defects that killed it are preserved in §II.5a, because the errors were in the reasoning
 and that is worth keeping.
+
+**SUPERSEDED 2026-09-02 on the live path:** with the SQLite cutover no production code reads
+shard lines — `ClassifyLine` has no non-test caller outside `recordpb`, and a torn line cannot
+exist in a transactional store. `store.go` refuses a directory of former-format
+`events-*.jsonl` shards by name.
 
 **The problem.** `ReadShard` silently drops unparseable lines, and that tolerance is
 load-bearing (`replay.go:51-69`):
@@ -672,6 +691,16 @@ table above is a `grep -rl Payload` derivation, so anything that reads shard byt
 is invisible to it. `internal/difftest` (5 files) is exactly that, and it is the harness
 guarding this entire change:
 
+> **THE PREDICTION CAME TRUE AND NOTHING ACTED ON IT (marked 2026-09-03, PR #680).** The three
+> difftest rows below were correct: the harness read shard bytes as raw JSON, and when the store
+> became one SQLite database the walk found nothing. `ev["seq"]` went `nil`, the `%s#%v` rank key
+> collapsed exactly as row 2 says — and the suite stayed GREEN, because an empty EVENTS section
+> compares equal to an empty EVENTS section. Every golden lost its events at the cutover and the
+> determinism fuzz spent the interval comparing two empty maps. A prediction written into a plan is
+> not a guard: nothing re-read this table when the store changed under it. `collect()` now reads
+> through `recordsql.Events`, the rank is the record's own `events.id` order, and 16 of 18
+> scenarios carry events again.
+
 | Site | Binds | Breaks how |
 |---|---|---|
 | `difftest/golden_test.go:70-73` | `ev["ts"]`, `ev["seatId"]`, `ev["seq"]` | §II.1 renames the envelope to snake_case, so `ev["seatId"]` returns `""` |
@@ -813,6 +842,12 @@ the golden suite for a reason nothing in its diff explains. So `cli.Version` and
 `requirements.json` `recordToolVersion` both move to **1.0.0 in PR2**, inside the one
 re-record, and `versionsync_test.go` keeps them agreeing.
 
+**SUPERSEDED 2026-09-02, the whole version ladder:** CLAUDE.md has since reversed the rule the
+paragraph above quotes — versions move at a RELEASE boundary, not per PR — and no 2.0.0 major
+ever happened (`plugin.json` is 1.64.0 today). `cli.Version` itself was retired: the binary
+stamps `buildid.Revision()`, and `versionsync_test.go` now checks the schema EPOCH against the
+manifest, deliberately no longer a release number.
+
 - **PR0 — DONE (2026-08-17). Align `MassMappingVersion` to `v2`. Not part of this concept; first so it is
   reviewable alone.** Changes no gap's mass (§IV.4: the mappings are byte-identical), so the
   whole diff is the label. Deliberately not folded into PR1, which re-records goldens for the
@@ -831,12 +866,23 @@ re-record, and `versionsync_test.go` keeps them agreeing.
 - **PR2 — the write path. READ RULE DONE; the bulk edit NOT started.** `Append`/`validate`/`RegisterSeat` build and marshal proto. `ReadShard` and
   `Append` both route through `recordpb.ClassifyShardLine` (§II.5, BUILT with its fuzz). All 353 construction sites. 24 goldens re-recorded.
   `Payload` and `MarshalCompact` deleted; `TelemetryLine` lands.
+  **DONE (2026-09-02), merged as #556** — `record.Event` IS `recordpb.Event` and `Append`
+  writes typed bodies — EXCEPT the telemetry line: `Payload` and `MarshalCompact` were not
+  deleted, they survive for it (§II.2a marker).
 - **PR3 — the read paths and the compat delete.** 653 reader calls. `compat.go`, `AllMotions`,
   the 21-hit legacy-type census (§II.6), `enumvalue.go`, `EnumFields`, `payloadMap`, the
   fixtures and their three test files. The §II.5 refusal test across every `ReadShard` caller.
   `scripts/mutate` run against the new `validate` before this closes.
+  **DONE (2026-09-02) in production** (#475: the retired vocabulary left production; three
+  detectors were ported, not deleted — see the PR3 task list). `enumvalue.go` was rebound to
+  the generated descriptors rather than deleted. Residue: 5 legacy references in 3 test files
+  (see the 3a marker).
 - **PR4 — the surfaces.** Agent definitions, `debate.js` enum copies, skills, docs, plans, memory
   corpus, README, version bump.
+  **PARTLY DONE (2026-09-02):** `buf` is declared in `requirements.json` and
+  `massparity_test.go` binds `debate.js`'s MASS copies. Still open: `debate.js` hand-carries
+  the grade enum ungated, `docs/record-flow.md:5` still names `disputes` as a live event
+  class, and the version bump is superseded (see the §III.3 marker).
 
 PR2 concentrates the risk: it is the one that cannot be split further without leaving the record
 half-typed.
@@ -949,6 +995,9 @@ holds **2 shards, 10 events** — 2 `register`, 7 `avenue`, 1 `position` — wri
 at `tool_version 0.47.0`, in the post-collapse vocabulary. It is not in the delete set. PR2
 converts it and asserts a byte-for-byte round trip; PR3 asserts `show board` and `capture`
 render it identically before and after.
+**SUPERSEDED 2026-09-02:** the directory still holds its original `.jsonl` shards,
+unconverted, and under the SQLite store there is no textproto round trip to assert — the
+store refuses former-format shards by name.
 
 **What it does NOT cover, stated so nobody reads it as broad coverage.** Three of the 32 event
 types. No `close`, `mint`, `motion`, `opinion` or `verify` event, so it exercises **none of the
@@ -1310,6 +1359,8 @@ names a `gen.go` that does not exist and tags unwired rows BUILT; `commands/rese
 golden re-records, the difftest envelope rename, and the telemetry-projection decision above. That
 is the bulk edit and it is deliberately not started — it cannot be left half-done without leaving
 the record half-typed.
+**DONE (2026-09-02):** the bulk edit landed as #556, except the telemetry projection —
+§II.2a's marker is the open half.
 
 ## PR3 task list — the legacy sweep, and what it turned out to be
 
@@ -1329,6 +1380,9 @@ vocabulary, so deleting them as written would have retired working logic into si
 
 **3a. REMAINING: 17 legacy references in 8 TEST files.** Not one kind, and they need judgement per
 fixture rather than substitution:
+**Now 5, in 3 files (2026-09-02):** the incidental and substantive fixtures were ported; what
+remains is `enums_test.go:48` plus the sharp difftest ones below
+(`scenarios_test.go:173,191,238`, `fuzz_test.go:229`).
 
 - **Incidental fixtures** — `winnertie_test.go`, `replay_test.go` use `petition-rule` merely as
   *an* event type for tie-breaking and shard-winner tests. Any live type serves; rename.
@@ -1351,6 +1405,11 @@ is wrong. Two further capture assertions needed the same port.
 
 **Resolved by the operator on 2026-08-18, after #458 merged.** Nothing here is open; each is a
 PR2/PR3/PR4 work item, and the owning PR is named in each.
+
+**Executed since (2026-09-02):** 7a/7b are live (`hookcmd.go`: `InputUnreadable` → deny,
+`emitPreAsk`, `FRICTION_KIND_TOOL_ERROR`), 4's readers are deleted, 5's `buf` entry is in
+`requirements.json`, and 6's `omitempty` is gone from `viewjson.go`. What remains open of this
+plan is §II.2a and the PR3/PR4 residues marked above.
 
 **7a. `hookgate` — FAIL CLOSED, AND FILE FRICTION.** See below, with the risk it accepts.
 

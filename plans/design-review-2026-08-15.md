@@ -1,5 +1,7 @@
 # Design review — the whole corpus, 2026-08-15
 
+> STATUS 2026-09-02: shipped — historical record (review as written stands; §V guidance marked item-by-item below)
+
 Inputs: all 851 commits, all 268 pull requests (261 merged), all 156 issues regardless of
 state with their discussion threads, the plans/ and ideas/ corpus, the four plugins' code
 (73,270 lines: frank-exchange-of-views 51,286 · prosthetic-conscience 13,290 · gray-area
@@ -251,34 +253,55 @@ the validation run that has been queued since #257 was filed.
    material design information does not exist in this repo — it exists in the report a
    full-strength run produces. Freeze the verb surface for it (the version gate makes this
    cheap to honour). Let the review's findings, not incident accretion, set the next arc.
+   **NOT DONE (2026-09-02):** #257 still open; run-archive's latest capture is 2026-08-23
+   and none is keeper-grade (the 2026-08-23 programme runs are CEILING, not red-PASSed).
 2. **Then the prompt diet, measured by the probe harness.** Strip enforcement narration
    and measured-incident history from the seat prompts; leave role, duty, and pointers
    into the self-teaching surface (`--help`, worklist sitting block, refusals). Target the
    blue-respond and red-merge prompts first; A/B against current prompts on the probe
    boards before trusting it live. The incidents move to where they already live (code
    comments, plans, law/) — the repo needs the history; the seat needs the duty.
+   **IN PROGRESS (2026-09-02):** incident-history strips landed on main ("Keep the rule,
+   drop the obituary", 413c21d2/8f443e47; "Trim the judge prompt", 586cd6ec) — but no
+   probe-harness A/B is on record, and debate.js plus three of four constitutions have
+   net-grown since 2026-08-15.
 3. **Decide the envelope's future explicitly** — clerk pattern vs orchestration-in-tool.
    Either resolves #289/#394; drifting resolves neither. If choosing the tool-side driver,
    debate.js becomes data and the biggest remaining JS surface retires, which is the
    direction #121 and #177 have pointed all along.
+   **DECIDED (2026-09-02):** orchestration-in-tool — the record-run driver is landing on
+   main (#605, #612, #621, #631, #641; plans/record-run-migration.md).
 4. **Build the identity chain (#290 → #345) before any other surface work.** The
    measurement is done, the design is written, and half a dozen open defects (#394, #396,
    #419's vocabulary collision surface, the RoundOf fallback) collapse into it.
+   **DONE (2026-09-02):** identity now resolves from the record and an unregistered agent
+   cannot act (tools/internal/seatenv/identity.go, commit 3b27efea on main); the
+   petition-sitting collapse fixed via #433.
 5. **Uniform tri-state gates.** Generalize #411's `n/a` across scripts/check and
    versionguard: a gate reports pass, fail, or did-not-run — never a pass it did not earn.
    This closes the largest active defect class in one move.
+   **DONE (2026-09-02):** scripts/check reports a distinct not-measured SKIP
+   (scripts/check/main.go `notMeasured`); versionguard's not-measured fix merged via #424.
 6. **Relocate the tool changelog (#407)** to a queryable carrier with a staleness gate;
    keep the discipline, free the file.
+   **RESOLVED DIFFERENTLY (2026-09-02):** #597's event-schema epoch deleted the version
+   narration outright (cli.Version, the 49-entry capabilityDeltas table — commit 869b6d3b)
+   rather than relocating it; root.go is now ~500 lines.
 7. **Reader-tier the report.** The smoke-visible seams (empty-bold avenue bullets,
    mid-word matrix truncation) are already fixed in the assembler; what remains is the
    curation decision — what the reader's document carries versus what it links (the
    transcript above all) — and it belongs to the seven-thread review's report-quality
    thread rather than to more pre-validation rendering work.
+   **NOT DONE (2026-09-02):** gated on the seven-thread review; #257 still open.
 8. **Ship or shelve sleeper-service.** Its README honestly declares "scaffold only
    (Phase 0)" — but it has said so since Jul 11 while the marketplace manifest lists it
    beside three real plugins. Thirty-five days of scaffold is a decision by drift: either
    its first increment (/self-improve consuming the friction corpus the runs already
    produce) or withdrawal from the manifest until it exists.
+   **NOT DONE (2026-09-02):** README still says "scaffold only (Phase 0)" and
+   marketplace.json still lists it; the 2026-08-23 programme produced its plan
+   (run-archive/2026-08-23_sleeper-service-plan) but neither increment nor withdrawal
+   has landed.
 9. **Reconcile plans/storage.md with reality.** #107's trigger (#62) has fired, but the
    hand-rolled locking + monotonic clock the decision record argued against building is
    now built, tested, and fuzzed. Either migrate to SQLite on the recorded rationale or
@@ -286,6 +309,9 @@ the validation run that has been queued since #257 was filed.
    contradicting shipped reality is the exact class this repo polices elsewhere. #68's
    schema-version field is cheap insurance either way and should land before the next
    event-schema change, not after.
+   **DONE (2026-09-02):** plans/storage.md marked LANDED 2026-08-28 — the record moved to
+   embedded SQLite (internal/record/recordsql); the schema-version insurance landed as
+   #597's event-schema epoch.
 
 ## VI. Verdict
 

@@ -1,5 +1,7 @@
 # Packaging graduation: GoReleaser
 
+> STATUS 2026-09-02: not started — GoReleaser still not adopted (no .goreleaser.yaml; the hooks.yml release job is still the hand-rolled GOOS/GOARCH loop + sha256sum + `gh release create`). The dry-run gate this document argued was worth more than either option HAS landed: `internal/doctor/release_contract_test.go` joins the workflow's asset naming to `sc-doctor`'s parser, reading the workflow as authority.
+
 **Status:** Tracked for adoption · **Trigger:** first package-manager publication, or when the CI release bash outgrows itself
 
 ## What
@@ -105,3 +107,12 @@ That does not overturn the case (the package-manager manifests are still the thi
 It spent a month as an unmerged tracking pull request, headed *"Tracked here so it isn't lost."* It was lost: an issue search found nothing, an in-tree grep found nothing, and it was recovered only because a human remembered the pull request number.
 
 **A tracking pull request does not track.** The decision now lives in the tree, where a grep finds it, and the trigger's state is recorded here as a measurement with its evidence rather than as a thing someone will remember to re-check.
+
+---
+
+## Trigger state, re-measured 2026-09-02
+
+Still not fired; still the bash. Two changes since 2026-08-15:
+
+- The join test argued for above SHIPPED: `internal/doctor/release_contract_test.go` reads the workflow as the naming authority and joins it to `sc-doctor`'s parser — the stated precondition for a safe later swap.
+- The release path took further nontrivial work — unified buildid stamping (#588) and a fix for every released binary of every plugin being stamped dirty because the build wrote into the tree it was stamping (`fee2ef4f`) — which reads as evidence under the reframed condition 2 ("hard to change safely"), a call this document leaves to the human.

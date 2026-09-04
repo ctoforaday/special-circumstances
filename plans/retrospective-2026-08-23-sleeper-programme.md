@@ -1,5 +1,7 @@
 # Retrospective: the 2026-08-23 sleeper-service research programme
 
+> STATUS 2026-09-02: shipped — historical record (findings stand; the fix list is marked item-by-item at "Priority order for fixes")
+
 Performance review of the two FEOV runs merged in PR #540 (`2026-08-23_sleeper-service-plan`,
 `2026-08-23_research-loop-counterparts`), from three evidence streams: the record tool's own
 audits (`verify`, capture's nine checks, chair scorecards, cost.md), a full sweep of all 61
@@ -345,14 +347,25 @@ rebuilt one layer up.
 
 1. **#589 served-model assertion** — cheap, prevents the whole F1 class, and makes cost/tier
    decisions mean what they say.
+   **DONE (2026-09-02):** #589 closed; tier gate and served-model methodology merged
+   (#606, #620).
 2. **#590 assembly anchor survival** — the deliverable currently loses its machine-checkable
    layer every run; mechanical assembly is already on the roadmap, the capture audit is the
    stopgap.
+   **IN PROGRESS (2026-09-02):** the stopgap shipped — footnote-integrity capture audit and
+   report repair merged (#596, #604) and the union-copy invariant is structural in
+   report/assemble.go — but #590 itself is still open.
 3. **#591 proof cwd/exit integrity + re-running spot-checks** — the prototyping-and-testing
    discipline is the operator's standing requirement; this run shows it can record artifacts
    that look like proofs and aren't.
+   **DONE (2026-09-02):** #591 closed — error-signature refusal (#599), proof re-run
+   spot-check (#608), proof-backing audit (#615).
 4. **#552/#553/#554/#555** — already filed from the runs' own friction; this review adds repro
    evidence and independent confirmation.
+   **NOT DONE (2026-09-02):** all four issues still open.
 5. **#592 environment provisioning**, **#593 help-tree staging + schema docs** — token
    economics; together they address roughly a third of the record-tool traffic and the single
    largest transcript in the programme.
+   **#592 DONE (2026-09-02):** closed via #622, with scanned-PDF reading later landing in the
+   tool itself (#658, #659). **#593 NOT MERGED (2026-09-02): lives on
+   origin/claude/stage-help-tree;** the issue is still open.

@@ -1,5 +1,7 @@
 # The re-arm coverage experiment — a runbook for a FRESH session
 
+> STATUS 2026-09-02: shipped — historical record; both questions are closed. Q1 confirmed; Q1b settled and #189 closed (SubagentStop fires at the main agent's turn end, not for a subagent — #468). Q2 settled and #165 closed 2026-07-30: records never stopped — concurrent FileChanged hook processes destroyed each other's read-modify-writes and tore the file (#213); the reader was later hardened against transient misses (#567, merged via #569).
+
 **Read this if you are starting a new session in this repo and the checkpoint note points you here.**
 Everything below is designed to be executed by someone with no memory of the session that wrote it.
 
@@ -118,6 +120,11 @@ It should print `resolved this session's trajectory from …` and then adjudicat
 ---
 
 ## Q2 — Why does `FileChanged` coverage stop mid-session? (#165)
+
+> **ANSWERED (marked 2026-09-02): #165 closed 2026-07-30.** Coverage never stopped — six
+> concurrent `FileChanged` hooks each did a read-modify-write of one file, so siblings erased
+> each other's records and short-over-long writes tore the file (#213). The procedure below is
+> kept as the check to re-run if the harness changes; the question is closed.
 
 **Read #165 first.** Its original claim — that `FileChanged` never fires — is **withdrawn**. Events
 demonstrably do arrive, for both `git checkout` churn and the session's own Write-tool edits. What

@@ -1,5 +1,8 @@
 # Gray Area Phase 2 — scope proposal
 
+> STATUS 2026-09-02: shipped — historical record (Phase 2 built whole 2026-08-18, #471; the build
+> spec is [`gray-area-phase-2-build.md`](gray-area-phase-2-build.md)).
+
 > **Status: RULED ON 2026-08-17. The operator overruled the recommendation.** See §0.
 >
 > Written because the operator asked for a scoped proposal to accept, cut down, or redirect,
@@ -70,10 +73,16 @@ as sound and rests on a number nothing could refuse.
 
 **Still open, unchanged by this**: the false-positive direction for PR-body adjudication (§0's last
 paragraph), §6's check 4 (the plausible-zero gate), and everything in §7.
+**SETTLED SINCE (marked 2026-09-02):** the build answered both — claims split act from result and
+carry an `Unmeasured` field (`internal/prbody/`, `internal/claims/adjudicate.go`), and every listing
+ends with its search coverage; see `gray-area-phase-2-build.md` §2 and §5 checks 4–5. §7's first two
+bullets remain open.
 
 **§5's carrier census is now short.** `cmd/gray-area-capture` and the shipped README are in it too —
 both moved for #189 — and any seat-scoped inspection must filter `kind == "seat"` rather than
-counting `SubagentStop` rows, which is the mistake this document is built on top of.
+counting `SubagentStop` rows, which is the mistake this document is built on top of. Where this
+document's census and `gray-area-phase-2-build.md` §4's disagree, the build document's is
+authoritative — it restates the census as shipped (noted 2026-09-02).
 
 ## 1. What Phase 2 was specified as
 
@@ -237,6 +246,8 @@ construction, and it is what makes Option C's narrower scope honest rather than 
 - ~~**Whether act-vs-claim over PR bodies is wanted at all.**~~ **SETTLED 2026-08-17: yes, with full
   post-hoc adjudication.** See §0. What remains open is how a PR-body reader avoids convicting an
   accurate body — the false-positive direction, which no existing verdict covers.
+  **SETTLED 2026-09-02 note:** answered in the build — the act/result split plus `Unmeasured`
+  (`gray-area-phase-2-build.md` §2), with no conviction verdict at all (§2.3 there).
 - **Phase 2's original acceptance test remains unavailable.** §7 already records that the historical
   hand analyses cannot be re-derived because those transcripts were never committed. Option C does
   not recover it; the first captured run remains the real fixture.

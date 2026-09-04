@@ -1,5 +1,7 @@
 # Red verifies verbatim — WebFetch is prohibited for citation verification
 
+> STATUS 2026-09-02: shipped in changed form (the prohibition lives in debate.js's ledgerClause — "VERBATIM READS ONLY — you have no WebFetch, by design", line 823 — and WebFetch is off all four agent allowlists); both follow-ups below remain open
+
 Ruling 2026-07-19 (during smoke run b). **APPLY TO debate.js ONLY AFTER run b lands** —
 editing the script mid-run busts the workflow's replay cache for any agent whose prompt
 changed, so it cannot be a faithful resume.
@@ -34,6 +36,10 @@ produced by a different layer than the one under test.
 above. Consider also strengthening RED_LENSES[0] ("leaf-node citation verification") to name
 the verbatim requirement.
 
+**APPLIED (2026-09-02 audit):** the hard prohibition is in today's `ledgerClause` (debate.js:823),
+including the curl/gh/pdftotext list, the sections rule, and "a truncated read is not a read";
+red now also reads blue's cached bytes through the record tool rather than re-fetching.
+
 Bundle with the merge-seat migration edits (also uncommitted) when the loop proves out.
 
 ## Measured mandate (2026-07-18 keeper run transcripts)
@@ -60,6 +66,9 @@ what citation verification checks.
 
 ## Follow-up: the verifier sub-agent needs the Task tool
 
+**NOT DONE (2026-09-02):** red-auditor's allowlist is still `Read, Write, Edit, Glob, Grep,
+Bash, WebSearch, ToolSearch` (agents/red-auditor.md:4) — no Task/Agent tool.
+
 The "red spawns its own full-model verifier to protect its context" idea (a good one) is
 NOT available yet: red-auditor's tool allowlist has no Task/Agent tool, so a seat cannot
 spawn a sub-agent. Enabling it means (a) adding Task to red-auditor, and (b) verifying a
@@ -67,6 +76,11 @@ WORKFLOW-spawned seat can nest-spawn an agent at all — unconfirmed. Until then
 says: read large sources in sections (curl ranges / pdftotext) and name what you read.
 
 ## Follow-up: red needs a VERBATIM JS renderer (smoke-c finding)
+
+**NOT DONE (2026-09-02):** no browser/claude-in-chrome tool on any agent allowlist
+(agents/*.md:4), and no JavaScript-rendering dependency in tools/go.mod — the fetch path
+(internal/fetchcache) still reads what HTTP returns; page rendering there is PDF-page
+imaging, not a JavaScript renderer. Still listed as deferred by plans/pre-dry-run-batch.md §V.
 
 Removing WebFetch killed summaries AND removed the only tool that renders JavaScript. `curl`
 returns the SPA shell for JS-rendered pages — and `platform.claude.com` (the Claude docs, a

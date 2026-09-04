@@ -1,5 +1,7 @@
 # Command groups: the tree is entities, the seat is detected
 
+> STATUS 2026-09-02: shipped — historical record. Stages 1–7 landed (#349, #350, #351; stage 4 as #357/#362/#364; #354; #480 + #290; docs per `docs/seat-command-triggers.md`, which marks the collapses EXECUTED). Two post-ship reversals are marked in place below: the "permanent" dual-read was deleted 2026-08-16 (commit 860806da), and `avenue`/`direction` were renamed `line-of-inquiry`/`inquiry` in the same commit.
+
 Agreed in design dialogue, 2026-08-09, from a full audit of the 45-verb role surface.
 
 > **This AMENDS `plans/feov-cli-architecture.md` (#59, Cut 1), which reads "role belongs in
@@ -124,6 +126,10 @@ the tool can register on first write from the injected identity — an explicit 
 remember to make is a leftover from self-asserted identity. Decide it in stage 6 rather than porting it
 unexamined; tracked as #355 so the thread is filed rather than remembered.
 
+**RESOLVED (marked 2026-09-02): `register` was KEPT.** Under detection it is where the harness
+agent handle binds to the seat (#290) — the root help documents "You pass it ONCE, at `register`,
+which binds it to you on the record".
+
 ### Groups
 
 | group | verbs | seats |
@@ -165,6 +171,9 @@ spans, making it a VIEW of `document` rather than a member of it.
 gets a home. It is named here so the restructure cannot delete it silently — which is exactly
 the failure mode this whole exercise exists to prevent.
 
+**OUTCOME (2026-09-02): #251 never landed and `revision` survived the restructure** —
+`internal/cli/blue/revision.go` and its seat help page are live.
+
 ### `defaultFor` must retire with `--view`
 
 The view table carries `defaultFor` (which role gets a view when none is named), and
@@ -175,6 +184,11 @@ this plan warns about in §IV, introduced by this plan.
 It retires into the permission table. `feov-record show` with no verb lists the seat's
 projections rather than silently rendering one; a default that fires when a seat forgot to
 say what it wanted is a guess wearing a convenience.
+
+**CORRECTED (2026-09-02): `--view` retired as planned, but `defaultFor` survived and bare
+`show` RENDERS the seat's default (its pending work) rather than listing** — shipped as a
+declared capability (`bare-is-a-capability`, `seat/verbs.go`), not a silent guess: the default
+is the sitting's own worklist, and an unknown projection still gets the listing refusal.
 
 ### Sequencing: stages 1–5 land under the CURRENT tree
 
@@ -521,6 +535,14 @@ dual-read has no sunset, and that is the honest cost of the collapse rather than
 retired types stay readable forever, in one place, behind a stamped generation that says which
 vocabulary to expect.
 
+**REVERSED 2026-08-16 (marked 2026-09-02): the dual-read shipped (#362) and was then DELETED**
+(commit 860806da). Checked rather than assumed: the only records anywhere carrying the retired
+types were the two fixtures created to exercise the dual-read, plus one research run referenced
+only in comments — the compatibility code's evidence base was the fixtures written to justify it.
+`compat.go`, the `AllMotions` seam and `testdata/pre-motion-*` are gone; the accepted cost (a
+true pre-#344 record renders exactly the plausible zero this section warned about) is documented
+at `internal/record/motion.go` ("THE DUAL-READ IS GONE, and this is where it was").
+
 Rejected: a one-shot migration that rewrites stored records. The log is append-only and
 git-tracked; rewriting history to suit a reader is the opposite of the property that makes it
 evidence.
@@ -628,6 +650,10 @@ So the check is a PRODUCED record, not a found one:
    to catch.
 3. Keep the fixture permanently. It is the only artifact that will ever prove a pre-collapse
    record still reads, and it stops being producible the moment the verbs are gone.
+
+**REVERSED 2026-08-16 (marked 2026-09-02):** both fixtures were produced before the deletion
+(23d12416, 0a19837b), did their job, and were then deleted along with the dual-read they
+exercised — see the marker under §III's compatibility rule.
 
 > **ORDERING, AND IT IS THE ONE THING NO GATE CAN RECOVER.** Both artifacts below must be
 > produced BEFORE the verbs are deleted. A pre-collapse record stops being producible the moment

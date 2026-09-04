@@ -29,7 +29,7 @@ Always-on rules bind every session via the imports below; the rest load on deman
 | `.claude-plugin/marketplace.json` | Marketplace manifest listing the four plugins — keep in step with `PLUGINS` in `scripts/bootstrap-plugins.sh` |
 | `plans/` | Design artifacts under review — each arrives as a PR; graduates into the plugins |
 | `README.md`, `plugins/*/README.md` | The shipped documentation |
-| `ideas/` `research/` `projects/` | Working corpus — starts empty, seeded by `/research` and `/self-improve` |
+| `ideas/` `research/` `projects/` | Working corpus — starts empty, seeded by `/research` (and by `/self-improve` once sleeper-service ships) |
 | `run-archive/` | The raw record of each captured run, gzipped. `research/` is gitignored, so a run directory survives a resume but NOT the container; this is the only part of a run that outlives it, and every audit re-reads it. Records and proofs only — the fetched-source cache is re-fetchable and 100× larger. |
 
 ## Developing this repo

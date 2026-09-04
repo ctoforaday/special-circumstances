@@ -1,5 +1,7 @@
 # The record moves to SQLite
 
+> STATUS 2026-09-02: shipped — historical record. Landed on main via #556 (record-protobuf-pr2); `internal/record/recordsql` is production. The one open item below (the `Open` schema race) was fixed via #632.
+
 The storage layer, not the schema. `record.Append(Identity, proto.Message)` does not change
 signature, so the ~500 fixture conversions already done on this branch stand.
 
@@ -646,7 +648,9 @@ Two invariants a cache imposes, both found by the suite rather than by reasoning
 - **A fixture releases the run it CREATED.** A global `CloseAll` from a per-test cleanup takes the
   parent's and the siblings' handles with it.
 
-### STILL OPEN: `Open` races on schema creation
+### `Open` races on schema creation
+
+**FIXED 2026-09-02:** commit 0fa2ce93 ("Fix #557: decide the schema INSIDE the transaction that would create it", merged via #632) closes the check-then-create gap; `recordsql/openrace_test.go` pins it, and `store.go` records why `CREATE TABLE IF NOT EXISTS` was rejected. The paragraphs below describe the defect as found.
 
 Removing the cache to measure its cost exposed it. Two openers of a FRESH database each see no
 `events` table and each apply the schema; the second fails with "table already exists". `Open` does

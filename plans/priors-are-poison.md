@@ -1,5 +1,7 @@
 # Priors are poison — a chair reads its OWN in-run scorecard, not a cross-run seed
 
+> STATUS 2026-09-02: shipped — historical record. All three fix items landed (commit 010f6697; debate.js scorecardClause is now the in-run instruction; the seat-facing read shipped as `show scorecard` rather than `show --view scorecard`; the `scorecards` arg feeds operator analytics only).
+
 Ruling 2026-07-19 (smoke loop). **debate.js chair-prompt change + one tool addition. Queue
 with the after-run batch, near the top** — editing debate.js mid-run breaks replay.
 

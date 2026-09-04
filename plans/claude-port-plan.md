@@ -1,5 +1,7 @@
 # Special Circumstances: Porting AgentOrange to a Claude-Native Plugin Suite
 
+> STATUS 2026-09-02: shipped — historical record. Phases 0–3 and 5 built (shapes evolved past this plan; corrections inline). Phase 4 (sleeper-service) NOT DONE — scaffold only. The suite is now FOUR plugins: gray-area joined 2026-07-28 (commit b96fb36b; see `plans/gray-area.md`).
+
 ## Context
 
 AgentOrange started as an "Antigravity Meta Brain": a Design-by-Contract rule corpus, an
@@ -22,6 +24,8 @@ frank-exchange-of-views is required by sleeper-service (which invokes it). These
 dependencies**, not just prose — Claude Code plugins support a `dependencies` array in `plugin.json`
 (semver-pinned, auto-enabled when the dependent is enabled), so installing sleeper-service pulls in
 its deps. One marketplace install gets all three; each remains individually useful.
+
+**CORRECTED 2026-09-02:** "three plugins" throughout is the pre-gray-area count — `.claude-plugin/marketplace.json` now lists four. And the `dependencies` array shipped only in frank-exchange-of-views (`["prosthetic-conscience"]`); sleeper-service's manifest declares none (it is still a scaffold — see §3c).
 
 ---
 
@@ -152,6 +156,8 @@ plugins/prosthetic-conscience/
 └── hooks/hooks.json                  # qlty fmt/check on Edit|Write — CAPABILITY-GATED (no-op + warn if qlty absent); SessionStart probe
 ```
 
+**CORRECTED 2026-09-02:** shipped flat — `skills/<name>/` with no `rules/` or `proficiency/` nesting; `dbc-authoring` became `design-by-contract`; proficiency skills are `git-proficiency`/`markdown-proficiency`/`qlty-proficiency`; commands grew to `{checkpoint, doctor, plan-audit, probe, resume}`.
+
 *Confirmed (decision resolved): SDD + plan-audit live here — they're interactive adversarial
 cowork, and FEOV research reports cross-link into SDD plans.*
 
@@ -228,6 +234,8 @@ threads.** All follow the Go-toolchain rules above (tested, capability-gated, de
 | `sc-toolchain-nudge` | `SessionStart` | one non-blocking line when a recommended tool is missing (runs the shared toolchain probe once) | Phase 2 |
 | checkpoint seal/restore | `PreCompact` + `SessionStart(compact\|resume)` | seal the agent-authored CHECKPOINT.md before compaction; re-inject a terse digest after | tracked in the Memento proposal (PR #3) — builds on this toolchain if adopted |
 
+**CORRECTED 2026-09-02:** every row shipped, but the binaries were consolidated (PR #579, fix-dead-hook-twins): the quality gate rides `sc-posttooluse`, the secrets gate `sc-pretooluse`; there is no `sc-quality-gate`/`sc-secrets-gate` binary. The shipped set is larger than this inventory — eleven `sc-*` commands under `plugins/prosthetic-conscience/tools/cmd/`; see `hooks/hooks.json`.
+
 ### 3b. frank-exchange-of-views (the debate engine)
 
 Given a topic, produce a **verified research deliverable with the full adversarial record
@@ -284,6 +292,8 @@ research/<date>_<slug>/
 │   └── candidates/        # per-lens audit passes, preserved
 └── debate.md              # the FULL three-party transcript — every round, not just the finale
 ```
+
+**CORRECTED 2026-09-02:** `blue/CHANGELOG.md` shipped and was later retired (PR #402, feov-retire-the-changelog); the run's tool-mediated record carries round history now. The shipped run layout also grew well past this sketch (manifests, seat transcripts, proofs — see `plugins/frank-exchange-of-views/docs/record-flow.md`).
 
 **The debate loop — runs until resolved, not for a fixed count** (review: 3 rounds was too few,
 even 5 short for deep research; termination is a *judgement*, not a counter):
@@ -348,6 +358,8 @@ plugins/frank-exchange-of-views/
 └── commands/research.md              # /research <topic> [--lanes N] [--lenses M] [--max-rounds N]
 ```
 
+**CORRECTED 2026-09-02:** shipped as `skills/research-protocol/` (`scripts/debate.js`, `references/{report,catechism}_template.md`) — the gold-standard-research name and `workflow.js` did not survive; a fourth agent, `blue-synthesizer`, joined the three above; and the engine grew a Go tool surface (`tools/cmd/feov-record` and friends) this plan never sketched.
+
 ### 3c. sleeper-service (autonomous learning)
 
 The system that improves the system, while you sleep — always human-gated at the promotion step.
@@ -369,6 +381,8 @@ requires the human (Semantic Consent). **Depends on** frank-exchange-of-views (a
 prosthetic-conscience for its rule-skills), declared structurally in `plugin.json`'s `dependencies`
 array (semver-pinned via `{plugin}--v{version}` git tags; enabling sleeper-service auto-enables its
 deps) — not left to `/sc-doctor` to police.
+
+**NOT BUILT (2026-09-02):** `plugins/sleeper-service/` holds only `plugin.json` + `README.md` ("Status: scaffold only (Phase 0)", its README's own words); no `skills/`, `commands/`, `docs/`, and no `dependencies` array in its manifest. Only research runs exist (PRs #540, #594, sleeper-service-research branch).
 
 ### Repo layout
 
@@ -407,7 +421,7 @@ special-circumstances/
 | **1. Harness spike — ✅ DONE (verified live on Windows)** | Seed skill (`critical-stance`) + communication model (`terse-communication`, `design-by-contract`) + `probe` agent (preloads them via `skills:`) + `/probe` + `/sc-doctor` + a **tested Go hook toolchain** (`sc-quality-gate` binary + shared toolchain probe + CI matrix + `/sc-doctor` build/fetch) — `go test` green (PR #5, merged) | ✅ **All five green:** `/sc-doctor` + rule-skills load; `skills:` preloads into the subagent (probe quoted `critical-stance` verbatim); the Go hook fires on **both main-agent AND subagent** writes; capability-gates (qlty absent → skip+warn, exit 0); `${CLAUDE_PLUGIN_ROOT}/bin/sc-quality-gate` resolves on Windows. **Finding: plugin hooks DO fire in subagents** (overturned the docs-reading — see Part 1). |
 | **2. prosthetic-conscience** | Rule corpus → skills (chunk 1: PR #8); pair-programming, SDD, project-memory, proficiency; plan-auditor + /plan-audit; **hooks per the §3a′ inventory: `sc-secrets-gate` (PreToolUse outbound-secrets block) + `sc-toolchain-nudge` (SessionStart)** | critical-stance probe gets pushback; /plan-audit returns schema verdict on a real plan; **sc-secrets-gate blocks a seeded fake token in an outbound payload (unit + live test)**; on a qlty-absent box edits still succeed (hook no-ops + warns, /sc-doctor reports the install command); qlty clean where present |
 | **3. frank-exchange-of-views** | Agents (blue/red/judge), templates (report/debate/Heilmeier), workflow, /research | **E2E dogfood** on a fresh real topic: run dir contains living blue+red reports, candidates, debate.md with 3-party rounds; final report embeds both team reports + Heilmeier; seed a bad citation → FAIL round → diff-based re-audit → resolution recorded in transcript |
-| **4. sleeper-service** | continuous-learning skill; /self-improve (daily default; **consumes the friction records** — `research/*/friction.md`, agents' envelope-reported capability gaps — as a first-class input); /graduate; scheduling docs | Headless `claude -p "/self-improve"` produces a run dir + idea stub; touches only research/+ideas/ |
+| **4. sleeper-service — NOT DONE (2026-09-02): scaffold only, see §3c** | continuous-learning skill; /self-improve (daily default; **consumes the friction records** — `research/*/friction.md`, agents' envelope-reported capability gaps — as a first-class input); /graduate; scheduling docs | Headless `claude -p "/self-improve"` produces a run dir + idea stub; touches only research/+ideas/ |
 | **5. Story + publish** | **Clean start — no corpus import.** README; empty ideas/research/projects scaffolding; PII/secret scrub of skills+docs; LICENSE; publish | Fresh clone → README install steps verbatim; `git grep -iE "jarvis|8070926388|0xDEADC0DE"` clean; final `/research` smoke populates the first real run |
 
 ~6–8 working days (up ~1 day for the richer FEOV artifact/debate model). Main risks: (a) exact
@@ -443,3 +457,5 @@ is expected to match, a direct test pending.**
 None — all resolved. **Phase 0 is complete** (repo bootstrapped; marketplace + all three plugins
 install verified). **Phase 1** (harness spike) is in flight as PR #5, pending merge + `/reload-plugins`
 to verify live — and to settle the one open harness question (do plugin hooks fire in subagents?).
+
+**CORRECTED 2026-09-02:** PR #5 merged long since; Phase 1 verified live (Part 5 row 1) and the subagent-hooks question is settled YES (Part 1). This closing paragraph predates that merge.

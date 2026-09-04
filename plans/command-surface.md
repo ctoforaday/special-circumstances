@@ -1,5 +1,9 @@
 # Command surface: make the tool-driven record beat the markdown
 
+> STATUS 2026-09-02: shipped — historical record (§VI is the retrospective). Later shipped work
+> reversed or renamed several specifics — `--comment`, the `--file`/`--text` spelling, the
+> inline verb list, the positional `--seat-id` — each marked in place below.
+
 ## I. Summary & Goals
 
 The 2026-07-18 run wrote every artifact twice — by hand as markdown, and through
@@ -66,11 +70,21 @@ dance that failed twice.
 **B. One payload vocabulary.** `--file` and `--text` on every verb that takes prose;
 `--prose-file` becomes a deprecated alias on `close` rather than a second vocabulary.
 
+> **SUPERSEDED (2026-09-02):** the shipped vocabulary is `--reason` / `--reason-file` (with
+> `-` and bare stdin), one central resolver every prose verb routes through
+> (`seat.Prose`/`flags.RegisterPayload`). The concept here — one channel, stdin, no
+> `--prose-file` — landed; the `--file`/`--text` spelling did not survive the later
+> prose-fan-out collapse to `reason`.
+
 **C. A universal `--comment`.** Every verb, no exceptions, attached in `seat.New` so it
 cannot be forgotten when a verb is added. It is the pressure valve: when the schema has
 no field for what the seat knows, the note lands in the event rather than in prose the
 tool will never see. Cheap to add, and each one is a candidate for a future first-class
 field — the comments become the backlog of missing schema.
+
+> **REVERSED (2026-09-02):** built, then REMOVED 2026-07-20 — no report ever surfaced a
+> comment, so prose put there was lost to the reader; a missing field is now a friction entry
+> (the removal note lives in `internal/cli/seat/seat.go`).
 
 **D. `--seat-id` positional.** It cannot be inferred: shell state does not persist
 between tool calls, cwd is reset, the engine is sandboxed, and every subagent shares the
@@ -79,6 +93,11 @@ argument, not a flag — `feov-record lens finding red-lens-r1-L1 --location ...
 then refuses a missing one with an arity error instead of a flag error, and there is no
 flag NAME to forget. This is a breaking change to every seat prompt and 22 goldens, so it
 lands on its own.
+
+> **SUPERSEDED (2026-09-02): never done, and no longer viable** — identity is DETECTED
+> (hook-injected; #290/#480). `--seat-id` is passed once at `register`, which binds it on the
+> record; after that it survives only as a cross-check that refuses a disagreeing value. A
+> positional would put the seat back on every command line, the thing detection removed.
 
 **E. Discoverability at the moment of need.** 32 `--help` invocations mid-task, plus 11
 verb-outside-role errors, say the role's verb set is not visible when it is wanted. The
@@ -99,8 +118,12 @@ inline, since it already knows the role.
    a stale prompt keep working silently, which is how the divergence lasted this long.
 4. Verbs with no prose channel — add `--file`/`--text` where a payload is meaningful
    (`cite`, `dispose`, `dispute-respond`, `regrade`, `confidence`, `dispute`).
-5. `debate.js` `recordClause` — inline the role's verb list.
+5. `debate.js` `recordClause` — inline the role's verb list. **SUPERSEDED (2026-09-02):** the
+   shipped `recordClause` does NOT inline the list — it carries `SEAT_ID` plus a required
+   read-the-whole-help-tree protocol, because the help is the one authoritative vocabulary and
+   a prompt-inlined list is a second copy that drifts.
 6. SEPARATE, LATER: `--seat-id` positional across all roles, with prompts and goldens.
+   **SUPERSEDED (2026-09-02): see the marker under §II design D — detection replaced it.**
 
 ## IV. Risk & Mitigation (likelihood x impact x complexity-to-mitigate)
 
@@ -122,6 +145,11 @@ inline, since it already knows the role.
    `--target`, `--line` must now be expressible, and `--file` on `close` must work.
 4. Re-run `record-parity-check.mjs` against a future run: the archive byte-gap
    (34,086 vs 7,527) is the metric this plan is judged on, and it must close.
+   **OBSOLETE (2026-09-02):** the parity scripts were retired (cf43e15a folded those audits
+   into capture's record-reading audits), and the dual-write model itself is gone — the record
+   is the sole channel ("routing around it into markdown is the failure this contract exists
+   to prevent") and the `.md` files are human-verification projections. There is no byte-gap
+   left to measure; the goal this metric guarded was overshot, not missed.
 5. Goldens re-recorded in their own commit, with the help-text diff read line by line.
 
 ## VI. What the implementation taught (2026-07-19)

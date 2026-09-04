@@ -1,5 +1,7 @@
 # feov-record CLI — decollapsing `seat` (the #59 architecture)
 
+> STATUS 2026-09-02: shipped — historical record (outcome below; amended 2026-08-09 by `plans/command-groups.md`, and `roleOf` has since moved again — role now comes from the engine-injected identity, not `cmd.Parent().Name()`; see `cli/seat/seat.go:253`)
+
 Agreed 2026-07-19 in design dialogue. This is an experiment, private, and the bar is
 architectural pride, not production-shippability. #58 lands global `--json` with typed
 per-verb results; this document is the NEXT cut (#59), which reshapes what `seat` is.

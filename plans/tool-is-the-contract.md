@@ -1,5 +1,7 @@
 # The tool is the contract — retiring the file paths before the next run
 
+> STATUS 2026-09-02: shipped in altered form — historical record. The goal landed via the prompt-contract migration (the fuzz `promptCatalogue` gate pins named commands per surface; seats pull the board/transcript through `show`), not via the §IV.A view list; §IV.B gates landed piecemeal (marked per item); §VII's clock and §III's re-measure were superseded by the SQLite record (plans/record-sqlite.md).
+
 Written 2026-07-19. Goal: the next run (same prompt, haiku, as a controlled repeat) is the
 one where a seat never reads or writes a storage path, and the hand-written markdown stops
 being authoritative.
@@ -43,6 +45,8 @@ That is the defect the timestamp work already fixed, for runs recorded after it.
 the measured byte gap is legacy-ordering damage, not missing verbs. **Do not build verbs
 against this measurement.** Re-measure on the next run, which will carry timestamps.
 
+**SUPERSEDED 2026-09-02:** the re-measure is moot — the record moved to SQLite (ordering is `events.id`), and a pre-database run directory is refused by name (`internal/record/legacyformat_test.go`), so the 2026-07-18 run cannot be replayed under the current binary at all.
+
 ## IV. What must land before the flip
 
 ### A. Views that retire a path (no new verbs; extend `views` in `seat/verbs.go`)
@@ -60,6 +64,8 @@ against this measurement.** Re-measure on the next run, which will carry timesta
 **`report.md` is the one genuine file** — it is the deliverable, not a projection. It stays
 a file. Make it the ONLY path any prompt names.
 
+**SUPERSEDED 2026-09-02 (table above):** none of these views were built as named — today's markdown views are `changes|ledger|archive|debate|lines-of-inquiry` (`internal/view/view.go` markdownViews) plus the structured `board` and `work`, and only `changes` takes a scope. The approach changed: prompts stopped naming most paths (the fuzz `promptCatalogue` gate), while `report.md`, `inputs/red-gap-patterns.md` and `inputs/law/` remain genuine files debate.js still names.
+
 ### B. Ceremony the tool should enforce instead of asking for
 
 Ordered by prompt text retired. Each becomes an integration test.
@@ -67,21 +73,29 @@ Ordered by prompt text retired. Each becomes an integration test.
 1. **Round record is derived, not attested** — delete `round_record_appended`. Query the
    record for a `position` + `revision` for round N. (~430 B, one envelope field, two
    script throws.)
+   **NOT DONE (2026-09-02):** `round_record_appended` is still a required envelope field in debate.js and the simulator harness.
 2. **Board telemetry is computed** — the merge hand-computes ~1,100 B of schema that the
    script then independently recomputes. Two computations of one fact.
+   **NOT DONE (2026-09-02), deliberately:** the dual computation was kept as a divergence check — debate.js's W2b comment says the script recomputes independently so a wrong self-reported line is visible.
 3. **Near-match rule** — `mint` returns near-matches and requires `--supersedes` or an
    explicit `--not-a-reopen`. Currently pure good faith.
+   **CORRECTED 2026-09-02:** shipped as an advisory read-only screen verb (`merge near-match`, `internal/cli/merge/nearmatch.go` — "it ranks, the seat reopens-or-mints") plus an estoppel refusal inside `mint`; no `--not-a-reopen` flag exists.
 4. **Pattern duty is a flag** — `manifest-row --pattern-checked`. This is the clause with
    MEASURED non-compliance: run 5's lanes read the pattern file and committed the warned
    defects anyway. A required flag is the only thing that fixes reading-is-not-binding.
+   **NOT BUILT (2026-09-02):** no pattern-checked flag in the tool; the duty remains prompt prose plus a manifest-row instruction in debate.js.
 5. **`register` is a precondition** — every verb refuses before it, rather than the prompt
    asking for it as "FIRST ACTION".
+   **LANDED 2026-09-02:** `requireSeat` refuses attribution to a seat that never registered (`internal/record/refs.go`).
 6. **Demanded reads become impossible to skip** — `opinion`/`close` on a gap with lineage
    require that the ancestor's record was read through the tool this session.
+   **NOT BUILT (2026-09-02):** the judge prompt still asks for ancestor reads in prose ("READ THE NAMED ANCESTORS' RECORDS first"); no tool gate.
 7. **`verdict` refuses while duties are outstanding** — an unanswered dispute, or a missing
    spot-check when the archive entered non-empty.
+   **LANDED 2026-09-02 (altered form):** `verdict` refuses over open gaps and unruled motions (`internal/record/sitting.go`, `motionview_test.go`); disputes became motions, so an unanswered dispute is an unruled motion.
 8. **`found_by` is a foreign key** — `mint --from-finding L5-F3` derives the lens from the
    finding event instead of trusting a self-report.
+   **CORRECTED 2026-09-02:** no `--from-finding`; the caller still supplies `--found-by`, but `requireFindings` refuses a label with no finding event (`internal/record/refs.go`) and the SQLite child table keeps it joinable.
 
 ### C. Dead text, deletable today with no new code
 
@@ -93,6 +107,8 @@ Ordered by prompt text retired. Each becomes an integration test.
 - `speedClause`'s sanctioned `bash grep/ls` carve-out (~380 B) — it exists only to serve
   run-directory reads. Once no seat reads paths, it has no referent.
 
+**MARKED 2026-09-02:** the first three deletions happened (no `friction.md` dual-write and no "MUST NOT write to debate.md" remain in debate.js); the `speedClause` carve-out survives deliberately, rescoped to a documented harness limit (W1.11 — Glob/Grep refusing unregistered paths).
+
 ## V. Verification plan
 
 1. `go test -race -count=1 ./...` in `plugins/frank-exchange-of-views/tools`.
@@ -101,10 +117,13 @@ Ordered by prompt text retired. Each becomes an integration test.
    filesystem path appears outside `--run`. Then assert the `debate.js` prompt strings
    contain no `${runDir}/` outside the `--run` argument. **Write it first and let it fail** —
    it is the gate that keeps the migration from regressing.
+   **NOT BUILT (2026-09-02):** no test by this name exists; the regression gate that landed instead is the fuzz `promptCatalogue` census (`integration/fuzz/promptverbs_test.go`), and debate.js still names the genuine files (`report.md`, `inputs/red-gap-patterns.md`, `inputs/law/`).
 3. Re-measure record parity on the FIRST post-timestamp run, not on 2026-07-18.
+   **SUPERSEDED 2026-09-02:** see §III — the legacy run is refused under the SQLite binary.
 4. The smoke: rerun the same topic in haiku and compare against the captured baseline in
    `research/2026-07-18_gray-area-telemetry/`. The controlled repeat is the point — same
    prompt, same model tier, so a difference is attributable.
+   **UNVERIFIED (2026-09-02):** a haiku validation run did happen (commit 97817865, 2026-07-26, "findings-on-record haiku validation run" — scorecards committed), but whether it was THIS controlled repeat cannot be settled: `research/` is gitignored, the 2026-07-18 baseline is absent from this checkout, and `run-archive/` holds no gray-area-telemetry capture.
 
 ## VI. Honest status
 
@@ -114,7 +133,11 @@ Shipped: the read surface, the structured board, the vocabulary lock, cross-seat
 built. The next run is NOT yet path-free, and saying otherwise would be the kind of claim
 this document exists to make checkable.
 
+**UPDATE 2026-09-02:** true when written; since then the prompts WERE rewritten (the prompt-contract migration, `promptCatalogue` gate) and the §IV.B gates landed piecemeal as marked above. The named views were never built — that route was superseded, not finished.
+
 ## VII. The clock: monotonicity guaranteed in code
+
+**SUPERSEDED 2026-09-02:** the JSONL clock this section describes is gone — ordering is `events.id` in the SQLite record and the `nextStamp` clock file was deleted with the shard machinery (plans/record-sqlite.md, cutover table). Kept as the reasoning of its time.
 
 `ts` is nanoseconds AND strictly increasing per run, enforced in `nextStamp`: the last
 issued stamp is kept in the run directory and a stamp that would not advance is nudged to
@@ -168,6 +191,8 @@ composite view or accepting one extra `show` call — minor, and worth it.
 
 Scope: blue (749), judge (772, 829), assembly (842) — the three seats that read
 `${LEDGER}`/`${ARCHIVE}`. red-merge already reads its board via `show`.
+
+**LANDED 2026-09-02:** debate.js no longer contains `LEDGER`, `ARCHIVE` or `render-shadow` at all — every seat pulls the board/transcript through the tool, and views render just-in-time (debate.js's own comment: nothing is materialized to disk).
 
 ## IX. The principle: active pull beats passive accept (noted 2026-07-19)
 

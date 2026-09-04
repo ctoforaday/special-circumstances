@@ -1,6 +1,8 @@
 # record.Run — migrating 43 functions off `runDir string`
 
-Status: **landed**, across #612, #621, #631 and #633, with §III naming the four signatures that
+> STATUS 2026-09-02: shipped — historical record (the two §III threads remain open, tracked below).
+
+Status: **landed**, across #612, #621, #631 and #633 (re-landed as #641), with §III naming the four signatures that
 keep a string on purpose. This file is the thread, because the change spanned more pull requests
 than one context holds and a PR boundary is not a completion boundary.
 
@@ -10,6 +12,8 @@ at 19:47 INTO that branch, which by then was already merged and stale — so Git
 MERGED and `main` never received a line of it. A stacked pull request whose base branch is
 merged but not DELETED is not retargeted; the second merge lands somewhere nobody reads. The
 tell is cheap and nothing checked it: `git merge-base --is-ancestor <merge-commit> origin/main`.
+(CHECKED NOW, 2026-09-02: `scripts/stackguard` + a hooks.yml job guard exactly this, added
+2026-08-29 with #633's re-land.)
 
 ## I. What the type is for
 
@@ -222,9 +226,12 @@ than remembered** ([[complete-the-concept]]: a PR boundary is not a completion b
    marker stores the path as given and `SameRun` normalises when comparing, so switching it to
    absolute changes what lands in `run-live.json` for every reader of that file — a different
    concept with its own carriers ([[facts-are-fields]] clause 4).
+   **NOT DONE (2026-09-02):** `setup/run.go` still passes `cfg.RunDir` to the marker.
 2. **The flag-name constants belong in a leaf package.** That is the real fix for the three
    validators above: it removes the import edge that forces `flags` to speak in strings. It is
    larger than this change was, and is recorded here rather than implied by their comment.
+   **NOT DONE (2026-09-02):** `flags.Checker` is still `func(runDir, value string) error`;
+   the names live in `internal/flags/names.go`, not a leaf `flags` can share with `record`.
 
 ## IV. Order
 
