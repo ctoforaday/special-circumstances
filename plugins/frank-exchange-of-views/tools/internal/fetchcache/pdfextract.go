@@ -84,6 +84,13 @@ func extractorIdentity() string {
 // `fetch` is a short-lived process invoked once per source, so without the cache every single
 // fetch would pay the four seconds. It lives under the run's cache directory because that is
 // already the run's scratch space and is already excluded from the record.
+//
+// PER-RUN IS THE DECISION, NOT AN OVERSIGHT (gb, 2026-09-03). The compiled module is a function
+// of the binary rather than of the run, so a process-global cache would spare every run its first
+// 3,968 ms — and it was weighed and declined: a run stays self-contained, and the cost it buys
+// back is not worth a cache living outside the run directory. A test binary is the one caller
+// that legitimately needs otherwise, because it holds many runs at once; that is
+// UseSharedModuleCache below, and it is scoped to tests for exactly this reason.
 const wazeroCacheDir = ".wazero"
 
 // pdfiumInstance starts a PDFium instance sharing the run's compiled-module cache, and
