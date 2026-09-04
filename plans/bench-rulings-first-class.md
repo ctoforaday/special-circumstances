@@ -323,55 +323,84 @@ The section is not red's findings and has not been: `redFindings` (`assemble.go:
 blue's correctness manifest and red's archive spot-checks. **Three parties' output filed under one
 party's name.** Independent of Scopes 1 and 2.
 
-Census re-run on today's main — `grep -rn "Red team findings" .` and `grep -rn "redFindings" .`,
-both unfiltered. **Nine non-golden sites and two goldens.** Line numbers moved since the August
-draft (`debate.js:1077` is `:1089` now), which is the standing reason §V re-runs the census rather
-than trusting this table.
+**THE CENSUS IS CASE-INSENSITIVE, AND THE FIRST TWO DRAFTS OF THIS SECTION WERE NOT.** From
+`plugins/frank-exchange-of-views/`:
+
+```
+$ grep -rni "red team findings" .
+$ grep -rn  "redFindings" .
+```
+
+`grep -rn "Red team findings"` — the command both earlier drafts specified — misses **three**
+carriers, and one of them is the safety mechanism this whole scope turns on. The delta is exactly
+`assemble.go:149`, `assemble.go:199` and `assemble_test.go:455`, all of which spell it lowercase.
+Fifth instance in this document of one structural no-match; §II records the first four.
 
 | Site | Change |
 |---|---|
 | `report/assemble.go:847` | the heading itself |
+| **`report/assemble.go:149`** — `blueEmbed`'s `drop` map, `"red team findings": true` | **`[MODIFY]`, and this is the row that makes the rename safe.** `blueEmbed` KEEPS any `## ` heading whose normalized key is not in `drop`. Rename the composed heading without adding `"the board"` and a **blue-authored `## The board` is kept** and embedded under `## Blue team report (sections not composed above)` — beside the composed one — which is the double-authorship `debate.js`'s FABRICATION clause exists to prevent, arriving through the fix that cites it |
+| `report/assemble.go:149` — the OLD key | **RETAINED, not replaced.** `"red team findings"` stays in `drop` alongside `"the board"`. A seat on a cached or stale prompt still authors the old heading, and it is still fabrication — blue still cannot know red's findings. Retiring the key would let exactly that through, and the cost of keeping it is one map entry |
+| `report/assemble.go:199` | `normalizeHeading`'s doc comment uses `"Red Team Findings (in full)"` as its worked example — reword |
 | `report/assemble.go:669` | a comment describing the section by the old name |
-| `report/assemble_test.go:66` | **a comment, and it was missing from the August table** — "…so the matrix stays a scan surface" |
+| `report/assemble_test.go:66` | a comment — missing from the August table |
+| **`report/assemble_test.go:455`** | **the ONLY test of the drop map**, and after the rename it still asserts the OLD heading is dropped and **passes while asserting nothing about the new one**. Re-pointed at `## The board`, PLUS a case holding that the retired heading is still dropped |
 | `report/assemble.go:767,770`, `report/docs.go:117`, `assemble_test.go:527,569,599` | the `redFindings` identifier and its doc comment — renamed with the heading |
-| **`skills/research-protocol/scripts/debate.js:734`, `:1089`** | blue is FORBIDDEN to author `## Red team findings`; authoring one is FABRICATION. **Left alone, the prohibition names a section that no longer exists while blue is free to author `## The board`** — which assembly would then have to strip |
-| `tests/simulator/debate.test.mjs:1185-1187` | asserts that prohibition reaches the prompt |
+| **`skills/research-protocol/scripts/debate.js:734`, `:1089`** | blue is FORBIDDEN to author `## Red team findings`. Left alone the prohibition names a section that no longer exists while blue is free to author the one that does |
+| `tests/simulator/debate.test.mjs:1185-1187` | asserts that prohibition reaches the prompt — it pins the literal old heading, so it breaks loudly and must be re-pointed |
 | `skills/research-protocol/references/report_template.md:87` | the report's shape doc |
 | `report/assemble_integration_test.go:161` | assertion |
 | `tests/simulator/testdata/prompt-blue-respond-r1.golden`, `prompt-blue-synthesize.golden` | REGENERATE |
 
 The N9 test **cannot see the blue prohibition** — different artifact, different repo layer — which
-is why every carrier is enumerated here rather than left to the gate.
+is why every carrier is enumerated rather than left to the gate.
 
 #### The document this section lives in, and the `docket` decision `[MODIFY]`
 
 **Resolved with the human before the gate, because it decides a name Scope 2 then takes.**
 
 `redFindings` is the body of a shipped deliverable: `docs.go:47` `FileDocket = "docket.md"`, navved
-`Docket`, titled `the docket`. So renaming the heading alone leaves the document navved "Docket",
-titled "the docket", and *containing* `## The board`.
+`Docket`, titled `the docket`. Renaming the heading alone leaves a document navved "Docket", titled
+"the docket", containing `## The board`. **That mismatch already exists** —
+`report_template.md:85` reads `# docket.md — the board` today.
 
-**That mismatch is not created here — it already exists.** `report_template.md:85` reads
-`# docket.md — the board` today.
+**The decision: Title, Nav and the describing prose change; the FILENAME does not.** `docket.md` is
+linked from the shipped `README.md`, `SKILL.md`, `agents/lead-judge.md`, `site.go`'s cross-file link
+rewriter and two in-report references — for consistency in a name **no machine reads**. A filename
+is a stable URL for a published artifact; the title is what a human reads beside the heading.
 
-**The decision: change the Title and Nav to match the heading; do NOT rename the file.**
-`docket.md` is linked from the shipped `README.md`, `SKILL.md`, `agents/lead-judge.md`, `site.go`'s
-cross-file link rewriter and `assemble.go:489`'s in-report reference — seven carriers, for
-consistency in a name **no machine reads**. The filename is a stable URL for a published artifact;
-the nav and title are what a human sees beside the heading.
+**Nav's consumer census, which the previous draft omitted entirely** — `grep -rl "\[Docket\](" .`
+returns **19 files**:
 
 | Site | Change |
 |---|---|
-| `report/docs.go:139-140` | `Nav: "Docket"` → `"Board"`, `Title: "the docket"` → `"the board"`. The `Blurb` already describes the board ("every gap red minted…") and needs no edit |
-| `report/docs.go:47` `FileDocket = "docket.md"` | **NO CHANGE** — and it is listed so the sweep meets it as a decision rather than as a match |
-| `assemble.go:489`, `site.go:114` | the link TEXT `[the docket]` follows the title; the target does not |
+| `report/docs.go:139-140` | `Nav: "Docket"` → `"Board"`, `Title: "the docket"` → `"the board"` |
+| `report/docs.go:246,249` | compose the in-document link bar from `Nav` — no edit, but they are why the 18 goldens move |
+| `report/docs.go:264` | composes `README.md`'s index line from `Nav` — same |
+| **18 goldens under `tools/internal/difftest/testdata/`** | REGENERATE. Named because the previous draft's golden list held two files and the true figure is twenty |
+| **`report/assemble_integration_test.go:151,178`** | assert the literal `"**Report** · [Docket](docket.md)"` and `"[Docket](docket.md)"` — `[MODIFY]` |
+| `assemble.go:489` **and `assemble.go:576`** | both render `[the docket](docket.md)`. The link TEXT follows the title; the target does not. **`:576` was missing from the previous draft** |
+| `site.go:114` | the cross-file link rewriter — its comment quotes `[the docket](docket.md)` |
+| `report/docs.go:47` `FileDocket = "docket.md"` | **NO CHANGE** — listed so the sweep meets it as a decision, not as a match |
 
-**And the word `docket` is therefore left free for Scope 2's motion subject, which is the sense the
-repository already uses it in.** Four sites say "docket-bound" or "docketed gap" — `boards.go`,
+**The surfaces that still call the whole document red's, none of which the previous draft listed.**
+N9's objective is that no surface attributes three parties' output to one; a document titled "the
+board" that every describing surface still calls red's findings is the half-state this plan is named
+for.
+
+| Site | Says | Change |
+|---|---|---|
+| `report/docs.go:140` — the `Blurb` | "every gap red minted: what is still open, what was closed and how, and the findings the merge weighed without minting" | **`[MODIFY]` — and the previous draft's claim that it "needs no edit" was wrong on the section's own premise.** It enumerates only red's output, naming neither blue's correctness manifest nor red's archive spot-checks |
+| `report/docs.go:6` | the changed package's own doc comment — "red's findings in full" | `[MODIFY]` |
+| `skills/research-protocol/references/report_template.md:14` | same file as `:87` | `[MODIFY]` |
+| `skills/research-protocol/SKILL.md:154` | "`docket.md` (red's findings in full" | `[MODIFY]` |
+| `agents/lead-judge.md:117` | "`docket.md` (red's board IN FULL)" | `[MODIFY]` |
+| `README.md:144` | "red's board" | `[MODIFY]` |
+
+**The word `docket` is therefore left free for Scope 2's motion subject, in the sense the repository
+already uses it.** Four sites say "docket-bound" or "docketed gap" — `boards.go`,
 `agents/lead-judge.md`, merge's `closing` help — all meaning *a matter placed before the bench*,
-which is exactly what `motion docket file` does. `docket.md` was the outlier, using it for the whole
-gap board; after this scope it stops. One word, one meaning, and the collision Scope 2 would
-otherwise inherit is spent here instead.
+which is what `motion docket file` does. `docket.md` was the outlier; after this scope it stops.
 
 ### Scope 4 — `manifest-row` → `attest`
 
@@ -523,17 +552,22 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
 
 **Scope 3**
 
-1. The composed report carries `## The board` and not the old heading.
-2. `grep -rn "Red team findings" .` — **re-run it, do not trust §III's table**: it must return only
-   regenerated goldens and history. The August table was already one site short (`assemble_test.go:66`)
-   and its `debate.js` line number had moved by twelve.
-3. **The blue prohibition still bites.** `debate.test.mjs:1185-1187` asserts the FABRICATION clause
-   reaches the synthesizer's prompt; it must assert the NEW heading. A prohibition naming a section
-   that no longer exists leaves blue free to author the one that does — the check is that the
-   prompt forbids `## The board`, not merely that it forbids something.
-4. **The document reads as one thing.** `docket.md`'s nav, title and heading agree; the file NAME is
-   unchanged, and `README.md`, `SKILL.md` and `agents/lead-judge.md` still resolve
-   (`go test ./internal/report/...` covers the link rewriter; the three markdown carriers are read).
+1. `(cd plugins/frank-exchange-of-views/tools && go test -count=1 $(go list ./... | grep -v integration/fuzz))`
+   — **module-wide, for the reason Scope 1's step 1 gives one section earlier.** A hand-kept package
+   list (`./internal/report/...`, which the previous draft named) cannot see `./internal/difftest/...`,
+   where 19 of this scope's affected artifacts live.
+2. `grep -rni "red team findings" .` — **case-INSENSITIVE, re-run, not trusted from §III's table.**
+   It must return only regenerated goldens, `drop`'s retained key and history. The case-sensitive
+   form the earlier drafts specified misses `assemble.go:149`, `:199` and `assemble_test.go:455`.
+3. **The blue prohibition still bites, and the drop map still catches.** Two assertions, because
+   either alone passes while the other's defect survives:
+   - `debate.test.mjs:1185-1187` asserts the FABRICATION clause names `## The board`.
+   - `assemble_test.go:455` asserts a blue-authored `## The board` is DROPPED — **and** that a
+     blue-authored `## Red team findings` is still dropped, which is the retained-key decision.
+4. **The document reads as one thing.** `docket.md`'s nav, title, blurb and heading agree; the
+   filename is unchanged and every link resolves. `[Docket](docket.md)` appears nowhere outside
+   regenerated goldens; `README.md`, `SKILL.md` and `agents/lead-judge.md` describe a board rather
+   than red's findings.
 
 ### The repo gate
 
