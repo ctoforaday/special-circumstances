@@ -1,6 +1,7 @@
 package record
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -366,31 +367,20 @@ func StaleInquiries(b *Board) []*Inquiry {
 // Red's ruling is an argument rather than a command — blue may pursue anyway — but the
 // disagreement should be a fact, not something a reader reconstructs from two lists.
 func InquiryRuling(run Run, inquiryID string) string {
-	b, err := BoardState(run)
-	if err != nil {
+	// THE LATEST RULING WINS, INCLUDING A LATER ONE THAT CARRIED NONE: the newest
+	// direction-subject rule for this line decides, and a NULL direction arm on it is red
+	// ruling nothing — "" — not an invitation to read an older ruling instead. A read error
+	// folds into "", as the board-read error did. The hyphen join mirrors the same read in
+	// Inquiries.
+	var word sql.NullString
+	found, err := queryRow(run, []any{&word},
+		`SELECT "direction" FROM "motion_rule" WHERE "subject" = ? AND "motion_id" = ?
+		  ORDER BY "event_id" DESC LIMIT 1`,
+		recordpb.Word(recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION), inquiryID)
+	if err != nil || !found {
 		return ""
 	}
-	// MOST RECENT WINS. Events are ordered by insertion, so "last one seen" is the
-	// latest ruling. There was a second arm here for the pre-#344 `avenue-rule` spelling; nothing
-	// has written it since the motion collapse and the dual-read that justified reading it is gone.
-	ruling := ""
-	for _, e := range b.Events {
-		mr, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-		if !ok || mr.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION || mr.GetMotionId() != inquiryID {
-			continue
-		}
-		// THE LATEST RULING WINS, INCLUDING A LATER ONE THAT CARRIED NONE. The old
-		// `Str("ruling")` overwrote with "" for a motion-rule that named no verdict, and the
-		// oneof is what preserves that: an unset `ruling` arm, or another subject's arm, is not
-		// a direction ruling. `GetDirection()` alone returns UNSPECIFIED for all three and
-		// cannot tell "red ruled nothing" from "red is not on this event".
-		// The hyphen join, for the reason given at the same read in `Inquiries`.
-		ruling = ""
-		if d, isDirection := mr.GetRuling().(*recordpb.MotionRule_Direction); isDirection {
-			ruling = strings.ReplaceAll(recordpb.Word(d.Direction), "_", "-")
-		}
-	}
-	return ruling
+	return strings.ReplaceAll(word.String, "_", "-")
 }
 
 // InquiryReviewDue reports whether this round still owes a read of the report against the lines
