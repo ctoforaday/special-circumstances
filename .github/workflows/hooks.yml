@@ -1414,6 +1414,20 @@ jobs:
       - name: The tag and the manifest agree
         run: go run ./versionguard -tag "${GITHUB_REF_NAME}"
         working-directory: scripts
+      # THE MUTATION GATE, AT THE ONE BOUNDARY WHERE THE SWEEP IS A GATE (ruled 2026-09-03).
+      # Day to day it stays an on-demand audit with no threshold — a gated score invites
+      # killing equivalent mutants with contorted tests. What a RELEASE must prove is that
+      # the EXPLAINING happened: every survivor in the tagged plugin's module is either
+      # killed by a test or judged in writing in its mutation-survivors.json, and no
+      # judgement outlives the survivor it explained. Records are born at each plugin's
+      # first gated release, not grandfathered: a record whose entries nobody judged is an
+      # allowlist wearing a schema. Expect that first release to fail here, once, with the
+      # full backlog printed — that is the decision working, not the gate broken.
+      - name: Every mutation survivor in the released module is explained
+        run: go run ./mutate -gate -module "$PLUGIN_DIR"
+        working-directory: scripts
+        env:
+          PLUGIN_DIR: ${{ steps.plugin.outputs.dir }}
       # BUILD OUTPUT LEAVES THE SOURCE TREE, and that is a correctness fix rather than tidiness.
       #
       # This wrote into `dist/` inside the plugin's tools directory. `dist/` is not ignored, so
