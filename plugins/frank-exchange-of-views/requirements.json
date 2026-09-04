@@ -1,6 +1,6 @@
 {
   "_comment": "frank-exchange-of-views's own tool dependencies — aggregated by /prosthetic-conscience:doctor (each plugin owns its manifest; the doctor reports the whole suite). PLUGIN-SHIPPED BINARIES DO NOT BELONG HERE: this manifest lists EXTERNAL tools, checked by running them on PATH. A binary the plugin ships lives in its own bin/ and is discovered by sc-doctor's binary scan, which reports it and can fetch it; listing it here as well produced a check that could never pass (installed to <plugin>/bin, checked on PATH) and so a permanently DEGRADED verdict after a fully successful --fix.",
-  "eventSchema": 1,
+  "eventSchema": 2,
   "_eventSchema_comment": "The EVENT-SCHEMA EPOCH of the feov-record binary this plugin ships. It answers ONE question — does this binary write the event shape these prompts read — and it moves only when that shape changes incompatibly. It is deliberately NOT a version: a release number moves for reasons the schema does not care about, and comparing release numbers made this check track shipping instead of compatibility. `feov-record --schema` prints it; `setup` refuses to start a run when the binary's epoch differs from this one. There is no compatibility window and no delta list: equal runs, unequal refuses. It lives here rather than in .claude-plugin/plugin.json because that manifest has a fixed published schema and an unknown field there makes `claude plugin validate` warn on every run.",
   "tools": [
     {
