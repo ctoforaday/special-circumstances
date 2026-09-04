@@ -166,7 +166,7 @@ indistinguishable from one that never looked._
 ═══ REPORT ═══
 # _(blue/report.md has no title — not authored here)_
 
-**Report** · [Docket](docket.md) · [Debate](debate.md) · [Judgments](judgments.md) · [Run](run.md) · [Changelog](CHANGELOG.md)
+**Report** · [Board](docket.md) · [Debate](debate.md) · [Judgments](judgments.md) · [Run](run.md) · [Changelog](CHANGELOG.md)
 
 ---
 
@@ -184,7 +184,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 **The bench asks a human to re-examine:** what a human should re-examine
 
-1 open gap(s) remain, most severe first — full statements in [the docket](docket.md).
+1 open gap(s) remain, most severe first — full statements in [the board](docket.md).
 
 1. **[medium]** docketed (R1-1) — 
 
@@ -210,7 +210,7 @@ _(blue/report.md has no "## Analysis" section — not authored here; blue owns t
 |---|---|---|---|---|
 | docketed | medium | medium | — | — |
 
-The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in [the docket](docket.md).
+The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in [the board](docket.md).
 
 ## Research areas
 
