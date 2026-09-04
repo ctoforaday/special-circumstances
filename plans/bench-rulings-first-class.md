@@ -27,7 +27,7 @@ Each row is the August claim, re-run against today's tree. Line numbers are toda
 |---|---|---|
 | 1 | The bench's ruling renders with its reasoning stripped; the row falls through to the literal `"closed"` | **FIXED ELSEWHERE.** `replay.go:143-166` splits a bench closure onto `BenchClosure`, and `Gap.ClosureReason()` (`:208-235`) is "the ONE word that says why a gap is closed, whichever verb closed it". `assemble.go:830-832` reads it and spells a class-less closure `closed (no recorded class)` — its own comment records that the old default said `repaired` for a gap the bench ruled `defect_accepted` |
 | 2 | Two readers learned the dual key; the report did not | **FIXED ELSEWHERE**, by the same `ClosureReason` unification |
-| 3 | The report accuses blue of an audit it was never owed | **LIVE.** `correctnessManifest` (`assemble.go:888`) still selects `g.HasClosed && !manifested[id]` (`:910-915`) and still prints "Those repairs were not audited by the party that made them" (`:927`). `ClosedByBench` (`replay.go:166`) still has no reader outside `viewjson.go` counts and `consistency.go:218` |
+| 3 | The report accuses blue of an audit it was never owed | **LIVE.** `correctnessManifest` (`assemble.go:888`) still selects `g.HasClosed && !manifested[id]` (`:910-915`) and still prints "Those repairs were not audited by the party that made them" (`:927`). ~~`ClosedByBench` has no reader outside `viewjson.go` counts.~~ **Struck at round 4 of the gate — carried over from the August document and false today:** `Gap.ClosureReason()` keys on it (`replay.go:224`), and `viewjson.go:591,602` read it. The defect is live on the predicate regardless, but the flag is load-bearing now, which is precisely why N1 must not key on it |
 | 4 | `anchored_closures_pct` is unreachable by construction | **LIVE.** `ComputeAnchoredClosures` (`scorecard/scorecard.go:124-135`) is unchanged; bench closures carry no anchor triple and no `carried_from`, and they are still in `len(bj.Closed)` |
 | 5 | The docket has no record, so nothing can notice an undisposed item | **LIVE.** No `docket` subject: `MotionSubjects` is `{"grade", "petition", "inquiry"}` (`record/motion.go:35`). `seatprobe/boards.go:606` still states the rule as prose — "A gap that reaches the bench and gets no opinion is a docket item nobody disposed of" — and nothing enforces it |
 | 6 | Dead renderers report a clean board while measuring nothing | **FIXED ELSEWHERE, and fixed properly.** The `### Grade disputes` and `### Petitions` blocks are gone. The unanswered-petition count now joins through `record.Motions` (`assemble.go:1203-1220`), and its comment says why: "It read the retired `petition`/`petition-rule` types, so after the collapse it saw zero of each and the unanswered-petition warning below could never fire — silence that read as 'no petitions went unanswered'" |
@@ -185,15 +185,25 @@ Today all three state the OLD predicate: *every closed gap* with no row is a rep
 After N1 a bench-closed gap with no row is not named there at all, so each would promise a charge the
 tool no longer makes.
 
-| Carrier | What it says |
-|---|---|
-| `agents/blue-synthesizer.md:72-73` | "the report renders your manifest, and **a closed gap carrying no row** is named there as a repair nobody audited, including its author" |
-| `agents/blue-researcher.md:143-144` | the same sentence |
-| `record/available.go:78` | the seat-facing work-list line: "the report names a closed gap with no row as a repair nobody audited" |
+**Six of them, and the first census of this table found three.** The census that found the other
+three is the one to re-run — unfiltered, from `plugins/frank-exchange-of-views/`:
+`grep -rn "nobody audited" .`
 
-Each narrows to the gap blue itself closed. `available_test.go:71` asserts that line by prefix and
-follows it; the constitution suites under `tools/integration/fuzz/` run in §V step 1's module sweep
-and will say if anything else pinned the wording.
+| Carrier | What it is |
+|---|---|
+| `agents/blue-synthesizer.md:72-73` | blue's constitution: "the report renders your manifest, and **a closed gap carrying no row** is named there as a repair nobody audited, including its author" |
+| `agents/blue-researcher.md:143-144` | the same sentence, the other blue seat |
+| `record/available.go:76,78` | the seat-facing work-list line, and the comment above it |
+| **`cli/seat/help/manifest-row.md:9`** | **the embedded seat help** — `//go:embed help/*.md` at `cli/seat/help.go:44`. This is the surface a seat actually reads when it asks the tool what the verb is for, and it was missed by a census that looked at constitutions and Go |
+| **`docs/seat-command-triggers.md:84`** | the `blue manifest-row` ledger row, same sentence |
+| **`seatprobe/boards.go:222`** | the probe board's `Because` — the argument for why the verb must be reachable |
+| `report/assemble.go:909` | the comment above the predicate itself; it changes with the code |
+
+Each narrows to the gap blue itself closed. **Nothing in §V catches these if they are missed**, and
+that is stated rather than hoped: `promptverbs_test.go:684-739` asserts only that every live command
+**has a row** in `seat-command-triggers.md`, never its text, and no test pins the help markdown's
+prose. The module sweep stays green with all six stale. `available_test.go:71` asserts that one line
+by prefix and follows it — the single exception, and not a backstop for the rest.
 
 **Not folded in, and there are TWO of them — the second was found at the gate:**
 
