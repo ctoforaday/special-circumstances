@@ -72,9 +72,9 @@ Renumbered; the August G1–G10 are not preserved, because four of them are met.
 | # | Criterion | How it is measured | Scope |
 |---|---|---|---|
 | N1 | Blue is not charged for repairs it did not make | `correctnessManifest`'s unmanifested set excludes gaps **no blue or red `Close` event ever touched** — NOT `ClosedByBench`, which is a last-closer flag (`replay.go:438` clears it on a later `Close`, `:460` sets it on a later `Opinion`) and would drop a gap blue closed and the bench later ruled on. Tests assert both orderings: bench-only closure absent from the list, **and** a blue close followed by a bench ruling still present | 1 |
-| N2 | `anchored_closures_pct` measures something reachable | Closures **whose closing body is the bench's** leave both counts — `g.Closure == nil && g.BenchClosure != nil`, NOT `ClosedByBench`, which is the same last-closer flag N1 rejects and which would delete blue's genuinely anchored close from both counts in the blue-close-then-bench-rule ordering. The row's note **states its denominator**. Asserted over three boards: mixed, all-bench (denominator 0 — the row must not fall through to `"no closed gaps this run"`, `scorecard.go:509-511`), and blue-close-then-bench-rule, which is the board that separates the two predicates | 1 |
+| N2 | `anchored_closures_pct` measures something reachable | Closures with **no `Close` body at all, only a bench body**, leave both counts — `g.Closure == nil && g.BenchClosure != nil`, NOT `ClosedByBench`, which is the same last-closer flag N1 rejects and which would delete blue's genuinely anchored close from both counts in the blue-close-then-bench-rule ordering. The row's note **states its denominator**. Asserted over three boards: mixed, all-bench (denominator 0 — the row must not fall through to `"no closed gaps this run"`, `scorecard.go:509-511`), and blue-close-then-bench-rule, which is the board that separates the two predicates | 1 |
 | N3 | The two surfaces describing one blockage agree | The sitting view's outstanding line for an unruled motion **names the ruling seat**, as the refusal does. It does NOT change **who** is blocked: a test asserts a merge sitting with an unruled `petition` is still `Complete: false`, matching `gavel_test.go` | 1 |
-| N4 | The gavel has one source | `seatprobe`'s `motionRuler` map is deleted; `NewSurface` resolves the ruler through `record.MotionSubjectEnum` + `recordpb.SubjectRuler`, and an unknown or un-annotated subject is **loud** — today `motionRuler[subject]` returns `""` and files the verb under `byRole[""]`, offering it to no role, which reads as coverage. Measured by a test that a subject with no ruler fails surface construction, not by a grep | 1 |
+| N4 | The gavel has one source | `seatprobe`'s `motionRuler` map is deleted; `NewSurface` resolves through `record.MotionSubjectEnum` + `recordpb.SubjectRuler`, and an **unknown** subject panics at surface construction — today `motionRuler[subject]` returns `""` and files the verb under `byRole[""]`, offering it to no role, which reads as coverage. Measured on the unknown-subject mode only. The **un-annotated** mode is not drivable through `NewSurface([]string)` and is not claimed: `BySpelling` skips the zero value, and `gavel_test.go:22-47` already fails any `MotionSubject` without `ruled_by`. That panic arm is defense in depth, guarded at the schema — stated so, rather than asserted by a test that cannot be written | 1 |
 | N5 | Every bench disposition has a motion id and joins to what it settled | `record.Motions` returns a `docket` motion for every bench-disposed gap; zero gaps with `ClosedByBench` and no motion id | 2 |
 | N6 | An undisposed docket item blocks the bench's sitting | `sitting.go`'s `case "bench"` reports it in `Outstanding`; a bench that leaves one is `Complete: false` | 2 |
 | N7 | No renderer, comment or branch survives for a verb that cannot be written | The `opinion` census returns 0 non-test, non-English-word hits after the sweep | 2 |
@@ -154,11 +154,15 @@ document are gone:
 
 ### Scope 1 — two miscounts, one divergence, and a copied schema fact `[MODIFY]`
 
-**Independent of everything else.** No new verb, no agent-facing edit, no change to the record's
-written contract. **It is not signature-free, and the round-2 gate corrected an earlier sentence here
-that claimed it was:** `ComputeAnchoredClosures` moves onto the board (two call sites), and the
-sitting/refusal helper is new. Both are internal Go surfaces; neither is a record, a flag or a
-rendered contract.
+**Independent of everything else.** No new verb, no change to the record's written contract.
+
+**Two claims that stood here have been struck by the gate, and they are struck in place because each
+was the kind of sentence that stops a reader looking.** "Signature-free" was false —
+`ComputeAnchoredClosures` moves onto the board (two call sites) and the sitting/refusal helper is
+new. "No agent-facing edit" was also false: **N1 narrows a predicate that two seat constitutions and
+one work-list line state verbatim**, and a scope that changes what the tool charges blue for while
+blue's constitution still promises the old charge is the exact half-state this document is named
+for.
 
 **Scope 1 changes who is told what, never who is blocked.** The refusal semantics are settled
 (`gavel_test.go`), and nothing below moves them. That is the boundary the first draft of this scope
@@ -167,13 +171,29 @@ crossed without noticing.
 | Site | Change | Goal |
 |---|---|---|
 | `report/assemble.go:910-915` | the unmanifested loop skips gaps **no `Close` event ever touched**. NOT `g.ClosedByBench`: `replay.go:432-438`'s own comment records that the flag used to latch and was made to follow the LAST closing event, after the consistency oracle caught mixed attribution on the bench-then-red seed. Excluding on it drops a gap blue closed and the bench later ruled on — a receipt genuinely missing, silently removed from the one section whose purpose is to say so. The prose at `:927` narrows with the predicate: it is a statement about **blue's** repairs and must say so | N1 |
-| `scorecard/scorecard.go:124-135` | **`ComputeAnchoredClosures` takes the `*record.Board`, not `BoardJSON` — a signature change, and the second round of the gate is why.** The correct predicate is "the closing body is the bench's" (`g.Closure == nil && g.BenchClosure != nil`), and `GapJSON` cannot express it: `closureBody` (`viewjson.go:389-396`) prefers `g.Closure`, so a blue close later ruled on by the bench arrives as `ClosedByBench: true` carrying **blue's anchored body**, and excluding on the flag would delete a real anchored closure from both counts. `GapJSON` has no field saying which body populated `Closure`. **Two options were live and this is the decision:** add that field to `GapJSON` (a `view --json` contract change, for one consumer), or move the kernel onto the board. The board wins — `ComputeAnchoredClosures` has exactly **two** call sites (`scorecard.go:141`, `scorecard_test.go:70`), and its "pure kernel over the board JSON (JS `computeAnchoredClosures`)" doc comment is **vestigial**: `grep -rn computeAnchoredClosures --include=*.js --include=*.mjs` returns nothing, so no parity constraint survives to protect. The doc comment is corrected with the deletion, not left describing a twin that does not exist | N2 |
+| `scorecard/scorecard.go:124-135` | **`ComputeAnchoredClosures` takes the `*record.Board`, not `BoardJSON` — a signature change, and the second round of the gate is why.** The correct predicate is "no `Close` body at all, only a bench body" (`g.Closure == nil && g.BenchClosure != nil`) — **not** "the closing body is the bench's", which is false in exactly the ordering that matters: blue closes, the bench later rules, and `ClosedByBench` is true while blue's anchored body is the closure, and `GapJSON` cannot express it: `closureBody` (`viewjson.go:389-396`) prefers `g.Closure`, so a blue close later ruled on by the bench arrives as `ClosedByBench: true` carrying **blue's anchored body**, and excluding on the flag would delete a real anchored closure from both counts. `GapJSON` has no field saying which body populated `Closure`. **Two options were live and this is the decision:** add that field to `GapJSON` (a `view --json` contract change, for one consumer), or move the kernel onto the board. The board wins — `ComputeAnchoredClosures` has exactly **two** call sites (`scorecard.go:141`, `scorecard_test.go:70`), and its "pure kernel over the board JSON (JS `computeAnchoredClosures`)" doc comment is **vestigial**: `grep -rn computeAnchoredClosures --include=*.js --include=*.mjs` returns nothing, so no parity constraint survives to protect. The doc comment is corrected with the deletion, not left describing a twin that does not exist | N2 |
 | `scorecard/scorecard.go:500-512` | **both** branches of the row, not only the value branch. The `Note` states the denominator in words; the else branch at `:509-511` reads `"no closed gaps this run"`, which becomes FALSE the moment the denominator excludes an all-bench-closure board — the same plausible zero, arriving through the fix | N2 |
 | `dashboard/testdata/render-terminal.golden:92`, `render-live.golden:87` | **REGENERATE** — both carry the else-branch string, and they are not fixtures: `dashboard/render.go:166` calls `scorecard.Compute` inside the golden test. Found at round 2 of the gate; the round-1 §V could not have seen the break, because its package list omitted `./internal/dashboard/...` | N2 |
 | **Named, not changed — the rendered row's second reader** | `capture/capture.go:1505-1538` writes the scorecard rows into `feov-memory/<chair>-scorecard.md`, and `setup.ParseRenderedRows` (`setup/setup.go:319`) reads them back **by regex**. Editing the `Note` is therefore editing an input to a parser. Confirm the parser keys on the row NAME and not on the note text before the note changes; if it keys on the text, that is a [[facts-are-fields]] defect of its own and gets its own issue rather than a quiet accommodation here | N2 |
 | `record/sitting.go:127-133`, `:162-166` | the outstanding line **names the ruling seat**, through a helper shared with `refs.go:345-368` so the two surfaces cannot drift. The sweep still covers every subject and the seat is still blocked — the view catching up to the refusal, not a change to it | N3 |
 | **The helper's signature, decided here because the sitting cannot do what the refusal does** | `refs.go` discharges both failure modes — `MotionSubjectEnum` returning `known == false` (a stated "a subject this binary does not know") and `SubjectRuler` returning an error (`return err`). `SittingOf` (`sitting.go:85`) **returns no error** and can only do the first. So the helper is `rulerPhrase(subject string) (string, bool)`: it returns a **stated** unknown, never an empty name. `refs.go` keeps its `return err` on the second mode; the sitting renders the stated unknown. **Without this the natural implementation renders `ruled by the  seat`** — the identical silent miss S4 gates at the seatprobe site, arriving at the site the same round | N3 |
 | `seatprobe/seatprobe.go:68,95` | delete `motionRuler`; resolve through `record.MotionSubjectEnum` + `recordpb.SubjectRuler`. `NewSurface` (`:73`) returns `Surface`, no error — so the miss is a **panic at surface construction**, and that is a decision with a precedent rather than a shortcut: `cli/motion.rulerFor` panics for the same reason, in its own words, "this runs at command construction, so the failure is at startup for every seat rather than at the moment one tries to rule". An error return instead would touch all five call sites for a condition none of them can handle. **Census, all five, since a signature decision that states four is how the fifth acquires a change nobody chose:** `cmd/seatprobe/main.go:165` (the one production caller), `internal/seatprobe/naming_test.go:23`, `internal/seatprobe/surfacecoverage_test.go:181`, `cmd/seatprobe/naming_report_test.go:25`, `:36`. All pass `cli.CommandPaths()`; **none changes** under the panic decision. Today an unknown subject yields `""` and files the verb under `byRole[""]` — offered to no role, reading as coverage | N4 |
+
+**N1's agent-facing carriers `[MODIFY]` — found at round 3 of the gate, and the reason
+[[complete-the-concept]] puts prompts and constitutions in the first sweep rather than the last.**
+Today all three state the OLD predicate: *every closed gap* with no row is a repair nobody audited.
+After N1 a bench-closed gap with no row is not named there at all, so each would promise a charge the
+tool no longer makes.
+
+| Carrier | What it says |
+|---|---|
+| `agents/blue-synthesizer.md:72-73` | "the report renders your manifest, and **a closed gap carrying no row** is named there as a repair nobody audited, including its author" |
+| `agents/blue-researcher.md:143-144` | the same sentence |
+| `record/available.go:78` | the seat-facing work-list line: "the report names a closed gap with no row as a repair nobody audited" |
+
+Each narrows to the gap blue itself closed. `available_test.go:71` asserts that line by prefix and
+follows it; the constitution suites under `tools/integration/fuzz/` run in §V step 1's module sweep
+and will say if anything else pinned the wording.
 
 **Not folded in, and there are TWO of them — the second was found at the gate:**
 
@@ -390,9 +410,10 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
    - **N3** — the merge sitting's outstanding line for an unruled `petition` NAMES the bench; **and**
      that sitting is still `Complete: false`. The second is the one that catches a fix which
      "resolves" the divergence by dropping the item.
-   - **N4** — a `MotionSubject` with no ruler annotation makes surface construction PANIC, and a
-     subject the binary does not know does too. Asserting that a known subject resolves is not this
-     check: it passes against the `""` that is the defect.
+   - **N4** — a subject the binary does not know makes surface construction PANIC. Asserting that a
+     known subject resolves is not this check: it passes against the `""` that is the defect. The
+     un-annotated-subject arm is **not** asserted here and must not be written as if it were —
+     `gavel_test.go:22-47` is where that invariant lives, and it already holds.
    - **N3, the miss** — an unresolvable subject renders a STATED unknown in the sitting's outstanding
      line. Asserting the resolvable case is not this check either: `ruled by the  seat` passes it.
 3. Reconcile `build.go:193` and `cli/seatprobe_fixture_test.go:156` — the same seat-id table,
