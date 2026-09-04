@@ -20,6 +20,7 @@ package recordsql
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -326,6 +327,7 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 	type row struct {
 		word, means string
 		facets      map[string]bool
+		numbers     map[string]float64
 	}
 	var rows []row
 
@@ -347,7 +349,22 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 			return "", fmt.Errorf("recordsql: %s: %w", ed.FullName(), err)
 		}
 		fs := map[string]bool{}
+		ns := map[string]float64{}
 		for _, name := range recordpb.FacetNames() {
+			// A NUMERIC FACET IS READ AS A NUMBER, and the split is on the facet's declared kind
+			// rather than on a guess about its value: `mass` 0 is a real weight (GRADE_REALIZED),
+			// so reading it as a flag would turn "weighs nothing" into false and lose it.
+			if recordpb.IsNumeric(name) {
+				val, ok, err := recordpb.Number(v, name)
+				if err != nil {
+					return "", err
+				}
+				if ok {
+					ns[name] = val
+					declared[name]++
+				}
+				continue
+			}
 			val, ok, err := recordpb.Facet(v, name)
 			if err != nil {
 				return "", err
@@ -357,7 +374,7 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 				declared[name]++
 			}
 		}
-		rows = append(rows, row{w, means, fs})
+		rows = append(rows, row{w, means, fs, ns})
 	}
 
 	// A PARTLY-ANNOTATED FACET IS REFUSED, for the reason the facet exists. `closes` was added
@@ -384,6 +401,14 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "\nCREATE TABLE %q (\n  \"value\" TEXT PRIMARY KEY,\n  \"means\" TEXT NOT NULL", name)
 	for _, c := range cols {
+		// REAL, NOT INTEGER-WITH-A-CHECK, for a numeric facet: the CHECK that keeps a flag honest
+		// (0 or 1) is exactly wrong for a weight, and a mass of 0.5 stored into an INTEGER column
+		// under STRICT is a refusal rather than a rounding — which is the good failure, but only
+		// if the column was never declared that way in the first place.
+		if recordpb.IsNumeric(c) {
+			fmt.Fprintf(&b, ",\n  %q REAL NOT NULL", c)
+			continue
+		}
 		fmt.Fprintf(&b, ",\n  %q INTEGER NOT NULL CHECK (%q IN (0, 1))", c, c)
 	}
 	b.WriteString("\n) STRICT;\n")
@@ -391,6 +416,10 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 		lhs, vals := `"value", "means"`, fmt.Sprintf("'%s', '%s'", r.word, escape(r.means))
 		for _, c := range cols {
 			lhs += fmt.Sprintf(", %q", c)
+			if recordpb.IsNumeric(c) {
+				vals += ", " + strconv.FormatFloat(r.numbers[c], 'g', -1, 64)
+				continue
+			}
 			vals += fmt.Sprintf(", %d", b2i(r.facets[c]))
 		}
 		fmt.Fprintf(&b, "INSERT INTO %q (%s) VALUES (%s);\n", name, lhs, vals)

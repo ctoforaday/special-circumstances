@@ -10,4 +10,4 @@ package record
 //
 // It is not a version. Nothing here promises backwards compatibility, so there is no window
 // to describe and no delta list to maintain: equal runs, unequal refuses.
-const EventSchema = 1
+const EventSchema = 2

@@ -72,6 +72,24 @@ extend google.protobuf.EnumValueOptions {
   // hand-written copies of one fact, one of which did not exist, so the message walked a merge
   // seat into a role refusal and there was no verdict it could legally give.
   optional string ruled_by = 50004;
+
+  // mass IS WHAT A GRADE WEIGHS, and it is on the value because the weight is a property of the
+  // word rather than of whoever is multiplying it.
+  //
+  // It was a Go map (record.MASS) with a twin in debate.js, kept in step by a REGEX PARITY TEST
+  // that reads the JavaScript source — a guard built because the two had already drifted. The
+  // database knew neither, so "board mass" could be computed in Go and in JS but never asked of
+  // the record, and any view needing it would have had to hand-write the table a third time.
+  //
+  // As a facet the vocabulary table carries it: `enum_grade` grows a NOT NULL `mass` column, a
+  // grade added without a weight fails at schema build, and GapMass becomes what it always was
+  // conceptually — a join. MASS[likelihood] * MASS[impact] is two lookups against the same
+  // vocabulary every other reader already joins.
+  //
+  // GRADE_REALIZED IS 0 DELIBERATELY, and the enum's own comment says why: mass forecasts what is
+  // still to come, and a realized defect is measured by its damage instead. That zero is a real
+  // weight, not an absent one, which is exactly why the column is NOT NULL.
+  optional double mass = 50005;
 }
 
 // A CONSTRAINT THAT DEPENDS ON ANOTHER FIELD BELONGS ON THE MESSAGE.
@@ -224,15 +242,15 @@ enum Grade {
   // real grade. by_severity keys an ungraded mint under exactly that word. Modelling it as the
   // enum's zero keeps "not graded" a value the schema can carry rather than an absence a reader
   // has to infer.
-  GRADE_UNSPECIFIED = 0;
-  GRADE_TRIVIAL = 1 [(means) = "cosmetic; nothing downstream changes if it is wrong"];
-  GRADE_LOW = 2 [(means) = "minor"];
-  GRADE_LOW_MEDIUM = 3 [(means) = "between minor and material"];
-  GRADE_MEDIUM = 4 [(means) = "material"];
-  GRADE_MEDIUM_HIGH = 5 [(means) = "between material and serious"];
-  GRADE_HIGH = 6 [(means) = "serious"];
-  GRADE_CERTAIN = 7 [(means) = "the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists"];
-  GRADE_REALIZED = 8 [(means) = "it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead"];
+  GRADE_UNSPECIFIED = 0 [(mass) = 0];
+  GRADE_TRIVIAL = 1 [(means) = "cosmetic; nothing downstream changes if it is wrong", (mass) = 0.5];
+  GRADE_LOW = 2 [(means) = "minor", (mass) = 1];
+  GRADE_LOW_MEDIUM = 3 [(means) = "between minor and material", (mass) = 1.5];
+  GRADE_MEDIUM = 4 [(means) = "material", (mass) = 2];
+  GRADE_MEDIUM_HIGH = 5 [(means) = "between material and serious", (mass) = 2.5];
+  GRADE_HIGH = 6 [(means) = "serious", (mass) = 3];
+  GRADE_CERTAIN = 7 [(means) = "the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists", (mass) = 3.5];
+  GRADE_REALIZED = 8 [(means) = "it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead", (mass) = 0];
 }
 
 // Verdict is red's binary gate. PASS is CHECKED against the open board, not taken on the seat's

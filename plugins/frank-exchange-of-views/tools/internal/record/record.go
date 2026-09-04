@@ -88,9 +88,27 @@ import (
 // re-records all 24 of them.
 const MassMappingVersion = "v2"
 
-var MASS = map[string]float64{
-	"trivial": 0.5, "low": 1, "low_medium": 1.5, "medium": 2,
-	"medium_high": 2.5, "high": 3, "certain": 3.5, "realized": 0,
+// MASS IS DERIVED FROM THE VOCABULARY, not typed here.
+//
+// It was a hand-written map with a twin in debate.js, kept in step by a regex parity test that
+// reads the JavaScript source — a guard built because the two had already drifted. The weight is
+// now a facet on the Grade enum (`record.proto`), so this map is the SAME source the schema uses
+// to build `enum_grade.mass` and the same one a SQL view joins on. The JS copy still exists and
+// the parity test still guards it; what is gone is the third reading, where Go had its own.
+var MASS = massFromVocabulary()
+
+func massFromVocabulary() map[string]float64 {
+	ed := recordpb.Grade(0).Descriptor()
+	out := make(map[string]float64, ed.Values().Len())
+	for i := 0; i < ed.Values().Len(); i++ {
+		vd := ed.Values().Get(i)
+		w := recordpb.Word(recordpb.Grade(vd.Number()))
+		if w == "" {
+			continue // the UNSPECIFIED zero is absence, and GapMass already reads an absent grade as 0
+		}
+		out[w] = recordpb.GradeMass(recordpb.Grade(vd.Number()))
+	}
+	return out
 }
 
 // isGrade validates against the single canonical grade set (flags.Grades) — record does not

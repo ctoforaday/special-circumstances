@@ -5480,6 +5480,14 @@ var file_record_proto_extTypes = []protoimpl.ExtensionInfo{
 		Filename:      "record.proto",
 	},
 	{
+		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
+		ExtensionType: (*float64)(nil),
+		Field:         50005,
+		Name:          "feov.record.v1.mass",
+		Tag:           "fixed64,50005,opt,name=mass",
+		Filename:      "record.proto",
+	},
+	{
 		ExtendedType:  (*descriptorpb.MessageOptions)(nil),
 		ExtensionType: ([]*SqlCheck)(nil),
 		Field:         50002,
@@ -5525,12 +5533,31 @@ var (
 	//
 	// optional string ruled_by = 50004;
 	E_RuledBy = &file_record_proto_extTypes[3]
+	// mass IS WHAT A GRADE WEIGHS, and it is on the value because the weight is a property of the
+	// word rather than of whoever is multiplying it.
+	//
+	// It was a Go map (record.MASS) with a twin in debate.js, kept in step by a REGEX PARITY TEST
+	// that reads the JavaScript source — a guard built because the two had already drifted. The
+	// database knew neither, so "board mass" could be computed in Go and in JS but never asked of
+	// the record, and any view needing it would have had to hand-write the table a third time.
+	//
+	// As a facet the vocabulary table carries it: `enum_grade` grows a NOT NULL `mass` column, a
+	// grade added without a weight fails at schema build, and GapMass becomes what it always was
+	// conceptually — a join. MASS[likelihood] * MASS[impact] is two lookups against the same
+	// vocabulary every other reader already joins.
+	//
+	// GRADE_REALIZED IS 0 DELIBERATELY, and the enum's own comment says why: mass forecasts what is
+	// still to come, and a realized defect is measured by its damage instead. That zero is a real
+	// weight, not an absent one, which is exactly why the column is NOT NULL.
+	//
+	// optional double mass = 50005;
+	E_Mass = &file_record_proto_extTypes[4]
 )
 
 // Extension fields to descriptorpb.MessageOptions.
 var (
 	// repeated feov.record.v1.SqlCheck check = 50002;
-	E_Check = &file_record_proto_extTypes[4]
+	E_Check = &file_record_proto_extTypes[5]
 )
 
 var File_record_proto protoreflect.FileDescriptor
@@ -6142,18 +6169,18 @@ const file_record_proto_rawDesc = "" +
 	"\x15EVENT_TYPE_SPOT_CHECK\x10\x1d\x1aS\x8a\xb5\x18Ored re-checking a sample of prior work, or stating that it checked none and why\x12Q\n" +
 	"\x12EVENT_TYPE_VERDICT\x10\x1e\x1a9\x8a\xb5\x185red's round gate: PASS or FAIL against the open board\x12x\n" +
 	"\x11EVENT_TYPE_VERIFY\x10\x1f\x1aa\x8a\xb5\x18]a citation checked at the leaf: what the source did for the claim, and how sure the reader is\x12h\n" +
-	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 \x1aI\x8a\xb5\x18Ea review of the lines of inquiry themselves, rather than of a finding*\x8b\x05\n" +
-	"\x05Grade\x12\x15\n" +
-	"\x11GRADE_UNSPECIFIED\x10\x00\x12J\n" +
-	"\rGRADE_TRIVIAL\x10\x01\x1a7\x8a\xb5\x183cosmetic; nothing downstream changes if it is wrong\x12\x18\n" +
-	"\tGRADE_LOW\x10\x02\x1a\t\x8a\xb5\x18\x05minor\x124\n" +
-	"\x10GRADE_LOW_MEDIUM\x10\x03\x1a\x1e\x8a\xb5\x18\x1abetween minor and material\x12\x1e\n" +
-	"\fGRADE_MEDIUM\x10\x04\x1a\f\x8a\xb5\x18\bmaterial\x127\n" +
-	"\x11GRADE_MEDIUM_HIGH\x10\x05\x1a \x8a\xb5\x18\x1cbetween material and serious\x12\x1b\n" +
+	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 \x1aI\x8a\xb5\x18Ea review of the lines of inquiry themselves, rather than of a finding*\xf0\x05\n" +
+	"\x05Grade\x12\"\n" +
+	"\x11GRADE_UNSPECIFIED\x10\x00\x1a\v\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00\x12U\n" +
+	"\rGRADE_TRIVIAL\x10\x01\x1aB\x8a\xb5\x183cosmetic; nothing downstream changes if it is wrong\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\xe0?\x12#\n" +
+	"\tGRADE_LOW\x10\x02\x1a\x14\x8a\xb5\x18\x05minor\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\xf0?\x12?\n" +
+	"\x10GRADE_LOW_MEDIUM\x10\x03\x1a)\x8a\xb5\x18\x1abetween minor and material\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\xf8?\x12)\n" +
+	"\fGRADE_MEDIUM\x10\x04\x1a\x17\x8a\xb5\x18\bmaterial\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00@\x12B\n" +
+	"\x11GRADE_MEDIUM_HIGH\x10\x05\x1a+\x8a\xb5\x18\x1cbetween material and serious\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x04@\x12&\n" +
 	"\n" +
-	"GRADE_HIGH\x10\x06\x1a\v\x8a\xb5\x18\aserious\x12\xa4\x01\n" +
-	"\rGRADE_CERTAIN\x10\a\x1a\x90\x01\x8a\xb5\x18\x8b\x01the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists\x12\xb1\x01\n" +
-	"\x0eGRADE_REALIZED\x10\b\x1a\x9c\x01\x8a\xb5\x18\x97\x01it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead*\xff\x01\n" +
+	"GRADE_HIGH\x10\x06\x1a\x16\x8a\xb5\x18\aserious\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\b@\x12\xaf\x01\n" +
+	"\rGRADE_CERTAIN\x10\a\x1a\x9b\x01\x8a\xb5\x18\x8b\x01the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\f@\x12\xbc\x01\n" +
+	"\x0eGRADE_REALIZED\x10\b\x1a\xa7\x01\x8a\xb5\x18\x97\x01it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00*\xff\x01\n" +
 	"\aVerdict\x12\x17\n" +
 	"\x13VERDICT_UNSPECIFIED\x10\x00\x12{\n" +
 	"\fVERDICT_PASS\x10\x01\x1ai\x8a\xb5\x18eevery gap on the board is resolved — this is CHECKED against the open board, not taken on your word\x12^\n" +
@@ -6246,7 +6273,8 @@ const file_record_proto_rawDesc = "" +
 	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:<\n" +
 	"\x05means\x12!.google.protobuf.EnumValueOptions\x18ц\x03 \x01(\tR\x05means\x88\x01\x01:>\n" +
 	"\x06closes\x12!.google.protobuf.EnumValueOptions\x18ӆ\x03 \x01(\bR\x06closes\x88\x01\x01:A\n" +
-	"\bruled_by\x12!.google.protobuf.EnumValueOptions\x18Ԇ\x03 \x01(\tR\aruledBy\x88\x01\x01:Q\n" +
+	"\bruled_by\x12!.google.protobuf.EnumValueOptions\x18Ԇ\x03 \x01(\tR\aruledBy\x88\x01\x01::\n" +
+	"\x04mass\x12!.google.protobuf.EnumValueOptions\x18Ն\x03 \x01(\x01R\x04mass\x88\x01\x01:Q\n" +
 	"\x05check\x12\x1f.google.protobuf.MessageOptions\x18҆\x03 \x03(\v2\x18.feov.record.v1.SqlCheckR\x05checkBlZjgithub.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpbb\x06proto3"
 
 var (
@@ -6411,13 +6439,14 @@ var file_record_proto_depIdxs = []int32{
 	64, // 76: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
 	64, // 77: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
 	64, // 78: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	65, // 79: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	20, // 80: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	19, // 81: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	82, // [82:82] is the sub-list for method output_type
-	82, // [82:82] is the sub-list for method input_type
-	80, // [80:82] is the sub-list for extension type_name
-	75, // [75:80] is the sub-list for extension extendee
+	64, // 79: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	65, // 80: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	20, // 81: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	19, // 82: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	83, // [83:83] is the sub-list for method output_type
+	83, // [83:83] is the sub-list for method input_type
+	81, // [81:83] is the sub-list for extension type_name
+	75, // [75:81] is the sub-list for extension extendee
 	0,  // [0:75] is the sub-list for field type_name
 }
 
@@ -6517,7 +6546,7 @@ func file_record_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
 			NumEnums:      19,
 			NumMessages:   44,
-			NumExtensions: 5,
+			NumExtensions: 6,
 			NumServices:   0,
 		},
 		GoTypes:           file_record_proto_goTypes,

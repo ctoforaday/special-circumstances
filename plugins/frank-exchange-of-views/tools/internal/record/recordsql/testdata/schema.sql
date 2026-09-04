@@ -100,16 +100,17 @@ INSERT INTO "enum_grade_dimension" ("value", "means") VALUES ('severity', 'how b
 
 CREATE TABLE "enum_grade" (
   "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL
+  "means" TEXT NOT NULL,
+  "mass" REAL NOT NULL
 ) STRICT;
-INSERT INTO "enum_grade" ("value", "means") VALUES ('certain', 'the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists');
-INSERT INTO "enum_grade" ("value", "means") VALUES ('high', 'serious');
-INSERT INTO "enum_grade" ("value", "means") VALUES ('low', 'minor');
-INSERT INTO "enum_grade" ("value", "means") VALUES ('low_medium', 'between minor and material');
-INSERT INTO "enum_grade" ("value", "means") VALUES ('medium', 'material');
-INSERT INTO "enum_grade" ("value", "means") VALUES ('medium_high', 'between material and serious');
-INSERT INTO "enum_grade" ("value", "means") VALUES ('realized', 'it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead');
-INSERT INTO "enum_grade" ("value", "means") VALUES ('trivial', 'cosmetic; nothing downstream changes if it is wrong');
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('certain', 'the top of the scale — for LIKELIHOOD, reserve it for a consequence that is itself certain, never for a defect you merely verified exists', 3.5);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('high', 'serious', 3);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('low', 'minor', 1);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('low_medium', 'between minor and material', 1.5);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('medium', 'material', 2);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('medium_high', 'between material and serious', 2.5);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('realized', 'it has already happened. Contributes ZERO mass by design: mass forecasts what is still to come, and a realized defect is measured by its damage instead', 0);
+INSERT INTO "enum_grade" ("value", "means", "mass") VALUES ('trivial', 'cosmetic; nothing downstream changes if it is wrong', 0.5);
 
 CREATE TABLE "enum_petition_class" (
   "value" TEXT PRIMARY KEY,
@@ -644,6 +645,64 @@ LEFT JOIN "events" be ON be."id" = bc."event_id";
 
 -- The board's own count, asked once. Every consumer that wants "how many gaps are open" reads this
 -- rather than folding the stream again with its own idea of what closed means.
+-- THE NEVER-HARD-FAIL DETECTOR, ASKED OF THE RECORD RATHER THAN ASSERTED BY THE ENGINE.
+--
+-- debate.js computes this every round and writes it to a LOG LINE. The scorecard tried to read
+-- it from a telemetry key nothing ever wrote, so the detector reported 0 on every run for seven
+-- runs — "no soft fails" in the words it would use for "never measured". The fact existed; its
+-- only carrier was prose.
+--
+-- It is a QUESTION about the record, which is what this file is for, and every input is already
+-- here: the round's verdict, the mass of what is still open, the top severity, and whether any
+-- gap minted this round is fresh rather than lineage. So it is authored once, where a reader can
+-- see the fold, instead of recomputed in whichever consumer wants it.
+--
+-- MASS IS A JOIN NOW, and that is the change that made this expressible at all. A grade's weight
+-- is a facet on the vocabulary (enum_grade.mass), so board mass is
+-- MASS[likelihood] * MASS[impact] summed — the same formula the Go and JS copies apply, read
+-- off the same table the schema built from the enum. It used to be a hand-written map in two
+-- languages with a regex test holding them level, and SQL could not ask the question at all.
+--
+-- The thresholds are the engine's, restated once here: mass < 35, nothing above medium (mass 2),
+-- zero fresh mints, verdict FAIL.
+CREATE VIEW "convergence_vs_verdict" AS
+SELECT
+  v."round"                                        AS "round",
+  rv."verdict"                                     AS "verdict",
+  COALESCE(b."mass", 0.0)                          AS "mass",
+  COALESCE(b."max_severity_mass", 0.0)             AS "max_severity_mass",
+  COALESCE(f."fresh_mints", 0)                     AS "fresh_mints",
+  (rv."verdict" = 'fail'
+     AND COALESCE(b."mass", 0.0) < 35.0
+     AND COALESCE(b."max_severity_mass", 0.0) <= 2.0
+     AND COALESCE(f."fresh_mints", 0) = 0)         AS "divergent"
+FROM (SELECT DISTINCT "round" FROM "events" WHERE "round" > 0) v
+JOIN "events" ve ON ve."round" = v."round" AND ve."type" = 'verdict'
+JOIN "round_verdict" rv ON rv."event_id" = ve."id"
+LEFT JOIN (
+  -- Open AT that round: minted on or before it, and not closed before it ends.
+  SELECT
+    r."round"                                                  AS "round",
+    SUM(COALESCE(gl."mass", 0.0) * COALESCE(gi."mass", 0.0))   AS "mass",
+    MAX(COALESCE(gs."mass", 0.0))                              AS "max_severity_mass"
+  FROM (SELECT DISTINCT "round" FROM "events" WHERE "round" > 0) r
+  JOIN "gap" g
+    ON g."minted_round" <= r."round"
+   AND (g."open" OR g."closed_round" > r."round")
+  LEFT JOIN "enum_grade" gl ON gl."value" = g."likelihood"
+  LEFT JOIN "enum_grade" gi ON gi."value" = g."impact"
+  LEFT JOIN "enum_grade" gs ON gs."value" = g."severity"
+  GROUP BY r."round"
+) b ON b."round" = v."round"
+LEFT JOIN (
+  -- FRESH means minted this round and superseding nothing: a lineage mint is a repair of known
+  -- work, not new discovery, which is the distinction the detector turns on.
+  SELECT "minted_round" AS "round", count(*) AS "fresh_mints"
+  FROM "gap"
+  WHERE "supersedes_count" = 0
+  GROUP BY "minted_round"
+) f ON f."round" = v."round";
+
 CREATE VIEW "board_counts" AS
 SELECT
   (SELECT count(*) FROM "gap" WHERE "open")     AS "open_gaps",
