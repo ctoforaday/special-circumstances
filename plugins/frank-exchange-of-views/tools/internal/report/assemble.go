@@ -905,12 +905,25 @@ func correctnessManifest(board *record.Board) string {
 		manifested[id] = true
 		rows = append(rows, row{id, text, e.GetSeatId(), int(e.GetRound())})
 	}
-	// Every gap blue actually repaired: one the record shows CLOSED. A closure with no manifest
-	// row is a repair nobody audited, including its author.
+	// Every gap blue actually repaired: one a `close` event settled. A repair with no manifest
+	// row is one nobody audited, including its author.
+	//
+	// THE BENCH'S CLOSURES ARE NOT BLUE'S REPAIRS, and charging blue for them was this section
+	// accusing one party of an audit another party never owed it. A gap the bench disposed of
+	// was never repaired by anybody: there is no receipt to be missing.
+	//
+	// THE PREDICATE IS THE CLOSING BODY, NOT ClosedByBench — and the distinction is the whole
+	// correctness of this loop. ClosedByBench follows the LAST closing event (replay.go, where
+	// it is cleared on a later `close` and set on a later `opinion`), so a gap blue closed with
+	// no receipt that the bench afterwards ruled on carries ClosedByBench=true while still
+	// holding blue's `close` body. Keyed on the flag, that gap silently leaves this list — a
+	// receipt genuinely missing, dropped from the one section whose purpose is to say so, which
+	// is the same shape as the defect being fixed. g.Closure is the `close` body and nothing
+	// clears it, so its absence is the honest question: did any party ever close this by repair?
 	var unmanifested []string
 	for _, id := range board.GapOrder {
 		g := board.Gaps[id]
-		if g != nil && g.HasClosed && !manifested[id] {
+		if g != nil && g.HasClosed && g.Closure != nil && !manifested[id] {
 			unmanifested = append(unmanifested, id)
 		}
 	}
@@ -924,7 +937,7 @@ func correctnessManifest(board *record.Board) string {
 		fmt.Fprintf(&b, "- **%s** (%s, r%d): %s\n", r.gapID, r.seat, r.round, r.text)
 	}
 	if len(unmanifested) > 0 {
-		fmt.Fprintf(&b, "\n**%d closed gap(s) carry no manifest row (%s).** Those repairs were not audited by the party that made them.\n",
+		fmt.Fprintf(&b, "\n**%d repaired gap(s) carry no manifest row (%s).** Those repairs were not audited by the party that made them.\n",
 			len(unmanifested), strings.Join(unmanifested, ", "))
 	}
 	return strings.TrimRight(b.String(), "\n")

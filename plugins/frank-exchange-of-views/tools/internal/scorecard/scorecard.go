@@ -119,26 +119,54 @@ func ReadResults(run record.Run) []map[string]any {
 
 // ---- pure kernels (record projections, computed in-process) ----
 
-// ComputeAnchoredClosures counts closed gaps whose closure is anchored (full seat|tool|target
-// triple OR carried_from) — the pure kernel over the board JSON (JS computeAnchoredClosures).
-func ComputeAnchoredClosures(bj record.BoardJSON) (anchored, total int) {
-	for _, g := range bj.Closed {
-		c := g.Closure
-		if c == nil {
-			continue
+// ComputeAnchoredClosures counts REPAIR closures whose closure is anchored (full seat|tool|target
+// triple OR carried_from).
+//
+// IT TAKES THE BOARD, AND THE REASON IS THE DENOMINATOR. It read record.BoardJSON, and a bench
+// disposition can carry no anchor: it has no seat|tool|target and no carried_from, because
+// nothing was re-run to settle it. Every bench closure was therefore a guaranteed miss in the
+// numerator and a live row in the denominator, so the benchmark could not reach 100 on any run
+// where the bench closed anything — against a row that states `target 100`. A ratio nothing can
+// satisfy measures the record's shape, not the run's work.
+//
+// THE PREDICATE IS THE CLOSING BODY, NOT ClosedByBench. That flag follows the LAST closing event,
+// so a gap blue closed WITH a full anchor triple that the bench later ruled on carries
+// ClosedByBench=true — and excluding on it would delete a genuinely anchored closure from both
+// counts, which is the same unmeasurable-by-construction defect one ordering over. `Closure` is
+// the `close` body and `BenchClosure` the bench's; a gap holding only the latter was disposed of,
+// never repaired.
+//
+// BoardJSON cannot express that: closureBody prefers Closure and falls back to the bench body, so
+// the JSON's single `Closure` field cannot say which one filled it. The alternative was to add a
+// field to GapJSON — a `view --json` contract change for one consumer — against moving a kernel
+// with two call sites. The "pure kernel over the board JSON (JS computeAnchoredClosures)" this
+// comment used to claim was vestigial: no .js or .mjs in the tree defines that function, so no
+// parity constraint survived to protect.
+func ComputeAnchoredClosures(board *record.Board) (anchored, total int) {
+	for _, id := range board.GapOrder {
+		g := board.Gaps[id]
+		if g == nil || !g.HasClosed || g.Closure == nil {
+			continue // open, or disposed of by the bench rather than repaired
 		}
-		if c["carried_from"] != nil || (str(c["anchor_seat"]) != "" && str(c["anchor_tool"]) != "" && str(c["anchor_target"]) != "") {
+		total++
+		c := g.Closure
+		// READ THE TYPED BODY, not a map lifted out of the JSON. The map read `anchor_seat` and
+		// friends as `any` and asked whether each stringified to non-empty; the fields are
+		// declared on the Close message, so a misspelling here is a compile error rather than a
+		// key that is simply never present — which would count every closure as unanchored and
+		// report a plausible zero.
+		if c.GetCarriedFrom() != "" || (c.GetAnchorSeat() != "" && c.GetAnchorTool() != "" && c.GetAnchorTarget() != "") {
 			anchored++
 		}
 	}
-	return anchored, len(bj.Closed)
+	return anchored, total
 }
 
 func anchoredClosures(board *record.Board) (anchored, total int, ok bool) {
 	if board == nil {
 		return 0, 0, false // no board → JS null → "needs the tool"
 	}
-	a, t := ComputeAnchoredClosures(record.BoardJSONOf(board))
+	a, t := ComputeAnchoredClosures(board)
 	return a, t, true
 }
 
@@ -504,11 +532,19 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 	if ok && total > 0 {
 		rows = append(rows, Row{Clause: "Attestation-format invariant", Metric: "anchored_closures_pct", Cls: "benchmark",
 			Value: int(math.Round(float64(anchored) / float64(total) * 100)),
-			Note:  "target 100; baseline 89 (E0.5a)"})
+			// THE NOTE STATES ITS DENOMINATOR. A reader who has to infer what a ratio is over
+			// cannot tell a low score from a mis-scoped one, and this row spent months stating
+			// `target 100` against a denominator that made 100 unreachable whenever the bench
+			// closed anything.
+			Note: "target 100; baseline 89 (E0.5a); over gaps closed by REPAIR — a bench disposition carries no anchor and is not counted"})
 	} else {
 		n := "needs the tool (the board view) — anchored closures read the record"
 		if ok {
-			n = "no closed gaps this run"
+			// TWO WAYS TO HAVE NO DENOMINATOR, AND THEY ARE NOT THE SAME STATEMENT. Since the
+			// denominator became repair-closures only, a run whose every closure is the bench's
+			// lands here — and "no closed gaps this run" would be FALSE of it, which is the
+			// plausible zero this row was fixed to stop telling.
+			n = "no gaps closed by repair this run"
 		}
 		rows = append(rows, Row{Clause: "Attestation-format invariant", Metric: "anchored_closures_pct", Cls: "benchmark", Note: n})
 	}

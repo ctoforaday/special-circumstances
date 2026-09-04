@@ -650,3 +650,45 @@ func TestRevisionHistoryFromEvents(t *testing.T) {
 		t.Error("no revisions must yield empty (section omitted), not a bare heading")
 	}
 }
+
+// BLUE IS NOT CHARGED FOR THE BENCH'S CLOSURES.
+//
+// correctnessManifest listed every closed gap with no manifest row as "a repair nobody audited,
+// including its author". Bench-disposed gaps were in that set, and blue never repaired them —
+// the report accused one party of skipping an audit another party never owed it.
+func TestTheBenchsOwnClosuresAreNotBluesUnauditedRepairs(t *testing.T) {
+	board := &record.Board{
+		GapOrder: []string{"R1-1", "R1-2"},
+		Gaps: map[string]*record.Gap{
+			// Blue repaired this one and filed no receipt: a real missing manifest row.
+			"R1-1": {ID: "R1-1", HasClosed: true, Closure: &recordpb.Close{}},
+			// The bench disposed of this one. Nobody repaired it, so no receipt is owed.
+			"R1-2": {ID: "R1-2", HasClosed: true, BenchClosure: &recordpb.Opinion{}, ClosedByBench: true},
+		},
+	}
+	got := correctnessManifest(board)
+	if !strings.Contains(got, "R1-1") {
+		t.Errorf("blue's own unaudited repair left the list:\n%s", got)
+	}
+	if strings.Contains(got, "R1-2") {
+		t.Errorf("the report still charges blue for a gap the BENCH closed:\n%s", got)
+	}
+}
+
+// THE ORDERING THAT MAKES ClosedByBench THE WRONG KEY, asserted because the cheap fix passes
+// every other test in this file.
+//
+// Blue closes a gap and files no manifest row; the bench later rules on the same gap. The flag
+// follows the LAST closing event, so ClosedByBench is true — while blue's `close` is still the
+// closure and the receipt is still genuinely missing. Keyed on the flag, this row vanishes from
+// the one section whose stated purpose is to report exactly this.
+func TestABlueRepairTheBenchLaterRuledOnIsStillCharged(t *testing.T) {
+	g := &record.Gap{ID: "R1-1", HasClosed: true, Closure: &recordpb.Close{}}
+	g.BenchClosure = &recordpb.Opinion{}
+	g.ClosedByBench = true
+
+	got := correctnessManifest(&record.Board{GapOrder: []string{"R1-1"}, Gaps: map[string]*record.Gap{"R1-1": g}})
+	if !strings.Contains(got, "R1-1") {
+		t.Errorf("a missing receipt disappeared because the bench later ruled on the gap:\n%s", got)
+	}
+}

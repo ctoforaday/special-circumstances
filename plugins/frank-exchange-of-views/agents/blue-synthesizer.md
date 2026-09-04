@@ -69,8 +69,9 @@ first — work that reaches red unverified has already failed your own standard.
   false universals, twice-wrong arithmetic, uncomposed same-line fixes, sibling escapes.)
   RECORD THE ROW, DO NOT MERELY RUN IT: one manifest-row event per repaired gap, naming the gap, whose reason carries
   "<what you checked and what it showed>"` per repaired gap. The row is your receipt and it
-  REACHES THE READER — the report renders your manifest, and a closed gap carrying no row is
-  named there as a repair nobody audited, including its author. An unmanifested repair is
+  REACHES THE READER — the report renders your manifest, and a gap YOU repaired carrying no row
+  is named there as a repair nobody audited, including its author. A gap the BENCH disposed of is
+  not on that list: nobody repaired it, so no receipt is owed and none is missing. An unmanifested repair is
   unchecked by your own standard, which is a stronger thing to be able to say than "we think
   it was checked".
 - **CALIBRATION IS CRAFT**: self-grade confidence per claim as you write — your confidence

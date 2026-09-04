@@ -62,10 +62,14 @@ import (
 //
 // THE MOTION VERBS ARE SCOPED BY GAVEL, not by group membership: every seat may FILE any motion
 // and exactly one role RULES each subject, so `motion petition rule` belongs to the bench alone.
-// That is a fact about the tool rather than about the tree shape, and it is the one thing here the
-// tree cannot say — so it is stated once, next to the derivation that makes everything else
-// automatic.
-var motionRuler = map[string]string{"grade": "merge", "petition": "bench", "inquiry": "merge"}
+//
+// THE GAVEL IS READ FROM THE SCHEMA, NOT COPIED HERE. This was a hand-written
+// map[string]string — the fourth copy of a fact the MotionSubject enum already carries as a
+// `ruled_by` annotation, which cli/motion and record/refs.go both resolve through
+// recordpb.SubjectRuler. A gate holding its own copy of the surface measures the copy, which is
+// the sentence one paragraph up, and this file was doing it. A subject added to the schema with
+// its gavel declared would have been filed under byRole[""] here — offered to no role, and read
+// by the coverage gate as a verb nobody needs a board for.
 
 type Surface struct{ byRole map[string][]string }
 
@@ -92,8 +96,7 @@ func NewSurface(paths []string) Surface {
 		case len(parts) == 3 && parts[0] == "motion":
 			subject, verb := parts[1], parts[2]
 			if verb == "rule" {
-				r := motionRuler[subject]
-				byRole[r] = append(byRole[r], p)
+				byRole[rulerOf(subject)] = append(byRole[rulerOf(subject)], p)
 				continue
 			}
 			for _, r := range Roles {
@@ -418,4 +421,29 @@ func Report(sf Surface, run record.Run, seats []string, expect []Expectation, at
 		"Only the third is a question about the CONSTITUTION or the verb's own --help.\n",
 		unmet, len(verdicts))
 	return b.String(), nil
+}
+
+// rulerOf resolves the role holding a motion subject's gavel, from the schema.
+//
+// IT PANICS, AND THAT IS THE POINT. NewSurface returns a Surface and no error, and the surface it
+// builds is what the coverage gate measures itself against — so an unresolvable subject that
+// returned "" would file the verb under byRole[""], where no role offers it and no board is
+// demanded for it. The gate would then pass, having measured a surface with a verb missing from
+// it. A panic at surface construction fails every probe run at once instead, which is the same
+// trade cli/motion.rulerFor makes at command construction and for the same stated reason: the
+// failure belongs at startup, not at the moment someone tries to use the verb that went missing.
+//
+// The un-annotated case cannot be reached from a known subject — record/gavel_test.go's
+// TestEveryMotionSubjectNamesItsRuler refuses any MotionSubject without a ruler at the descriptor
+// — so this arm is defense in depth against a schema change that lands without it.
+func rulerOf(subject string) string {
+	subj, known := record.MotionSubjectEnum(subject)
+	if !known {
+		panic("seatprobe: motion subject " + subject + " is not in the MotionSubject enum — the CLI tree and the schema have diverged, and the surface this builds is what the coverage gate measures")
+	}
+	r, err := recordpb.SubjectRuler(subj)
+	if err != nil {
+		panic("seatprobe: " + err.Error())
+	}
+	return r
 }

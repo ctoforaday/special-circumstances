@@ -126,9 +126,26 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 				add("gap " + id + " is open — PASS is refused while it is")
 			}
 		}
+		// THE VIEW NAMES THE GAVEL BECAUSE THE REFUSAL DOES. requirePassClosesAllGaps refuses
+		// PASS over any unruled motion and says who rules each one; this list said only that the
+		// motion stood. A merge seat reading it saw work it appeared to owe, and the item it
+		// could not rule looked the same as the ones it could — which is the wedge the refusal's
+		// message was rewritten to close, arriving on the other surface.
+		//
+		// WHO IS BLOCKED DOES NOT CHANGE HERE. An unruled petition still blocks a merge PASS: the
+		// run is not finished until the bench answers it. What changes is that the seat is told
+		// whose answer it is waiting for.
 		for _, m := range Motions(b) {
 			if m != nil && !m.Ruled() {
-				add("motion " + m.ID + " was filed and never ruled — PASS is refused while it stands")
+				phrase, err := rulerPhrase(m.Subject)
+				if err != nil {
+					// A SCHEMA DEFECT MUST NOT SILENTLY SHORTEN A WORK LIST. SittingOf has no
+					// error to return, so the item is still reported and says what it could not
+					// resolve — the alternative is dropping a blocking motion from the one list
+					// a seat reads to find out what it owes.
+					phrase = m.Subject + ", and this binary cannot say who rules it: " + err.Error()
+				}
+				add("motion " + m.ID + " (" + phrase + ") was filed and never ruled — PASS is refused while it stands")
 			}
 		}
 		// THE LINES OF INQUIRY ARE READ ONCE, EVERY ROUND.
@@ -160,10 +177,24 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 	// statement and was previously unsayable: the old shape could only express it as an empty
 	// work list, and a lens seat read that and stopped.
 	case "bench":
+		// THE SUBJECTS THE BENCH RULES, FROM THE SCHEMA — not the literal "petition" this
+		// arm used to test. The gavel is an annotation on the MotionSubject enum, and a
+		// hand-written subject name here is a fourth copy of it that goes stale the moment a
+		// bench-ruled subject is added: the new subject's unruled motions would simply not appear
+		// on the bench's list, which reads as a bench with nothing outstanding.
 		for _, m := range Motions(b) {
-			if m != nil && !m.Ruled() && m.Subject == "petition" {
-				add("petition " + m.ID + " is unruled, and petitions are heard BEFORE the debate continues")
+			if m == nil || m.Ruled() {
+				continue
 			}
+			subj, known := MotionSubjectEnum(m.Subject)
+			if !known {
+				continue
+			}
+			ruler, err := recordpb.SubjectRuler(subj)
+			if err != nil || ruler != "bench" {
+				continue
+			}
+			add(m.Subject + " " + m.ID + " is unruled, and the bench's motions are heard BEFORE the debate continues")
 		}
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
