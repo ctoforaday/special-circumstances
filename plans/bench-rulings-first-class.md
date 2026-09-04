@@ -383,6 +383,7 @@ returns **19 files**:
 | **`report/assemble_integration_test.go:151,178`** | assert the literal `"**Report** · [Docket](docket.md)"` and `"[Docket](docket.md)"` — `[MODIFY]` |
 | `assemble.go:489` **and `assemble.go:576`** | both render `[the docket](docket.md)`. The link TEXT follows the title; the target does not. **`:576` was missing from the previous draft** |
 | `site.go:114` | the cross-file link rewriter — its comment quotes `[the docket](docket.md)` |
+| **`report/site_test.go:97`** | the twin of `site.go:114`: a comment quoting the same literal link text. `grep -rl "\[the docket\]"` returns exactly three non-golden files — `assemble.go`, `site.go`, `site_test.go` — and listing two of three is how the third survives a sweep |
 | `report/docs.go:47` `FileDocket = "docket.md"` | **NO CHANGE** — listed so the sweep meets it as a decision, not as a match |
 
 **The surfaces that still call the whole document red's, none of which the previous draft listed.**
@@ -394,8 +395,15 @@ for.
 one was assembled by eye and was one row short. From `plugins/frank-exchange-of-views/`:
 
 ```
-$ grep -rn "docket\.md" .
+$ grep -rn "docket\.md" .                      # from plugins/frank-exchange-of-views/
+$ grep -rn "docket\.md" README.md              # AND from the REPOSITORY ROOT
 ```
+
+**Two runs, and the second is not redundant.** Every other row here is relative to
+`plugins/frank-exchange-of-views/`, but the plugin's own `README.md` is eleven lines and carries no
+attribution — the shipped carrier is the **repository-root** `README.md`, which a census run from
+the plugin directory cannot see. A table whose census cannot reach its own row is the shape this
+document keeps finding; it reached the third audit round here.
 
 Neither `grep -rni "red team findings"` nor `grep -rn "redFindings"` reaches any of them: these
 surfaces describe the document without naming the section.
@@ -408,7 +416,8 @@ surfaces describe the document without naming the section.
 | `skills/research-protocol/references/report_template.md:14` | same file as `:87` | `[MODIFY]` |
 | `skills/research-protocol/SKILL.md:154` | "`docket.md` (red's findings in full" | `[MODIFY]` |
 | `agents/lead-judge.md:117` | "`docket.md` (red's board IN FULL)" | `[MODIFY]` |
-| `README.md:144` | "red's board" | `[MODIFY]` |
+| **`README.md:144` at the REPOSITORY ROOT** (not the plugin's) | "The adversarial record: red's board, the round-by-round transcript, the motions and their rulings" | `[MODIFY]` |
+| `plugins/frank-exchange-of-views/README.md:9` | lists the document set neutrally, attributing nothing | **NO CHANGE** — named because the path ambiguity above sent one draft to the wrong file |
 
 **The word `docket` is therefore left free for Scope 2's motion subject, in the sense the repository
 already uses it.** Four sites say "docket-bound" or "docketed gap" — `boards.go`,
@@ -580,8 +589,15 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
    package** (50 of 51 today): the previous draft filtered `integration/fuzz`, a path that no longer
    exists, so it removed nothing and left the run to abort before either package this scope touches.
 2. `grep -rni "red team findings" .` — **case-INSENSITIVE, re-run, not trusted from §III's table.**
-   It must return only regenerated goldens, `drop`'s retained key and history. The case-sensitive
-   form the earlier drafts specified misses `assemble.go:149`, `:199` and `assemble_test.go:455`.
+   The case-sensitive form the earlier drafts specified misses `assemble.go:149`, `:199` and
+   `assemble_test.go:455`.
+
+   **The expected residue, stated exactly, because the previous draft's was self-contradictory:**
+   the drop-map key at `assemble.go:149`, the retained-key assertion in `assemble_test.go:455`, and
+   git history. **NOT "regenerated goldens"** — the only two goldens carrying the string today
+   (`prompt-blue-respond-r1.golden`, `prompt-blue-synthesize.golden`) are regenerated FROM the
+   reworded `debate.js`, so after this scope they carry it nowhere. A residue list that expects the
+   string where it will not be, and does not expect it where it will, cannot fail correctly.
 3. **The blue prohibition still bites, and the drop map still catches.** Two assertions, because
    either alone passes while the other's defect survives:
    - `debate.test.mjs:1185-1187` asserts the FABRICATION clause names `## The board`.
