@@ -24,7 +24,15 @@ import (
 //	bench  judge-r<N>, judge-petition-<petitioner>, judge-terminal, assemble
 //
 // — and nothing could refuse anything against it, because a comment is not a check. Every id below
-// is verified against debate.js's own dispatch sites; see TestTheRosterMatchesWhatTheEngineActuallyDispatches.
+// is verified against debate.js's own dispatch sites by TestTheRosterMatchesWhatTheEngineActuallyDispatches,
+// in both directions: a dispatched seat no shape admits, and a shape no dispatch produces.
+//
+// THAT SENTENCE WAS ITSELF AN UNCHECKED COMMENT until #675 — it named a test that did not exist,
+// in the paragraph arguing that a comment is not a check. What stood in its place reconciled these
+// shapes against `roleSeats`: two hand-written tables over here stating one vocabulary, neither of
+// them the engine. The bind reads the seat ids debate.js hands `recordClause` — the string a seat
+// is told to type at `register` — rather than the dispatch LABELS, which are a dashboard's text and
+// do not carry a seat id's shape at all.
 //
 // WHAT THIS DOES NOT DO, stated because a gate that seems to prove more than it does is worse than
 // none. It bounds the SHAPE, never the membership: `red-lens-r99-L4` is well formed and no run will
@@ -79,6 +87,10 @@ func TierClassOfSeat(seatID string) string {
 // sitting is named for the seat that petitioned, so one id names one sitting (#394). Folding it
 // into the table would need a pattern matching every other pattern, which is the point at which a
 // regex stops being a schema and becomes a guess.
+//
+// Bound to the head debate.js actually composes by TestThePetitionPrefixMatchesTheOneDebateComposes:
+// Go CUTS this prefix where the engine COMPOSES it, so a rename over there refuses every petition
+// seat over here, in a message about an id the engine had just dispatched.
 const petitionPrefix = "judge-petition-"
 
 // dispatchableSeatID reports whether an id is one the engine's naming scheme can produce.
