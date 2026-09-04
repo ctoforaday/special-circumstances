@@ -94,7 +94,7 @@ func isZero(v any) bool {
 // ReadTelemetry returns the board telemetry series, computed on read from the
 // record via the shared view library; nil when the run has no rounds. The series
 // is never materialized to disk — the record is the source.
-func ReadTelemetry(run record.Run) []map[string]any {
+func ReadTelemetry(run record.Run) []*recordpb.TelemetryLine {
 	rows, err := view.Telemetry(run)
 	if err != nil {
 		return nil
@@ -259,16 +259,18 @@ func BucketFindingsByRole(findings []record.FindingJSON) (objJSON, bool) {
 
 // ---- row builders ----
 
-func blueRows(run record.Run, results []map[string]any, telemetry []map[string]any, board *record.Board) []Row {
+func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.TelemetryLine, board *record.Board) []Row {
 	var rows []Row
 
 	// repair_regression_ratio
 	var ratios []float64
 	for _, t := range telemetry {
-		if rr, ok := t["repair_regression"].(map[string]any); ok {
-			if v, ok := num(rr["ratio"]); ok {
-				ratios = append(ratios, v)
-			}
+		// ABSENT RATIO IS NOT ZERO. A round that closed nothing has no ratio to report, and the
+		// message says so by leaving the field unset — averaging a 0.0 in its place would report
+		// perfect repair durability for a round that repaired nothing. The map read this replaces
+		// got the same answer by a weaker route: a missing key failed the type assertion.
+		if rr := t.GetRepairRegression(); rr != nil && rr.Ratio != nil {
+			ratios = append(ratios, rr.GetRatio())
 		}
 	}
 	if len(ratios) > 0 {
@@ -494,7 +496,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []map[string]a
 	return rows
 }
 
-func redRows(results []map[string]any, telemetry []map[string]any, board *record.Board) []Row {
+func redRows(results []map[string]any, telemetry []*recordpb.TelemetryLine, board *record.Board) []Row {
 	var rows []Row
 
 	// anchored_closures_pct
@@ -511,14 +513,20 @@ func redRows(results []map[string]any, telemetry []map[string]any, board *record
 		rows = append(rows, Row{Clause: "Attestation-format invariant", Metric: "anchored_closures_pct", Cls: "benchmark", Note: n})
 	}
 
-	// convergence_vs_verdict_flags
-	softFails := 0
-	for _, t := range telemetry {
-		if v, ok := t["convergence_vs_verdict_flag"]; ok && truthy(v) {
-			softFails++
-		}
-	}
-	rows = append(rows, Row{Clause: "Never-hard-fail", Metric: "convergence_vs_verdict_flags", Cls: "detector", Value: softFails})
+	// convergence_vs_verdict_flags — A LOST PRODUCER, REPORTED AS SUCH RATHER THAN AS ZERO.
+	//
+	// This counted telemetry rows whose `convergence_vs_verdict_flag` was truthy. NOTHING HAS EVER
+	// WRITTEN THAT KEY: it appears nowhere in the tool, nowhere in the engine, and nowhere in the
+	// schema, so the map lookup missed on every row of every run and the detector reported 0 —
+	// which reads as "no soft fails" and meant "never measured". `feov-memory/red-scorecard.md`
+	// carries that 0 for seven captured runs.
+	//
+	// Typing the telemetry line is what exposed it: a missing map key is silent, a missing field
+	// is a compile error. It is NOT modelled in TelemetryLine for the same reason `accepted_deltas`
+	// is reserved rather than encoded (see the schema) — a field nobody writes would carry the
+	// plausible zero forward wearing the schema's authority. The metric now states the absence.
+	rows = append(rows, Row{Clause: "Never-hard-fail", Metric: "convergence_vs_verdict_flags", Cls: "detector",
+		Note: "NOT MEASURED — no producer writes a convergence-vs-verdict flag; the previous 0 was a missing map key, not a clean board"})
 
 	// citation_yield_by_round (object value)
 	if yield, ok := citationYieldByRole(board); ok {

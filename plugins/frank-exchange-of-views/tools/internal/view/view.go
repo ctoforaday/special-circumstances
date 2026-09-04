@@ -7,6 +7,7 @@
 package view
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"google.golang.org/protobuf/proto"
 )
 
 // jsNum formats a float the way JSON.stringify / String() would: JavaScript
@@ -132,38 +134,25 @@ func Counts(run record.Run) (open, closed int, err error) {
 	return open, closed, nil
 }
 
-// Telemetry returns the per-round board-telemetry series, computed from the
-// record — the single source that replaced the materialized board-telemetry.jsonl.
-// Rows are decoded the way the consumers previously decoded the file (UseNumber),
-// so numeric leaves are json.Number and nested objects are map[string]any.
-func Telemetry(run record.Run) ([]map[string]any, error) {
+// Telemetry returns the per-round board-telemetry series, computed from the record — the single
+// source that replaced the materialized board-telemetry.jsonl.
+//
+// IT HANDS BACK THE TYPED MESSAGE, and that is the whole point of this function's history. It used
+// to build the line as an untyped map, marshal it to a JSON STRING, and then re-parse that string
+// back into map[string]any with UseNumber() — a serialize/deserialize round trip inside one
+// process, between two functions in this file, that threw away every type it had just computed so
+// that consumers could look fields up by string key and get json.Number leaves. JSON at the
+// boundary is deliberate (TelemetryJSONL, `--json`); JSON as the way two functions in one package
+// talk to each other was never a decision, only a leftover.
+//
+// The decode error this used to return is gone with the decode: there is no longer a step between
+// producing a row and reading it that can fail.
+func Telemetry(run record.Run) ([]*recordpb.TelemetryLine, error) {
 	b, err := record.BoardState(run)
 	if err != nil {
 		return nil, err
 	}
-	lines, err := telemetryLines(b)
-	if err != nil {
-		return nil, err
-	}
-	var rows []map[string]any
-	for i, ln := range lines {
-		dec := json.NewDecoder(strings.NewReader(ln))
-		dec.UseNumber()
-		var m map[string]any
-		// THE ERROR IS RETURNED, NOT SWALLOWED. The consumers (dashboard, cost, scorecard) render
-		// a ROUND PER ROW, so dropping an undecodable row makes a round silently stop existing:
-		// the series just looks shorter and nothing says a line was unreadable.
-		//
-		// These lines come from telemetryLines a few statements earlier in the same call, so a
-		// decode failure is an internal inconsistency — the one case where failing loud costs
-		// nothing, because there is no external input to be tolerant of.
-		if err := dec.Decode(&m); err != nil {
-			return nil, fmt.Errorf("view: telemetry row %d of %d did not decode: %w\nrow: %s",
-				i+1, len(lines), err, ln)
-		}
-		rows = append(rows, m)
-	}
-	return rows, nil
+	return telemetryRows(b)
 }
 
 // TelemetryJSONL returns the board-telemetry series as the raw JSONL wire bytes
@@ -175,9 +164,32 @@ func TelemetryJSONL(run record.Run) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	lines, err := telemetryLines(b)
+	rows, err := telemetryRows(b)
 	if err != nil {
 		return nil, err
+	}
+	// THE BOUNDARY IS WHERE JSON BELONGS — and the shape it emits is NOT protojson's.
+	//
+	// `show telemetry` is a live seat-facing surface, so these bytes are a contract with whoever
+	// reads them. protojson would have changed four things at once as a side effect of typing the
+	// producer: enum values would print as `GRADE_HIGH` where this wire has always said `high`,
+	// `by_severity` would become an array of {grade,count} objects where it has always been an
+	// object keyed by the grade word, unset fields would VANISH where this wire writes an explicit
+	// `null`, and an ungraded mint would key on `GRADE_UNSPECIFIED` instead of the `undefined`
+	// sentinel gradeText exists to produce. Changing an output contract is a decision; doing it as
+	// a side effect of an internal refactor is not one, so the wire is written out deliberately.
+	//
+	// What the typing bought is upstream of here: the row is a typed message all the way from the
+	// record to this function, instead of a map that was serialized and re-parsed inside one
+	// process. This is the ONE place a shape is described twice, and it is pinned by the tests
+	// that assert each of the four properties above.
+	lines := make([]string, 0, len(rows))
+	for _, row := range rows {
+		enc, err := json.Marshal(telemetryWire(row))
+		if err != nil {
+			return nil, fmt.Errorf("view: encoding telemetry round %d: %w", row.GetRound(), err)
+		}
+		lines = append(lines, string(enc))
 	}
 	out := strings.Join(lines, "\n")
 	if len(lines) > 0 {
@@ -378,7 +390,7 @@ func archiveMD(b *record.Board) []byte {
 
 // telemetryLines computes the board-telemetry series as JSONL lines (the compute
 // that was inline in render.go), the shared source Telemetry decodes.
-func telemetryLines(b *record.Board) ([]string, error) {
+func telemetryRows(b *record.Board) ([]*recordpb.TelemetryLine, error) {
 	// THE SERIES IS DENSE OVER THE RUN'S ROUNDS, and it was keyed on MINT rounds alone.
 	//
 	// MEASURED 2026-08-22 on research/2026-08-22_is-7-prime. All five gaps were minted at round 1
@@ -417,7 +429,7 @@ func telemetryLines(b *record.Board) ([]string, error) {
 	}
 	sort.Ints(rounds)
 
-	var telemetry []string
+	var telemetry []*recordpb.TelemetryLine
 	prevClasses := map[string]bool{} // the previous round's mint classes — the repeat-rate basis
 	for _, r := range rounds {
 		var openAtR, minted, closedAtR, lineage []*record.Gap
@@ -459,14 +471,20 @@ func telemetryLines(b *record.Board) ([]string, error) {
 				}
 			}
 		}
-		bySev := record.NewPayload()
+		// ORDER IS OWNED HERE, which is the schema's stated reason for `repeated` over a map:
+		// first appearance among this round's mints, so the series is deterministic without
+		// trusting any encoder's map ordering.
+		bySevCount := map[recordpb.Grade]int32{}
+		var bySevOrder []recordpb.Grade
 		for _, g := range minted {
-			k := gradeText(g.Severity)
-			n := 0
-			if v, ok := bySev.Get(k); ok {
-				n, _ = v.(int)
+			if _, seen := bySevCount[g.Severity]; !seen {
+				bySevOrder = append(bySevOrder, g.Severity)
 			}
-			bySev.Set(k, n+1)
+			bySevCount[g.Severity]++
+		}
+		bySev := make([]*recordpb.SeverityTally, 0, len(bySevOrder))
+		for _, gr := range bySevOrder {
+			bySev = append(bySev, &recordpb.SeverityTally{Grade: gr.Enum(), Count: proto.Int32(bySevCount[gr])})
 		}
 		// THE CLASS DISTRIBUTION — "did the findings change CHARACTER" made computable.
 		//
@@ -477,17 +495,13 @@ func telemetryLines(b *record.Board) ([]string, error) {
 		// internal-consistency complaints means the rest is cheaper to shake out in
 		// execution than in review. Class is already a REQUIRED mint field validated
 		// against the registry, so this is an aggregation, never a new assertion.
-		byClass := record.NewPayload()
+		byClass := map[string]int32{}
 		for _, g := range minted {
 			k := g.Mint.GetClass()
 			if k == "" {
 				continue
 			}
-			n := 0
-			if v, ok := byClass.Get(k); ok {
-				n, _ = v.(int)
-			}
-			byClass.Set(k, n+1)
+			byClass[k]++
 		}
 		// Repeat rate against the PREVIOUS round's classes: high means the run is
 		// circling the same kind of defect, which is signal 1 without reading the prose.
@@ -497,9 +511,9 @@ func telemetryLines(b *record.Board) ([]string, error) {
 				repeated++
 			}
 		}
-		var repeatRate any
+		var repeatRate *float64
 		if len(minted) > 0 && r > 1 {
-			repeatRate = round2(float64(repeated) / float64(len(minted)))
+			repeatRate = proto.Float64(round2(float64(repeated) / float64(len(minted))))
 		}
 		nextPrevClasses := map[string]bool{}
 		for _, g := range minted {
@@ -507,7 +521,7 @@ func telemetryLines(b *record.Board) ([]string, error) {
 				nextPrevClasses[c] = true
 			}
 		}
-		maxSeverity := any(nil)
+		var maxSeverity *recordpb.Grade
 		if len(openAtR) > 0 {
 			sevs := make([]recordpb.Grade, len(openAtR))
 			for i, g := range openAtR {
@@ -520,38 +534,38 @@ func telemetryLines(b *record.Board) ([]string, error) {
 			// ungraded — GradeStr's empty string is the absence the old `Str` returned for a
 			// missing key, and the schema's TelemetryLine comment keeps the two apart: the
 			// `undefined` sentinel is what a RENDERED grade prints, not what an unset one records.
-			if top := record.GradeStr(sevs[0]); top != "" {
-				maxSeverity = top
+			if record.GradeStr(sevs[0]) != "" {
+				maxSeverity = sevs[0].Enum()
 			}
 		}
-		var ratio any
+		var ratio *float64
 		if len(closedAtR) > 0 {
-			ratio = round2(float64(len(lineage)) / float64(len(closedAtR)))
+			ratio = proto.Float64(round2(float64(len(lineage)) / float64(len(closedAtR))))
 		}
-		line := record.NewPayload().
-			Set("round", r).
-			Set("mapping_version", record.MassMappingVersion).
-			Set("open_count", len(openAtR)).
-			Set("max_severity", maxSeverity).
-			Set("new_mint", record.NewPayload().
-				Set("count", len(minted)).
-				Set("by_severity", bySev).
-				Set("by_class", byClass).
-				Set("class_repeat_rate", repeatRate)).
-			Set("mass", massSum(openAtR)).
-			Set("realized_open", realizedOpen).
-			Set("repair_regression", record.NewPayload().
-				Set("closures", len(closedAtR)).
-				Set("lineage_mints", len(lineage)).
-				Set("ratio", ratio)).
-			Set("edge_deltas", record.NewPayload().
-				Set("down_mass", round2(down)).
-				Set("up_mass", round2(up)))
-		enc, err := record.MarshalCompact(line)
-		if err != nil {
-			return nil, err
+		line := &recordpb.TelemetryLine{
+			Round:          proto.Int32(int32(r)),
+			MappingVersion: proto.String(record.MassMappingVersion),
+			OpenCount:      proto.Int32(int32(len(openAtR))),
+			MaxSeverity:    maxSeverity,
+			NewMint: &recordpb.NewMint{
+				Count:           proto.Int32(int32(len(minted))),
+				BySeverity:      bySev,
+				ByClass:         byClass,
+				ClassRepeatRate: repeatRate,
+			},
+			Mass:         proto.Float64(massSum(openAtR)),
+			RealizedOpen: proto.Int32(int32(realizedOpen)),
+			RepairRegression: &recordpb.RepairRegression{
+				Closures:     proto.Int32(int32(len(closedAtR))),
+				LineageMints: proto.Int32(int32(len(lineage))),
+				Ratio:        ratio,
+			},
+			EdgeDeltas: &recordpb.EdgeDeltas{
+				DownMass: proto.Float64(round2(down)),
+				UpMass:   proto.Float64(round2(up)),
+			},
 		}
-		telemetry = append(telemetry, string(enc))
+		telemetry = append(telemetry, line)
 		prevClasses = nextPrevClasses
 	}
 	return telemetry, nil
@@ -747,4 +761,97 @@ func inquiryMD(b *record.Board) []byte {
 			"choice. `declined`, `abandoned` and `deferred` are settled and never appear here._", "")
 	}
 	return []byte(strings.Join(inquiry, "\n") + "\n")
+}
+
+// ---- the telemetry wire shape ----
+//
+// One struct per nested object, in the field order the line has always had. Pointers WITHOUT
+// omitempty are deliberate: a nil renders as `null`, which is what this wire says for "not
+// measured this round" — max_severity with nothing graded, class_repeat_rate with nothing minted,
+// ratio with nothing closed. Omitting the key instead would make an unmeasured round and a round
+// that never reported the field indistinguishable to a reader.
+
+type telemetryLineJSON struct {
+	Round            *int32         `json:"round"`
+	MappingVersion   *string        `json:"mapping_version"`
+	OpenCount        *int32         `json:"open_count"`
+	MaxSeverity      *string        `json:"max_severity"`
+	NewMint          newMintJSON    `json:"new_mint"`
+	Mass             *float64       `json:"mass"`
+	RealizedOpen     *int32         `json:"realized_open"`
+	RepairRegression repairRegJSON  `json:"repair_regression"`
+	EdgeDeltas       edgeDeltasJSON `json:"edge_deltas"`
+}
+
+type newMintJSON struct {
+	Count           *int32           `json:"count"`
+	BySeverity      severityObject   `json:"by_severity"`
+	ByClass         map[string]int32 `json:"by_class"`
+	ClassRepeatRate *float64         `json:"class_repeat_rate"`
+}
+
+type repairRegJSON struct {
+	Closures     *int32   `json:"closures"`
+	LineageMints *int32   `json:"lineage_mints"`
+	Ratio        *float64 `json:"ratio"`
+}
+
+type edgeDeltasJSON struct {
+	DownMass *float64 `json:"down_mass"`
+	UpMass   *float64 `json:"up_mass"`
+}
+
+// severityObject writes the repeated tally as an OBJECT keyed by the grade word, in the producer's
+// order — which is why the schema made it `repeated` rather than a map: the order is owned by the
+// code that computed it rather than by an encoder's map iteration.
+type severityObject []*recordpb.SeverityTally
+
+func (so severityObject) MarshalJSON() ([]byte, error) {
+	var b bytes.Buffer
+	b.WriteByte('{')
+	for i, t := range so {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		k, err := json.Marshal(gradeText(t.GetGrade()))
+		if err != nil {
+			return nil, err
+		}
+		b.Write(k)
+		b.WriteByte(':')
+		b.WriteString(strconv.FormatInt(int64(t.GetCount()), 10))
+	}
+	b.WriteByte('}')
+	return b.Bytes(), nil
+}
+
+// telemetryWire maps the typed row onto that shape. gradeText, not recordpb.Word: an ungraded top
+// severity prints the `undefined` sentinel here, never a bare blank.
+func telemetryWire(t *recordpb.TelemetryLine) telemetryLineJSON {
+	w := telemetryLineJSON{
+		Round:          t.Round,
+		MappingVersion: t.MappingVersion,
+		OpenCount:      t.OpenCount,
+		Mass:           t.Mass,
+		RealizedOpen:   t.RealizedOpen,
+	}
+	if t.MaxSeverity != nil {
+		word := gradeText(t.GetMaxSeverity())
+		w.MaxSeverity = &word
+	}
+	if nm := t.GetNewMint(); nm != nil {
+		w.NewMint = newMintJSON{
+			Count:           nm.Count,
+			BySeverity:      nm.GetBySeverity(),
+			ByClass:         nm.GetByClass(),
+			ClassRepeatRate: nm.ClassRepeatRate,
+		}
+	}
+	if rr := t.GetRepairRegression(); rr != nil {
+		w.RepairRegression = repairRegJSON{Closures: rr.Closures, LineageMints: rr.LineageMints, Ratio: rr.Ratio}
+	}
+	if ed := t.GetEdgeDeltas(); ed != nil {
+		w.EdgeDeltas = edgeDeltasJSON{DownMass: ed.DownMass, UpMass: ed.UpMass}
+	}
+	return w
 }

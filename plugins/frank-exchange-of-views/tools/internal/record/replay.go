@@ -1,7 +1,6 @@
 package record
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -30,25 +29,11 @@ import (
 // unset — is enforced descriptor-side for EVERY field by recordpb's correspondence test, which
 // is why deleting the encoder cost no guard.
 
-// marshalCompact is the JSON rule for the non-event values written to disk — the telemetry JSONL
-// that view.Telemetry writes and the dashboard, cost and scorecard re-decode as raw JSON keys. A
-// PROJECTION, not a record, which is why it survives the record ceasing to be a file.
-//
-// SetEscapeHTML(false) is mandatory: that projection is compared byte-for-byte against the
-// oracle's JSON.stringify, which does not escape <, > or &.
-func marshalCompact(v any) ([]byte, error) {
-	var b bytes.Buffer
-	enc := json.NewEncoder(&b)
-	enc.SetEscapeHTML(false)
-	if err := enc.Encode(v); err != nil {
-		return nil, err
-	}
-	return bytes.TrimRight(b.Bytes(), "\n"), nil
-}
-
-// MarshalCompact is the exported form for the view package, which needs the
-// exact byte-identical encoding when it computes the telemetry JSONL on read.
-func MarshalCompact(v any) ([]byte, error) { return marshalCompact(v) }
+// THE PROJECTION ENCODER IS GONE WITH THE ROUND TRIP. `marshalCompact` (and its exported twin)
+// existed so the telemetry line could be built as an untyped map, encoded to JSON, and decoded
+// straight back into another untyped map inside the same process. view.Telemetry now hands its
+// consumers the typed TelemetryLine and serializes once, at the boundary, from the schema — so
+// there is no longer a non-event value on this path needing a hand-kept JSON rule.
 
 type shardInfo struct {
 	nonce  string

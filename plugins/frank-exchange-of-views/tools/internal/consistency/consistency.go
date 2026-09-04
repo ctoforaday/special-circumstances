@@ -344,8 +344,8 @@ func Check(run record.Run) ([]string, error) {
 		add("telemetry", "derivation failed: %v", err)
 	} else if len(rows) > 0 {
 		last := rows[len(rows)-1]
-		if oc, ok := numField(last, "open_count"); ok && oc != openGT {
-			add("telemetry", "final round open_count=%d, raw walk says %d", oc, openGT)
+		if last.OpenCount != nil && int(last.GetOpenCount()) != openGT {
+			add("telemetry", "final round open_count=%d, raw walk says %d", last.GetOpenCount(), openGT)
 		}
 	}
 

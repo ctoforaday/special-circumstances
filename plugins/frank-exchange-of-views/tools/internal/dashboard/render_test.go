@@ -8,18 +8,30 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/goldentest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 func fp(f float64) *float64 { return &f }
 func ip(n int) *int         { return &n }
+func i32p(n int32) *int32   { return &n }
 
-// telemetry fixture: two rounds, with new_mint.by_severity + accepted_deltas.
-func telFixture() []map[string]any {
-	return []map[string]any{
-		{"round": 1.0, "mass": 4.0, "open_count": 3.0, "max_severity": "high",
-			"new_mint": map[string]any{"count": 3.0, "by_severity": map[string]any{"high": 2.0, "medium": 1.0}}, "accepted_deltas": []any{}},
-		{"round": 2.0, "mass": 6.0, "open_count": 2.0, "max_severity": "high",
-			"new_mint": map[string]any{"count": 1.0, "by_severity": map[string]any{"medium": 1.0}}, "accepted_deltas": []any{map[string]any{}}},
+// telemetry fixture: two rounds, with new_mint.by_severity.
+//
+// `accepted_deltas` is GONE from this fixture and that is the point rather than an omission. The
+// map version supplied it, so these tests exercised a field PRODUCTION NEVER WRITES — the schema
+// reserves the number and refuses to model it for exactly that reason. A typed fixture cannot
+// carry it, so the tests now see what a run sees.
+func telFixture() []*recordpb.TelemetryLine {
+	i32 := func(n int32) *int32 { return &n }
+	f64 := func(f float64) *float64 { return &f }
+	hi, med := recordpb.Grade_GRADE_HIGH, recordpb.Grade_GRADE_MEDIUM
+	return []*recordpb.TelemetryLine{
+		{Round: i32(1), Mass: f64(4), OpenCount: i32(3), MaxSeverity: &hi,
+			NewMint: &recordpb.NewMint{Count: i32(3), BySeverity: []*recordpb.SeverityTally{
+				{Grade: &hi, Count: i32(2)}, {Grade: &med, Count: i32(1)}}}},
+		{Round: i32(2), Mass: f64(6), OpenCount: i32(2), MaxSeverity: &hi,
+			NewMint: &recordpb.NewMint{Count: i32(1), BySeverity: []*recordpb.SeverityTally{
+				{Grade: &med, Count: i32(1)}}}},
 	}
 }
 
@@ -41,8 +53,8 @@ func baseModel(t *testing.T, runDir string) Model {
 		BlueClaims: ip(15),
 		Steps:      []Step{{"frontier", "done"}, {"blue lanes", "done"}, {"synthesis", "live"}, {"round 1", "todo"}, {"assembly", "todo"}},
 		Rates: []Rate{
-			{Round: 1.0, Opened: 3, Closed: 0, Open: 3.0, CloseRate: 0},
-			{Round: 2.0, Opened: 1, Closed: 2, Open: 2.0, CloseRate: 50},
+			{Round: i32p(1), Opened: 3, Closed: 0, Open: i32p(3), CloseRate: 0},
+			{Round: i32p(2), Opened: 1, Closed: 2, Open: i32p(2), CloseRate: 50},
 		},
 		Judiciary: judFixture(),
 		Config:    Config{Topic: "does the widget converge", Model: "sonnet", JudgmentModel: "opus", MaxRounds: "8", Lanes: "3"},
