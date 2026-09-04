@@ -96,7 +96,26 @@ const wazeroCacheDir = ".wazero"
 //
 // The error text is caller-ready: Extract folds it straight into a Reason a seat reads, so
 // it names the stage rather than the symptom.
+// moduleCacheDir redirects the compiled-module cache away from the run, and is set by THIS
+// PACKAGE'S TESTS ALONE — production leaves it empty and the cache stays under the run, which is
+// the behaviour the constant above describes.
+//
+// WHY THE TESTS NEED A DOOR PRODUCTION DOES NOT. The 3,968 ms compile is amortised per CACHE
+// DIRECTORY, and the cache directory is derived from the run. That is right for the product — a
+// `fetch` process handles one run — and exactly wrong for a test binary, where every test builds
+// its own run under its own `t.TempDir()` and therefore its own empty cache. 21 tests touch PDFium
+// here and each one paid the full compile: 68s for a package whose actual work is milliseconds,
+// and past the 10-minute default timeout under `-race`, where the instrumented compile is ~10x.
+// fetchcache is in the binary's import graph, so that is CI's race leg (hooks.yml).
+//
+// It is a directory rather than a bool because the tests still need the cache to WORK — sharing
+// one warm cache is the entire point, and a flag disabling it would trade the same 68s back.
+var moduleCacheDir string
+
 func pdfiumInstance(cacheDir string) (pdfium.Pdfium, func(), error) {
+	if moduleCacheDir != "" {
+		cacheDir = moduleCacheDir
+	}
 	cache, err := wazero.NewCompilationCacheWithDir(filepath.Join(cacheDir, wazeroCacheDir))
 	if err != nil {
 		return nil, nil, fmt.Errorf("wazero compilation cache unavailable: %w", err)
