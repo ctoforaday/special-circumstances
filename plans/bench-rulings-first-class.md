@@ -320,23 +320,58 @@ the dropped §III.H's question, and answering it here would re-fold the concept 
 ### Scope 3 — `## Red team findings` → `## The board` `[MODIFY]`
 
 The section is not red's findings and has not been: `redFindings` (`assemble.go:770`) also appends
-blue's correctness manifest and red's archive spot-checks. Independent of Scopes 1 and 2.
+blue's correctness manifest and red's archive spot-checks. **Three parties' output filed under one
+party's name.** Independent of Scopes 1 and 2.
 
-Carriers, unfiltered census — `grep -rn "Red team findings" .` and `grep -rn "redFindings" .`:
+Census re-run on today's main — `grep -rn "Red team findings" .` and `grep -rn "redFindings" .`,
+both unfiltered. **Nine non-golden sites and two goldens.** Line numbers moved since the August
+draft (`debate.js:1077` is `:1089` now), which is the standing reason §V re-runs the census rather
+than trusting this table.
 
 | Site | Change |
 |---|---|
 | `report/assemble.go:847` | the heading itself |
 | `report/assemble.go:669` | a comment describing the section by the old name |
-| `report/assemble.go:770`, `report/docs.go:117`, `assemble_test.go:527,569,599` | the identifier — rename with the heading |
-| **`skills/research-protocol/scripts/debate.js:734`, `:1077`** | blue is FORBIDDEN to author `## Red team findings`; authoring one is FABRICATION. **Left alone, the prohibition names a section that no longer exists while blue is free to author `## The board`** |
+| `report/assemble_test.go:66` | **a comment, and it was missing from the August table** — "…so the matrix stays a scan surface" |
+| `report/assemble.go:767,770`, `report/docs.go:117`, `assemble_test.go:527,569,599` | the `redFindings` identifier and its doc comment — renamed with the heading |
+| **`skills/research-protocol/scripts/debate.js:734`, `:1089`** | blue is FORBIDDEN to author `## Red team findings`; authoring one is FABRICATION. **Left alone, the prohibition names a section that no longer exists while blue is free to author `## The board`** — which assembly would then have to strip |
 | `tests/simulator/debate.test.mjs:1185-1187` | asserts that prohibition reaches the prompt |
 | `skills/research-protocol/references/report_template.md:87` | the report's shape doc |
 | `report/assemble_integration_test.go:161` | assertion |
-| goldens under `difftest/testdata/` and `tests/simulator/testdata/` | REGENERATE |
+| `tests/simulator/testdata/prompt-blue-respond-r1.golden`, `prompt-blue-synthesize.golden` | REGENERATE |
 
-The test for N9 **cannot see the blue prohibition** — different artifact, different repo layer —
-which is why it is enumerated here rather than left to the gate.
+The N9 test **cannot see the blue prohibition** — different artifact, different repo layer — which
+is why every carrier is enumerated here rather than left to the gate.
+
+#### The document this section lives in, and the `docket` decision `[MODIFY]`
+
+**Resolved with the human before the gate, because it decides a name Scope 2 then takes.**
+
+`redFindings` is the body of a shipped deliverable: `docs.go:47` `FileDocket = "docket.md"`, navved
+`Docket`, titled `the docket`. So renaming the heading alone leaves the document navved "Docket",
+titled "the docket", and *containing* `## The board`.
+
+**That mismatch is not created here — it already exists.** `report_template.md:85` reads
+`# docket.md — the board` today.
+
+**The decision: change the Title and Nav to match the heading; do NOT rename the file.**
+`docket.md` is linked from the shipped `README.md`, `SKILL.md`, `agents/lead-judge.md`, `site.go`'s
+cross-file link rewriter and `assemble.go:489`'s in-report reference — seven carriers, for
+consistency in a name **no machine reads**. The filename is a stable URL for a published artifact;
+the nav and title are what a human sees beside the heading.
+
+| Site | Change |
+|---|---|
+| `report/docs.go:139-140` | `Nav: "Docket"` → `"Board"`, `Title: "the docket"` → `"the board"`. The `Blurb` already describes the board ("every gap red minted…") and needs no edit |
+| `report/docs.go:47` `FileDocket = "docket.md"` | **NO CHANGE** — and it is listed so the sweep meets it as a decision rather than as a match |
+| `assemble.go:489`, `site.go:114` | the link TEXT `[the docket]` follows the title; the target does not |
+
+**And the word `docket` is therefore left free for Scope 2's motion subject, which is the sense the
+repository already uses it in.** Four sites say "docket-bound" or "docketed gap" — `boards.go`,
+`agents/lead-judge.md`, merge's `closing` help — all meaning *a matter placed before the bench*,
+which is exactly what `motion docket file` does. `docket.md` was the outlier, using it for the whole
+gap board; after this scope it stops. One word, one meaning, and the collision Scope 2 would
+otherwise inherit is spent here instead.
 
 ### Scope 4 — `manifest-row` → `attest`
 
@@ -489,7 +524,16 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
 **Scope 3**
 
 1. The composed report carries `## The board` and not the old heading.
-2. `grep -rn "Red team findings" .` returns only regenerated goldens and history.
+2. `grep -rn "Red team findings" .` — **re-run it, do not trust §III's table**: it must return only
+   regenerated goldens and history. The August table was already one site short (`assemble_test.go:66`)
+   and its `debate.js` line number had moved by twelve.
+3. **The blue prohibition still bites.** `debate.test.mjs:1185-1187` asserts the FABRICATION clause
+   reaches the synthesizer's prompt; it must assert the NEW heading. A prohibition naming a section
+   that no longer exists leaves blue free to author the one that does — the check is that the
+   prompt forbids `## The board`, not merely that it forbids something.
+4. **The document reads as one thing.** `docket.md`'s nav, title and heading agree; the file NAME is
+   unchanged, and `README.md`, `SKILL.md` and `agents/lead-judge.md` still resolve
+   (`go test ./internal/report/...` covers the link rewriter; the three markdown carriers are read).
 
 ### The repo gate
 
