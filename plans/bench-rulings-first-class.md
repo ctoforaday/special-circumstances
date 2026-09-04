@@ -367,7 +367,11 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
 
 **Scope 1**
 
-1. `go test ./...` — **the whole module, and the package list that used to stand here is why.** It
+1. `(cd plugins/frank-exchange-of-views/tools && go test ./...)` — **the whole module, and the
+   package list that used to stand here is why.** The `cd` is load-bearing: the repository root is
+   not a Go module (there are four — `scripts/` and one per plugin), so a bare `go test ./...` from
+   the root fails with `directory prefix . does not contain main module`. Measured, by writing this
+   step without it. It
    named five `./internal/...` packages and missed both places the round-2 gate found a break:
    `./internal/dashboard/...`, whose two goldens render the else-branch string, and `./cmd/...`,
    which holds `NewSurface`'s only production caller. A hand-kept package list is a census with the
