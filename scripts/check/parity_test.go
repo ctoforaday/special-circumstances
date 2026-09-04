@@ -298,7 +298,7 @@ func TestSelectGatesMatchesAndReportsEmpty(t *testing.T) {
 
 // A -race leg scoped to ONE TEST is still a gate, and the module-wide raceScope cannot hold it.
 //
-// #641 added `go test -race -run TestTheRunHandleIsImmutableAfterConstruction ./integration/fuzz/`
+// #641 added `go test -race -run TestTheRunHandleIsImmutableAfterConstruction ./releasegate/fuzz/`
 // to feov-record and declared it nowhere: raceScope is asserted to be EXACTLY ./internal/record/,
 // so the new leg was invisible to this file — a CI gate with no local counterpart, which is the
 // first thing this command's package comment names.
