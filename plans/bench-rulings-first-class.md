@@ -98,8 +98,8 @@ document are gone:
    to avoid rewriting `debate.js` twice. That ordering constraint is gone once Scope 2 is the only
    thing touching `bench opinion`, and the six unpushed commits implementing it are 523 commits
    stale against a relocated `internal/fuzz` and a rewritten `enums.go`. **It should be re-proposed
-   as its own plan against today's tree, not rebased.** Not tracked here beyond this sentence, which
-   is a deliberate hand-off and not an oversight.
+   as its own plan against today's tree, not rebased.** Tracked as **#682**, which carries the six
+   SHAs and the argument — a deliberate hand-off, not an oversight.
 2. **§III.E — the unswept carriers of the #344 collapse.** Swept. `requirePriorDispute` is gone; the
    `dispute` readers in `viewjson.go`, `view.go` and `estoppel.go` are gone; `verify`'s `withDispute`
    now reads a `Motion` with `MOTION_SUBJECT_GRADE` (`verify.go:458-472`) and says so in place;
@@ -329,9 +329,9 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
 | R1 | **The `opinion` prose-key clobber, a fourth time.** `opinion` is both an event type and a prose key; `a12362c` records three sweeps that clobbered the key while retargeting the type | high × med | The guarded sites are enumerated in Scope 2 as explicit NO CHANGE rows. A mechanical rename is forbidden; the sweep is a reviewed list |
 | R2 | **The replay pre-pass is forgotten and the bug lands silently.** A single pass drops every ruling that replays before its filing — rendering the gap as one nobody disposed of | med × high | §II states the property; a test writes the ruling's shard first and asserts the gap closes |
 | R3 | **Any-seat filing is a new capability.** An adversarial blue could docket every gap it dislikes to buy rounds | med × low | The bench rules each one and `carried` is a real disposition, so the cost lands on the filer's round budget. Watched, not gated: the capture auditor already reports per-seat act counts. Gating it before it has been seen would be an invented obligation |
-| R4 | **Scope 1 lands and Scope 2 never does**, leaving the docket unrecorded indefinitely | med × med | Named as the accepted cost of splitting. [[complete-the-concept]] requires the remaining half be *tracked*: Scope 2 gets an issue at the moment Scope 1 merges, not later |
+| R4 | **Scope 1 lands and Scope 2 never does**, leaving the docket unrecorded indefinitely | med × med | Named as the accepted cost of splitting. [[complete-the-concept]] requires the remaining half be *tracked*, not remembered: **#681** carries both scopes and was filed before any of this was implemented |
 | R5 | **This re-audit's own citations go stale.** It took 523 commits to invalidate the last set | high × med | Every §III row cites a symbol as well as a line, and §V step 1 re-runs the censuses rather than trusting these tables. A line number in this document is a convenience, never the identifier |
-| R6 | **The dropped §III.H work is lost rather than deferred.** Six unpushed commits on a stale branch is how a concept disappears | med × med | The branch is named here and the hand-off is explicit. If it is not re-proposed within the next release boundary, the commits should be deleted deliberately rather than left to rot |
+| R6 | **The dropped §III.H work is lost rather than deferred.** Six unpushed commits on a stale branch is how a concept disappears | med × med | **#682** names the six SHAs, states why none can be rebased, and asks for a decision: re-propose the idea against today's tree, or delete the branch deliberately. The hand-off is a filed ask, not a sentence in a plan |
 
 ---
 
