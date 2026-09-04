@@ -24,8 +24,8 @@ package fuzz
 // in verbsWithEvents must fire at least once (a regression that silently drops one fails loudly).
 // `halt` terminates the run, so it is covered by the dedicated TestFuzzHaltPath, not the sweep.
 //
-// Run: go test ./integration/fuzz -run TestFuzzDebate -count=1   (respects -short by shrinking N).
-// Confidence sweep: FUZZ_N=1000 go test ./integration/fuzz -run TestFuzzDebate -timeout 1200s.
+// Run: go test ./releasegate/fuzz -run TestFuzzDebate -count=1   (respects -short by shrinking N).
+// Confidence sweep: FUZZ_N=1000 go test ./releasegate/fuzz -run TestFuzzDebate -timeout 1200s.
 // FUZZ_C overrides concurrency (runs are subprocess-bound, so the default oversubscribes cores).
 
 import (
@@ -2825,7 +2825,7 @@ func TestFuzzDebate(t *testing.T) {
 	// spawns, the temp plumbing — run 15 proves as well as run 60; depth past that is
 	// statistics on debate semantics, which are platform-independent and keep full depth on
 	// Linux. The full 1000-run confidence sweep is on demand:
-	// FUZZ_N=1000 go test ./integration/fuzz -run TestFuzzDebate -timeout 1200s.
+	// FUZZ_N=1000 go test ./releasegate/fuzz -run TestFuzzDebate -timeout 1200s.
 	// THE DEFAULT IS THE QUORUM, so the default sweep is always one that can assert the surface.
 	// 60 was a number the gates did not depend on; at production shape a run costs ~2.2x what the
 	// smoke shape cost, and the sweep needs exactly enough runs for the coverage gates to hold.

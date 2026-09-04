@@ -235,7 +235,7 @@ func suiteFor(rel string) string {
 // mutant CAN be killed by another package's tests — which is why `-confirm` exists rather than
 // the stage being deleted. What changed is who decides to pay.
 //
-// With `-confirm` the wide run uses `-short` and skips ./integration/... : that suite shrinks
+// With `-confirm` the wide run uses `-short` and skips ./releasegate/... : that suite shrinks
 // under -short by design and exists to exercise whole debates, not to notice a one-operator flip.
 func runSuite(moduleDir, pkg string, confirm bool) (passed, broke bool) {
 	passed, broke = runOne(moduleDir, "go", "test", pkg)
@@ -267,7 +267,7 @@ func widePackages(moduleDir string) ([]string, error) {
 	}
 	var keep []string
 	for _, p := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		if p == "" || strings.Contains(p, "/integration/") {
+		if p == "" || strings.Contains(p, "/releasegate/") {
 			continue
 		}
 		keep = append(keep, p)

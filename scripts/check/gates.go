@@ -134,7 +134,7 @@ var modules = []struct{ dir, ciJob string }{
 // race-instrumenting the test harnesses). The scope is a deps: marker expanded at run time —
 // by expandScope here and by `go list -deps | grep` in the workflow — because the graph is
 // the record and a hand-copied package list beside it would be free to drift. What the
-// module's harness packages (integration/fuzz, testbuild, difftest) do with their
+// module's harness packages (releasegate/fuzz, testbuild, difftest) do with their
 // concurrency is SPAWN the real binary, which no race detector observes from the parent.
 // This is also the module's slowest gate now: the graph includes fetchcache and cli, whose
 // suites are minutes, not seconds.
@@ -160,7 +160,7 @@ const depsScopePrefix = "deps:"
 // narrowRace are -race legs scoped to ONE NAMED TEST rather than to a package.
 //
 // Deliberately not entries in raceScope: that map is module -> scope and the parity test holds
-// it to exactly what CI races, so putting "./integration/fuzz/" there would claim the whole
+// it to exactly what CI races, so putting "./releasegate/fuzz/" there would claim the whole
 // package is raced when one test is. Under-claiming is the other half of the same defect,
 // which is why these are declared here instead of left out — a CI gate with no local
 // counterpart is the drift this command's package comment opens with.
@@ -171,7 +171,7 @@ const depsScopePrefix = "deps:"
 // harness accountable without paying the race tax on the whole package.
 var narrowRace = []gate{
 	{id: "feov-record:race-runhandle", kind: kindRace, dir: "plugins/frank-exchange-of-views/tools",
-		args:  []string{"test", "-race", noCache, "-run", "^TestTheRunHandleIsImmutableAfterConstruction$", "./integration/fuzz/"},
+		args:  []string{"test", "-race", noCache, "-run", "^TestTheRunHandleIsImmutableAfterConstruction$", "./releasegate/fuzz/"},
 		ciJob: "feov-record",
 		why:   "the fuzz runner's seats are concurrent; its run handle was briefly resolved lazily, and two full debate runs under -race did not report it"},
 }
