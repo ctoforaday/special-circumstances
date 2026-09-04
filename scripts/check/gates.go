@@ -165,12 +165,16 @@ const depsScopePrefix = "deps:"
 // which is why these are declared here instead of left out — a CI gate with no local
 // counterpart is the drift this command's package comment opens with.
 //
-// CURRENTLY EMPTY, and the machinery stays. The one entry — feov-record's run-handle guard,
-// #641 — raced the fuzz harness's own runner, and the 2026-09-03 scope ruling (race the
-// shipped binary's source, never the harnesses) retired it: a harness race can flake a test
-// run but cannot ship. The test itself remains in integration/fuzz, un-raced, with the local
-// -race invocation documented on it.
-var narrowRace = []gate{}
+// The run-handle guard is the HARNESS CARVE-OUT from the scope rule above, kept by ruling
+// ("keep fuzz on the hook", #686). A harness race cannot ship, but it makes fuzz verdicts
+// flaky, and a flaky verdict is a measurement defect; one dedicated ~1s test keeps the
+// harness accountable without paying the race tax on the whole package.
+var narrowRace = []gate{
+	{id: "feov-record:race-runhandle", kind: kindRace, dir: "plugins/frank-exchange-of-views/tools",
+		args:  []string{"test", "-race", noCache, "-run", "^TestTheRunHandleIsImmutableAfterConstruction$", "./integration/fuzz/"},
+		ciJob: "feov-record",
+		why:   "the fuzz runner's seats are concurrent; its run handle was briefly resolved lazily, and two full debate runs under -race did not report it"},
+}
 
 // tools are the scripts/ commands CI runs.
 var tools = []gate{

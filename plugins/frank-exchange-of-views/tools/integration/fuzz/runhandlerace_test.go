@@ -20,12 +20,12 @@ import (
 // is not a detector for it. Eight goroutines with nothing else to do is. Against the lazy
 // version this fails with a data race on runHandle; against the constructor version it passes.
 //
-// It only detects the RACE under `-race`, and CI no longer runs one here: the race leg was
-// scoped to the shipped binary's import graph (ruled 2026-09-03 — no race-instrumenting test
-// harnesses; a harness race can flake a run but cannot ship). What the plain leg still gets
-// from this test is the Valid() assertion; the race half fires only in a local
-// `go test -race ./integration/fuzz -run TestTheRunHandleIsImmutableAfterConstruction`,
-// which is where to reach when fuzz runs start flaking inexplicably.
+// It only means anything under `-race`, so hooks.yml runs THIS TEST on the race leg — the
+// one harness carve-out from the 2026-09-03 scope rule (race the shipped binary's source,
+// not the harnesses), kept by ruling: "keep fuzz on the hook" (#686). A harness race cannot
+// ship, but it makes fuzz verdicts flaky, and a flaky verdict is a measurement defect.
+// Without that line this is a guard that cannot fire, which is the plausible zero this
+// suite exists to refuse.
 func TestTheRunHandleIsImmutableAfterConstruction(t *testing.T) {
 	r := newRunner("bin", t.TempDir(), newLockedRand(1))
 	var wg sync.WaitGroup
