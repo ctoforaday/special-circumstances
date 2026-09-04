@@ -299,7 +299,8 @@ jobs:
           go-version: "1.25"
       - run: go test ./...
       # This module had no race leg at all, while gray-area ran `-race ./...` and
-      # feov-record ran it over internal/record. It passes clean today (measured, exit 0,
+      # feov-record races its shipped binary's import graph (see that job for the scope
+      # rule). It passes clean today (measured, exit 0,
       # zero DATA RACE), so the leg costs nothing now and only gets more expensive later.
       #
       # What it does NOT buy, stated so nobody reads a green leg as more than it is:
@@ -539,15 +540,36 @@ jobs:
       - run: go test ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
-      - run: go test -race ./internal/record/
+      #
+      # THE RACE SCOPE IS THE SHIPPED BINARY'S OWN IMPORT GRAPH, derived at run time from
+      # `go list -deps` — not ./..., and not a hand-kept package list free to drift from
+      # the graph it names. The module's test-only packages (integration/fuzz, testbuild,
+      # difftest, goldentest, the probe/hook shims) spend their concurrency SPAWNING the
+      # real binary as subprocesses, which no race detector observes from the parent;
+      # instrumenting those harnesses pays the race tax on the module's slowest packages
+      # without watching the product. Ruled 2026-09-03: race the feov binary's source, not
+      # the tests. Their logic still runs in the plain `go test` leg above. The previous
+      # shape raced ONE hand-picked test (the run-handle guard) to cover a harness race —
+      # a harness race can flake a test run but cannot ship, so it went with the rest.
+      # An empty list is refused rather than raced: `go test -race` with no packages would
+      # test the current directory and pass while measuring almost nothing. scripts/check
+      # holds this derivation and the local gate's (expandScope) to the same target.
+      - run: |
+          pkgs="$(go list -deps ./cmd/feov-record | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')"
+          test -n "$pkgs"
+          echo "$pkgs" | xargs go test -race
+        # EXPLICIT, because this job sets no default shell and the Windows leg therefore
+        # runs pwsh — where `$(...)`, pipes into grep, and xargs are not this syntax.
+        shell: bash
         env:
           CGO_ENABLED: "1"
-      # And ONE test out of integration/fuzz, not the package. The fuzz runner's seats are
-      # concurrent as of #630 phase 3, and its run handle was briefly resolved lazily — a real
-      # race that two full debate runs under -race did not report, because the window closes
-      # before a sibling seat arrives. TestTheRunHandleIsImmutableAfterConstruction forces it
-      # in ~1s. Racing the whole package would cost minutes to re-check what -race already
-      # covers elsewhere; racing nothing leaves that test unable to fail.
+      # And ONE test out of integration/fuzz — the harness carve-out from the scope rule
+      # above, kept BY RULING ("keep fuzz on the hook", #686). The fuzz runner's seats are
+      # concurrent as of #630 phase 3, and its run handle was briefly resolved lazily — a
+      # real race two full debate runs under -race never reported, because the window closes
+      # before a sibling seat arrives. A harness race cannot ship, but it makes fuzz verdicts
+      # flaky, and a flaky verdict is a measurement defect; the ~1s dedicated test is what
+      # keeps the harness accountable without paying the race tax on the whole package.
       #
       # THE PASS IS ASSERTED, NOT INFERRED FROM THE EXIT CODE. `go test -run <name>` exits 0
       # when the pattern matches NOTHING — it prints "ok ... [no tests to run]" — so a renamed
@@ -562,9 +584,7 @@ jobs:
             exit 1
           }
         # EXPLICIT, because this job sets no default shell and the Windows leg therefore runs
-        # pwsh — where `$(...)`, `<<<` and `grep` are not syntax. The single-line form this
-        # replaced ran on Windows by accident: pwsh could execute a bare `go test` line, so the
-        # shell question never came up until the assertion made the step a script.
+        # pwsh — where `$(...)`, `<<<` and `grep` are not syntax.
         shell: bash
         env:
           CGO_ENABLED: "1"

@@ -153,15 +153,21 @@ func TestEveryModuleCIBuildsIsDeclared(t *testing.T) {
 }
 
 // The -race scopes are NOT uniform across modules, and encoding them wrongly would claim
-// coverage CI does not have. feov-record races only internal/record.
+// coverage CI does not have. feov-record races the shipped binary's import graph — a deps:
+// marker both sides expand at run time, so what this test can hold together is not a package
+// list but the DERIVATION: the workflow must generate its list from the same target the
+// local gate does.
 func TestRaceScopesMatchTheWorkflow(t *testing.T) {
 	wf := workflow(t)
-	if !strings.Contains(wf, "go test -race ./internal/record/") {
-		t.Error("the workflow no longer races ./internal/record/ in feov-record; raceScope still claims it")
+	feov := jobBlock(t, wf, "feov-record")
+	if !strings.Contains(feov, "go list -deps ./cmd/feov-record") ||
+		!strings.Contains(feov, "xargs go test -race") {
+		t.Error("the feov-record job no longer derives its -race scope from the feov-record " +
+			"binary's import graph; raceScope still claims it does")
 	}
-	if scope := raceScope["plugins/frank-exchange-of-views/tools"]; len(scope) != 1 || scope[0] != "./internal/record/" {
-		t.Errorf("raceScope for feov = %v, want exactly ./internal/record/ — a broader claim here "+
-			"would report concurrency coverage the workflow does not run", scope)
+	if scope := raceScope["plugins/frank-exchange-of-views/tools"]; len(scope) != 1 || scope[0] != depsScopePrefix+"./cmd/feov-record" {
+		t.Errorf("raceScope for feov = %v, want exactly %s./cmd/feov-record — any other claim here "+
+			"would report concurrency coverage the workflow does not run", scope, depsScopePrefix)
 	}
 	// scripts GAINED a -race leg when its concurrency became real: golden/interrupt.go
 	// guards signal state with a mutex, and mutate arms a file for its interrupt handler to
@@ -312,5 +318,28 @@ func TestTheNarrowRaceLegsAreDeclared(t *testing.T) {
 			t.Errorf("%s claims the %s job runs %q under -race, and the workflow does not mention it",
 				g.id, g.ciJob, name)
 		}
+	}
+}
+
+// expandScope is the local half of the derived race scope; the workflow's grep is the other.
+// What must hold: expansion happens in the gate's own module, keeps only that module's
+// packages, and a target that expands to nothing is an ERROR — `go test -race` with no
+// packages would pass while measuring almost nothing.
+func TestExpandScopeDerivesTheModuleLocalGraph(t *testing.T) {
+	// A test binary runs in its package directory, so the module root is one level up.
+	pkgs, err := expandScope("..", []string{"test", "-race", depsScopePrefix + "./check"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pkgs) < 3 || pkgs[0] != "test" || pkgs[1] != "-race" {
+		t.Fatalf("expanded args = %v, want the non-marker args kept and at least one package", pkgs)
+	}
+	for _, p := range pkgs[2:] {
+		if !strings.HasPrefix(p, "github.com/ctoforaday/special-circumstances/scripts") {
+			t.Errorf("expansion leaked a package outside the module: %s", p)
+		}
+	}
+	if _, err := expandScope("..", []string{depsScopePrefix + "./no-such-target"}); err == nil {
+		t.Error("a target go list cannot resolve expanded without error — that silence would race nothing and pass")
 	}
 }
