@@ -24,7 +24,7 @@
 // a release asset for it. So this lives at the repo root with its own go.mod, where the
 // doctor cannot mistake it for something a session needs.
 //
-// # An audit, not a gate — deliberately not in CI
+// # An audit day to day, a gate at the release boundary
 //
 //   - Minutes, not seconds: one suite run per mutant, serially, because the mutant lives in
 //     the file on disk. Parallelism would need a checkout per worker.
@@ -34,15 +34,22 @@
 //     buys contorted tests. There is deliberately no threshold here: survivors are a list
 //     to EXPLAIN, and the ones nobody can explain are the findings.
 //
-// What IS in CI is -selftest. See selftest() for the failure mode that justifies it.
+// Ruled 2026-09-03: what a RELEASE must prove is that the explaining HAPPENED. `-gate`
+// (see gate.go) reconciles the sweep against the module's mutation-survivors.json — every
+// survivor judged in writing, no judgement outliving its survivor — and the release job
+// runs it on the tagged plugin's module. Still no threshold, still no per-PR leg: pull
+// requests pay nothing, and the day-to-day audit is unchanged.
+//
+// Also in CI is -selftest. See selftest() for the failure mode that justifies it.
 //
 // Usage (from this directory, since it is its own module — the sweep target is resolved
 // from the git root, so the working directory does not change what is swept):
 //
-//	go run . -selftest                             what CI runs
+//	go run . -selftest                             what CI runs on every pull request
 //	go run .                                       sweep prosthetic-conscience/tools
 //	go run . -module plugins/gray-area/tools
 //	go run . -filter sc-doctor                     only files matching a substring
+//	go run . -gate -module plugins/gray-area/tools what the release job runs on a tag
 package main
 
 import (
@@ -461,7 +468,16 @@ func main() {
 	doSelftest := flag.Bool("selftest", false, "prove the tool can still mutate and observe, then exit")
 	goVersion := flag.String("go-version", "1.25", "go directive for the -selftest fixture module")
 	confirm := flag.Bool("confirm", false, "re-test each SURVIVOR against the rest of the module (correct, and ~8 minutes per survivor)")
+	gateMode := flag.Bool("gate", false, "release gate: fail unless every survivor is explained in "+RecordName+" and no entry is stale (see gate.go)")
 	flag.Parse()
+
+	// A verdict over a PARTIAL sweep would claim the whole module: the filtered-out files'
+	// survivors would read as absent, and their record entries as stale. The audit composes
+	// with -filter; the gate does not.
+	if *gateMode && *filter != "" {
+		fmt.Fprintln(os.Stderr, "mutate: -gate refuses -filter — a gated verdict must be over the whole module")
+		os.Exit(1)
+	}
 
 	if *doSelftest {
 		if !selftest(*goVersion) {
@@ -510,6 +526,15 @@ func main() {
 	fmt.Println("Survivors are a list to EXPLAIN, not a number to drive to zero: equivalent mutants and")
 	fmt.Println("platform-conditional branches cannot be killed by any test. The ones nobody can explain")
 	fmt.Println("are the findings.")
+
+	// The record is read from the REAL module, not the sandbox copy — same bytes today, but
+	// the original is the record a release actually ships. cleanup() runs by hand because
+	// os.Exit does not run defers, and a leaked sandbox per gated release adds up.
+	if *gateMode {
+		code := gateVerdict(moduleDir, res, os.Stdout)
+		cleanup()
+		os.Exit(code)
+	}
 
 	// NO "HEAD MOVED" WARNING EITHER. It caught a real defect — a readState guard committed
 	// INVERTED by a `git add -A` that ran while a mutant was on disk, under a commit subject

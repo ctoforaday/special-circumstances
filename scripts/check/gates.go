@@ -184,6 +184,12 @@ var tools = []gate{
 		why: "node --test exits 0 on a path that does not exist"},
 	{id: "mutate-selftest", kind: kindTool, dir: "scripts", args: []string{"run", "./mutate", "-selftest"}, ciJob: "debate-sim",
 		why: "a mutation sweep that cannot mutate flatters the suite"},
+	// Declared and SKIPPED, like the release gates it runs beside: the sweep takes minutes
+	// to hours and only a tag decides which module it judges. Running it here would sweep
+	// the default module on every check invocation for a verdict nothing local consumes.
+	{id: "mutate-gate", kind: kindTool, dir: "scripts", args: []string{"run", "./mutate", "-gate"}, ciJob: "release",
+		skip: "only meaningful on a tag; the release job sweeps the tagged plugin's module",
+		why:  "a release must prove every mutation survivor was JUDGED, not merely counted"},
 	{id: "validatejson", kind: kindTool, dir: "scripts", args: []string{"run", "./validatejson"}, ciJob: "debate-sim",
 		why: "manifests break silently"},
 	{id: "frontmatter", kind: kindTool, dir: "scripts", args: []string{"run", "./frontmatter"}, ciJob: "debate-sim",
