@@ -342,6 +342,8 @@ Fifth instance in this document of one structural no-match; §II records the fir
 | **`report/assemble.go:149`** — `blueEmbed`'s `drop` map, `"red team findings": true` | **`[MODIFY]`, and this is the row that makes the rename safe.** `blueEmbed` KEEPS any `## ` heading whose normalized key is not in `drop`. Rename the composed heading without adding `"the board"` and a **blue-authored `## The board` is kept** and embedded under `## Blue team report (sections not composed above)` — beside the composed one — which is the double-authorship `debate.js`'s FABRICATION clause exists to prevent, arriving through the fix that cites it |
 | `report/assemble.go:149` — the OLD key | **RETAINED, not replaced.** `"red team findings"` stays in `drop` alongside `"the board"`. A seat on a cached or stale prompt still authors the old heading, and it is still fabrication — blue still cannot know red's findings. Retiring the key would let exactly that through, and the cost of keeping it is one map entry |
 | `report/assemble.go:199` | `normalizeHeading`'s doc comment uses `"Red Team Findings (in full)"` as its worked example — reword |
+| **`report/assemble.go:134`** | `blueEmbed`'s doc comment enumerates the dropped sections as "the risk matrix, **red findings**, the debate, a verdict" — reword. Caught by NEITHER census: it spells the section "red findings" |
+| `report/assemble.go:136` | **NO CHANGE** — "blue cannot know red's findings" is a RATIONALE about what blue can know, and it stays true. Listed so the sweep two lines above it meets this as a decision rather than a match; [[facts-are-fields]] clause 4 is the brake |
 | `report/assemble.go:669` | a comment describing the section by the old name |
 | `report/assemble_test.go:66` | a comment — missing from the August table |
 | **`report/assemble_test.go:455`** | **the ONLY test of the drop map**, and after the rename it still asserts the OLD heading is dropped and **passes while asserting nothing about the new one**. Re-pointed at `## The board`, PLUS a case holding that the retired heading is still dropped |
@@ -388,8 +390,19 @@ N9's objective is that no surface attributes three parties' output to one; a doc
 board" that every describing surface still calls red's findings is the half-state this plan is named
 for.
 
+**Their census, because a table nobody can re-run is a list of what one reader noticed** — and this
+one was assembled by eye and was one row short. From `plugins/frank-exchange-of-views/`:
+
+```
+$ grep -rn "docket\.md" .
+```
+
+Neither `grep -rni "red team findings"` nor `grep -rn "redFindings"` reaches any of them: these
+surfaces describe the document without naming the section.
+
 | Site | Says | Change |
 |---|---|---|
+| **`skills/research-protocol/SKILL.md:61`** | the run-directory tree line — "every gap red minted: still-open, closed, and the findings not raised to a gap". **Found by the census above, missed by the hand-assembled table**, and it is the same red-only enumeration as the Blurb | `[MODIFY]` |
 | `report/docs.go:140` — the `Blurb` | "every gap red minted: what is still open, what was closed and how, and the findings the merge weighed without minting" | **`[MODIFY]` — and the previous draft's claim that it "needs no edit" was wrong on the section's own premise.** It enumerates only red's output, naming neither blue's correctness manifest nor red's archive spot-checks |
 | `report/docs.go:6` | the changed package's own doc comment — "red's findings in full" | `[MODIFY]` |
 | `skills/research-protocol/references/report_template.md:14` | same file as `:87` | `[MODIFY]` |
@@ -484,8 +497,16 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
    returned nothing, which reads exactly like a green module. `internal/dashboard`,
    `internal/report` and `internal/record` had never run at all. The step is not "no FAIL lines",
    it is **every package accounted for**; while the fuzz is slow the honest form is two commands,
-   `go test -count=1 $(go list ./... | grep -v integration/fuzz)` and then the fuzz alone with a
-   stated timeout. [[facts-are-fields]] clause 3, inside the verification step of the plan that
+   `go test -count=1 $(go list ./... | grep -v '/fuzz$')` and then the fuzz alone with a stated
+   timeout.
+
+   **AND CHECK THAT THE FILTER REMOVED SOMETHING.** This step said `grep -v integration/fuzz` and
+   was correct when written; main then moved the package to `releasegate/fuzz`, and the filter went
+   **inert without changing** — 51 packages in, 51 out, the fuzz back in the run under the default
+   timeout, aborting it exactly as before. A path-shaped filter is a fact encoded in a string and
+   recovered by match, and its no-match is indistinguishable from "nothing needed filtering":
+   [[facts-are-fields]] clause 3, in the command written to satisfy clause 3. Compare the counts, or
+   name the package from `go list` output rather than a path fragment. [[facts-are-fields]] clause 3, inside the verification step of the plan that
    quotes it.
 
    **The timeout is a property of the BOX, not of the change — measured both ways rather than
@@ -552,10 +573,12 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
 
 **Scope 3**
 
-1. `(cd plugins/frank-exchange-of-views/tools && go test -count=1 $(go list ./... | grep -v integration/fuzz))`
+1. `(cd plugins/frank-exchange-of-views/tools && go test -count=1 $(go list ./... | grep -v '/fuzz$'))`
    — **module-wide, for the reason Scope 1's step 1 gives one section earlier.** A hand-kept package
    list (`./internal/report/...`, which the previous draft named) cannot see `./internal/difftest/...`,
-   where 19 of this scope's affected artifacts live.
+   where 19 of this scope's affected artifacts live. **Confirm the filter dropped exactly one
+   package** (50 of 51 today): the previous draft filtered `integration/fuzz`, a path that no longer
+   exists, so it removed nothing and left the run to abort before either package this scope touches.
 2. `grep -rni "red team findings" .` — **case-INSENSITIVE, re-run, not trusted from §III's table.**
    It must return only regenerated goldens, `drop`'s retained key and history. The case-sensitive
    form the earlier drafts specified misses `assemble.go:149`, `:199` and `assemble_test.go:455`.
