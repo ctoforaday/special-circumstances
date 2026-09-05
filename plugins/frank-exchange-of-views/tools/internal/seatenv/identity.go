@@ -62,11 +62,37 @@ const (
 	// record, and every later call resolves the seat from that. This is why SeatVar still has no
 	// writer and is not going to get one.
 	AgentVar = "FEOV_AGENT_ID"
+
+	// TypeVar carries the harness's own name for the agent CONFIGURATION this seat is running
+	// under — `frank-exchange-of-views:red-auditor` and its four siblings. Like AgentVar it is
+	// attested rather than typed: it comes off the PreToolUse payload, and a seat has no way to
+	// state it, misstate it, or leave it out.
+	//
+	// IT NAMES A ROLE, NOT A SEAT, and that is the whole of what it can do. Measured 2026-08-23
+	// (#290): four types cover thirteen seats, so nothing upstream of `register` can bind one —
+	// `lead-judge` alone covers judge-rN, judge-petition-*, judge-terminal and assemble. What it
+	// CAN do is refuse a seat id from the wrong family, which is the half of identity the roster
+	// gate cannot reach: the roster bounds the SHAPE of an id, never the MEMBERSHIP of the agent
+	// claiming it.
+	//
+	// AND IT IS THE ONLY RELIABLE "IS THIS A SEAT AT ALL" TEST. SubagentStop fires at the MAIN
+	// agent's turn end too, with a minted id and no type; across one session's 69 stop rows, 19
+	// were seats and 50 were turn ends, and `agent_type` told them apart with zero exceptions in
+	// either direction (hook-surface-spike.md §7a).
+	TypeVar = "FEOV_AGENT_TYPE"
 )
 
 // AgentID is the harness handle for this process's subagent, or "" in a main session or any
 // context the hook did not rewrite.
 func AgentID() string { return strings.TrimSpace(os.Getenv(AgentVar)) }
+
+// AgentType is the harness's name for this process's agent configuration, or "" in a main session,
+// an operator shell, or any context the hook did not rewrite.
+//
+// EMPTY MEANS UNATTESTED, NEVER "no role". A caller must treat the empty string as "nothing
+// attested this" and fall back, rather than as a claim about which role is running — CI, an
+// operator at a shell, and the bootstrap window before `doctor --fix` all reach here with nothing.
+func AgentType() string { return strings.TrimSpace(os.Getenv(TypeVar)) }
 
 // Seat is a seat's identity as FACTS rather than as a string other code takes apart.
 type Seat struct {

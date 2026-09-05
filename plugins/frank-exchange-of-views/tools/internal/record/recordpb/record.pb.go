@@ -5053,7 +5053,23 @@ type Register struct {
 	// Absent on an IMPLICIT register, and that absence is the honest answer: that path fires when a
 	// seat writes before registering, so nothing observed how the run directory was resolved, and a
 	// guess would put a fact on the record nobody measured.
-	RunVia        *string `protobuf:"bytes,3,opt,name=run_via,json=runVia,proto3,oneof" json:"run_via,omitempty"`
+	RunVia *string `protobuf:"bytes,3,opt,name=run_via,json=runVia,proto3,oneof" json:"run_via,omitempty"`
+	// THE AGENT CONFIGURATION THE HARNESS SAYS THIS SEAT RAN UNDER — attested, never typed.
+	//
+	// agent_id says WHICH agent; this says which CONFIGURATION it was dispatched as, and the two
+	// refuse different things. It is what lets `register` reject a seat id from the wrong family:
+	// the roster gate bounds an id's SHAPE and states plainly that it "bounds the SHAPE, never the
+	// membership", so before this field nothing could tell that a lead-judge agent had registered
+	// as `red-merge-r1`.
+	//
+	// IT NAMES A ROLE AND NOT A SEAT, measured (#290, 2026-08-23): four types cover thirteen seats,
+	// and `frank-exchange-of-views:red-auditor` covers both the lenses and the merge. So it narrows
+	// the claim rather than settling it, and the record says which of the two it was by keeping the
+	// seat id as well.
+	//
+	// ABSENT IS NOT "": a run whose hook never fired carries no attestation on any register event,
+	// and that stays legible as NOT MEASURED rather than as an agent configured as nothing.
+	AgentType     *string `protobuf:"bytes,6,opt,name=agent_type,json=agentType,proto3,oneof" json:"agent_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5119,6 +5135,13 @@ func (x *Register) GetRequestedModel() string {
 func (x *Register) GetRunVia() string {
 	if x != nil && x.RunVia != nil {
 		return *x.RunVia
+	}
+	return ""
+}
+
+func (x *Register) GetAgentType() string {
+	if x != nil && x.AgentType != nil {
+		return *x.AgentType
 	}
 	return ""
 }
@@ -6086,19 +6109,22 @@ const file_record_proto_rawDesc = "" +
 	"_motion_idB\n" +
 	"\n" +
 	"\b_subjectB\t\n" +
-	"\a_reason\"\x95\x02\n" +
+	"\a_reason\"\xc8\x02\n" +
 	"\bRegister\x12&\n" +
 	"\ftool_version\x18\x01 \x01(\tH\x00R\vtoolVersion\x88\x01\x01\x12\x1e\n" +
 	"\bagent_id\x18\x02 \x01(\tH\x01R\aagentId\x88\x01\x01\x12&\n" +
 	"\fserved_model\x18\x04 \x01(\tH\x02R\vservedModel\x88\x01\x01\x12,\n" +
 	"\x0frequested_model\x18\x05 \x01(\tH\x03R\x0erequestedModel\x88\x01\x01\x12\x1c\n" +
-	"\arun_via\x18\x03 \x01(\tH\x04R\x06runVia\x88\x01\x01B\x0f\n" +
+	"\arun_via\x18\x03 \x01(\tH\x04R\x06runVia\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"agent_type\x18\x06 \x01(\tH\x05R\tagentType\x88\x01\x01B\x0f\n" +
 	"\r_tool_versionB\v\n" +
 	"\t_agent_idB\x0f\n" +
 	"\r_served_modelB\x12\n" +
 	"\x10_requested_modelB\n" +
 	"\n" +
-	"\b_run_via\"R\n" +
+	"\b_run_viaB\r\n" +
+	"\v_agent_type\"R\n" +
 	"\fRoundVerdict\x126\n" +
 	"\averdict\x18\x01 \x01(\x0e2\x17.feov.record.v1.VerdictH\x00R\averdict\x88\x01\x01B\n" +
 	"\n" +
