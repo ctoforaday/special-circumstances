@@ -431,6 +431,78 @@ three (`replay.go`, `consistency.go`, and `views.go` in SQL), not one.
 | `commands/research.md:33`, `debate.js` (26 other hits), `debate.test.mjs:887,896,1080-1118` | halt envelope `opinion`, petition-ruling prose, "in your opinion" | NO CHANGE — the halt field and `MotionRule.opinion`; **the envelope schema is #682's question, not this one** |
 | `docs/seat-command-triggers.md:100,142,201,207` | declare's competing-channel column; halt row; #330/#344 history | NO CHANGE — ledger history rows, which `:207` states are deliberately not rewritten |
 
+
+#### Second census — the NEW model's carriers
+
+**The first census is keyed on the retiring word, so it cannot see code that switches over the
+motion arms and will mishandle a new one.** That is a whole class it structurally misses, and the
+sites below are where a `docket` arm nobody added returns a zero rather than an error. Run from
+`plugins/frank-exchange-of-views/tools/`:
+
+```
+$ grep -rn 'Motion_Grade\|Motion_Petition\|Motion_Direction\|MotionRule_Grade\|MotionRule_Petition\|MotionRule_Direction' --include=*.go .
+```
+
+| file:line | what | disposition |
+|---|---|---|
+| **`cli/motion/verbs.go:84-106`** | the filing-build switch in `motion <subject> file` | **[MODIFY] — the worst site in this scope. SILENT ZERO.** No arm → `body.Filing` stays nil, and validate checks only a *present* filing, so a docket motion is written carrying its subject and **no substance at all** |
+| `record/motion.go:189-196` | `motionRulingWord` | **[MODIFY] SILENT ZERO.** Unhandled arm returns `""` → `Motion.Ruled()` is false → **a ruling that was written reads as never made** |
+| `record/motion.go:340-358` | the filing → `Fields` / `GapID` fold | **[MODIFY] SILENT.** No arm → `Fields` empty; the motion renders with a subject and no substance |
+| `record/motion.go:42-56` | `MotionVerdicts`, read by `MotionVerdictEnum` | **[MODIFY] SILENT.** A missing key yields empty `Values`, so `--as` help and the enum offer nothing |
+| `record/motion.go:70-95` | `MotionFields`, read by `MotionFieldEnum` | **[MODIFY] SILENT.** `ok=false` means "free text", indistinguishable from "no enumerated fields declared" |
+| **`report/motions.go:78-88`** | `motionHead`'s subject switch — **missed by the audit** | **[MODIFY] SILENT.** `default` renders the bare subject word, so a docket motion prints "docket" with no ask |
+| **`recordsql/views.go:192-195`** | `motion_answers`' hand-written `COALESCE(grade, petition, direction) AS ruling` — **missed** | **[MODIFY] SILENT NULL.** The tables are generated; **this view is not**. A docket ruling yields a NULL `ruling` beside a non-null `ruled_by` |
+| **`recordsql/views.go:221-223`** | `motion_state`'s `grade_ruling` / `petition_ruling` / `direction_ruling` — **missed** | **[MODIFY].** Absent, every SQL reader of the docket arm sees nothing — and under "the views are canonical" that is now every reader |
+| `record/record.go:1262-1270` | `rulingNames` — **missed** | **[MODIFY] HALF-SILENT.** Returns nil, so the refusal fires but offers an EMPTY vocabulary: unactionable |
+| `record.proto:358-362` | `MotionSubject` + its `(ruled_by)` gavel | [MODIFY] add `MOTION_SUBJECT_DOCKET`; a missing annotation makes `rulerFor` **panic at startup**. LOUD by design |
+| `record.proto:1205-1209` / `:1301-1305` | the `filing` and `ruling` oneofs | [MODIFY] add `DocketMotion docket = 13` and `DocketRuling docket = 13` |
+| `record/motion.go:36` | `MotionSubjects`, a hand-written word list | [MODIFY] absent, the subject is invisible to every surface reading it |
+| `cli/motion/command.go:64-83` | subgroup registration + the `name != "petition"` appeal rule | [MODIFY] no `motion docket` tree exists at all |
+| `cli/motion/verbs.go:236-256` | the ruling-build switch | [MODIFY] no arm → `Ruling` nil → refused at `record.go:1023`. LOUD |
+| `record/record.go:1222-1231` / `:1235-1244` / `:1248-1257` | `filingSubject`, `rulingSubject`, `rulingWord` | [MODIFY] UNSPECIFIED / `""` → refused. LOUD, though `filingSubject`'s message misnames the cause |
+| `record/motion.go:443-456` | `RequireMotionSubjectRef` | [MODIFY] docket falls to the generic motion-row lookup; correct **only if** docket has a `file` verb |
+| `seatprobe/build.go:181-186,193` | the board-builder flag switch and its seat-id map — **missed** | [MODIFY] docket → no flags, ruler `""` → `--seat-id ""`. LOUD but unexplained |
+| `record/motion.go:162-179` | `motionSubjectWord` / `MotionSubjectEnum` | NO CHANGE — schema-derived but for the `direction`→`inquiry` bridge; docket resolves free |
+| `record/sitting.go:180-198` | the bench's blocking list | NO CHANGE — already reads the gavel from `SubjectRuler`, not a subject literal |
+| `verify/verify.go:238,464`, `view/view.go:669`, `capture/capture.go:1378`, `graph/graph.go:65`, `report/assemble.go:1232`, `record/available.go:199`, `seatprobe/production.go:62`, `record/inquiry.go:190,213,232` | subject-specific filters (`!= GRADE`, `!= PETITION`, `!= DIRECTION`) | NO CHANGE — each is about ONE subject by intent; excluding docket is correct, not an omission |
+
+**And the views being hand-written is itself the next defect down.** The tables come from the
+descriptors; `motion_answers`' `COALESCE` and `motion_state`'s three ruling columns are a hand-kept
+copy of the same oneof's arm list. Adding a fourth arm obliges an edit nothing forces, and forgetting
+it returns NULL rather than an error — the shape [[facts-are-fields]] names, in the layer this scope
+is being told to make canonical. Scope 2 adds its arm by hand and **files the generation question**
+rather than solving it here.
+
+#### Third census — what the first one's filter excluded
+
+The first census ended `| grep -v _test.go | grep -v golden`, which drops carriers
+[[complete-the-concept]] names in its own text: fuzzers, goldens, and the tests that ARE the
+recorded contract. 52 files. The load-bearing ones:
+
+| file:line | what | disposition |
+|---|---|---|
+| **`releasegate/fuzz/retiredsurfaces_test.go` + `integration/surface/retiredsurfaces_test.go`** | `retiredSurfaces` — **the memory of every retired spelling** | **[MODIFY] both copies.** This is the mechanism a deleted verb is supposed to enter, and no draft named it. Two byte-identical mirrors, two separate carriers |
+| `releasegate/fuzz/fuzz_test.go:1381,1391` | live `r.exec("opinion", …)`, incl. the `--settled --final` sweep | [RETARGET] — the fuzz DRIVES the verb; otherwise the sweep exercises a deleted command |
+| `releasegate/fuzz/fuzz_test.go:2462` | `verbsWithEvents` coverage gate | [MODIFY] drop `opinion`; `motion`/`motion_rule` already cover the arm |
+| `releasegate/fuzz/fuzz_test.go:2587` | `dialecticProseKey["opinion"] = "rationale"` — **missed** | [DELETE] the entry; the "a new verb decides its prose field in writing" gate applies to the docket arm |
+| `releasegate/fuzz/promptverbs_test.go` + `integration/surface/promptverbs_test.go` | the verb regex built from `MotionSubjects`/`MotionVerdicts`/`MotionFields` — **missed** | **[MODIFY] adding docket OBLIGES the agent prompts to offer `motion docket …`.** Fails loudly, and is the tie between this scope and the prompts |
+| `releasegate/fuzz/envelopeenums_test.go:21,72` + `integration/surface/envelopeenums_test.go` | `JUDGE_ENVELOPE.resolution`'s gloss naming "the `opinion` event" | [MODIFY] both mirrors |
+| `internal/difftest/scenarios_test.go:178,197-201` + `testdata/opinion_requires_each_unconditional_field.golden` | the **recorded-refusal oracle for exactly the N8 constraints** | [RETARGET] + rename the scenario; REGENERATE the golden, delete the old |
+| `internal/difftest/contract_test.go:117`, `testdata/error_catalogue.golden:584-586` | the error catalogue's `opinion` cases | [RETARGET] / REGENERATE |
+| `internal/difftest/testdata/role_boundaries_and_help_contracts.golden:144,165`, `projections_debate_changelog_citations.golden:112-133` | bench help and a recorded `opinion` event | REGENERATE |
+| `recordsql/testdata/schema.sql:49,424,668,673` | generated DDL golden — the event-type row, the table, the gap-view joins | REGENERATE (`:250,:298` are `motion_rule`/`halt` columns — NO CHANGE) |
+| **`recordpb/testdata/payload-keys.txt:32,80,89,100`** + `keycensus_test.go`'s `notFields` | the frozen pre-migration key census — **missed** | [MODIFY] **if `DocketRuling` renames `disposition`/`principle`/`rationale`/`review_flag`, the key becomes fieldless and the census FAILS LOUDLY** until a `notFields` reason is written. An argument for keeping the names |
+| `internal/cli/bench/opinion_test.go` | `TestTheOpinionHelpNamesTheDeferringWordsTheRecordHas` | [RETARGET] — the deferring-disposition contract outlives the verb |
+| `internal/cli/crossseat_test.go:71,277` | live `opinion` incl. `--as halt` must be refused | [RETARGET] — **the halt-by-typo guard must move with the verb** |
+| `internal/cli/stategraph_test.go:243-264,305,607,742` | `opinionArgs`, the `opinion:carried` / `opinion:not_a_defect` transitions | [RETARGET] — the state graph must show the docket arm's transitions |
+| `internal/record/replay_test.go:391,442-511,1082-1140` | the whole `Opinion` validation suite | [RETARGET] to `DocketRuling` — 20 of 30 hits in that file are the event |
+| `internal/record/enums_test.go:126-160` | `EnumFields["opinion"]`, the two-closure-vocabulary test | [RETARGET] — **a missing key makes the two sets read as trivially equal** |
+| `cli/cli_test.go`, `board_test.go`, `refs_test.go`, `referencechecks_test.go`, `integration_test.go`, `required_test.go`, `viewjson_test.go`, `recordsql/store_test.go`, `verify_test.go`, `capture_test.go`, `consistency_test.go`, `view_test.go`, `scorecard_test.go`, `assemble_test.go`, `assemble_integration_test.go`, `requiredfields_test.go`, `seatprobe_test.go`, `hookgate/inject_test.go` | live `opinion` invocations and `&recordpb.Opinion{}` fixtures | [RETARGET] each; `requiredfields_test.go` asserts the verb label **verbatim** |
+| `internal/dashboard/testdata/render-{live,terminal}.golden` | the `rulings_without_opinion` detector row | REGENERATE after the detector is retargeted — **the metric NAME carries the retiring word** |
+| `tests/simulator/testdata/prompt-judge-terminal.golden:6` | the judge prompt's `lawClause` | [MODIFY] the source (`debate.js:355`), then REGENERATE |
+| `motionview_test.go`, `motionqueries_parity_test.go`, `viewfamilies_test.go`, `verdict_test.go`, `cli/verbs_test.go`, `payload_test.go`, `fuzz/termination_test.go`, `fuzz/delivery_test.go`, `bench_petitions_and_halt.golden`, `sequential_ids_across_rounds.golden` | `MotionRule.opinion` and `Halt.opinion` | NO CHANGE — **same STRING, different CONCEPT**; both fields outlive the event |
+| `hookgate/hookgate_test.go`, `cli/agentbinding_test.go` | the hook's "has no opinion" (allow) sense | NO CHANGE — unrelated word |
+
 **Agent-facing** — `agents/lead-judge.md:58` states the verb's contract in prose ("every ruling is a
 written opinion — disposition, the principle applied, the values in tension…") and must be rewritten
 to the docket ruling. It no longer names a command literally, so the rewrite is of the *contract
