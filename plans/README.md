@@ -10,4 +10,11 @@ Entry points:
 - **`gray-area.md`** — foundations for the fourth plugin, since built: trajectory mining, the 2.1.220 hook surface and what it lets us enforce, and a phased build. §4 records why continuity is *not* here.
 - **`reasoning-telemetry.md`** — research record: what is observable in a session, and how to expose thinking summaries — the measured correction to "reasoning is not persisted", the three capture channels graded, and why a summary still cannot promote a finding.
 
+Once a plan's design has shipped **and nothing live cites it by path**, it moves to
+[`historical/`](historical/) — that directory's README carries the census that decides it. Moving a
+plan is how a reader is told it describes a PAST tree; editing it to match today would destroy the
+record of what changed, which is the thing a plan is for. A plan that shipped but is still cited as
+the design of record stays here — `claude-port-plan.md` is the standing example, named by four
+plugin READMEs, the repository README, `MEMORY.md` and a Go source comment.
+
 The frank-exchange-of-views reform arc is its own cluster: `constitutional-reform.md` (the design), `change-waves.md` (the tracker it shipped through), `rulebook-audit.md` (the rules the evidence indicted), plus the record-layer plans (`record-*.md`).
