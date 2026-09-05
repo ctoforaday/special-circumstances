@@ -512,7 +512,8 @@ CREATE TABLE "proof" (
   "drift" TEXT,
   "text" TEXT,
   "script" TEXT,
-  "exit" INTEGER
+  "exit" INTEGER,
+  "location" TEXT
 ) STRICT;
 
 CREATE TABLE "reproduce" (

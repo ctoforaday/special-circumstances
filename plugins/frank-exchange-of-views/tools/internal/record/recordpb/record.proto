@@ -1004,6 +1004,14 @@ message Proof {
   // CONTENT, addressed by proof_sha — content is not a fact about the debate.
   optional string script = 9;
   optional int32 exit = 10;
+
+  // location is the anchoring quote the proof marker was spliced after — the same `--quote` cite
+  // and finding record. prove.go used to DROP it, because the only reader that needed the site
+  // was the marker already in report.md. Under report-as-record (#709) there is no file: the
+  // report is REPLAYED from the record, and the projection re-places the `<!--proof:p-…-->` marker
+  // by re-locating this quote. A site recoverable only from a spliced marker is a fact the record
+  // could not state; this field is that fact, held where a writer can refuse a wrong value.
+  optional string location = 11;
 }
 
 // Reproduce is red re-running a proof. REPRODUCING IS NOT PROVING: `reproduced` is COMPUTED by

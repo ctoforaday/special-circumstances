@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -91,11 +91,11 @@ func newCite() *cobra.Command {
 			// the shared anchor-insert (the same rule a finding is anchored by). Mis-quote or
 			// in-fence -> reject; nothing is written and no cite is recorded.
 			if err := record.MutateBlueReport(run, func(old []byte) ([]byte, error) {
-				next, aerr := lens.InsertAnchor(old, quote, marker)
+				next, aerr := anchortext.InsertAnchor(old, quote, marker)
 				switch {
-				case errors.Is(aerr, lens.ErrMisQuote):
+				case errors.Is(aerr, anchortext.ErrMisQuote):
 					return nil, fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
-				case errors.Is(aerr, lens.ErrInFence):
+				case errors.Is(aerr, anchortext.ErrInFence):
 					return nil, fmt.Errorf("blue cite: the quote resolves inside a code fence — cite a prose sentence, not code")
 				}
 				return next, aerr
@@ -144,7 +144,7 @@ func (r citeResult) Human() string {
 
 // adoptTornCiteAnchor returns the label of a citation anchor already on the located quote that
 // no recorded event backs — a torn splice — or "" for the ordinary fresh path. The walk itself is
-// lens.OrphanAnchorAt, shared with `lens finding` and `blue prove`, which carry the same
+// anchortext.OrphanAnchorAt, shared with `lens finding` and `blue prove`, which carry the same
 // two-act crash window; only the recorded set is this verb's.
 func adoptTornCiteAnchor(run record.Run, quote string) string {
 	rep, err := record.ReadBlueReport(run)
@@ -159,5 +159,5 @@ func adoptTornCiteAnchor(run record.Run, quote string) string {
 	for _, l := range labels {
 		recorded[l] = true
 	}
-	return lens.OrphanAnchorAt(string(rep), quote, "cite", func(id string) bool { return recorded[id] })
+	return anchortext.OrphanAnchorAt(string(rep), quote, "cite", func(id string) bool { return recorded[id] })
 }

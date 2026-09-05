@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
@@ -95,7 +95,7 @@ func newProve() *cobra.Command {
 			if spliced {
 				return old, nil // the crashed first attempt already placed this marker
 			}
-			next, aerr := lens.InsertAnchor(old, location, marker)
+			next, aerr := anchortext.InsertAnchor(old, location, marker)
 			if aerr != nil {
 				return nil, aerr
 			}
@@ -104,11 +104,12 @@ func newProve() *cobra.Command {
 			return nil, err
 		}
 
-		// `location` and `output` do not survive onto the event, and neither is a silent drop.
-		// The output stays in the proof cache addressed by proof_sha — content is not a fact
-		// about the debate, and the census records that reasoning against the key. The anchor
-		// is spliced into the report at `location`, and no reader ever read it back off the
-		// proof event: report/proofs.go renders script, exit, basis and drift.
+		// `output` does not survive onto the event, and that is not a silent drop: it stays in the
+		// proof cache addressed by proof_sha — content is not a fact about the debate, and the
+		// census records that reasoning against the key. `location` DOES survive now (#709): under
+		// report-as-record there is no report.md, so the projection re-places this proof marker by
+		// re-locating `location` — the anchoring site must be a fact the record holds, not one
+		// recoverable only from the spliced marker report/proofs.go never read back off the event.
 		body := &recordpb.Proof{
 			ProofId:    proto.String(label),
 			ProofSha:   proto.String(res.SHA),
@@ -118,6 +119,7 @@ func newProve() *cobra.Command {
 			ProofKey:   proto.String(seat.Str(cmd, flags.Key)),
 			Answers:    proto.String(seat.Str(cmd, flags.Answers)),
 			Cites:      proto.String(seat.Str(cmd, flags.Cites)),
+			Location:   proto.String(location),
 		}
 		if res.Drift != "" {
 			body.Drift = proto.String(res.Drift)
@@ -180,6 +182,6 @@ func adoptTornProofAnchor(run record.Run, quote string) string {
 	if err != nil {
 		return ""
 	}
-	return lens.OrphanAnchorAt(string(rep), quote, "proof",
+	return anchortext.OrphanAnchorAt(string(rep), quote, "proof",
 		func(id string) bool { return record.ProofMarkerRecorded(run, id) })
 }

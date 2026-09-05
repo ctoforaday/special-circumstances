@@ -1,4 +1,4 @@
-package blue
+package reportproj
 
 import (
 	"strings"

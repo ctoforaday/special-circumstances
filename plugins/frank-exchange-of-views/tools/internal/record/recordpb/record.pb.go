@@ -3758,8 +3758,15 @@ type Proof struct {
 	// `report/proofs.go` renders both, and a reader of the record should not have to open a
 	// second store to learn how a proof ran. The script BODY and its output stay in the cache as
 	// CONTENT, addressed by proof_sha — content is not a fact about the debate.
-	Script        *string `protobuf:"bytes,9,opt,name=script,proto3,oneof" json:"script,omitempty"`
-	Exit          *int32  `protobuf:"varint,10,opt,name=exit,proto3,oneof" json:"exit,omitempty"`
+	Script *string `protobuf:"bytes,9,opt,name=script,proto3,oneof" json:"script,omitempty"`
+	Exit   *int32  `protobuf:"varint,10,opt,name=exit,proto3,oneof" json:"exit,omitempty"`
+	// location is the anchoring quote the proof marker was spliced after — the same `--quote` cite
+	// and finding record. prove.go used to DROP it, because the only reader that needed the site
+	// was the marker already in report.md. Under report-as-record (#709) there is no file: the
+	// report is REPLAYED from the record, and the projection re-places the `<!--proof:p-…-->` marker
+	// by re-locating this quote. A site recoverable only from a spliced marker is a fact the record
+	// could not state; this field is that fact, held where a writer can refuse a wrong value.
+	Location      *string `protobuf:"bytes,11,opt,name=location,proto3,oneof" json:"location,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3862,6 +3869,13 @@ func (x *Proof) GetExit() int32 {
 		return *x.Exit
 	}
 	return 0
+}
+
+func (x *Proof) GetLocation() string {
+	if x != nil && x.Location != nil {
+		return *x.Location
+	}
+	return ""
 }
 
 // Reproduce is red re-running a proof. REPRODUCING IS NOT PROVING: `reproduced` is COMPUTED by
@@ -5992,7 +6006,7 @@ const file_record_proto_rawDesc = "" +
 	"\b_outcomeB\r\n" +
 	"\v_confidenceB\a\n" +
 	"\x05_textB\b\n" +
-	"\x06_labelJ\x04\b\x02\x10\x03R\treference\"\xab\x03\n" +
+	"\x06_labelJ\x04\b\x02\x10\x03R\treference\"\xd9\x03\n" +
 	"\x05Proof\x12\x1e\n" +
 	"\bproof_id\x18\x01 \x01(\tH\x00R\aproofId\x88\x01\x01\x12 \n" +
 	"\tproof_key\x18\x02 \x01(\tH\x01R\bproofKey\x88\x01\x01\x12 \n" +
@@ -6005,7 +6019,9 @@ const file_record_proto_rawDesc = "" +
 	"\x04text\x18\a \x01(\tH\aR\x04text\x88\x01\x01\x12\x1b\n" +
 	"\x06script\x18\t \x01(\tH\bR\x06script\x88\x01\x01\x12\x17\n" +
 	"\x04exit\x18\n" +
-	" \x01(\x05H\tR\x04exit\x88\x01\x01B\v\n" +
+	" \x01(\x05H\tR\x04exit\x88\x01\x01\x12\x1f\n" +
+	"\blocation\x18\v \x01(\tH\n" +
+	"R\blocation\x88\x01\x01B\v\n" +
 	"\t_proof_idB\f\n" +
 	"\n" +
 	"_proof_keyB\f\n" +
@@ -6018,7 +6034,8 @@ const file_record_proto_rawDesc = "" +
 	"\x06_driftB\a\n" +
 	"\x05_textB\t\n" +
 	"\a_scriptB\a\n" +
-	"\x05_exit\"\xe1\x02\n" +
+	"\x05_exitB\v\n" +
+	"\t_location\"\xe1\x02\n" +
 	"\tReproduce\x12 \n" +
 	"\tproof_sha\x18\x01 \x01(\tH\x00R\bproofSha\x88\x01\x01\x12#\n" +
 	"\n" +

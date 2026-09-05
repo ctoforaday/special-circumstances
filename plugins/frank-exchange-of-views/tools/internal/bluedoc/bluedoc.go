@@ -26,8 +26,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
 )
 
 // ErrMisQuote is the sentinel for "the old span is not present". `blue edit` distinguishes
@@ -45,8 +45,8 @@ var ErrMisQuote = errors.New("the quoted span was not found in report.md — quo
 // to every site stating a claim, so repeated text is the EXPECTED shape of a real report.
 func LocateUnique(verb, report, old string) (int, int, error) {
 	// AN EDIT MAY CROSS A PARAGRAPH BREAK; an anchor may not. Sharing one rule made this verb's
-	// own two refusals jointly unsatisfiable — see lens.SpanScope for the measurement.
-	start, end, ambiguous := lens.LocateSpanUniqueScoped(report, old, lens.CrossParagraphs)
+	// own two refusals jointly unsatisfiable — see anchortext.SpanScope for the measurement.
+	start, end, ambiguous := anchortext.LocateSpanUniqueScoped(report, old, anchortext.CrossParagraphs)
 	if start < 0 {
 		return 0, 0, fmt.Errorf("%s: %w", verb, ErrMisQuote)
 	}
@@ -101,7 +101,7 @@ func settleAbuttingAnchor(verb, report, quoted string, end int) (int, error) {
 	// InsertAnchor places the token BEFORE the terminator, so skip that run first. TrimLeft takes
 	// a rune cutset — `…` is three bytes, and a byte-wise skip would half-consume it.
 	tail := report[end:]
-	after := strings.TrimLeft(tail, lens.TrailingPunct)
+	after := strings.TrimLeft(tail, anchortext.TrailingPunct)
 	m := anyAnchorToken.FindStringIndex(after)
 	if m == nil || m[0] != 0 {
 		return end, nil

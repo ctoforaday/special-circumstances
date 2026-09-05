@@ -27,6 +27,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // authorSeat is the ONE seat allowed to ingest — the round-0 report's author.
@@ -45,7 +46,7 @@ func newIngest() *cobra.Command {
 		}
 
 		// WRITE-ONCE — refuse-and-redirect if a base already exists (record-state, not a marker).
-		already, err := BaseIngested(run)
+		already, err := reportproj.BaseIngested(run)
 		if err != nil {
 			return nil, err
 		}
@@ -64,7 +65,7 @@ func newIngest() *cobra.Command {
 		if _, err := record.Append(s.Identity(), &recordpb.BaseIngest{Text: proto.String(report)}); err != nil {
 			return nil, err
 		}
-		rendered, err := RenderFromRecord(run)
+		rendered, err := reportproj.RenderFromRecord(run)
 		if err != nil {
 			return nil, fmt.Errorf("blue ingest: rendering the freshly-ingested base: %w — the file is UNTOUCHED", err)
 		}

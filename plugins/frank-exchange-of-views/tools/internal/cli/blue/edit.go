@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // edit: the ONLY write path to blue/report.md for a response seat.
@@ -163,7 +164,7 @@ func planEdit(report, old, new string) (string, error) {
 	if err := bluedoc.AnchorsTransitUnchanged("blue edit", report[start:end], new); err != nil {
 		return "", err
 	}
-	next := applySplice(report, start, end, new)
+	next := reportproj.ApplySplice(report, start, end, new)
 	if dropped := droppedMarker(report, next); dropped != "" {
 		return "", fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
 	}

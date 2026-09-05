@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -97,11 +98,11 @@ func newFinding() *cobra.Command {
 			if spliced {
 				return old, nil // the crashed first attempt already placed this marker
 			}
-			next, err := InsertAnchor(old, location, marker)
+			next, err := anchortext.InsertAnchor(old, location, marker)
 			switch {
-			case errors.Is(err, ErrMisQuote):
+			case errors.Is(err, anchortext.ErrMisQuote):
 				return nil, fmt.Errorf("lens finding: --quote was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a finding anchors ONE passage")
-			case errors.Is(err, ErrInFence):
+			case errors.Is(err, anchortext.ErrInFence):
 				return nil, fmt.Errorf("lens finding: the quote resolves inside a code fence — anchor a prose sentence, not code")
 			}
 			return next, err
@@ -160,6 +161,6 @@ func adoptTornFindingAnchor(run record.Run, quote string) string {
 	if err != nil {
 		return ""
 	}
-	return OrphanAnchorAt(string(rep), quote, "fx",
+	return anchortext.OrphanAnchorAt(string(rep), quote, "fx",
 		func(id string) bool { return record.FindingMarkerRecorded(run, id) })
 }

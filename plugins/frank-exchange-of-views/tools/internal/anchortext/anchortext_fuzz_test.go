@@ -1,4 +1,4 @@
-package lens
+package anchortext
 
 import (
 	"strings"

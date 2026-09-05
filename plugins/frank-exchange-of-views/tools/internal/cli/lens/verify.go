@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
@@ -217,12 +218,12 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		label := record.NewCitationID()
 		marker := "<!--cite:" + label + "-->"
 		if err := record.MutateBlueReport(run, func(old []byte) ([]byte, error) {
-			next, aerr := InsertAnchor(old, body.GetClaim(), marker)
+			next, aerr := anchortext.InsertAnchor(old, body.GetClaim(), marker)
 			switch {
-			case errors.Is(aerr, ErrMisQuote):
+			case errors.Is(aerr, anchortext.ErrMisQuote):
 				return nil, feov.Errorf(feov.Validation,
 					"lens corroborate: the quoted claim was not found in report.md — quote the EXACT sentence you are corroborating (via --quote); the whole string is matched, so a heading prepended to it matches nothing. A corroboration of a claim blue has since edited away is not spliced blind")
-			case errors.Is(aerr, ErrInFence):
+			case errors.Is(aerr, anchortext.ErrInFence):
 				return nil, feov.Errorf(feov.Validation, "lens corroborate: the quote resolves inside a code fence — corroborate a prose sentence, not code")
 			}
 			return next, aerr

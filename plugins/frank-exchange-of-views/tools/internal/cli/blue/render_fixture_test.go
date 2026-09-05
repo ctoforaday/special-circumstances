@@ -1,6 +1,7 @@
 package blue
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"os"
 	"regexp"
 	"testing"
@@ -34,7 +35,7 @@ func TestFixtureRenderReproducesEditPathAndKeepsEveryAnchor(t *testing.T) {
 		t.Fatalf("fixture should carry several immortal anchors, found %d", len(anchorsBefore))
 	}
 
-	steps := []Op{
+	steps := []reportproj.Op{
 		// plain edit, no anchor in span
 		{Old: "Horum omnium fortissimi sunt Belgae", New: "Horum omnium fortissimi longe sunt Belgae"},
 		// anchor-ADJACENT: a fragment that stops before the finding-marker without reaching it —
@@ -54,7 +55,7 @@ func TestFixtureRenderReproducesEditPathAndKeepsEveryAnchor(t *testing.T) {
 		viaEdit = next
 	}
 
-	rendered, err := Render(base, steps)
+	rendered, err := reportproj.Render(base, steps)
 	if err != nil {
 		t.Fatalf("Render: %v", err)
 	}

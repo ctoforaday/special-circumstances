@@ -1,10 +1,23 @@
-package lens
+// Package anchortext is the report-text geometry of immortal anchors: how a quoted span is
+// LOCATED across the invisible annotation layer (LocateSpan and its scoped/unique variants) and
+// how a marker is PLACED at that span (InsertAnchor, OrphanAnchorAt). It is the sibling of
+// internal/anchor — that leaf owns the anchor VOCABULARY (Token, Label, the class grammar), this
+// one owns where an anchor SITS in the document.
+//
+// It lived in internal/cli/lens, which made it unreachable to any package cli/lens imports. Under
+// report-as-record (#709) the report is REPLAYED from the record by internal/reportproj, which
+// must re-place every marker — and cli/lens must read the replayed report to locate its own
+// splice, so cli/lens now imports reportproj. Geometry in cli/lens would have closed that loop
+// into a cycle. It depends on nothing but the standard library and the internal/anchor leaf, so
+// reportproj, cli/lens, cli/blue and bluedoc can all share the one locator.
+package anchortext
 
 import (
 	"errors"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 	"regexp"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
 )
 
 // Finding-marker anchoring (slice 1b). A lens finding is anchored in blue/report.md by
