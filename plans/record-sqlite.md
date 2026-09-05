@@ -312,10 +312,14 @@ motion is created by its ruling; the gate runs once per verdict). The motion gua
 BASE tables, not `motion_state` — the view is one-row-per-motion only by grace of the very
 guards converted, and it stays for readers wanting the joined row.
 
-**Still open in this line, gated on evidence:** `BoardState` itself as SQL. Deferred
-2026-09-03 when removing the read path's N+1 (whole-table scans per read, #700's sibling
-work) dropped `internal/cli` solo from 1,316s to 878s — the fold is no longer the dominant
-cost anywhere measured. Reopen if a fresh sweep shows board renders dominating again.
+**Still open in this line, and it is the GOAL, not a perf question:** the remaining Go
+walks — `BoardState`'s fold above all. The point of step 4 is simplification: a question
+about the record is authored ONCE, as SQL a reader can see and a test can hold, instead of
+Go pulling tables and recomputing what the database can answer. Perf was the trigger that
+paid for the plumbing; it is not the bar. Next: the named questions that landed as SQL
+strings inside Go functions move into ViewsDDL as views (stranded ancestors, gaps awaiting
+proof, motion state with the row semantics the guards need), and then the board's own
+readers move onto views, retiring the fold reader by reader.
 
 ## Status (2026-08-22)
 
