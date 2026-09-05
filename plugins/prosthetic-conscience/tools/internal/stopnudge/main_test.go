@@ -3,6 +3,7 @@ package stopnudge
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/ctoforaday/special-circumstances/plugins/prosthetic-conscience/tools/internal/freshness"
 	"os"
 	"path/filepath"
 	"strings"
@@ -108,18 +109,73 @@ func TestRunWithNoNoteSaysNothingAndWritesNothing(t *testing.T) {
 // bands were configured (which Phase 2 does deliberately) or the inert path started
 // writing — and the second would silently mark every Phase 1 baseline row as
 // nudge_enabled, disarming criterion 6.
-func TestRunIsInertAndLeavesNoTraceWhileThresholdsAreUnset(t *testing.T) {
+// THE INERT-PATH TEST IS GONE BECAUSE ITS PREMISE IS, and it said so itself.
+//
+// It asserted that an unconfigured nudge emits nothing and writes no state, and it ended with a
+// guard: "configured() now reports thresholds — this test's premise no longer holds, and the
+// inert-path assertions above stopped meaning anything". Phase 2 configured them, the guard fired,
+// and it was right — a fresh session crosses no edge for reasons that have nothing to do with
+// being unconfigured, so keeping the old assertions would have been a test passing for a reason it
+// no longer described.
+//
+// What replaces it is the same question asked of the LIVE gate: a session below every edge stays
+// silent, and one over an edge does not.
+func TestAFreshSessionCrossesNothingAndStaysSilent(t *testing.T) {
 	dir := withNote(t, "---\nschema: 3\nwritten_at: 2026-08-23T00:00:00Z\n---\n## Validation loop\n1. x\n")
 	out, _ := drive(t, dir, payload(t, map[string]any{"session_id": "s1", "cwd": dir, "stop_hook_active": false}))
 	if out != "" {
-		t.Errorf("an unconfigured nudge emitted:\n%s", out)
+		t.Errorf("a session below every band emitted:\n%s", out)
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".claude", "checkpoints", "nudge.json")); err == nil {
-		t.Error("an unconfigured nudge wrote state; nudge_enabled would read true for every baseline row")
+		t.Error("a session below every band wrote state; nudge_enabled would read true for a session nothing was said to")
 	}
-	if configured().Configured() {
-		t.Error("configured() now reports thresholds — this test's premise no longer holds, and the " +
-			"inert-path assertions above stopped meaning anything")
+}
+
+// THE EDGES ARE THE ONES §III PREREGISTERED, asserted here so a later edit cannot quietly move a
+// number the design forbade choosing after the fact. The values are P50/P75/P90 of the Phase 1
+// baseline; the reason each is what it is lives on configured().
+func TestTheConfiguredEdgesAreThePreregisteredPercentiles(t *testing.T) {
+	th := configured()
+	if !th.Configured() {
+		t.Fatal("Phase 2 configured the bands; configured() reports unset")
+	}
+	for _, c := range []struct {
+		name string
+		got  int
+		want int
+	}{
+		{"TurnsNotice", th.TurnsNotice, 16}, {"TurnsWarn", th.TurnsWarn, 39}, {"TurnsUrgent", th.TurnsUrgent, 47},
+		{"GrowthNotice", th.GrowthNotice, 66_764}, {"GrowthWarn", th.GrowthWarn, 109_902}, {"GrowthUrgent", th.GrowthUrgent, 157_844},
+		{"BranchNotice", th.BranchNotice, 10}, {"BranchWarn", th.BranchWarn, 12}, {"BranchUrgent", th.BranchUrgent, 17},
+	} {
+		if c.got != c.want {
+			t.Errorf("%s = %d, want %d — §III fixed these percentiles before the data existed, so a "+
+				"change here is a re-decision to make with the human, not an edit", c.name, c.got, c.want)
+		}
+	}
+	// The finding configured() reports rather than smooths: the turns NOTICE edge sits under the
+	// floor, so nothing reaches it. Pinned so that if the floor or the edge moves, whoever moves it
+	// meets this rather than discovering the band was dead.
+	if th.TurnsNotice >= floorTurns {
+		t.Errorf("TurnsNotice %d now clears floorTurns %d — the documented finding that turns NOTICE "+
+			"is unreachable no longer holds, and configured()'s comment needs re-deciding", th.TurnsNotice, floorTurns)
+	}
+}
+
+// BRANCH WORK ALONE CAN RAISE A BAND, which is the third of §III's measures and the one the struct
+// could not express until Phase 2. Any-of means a session that committed heavily against a stale
+// note is stale even if turns and growth say nothing.
+func TestBranchCommitsAloneCrossABand(t *testing.T) {
+	th := configured()
+	m := freshness.Measures{BranchCommits: th.BranchUrgent, BranchKnown: true}
+	band, ok := highestBand(m, th)
+	if !ok || band != BandUrgent {
+		t.Errorf("branch commits at the URGENT edge gave band=%q ok=%v, want urgent — the measure was "+
+			"collected all along and banded by nothing", band, ok)
+	}
+	// And an UNMEASURED branch count abstains rather than reading as zero.
+	if _, ok := highestBand(freshness.Measures{BranchCommits: 999}, th); ok {
+		t.Error("an unmeasured branch count crossed a band; BranchKnown is what makes it an answer")
 	}
 }
 
