@@ -28,6 +28,7 @@ CREATE TABLE "enum_event_type" (
 ) STRICT;
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('anchor', 'evidence tied to a finding: where in the artifact the claim actually lives');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('avenue', 'a line of inquiry, from proposed through pursued, declined, deferred or abandoned');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('base_ingest', 'the frozen round-0 report, stored verbatim as the origin the diff-stack replays over');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('blue_edit', 'a change to the living report, recorded as old and new so the edit itself is auditable');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable');
@@ -592,6 +593,11 @@ CREATE TABLE "friction_none" (
 CREATE TABLE "inquiry_review" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "reason" TEXT
+) STRICT;
+
+CREATE TABLE "base_ingest" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "text" TEXT
 ) STRICT;
 
 CREATE VIEW "gap" AS
