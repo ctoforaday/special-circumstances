@@ -290,7 +290,7 @@ func Check(run record.Run) ([]string, error) {
 		}
 	}
 
-	fj := record.FindingsJSONOf(board)
+	fj := record.FindingsJSONOf(board.Events)
 	gotLabels := map[string]bool{}
 	for _, f := range fj.Findings {
 		gotLabels[f.Label] = true

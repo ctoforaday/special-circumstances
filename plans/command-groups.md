@@ -1,688 +1,335 @@
-# Command groups: the tree is entities, the seat is detected
+# Command groups: the seat's verb set IS the tree
 
-> STATUS 2026-09-02: shipped — historical record. Stages 1–7 landed (#349, #350, #351; stage 4 as #357/#362/#364; #354; #480 + #290; docs per `docs/seat-command-triggers.md`, which marks the collapses EXECUTED). Two post-ship reversals are marked in place below: the "permanent" dual-read was deleted 2026-08-16 (commit 860806da), and `avenue`/`direction` were renamed `line-of-inquiry`/`inquiry` in the same commit.
+> The design as built. The entity-group tree this plan originally proposed, its staged
+> execution, the reversed dual-read and the measured defects that justified the work are in
+> `plans/historical/command-groups.md`.
 
-Agreed in design dialogue, 2026-08-09, from a full audit of the 45-verb role surface.
+Agreed in design dialogue 2026-08-09 and shipped in seven stages, which live code still cites by
+number — **1** #341 `cite` split · **2** #342 closure vocabulary · **3** #343 `reproduce` records
+its verdict · **4** #344 the `motion` group · **5** #348 identity as fields · **6** #345 the
+scoped tree (landed as #480) · **7** #346 the agent-facing surfaces — with #290 supplying the
+detected identity underneath. This document states what binds the surface now;
+the archaeology document states what changed and why, including the parts of the original
+design that were never built.
 
 > **This AMENDS `plans/feov-cli-architecture.md` (#59, Cut 1), which reads "role belongs in
 > the tree — the role is the verb's parent node."** Cut 1 was about role as *constructor
 > data*: a `role string` passed to every verb was a command being told its own position.
 > That argument stands and is kept — no constructor takes a role here either.
 >
-> What changes is where position is read. The tree becomes ENTITY groups, and the seat is
-> **detected, not typed**: the PreToolUse hook injects it exactly as it already injects
-> `FEOV_RUN`, and a seat sees only its own verbs. This is the mechanism half of **#290**
-> ("seat identity is self-asserted — … and identity-scoped command surfaces"), which was
-> written up, orphaned into an appendix, and filed; this plan builds on it rather than
-> beside it.
->
-> **The `--seat-id` flag SURVIVES as a cross-check, not as a source.** `seatenv` is the
-> precedent and the reason: its point was never that the environment is a second source, it
-> is that a `--run` DISAGREEING with the injected value is REFUSED. That exists because a
-> seat typed `special circumstances` for `special-circumstances`, the tool answered "names
-> gap R1-2, which no mint event created", and the seat believed it, filed a false bug and
-> abandoned five manifest receipts. Detected identity with no cross-check would make
-> attribution a derived fact that fails silently — the defect class this whole audit is about.
+> What changed is where position is read. The role node came off the command line entirely and
+> the seat is **detected, not typed**: the PreToolUse hook injects it exactly as it already
+> injects `FEOV_RUN`, and a seat sees only its own verbs. This is the mechanism half of **#290**
+> ("seat identity is self-asserted — … and identity-scoped command surfaces").
 
-## I. Summary & Goals
+## I. The tree
 
-### The problem
+`feov-record` builds ONE tree per caller, from the identity it was dispatched with
+(`internal/cli/root.go`, `NewRootFor`). A seat's verbs are mounted at the **root of its own
+tree** (`seat.RoleVerbs`) — `mint`, not `merge mint`; `cite`, not `blue cite`.
 
-The surface is grouped by WHO acts, so verbs that operate on the same entity are scattered
-across four roles and verbs that do unrelated things collide on a name. A 2026-08-09 audit
-of all 45 role verbs found four overlaps, one of which silently corrupts a metric.
+**The verb set IS the role boundary.** A lens structurally cannot mint or close a board gap:
+no such verb exists in its namespace. Blue has no board verbs at all. That is a property of the
+tool rather than a rule someone has to follow, and it is why no `SeatPermissions` table was
+built: a table consulted at the write would be a SECOND answer to "which seat may do this",
+beside the tree that already answers it.
 
-**The measured defect.** `cite` is two different acts sharing one event type, told apart at
-read time by:
+Four nodes across the seat surfaces hold sub-verbs, and each earned it.
 
-```go
-func IsVerifiedCite(e Event) bool {
-    return e.Type == "cite" && e.Payload.Str("label") == ""
-}
-```
+| group | shape | seats | why it is a group |
+|---|---|---|---|
+| `motion` | `motion <subject> <verb>` | all | the subjects' contracts diverge in required flags, ruler and escalation — a flag cannot express it without the tool accepting nonsense |
+| `show` | `show <projection>` | all | eleven projections that were flag VALUES behind `--view`, invisible to `--help` until you already knew the vocabulary |
+| `line-of-inquiry` | `propose` · `move` | blue | proposing a line and moving its status are two contracts on one entity's lifecycle |
+| `class` | `new` | merge | the gap-class registry — **it was four flags on `mint`**, and that is what a verb looks like when it is wearing another verb's clothes |
 
-Red verifying a source and blue authoring a citation are distinguished by the ABSENCE of a
-field. If blue ever writes a cite without a label, it counts as red's audit volume — a
-number red reads as how much work it did. No error, no signal; the number just moves. This
-is `facts-are-fields` exactly, and it is in the shipped code today.
+The operator tree has its own two: `show diagnostics|tiers` and `ocr pages|read`.
 
-**The structural defect.** The propose→rule exchange is implemented three times with three
-vocabularies:
+**Where a flag discerns a TYPE today, that flag is a subgroup candidate tomorrow** — `--view`
+was the clearest case in the tool and became `show <projection>`. `class` is the same rule from
+the other end: `--class-new` was a boolean whose whole meaning was "I also passed
+`--definition`, `--neighbor` and `--distinguisher`", the three were optional to cobra and
+policed in the mint handler, and a mint that coined a class wrote TWO events, one of which had
+nothing to do with putting a gap on the board. **A cluster of flags that must travel together,
+changes what else is required, and writes its own event, is a verb.** As one, cobra refuses an
+incomplete coining at parse, and `--help` can say what a class IS without that competing for
+room with what a gap is.
 
-| exchange | proposer | ruler | key | values |
-|---|---|---|---|---|
-| directions | `blue avenue` | `merge avenue-rule` | `ruling` | endorsed / out-of-scope / too-thin |
-| governance | `<seat> petition` | `bench petition-rule` | `ruling` | granted / denied |
-| grades | `blue dispute` | `merge dispute-respond` | **`response`** | accepted / rejected |
+**A group earns its place when it has two or more verbs AND its name disambiguates or
+teaches.** Everything else is a top-level verb. **Counter-pressure, and it is real: depth costs
+tokens on every call** — the speed clause tells every seat a message costs ~20s regardless of
+content. One group is worth it where it deletes hand-validation; a tier applied for tidiness is
+a tax on every invocation.
 
-Two different key names for one concept, three renderers, and no shared id. That is the
-direct cause of a defect class this repo has been fixing one instance at a time: #315 found
-the petition FILING unrendered while the avenue RULING was found unrendered separately,
-months apart, because nothing tied them to one mechanism. #312 (petition-rule joins on
-`(petitioner, class)` with no petition id) is the same root.
+### The surfaces
 
-### Success criteria
+Verified in `internal/cli/{blue,lens,merge,bench}/command.go`. `show` is appended to every
+seat by `seat.RoleVerbs`; `motion`, `fetch` and `count-claims` are added in `NewRootFor`.
 
-1. `IsVerifiedCite` and every other read that infers a fact from a field's emptiness is
-   deleted; the distinction is a field or an event type.
-2. One adjudication mechanism with an ID, joined once and rendered once.
-3. Every verb reachable by a seat is listed in ONE table that both gates the write and
-   generates that seat's `--help`. One source, not two.
-4. The non-`show` surface falls from 45 to 26 with no capability lost; `show`'s twelve
-   projections stop being flag values and become verbs. Any capability that IS lost is named
-   in the trigger map, not discovered later (the `checked-held` precedent, #327).
-5. Every existing gate still passes: fuzz 60/60, node 94/94, and the four verb-lifecycle
-   gates (exists / driven / named to a seat / reaches a reader).
+| seat | verbs |
+|---|---|
+| **blue** | `register` `edit` `cite` `prove` `revision` `retire` `line-of-inquiry {propose,move}` `manifest-row` `claim-index` `position` `closing` `friction` · `show` `motion` `fetch` `count-claims` |
+| **lens** | `register` `finding` `verify` `corroborate` `reproduce` `friction` · `show` `motion` `fetch` `count-claims` |
+| **merge** | `register` `mint` `class {new}` `close` `carry` `regrade` `spot-check` `inquiry-support` `near-match` `position` `closing` `verdict` `friction` · `show` `motion` `fetch` `count-claims` |
+| **bench** | `register` `opinion` `halt` `certify` `declare` `outcome` `assemble` `friction` · `show` `motion` `fetch` `count-claims` |
 
-## II. Technical Context & Design
+`show` projections (`internal/cli/seat/verbs.go`, `views`): `report` `board` `findings` `work`
+`motions` `debate` `changes` `evidence` `lines-of-inquiry` `telemetry` `scorecard`.
 
-Go 1.x, cobra, module `.../frank-exchange-of-views/tools`. No new dependencies.
+**A SEAT IS NOT AN OPERATOR, and the two sets are disjoint by construction.** `--seat-id
+operator` selects `verify` `graph` `show {diagnostics,tiers}` `count-claims` `friction` `fetch`
+`ocr {pages,read}` `setup` `scorecard` `dashboard` `capture`. Two names collide across the split:
+`friction` is a seat's write verb AND the operator's read of the channel; `verify` is a lens's
+citation adjudication AND the operator's whole-record cross-check. One tree cannot hold both
+meanings, and picking a winner would hand some seat a verb that does the other thing. `fetch`
+and `count-claims` cross the split because seats genuinely run them — a lens reads the EXACT
+bytes blue cited, from the run cache, so it audits the same artifact rather than a page that
+may have drifted; blue's `claim_count` is defined as what `count-claims` prints — and neither
+name collides.
 
-### The tree
+**NO IDENTITY IS NOT A MODE.** An unidentified caller used to fall through to the operator
+surface, which made "nobody said who I am" a way of selecting a tree — and a tree nobody
+selects is one nobody can be refused from. There is nothing to show until the question is
+answered; `--seat-id operator` is how an operator answers it.
 
-`feov-record <group> <verb>`. The seat is DETECTED and the surface is scoped to it.
+**Rejected: a binary per seat.** It restores the structural boundary, but the prompt must then
+name `feov-lens` — putting the seat back on the command line, which is the thing being removed
+— or the hook routes between four binaries, which is more magic rather than less. It also
+multiplies the version surface `setup` preflights against the event-schema epoch.
 
-**Help states the identity and lists only that seat's verbs** — "You are `red-lens-r1-L1`.
-Your verbs:" — and says nothing about other seats. The earlier draft had help cross-reference
-what a seat may NOT run; that is polymorphic help, it is hard to phrase without inviting the
-reader to try the thing it just named, and it puts noise in every invocation to solve a
-problem that occurs once.
+## II. Identity: detected, cross-checked, and stamped as fields
 
-**The REFUSAL names the owner instead.** `mint is the merge seat's; you are red-lens-r1-L1`.
-That is one line at the exact moment of the mistake, which is where "not mine" would
-otherwise read as "does not exist".
+**The seat is DETECTED.** The PreToolUse hook exports the harness agent handle; `register`
+binds it to a seat as a field on its own event, and identity is read back from the record.
 
-**Rejected: a binary per seat.** It restores the structural boundary, but the prompt must
-then name `feov-lens` — putting the seat back on the command line, which is the thing being
-removed — or the hook routes between four binaries, which is more magic rather than less. It
-also multiplies the version surface `setup` preflights against `recordToolVersion`.
+**`--seat-id` and `--run` SURVIVE as CROSS-CHECKS, not as sources.** A passed value that
+DISAGREES with the resolved one is REFUSED. `seatenv` is the precedent and the reason: its
+point was never that the environment is a second source, it is that a `--run` disagreeing with
+the injected value is refused. That exists because a seat typed `special circumstances` for
+`special-circumstances`, the tool answered "names gap R1-2, which no mint event created", and
+the seat believed it, filed a false bug and abandoned five manifest receipts. Detected identity
+with no cross-check would make attribution a derived fact that fails silently.
 
-`--run` remains a persistent flag as a CROSS-CHECK: passed and disagreeing, it refuses.
+**Identity arrives as FIELDS (#348).** Role and round are stamped at the append path rather
+than recovered from the seat id:
 
-### The grouping rule
+- `record.PartyOf(e)` reads the stamped `role`. It falls back to `roleOfSeat(e.SeatID)` ONLY
+  for records written before the field existed — a real corpus this tool still reads — and the
+  fallback is guarded on the stamped value being USABLE, not merely present, because `role` is
+  optional in the schema and so has three states where it had two (stamped, stamped-empty,
+  absent). Before the field, `strings.HasPrefix(e.SeatID, "red-merge")` decided whether a
+  position rendered as RED or BLUE, so an id that failed to match its expected prefix rendered
+  as the wrong party with nothing to notice.
+- `record.RoundOf` survives, and its second return is the whole point: it answers `(round,
+  known)`, where a bare `0` used to mean both "round 0, which is synthesis and a real round
+  with real events" and "this name says nothing about a round". That collapse produced the
+  phantom-archive bug (#327) — `judge-terminal` carries no round, so it yielded 0, so a
+  terminal bench closure looked like a closure before round 1. `internal/consistency` now uses
+  it as a CROSS-CHECK against the stamped field rather than as the source.
 
-A group earns its place when it has **two or more verbs** AND its name **disambiguates or
-teaches**. Everything else is a top-level command. The first draft failed this on `meta`,
-which grouped `register`/`friction`/`show` on the sole basis of being cross-cutting — that
-teaches nothing and was taxonomy for its own sake.
+**The seat id stays the SHARD KEY and the concurrency namespace.** Only the DERIVED facts
+became fields. A lens index recovered from a seat name is what makes a lock-free counter safe
+under parallel dispatch; collapsing it once made 39 of 60 disposals ambiguous. `record.RoleOf`
+(in `findinglabel.go`) is that lens-index reader and is deliberately NOT the name given to
+`PartyOf` — two different things were about to share one name.
 
-A verb MAY appear in more than one group. The rule is not "once only": it must make sense
-within its group, be restricted to that group's operations, and not carry a wildly different
-meaning under the same name elsewhere. `friction` (record a complaint) and `show friction`
-(read them) are the same concept in write and read voice — legitimate. `cite` meaning
-"author a citation" in one place and "verify a source" in another was not.
+## III. The refusal carries what the surface cannot
 
-**Where a flag discerns a TYPE today, that flag is a subgroup candidate tomorrow.** `show
---view ledger` is the clearest case in the tool and becomes `show ledger`.
+**The boundary went from legible to invisible, and that cost is paid rather than hidden.** A
+seat knew its role because it typed it. Scoped, an out-of-role verb returns "unknown command" —
+indistinguishable from the capability not existing, and a seat handed an unavailable verb logs
+friction and works around it, losing the capability for the run.
 
-### Top-level commands
+The surface cannot carry the verb (it does not know which seat's), so the REFUSAL carries the
+reason. `unknownCommandRefusal` (`internal/cli/root.go`) names the owner, and `whereItLives`
+searches every role's tree to find it. **Help states the identity and lists only that seat's
+verbs**, and says nothing about other seats: the earlier draft's polymorphic help is hard to
+phrase without inviting the reader to try the thing it just named, and it puts noise in every
+invocation to solve a problem that occurs once.
 
-`friction` · `finding` · `verify` — no group, because none would teach anything. `verify` runs
-the whole-record invariants; it is not an operation on any one entity.
+**MEASURED 2026-08-17.** A red-merge seat holding a work-list duty that named `inquiry-support`
+typed `feov-record inquiry-support --help`, was told no such command exists, believed it —
+reasonably, the message is unambiguous — went hunting, and settled on `motion inquiry rule`,
+which is a DIFFERENT ACT: whether the direction is worth the run's time, not whether the report
+still carries it. It did not lose a turn; it landed on the wrong verb with confidence.
 
-**`register` is UNDER REVIEW (#355), not placed.** It exists so a seat announces itself before
-writing, and `registerBeforeAppend` is a verify invariant that depends on it. Under detection
-the tool can register on first write from the injected identity — an explicit call a seat must
-remember to make is a leftover from self-asserted identity. Decide it in stage 6 rather than porting it
-unexamined; tracked as #355 so the thread is filed rather than remembered.
+**An unknown command PRINTS THE SURFACE.** Cobra's default answers `unknown command "x"` and
+stops — at the one moment a seat is definitively looking for what exists, which was the one
+moment the tool said least. The root takes `ArbitraryArgs` so the miss routes into `RunE`, help
+goes out first, and the refusal follows it. The same argument makes `show` teach on an unknown
+projection, and makes a `motion` subject that lacks a verb say which verbs it has.
 
-**RESOLVED (marked 2026-09-02): `register` was KEPT.** Under detection it is where the harness
-agent handle binds to the seat (#290) — the root help documents "You pass it ONCE, at `register`,
-which binds it to you on the record".
+**ABSENT-BECAUSE-NOT-YOURS IS NOT ABSENT-BY-DESIGN**, and the seat must be told which it met.
+`motion <subject> rule` is added only to the gavel-holder's tree, and the subject group's `RunE`
+answers a non-holder by naming BOTH parties — the seat that holds the gavel and the one that
+asked. Either alone sends a seat to the wrong fix: "the bench rules this" without saying who
+you are reads as advice, and "you are merge" without saying who does reads as a dead end.
 
-### Groups
+**The friction footer hangs on the seat root's `Long`**, so a seat is told that a capability it
+cannot find is a finding about the tooling rather than something to work around.
 
-| group | verbs | seats |
-|---|---|---|
-| **show** | `board` `findings` `worklist` `friction` `ledger` `archive` `debate` `changelog` `changes` `citation-ledger` `lines-of-inquiry` `telemetry` `claims` | scoped per seat (the view table already carries `defaultFor`) |
-| **gap** | `mint` `regrade` `close` `adjudicate` `near-match` `spot-check` | merge; `adjudicate` bench |
-| **evidence** | `cite` `verify` `prove` `reproduce` | blue authors, lens audits |
-| **document** | `edit` `retire` `confidence` `manifest` `count` | blue |
-| **motion** | `grade file\|rule\|appeal` · `petition file\|rule` · `direction rule\|appeal` | all file; merge/bench rule |
-| **direction** | `propose` `move` | blue |
-| **argument** | `position` `closing` | merge blue |
-| **run** | `verdict` `outcome` `halt` `certify` `assemble` | merge claims, bench settles |
+## IV. `motion` — one adjudication mechanism, subgrouped by subject
 
-### The operator namespace is NOT out of scope — six of its commands are seat verbs
+The propose→rule exchange was implemented three times with three vocabularies — `ruling` /
+`ruling` / **`response`** for one concept, three renderers, and no shared id. `internal/cli/motion`
+and `internal/record/motion.go` are the one mechanism, and **a motion has an ID, so the ask and
+its answer join on it** (closing #312).
 
-The first audit walked the 45 ROLE verbs and ignored `feov-record`'s top-level commands as
-"operator". That was wrong: prompts and constitutions tell seats to run six of them, so under
-a scoped surface they would vanish from the seats that need them.
-
-| command | named to a seat in | home |
-|---|---|---|
-| `fetch` | prompt + constitution | **`evidence fetch`** — it returns the exact bytes blue cited, so red audits the same artifact rather than a page that may have drifted |
-| `scorecard` | 4 prompt sites | **`show scorecard`** — the seat's in-run self-read |
-| `graph` | 2 constitutions | **`show graph`** |
-| `count-claims` | 2 prompt sites | **`document count`** — a measure of the document blue authored |
-| `verify` | 3 constitutions | **top-level** — whole-record invariants, not one entity's |
-| `capture` | 1 constitution | stays operator; the constitution DESCRIBES it, it is run by the human after the debate |
-
-`setup`, `dashboard`, `hook` and `completion` stay operator: no prompt names them, and they
-are run by the human or the engine.
-
-### `revision` — the one verb the tree drops, and it must be deliberate
-
-`revision` (blue's per-round changelog entry) has NO home above. That is intentional — #251
-retires it, because the revision summarizes edits the record already carries with old/new
-spans, making it a VIEW of `document` rather than a member of it.
-
-**But the plan must not drop a live verb by omission.** Either #251 lands first, or `revision`
-gets a home. It is named here so the restructure cannot delete it silently — which is exactly
-the failure mode this whole exercise exists to prevent.
-
-**OUTCOME (2026-09-02): #251 never landed and `revision` survived the restructure** —
-`internal/cli/blue/revision.go` and its seat help page are live.
-
-### `defaultFor` must retire with `--view`
-
-The view table carries `defaultFor` (which role gets a view when none is named), and
-`merge show` defaults to `worklist` today. Once views are verbs scoped by the permission
-table, `defaultFor` is a SECOND answer to "which seat sees this" — the two-sources hazard
-this plan warns about in §IV, introduced by this plan.
-
-It retires into the permission table. `feov-record show` with no verb lists the seat's
-projections rather than silently rendering one; a default that fires when a seat forgot to
-say what it wanted is a guess wearing a convenience.
-
-**CORRECTED (2026-09-02): `--view` retired as planned, but `defaultFor` survived and bare
-`show` RENDERS the seat's default (its pending work) rather than listing** — shipped as a
-declared capability (`bare-is-a-capability`, `seat/verbs.go`), not a silent guess: the default
-is the sitting's own worklist, and an unknown projection still gets the listing refusal.
-
-### Sequencing: stages 1–5 land under the CURRENT tree
-
-The stage descriptions name new paths (`evidence cite`, `gap adjudicate`) because that is the
-destination. **They are not the paths stages 1–5 build.** The `evidence` and `gap` groups do
-not exist until stage 6; until then the work lands as `blue cite` / `lens verify` / `bench
-opinion` under the role tree, and stage 6 relocates them.
-
-Stated because the plan contradicted itself on this: an implementer reading stage 1 alone
-would build the wrong path and find nothing to mount it on.
-
-### When a group has a group
-
-**A subgroup earns its place when the child verbs' CONTRACT differs by subject** — different
-required flags, different validation, different permitted seats — such that a flag cannot
-express it without the tool accepting a nonsense combination.
-
-That is the sharp form, because cobra has no "required only when `--on=grade`".
-`MarkFlagsRequiredTogether` and `MarkFlagsMutuallyExclusive` do not express conditional
-requirement, so a flag-discerned subject with divergent required flags MUST be hand-validated
-in `RunE` — and a hand-validated flag combination is precisely the prose-standing-in-for-a-
-schema shape this suite exists to remove. A subgroup makes it structural.
-
-**Counter-pressure, and it is real: depth costs tokens on every call.** This system prices
-that explicitly — the speed clause tells every seat a message costs ~20s regardless of
-content. One subgroup is worth it where it deletes hand-validation; a second tier applied for
-tidiness is a tax on every invocation.
-
-#### `motion` IS subgrouped by subject — and it is NOT called `docket`
-
-| subject | file | rule | extra required at file | ruler | appeal |
+| subject | file | rule | required at file | ruler | appeal |
 |---|---|---|---|---|---|
-| grade | `blue dispute` today | `dispute-respond` | `--dimension` `--proposed` | merge | re-dispute → bench |
-| petition | `<seat> petition` today | `petition-rule` | `--class` `--relief` | **bench** | none — heard before the debate continues |
-| direction | — (the proposal IS the filing: `direction propose`) | `avenue-rule` | — | merge | pursue anyway |
-
-Different required flags, **different rulers**, different escalation. Under `motion file --on <subject>` all of that is runtime `if` statements, and `--on petition --dimension severity`
-would parse cleanly before being rejected by hand. As `motion grade file`, each subgroup
-declares its own flags and cobra refuses the nonsense at parse.
-
-**This costs the collapse nothing.** The shared mechanism is the EVENT AND THE ID, not the
-path: all three still write one `motion` event into one id space, joined once and rendered
-once. The path names the subject; the record stays unified. `petition` has no `appeal` —
-a petition is heard before the debate continues, so there is nothing to escalate to.
-
-#### Considered and DECLINED: subgrouping `evidence`
-
-`evidence source add|audit` + `evidence proof add|audit` would make the pattern visible —
-each evidence kind has an author and an auditor — where today `cite`/`verify` and
-`prove`/`reproduce` are four names whose two audit verbs share nothing but their job.
-
-Declined: the flags do not diverge in a way cobra cannot express, the verbs are already
-distinct, and `evidence proof prove` stutters. The symmetry lives in the help text, not the
-path. Recorded so it is not re-litigated.
-
-#### Considered and DECLINED: entity-scoped projections (`<group> show`)
-
-The mirror of the decision below is `gap show ledger`, `evidence show citation-ledger` — each
-entity carrying its own projections. It is arguably more consistent with "the tree is
-entities", and per-seat scoping would fall out of group scoping for free.
-
-**Declined, 2026-08-09.** Several views span entities and would need an arbitrary home:
-`telemetry` is run-level, and `debate` spans argument, motion and closure. Forcing those into
-one entity is a worse lie than keeping projections in one place — and a reader looking for a
-projection then has to guess which entity someone filed it under, where today the answer is
-always `show`.
-
-Recorded as declined rather than left open: an unresolved fork in a plan is the shape #319
-put a gate on.
-
-### `show` is a group, not a flag
-
-`--view <name>` is a flag discerning a type — the exact smell this exercise exists to remove,
-and the largest one in the tool. Twelve projections are hiding behind it, invisible to `--help`
-until you already know the vocabulary, and scoped to nobody. As verbs they are first-class,
-per-seat scoped, and individually documented. `claim-index` moves here as `show claims`: it is
-a projection, not an evidence act.
-
-**Honest accounting: this does not shrink the count, and the earlier draft's "30 verbs replace
-45" was wrong.** The non-`show` surface compresses from 45 to 26 (counting the cross-cutting
-verbs once instead of four times). `show` then ADDS 13 paths that already existed as flag
-values. Total ~39 invocable paths. Making twelve hidden things visible is the point; claiming
-compression that came from hiding them would be the same defect one level up.
-
-### `board` was a mishmash — the NAME was the defect
-
-Draft 1 put mint/close/regrade/adjudicate/near-match/spot-check in one `board` group. Draft 2
-split it into `gap` (mutations) and `closure` (the closure record). **Both were wrong, and the
-second was wrong in an instructive way.**
-
-`closure close` stutters — the same failure that disqualified `evidence proof prove`. A closure
-has real machinery (closure_class, anchors, successor, carried_from, its own report index, its
-own audit), which is what made it look like an entity. It is not one:
-
-- **it has no identity** — you reach it through `--id R1-2`, the GAP's id. An entity
-  addressable only through another entity's key is a component of it.
-- **it is not what the seat is doing.** Red is not creating a closure record, it is CLOSING A
-  GAP. Splitting them spread one object's lifecycle across two groups.
-
-The actual defect in `board` was the NAME. "Board" is the collection, so `board close` sounded
-like closing the board. `gap close`, `gap spot-check`, `gap near-match` read correctly because
-the name is the thing being acted on.
-
-**Six moods, one entity — and that is fine.** Create, modify, end, end-by-judgement, search,
-re-check. A group is not required to hold verbs of one mood; that is what verbs are for.
-
-### Considered and DECLINED: an `audit` group
-
-`audit source` (was `lens cite`) + `audit proof` (was `lens reproduce`) + `audit closure` (was
-`spot-check`), on the grounds that all three are "a seat re-checks something already recorded".
-
-**Declined: it groups by VERB MOOD, not by entity.** The object of `audit source` is a source;
-the object of `audit closure` is a closure. Nothing binds them but the mood — the same error as
-`meta` (grouped by "cross-cutting"), and a violation of this plan's own thesis.
-
-`reproduce` is the audit OF A PROOF, so it belongs beside `prove`: author and audit are two
-operations on one entity, exactly as `mint` and `close` are on a gap. Nobody would hoist `close`
-out of `gap` because closing is a different mood from minting.
-
-It is also the `evidence source add|audit` subgroup declined above, inverted. What survives is
-only the OBSERVATION that the author/audit pairing should be visible — and that belongs in verb
-naming and help text, not in the tree.
-
-### Names chosen to avoid prose collisions
-
-`opinion` lived in two groups at once — it is an argument AND a gap state change — so it becomes
-`gap adjudicate`, where the state change is.
-
-**`motion rule` and `gap adjudicate` both decide something, and the distinction is the OBJECT.**
-`gap adjudicate` ends a GAP — it is a closure, and it sits in `gap` beside the other closure. A
-`motion rule` decides a MOTION: whether a grade moves, whether relief binds, whether a direction
-is in scope. The bench does both, on different entities, which is why they are two verbs in two
-groups rather than one verb with a subject flag.
-
-**`motion … file` does not collide with `finding`**, which is a top-level command with no
-sub-verb — an earlier draft justified `file` by contrast with a `finding file` this plan never
-creates, which was an argument from a path that does not exist.
-
-### What `motion` buys beyond tidiness
-
-Every adjudicated exchange gets an id. That closes #312 outright and makes "the ask and its
-answer ship together" a property of one renderer rather than three independent obligations.
-Subject-specific payload (a grade dispute's `--dimension`/`--proposed`) is validated per
-subject type, which is the cost of the collapse and is accepted: one enum table keyed on
-subject beats three verb pairs that can drift.
-
-### What is NOT collapsed, and why
-
-- **`gap close` (merge) and `gap adjudicate` (bench)** both end a gap's life and stay
-  two verbs: red closes on verified repair (anchor required), the bench closes on judgement
-  (principle required). Different evidence bars are a real distinction. Their VOCABULARIES
-  merge — `risk_accepted` is a closure class living in a disposition enum today, and that
-  split is what would re-grow the duplication.
-- **`evidence verify` (source) and `evidence reproduce` (computation)** are different
-  subjects with different evidence. Both must record; today `reproduce` records NOTHING, so
-  the newest evidence axis is less audited than the oldest.
-- **`meta friction` on four seats** is not duplication. Not every repetition is a defect;
-  the twelve cross-cutting verbs were never the problem.
-
-## III. Proposed changes (staged)
-
-Each stage is independently shippable and independently valuable. 1–3 need no tree change
-and can land before any decision on 5 is executed.
-
-**Stage 1 (#341) — `[MODIFY]` split `cite`.** `evidence cite` (blue, authors) and `evidence verify`
-(lens, grades a claim↔source with `--trust`). Two event types. `IsVerifiedCite` and
-`IsAuthoredCite` deleted. The scorecard's citation counts read the event type.
-
-**Stage 2 (#342) — `[MODIFY]` merge the closure vocabulary.** One closure-class enum shared by
-`close` and `adjudicate`; `risk_accepted` and `rebuttal_sustained` move out of the
-disposition enum. Replay, report and scorecard read one set.
-
-**Stage 3 (#343) — `[MODIFY]` `reproduce` records its verdict.** A `proof-verified` event: the
-proof's sha, whether it reproduced for red, and red's note. Rendered beside the proof.
-
-**Stage 4 (#344) — `[NEW]` the `motion` group, subgrouped by subject.**
-
-`motion grade file|rule|appeal` · `motion petition file|rule` · `motion direction rule|appeal`.
-Every exchange gets an ID — closing #312 — and one renderer replaces three, so "the ask and its
-answer ship together" becomes a property of the mechanism rather than three independent
-obligations. `appeal` gives blue-pursues-anyway, re-dispute and appeal one shape, where
-`contests_ruling` is a bespoke field today.
-
-**IT IS NOT CALLED `docket`, AND THE FIRST DRAFT'S CHOICE OF THAT NAME WAS A COLLISION THIS
-PLAN'S OWN NAMING SECTION SHOULD HAVE CAUGHT.** `docket` is already live and load-bearing with a
-DIFFERENT referent: the bench's contested-gap adjudication list. 40 uses in `debate.js`, 30 in
-`debate.test.mjs`, 7 in `lead-judge.md` ("a docket you can dispose of by carrying it is a docket
-you have failed"), 3 in `red-auditor.md` ("docket-bound"), plus `record.go`, `verify.go` and
-`assemble.go` ("opinions on the docket"). Under this plan that concept becomes `gap adjudicate`
-— so a group named `docket` would have been the one place the existing docket is NOT.
-
-`motion` is free (its only in-repo uses are "a system in motion", the proof-drift language) and
-it is the right word: a party FILES a motion and the ruler decides it. The verb is `file`, not
-`submit`, for the same reason: a party FILES a motion. (§II carries the collision check for the
-name; an earlier draft argued it here by contrast with a `finding file` this plan never creates.)
-
-**SIX VERBS ARE AFFECTED, NOT THREE.** The first draft named only the ruling half:
-
-| retiring verb | becomes |
-|---|---|
-| `blue dispute` | `motion grade file` |
-| `merge dispute-respond` | `motion grade rule` |
-| `<seat> petition` | `motion petition file` |
-| `bench petition-rule` | `motion petition rule` |
-| `merge avenue-rule` | `motion direction rule` |
-| (`contests_ruling`, a field) | `motion direction appeal` |
-
-Leaving the filing verbs alive beside `motion … file` would be two write paths for one fact —
-the two-sources hazard this plan raises for `defaultFor`, reintroduced by the stage meant to
-remove it.
-
-**One legibility cost, stated rather than left to be noticed:** `direction` appears BOTH as a
-motion subject (`motion direction rule`) and as a top-level group (`direction propose|move`).
-That is the correct shape — the entity has a lifecycle of its own AND is a thing motions are
-filed about, exactly as a gap has a lifecycle and is a thing findings credit — but a reader meets
-the word twice in two positions, and the help for each should say which is which.
-
-**`direction` keeps its LIFECYCLE and loses only its adjudication.** `direction propose` and
-`direction move` stay (blue proposing a line and moving its status are not motions). There is no
-`motion direction file`: red rules on a direction blue already proposed, so the filing is the
-proposal itself. §II's subject table said `submit|rule|escalate` for direction and §III said the
-opposite; §III and issue #344 were right and the table is corrected.
-
-### Stage 4's file plan
-
-`[NEW]`
-- `internal/cli/motion/` — `command.go`, `grade.go`, `petition.go`, `direction.go`
-- `internal/record/motion.go` — the id mint, the `(subject, verdict)` enum table, the replay join
-- `internal/record/compat.go` — the dual-read of the retired types and the generation report
-
-`[MODIFY]`
-- `internal/record/`: `enums.go` `required.go` `refs.go` `viewjson.go` `avenue.go` `record.go`
-- `internal/cli/blue/avenue.go:87` — the WRITE path for `contests_ruling`, the field that becomes
-  `motion direction appeal`. Listed explicitly because an earlier draft carried the field's READ
-  side (`record/avenue.go:108`) and not its writer: a retiring field whose producer nobody
-  touched keeps being produced
-- `internal/report/assemble.go` — three renderers become one, joined on the motion id
-- `internal/verify/verify.go` · `internal/graph/graph.go` · `internal/view/view.go`
-- `internal/scorecard/scorecard.go` — and its three metrics move from the ENVELOPE to the record
-- `internal/capture/capture.go:828` — the post-hoc ruling table
-- `internal/fuzz/`: `fuzz_test.go` (drivers, `verbsWithEvents`, `dialecticProseKey`),
-  `envelopeenums_test.go` (bindings)
-- `skills/research-protocol/scripts/debate.js` — three envelope schemas and the prompts
-- `agents/*.md` (4) · `docs/seat-command-triggers.md` · `docs/record-flow.md`
-
-**`internal/flags/names.go` — `[MODIFY]`, and it decides a question §I raises.**
-
-After the `[DELETE]` list executes, `flags.Petitioner` is orphaned (all 3 non-test uses are in
-`bench/petition_rule.go`) and `flags.Ruling` keeps only its `enums.go` reference (its other 3 are
-in `merge/avenuerule.go`). **Go does not flag an unused package-level const**, so this carrier
-would survive speaking the old model in silence — the exact class the census exists to catch, and
-the third instance of it found in this plan.
-
-- **`flags.Petitioner` is DELETED.** Under a motion id you rule with `--id`, and the filer is on
-  the record — which is the whole of #312. A `--petitioner` flag beside a motion id would be the
-  second join key that issue is about.
-- **The verdict flag is `--as`, and the payload key is `ruling`.** This is not cosmetic: §I names
-  `ruling`/`ruling`/**`response`** — one concept, three spellings — as the structural defect, and
-  a collapse that did not pick one would reproduce it inside the new group. `--as` is the repo's
-  settled convention for a verdict (`close`, `opinion`, `verdict`, `outcome` all use it);
-  `flags.Ruling` retires with `avenue-rule`.
-
-**The version surface — `[MODIFY]`, and it is not optional.** §IV names the duty and §III listed
-no file for it, which `complete-the-concept` requires enumerated:
-
-- `internal/cli/root.go` — `const Version`, plus a changelog entry. **Its census hits are
-  historical changelog comments that must NOT be rewritten**: the grep is a false positive on a
-  file that nonetheless genuinely changes.
-- `requirements.json` — `recordToolVersion`, whose own comment defines it as "the EVENT-SCHEMA
-  contract version… what shape the events are in". Stage 4 changes exactly that, and
-  `versionsync_test.go` fails the build if the two drift.
-- `.claude-plugin/plugin.json` — the plugin version, per this repo's CLAUDE.md.
-
-`[DELETE]`
-- `internal/cli/merge/avenuerule.go` · `internal/cli/merge/dispute_respond.go`
-- `internal/cli/bench/petition_rule.go` · `internal/cli/blue/dispute.go`
-- the `petition` verb in `internal/cli/seat/verbs.go`
-
-### Stage 4's carrier census — run, not recalled
-
-`grep -rl "avenue-rule\|petition-rule\|dispute-respond" --include=*.go --include=*.mjs --include=*.js --include=*.md plugins/frank-exchange-of-views/` → **35 files**. Every one gets a
-disposition before stage 4 is called done. The non-obvious reads, which the first draft missed:
-
-| carrier | what it does with the retiring vocabulary |
-|---|---|
-| `capture/capture.go:828` | builds the post-hoc ruling table from `petition-rule`'s `petitioner`/`ruling`/`opinion` keys |
-| `scorecard/scorecard.go:436-485,610-617` | `avenues`, `thin_avenue_reasons`, `petitions_filed` — **read from the ENVELOPE, not the record**, so a motion envelope change moves a scorecard metric with no error. Same shape as the `IsVerifiedCite` defect §I opens with |
-| `record/avenue.go:110,171` | the avenue replay's `avenue-rule` arm and `AvenueRuling` |
-| `record/refs.go:187-189` · `required.go:42` · `enums.go:112-133` | reference checks, required fields, the three enums |
-| `record/viewjson.go:514-588` · `view/view.go:508` | the debate JSON and the lines-of-inquiry projection |
-| `graph/graph.go:45,134` | the run graph's edges |
-| `verify/verify.go:149` | `dialecticRefsResolve` |
-| `report/assemble.go:890-930,955-970` | the `### Grade disputes` and `### Petitions` blocks, and the unanswered-petition count |
-| `fuzz/envelopeenums_test.go:51-52` | the envelope-enum bindings |
-
-Plus `debate.js`'s three envelope schemas, four constitutions, `docs/seat-command-triggers.md`,
-and the fuzz drivers, `verbsWithEvents` and `dialecticProseKey`.
-
-**THE REMAINING 17 ARE TEST FILES, and they are named as a class rather than one by one:**
-`cli/avenue_test.go`, `cli/crossseat_test.go`, `cli/disputereply_test.go`,
-`cli/integration_test.go`, `cli/payload_test.go`, `cli/refs_test.go`, `cli/verbs_test.go`,
-`cli/vocabulary_test.go`, `difftest/contract_test.go`, `difftest/scenarios_test.go`,
-`fuzz/promptverbs_test.go`, `fuzz/envelopeenums_test.go`, `fuzz/fuzz_test.go`,
-`graph/graph_test.go`, `record/required_test.go`, `record/enums_test.go`,
-`report/assemble_test.go`. Written out rather than brace-collapsed: the completion test is a
-LITERAL diff of the census against this file, and a shorthand that reads complete does not
-contain the names the diff looks for — which my own first pass at this list got wrong. Each drives or asserts on a verb the
-`[DELETE]` list removes, so its disposition follows mechanically — but "follows mechanically" is
-not the same as "handled", and every one of them must compile and pass before the stage is done.
-
-**The completion test for this census is that RE-RUNNING THE COMMAND surfaces nothing the list
-omits** — not that the list reads complete. That distinction is not pedantry: the two carriers
-above (`flags/names.go`, the version surface) were found by re-running the grep and diffing it
-against the plan, after two rounds of rereading had missed them.
-
-### Stage 4's compatibility rule — the one the first draft had no answer for
-
-The record is APPEND-ONLY and stored runs are re-read (`bench assemble`, every `show`, `capture`,
-the dashboard). Every consumer of the retiring types is a bare `switch e.Type` with no `default`,
-so under a `motion` type an old record renders **an empty `### Grade disputes` section and
-`0 filed / 0 ruled`** — indistinguishable from a run that genuinely had no disputes. That is
-`facts-are-fields`' plausible zero, produced by the stage whose stated purpose is to remove it.
-
-**The hazard is already live, not hypothetical:** `research/2026-07-18_gray-area-telemetry/records/`
-and siblings hold real shards carrying 60 `dispose` and 9 `observe` events — vocabularies retired
-in #327 — sitting in stored records right now.
-
-**The rule: consumers DUAL-READ the retired types, and the record's VOCABULARY GENERATION is
-STAMPED AT RUN CREATION as a field.** Not scanned for — `inputs/run-config.json` is already
-written at setup (`internal/setup/run.go:211`) and `requirements.json` already carries
-`recordToolVersion` (`setup.go:509`), so a generation is a fact a writer can be refused on. An
-earlier draft had `verify` INFER the generation by scanning for retired types, which is this
-plan's §I thesis applied to everything except itself: a fact another party acts on, recovered by
-looking for the absence of something.
-
-**The dual-read is PERMANENT, and the earlier draft's sunset was unobservable.** It said the
-dual-read goes "when no run directory in `research/` still carries the retired types" — but
-`frank-exchange-of-views` ships as an installed plugin, so consumer run records are invisible to
-that test. It could read "clear" here while installed projects' records still carry the old
-vocabulary, which is a sunset that fires on a corpus it cannot see.
-
-A record is append-only and permanent; a reader of a 2026 record in 2030 must still work. So the
-dual-read has no sunset, and that is the honest cost of the collapse rather than a defect: three
-retired types stay readable forever, in one place, behind a stamped generation that says which
-vocabulary to expect.
-
-**REVERSED 2026-08-16 (marked 2026-09-02): the dual-read shipped (#362) and was then DELETED**
-(commit 860806da). Checked rather than assumed: the only records anywhere carrying the retired
-types were the two fixtures created to exercise the dual-read, plus one research run referenced
-only in comments — the compatibility code's evidence base was the fixtures written to justify it.
-`compat.go`, the `AllMotions` seam and `testdata/pre-motion-*` are gone; the accepted cost (a
-true pre-#344 record renders exactly the plausible zero this section warned about) is documented
-at `internal/record/motion.go` ("THE DUAL-READ IS GONE, and this is where it was").
-
-Rejected: a one-shot migration that rewrites stored records. The log is append-only and
-git-tracked; rewriting history to suit a reader is the opposite of the property that makes it
-evidence.
-
-**Stage 5 (#348) — `[MODIFY]` identity arrives as FIELDS; retire the seat-id regexes.**
-Detection is deterministic (agent id and name, inherited, unforgeable), so the harness
-injects the STRUCTURED facts rather than a string to parse: seat id, role, round, and lens
-index. Every event carries them as fields written at append.
-
-That DELETES existing string-derived identity rather than adding to it:
-
-- `record.RoundOf(seatID)` computes **every event's `Round`** at the append path — the single
-  most load-bearing recovered-from-a-string fact in the system, and the one that produced the
-  phantom-archive bug fixed in #327 (`judge-terminal` carries no round, so it yielded 0, so a
-  terminal bench closure looked like a closure before round 1).
-- role-by-prefix (`strings.HasPrefix(e.SeatID, "red-merge")`) decides, among other things,
-  whether a position renders as RED or BLUE in the transcript. Six non-test sites.
-
-**Caveat, and it is a real one.** The seat id stays the SHARD KEY and the concurrency
-namespace. Only the DERIVED facts become fields. A lens index recovered from a seat name once
-turned out to be what made a lock-free counter safe under parallel dispatch, and collapsing
-it made 39 of 60 disposals ambiguous — so this stage moves what is READ, never what
-identifies.
-
-**Stage 6 (#345, blocked on #290) — `[MODIFY]` the tree, on detected identity.** Groups become the parent nodes; the
-four role nodes retire. The seat is DETECTED (hook-injected, `seatenv` shape) and a passed
-`--seat-id` that disagrees is refused. A `record.SeatPermissions` table maps seat → allowed
-`group verb`, gates the write, AND generates that seat's help — including a line for each
-verb it may NOT run naming the seat that owns it, so the boundary stays legible. This stage
-depends on #290 and must not start before it: detection is the load-bearing half, and
-identity-scoped surfaces on top of self-asserted identity would be the worst of both.
-
-> **STATUS: both stages shipped, IN THE ORDER THIS PARAGRAPH WARNED AGAINST.** Stage 6 landed
-> first (#480), so the tree was scoped to a seat id nothing verified — exactly the "worst of
-> both" named above, and it held for one merge. #290 followed: the PreToolUse hook exports the
-> harness agent handle, `register` binds it to a seat as a field on its own event, and identity
-> is read back from the record. The ordering hazard was real and is now closed; what it cost was
-> a window, not a rebuild, because the scoped tree turned out to need no change — only the thing
-> underneath it did.
->
-> The `SeatPermissions` table above was NOT built and is not needed: the seat's verb set IS its
-> tree, so the boundary is drawn by which commands exist rather than by a table consulted at the
-> write. The "line for each verb it may not run" is carried by the refusal instead — see
-> `unknownCommandRefusal`, which names the seat that owns the verb.
-
-**Stage 7 (#346) — `[MODIFY]` documentation.** The final stage, and it is not optional cleanup:
-`debate.js` prompts, all four constitutions, `docs/seat-command-triggers.md`,
-`docs/record-flow.md`, `references/report_template.md`, and this plan's own status. Every
-prior stage leaves the agent-facing surfaces naming verbs that no longer exist, and a seat
-told to run a retired verb loses that capability for the run while merely logging friction
-(the measured `rule-avenue` near-miss). Stage 6 is where the concept is finished.
-
-## IV. Risk & Mitigation
-
-| risk | L × I × cx | mitigation |
-|---|---|---|
-| **The boundary goes from legible to invisible.** A seat knows its role today because it types it. Detected, an out-of-role verb returns "unknown verb" — indistinguishable from the capability not existing. Measured: a seat handed a nonexistent verb "logs friction and works around it. The capability is simply lost for the run." | **high** × **high** × low | Help STATES THE IDENTITY ("You are `red-lens-r1-L1`") and lists only that seat's verbs. The REFUSAL names the owner — `mint is the merge seat's` — which is one line at the moment of the mistake rather than noise in every invocation. One table generates both the permission gate and the help, and a gate asserts they agree in both directions. |
-| **Attribution stops being visible.** A wrong `--seat-id` today appears in the record as the wrong string; detected, it is a derived fact that can fail silently. | med × **high** × low | Keep `--seat-id` as a CROSS-CHECK: inject the detected seat, and refuse when a passed one disagrees. Exactly `seatenv`'s contract for `--run`, for exactly that reason. |
-| **Detection yields the ROLE, not the SEAT.** `red-lens-r1-L1` and `-L5` both detecting as "lens" collides finding labels (`L{role}-F{N}`) and `found_by` credit. | med × **high** × med | Detection resolves the full seat id or refuses, and stage 5 makes role/round/index FIELDS so nothing downstream re-derives them. The id stays the shard key: a lens index recovered from a seat name turned out to be the CONCURRENCY namespace, and collapsing it made 39 of 60 disposals ambiguous — this moves what is READ, never what identifies. |
-| A stale binary accepts retired verbs and writes events the new replay drops | high × med × low | `cli.Version` + `recordToolVersion` bump per stage that removes a verb; `setup` refuses a mismatched binary at run CREATION (`internal/setup/run.go:131`). |
-| **A NEW binary re-reads an OLD record.** The row above does not cover this and the first draft implied it did: `setup` guards run creation, so it cannot protect a run created before the bump, nor `bench assemble` / `show` / `capture` / `dashboard` re-reading an archived record. | **high** × **high** × low | The dual-read rule above, plus `verify` READING THE STAMPED generation — the field written at run creation, not a scan for retired types. Stated as its own row because the mitigation is different in kind — a write-time gate cannot defend a read. |
-| Stages 1–4 leave prompts naming dead verbs mid-stack | high × med × low | The `TestEveryVerbNamedInAPromptExists` gate fails on a prompt naming a verb that does not exist, and its inverse fails on a verb no prompt names. Both run per stage; stage 6 is the sweep, not the first check. |
-| The motion collapse loses subject-specific validation | med × med × med | Enum table keyed on `(subject, verdict)`, validated at the write, covered by the envelope-enum gate (#329) which already binds envelope vocabularies to record enums. |
-| Capability lost silently in a retirement | med × high × low | The `checked-held` precedent (#327): any capability a stage removes is written into the trigger map with its cost, in the same PR. |
-
-## V. Verification plan
-
-Per stage, from `plugins/frank-exchange-of-views/tools` unless noted:
-
-1. `gofmt -l .` → empty
-2. `go vet ./...` → empty
+| `grade` | yes | yes | `--id` `--dimension` `--proposed` | **merge** | yes |
+| `petition` | yes | yes | `--class` `--relief` | **bench** | **no** |
+| `inquiry` | **no** | yes | — | **merge** | yes |
+
+**The subjects are SUBGROUPS and not a `--on` flag.** Their contracts diverge, and cobra has no
+"required only when `--on=grade`" — `MarkFlagsRequiredTogether` and `MarkFlagsMutuallyExclusive`
+do not express conditional requirement. A flag-discerned subject would put three contracts into
+hand-written `RunE` validation, which is the prose-standing-in-for-a-schema shape this suite
+exists to remove. As subgroups, cobra refuses the nonsense at parse.
+
+**This costs the collapse nothing.** The shared mechanism is the EVENT AND THE ID, not the path:
+all three write one motion event into one id space, joined once and rendered once.
+
+**Absence is a design statement, expressed by absence.** `petition` has no `appeal` — a petition
+is heard BEFORE the debate continues, so there is nothing to escalate to. `inquiry` has no
+`file` — the proposal IS the filing (`blue line-of-inquiry`), so a filing verb here would be a
+second way to say what blue already said. Each is stated where a seat actually meets it, in the
+subject group's refusal.
+
+**IT IS NOT CALLED `docket`.** `docket` was already live and load-bearing with a DIFFERENT
+referent — the bench's contested-gap adjudication list, in `debate.js`, `lead-judge.md`
+("a docket you can dispose of by carrying it is a docket you have failed"), `red-auditor.md`
+("docket-bound"), `record.go`, `verify.go` and `assemble.go`. `motion` is free and it is the
+right word: a party FILES a motion and the ruler decides it. The verb is `file`, not `submit`,
+for the same reason.
+
+**The verdict flag is `--as` and the payload key is `ruling`.** This is not cosmetic: a collapse
+that did not pick one spelling would reproduce inside the new group the exact defect it was
+built to remove. `--as` is the repo's settled convention for a verdict (`close`, `opinion`,
+`verdict`, `outcome`, `reproduce` all use it). `flags.Petitioner` and `flags.Ruling` are gone:
+under a motion id you rule with `--id` and the filer is on the record, and a `--petitioner` flag
+beside a motion id would be the second join key #312 is about.
+
+**THE GAVEL IS NOT TYPED IN THE COMMAND TREE.** It was — `subject("petition", …, "bench")` — and
+the PASS gate in `internal/record`, which cannot import the cli package, told blocked seats to
+rule motions without knowing whose ruling it would be. Both readers now take it off the
+`MotionSubject` enum (`recordpb.SubjectRuler`), so a subject cannot be added with a gavel in one
+place and not the other. `rulerFor` PANICS at command construction on an unknown or unannotated
+subject: the failure is at startup for every seat rather than at the moment one tries to rule.
+
+**`motion` is the one group that could not be expressed the old way**, and that is why it was
+built first. The other groups hung off a role node and `seat.Of` read the role from the
+command's POSITION; under `motion grade file` the parent is `grade`. And it should not work that
+way here, because a motion is not one seat's act: all four seats file, and one rules. These
+verbs take the acting role from the SEAT'S IDENTITY, which is the model the whole tree moved to.
+
+## V. What is NOT collapsed, and why
+
+- **`merge close` and `bench opinion`** both end a gap's life and stay two verbs: the merge
+  closes on verified repair (anchor required), the bench closes on judgement (principle
+  required). Different evidence bars are a real distinction. Their VOCABULARIES merged (#342)
+  into ONE enum — `recordpb.Disposition`, reached as `close --as <closure_class>` and
+  `opinion --as <disposition>` — because a split vocabulary is what would re-grow the
+  duplication. Before it was unified, four surfaces spelled the same three outcomes six ways and
+  no mechanism could see them disagree, because every set was open. The one asymmetry left is
+  `carried`, which is bench-only and does not close: "I repaired it by carrying it" is not a
+  sentence a merge can say. That subset is ENFORCED rather than documented — `Close.closure_class`
+  carries `subset: "closes"`, and the check is generated from the enum's own `(closes)`
+  annotation.
+- **`lens verify` (a source) and `lens reproduce` (a computation)** are different subjects with
+  different evidence, and both record. `reproduce` used to record NOTHING, so the newest
+  evidence axis was less audited than the oldest; it now takes `--as` over a soundness enum,
+  having READ the script.
+- **`friction` on four seats** is not duplication. Not every repetition is a defect. It is
+  defined once in `seat.Friction` and shared, and its `--none` form is the EXPLICIT negative:
+  across eighteen probed seat dispatches not one friction event was ever recorded, and "no
+  friction on the record" is equally consistent with a clean sitting and with a seat that hit
+  walls and never used the channel. Those are the same bytes.
+- **`cite` is two acts and is now two event types.** Red verifying a source and blue authoring
+  a citation were told apart at read time by the ABSENCE of a field
+  (`e.Type == "cite" && e.Payload.Str("label") == ""`), so a blue cite without a label counted
+  as red's audit volume — a number red reads as how much work it did. `IsVerifiedCite` and
+  `IsAuthoredCite` are deleted; the epitaphs at `internal/record/citationid.go:215` and
+  `internal/cli/lens/verify.go:25` are deliberate and should stay.
+
+## VI. Decisions that still bind
+
+**`show` is a group, not a flag, and `defaultFor` survived.** `--view <name>` retired: twelve
+projections were hiding behind a flag, invisible to `--help` and scoped to nobody. As verbs they
+are first-class, per-seat scoped and individually documented. Bare `show` RENDERS the seat's
+default — its own pending work — rather than listing, and that is a DECLARED capability
+(`BareIsACapability`, `internal/cli/surface.go:164`), not a silent guess; an unknown projection
+still gets the listing refusal. **Honest accounting: this does not shrink the count.** Making
+hidden things visible is the point; claiming compression that came from hiding them would be the
+same defect one level up.
+
+**SHORT IS THE MENU, LONG IS THE INSTRUCTION.** They were one string, so `show --help` carried
+every projection's essay and each leaf page repeated one verbatim — `pagesNeverUsed` came back
+at 11 of 13 for a seat that opened its whole tree, because the pages beneath held nothing new.
+Each `Short` is written to be read AS A SET, and each names the verb that fills the projection.
+
+**`register` was KEPT.** Under detection it is where the harness agent handle binds to the seat
+(#290) — "You pass it ONCE, at `register`, which binds it to you on the record". `register` is
+also the first and only place that can see the binding was never possible, and it WARNS rather
+than refuses: refusing would wedge a run whose only fault is a hook that did not fire, and the
+seat can work perfectly well by passing `--seat-id`. Measured, and it is the whole of #512: in
+`research/2026-08-22_is-7-prime` all fourteen registers carry no agent id, and the resulting
+"this agent has not registered" was returned 92 times and was FALSE every single time.
+
+**`revision` survived the restructure.** #251 would have retired it — the revision summarizes
+edits the record already carries with old/new spans — and #251 never landed.
+`internal/cli/blue/revision.go` and its seat help page are live. It is named here so a future
+restructure cannot delete it by omission, which is the failure mode this exercise exists to
+prevent.
+
+**Considered and DECLINED: entity-scoped projections (`<group> show`).** Several views span
+entities and would need an arbitrary home: `telemetry` is run-level, and `debate` spans
+argument, motion and closure. Forcing those into one entity is a worse lie than keeping
+projections in one place — and a reader looking for a projection would then have to guess which
+entity someone filed it under, where the answer is always `show`.
+
+**Considered and DECLINED: an `audit` group** (`audit source` + `audit proof` + `audit
+closure`). It groups by VERB MOOD, not by subject: the object of one is a source, of another a
+closure, and nothing binds them but the mood. `reproduce` belongs beside `prove` for the same
+reason `close` belongs beside `mint` — author and audit are two operations on one thing. What
+survives is only the OBSERVATION that the author/audit pairing should be visible, and that
+belongs in verb naming and help text.
+
+**A verb MAY appear in more than one place.** The rule is not "once only": it must make sense
+where it sits, be restricted to that context's operations, and not carry a wildly different
+meaning under the same name elsewhere. `friction` (record a complaint) and `show`'s read voice
+are the same concept — legitimate. `cite` meaning "author a citation" in one place and "verify a
+source" in another was not.
+
+## VII. Verification
+
+From `plugins/frank-exchange-of-views/tools` unless noted:
+
+1. `gofmt -l .` → empty · 2. `go vet ./...` → empty
 3. `go test ./...` → exit 0 (**redirect to a file and echo `$?`; piping to `tail` masks it**)
-4. `go test ./internal/fuzz -run TestFuzzDebate -count=1 -timeout 900s` → 60 runs · 0 failed
-5. `go test ./internal/fuzz -run TestFuzzHaltPath -count=1` → ok
-6. `cd .. && node --test tests/simulator/*.mjs` → 94 pass (**the only check that catches a
-   backtick nested in a template literal; `node --check` passes on it**)
+4. `go test ./releasegate/fuzz -run TestFuzzDebate -count=1 -timeout 900s`
+5. `go test ./releasegate/fuzz -run TestFuzzHaltPath -count=1`
+6. `cd .. && node --test tests/simulator/*.mjs` (**the only check that catches a backtick nested
+   in a template literal; `node --check` passes on it**)
 7. `cd ../../scripts && go run ./golden` FIRST — this is the DETECTION step and its diff must be
-   READ. Only then `go run ./golden -update`, and commit the testdata alone. **The first draft had
-   these the wrong way round, which makes the pair self-fulfilling**: `-update` rewrites the
-   goldens the compare then reads, so it can never fail and proves only "the suite matches itself
-   after being updated to match the change". A nonzero diff is reviewed for whether the change was
-   INTENDED before it is recorded.
-8. `go run ./frontmatter` → 36 · 9. `go run ./validatejson` → 21 · 10. `go run ./mjsparity` → 2
-11. `go run ./pluginparity` → 4 plugins · 13 hooks · 12. `go run ./versionguard` → 4
-13. `go run ./decisions` → tracked · 14. `go run ./rulesweep` → OK (run AFTER committing)
+   READ. Only then `go run ./golden -update`. **Reversed, the pair is self-fulfilling**:
+   `-update` rewrites the goldens the compare then reads, so it can never fail and proves only
+   "the suite matches itself after being updated to match the change".
+8. `go run ./frontmatter` · `./validatejson` · `./mjsparity` · `./pluginparity` · `./versionguard`
+   · `./decisions` · `./rulesweep` (last, after committing)
 
-**A REAL-RECORD CHECK, per stage that changes a vocabulary — AND NO STORED RUN CAN SERVE AS ONE
-FOR STAGE 4.** Measured across all of `research/`: `dispute`=0, `dispute-respond`=0, `petition`=0,
-`petition-rule`=0, `avenue-rule`=0. Not one stored record carries a type stage 4 retires.
+The verb-lifecycle gates must stay green — **exists**, **driven**, **discoverable**, **reaches a
+reader**. They live in `releasegate/fuzz/promptverbs_test.go` (mirrored in
+`integration/surface/`): `TestEveryVerbNamedInAPromptExists`,
+`TestEveryRecordingVerbIsDiscoverableFromHelp`, `TestEveryVerbHasATriggerRow`,
+`TestEveryViewNamedInAPromptExists`, `TestEveryEnumValueNamedInAPromptIsAccepted`, plus
+`proseRenders` / `basisRenders` and the envelope-enum gate in `releasegate/fuzz/fuzz_test.go`.
+`TestRoleHelpCarriesTheFrictionFooter` (`internal/cli/cli_test.go`) guards the footer that would
+otherwise have been dropped when the role group went away.
 
-An earlier draft of this section named that corpus anyway, on the strength of a count (98
-`avenue`) for the one type stage 4 does **not** retire. Replaying it before and after would yield
-a BYTE-IDENTICAL report — the check would pass while exercising none of the change, and the clean
-diff would read as confirmation. That is the plausible zero this plan exists to remove, relocated
-into its own verification plan.
-
-So the check is a PRODUCED record, not a found one:
-
-1. Before stage 4, drive one full debate through the real binary exercising all three retiring
-   exchanges — the fuzz already does (`TestFuzzDebate` drives `dispute`, `dispute-respond`,
-   `petition`, `petition-rule`, `avenue-rule` every sweep). Archive its `records/` as a
-   committed compat fixture, `internal/record/testdata/pre-motion-run/`.
-2. After stage 4, replay that fixture through the new binary. The disputes and petitions must
-   still render, by the dual-read; a section that goes empty is the failure this fixture exists
-   to catch.
-3. Keep the fixture permanently. It is the only artifact that will ever prove a pre-collapse
-   record still reads, and it stops being producible the moment the verbs are gone.
-
-**REVERSED 2026-08-16 (marked 2026-09-02):** both fixtures were produced before the deletion
-(23d12416, 0a19837b), did their job, and were then deleted along with the dual-read they
-exercised — see the marker under §III's compatibility rule.
-
-> **ORDERING, AND IT IS THE ONE THING NO GATE CAN RECOVER.** Both artifacts below must be
-> produced BEFORE the verbs are deleted. A pre-collapse record stops being producible the moment
-> stage 4 lands, and no amount of later care recreates it — the check would then be permanently
-> unrunnable, with nothing failing to say so. This is the first item in stage 4's PR, not the last.
-
-**AND A REAL RUN BESIDE IT, because the fixture above is a FIXTURE.** The standard is explicit
-that fixtures prove logic while only real data surfaces data-shaped defects — fallback
-collisions, harness sentinels, encoding — and a harness-produced record is precisely the category
-that cannot surface a harness sentinel. The sensitivity is live here by this plan's own §V: the
-node suite is the only check that catches a backtick nested in a template literal, and real seat
-prose carries backticks, angle brackets and surrogate pairs that `TestFuzzDebate`'s does not.
-
-So: drive one genuine model-driven debate before stage 4 — `research/2026-08-05_smoke-is-7-prime/`
-is the existing precedent for the shape — steered to exercise a grade dispute and a petition,
-and archive it. Replay it after. Two checks with different jobs: the fuzz fixture is the
-mechanical compat regression, and the real run is the only thing that will catch prose the
-harness never generates.
-
-Plus, per stage, the four verb-lifecycle gates must stay green:
-**exists** (command-path), **driven** (coverage sweep + flags/enums), **named to a seat**
-(`TestEveryRecordingVerbIsNamedInAPrompt`), **reaches a reader** (`proseRenders`,
-`basisRenders`, the envelope-enum gate).
-
-Stage 5 adds one: **help and permission agree** — the generated per-seat help must list
-exactly the verbs the permission table allows, asserted in both directions.
-
-### The auditor gate
-
-This plan goes through `/plan-audit` before stage 4 begins. Stages 1–3 are local, reversible
-and independently verified; stage 4 changes an event vocabulary and stage 5 changes the
-enforcement model, and neither should start on an unaudited spec.
+`commandPathOf` in `releasegate/fuzz/trajectory_test.go` asks the COBRA TREE for the longest argv
+prefix that is a real command path, at any depth. It used to take at most two tokens and require
+the first to be a role — a two-level tree hard-coded into the tally — so `motion grade file`
+collapsed to `motion`, matched no real path, and reported all seven motion verbs as NEVER
+INVOKED while the record showed 35 motion events. A tally that cannot see a path it was given
+reports a false absence, which is the plausible zero the gate exists to catch, one level up.

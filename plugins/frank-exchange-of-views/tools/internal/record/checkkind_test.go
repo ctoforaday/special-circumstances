@@ -80,7 +80,7 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	j := FrictionJSONOf(b)
+	j := FrictionJSONOf(b.Events)
 	if j.Counts.Total != 0 || j.Counts.Attested != 0 {
 		t.Fatalf("a silent run: total=%d attested=%d, want 0/0", j.Counts.Total, j.Counts.Attested)
 	}
@@ -89,7 +89,7 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ = BoardState(mustRun(t, runDir))
-	j = FrictionJSONOf(b)
+	j = FrictionJSONOf(b.Events)
 	// The counts must now DIFFER from the silent run. Same total, different meaning — which is
 	// the whole point: zero-with-an-attestation is a statement someone can be wrong about,
 	// zero-alone is the absence of one.

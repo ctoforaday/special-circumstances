@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/claims"
 )
 
 // A transcript with three back-to-back runs of one command, a file edited twice
@@ -201,5 +204,51 @@ func TestABodyWithNoAdjudicableClaimSaysSoRatherThanReportingNothing(t *testing.
 	}
 	if !strings.Contains(stdout, "may be entirely accurate") {
 		t.Errorf("the message reads as an accusation rather than as a limit:\n%s", stdout)
+	}
+}
+
+// THE LINES A HUMAN READS, which had no test until the split that made them
+// reachable. Verified against the real manifest as well (plans/gray-area.md §11.12);
+// this is the part that stays checked after the manifest is gone.
+func TestCoverageReportsDistinctSeatsAndNamesTheRepeats(t *testing.T) {
+	census := claims.SeatCensus{
+		IDs:     []string{"a703", "once"},
+		Rows:    3,
+		Repeats: map[string]int{"a703": 2},
+	}
+	c := claims.Reconcile("/p/sess.jsonl", census.IDs,
+		func(string) ([]os.DirEntry, error) { return []os.DirEntry{}, nil })
+
+	var out strings.Builder
+	if code := reportCoverage(&out, census, c); code != 0 {
+		t.Fatalf("exit %d — it measured, so the exit is 0 whatever it found", code)
+	}
+	got := out.String()
+
+	// A ROW COUNT IS NOT A SEAT COUNT. Printing 3 beside a per-file disk count is
+	// two denominators wearing one comparison.
+	if !strings.Contains(got, "2 distinct seat(s) named by 3 row(s)") {
+		t.Errorf("headline does not separate seats from rows:\n%s", got)
+	}
+	if !strings.Contains(got, "REPEAT    agent-a703 — 2 captures") {
+		t.Errorf("the repeat was erased rather than reported:\n%s", got)
+	}
+	// The repeated seat is absent from disk here, and must be listed ONCE.
+	if n := strings.Count(got, "MISSING   agent-a703"); n != 1 {
+		t.Errorf("agent-a703 listed %d times under MISSING, want 1:\n%s", n, got)
+	}
+}
+
+// An interrupted append leaves a line that will not parse, and the seat row lost
+// with it surfaces as UNNAMED. Saying so is what separates that from a hook that
+// never fired — two faults with different fixes and identical-looking output.
+func TestCoverageSaysHowManyLinesDidNotParse(t *testing.T) {
+	census := claims.SeatCensus{IDs: []string{"a"}, Rows: 1, Unreadable: 2}
+	c := claims.Reconcile("/p/sess.jsonl", census.IDs,
+		func(string) ([]os.DirEntry, error) { return []os.DirEntry{}, nil })
+	var out strings.Builder
+	reportCoverage(&out, census, c)
+	if !strings.Contains(out.String(), "2 line(s) in this manifest are not JSON") {
+		t.Errorf("torn lines were skipped in silence:\n%s", out.String())
 	}
 }

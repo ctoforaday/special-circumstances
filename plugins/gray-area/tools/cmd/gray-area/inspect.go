@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/claims"
@@ -342,20 +343,52 @@ func coverageVerb(stdout, stderr io.Writer, projectDir string) int {
 		fmt.Fprintf(stderr, "gray-area: cannot read %s: %v\n", resolved.Manifest, err)
 		return 1
 	}
-	seats, unclassifiable := claims.SeatIDs(raw)
-	c := claims.Reconcile(resolved.TranscriptPath, seats, os.ReadDir)
-
+	census := claims.Seats(raw)
+	c := claims.Reconcile(resolved.TranscriptPath, census.IDs, os.ReadDir)
 	fmt.Fprintf(stdout, "manifest: %s\n", resolved.Manifest)
+	return reportCoverage(stdout, census, c)
+}
+
+// reportCoverage is the printed answer, split from the resolution above so it can
+// be TESTED. The verb reaches the real filesystem four ways — Getwd, the manifest
+// glob, ReadFile, ReadDir — and nothing was injected, so the lines a human actually
+// reads had no test at all and were verified only by running the binary. The split
+// is the cheapest thing that makes the REPEAT and unreadable-line rows checkable.
+func reportCoverage(stdout io.Writer, census claims.SeatCensus, c claims.Coverage) int {
 	fmt.Fprintf(stdout, "seat directory: %s\n\n", c.Dir)
-	if unclassifiable > 0 {
-		fmt.Fprintf(stdout, "%d seat row(s) carry no agent_id and could be reconciled with nothing — counted here rather than dropped\n", unclassifiable)
+	if census.Unclassifiable > 0 {
+		fmt.Fprintf(stdout, "%d seat row(s) carry no agent_id and could be reconciled with nothing — counted here rather than dropped\n", census.Unclassifiable)
+	}
+	// SAID BEFORE ANY COUNT, because it is the reason a count below might be short.
+	// An interrupted append leaves a line that does not parse; the seat row lost with
+	// it then shows up as UNNAMED, which reads as a hook that never fired.
+	if census.Unreadable > 0 {
+		fmt.Fprintf(stdout, "%d line(s) in this manifest are not JSON — the signature of an append cut short. Any seat row lost with them appears below as UNNAMED, which is a DIFFERENT fault from a hook that never fired\n", census.Unreadable)
 	}
 	if !c.Measured {
 		// NOT a zero. The two states this separates produce the same empty lists.
 		fmt.Fprintf(stdout, "NOT MEASURED — %s\n", c.Why)
 		return 1
 	}
-	fmt.Fprintf(stdout, "%d seat row(s) named, %d transcript(s) on disk\n", len(c.Named), len(c.OnDisk))
+	// DISTINCT SEATS, NOT ROWS. A seat that is continued stops twice and is captured
+	// twice, so a row count set beside a per-file disk count is two denominators
+	// wearing one comparison.
+	fmt.Fprintf(stdout, "%d distinct seat(s) named by %d row(s), %d transcript(s) on disk\n", len(c.Named), census.Rows, len(c.OnDisk))
+	if len(census.Repeats) > 0 {
+		ids := make([]string, 0, len(census.Repeats))
+		for id := range census.Repeats {
+			ids = append(ids, id)
+		}
+		sort.Strings(ids)
+		fmt.Fprintf(stdout, "%d seat(s) captured more than once — a seat that was continued stops again, and each stop is a true observation:\n", len(ids))
+		for i, id := range ids {
+			if i == 20 {
+				fmt.Fprintf(stdout, "  ... and %d more (not listed here)\n", len(ids)-20)
+				break
+			}
+			fmt.Fprintf(stdout, "  REPEAT    agent-%s — %d captures\n", id, census.Repeats[id])
+		}
+	}
 	if c.Why != "" {
 		fmt.Fprintf(stdout, "%s\n", c.Why)
 	}

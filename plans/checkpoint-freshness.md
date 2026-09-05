@@ -796,43 +796,28 @@ range — not either number.
 **Then collect the baseline** — ≥ 20 real boundaries, seals stamped, nothing emitted. The record is
 `.claude/checkpoints/seals.jsonl`, written by `internal/checkpointseal` on all three sealing events:
 
-```bash
-# Each distribution filters on ITS OWN measured flag. Filtering once on turns and then
-# building all three arrays lets rows with turns measured but growth absent contribute
-# null, which sort places first and which moves the median index.
-jq -s '{n: length,
-        turns:   ([.[] | select(.turns_measured)  | .note_age_turns]    | sort),
-        growth:  ([.[] | select(.growth_measured) | .note_growth_tokens]| sort),
-        commits: ([.[] | select(.branch_measured) | .note_branch_commits] | sort),
-        measured: {turns:  ([.[] | select(.turns_measured)]  | length),
-                   growth: ([.[] | select(.growth_measured)] | length),
-                   branch: ([.[] | select(.branch_measured)] | length)}}' \
-   .claude/checkpoints/seals.jsonl
-```
+**The queries are files, not blocks in this document.** They live in
+[`internal/checkpointseal/queries/`](../plugins/prosthetic-conscience/tools/internal/checkpointseal/queries)
+and are embedded into that package. This section keeps the argument — what each one measures and
+why the filtering is what it is — and points at the program rather than restating it.
+
+That is a correction, not a preference. These queries are `seals.jsonl`'s only readers, so a test
+checked that the fields they name still exist on `sealRow` — and it did that by reaching five
+directories up and parsing THIS FILE. A design document was load-bearing for a build: editing prose
+could fail CI, and moving the file would fail it for a reason no reader would guess. The guard is
+still there and still bites; it now reads the embedded programs, which are the ones that would run.
+
+
+> The program is [`freshness-distributions.jq`](plugins/prosthetic-conscience/tools/internal/checkpointseal/queries/freshness-distributions.jq) — a file, because it is
+> run, and because a copy here would be a second one to keep in step.
+
 
 And the two folded-in observations. **Both queries filter on measurability first**, because the
 absent case and the honest zero are otherwise the same bytes:
 
-```bash
-# #506: is a note sealed with live background work staler than one sealed without?
-# Rows where the payload could not tell us are EXCLUDED, not counted as zero.
-jq -s '[.[] | select(.handles_measured)] | group_by(.live_handles > 0)
-       | map({live_handles: .[0].live_handles > 0, n: length,
-              median_age: ([.[] | select(.turns_measured) | .note_age_turns] | sort | .[length/2|floor]),
-              turns_measured_n: ([.[] | select(.turns_measured)] | length)})' \
-   .claude/checkpoints/seals.jsonl
+> The program is [`handles-vs-staleness.jq`](plugins/prosthetic-conscience/tools/internal/checkpointseal/queries/handles-vs-staleness.jq) — a file, because it is
+> run, and because a copy here would be a second one to keep in step.
 
-# ...and how much of the baseline that excluded, reported rather than inferred from a small n:
-jq -s '{total: length, measured: ([.[] | select(.handles_measured)] | length)}' \
-   .claude/checkpoints/seals.jsonl
-
-# #507: how stale is the note at a seat return, against the other triggers?
-jq -s 'group_by(.seal_trigger)
-       | map({trigger: .[0].seal_trigger, n: length,
-              median_age: ([.[] | select(.turns_measured) | .note_age_turns] | sort | .[length/2|floor]),
-              turns_measured_n: ([.[] | select(.turns_measured)] | length)})' \
-   .claude/checkpoints/seals.jsonl
-```
 
 **A result of "no difference" is only readable if all three triggers are present.** Assert that
 first — `map(.seal_trigger) | unique | length == 3` — because a query returning one group looks
@@ -942,12 +927,9 @@ Prose describing the trailers does not satisfy it.
 
 **Criterion 4's budget, counted rather than intended:**
 
-```bash
-# No session may exceed 4 emissions, and no render may exceed 200 bytes.
-jq -s 'map(select(.nudge_enabled)) | {sessions: (group_by(.session_id) | length),
-        worst_count: (map(.emissions_this_session) | max),
-        worst_bytes: (map(.emission_bytes_max) | max)}' .claude/checkpoints/seals.jsonl
-```
+> The program is [`emission-caps.jq`](plugins/prosthetic-conscience/tools/internal/checkpointseal/queries/emission-caps.jq) — a file, because it is
+> run, and because a copy here would be a second one to keep in step.
+
 
 `worst_count > 4` or `worst_bytes > 200` fails Phase 2. A criterion whose number appears only in §I is
 an intention; this is the query that makes it a check.
@@ -981,12 +963,9 @@ false`, and filing it as such would put an unreadable state into criterion 6's c
 session that emitted five nudges and never sealed produces the same output as one that emitted three,
 so the absent case and the honest pass are again the same bytes. Report the denominator beside it:
 
-```bash
-# emitting sessions observed, against sessions that started at all
-jq -s '{sealed_sessions: (group_by(.session_id) | length),
-        emitting: ([.[] | select(.emissions_this_session > 0)] | group_by(.session_id) | length)}' \
-   .claude/checkpoints/seals.jsonl
-```
+> The program is [`emission-reach.jq`](plugins/prosthetic-conscience/tools/internal/checkpointseal/queries/emission-reach.jq) — a file, because it is
+> run, and because a copy here would be a second one to keep in step.
+
 
 If the sealed count is far below the sessions actually run, `worst_count` is measuring the sessions
 that ended tidily, which are not the ones the budget is protecting against.
@@ -994,15 +973,9 @@ that ended tidily, which are not the ones the budget is protecting against.
 **F6's drift check, which is what makes `body_sha` a measurement rather than a stored string.**
 Nothing read it before; a hash with no reader is a column, not a check:
 
-```bash
-# A note whose written_at ADVANCED between two seals while its body hash did NOT is
-# claiming to be fresh without having changed. Reported as an error, not adjudicated.
-jq -s 'sort_by(.at) | [ .[] | {at, written_at, body_sha} ]
-       | . as $r | range(1; length) as $i
-       | select($r[$i].written_at > $r[$i-1].written_at and $r[$i].body_sha == $r[$i-1].body_sha)
-       | {at: $r[$i].at, written_at: $r[$i].written_at, note: "written_at advanced, body did not"}' \
-   .claude/checkpoints/seals.jsonl
-```
+> The program is [`false-freshness.jq`](plugins/prosthetic-conscience/tools/internal/checkpointseal/queries/false-freshness.jq) — a file, because it is
+> run, and because a copy here would be a second one to keep in step.
+
 
 Empty output is the healthy state — and, this being the shape this plan is about, an empty result is
 also what a query over an empty file returns, so it is run beside the row count above.
@@ -1010,10 +983,9 @@ also what a query over an empty file returns, so it is run beside the row count 
 **Did the duty get discharged, and which way** — the artifact that keeps the `SKILL.md` clause out
 of the `unobservable-duty` class. A field no check reads leaves the class alive one level up:
 
-```bash
-jq -s '[.[] | select(.nudge_answered)] | group_by(.nudge_answered)
-       | map({outcome: .[0].nudge_answered, n: length})' .claude/checkpoints/seals.jsonl
-```
+> The program is [`nudge-outcomes.jq`](plugins/prosthetic-conscience/tools/internal/checkpointseal/queries/nudge-outcomes.jq) — a file, because it is
+> run, and because a copy here would be a second one to keep in step.
+
 
 A high `ignored` rate means the nudge is wallpaper (F1) whatever the age medians say. A high
 `reaffirmed` rate with falling age medians is the failure criterion 6 must not report as success —
@@ -1077,20 +1049,9 @@ the boundary, and assert the negative: a short session below the F7 floor emits 
 
 Twenty more boundaries with the nudge live.
 
-```bash
-# EVERY array filters on turns_measured. A row with turns unmeasured omits the key, jq
-# yields null, sort places nulls FIRST, and the median index moves — on the statistic
-# that decides whether the nudge is removed.
-jq -s '[.[] | select(.turns_measured)] |
-       {before:           [.[]|select(.nudge_enabled==false)|.note_age_turns]|sort,
-        after_all:        [.[]|select(.nudge_enabled==true )|.note_age_turns]|sort,
-        after_rewritten:  [.[]|select(.nudge_enabled==true and .nudge_answered=="rewritten")|.note_age_turns]|sort,
-        after_reaffirmed: [.[]|select(.nudge_enabled==true and .nudge_answered=="reaffirmed")|.note_age_turns]|sort}' \
-   .claude/checkpoints/seals.jsonl
-# and the count this excluded, reported rather than inferred:
-jq -s '{total: length, turns_measured: ([.[]|select(.turns_measured)]|length)}' \
-   .claude/checkpoints/seals.jsonl
-```
+> The program is [`freshness-medians.jq`](plugins/prosthetic-conscience/tools/internal/checkpointseal/queries/freshness-medians.jq) — a file, because it is
+> run, and because a copy here would be a second one to keep in step.
+
 
 **The verdict is `after_all` against `before`** — §VI-c closes the population question in prose and
 §V must not reopen it at the point of execution, in the one loop that is the kill switch. If *that*

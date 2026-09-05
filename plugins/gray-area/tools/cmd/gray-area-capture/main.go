@@ -339,6 +339,33 @@ func manifestPath(projectDir, sessionID string) string {
 
 // appendRow is best-effort: a manifest that cannot be written must never cost
 // the subagent its turn, so failures go to stderr and never change the exit code.
+//
+// # APPEND-ONLY, AND A REPEAT IS NOT SUPPRESSED HERE
+//
+// SubagentStop fires again for a seat that is continued — measured on this
+// repository's own manifest, seat a703a4ea4a2d4e09d captured at 07:08:23Z and again
+// at 07:11:10Z with its transcript grown from 356468 to 452844 bytes. The second row
+// is a true observation and is written. Making the repeat harmless is the READER's
+// job (claims.SeatCensus); doing it here would need a read-modify-write on a path
+// that must never block a subagent, would race every other seat stopping in the same
+// moment, and would discard the one fact the second row carries.
+//
+// # THE TORN TAIL, which is what an interrupted append actually leaves
+//
+// One row is one write(2) under O_APPEND, so concurrent seats cannot interleave. What
+// a kill or an ENOSPC CAN leave is a final line with no newline on it — and the next
+// append then lands on the same line, so an interruption that cost one row costs two.
+// Terminating an unterminated tail before writing bounds the damage to the row that
+// was actually cut. It is idempotent (a file already ending in \n is untouched) and
+// safe to race: two healers write two newlines, and a blank line is skipped by every
+// reader. The line that was cut stays in the file as an unreadable line, which is
+// deliberate — claims.SeatCensus.Unreadable counts it, so a seat lost to a torn write
+// can be told from a seat the hook never saw.
+//
+// Sync is called because the row is the only durable trace that a seat existed: a
+// transcript on disk that no row names is #469's signature, and losing the row in the
+// page cache on a machine crash manufactures exactly that. One fsync of a ~1 KB
+// append, on a path already doing a stat and an open.
 func appendRow(path string, r manifestRow, stderr io.Writer) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		fmt.Fprintln(stderr, "gray-area-capture: cannot create manifest dir:", err)
@@ -349,15 +376,44 @@ func appendRow(path string, r manifestRow, stderr io.Writer) {
 		fmt.Fprintln(stderr, "gray-area-capture: cannot encode row:", err)
 		return
 	}
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	// O_RDWR rather than O_WRONLY only so the tail can be READ; O_APPEND still
+	// governs every write, which is what keeps concurrent seats from interleaving.
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0o644)
 	if err != nil {
 		fmt.Fprintln(stderr, "gray-area-capture: cannot open manifest:", err)
 		return
 	}
 	defer func() { _ = f.Close() }()
+	healTornTail(f, stderr)
 	if _, err := f.Write(append(line, '\n')); err != nil {
 		fmt.Fprintln(stderr, "gray-area-capture: cannot append row:", err)
+		return
 	}
+	if err := f.Sync(); err != nil {
+		fmt.Fprintln(stderr, "gray-area-capture: row appended but not synced:", err)
+	}
+}
+
+// healTornTail terminates a manifest whose last line has no newline, so the next
+// append cannot be concatenated onto a row an interruption cut short.
+//
+// Silent on every ordinary call, and silent when it cannot look: a probe that fails
+// must not cost the row it was protecting. It reports only when it actually repairs
+// something, because that is a fact about a PREVIOUS run that nothing else records.
+func healTornTail(f *os.File, stderr io.Writer) {
+	st, err := f.Stat()
+	if err != nil || st.Size() == 0 {
+		return
+	}
+	var last [1]byte
+	if _, err := f.ReadAt(last[:], st.Size()-1); err != nil || last[0] == '\n' {
+		return
+	}
+	if _, err := f.Write([]byte{'\n'}); err != nil {
+		fmt.Fprintln(stderr, "gray-area-capture: manifest tail is unterminated and could not be closed:", err)
+		return
+	}
+	fmt.Fprintln(stderr, "gray-area-capture: closed an unterminated manifest tail — a previous append was cut short, and that line will not parse")
 }
 
 // buildSessionRow records what SessionStart handed over: where THIS session's

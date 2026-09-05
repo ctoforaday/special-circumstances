@@ -669,11 +669,15 @@ func (r *runner) mint(seatID string) string {
 // someFinding returns a random lens finding label on the record, or "" if none — feeds mint's
 // --found-by with a real TOOL-assigned label (L{role}-F{N}) rather than a fabricated one.
 func (r *runner) someFinding() string {
-	b := r.board()
-	if b == nil {
+	// THE FINDING FAMILY, NOT THE WHOLE FOLD. `show findings` is FindingsJSONBytes now —
+	// EventsOf(run, FINDING) into FindingsJSONOf — so this reproduces the CLI's own path rather
+	// than the board it used to ask for (#719). Byte-identity is the property that keeps this
+	// safe against the RNG, and it is identity with what the VERB does, not with what it did.
+	evs, err := record.EventsOf(r.runHandle, recordpb.EventType_EVENT_TYPE_FINDING)
+	if err != nil {
 		return ""
 	}
-	findings := record.FindingsJSONOf(b).Findings
+	findings := record.FindingsJSONOf(evs).Findings
 	if len(findings) == 0 {
 		return ""
 	}

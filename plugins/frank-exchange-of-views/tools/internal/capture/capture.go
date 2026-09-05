@@ -1718,7 +1718,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	redRounds, blueBlocks := 0, 0
 	onRecord := []record.FrictionEntryJSON{}
 	if board != nil {
-		dj := record.DebateJSONOf(board)
+		dj := record.DebateJSONOfEvents(board.Events)
 		for _, r := range dj.Rounds {
 			if len(r.Red) > 0 {
 				redRounds++
@@ -1730,7 +1730,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		// BOTH ARMS OF THE CHANNEL COUNT AS OPENING IT. `friction-none` is the attested empty
 		// case — "nothing blocked me", which is a seat closing the channel honestly — and a seat
 		// that files one has used the channel exactly as the duty asks.
-		fj := record.FrictionJSONOf(board)
+		fj := record.FrictionJSONOf(board.Events)
 		onRecord = append(onRecord, fj.Friction...)
 		onRecord = append(onRecord, fj.NothingBlocked...)
 	}
