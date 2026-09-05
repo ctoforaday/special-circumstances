@@ -453,9 +453,6 @@ func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 		"## Analysis", "also lifted.", "",
 		"## Risk Matrix", "blue fabricated a risk matrix.", "", // tool-owned — dropped
 		"## The Board", "blue cannot know red's findings.", "", // tool-owned — dropped
-		// THE RETIRED HEADING IS STILL DROPPED, and this case is the whole reason the key stays
-		// in the map. A seat on a cached prompt authors the old name; it is still fabrication.
-		"## Red Team Findings (in full)", "blue authored the retired heading.", "", // dropped
 		"## Blue Team Report (in full)", "[to be filled]", "", // recursive stub — dropped
 		"## Footnotes", "[^a]: a citation blue tried to author.", "", // DROPPED — citations are tool-composed now
 		"## Appendix: raw benchmarks", "novel blue content.", "", // KEPT — genuinely additional
@@ -467,7 +464,7 @@ func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 			t.Errorf("blueEmbed dropped content it should keep (%q):\n%s", kept, got)
 		}
 	}
-	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "blue cannot know", "blue authored the retired heading", "[to be filled]", "**Verdict:**", "UNVERIFIED", "## Footnotes", "a citation blue tried to author"} {
+	for _, dropped := range []string{"lifted to the top", "also lifted", "blue fabricated", "blue cannot know", "[to be filled]", "**Verdict:**", "UNVERIFIED", "## Footnotes", "a citation blue tried to author"} {
 		if strings.Contains(got, dropped) {
 			t.Errorf("blueEmbed kept content it should drop (%q):\n%s", dropped, got)
 		}

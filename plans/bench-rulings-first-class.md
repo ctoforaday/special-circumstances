@@ -340,7 +340,7 @@ Fifth instance in this document of one structural no-match; §II records the fir
 |---|---|
 | `report/assemble.go:847` | the heading itself |
 | **`report/assemble.go:149`** — `blueEmbed`'s `drop` map, `"red team findings": true` | **`[MODIFY]`, and this is the row that makes the rename safe.** `blueEmbed` KEEPS any `## ` heading whose normalized key is not in `drop`. Rename the composed heading without adding `"the board"` and a **blue-authored `## The board` is kept** and embedded under `## Blue team report (sections not composed above)` — beside the composed one — which is the double-authorship `debate.js`'s FABRICATION clause exists to prevent, arriving through the fix that cites it |
-| `report/assemble.go:149` — the OLD key | **RETAINED, not replaced.** `"red team findings"` stays in `drop` alongside `"the board"`. A seat on a cached or stale prompt still authors the old heading, and it is still fabrication — blue still cannot know red's findings. Retiring the key would let exactly that through, and the cost of keeping it is one map entry |
+| `report/assemble.go:149` — the OLD key | ~~RETAINED, not replaced — a seat on a cached prompt still authors the old heading.~~ **REVERSED by the human, and struck rather than deleted so the reasoning is visible: "no archaeology, no backwards compatibility."** The key is REMOVED. Keeping it was a dual-read for a stale prompt, which is §I's first non-goal — `a12362c` dropped backwards compatibility on this project's explicit decision that "every record is a test run", and a map entry accommodating a prompt that no longer ships is that decision re-litigated in miniature. **The prompt and the composer move together or the change is not done**; a key that catches the drift is a reason not to finish the sweep. Residue after this: ZERO, not two |
 | `report/assemble.go:199` | `normalizeHeading`'s doc comment uses `"Red Team Findings (in full)"` as its worked example — reword |
 | **`report/assemble.go:134`** | `blueEmbed`'s doc comment enumerates the dropped sections as "the risk matrix, **red findings**, the debate, a verdict" — reword. Caught by NEITHER census: it spells the section "red findings" |
 | `report/assemble.go:136` | **NO CHANGE** — "blue cannot know red's findings" is a RATIONALE about what blue can know, and it stays true. Listed so the sweep two lines above it meets this as a decision rather than a match; [[facts-are-fields]] clause 4 is the brake |
@@ -592,12 +592,12 @@ because a fork resolved mid-audit is the one a later reader mistakes for an assu
    The case-sensitive form the earlier drafts specified misses `assemble.go:149`, `:199` and
    `assemble_test.go:455`.
 
-   **The expected residue, stated exactly, because the previous draft's was self-contradictory:**
-   the drop-map key at `assemble.go:149`, the retained-key assertion in `assemble_test.go:455`, and
-   git history. **NOT "regenerated goldens"** — the only two goldens carrying the string today
-   (`prompt-blue-respond-r1.golden`, `prompt-blue-synthesize.golden`) are regenerated FROM the
-   reworded `debate.js`, so after this scope they carry it nowhere. A residue list that expects the
-   string where it will not be, and does not expect it where it will, cannot fail correctly.
+   **The expected residue is ZERO outside `plans/` and git history**, and that is the whole check.
+   Two earlier drafts expected a non-empty one: the first named "regenerated goldens", where the
+   string will NOT be once `debate.js` is reworded; the second named the retained drop-map key and
+   its assertion, which the human then struck ("no archaeology, no backwards compatibility"). **A
+   sweep whose expected residue is empty is one a grep can actually fail** — every non-zero residue
+   list this scope wrote turned out to be wrong in one direction or the other.
 3. **The blue prohibition still bites, and the drop map still catches.** Two assertions, because
    either alone passes while the other's defect survives:
    - `debate.test.mjs:1185-1187` asserts the FABRICATION clause names `## The board`.

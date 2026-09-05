@@ -147,13 +147,7 @@ func blueEmbed(blue string) string {
 		// blue-authored one is dropped rather than shipped alongside the composed one.
 		"risk matrix": true, "the expansions": true, "expansions": true,
 		"alternatives considered": true, "the board": true,
-		// THE RETIRED HEADING STAYS IN THIS MAP. The section is `## The board` now, but a seat
-		// on a cached or stale prompt still authors `## Red team findings` — and it is still
-		// fabrication, because blue still cannot know red's findings. Dropping the key with
-		// the rename would let exactly that through, and keeping it can drop nothing
-		// legitimate: no composer emits the old heading any more.
-		"red team findings": true,
-		"the debate":        true, "blue team report": true, "verdict": true,
+		"the debate": true, "blue team report": true, "verdict": true,
 		"footnotes": true, "bibliography": true,
 		// Composed from the retire events. A blue-authored one would be a SECOND account of
 		// what left the report, written by the party that removed it — the record already
@@ -775,10 +769,10 @@ func provenance(m *recordpb.Mint, findings map[string]*recordpb.Finding) string 
 // red's archive spot-checks. This is the ledger's content, drawn from the replayed board rather
 // than read back from the projection file.
 //
-// IT IS NOT "RED'S FINDINGS", AND THE NAME SAID IT WAS. Three parties write into this section:
-// red mints the gaps, blue attests its repairs, and the bench disposes of what reaches it. A
-// heading naming one of them made the report attribute the other two's output to red — and the
-// misattribution was load-bearing, because the correctness manifest it carries is an accusation.
+// THREE PARTIES WRITE INTO THIS SECTION, which is why it is named for none of them: red mints
+// the gaps, blue attests its repairs below, and the bench disposes of what reaches it. Naming it
+// for one attributes the other two's output to that one — and here that is not cosmetic, because
+// the correctness manifest it carries is an accusation.
 func boardSection(board *record.Board) string {
 	// Label -> the finding it names, so a gap can quote the evidence it was minted from.
 	findings := map[string]*recordpb.Finding{}
