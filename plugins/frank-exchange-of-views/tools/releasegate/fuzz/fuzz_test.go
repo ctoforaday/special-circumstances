@@ -690,9 +690,10 @@ func (r *runner) someFinding() string {
 // ~12ms each, buying nothing the sweep asserts.
 //
 // The COVERAGE those verbs owe is unaffected and is not weakened here: the projection sweep in
-// runOne drives every view on every role explicitly, which is what the surface gate reads. These
-// three call sites were never what proved `show board` works — they were the harness reading its
-// own board through a subprocess.
+// runOne drives every view on every role explicitly, which is what the surface gate reads (it goes
+// through `drive` now — the first invocation of each path per sweep spawns the binary, the rest
+// dispatch the same tree in process). These three call sites were never what proved `show board`
+// works — they were the harness reading its own board through a subprocess.
 //
 // BYTE-IDENTICAL BY CONSTRUCTION, which is why this is safe against the RNG. record.BoardJSONOf,
 // EvidenceJSONOf and FindingsJSONOf are the exact functions the CLI marshals, so the lists below
@@ -1965,6 +1966,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// because the sweep had only ever driven the handful it asserted on. A view that only the
 	// merge reads is a view nobody checks from the seat that actually reads it.
 	// EVERY SEAT READS EVERY PROJECTION, and the seat id is what says which tree `show` is in.
+	//
+	// THROUGH `drive`, WHICH SPAWNS THE BINARY ONCE PER PATH AND THEN STOPS. What varies between
+	// runs here is the RECORD each projection meets, never the argv — measured at N=4, every one
+	// of these 48 paths fired at exactly 1-4 invocations per run, the same set on every seed. So
+	// the shape variation these oracles are built on is kept in full and the 76 process spawns a
+	// run paid for it are not; `drive`'s own comment carries the accounting.
 	for role, sid := range map[string]string{
 		"blue": "blue-respond-r1", "lens": "red-lens-r1-L1", "merge": "red-merge-r1", "bench": "judge-r1",
 	} {
@@ -1973,12 +1980,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 			if v == "changes" && len(ids) > 0 {
 				args = append(args, "--id", ids[0])
 			}
-			if _, err := tracked(bin, args...); err != nil {
+			if _, err := drive(bin, args...); err != nil {
 				res.err = role + " show " + v + " failed: " + err.Error()
 				return res
 			}
 		}
-		if _, err := tracked(bin, "show", "--run", runDir, "--seat-id", sid); err != nil {
+		if _, err := drive(bin, "show", "--run", runDir, "--seat-id", sid); err != nil {
 			res.err = role + " show (bare, the seat's pending work) failed: " + err.Error()
 			return res
 		}
@@ -2001,7 +2008,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		} {
 			for _, extra := range [][]string{nil, {"--window", "0"}} {
 				args := append([]string{"show", "report", "--anchor", a, "--run", runDir, "--seat-id", sid}, extra...)
-				out, err := tracked(bin, args...)
+				out, err := drive(bin, args...)
 				if err != nil {
 					res.err = strings.Join(args, " ") + " failed:\n" + truncate(string(out))
 					return res
@@ -2018,7 +2025,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// AN ANCHOR NOBODY MINTED IS REFUSED, NOT READ EMPTY — the read-side twin of `show changes
 	// --id R9-99`. An empty window says "the report has nothing here", which is a different
 	// fact from "that anchor is not in this report".
-	if out, err := tracked(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir, "--seat-id", "blue-respond-r1"); err == nil {
+	if out, err := drive(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir, "--seat-id", "blue-respond-r1"); err == nil {
 		res.err = "show report --anchor f-ffffffff SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
 		return res
 	}
@@ -2036,7 +2043,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// `friction` left the SEAT menu (0.57.0) — it is the operator's read. The verb stays on
 	// every role; only the view moved.
 	for _, v := range []string{"findings"} {
-		out, err := tracked(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1")
+		out, err := drive(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show " + v + " did not return valid JSON:\n" + truncate(string(out))
@@ -2044,7 +2051,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		}
 	}
 	{
-		out, err := tracked(bin, "show", "debate", "--json", "--run", runDir, "--seat-id", "red-merge-r1")
+		out, err := drive(bin, "show", "debate", "--json", "--run", runDir, "--seat-id", "red-merge-r1")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show debate --json did not return valid JSON:\n" + truncate(string(out))
@@ -2065,14 +2072,14 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// role gate, so driving only `merge show --view` left the other three reachable but never
 	// reached — and --id (the scoped form) never passed at all.
 	for _, role := range []string{"blue", "lens", "bench"} {
-		if out, err := tracked(bin, "show", "debate", "--run", runDir, "--seat-id", seatOfRole(role)); err != nil {
+		if out, err := drive(bin, "show", "debate", "--run", runDir, "--seat-id", seatOfRole(role)); err != nil {
 			res.err = role + " show debate failed:\n" + truncate(string(out))
 			return res
 		}
 	}
 	if ids := mintedGapIDs(stageRun); len(ids) > 0 {
 		for _, role := range []string{"blue", "lens", "bench"} {
-			_, _ = tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", seatOfRole(role))
+			_, _ = drive(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", seatOfRole(role))
 		}
 	}
 	// THE SET IS DERIVED, because this exclusion was four names written here by hand and two of
@@ -2090,7 +2097,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		if jsonByName[v] {
 			continue // JSON by name — driven by their own oracles, not the markdown path
 		}
-		if out, err := tracked(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		if out, err := drive(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 			res.err = "show " + v + " (projection) failed:\n" + truncate(string(out))
 			return res
 		}
@@ -2100,11 +2107,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
 	// rendered empty — the read-side twin of requireGap.
 	if ids := mintedGapIDs(stageRun); len(ids) > 0 {
-		if out, err := tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		if out, err := drive(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 			res.err = "show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
 		}
-		if out, err := tracked(bin, "show", "changes", "--id", "R9-99", "--run", runDir, "--seat-id", "red-merge-r1"); err == nil {
+		if out, err := drive(bin, "show", "changes", "--id", "R9-99", "--run", runDir, "--seat-id", "red-merge-r1"); err == nil {
 			res.err = "show changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
 			return res
 		}

@@ -1,6 +1,7 @@
 package fuzz
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
 	"sort"
@@ -46,11 +47,24 @@ var (
 	// seat id too: an edge only the harness walks is still an edge, and hiding it would make the
 	// graph flatter than the run.
 	execEdges = map[string]map[string]int{}
+	// execInProc counts the invocations of each path that drove the cobra tree IN THIS PROCESS
+	// rather than through the binary.
+	//
+	// THE MECHANISM IS A FIELD, NOT AN ASSUMPTION. Once a path can be driven both ways, "invoked"
+	// stops meaning "the binary reaches it" — and a reader of execReport who cannot tell the two
+	// apart would read full in-process coverage as proof of a surface main() has never reached.
+	// So the tally carries which, the report says so, and `drive` guarantees the binary half.
+	execInProc = map[string]int{}
 )
 
-// noteExec records one invocation. Called from BOTH paths that shell the binary — the
+// noteExec records one invocation of the BINARY. Called from BOTH paths that shell it — the
 // runner's exec and the direct exec.Command oracles — so nothing reaches the tool untracked.
-func noteExec(args []string, err error, out []byte) {
+func noteExec(args []string, err error, out []byte) { note(args, err, out, false) }
+
+// noteInProc records one invocation that drove the same command path in this process.
+func noteInProc(args []string, err error, out []byte) { note(args, err, out, true) }
+
+func note(args []string, err error, out []byte, inProcess bool) {
 	execMu.Lock()
 	defer execMu.Unlock()
 	k := commandPathOf(args)
@@ -58,6 +72,9 @@ func noteExec(args []string, err error, out []byte) {
 		return
 	}
 	execRuns[k]++
+	if inProcess {
+		execInProc[k]++
+	}
 	if seat := seatOfArgs(args); seat != "" {
 		if execEdges[seat] == nil {
 			execEdges[seat] = map[string]int{}
@@ -216,6 +233,57 @@ func tracked(bin string, args ...string) ([]byte, error) {
 	return out, err
 }
 
+// inproc drives the SAME cobra tree in this process, reproducing what the binary does around it.
+//
+// It is not a shortcut past the tool: NewRootFor resolves the seat's tree exactly as newRoot does,
+// ExecuteRoot is the function main() calls, and EmitTopLevelError is the envelope a refusal that
+// never reached seat.Emit gets. Both are exported for precisely this reason, and internal/cli's own
+// harness has driven the tree this way — under t.Parallel — since before this sweep existed.
+//
+// WHAT IT DOES NOT REPRODUCE, stated so nobody reads it as equivalent: refuseUnknownCommandFirst
+// (unexported, and only answers argv naming a command that does not exist — which a projection
+// sweep never sends), the signal guard, and os.Exit. That last one is why this driver is used for
+// the `show` group alone: no show handler exits, while the operator's `dashboard` and `scorecard`
+// call os.Exit inside their RunE, and an os.Exit in the test binary takes the whole sweep down
+// with no failing test and no diagnosis.
+func inproc(args ...string) ([]byte, error) {
+	root := cli.NewRootFor(seatOfArgs(args))
+	var out bytes.Buffer
+	root.SetOut(&out)
+	root.SetErr(&out)
+	root.SetArgs(args)
+	err := cli.ExecuteRoot(root)
+	if err != nil {
+		cli.EmitTopLevelError(&out, args, err)
+	}
+	noteInProc(args, err, out.Bytes())
+	return out.Bytes(), err
+}
+
+// driven records which command paths have already been through the real binary once.
+var driven sync.Map
+
+// drive runs a READ-ONLY projection: the FIRST invocation of each command path in the sweep goes
+// through the binary, and every later one drives the same tree in process.
+//
+// WHY THE SPLIT EXISTS. The projection sweep spawned 76 processes per run to assert exit codes on
+// a set of paths that is identical on every seed — measured at N=4: 304 of the sweep's 905
+// invocations, every path at exactly 1-4 per run. Forty runs bought forty copies of one surface
+// fact, at ~9ms of process startup each, and the only thing the repetition added over a single
+// pass was that each copy met a differently-shaped record — which is what the ORACLES want, not
+// what the spawn provides. So the shape variation is kept in full and the spawn is not.
+//
+// The first-call-through-the-binary rule is what keeps "invoked" honest, and it is enforced at the
+// WRITE rather than checked at the read: a path added to the tree tomorrow gets its binary
+// invocation the first time anything drives it, with nothing to remember and no list to keep. It
+// costs one exec per path — 48 across the whole sweep, against 3,040.
+func drive(bin string, args ...string) ([]byte, error) {
+	if _, already := driven.LoadOrStore(commandPathOf(args), true); !already {
+		return tracked(bin, args...)
+	}
+	return inproc(args...)
+}
+
 // exemptSurfaces are the command paths the fuzz deliberately does NOT drive, each with the
 // reason. This is the ONLY hand-written list left, and it says why rather than merely
 // omitting — an absence with no stated reason is indistinguishable from an oversight, which
@@ -254,18 +322,19 @@ func execReport() string {
 	execMu.Lock()
 	defer execMu.Unlock()
 	type row struct {
-		path string
-		n, f int
+		path       string
+		n, f, inpr int
 	}
 	rows := make([]row, 0, len(execRuns))
 	for p, n := range execRuns {
-		rows = append(rows, row{p, n, execFail[p]})
+		rows = append(rows, row{p, n, execFail[p], execInProc[p]})
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].n > rows[j].n })
 	var b strings.Builder
-	total := 0
+	total, spawned := 0, 0
 	for _, r := range rows {
 		total += r.n
+		spawned += r.n - r.inpr
 	}
 	b.WriteString("command surface exercised: ")
 	b.WriteString(strings.TrimSuffix(strings.Join([]string{}, ""), ""))
@@ -279,8 +348,14 @@ func execReport() string {
 		if r.f > 0 {
 			b.WriteString("(" + itoa(r.f) + " refused)")
 		}
+		if r.inpr > 0 {
+			b.WriteString("[" + itoa(r.inpr) + " in-process]")
+		}
 	}
-	return b.String() + "  [" + itoa(len(rows)) + " paths, " + itoa(total) + " invocations]"
+	// THE SPAWN COUNT IS SAID OUT LOUD, because it is the number this sweep's cost is made of and
+	// the one a reader would otherwise infer from the invocation total — which no longer implies it.
+	return b.String() + "  [" + itoa(len(rows)) + " paths, " + itoa(total) + " invocations, " +
+		itoa(spawned) + " of them binary spawns]"
 }
 
 func itoa(n int) string {
