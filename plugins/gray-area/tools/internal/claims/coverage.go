@@ -89,14 +89,26 @@ func agentIDFromFile(name string) string {
 // disk. namedIDs are the `agent_id` values of `kind: "seat"` rows, WITHOUT the
 // `agent-` prefix the filenames carry.
 //
+// namedIDs IS TREATED AS A SET, and a duplicate is collapsed rather than trusted.
+// This is a set difference on both sides — `on` has been a map since the first
+// version, because two files cannot share a name — and Named was the one side that
+// counted repeats. It matters twice over: `len(Named)` was printed as a seat count
+// beside a per-FILE disk count, and a seat captured twice that was also absent from
+// disk appeared under MISSING twice. Callers should hand over SeatCensus.IDs, which
+// is already distinct; the collapse here is so an exported function cannot be made
+// to lie by a caller that assembles the slice itself.
+//
 // readDir is injected so both the present and the absent directory are reachable
 // in a test regardless of what is on the machine running it.
 func Reconcile(sessionTranscript string, namedIDs []string, readDir func(string) ([]os.DirEntry, error)) Coverage {
 	c := Coverage{Dir: SubagentDir(sessionTranscript), OnDisk: []string{}, Named: []string{}, Unnamed: []string{}, Missing: []string{}}
+	named := map[string]bool{}
 	for _, id := range namedIDs {
-		if id != "" {
-			c.Named = append(c.Named, "agent-"+id)
+		if id == "" || named["agent-"+id] {
+			continue
 		}
+		named["agent-"+id] = true
+		c.Named = append(c.Named, "agent-"+id)
 	}
 	sort.Strings(c.Named)
 
@@ -134,10 +146,6 @@ func Reconcile(sessionTranscript string, namedIDs []string, readDir func(string)
 	}
 	sort.Strings(c.OnDisk)
 
-	named := map[string]bool{}
-	for _, n := range c.Named {
-		named[n] = true
-	}
 	for _, id := range c.OnDisk {
 		if !named[id] {
 			c.Unnamed = append(c.Unnamed, id)
@@ -164,7 +172,54 @@ func itoa(n int) string {
 	return string(b)
 }
 
-// SeatIDs reads the `agent_id` of every row that describes a real SEAT.
+// SeatCensus is what a manifest says about seats: the DISTINCT seats it names, and
+// the facts a bare row count hides.
+//
+// # ROWS ARE NOT SEATS, because SubagentStop fires again for a seat that is continued
+//
+// Measured on this repository's own manifest (2026-09-04, trajectories-d628026a…):
+// seat `a703a4ea4a2d4e09d` carries TWO rows, 07:08:23Z and 07:11:10Z, with the
+// transcript grown from 356468 to 452844 bytes between them. One seat, continued,
+// stopped a second time. Nothing in the capture path is wrong there — a row is an
+// observation, and the second observation is true.
+//
+// What was wrong is that every reader downstream treated a row as a seat. Reconcile
+// was handed the id twice, `Named` held it twice, and `coverage` printed a per-ROW
+// count beside a per-FILE count and called the pair a reconciliation. A seat captured
+// twice AND genuinely absent from disk would have been listed under MISSING twice.
+//
+// So idempotence lives HERE, at the read, and the manifest stays an append-only
+// journal. The alternative — having the hook suppress a repeat capture — needs a
+// read-modify-write on a path that must never cost a subagent its turn, races with
+// every other seat stopping at the same moment, and throws away the one thing the
+// second row actually says: this seat did more work. The repeat is REPORTED rather
+// than erased.
+type SeatCensus struct {
+	// IDs is every distinct seat the manifest names, sorted. This is the denominator
+	// a coverage claim may be stated over; Rows is not.
+	IDs []string `json:"ids"`
+	// Rows is how many seat rows produced those ids — always >= len(IDs).
+	Rows int `json:"rows"`
+	// Repeats maps a seat id to how many times it was captured, holding only the ids
+	// captured more than once. Empty on a manifest where every seat stopped once.
+	Repeats map[string]int `json:"repeats,omitempty"`
+	// Unclassifiable counts seat rows carrying no agent_id: they name nothing and can
+	// be reconciled with nothing. Counted, never folded into either side.
+	Unclassifiable int `json:"unclassifiable"`
+	// Unreadable counts lines that are not JSON, and it exists because skipping them
+	// in silence is the wrong report.
+	//
+	// The manifest is appended to by a hook that can be killed mid-write, so a torn
+	// tail is exactly what an interruption leaves behind. The seat row lost with it
+	// then surfaces as UNNAMED — which reads as "the hook never fired for that seat",
+	// a different fault with a different fix. Counting the unreadable lines is what
+	// lets a reader tell the two apart, and 0 here is what makes UNNAMED mean what it
+	// says. See appendRow in gray-area-capture for the writer-side half.
+	Unreadable int `json:"unreadable"`
+}
+
+// Seats reads the census out of a manifest, counting every row that describes a real
+// SEAT and returning the seats it names once each.
 //
 // # `kind` alone is not enough, and the first run proved it
 //
@@ -184,7 +239,9 @@ func itoa(n int) string {
 // Unclassifiable is returned rather than folded into either side: a row that
 // answers neither way must not quietly become a seat (a phantom MISSING) or
 // quietly vanish (an understated denominator).
-func SeatIDs(manifest []byte) (seats []string, unclassifiable int) {
+func Seats(manifest []byte) SeatCensus {
+	c := SeatCensus{IDs: []string{}}
+	captures := map[string]int{}
 	for _, line := range strings.Split(string(manifest), "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" {
@@ -198,6 +255,7 @@ func SeatIDs(manifest []byte) (seats []string, unclassifiable int) {
 			Resolved  bool   `json:"resolved"`
 		}
 		if json.Unmarshal([]byte(line), &r) != nil {
+			c.Unreadable++
 			continue
 		}
 		switch r.Kind {
@@ -210,14 +268,24 @@ func SeatIDs(manifest []byte) (seats []string, unclassifiable int) {
 		if r.AgentID == "" {
 			// A seat row with no id names nothing and can be reconciled with
 			// nothing. Counted, never dropped.
-			unclassifiable++
+			c.Unclassifiable++
 			continue
 		}
 		if r.Schema < 4 && r.AgentType == "" && !r.Resolved {
 			continue // a turn end, filed as a seat by a binary that had no other word
 		}
-		seats = append(seats, r.AgentID)
+		c.Rows++
+		captures[r.AgentID]++
 	}
-	sort.Strings(seats)
-	return seats, unclassifiable
+	for id, n := range captures {
+		c.IDs = append(c.IDs, id)
+		if n > 1 {
+			if c.Repeats == nil {
+				c.Repeats = map[string]int{}
+			}
+			c.Repeats[id] = n
+		}
+	}
+	sort.Strings(c.IDs)
+	return c
 }
