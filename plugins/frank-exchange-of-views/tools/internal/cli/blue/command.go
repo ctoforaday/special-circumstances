@@ -18,6 +18,7 @@ const role = "blue"
 func Verbs() []*cobra.Command {
 	return seat.RoleVerbs(role,
 		seat.Register(),
+		newIngest(),
 		newEdit(),
 		newCite(),
 		newProve(),

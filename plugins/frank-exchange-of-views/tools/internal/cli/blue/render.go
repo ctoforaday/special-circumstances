@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE REPORT IS THE RECORD, NOT A FILE (issue #709).
@@ -48,4 +50,60 @@ func Render(base string, ops []Op) (string, error) {
 		text = applySplice(text, start, end, op.New)
 	}
 	return text, nil
+}
+
+// RenderFromRecord is the record-aware render: it reads the run's frozen base (the one BaseIngest
+// event) and the ordered BlueEdit diff-stack, and folds the edits back over the base. This is the
+// ONLY way to obtain the current report once the file is deleted — the ~12 former readers of
+// blue/report.md call this instead.
+//
+// Events arrive in insertion order (MergedEvents is ORDER BY id), which is edit order, and the
+// BaseIngest is written first (round 0, before any edit), so a linear pass composes the report
+// correctly. Two structural failures are loud, never a plausible zero: no base (nothing was
+// ingested) and two bases (the write-once rule was broken).
+func RenderFromRecord(run record.Run) (string, error) {
+	m, err := record.MergedEvents(run)
+	if err != nil {
+		return "", err
+	}
+	base := ""
+	haveBase := false
+	var ops []Op
+	for _, e := range m.Events {
+		body, ok := recordpb.Body(e)
+		if !ok {
+			continue
+		}
+		switch b := body.(type) {
+		case *recordpb.BaseIngest:
+			if haveBase {
+				return "", fmt.Errorf("render: two BaseIngest events on this run — the base is written once and never rewritten")
+			}
+			base, haveBase = b.GetText(), true
+		case *recordpb.BlueEdit:
+			ops = append(ops, Op{Old: b.GetOld(), New: b.GetNew()})
+		}
+	}
+	if !haveBase {
+		return "", fmt.Errorf("render: no base has been ingested for this run — there is nothing to render")
+	}
+	return Render(base, ops)
+}
+
+// BaseIngested reports whether this run already has a frozen base — the record-state test that
+// makes `blue ingest` write-once: a second ingest is refused, never an overwrite. The answer is
+// read from the events, not a marker file, so it cannot drift from the truth.
+func BaseIngested(run record.Run) (bool, error) {
+	m, err := record.MergedEvents(run)
+	if err != nil {
+		return false, err
+	}
+	for _, e := range m.Events {
+		if body, ok := recordpb.Body(e); ok {
+			if _, isBase := body.(*recordpb.BaseIngest); isBase {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
