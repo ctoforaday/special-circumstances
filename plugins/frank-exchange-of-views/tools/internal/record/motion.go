@@ -1,6 +1,7 @@
 package record
 
 import (
+	"database/sql"
 	"fmt"
 
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -217,15 +218,10 @@ func enumWord(v protoreflect.Enum) string {
 // the bench in round 4 — so a round-scoped id would have to be re-minted to survive, and the
 // re-mint is where the thread breaks.
 func MintMotionID(run Run) (string, error) {
-	m, err := MergedEvents(run)
-	if err != nil {
+	var n int
+	if _, err := queryRow(run, []any{&n},
+		`SELECT count(*) FROM "motion" WHERE COALESCE("motion_id", '') != ''`); err != nil {
 		return "", err
-	}
-	n := 0
-	for _, e := range m.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && f.GetMotionId() != "" {
-			n++
-		}
 	}
 	return fmt.Sprintf("M%d", n+1), nil
 }
@@ -449,14 +445,12 @@ func RequireMotionSubjectRef(run Run, subject recordpb.MotionSubject, id string)
 	if subject == recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION {
 		return RequireInquiryRef(run, id)
 	}
-	m, err := MergedEvents(run)
+	found, err := recordHas(run, `SELECT 1 FROM "motion" WHERE "motion_id" = ? LIMIT 1`, id)
 	if err != nil {
 		return err
 	}
-	for _, e := range m.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && f.GetMotionId() == id {
-			return nil
-		}
+	if found {
+		return nil
 	}
 	return fmt.Errorf("record: --id names motion %s, which no filing created — a dangling reference is accepted here and dropped at replay", id)
 }
@@ -490,21 +484,28 @@ func RequireSubjectMatches(run Run, subject, id string) error {
 // A direction has no filing event — the proposal is the filing — so an id that resolves to an
 // line of inquiry IS a direction motion by construction.
 func motionSubjectOf(run Run, id string) (string, error) {
-	m, err := MergedEvents(run)
+	// The stored word is the schema's spelling; the SURFACE word goes through the same
+	// motionSubjectWord mapping the fold used (direction speaks as `inquiry`).
+	var word sql.NullString
+	found, err := queryRow(run, []any{&word},
+		`SELECT "subject" FROM "motion" WHERE "motion_id" = ? ORDER BY "event_id" LIMIT 1`, id)
 	if err != nil {
 		return "", err
 	}
-	for _, e := range m.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Motion](e); ok && f.GetMotionId() == id {
-			return motionSubjectWord(f.GetSubject()), nil
+	if found {
+		if vd, ok := recordpb.BySpelling(recordpb.MotionSubject(0).Descriptor(), word.String); ok {
+			return motionSubjectWord(recordpb.MotionSubject(vd.Number())), nil
 		}
+		return word.String, nil
 	}
-	for _, e := range m.Events {
-		// ANY avenue event, proposal or move: the question is whether this id names a line of
-		// inquiry at all, and a line that has since moved status is still a line.
-		if av, ok := recordpb.BodyAs[*recordpb.Avenue](e); ok && av.GetAvenueId() == id {
-			return "inquiry", nil
-		}
+	// ANY avenue event, proposal or move: the question is whether this id names a line of
+	// inquiry at all, and a line that has since moved status is still a line.
+	isLine, err := recordHas(run, `SELECT 1 FROM "avenue" WHERE "avenue_id" = ? LIMIT 1`, id)
+	if err != nil {
+		return "", err
+	}
+	if isLine {
+		return "inquiry", nil
 	}
 	return "", fmt.Errorf("record: --id names motion %s, which no filing created — a dangling reference is accepted here and dropped at replay", id)
 }
@@ -520,15 +521,26 @@ func motionSubjectOf(run Run, id string) (string, error) {
 // giving moves a single writer; a ruling had no such guard. The escalation path is an APPEAL,
 // which is a new event that preserves both positions, rather than a second ruling that erases one.
 func RequireUnruledMotion(run Run, id string) error {
-	m, err := MergedEvents(run)
+	// The FIRST ruling on the record is the one quoted, exactly as the fold's first match was;
+	// its word is whichever arm the rule carried, "" when it carried none.
+	var grade, petition, direction, seat sql.NullString
+	found, err := queryRow(run, []any{&grade, &petition, &direction, &seat},
+		`SELECT r."grade", r."petition", r."direction", e."seat_id"
+		  FROM "motion_rule" r JOIN "events" e ON e."id" = r."event_id"
+		  WHERE r."motion_id" = ? ORDER BY r."event_id" LIMIT 1`, id)
 	if err != nil {
 		return err
 	}
-	for _, e := range m.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && f.GetMotionId() == id {
-			return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command",
-				id, motionRulingWord(f), e.GetSeatId())
+	if found {
+		word := grade.String
+		if word == "" {
+			word = petition.String
 		}
+		if word == "" {
+			word = direction.String
+		}
+		return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command",
+			id, word, seat.String)
 	}
 	return nil
 }
@@ -550,15 +562,17 @@ func RequireUnruledMotion(run Run, id string) error {
 // drives (`grade_dispute_re_raised`). That keeps both arguments, which is the whole point of an
 // appeal being an event rather than a field.
 func RequireUnappealedMotion(run Run, id string) error {
-	m, err := MergedEvents(run)
+	var seat, reason sql.NullString
+	found, err := queryRow(run, []any{&seat, &reason},
+		`SELECT e."seat_id", a."reason"
+		  FROM "motion_appeal" a JOIN "events" e ON e."id" = a."event_id"
+		  WHERE a."motion_id" = ? ORDER BY a."event_id" LIMIT 1`, id)
 	if err != nil {
 		return err
 	}
-	for _, e := range m.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.MotionAppeal](e); ok && f.GetMotionId() == id {
-			return fmt.Errorf("record: motion %s is already appealed by %s (%q). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. If you are pressing on new grounds, file a NEW motion for this round: two motions keep two arguments, which is what an appeal being an event rather than a field is for",
-				id, e.GetSeatId(), f.GetReason())
-		}
+	if found {
+		return fmt.Errorf("record: motion %s is already appealed by %s (%q). A second appeal does not add to the first — it REPLACES it in every reader, and the argument already on the record stops being the one anybody sees. If you are pressing on new grounds, file a NEW motion for this round: two motions keep two arguments, which is what an appeal being an event rather than a field is for",
+			id, seat.String, reason.String)
 	}
 	return nil
 }
@@ -574,14 +588,12 @@ func RequireRuledMotion(run Run, subject recordpb.MotionSubject, id string) erro
 	if err := RequireMotionSubjectRef(run, subject, id); err != nil {
 		return err
 	}
-	m, err := MergedEvents(run)
+	found, err := recordHas(run, `SELECT 1 FROM "motion_rule" WHERE "motion_id" = ? LIMIT 1`, id)
 	if err != nil {
 		return err
 	}
-	for _, e := range m.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.MotionRule](e); ok && f.GetMotionId() == id {
-			return nil
-		}
+	if found {
+		return nil
 	}
 	return fmt.Errorf("record: %s motion %s has no ruling to appeal — an appeal presses on after an answer, and there is no answer on the record yet", subject, id)
 }
