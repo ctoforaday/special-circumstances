@@ -35,13 +35,17 @@ func seedRun(t *testing.T) string {
 
 // THE TWO QUESTIONS THE WHOLE DESIGN TURNS ON, ASKED OF THE REAL DATABASE.
 //
-// The record runs journal_mode=WAL. That makes both answers non-obvious and both failures
-// silent: a committed write lands in record.db-wal and may never touch record.db until a
+// The record runs journal_mode=WAL, which makes both answers non-obvious and both failures
+// silent. A committed write lands in record.db-wal and may never touch record.db until a
 // checkpoint, so a fingerprint over record.db alone freezes the dashboard exactly when the run
-// is busiest; and a READER touches record.db-shm, so a fingerprint that includes it is dirtied
-// by the very BuildModel call it was measuring and never skips a tick.
+// is busiest. And a read must leave the digest alone, or the watcher re-renders every tick on
+// the strength of its own read.
 //
-// Neither can be settled by reading the driver's documentation, so they are settled here.
+// THE READ ARM ALSO DISPROVED A THEORY, which is why it is written as a question rather than an
+// assertion about -shm. The first draft excluded record.db-shm on the reasoning that a WAL reader
+// touches the shared-memory index; measured, it moves in neither size nor mtime across a full
+// BuildModel, so nothing is excluded on that account and this arm is what would catch it if that
+// ever changed. Neither answer can be settled by reading the driver's documentation.
 func TestFingerprintSeesAWriteAndIgnoresOurOwnRead(t *testing.T) {
 	dir := seedRun(t)
 	transcripts := t.TempDir()
@@ -144,5 +148,45 @@ func TestChangedFailsTowardsRendering(t *testing.T) {
 func TestFingerprintOfNothingIsUnmeasurable(t *testing.T) {
 	if got := Fingerprint(filepath.Join(t.TempDir(), "absent"), ""); got != "" {
 		t.Errorf("a run directory that does not exist fingerprinted as %q, want \"\"", got)
+	}
+}
+
+// THE HEADLINE TOTAL IS THE SUM OF THE BREAKDOWN PRINTED UNDER IT.
+//
+// It was not, and nothing checked. The total priced each MESSAGE at its own `model` field while
+// the breakdown priced each FILE at one tier chosen for the whole transcript — two definitions of
+// one run's cost, on one page, agreeing only while every transcript carried a single model. A
+// transcript carrying two is exactly what `setup --allow-substitution` exists to permit.
+//
+// The fixture writes one, so this test fails against the old two-pass code rather than merely
+// describing the new one.
+func TestCostTotalEqualsTheSumOfItsBreakdown(t *testing.T) {
+	dir := seedRun(t)
+	transcripts := t.TempDir()
+
+	// A seat whose transcript carries two different models — the substitution case.
+	mixed := "" +
+		`{"message":{"model":"claude-opus-4-1","usage":{"input_tokens":1000,"output_tokens":100,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}` + "\n" +
+		`{"message":{"model":"claude-3-5-haiku-20241022","usage":{"input_tokens":1000,"output_tokens":100,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}` + "\n"
+	if err := os.WriteFile(filepath.Join(transcripts, "agent-mixed.jsonl"), []byte(mixed), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	m := BuildModel(runtest.Open(t, dir), transcripts, Config{}, 0)
+
+	var sum float64
+	for _, r := range m.CostRows {
+		sum += r.Cost
+	}
+	// Float equality is wrong for money; the two now come from the SAME addends, so the only
+	// difference tolerable here is float association.
+	if diff := m.Cost - sum; diff > 1e-9 || diff < -1e-9 {
+		t.Errorf("the page's total is %.6f and its own breakdown sums to %.6f (difference %.6g). "+
+			"Two definitions of one run's cost on one page is the two-readers defect: the total "+
+			"priced per MESSAGE, the breakdown priced per FILE, and a transcript carrying two "+
+			"models made them disagree", m.Cost, sum, diff)
+	}
+	if m.Cost == 0 {
+		t.Fatal("the fixture priced to zero, so this test would pass on any implementation")
 	}
 }

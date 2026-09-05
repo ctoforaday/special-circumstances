@@ -128,13 +128,6 @@ func jsonl(path string) []map[string]any {
 	return out
 }
 
-func numOr(v any, d float64) float64 {
-	if f, ok := v.(float64); ok {
-		return f
-	}
-	return d
-}
-
 // BuildModel gathers the run's instruments — the Go port of buildModel. It reads the record
 // IN-PROCESS (BoardState → the JSON views) rather than spawning the tool; nowMs is injected
 // (the CLI defaults it to the real clock) so tests are deterministic.
@@ -229,31 +222,32 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 			}
 		}
 		sort.Strings(files)
-		for _, f := range files {
-			agents++
-			for _, j := range jsonl(filepath.Join(transcriptDir, f)) {
-				msg, _ := j["message"].(map[string]any)
-				if msg == nil {
-					continue
-				}
-				u, _ := msg["usage"].(map[string]any)
-				if u == nil {
-					continue
-				}
-				apiRounds++
-				model, _ := msg["model"].(string)
-				p := cost.Prices[cost.Tier(model)]
-				costTotal += (numOr(u["input_tokens"], 0)*p[0] + numOr(u["output_tokens"], 0)*p[1] +
-					numOr(u["cache_read_input_tokens"], 0)*p[2] + numOr(u["cache_creation_input_tokens"], 0)*p[3]) / 1e6
-			}
-		}
-		// Per-seat-round breakdown, single-sourced from cost.ScanTranscript/Aggregate (the pricing
-		// cost.md uses), so the dashboard shows WHERE the spend went, not only the total.
+		// ONE PASS, AND ONE DEFINITION OF THE COST.
+		//
+		// This read and fully JSON-parsed every transcript TWICE per render: once here for the
+		// headline total, and again below for the per-seat-round breakdown. The files are
+		// append-only and grow through the run, so both halves got more expensive together
+		// (#684 F15).
+		//
+		// Collapsing them also removes a divergence nobody was checking. The total priced each
+		// MESSAGE at its own `model` field; cost.ScanTranscript picks one model per FILE and
+		// prices that file's totals at that tier. For a single-model transcript — every ordinary
+		// seat — the two agree exactly. For a transcript carrying more than one model, which is
+		// what `setup --allow-substitution` exists to permit, they do not, and the page would
+		// show a total that did not equal the breakdown printed under it. The breakdown's
+		// definition wins because it is the one cost.md already uses; a dashboard and a cost
+		// report disagreeing about one run is the two-readers defect this codebase keeps finding.
 		var crows []cost.Row
 		for _, f := range files {
-			if b, err := os.ReadFile(filepath.Join(transcriptDir, f)); err == nil {
-				crows = append(crows, cost.ScanTranscript(string(b)))
+			agents++
+			b, err := os.ReadFile(filepath.Join(transcriptDir, f))
+			if err != nil {
+				continue
 			}
+			row := cost.ScanTranscript(string(b))
+			crows = append(crows, row)
+			apiRounds += row.Turns
+			costTotal += row.Cost
 		}
 		agg := cost.Aggregate(crows)
 		keys := make([]string, 0, len(agg))
