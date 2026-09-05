@@ -193,6 +193,13 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	if err := requireDispatchableSeat(seatID); err != nil {
 		return 0, "", err
 	}
+	// AND THE MEMBERSHIP HALF, which the roster gate says outright that it cannot reach. The shape
+	// check above admits any well-formed id; this refuses one whose FAMILY the attested agent
+	// configuration cannot seat. Unattested callers — an operator, CI, a hookless run — pass
+	// through unchanged, so this adds a refusal where a fact exists and nothing anywhere else.
+	if err := CheckAttestedRole(seatenv.AgentType(), seatID); err != nil {
+		return 0, "", err
+	}
 	// A SEAT RECORDS INTO A RUN THAT EXISTS. IT NEVER CREATES ONE.
 	//
 	// `setup` makes run directories; every seat is dispatched into one that is already there. So
@@ -256,6 +263,9 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// absent, so a reader sees NOT MEASURED rather than a run that matched its configuration.
 	// It never blocks the register: a seat that cannot find its own trajectory has still arrived.
 	var served servedmodel.Observation
+	if at := seatenv.AgentType(); at != "" {
+		reg.AgentType = proto.String(at)
+	}
 	if agent := seatenv.AgentID(); agent != "" {
 		reg.AgentId = proto.String(agent)
 		obs, oerr := servedmodel.Observe(agent)

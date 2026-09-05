@@ -28,7 +28,24 @@ type Input struct {
 	//
 	// It is ABSENT on a main-session call, and that absence is meaningful rather than missing
 	// data: the main session is not a seat. An empty AgentID injects nothing.
-	AgentID   string          `json:"agent_id"`
+	AgentID string `json:"agent_id"`
+
+	// AgentType is the harness's name for the agent CONFIGURATION the caller runs under —
+	// `frank-exchange-of-views:red-auditor` and its siblings. A DIFFERENT FACT FROM AgentID and
+	// it refuses a different thing: the handle says WHICH agent, this says which configuration
+	// it was dispatched as, so `register` can reject a seat id from the wrong family.
+	//
+	// THIS FIELD USED TO BE HERE FOR THE BLUE-REPORT LOCKDOWN, which allowlisted the author's
+	// agent_type on every write. #709 made the report a record rather than a file, the lockdown
+	// went with it, and the field went with the lockdown. It returns for the identity work,
+	// which is now its only reader — so unlike before, nothing else keeps it parsed and the
+	// injection test is what holds it.
+	//
+	// ABSENT on a main-session call, exactly like AgentID, and absent on a SubagentStop fired at
+	// the main agent's turn end — which is the property that tells a seat from a turn boundary
+	// (plans/hook-surface-spike.md §7a: 19 seats and 50 turn ends, zero exceptions either way).
+	AgentType string `json:"agent_type"`
+
 	ToolName  string          `json:"tool_name"`
 	ToolInput json.RawMessage `json:"tool_input"`
 }
@@ -91,6 +108,12 @@ func PreOutcome(in Input, runDir string) (Outcome, string) {
 		// resolves it to a seat, where the mapping is a field somebody wrote rather than a
 		// value recovered from a command string.
 		{seatenv.AgentVar, in.AgentID},
+		// AND THE AGENT'S TYPE, which is a different fact from its handle and refuses a
+		// different thing. agent_id says WHICH agent; agent_type says which CONFIGURATION it
+		// runs under, so `register` can refuse a seat id from the wrong family — a lead-judge
+		// agent claiming `red-merge-r1`. This field has been read here since 0.27.0 for the
+		// report lockdown; exporting it changes nothing about how it arrives.
+		{seatenv.TypeVar, in.AgentType},
 	})
 	if !ok {
 		return OutcomeNone, ""
