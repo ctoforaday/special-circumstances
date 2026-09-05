@@ -223,10 +223,26 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   file` — so a carried item would be "answered", drop off the bench's own list, and need a fresh
   filing that nothing asks for. **N6's measurement would pass while the item it exists to surface
   went invisible**, which is this document's subject arriving in its own goal.
-  The fix is one statement in SQL rather than a rule in several readers: `unruled` becomes
-  "no ruling whose disposition `closes`", the same `enum_disposition."closes"` join the `gap` view
-  already uses. A carried docket motion stays outstanding for **every** reader at once, and
-  `carried` keeps meaning deferred rather than decided.
+  The fix is one statement in SQL rather than a rule in several readers — **but it is scoped to the
+  docket arm, and the unscoped version I first wrote would have been severe.**
+
+  "`unruled` becomes *no ruling whose disposition closes*" is correct for docket and **catastrophic
+  for the other three subjects**: `closes` is an annotation on the `Disposition` enum only.
+  `enum_grade_ruling`, `enum_petition_ruling` and `enum_direction_ruling` carry `value` and `means`
+  and no `closes` column at all (`recordsql/testdata/schema.sql:124-142`), so a flat predicate finds
+  no closing ruling for any of them and **every answered grade, petition and direction motion reads
+  as unruled** — every one of them blocking a PASS that nothing can clear. Caught before the gate
+  reported, by checking the generated schema rather than reasoning from the design.
+
+  So the predicate is per-subject, and it says why in one place:
+
+  - **docket** — unruled unless some ruling's `Disposition` has `closes`. `carried` defers, so the
+    item stays on the bench's list.
+  - **grade, petition, direction** — unchanged: `a."ruled_by" IS NULL`, a ruling row is an answer.
+    Their vocabularies have no notion of closing a gap, because their motions are not about one.
+
+  That asymmetry is not an exception bolted on; it is the same fact the `closes` annotation already
+  states — **only the bench's vocabulary decides a gap's fate** — read where the rule is needed.
 - **`[MODIFY]` `record.Motion` gains a typed `GapID`** (`record/motion.go:231-254`). Today the
   struct carries `ID`, `Subject`, `Filer`, `Round`, `Basis`, `Relief`, `Ruling…` and the subject's
   own payload only through `Fields map[string]string`. Recovering the gap as `Fields["gap_id"]`
