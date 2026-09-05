@@ -2474,6 +2474,9 @@ var verbsWithEvents = []string{
 	// detector's EXPECTED set is exactly these), `class-new` is the growing gap registry's
 	// write, `outcome` is the bench's.
 	"blue_edit", "anchor", "class_new", "outcome", "proof",
+	// base_ingest is the frozen round-0 report (#709). It is APPENDABLE (the `blue ingest` verb
+	// writes it) but exempted from the sweep for now — see coverExempt.
+	"base_ingest",
 	// The remaining schema types, named so the census below has a complete list to check against.
 	"closing", "inquiry_review", "register",
 }
@@ -2481,6 +2484,14 @@ var verbsWithEvents = []string{
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
 var coverExempt = map[string]bool{
 	"halt": true, // terminal — covered by TestFuzzHaltPath
+	// base_ingest is written by `blue ingest`, which freezes the round-0 report into the record
+	// and DELETES the file (#709). It is exempted from the random sweep until the report-as-record
+	// migration is complete — while `blue edit` still splices the file and the readers still read
+	// it, driving ingest mid-fuzz would delete the file they depend on. When the migration lands
+	// (blue edit append-only, readers via render, the synthesis step calling ingest), the sweep
+	// drives it at round 0 and this exemption is removed. Named here, not dropped, so the type's
+	// pending-drive state is a line somebody reads rather than a silence.
+	"base_ingest": true,
 	// NO VERB WRITES `observe`. The event type is in the schema and nothing in the command tree
 	// produces it: `lens observe` does not exist, and the only Appends of a recordpb.Observe are
 	// in record's own tests. It is exempted rather than driven, because a drive would have to

@@ -75,6 +75,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
 | `blue edit` | any change to `blue/report.md` after round 0 | a raw Write/Edit to the file | EXECUTED — the lockdown: report.md is read-only to a response seat and the tool refuses an edit that drops, duplicates or invents an anchor |
+| `blue ingest` | freeze the round-0 report into the record, once, by its author at synthesis | ~~a raw write leaving a file behind~~ | EXECUTED (#709): reads the file verbatim into a `BaseIngest` event, PROVES the record renders it back byte-for-byte, then DELETES the file — after which the report is the base plus its diff-stack and there is no file to write, chattr, or bypass. Write-once (a second ingest is refused → `blue edit`) and author-only |
 | `blue cite` | a source backing a claim you are authoring | a hand-typed `[^1]` footnote | EXECUTED: the tool fetches, caches, hashes and splices the invisible anchor; assembly weaves the bibliography. Blue never types a footnote |
 | `blue prove` | a claim a program settles, and the gaps whose `check_kind` is `computation` | prose asserting the computation happened | EXECUTED (#277): a computation gap CANNOT be closed on prose, and the tool runs the script twice and records which of reproducible/observed it produced |
 | `blue line-of-inquiry propose` | a direction you are putting on the record, with what would be true if it paid off | — | CLEAN |
