@@ -771,6 +771,16 @@ func inquiryMD(b *record.Board) []byte {
 // ratio with nothing closed. Omitting the key instead would make an unmeasured round and a round
 // that never reported the field indistinguishable to a reader.
 
+// TelemetryLineShape is the zero value of ONE telemetry line, exported so the projection's
+// help can render its field tree from the type that is actually marshalled rather than from
+// prose describing it (#684 F7). The type stays unexported: what leaves this package is a
+// SHAPE to reflect over, not a struct another package may construct.
+//
+// `show telemetry` is JSONL — one of these per round, not a document — so the tree describes
+// the LINE. A reader that parses the whole stdout as one object gets nothing, which is the
+// same plausible-zero the JSON-by-name warning was written for.
+func TelemetryLineShape() any { return telemetryLineJSON{} }
+
 type telemetryLineJSON struct {
 	Round            *int32         `json:"round"`
 	MappingVersion   *string        `json:"mapping_version"`
