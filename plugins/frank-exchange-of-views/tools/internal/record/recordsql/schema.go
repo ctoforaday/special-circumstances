@@ -206,20 +206,11 @@ func tableFor(md protoreflect.MessageDescriptor) (string, error) {
 		children = append(children, ochildren...)
 	}
 
-	// THE RULES THAT SPAN FIELDS, from the message's own annotation. `required` is a property of one
-	// field; "repaired_with_regression requires a successor" is a rule about two, and no annotation on
-	// either can say it.
-	for _, c := range MessageChecks(md) {
-		if c.GetExpr() == "" {
-			return "", fmt.Errorf("recordsql: %s declares a check with no expression", md.FullName())
-		}
-		if c.GetWhy() == "" {
-			return "", fmt.Errorf("recordsql: %s declares the check %q and does not say what it protects — "+
-				"a constraint that fires with only its expression tells a reader what was refused and nothing "+
-				"about which invariant they walked into", md.FullName(), c.GetExpr())
-		}
-		checks = append(checks, c.GetExpr())
+	mc, err := messageCheckExprs(md)
+	if err != nil {
+		return "", err
 	}
+	checks = append(checks, mc...)
 
 	var b strings.Builder
 	fmt.Fprintf(&b, "CREATE TABLE %q (\n%s", TableName(md), strings.Join(cols, ",\n"))
@@ -572,6 +563,18 @@ func armTable(parent protoreflect.MessageDescriptor, fd protoreflect.FieldDescri
 		checks = append(checks, fchecks...)
 		fks = append(fks, ffks...)
 	}
+	// THE ARM'S OWN TABLE-LEVEL RULES, which this function used to drop on the floor.
+	//
+	// A oneof's message arm gets a table of its own, and a table takes CHECKs — but only tableFor
+	// asked for them, so a rule spanning two fields of an ARM was authored, generated nothing, and
+	// left no trace: the DDL applied cleanly and the constraint simply was not there. Latent rather
+	// than live when it was found (no arm declared one yet), which is the only reason it cost
+	// nothing; the first arm to need one would have been the first to be silently unprotected.
+	mc, err := messageCheckExprs(md)
+	if err != nil {
+		return "", fmt.Errorf("recordsql: arm %s of %s: %w", fd.Name(), TableName(parent), err)
+	}
+	checks = append(checks, mc...)
 	var b strings.Builder
 	fmt.Fprintf(&b, "\nCREATE TABLE %q (\n%s", TableName(parent)+"_"+string(fd.Name()), strings.Join(cols, ",\n"))
 	for _, c := range checks {
@@ -661,6 +664,30 @@ func enumTables(bodies []protoreflect.MessageDescriptor) (string, error) {
 		b.WriteString(t)
 	}
 	return b.String(), nil
+}
+
+// messageCheckExprs validates a message's table-level rules and returns their expressions.
+//
+// ONE IMPLEMENTATION, TWO CALLERS: a body message's table (tableFor) and a oneof arm's table
+// (armTable). It was inlined in the first and absent from the second, which is how the arms came
+// to generate tables with no message-level CHECKs at all.
+//
+// THE `why` IS REQUIRED, and that is not decoration. A CHECK that fires carrying only its
+// expression tells a reader what was refused and nothing about which invariant they walked into.
+func messageCheckExprs(md protoreflect.MessageDescriptor) ([]string, error) {
+	var out []string
+	for _, c := range MessageChecks(md) {
+		if c.GetExpr() == "" {
+			return nil, fmt.Errorf("recordsql: %s declares a check with no expression", md.FullName())
+		}
+		if c.GetWhy() == "" {
+			return nil, fmt.Errorf("recordsql: %s declares the check %q and does not say what it protects — "+
+				"a constraint that fires with only its expression tells a reader what was refused and nothing "+
+				"about which invariant they walked into", md.FullName(), c.GetExpr())
+		}
+		out = append(out, c.GetExpr())
+	}
+	return out, nil
 }
 
 // MessageChecks reads the table-level rules a message declares.
