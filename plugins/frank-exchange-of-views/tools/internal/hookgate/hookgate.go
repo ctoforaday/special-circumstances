@@ -263,6 +263,12 @@ func PreOutcome(in Input, runDir string) (Outcome, string) {
 		// resolves it to a seat, where the mapping is a field somebody wrote rather than a
 		// value recovered from a command string.
 		{seatenv.AgentVar, in.AgentID},
+		// AND THE AGENT'S TYPE, which is a different fact from its handle and refuses a
+		// different thing. agent_id says WHICH agent; agent_type says which CONFIGURATION it
+		// runs under, so `register` can refuse a seat id from the wrong family — a lead-judge
+		// agent claiming `red-merge-r1`. This field has been read here since 0.27.0 for the
+		// report lockdown; exporting it changes nothing about how it arrives.
+		{seatenv.TypeVar, in.AgentType},
 	})
 	if !ok {
 		return OutcomeNone, ""
