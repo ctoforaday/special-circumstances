@@ -521,26 +521,18 @@ func motionSubjectOf(run Run, id string) (string, error) {
 // giving moves a single writer; a ruling had no such guard. The escalation path is an APPEAL,
 // which is a new event that preserves both positions, rather than a second ruling that erases one.
 func RequireUnruledMotion(run Run, id string) error {
-	// The FIRST ruling on the record is the one quoted, exactly as the fold's first match was;
-	// its word is whichever arm the rule carried, "" when it carried none.
-	var grade, petition, direction, seat sql.NullString
-	found, err := queryRow(run, []any{&grade, &petition, &direction, &seat},
-		`SELECT r."grade", r."petition", r."direction", e."seat_id"
-		  FROM "motion_rule" r JOIN "events" e ON e."id" = r."event_id"
-		  WHERE r."motion_id" = ? ORDER BY r."event_id" LIMIT 1`, id)
+	// motion_answers is the one statement of first-wins: the FIRST ruling is the one quoted,
+	// its word whichever arm the rule carried, "" when it carried none. A row whose ruled_by
+	// is NULL is an appeal with no ruling — not a ruling, so it does not refuse.
+	var word, seat sql.NullString
+	found, err := queryRow(run, []any{&word, &seat},
+		`SELECT "ruling", "ruled_by" FROM "motion_answers" WHERE "motion_id" = ? AND "ruled_by" IS NOT NULL`, id)
 	if err != nil {
 		return err
 	}
 	if found {
-		word := grade.String
-		if word == "" {
-			word = petition.String
-		}
-		if word == "" {
-			word = direction.String
-		}
 		return fmt.Errorf("record: motion %s is already ruled %q by %s. A second ruling does not overturn the first — the second is simply the one a later reader sees, and the first stops being the answer. To press it, `appeal` it: an appeal keeps both positions on the record, which is the whole reason a ruling is an argument rather than a command",
-			id, word, seat.String)
+			id, word.String, seat.String)
 	}
 	return nil
 }
@@ -564,9 +556,8 @@ func RequireUnruledMotion(run Run, id string) error {
 func RequireUnappealedMotion(run Run, id string) error {
 	var seat, reason sql.NullString
 	found, err := queryRow(run, []any{&seat, &reason},
-		`SELECT e."seat_id", a."reason"
-		  FROM "motion_appeal" a JOIN "events" e ON e."id" = a."event_id"
-		  WHERE a."motion_id" = ? ORDER BY a."event_id" LIMIT 1`, id)
+		`SELECT "appealed_by", "appeal_reason" FROM "motion_answers"
+		  WHERE "motion_id" = ? AND "appealed_by" IS NOT NULL`, id)
 	if err != nil {
 		return err
 	}
@@ -588,7 +579,8 @@ func RequireRuledMotion(run Run, subject recordpb.MotionSubject, id string) erro
 	if err := RequireMotionSubjectRef(run, subject, id); err != nil {
 		return err
 	}
-	found, err := recordHas(run, `SELECT 1 FROM "motion_rule" WHERE "motion_id" = ? LIMIT 1`, id)
+	found, err := recordHas(run,
+		`SELECT 1 FROM "motion_answers" WHERE "motion_id" = ? AND "ruled_by" IS NOT NULL`, id)
 	if err != nil {
 		return err
 	}

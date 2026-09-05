@@ -367,16 +367,13 @@ func StaleInquiries(b *Board) []*Inquiry {
 // Red's ruling is an argument rather than a command — blue may pursue anyway — but the
 // disagreement should be a fact, not something a reader reconstructs from two lists.
 func InquiryRuling(run Run, inquiryID string) string {
-	// THE LATEST RULING WINS, INCLUDING A LATER ONE THAT CARRIED NONE: the newest
-	// direction-subject rule for this line decides, and a NULL direction arm on it is red
-	// ruling nothing — "" — not an invitation to read an older ruling instead. A read error
-	// folds into "", as the board-read error did. The hyphen join mirrors the same read in
-	// Inquiries.
+	// The line_of_inquiry view carries the whole line, this column included: the newest
+	// direction-subject rule decides, and a NULL arm on it is red ruling nothing — "" — not an
+	// invitation to read an older ruling instead. A read error folds into "", as the
+	// board-read error did. The hyphen join is the surface spelling, so it stays a Go concern.
 	var word sql.NullString
 	found, err := queryRow(run, []any{&word},
-		`SELECT "direction" FROM "motion_rule" WHERE "subject" = ? AND "motion_id" = ?
-		  ORDER BY "event_id" DESC LIMIT 1`,
-		recordpb.Word(recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION), inquiryID)
+		`SELECT "direction_ruling" FROM "line_of_inquiry" WHERE "avenue_id" = ?`, inquiryID)
 	if err != nil || !found {
 		return ""
 	}

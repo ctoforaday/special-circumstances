@@ -169,16 +169,13 @@ func gradeAtColumn(d recordpb.GradeDimension) string {
 	return ""
 }
 
-// gradeAt is a gap's CURRENT grade at one dimension: the latest regrade that touched the axis,
-// else the mint's — the same overlay the board fold applies, asked of the record. found=false is
-// a gap that is not on the record.
+// gradeAt is a gap's CURRENT grade at one dimension — the gap view's regrade overlay, which is
+// the one SQL statement of "latest regrade that touched the axis, else the mint's". found=false
+// is a gap that is not on the record.
 func gradeAt(run Run, gapID, col string) (word string, found bool, err error) {
 	var v sql.NullString
 	// The column name is drawn from gradeAtColumn's closed set, never from input.
-	q := fmt.Sprintf(`SELECT COALESCE(
-	  (SELECT r.%q FROM "regrade" r WHERE r."gap_id" = ? AND r.%q IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1),
-	  (SELECT m.%q FROM "mint" m WHERE m."gap_id" = ?))
-	FROM "mint" WHERE "gap_id" = ?`, col, col, col)
-	found, err = queryRow(run, []any{&v}, q, gapID, gapID, gapID)
+	found, err = queryRow(run, []any{&v},
+		fmt.Sprintf(`SELECT %q FROM "gap" WHERE "gap_id" = ?`, "current_"+col), gapID)
 	return v.String, found, err
 }
