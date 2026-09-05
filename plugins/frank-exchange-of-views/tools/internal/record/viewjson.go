@@ -732,9 +732,13 @@ type FindingsJSON struct {
 
 // FindingsJSONOf projects the record's finding events. Like BoardJSONOf it derives from
 // BoardState — never from the markdown — so the two renderings of one replay cannot drift.
-func FindingsJSONOf(b *Board) FindingsJSON {
+// FindingsJSONOf projects finding events. It takes the EVENTS, not a Board: the findings view
+// renders one family of acts and never read gap state — the board-shaped signature made every
+// caller pay a full fold for a stream filter. A caller holding merged events passes them; the
+// run path (FindingsJSONBytes) fetches exactly the finding family.
+func FindingsJSONOf(evs []*Event) FindingsJSON {
 	out := FindingsJSON{Findings: []FindingJSON{}}
-	for _, e := range b.Events {
+	for _, e := range evs {
 		// TYPE-SWITCHED ON THE BODY, not on `type`: this loop reaches straight for the finding's
 		// fields, and a body read that way cannot go stale against the enum.
 		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
@@ -770,11 +774,11 @@ func FindingsJSONOf(b *Board) FindingsJSON {
 // FindingsJSONBytes renders the findings view as indented JSON (a seat reads it in a
 // terminal transcript).
 func FindingsJSONBytes(run Run) ([]byte, error) {
-	b, err := BoardState(run)
+	evs, err := EventsOf(run, recordpb.EventType_EVENT_TYPE_FINDING)
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(FindingsJSONOf(b), "", "  ")
+	out, err := json.MarshalIndent(FindingsJSONOf(evs), "", "  ")
 	if err != nil {
 		return nil, err
 	}
@@ -807,9 +811,11 @@ type FrictionEntryJSON struct {
 }
 
 // FrictionJSONOf projects the record's friction events — from BoardState, never the markdown.
-func FrictionJSONOf(b *Board) FrictionJSON {
+// FrictionJSONOf projects the two friction families. Events, not a Board, for the reason
+// FindingsJSONOf states.
+func FrictionJSONOf(evs []*Event) FrictionJSON {
 	out := FrictionJSON{Friction: []FrictionEntryJSON{}, NothingBlocked: []FrictionEntryJSON{}}
-	for _, e := range b.Events {
+	for _, e := range evs {
 		// `reason` WAS THE PAYLOAD KEY on both verbs; `text` is the field on both messages.
 		//
 		// KIND IS NOT FILTERED HERE, and that is the behaviour this view already had rather than a
@@ -831,11 +837,13 @@ func FrictionJSONOf(b *Board) FrictionJSON {
 
 // FrictionJSONBytes renders the friction view as indented JSON.
 func FrictionJSONBytes(run Run) ([]byte, error) {
-	b, err := BoardState(run)
+	evs, err := EventsOf(run,
+		recordpb.EventType_EVENT_TYPE_FRICTION,
+		recordpb.EventType_EVENT_TYPE_FRICTION_NONE)
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(FrictionJSONOf(b), "", "  ")
+	out, err := json.MarshalIndent(FrictionJSONOf(evs), "", "  ")
 	if err != nil {
 		return nil, err
 	}
@@ -885,17 +893,17 @@ type DebateOpinionJSON struct {
 // position(red-merge)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
 // dispute/dispute-respond→Disputes, opinion→Lead. The grouping is
 // the single source these two renderings share; if it moves, both move together.
-func DebateJSONOf(b *Board) DebateJSON {
+// DebateJSONOf projects the debate prose per round. It takes the ROUND SKELETON separately from
+// the events, because the rounds come from the WHOLE record — a round whose only acts are mints
+// still renders, empty, exactly as it always has — while the events it renders are only the
+// position/closing/opinion families. A caller holding merged events uses DebateJSONOfEvents.
+func DebateJSONOf(rounds []int, evs []*Event) DebateJSON {
 	out := DebateJSON{Rounds: []DebateRoundJSON{}}
 
-	var roundOrder []int
+	roundOrder := append([]int{}, rounds...)
 	byRound := map[int][]*Event{}
-	for _, e := range b.Events {
-		r := int(e.GetRound())
-		if _, seen := byRound[r]; !seen {
-			roundOrder = append(roundOrder, r)
-		}
-		byRound[r] = append(byRound[r], e)
+	for _, e := range evs {
+		byRound[int(e.GetRound())] = append(byRound[int(e.GetRound())], e)
 	}
 	sort.Ints(roundOrder)
 
@@ -954,13 +962,35 @@ func DebateJSONOf(b *Board) DebateJSON {
 	return out
 }
 
+// DebateJSONOfEvents is DebateJSONOf for a caller holding the WHOLE stream (a board's events, the
+// oracle's walk): the round skeleton derives from every event, exactly as the board-shaped
+// signature derived it.
+func DebateJSONOfEvents(evs []*Event) DebateJSON {
+	var rounds []int
+	seen := map[int]bool{}
+	for _, e := range evs {
+		if r := int(e.GetRound()); !seen[r] {
+			seen[r] = true
+			rounds = append(rounds, r)
+		}
+	}
+	return DebateJSONOf(rounds, evs)
+}
+
 // DebateJSONBytes renders the structured debate as indented JSON.
 func DebateJSONBytes(run Run) ([]byte, error) {
-	b, err := BoardState(run)
+	rounds, err := Rounds(run)
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(DebateJSONOf(b), "", "  ")
+	evs, err := EventsOf(run,
+		recordpb.EventType_EVENT_TYPE_POSITION,
+		recordpb.EventType_EVENT_TYPE_CLOSING,
+		recordpb.EventType_EVENT_TYPE_OPINION)
+	if err != nil {
+		return nil, err
+	}
+	out, err := json.MarshalIndent(DebateJSONOf(rounds, evs), "", "  ")
 	if err != nil {
 		return nil, err
 	}
