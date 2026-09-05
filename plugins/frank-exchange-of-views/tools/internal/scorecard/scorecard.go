@@ -24,10 +24,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -407,55 +405,12 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			Note: "needs at least two rounds reporting claim_count"})
 	}
 
-	// dropped_finding_markers (immortal-marker tampering, slice 1b). A red finding is
-	// anchored in blue/report.md with an invisible [^f-<id>] marker; the marker is
-	// IMMORTAL — a citation is red's and blue may never delete it. EXPECTED = the anchor
-	// events; PRESENT = the f- ids in the current report. An anchored id absent from the
-	// report is blue silently dropping red's audit point — a hard additive-integrity
-	// violation, keyed by id with no text match and no legitimate-removal exception.
-	expectedSet := map[string]bool{}
-	if board != nil {
-		for _, e := range board.Events {
-			if a, ok := recordpb.BodyAs[*recordpb.Anchor](e); ok && a.GetId() != "" {
-				expectedSet[a.GetId()] = true
-			}
-		}
-	}
-	expected := make([]string, 0, len(expectedSet))
-	for id := range expectedSet {
-		expected = append(expected, id)
-	}
-	// The report is the record projection now (#709): render replays only recorded markers, so
-	// EXPECTED⊄PRESENT is structurally 0 — a dropped marker cannot exist. The check stays as the
-	// standing proof of that invariant.
-	md, _ := reportproj.RenderFromRecord(run)
-	droppedMarkers := len(claimcount.MissingAnchorIDs(expected, md))
-	rows = append(rows, Row{Clause: "TAMPER: dropped finding-markers", Metric: "dropped_finding_markers", Cls: "detector",
-		Value: droppedMarkers,
-		Note:  strconv.Itoa(len(expectedSet)) + " finding-marker(s) anchored, " + strconv.Itoa(droppedMarkers) + " missing from the report",
-		Joint: "a marker red anchored that is gone from blue's report is blue dropping red's audit point — markers are immortal, so any absence is tampering"})
-
-	// unbacked_citations (the citation-axis twin of dropped_finding_markers; bibliography
-	// core). A blue citation is anchored in blue/report.md with an invisible
-	// <!--cite:c-<id>--> marker; like a finding marker it is IMMORTAL and tool-managed.
-	// EXPECTED = the cite events' labels; PRESENT = the c- ids in the current report. Under
-	// the cite⟺anchor bijection the two sets are equal; a mismatch means a hand-typed
-	// footnote or a tampered anchor — a real defect, keyed by id with no text match.
-	// THE EXPECTED SET COMES FROM THE RECORD PACKAGE, not from a loop here.
-	//
-	// This built it inline over `Cite` events. When red's supporting corroborations gained a
-	// label and started splicing anchors of their own, that loop stayed on the old rule — so
-	// blue dropping a RED citation anchor would be caught by the hookgate lockdown, which reads
-	// record.CitationLabels, and MISSED here. Two detectors for one protection, disagreeing.
-	var citeExpected []string
-	if board != nil {
-		citeExpected = record.CitationLabelsOf(board.Events)
-	}
-	unbackedCitations := len(claimcount.MissingCitationAnchorIDs(citeExpected, string(md)))
-	rows = append(rows, Row{Clause: "TAMPER: unbacked citations", Metric: "unbacked_citations", Cls: "detector",
-		Value: unbackedCitations,
-		Note:  strconv.Itoa(len(citeExpected)) + " citation(s) anchored, " + strconv.Itoa(unbackedCitations) + " missing from the report",
-		Joint: "a citation the tool anchored that is gone from the report breaks the cite⟺anchor bijection — citations are tool-managed, so any absence is a hand-typed footnote or tampering"})
+	// The dropped_finding_markers and unbacked_citations detectors lived here — they compared the
+	// anchor/cite events against the marker tokens PRESENT in blue/report.md, to catch a raw edit
+	// that dropped an immortal marker. Under report-as-record (#709) there is no file to raw-edit:
+	// the report is REPLAYED from the record and places only recorded markers, so EXPECTED⊄PRESENT
+	// is 0 by construction and the tampering they watched for cannot occur. Removed rather than kept
+	// as a check that can never fire — a detector that always reads 0 is a plausible zero.
 
 	// lines_of_inquiry (object value, insertion-order byStatus)
 	var statusOrder []string

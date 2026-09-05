@@ -106,6 +106,17 @@ func (m insertMut) apply(text string) (string, error) {
 
 func (m insertMut) describe() string { return fmt.Sprintf("insert %s at %q", m.marker, m.location) }
 
+// addMarker queues a marker insertion for an id anchored at location. An EMPTY location means the
+// event carries no anchor in blue's report — a citation referenced only from the board/docket, say
+// — so it renders no marker here; that is a fact the event states, not a miss. A NON-EMPTY location
+// that will not resolve at replay is corruption, and insertMut.apply is loud about it.
+func addMarker(muts *[]mutation, location, id string) {
+	if location == "" {
+		return
+	}
+	*muts = append(*muts, insertMut{location: location, marker: anchor.Token(id)})
+}
+
 // RenderFromRecord is the record-aware render: it reads the run's frozen base (the one BaseIngest
 // event) and every text-mutating event, and folds them over the base in record order. This is the
 // ONLY way to obtain the current report once the file is deleted — the former readers of
@@ -137,19 +148,19 @@ func RenderFromRecord(run record.Run) (string, error) {
 		case *recordpb.BlueEdit:
 			muts = append(muts, spliceMut{old: b.GetOld(), new: b.GetNew()})
 		case *recordpb.Cite:
-			muts = append(muts, insertMut{location: b.GetLocation(), marker: anchor.Token(b.GetLabel())})
+			addMarker(&muts, b.GetLocation(), b.GetLabel())
 		case *recordpb.Proof:
-			muts = append(muts, insertMut{location: b.GetLocation(), marker: anchor.Token(b.GetProofId())})
+			addMarker(&muts, b.GetLocation(), b.GetProofId())
 		case *recordpb.Anchor:
 			// The finding-marker record. Its paired Finding event carries the grades and inserts
 			// nothing — replaying that too would splice the marker twice.
-			muts = append(muts, insertMut{location: b.GetLocation(), marker: anchor.Token(b.GetId())})
+			addMarker(&muts, b.GetLocation(), b.GetId())
 		case *recordpb.Verify:
 			// A red corroboration that BACKS a claim carries a c- Label and places a citation
 			// marker at its Claim; a plain verify (adjudicating a blue anchor) has no label and
 			// placed no marker.
 			if b.GetLabel() != "" {
-				muts = append(muts, insertMut{location: b.GetClaim(), marker: anchor.Token(b.GetLabel())})
+				addMarker(&muts, b.GetClaim(), b.GetLabel())
 			}
 		}
 	}

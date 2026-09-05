@@ -48,6 +48,13 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	}
 
 	r := newRunner(bin, runDir, newLockedRand(7))
+	// Ingest the round-0 report so mint's --quote check can render it (#709): blue-synthesize freezes
+	// the base and the file is deleted. blue-respond-r1 stays unregistered — this is a different seat.
+	r.register("blue", "blue-synthesize")
+	if _, err := r.do("ingest", "blue-synthesize").run(); err != nil {
+		t.Fatalf("ingest the round-0 report: %v", err)
+	}
+
 	// ONLY THE ACTING SEAT. blue-respond-r1 is deliberately left unregistered: the whole point is
 	// that closeGap appends as it, so closeGap is what must register it.
 	r.register("merge", "red-merge-r1")

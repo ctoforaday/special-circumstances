@@ -79,6 +79,11 @@ func TestAssembleEndToEnd(t *testing.T) {
 		}
 	}
 
+	// Ingest the round-0 report so AssembleAll renders it (#709): the report is the record
+	// projection now, and the marker tokens are already in `blue`, so the marker events below
+	// replay as no-ops (skip-if-present).
+	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
+
 	// Red mints a gap; the parties take positions; blue records one pursued line of inquiry (an
 	// expansion) and one abandoned line of inquiry (an alternative considered); the bench opines;
 	// the run's terminal verdict is recorded.
@@ -247,6 +252,11 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 			t.Fatalf("append %s/%T: %v", seatID, body, err)
 		}
 	}
+
+	// Ingest the round-0 report so AssembleAll renders it (#709): the report is the record
+	// projection now, and the marker tokens are already in `blue`, so the marker events below
+	// replay as no-ops (skip-if-present).
+	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
 
 	add("blue-synthesize", &recordpb.Cite{
 		Label: proto.String("c-1"), Url: proto.String("https://ex/coherence"),
