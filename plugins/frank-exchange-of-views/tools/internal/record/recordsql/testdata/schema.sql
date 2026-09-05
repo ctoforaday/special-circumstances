@@ -669,8 +669,19 @@ SELECT
   m."event_id"                                                                        AS "minted_event"
 FROM "mint" m
 JOIN "events" e ON e."id" = m."event_id"
-LEFT JOIN "close" c ON c."gap_id" = m."gap_id"
-LEFT JOIN "events" ce ON ce."id" = c."event_id"
+-- A gap can be closed more than once — red re-adjudicates across rounds (defect_accepted in
+-- one, repaired in a later one). Take the EARLIEST close, exactly as the bench-close arm below
+-- takes its earliest closing ruling: a plain LEFT JOIN "close" fans out one row per close event,
+-- and a gap with two closes then counts twice in board_counts while the raw event walk counts it
+-- once (a projection disagreement the consistency oracle catches). closed_round's MIN already
+-- assumed the earliest; this makes the row do so too.
+LEFT JOIN (
+  SELECT c0."gap_id" AS "gap_id", MIN(c0."event_id") AS "event_id"
+  FROM "close" c0
+  GROUP BY c0."gap_id"
+) cx ON cx."gap_id" = m."gap_id"
+LEFT JOIN "close" c ON c."event_id" = cx."event_id"
+LEFT JOIN "events" ce ON ce."id" = cx."event_id"
 -- The bench's closing ruling, if it made one. A gap can be ruled on many times — carried in one
 -- round and disposed of in the next — so this is the EARLIEST ruling whose disposition closes,
 -- and whether it closes is read off the vocabulary rather than decided here.
