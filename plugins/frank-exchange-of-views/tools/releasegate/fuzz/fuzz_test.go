@@ -2512,6 +2512,11 @@ var verbsWithEvents = []string{
 	// base_ingest is the frozen round-0 report (#709), written by `blue ingest` at the start of
 	// every run (runOne) and so REQUIRED by the coverage gate like any other event-emitting verb.
 	"base_ingest",
+	// The sitting span (#265), and the first types here that NO VERB WRITES: they are appended by
+	// the SubagentStart/SubagentStop hook binaries, about a seat, and the goja harness execs the
+	// binary directly without a harness to fire hooks. Listed so the census is complete and
+	// exempted below from the random sweep, which cannot reach them.
+	"sitting_open", "sitting_close",
 	// The remaining schema types, named so the census below has a complete list to check against.
 	"closing", "inquiry_review", "register",
 }
@@ -2527,6 +2532,17 @@ var coverExempt = map[string]bool{
 	//
 	// The `Observation` a board carries is built from FINDING events, not from this type.
 	"observe": true,
+	// THE SITTING SPAN IS WRITTEN BY HOOKS, NOT BY VERBS, which is a different kind of
+	// homelessness from `observe`'s and is exempted for a different reason. `observe` has no
+	// writer at all; these two have a real one the FUZZ cannot invoke — the harness execs the
+	// binary with no client to fire SubagentStart or SubagentStop, so no seed could ever produce
+	// them however long it ran.
+	//
+	// They are driven, just not here: internal/hookcmd/sitting_test.go asserts both ends land,
+	// that a main-agent turn end does not, and that neither hook writes to stdout. Named rather
+	// than dropped, so "the sweep does not cover this" stays a line somebody reads.
+	"sitting_open":  true,
+	"sitting_close": true,
 }
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
