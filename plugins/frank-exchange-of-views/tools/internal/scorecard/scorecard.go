@@ -197,7 +197,7 @@ func directionUptake(board *record.Board) (leadSections, blueCitesLead int, ok b
 	if board == nil {
 		return 0, 0, false
 	}
-	l, b := ComputeDirectionUptake(record.DebateJSONOf(board))
+	l, b := ComputeDirectionUptake(record.DebateJSONOfEvents(board.Events))
 	return l, b, true
 }
 
@@ -207,7 +207,7 @@ func citationYieldByRole(board *record.Board) (objJSON, bool) {
 	if board == nil {
 		return "", false
 	}
-	return BucketFindingsByRole(record.FindingsJSONOf(board).Findings)
+	return BucketFindingsByRole(record.FindingsJSONOf(board.Events).Findings)
 }
 
 // BucketFindingsByRole buckets findings per round by lens role-kind (citation L1-4, logic L5,

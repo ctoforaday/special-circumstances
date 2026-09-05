@@ -281,8 +281,8 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	if _, statErr := os.Stat(run.Records()); statErr == nil {
 		if board, err := record.BoardState(run); err == nil {
 			bj := record.BoardJSONOf(board)
-			fj := record.FindingsJSONOf(board)
-			frj := record.FrictionJSONOf(board)
+			fj := record.FindingsJSONOf(board.Events)
+			frj := record.FrictionJSONOf(board.Events)
 			friction.Count = frj.Counts.Total
 			if n := len(frj.Friction); n > 0 {
 				last := frj.Friction[n-1]
