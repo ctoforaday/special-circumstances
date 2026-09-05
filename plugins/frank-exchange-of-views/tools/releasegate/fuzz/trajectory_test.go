@@ -221,9 +221,10 @@ func tracked(bin string, args ...string) ([]byte, error) {
 // omitting — an absence with no stated reason is indistinguishable from an oversight, which
 // is exactly how the 18 undriven verbs survived.
 var exemptSurfaces = map[string]string{
-	"setup":   "CREATES a run; this harness builds its run dir directly, so driving setup would fuzz a different thing (internal/setup has its own tests)",
-	"capture": "needs a workflow transcript directory the harness has no analogue for (internal/capture has its own tests)",
-	"hook":    "reads a JSON hook payload on stdin rather than argv (internal/cli hook tests cover it)",
+	"blue ingest": "freezes the round-0 report into the record and DELETES the file (#709), a one-time act at synthesis. It is not driven by the sweep yet: while `blue edit` still splices the file and the readers still read it, driving ingest mid-fuzz would delete the file they depend on. When the report-as-record migration lands (blue edit append-only, readers via render, synthesis calling ingest), the sweep drives it and this exemption is removed",
+	"setup":       "CREATES a run; this harness builds its run dir directly, so driving setup would fuzz a different thing (internal/setup has its own tests)",
+	"capture":     "needs a workflow transcript directory the harness has no analogue for (internal/capture has its own tests)",
+	"hook":        "reads a JSON hook payload on stdin rather than argv (internal/cli hook tests cover it)",
 	"bench halt": "TERMINAL — a halt ends the run and reshapes every downstream oracle, so it is " +
 		"deliberately kept out of the random sweep and driven by TestFuzzHaltPath instead",
 }
