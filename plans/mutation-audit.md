@@ -57,8 +57,15 @@ and is exercised from `internal/record` and `internal/cli` instead. Before readi
 check whether the file has tests in its own package. `-confirm` settles it properly by re-running
 each survivor against the rest of the module, at ~8 minutes per survivor.
 
-**That finding stands on its own, and plain coverage would have shown it faster:** `anchor.go`,
-which places every citation and finding anchor, asserts nothing about itself in its own package.
+**ANSWERED 2026-09-05 by `-confirm`: all 21 are killed by the wider module. 0 survived.** So the
+19 were an artifact of the narrow stage exactly as suspected, and `anchor.go` IS asserted — from
+`internal/record` and `internal/cli`. The alarming number retires.
+
+What survives it is milder and still true: `anchor.go` has no test in its OWN package, so anyone
+refactoring `internal/anchor` in isolation gets no signal from the package they are editing and
+must run `internal/record` and `internal/cli` to learn anything. That is a fact about where the
+tests live, not about whether the code is asserted — and plain coverage would have shown it faster
+than mutation testing did.
 
 ## V. Swept so far
 
@@ -66,22 +73,19 @@ which places every citation and finding anchor, asserts nothing about itself in 
 |---|---|---|
 | `internal/record/citationid.go` | 32 mutants, 31 behavioural, **100% killed**, 1 non-compiling | the citation-id machinery is fully killed by its own package |
 | `internal/claimcount` | 1 survivor of 2 | equivalent mutant: `j >= 0` -> `j > 0` on a `strings.Index` result, where index 0 cannot occur for a `-->` closer preceded by content |
-| `internal/anchor` | 19 survivors of 21 | a test-coverage finding, not an assertion-quality one — see §IV |
+| `internal/anchor`, narrow | 19 survivors of 21 | an artifact of the narrow stage — see §IV |
+| `internal/anchor`, `-confirm` | 21 behavioural, **100% killed**, 0 survivors | settles it: the module kills every one; the file is asserted from `internal/record` and `internal/cli` |
 
 ## VI. Not yet swept
 
 - `internal/record/refs.go` — the other half of the citation machinery. Cheap now (~4s/mutant).
 - `internal/cli/blue/cite.go`, `internal/cli/lens/anchor.go` — the `internal/cli` suite runs 20+
   minutes ONCE, so per-mutant cost there is the open question the pool has not answered.
-- The `-confirm` wide stage on `internal/anchor`'s 19, which would separate "tested elsewhere"
-  from "tested nowhere".
-  **CORRECTED 2026-09-05: it already runs in the pool.** This said `-confirm` "does not yet use"
-  the worker pool, written by the agent who had just written the pool and did not read it back:
-  `runSuite(tree, j.pkg, confirm)` is inside the worker loop, so the wide stage parallelises like
-  any other mutant. That moves the 19 survivors from ~2.5 hours serial to roughly 40 minutes on
-  four workers, which is the difference between a question nobody will pay for and one somebody
-  will. Same error as the three in §VII — asserting about something without measuring it — and
-  kept here for the same reason.
+- `internal/record/refs.go` and the `internal/cli` citation files remain, as above.
+
+**Done since:** the `-confirm` wide stage on `internal/anchor` (§IV, §V). Measured cost, which is
+the number to plan the next wide stage from: **21 mutants in ~19 minutes on four workers**, most
+paying 50-70s and one outlier at 642s. The pre-pool estimate for this was ~2.5 hours.
 
 ## VII. A standing warning, because it recurred three times in one session
 
