@@ -220,6 +220,14 @@ func driverName() string {
 // UseDriver points subsequent Open calls at a different database/sql driver and returns the
 // function that puts it back. FOR THE QUERY-PLAN GUARD, and nothing else.
 //
+// A SHIPPED RUN PAYS NOTHING FOR THE GUARD, because the override is nil unless this is called,
+// and TestNoShippedCodeInstallsTheQueryPlanGuard fails if non-test code ever calls it. The cost
+// it keeps out is small but real: measured at a one-time ~14us on a point lookup and ~35us on a
+// full replay per DISTINCT statement, with no measurable per-execution cost after that (the plan
+// is memoised — planguard.Recorder.shouldExplain says why that is sound and what would break
+// it). Before memoisation it was 2.74x on a point lookup, which is what a run would have paid on
+// every read.
+//
 // It does NOT reach handles already open: Open caches one *sql.DB per path, and a database
 // opened before this call keeps the driver it was opened with. A caller wanting guarded reads
 // must use a database it opens after installing, which every guard run does by working in a

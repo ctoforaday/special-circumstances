@@ -26,11 +26,12 @@ type Finding struct {
 // statement in front of it, not to the interceptor. Mixing the two would bury a policy decision
 // inside a driver.
 type Recorder struct {
-	mu       sync.Mutex
-	findings []Finding
-	seen     map[string]bool // one report per (statement, table), however often it runs
-	growth   map[string]bool
-	stmts    int64 // atomic: how many statements passed through, so zero findings can be told from zero work
+	mu        sync.Mutex
+	findings  []Finding
+	seen      map[string]bool // one report per (statement, table), however often it runs
+	growth    map[string]bool
+	explained map[string]bool // statement text -> already planned; see shouldExplain
+	stmts     int64           // atomic: how many statements passed through, so zero findings can be told from zero work
 }
 
 // NewRecorder derives the growth set and returns a recorder over it.
@@ -39,7 +40,7 @@ func NewRecorder() (*Recorder, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Recorder{seen: map[string]bool{}, growth: growth}, nil
+	return &Recorder{seen: map[string]bool{}, explained: map[string]bool{}, growth: growth}, nil
 }
 
 // Findings is what was seen, in first-seen order.
@@ -87,6 +88,31 @@ func (r *Recorder) countStatement() { atomic.AddInt64(&r.stmts, 1) }
 // Statements is how many statements passed through the guard. ZERO IS NOT A CLEAN BOARD: it
 // means the driver was never used, and every assertion over Findings would pass vacuously.
 func (r *Recorder) Statements() int64 { return atomic.LoadInt64(&r.stmts) }
+
+// shouldExplain reports whether this statement still needs planning, and marks it planned.
+//
+// ONCE PER DISTINCT STATEMENT, NOT ONCE PER EXECUTION. The question this guard asks is about the
+// STATEMENT — "can SQLite answer this without walking a growing table" — and the answer does not
+// depend on how many times it runs. Asking again on every execution was measured at 2.74x on a
+// point lookup (+13.8us) and 1.47x on a full replay (+35us): worst, proportionally, on the
+// cheapest statements, because EXPLAIN pays the parse and the planning and skips only the work.
+//
+// IT IS SAFE HERE FOR A REASON THAT IS NOT GENERALLY TRUE, so it is written down. A plan can
+// change under you when the planner's cost estimates change — which for SQLite means ANALYZE has
+// populated sqlite_stat1. This schema never runs ANALYZE (checked, nothing in the tree issues
+// it), so no stats table exists and plans are chosen from the schema and the indexes alone. They
+// are the same on the first row as on the millionth. If ANALYZE is ever introduced, this
+// memoisation is the thing that has to go, because a plan measured on an empty fixture would
+// stop describing the plan the run gets.
+func (r *Recorder) shouldExplain(stmt string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.explained[stmt] {
+		return false
+	}
+	r.explained[stmt] = true
+	return true
+}
 
 var driverSeq atomic.Int64
 
@@ -183,7 +209,7 @@ func (c *guardConn) PrepareContext(ctx context.Context, query string) (driver.St
 // that failed the query it was inspecting would turn a diagnostic into an outage. A statement it
 // cannot explain contributes no finding, which is why the caller is told how many statements ran.
 func (c *guardConn) explain(ctx context.Context, q driver.QueryerContext, query string, args []driver.NamedValue) {
-	if !isExplainable(query) {
+	if !isExplainable(query) || !c.rec.shouldExplain(query) {
 		return
 	}
 	rows, err := q.QueryContext(ctx, "EXPLAIN QUERY PLAN "+query, args)
