@@ -279,6 +279,111 @@ will be the fourth unless the sweep is told.
   `Boards()` before writing them — the August draft named a board that did not exist, and was failed
   for it.
 
+
+#### Consumer census — `opinion`, run and pasted
+
+The standard requires the search **run, with results**, for every contract `[DELETE]`/`[MODIFY]`.
+An earlier draft offered a hand-made "readers to retarget" table and deferred the census to
+implementation ("re-run it; do not trust this plan's list"), which is how `views.go`,
+`consistency.go` and `close.go:145` went unnamed. From `plugins/frank-exchange-of-views/`:
+
+```
+$ grep -rli opinion .          # 108 files
+$ grep -rli opinion . | grep -v _test.go | grep -v record.pb.go | grep -v golden   # 56
+```
+
+**Read the NO CHANGE column first.** Most hits are the English word, the abstain outcome of a gate,
+or the surviving prose key — `MotionRule.opinion` and `Halt.opinion` both live on. `a12362c` records
+**three** separate sweeps clobbering the prose key; a wrong `[RETARGET]` there is the defect, not a
+tidy-up, so every NO CHANGE states its reason.
+
+Three markers appear in the table:
+**`[GAP-INDEX]`** — needs the `motion_id` → gap index, because it keys the gap off the ruling body
+today. **`[2ND REPLAY]`** — an independent reconstruction of the bench closure, of which there are
+three (`replay.go`, `consistency.go`, and `views.go` in SQL), not one.
+
+| file:line | hit | disposition |
+|---|---|---|
+| `cli/bench/opinion.go` (whole file) | `newOpinion`, `opinionResult`, `dispositionHelp` | **[DELETE]** the verb; `dispositionHelp` has no other caller and dies with it |
+| `cli/bench/command.go:20` | `newOpinion(),` in `Verbs()` | **[DELETE]** unmount from the bench tree |
+| `cli/seat/help/opinion.md` (whole file) | embedded help page | **[DELETE]**; content moves to the `motion docket rule` page |
+| `record/recordpb/record.proto:222` | `EVENT_TYPE_OPINION = 21` | **[DELETE]** event type |
+| `record/recordpb/record.proto:464` | `Opinion opinion = 36;` in the body oneof | **[DELETE]** body arm |
+| `record/recordpb/record.proto:770-867` | `message Opinion` + its two `(check)` options | **[DELETE]** — the eight fields and both checks land on `DocketRuling` FIRST (N8) |
+| `record/enums.go:277` | `"opinion": {{Key: "disposition", …}}` | **[DELETE]**; the set moves to `MotionVerdicts["docket"]`, per this file's own #344 note |
+| `record/recordsql/testdata/schema.sql:49,424` | `enum_event_type` row; `CREATE TABLE "opinion"` | **[DELETE]** on regeneration from the descriptors |
+| `record/replay.go:147,431,443` | `BenchClosure *recordpb.Opinion`; `case *recordpb.Opinion` | **[RETARGET]** to the docket-ruling arm. **[GAP-INDEX]** — the primary replay |
+| `consistency/consistency.go:138` | `case *recordpb.Opinion:` ground-truth fold | **[RETARGET]**. **[GAP-INDEX]** **[2ND REPLAY]** — independent oracle of the same closure |
+| `record/recordsql/views.go:107-113` | `FROM "opinion" o … JOIN enum_disposition` | **[RETARGET]** to the two-hop motion join. **[2ND REPLAY]** — the SQL fold; SQLite will not refuse the stale body |
+| `record/recordsql/testdata/schema.sql:668,673` | the same view, rendered | **[RETARGET]** on regeneration; tracks `views.go` |
+| `record/record.go:1155-1195` | `case *recordpb.Opinion:` write validation | **[RETARGET]** to `DocketRuling` — carries the reopens-on XOR final refusals (N8's third carrier) |
+| `verify/verify.go:235,452,454` | `case *recordpb.Opinion:` (ref check, stats) | **[RETARGET]**. **[GAP-INDEX]** — both key the gap off the ruling body |
+| `verify/verify.go:402,430,496` | `GapsWithOpinion`, `withOpinion` | **[RETARGET]** to `GapsWithDisposition` / the docket join |
+| `cli/verify.go:93-94` | `%d with an opinion`, `s.GapsWithOpinion` | **[RETARGET]** with `verify.go:402`; the printed label moves too |
+| `graph/graph.go:25,56,57` | `opinions int`; `case *recordpb.Opinion` | **[RETARGET]**. **[GAP-INDEX]**; also risks double-counting against `motionsRuled` |
+| `graph/graph.go:201,202` | Mermaid label `opinion×%d` | **[RETARGET]** the rendered measure |
+| `graph/graph.go:252` | DOT label `op%d` | **[RETARGET]** — second, independent renderer of the same tally |
+| `record/viewjson.go:944` | `BodyAs[*recordpb.Opinion]` → `Lead` | **[RETARGET]**. **[GAP-INDEX]** — `DebateOpinionJSON.GapID` comes off the body today |
+| `record/viewjson.go:865,875,886,917` | `DebateOpinionJSON` type, `Lead` field, grouping doc | **[RETARGET]** the type and its doc |
+| `report/assemble.go:1172-1188` | `debate()`'s `### LEAD` loop over `Opinion` | **[RETARGET]**. **[GAP-INDEX]** — prints `o.GetGapId()` |
+| `view/view.go:653` | `case *recordpb.Opinion:` in the `### LEAD` switch | **[RETARGET]**. **[GAP-INDEX]**; **the `MotionRule` arm's petition-only filter must admit docket** |
+| `capture/capture.go:1347-1348` | `EVENT_TYPE_OPINION`, `BodyAs[*recordpb.Opinion]` | **[RETARGET]** the precedent harvest. **[GAP-INDEX]** — sets `ruling.gapID` |
+| `seatprobe/boards.go:585` | `Baits: "opinion"` | **[RETARGET]** to `motion docket rule` |
+| `seatprobe/boards.go:606` | `{Seat: "judge-r2", Verb: "opinion", …}` | **[RETARGET]** the verb; the `Because` already argues for the change |
+| `cli/merge/close.go:145` | `Rule it … with feov-record bench opinion --as %s` | **[RETARGET]** — a live refusal telling a seat to run a dead verb |
+| `cli/seat/verbs.go:187,189` | "Written by `mint`, `close` and the bench's `opinion`" (×3) | **[RETARGET]** — seat-facing `show work` / `show debate` help |
+| `tests/simulator/debate.test.mjs:1058` | lens guard regex `\b(register\|mint\|…\|opinion\|certify\|halt)\s+--` | **[MODIFY]** — drop `opinion` AND add the docket verb, or **the guard weakens** |
+| `report/motions.go:58-59` | `if m.Opinion != "" { " — %s" }` | **[MODIFY]** — docket rows render disposition + round pointer, not the rationale |
+| `cli/root.go:75` | "the bench — opinions, halt, certification" | **[MODIFY]** the tree blurb |
+| `cli/bench/declare.go:41,45` | "would be an opinion, and `opinion` already exists" | **[MODIFY]** — states present design against a verb that will not exist |
+| `cli/seat/help/declare.md:7,9` | "`opinion` cannot carry it: that verb requires a gap id and a fate" | **[MODIFY]** — live help contrasting with the retired verb |
+| `tests/simulator/debate.test.mjs:1478-1506` | asserts declare help says "`opinion` cannot carry it" | **[MODIFY]** with `help/declare.md` |
+| `verify/verify.go:145,157,200,214,222,383` | "a bench `opinion` that ends the gap"; the check's registered label | **[MODIFY]** — **the description is seat-visible**, not an internal comment |
+| `record/refs.go:207` | "the earliest closing bench opinion" | **[MODIFY]** — describes the SQL fold that retargets |
+| `record/replay.go:138` | "`bench opinion` writes an Opinion (a disposition…)" | **[MODIFY]** the `BenchClosure` doc comment |
+| `record/record.go:1215` | "`Outcome.ended` and `Opinion.disposition` are still open strings" | **[MODIFY]** — goes stale with the message |
+| `record/enums.go:65` | "`merge close` … and `bench opinion` … stay different verbs" | **[MODIFY]** the `Dispositions` doc |
+| `record/viewjson.go:216,384,536,850` | "`bench opinion` whose disposition ended the gap"; `closureBody` doc | **[MODIFY]** |
+| `view/view.go:336,371,655` | "EITHER a close or an opinion"; "Opinion.rationale is typed as --reason" | **[MODIFY]** |
+| `report/assemble.go:17,822,828,923,1115` | event-type list; "an Opinion payload has no closure_class" | **[MODIFY]** |
+| `graph/graph.go:45,91,161,189,196` | "A closing and an opinion each carry their OWN gap_id" | **[MODIFY]** |
+| `consistency/consistency.go:54,60` | `lastCloser` / `carriedCount` comments | **[MODIFY]** to name the docket ruling |
+| `record/recordpb/record.proto:131`, `record/required.go:34`, `record/citationid.go:323`, `record/recordpb/requiredfields.go:59` | "a close stores `prose`, an opinion `rationale`" — the same worked example, four times | **[MODIFY]** all four; `Opinion.rationale` disappears |
+| `cli/seat/seat.go:467-468` | "a close stores `prose`, an opinion `rationale`, a halt `opinion`" | **[MODIFY]** the first clause only — **the halt clause stands** |
+| `flags/names.go:312` | "a dispute stores `evidence`, an opinion `rationale`" | **[MODIFY]** the comment — **NOT the map entry ten lines below it** |
+| `report/docs.go:149` | judgments.md blurb "and the bench's opinions" | **[MODIFY]** — human-facing |
+| `seatprobe/boards.go:611,612,614` | declare/friction `Because` naming the retired verb | **[MODIFY]** |
+| `agents/lead-judge.md:58` | "OPINIONS, NOT DISPOSITIONS: every ruling is a written opinion…" | **[MODIFY]** the contract sentence; it names no command |
+| `skills/research-protocol/scripts/debate.js:357` | "`bench opinion` requires an --id and a fate-changing --as" | **[MODIFY]** — a comment; **no live invocation remains** |
+| `docs/seat-command-triggers.md:96` | the `bench opinion` ledger row, CLEAN | **[MODIFY]** — mark EXECUTED as history; add the `motion docket` rows |
+| `docs/record-flow.md:5`, `skills/research-protocol/SKILL.md:34`, `skills/…/report_template.md:96` | "motions, opinions — are events" and its two siblings | **[MODIFY]** — opinions become motions |
+| `record/motion.go:244` | `Opinion string` on `record.Motion` | NO CHANGE — the prose key, where the docket rationale correctly lands. **R1's clobber site** |
+| `record/motion.go:419` | `m.Opinion = f.GetOpinion()` | NO CHANGE — reads `MotionRule.opinion`, which survives |
+| `record/motionview.go:48,80` | `Opinion string \`json:"opinion"\`` | NO CHANGE — the JSON prose key; **three prior sweeps clobbered exactly this** |
+| `flags/names.go:322` | `"opinion": Reason,` | NO CHANGE — maps the payload field `opinion` (MotionRule, Halt) to `--reason` |
+| `record/recordpb/record.proto:1299` | `optional string opinion = 3;` on `MotionRule` | NO CHANGE — the ruler's prose channel, shared by every subject |
+| `record/recordpb/record.proto:1456-1461` | `Halt.opinion` and its `why` | NO CHANGE — a different message |
+| `record/recordsql/testdata/schema.sql:250,298` | `halt.opinion`, `motion_rule.opinion` | NO CHANGE — both surviving fields |
+| `record/recordpb/testdata/payload-keys.txt:76` | `opinion` | NO CHANGE — the key survives on `MotionRule` and `Halt` |
+| `cli/motion/verbs.go:222,234` | local `opinion` var; `Opinion: proto.String(opinion)` | NO CHANGE — **this is the write path `motion docket rule` will use** |
+| `record/inquiry.go:216,218` | "`reason` on the wire is `opinion` on the message" | NO CHANGE — reads `MotionRule.opinion` |
+| `view/view.go:668,674,685` | petition-ruling arm, `t.GetOpinion()` | NO CHANGE to the read; the subject filter is the separate edit above |
+| `capture/capture.go:1385` | `rationale: r.GetOpinion()` | NO CHANGE — petition arm of the harvest |
+| `report/assemble.go:1162` | "petition red-merge: granted — `<opinion>`" | NO CHANGE — the petition ruling's prose |
+| `report/assemble.go:381,428,496,500,524,1202-1207` | halt/certify prose, `h.GetOpinion()` | NO CHANGE — `Halt.opinion`, relayed verbatim |
+| `cli/bench/halt.go:15,23`, `cli/seat/help/halt.md:7`, `record/verdict.go:66` | "written opinion VERBATIM"; `Halt{Opinion:…}` | NO CHANGE — the halt's own field. **Plan-guarded** |
+| `hookgate/hookgate.go:89,128,157,180,200`, `hookcmd/hookcmd.go:92` | "no opinion" | NO CHANGE — the ABSTAIN outcome of a gate. **Plan-guarded** |
+| `scorecard/scorecard.go:652-680` | `rulings_without_opinion`, "Opinion form" | NO CHANGE — **reads the seat ENVELOPE's `resolutions[]`, never the record** |
+| `flags/register.go:54-55` | "`bench opinion` reported 'opinion requires --as'" | NO CHANGE — a cited past measurement |
+| `record/refs.go:19` | "eight judicial closures were `opinion --id` events" | NO CHANGE — the 2026-07-18 incident record |
+| `cli/bench/declare.go:20,23,26` | the #361 friction quoted verbatim | NO CHANGE — a quotation of what a bench seat wrote |
+| `view/view.go:629,636`, `record/enums.go:382`, `record/recordpb/record.proto:565` | "This built ### LEAD from `opinion` events ALONE"; "`Opinion.disposition` WAS THE SECOND…" | NO CHANGE — past-tense archaeology |
+| `record/record.go:671` | payload-key list including `opinion` | NO CHANGE — the key remains on MotionRule/Halt |
+| `record/spotcheck.go:73`, `record/available.go:35`, `flags/csv.go:9`, `record/recordsql/schema.go:326`, `report/docs.go:12`, `seatprobe/boards.go:360,623,668` | "the bench's terminal opinion happens after…"; "it is the measurement, not the opinion"; "a `closes` column it has no opinion on" | NO CHANGE — the English word |
+| `agents/lead-judge.md` (11 sites), `agents/blue-researcher.md:50`, `skills/…/SKILL.md:106` | "written opinions", "your published opinions" | NO CHANGE — the bench's judicial voice; names no command |
+| `commands/research.md:33`, `debate.js` (26 other hits), `debate.test.mjs:887,896,1080-1118` | halt envelope `opinion`, petition-ruling prose, "in your opinion" | NO CHANGE — the halt field and `MotionRule.opinion`; **the envelope schema is #682's question, not this one** |
+| `docs/seat-command-triggers.md:100,142,201,207` | declare's competing-channel column; halt row; #330/#344 history | NO CHANGE — ledger history rows, which `:207` states are deliberately not rewritten |
+
 **Agent-facing** — `agents/lead-judge.md:58` states the verb's contract in prose ("every ruling is a
 written opinion — disposition, the principle applied, the values in tension…") and must be rewritten
 to the docket ruling. It no longer names a command literally, so the rewrite is of the *contract
