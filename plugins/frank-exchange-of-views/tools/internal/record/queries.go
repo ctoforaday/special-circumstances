@@ -130,6 +130,73 @@ func RegisteredSeats(run Run) ([]string, error) {
 	return out, rows.Err()
 }
 
+// ReportOp is one recorded text mutation from the report_op view, in event order. Kind is "edit"
+// (A=old span, B=new span) or "insert" (A=anchoring quote, B=marker id). reportproj folds these
+// over the base; the SELECTION and ordering are the view's, not a Go walk of the event log.
+type ReportOp struct {
+	Kind string
+	A, B string
+}
+
+// ReportProjection returns the frozen base of blue's report and the ordered stream of text
+// mutations that reconstruct it (#709) — the inputs reportproj.Render folds. haveBase is false for a
+// run that never ingested (no base_ingest event); a run that recorded nothing yet is the same
+// honest zero. TWO base rows is a record-integrity error, never a silent pick — the base is
+// written once. The ops arrive in event-id order straight from the report_op view, so no reader
+// rebuilds that selection by scanning every event.
+func ReportProjection(run Run) (base string, haveBase bool, ops []ReportOp, err error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return "", false, nil, err
+	}
+	if db == nil {
+		return "", false, nil, nil // no record yet — no base, nothing to render
+	}
+	baseRows, err := db.Query(`SELECT "text" FROM "base_ingest" ORDER BY "event_id"`)
+	if err != nil {
+		return "", false, nil, fmt.Errorf("record: reading the report base: %w", err)
+	}
+	defer baseRows.Close()
+	seen := 0
+	for baseRows.Next() {
+		if seen++; seen > 1 {
+			return "", false, nil, fmt.Errorf("record: two base_ingest events on this run — the base is written once and never rewritten")
+		}
+		var t sql.NullString
+		if err := baseRows.Scan(&t); err != nil {
+			return "", false, nil, err
+		}
+		base, haveBase = t.String, true
+	}
+	if err := baseRows.Err(); err != nil {
+		return "", false, nil, err
+	}
+	if !haveBase {
+		return "", false, nil, nil
+	}
+	opRows, err := db.Query(`SELECT "kind", "a", "b" FROM "report_op" ORDER BY "event_id"`)
+	if err != nil {
+		return "", false, nil, fmt.Errorf("record: reading the report ops: %w", err)
+	}
+	defer opRows.Close()
+	for opRows.Next() {
+		var op ReportOp
+		var a, b sql.NullString
+		if err := opRows.Scan(&op.Kind, &a, &b); err != nil {
+			return "", false, nil, err
+		}
+		op.A, op.B = a.String, b.String
+		ops = append(ops, op)
+	}
+	return base, haveBase, ops, opRows.Err()
+}
+
+// ReportBaseExists reports whether this run has a frozen base — the write-once state test behind
+// `blue ingest`, answered by an EXISTS rather than a walk.
+func ReportBaseExists(run Run) (bool, error) {
+	return recordHas(run, `SELECT 1 FROM "base_ingest" LIMIT 1`)
+}
+
 // FindingMarkerRecorded reports whether any finding OR anchor event names this marker id — the
 // membership question the torn-splice heal asks of an fx marker already sitting on the report.
 // Read errors fold into false: the caller then takes the ordinary fresh path, exactly as it did

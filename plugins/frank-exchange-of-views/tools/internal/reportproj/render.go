@@ -8,7 +8,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE REPORT IS THE RECORD, NOT A FILE (#709).
@@ -106,92 +105,56 @@ func (m insertMut) apply(text string) (string, error) {
 
 func (m insertMut) describe() string { return fmt.Sprintf("insert %s at %q", m.marker, m.location) }
 
-// addMarker queues a marker insertion for an id anchored at location. An EMPTY location means the
-// event carries no anchor in blue's report — a citation referenced only from the board/docket, say
-// — so it renders no marker here; that is a fact the event states, not a miss. A NON-EMPTY location
-// that will not resolve at replay is corruption, and insertMut.apply is loud about it.
-func addMarker(muts *[]mutation, location, id string) {
-	if location == "" {
-		return
-	}
-	*muts = append(*muts, insertMut{location: location, marker: anchor.Token(id)})
-}
-
-// RenderFromRecord is the record-aware render: it reads the run's frozen base (the one BaseIngest
-// event) and every text-mutating event, and folds them over the base in record order. This is the
-// ONLY way to obtain the current report once the file is deleted — the former readers of
-// blue/report.md call this instead.
+// RenderFromRecord is the record-aware render: it reads the run's frozen base and the ordered
+// stream of text mutations from the record — the report_op view SELECTS and orders them in SQL — and
+// folds them over the base. This is the ONLY way to obtain the current report once the file is
+// deleted; the former readers of blue/report.md call this instead.
 //
-// Events arrive in insertion order (MergedEvents is ORDER BY id), which is mutation order, and the
-// BaseIngest is written first (round 0, before any mutation), so a linear pass composes correctly.
-// Two structural failures are loud, never a plausible zero: no base (nothing was ingested) and two
-// bases (the write-once rule was broken).
+// The FOLD is the irreducible sequential part: a splice must be located in the running text a prior
+// op left, which SQL cannot carry. Everything before it — which events mutate the text, and in what
+// order — is the record's own answer (record.ReportProjection over the report_op view), not a walk
+// of the whole event log rebuilt here. Two structural failures stay loud, never a plausible zero:
+// no base (nothing ingested) and two bases (the write-once rule broken) — both raised by the query.
 func RenderFromRecord(run record.Run) (string, error) {
-	m, err := record.MergedEvents(run)
+	base, haveBase, ops, err := record.ReportProjection(run)
 	if err != nil {
 		return "", err
-	}
-	base := ""
-	haveBase := false
-	var muts []mutation
-	for _, e := range m.Events {
-		body, ok := recordpb.Body(e)
-		if !ok {
-			continue
-		}
-		switch b := body.(type) {
-		case *recordpb.BaseIngest:
-			if haveBase {
-				return "", fmt.Errorf("render: two BaseIngest events on this run — the base is written once and never rewritten")
-			}
-			base, haveBase = b.GetText(), true
-		case *recordpb.BlueEdit:
-			muts = append(muts, spliceMut{old: b.GetOld(), new: b.GetNew()})
-		case *recordpb.Cite:
-			addMarker(&muts, b.GetLocation(), b.GetLabel())
-		case *recordpb.Proof:
-			addMarker(&muts, b.GetLocation(), b.GetProofId())
-		case *recordpb.Anchor:
-			// The finding-marker record. Its paired Finding event carries the grades and inserts
-			// nothing — replaying that too would splice the marker twice.
-			addMarker(&muts, b.GetLocation(), b.GetId())
-		case *recordpb.Verify:
-			// A red corroboration that BACKS a claim carries a c- Label and places a citation
-			// marker at its Claim; a plain verify (adjudicating a blue anchor) has no label and
-			// placed no marker.
-			if b.GetLabel() != "" {
-				addMarker(&muts, b.GetClaim(), b.GetLabel())
-			}
-		}
 	}
 	if !haveBase {
 		return "", fmt.Errorf("render: no base has been ingested for this run — there is nothing to render")
 	}
 	text := base
-	for i, mut := range muts {
+	for i, op := range ops {
+		mut, err := mutationOf(op)
+		if err != nil {
+			return "", err
+		}
 		next, err := mut.apply(text)
 		if err != nil {
-			return "", fmt.Errorf("render: replaying mutation %d of %d (%s): %w", i+1, len(muts), mut.describe(), err)
+			return "", fmt.Errorf("render: replaying mutation %d of %d (%s): %w", i+1, len(ops), mut.describe(), err)
 		}
 		text = next
 	}
 	return text, nil
 }
 
-// BaseIngested reports whether this run already has a frozen base — the record-state test that
-// makes `blue ingest` write-once: a second ingest is refused, never an overwrite. The answer is
-// read from the events, not a marker file, so it cannot drift from the truth.
+// mutationOf turns one report_op row into the transform that applies it. "edit" is a splice
+// (old→new); "insert" places Token(id) at the anchoring quote — the view already excluded a marker
+// event with no location, so an insert always names a real quote here.
+func mutationOf(op record.ReportOp) (mutation, error) {
+	switch op.Kind {
+	case "edit":
+		return spliceMut{old: op.A, new: op.B}, nil
+	case "insert":
+		return insertMut{location: op.A, marker: anchor.Token(op.B)}, nil
+	default:
+		return nil, fmt.Errorf("render: unknown report_op kind %q — the report_op view emits only edit and insert", op.Kind)
+	}
+}
+
+// BaseIngested reports whether this run already has a frozen base — the write-once state test that
+// makes `blue ingest` refuse a second ingest. An EXISTS query, not a walk; read from the record, so
+// it cannot drift from the truth.
 func BaseIngested(run record.Run) (bool, error) {
-	m, err := record.MergedEvents(run)
-	if err != nil {
-		return false, err
-	}
-	for _, e := range m.Events {
-		if body, ok := recordpb.Body(e); ok {
-			if _, isBase := body.(*recordpb.BaseIngest); isBase {
-				return true, nil
-			}
-		}
-	}
-	return false, nil
+	return record.ReportBaseExists(run)
 }

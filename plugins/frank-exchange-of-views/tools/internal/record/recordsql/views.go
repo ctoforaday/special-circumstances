@@ -260,4 +260,35 @@ LEFT JOIN "motion_rule" lr ON lr."event_id" =
   (SELECT MAX(y."event_id") FROM "motion_rule" y
      WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'direction')
 LEFT JOIN "events" lre ON lre."id" = lr."event_id";
+
+-- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The
+-- report is base + this stream replayed, so the SELECTION of which events mutate the text — and
+-- how each names its change — is a projection, authored HERE where every reader sees the same one,
+-- not re-derived by walking every event in Go. Each row is (event_id, kind, a, b):
+--   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay).
+--   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote).
+-- The marker inserters are blue cite, blue prove, the finding's anchor event, and a red
+-- corroboration (a labelled verify). A marker event with no anchor location placed no marker in
+-- THIS report (a board/docket-only citation), so it is excluded rather than replayed as an empty
+-- insert. The FOLD itself stays in Go: replaying a splice needs the running text a prior op left,
+-- which SQL cannot carry — but nothing here builds state by scanning the whole event log.
+CREATE VIEW "report_op" AS
+  SELECT e."id" AS "event_id", 'edit' AS "kind", b."old" AS "a", b."new" AS "b"
+    FROM "blue_edit" b JOIN "events" e ON e."id" = b."event_id"
+  UNION ALL
+  SELECT e."id", 'insert', c."location", c."label"
+    FROM "cite" c JOIN "events" e ON e."id" = c."event_id"
+    WHERE COALESCE(c."location", '') != '' AND COALESCE(c."label", '') != ''
+  UNION ALL
+  SELECT e."id", 'insert', p."location", p."proof_id"
+    FROM "proof" p JOIN "events" e ON e."id" = p."event_id"
+    WHERE COALESCE(p."location", '') != '' AND COALESCE(p."proof_id", '') != ''
+  UNION ALL
+  SELECT e."id", 'insert', a."location", a."id"
+    FROM "anchor" a JOIN "events" e ON e."id" = a."event_id"
+    WHERE COALESCE(a."location", '') != '' AND COALESCE(a."id", '') != ''
+  UNION ALL
+  SELECT e."id", 'insert', v."claim", v."label"
+    FROM "verify" v JOIN "events" e ON e."id" = v."event_id"
+    WHERE COALESCE(v."label", '') != '' AND COALESCE(v."claim", '') != '';
 `
