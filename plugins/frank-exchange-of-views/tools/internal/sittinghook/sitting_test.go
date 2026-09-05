@@ -1,4 +1,4 @@
-package hookcmd
+package sittinghook
 
 import (
 	"bytes"
@@ -36,8 +36,8 @@ func TestTheSittingHooksEmitNothing(t *testing.T) {
 		name string
 		fn   func(r *strings.Reader, w *bytes.Buffer) error
 	}{
-		{"SubagentStart", func(r *strings.Reader, w *bytes.Buffer) error { return SubagentStart(r, w) }},
-		{"SubagentStop", func(r *strings.Reader, w *bytes.Buffer) error { return SubagentStop(r, w) }},
+		{"SubagentStart", func(r *strings.Reader, w *bytes.Buffer) error { return Start(r, w) }},
+		{"SubagentStop", func(r *strings.Reader, w *bytes.Buffer) error { return Stop(r, w) }},
 	} {
 		var out bytes.Buffer
 		in := strings.NewReader(payload(t, "agent_01", "frank-exchange-of-views:red-auditor", cwd))
@@ -58,7 +58,7 @@ func TestATurnEndIsNotRecordedAsASitting(t *testing.T) {
 	cwd, run := newRunDir(t)
 	var out bytes.Buffer
 	// A turn end: a minted id, and NO agent_type.
-	if err := SubagentStop(strings.NewReader(payload(t, "minted_99", "", cwd)), &out); err != nil {
+	if err := Stop(strings.NewReader(payload(t, "minted_99", "", cwd)), &out); err != nil {
 		t.Fatal(err)
 	}
 	if n := countSittings(t, run); n != 0 {
@@ -70,10 +70,10 @@ func TestASeatsSpanIsRecordedAtBothEnds(t *testing.T) {
 	cwd, run := newRunDir(t)
 	var out bytes.Buffer
 	p := payload(t, "agent_01", "frank-exchange-of-views:lead-judge", cwd)
-	if err := SubagentStart(strings.NewReader(p), &out); err != nil {
+	if err := Start(strings.NewReader(p), &out); err != nil {
 		t.Fatal(err)
 	}
-	if err := SubagentStop(strings.NewReader(p), &out); err != nil {
+	if err := Stop(strings.NewReader(p), &out); err != nil {
 		t.Fatal(err)
 	}
 	if n := countSittings(t, run); n != 2 {
@@ -85,7 +85,7 @@ func TestASeatsSpanIsRecordedAtBothEnds(t *testing.T) {
 // session, and a hook that failed there would fail on every subagent the user ever launches.
 func TestASubagentOutsideARunRecordsNothingAndDoesNotFail(t *testing.T) {
 	var out bytes.Buffer
-	if err := SubagentStart(strings.NewReader(payload(t, "agent_01", "x", t.TempDir())), &out); err != nil {
+	if err := Start(strings.NewReader(payload(t, "agent_01", "x", t.TempDir())), &out); err != nil {
 		t.Errorf("a subagent outside a run failed the hook: %v", err)
 	}
 	if out.Len() != 0 {

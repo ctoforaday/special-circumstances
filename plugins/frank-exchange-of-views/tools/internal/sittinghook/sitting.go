@@ -1,4 +1,4 @@
-package hookcmd
+package sittinghook
 
 import (
 	"encoding/json"
@@ -6,9 +6,9 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
 
 // hookSeat is the envelope seat_id on an event a HOOK wrote about a seat it cannot name.
@@ -34,7 +34,7 @@ type sittingInput struct {
 // `additionalContext` re-invoked the seat, its turn ended, the hook fired again — NINE firings for
 // one seat, with the returned context discarded every time. Under a log-only hook the same launch
 // fires exactly once. An observation hook that starts talking turns one event into nine.
-func SubagentStart(stdin io.Reader, stdout io.Writer) error {
+func Start(stdin io.Reader, stdout io.Writer) error {
 	return recordSitting(stdin, func(in sittingInput) proto.Message {
 		return &recordpb.SittingOpen{
 			AgentId:   proto.String(in.AgentID),
@@ -45,7 +45,7 @@ func SubagentStart(stdin io.Reader, stdout io.Writer) error {
 
 // SubagentStop records the moment that agent returned. Emits nothing, for the reason above — and
 // here the reason is not analogy but the measurement itself.
-func SubagentStop(stdin io.Reader, stdout io.Writer) error {
+func Stop(stdin io.Reader, stdout io.Writer) error {
 	return recordSitting(stdin, func(in sittingInput) proto.Message {
 		return &recordpb.SittingClose{
 			AgentId:   proto.String(in.AgentID),
@@ -81,7 +81,7 @@ func recordSitting(stdin io.Reader, body func(sittingInput) proto.Message) error
 	if in.AgentID == "" || in.AgentType == "" {
 		return nil
 	}
-	runDir := seat.InferRunDir(in.Cwd)
+	runDir := runlive.InferRunDir(in.Cwd)
 	if runDir == "" {
 		return nil
 	}

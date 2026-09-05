@@ -1,4 +1,4 @@
-package hookcmd
+package sittinghook
 
 import (
 	"testing"

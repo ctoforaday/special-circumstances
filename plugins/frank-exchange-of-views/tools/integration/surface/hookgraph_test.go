@@ -1,7 +1,11 @@
 package surface
 
 import (
+	"os"
 	"os/exec"
+	"path"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -9,10 +13,25 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
-// hookBinary is the ONE binary in this module that runs once per tool call. Everything below is
+// hookBinary is the ONE binary in this module that runs once per TOOL CALL. Everything below is
 // about keeping its process image small; nothing here applies to feov-record, which is a
 // long-lived-enough invocation that its 398-package graph is not a cost worth guarding.
+//
+// THERE ARE NOW THREE HOOK BINARIES AND ONLY THIS ONE IS GATED, which is a decision rather than
+// an oversight, and the arithmetic is the whole of it. feov-subagentstart and feov-subagentstop
+// fire ONCE PER SEAT — thirteen to twenty times in a run — against this one's ~2,457 invocations.
+// At the 4.361 ms image this gate exists to prevent, that is ~86 ms across a run whose seats span
+// ~36 minutes each. They deliberately link internal/record, because writing an event to the
+// record is the entire job (#265): a sitting hook that could not open a record would have to put
+// its fact in a file beside the record instead, which is the shape facts-are-fields refuses.
+//
+// The rule is therefore PER-INVOCATION COST, not "hooks are light". If a future hook fires per
+// tool call, it belongs in this gate; if it fires per seat, the graph is not what to guard.
 const hookBinary = "./cmd/feov-pretooluse"
+
+// perSeatHookBinaries fire once per seat and are NOT graph-gated, listed so "why is only one of
+// three here" is answered where the question is asked.
+var perSeatHookBinaries = []string{"./cmd/feov-subagentstart", "./cmd/feov-subagentstop"}
 
 // hookLocalPackages is the module-local import graph feov-pretooluse is ALLOWED to have.
 //
@@ -137,4 +156,53 @@ func hookDeps(t *testing.T) []string {
 		t.Fatalf("go list -deps %s returned nothing — the graph was not measured", hookBinary)
 	}
 	return deps
+}
+
+// EVERY HOOK BINARY IS EITHER GATED OR NAMED AS DELIBERATELY UNGATED.
+//
+// The gate above guards ONE binary by name. A fourth hook added later — firing per tool call, and
+// linking whatever was convenient — would not fail it, because the gate never asks what the set
+// of hook binaries IS. That is the plausible zero one level up: the guard passes because it is
+// looking at a list that stopped being the whole list.
+//
+// So the set is derived from the plugin manifest, which is the thing that actually decides what
+// runs, and every member must be accounted for in one of the two categories above.
+func TestEveryRegisteredHookBinaryIsGatedOrNamedUngated(t *testing.T) {
+	root, err := repotree.Root()
+	if err != nil {
+		t.Fatalf("cannot locate the repository root: %v", err)
+	}
+	manifest := filepath.Join(root, "plugins", "frank-exchange-of-views", "hooks", "hooks.json")
+	raw, err := os.ReadFile(manifest)
+	if err != nil {
+		t.Fatalf("cannot read the hook manifest, which is what decides which binaries run: %v", err)
+	}
+
+	// The command is a shell line naming ${CLAUDE_PLUGIN_ROOT}/bin/<binary>; the binary name is
+	// what this needs and the rest is the bootstrap guard.
+	found := map[string]bool{}
+	for _, m := range regexp.MustCompile(`/bin/(feov-[a-z]+)`).FindAllStringSubmatch(string(raw), -1) {
+		found[m[1]] = true
+	}
+	if len(found) == 0 {
+		t.Fatal("no hook binaries found in the manifest — this test is reading the wrong thing and would pass forever")
+	}
+
+	accounted := map[string]bool{path.Base(hookBinary): true}
+	for _, b := range perSeatHookBinaries {
+		accounted[path.Base(b)] = true
+	}
+	for b := range found {
+		if !accounted[b] {
+			t.Errorf("hooks.json registers %q and this file neither gates it nor names it as deliberately "+
+				"ungated. Decide which: a hook firing per TOOL CALL belongs in hookBinary's gate; one firing "+
+				"per seat belongs in perSeatHookBinaries with the arithmetic that says why.", b)
+		}
+	}
+	for b := range accounted {
+		if !found[b] {
+			t.Errorf("this file accounts for %q and hooks.json registers no such binary — the gate is "+
+				"guarding something that does not run", b)
+		}
+	}
 }
