@@ -74,7 +74,14 @@ which places every citation and finding anchor, asserts nothing about itself in 
 - `internal/cli/blue/cite.go`, `internal/cli/lens/anchor.go` — the `internal/cli` suite runs 20+
   minutes ONCE, so per-mutant cost there is the open question the pool has not answered.
 - The `-confirm` wide stage on `internal/anchor`'s 19, which would separate "tested elsewhere"
-  from "tested nowhere". It would also benefit from the worker pool and does not yet use it.
+  from "tested nowhere".
+  **CORRECTED 2026-09-05: it already runs in the pool.** This said `-confirm` "does not yet use"
+  the worker pool, written by the agent who had just written the pool and did not read it back:
+  `runSuite(tree, j.pkg, confirm)` is inside the worker loop, so the wide stage parallelises like
+  any other mutant. That moves the 19 survivors from ~2.5 hours serial to roughly 40 minutes on
+  four workers, which is the difference between a question nobody will pay for and one somebody
+  will. Same error as the three in §VII — asserting about something without measuring it — and
+  kept here for the same reason.
 
 ## VII. A standing warning, because it recurred three times in one session
 
