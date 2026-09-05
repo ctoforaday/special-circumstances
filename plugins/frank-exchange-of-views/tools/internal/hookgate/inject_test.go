@@ -1,24 +1,22 @@
 package hookgate
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
 
-// PreOutcome — the run-directory injection (#281).
-//
-// NOTE FOR ANYONE EDITING THIS FILE FROM A SHELL: the deny arm matches its write patterns
-// anywhere in a Bash command, so a heredoc containing `cp … blue/report.md` is refused as
-// though it were a write. Writing this file through the Write tool works; a `cat <<EOF` does
-// not. That is the same mention-vs-invocation confusion the rewrite arm's position matcher
-// exists to avoid, still present in the deny arm — recorded here because it was hit, not
-// theorised.
+// PreOutcome — the run-directory and identity injection (#281, #510).
 
 const liveRun = "/c/Users/gb/Projects/special-circumstances/research/2026-08-05_smoke"
 
 func bash(t *testing.T, command string) Input {
 	t.Helper()
-	return mkInput(t, "blue", "Bash", map[string]string{"command": command})
+	raw, err := json.Marshal(map[string]string{"command": command})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Input{ToolName: "Bash", ToolInput: raw}
 }
 
 // THE REAL COMMAND, from the 2026-08-05 smoke, and the reason the emission is `export …;`
@@ -85,23 +83,6 @@ func TestInvocationPositionsAreRewritten(t *testing.T) {
 	}
 }
 
-// DENY WINS, structurally. A command that both writes the report and invokes the tool must be
-// DENIED — a rewrite emitted in its place is a deny that never happened, and the hook protocol
-// allows only one document.
-func TestDenyBeatsRewrite(t *testing.T) {
-	// INSIDE THE LIVE RUN, which is now what makes it the lockdown's business. The path used to
-	// be an unrelated /runs/x/... and denied anyway, because the gate matched the path SHAPE and
-	// never asked whether it was in a run.
-	reportPath := liveRun + "/blue/" + "report.md"
-	out, payload := PreOutcome(bash(t, `cp draft.md `+reportPath+` && "/c/bin/feov-record" blue edit --key F1`), liveRun)
-	if out != OutcomeDeny {
-		t.Fatalf("outcome %v, want deny — the blue-report lockdown must not open", out)
-	}
-	if strings.Contains(payload, "export FEOV_RUN") {
-		t.Error("a rewrite leaked into the deny reason")
-	}
-}
-
 // QUOTING IS A SECURITY BOUNDARY. A newline in the value would terminate the export statement
 // and turn the remainder into a command. The run directory comes off disk, and a file is not
 // trusted input just because we wrote it once.
@@ -141,7 +122,7 @@ func TestNoRunDirMeansNoRewrite(t *testing.T) {
 
 // Only Bash carries a command. Write/Edit have no shell to inject into.
 func TestNonBashToolsAreUntouched(t *testing.T) {
-	in := mkInput(t, "blue", "Write", map[string]string{"file_path": "/runs/x/notes.md", "command": "feov-record verify"})
+	in := Input{ToolName: "Write", ToolInput: []byte(`{"file_path":"/runs/x/notes.md","command":"feov-record verify"}`)}
 	if out, _ := PreOutcome(in, liveRun); out != OutcomeNone {
 		t.Error("a non-Bash tool call was rewritten")
 	}

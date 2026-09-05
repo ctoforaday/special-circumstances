@@ -1,37 +1,25 @@
-// Package hookgate is the decision core of the blue-report lockdown: the pure logic a
-// Claude Code PreToolUse / PostToolUse hook runs to keep blue/report.md writable ONLY by
-// the allowlisted author agent_type, and to catch a dropped finding-marker after the fact.
-// It is deliberately free of stdin/CLI plumbing so the allow/deny rules are unit-tested
-// directly (the CLI wrapper in internal/cli/hook.go handles the I/O).
+// Package hookgate is the decision core of the PreToolUse run/identity injection: the pure logic a
+// Claude Code PreToolUse hook runs to prefix every Bash command in a live run with the run directory
+// and the calling agent's id, so a seat never mistypes the path and never loses the identity that
+// binds it to its seat on the record. It is deliberately free of stdin/CLI plumbing so the rewrite
+// rule is unit-tested directly (the CLI wrapper in internal/cli/hook.go handles the I/O).
+//
+// It USED to also be the blue-report write-lockdown — a PreToolUse deny of a non-author raw write to
+// blue/report.md and a PostToolUse backstop for a dropped finding-marker. Under report-as-record
+// (#709) there is no blue/report.md file: the report is the record, every change is an appended
+// event, and a raw write cannot reach it. The lockdown protected a file that no longer exists, so it
+// is gone; only the injection — orthogonal to it from the start — remains.
 package hookgate
 
 import (
 	"encoding/json"
-	"path/filepath"
-	"regexp"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
-// AuthorAgentType is the ONE agent_type on the report.md write allowlist — the round-0
-// synthesis author. Every other seat (blue-researcher responders, red, lead, anything) is
-// default-DENIED a raw write to blue/report.md and must go through `feov-record blue edit`.
-const AuthorAgentType = "frank-exchange-of-views:blue-synthesizer"
-
-// denyReason is the message a denied seat sees — it names the sanctioned path.
-const denyReason = "blue/report.md is read-only to this seat. Make every change through " +
-	"`feov-record blue edit --old \"<exact current span>\" --new \"<replacement>\" --reason \"<why>\"` — " +
-	"it preserves red's finding-markers and records the edit. Direct writes to the report are denied."
-
-// PreDenyReason is the deny message, exported for the CLI's fail-closed path.
-func PreDenyReason() string { return denyReason }
-
 // Input is the subset of the hook stdin JSON the gate reads.
 type Input struct {
-	AgentType string `json:"agent_type"`
 	// AgentID is the harness's handle for the subagent making this call, and it is the ONLY
 	// field on the payload that discriminates one seat from another: session_id and prompt_id
 	// are byte-identical across the main session and every concurrent subagent
@@ -46,152 +34,8 @@ type Input struct {
 }
 
 type toolInput struct {
-	FilePath string `json:"file_path"`
-	Command  string `json:"command"`
+	Command string `json:"command"`
 }
-
-// blueReportPath matches a path token ending in blue/report.md (forward OR back slashes),
-// excluding shell metacharacters and quotes so it picks out a single path argument.
-var blueReportPath = regexp.MustCompile(`[^\s'"|&;<>()]*[\\/]blue[\\/]report\.md`)
-
-// bashWriteRes are the WRITE positions the PreToolUse Bash arm recognizes. This is the
-// "common shell" layer — exotic writers (python -c, awk, heredocs, truncate via a
-// variable) are OUT of scope here and caught by the PostToolUse backstop (PostDropped).
-var bashWriteRes = []*regexp.Regexp{
-	regexp.MustCompile(`>>?\s*` + blueReportPath.String()),                          // > file / >> file
-	regexp.MustCompile(`\btee\b[^|&;]*\s` + blueReportPath.String()),                // tee ... file
-	regexp.MustCompile(`\b(?:cp|mv|install)\b[^|&;]*\s` + blueReportPath.String()),  // cp/mv/install ... dest
-	regexp.MustCompile(`\bsed\b[^|&;]*-i[^|&;]*\s` + blueReportPath.String()),       // sed -i ... file
-	regexp.MustCompile(`\bdd\b[^|&;]*of=` + blueReportPath.String()),                // dd of=file
-	regexp.MustCompile(`\b(?:truncate|ed|ex)\b[^|&;]*\s` + blueReportPath.String()), // truncate/ed/ex file
-}
-
-// isBlueReport reports whether a resolved file path targets a blue/report.md BY SHAPE.
-//
-// Shape alone is not the question the lockdown asks — see insideRun, which is the half that was
-// documented from the first commit and implemented in none of them.
-func isBlueReport(p string) bool {
-	p = filepath.ToSlash(p)
-	return strings.HasSuffix(p, "/blue/report.md") || p == "blue/report.md"
-}
-
-// insideRun reports whether a path lies within the live run directory.
-//
-// THIS IS THE CHECK THAT WAS ALWAYS DESCRIBED AND NEVER WRITTEN. Every doc comment on this gate
-// said "a run's blue/report.md"; the code matched a path SUFFIX and consulted no run at all.
-// PreOutcome has held a resolved runDir since the first commit in this file's history and passed
-// it only to the injection arm — the lockdown decision sat one line above it and never took it.
-//
-// What that cost: any file named blue/report.md anywhere on disk was locked, in any session, run
-// or no run — a finished run under research/, a scratch copy, a fixture. The gate was meant to be
-// a no-op outside a live run and never was.
-//
-// An empty runDir means no live run was resolvable, and the answer there is no opinion rather
-// than a guess: matching InferRunDir's "say nothing rather than guess".
-func insideRun(path, runDir string) bool {
-	if runDir == "" || path == "" {
-		return false
-	}
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return false
-	}
-	root, err := filepath.Abs(runDir)
-	if err != nil {
-		return false
-	}
-	rel, err := filepath.Rel(root, abs)
-	if err != nil {
-		return false
-	}
-	rel = filepath.ToSlash(rel)
-	// ".." leading means the path climbed OUT of the run, which is not inside it.
-	return rel != ".." && !strings.HasPrefix(rel, "../")
-}
-
-// writesBlueReport resolves whether a tool call WRITES a run's blue/report.md. For the
-// structured edit tools the target is tool_input.file_path (airtight); for Bash it is a
-// write-position match on the command (best-effort common-shell layer).
-// InputUnreadable reports whether a call's tool_input failed to parse. The CLI wrapper writes a
-// FRICTION_KIND_TOOL_ERROR event when it is true, so a gate that could not see its target leaves
-// a trace instead of a silence. Separate from writesBlueReport because a pure predicate should
-// answer one question.
-func InputUnreadable(in Input) bool {
-	var ti toolInput
-	return json.Unmarshal(in.ToolInput, &ti) != nil
-}
-
-func writesBlueReport(in Input, runDir string) bool {
-	var ti toolInput
-	// A GATE THAT CANNOT READ ITS INPUT MUST LEAVE A TRACE. Swallowing the parse failure leaves
-	// ti.FilePath empty, makes this return false for the structured-tool arm, and makes Decide
-	// answer "no opinion" — so malformed input bypasses the lockdown with nothing recorded.
-	//
-	// This package is deliberately free of I/O, so it REPORTS rather than acts: InputUnreadable
-	// below is the predicate, and internal/cli/hook.go writes the FRICTION_KIND_TOOL_ERROR event
-	// and emits an `ask` decision carrying the cause back to the model. The gate's fail direction
-	// is unchanged — that is a security-semantics decision, not a cleanup.
-	_ = json.Unmarshal(in.ToolInput, &ti) // reported via InputUnreadable; see above
-	switch in.ToolName {
-	case "Write", "Edit", "MultiEdit", "NotebookEdit":
-		return isBlueReport(ti.FilePath) && insideRun(ti.FilePath, runDir)
-	case "Bash":
-		// The Bash arm recovers the path from the command, so the run test is applied to what it
-		// recovered rather than to the command string. A write position that names no path inside
-		// the run is not this gate's business, for the same reason a Write to one is not.
-		for _, re := range bashWriteRes {
-			if m := re.FindString(ti.Command); m != "" {
-				if p := blueReportPath.FindString(m); p != "" && insideRun(p, runDir) {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
-
-// PreDecision decides a PreToolUse call: (deny, reason). It denies a write to a run's
-// blue/report.md by any agent_type other than the author; a non-report target or an author
-// write returns (false, ""). Default-DENY by allowlist: only the author is permitted.
-func PreDecision(in Input, runDir string) (bool, string) {
-	// OUTSIDE A LIVE RUN THIS GATE HAS NO OPINION, WHICH IS WHAT IT ALWAYS SAID IT DID. The
-	// lockdown protects a run's working report; with no run resolvable there is no report to
-	// protect, and every path is somebody else's file. This guard comes FIRST — ahead of the
-	// fail-closed readability check below — because an unreadable payload outside a run cannot be
-	// a write to a run's report either, and denying it was how this gate came to refuse writes to
-	// arbitrary files in sessions that had nothing to do with a debate.
-	if runDir == "" {
-		return false, ""
-	}
-	// FAIL CLOSED ON INPUT THIS GATE CANNOT READ. A gate bypassed by input it cannot parse is not
-	// a gate: an unreadable tool_input leaves FilePath empty, which reads as "not the report" and
-	// lets the write through — the one outcome an allowlist must never produce by accident.
-	//
-	// THE COST IS REAL AND IS ACCEPTED DELIBERATELY (operator, 2026-08-18). If the harness ever
-	// sends a shape this parser does not expect, a legitimate write is refused — and the seat most
-	// likely to be hit is the ALLOWLISTED AUTHOR, the one seat that should never be blocked. That
-	// is the trade against a silent bypass, and it is survivable only because the refusal says
-	// what happened: the reason reaches the model, and the caller files a friction event, so a
-	// denial is diagnosable rather than mysterious.
-	if InputUnreadable(in) {
-		return true, unreadableReason
-	}
-	if !writesBlueReport(in, runDir) {
-		return false, "" // not a write to THIS run's report.md → no opinion
-	}
-	if in.AgentType == AuthorAgentType {
-		return false, "" // the allowlisted author may write directly
-	}
-	return true, denyReason
-}
-
-// unreadableReason reaches the MODEL through permissionDecisionReason, so it names the cause and
-// the remedy rather than only refusing.
-const unreadableReason = "feov-record: this hook could not parse tool_input, so it cannot tell " +
-	"whether the call writes blue/report.md — and the blue-report lockdown must not be bypassed " +
-	"by input it cannot read. Nothing about your call is known to be wrong. Retry it; if it " +
-	"refuses again, the tool_input shape has changed and the gate needs updating — a friction " +
-	"event has been filed recording exactly that."
 
 // Outcome is what the PreToolUse hook should do with a tool call.
 type Outcome int
@@ -199,8 +43,6 @@ type Outcome int
 const (
 	// OutcomeNone: no opinion. The call proceeds untouched.
 	OutcomeNone Outcome = iota
-	// OutcomeDeny: refuse the call; the string is the reason shown to the seat.
-	OutcomeDeny
 	// OutcomeRewrite: let the call proceed with a REPLACED command; the string is that command.
 	OutcomeRewrite
 )
@@ -226,27 +68,13 @@ const (
 // the run and the identity. A needless `export` on a command that does not use the tool is
 // inert. A missing one destroys a seat's work.
 
-// PreOutcome is the SINGLE entry point for the PreToolUse decision, and the ordering is
-// structural rather than a convention someone has to remember.
-//
-// DENY WINS, and it cannot be got around: the deny arm is consulted first and the function
-// physically cannot return OutcomeRewrite once it fires. A previous revision left the rewrite
-// an exported free function with the ordering living in prose plus one call site — and the
-// consequence of getting that wrong is not a cosmetic bug, it is the blue-report lockdown
-// silently opening, because the hook protocol permits only ONE hookSpecificOutput document
-// and a rewrite emitted in place of a deny is a deny that never happened. A command tripping
-// both arms (`cp draft.md …/blue/report.md && "…/feov-record" blue edit …`) is denied.
+// PreOutcome is the SINGLE entry point for the PreToolUse decision: inject the run directory and
+// the calling agent's id into every Bash command in a live run, or say nothing.
 //
 // runDir is a PARAMETER, never a field on Input. Input is unmarshalled straight from the hook
 // payload, so every field on it is wire-supplied; a CLI-computed member would leave a reader
-// unable to tell a derived value from something the client sent. PostDropped takes its
-// injected readers for the same reason.
-//
-// PreDecision stays exported for its existing callers and cannot emit a rewrite.
+// unable to tell a derived value from something the client sent.
 func PreOutcome(in Input, runDir string) (Outcome, string) {
-	if deny, reason := PreDecision(in, runDir); deny {
-		return OutcomeDeny, reason
-	}
 	if runDir == "" || in.ToolName != "Bash" {
 		return OutcomeNone, ""
 	}
@@ -327,74 +155,4 @@ func hasControl(v string) bool {
 		}
 	}
 	return false
-}
-
-// reportPathFrom extracts a blue/report.md path token referenced by the tool call (a
-// file_path or anywhere in a Bash command), or "" if none. The PostToolUse backstop only
-// has something to check when the call actually touched a report.md path.
-func reportPathFrom(in Input) string {
-	var ti toolInput
-	_ = json.Unmarshal(in.ToolInput, &ti)
-	if isBlueReport(ti.FilePath) {
-		return ti.FilePath
-	}
-	if m := blueReportPath.FindString(ti.Command); m != "" {
-		return m
-	}
-	return ""
-}
-
-// PostDropped is the PostToolUse backstop: after a NON-author tool call that referenced a
-// run's blue/report.md, it returns the immortal-anchor ids of EITHER class — a finding
-// marker (f-…) or a citation anchor (c-…) — that are now MISSING (dropped), via ANY write
-// mechanism, including the exotic Bash the PreToolUse arm cannot enumerate. The author is
-// never checked; a call that did not reference report.md returns nil. It is presence-only (a
-// moved-but-present anchor is red's semantic-audit job, not this check). readReport reads the
-// report bytes; anchorIDs supplies the EXPECTED set — the union of finding anchors and
-// citation labels (both injected so the logic stays pure and testable).
-func PostDropped(in Input, anchorIDs func(record.Run) ([]string, error), readReport func(path string) (string, error)) ([]string, error) {
-	if in.AgentType == AuthorAgentType {
-		return nil, nil
-	}
-	path := reportPathFrom(in)
-	if path == "" {
-		return nil, nil // the call did not touch a report.md → nothing to check
-	}
-	// DERIVED FROM THE REPORT PATH, which is the only run this hook ever knows about. NewRun
-	// rather than OpenRun: the directory is implied by a file the tool call just touched, so it
-	// exists by construction, and a hook advises rather than gates.
-	run, rerr := record.NewRun(filepath.Dir(filepath.Dir(path))) // strip /blue/report.md
-	if rerr != nil {
-		return nil, rerr
-	}
-	expected, err := anchorIDs(run)
-	if err != nil {
-		return nil, err
-	}
-	if len(expected) == 0 {
-		return nil, nil
-	}
-	md, err := readReport(path)
-	if err != nil {
-		// The report should exist if markers were anchored; a read failure here is a real
-		// integrity signal, but surfacing it as an error lets the CLI fail-closed.
-		return nil, err
-	}
-	return claimcount.MissingProtectedAnchorIDs(expected, md), nil
-}
-
-// DefaultAnchorIDs is the production EXPECTED set for PostDropped: the UNION of finding
-// anchors (from `anchor` events) and citation labels (from blue `cite` events), so the
-// backstop catches a dropped anchor of either class. Finding ids (f-…) and citation ids
-// (c-…) never collide, so the concatenation is a clean union.
-func DefaultAnchorIDs(run record.Run) ([]string, error) {
-	findings, err := record.AnchorIDs(run)
-	if err != nil {
-		return nil, err
-	}
-	cites, err := record.CitationLabels(run)
-	if err != nil {
-		return nil, err
-	}
-	return append(findings, cites...), nil
 }
