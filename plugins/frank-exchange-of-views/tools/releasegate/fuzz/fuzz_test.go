@@ -525,19 +525,15 @@ var verifyConfidence = []string{"high", "medium", "low"}
 func (r *runner) someCitation() string {
 	// A SEAT ID, because `show` only exists inside a seat's tree. Any seat reads the same
 	// projection; the lens is the one that acts on citations.
-	out, err := r.exec("show", "evidence", "--seat-id", "red-lens-r1-L1")
-	if err != nil {
+	b := r.board()
+	if b == nil {
 		return ""
 	}
-	var e struct {
-		Sources []struct {
-			Anchor string `json:"anchor"`
-		} `json:"sources"`
-	}
-	if json.Unmarshal([]byte(strings.TrimSpace(out)), &e) != nil || len(e.Sources) == 0 {
+	sources := record.EvidenceJSONOf(b).Sources
+	if len(sources) == 0 {
 		return ""
 	}
-	return e.Sources[r.rng.Intn(len(e.Sources))].Anchor
+	return sources[r.rng.Intn(len(sources))].Anchor
 }
 
 // mint records a gap and returns the tool-assigned id (R<round>-N). The first mint of a run
@@ -673,36 +669,50 @@ func (r *runner) mint(seatID string) string {
 // someFinding returns a random lens finding label on the record, or "" if none — feeds mint's
 // --found-by with a real TOOL-assigned label (L{role}-F{N}) rather than a fabricated one.
 func (r *runner) someFinding() string {
-	out, err := r.exec("show", "findings", "--seat-id", "red-merge-r1")
+	b := r.board()
+	if b == nil {
+		return ""
+	}
+	findings := record.FindingsJSONOf(b).Findings
+	if len(findings) == 0 {
+		return ""
+	}
+	return findings[r.rng.Intn(len(findings))].Label
+}
+
+// board reads the record IN PROCESS, through the same builders the binary renders from.
+//
+// THE HARNESS ASKING ITSELF A QUESTION IS NOT THE HARNESS TESTING THE BINARY, and conflating the
+// two is what made this sweep expensive. `openGaps`, `someCitation` and `someFinding` exist so the
+// FUZZ can decide what to do next — which gap to act on, which citation to name — and each shelled
+// `feov-record` to find out. Measured at 4 runs: `merge show board` 127 invocations, `lens show
+// evidence` 45, `merge show findings` 19, out of 1039 total. That is ~48 subprocesses per run, at
+// ~12ms each, buying nothing the sweep asserts.
+//
+// The COVERAGE those verbs owe is unaffected and is not weakened here: the projection sweep in
+// runOne drives every view on every role explicitly, which is what the surface gate reads. These
+// three call sites were never what proved `show board` works — they were the harness reading its
+// own board through a subprocess.
+//
+// BYTE-IDENTICAL BY CONSTRUCTION, which is why this is safe against the RNG. record.BoardJSONOf,
+// EvidenceJSONOf and FindingsJSONOf are the exact functions the CLI marshals, so the lists below
+// hold the same elements in the same order the parsed stdout did — and these feed rng.Intn, where
+// a reordering would silently move every downstream draw.
+func (r *runner) board() *record.Board {
+	b, err := record.BoardState(r.runHandle)
 	if err != nil {
-		return ""
+		return nil
 	}
-	var f struct {
-		Findings []struct {
-			Label string `json:"label"`
-		} `json:"findings"`
-	}
-	if json.Unmarshal([]byte(strings.TrimSpace(out)), &f) != nil || len(f.Findings) == 0 {
-		return ""
-	}
-	return f.Findings[r.rng.Intn(len(f.Findings))].Label
+	return b
 }
 
 func (r *runner) openGaps() []string {
-	out, err := r.exec("show", "board", "--seat-id", "red-merge-r1")
-	if err != nil {
-		return nil
-	}
-	var b struct {
-		Open []struct {
-			ID string `json:"id"`
-		} `json:"open"`
-	}
-	if json.Unmarshal([]byte(out), &b) != nil {
+	b := r.board()
+	if b == nil {
 		return nil
 	}
 	var ids []string
-	for _, g := range b.Open {
+	for _, g := range record.BoardJSONOf(b).Open {
 		ids = append(ids, g.ID)
 	}
 	return ids
