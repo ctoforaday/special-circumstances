@@ -298,6 +298,29 @@ how much to trust each surface, and an audit counts checks.
   enumerate the INVOCATION MECHANISMS (import, subprocess from a test, shell, CI
   step, prompt text), not the ones that came to mind.
 
+### row-counted-as-subject
+A count over RECORDS is reported as a count of the SUBJECTS those records describe,
+and set beside a number in a different unit as though the two reconciled. Every
+record is true and the arithmetic is right; the DENOMINATOR is wrong, and nothing in
+the output says which unit it is. It survives review because the wrong number is
+plausible — it differs from the right one only when a subject happens to have more
+than one record, which is the case nobody has yet.
+- **Instances**: `SubagentStop` rows counted as seats — 165 against 20 transcripts
+  (#189) — fixed at the instance by making `kind` authoritative at schema 4. The same
+  defect returned at the next surface: a seat that is CONTINUED stops again, so one
+  seat carried two rows, `coverage` printed 15 rows as 15 seats beside a per-FILE
+  disk count, and the repeated seat appeared under `MISSING` twice (§11.12). The
+  first fix's own code comment predicted the miscount and the recount was written
+  anyway.
+- **Sweep question**: for every count this surface prints, what is ONE of the thing
+  being counted — and is the number it is compared against counted in that same unit?
+  Where two units are genuinely both wanted, does the output NAME each?
+- **Neighbour**: `lossy-channel-substitution` — there a consumer is handed a derived
+  channel and cannot tell it is derived.
+- **Distinguisher**: is anything missing from the stream? If the consumer needed the
+  source and got a projection, that is lossy-channel-substitution. If the stream is
+  complete and the count is simply over the wrong thing, it is this.
+
 ## Minting a new class
 
 Same discipline as the gap registry: a new class needs a slug, a one-line
