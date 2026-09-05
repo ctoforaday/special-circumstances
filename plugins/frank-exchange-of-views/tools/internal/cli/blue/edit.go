@@ -163,12 +163,7 @@ func planEdit(report, old, new string) (string, error) {
 	if err := bluedoc.AnchorsTransitUnchanged("blue edit", report[start:end], new); err != nil {
 		return "", err
 	}
-	next := report[:start] + new + report[end:]
-	// SPLICE HYGIENE (see splice.go): tidy the two seams this edit created before anything else
-	// looks at the result. Deterministic, narrow, and silent — the alternative, measured, is blue
-	// spending a third of a round repairing its own doubled punctuation by hand.
-	next, _ = tidySeam(next, start+len(new)) // trailing seam first — the later offset is stable
-	next, _ = tidySeam(next, start)
+	next := applySplice(report, start, end, new)
 	if dropped := droppedMarker(report, next); dropped != "" {
 		return "", fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
 	}
