@@ -2,14 +2,13 @@ package blue
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // newClaimIndex enumerates where each footnoted claim appears in blue's report —
@@ -51,17 +50,15 @@ func newClaimIndex() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			runDir := run.Dir()
-			path := filepath.Join(runDir, "blue", "report.md")
-			md, err := os.ReadFile(path)
+			md, err := reportproj.RenderFromRecord(run)
 			if err != nil {
-				return feov.Errorf(feov.MissingField, "claim-index: cannot read %s: %v", path, err)
+				return feov.Errorf(feov.MissingField, "claim-index: cannot read the report: %v", err)
 			}
 			enc := json.NewEncoder(cmd.OutOrStdout())
 			enc.SetIndent("", "  ")
 			return enc.Encode(struct {
 				Claims []claimcount.LabelOccurrences `json:"claims"`
-			}{Claims: claimcount.Index(string(md))})
+			}{Claims: claimcount.Index(md)})
 		},
 	}
 }

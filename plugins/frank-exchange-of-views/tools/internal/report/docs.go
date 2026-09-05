@@ -27,6 +27,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // Doc is one document in a run's report set: the file it lands in, how the link bar and the
@@ -65,7 +66,7 @@ func Files() []string { return append([]string(nil), docOrder...) }
 // It writes nothing; Assemble does that. Docs with an empty body are omitted entirely — a run
 // with no motions has no judgments.md, and no empty heading standing in for one.
 func AssembleAll(run record.Run) ([]Doc, error) {
-	blue := readOr(filepath.Join(run.Dir(), "blue", "report.md"), "")
+	blue := blueReport(run)
 
 	board, err := record.BoardState(run)
 	if err != nil {
@@ -209,8 +210,19 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 
 // Title returns the run's short title — the H1 every document in the set opens with.
 func Title(run record.Run) string {
-	t, _ := heading(readOr(filepath.Join(run.Dir(), "blue", "report.md"), ""))
+	t, _ := heading(blueReport(run))
 	return t
+}
+
+// blueReport renders the report projection (#709), or "" on any error — no base ingested yet, an
+// unreadable record. The callers here compose the whole document set best-effort; a missing report
+// yields an empty blue section, never a failed assembly.
+func blueReport(run record.Run) string {
+	md, err := reportproj.RenderFromRecord(run)
+	if err != nil {
+		return ""
+	}
+	return md
 }
 
 // sections accumulates the composed blocks of one document, dropping the empties. It is the

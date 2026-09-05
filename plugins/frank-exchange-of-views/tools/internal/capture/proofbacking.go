@@ -2,13 +2,12 @@ package capture
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // A CLAIM THAT SAYS "MEASURED" MUST POINT AT THE MEASUREMENT.
@@ -58,11 +57,10 @@ func ProofBackingAudit(run record.Run) Audit {
 	// BLUE'S REPORT, NOT THE ASSEMBLED ONE, and the two are not interchangeable here. Assembly
 	// WEAVES proof anchors into visible [^Pn] footnotes and the raw tokens are gone by design
 	// (the thing FootnoteIntegrity judges). The anchors only exist to be joined in blue/report.md.
-	blue := filepath.Join(run.Dir(), "blue", "report.md")
-	md, err := os.ReadFile(blue)
+	md, err := reportproj.RenderFromRecord(run)
 	if err != nil {
 		return Audit{Check: "proof-backing", Verdict: "SKIP",
-			Detail: fmt.Sprintf("no blue/report.md to read (%v) — proof anchors live there and are woven away at assembly, so there is nothing to join", err)}
+			Detail: fmt.Sprintf("no report to read (%v) — proof anchors live in the report projection and are woven away at assembly, so there is nothing to join", err)}
 	}
 	proofs, err := record.RecordedProofs(run)
 	if err != nil {

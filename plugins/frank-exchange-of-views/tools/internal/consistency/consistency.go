@@ -26,8 +26,6 @@ package consistency
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -35,6 +33,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/graph"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -367,12 +366,11 @@ func Check(run record.Run) ([]string, error) {
 
 	// ---- the anchor layer: report tokens and record events are a bijection ----
 	//
-	// Splice and append are TWO ACTS with no transaction over them: `blue cite` mutates
-	// blue/report.md first and records the cite event second, so a crash between the two leaves
-	// an anchor token no event backs — and the crash-retry mints a FRESH label and splices a
-	// second anchor beside the orphan. Neither direction of the mismatch is legal in a settled
-	// record, and this rule is what makes the torn state visible at all.
-	if rep, rerr := os.ReadFile(filepath.Join(run.Dir(), "blue", "report.md")); rerr == nil {
+	// Under report-as-record (#709) the report IS the projection of these events — render places
+	// only recorded markers — so this direction holds by construction and the torn-splice state
+	// (an anchor token no event backs, from a crash between a file splice and its append) can no
+	// longer arise. The check stays as the standing proof of that bijection.
+	if rep, rerr := reportproj.RenderFromRecord(run); rerr == nil {
 		inReport := map[string]bool{}
 		for _, m := range anchorToken.FindAllStringSubmatch(string(rep), -1) {
 			inReport[m[1]] = true

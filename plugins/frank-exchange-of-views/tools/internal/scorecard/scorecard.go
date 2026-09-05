@@ -27,6 +27,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
 
@@ -424,10 +425,11 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	for id := range expectedSet {
 		expected = append(expected, id)
 	}
-	md, _ := os.ReadFile(filepath.Join(run.Dir(), "blue", "report.md"))
-	// The shared EXPECTED⊄PRESENT check — the same helper the blue-report lockdown's
-	// PostToolUse backstop uses, so the detector and the live gate cannot drift.
-	droppedMarkers := len(claimcount.MissingAnchorIDs(expected, string(md)))
+	// The report is the record projection now (#709): render replays only recorded markers, so
+	// EXPECTED⊄PRESENT is structurally 0 — a dropped marker cannot exist. The check stays as the
+	// standing proof of that invariant.
+	md, _ := reportproj.RenderFromRecord(run)
+	droppedMarkers := len(claimcount.MissingAnchorIDs(expected, md))
 	rows = append(rows, Row{Clause: "TAMPER: dropped finding-markers", Metric: "dropped_finding_markers", Cls: "detector",
 		Value: droppedMarkers,
 		Note:  strconv.Itoa(len(expectedSet)) + " finding-marker(s) anchored, " + strconv.Itoa(droppedMarkers) + " missing from the report",

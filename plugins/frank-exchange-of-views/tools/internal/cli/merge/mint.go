@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // mint: put a gap on the board.
@@ -104,11 +105,11 @@ func newMint() *cobra.Command {
 		// "not found in report.md" and has an omission on its hands would otherwise conclude
 		// the verb cannot express what it is holding.
 		if loc := seat.Str(cmd, flags.Quote); strings.TrimSpace(loc) != "" {
-			report, err := record.ReadBlueReport(run)
+			report, err := reportproj.RenderFromRecord(run)
 			if err != nil {
 				return nil, err
 			}
-			if _, _, lerr := bluedoc.LocateUnique("merge mint --quote", string(report), loc); lerr != nil {
+			if _, _, lerr := bluedoc.LocateUnique("merge mint --quote", report, loc); lerr != nil {
 				return nil, fmt.Errorf("%w\n\nQuote the exact sentence the defect lives at, from blue/report.md and nothing else — a section heading plus a sentence will not match. For a gap about something MISSING, quote the sentence where it SHOULD be; that is how a lens finding anchors an omission", lerr)
 			}
 		}
@@ -130,11 +131,11 @@ func newMint() *cobra.Command {
 		// gap id are tool-assigned rather than claimed.
 		basis := "proposed"
 		if fixNew := seat.Str(cmd, flags.New); fixNew != "" {
-			report, err := record.ReadBlueReport(run)
+			report, err := reportproj.RenderFromRecord(run)
 			if err != nil {
 				return nil, err
 			}
-			if err := bluedoc.ValidateProposal("merge mint", string(report), seat.Str(cmd, flags.Quote), fixNew); err != nil {
+			if err := bluedoc.ValidateProposal("merge mint", report, seat.Str(cmd, flags.Quote), fixNew); err != nil {
 				return nil, err
 			}
 			p.FixNew = proto.String(fixNew)
