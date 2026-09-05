@@ -24,7 +24,7 @@ func capture(t *testing.T) *[]handoffArgs {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stub := filepath.Join(filepath.Dir(self), writerName)
+	stub := filepath.Join(filepath.Dir(self), writerFileName())
 	if err := os.WriteFile(stub, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
 		t.Skipf("cannot place a writer beside the test binary: %v", err)
 	}

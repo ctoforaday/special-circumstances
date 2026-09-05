@@ -124,6 +124,16 @@ var spawn = func(writer, runDir, phase, agentID, agentType string) {
 	).Run()
 }
 
+// writerFileName is the writer's name on this platform. It exists so the test that places a stub
+// beside the test binary spells the name the same way this does — the two spelled it separately
+// once, and the Windows leg failed while Linux passed, because only one of them added `.exe`.
+func writerFileName() string {
+	if runtime.GOOS == "windows" {
+		return writerName + ".exe"
+	}
+	return writerName
+}
+
 // writerPath locates the writer beside this executable, or "" when it cannot be found — which is
 // the bootstrap window before `doctor --fix` has built the binaries, and is a silence rather than
 // an error for the same reason the shell guard in hooks.json is.
@@ -132,10 +142,7 @@ func writerPath() string {
 	if err != nil {
 		return ""
 	}
-	p := filepath.Join(filepath.Dir(self), writerName)
-	if runtime.GOOS == "windows" {
-		p += ".exe"
-	}
+	p := filepath.Join(filepath.Dir(self), writerFileName())
 	if _, err := os.Stat(p); err != nil {
 		return ""
 	}
