@@ -159,6 +159,18 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   `("grade" IS NOT NULL) + … <= 1` mutual-exclusion CHECK, and a `ruling_case TEXT` column appears on
   the parent once any arm is a message. That last is a new column on `motion_rule`, and it is a
   schema change the DDL regenerates rather than a migration to hand-write.
+
+  **AND THE DEPARTURE IS ARGUED AGAINST THE COMMENT THAT ARGUES THE OTHER WAY.**
+  `record.proto:356-357` says the rulings are separate enums "rather than one flat set" *because the
+  ruling vocabulary is keyed on the subject* — granted|denied for a petition, accepted|rejected for a
+  grade, and "a ruling nothing recognizes reads as no ruling at all". **That reason does not argue
+  against a message arm, and it is not the reason docket needs one:** docket's vocabulary is the
+  shared `Disposition` enum (#342), so on vocabulary alone `Disposition docket = 13` — a plain enum
+  arm — would satisfy that comment exactly. The departure is forced by the six REASON fields
+  (`principle`, `tension`, `review_flag`, `settled`, `reopens_on`, `final`) and the two constraints
+  over them, which an enum arm cannot hold and which N8 forbids dropping. So: the vocabulary stays
+  keyed on the subject as that comment demands, and the arm is a message because the bench records
+  an argument as well as a word.
 - **`DocketRuling`'s fields: eight, and the two `check` options.** `disposition` (the shared
   `Disposition` enum, #342 — by reference, not transcription), `principle`, `tension`,
   `review_flag`, `rationale`, `settled`, `reopens_on`, `final`; plus `reopens_on XOR final` and
