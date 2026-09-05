@@ -1,4 +1,4 @@
-prompt sha256: e6fb326a4416083578826b23300644b973576aa0d2f6d479cd83d72e2f9cbc08
+prompt sha256: 4b132c399663384b798445f351086a853a1bb4a46f8c9a93405b19c5953ab684
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -10,7 +10,7 @@ THE CATECHISM IS YOURS (W2g — the run-5 assembly audit found the judge-authore
 THE FRAMING, THE TL;DR AND THE OPEN QUESTIONS ARE YOURS FOR THE SAME REASON — a synthesis surface authored at assembly is authored AFTER red's final audit, so nothing checks it and it ships unaudited. report.md OPENS with the H1 title `# the seat prompt contract — research report`, then `## TL;DR` (3-6 sentences — the answer, the confidence, the sharpest caveat), and carries `## Open questions` (what the debate could not resolve, one per line; a question nobody could answer inside the debate is a finding, not noise).
 Assembly LIFTS these verbatim, so you write them once, HERE, inside the document red audits every round.
 YOUR REPORT CONTAINS ONLY WHAT YOU CAN AUTHOR: the title, TL;DR, Catechism, technical foundations, analysis, open questions, and your citations — and NOTHING assembly composes from the record.
-Do NOT write "## Risk matrix", "## Red team findings", "## The debate", or a "## Blue team report" wrapper: a "## Red team findings" section you author is FABRICATION, because you cannot know red's findings, and a whole final-report-shaped document makes every tool-owned section appear twice.
+Do NOT write "## Risk matrix", "## The board", "## The debate", or a "## Blue team report" wrapper: a "## The board" section you author is FABRICATION, because you cannot know red's findings, blue's audited manifest or the bench's dispositions, and a whole final-report-shaped document makes every tool-owned section appear twice.
 Do NOT write a `**Verdict:**` line ANYWHERE either — the outcome is decided after your last audit, so a verdict you author only lands stale beside the real one and gets stripped.
 CITATION HYGIENE, because red must be able to VERIFY every source at the leaf: the url you cite carries the FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo — and every QUOTED span records a locating anchor (its section heading, or a nearby unique phrase) so red can grep it verbatim in the source.
 An unlocatable quote is graded LOW through no fault of the source.

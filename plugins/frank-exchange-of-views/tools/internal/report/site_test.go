@@ -20,7 +20,7 @@ func siteFixture(t *testing.T) (string, *record.Board) {
 	}
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Blurb: "the research", Body: "## Read this first\n\nR1-1 is still open.\n"},
-		{File: FileDocket, Nav: "Docket", Blurb: "the gaps", Body: "### R1-1 — eviction races the reader\n\ncache.go:88\n"},
+		{File: FileDocket, Nav: "Board", Blurb: "the gaps", Body: "### R1-1 — eviction races the reader\n\ncache.go:88\n"},
 	}
 	return RenderSite("# Whether the cache is coherent", docs, board), board
 }
@@ -94,7 +94,7 @@ func TestCrossDocumentIdsAreLinkedInTheSite(t *testing.T) {
 	}
 }
 
-// THE SET'S OWN LINKS ARE DEAD IN ONE FILE unless they are rewritten. `[the docket](docket.md)`
+// THE SET'S OWN LINKS ARE DEAD IN ONE FILE unless they are rewritten. `[the board](docket.md)`
 // is exactly right in the markdown tier and points at a document that does not exist as a file
 // when the whole set is one page.
 func TestSiblingLinksBecomeTabSwitches(t *testing.T) {

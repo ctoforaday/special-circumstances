@@ -1182,9 +1182,9 @@ test('W2g: blue authors the catechism at round 0 inside the audited report; asse
   const synth = world.calls.find((c) => c.opts.label.startsWith('blue-synthesize'))
   assert.ok(synth.prompt.includes('THE CATECHISM IS YOURS') && synth.prompt.includes('## The Catechism'), 'catechism is blue round-0 duty')
   assert.ok(synth.prompt.includes('every risk-accepted residual'), 'against-case at full strength demanded (the E0.5h/catechism-audit omission class)')
-  // Blue authors ONLY its surfaces — not the tool-composed ones. A "## Red team findings"
+  // Blue authors ONLY its surfaces — not the tool-composed ones. A "## The board"
   // blue writes is fabrication (it cannot know red's findings) and duplicates the tool.
-  assert.ok(synth.prompt.includes('## Red team findings') && synth.prompt.includes('is FABRICATION'), 'blue is forbidden the record-composed sections; authoring them is fabrication')
+  assert.ok(synth.prompt.includes('## The board') && synth.prompt.includes('is FABRICATION'), 'blue is forbidden the record-composed sections; authoring them is fabrication')
   assert.ok(synth.prompt.includes('ONLY WHAT YOU CAN AUTHOR'), 'blue report scope is bounded to its own surfaces')
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
   assert.ok(assemble.prompt.includes('cannot mis-author a synthesis surface') && /do not copy anything into it yourself/.test(assemble.prompt), 'the tool composes/lifts; the seat is told to author nothing and copy nothing')
