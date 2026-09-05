@@ -24,8 +24,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -136,7 +134,7 @@ type Context struct {
 	// prevent, still live on every READ verb because only Begin honoured the refusal.
 	//
 	// Returning an empty runDir instead does not fix it, and the reason is worth keeping after
-	// the fact: readers used to answer "" with a SECOND `seat.InferRunDir("")` below Of()'s own,
+	// the fact: readers used to answer "" with a SECOND `runlive.InferRunDir("")` below Of()'s own,
 	// so the refusal was swallowed one layer down and resolved quietly to the real run. Those
 	// fallbacks are gone now — reachable only on a refusal, they were only ever wrong — but the
 	// argument is what keeps them from coming back. "" already means "nothing supplied one";
@@ -248,7 +246,7 @@ func BoundSeat(run record.Run) func() (string, error) {
 
 func Of(cmd *cobra.Command) Context {
 	runDir, _ := cmd.Flags().GetString(flags.Run)
-	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string { return InferRunDir("") })
+	resolved, via, err := seatenv.ResolveWithSource(runDir, func() string { return runlive.InferRunDir("") })
 	if err != nil {
 		// NO RUN DIRECTORY LEAVES HERE. A caller holding one it was refused is a caller that
 		// will use it, and every reader below this point trusts what it is handed.
@@ -297,67 +295,6 @@ func roleOf(cmd *cobra.Command) string {
 		return ""
 	}
 	return cmd.Root().Annotations[RoleKey]
-}
-
-// InferRunDir answers "which run am I in?" from the live-run marker instead of
-// requiring every call to say so.
-//
-// The first live run measured 55 tool-call errors in 534 executions, and TEN of them
-// were this one flag: a seat copies the engine's `register --run <dir> --seat-id <id>`
-// line, then improvises later verbs and drops the flags. Shell state does not persist
-// between tool calls, so the seat cannot export it once; there is no per-agent
-// environment variable to carry it; and the engine is a sandboxed script that cannot
-// set one. But the answer is already on disk — setup writes .claude/run-live.json with
-// the runDir, and the hook guards already read it.
-//
-// An explicit --run always wins: inference is a fallback for the seat that forgot, not
-// a new source of truth. The marker's runDir is project-relative, so it resolves
-// against the directory holding .claude/, and an inferred directory that does not
-// exist is discarded rather than passed on — a wrong answer here would attach a seat's
-// events to the wrong run, which is worse than the error it replaces.
-func InferRunDir(start string) string {
-	dir := start
-	if dir == "" {
-		if p := os.Getenv("CLAUDE_PROJECT_DIR"); p != "" {
-			dir = p
-		} else if wd, err := os.Getwd(); err == nil {
-			dir = wd
-		}
-	}
-	for i := 0; dir != "" && i < 12; i++ {
-		marker := filepath.Join(dir, ".claude", "run-live.json")
-		if _, err := os.Stat(marker); err == nil {
-			// THROUGH THE PACKAGE THAT OWNS THE FILE, never a private decode of it.
-			//
-			// This used to unmarshal its own `struct{ RunDir string }` — a second reader of a
-			// shape stated elsewhere, which is the defect RunLiveMarker's own comment names.
-			// It broke the moment the marker became a list (#529): the private decoder found no
-			// `runDir` key, inference stopped resolving anything, and the LIVE symptom was a
-			// verb asking for --run — which is exactly what it asks when no run is open, so the
-			// regression read as correct behaviour. Five tests caught it; driving it by hand did
-			// not, and would not have.
-			//
-			// ok=false now also covers MORE THAN ONE run open, which is the answer inference
-			// should give there: with two runs live there is no single run to infer, and the
-			// marker's own rule for an unusable state is to say nothing rather than guess.
-			if m, ok := runlive.ReadRunLiveMarker(dir); ok {
-				resolved := m.RunDir
-				if !filepath.IsAbs(resolved) {
-					resolved = filepath.Join(dir, resolved)
-				}
-				if st, err := os.Stat(resolved); err == nil && st.IsDir() {
-					return resolved
-				}
-			}
-			return "" // marker present but unusable: say nothing rather than guess
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return ""
 }
 
 // Result is a verb's outcome: its OWN typed value, defined in the verb's own file, that

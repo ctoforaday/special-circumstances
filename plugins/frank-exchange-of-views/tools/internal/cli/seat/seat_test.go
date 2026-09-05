@@ -151,7 +151,7 @@ func TestTheContextCarriesWhichPathSuppliedTheRun(t *testing.T) {
 // prevent, still live because only Begin honoured the refusal.
 //
 // Returning "" instead would not have fixed it. Five readers answer "" with
-// `runDir = seat.InferRunDir("")`, so the refusal would be swallowed a second time and resolve
+// `runDir = runlive.InferRunDir("")`, so the refusal would be swallowed a second time and resolve
 // quietly to the real run: "" already means "nothing supplied one", and making it also mean
 // "you were refused" is two states in one byte with the healthy one winning by default.
 func TestARefusedRunIsCarriedNotHandedBack(t *testing.T) {

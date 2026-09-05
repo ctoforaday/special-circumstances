@@ -25,6 +25,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/bench"
@@ -126,7 +127,7 @@ func newRoot() *cobra.Command {
 // pre-parse scan of os.Args for --run would be a second flag parser guessing at the same fact.
 // Where no run resolves there is no record to ask, so the answer is the flag or nothing.
 func dispatchedSeat() string {
-	runDir, err := seatenv.Resolve("", func() string { return seat.InferRunDir("") })
+	runDir, err := seatenv.Resolve("", func() string { return runlive.InferRunDir("") })
 	if err != nil {
 		return seatenv.Dispatched(nil)
 	}

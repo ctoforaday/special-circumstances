@@ -414,7 +414,7 @@ func TestUnjoinablePatternClassesAreNamed(t *testing.T) {
 // A SECOND RUN OPENS, AND THE FIRST ONE IS NAMED. Driven end to end (#529).
 //
 // This gate used to REFUSE, for a reason it stated itself: the stale marker was what
-// seat.InferRunDir handed to every verb invoked without --run, so a run left open misdirected
+// runlive.InferRunDir handed to every verb invoked without --run, so a run left open misdirected
 // the next one's seats. #526 removed that — setup bakes the run into <runDir>/.bin/feov-record,
 // so a seat carries its run in its own environment and never has to ask, and ReadRunLiveMarker
 // now declines to answer at all when more than one run is open.
