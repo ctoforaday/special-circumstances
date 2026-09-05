@@ -291,6 +291,32 @@ nobody states is the cost facts-are-fields warns about. If a bench ever needs "r
 considered lineage and found none" as distinct from "red did not address lineage", that is
 the moment — and it is one field.
 
+## Status (2026-09-04) — step 4 landed
+
+**The hand-written projections are queries** (#700 board slices, #701 write-path lookups,
+#703 motion joins — one PR per mechanism group, each conversion holding its fold's exact
+contract and carrying a parity test that seeds the fold's edges through the real write
+path). `board_counts` and `gap` now have production readers; `convergence_vs_verdict`
+already did. The write path no longer replays the whole record to mint an id or check a
+reference — every such question is one indexed SELECT.
+
+**What deliberately stays a fold, and why it is a decision rather than a leftover** (each
+reason also lives at its site): the consistency oracle's raw walk (converting the ground
+truth into a projection makes the oracle a tautology); `lastActivity` (SQL's date parsing
+is a DIFFERENT timestamp parser than Go's RFC3339Nano and silently mis-sorts a
+fraction-less stamp); `CitedSources`/`CitationLabels`/`RecordedProofs` (one Go rule shared
+with board-shaped twins — a SQL fork recreates the two-copies defect); seatprobe (needs
+full event bodies, which is `Events`'s job); `requirePassClosesAllGaps`'s motion arm (its
+"unruled" is not "no rule row": an empty-armed ruling reads as unanswered and a direction
+motion is created by its ruling; the gate runs once per verdict). The motion guards read
+BASE tables, not `motion_state` — the view is one-row-per-motion only by grace of the very
+guards converted, and it stays for readers wanting the joined row.
+
+**Still open in this line, gated on evidence:** `BoardState` itself as SQL. Deferred
+2026-09-03 when removing the read path's N+1 (whole-table scans per read, #700's sibling
+work) dropped `internal/cli` solo from 1,316s to 878s — the fold is no longer the dominant
+cost anywhere measured. Reopen if a fresh sweep shows board renders dominating again.
+
 ## Status (2026-08-22)
 
 **The cutover is done and driven.** The record is one SQLite database per run, verified
