@@ -174,8 +174,7 @@ func TestCountClaimsRefusesWhenThereIsNoReport(t *testing.T) {
 // some other way — a hand-edited shard, a legacy run, a live gate that regressed — is exactly
 // and only what an after-the-fact verifier is for, so that is the record this test builds.
 func TestVerifyExitsNonZeroWhenAnInvariantFails(t *testing.T) {
-	runDir := seatRun(t)
-	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	runDir := seatRunReport(t, "# H\n\nFive independent verification approaches agree.\n")
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "G1", "--class", "overclaim",
 		"--quote", "Five independent verification approaches agree.",

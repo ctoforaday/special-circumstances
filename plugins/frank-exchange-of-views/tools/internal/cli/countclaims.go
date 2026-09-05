@@ -3,8 +3,6 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -12,6 +10,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // newCountClaims computes claim_count from blue's report deterministically. Like
@@ -41,12 +40,11 @@ func newCountClaims() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			path := filepath.Join(run.Dir(), "blue", "report.md")
-			md, err := os.ReadFile(path)
+			md, err := reportproj.RenderFromRecord(run)
 			if err != nil {
-				return feov.Errorf(feov.MissingField, "count-claims: cannot read %s: %v", path, err)
+				return feov.Errorf(feov.MissingField, "count-claims: cannot read the report: %v", err)
 			}
-			n := claimcount.Count(string(md))
+			n := claimcount.Count(md)
 
 			if jsonMode, _ := cmd.Flags().GetBool(flags.JSON); jsonMode {
 				_ = json.NewEncoder(cmd.OutOrStdout()).Encode(struct {

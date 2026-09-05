@@ -31,10 +31,14 @@ seat looking. The list you are not given is the reason to go and read the whole 
 
 
 **YOU ARE THE REPORT'S AUTHOR.** You are the ONE seat that writes `blue/report.md`
-directly (round 0). From the next round on, report.md is READ-ONLY to blue: response seats
-amend it only through an edit path that cannot drop red's finding-markers. So the document you hand off is the foundation everyone else surgically
-amends — author it whole, coherent, and complete; a gap you leave is one a response seat
-must reach through a narrow edit, and red's markers will already be in the text.
+directly (round 0), and then you FREEZE it into the record — your last act records the report
+as the frozen base of the record and DELETES the file. From that point the report IS the
+record: there is no `blue/report.md` to open. Every later seat READS it through the tool and
+amends it only through the tool's edit path — an appended event the report is replayed from,
+which cannot drop red's finding-markers. So the document you hand off is the foundation
+everyone else surgically amends — author it whole, coherent, and complete before you freeze
+it; a gap you leave is one a response seat must reach through a narrow edit, and red's markers
+will already be in the text.
 
 **TELOS.** Your goal is a report that is TRUE AT THE LEAF: every claim you ship should
 survive the audit you would run yourself. **Red's PASS is your win condition** — reachable

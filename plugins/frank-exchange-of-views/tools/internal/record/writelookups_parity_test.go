@@ -127,14 +127,8 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if err := requireFindings(run, []string{"L1-F1", "L9-F9"}, "mint", "--found-by"); err == nil || !strings.Contains(err.Error(), "L9-F9") {
 		t.Errorf("requireFindings must name the first missing label: %v", err)
 	}
-	if !FindingMarkerRecorded(run, "f-0a0a0a0a") || FindingMarkerRecorded(run, "f-ffffffff") {
-		t.Error("FindingMarkerRecorded disagrees with the recorded finding ids")
-	}
 	if exists, err := AnchorEventExists(run, "f-0a0a0a0a"); err != nil || exists {
 		t.Errorf("AnchorEventExists = (%v, %v) — no anchor event was appended for this finding", exists, err)
-	}
-	if ProofMarkerRecorded(run, "p-00000000") {
-		t.Error("ProofMarkerRecorded found a proof nobody recorded")
 	}
 
 	if err := requireSeat(run, "red-merge-r1", "rule", "--by"); err != nil {

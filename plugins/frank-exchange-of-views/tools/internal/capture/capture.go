@@ -1754,9 +1754,6 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		// Round 0's declared breadth against the lane seats that actually took theirs — the one
 		// run-config field nothing reconciled. See lanecoverage.go.
 		LaneCoverageAudit(run),
-		// The proof axis's missing detector: does a claim framed as measured point at the
-		// measurement, and does the measurement reach the claim. See proofbacking.go.
-		ProofBackingAudit(run),
 	}
 
 	cwd, _ := os.Getwd()

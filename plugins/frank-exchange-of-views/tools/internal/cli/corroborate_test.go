@@ -4,7 +4,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -57,10 +56,7 @@ func TestASupportingCorroborationRendersAsAFootnote(t *testing.T) {
 
 	// The anchor is spliced into the report, invisibly, exactly as blue's cite and red's
 	// finding markers already are.
-	md, err := os.ReadFile(filepath.Join(runDir, "blue", "report.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	md := readReport(t, runDir)
 	if !strings.Contains(string(md), "<!--cite:c-") {
 		t.Fatalf("no citation anchor was spliced at the corroborated sentence:\n%s", md)
 	}
@@ -88,10 +84,7 @@ func TestARefutingCorroborationIsNotSplicedAsAFootnote(t *testing.T) {
 		"--reason", "the source says the opposite at page 9"); err != nil {
 		t.Fatalf("a refuting corroboration was refused — it is red's strongest finding on this axis and must still record: %v", err)
 	}
-	md, err := os.ReadFile(filepath.Join(runDir, "blue", "report.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	md := readReport(t, runDir)
 	if strings.Contains(string(md), "<!--cite:c-") {
 		t.Errorf("a REFUTING source was spliced as a citation — the reader would meet it as a reference backing the sentence it contradicts:\n%s", md)
 	}

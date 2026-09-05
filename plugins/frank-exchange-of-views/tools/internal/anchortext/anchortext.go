@@ -1,9 +1,19 @@
-package lens
+// Package anchortext is the report-text geometry of immortal anchors: how a quoted span is
+// LOCATED across the invisible annotation layer (LocateSpan and its scoped/unique variants) and
+// how a marker is PLACED at that span (InsertAnchor). It is the sibling of
+// internal/anchor — that leaf owns the anchor VOCABULARY (Token, Label, the class grammar), this
+// one owns where an anchor SITS in the document.
+//
+// It lived in internal/cli/lens, which made it unreachable to any package cli/lens imports. Under
+// report-as-record (#709) the report is REPLAYED from the record by internal/reportproj, which
+// must re-place every marker — and cli/lens must read the replayed report to locate its own
+// splice, so cli/lens now imports reportproj. Geometry in cli/lens would have closed that loop
+// into a cycle. It depends on nothing but the standard library and the internal/anchor leaf, so
+// reportproj, cli/lens, cli/blue and bluedoc can all share the one locator.
+package anchortext
 
 import (
 	"errors"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
-	"regexp"
 	"strings"
 )
 
@@ -212,22 +222,11 @@ func matchFrom(report string, start int, nq string, scope SpanScope) (int, int, 
 	return firstContent, lastContentEnd, true
 }
 
-// LocateSpanUnique is LocateSpan plus an AMBIGUITY verdict: it reports whether the quote matches
-// at MORE THAN ONE place. LocateSpan takes the first match and says nothing, which is silent
-// mis-targeting — the edit or the anchor lands on the wrong occurrence and no one is told.
-//
-// The risk is structural rather than hypothetical: debate.js instructs blue to "propagate every
-// correction to ALL sites that state the corrected claim", so repeated text is the EXPECTED shape
-// of a mature report, and the claim-index exists precisely because one claim appears at many
-// sites. A short quote ("7 is prime", a bare figure) collides easily. The 2026-08-04 smoke showed
-// zero collisions, but its report was 56 lines; the run before it reached 1,668.
-//
-// Callers should refuse an ambiguous quote and ask for more context rather than guess.
-func LocateSpanUnique(report, quote string) (start, end int, ambiguous bool) {
-	return LocateSpanUniqueScoped(report, quote, StopAtParagraph)
-}
-
-// LocateSpanUniqueScoped is LocateSpanUnique with the boundary rule stated by the caller.
+// LocateSpanUniqueScoped reports whether the quote matches at MORE THAN ONE place, with the
+// boundary rule stated by the caller — the AMBIGUITY verdict `blue edit`'s uniqueness guard needs
+// (LocateSpan takes the first match and says nothing, which is silent mis-targeting). The
+// boundary-free wrapper LocateSpanUnique went with report-as-record's torn-splice removal, its only
+// caller; bluedoc still calls this scoped form.
 func LocateSpanUniqueScoped(report, quote string, scope SpanScope) (start, end int, ambiguous bool) {
 	start, end = LocateSpanScoped(report, quote, scope)
 	if start < 0 {
@@ -298,57 +297,8 @@ func insideFence(report string, at int) bool {
 	return false
 }
 
-// orphanClass matches one anchor class; group 1 is the id. Built per call from the class word so
-// the three splicing verbs cannot drift on the token grammar.
-func orphanClass(class string) *regexp.Regexp {
-	return regexp.MustCompile(`<!--` + regexp.QuoteMeta(class) + `:([a-z]-[0-9a-f]+)-->`)
-}
-
-// OrphanAnchorAt returns the id of an anchor of `class` sitting in the located quote's own
-// anchor run that `recorded` does not know — the state a crash between a committed splice and
-// its event append leaves behind — or "" when the sentence carries no such orphan.
-//
-// THE THREE SPLICING VERBS SHARE ONE CRASH SHAPE. `blue cite`, `lens finding` and `blue prove`
-// all mutate blue/report.md first and append their event second, and all three carry crash-retry
-// keys because a killed process is this record's ordinary weather. A retry that only looks for a
-// prior EVENT sees a fresh act and splices a SECOND marker beside the orphan: one sentence, two
-// tokens, one of them immortal and backing nothing. Adoption is the other half of the retry —
-// the orphan on this very sentence IS the interrupted first attempt, and the retry finishes it.
-// (`blue edit` met the same window from the other side and reconciles event-first; these verbs
-// splice first because a mis-quote must be refused before anything is written.)
-//
-// IT LIVES BESIDE InsertAnchor AND USES ITS LOCATOR, so the sentence the adoption inspects is
-// the sentence the splice would have used — not an approximation of it. The scope is that
-// sentence's own anchor run, never the page: an orphan elsewhere is somebody else's torn act,
-// and adopting it would attach this act's evidence to a sentence it never touched. The walk
-// mirrors the splice's geometry — the token lands between the located span and its trailing
-// punctuation, and abutting runs are ordinary — so token runs and punctuation are stepped over
-// in either order.
-//
-// Every miss returns "": a quote that does not locate, a run with no orphan. The caller then
-// splices fresh, and whatever refusal that path produces is the one the seat should see.
-func OrphanAnchorAt(report, quote, class string, recorded func(id string) bool) string {
-	start, end, ambiguous := LocateSpanUnique(report, quote)
-	if start < 0 || ambiguous {
-		return ""
-	}
-	re := orphanClass(class)
-	j := end
-	for j < len(report) {
-		if next := anchor.SkipRun(report, j); next > j {
-			for _, m := range re.FindAllStringSubmatch(report[j:next], -1) {
-				if !recorded(m[1]) {
-					return m[1]
-				}
-			}
-			j = next
-			continue
-		}
-		if strings.ContainsRune(trailingPunct, rune(report[j])) {
-			j++
-			continue
-		}
-		break
-	}
-	return ""
-}
+// OrphanAnchorAt (torn-splice adoption) lived here: the three splicing verbs mutated
+// blue/report.md first and appended their event second, so a crash between the two left an anchor
+// no event backed, and a retry adopted it rather than splice a rival. Under report-as-record (#709)
+// a marker exists ONLY as its event — there is no file to tear from the append — so the orphan
+// state cannot arise and the adoption is gone with its callers.

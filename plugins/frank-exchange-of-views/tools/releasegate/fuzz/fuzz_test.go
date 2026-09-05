@@ -62,6 +62,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // Capture only seat-id characters — NOT the trailing "." in "SEAT_ID: red-merge-r1." — or the
@@ -635,7 +636,7 @@ func (r *runner) mint(seatID string) string {
 	// as blue's own edit drive does, so a legal pair exists whichever way the last edit left
 	// the file — and both branches (proposal present / prose only) run across the sweep.
 	if r.coin(40) {
-		if cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md")); err == nil {
+		if cur, err := reportproj.RenderFromRecord(r.run()); err == nil {
 			fixOld, fixNew := "rising over time", "climbing sharply"
 			if !strings.Contains(string(cur), fixOld) {
 				fixOld, fixNew = fixNew, fixOld
@@ -1106,7 +1107,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// gap: prose naming a real gap with --answers empty is REFUSED, and this drive must
 		// exercise the path that is allowed to succeed.
 		r.maybe(45, func() {
-			cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+			cur, err := reportproj.RenderFromRecord(r.run())
 			if err != nil {
 				return
 			}
@@ -1923,6 +1924,16 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	r := newRunner(bin, runDir, newLockedRand(seed))
 	r.forceUnverified = forceUnverified
 
+	// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now: blue-synthesize
+	// freezes the seeded report into the record and the file is deleted, exactly as the engine does
+	// after synthesis and before the rounds. Every verb from here reads and mutates the report
+	// through the record — without this, mint/finding/cite/edit all refuse with "no base has been
+	// ingested". Driven at round 0, so base_ingest is no longer exempt from the coverage gate.
+	r.register("blue", "blue-synthesize")
+	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize", "--reason", "freeze the round-0 synthesis into the record"); err != nil {
+		return outcome{seed: seed, runDir: runDir, err: "ingest the round-0 report: " + err.Error()}
+	}
+
 	res = outcome{seed: seed, runDir: runDir}
 	// NAMED RETURN + defer, because this function returns from a dozen places — an oracle that
 	// fires early would otherwise drop the run's apply-miss causes on the floor, which is the
@@ -2401,9 +2412,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	}
 	res.dialectic = tallyDialectic(board)
 	// #256: count the citation axis's two real artifacts (see outcome). A cite that fetched and
-	// anchored leaves BOTH; a cite event alone leaves neither.
-	if md, err := os.ReadFile(filepath.Join(runDir, "blue", "report.md")); err == nil {
-		res.citeAnchors = strings.Count(string(md), "<!--cite:")
+	// anchored leaves BOTH; a cite event alone leaves neither. The report is the record projection
+	// now (#709), so the anchors are counted in the render, not a file.
+	if run, rerr := record.NewRun(runDir); rerr == nil {
+		if md, mErr := reportproj.RenderFromRecord(run); mErr == nil {
+			res.citeAnchors = strings.Count(md, "<!--cite:")
+		}
 	}
 	for _, e := range board.Events {
 		body, ok := recordpb.Body(e)
@@ -2495,6 +2509,9 @@ var verbsWithEvents = []string{
 	// detector's EXPECTED set is exactly these), `class-new` is the growing gap registry's
 	// write, `outcome` is the bench's.
 	"blue_edit", "anchor", "class_new", "outcome", "proof",
+	// base_ingest is the frozen round-0 report (#709), written by `blue ingest` at the start of
+	// every run (runOne) and so REQUIRED by the coverage gate like any other event-emitting verb.
+	"base_ingest",
 	// The remaining schema types, named so the census below has a complete list to check against.
 	"closing", "inquiry_review", "register",
 }
@@ -2646,10 +2663,11 @@ var dialecticProseKey = map[string]string{
 // with its reason. Stated rather than omitted: an absence with no reason is indistinguishable
 // from an oversight, which is precisely how this gate decayed.
 var reportExemptions = map[string]string{
-	"register":  "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
-	"anchor":    "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
-	"blue_edit": "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
-	"class_new": "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
+	"register":    "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
+	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
+	"blue_edit":   "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
+	"base_ingest": "the round-0 report frozen into the record (#709) — its text IS blue's report, the base every projection renders from, which assembly lifts verbatim; rendering it as an entry of its own would duplicate the whole document",
+	"class_new":   "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "reason",
@@ -3182,7 +3200,7 @@ func (r *runner) recentlyEditedOut() string {
 	if err != nil {
 		return ""
 	}
-	cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+	cur, err := reportproj.RenderFromRecord(r.run())
 	if err != nil {
 		return ""
 	}
@@ -3380,7 +3398,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			case gid == "":
 				r.noteApplyMiss("no proposal on the gap (red minted prose-only)")
 			default:
-				cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+				cur, err := reportproj.RenderFromRecord(r.run())
 				switch {
 				case err != nil:
 					r.noteApplyMiss("report unreadable: " + err.Error())
@@ -3467,7 +3485,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 
 // counterEdit makes a real edit that is NOT red's proposed text.
 func (r *runner) counterEdit(seatID, gapID string) {
-	cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+	cur, err := reportproj.RenderFromRecord(r.run())
 	if err != nil {
 		return
 	}
@@ -3707,13 +3725,18 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	// report a lens finding has no anchor quote to attach to and is refused, so red mints nothing
 	// and round 3 is a FAIL with an empty gaps array — the engine's degenerate-merge refusal,
 	// which is correct and is not this path. Without the class registry every `mint` is refused
-	// for an unknown class. runOne does both before it drives; so does this.
+	// for an unknown class. And without INGESTING the report (#709) every verb that reads it is
+	// refused with "no base has been ingested". runOne does all three before it drives; so does this.
 	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
 	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
 		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time.\n"), 0o644)
 	r := newRunner(bin, runDir, newLockedRand(1))
 	if err := record.StageForRun(r.run(), fuzzClasses...); err != nil {
 		t.Fatalf("staging the class registry: %v", err)
+	}
+	r.register("blue", "blue-synthesize")
+	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize", "--reason", "freeze the round-0 synthesis into the record"); err != nil {
+		t.Fatalf("ingest the round-0 report: %v", err)
 	}
 	r.forceUnverified = true
 

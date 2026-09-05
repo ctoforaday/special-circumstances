@@ -10,6 +10,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // retire: the ONLY way substance leaves the report.
@@ -61,8 +62,8 @@ func newRetire() *cobra.Command {
 		// silent deletion.
 		claim := seat.Str(cmd, flags.Quote)
 		basis := record.RemovalAsserted
-		if md, rerr := record.ReadBlueReport(run); rerr == nil {
-			if strings.Contains(string(md), claim) {
+		if md, rerr := reportproj.RenderFromRecord(run); rerr == nil {
+			if strings.Contains(md, claim) {
 				return nil, feov.Errorf(feov.Conflict,
 					"blue retire: %q is still in the report. Retiring is how a removal is EXPLAINED, not how it is performed — remove the text with `blue edit` first, then retire the claim to say why it went and what replaced it",
 					claim)

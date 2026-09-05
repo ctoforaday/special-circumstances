@@ -78,7 +78,7 @@ message Event {
 
   optional uint32 schema_version = 9;   // the format discriminator — see §II.5
 
-  oneof body { /* 32 bodies — the census below is the whole set */ }
+  oneof body { /* 33 bodies — the census below is the whole set */ }
 }
 ```
 
@@ -94,7 +94,7 @@ central artifact is one message per event type, so the set it covers is not an a
 Produced by `grep -rhoE '(record\.)?Append\([^,]+, *[^,]+, *"[a-z_-]+"' --include="*.go"
 internal/cli internal/record internal/capture` (30 types) **plus `register`**, which `Append`
 never writes — `RegisterSeat` mints it directly (`record.go`), so no grep over `Append` can
-see it. **32 messages: 30 + `register` + `inquiry-review`.**
+see it. **33 messages: 30 + `register` + `inquiry-review` + `base-ingest`.**
 
 `inquiry-review` is the 32nd and it is the census's own second blind spot, recorded here rather
 than quietly absorbed. Its predecessor `inquiry-support` (5a70b14, 2026-08-17 00:15) passed the
@@ -123,6 +123,7 @@ gap, not a vocabulary of its own.
 | 14 | `halt` | `Halt` | 30 | `verdict` | `VerdictEvent` |
 | 15 | `manifest-row` | `ManifestRow` | 31 | `verify` | `Verify` |
 | 16 | `mint` | `Mint` | 32 | `inquiry-review` | `InquiryReview` |
+|    |       |        | 33 | `base-ingest` | `BaseIngest` |
 
 The five retired types (`dispute`, `dispute-respond`, `petition`, `petition-rule`,
 `avenue-rule`) get **no message** — that is the deletion (§II.6).

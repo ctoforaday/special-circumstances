@@ -121,14 +121,6 @@ func Assemble(run record.Run) (string, error) {
 	return Write(run, title, docs, indexDoc(run, title, docs, board, board.Events))
 }
 
-func readOr(path, fallback string) string {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return fallback
-	}
-	return string(b)
-}
-
 // blueEmbed returns the parts of blue/report.md NOT already composed elsewhere. Blue's lifted
 // synthesis surfaces are dropped (they appear at the top), and the sections blue must never
 // author — the risk matrix, the board, the debate, a verdict, and now the footnotes /

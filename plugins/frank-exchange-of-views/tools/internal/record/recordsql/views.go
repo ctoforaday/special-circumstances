@@ -102,8 +102,19 @@ SELECT
   m."event_id"                                                                        AS "minted_event"
 FROM "mint" m
 JOIN "events" e ON e."id" = m."event_id"
-LEFT JOIN "close" c ON c."gap_id" = m."gap_id"
-LEFT JOIN "events" ce ON ce."id" = c."event_id"
+-- A gap can be closed more than once — red re-adjudicates across rounds (defect_accepted in
+-- one, repaired in a later one). Take the EARLIEST close, exactly as the bench-close arm below
+-- takes its earliest closing ruling: a plain LEFT JOIN "close" fans out one row per close event,
+-- and a gap with two closes then counts twice in board_counts while the raw event walk counts it
+-- once (a projection disagreement the consistency oracle catches). closed_round's MIN already
+-- assumed the earliest; this makes the row do so too.
+LEFT JOIN (
+  SELECT c0."gap_id" AS "gap_id", MIN(c0."event_id") AS "event_id"
+  FROM "close" c0
+  GROUP BY c0."gap_id"
+) cx ON cx."gap_id" = m."gap_id"
+LEFT JOIN "close" c ON c."event_id" = cx."event_id"
+LEFT JOIN "events" ce ON ce."id" = cx."event_id"
 -- The bench's closing ruling, if it made one. A gap can be ruled on many times — carried in one
 -- round and disposed of in the next — so this is the EARLIEST ruling whose disposition closes,
 -- and whether it closes is read off the vocabulary rather than decided here.
@@ -264,4 +275,35 @@ LEFT JOIN "motion_rule" lr ON lr."event_id" =
   (SELECT MAX(y."event_id") FROM "motion_rule" y
      WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'direction')
 LEFT JOIN "events" lre ON lre."id" = lr."event_id";
+
+-- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The
+-- report is base + this stream replayed, so the SELECTION of which events mutate the text — and
+-- how each names its change — is a projection, authored HERE where every reader sees the same one,
+-- not re-derived by walking every event in Go. Each row is (event_id, kind, a, b):
+--   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay).
+--   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote).
+-- The marker inserters are blue cite, blue prove, the finding's anchor event, and a red
+-- corroboration (a labelled verify). A marker event with no anchor location placed no marker in
+-- THIS report (a board/docket-only citation), so it is excluded rather than replayed as an empty
+-- insert. The FOLD itself stays in Go: replaying a splice needs the running text a prior op left,
+-- which SQL cannot carry — but nothing here builds state by scanning the whole event log.
+CREATE VIEW "report_op" AS
+  SELECT e."id" AS "event_id", 'edit' AS "kind", b."old" AS "a", b."new" AS "b"
+    FROM "blue_edit" b JOIN "events" e ON e."id" = b."event_id"
+  UNION ALL
+  SELECT e."id", 'insert', c."location", c."label"
+    FROM "cite" c JOIN "events" e ON e."id" = c."event_id"
+    WHERE COALESCE(c."location", '') != '' AND COALESCE(c."label", '') != ''
+  UNION ALL
+  SELECT e."id", 'insert', p."location", p."proof_id"
+    FROM "proof" p JOIN "events" e ON e."id" = p."event_id"
+    WHERE COALESCE(p."location", '') != '' AND COALESCE(p."proof_id", '') != ''
+  UNION ALL
+  SELECT e."id", 'insert', a."location", a."id"
+    FROM "anchor" a JOIN "events" e ON e."id" = a."event_id"
+    WHERE COALESCE(a."location", '') != '' AND COALESCE(a."id", '') != ''
+  UNION ALL
+  SELECT e."id", 'insert', v."claim", v."label"
+    FROM "verify" v JOIN "events" e ON e."id" = v."event_id"
+    WHERE COALESCE(v."label", '') != '' AND COALESCE(v."claim", '') != '';
 `

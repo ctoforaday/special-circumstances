@@ -98,6 +98,13 @@ than an absent file: it reads as an empty artifact rather than a missing one. Me
 while the record held 122 events; both are projections now, with no writer and no stub. Anything
 under RECORD above has no file at all — read it with `show <name>`.
 
+`blue/report.md` is a stub the round-0 synthesizer fills and then FREEZES: the freeze records its
+text as the base of the record and DELETES the file (#709). From then it too is a projection —
+there is no `blue/report.md` to open; read the living report through the tool and change it only
+through the tool's edit path, each change an event the report is replayed from. It cannot be
+raw-written or bypassed, which is the point: the report a seat reads and the report the record holds
+are the same bytes, by construction.
+
 **Termination is judged, and the standing practice is stop-and-resume**: `maxRounds` is a cost
 ceiling, never the terminator of record. Red owns PASS/FAIL — *is it defensible*. **The bench
 owns the stopping judgment** — *is it close enough*, the one call that weighs remaining defect

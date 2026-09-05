@@ -231,6 +231,7 @@ enum EventType {
   EVENT_TYPE_VERDICT = 30 [(means) = "red's round gate: PASS or FAIL against the open board"];
   EVENT_TYPE_VERIFY = 31 [(means) = "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"];
   EVENT_TYPE_INQUIRY_REVIEW = 32 [(means) = "a review of the lines of inquiry themselves, rather than of a finding"];
+  EVENT_TYPE_BASE_INGEST = 33 [(means) = "the frozen round-0 report, stored verbatim as the origin the diff-stack replays over"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -477,12 +478,13 @@ message Event {
     Friction friction = 49;
     FrictionNone friction_none = 50;
     InquiryReview inquiry_review = 51;
+    BaseIngest base_ingest = 52;
   }
 
-  // 52-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
-  // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, which
-  // is what the reserve is for — the block shrinks by one and nothing is renumbered.
-  reserved 52 to 80;
+  // 53-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
+  // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review` and 52 for
+  // `base_ingest`, which is what the reserve is for — the block shrinks and nothing is renumbered.
+  reserved 53 to 80;
 }
 
 // TelemetryLine is the per-round projection, NOT a shard event.
@@ -1002,6 +1004,14 @@ message Proof {
   // CONTENT, addressed by proof_sha — content is not a fact about the debate.
   optional string script = 9;
   optional int32 exit = 10;
+
+  // location is the anchoring quote the proof marker was spliced after — the same `--quote` cite
+  // and finding record. prove.go used to DROP it, because the only reader that needed the site
+  // was the marker already in report.md. Under report-as-record (#709) there is no file: the
+  // report is REPLAYED from the record, and the projection re-places the `<!--proof:p-…-->` marker
+  // by re-locating this quote. A site recoverable only from a spliced marker is a fact the record
+  // could not state; this field is that fact, held where a writer can refuse a wrong value.
+  optional string location = 11;
 }
 
 // Reproduce is red re-running a proof. REPRODUCING IS NOT PROVING: `reproduced` is COMPUTED by
@@ -1082,6 +1092,16 @@ message Avenue {
 // BlueEdit is a change to the report. `answers` names the gap the edit responds to, and it is a
 // KEY rather than a convention — the prose habit it replaced linked only 73% of the time, which
 // is reliable enough to look like a key and not reliable enough to be one.
+// BaseIngest is the frozen round-0 report, stored VERBATIM at ingest (issue #709) — the origin the
+// diff-stack replays over. `blue edit` records each change as a BlueEdit; the current report is
+// this text with those edits folded back on. Written ONCE and never rewritten (a second ingest is
+// refused and redirected to `blue edit`), so the report has no writable file — only this base event
+// and its edits. `text` is the whole report, undecomposed: every reader operates on the rendered
+// text, not a document model, so there is nothing to parse and nothing to lose.
+message BaseIngest {
+  optional string text = 1;
+}
+
 message BlueEdit {
   optional string edit_key = 1;
   optional string answers = 2;

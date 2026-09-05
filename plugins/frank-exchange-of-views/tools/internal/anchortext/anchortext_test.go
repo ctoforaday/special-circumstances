@@ -1,4 +1,4 @@
-package lens
+package anchortext
 
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"

@@ -1,7 +1,6 @@
 package blue
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // edit: the ONLY write path to blue/report.md for a response seat.
@@ -66,19 +66,19 @@ func newEdit() *cobra.Command {
 			return nil, err
 		}
 		if prior {
-			if err := applyEdit(run, oldStr, newStr); err != nil {
-				return nil, err
-			}
+			// The op is already on the diff-stack, so the render already reflects it — there is
+			// nothing to re-apply. Under report-as-record the edit IS the event; no file to reconcile.
 			return editResult{Idempotent: true}, nil
 		}
 
 		// FRESH: validate against a consistent snapshot BEFORE committing the event, so a
-		// mis-quote or a marker-spanning edit never lands a phantom stack op.
-		peek, err := record.ReadBlueReport(run)
+		// mis-quote or a marker-spanning edit never lands a phantom stack op. The snapshot is the
+		// render of the record so far — there is no file.
+		peek, err := reportproj.RenderFromRecord(run)
 		if err != nil {
 			return nil, err
 		}
-		planned, err := validateEdit(string(peek), oldStr, newStr)
+		planned, err := validateEdit(peek, oldStr, newStr)
 		if err != nil {
 			return nil, err
 		}
@@ -97,7 +97,7 @@ func newEdit() *cobra.Command {
 			//
 			// Computed from the SNAPSHOT the validation used, not from a re-read: the write
 			// has not happened yet, and a second read could see a different document.
-			Reopened: bluedoc.ReopenedAnchors(string(peek), planned),
+			Reopened: bluedoc.ReopenedAnchors(peek, planned),
 		}
 		// ESTOPPEL, RECORDED BY THE TOOL COMPARING BYTES (#267 stage 4).
 		//
@@ -120,9 +120,6 @@ func newEdit() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		if err := applyEdit(run, oldStr, newStr); err != nil {
-			return nil, err
-		}
 		return editResult{}, nil
 	}))
 
@@ -133,19 +130,15 @@ func newEdit() *cobra.Command {
 	return c
 }
 
-// errMisQuote is the sentinel for "--old is not present" — applyEdit distinguishes it to
-// drive the crash-reconcile branch (old gone but new already present ⇒ the write landed).
-// It is bluedoc's, because the CHECK is bluedoc's; this alias keeps the local reads short.
-var errMisQuote = bluedoc.ErrMisQuote
-
 // planEdit is the PURE core: it computes the new report from replacing the span of `old`
 // with `new`.
 //
 // The three LEGALITY checks — present-and-unique, no word split, and anchors transit
 // unchanged — live in internal/bluedoc, because `merge mint` now has to answer the same
 // question about a concrete proposed fix before red may attach one. What stays here is the
-// part only blue does: the SPLICE. The crash-reconcile and the lock live in applyEdit; the
-// validation peek reuses this via validateEdit. Fuzzed directly (edit_fuzz_test.go).
+// part only blue does: the SPLICE. Under report-as-record no file is written — the BlueEdit event
+// IS the mutation and reportproj.Render replays this same splice. The validation peek reuses this
+// via validateEdit. Fuzzed directly (edit_fuzz_test.go).
 func planEdit(report, old, new string) (string, error) {
 	start, end, err := bluedoc.LocateUniqueReplacing("blue edit", report, old)
 	if err != nil {
@@ -163,12 +156,7 @@ func planEdit(report, old, new string) (string, error) {
 	if err := bluedoc.AnchorsTransitUnchanged("blue edit", report[start:end], new); err != nil {
 		return "", err
 	}
-	next := report[:start] + new + report[end:]
-	// SPLICE HYGIENE (see splice.go): tidy the two seams this edit created before anything else
-	// looks at the result. Deterministic, narrow, and silent — the alternative, measured, is blue
-	// spending a third of a round repairing its own doubled punctuation by hand.
-	next, _ = tidySeam(next, start+len(new)) // trailing seam first — the later offset is stable
-	next, _ = tidySeam(next, start)
+	next := reportproj.ApplySplice(report, start, end, new)
 	if dropped := droppedMarker(report, next); dropped != "" {
 		return "", fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
 	}
@@ -181,22 +169,6 @@ func planEdit(report, old, new string) (string, error) {
 // validation used rather than from a re-read that may have moved.
 func validateEdit(report, old, new string) (string, error) {
 	return planEdit(report, old, new)
-}
-
-// applyEdit performs the span replacement under the blue-report flock. IDEMPOTENT: on a
-// crash-retry where the write already landed (old gone, new present) it is a no-op.
-func applyEdit(run record.Run, old, new string) error {
-	return record.MutateBlueReport(run, func(cur []byte) ([]byte, error) {
-		report := string(cur)
-		next, err := planEdit(report, old, new)
-		if err != nil {
-			if errors.Is(err, errMisQuote) && strings.Contains(report, new) {
-				return cur, nil // already applied on a prior attempt — no-op (reconcile)
-			}
-			return nil, err
-		}
-		return []byte(next), nil
-	})
 }
 
 // droppedMarker returns an immortal-anchor id (finding OR citation) present in before but
@@ -221,7 +193,7 @@ type editResult struct {
 
 func (r editResult) Human() string {
 	if r.Idempotent {
-		return "blue edit (idempotent retry — reconciled, no second stack op)"
+		return "blue edit (idempotent retry — the op is already on the diff-stack, no second op)"
 	}
-	return "blue edit applied — report.md updated, finding-markers preserved, diff-stack op recorded"
+	return "blue edit recorded — diff-stack op appended, finding-markers preserved, report re-derived on read"
 }

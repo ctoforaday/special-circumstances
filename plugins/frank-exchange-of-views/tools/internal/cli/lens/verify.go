@@ -8,12 +8,14 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // verify: red adjudicates ONE citation — which one, and what the source actually did for it.
@@ -216,18 +218,22 @@ func writeVerify(s seat.Context, cmd *cobra.Command, body *recordpb.Verify, mayC
 		}
 		label := record.NewCitationID()
 		marker := "<!--cite:" + label + "-->"
-		if err := record.MutateBlueReport(run, func(old []byte) ([]byte, error) {
-			next, aerr := InsertAnchor(old, body.GetClaim(), marker)
+		// The Verify event IS the anchor (it carries the claim and this label); reportproj.Render
+		// re-places the marker on read. No file is spliced. VALIDATE the placement against the
+		// current render — a mis-quote or in-fence claim is refused now and no event is recorded.
+		current, err := reportproj.RenderFromRecord(run)
+		if err != nil {
+			return nil, err
+		}
+		if _, aerr := anchortext.InsertAnchor([]byte(current), body.GetClaim(), marker); aerr != nil {
 			switch {
-			case errors.Is(aerr, ErrMisQuote):
+			case errors.Is(aerr, anchortext.ErrMisQuote):
 				return nil, feov.Errorf(feov.Validation,
 					"lens corroborate: the quoted claim was not found in report.md — quote the EXACT sentence you are corroborating (via --quote); the whole string is matched, so a heading prepended to it matches nothing. A corroboration of a claim blue has since edited away is not spliced blind")
-			case errors.Is(aerr, ErrInFence):
+			case errors.Is(aerr, anchortext.ErrInFence):
 				return nil, feov.Errorf(feov.Validation, "lens corroborate: the quote resolves inside a code fence — corroborate a prose sentence, not code")
 			}
-			return next, aerr
-		}); err != nil {
-			return nil, err
+			return nil, aerr
 		}
 		body.Label = proto.String(label)
 	}
