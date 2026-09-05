@@ -222,7 +222,8 @@ CREATE TABLE "register" (
   "agent_id" TEXT,
   "served_model" TEXT,
   "requested_model" TEXT,
-  "run_via" TEXT
+  "run_via" TEXT,
+  "agent_type" TEXT
 ) STRICT;
 
 CREATE TABLE "round_verdict" (
