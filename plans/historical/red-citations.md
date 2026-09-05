@@ -1,6 +1,6 @@
 # Red's evidence reaches the reader
 
-> STATUS 2026-09-02: shipped — historical record (carriers verified in-tree: `Verify.Label` in recordpb, `CitationLabelsOf`, `ExistingCorroborationLabel`, `LocateUniqueReplacing`, the PASS refusal over unanswered contradictions at `record/refs.go:414`; the §V.7 mutate sweep remains the one open item)
+> STATUS 2026-09-02: shipped — historical record (carriers verified in-tree: `Verify.Label` in recordpb, `CitationLabelsOf`, `ExistingCorroborationLabel`, `LocateUniqueReplacing`, the PASS refusal over unanswered contradictions at `record/refs.go:414`; §V.7's mutate sweep is settled 2026-09-05: citationid 100% killed, and the tool fixed to say so)
 
 ## I. Summary & goals
 
@@ -170,18 +170,22 @@ All paths absolute; `export PATH=$PATH:/usr/local/go/bin`; `GOTOOLCHAIN=go1.25.0
      `internal/anchor` tests; `internal/record` and `internal/cli` exercise it from outside.
      `-confirm` would settle which, at ~8 minutes per survivor (~2.5 hours here) — not paid.
      **The gap is real either way: anchor.go's own package asserts nothing about it.**
-   - `internal/record` (`citationid.go`, `refs.go`) — SLOW, and **running**. A first 50-minute
-     attempt produced no output, which I initially recorded as "zero mutants" and as
-     INFEASIBLE-AS-BUILT. **That was wrong, and the way it was wrong is the point: a KILLED mutant
-     prints nothing.** An empty log is what a working sweep and a broken one both look like, so
-     silence was read as failure on no evidence — the plausible zero, committed to a plan by the
-     agent citing the rule against it.
-     Measured instead, 2026-09-04: `-selftest` passes (the tool mutates and observes); the sweep
-     runs in a SANDBOX COPY (`mutate/sandbox.go`), so polling the real tree for writes measures
-     nothing and my first probe did exactly that; polling the sandbox showed **1 mutation per
-     ~150s** under concurrent load. So the earlier silent 50 minutes was roughly 20 mutants, all
-     killed. Feasible, just slow — and the rate is a property of the load and of
-     `internal/record`'s ~60s suite, not of the tool.
+   - `internal/record` — **SETTLED 2026-09-05: `citationid.go` is 32 mutants, 31 behavioural,
+     100% killed, 1 discarded as non-compiling.** The citation-id machinery's own package kills
+     every operator flip in it.
+     **Getting there took three wrong answers, and they are recorded because the shape recurs.**
+     (i) A 50-minute run produced no output and I wrote INFEASIBLE-AS-BUILT into this plan — but a
+     KILLED mutant prints nothing, so an empty log is what a working sweep and a dead one both
+     look like. (ii) Correcting that, I measured "1 mutation per ~150s" by polling the file in the
+     real tree — which the sweep never touches, because it works in a sandbox copy; that number
+     was of a load average, not of the tool. (iii) I twice reported the sweep "still running" while
+     counting my own grep shell as the process; it had died with a container restart.
+     The truth, measured once the tool could say what it was doing: **~4.0s per mutant, 121.6s
+     serial for the whole file, 61.8s on four workers.** Never minutes-per-mutant. The fix was to
+     the instrument, not the schedule — `scripts/mutate` now prints a verdict per mutant against a
+     denominator, and runs a worker pool, because the sandbox it already had made the
+     "no checkout per worker" objection obsolete.
+     `refs.go` is unswept and now cheap to sweep on the same terms.
    - `internal/cli` (`blue/cite.go`, `lens/anchor.go`) — not attempted, same reason, worse: that
      package's suite runs 20+ minutes once.
 
