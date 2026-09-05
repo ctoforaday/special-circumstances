@@ -54,6 +54,20 @@ finding). Joint-read rules stated per benchmark (repair ratio reads WITH red rig
 | found_by honesty | envelope-vs-candidates attribution diff (DETECTOR) | candidates cross-check | scriptable |
 | Class discipline | singleton rate; largest-class share (DIAGNOSTIC) | registry stats | W2d |
 
+NARROWED 2026-09-04 (plans/historical/bench-rulings-first-class.md scope 1, N2 — commit 6685a3af):
+"% closures" above meant EVERY closed gap, and that made `target 100` unreachable. A bench
+DISPOSITION carries no seat|tool|target and no `carried_from`, because nothing is re-run to
+settle it — so every bench closure was a guaranteed miss in the numerator and a live row in
+the denominator, and the row could not reach its own target on any run where the bench closed
+anything. The metric is now over gaps closed by REPAIR: `anchored_closures_pct` in
+`internal/scorecard/scorecard.go` (`ComputeAnchoredClosures`), whose predicate is the presence
+of the `close` BODY, not the `ClosedByBench` flag — that flag follows the LAST closing event,
+so keying on it would drop a genuinely anchored blue closure the bench later ruled on. It is
+also not a "format grep at capture": it takes the typed `*record.Board`, because `BoardJSON`'s
+single `Closure` field cannot say which body filled it. The empty case says "no gaps closed by
+repair this run", not "no closed gaps" — under the narrowed denominator the latter is false of
+an all-bench run, which is the same plausible zero arriving through the fix.
+
 ### BENCH
 | Clause | Metric | Instrument | Status |
 |---|---|---|---|
@@ -81,6 +95,14 @@ exist — in Go, not the mjs stack this spec assumed (`capture.go` WriteScorecar
 `setup/setup.go` MirrorScorecards, `dashboard/render.go` scorecardSection; class taxonomy
 benchmark/diagnostic/detector carried in `internal/scorecard/scorecard.go`). Per-row Status
 entries above are the 2026-07-18 snapshot of the retired mjs-era system, not the current tree.
+**THE MAP ABOVE IS THE DESIGN, NOT THE DELIVERED ROW SET, and the divergence runs both ways.**
+`internal/scorecard` also emits four clauses (five rows) this map never designed — `dropped_finding_markers`
+and `unbacked_citations` (TAMPER detectors), `lines_of_inquiry` + `thin_inquiry_reasons`
+(Alternatives explored), and `citation_yield_by_round` (Lens economics, W2i) — while about
+half the mapped clauses are not scorecard rows in the tree at all; several of those shipped on
+a different surface, which their own Status cell says (Grade honesty on the dashboard,
+Spot-check floor as an engine throw + capture recount). Read the Go row set as the inventory; read
+this map for the clause each row is answerable to.
 
 ## E0.5 amendments (2026-07-18)
 
