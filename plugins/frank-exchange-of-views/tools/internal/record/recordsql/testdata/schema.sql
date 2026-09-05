@@ -625,7 +625,37 @@ SELECT
   -- it would have to be UPDATEd into a record that is append-only. The count is free here and
   -- cannot disagree with the rows it counts.
   (SELECT count(*) FROM "mint_supersedes" s WHERE s."event_id" = m."event_id") AS "supersedes_count",
-  (SELECT count(*) FROM "mint_found_by"   f WHERE f."event_id" = m."event_id") AS "found_by_count"
+  (SELECT count(*) FROM "mint_found_by"   f WHERE f."event_id" = m."event_id") AS "found_by_count",
+  -- THE CURRENT GRADES, one per axis: the latest regrade that touched the axis, else the
+  -- mint's. The plain "severity" columns above are MINT-TIME grades — a reader that wants
+  -- what the gap is graded NOW and reaches for them silently reads a number a regrade may
+  -- have moved, which is why the overlay is answered here rather than left to each reader.
+  COALESCE((SELECT r."severity" FROM "regrade" r WHERE r."gap_id" = m."gap_id"
+    AND r."severity" IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1), m."severity")   AS "current_severity",
+  COALESCE((SELECT r."likelihood" FROM "regrade" r WHERE r."gap_id" = m."gap_id"
+    AND r."likelihood" IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1), m."likelihood") AS "current_likelihood",
+  COALESCE((SELECT r."impact" FROM "regrade" r WHERE r."gap_id" = m."gap_id"
+    AND r."impact" IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1), m."impact")       AS "current_impact",
+  COALESCE((SELECT r."complexity_cost" FROM "regrade" r WHERE r."gap_id" = m."gap_id"
+    AND r."complexity_cost" IS NOT NULL ORDER BY r."event_id" DESC LIMIT 1), m."complexity_cost") AS "current_complexity_cost",
+  -- THE PROOF JOIN, answered where every asker can share it: a 'computation' gap closes on
+  -- a recorded proof naming it in --answers, and "awaiting proof" is the debt list blue is
+  -- handed. 'computation' is the vocabulary's own word; the Go home for the question
+  -- (Gap.NeedsComputation) reads the enum, and THIS is the one SQL statement of it.
+  EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id")                      AS "proof_answered",
+  (c."event_id" IS NULL AND bc."event_id" IS NULL
+     AND m."check_kind" = 'computation'
+     AND NOT EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id"))          AS "awaiting_proof",
+  -- LINEAGE FROM THE OTHER END: the LAST gap that claimed to replace this one, and whether
+  -- that promise is broken — a superseded ancestor still open is the same defect counted
+  -- twice, which is what the verdict gate refuses.
+  (SELECT m2."gap_id" FROM "mint_supersedes" s2 JOIN "mint" m2 ON m2."event_id" = s2."event_id"
+    WHERE s2."value" = m."gap_id" ORDER BY s2."event_id" DESC LIMIT 1)                AS "superseded_by",
+  (c."event_id" IS NULL AND bc."event_id" IS NULL
+     AND EXISTS(SELECT 1 FROM "mint_supersedes" s3 WHERE s3."value" = m."gap_id"))    AS "stranded",
+  -- The mint's own event id, so board order is a sort key rather than a join every reader
+  -- writes for itself.
+  m."event_id"                                                                        AS "minted_event"
 FROM "mint" m
 JOIN "events" e ON e."id" = m."event_id"
 LEFT JOIN "close" c ON c."gap_id" = m."gap_id"
@@ -709,8 +739,38 @@ SELECT
   (SELECT count(*) FROM "gap" WHERE NOT "open") AS "closed_gaps",
   (SELECT count(*) FROM "events")               AS "events";
 
+-- THE ANSWERS TO A MOTION, one row per answered id, whichever filing shape asked. The FIRST
+-- ruling and the FIRST appeal are the ones that count: a second of either is refused at the
+-- write precisely because it would replace the first in every later reader — so the view
+-- states the first-wins rule ONCE, where a legacy record carrying an illegal second row
+-- cannot multiply anybody's join. Keyed on the id alone rather than joined to 'motion',
+-- because a direction motion has no filing row (the line of inquiry's proposal IS the
+-- filing) and its answers must be askable all the same.
+CREATE VIEW "motion_answers" AS
+SELECT
+  ids."motion_id"                                        AS "motion_id",
+  fr."grade"                                             AS "grade",
+  fr."petition"                                          AS "petition",
+  fr."direction"                                         AS "direction",
+  COALESCE(fr."grade", fr."petition", fr."direction")    AS "ruling",
+  fre."seat_id"                                          AS "ruled_by",
+  fre."round"                                            AS "ruled_round",
+  fa."reason"                                            AS "appeal_reason",
+  fae."seat_id"                                          AS "appealed_by",
+  fae."round"                                            AS "appealed_round"
+FROM (SELECT "motion_id" FROM "motion_rule" UNION SELECT "motion_id" FROM "motion_appeal") ids
+LEFT JOIN "motion_rule" fr ON fr."event_id" =
+  (SELECT MIN(x."event_id") FROM "motion_rule" x WHERE x."motion_id" = ids."motion_id")
+LEFT JOIN "events" fre ON fre."id" = fr."event_id"
+LEFT JOIN "motion_appeal" fa ON fa."event_id" =
+  (SELECT MIN(y."event_id") FROM "motion_appeal" y WHERE y."motion_id" = ids."motion_id")
+LEFT JOIN "events" fae ON fae."id" = fa."event_id";
+
 -- A motion with its filing and its ruling on one row. This join is hand-written at eight readers in
 -- the file-backed record, each keying a disposition on a gap_id that the ruling does not carry.
+-- The answer half comes from motion_answers, so the first-wins rule has ONE statement: the
+-- old inline LEFT JOIN on motion_rule multiplied this view's rows for a motion carrying two
+-- rulings — exactly the legacy shape the write guard now refuses, read as two motions.
 CREATE VIEW "motion_state" AS
 SELECT
   m."motion_id"                        AS "motion_id",
@@ -718,14 +778,45 @@ SELECT
   me."seat_id"                         AS "filed_by",
   me."round"                           AS "filed_round",
   g."gap_id"                           AS "gap_id",
-  r."grade"                            AS "grade_ruling",
-  r."petition"                         AS "petition_ruling",
-  r."direction"                        AS "direction_ruling",
-  re."seat_id"                         AS "ruled_by",
-  re."round"                           AS "ruled_round",
-  (r."event_id" IS NULL)               AS "unruled"
+  a."grade"                            AS "grade_ruling",
+  a."petition"                         AS "petition_ruling",
+  a."direction"                        AS "direction_ruling",
+  a."ruled_by"                         AS "ruled_by",
+  a."ruled_round"                      AS "ruled_round",
+  (a."ruled_by" IS NULL)               AS "unruled",
+  a."appealed_by"                      AS "appealed_by",
+  a."appeal_reason"                    AS "appeal_reason"
 FROM "motion" m
 JOIN "events" me ON me."id" = m."event_id"
 LEFT JOIN "motion_grade" g ON g."event_id" = m."event_id"
-LEFT JOIN "motion_rule" r ON r."motion_id" = m."motion_id"
-LEFT JOIN "events" re ON re."id" = r."event_id";
+LEFT JOIN "motion_answers" a ON a."motion_id" = m."motion_id";
+
+-- A LINE OF INQUIRY, whole: proposed by whom, saying what, where its status stands now, and
+-- how red last ruled the direction — the join that used to live in three separate readers
+-- (the Inquiries fold, InquiryRuling, and the report's rows). The proposal row carries the
+-- substance; the LATEST avenue event carries the status; the LATEST direction-subject
+-- ruling carries red's answer, including a later ruling that carried no word — an unset arm
+-- on the newest ruling is red ruling NOTHING, not an invitation to read an older one.
+CREATE VIEW "line_of_inquiry" AS
+SELECT
+  p."avenue_id"                        AS "avenue_id",
+  pe."seat_id"                         AS "proposed_by",
+  pe."round"                           AS "proposed_round",
+  fp."line"                            AS "line",
+  ls."status"                          AS "status",
+  lse."round"                          AS "status_round",
+  lr."direction"                       AS "direction_ruling",
+  lre."seat_id"                        AS "ruled_by",
+  lre."round"                          AS "ruled_round"
+FROM (SELECT "avenue_id", MIN("event_id") AS "pid" FROM "avenue"
+        WHERE COALESCE("avenue_id", '') != '' AND "supersedes_status" IS NULL
+        GROUP BY "avenue_id") p
+JOIN "avenue" fp ON fp."event_id" = p."pid"
+JOIN "events" pe ON pe."id" = p."pid"
+LEFT JOIN "avenue" ls ON ls."event_id" =
+  (SELECT MAX(x."event_id") FROM "avenue" x WHERE x."avenue_id" = p."avenue_id")
+LEFT JOIN "events" lse ON lse."id" = ls."event_id"
+LEFT JOIN "motion_rule" lr ON lr."event_id" =
+  (SELECT MAX(y."event_id") FROM "motion_rule" y
+     WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'direction')
+LEFT JOIN "events" lre ON lre."id" = lr."event_id";

@@ -270,10 +270,10 @@ func requireClosedGaps(run Run, ids []string, verb, flag string) error {
 // Checked at verdict because that is the seat's terminal act and the last moment it is
 // still there to close them.
 func requireSupersededAreClosed(run Run) error {
-	// One join instead of two passes over the fold: every superseded ancestor still open, with
-	// the LAST gap that claimed to replace it — the same last-writer answer the map produced.
-	// An ancestor named in supersedes but never minted drops out of the join, as it dropped out
-	// of the board lookup.
+	// The gap view answers this whole: `stranded` is an open gap somebody promised to replace,
+	// and superseded_by is the LAST gap that made the promise — the same last-writer answer the
+	// fold's map produced. An ancestor named in supersedes but never minted has no gap row and
+	// drops out, as it dropped out of the board lookup.
 	db, err := openRunForRead(run)
 	if err != nil {
 		return err
@@ -281,12 +281,7 @@ func requireSupersededAreClosed(run Run) error {
 	if db == nil {
 		return nil // no record yet: nothing superseded, nothing stranded
 	}
-	rows, err := db.Query(`SELECT s."value",
-	    (SELECT m2."gap_id" FROM "mint_supersedes" s2 JOIN "mint" m2 ON m2."event_id" = s2."event_id"
-	      WHERE s2."value" = s."value" ORDER BY s2."event_id" DESC LIMIT 1)
-	  FROM "mint_supersedes" s
-	  JOIN "gap" g ON g."gap_id" = s."value" AND g."open"
-	  GROUP BY s."value"`)
+	rows, err := db.Query(`SELECT "gap_id", "superseded_by" FROM "gap" WHERE "stranded"`)
 	if err != nil {
 		return fmt.Errorf("record: asking the record for stranded ancestors: %w", err)
 	}

@@ -259,18 +259,14 @@ func ClaimAppearsInAnEdit(run Run, claim string) bool {
 // nine. A seat reading "check_kind: computation" learns a property of the gap; it does not learn
 // that it owes a program, and only the second changes what the sitting produces.
 func GapsAwaitingProof(run Run) []string {
-	// Board order is mint order, which is event order — the join the fold walked per gap,
-	// asked once. Read errors fold into nil, as the board-read error did.
+	// The gap view answers the whole question — awaiting_proof IS this predicate, stated once
+	// in SQL — and minted_event is board order. Read errors fold into nil, as the board-read
+	// error did.
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {
 		return nil
 	}
-	rows, err := db.Query(`SELECT g."gap_id"
-	  FROM "gap" g JOIN "mint" m ON m."gap_id" = g."gap_id"
-	  WHERE g."open" AND g."check_kind" = ?
-	    AND NOT EXISTS (SELECT 1 FROM "proof" p WHERE p."answers" = g."gap_id")
-	  ORDER BY m."event_id"`,
-		recordpb.Word(recordpb.CheckKind_CHECK_KIND_COMPUTATION))
+	rows, err := db.Query(`SELECT "gap_id" FROM "gap" WHERE "awaiting_proof" ORDER BY "minted_event"`)
 	if err != nil {
 		return nil
 	}
