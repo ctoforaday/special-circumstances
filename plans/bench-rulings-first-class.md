@@ -36,9 +36,14 @@ Scope 4's defect is separate and stated in its own section.
 | # | Criterion | How it is measured | Scope |
 |---|---|---|---|
 | N5 | Every bench disposition has a motion id and joins to what it settled | `record.Motions` returns a `docket` motion for every bench-disposed gap; zero gaps with `ClosedByBench` and no motion id | 2 |
-| N6 | An undisposed docket item blocks the bench's sitting | `sitting.go`'s `case "bench"` reports it in `Outstanding`; a bench that leaves one is `Complete: false` | 2 |
+| N6 | An undisposed docket item blocks the bench's sitting | `sitting.go`'s `case "bench"` reports it in `Open` (the field is `Open []Item` with `Blocks`, not `Outstanding` — the earlier wording named a field that does not exist), and that sitting is `Complete: false`. **A gap ruled `carried` still counts as undisposed** — see the decision below | 2 |
 | N7 | No renderer, comment or branch survives for a verb that cannot be written | `grep -rni opinion` over `plugins/frank-exchange-of-views/`, compared **before and against a stated exclusion list** — the English-word survivors named one by one in §III's census. NOT the case-differenced `comm` the earlier draft specified: that returns files carrying capital-`Opinion` and no lowercase one (10 today), so it can never reach 0 and is blind to every lowercase-only carrier — `cli/merge/close.go:145`, `docs/seat-command-triggers.md:96`, `cli/seat/verbs.go:187` and `boards.go`'s prose all say `bench opinion` in lower case | 2 |
-| N8 | Retiring the verb retires none of its **constraints** | `DocketRuling` carries **eight** of `Opinion`'s nine fields and both its `check` options. **`gap_id` is the ninth and its omission is argued here, not deferred to a commit message:** the gap reference rides the FILING (`DocketMotion`), which is this plan's own standing decision, so a ruling that also carried it would be the second copy that decision exists to prevent. The invariant has **three** carriers, not two — the two `check` options in the schema and `record/record.go:1185-1189`, which refuses the both-set and neither-set cases in Go and whose own comment explains why it is not a restatement — and all three move | 2 |
+| N8 | Retiring the verb retires none of its **constraints** | `DocketRuling` carries **eight** of `Opinion`'s nine fields and both its `check` options. **A fourth carrier, which no draft listed:** `record/record.go:1156` runs
+`requireGap(run, b.GetGapId(), "opinion", "--id")`, whose refusal (`refs.go:88-90`) is the one that
+records how "eight judicial closures vanished from a board that went on reporting them open". Its
+successor belongs on the docket FILING, beside the grade branch at `record/record.go:976-999` — not
+on the ruling, which no longer carries a gap. **`gap_id` is the ninth field and its omission is
+argued here, not deferred to a commit message:** the gap reference rides the FILING (`DocketMotion`), which is this plan's own standing decision, so a ruling that also carried it would be the second copy that decision exists to prevent. The invariant has **three** carriers, not two — the two `check` options in the schema and `record/record.go:1185-1189`, which refuses the both-set and neither-set cases in Go and whose own comment explains why it is not a restatement — and all three move | 2 |
 
 *(N1–N4 and N9 were the delivered scopes' goals and are recorded in the archaeology.)*
 
@@ -66,18 +71,6 @@ Scope 4's defect is separate and stated in its own section.
   protobuf (`record/recordpb`), not JSONL-with-string-payloads: readers use
   `recordpb.BodyAs[*recordpb.Opinion](e)` rather than `e.Payload.Str("gap_id")`. **Every
   payload-key citation in the August document is stale for this reason** — see the archaeology.
-- **The replay-ordering hazard is real, and NOT for the reason earlier drafts gave.** They said
-  `BoardState` is a single pass over timestamp-ordered events written into different shards, so a
-  ruling could replay before its filing. **That is now false**: `replay.go:344-360` says "THE RECORD
-  IS ALREADY IN ORDER, so there is no sort here any more — `MergedEvents` returns `ORDER BY id`,
-  insertion order", and `MotionRule.motion_id`'s own comment says the sharded-log version of this
-  problem is "simply unwritable" here. An implementer who checks the stated reason finds it false and
-  may drop the mitigation with it.
-  **The hazard survives on different ground:** `recordtest.Seed` inserts in slice order, so a test
-  can legitimately present a ruling before its filing, and `motion_rule.motion_id` deliberately
-  carries **no foreign key** (its own comment argues why: the referent is subject-dependent). Nothing
-  at the storage layer refuses the order. So the index pass stays, and §V step 4 stays executable —
-  it is guarding a reachable state, just not the one the old sentence described.
 - **The join already exists.** `record.Motions(b *Board) []*Motion` (`record/motion.go:265`) pairs a
   filing with its ruling on `motion_id`; `Ruled()` answers answered-ness. The August plan's largest
   single cost — retargeting eight readers keyed on `gap_id` — is mostly paid: `debate()` already
@@ -131,6 +124,31 @@ Scope 4's defect is separate and stated in its own section.
 
 ### Scope 2 — the `docket` motion subject, and `bench opinion` retired `[NEW]` / `[DELETE]`
 
+**THE VIEWS ARE CANONICAL. Do not do in Go what the SQL should answer.** Stated by the human as
+the standing direction for this layer, and the tree already argues it: `motion_state`
+(`recordsql/views.go:214`) is a motion with its filing and its ruling on one row, taking `gap_id`
+from the FILING arm and computing `unruled` in SQL — and its own comment says it replaced a join
+"hand-written at eight readers in the file-backed record, each keying a disposition on a gap_id
+that the ruling does not carry". That is this plan's problem, solved once, in the right place.
+
+Three consequences, and they shrink this scope rather than grow it:
+
+1. **The bench closure is a view, not a fourth Go fold.** `motion_answers` gains the docket arm in
+   its `COALESCE`; `motion_state` gains `motion_docket` in its `gap_id`; and the `gap` view's
+   bespoke three-way `"opinion"` join is replaced by a read of those, not by a new bespoke join.
+2. **The `motion_id` → gap index is not needed for the READ path, and that retires most of
+   `[GAP-INDEX]`.** The index existed because a Go pass can meet a ruling before its filing. **A SQL
+   join has no order to be wrong about.** What remains in Go is the write path and `BoardState`'s
+   own fold, which `record-sqlite.md` already names as its standing open thread — "the remaining Go
+   folds, `BoardState` above all". This scope moves toward that, never away.
+3. **`record.Motion.GapID` comes from `motion_state.gap_id`**, which is already a `COALESCE` over
+   filing arms. Docket joins the list; no Go fold over `Fields` is written.
+
+**`consistency/consistency.go` is the deliberate exception and stays a Go fold.** It is a
+cross-check ORACLE, and its whole value is that it does NOT share an implementation with the thing
+it checks — pointing it at the view would delete the check while appearing to tidy it. It keeps its
+own reconstruction, and it keeps needing the ordering care, which is why it stays marked.
+
 Everything here is the August §III.A and §III.B, re-cited and with the ruler apparatus removed.
 
 **Record layer** (`record/motion.go`, `record/recordpb/record.proto`):
@@ -175,11 +193,40 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   `Disposition` enum, #342 — by reference, not transcription), `principle`, `tension`,
   `review_flag`, `rationale`, `settled`, `reopens_on`, `final`; plus `reopens_on XOR final` and
   "not both", verbatim with their `why`. **`gap_id` does NOT come**, per the decision above.
+- **`[MODIFY]` requiredness must follow the fields onto the arm, or six `required: true`
+  annotations go INERT — and this is Phase 1's class, one level up.** `recordpb.CheckRequired`
+  (`requiredfields.go:29-50`) and `RequiredOf` (`:80-88`) walk `md.Fields()` of the BODY message;
+  `record.RequiredFields` resolves the body descriptor, and that is what `seat.Records(c,
+  "motion_rule")` → `markRequired` (`cli/seat/seat.go:488-510`) reads to mark a flag REQUIRED in
+  `--help`. `record/record.go:1159-1163` says it in its own words — the five fields were refused
+  "every one of them annotated `required`" — **because they sit on `Opinion`, a body**. On an arm,
+  nothing walks them: only the DDL's `NOT NULL` survives, so a designed refusal degrades to raw
+  driver text and the help stops saying REQUIRED.
+  **Latent, not live — measured before specifying:** `GradeMotion`, `PetitionMotion` and
+  `DirectionMotion` carry **zero** `required: true` between them, so nothing is unenforced today and
+  `DocketRuling` would be the first arm to fall in. Specify the mechanism — descend into the set arm
+  in `CheckRequired`/`RequiredOf` — and state which of the eight are required for a docket ruling.
+  §V gains a check that `motion docket rule` omitting `--principle` is refused **in the
+  annotation's own words**, not by the driver.
 - **Those two `check` options could not have reached the database before Phase 1.** `option (check)`
   arrived in the DDL only through `tableFor`; `armTable` never asked for a message's own rules, so
   authoring them on an arm would have generated a schema silently missing them **while a structural
   check that reads the `.proto` passed**. Fixed first, as its own commit, with a test that fails
   when the call is removed — that is why the phase order is generator, then schema.
+- **`[MODIFY]` `motion_state.unruled` means "no CLOSING ruling", not "no ruling row" — resolved with
+  the human.** Without this the scope's own goal is unreachable in the majority case. `carried` is
+  the bench's DEFER, it is `closes: false` (`record.proto:304`), and it is what the bench actually
+  does: the measured base rate is 76 of 77 (`scorecard/scorecard.go:633`). Today the bench can opine
+  again on the same gap in a later sitting. Under a naive motion model it cannot —
+  `RequireUnruledMotion` (`record/motion.go:513-537`) refuses a second ruling, `sitting.go:185-197`
+  skips any motion where `m.Ruled()`, and §III gives the bench `NoSituation` for `motion docket
+  file` — so a carried item would be "answered", drop off the bench's own list, and need a fresh
+  filing that nothing asks for. **N6's measurement would pass while the item it exists to surface
+  went invisible**, which is this document's subject arriving in its own goal.
+  The fix is one statement in SQL rather than a rule in several readers: `unruled` becomes
+  "no ruling whose disposition `closes`", the same `enum_disposition."closes"` join the `gap` view
+  already uses. A carried docket motion stays outstanding for **every** reader at once, and
+  `carried` keeps meaning deferred rather than decided.
 - **`[MODIFY]` `record.Motion` gains a typed `GapID`** (`record/motion.go:231-254`). Today the
   struct carries `ID`, `Subject`, `Filer`, `Round`, `Basis`, `Relief`, `Ruling…` and the subject's
   own payload only through `Fields map[string]string`. Recovering the gap as `Fields["gap_id"]`
@@ -516,7 +563,16 @@ anticipated. The full narrative is in the archaeology; these are the operative r
      `record.go:1185-1189`'s Go arm — **all three carriers of the invariant, since a Go check passing
      tells you nothing about whether the table has one**.
    Field parity is eight of nine, with `gap_id` argued in §I rather than in a commit message.
-6. `record/gavel_test.go:22-47` must pass **unmodified**: it fails any `MotionSubject` without
+6. **Requiredness survived the move onto an arm.** `motion docket rule` omitting `--principle` is
+   refused **in the annotation's own words** (`record: motion docket rule requires --principle …`),
+   not by raw driver text about a NOT NULL column — and `--help` marks it REQUIRED. Both halves,
+   because the DDL constraint alone passes the first and fails the second silently.
+7. **A carried docket motion is still outstanding.** A bench sitting that has ruled every docket
+   motion `carried` is `Complete: false` and names them in `Open`; one that ruled them with a
+   closing disposition is `Complete: true`. Both directions, since the one-directional version
+   passes against a `unruled` that never changed. Asserted against `motion_state` as well as the
+   sitting, because the view is where the rule now lives.
+8. `record/gavel_test.go:22-47` must pass **unmodified**: it fails any `MotionSubject` without
    `ruled_by`, and it is what makes `MOTION_SUBJECT_DOCKET`'s annotation non-optional.
 
 ### Scope 4
