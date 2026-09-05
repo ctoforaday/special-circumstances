@@ -631,16 +631,29 @@ func run(args []string, stdout io.Writer, envRoot string, executable func() (str
 
 	// Cross-plugin aggregation: every installed SC plugin's own requirements.json,
 	// probed and reported here — one preflight for the whole suite.
+	//
+	// AND THE SIBLINGS REACH THE VERDICT, which for a long time they did not. Their tables
+	// printed and `verdict` then read the doctor's OWN manifest alone, so `required` in any
+	// plugin but this one could not produce BLOCKED: frank-exchange-of-views declares `node`
+	// required and its engine refuses dispatch without it, gray-area declares `git` required,
+	// and both showed ✗ over a verdict that said fine. Two readers of one board disagreeing,
+	// with the plugin author's hard requirement the half that lost.
+	suite := []([]toolchain.Status){tools}
 	for _, pr := range siblingRequirements(root) {
+		probed := toolchain.Probe(pr.Tools)
 		fmt.Fprintf(stdout, "-- %s --\n", pr.Plugin)
-		fmt.Fprint(stdout, table(toolchain.Probe(pr.Tools), nil))
+		fmt.Fprint(stdout, table(probed, nil))
+		suite = append(suite, probed)
 	}
+	// One obligation per tool, strictest declaration winning — see toolchain.MergeStrictest for
+	// why the strongest need is the box's answer and why order cannot decide it.
+	obligations := toolchain.MergeStrictest(suite...)
 
 	warnings := danceWarnings(root)
 	for _, w := range warnings {
 		fmt.Fprintln(stdout, w)
 	}
-	v := verdict(tools, bins)
+	v := verdict(obligations, bins)
 	if v == "READY" && len(warnings) > 0 {
 		v = "DEGRADED"
 	}

@@ -390,3 +390,67 @@ func TestVersionOfFailures(t *testing.T) {
 		})
 	}
 }
+
+// siblingManifest declares one always-absent tool under a caller-chosen name, so a test can put
+// a DIFFERENT missing tool in a sibling plugin than the one the doctor's own manifest carries.
+func siblingManifest(name, tier string) string {
+	return fmt.Sprintf(`{"tools":[{"name":%q,"tier":%q,"check_cmd":"sc-definitely-not-real-%s --version",`+
+		`"install":{"windows":"winget install x","darwin":"brew install x","linux":"apt install x"}}]}`, name, tier, name)
+}
+
+// writeSibling puts a manifest in a sibling plugin's newest version dir under the same cache.
+func writeSibling(t *testing.T, root, plugin, manifest string) {
+	t.Helper()
+	dir := filepath.Join(filepath.Dir(filepath.Dir(root)), plugin, "0.6.0")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "requirements.json"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A SIBLING PLUGIN'S `required` MUST REACH THE VERDICT.
+//
+// It did not. Sibling manifests were probed and printed, then `verdict` read the doctor's own
+// manifest alone — so frank-exchange-of-views declaring `node` required (its engine refuses
+// dispatch without it) and gray-area declaring `git` required could not move the verdict off
+// READY. The table said ✗ and the verdict said fine: a plugin author's hard requirement,
+// declared in the one place the format provides for it, silently ignored.
+func TestSiblingRequiredToolBlocks(t *testing.T) {
+	root := doctorRoot(t, manifestJSON("optional"))
+	writeSibling(t, root, "frank-exchange-of-views", siblingManifest("enginedep", "required"))
+
+	out, _ := doctor(t, root)
+	if !strings.Contains(out, "VERDICT: BLOCKED") {
+		t.Errorf("a sibling's missing REQUIRED tool must block the whole suite's preflight:\n%s", out)
+	}
+}
+
+// AND THE WEAKER DECLARATION CANNOT EXCUSE THE STRONGER ONE. Two plugins naming one tool is the
+// live case: prosthetic-conscience wants jq for diagnostics (optional), frank-exchange-of-views
+// needs it to filter a projection in one call instead of three (required). The box's obligation
+// is the strictest of the two, and it must not depend on which manifest was read first.
+func TestSiblingStricterTierWinsOverOwnManifest(t *testing.T) {
+	root := doctorRoot(t, manifestJSON("optional"))
+	writeSibling(t, root, "frank-exchange-of-views", manifestJSON("required"))
+
+	out, _ := doctor(t, root)
+	if !strings.Contains(out, "VERDICT: BLOCKED") {
+		t.Errorf("own manifest said optional and a sibling said required for the SAME tool; "+
+			"the strictest declaration must decide:\n%s", out)
+	}
+}
+
+// A SIBLING'S OPTIONAL TOOL STILL DOES NOT MOVE THE VERDICT — the fix widens WHOSE requirements
+// count, not what a tier means. Without this the change reads as "siblings now block", and a
+// missing optional tool anywhere in the suite would stop every box.
+func TestSiblingOptionalToolDoesNotDegrade(t *testing.T) {
+	root := doctorRoot(t, manifestJSON("optional"), "sc-doctor")
+	writeSibling(t, root, "gray-area", siblingManifest("niceties", "optional"))
+
+	out, _ := doctor(t, root)
+	if strings.Contains(out, "VERDICT: BLOCKED") {
+		t.Errorf("a sibling's OPTIONAL tool must not block:\n%s", out)
+	}
+}
