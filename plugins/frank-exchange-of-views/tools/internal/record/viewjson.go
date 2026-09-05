@@ -1,6 +1,7 @@
 package record
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -415,16 +416,222 @@ func BoardJSONBytes(run Run) ([]byte, error) {
 // it is what bare `show` returns for every role, and it is the command a seat is told to run. The
 // board is the gaps; the work is the work.
 func BoardJSONBytesFor(run Run, role, seatID string) ([]byte, error) {
-	b, err := BoardState(run)
+	bj, err := BoardJSONOfRun(run)
 	if err != nil {
 		return nil, err
 	}
-	bj := BoardJSONOf(b)
 	out, err := json.MarshalIndent(bj, "", "  ")
 	if err != nil {
 		return nil, err
 	}
 	return append(out, '\n'), nil
+}
+
+// BoardJSONOfRun is the board projection asked of the RECORD: the gap view answers everything
+// scalar (order, openness, the regrade-overlaid grades, the mint's prose, the proof debt), the
+// list tables answer found_by/supersedes, and only the acts this projection EMBEDS — closures,
+// regrades, findings — come through the typed loader, because their bodies render whole and the
+// schema machinery is the one statement of body shape.
+//
+// It must answer byte-identically to BoardJSONOf over the fold — boardparity_test.go holds the
+// pair on records that exercise the fold's edges (a gap closed by BOTH arms, where attribution
+// follows the LAST closing event but the embedded body prefers the red close) — until the last
+// board-holding caller's wave retires the fold shape (plans/board-as-views.md wave 7).
+func BoardJSONOfRun(run Run) (BoardJSON, error) {
+	out := BoardJSON{
+		Open:      []GapJSON{},
+		Closed:    []GapJSON{},
+		Anomalies: []string{},
+	}
+
+	// The acts the projection embeds or attributes, one filtered typed read, grouped per gap.
+	evs, err := EventsOf(run,
+		recordpb.EventType_EVENT_TYPE_CLOSE,
+		recordpb.EventType_EVENT_TYPE_OPINION,
+		recordpb.EventType_EVENT_TYPE_REGRADE,
+		recordpb.EventType_EVENT_TYPE_FINDING)
+	if err != nil {
+		return out, err
+	}
+	type closeState struct {
+		lastClose        *recordpb.Close   // the fold's Closure: last red close
+		lastBenchClosure *recordpb.Opinion // the fold's BenchClosure: last CLOSING opinion
+		closedRound      int               // the LAST closing event's round, either arm
+		closedByBench    bool              // ... and whether that last event was the bench's
+		hasClosed        bool
+	}
+	closures := map[string]*closeState{}
+	regrades := map[string][]*recordpb.Regrade{}
+	var findings []*Event
+	closing := func(id string) *closeState {
+		c, ok := closures[id]
+		if !ok {
+			c = &closeState{}
+			closures[id] = c
+		}
+		return c
+	}
+	for _, e := range evs {
+		switch m := mustBody(e).(type) {
+		case *recordpb.Close:
+			c := closing(m.GetGapId())
+			c.lastClose, c.closedRound, c.closedByBench, c.hasClosed = m, int(e.GetRound()), false, true
+		case *recordpb.Opinion:
+			if !benchClosesGap(m.GetDisposition()) {
+				continue
+			}
+			c := closing(m.GetGapId())
+			c.lastBenchClosure, c.closedRound, c.closedByBench, c.hasClosed = m, int(e.GetRound()), true, true
+		case *recordpb.Regrade:
+			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], m)
+		case *recordpb.Finding:
+			findings = append(findings, e)
+		}
+	}
+
+	db, err := openRunForRead(run)
+	if err != nil {
+		return out, err
+	}
+	if db == nil {
+		out.Observations = []ObservationJSON{}
+		return out, nil
+	}
+	foundBy, err := listValuesByEvent(db, "mint_found_by")
+	if err != nil {
+		return out, err
+	}
+	supersedes, err := listValuesByEvent(db, "mint_supersedes")
+	if err != nil {
+		return out, err
+	}
+
+	rows, err := db.Query(`SELECT "gap_id", "minted_round", "open",
+	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
+	    "class", "location", "problem", "mint_reason", "required_fix", "acceptance_check",
+	    "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_event"
+	  FROM "gap" ORDER BY "minted_event"`)
+	if err != nil {
+		return out, fmt.Errorf("record: asking the record for its board: %w", err)
+	}
+	defer rows.Close()
+	credited := map[string]bool{}
+	for rows.Next() {
+		var id string
+		var round int
+		var open, awaiting bool
+		var sev, lik, imp, cx, class, loc, problem, reason, fix, gate, kind, basis, fixNew sql.NullString
+		var mintedEvent int64
+		if err := rows.Scan(&id, &round, &open, &sev, &lik, &imp, &cx,
+			&class, &loc, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedEvent); err != nil {
+			return out, err
+		}
+		gj := GapJSON{
+			ID: id, Round: round, Open: open,
+			FoundBy: strs(foundBy[mintedEvent]), Supersedes: strs(supersedes[mintedEvent]),
+			Regrades: []map[string]any{},
+			Severity: nullWord(sev), Likelihood: nullWord(lik), Impact: nullWord(imp), ComplexityCost: nullWord(cx),
+			Class: class.String, Location: loc.String, Problem: problem.String,
+			MintReason: reason.String, RequiredFix: fix.String, AcceptanceGate: gate.String,
+			CheckKind: kind.String, AwaitingProof: awaiting,
+			FixBasis: basis.String, FixOld: loc.String, FixNew: fixNew.String,
+		}
+		for _, l := range foundBy[mintedEvent] {
+			credited[l] = true
+		}
+		if c := closures[id]; c != nil && c.hasClosed {
+			gj.ClosedRound, gj.ClosedByBench = c.closedRound, c.closedByBench
+			// BOTH CLOSING BODIES REACH THE FIELD, red's preferred — closureBody's rule, applied
+			// to the same pair the fold carried.
+			body := proto.Message(c.lastClose)
+			if c.lastClose == nil {
+				body = c.lastBenchClosure
+			}
+			m, err := bodyMap(body)
+			if err != nil {
+				out.Anomalies = append(out.Anomalies, fmt.Sprintf("gap %s: %v — the closure was DROPPED from this projection, not rendered empty", id, err))
+			}
+			gj.Closure = m
+		}
+		for _, r := range regrades[id] {
+			m, err := bodyMap(r)
+			if err != nil {
+				out.Anomalies = append(out.Anomalies, fmt.Sprintf("gap %s: %v — the regrade was DROPPED from this projection, not rendered empty", id, err))
+				continue
+			}
+			gj.Regrades = append(gj.Regrades, m)
+		}
+		if open {
+			out.Open = append(out.Open, gj)
+		} else {
+			out.Closed = append(out.Closed, gj)
+			if gj.ClosedByBench {
+				out.Counts.ClosedByBench++
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return out, err
+	}
+
+	for _, e := range findings {
+		f, _ := recordpb.BodyAs[*recordpb.Finding](e)
+		oj := ObservationJSON{SeatID: e.GetSeatId(), Key: e.GetKey(), Kind: recordpb.Word(e.GetType()),
+			ID: f.GetFindingId(), Label: f.GetLabel(), Text: f.GetText()}
+		oj.Credited = oj.Label != "" && credited[oj.Label]
+		if !oj.Credited {
+			out.Counts.UncreditedFindings++
+		}
+		out.Observations = append(out.Observations, oj)
+	}
+	if out.Observations == nil {
+		out.Observations = []ObservationJSON{}
+	}
+
+	if err := db.QueryRow(`SELECT
+	    (SELECT count(*) FROM "verify"),
+	    (SELECT count(*) FROM "cite")`).Scan(&out.Counts.Citations, &out.Counts.CitationsAuthored); err != nil {
+		return out, err
+	}
+	out.Counts.Open = len(out.Open)
+	out.Counts.Closed = len(out.Closed)
+	out.Counts.TotalObservations = len(out.Observations)
+	out.Counts.Anomalies = len(out.Anomalies)
+	return out, nil
+}
+
+// mustBody is Body for a stream the loader just built: every event it returns carries one.
+func mustBody(e *Event) proto.Message {
+	b, _ := recordpb.Body(e)
+	return b
+}
+
+// nullWord renders a nullable grade word as the projection's `any`: the word, or JSON null for
+// an axis nothing graded — never "" and never 0 (GapJSON's own comment owns the reason).
+func nullWord(v sql.NullString) any {
+	if v.Valid && v.String != "" {
+		return v.String
+	}
+	return nil
+}
+
+// listValuesByEvent reads one list table whole: event_id -> values in ord order.
+func listValuesByEvent(db *sql.DB, table string) (map[int64][]string, error) {
+	rows, err := db.Query(fmt.Sprintf(`SELECT "event_id", "value" FROM %q ORDER BY "event_id", "ord"`, table))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64][]string{}
+	for rows.Next() {
+		var id int64
+		var v string
+		if err := rows.Scan(&id, &v); err != nil {
+			return nil, err
+		}
+		out[id] = append(out[id], v)
+	}
+	return out, rows.Err()
 }
 
 // WorkJSON is the merge's SHRINKING working set: OPEN gaps only, in the lean shape a
