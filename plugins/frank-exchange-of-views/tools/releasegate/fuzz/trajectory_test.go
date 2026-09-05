@@ -241,11 +241,17 @@ func tracked(bin string, args ...string) ([]byte, error) {
 // harness has driven the tree this way — under t.Parallel — since before this sweep existed.
 //
 // WHAT IT DOES NOT REPRODUCE, stated so nobody reads it as equivalent: refuseUnknownCommandFirst
-// (unexported, and only answers argv naming a command that does not exist — which a projection
-// sweep never sends), the signal guard, and os.Exit. That last one is why this driver is used for
-// the `show` group alone: no show handler exits, while the operator's `dashboard` and `scorecard`
-// call os.Exit inside their RunE, and an os.Exit in the test binary takes the whole sweep down
-// with no failing test and no diagnosis.
+// (unexported, and only answers argv naming a command that does not exist — which a read-only
+// sweep never sends), the signal guard, and os.Exit.
+//
+// THE os.Exit CAVEAT USED TO BE AN EXCLUSION AND IS NOW A RULE ABOUT THE PRODUCT. `dashboard` and
+// `scorecard` answered a bad argv by printing a usage line and exiting from inside their cobra
+// RunE, so driving them here would have taken the whole test binary down with no failing test and
+// no diagnosis — and they were held on the spawn path for that alone. #716 fixed the commands
+// rather than working around them (a RunE refusal returns; Execute renders it, so a --json caller
+// gets an envelope), which is why this driver now covers every read-only surface the sweep has.
+// The remaining os.Exit in `capture` is not a refusal — it is the documented "exit 2 iff any audit
+// FAILs" — and `capture` is exempt from this sweep for its own stated reason.
 func inproc(args ...string) ([]byte, error) {
 	root := cli.NewRootFor(seatOfArgs(args))
 	var out bytes.Buffer

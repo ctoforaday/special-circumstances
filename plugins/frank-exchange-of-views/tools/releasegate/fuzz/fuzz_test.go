@@ -3568,7 +3568,7 @@ func containsFlag(argv []string, flag string) bool {
 func sweepReadOnly(bin, runDir string) string {
 	// The transcript dir is the run dir here: dashboard tolerates finding no agent-*.jsonl,
 	// and what is under test is that it RENDERS whatever board shape the run reached.
-	if out, err := tracked(bin, dashboardArgv(runDir)...); err != nil {
+	if out, err := drive(bin, dashboardArgv(runDir)...); err != nil {
 		return "read-only surface `dashboard` failed on a real run shape:\n" + truncate(string(out))
 	}
 	for _, argv := range readOnlySurfaces {
@@ -3578,7 +3578,7 @@ func sweepReadOnly(bin, runDir string) string {
 		if !containsFlag(argv, "--seat-id") {
 			args = append(args, "--seat-id", "operator")
 		}
-		if out, err := tracked(bin, args...); err != nil {
+		if out, err := drive(bin, args...); err != nil {
 			return "read-only surface `" + strings.Join(argv, " ") + "` failed on a real run shape:\n" + truncate(string(out))
 		}
 	}
