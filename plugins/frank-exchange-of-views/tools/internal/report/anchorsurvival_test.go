@@ -78,6 +78,11 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		}
 	}
 
+	// Ingest the round-0 report so Assemble can render it (#709): the report is the record
+	// projection now, and the marker tokens are already in `blue`, so the location-less cite/proof
+	// events below add no marker of their own (the report_op view excludes them).
+	add("blue-synthesize", &recordpb.BaseIngest{Text: proto.String(blue)})
+
 	add("blue-synthesize", &recordpb.Cite{
 		Label: proto.String("c-1"), Url: proto.String("https://ex/eviction"),
 		Sha256: proto.String("deadbeef"), Title: proto.String("Eviction Under Contention"),
