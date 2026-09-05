@@ -409,25 +409,11 @@ func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 func TerminalVerdict(run record.Run) string { return readTerminalVerdict(run) }
 
 func readTerminalVerdict(run record.Run) string {
-	b, err := record.BoardState(run)
-	if err != nil {
-		return ""
-	}
-	// The bench's own terminal act, latest wins.
-	for i := len(b.Events) - 1; i >= 0; i-- {
-		if b.Events[i].GetType() != recordpb.EventType_EVENT_TYPE_OUTCOME {
-			continue
-		}
-		o, ok := recordpb.BodyAs[*recordpb.Outcome](b.Events[i])
-		if !ok {
-			continue
-		}
-		// Word maps the enum back to the schema's own spelling and returns "" for the zero value,
-		// which is the same empty this loop already skipped on — an outcome event whose verdict was
-		// never set must not read as a verdict.
-		if v := recordpb.Word(o.GetVerdict()); v != "" {
-			return strings.ToUpper(v)
-		}
+	// The bench's own terminal act, latest wins — record.RecordedOutcome is the ONE reader of
+	// that fact now; this was a byte-for-byte second copy of the fold in record/liveness.go,
+	// which is exactly the drift the record-sqlite plan's step 4 retires.
+	if v := record.RecordedOutcome(run); v != "" {
+		return strings.ToUpper(v)
 	}
 	// Or what the record decides for itself. ok is false only where the record genuinely
 	// cannot — a judged deadlock — and that is a real answer, not a gap to paper over.

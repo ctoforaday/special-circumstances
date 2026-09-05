@@ -120,18 +120,10 @@ func massSum(gaps []*record.Gap) float64 {
 // the worse outcome — every caller reading "0 anomalies" as a clean board, in the same words it
 // used when the number meant something.
 func Counts(run record.Run) (open, closed int, err error) {
-	b, err := record.BoardState(run)
-	if err != nil {
-		return 0, 0, err
-	}
-	for _, id := range b.GapOrder {
-		if b.Gaps[id].Open {
-			open++
-		} else {
-			closed++
-		}
-	}
-	return open, closed, nil
+	// The board_counts view, not a fold: this loop was the site plans/record-sqlite.md names as
+	// the headline count that moves to a query, and the view's idea of "closed" is read off the
+	// disposition vocabulary rather than re-decided here.
+	return record.BoardCounts(run)
 }
 
 // Telemetry returns the per-round board-telemetry series, computed from the record — the single

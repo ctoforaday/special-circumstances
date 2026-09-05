@@ -178,13 +178,9 @@ func computationGapKind(run record.Run, gapID string) (bool, error) {
 	if gapID == "" {
 		return false, nil
 	}
-	b, err := record.BoardState(run)
+	kind, err := record.MintCheckKind(run, gapID)
 	if err != nil {
 		return false, err
 	}
-	g := b.Gaps[gapID]
-	if g == nil || g.Mint == nil {
-		return false, nil
-	}
-	return g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION, nil
+	return kind == recordpb.CheckKind_CHECK_KIND_COMPUTATION, nil
 }
