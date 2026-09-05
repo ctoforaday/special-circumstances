@@ -525,19 +525,15 @@ var verifyConfidence = []string{"high", "medium", "low"}
 func (r *runner) someCitation() string {
 	// A SEAT ID, because `show` only exists inside a seat's tree. Any seat reads the same
 	// projection; the lens is the one that acts on citations.
-	out, err := r.exec("show", "evidence", "--seat-id", "red-lens-r1-L1")
-	if err != nil {
+	b := r.board()
+	if b == nil {
 		return ""
 	}
-	var e struct {
-		Sources []struct {
-			Anchor string `json:"anchor"`
-		} `json:"sources"`
-	}
-	if json.Unmarshal([]byte(strings.TrimSpace(out)), &e) != nil || len(e.Sources) == 0 {
+	sources := record.EvidenceJSONOf(b).Sources
+	if len(sources) == 0 {
 		return ""
 	}
-	return e.Sources[r.rng.Intn(len(e.Sources))].Anchor
+	return sources[r.rng.Intn(len(sources))].Anchor
 }
 
 // mint records a gap and returns the tool-assigned id (R<round>-N). The first mint of a run
@@ -673,36 +669,55 @@ func (r *runner) mint(seatID string) string {
 // someFinding returns a random lens finding label on the record, or "" if none — feeds mint's
 // --found-by with a real TOOL-assigned label (L{role}-F{N}) rather than a fabricated one.
 func (r *runner) someFinding() string {
-	out, err := r.exec("show", "findings", "--seat-id", "red-merge-r1")
+	// THE FINDING FAMILY, NOT THE WHOLE FOLD. `show findings` is FindingsJSONBytes now —
+	// EventsOf(run, FINDING) into FindingsJSONOf — so this reproduces the CLI's own path rather
+	// than the board it used to ask for (#719). Byte-identity is the property that keeps this
+	// safe against the RNG, and it is identity with what the VERB does, not with what it did.
+	evs, err := record.EventsOf(r.runHandle, recordpb.EventType_EVENT_TYPE_FINDING)
 	if err != nil {
 		return ""
 	}
-	var f struct {
-		Findings []struct {
-			Label string `json:"label"`
-		} `json:"findings"`
-	}
-	if json.Unmarshal([]byte(strings.TrimSpace(out)), &f) != nil || len(f.Findings) == 0 {
+	findings := record.FindingsJSONOf(evs).Findings
+	if len(findings) == 0 {
 		return ""
 	}
-	return f.Findings[r.rng.Intn(len(f.Findings))].Label
+	return findings[r.rng.Intn(len(findings))].Label
+}
+
+// board reads the record IN PROCESS, through the same builders the binary renders from.
+//
+// THE HARNESS ASKING ITSELF A QUESTION IS NOT THE HARNESS TESTING THE BINARY, and conflating the
+// two is what made this sweep expensive. `openGaps`, `someCitation` and `someFinding` exist so the
+// FUZZ can decide what to do next — which gap to act on, which citation to name — and each shelled
+// `feov-record` to find out. Measured at 4 runs: `merge show board` 127 invocations, `lens show
+// evidence` 45, `merge show findings` 19, out of 1039 total. That is ~48 subprocesses per run, at
+// ~12ms each, buying nothing the sweep asserts.
+//
+// The COVERAGE those verbs owe is unaffected and is not weakened here: the projection sweep in
+// runOne drives every view on every role explicitly, which is what the surface gate reads (it goes
+// through `drive` now — the first invocation of each path per sweep spawns the binary, the rest
+// dispatch the same tree in process). These three call sites were never what proved `show board`
+// works — they were the harness reading its own board through a subprocess.
+//
+// BYTE-IDENTICAL BY CONSTRUCTION, which is why this is safe against the RNG. record.BoardJSONOf,
+// EvidenceJSONOf and FindingsJSONOf are the exact functions the CLI marshals, so the lists below
+// hold the same elements in the same order the parsed stdout did — and these feed rng.Intn, where
+// a reordering would silently move every downstream draw.
+func (r *runner) board() *record.Board {
+	b, err := record.BoardState(r.runHandle)
+	if err != nil {
+		return nil
+	}
+	return b
 }
 
 func (r *runner) openGaps() []string {
-	out, err := r.exec("show", "board", "--seat-id", "red-merge-r1")
-	if err != nil {
-		return nil
-	}
-	var b struct {
-		Open []struct {
-			ID string `json:"id"`
-		} `json:"open"`
-	}
-	if json.Unmarshal([]byte(out), &b) != nil {
+	b := r.board()
+	if b == nil {
 		return nil
 	}
 	var ids []string
-	for _, g := range b.Open {
+	for _, g := range record.BoardJSONOf(b).Open {
 		ids = append(ids, g.ID)
 	}
 	return ids
@@ -1955,6 +1970,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// because the sweep had only ever driven the handful it asserted on. A view that only the
 	// merge reads is a view nobody checks from the seat that actually reads it.
 	// EVERY SEAT READS EVERY PROJECTION, and the seat id is what says which tree `show` is in.
+	//
+	// THROUGH `drive`, WHICH SPAWNS THE BINARY ONCE PER PATH AND THEN STOPS. What varies between
+	// runs here is the RECORD each projection meets, never the argv — measured at N=4, every one
+	// of these 48 paths fired at exactly 1-4 invocations per run, the same set on every seed. So
+	// the shape variation these oracles are built on is kept in full and the 76 process spawns a
+	// run paid for it are not; `drive`'s own comment carries the accounting.
 	for role, sid := range map[string]string{
 		"blue": "blue-respond-r1", "lens": "red-lens-r1-L1", "merge": "red-merge-r1", "bench": "judge-r1",
 	} {
@@ -1963,12 +1984,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 			if v == "changes" && len(ids) > 0 {
 				args = append(args, "--id", ids[0])
 			}
-			if _, err := tracked(bin, args...); err != nil {
+			if _, err := drive(bin, args...); err != nil {
 				res.err = role + " show " + v + " failed: " + err.Error()
 				return res
 			}
 		}
-		if _, err := tracked(bin, "show", "--run", runDir, "--seat-id", sid); err != nil {
+		if _, err := drive(bin, "show", "--run", runDir, "--seat-id", sid); err != nil {
 			res.err = role + " show (bare, the seat's pending work) failed: " + err.Error()
 			return res
 		}
@@ -1991,7 +2012,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		} {
 			for _, extra := range [][]string{nil, {"--window", "0"}} {
 				args := append([]string{"show", "report", "--anchor", a, "--run", runDir, "--seat-id", sid}, extra...)
-				out, err := tracked(bin, args...)
+				out, err := drive(bin, args...)
 				if err != nil {
 					res.err = strings.Join(args, " ") + " failed:\n" + truncate(string(out))
 					return res
@@ -2008,7 +2029,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// AN ANCHOR NOBODY MINTED IS REFUSED, NOT READ EMPTY — the read-side twin of `show changes
 	// --id R9-99`. An empty window says "the report has nothing here", which is a different
 	// fact from "that anchor is not in this report".
-	if out, err := tracked(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir, "--seat-id", "blue-respond-r1"); err == nil {
+	if out, err := drive(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir, "--seat-id", "blue-respond-r1"); err == nil {
 		res.err = "show report --anchor f-ffffffff SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
 		return res
 	}
@@ -2026,7 +2047,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// `friction` left the SEAT menu (0.57.0) — it is the operator's read. The verb stays on
 	// every role; only the view moved.
 	for _, v := range []string{"findings"} {
-		out, err := tracked(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1")
+		out, err := drive(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show " + v + " did not return valid JSON:\n" + truncate(string(out))
@@ -2034,7 +2055,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		}
 	}
 	{
-		out, err := tracked(bin, "show", "debate", "--json", "--run", runDir, "--seat-id", "red-merge-r1")
+		out, err := drive(bin, "show", "debate", "--json", "--run", runDir, "--seat-id", "red-merge-r1")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show debate --json did not return valid JSON:\n" + truncate(string(out))
@@ -2055,14 +2076,14 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// role gate, so driving only `merge show --view` left the other three reachable but never
 	// reached — and --id (the scoped form) never passed at all.
 	for _, role := range []string{"blue", "lens", "bench"} {
-		if out, err := tracked(bin, "show", "debate", "--run", runDir, "--seat-id", seatOfRole(role)); err != nil {
+		if out, err := drive(bin, "show", "debate", "--run", runDir, "--seat-id", seatOfRole(role)); err != nil {
 			res.err = role + " show debate failed:\n" + truncate(string(out))
 			return res
 		}
 	}
 	if ids := mintedGapIDs(stageRun); len(ids) > 0 {
 		for _, role := range []string{"blue", "lens", "bench"} {
-			_, _ = tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", seatOfRole(role))
+			_, _ = drive(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", seatOfRole(role))
 		}
 	}
 	// THE SET IS DERIVED, because this exclusion was four names written here by hand and two of
@@ -2080,7 +2101,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		if jsonByName[v] {
 			continue // JSON by name — driven by their own oracles, not the markdown path
 		}
-		if out, err := tracked(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		if out, err := drive(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 			res.err = "show " + v + " (projection) failed:\n" + truncate(string(out))
 			return res
 		}
@@ -2090,11 +2111,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
 	// rendered empty — the read-side twin of requireGap.
 	if ids := mintedGapIDs(stageRun); len(ids) > 0 {
-		if out, err := tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		if out, err := drive(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 			res.err = "show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
 		}
-		if out, err := tracked(bin, "show", "changes", "--id", "R9-99", "--run", runDir, "--seat-id", "red-merge-r1"); err == nil {
+		if out, err := drive(bin, "show", "changes", "--id", "R9-99", "--run", runDir, "--seat-id", "red-merge-r1"); err == nil {
 			res.err = "show changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
 			return res
 		}
@@ -3551,7 +3572,7 @@ func containsFlag(argv []string, flag string) bool {
 func sweepReadOnly(bin, runDir string) string {
 	// The transcript dir is the run dir here: dashboard tolerates finding no agent-*.jsonl,
 	// and what is under test is that it RENDERS whatever board shape the run reached.
-	if out, err := tracked(bin, dashboardArgv(runDir)...); err != nil {
+	if out, err := drive(bin, dashboardArgv(runDir)...); err != nil {
 		return "read-only surface `dashboard` failed on a real run shape:\n" + truncate(string(out))
 	}
 	for _, argv := range readOnlySurfaces {
@@ -3561,7 +3582,7 @@ func sweepReadOnly(bin, runDir string) string {
 		if !containsFlag(argv, "--seat-id") {
 			args = append(args, "--seat-id", "operator")
 		}
-		if out, err := tracked(bin, args...); err != nil {
+		if out, err := drive(bin, args...); err != nil {
 			return "read-only surface `" + strings.Join(argv, " ") + "` failed on a real run shape:\n" + truncate(string(out))
 		}
 	}
