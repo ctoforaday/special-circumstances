@@ -543,6 +543,14 @@ jobs:
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
       # one, so this leg runs where a developer box may not be able to.
       #
+      # LINUX ONLY (ruled 2026-09-05). With the sweep at the binary's full import graph the
+      # race leg became this job's critical path — 11–13 minutes per OS, measured on the
+      # #692 run — and the detector's findings are platform-independent: it instruments the
+      # same interleavings whichever kernel schedules them. What the Windows leg uniquely
+      # proves (the .exe build, the spawns, the path plumbing) the plain test leg above
+      # still proves. One OS pays the race tax; both keep the coverage that is actually
+      # platform-shaped.
+      #
       # THE RACE SCOPE IS THE SHIPPED BINARY'S OWN IMPORT GRAPH, derived at run time from
       # `go list -deps` — not ./..., and not a hand-kept package list free to drift from
       # the graph it names. The module's test-only packages (releasegate/fuzz, testbuild,
@@ -556,12 +564,13 @@ jobs:
       # An empty list is refused rather than raced: `go test -race` with no packages would
       # test the current directory and pass while measuring almost nothing. scripts/check
       # holds this derivation and the local gate's (expandScope) to the same target.
-      - run: |
+      - if: runner.os == 'Linux'
+        run: |
           pkgs="$(go list -deps ./cmd/feov-record | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')"
           test -n "$pkgs"
           echo "$pkgs" | xargs go test -race
-        # EXPLICIT, because this job sets no default shell and the Windows leg therefore
-        # runs pwsh — where `$(...)`, pipes into grep, and xargs are not this syntax.
+        # EXPLICIT even though the step is Linux-only now: this job sets no default
+        # shell, and a script whose syntax assumes bash should say so where it runs.
         shell: bash
         env:
           CGO_ENABLED: "1"
@@ -578,15 +587,16 @@ jobs:
       # or deleted test would leave this step green forever while guarding nothing. That is the
       # plausible zero this leg exists to refuse, so the step greps for the test's own PASS line
       # and fails loudly when it is absent.
-      - run: |
+      - if: runner.os == 'Linux'
+        run: |
           out=$(go test -race -v -run '^TestTheRunHandleIsImmutableAfterConstruction$' ./releasegate/fuzz/ 2>&1)
           echo "$out"
           grep -q '^--- PASS: TestTheRunHandleIsImmutableAfterConstruction' <<<"$out" || {
             echo "::error::the run-handle race guard did not run; -run matched no test (renamed or deleted?)"
             exit 1
           }
-        # EXPLICIT, because this job sets no default shell and the Windows leg therefore runs
-        # pwsh — where `$(...)`, `<<<` and `grep` are not syntax.
+        # EXPLICIT even though the step is Linux-only now: this job sets no default
+        # shell, and a script whose syntax assumes bash should say so where it runs.
         shell: bash
         env:
           CGO_ENABLED: "1"
