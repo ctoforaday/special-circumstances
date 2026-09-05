@@ -19,6 +19,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
@@ -1449,7 +1450,7 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", proj)
 
-	if got := seat.InferRunDir(proj); got != marker {
+	if got := runlive.InferRunDir(proj); got != marker {
 		t.Fatalf("precondition: marker should resolve to %q, got %q", marker, got)
 	}
 	// With the flag present the marker must not be consulted at all.

@@ -1,10 +1,15 @@
 // Package runlive owns .claude/run-live.json — WHICH RUNS ARE OPEN, and nothing else.
 //
 // It is a leaf on purpose. The marker's shape used to live in `setup`, which is where it is
-// written; but `seat.InferRunDir` also has to READ it, and seat cannot import setup (setup
+// written; but `InferRunDir` also has to READ it, and seat cannot import setup (setup
 // imports internal/cli, of which seat is a subpackage). So seat carried its own inline decode
 // of the file — the exact defect RunLiveMarker's own comment complains about, that "every
 // reader re-declared its own subset", reproduced one package away from the type stating it.
+//
+// InferRunDir itself now lives HERE rather than in seat (see infer.go), which is the end of that
+// story: the reader and the shape it reads are one package, and a caller who wants only "which
+// run am I in?" — the PreToolUse hook is the one that matters — no longer takes a cobra command
+// tree and a SQLite driver to get it.
 //
 // MEASURED: making the file a list (#529) broke seat's private decoder and nothing said so.
 // Inference silently stopped resolving any run at all, and the only symptom was a verb asking
@@ -20,7 +25,7 @@ import (
 )
 
 // RunLiveMarker is the marker as a READ value. The writer's struct was anonymous, so every reader
-// re-declared its own subset — seat.InferRunDir reads only RunDir, and the shape has never been
+// re-declared its own subset — InferRunDir reads only RunDir, and the shape has never been
 // stated in one place a new reader can find (#270).
 type RunLiveMarker struct {
 	RunDir      string   `json:"runDir"`
@@ -74,7 +79,7 @@ func ReadRunLive(projectDir string) []RunLiveMarker {
 // ReadRunLiveMarker reports THE open run, if the marker names exactly one usably.
 //
 // ok=false covers absent, unreadable, unparseable, empty-runDir — and now MORE THAN ONE. That
-// last case is the whole point: this is what seat.InferRunDir asks when a verb arrives with no
+// last case is the whole point: this is what InferRunDir asks when a verb arrives with no
 // run directory, and with two runs open there is no answer, only a guess. Its own rule for an
 // unusable marker already says what to do with that — "say nothing rather than guess" — and
 // saying nothing is safe now because a wrapped seat never has to ask (#526, #529).

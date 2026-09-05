@@ -314,7 +314,7 @@ func TestMirrorScorecardsFallbackParsesColonClause(t *testing.T) {
 //
 // The marker's only remover is `capture`, and capture is optional. Setup used to overwrite it
 // unconditionally — self-healing and silent, so nobody learned the previous run was never closed.
-// Between the abandoned run and this setup, that stale marker is what seat.InferRunDir hands to
+// Between the abandoned run and this setup, that stale marker is what runlive.InferRunDir hands to
 // every verb invoked without --run.
 func TestSetupRefusesWhenAnotherRunIsStillOpen(t *testing.T) {
 	cwd := t.TempDir()

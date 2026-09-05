@@ -37,8 +37,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
 
 // Run invokes a hook entry point and guarantees the process exit code is 0.
@@ -82,7 +82,7 @@ func Pre(stdin io.Reader, stdout io.Writer) error {
 	// The run directory is resolved from the payload's `cwd` — the SEAT's working directory,
 	// which is wire-supplied and documented, never this hook process's os.Getwd(). Absent or
 	// unusable marker → empty → no rewrite, matching InferRunDir's "say nothing rather than guess".
-	runDir := seat.InferRunDir(cwdOf(raw))
+	runDir := runlive.InferRunDir(cwdOf(raw))
 	if outcome, payload := hookgate.PreOutcome(in, runDir); outcome == hookgate.OutcomeRewrite {
 		emitPreRewrite(stdout, in.ToolInput, payload)
 	}
