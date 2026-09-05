@@ -83,8 +83,31 @@ func newDashboard() *cobra.Command {
 			marker := filepath.Join(".claude", "run-live.json")
 			ticker := time.NewTicker(15 * time.Second)
 			defer ticker.Stop()
+			// THE TICK IS THE SCHEDULE, NOT THE REASON. Every 15s this called BuildModel
+			// unconditionally, which replays the record AND re-reads and re-parses every
+			// agent-*.jsonl in the transcript directory — append-only files that GROW through the
+			// run, so the cost climbs while the work stays the same. ~2s of CPU per tick on a long
+			// run, ~1,200 ticks over five hours: ~40 minutes of CPU re-deriving a page that in most
+			// windows nobody had given it a new fact for (#684 F15).
+			//
+			// The fingerprint answers "has anything BuildModel can read moved", and it fails
+			// towards rendering: unmeasurable counts as changed (dashboard.Changed owns that
+			// direction, so it is not a judgement made here). Skipping a tick is invisible to a
+			// reader — the page it would have rewritten is byte-for-byte the one already on disk.
+			seen := dashboard.Fingerprint(run.Dir(), transcriptDir)
 			for range ticker.C {
-				_ = generate()
+				// `current` and not `now`: `now` is the injected-clock flag in this scope, and
+				// shadowing it here would compile and read as the clock to everyone after.
+				current := dashboard.Fingerprint(run.Dir(), transcriptDir)
+				if dashboard.Changed(seen, current) {
+					_ = generate()
+					// RECORDED FROM BEFORE THE RENDER, deliberately. Re-measuring afterwards
+					// would absorb anything a seat wrote WHILE the page was being built and call
+					// it already-seen, so that write would wait for the next one to arrive
+					// before it showed up. Carrying the earlier reading costs at most one
+					// redundant render and cannot lose an update.
+					seen = current
+				}
 				if ended, why := runHasEnded(marker, run); ended {
 					_ = generate()
 					fmt.Fprintln(cmd.OutOrStdout(), why+" — final render written, watcher exiting")
