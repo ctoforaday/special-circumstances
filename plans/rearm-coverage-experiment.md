@@ -21,7 +21,7 @@ Two questions cannot be answered from inside a running session, because both are
 >   carried an `agent_type`, 19/19 and 50/50 within one session. gray-area §11.10, spike §7a.
 > - **Q2: NOT answered, and NOT answerable from a `/clear` session.** The `/clear` this runbook
 >   prescribes is what disables the mechanism under test — see step 2's correction and
->   `plans/context-checkpointing.md` §20. **Next runner: do NOT `/clear` if Q2 is the goal.** The
+>   `plans/historical/context-checkpointing.md` §20. **Next runner: do NOT `/clear` if Q2 is the goal.** The
 >   two instructions are in conflict and Q2 loses.
 
 ---

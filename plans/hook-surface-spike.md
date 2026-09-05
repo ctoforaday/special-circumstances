@@ -1011,7 +1011,7 @@ is present at every boundary.
 
 ### The method rule this earns
 
-`context-checkpointing.md` §17 A already says this claim was *"wrong in the same way twice: the value
+`historical/context-checkpointing.md` §17 A already says this claim was *"wrong in the same way twice: the value
 was sized off a guess and then 'confirmed' by a clean exit. A clean exit says the run finished. It
 says nothing about where the threshold was."* **This is the third time, and the failure mode moved:**
 it is no longer the value, it is the lever. A control surface can be removed between patch versions

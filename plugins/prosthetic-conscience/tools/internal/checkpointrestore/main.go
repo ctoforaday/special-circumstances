@@ -11,8 +11,11 @@
 //
 // # Why SessionStart, on every source
 //
-// An earlier revision of plans/context-checkpointing.md routed the compaction
-// boundary through PostCompact, on the reasoning that it receives compact_summary
+// (That earlier revision is preserved at plans/historical/context-checkpointing.md;
+// the live design is plans/context-checkpointing.md.)
+//
+// An earlier revision of the checkpointing plan routed the compaction boundary
+// through PostCompact, on the reasoning that it receives compact_summary
 // and could inject only the delta. PostCompact CANNOT inject: it is absent from
 // the client's hookSpecificOutput union, its stdout goes to the user rather than
 // the model, and an end-to-end marker test found it NOT-SEEN where the same
