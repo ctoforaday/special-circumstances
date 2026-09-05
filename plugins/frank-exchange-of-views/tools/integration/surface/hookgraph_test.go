@@ -13,44 +13,60 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/repotree"
 )
 
-// hookBinary is the ONE binary in this module that runs once per TOOL CALL. Everything below is
-// about keeping its process image small; nothing here applies to feov-record, which is a
-// long-lived-enough invocation that its 398-package graph is not a cost worth guarding.
+// hookBinaries are the binaries the plugin manifest registers as hooks. EVERY ONE of them is
+// held to the same graph, and that uniformity is the point: the rule is PER-INVOCATION COST, and
+// all three fire often enough to pay it.
 //
-// THERE ARE NOW THREE HOOK BINARIES AND ONLY THIS ONE IS GATED, which is a decision rather than
-// an oversight, and the arithmetic is the whole of it. feov-subagentstart and feov-subagentstop
-// fire ONCE PER SEAT — thirteen to twenty times in a run — against this one's ~2,457 invocations.
-// At the 4.361 ms image this gate exists to prevent, that is ~86 ms across a run whose seats span
-// ~36 minutes each. They deliberately link internal/record, because writing an event to the
-// record is the entire job (#265): a sitting hook that could not open a record would have to put
-// its fact in a file beside the record instead, which is the shape facts-are-fields refuses.
+// feov-pretooluse fires once per TOOL CALL — ~2,457 times a run. The sitting hooks fire on every
+// SubagentStart and SubagentStop, which sounds rarer and is not: SubagentStop also fires at the
+// MAIN AGENT'S TURN END, 50 times against 19 seats in one measured session (§7a), and it fires in
+// EVERY session including every session with no run at all. A globally installed plugin paying a
+// SQLite driver's init() on every turn end of every user's session is the same defect as #684 F2,
+// on a different event.
 //
-// The rule is therefore PER-INVOCATION COST, not "hooks are light". If a future hook fires per
-// tool call, it belongs in this gate; if it fires per seat, the graph is not what to guard.
-const hookBinary = "./cmd/feov-pretooluse"
+// Measured while this was being decided: feov-subagentstart was 13.06 MB and 3.555 ms with the
+// record linked, and 3.16 MB and 1.210 ms without — level with feov-pretooluse. The write moved to
+// feov-sitting-write, which IS heavy and is NOT here, because the hooks spawn it only once they
+// know there is a live run and a real seat: ~38 times in a run, never in an ordinary session.
+//
+// Nothing here applies to feov-record, which is a long-lived-enough invocation that its
+// 398-package graph is not a cost worth guarding, or to feov-sitting-write for the same reason.
+var hookBinaries = []string{
+	"./cmd/feov-pretooluse",
+	"./cmd/feov-subagentstart",
+	"./cmd/feov-subagentstop",
+}
 
-// perSeatHookBinaries fire once per seat and are NOT graph-gated, listed so "why is only one of
-// three here" is answered where the question is asked.
-var perSeatHookBinaries = []string{"./cmd/feov-subagentstart", "./cmd/feov-subagentstop"}
-
-// hookLocalPackages is the module-local import graph feov-pretooluse is ALLOWED to have.
+// hookLocalPackages is the module-local import graph each registered hook binary is ALLOWED to
+// have, PER BINARY rather than shared.
+//
+// A single shared list cannot state this: internal/sittinghook is legitimate for the sitting
+// hooks and would be a dead entry for feov-pretooluse, and the staleness arm below — which is
+// what stops the allowlist rotting into decoration — cannot tell a dead entry from a deliberate
+// one. So each binary's graph is its own claim, and the repetition is the claim being made three
+// times rather than one claim being made loosely.
 //
 // A WHITELIST, AND DELIBERATELY. facts-are-fields warns that a guard whose own allowlist is
 // hand-kept has reproduced the defect one level up — that warning is about a guard whose miss is
-// SILENT, and this one cannot miss: any package added to the hook's graph fails this test by
-// name, whether or not anyone thought of it in advance. A blacklist of known-heavy packages is
-// the shape that would go quietly stale, because the next expensive dependency is by definition
-// the one nobody listed.
+// SILENT, and this one cannot miss: any package added to a hook's graph fails this test by name,
+// whether or not anyone thought of it in advance. A blacklist of known-heavy packages is the
+// shape that would go quietly stale, because the next expensive dependency is by definition the
+// one nobody listed.
 //
-// Adding a line here is a real decision, not a formality: it means the hook now pays that
-// package's init() on every Bash call in every session.
-var hookLocalPackages = []string{
-	"cmd/feov-pretooluse",
-	"internal/feov",
-	"internal/hookcmd",
-	"internal/hookgate",
-	"internal/runlive",
-	"internal/seatenv",
+// Adding a line here is a real decision, not a formality: it means that hook now pays that
+// package's init() on every firing of its event.
+var hookLocalPackages = map[string][]string{
+	"./cmd/feov-pretooluse": {
+		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
+	},
+	"./cmd/feov-subagentstart": {
+		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
+		"internal/sittinghook",
+	},
+	"./cmd/feov-subagentstop": {
+		"internal/feov", "internal/seatenv", "internal/hookgate", "internal/runlive", "internal/hookcmd",
+		"internal/sittinghook",
+	},
 }
 
 // hookForbidden are packages whose init() registers global state before main runs — a SQL driver
@@ -86,7 +102,17 @@ var hookForbidden = []string{
 // because another worktree's test binary was at 98% CPU. The import graph is the stable proxy
 // for the cost and it is what a future change actually gets wrong.
 func TestHookBinaryLinksNothingExpensive(t *testing.T) {
-	deps := hookDeps(t)
+	for _, b := range hookBinaries {
+		t.Run(path.Base(b), func(t *testing.T) { assertGraph(t, b) })
+	}
+}
+
+func assertGraph(t *testing.T, hookBinary string) {
+	if _, ok := hookLocalPackages[hookBinary]; !ok {
+		t.Fatalf("%s is gated but has no allowlist, so every package it links would read as an "+
+			"addition; state its graph in hookLocalPackages", hookBinary)
+	}
+	deps := hookDeps(t, hookBinary)
 
 	local := map[string]bool{}
 	for _, d := range deps {
@@ -94,8 +120,12 @@ func TestHookBinaryLinksNothingExpensive(t *testing.T) {
 			local[rel] = true
 		}
 	}
-	allowed := map[string]bool{}
-	for _, p := range hookLocalPackages {
+	// Each binary's OWN cmd package is derived rather than listed: three entries in a shared
+	// allowlist would each be stale for two of the three binaries, which is the same
+	// "reads as coverage, checks nothing" failure the staleness arm below exists to catch.
+	// The binary's OWN cmd package is derived rather than listed — it is true by construction.
+	allowed := map[string]bool{strings.TrimPrefix(hookBinary, "./"): true}
+	for _, p := range hookLocalPackages[hookBinary] {
 		allowed[p] = true
 		if !local[p] {
 			t.Errorf("%s no longer imports %s. If that is deliberate, drop it from hookLocalPackages — "+
@@ -137,7 +167,7 @@ const modulePath = "github.com/ctoforaday/special-circumstances/plugins/frank-ex
 // belongs beside the other static agreements here rather than in integration/fuzz. It costs
 // about as much as one compile of a small package, and it is the only way to ask this question:
 // the answer lives in the build graph, not in any file a text sweep could read.
-func hookDeps(t *testing.T) []string {
+func hookDeps(t *testing.T, hookBinary string) []string {
 	t.Helper()
 	dir, err := repotree.Plugin("tools")
 	if err != nil {
@@ -188,20 +218,21 @@ func TestEveryRegisteredHookBinaryIsGatedOrNamedUngated(t *testing.T) {
 		t.Fatal("no hook binaries found in the manifest — this test is reading the wrong thing and would pass forever")
 	}
 
-	accounted := map[string]bool{path.Base(hookBinary): true}
-	for _, b := range perSeatHookBinaries {
+	accounted := map[string]bool{}
+	for _, b := range hookBinaries {
 		accounted[path.Base(b)] = true
 	}
 	for b := range found {
 		if !accounted[b] {
-			t.Errorf("hooks.json registers %q and this file neither gates it nor names it as deliberately "+
-				"ungated. Decide which: a hook firing per TOOL CALL belongs in hookBinary's gate; one firing "+
-				"per seat belongs in perSeatHookBinaries with the arithmetic that says why.", b)
+			t.Errorf("hooks.json registers %q and hookBinaries does not list it, so its import graph is "+
+				"unguarded. Every registered hook pays its init() on every firing of its event; add it "+
+				"here, or move its expensive work into a binary the hook spawns only when it has "+
+				"something to do (see feov-sitting-write).", b)
 		}
 	}
 	for b := range accounted {
 		if !found[b] {
-			t.Errorf("this file accounts for %q and hooks.json registers no such binary — the gate is "+
+			t.Errorf("hookBinaries lists %q and hooks.json registers no such binary — the gate is "+
 				"guarding something that does not run", b)
 		}
 	}
