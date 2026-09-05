@@ -26,6 +26,17 @@
       }
     },
     {
+      "name": "jq",
+      "purpose": "filter a record projection in ONE call — every read verb emits JSON on stdout, and without jq a seat spools it to a scratch file and re-parses it in python (measured: 251 json.load re-parses and 25 key-dumps in one run, each a process spawn and a full round-trip). The `show` group's help names it, so the doctor reports whether the box it names actually has it",
+      "tier": "recommended",
+      "check_cmd": "jq --version",
+      "install": {
+        "windows": "winget install --id jqlang.jq -e",
+        "darwin": "brew install jq",
+        "linux": "apt-get install jq (or the distro equivalent)"
+      }
+    },
+    {
       "name": "buf",
       "purpose": "convert a raw record shard line to JSON for inspection (`buf convert internal/record/recordpb/record.proto --type feov.record.v1.Event --from -#format=txtpb --to -#format=json`) — diagnostics only; nothing in the build or a run needs it, and `scripts/protogen` deliberately does not",
       "tier": "optional",

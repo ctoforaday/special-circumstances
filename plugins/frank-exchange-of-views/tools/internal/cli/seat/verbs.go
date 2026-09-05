@@ -337,7 +337,27 @@ func Show() *cobra.Command {
 		// name here and never opens the page has learned a word, which is how one of them typed a
 		// projection name as a verb. The group heading now says this page hides commands; each
 		// projection says what it is for on its own page, which is where the choosing happens.
-		Short:        "read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK",
+		Short: "read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK",
+		// LONG CARRIES THE CONSUMPTION RULE, and it is on the GROUP because that is the one page
+		// where a projection is CHOSEN — the leaf pages answer "what is in this one", this page
+		// answers "how do I read any of them". Set explicitly rather than left to fall back to
+		// Short, which is written for the root listing.
+		//
+		// IT IS HERE AND NOT IN THE SEAT PROMPT. The prompt-size ceiling asks of new text: does
+		// it teach a VERB, a FLAG, a REFUSAL, or a RENDERING? This teaches how to consume a
+		// rendering, so it belongs where the seat reads while choosing. The first draft of this
+		// repair put it in debate.js's recordClause and was refused twice over — once for naming
+		// a command invocation in a prompt, once for pushing judge-r2 past its ceiling. Both
+		// refusals were right, and this is where they pointed.
+		Long: "read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.\n\n" +
+			"A PROJECTION IS JSON ON STDOUT — PIPE IT, DO NOT SPOOL IT. `jq` is the filter for it; a projection " +
+			"piped into it answers your question in ONE call. Writing the projection to a scratch file and re-reading it in " +
+			"python is THREE — the dump, a key-dump to learn the field names, then the extract — and each one is a process " +
+			"spawn and a full round-trip for a single question. MEASURED across one run: 251 `json.load` re-parses and 25 " +
+			"`list(d.keys())` key-dumps against three uses of jq.\n\n" +
+			"YOU DO NOT NEED TO DISCOVER THE FIELD NAMES. Every projection's own page ends with its OUTPUT field tree — the " +
+			"key names, in the nesting they arrive in, generated from the type the tool actually marshals. Read that page " +
+			"before you run the verb and the dump-then-inspect round-trip never happens.",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		// Its bare form is the seat's pending work — a capability, not a refusal.
