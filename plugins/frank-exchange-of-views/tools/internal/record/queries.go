@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // This file is plans/record-sqlite.md §III step 4: the hand-written projections, replaced with
@@ -102,6 +103,52 @@ func RoundsWithRevision(run Run) int {
 		return 0
 	}
 	return n
+}
+
+// EventsOf reads back only the named event families, in record order — the read for a
+// projection that renders one kind of act (findings, friction, the debate prose) and has no
+// business hauling the whole record through the loader to get it. A run with no record yet
+// holds none of anything.
+func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return nil, err
+	}
+	if db == nil {
+		return nil, nil
+	}
+	words := make([]string, len(types))
+	for i, t := range types {
+		words[i] = recordpb.Word(t)
+	}
+	return recordsql.EventsOfTypes(db, words...)
+}
+
+// Rounds lists every round the record touched, ascending — the skeleton a per-round
+// projection hangs on, INCLUDING rounds whose only acts are outside that projection's
+// families (a round of nothing but mints still renders as an empty debate round).
+func Rounds(run Run) ([]int, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return nil, err
+	}
+	if db == nil {
+		return nil, nil
+	}
+	rows, err := db.Query(`SELECT DISTINCT "round" FROM "events" ORDER BY "round"`)
+	if err != nil {
+		return nil, fmt.Errorf("record: asking the record for its rounds: %w", err)
+	}
+	defer rows.Close()
+	var out []int
+	for rows.Next() {
+		var r int
+		if err := rows.Scan(&r); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
 }
 
 // RegisteredSeats lists the seat ids that registered in this run, in event order — every seat

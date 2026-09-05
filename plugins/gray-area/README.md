@@ -49,9 +49,15 @@ gray-area coverage
 Answers the question any seat-scoped inspection must ask before printing a number: **does the manifest name every seat transcript that exists?** #189 established there are no phantom seats — every `kind: "seat"` row names a file that is there. That is a statement about the *rows*, and it does not bound the rows that were never written.
 
 ```
-19 seat row(s) named, 20 transcript(s) on disk
+19 distinct seat(s) named by 21 row(s), 20 transcript(s) on disk
+2 seat(s) captured more than once — a seat that was continued stops again, and each stop is a true observation:
+  REPEAT    agent-a703a4e… — 2 captures
   UNNAMED   agent-a9c4e78… — on disk, and no manifest row accounts for it
 ```
+
+**Rows are not seats, and the count says which it is.** `SubagentStop` fires again for a seat that is *continued* — measured on this repository's own manifest, one seat captured twice three minutes apart with its transcript grown from 356 KB to 452 KB. Both rows are true, so the manifest keeps both; the reconciliation counts *distinct seats* and reports the repeat rather than erasing it. Counting rows put a per-row number beside a per-file one and called the pair a reconciliation, and a seat captured twice that was also absent from disk was listed under `MISSING` twice.
+
+**A line that does not parse is counted, not skipped.** The manifest is appended to by a hook that can be killed mid-write, and what an interruption leaves is a final line with no newline on it. The writer closes such a tail before appending, so an interruption costs the row it cut and never the next one as well; the cut line stays in the file and `coverage` reports how many there are. Without that count, a seat lost to a torn write shows up as `UNNAMED` — which reads as a hook that never fired, a different fault with a different fix.
 
 **This is not the glob `plans/gray-area.md` §3 refuses.** That rules out sweeping `~/.claude/projects/` *guessing which files belong to which seat* — attribution by guessing, whose failure mode is a false citation. This reads **one** directory, derived from the transcript path the harness itself handed over at SessionStart, and attributes nothing: its output is a set difference over ids, and it cannot emit a citation at all. Auditing the handover is not replacing it.
 

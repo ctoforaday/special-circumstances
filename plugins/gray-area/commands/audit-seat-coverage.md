@@ -18,4 +18,8 @@ Reconcile recorded seats against seats on disk. Model [[terse-communication]]: r
 
 **YOU MUST NOT state seat coverage as a number while any `UNNAMED` row stands.** "No rework found across this run's seats" reads identically whether the seats were clean or whether one of them was never in the manifest to inspect. That is the plausible zero, aimed at this plugin's own output.
 
+**A `REPEAT` row is not a fault.** `SubagentStop` fires again for a seat that was continued, and each stop is a true observation of a transcript that had grown. The count above it is over DISTINCT SEATS; the row count beside it is larger whenever a seat stopped more than once. YOU MUST NOT report a repeat as a duplicate the hook should not have written — the manifest is an append-only journal, and the second row carries the fact that the seat did more work.
+
+**A count of lines that are not JSON is a count of interrupted appends.** When that line is present, treat any `UNNAMED` row below it as UNEXPLAINED rather than as a hook that never fired: a seat row cut short by a kill is lost from the manifest and its transcript then looks unnamed. The two faults have different fixes and the line is what separates them.
+
 **A `MISSING` row** — a seat row naming a file that is not there — is the alarming direction and was measured at zero. It is reported so that stays a measurement rather than an assumption the tool cannot contradict.

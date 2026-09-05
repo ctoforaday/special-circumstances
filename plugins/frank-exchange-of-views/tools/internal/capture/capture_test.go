@@ -159,7 +159,7 @@ func recordFriction(t *testing.T, runDir string) []record.FrictionEntryJSON {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fj := record.FrictionJSONOf(b)
+	fj := record.FrictionJSONOf(b.Events)
 	return append(append([]record.FrictionEntryJSON{}, fj.Friction...), fj.NothingBlocked...)
 }
 

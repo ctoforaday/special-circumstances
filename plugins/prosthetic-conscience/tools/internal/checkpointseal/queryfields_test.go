@@ -2,47 +2,48 @@ package checkpointseal
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
 	"testing"
 )
 
-// THE RECORD HAS NO READER IN THIS REPOSITORY. seals.jsonl is written by three binaries and
-// read by nothing that compiles — its readers are the `jq` queries in §V of
-// plans/checkpoint-freshness.md, run by a human, naming fields in prose.
+// THE RECORD'S ONLY READERS ARE THE EMBEDDED jq PROGRAMS, so this checks they still resolve.
 //
-// That is the whole failure mode this test exists for, and it is live rather than theoretical.
-// Criterion 4 and criterion 6 are DECIDED by those queries. Rename a JSON tag here and
+// seals.jsonl is written by three binaries and read by nothing that compiles. `queries/*.jq` are
+// what read it, and criteria 4 and 6 are DECIDED by them. Rename a JSON tag on sealRow and
 // `select(.handles_measured)` matches nothing, `map(.emission_bytes_max) | max` is null, and the
-// gate reports zero emissions — which is the PASSING answer. The broken query and the clean
-// board produce the same output ([[facts-are-fields]] clause 3: ask what a no-match returns).
+// gate reports zero emissions — the PASSING answer. The broken query and the clean board produce
+// the same output ([[facts-are-fields]] clause 3: ask what a no-match returns).
 //
-// Generation is not available here: the queries carry LOGIC, not just field names, and
-// generating them would mean generating the plan. So this is a guard, and per the same rule it
-// says why. What keeps it from reproducing the defect one level up is that its list is not
-// hand-kept — it is extracted from the plan on every run, so a query added to §V is checked
-// without anyone remembering to add it here.
-func TestEveryFieldThePlansQueriesReadExistsOnTheRecord(t *testing.T) {
-	plan := filepath.Join("..", "..", "..", "..", "..", "plans", "checkpoint-freshness.md")
-	b, err := os.ReadFile(plan)
-	if err != nil {
-		t.Fatalf("cannot read the plan whose queries are this record's only readers: %v", err)
+// THIS USED TO PARSE A PLAN. The queries lived in §V of plans/checkpoint-freshness.md and this
+// test reached five directories up to extract field names out of that markdown — a design
+// document made load-bearing for a build, where editing prose could fail CI and moving the file
+// would fail it for a reason no reader would guess. The queries are files now; this reads the
+// embedded copy, which is the same one that would be run.
+//
+// Generation is still not available: the programs carry LOGIC, not just field names, and
+// generating them would mean generating the analysis. So this stays a guard, and per the same
+// rule it says why. What keeps it from reproducing the defect one level up is that its list is
+// not hand-kept — it is extracted from the queries themselves on every run, so a field a new
+// query reads is checked without anyone remembering to add it here.
+func TestEveryFieldTheQueriesReadExistsOnTheRecord(t *testing.T) {
+	queries := Queries()
+	if len(queries) == 0 {
+		t.Fatal("no embedded queries; this test would pass vacuously, which is the exact " +
+			"failure it exists to catch")
 	}
 
-	read := fieldsReadByJQ(string(b))
+	read := fieldsReadByJQ(queries)
 	if len(read) == 0 {
-		t.Fatal("extracted no field names from the plan's jq blocks; this test would pass " +
-			"vacuously, which is the exact failure it exists to catch")
+		t.Fatalf("extracted no field names from %d embedded queries; vacuous pass", len(queries))
 	}
-	t.Logf("%d distinct fields read by the plan's queries: %s", len(read), strings.Join(read, " "))
+	t.Logf("%d queries read %d distinct fields: %s", len(queries), len(read), strings.Join(read, " "))
 
 	have := tagsOf(t)
 	for _, f := range read {
 		if !have[f] {
-			t.Errorf("the plan's §V queries read .%s, and no sealRow field carries that JSON tag — "+
+			t.Errorf("queries/*.jq read .%s, and no sealRow field carries that JSON tag — "+
 				"that query returns null or zero rows, which is indistinguishable from an honest "+
 				"empty corpus", f)
 		}
@@ -53,21 +54,9 @@ func TestEveryFieldThePlansQueriesReadExistsOnTheRecord(t *testing.T) {
 // but not the `.[]` iterator and not a decimal in a number.
 var jqField = regexp.MustCompile(`\.([a-z][a-z0-9_]*)\b`)
 
-// fenced captures fenced code blocks, which is where the plan keeps its queries.
-var fenced = regexp.MustCompile("(?s)```[a-z]*\n(.*?)```")
-
-func fieldsReadByJQ(doc string) []string {
+func fieldsReadByJQ(queries map[string]string) []string {
 	seen := map[string]bool{}
-	for _, block := range fenced.FindAllStringSubmatch(doc, -1) {
-		body := block[1]
-		if !strings.Contains(body, "jq ") {
-			continue
-		}
-		// Only the seals.jsonl queries: the plan also shows jq over live TRANSCRIPTS, whose
-		// fields belong to the client's schema and are not this record's to answer for.
-		if !strings.Contains(body, "seals.jsonl") {
-			continue
-		}
+	for _, body := range queries {
 		// Comments are PROSE, and prose has full stops. "…, and no render may exceed 200
 		// bytes." yielded a field called `and` on the first run of this test.
 		body = stripShellComments(body)

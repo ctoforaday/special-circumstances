@@ -56,7 +56,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dj := DebateJSONOf(b)
+	dj := DebateJSONOfEvents(b.Events)
 
 	if len(dj.Rounds) != 2 {
 		t.Fatalf("want 2 rounds, got %d: %+v", len(dj.Rounds), dj.Rounds)

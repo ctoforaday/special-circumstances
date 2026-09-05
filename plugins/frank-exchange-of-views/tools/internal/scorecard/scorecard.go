@@ -3,10 +3,15 @@
 // `merge show`), its journal envelopes, and its board telemetry into the per-chair scorecard
 // rows, and renders the markdown section a seat's in-run self-read prints.
 //
-// The JS module stays for now — capture imports computeScorecards/renderChair/chairHeader and
-// the dashboard imports parseRenderedRows/latestSection — so this and scorecards.mjs must agree;
-// the differential in the port PR pins them. debate.js's in-run self-read prompt is retargeted
-// to `feov-record scorecard`.
+// THE JS MODULE IS GONE, and this paragraph outlived it. It read "the JS module stays for now —
+// capture imports computeScorecards/renderChair/chairHeader and the dashboard imports
+// parseRenderedRows/latestSection — so this and scorecards.mjs must agree", which was true while
+// scorecards.mjs existed. It does not: no .mjs in the tree defines any of those five functions,
+// the rendered rows are read back by Go (setup.ParseRenderedRows), and debate.js's in-run
+// self-read prompt calls `feov-record scorecard`. So there is no second implementation to agree
+// with, and the byte-identity notes below are a debt to a port that finished, not a live
+// constraint — they are kept because the shapes they pin (jsToFixed2Num, insertion-order object
+// rows) are still what the renderer emits.
 //
 // BYTE-IDENTITY NOTES:
 //   - `+(x).toFixed(2)` (round to 2 decimals, then Number→string dropping trailing zeros) is
@@ -191,7 +196,7 @@ func directionUptake(board *record.Board) (leadSections, blueCitesLead int, ok b
 	if board == nil {
 		return 0, 0, false
 	}
-	l, b := ComputeDirectionUptake(record.DebateJSONOf(board))
+	l, b := ComputeDirectionUptake(record.DebateJSONOfEvents(board.Events))
 	return l, b, true
 }
 
@@ -201,7 +206,7 @@ func citationYieldByRole(board *record.Board) (objJSON, bool) {
 	if board == nil {
 		return "", false
 	}
-	return BucketFindingsByRole(record.FindingsJSONOf(board).Findings)
+	return BucketFindingsByRole(record.FindingsJSONOf(board.Events).Findings)
 }
 
 // BucketFindingsByRole buckets findings per round by lens role-kind (citation L1-4, logic L5,

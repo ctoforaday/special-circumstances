@@ -59,15 +59,30 @@ var DefaultPageReader PageReader = AnthropicPageReader{}
 // It is also told to mark illegibility rather than guess. A model handed a smudge will
 // produce fluent plausible text if nothing tells it not to, and that failure is invisible
 // downstream — see #644. `[illegible]` is a fact; an invented word is not.
+//
+// TWO RULES WERE ADDED FROM THE FIRST REAL MEASUREMENT (#644, IEEE 1012, 63 pages read).
+// The transcription was near-verbatim, and its two systematic deviations were both
+// prompt-shaped: every bold or italic passage came back wrapped in markdown the page does
+// not carry (a seat quoting the transcript would quote asterisks that are not on the
+// page), and the one blank page came back as `[illegible]` — which claims unreadable
+// characters EXIST where there are none, a different fact from empty. Tables are the
+// deliberate exception: the model rendered an 11-column matrix as |-separated rows
+// unprompted, and against the pixels that table was right in 329 of ~330 cells — column
+// alignment is content on a table, so the layout is kept and now stated rather than
+// accidental.
 const readPrompt = `Transcribe the text on this page image, exactly as it appears.
 
 Rules:
 - Output ONLY the transcription. No preamble, no commentary, no summary.
 - Preserve the reading order, line breaks and paragraph breaks of the page.
+- Plain characters only: do not add markup the page does not carry — no **bold**, no
+  *italics*, no # headings, no <sup></sup>. The one exception is a tabular layout, which
+  you should transcribe as rows with cells separated by | so the columns survive.
 - Where characters are too degraded to read, write [illegible] rather than guessing. A wrong
   word that reads plausibly is worse than a marked gap.
-- If the page carries no text at all (a blank page, or a figure with no caption), output
-  nothing at all.
+- If the page carries no text at all (a blank page, or a figure with no caption), output an
+  empty response — nothing, not [illegible]: that marker claims unreadable characters exist,
+  and a blank page has none.
 - Do not translate, correct spelling, expand abbreviations, or normalise anything.`
 
 // AnthropicPageReader is the production reader: the Anthropic Go SDK, one message per page,

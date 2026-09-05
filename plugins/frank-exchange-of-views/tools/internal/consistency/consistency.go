@@ -227,7 +227,13 @@ func Check(run record.Run) ([]string, error) {
 	}
 
 	// ---- the JSON projections ----
-	bj := record.BoardJSONOf(board)
+	// The RUN-shaped board — the projection the seats actually receive (wave 1b of
+	// plans/board-as-views.md) — so the oracle cross-examines the production read path, not a
+	// fold-shaped twin of it.
+	bj, err := record.BoardJSONOfRun(run)
+	if err != nil {
+		return append(v, fmt.Sprintf("board-json-refused: BoardJSONOfRun errored where the raw walk did not: %v", err)), nil
+	}
 	openGT, closedGT := 0, 0
 	for _, g := range gt.gaps {
 		if g.open {
@@ -285,7 +291,7 @@ func Check(run record.Run) ([]string, error) {
 		}
 	}
 
-	fj := record.FindingsJSONOf(board)
+	fj := record.FindingsJSONOf(board.Events)
 	gotLabels := map[string]bool{}
 	for _, f := range fj.Findings {
 		gotLabels[f.Label] = true

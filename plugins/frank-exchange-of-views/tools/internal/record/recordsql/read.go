@@ -3,6 +3,7 @@ package recordsql
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -38,7 +39,27 @@ import (
 // order, so the first refusal an interleaved read would have raised is the same refusal this one
 // raises.
 func Events(db *sql.DB) ([]*recordpb.Event, error) {
-	rows, err := db.Query(`SELECT id, seat_id, round, ts, type, key FROM events ORDER BY id`)
+	return eventsWhere(db, ``)
+}
+
+// EventsOfTypes is Events narrowed to the named type words, in the same record order — for a
+// projection that renders one family of acts and has no business hauling the rest of the record
+// through the loader to get them. The words are the schema's own spellings (recordpb.Word); a
+// word the vocabulary does not hold simply matches nothing, exactly as it would in the stream.
+func EventsOfTypes(db *sql.DB, words ...string) ([]*recordpb.Event, error) {
+	if len(words) == 0 {
+		return nil, nil
+	}
+	marks := strings.TrimSuffix(strings.Repeat("?, ", len(words)), ", ")
+	args := make([]any, len(words))
+	for i, w := range words {
+		args[i] = w
+	}
+	return eventsWhere(db, ` WHERE type IN (`+marks+`)`, args...)
+}
+
+func eventsWhere(db *sql.DB, where string, args ...any) ([]*recordpb.Event, error) {
+	rows, err := db.Query(`SELECT id, seat_id, round, ts, type, key FROM events`+where+` ORDER BY id`, args...)
 	if err != nil {
 		return nil, fmt.Errorf("recordsql: reading the record: %w", err)
 	}

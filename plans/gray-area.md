@@ -884,3 +884,47 @@ boundary would mix 19 with 165.
 own transcript while reading `capture_error` text. Small, and this session is itself measured data —
 the same class of self-contamination that voided §11.10's identification attempt, caught later this
 time rather than not at all.
+
+### 11.12 One seat, two stops: the seat census stops counting rows (measured 2026-09-04)
+
+§11.11 settled what a `SubagentStop` row *is*. This settles what a **count** of them is, and the
+answer is not "seats".
+
+**Measured, on this repository's own manifests.** Across five `trajectories-*.jsonl` files: 0 lines
+that fail to parse, 9 session rows in one manifest (one per resume — `ResolveSession` already takes
+the newest and that is correct), and **one seat captured twice**. Seat `a703a4ea4a2d4e09d` in
+`trajectories-d628026a…`, at `07:08:23Z` and again at `07:11:10Z`, with `size_bytes` grown from
+**356468 to 452844**. One seat, continued, stopped a second time. Both rows are true.
+
+**What that broke, all of it downstream of the writer.** `SeatIDs` returned one id per ROW;
+`Reconcile` built `Named` from that slice while `on` had been a map since the first version, so the
+set difference was a set on one side only. Consequences, in the order a reader meets them:
+
+| | before | after |
+|---|---|---|
+| the headline count | `15 seat row(s) named` beside a per-FILE disk count | `14 distinct seat(s) named by 15 row(s)` |
+| a repeat | invisible | `REPEAT agent-a703a4ea4a2d4e09d — 2 captures` |
+| that seat, absent from disk | listed under `MISSING` **twice** | once |
+
+Two denominators wearing one comparison — and the repeat, which is a fact about the run, folded into
+silence. Verified end to end against the real manifest, not only in a test.
+
+**Idempotence belongs at the READ, and the journal stays append-only.** The alternative — the hook
+suppressing a repeat — needs a read-modify-write on a path that must never cost a subagent its turn,
+races every other seat stopping in the same moment, and discards the one thing the second row says.
+So `claims.SeatCensus` is the deduplicated view, `Reconcile` collapses a duplicate it is handed
+(an exported function must not be makeable to lie by its caller), and the repeat is **reported**.
+
+**The writer's half is the torn tail.** One row is one `write(2)` under `O_APPEND`, so concurrent
+seats cannot interleave — but a kill or an `ENOSPC` mid-write leaves a final line with no newline,
+and the next append landed on it. An interruption that cost one row destroyed the next one too, and
+both losses read downstream as §11.11's open case: a transcript on disk that no row names. The
+writer now closes an unterminated tail before appending (idempotent, and safe to race — two healers
+write two newlines and a blank line is skipped), and `Sync`s, because the row is the only durable
+trace that a seat existed. The cut line is **left in place**: `SeatCensus.Unreadable` counts it, and
+that count is what separates a seat lost to a torn write from a seat the hook never saw. Zero today,
+which is what makes it worth stating.
+
+**Not claimed.** Why the seat was continued is not established — `SendMessage` to a live agent is the
+obvious candidate and was not measured. n=1 for the repeat across five manifests, so this is a shape
+the readers must survive, not a frequency.

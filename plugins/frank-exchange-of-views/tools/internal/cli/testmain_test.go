@@ -24,10 +24,12 @@ import (
 // the ones it does not cover, because what they exercise IS the rendering path. Sharing one
 // compiled module is the fix that does not weaken them.
 func TestMain(m *testing.M) {
-	release, err := fetchcache.UseSharedModuleCache()
-	if err != nil {
+	// NOTHING IS RELEASED AT EXIT — see UseSharedModuleCache (#717). This binary and
+	// internal/fetchcache's share the directory and `go test ./...` runs them concurrently, so a
+	// post-suite removal here is a removal under the other one.
+	if err := fetchcache.UseSharedModuleCache(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	testbuild.Main(m, recordtest.CheckOrphanedHandles, release)
+	testbuild.Main(m, recordtest.CheckOrphanedHandles)
 }

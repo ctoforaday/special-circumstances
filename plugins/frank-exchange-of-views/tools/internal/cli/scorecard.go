@@ -2,11 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
@@ -46,9 +46,14 @@ func newScorecard() *cobra.Command {
 			cards := map[string]bool{"blue": true, "red": true, "bench": true}
 			// The run is no longer part of this test: RequireRun refused an unsupplied one
 			// above, so `run.Dir() == ""` could only ever be false by the time it was read.
+			// RETURNED, NOT EXITED. RunE's contract is that a refusal comes back as an error:
+			// Execute renders it through EmitTopLevelError first, so a --json caller gets an
+			// envelope naming the bad flag rather than a usage sentence on a channel whose whole
+			// contract is that it is machine-readable (root.go says this in as many words). An
+			// os.Exit here also skipped the signal guard's release and made this command
+			// undrivable by any in-process test, which is how #716 was found.
 			if !cards[chair] {
-				fmt.Fprintln(cmd.ErrOrStderr(), "usage: "+InvokedAs()+" scorecard --run <run.Dir()> --chair blue|red|bench")
-				os.Exit(2)
+				return feov.Errorf(feov.Validation, "usage: %s scorecard --run <dir> --chair blue|red|bench", InvokedAs())
 			}
 			// A run with no record yet (BoardState errors) leaves board nil — the record-derived
 			// rows then read "needs the tool", exactly as the JS did when the view spawn failed.

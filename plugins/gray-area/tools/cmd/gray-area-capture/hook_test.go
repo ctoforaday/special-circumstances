@@ -220,3 +220,106 @@ func TestTheEventComesFromTheFlagNotThePayload(t *testing.T) {
 		t.Fatalf("default did not produce a seat row: %+v", rows)
 	}
 }
+
+// AN INTERRUPTED APPEND MUST COST ONE ROW, NEVER TWO.
+//
+// One row is one write(2) under O_APPEND, so concurrent seats cannot interleave —
+// but a kill or an ENOSPC mid-write leaves a final line with no newline on it, and
+// the next append then lands on that same line. An interruption that cost one row
+// used to destroy the next one too, and both losses read downstream as a seat the
+// hook never saw.
+func TestATornTailIsClosedBeforeTheNextAppend(t *testing.T) {
+	dir := t.TempDir()
+	path := manifestPath(dir, "run-1")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// What a killed process leaves: a row cut off mid-write, no newline.
+	torn := `{"schema":4,"kind":"seat","agent_id":"cut","agent_ty`
+	if err := os.WriteFile(path, []byte(torn), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	in, _ := json.Marshal(hookInput{SessionID: "run-1", AgentID: "after", AgentTranscriptPath: "/nope"})
+	_, stderr, code := call(t, string(in), dir, statSize)
+	if code != 0 {
+		t.Fatalf("exit %d — healing a tail must never cost the subagent its turn", code)
+	}
+
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimRight(string(b), "\n"), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("manifest has %d line(s), want 2 — the torn line and the new row: %q", len(lines), string(b))
+	}
+	if lines[0] != torn {
+		t.Errorf("the torn line was rewritten; it must be left exactly as the interruption left it: %q", lines[0])
+	}
+	var r manifestRow
+	if err := json.Unmarshal([]byte(lines[1]), &r); err != nil {
+		t.Fatalf("the row written AFTER a torn tail does not parse — the interruption cost two rows, not one: %v (%q)", err, lines[1])
+	}
+	if r.AgentID != "after" {
+		t.Errorf("agent_id = %q, want \"after\"", r.AgentID)
+	}
+	// The repair is a fact about a PREVIOUS run that nothing else records.
+	if !strings.Contains(stderr, "unterminated manifest tail") {
+		t.Errorf("healing a torn tail was silent; stderr = %q", stderr)
+	}
+}
+
+// The heal is idempotent: an ordinary manifest is appended to, not padded.
+func TestAWellFormedManifestIsNotHealed(t *testing.T) {
+	dir := t.TempDir()
+	for _, id := range []string{"a", "b", "c"} {
+		in, _ := json.Marshal(hookInput{SessionID: "run-1", AgentID: id, AgentTranscriptPath: "/nope"})
+		if _, stderr, _ := call(t, string(in), dir, statSize); strings.Contains(stderr, "unterminated") {
+			t.Fatalf("healed a manifest that was never torn: %q", stderr)
+		}
+	}
+	b, err := os.ReadFile(manifestPath(dir, "run-1"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "\n\n") {
+		t.Errorf("blank line in the manifest — the heal ran when it had nothing to repair:\n%q", string(b))
+	}
+	if got := len(readManifest(t, dir, "run-1")); got != 3 {
+		t.Errorf("rows = %d, want 3", got)
+	}
+}
+
+// A SEAT THAT IS CONTINUED STOPS TWICE, and the second stop is recorded.
+//
+// Measured on this repository's own manifest: seat a703a4ea4a2d4e09d captured at
+// 07:08:23Z and again at 07:11:10Z with its transcript grown 356468 -> 452844 bytes.
+// The writer stays append-only and BOTH observations survive; idempotence is the
+// reader's job (claims.SeatCensus), because suppressing the repeat here would need a
+// read-modify-write on a path that must never block a subagent — and would throw away
+// the one thing the second row says, which is that the seat did more work.
+func TestARepeatCaptureOfOneSeatIsRecordedNotSuppressed(t *testing.T) {
+	dir := t.TempDir()
+	seat := filepath.Join(dir, "agent-a703.jsonl")
+	for _, size := range []int{356468, 452844} {
+		if err := os.WriteFile(seat, bytes.Repeat([]byte("x"), size), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		in, _ := json.Marshal(hookInput{
+			SessionID: "run-1", AgentID: "a703", AgentType: "Explore",
+			AgentTranscriptPath: seat,
+		})
+		if _, _, code := call(t, string(in), dir, statSize); code != 0 {
+			t.Fatalf("exit %d", code)
+		}
+	}
+	rows := readManifest(t, dir, "run-1")
+	if len(rows) != 2 {
+		t.Fatalf("rows = %d, want 2 — a second stop is a second observation", len(rows))
+	}
+	if rows[0].SizeBytes == rows[1].SizeBytes {
+		t.Errorf("both rows recorded the same size (%d) — the second observation carried no new fact, "+
+			"which is the only thing that would justify dropping it", rows[0].SizeBytes)
+	}
+}
