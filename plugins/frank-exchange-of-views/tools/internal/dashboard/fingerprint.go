@@ -33,6 +33,27 @@ import (
 // over-broad is a wasted render when an unread file changes, which is what every tick did
 // before this existed.
 //
+// # How often it actually skips
+//
+// A fair objection: any write inside a 15s window moves the digest, and during a live round the
+// seats are writing constantly — so does this ever fire? Measured across ten real sessions, by
+// bucketing every seat message into 15s windows and counting the ones that carried a write:
+//
+//	 39 min, 1381 messages  ->  57.6% of windows occupied  ->  42% of ticks skipped
+//	 93 min,  893 messages  ->  53.6%                      ->  46%
+//	103 min, 2168 messages  ->  39.2%                      ->  61%
+//	477 min,  574 messages  ->   8.1%                      ->  92%
+//	5121 min, 9208 messages ->   9.0%                      ->  91%
+//
+// Writes do not fill the windows even at peak density, because a seat emits a message about
+// every 20s and concurrent seats do not line up. The long runs — where the ~40 minutes of wasted
+// CPU was actually measured, on a watcher left running past the end of its run — skip almost
+// everything. A record write is not counted separately because a verb is invoked through a Bash
+// tool call, which is itself a message in the window.
+//
+// So the two halves of this repair cover the two regimes: skipping removes the idle ticks, and
+// the single-pass transcript read (BuildModel) halves the cost of the ticks that do render.
+//
 // EVERY UNCERTAINTY RENDERS. A walk error, an unreadable directory, anything unexpected returns
 // "" — and Changed treats "" as changed. The failure direction is deliberate: rendering when we
 // did not need to costs CPU, and skipping when we should not have costs the operator a dashboard
