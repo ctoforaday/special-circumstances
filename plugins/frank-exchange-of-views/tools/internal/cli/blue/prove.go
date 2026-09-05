@@ -13,6 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/proof"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // prove: settle a claim by COMPUTING it, and leave the computation as the evidence.
@@ -81,27 +82,18 @@ func newProve() *cobra.Command {
 				script, res.Exit, res.Failed, run.Dir())
 		}
 
-		// A TORN SPLICE IS ADOPTED, NOT DOUBLED — the same rule as `blue cite`, through the
-		// shared walk; only the recorded set (proof ids) is this verb's.
-		label := adoptTornProofAnchor(run, location)
-		spliced := label != ""
-		if label == "" {
-			label = record.NewProofID()
-		}
+		// THE PROOF EVENT IS THE ANCHOR: it carries the quote in Location, and reportproj.Render
+		// re-places the <!--proof:p-…--> marker at replay. No file is spliced, so there is no
+		// torn-splice window; a --key retry is idempotent (handled above). Mint the id and VALIDATE
+		// the placement against the current render — a mis-quote or in-fence quote is refused now.
+		label := record.NewProofID()
 		marker := "<!--proof:" + label + "-->"
-		// Spliced under the report lock at the quoted sentence, by the SAME machinery a
-		// citation anchor uses: one immortal-anchor mechanism, three classes.
-		if err := record.MutateBlueReport(run, func(old []byte) ([]byte, error) {
-			if spliced {
-				return old, nil // the crashed first attempt already placed this marker
-			}
-			next, aerr := anchortext.InsertAnchor(old, location, marker)
-			if aerr != nil {
-				return nil, aerr
-			}
-			return next, nil
-		}); err != nil {
+		current, err := reportproj.RenderFromRecord(run)
+		if err != nil {
 			return nil, err
+		}
+		if _, aerr := anchortext.InsertAnchor([]byte(current), location, marker); aerr != nil {
+			return nil, aerr
 		}
 
 		// `output` does not survive onto the event, and that is not a silent drop: it stays in the
@@ -173,15 +165,4 @@ func (r proveResult) Human() string {
 		out += "\n  NOT reproducible: " + r.Drift + " — recorded as a measurement, not a proof"
 	}
 	return out
-}
-
-// adoptTornProofAnchor returns the id of a proof marker already on the located quote that no
-// proof event names — a torn splice — or "" for the ordinary fresh path.
-func adoptTornProofAnchor(run record.Run, quote string) string {
-	rep, err := record.ReadBlueReport(run)
-	if err != nil {
-		return ""
-	}
-	return anchortext.OrphanAnchorAt(string(rep), quote, "proof",
-		func(id string) bool { return record.ProofMarkerRecorded(run, id) })
 }

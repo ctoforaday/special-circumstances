@@ -14,14 +14,16 @@ import (
 // THE REPORT IS THE RECORD, NOT A FILE (#709).
 //
 // The current report is the frozen base with every text-mutating event replayed over it, in
-// record order. Four verbs mutate the report, and each replays through the SAME transform it
+// record order. Five verbs mutate the report, and each replays through the SAME transform it
 // applied at write time, located by the SAME rule:
 //
-//   - blue edit    → a splice (old→new), located by bluedoc.LocateUniqueReplacing (spliceMut).
-//   - blue cite    → a citation marker spliced at the quoted sentence (insertMut).
-//   - blue prove   → a proof marker, likewise.
-//   - lens finding → a finding marker, recorded as an Anchor event (its Finding sibling is
-//                    metadata and inserts nothing — replaying it too would double the marker).
+//   - blue edit       → a splice (old→new), located by bluedoc.LocateUniqueReplacing (spliceMut).
+//   - blue cite       → a citation marker spliced at the quoted sentence (insertMut).
+//   - blue prove      → a proof marker, likewise.
+//   - lens finding    → a finding marker, recorded as an Anchor event (its Finding sibling is
+//                       metadata and inserts nothing — replaying it too would double the marker).
+//   - lens corroborate→ a citation marker at the corroborated claim, on the Verify event (only
+//                       when it backs the claim and so carries a c- Label; a plain verify does not).
 //
 // Because replay reproduces the identical running text each verb saw, the locators resolve the
 // identical offsets, so the bytes match what the file used to hold. Once the base is ingested and
@@ -142,6 +144,13 @@ func RenderFromRecord(run record.Run) (string, error) {
 			// The finding-marker record. Its paired Finding event carries the grades and inserts
 			// nothing — replaying that too would splice the marker twice.
 			muts = append(muts, insertMut{location: b.GetLocation(), marker: anchor.Token(b.GetId())})
+		case *recordpb.Verify:
+			// A red corroboration that BACKS a claim carries a c- Label and places a citation
+			// marker at its Claim; a plain verify (adjudicating a blue anchor) has no label and
+			// placed no marker.
+			if b.GetLabel() != "" {
+				muts = append(muts, insertMut{location: b.GetClaim(), marker: anchor.Token(b.GetLabel())})
+			}
 		}
 	}
 	if !haveBase {

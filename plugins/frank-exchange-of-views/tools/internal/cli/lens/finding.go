@@ -13,6 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // finding: a lens's graded observation, for the merge to dispose.
@@ -72,42 +73,32 @@ func newFinding() *cobra.Command {
 		if err != nil {
 			return nil, err
 		}
-		// A TORN SPLICE IS ADOPTED, NOT DOUBLED — the same rule as `blue cite`, through the
-		// same shared walk. A crash after the splice below and before the appends leaves a
-		// marker on this quote that no event names; the retry would otherwise mint a fresh id
-		// and splice a rival beside the immortal orphan.
-		findingID := adoptTornFindingAnchor(run, location)
-		spliced := findingID != ""
-		if findingID == "" {
-			// Mint the id UP FRONT: it forms the marker, so it must exist before the
-			// report write. Append will not re-mint (finding_id already present).
-			findingID = record.NewFindingID()
-		}
+		// Mint the id UP FRONT: it forms the marker. THE ANCHOR EVENT (below) IS THE MARKER — it
+		// carries the quote, and reportproj.Render re-places the marker at replay. No file is
+		// spliced, so there is no torn-splice window; the --key retry above is idempotent and
+		// reconciles a half-appended pair.
+		findingID := record.NewFindingID()
 		// An INVISIBLE HTML-comment token, not a footnote: a "[^id]" marker rendered
 		// as an undefined footnote AND red audited it as one, and a finding's quoted
 		// location/reason text carried the marker into the record-derived sections. A
 		// comment renders as nothing and is no footnote, so no seat audits it.
 		marker := "<!--fx:" + findingID + "-->"
 
-		// Insert the marker at the located quote UNDER THE LOCK, atomically, via the
-		// shared anchor-insert (the same rule blue cite anchors a citation by). NOT
-		// FOUND -> reject (a mis-quote): the transform returns an error, nothing is
-		// written, and the finding is not recorded. The events are appended ONLY
-		// after a confirmed write (so a failed write leaves no id in EXPECTED).
-		if err := record.MutateBlueReport(run, func(old []byte) ([]byte, error) {
-			if spliced {
-				return old, nil // the crashed first attempt already placed this marker
-			}
-			next, err := anchortext.InsertAnchor(old, location, marker)
+		// VALIDATE the placement against the current render: NOT FOUND -> reject (a mis-quote),
+		// in-fence -> reject. Nothing is recorded on a refusal. On success the bytes are discarded —
+		// the Finding + Anchor events below are what the report is replayed from.
+		current, err := reportproj.RenderFromRecord(run)
+		if err != nil {
+			return nil, err
+		}
+		if _, aerr := anchortext.InsertAnchor([]byte(current), location, marker); aerr != nil {
 			switch {
-			case errors.Is(err, anchortext.ErrMisQuote):
+			case errors.Is(aerr, anchortext.ErrMisQuote):
 				return nil, fmt.Errorf("lens finding: --quote was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a finding anchors ONE passage")
-			case errors.Is(err, anchortext.ErrInFence):
+			case errors.Is(aerr, anchortext.ErrInFence):
 				return nil, fmt.Errorf("lens finding: the quote resolves inside a code fence — anchor a prose sentence, not code")
 			}
-			return next, err
-		}); err != nil {
-			return nil, err
+			return nil, aerr
 		}
 
 		body := &recordpb.Finding{
@@ -152,15 +143,4 @@ func (r findingResult) Human() string {
 		return "finding " + r.Label + " (idempotent retry — existing label returned)"
 	}
 	return "finding recorded: " + r.Label + " — the run-unique label a gap's found_by names (id " + r.FindingID + ")"
-}
-
-// adoptTornFindingAnchor returns the id of a finding marker already on the located quote that no
-// finding OR anchor event names — a torn splice — or "" for the ordinary fresh path.
-func adoptTornFindingAnchor(run record.Run, quote string) string {
-	rep, err := record.ReadBlueReport(run)
-	if err != nil {
-		return ""
-	}
-	return anchortext.OrphanAnchorAt(string(rep), quote, "fx",
-		func(id string) bool { return record.FindingMarkerRecorded(run, id) })
 }
