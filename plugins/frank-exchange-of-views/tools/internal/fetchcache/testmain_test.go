@@ -20,19 +20,18 @@ import (
 // callers. recordtest documents CheckOrphanedHandles as the seam for exactly this case: a package
 // that needs its own TestMain keeps the handle check as a post-suite hook rather than giving it up.
 //
-// recordtest.Main calls os.Exit, so the release below cannot be a defer.
+// NOTHING IS RELEASED AT EXIT, and that is the fix for #717 rather than an omission: the cache is
+// SHARED with internal/cli's binary, which `go test ./...` runs concurrently, so a teardown here
+// deleted a directory the other was compiling out of. UseSharedModuleCache carries the argument
+// and the age reap that bounds the directory instead.
 func TestMain(m *testing.M) {
-	release, err := UseSharedModuleCache()
-	if err != nil {
+	if err := UseSharedModuleCache(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
 	code := m.Run()
 
-	if err := release(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
 	if err := recordtest.CheckOrphanedHandles(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		if code == 0 {

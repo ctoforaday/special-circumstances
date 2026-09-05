@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/klippa-app/go-pdfium"
@@ -114,10 +115,10 @@ var moduleCacheDir string
 const moduleCacheName = "feov-pdfium-module-cache"
 
 // UseSharedModuleCache points the compiled-module cache at ONE directory for the lifetime of a
-// test binary, and returns the release that removes it. IT IS FOR TESTS, and it is exported
-// because two packages need it — this one and internal/cli, whose `ocr` tests drive the real
-// rasteriser through the CLI. The alternative was the same fixed-name-and-cleanup reasoning
-// hand-written in two TestMains, free to drift on the half that is silent when it breaks.
+// test binary. IT IS FOR TESTS, and it is exported because two packages need it — this one and
+// internal/cli, whose `ocr` tests drive the real rasteriser through the CLI. The alternative was
+// the same fixed-name-and-cleanup reasoning hand-written in two TestMains, free to drift on the
+// half that is silent when it breaks.
 //
 // WHY A TEST BINARY NEEDS A DOOR PRODUCTION DOES NOT. The 3,968 ms compile is amortised per CACHE
 // DIRECTORY, and that directory is derived from the run. Right for the product — a `fetch` process
@@ -129,23 +130,75 @@ const moduleCacheName = "feov-pdfium-module-cache"
 //
 // THE FIXED NAME IS THE CLEANUP. The obvious shape — MkdirTemp plus a removal before os.Exit —
 // cleans up on every path except the one that matters: `go test` PANICS the process on a timeout,
-// which is exactly how this package was failing, and a panic runs no deferred removal. Measured:
-// that shape leaked a 5 MB module per crash, forever. A fixed name cannot accumulate — a crash
-// leaves ONE directory, the next run uses it warm and removes it on the way out.
+// which is exactly how this package was failing, and a panic runs no deferred removal. That shape
+// leaked a compiled module per crash, forever. A fixed name cannot accumulate: a crash leaves ONE
+// directory, and the next run uses it warm.
 //
-// SAFE TO REUSE AND SAFE TO DELETE, holding nothing but wazero's compilation of a module that
-// ships in the binary — keyed by content and wazero version, reproducible at any time for the
-// 3,968 ms it costs. Two concurrent test binaries sharing it can at worst make each other
-// recompile; there is no state here to corrupt.
+// THE MODULE IS 19 MB, measured 2026-09-05 (`du -sh` on the live directory, one entry). This
+// comment said 5 MB, which is what the size was or was believed to be when the fixed name was
+// argued for — it is the number a reader uses to decide whether leaving the directory behind
+// matters, so it is worth having right rather than inherited.
 //
-// The release returns an error so it drops straight into testbuild.Main's post-suite hooks.
-func UseSharedModuleCache() (func() error, error) {
+// SAFE TO REUSE, AND NOT SAFE FOR A HOLDER TO DELETE. This used to say "safe to reuse and safe to
+// delete… two concurrent test binaries sharing it can at worst make each other recompile; there is
+// no state here to corrupt", and returned a release that did os.RemoveAll. That argument is true
+// of SHARING and false of the teardown that sharing implies: nothing is corrupted, but `go test
+// ./...` runs package binaries concurrently, so the first to finish removed the directory the
+// other was still compiling out of — and the loser does not recompile, it FAILS (#717):
+//
+//	could not compile webassembly module: open …/.wazero/…/1a47c473….tmp: no such file or directory
+//
+// The window is not "while the other suite runs its PDF tests", it is that binary's whole
+// lifetime, however short: `go test ./internal/fetchcache -run XXXNothing` executes zero tests and
+// its teardown still deleted the cache. There is no teardown TIMING that is safe while the name is
+// shared, so nothing is deleted at exit and there is no release to call.
+//
+// THE FIXED NAME IS STILL THE CLEANUP, and now it is the whole of it. One directory, holding one
+// 19 MB compiled module per (module content, wazero version) — reused warm by the NEXT `go test`
+// too, which the old teardown threw away every time, paying the 3,968 ms compile again on every
+// invocation to save a directory it had just built. What bounds it is an age reap on acquire, the same
+// shape and the same argument as capture's reapOrphanMirrors: the threshold is longer than any
+// test binary lives, and every acquire touches the directory, so what crosses the line has no live
+// holder. A reader who checks only that reads a real guarantee, not a hope about timing.
+func UseSharedModuleCache() error {
 	dir := filepath.Join(os.TempDir(), moduleCacheName)
+	reapIfIdle(dir, time.Now())
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return nil, fmt.Errorf("shared PDFium module cache unavailable: %w", err)
+		return fmt.Errorf("shared PDFium module cache unavailable: %w", err)
 	}
+	// TOUCHED, BECAUSE READING DOES NOT. wazero reads the compiled module without writing, so a
+	// cache in continuous use across a long suite would age into the reap window and be deleted by
+	// the next binary to start. The touch is what makes "idle" mean idle rather than "old".
+	now := time.Now()
+	_ = os.Chtimes(dir, now, now)
 	moduleCacheDir = dir
-	return func() error { return os.RemoveAll(dir) }, nil
+	return nil
+}
+
+// cacheIdleTTL is longer than any test binary lives, which is the only property it needs — the
+// same argument mirrorOrphanDays makes. Go's default package timeout is 10 minutes and the longest
+// deliberate run in this repository is the release-gate fuzz at ~40; a day is past all of them, so
+// a directory nothing has acquired in that long has no holder to race.
+const cacheIdleTTL = 24 * time.Hour
+
+// reapIfIdle removes the shared cache when nothing has acquired it for cacheIdleTTL, and reports
+// whether it removed anything.
+//
+// A MISSING DIRECTORY IS NOT A REAP. The first run on a machine, and every run after a /tmp sweep,
+// find nothing here — the ordinary case, not a fault, and a caller that logged the return would
+// otherwise announce removing a stale cache on a machine that has never had one.
+func reapIfIdle(dir string, now time.Time) bool {
+	fi, err := os.Stat(dir)
+	if err != nil || !fi.IsDir() {
+		return false
+	}
+	if now.Sub(fi.ModTime()) <= cacheIdleTTL {
+		return false
+	}
+	// Best-effort: two binaries starting at once can both find the same idle cache and both reap
+	// it. That costs a recompile and nothing else, which is what the original comment claimed of
+	// the teardown and is actually true here — a directory this old has no live holder to lose.
+	return os.RemoveAll(dir) == nil
 }
 
 func pdfiumInstance(cacheDir string) (pdfium.Pdfium, func(), error) {
