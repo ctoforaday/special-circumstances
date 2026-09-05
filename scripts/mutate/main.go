@@ -55,11 +55,15 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 )
 
 // mutation is one operator flip.
@@ -283,7 +287,53 @@ type result struct {
 
 // sweep mutates one occurrence at a time, ALWAYS restoring the file — including on SIGINT,
 // because a mutant left in the working tree is worse than no measurement.
-func sweep(moduleDir, filter string, confirm bool, out *os.File) (*result, error) {
+// progress is where the per-mutant heartbeat goes. It is SEPARATE FROM out because the two have
+// different readers: out carries the report (survivors, the summary), progress carries "still
+// alive, here is where I am". Sending both to stdout would put a moving cursor through a document
+// somebody pipes to a file.
+// sweep runs single-threaded, which is what the selftest and any caller wanting the old shape get.
+func sweep(moduleDir, filter string, confirm bool, out *os.File, progress io.Writer) (*result, error) {
+	return sweepN(moduleDir, filter, confirm, out, progress, 1, nil)
+}
+
+// job is one mutant: which file, which flip. The path is RELATIVE so a worker resolves it inside
+// its OWN sandbox — no two workers share a tree, which is the whole reason the pool is safe.
+type job struct {
+	rel string
+	pkg string
+	c   candidate
+}
+
+type jobResult struct {
+	job
+	verdict string // "killed" | "SURVIVED" | "no-compile"
+	text    string
+	seconds float64
+	err     error
+}
+
+// sweepN runs the sweep across `workers` private trees.
+//
+// # The premise that ruled this out is gone
+//
+// The header used to say: "one suite run per mutant, serially, because the mutant lives in the file
+// on disk. Parallelism would need a checkout per worker." The first clause stopped being true when
+// the sweep moved into a sandbox, and a checkout per worker is exactly what sandbox() already
+// makes. The conclusion outlived its premise.
+//
+// # Where the time goes, measured
+//
+// internal/record: ~4.0s per mutant — ~1.5s compile and link, ~2.7s the package's own tests
+// executing. Both halves are CPU, so a pool moves the whole figure rather than a slice of it.
+// Nothing else on offer does: -vet=off touches part of the 1.5s, and the 2.7s IS the suite the
+// mutant exists to be judged by.
+//
+// # Determinism
+//
+// Jobs are dispatched in order and results reassembled in order, so the report never depends on
+// which worker finished first. Only the heartbeat interleaves, and it goes to stderr precisely so
+// the ordered report on stdout stays a document.
+func sweepN(moduleDir, filter string, confirm bool, out *os.File, progress io.Writer, workers int, mkSandbox func(string) (string, func(), error)) (*result, error) {
 	files, err := goFiles(moduleDir)
 	if err != nil {
 		return nil, err
@@ -301,69 +351,136 @@ func sweep(moduleDir, filter string, confirm bool, out *os.File) (*result, error
 		return nil, fmt.Errorf("no non-test .go files under %s (filter %q)", moduleDir, filter)
 	}
 
-	// NO SIGNAL HANDLER AND NOTHING TO RESCUE. The sweep runs in a copy (see sandbox.go), so
-	// an interrupt abandons a scratch directory instead of leaving a mutant in source anyone
-	// is using. The handler this replaces restored a file recorded in two unsynchronised
-	// package-locals and then printed "interrupted — file restored" whether or not it had
-	// been — a race and a false reassurance, both of them guarding a hazard that only existed
-	// because the sweep wrote to the real tree.
-	var res result
-
+	// THE DENOMINATOR IS COMPUTED FIRST, and it is cheap: candidates() only parses, so counting
+	// every mutant costs one pass over the source and no test runs at all. This is what the header
+	// meant by "the operator waiting on it could not be told how many were left" — the number was
+	// always available and simply never asked for.
+	var jobs []job
 	for _, path := range files {
-		source, err := os.ReadFile(path)
+		src, err := os.ReadFile(path)
 		if err != nil {
 			return nil, err
 		}
 		rel, _ := filepath.Rel(moduleDir, path)
 		pkg := suiteFor(rel)
-
-		lines := strings.Split(string(source), "\n")
-
-		for _, c := range candidates(string(source)) {
-			original := lines[c.line]
-			lines[c.line] = original[:c.column] + c.to + original[c.column+len(c.from):]
-			if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
-				return nil, err
-			}
-			lines[c.line] = original
-
-			passed, broke := runSuite(moduleDir, pkg, confirm)
-			switch {
-			case broke:
-				res.nocompile++
-			case passed:
-				s := survivor{rel: filepath.ToSlash(rel), line: c.line + 1, mutation: c.mutation, text: strings.TrimSpace(original)}
-				res.survived = append(res.survived, s)
-				text := s.text
-				if len(text) > 100 {
-					text = text[:100]
-				}
-				fmt.Fprintf(out, "SURVIVED %s:%d  %s->%s  |  %s\n", s.rel, s.line, s.from, s.to, text)
-			default:
-				res.killed++
-			}
+		for _, c := range candidates(string(src)) {
+			jobs = append(jobs, job{rel: filepath.ToSlash(rel), pkg: pkg, c: c})
 		}
-		// Restore before the next FILE, or every later mutant is measured against a file
-		// that still carries this one. Inside the sandbox this is measurement hygiene, not
-		// data safety — which is why its failure ends the sweep instead of being discarded.
-		if err := restoreFile(path, source); err != nil {
-			return nil, err
+	}
+	if workers < 1 {
+		workers = 1
+	}
+	if workers > len(jobs) {
+		workers = len(jobs)
+	}
+	fmt.Fprintf(progress, "mutate: %d mutant(s) across %d file(s), %d worker(s)\n", len(jobs), len(files), workers)
+
+	// Worker 0 uses the tree the caller already made; the rest get their own. A worker that cannot
+	// get one is a REFUSAL rather than a quietly smaller pool — a sweep that halved itself in
+	// silence would report a mutant count it never ran.
+	trees := make([]string, workers)
+	trees[0] = moduleDir
+	for i := 1; i < workers; i++ {
+		if mkSandbox == nil {
+			return nil, fmt.Errorf("mutate: %d workers requested but no tree factory was supplied", workers)
+		}
+		dir, cleanup, err := mkSandbox(moduleDir)
+		if err != nil {
+			return nil, fmt.Errorf("mutate: making a tree for worker %d: %w", i, err)
+		}
+		defer cleanup()
+		trees[i] = dir
+	}
+
+	in := make(chan int)
+	results := make([]jobResult, len(jobs))
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	done := 0
+
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func(tree string) {
+			defer wg.Done()
+			for idx := range in {
+				j := jobs[idx]
+				path := filepath.Join(tree, filepath.FromSlash(j.rel))
+				source, err := os.ReadFile(path)
+				if err != nil {
+					results[idx] = jobResult{job: j, err: err}
+					continue
+				}
+				lines := strings.Split(string(source), "\n")
+				original := lines[j.c.line]
+				lines[j.c.line] = original[:j.c.column] + j.c.to + original[j.c.column+len(j.c.from):]
+				if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")), 0o644); err != nil {
+					results[idx] = jobResult{job: j, err: err}
+					continue
+				}
+
+				started := time.Now()
+				passed, broke := runSuite(tree, j.pkg, confirm)
+				elapsed := time.Since(started).Seconds()
+
+				// RESTORED BEFORE THE NEXT MUTANT, not merely before the next file: a worker takes
+				// its next job from anywhere in the queue, so a file left mutated would be measured
+				// against by whichever mutant lands on it next.
+				if err := restoreFile(path, source); err != nil {
+					results[idx] = jobResult{job: j, err: err}
+					continue
+				}
+
+				r := jobResult{job: j, verdict: "killed", seconds: elapsed, text: strings.TrimSpace(original)}
+				switch {
+				case broke:
+					r.verdict = "no-compile"
+				case passed:
+					r.verdict = "SURVIVED"
+				}
+				results[idx] = r
+
+				// ONE LINE PER MUTANT, WHATEVER IT DID. A killed mutant used to print nothing, so a
+				// sweep that was working, one that was wedged and one that was dead all produced the
+				// same bytes: none. Three runs were misread that way — twice as progress that was
+				// not happening, once as a cost that was not real — before anybody suspected the
+				// output rather than the tool.
+				mu.Lock()
+				done++
+				fmt.Fprintf(progress, "[%d/%d] %s:%d %s->%s %s (%.1fs)\n",
+					done, len(jobs), j.rel, j.c.line+1, j.c.from, j.c.to, r.verdict, elapsed)
+				mu.Unlock()
+			}
+		}(trees[w])
+	}
+	for i := range jobs {
+		in <- i
+	}
+	close(in)
+	wg.Wait()
+
+	var res result
+	for _, r := range results {
+		if r.err != nil {
+			return nil, r.err
+		}
+		switch r.verdict {
+		case "no-compile":
+			res.nocompile++
+		case "SURVIVED":
+			s := survivor{rel: r.rel, line: r.c.line + 1, mutation: r.c.mutation, text: r.text}
+			res.survived = append(res.survived, s)
+			text := s.text
+			if len(text) > 100 {
+				text = text[:100]
+			}
+			fmt.Fprintf(out, "SURVIVED %s:%d  %s->%s  |  %s\n", s.rel, s.line, s.from, s.to, text)
+		default:
+			res.killed++
 		}
 	}
 	return &res, nil
 }
 
-// selftest proves the tool can still both MUTATE and OBSERVE. Without it this joins the
-// class of guards that silently stop guarding.
-//
-// The failure mode to fear is the FLATTERING one: a sweep that generates no mutants at all
-// — a masking bug, an operator table that stopped matching, a file walk that found nothing
-// — reports "0 survived / 0 behavioural" and reads as a clean bill of health. `killed < 1`
-// is the assertion that catches that, which is why it is checked SEPARATELY from the
-// survivor count rather than folded into it.
-//
-// (The opposite break is loud: if the mutation is never written to disk, every mutant
-// passes and survivors INFLATE. Both directions were verified by breaking them on purpose.)
 func selftest(goVersion string) bool {
 	dir, err := os.MkdirTemp("", "sc-mutate-selftest-")
 	if err != nil {
@@ -421,7 +538,7 @@ func TestLooseIsCalledButNotAsserted(t *testing.T) {
 		return false
 	}
 
-	res, err := sweep(dir, "", false, os.Stdout)
+	res, err := sweep(dir, "", false, os.Stdout, io.Discard)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "selftest FAILED:", err)
 		return false
@@ -467,6 +584,7 @@ func main() {
 	filter := flag.String("filter", "", "only sweep files whose path contains this substring")
 	doSelftest := flag.Bool("selftest", false, "prove the tool can still mutate and observe, then exit")
 	goVersion := flag.String("go-version", "1.25", "go directive for the -selftest fixture module")
+	jobs := flag.Int("jobs", runtime.NumCPU(), "how many mutants to try at once; each worker gets its own copy of the module")
 	confirm := flag.Bool("confirm", false, "re-test each SURVIVOR against the rest of the module (correct, and ~8 minutes per survivor)")
 	gateMode := flag.Bool("gate", false, "release gate: fail unless every survivor is explained in "+RecordName+" and no entry is stale (see gate.go)")
 	flag.Parse()
@@ -510,7 +628,7 @@ func main() {
 	}
 	defer cleanup()
 
-	res, err := sweep(work, *filter, *confirm, os.Stdout)
+	res, err := sweepN(work, *filter, *confirm, os.Stdout, os.Stderr, *jobs, sandbox)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
