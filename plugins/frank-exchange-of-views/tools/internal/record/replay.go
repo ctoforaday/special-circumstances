@@ -1,6 +1,7 @@
 package record
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -459,17 +460,27 @@ func BoardState(run Run) (*Board, error) {
 }
 
 func allGapIDs(run Run) (map[string]bool, error) {
-	m, err := MergedEvents(run)
+	db, err := openRunForRead(run)
 	if err != nil {
 		return nil, err
 	}
 	out := map[string]bool{}
-	for _, e := range m.Events {
-		if mint, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
-			out[mint.GetGapId()] = true
-		}
+	if db == nil {
+		return out, nil
 	}
-	return out, nil
+	rows, err := db.Query(`SELECT "gap_id" FROM "mint"`)
+	if err != nil {
+		return nil, fmt.Errorf("record: asking the record for its gap ids: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
 }
 
 // priorClosureRounds returns the rounds in which this gap was already closed.
@@ -478,31 +489,38 @@ func allGapIDs(run Run) (map[string]bool, error) {
 // record is checked against the record — the same rule mint applies to `supersedes`,
 // which refuses an ancestor no mint event created.
 func priorClosureRounds(run Run, gapID string) ([]int, error) {
-	m, err := MergedEvents(run)
+	db, err := openRunForRead(run)
 	if err != nil {
 		return nil, err
 	}
-	var out []int
-	for _, e := range m.Events {
-		if c, ok := recordpb.BodyAs[*recordpb.Close](e); ok && c.GetGapId() == gapID {
-			out = append(out, int(e.GetRound()))
-		}
+	if db == nil {
+		return nil, nil
 	}
-	return out, nil
+	rows, err := db.Query(`SELECT e."round" FROM "close" c JOIN "events" e ON e."id" = c."event_id"
+	  WHERE c."gap_id" = ? ORDER BY c."event_id"`, gapID)
+	if err != nil {
+		return nil, fmt.Errorf("record: asking the record for prior closures of %s: %w", gapID, err)
+	}
+	defer rows.Close()
+	var out []int
+	for rows.Next() {
+		var r int
+		if err := rows.Scan(&r); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
 }
 
 // MintGapID assigns ids tool-side, sequentially per round — the collision class
 // that made four different "R5-1"s in one round simply cannot occur.
 func MintGapID(run Run, round int) (string, error) {
-	m, err := MergedEvents(run)
-	if err != nil {
+	var n int
+	if _, err := queryRow(run, []any{&n},
+		`SELECT count(*) FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."round" = ?`,
+		round); err != nil {
 		return "", err
-	}
-	n := 0
-	for _, e := range m.Events {
-		if _, ok := recordpb.BodyAs[*recordpb.Mint](e); ok && int(e.GetRound()) == round {
-			n++
-		}
 	}
 	return fmt.Sprintf("R%d-%d", round, n+1), nil
 }
@@ -514,17 +532,14 @@ func ExistingMintByKey(run Run, seatID, key string) (string, error) {
 	if key == "" {
 		return "", nil
 	}
-	m, err := MergedEvents(run)
-	if err != nil {
+	var id string
+	if _, err := queryRow(run, []any{&id},
+		`SELECT m."gap_id" FROM "mint" m JOIN "events" e ON e."id" = m."event_id"
+		  WHERE e."seat_id" = ? AND m."mint_key" = ? ORDER BY m."event_id" LIMIT 1`,
+		seatID, key); err != nil {
 		return "", err
 	}
-	for _, e := range m.Events {
-		mint, ok := recordpb.BodyAs[*recordpb.Mint](e)
-		if ok && e.GetSeatId() == seatID && mint.GetMintKey() == key {
-			return mint.GetGapId(), nil
-		}
-	}
-	return "", nil
+	return id, nil
 }
 
 // ---- class registry ----
@@ -583,14 +598,26 @@ func knownClasses(run Run) (map[string]bool, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	m, err := MergedEvents(run)
+	db, err := openRunForRead(run)
 	if err != nil {
 		return nil, nil, err
 	}
 	coined := map[string]bool{}
-	for _, e := range m.Events {
-		if c, ok := recordpb.BodyAs[*recordpb.ClassNew](e); ok {
-			coined[c.GetSlug()] = true
+	if db != nil {
+		rows, err := db.Query(`SELECT "slug" FROM "class_new"`)
+		if err != nil {
+			return nil, nil, fmt.Errorf("record: asking the record for coined classes: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var slug sql.NullString
+			if err := rows.Scan(&slug); err != nil {
+				return nil, nil, err
+			}
+			coined[slug.String] = true
+		}
+		if err := rows.Err(); err != nil {
+			return nil, nil, err
 		}
 	}
 	// NO ADVISORY MODE. This returned nil,nil,nil when no registry was staged — "R1 tolerance; R4
@@ -661,16 +688,9 @@ func StageForRun(run Run, slugs ...string) error {
 // meaning was "I also passed --definition, --neighbor and --distinguisher". Coining is
 // `merge class new` now; this derives the fact from what that verb wrote.
 func ClassCoinedInRun(run Run, slug string) bool {
-	m, err := MergedEvents(run)
-	if err != nil {
-		return false
-	}
-	for _, e := range m.Events {
-		if c, ok := recordpb.BodyAs[*recordpb.ClassNew](e); ok && c.GetSlug() == slug {
-			return true
-		}
-	}
-	return false
+	// A read error folds into false, as the merged-read error did.
+	found, err := recordHas(run, `SELECT 1 FROM "class_new" WHERE "slug" = ? LIMIT 1`, slug)
+	return err == nil && found
 }
 
 // validateClass holds a MINT to a class the registry recognises.

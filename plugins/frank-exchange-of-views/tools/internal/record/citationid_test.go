@@ -1,11 +1,12 @@
 package record
 
 import (
+	"regexp"
+	"testing"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
-	"regexp"
-	"testing"
 )
 
 var citIDShape = regexp.MustCompile(`^c-[0-9a-f]{8}$`)

@@ -1,8 +1,9 @@
 package record
 
 import (
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"strings"
+
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )

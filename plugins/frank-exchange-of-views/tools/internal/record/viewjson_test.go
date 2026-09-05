@@ -2,11 +2,12 @@ package record
 
 import (
 	"encoding/json"
+	"strings"
+	"testing"
+
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"google.golang.org/protobuf/proto"
-	"strings"
-	"testing"
 )
 
 // The debate JSON view must group events into the SAME sections render.go writes to

@@ -1,12 +1,13 @@
 package record
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
-	"google.golang.org/protobuf/proto"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 )
 
 // THE ONLY TEST THAT MATTERS HERE IS THE ONE FOR STALE, and it is the branch a healthy run never
@@ -37,7 +38,11 @@ func itoaT(i int) string { return string(rune('a' + i%26)) }
 
 func TestLastActivityRefusesARecordWithNoEvents(t *testing.T) {
 	dir := recordtest.TmpRun(t)
-	if _, err := lastActivity(mustRun(t, dir)); err == nil {
+	m, err := MergedEvents(mustRun(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := lastActivity(mustRun(t, dir), m); err == nil {
 		t.Fatal("lastActivity returned no error for a run that has recorded nothing — a run that " +
 			"never started and a run that went quiet would then arrive as the same age")
 	}
@@ -46,7 +51,11 @@ func TestLastActivityRefusesARecordWithNoEvents(t *testing.T) {
 func TestLastActivityReadsTheNewestEventsOwnTimestamp(t *testing.T) {
 	now := time.Date(2026, 8, 22, 12, 0, 0, 0, time.UTC)
 	dir := runWithCadence(t, 8, 30*time.Second, now)
-	a, err := lastActivity(mustRun(t, dir))
+	m, err := MergedEvents(mustRun(t, dir))
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := lastActivity(mustRun(t, dir), m)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -110,20 +110,15 @@ func requireFindings(run Run, labels []string, verb, flag string) error {
 	if len(labels) == 0 {
 		return nil
 	}
-	m, err := MergedEvents(run)
-	if err != nil {
-		return err
-	}
-	have := map[string]bool{}
-	for _, e := range m.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
-			if l := f.GetLabel(); l != "" {
-				have[l] = true
-			}
-		}
-	}
+	// One existence question per named label, in the caller's order, so the refusal names the
+	// FIRST missing one exactly as the set-membership walk did. The list is bounded by what a
+	// seat passes to --found-by, not by the record's size.
 	for _, l := range labels {
-		if !have[l] {
+		found, err := recordHas(run, `SELECT 1 FROM "finding" WHERE "label" = ? LIMIT 1`, l)
+		if err != nil {
+			return err
+		}
+		if !found {
 			return fmt.Errorf("record: %s %s names finding %s, which no lens recorded — attribution to a finding nobody made inflates the lens-sourced count the capture estimate reads", verb, flag, l)
 		}
 	}
@@ -184,14 +179,12 @@ func requireSeat(run Run, seatID, verb, flag string) error {
 	if seatID == "" {
 		return nil
 	}
-	m, err := MergedEvents(run)
+	found, err := recordHas(run, `SELECT 1 FROM "events" WHERE "seat_id" = ? LIMIT 1`, seatID)
 	if err != nil {
 		return err
 	}
-	for _, e := range m.Events {
-		if e.GetSeatId() == seatID {
-			return nil
-		}
+	if found {
+		return nil
 	}
 	return fmt.Errorf("record: %s %s names seat %s, which has recorded nothing in this run — a ruling attributed to a seat that never sat cannot be matched to the petition it answers", verb, flag, seatID)
 }

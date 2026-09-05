@@ -1,9 +1,5 @@
 package record
 
-import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-)
-
 // The agent -> seat binding, read back.
 //
 // `register` writes agent_id as a field on its event (see RegisterSeat), because it is the one
@@ -35,17 +31,13 @@ func SeatOfAgent(run Run, agentID string) (string, bool, error) {
 	if agentID == "" {
 		return "", false, nil
 	}
-	m, err := MergedEvents(run)
+	// event_id is the record's own order, so the last match is the latest register.
+	var seat string
+	found, err := queryRow(run, []any{&seat},
+		`SELECT e."seat_id" FROM "register" r JOIN "events" e ON e."id" = r."event_id"
+		  WHERE r."agent_id" = ? ORDER BY r."event_id" DESC LIMIT 1`, agentID)
 	if err != nil {
 		return "", false, err
-	}
-	seat, found := "", false
-	for _, e := range m.Events {
-		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER || e.GetRegister().GetAgentId() != agentID {
-			continue
-		}
-		// MergedEvents orders deterministically, so the last match is the latest register.
-		seat, found = e.GetSeatId(), true
 	}
 	return seat, found, nil
 }
