@@ -37,8 +37,8 @@ Scope 4's defect is separate and stated in its own section.
 |---|---|---|---|
 | N5 | Every bench disposition has a motion id and joins to what it settled | `record.Motions` returns a `docket` motion for every bench-disposed gap; zero gaps with `ClosedByBench` and no motion id | 2 |
 | N6 | An undisposed docket item blocks the bench's sitting | `sitting.go`'s `case "bench"` reports it in `Outstanding`; a bench that leaves one is `Complete: false` | 2 |
-| N7 | No renderer, comment or branch survives for a verb that cannot be written | The `opinion` census returns 0 non-test, non-English-word hits after the sweep | 2 |
-| N8 | Retiring the verb retires none of its **constraints** | `DocketRuling` carries `Opinion`'s nine fields and both its `check` options, or each omission is named and argued in the commit that drops it | 2 |
+| N7 | No renderer, comment or branch survives for a verb that cannot be written | `grep -rni opinion` over `plugins/frank-exchange-of-views/`, compared **before and against a stated exclusion list** — the English-word survivors named one by one in §III's census. NOT the case-differenced `comm` the earlier draft specified: that returns files carrying capital-`Opinion` and no lowercase one (10 today), so it can never reach 0 and is blind to every lowercase-only carrier — `cli/merge/close.go:145`, `docs/seat-command-triggers.md:96`, `cli/seat/verbs.go:187` and `boards.go`'s prose all say `bench opinion` in lower case | 2 |
+| N8 | Retiring the verb retires none of its **constraints** | `DocketRuling` carries **eight** of `Opinion`'s nine fields and both its `check` options. **`gap_id` is the ninth and its omission is argued here, not deferred to a commit message:** the gap reference rides the FILING (`DocketMotion`), which is this plan's own standing decision, so a ruling that also carried it would be the second copy that decision exists to prevent. The invariant has **three** carriers, not two — the two `check` options in the schema and `record/record.go:1185-1189`, which refuses the both-set and neither-set cases in Go and whose own comment explains why it is not a restatement — and all three move | 2 |
 
 *(N1–N4 and N9 were the delivered scopes' goals and are recorded in the archaeology.)*
 
@@ -66,6 +66,18 @@ Scope 4's defect is separate and stated in its own section.
   protobuf (`record/recordpb`), not JSONL-with-string-payloads: readers use
   `recordpb.BodyAs[*recordpb.Opinion](e)` rather than `e.Payload.Str("gap_id")`. **Every
   payload-key citation in the August document is stale for this reason** — see the archaeology.
+- **The replay-ordering hazard is real, and NOT for the reason earlier drafts gave.** They said
+  `BoardState` is a single pass over timestamp-ordered events written into different shards, so a
+  ruling could replay before its filing. **That is now false**: `replay.go:344-360` says "THE RECORD
+  IS ALREADY IN ORDER, so there is no sort here any more — `MergedEvents` returns `ORDER BY id`,
+  insertion order", and `MotionRule.motion_id`'s own comment says the sharded-log version of this
+  problem is "simply unwritable" here. An implementer who checks the stated reason finds it false and
+  may drop the mitigation with it.
+  **The hazard survives on different ground:** `recordtest.Seed` inserts in slice order, so a test
+  can legitimately present a ruling before its filing, and `motion_rule.motion_id` deliberately
+  carries **no foreign key** (its own comment argues why: the referent is subject-dependent). Nothing
+  at the storage layer refuses the order. So the index pass stays, and §V step 4 stays executable —
+  it is guarding a reachable state, just not the one the old sentence described.
 - **The join already exists.** `record.Motions(b *Board) []*Motion` (`record/motion.go:265`) pairs a
   filing with its ruling on `motion_id`; `Ruled()` answers answered-ness. The August plan's largest
   single cost — retargeting eight readers keyed on `gap_id` — is mostly paid: `debate()` already
@@ -131,18 +143,37 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   the shared `Disposition` proto enum (#342, `record.proto:290`), so it moves by reference rather
   than by transcription — the error the August plan caught itself making twice (printing a set from
   the constitution rather than from the code) is now structurally impossible.
-- **`[NEW]` `DocketRuling`, added to `MotionRule`'s `oneof ruling` beside `GradeRuling`,
-  `PetitionRuling` and `DirectionRuling` (`record.proto:1301-1305`) — and this is the row the August
-  document most understates.** It described moving **five** flags. The `Opinion` message
-  (`record.proto:771-867`) carries **nine** fields — `gap_id`, `disposition`, `principle`, `tension`,
-  `review_flag`, `rationale`, `settled`, `reopens_on`, `final` — **and two `check` options**:
-  `reopens_on XOR final` must hold, and both must not be set at once. Those two are enforced
-  invariants with their `why` written out, one of them recorded as the fix for "the defect the
-  friction channel carried for eighteen consecutive sittings". **Deleting `bench opinion` without
-  moving them silently drops two enforced constraints while every test stays green** — the
-  half-state-that-reads-as-done this whole plan is about. They move onto `DocketRuling`, or the plan
-  must say which is dropped and argue it. Neither had been authored when the August census ran, which
-  is exactly why §V step 1 re-runs the census instead of reading this table.
+- **`[NEW]` `DocketMotion`, an arm of `Motion`'s `oneof filing`** — and the earlier draft omitted it
+  entirely, which made `motion docket file --id <gap id>` unimplementable: `Motion`
+  (`record.proto:1192-1208`) has no `gap_id`, and this schema's rule is that a subject's fields live
+  inside its own message ("a flat message would accept either on either… So the subject IS a
+  oneof"). `DocketMotion { gap_id }` with `references: "mint.gap_id"`, beside `GradeMotion`,
+  `PetitionMotion` and `DirectionMotion`, which are already message arms.
+- **`[NEW]` `DocketRuling`, a MESSAGE arm of `MotionRule`'s `oneof ruling` — and its three siblings
+  are ENUMS.** `GradeRuling`, `PetitionRuling` and `DirectionRuling` (`record.proto:368-384`) are
+  enums: a ruling in this schema is a verdict word plus the prose `opinion` string
+  (`MotionRule:3`) plus `binds`. The bench's ruling does not fit that shape, so `docket` is the
+  first message arm of that oneof. **Verified supported before specifying it:**
+  `recordsql.oneofColumns` (`schema.go:506-536`) already handles a mixed oneof — message arms become
+  child tables through `armTable`, scalar arms keep their columns and their
+  `("grade" IS NOT NULL) + … <= 1` mutual-exclusion CHECK, and a `ruling_case TEXT` column appears on
+  the parent once any arm is a message. That last is a new column on `motion_rule`, and it is a
+  schema change the DDL regenerates rather than a migration to hand-write.
+- **`DocketRuling`'s fields: eight, and the two `check` options.** `disposition` (the shared
+  `Disposition` enum, #342 — by reference, not transcription), `principle`, `tension`,
+  `review_flag`, `rationale`, `settled`, `reopens_on`, `final`; plus `reopens_on XOR final` and
+  "not both", verbatim with their `why`. **`gap_id` does NOT come**, per the decision above.
+- **Those two `check` options could not have reached the database before Phase 1.** `option (check)`
+  arrived in the DDL only through `tableFor`; `armTable` never asked for a message's own rules, so
+  authoring them on an arm would have generated a schema silently missing them **while a structural
+  check that reads the `.proto` passed**. Fixed first, as its own commit, with a test that fails
+  when the call is removed — that is why the phase order is generator, then schema.
+- **`[MODIFY]` `record.Motion` gains a typed `GapID`** (`record/motion.go:231-254`). Today the
+  struct carries `ID`, `Subject`, `Filer`, `Round`, `Basis`, `Relief`, `Ruling…` and the subject's
+  own payload only through `Fields map[string]string`. Recovering the gap as `Fields["gap_id"]`
+  returns `""` on a miss — **indistinguishable from "this motion has no gap"**, which renders a
+  bench-disposed gap as undisposed: the very defect N5 and N6 exist to remove, reintroduced one
+  level down ([[facts-are-fields]] clause 3). The join gets a field, not a map lookup.
 - The gap reference rides the **filing**, not the ruling. This was fork 10, resolved with the human,
   and the reasoning stands: keep the fact in one place. The cost is smaller than it was, because
   most readers already hold a board.
@@ -158,7 +189,17 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   annotation again. This is a **new capability**, not a
   re-encoding: blue gains a channel to escalate a gap over red's head. See R3.
 - `[NEW]` `motion docket rule --id <M#> --as <disposition> --principle --tension --review-flag
-  --reason` — bench only, enforced by the schema annotation.
+  --settled --reopens-on --final --reason` — bench only, enforced by the schema annotation.
+  **`newRule` has no mechanism for per-subject PROSE flags, and this is the gap the earlier draft
+  left unstated.** It registers a uniform `--id` / `--as` / `--reason` for every subject
+  (`cli/motion/verbs.go:273-278`), plus `--binds` gated by `record.MotionFieldEnum` — which is an
+  **enum**-only per-subject table. Free-text fields have no equivalent. So this row is a mechanism
+  change, not a flag list: `newRule` takes a per-subject prose-flag set the way `newFile` already
+  takes `fileFlags`, and **the flags must not appear on the other three subjects' `--help`** — a
+  grade ruling offering `--principle` is the surface lying about what it accepts. Requiredness rides
+  the body annotations through `seat.Records(c, "motion_rule")`, which resolves off the message, so
+  the per-subject part must be conditional there too — state which of the eight are required for a
+  docket ruling and which are optional.
 - **`[NO VERB]` `motion docket appeal`, and it is NOT automatic — checked, not assumed.**
   `cli/motion/command.go:162` still reads `if name != "petition"`, so adding `docket` would **mint an
   undesigned appeal verb by default**, writing `motion-appeal` events against a bench ruling. The
@@ -187,6 +228,14 @@ class of August's risk rather than one instance of it.
 | `verify/verify.go:430,454,496` | `withOpinion` → the docket join; `GapsWithOpinion` (`:402`) → `GapsWithDisposition` (`json:"gaps_with_disposition"`), with `cli/verify.go:94` |
 | `graph/graph.go:25,57,202,252` | `perGap.opinions` retargets to the docket-ruling count. **`:252` is the DOT label, a second reader beside the Mermaid one at `:202`** — dropping the field without it does not compile; keeping it unedited renders a measure that no longer exists |
 | `record/viewjson.go`, `view/view.go`, `capture/capture.go` | boards in scope; retarget through `record.Motions` |
+| **`recordsql/views.go:105-114`** | **The one that would reintroduce this plan's own defect, and no earlier draft named it.** The board view derives the bench closure by joining `"opinion"` three ways — `bc` (`MIN(event_id)` over closing dispositions), `bo`, `be` — and `awaiting_proof` and `stranded` are computed from `bc."event_id" IS NULL`. Deleting the `Opinion` table deletes that join's subject, and **SQLite does not validate a view body at `CREATE`**: the DDL applies, and the board view reports no bench closures at all. A disposed gap reads as undisposed. The replacement is a **two-hop** join with no precedent in this file — `motion_rule_docket` → `motion_rule.motion_id` → `motion.motion_id` → `motion_docket.gap_id` — because the gap now rides the filing |
+| **`consistency/consistency.go:138-151`** | **A SECOND, independent replay of the bench's closure** (`case *recordpb.Opinion`, `lastCloser = "bench"`, `carriedCount`). It does not compile after the delete, and retargeting it needs the SAME `motion_id` → gap index §II specifies. R2 named one file and this is the other |
+| **`cli/merge/close.go:145`** | a LIVE refusal string: "Rule it from the bench with `feov-record bench opinion --as %s`". After the delete the tool instructs a seat to run a command that does not exist |
+| **`cli/bench/command.go:20`** | `newOpinion()` registration — goes with the verb |
+| **`cli/seat/help/opinion.md`** | the embedded help for the deleted verb (`//go:embed help/*.md`); `motion docket file`/`rule` need their own |
+| **`docs/seat-command-triggers.md:96`** | the `bench opinion` ledger row, marked CLEAN. The plan already cites `:84` of this same file for Scope 4, so it knows the ledger's role |
+| **`cli/seat/verbs.go:187,189`** | "Written by `mint`, `close` and the bench's `opinion`" — twice |
+| **`seatprobe/boards.go`** `declare` and `friction` `Because` prose | "so `opinion` (which demands an id and a fate) cannot carry it" and "`opinion` requires an id and a fate-changing disposition (#361)" — arguments about a verb that will not exist. The earlier draft named only `:585` `Baits` and the `:606` expectation |
 
 **The R1 guarded sites — NO CHANGE, and listed so the sweep meets them as decisions:**
 `record/motionview.go:48`'s `Opinion string \`json:"opinion"\`` (the **prose key**),
@@ -239,9 +288,24 @@ current.
 
 ### Landing shape
 
-**Scope 2 is one PR, two commits — additive then destructive**, per `025f5c0`'s precedent: deleting
-the old verb is the only thing that compares two live contracts, and doing it in the additive commit
-hides that. The half-state does not reach `main`.
+**Scope 2 is one PR, four commits**, and the order is load-bearing at both ends.
+
+1. **The generator** — `armTable` emits a message arm's own `option (check)`s. `[DONE — 1a4daedf]`
+   It goes FIRST because `DocketRuling`'s two constraints ride an arm, and before this commit
+   authoring them would have generated a schema silently missing them while a `.proto`-reading check
+   passed. Independent of the docket entirely: it fixes a latent hole no arm had yet fallen into.
+2. **The schema** — `DocketMotion`, `DocketRuling`, `MOTION_SUBJECT_DOCKET` with its `ruled_by`,
+   `MotionSubjects`, `MotionVerdicts["docket"]`, `record.Motion.GapID`, and the replay index in BOTH
+   replays. Additive: nothing renders differently and `bench opinion` is still live.
+3. **The surface** — `motion docket file` / `rule`, the appeal exclusion keyed on the ruler, the
+   probe boards and the coverage entries. Still additive; still green with `bench opinion` live.
+4. **The destructive one** — delete the verb and the `Opinion` body, retarget every consumer in
+   §III's census, and fix `views.go`'s join. **This is where the contract diff happens**, per
+   `025f5c0`: deleting the old verb is the only thing that compares two live contracts, and folding
+   it into an additive commit hides that.
+
+The half-state does not reach `main`: commits 2 and 3 are green with both surfaces live, and 4 is
+where one of them stops existing.
 
 **Scope 4 is its own PR.**
 
@@ -271,7 +335,7 @@ table, including the forks the delivered scopes settled, is in the archaeology.
 | # | Risk | Likelihood × Impact | Mitigation |
 |---|---|---|---|
 | R1 | **The `opinion` prose-key clobber, a fourth time.** `opinion` is both an event type and a prose key; `a12362c` records three sweeps that clobbered the key while retargeting the type | high × med | The guarded sites are enumerated in Scope 2 as explicit NO CHANGE rows. A mechanical rename is forbidden; the sweep is a reviewed list |
-| R2 | **The replay pre-pass is forgotten and the bug lands silently.** A single pass drops every ruling that replays before its filing — rendering the gap as one nobody disposed of | med × high | §II states the property; a test writes the ruling's shard first and asserts the gap closes |
+| R2 | **The replay index is forgotten and the bug lands silently.** A pass that meets a ruling before its filing drops the disposition — rendering the gap as one nobody disposed of | med × high | The index is specified in §II with its REAL justification (`recordtest.Seed` order, and `motion_rule.motion_id` carrying no foreign key), and §V step 4 drives the out-of-order case. **Two replays, not one:** `record/replay.go` and `consistency/consistency.go:138-151` both reconstruct the bench closure independently, and the earlier mitigation named only the first — so the identical defect would have landed unguarded in the file whose job is to catch exactly this |
 | R3 | **Any-seat filing is a new capability.** An adversarial blue could docket every gap it dislikes to buy rounds | med × low | The bench rules each one and `carried` is a real disposition, so the cost lands on the filer's round budget. Watched, not gated: the capture auditor already reports per-seat act counts. Gating it before it has been seen would be an invented obligation |
 | R4 | **Scope 1 landed and Scope 2 never does**, leaving the docket unrecorded indefinitely | **realized in part** — Scopes 1 and 3 shipped 2026-09-04/05; Scope 2 has not | Named as the accepted cost of splitting. [[complete-the-concept]] requires the remaining half be *tracked*, not remembered: **#681** carries this scope and was filed before any of the plan was implemented. It is open |
 | R5 | **This document's citations go stale.** It took 523 commits to invalidate the August set; Scopes 1 and 3 moved several within days | high × med | Every §III row cites a symbol as well as a line, and §V step 1 re-runs the censuses rather than trusting these tables. A line number in this document is a convenience, never the identifier |
@@ -306,24 +370,35 @@ anticipated. The full narrative is in the archaeology; these are the operative r
 
 ### Scope 2
 
-1. The `opinion` census, unfiltered and **case-insensitively differenced**, from
-   `plugins/frank-exchange-of-views/`:
-   `comm -23 <(grep -rl "Opinion" . | sort) <(grep -rl "opinion" . | sort)` — the August document
-   records that the case-sensitive census could not see the Go identifier, and found four files that
-   way. Re-run it; do not trust this plan's list.
+1. `grep -rni opinion .` from `plugins/frank-exchange-of-views/`, compared against §III's census
+   **as an explicit list**: every surviving hit must be one of the named English-word or prose-key
+   survivors, and every file in the `[DELETE]`/`[RETARGET]`/`[MODIFY]` columns must be gone or
+   changed. Re-run it; do not trust §III's table.
+
+   **NOT the case-differenced form the earlier draft specified.**
+   `comm -23 <(grep -rl "Opinion" .) <(grep -rl "opinion" .)` returns files carrying capital-`Opinion`
+   and no lowercase `opinion` — 10 on today's tree. It cannot return 0, so it cannot express N7; and
+   once the Go type is deleted it goes to roughly zero on its own while `cli/merge/close.go:145`,
+   `docs/seat-command-triggers.md:96`, `cli/seat/verbs.go:187` and `seatprobe/boards.go`'s prose all
+   still say `bench opinion`. A check that bottoms out for the wrong reason is this document's
+   subject.
 2. `go build ./... && go test ./...` after **each** of the two commits, run per the four rules above.
    The additive commit must be green with `bench opinion` still live.
 3. The probe surface gate must **fail** when the sitting board's staged docket motion is removed. A
    reachability check that has never been seen to fail is a claim, not a check.
 4. `record/replay_test.go`: a docket motion-rule closes its gap (`Open: false`,
    `ClosedByBench: true`, `Anomalies` empty), **with the ruling's shard written first**.
-5. **The constraint check (N8), and it is a check because a goal without one is this plan's own
-   subject.** Diff `Opinion`'s field set and `check` options against `DocketRuling`'s before the
-   destructive commit: `DocketRuling` must carry all nine fields and both options, or the commit
-   message must name each omission and argue it. A ruling that sets **both** `reopens_on` and
-   `final` must still be REFUSED, and a ruling that sets **neither** must still be refused — assert
-   both directions, because the one-directional version passes against a constraint that was
-   silently dropped.
+5. **The constraint check (N8), and it is BEHAVIOURAL — the structural half is deleted because it
+   could pass while the constraint was absent.** An earlier draft said "`DocketRuling` must carry all
+   nine fields and both options", verified by reading the `.proto`. Before Phase 1 that reading would
+   have been TRUE while `armTable` dropped both options on the floor: the annotation present, the
+   CHECK absent, the schema applying cleanly. So the check is what the database does:
+   - a docket ruling setting **both** `reopens_on` and `final` is REFUSED;
+   - one setting **neither** is REFUSED;
+   - and the refusal comes from the generated DDL, asserted against the schema golden, not only from
+     `record.go:1185-1189`'s Go arm — **all three carriers of the invariant, since a Go check passing
+     tells you nothing about whether the table has one**.
+   Field parity is eight of nine, with `gap_id` argued in §I rather than in a commit message.
 6. `record/gavel_test.go:22-47` must pass **unmodified**: it fails any `MotionSubject` without
    `ruled_by`, and it is what makes `MOTION_SUBJECT_DOCKET`'s annotation non-optional.
 
