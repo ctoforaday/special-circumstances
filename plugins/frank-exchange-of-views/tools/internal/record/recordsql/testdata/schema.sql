@@ -56,6 +56,8 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s gr
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('reproduce', 'an attempt to re-run a recorded proof, and whether what it computes is sound');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'a claim withdrawn from the report, with the reason and what supersedes it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('revision', 'a revision to a seat''s own earlier text');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_close', 'the harness''s agent returning — the other end of that span');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_open', 'the harness dispatching an agent — one end of a sitting''s span, observed by a hook rather than claimed by a seat');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('spot_check', 'red re-checking a sample of prior work, or stating that it checked none and why');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('verdict', 'red''s round gate: PASS or FAIL against the open board');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('verify', 'a citation checked at the leaf: what the source did for the claim, and how sure the reader is');
@@ -600,6 +602,18 @@ CREATE TABLE "inquiry_review" (
 CREATE TABLE "base_ingest" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "text" TEXT
+) STRICT;
+
+CREATE TABLE "sitting_open" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "agent_id" TEXT,
+  "agent_type" TEXT
+) STRICT;
+
+CREATE TABLE "sitting_close" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "agent_id" TEXT,
+  "agent_type" TEXT
 ) STRICT;
 
 CREATE VIEW "gap" AS

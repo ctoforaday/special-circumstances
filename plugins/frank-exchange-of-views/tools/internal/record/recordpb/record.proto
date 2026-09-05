@@ -232,6 +232,8 @@ enum EventType {
   EVENT_TYPE_VERIFY = 31 [(means) = "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"];
   EVENT_TYPE_INQUIRY_REVIEW = 32 [(means) = "a review of the lines of inquiry themselves, rather than of a finding"];
   EVENT_TYPE_BASE_INGEST = 33 [(means) = "the frozen round-0 report, stored verbatim as the origin the diff-stack replays over"];
+  EVENT_TYPE_SITTING_OPEN = 34 [(means) = "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"];
+  EVENT_TYPE_SITTING_CLOSE = 35 [(means) = "the harness's agent returning — the other end of that span"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -479,12 +481,15 @@ message Event {
     FrictionNone friction_none = 50;
     InquiryReview inquiry_review = 51;
     BaseIngest base_ingest = 52;
+    SittingOpen sitting_open = 53;
+    SittingClose sitting_close = 54;
   }
 
-  // 53-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
-  // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review` and 52 for
-  // `base_ingest`, which is what the reserve is for — the block shrinks and nothing is renumbered.
-  reserved 53 to 80;
+  // 55-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
+  // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
+  // `base_ingest` and 53-54 for the sitting span, which is what the reserve is for — the block
+  // shrinks and nothing is renumbered.
+  reserved 55 to 80;
 }
 
 // TelemetryLine is the per-round projection, NOT a shard event.
@@ -1436,6 +1441,46 @@ message Register {
   // ABSENT IS NOT "": a run whose hook never fired carries no attestation on any register event,
   // and that stays legible as NOT MEASURED rather than as an agent configured as nothing.
   optional string agent_type = 6;
+}
+
+// SittingOpen and SittingClose are the two ends of ONE DISPATCH of one harness agent, each
+// written by a hook that observed it rather than by the seat it is about.
+//
+// WHY THEY EXIST: seat durations read ZERO (#265). StartedMs and EndedMs were taken from
+// FILESYSTEM MTIMES, so on the fallback path they were equal for every completed seat and the
+// duration branch never fired; on a running seat "elapsed" measured time since the last WRITE. A
+// span whose ends are file metadata is not a measurement of a sitting, it is a measurement of a
+// file, and the dashboard's timing instruments read authoritative while reading nothing.
+//
+// TWO MESSAGES AND NOT ONE WITH A PHASE FIELD. The event type is derived from the oneof field
+// name (recordpb.SetBody), so two fields sharing one message would resolve to whichever came
+// first and one of the two ends could never be stamped. They are also genuinely two acts by two
+// different hooks, which is what the vocabulary is for.
+//
+// NEITHER CARRIES A DURATION, deliberately. A span is the difference between two timestamps the
+// envelope already holds, and storing it as well would be a third copy of a fact two events state
+// — and the copy that goes stale is the one a reader trusts.
+message SittingOpen {
+  // agent_id IS THE ONLY THING THIS END CAN NAME. SubagentStart carries the harness handle and
+  // the agent configuration and NOTHING workflow-supplied (#290, measured 2026-08-23) — the
+  // dispatcher's own seat id does not reach it, and no probe sentinel appears in the payload. So
+  // the seat is resolved LATER, by joining this handle to the register event that names it, which
+  // is the same join record.SeatOfAgent already does.
+  //
+  // That is why the envelope's seat_id on this event is the hook's own origin and not a seat: an
+  // id invented here to look seat-shaped would be a guess written into a permanent record.
+  optional string agent_id = 1;
+
+  // agent_type is the configuration, and on THIS event it is also the filter that makes the
+  // record honest: SubagentStop fires at the MAIN agent's turn end as well, with a minted id and
+  // no type (19 seats against 50 turn ends in one measured session, zero exceptions either way —
+  // plans/hook-surface-spike.md §7a). An event with no type is not a sitting and is never written.
+  optional string agent_type = 2;
+}
+
+message SittingClose {
+  optional string agent_id = 1;
+  optional string agent_type = 2;
 }
 
 // RoundVerdict carries red's terminal gate on a round.
