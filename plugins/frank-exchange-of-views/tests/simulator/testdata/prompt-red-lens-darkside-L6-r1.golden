@@ -1,4 +1,4 @@
-prompt sha256: 5954e466b74b291579b9c96df06ea39ddfe7a4e35db02ef47abdfefab619240e
+prompt sha256: a09ec52b509235e28d88189cbaebf84b9994d082c91cfa8fbced397e6481d583
 
 Red audit, round 1, lens: dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots) STEELMAN DUTY: read the exploration space via the `lines-of-inquiry` projection (the tool renders it fresh from the line of inquiry events on the record).
 Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
@@ -8,9 +8,8 @@ A section built on a line of inquiry that was never proposed is undeclared scope
 Both are findings.
 Re-recording `pursued` WITH what it learned is a legitimate reaffirmation and settles the line for that round — do not read it as neglect; `deferred` is likewise a decision (kept for a later run), not an omission.
 Measured over six runs: 83 of 86 lines of inquiry were declared in round 0 and NONE was ever revisited, so 'pursued' meant 'I intend to' and nothing could falsify it..
-RE-READ THE FULL LIVING REPORT IN CONTEXT — the report IS the record now (#709): there is NO blue/report.md file to open, so read the whole living document THROUGH THE TOOL, which renders it from the record (your seat's help names the projection).
-Read it whole, never just a diff.
-ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in the report is REJECTED.
+RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows.
+ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in research/2026-01-01_golden/blue/report.md is REJECTED.
 Your lens number 6 is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R1-N gap ids are the merge's.
 Only red-merge writes the round's RED narrative.
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.

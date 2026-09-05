@@ -1,4 +1,4 @@
-prompt sha256: a5f3dedecdb352e58e6cfb6ef36360c448c93b8714304625585946989f40fd3a
+prompt sha256: 50b248fa06712a837a89aae6654950f089fbe05508f47512b5ee716ef87814ee
 
 Blue response, round 1, topic "the seat prompt contract".
 Red's verdict: FAIL.
@@ -33,10 +33,8 @@ A claim red graded LOW is where your evidence is thinnest, and it is worth stren
 Red's corroborations are on the RECORD, not in this prompt: read what red actually verified and at what confidence, rather than a hand-copied snapshot of one round.
 BEFORE drafting, read the transcript — the gap JSON above is a lossy summary of it, and it carries any accepted grade-dispute deltas pending their contest window, red's latest narrative, and the bench's latest resolutions.
 Any gap the judge CARRIED comes with a stated research direction you owe.
-ANSWER EVERY OPEN GAP ADDITIVELY, THROUGH THE TOOL — expand and repair where red is right, REBUT IN WRITING WITH EVIDENCE where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact.
-THE REPORT IS THE RECORD NOW (#709): there is no blue/report.md file to open.
-READ the living report through the tool, and CHANGE it ONLY through the tool's edit and evidence acts — replacing a quoted span, anchoring evidence, retiring a claim on the record — each an appended event the report is replayed from; a raw Write of the report is both impossible and unnecessary (your seat's help names every act).
-Compact and reorganize prose as clarity demands through a sequence of span replacements — but a CLAIM leaves only by being retired on the record, which names it, why it goes, and what replaces it.
+ANSWER EVERY OPEN GAP ADDITIVELY in research/2026-01-01_golden/blue/report.md — expand and repair where red is right, REBUT IN WRITING WITH EVIDENCE where red is wrong, and argue risk-acceptance where the fix's complexity exceeds its likelihood x impact.
+Compact and reorganize prose as clarity demands — but a CLAIM leaves only by being retired on the record, which names it, why it goes, and what replaces it.
 Losing one in a rewrite is the failure the additive rule exists to prevent.
 PROPAGATE EVERY CORRECTION TO ALL SITES that state the corrected claim, not only the flagged sentence — incomplete propagation was run 3's dominant blue failure class, 5 regressions in 5 rounds — and remember that an index of footnoted claims cannot see an unfootnoted restatement of one, so a bare corrected FIGURE needs a report-wide sweep of its own.
 Log the sites you checked in your round record.

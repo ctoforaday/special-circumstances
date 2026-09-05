@@ -1,4 +1,4 @@
-prompt sha256: 8a043d2f95514fe0ea097b6fddcfd9676fec5ca65c9c67580587bc501a19da44
+prompt sha256: d25b178f7c30b00e8ba224cc5ed4da06d02f978dc7f1b3f7fee8624b7606d9ca
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -18,9 +18,9 @@ Two claims resting on the same url are one source and two anchors, not two sourc
 REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your scratchpad under a NEUTRAL name and copy it into place with bash cp; a direct Write of the report path fails and wastes a round-trip.
 Recompute claim_count with the tool once report.md is written and relay the integer into the envelope; never hand-count it (two honest merges differed 2x before it was pinned).
 RECORD THE ROUND, with what this synthesis did and its claim_count as the reason; round_record_appended is TRUE only after that event exists.
-FREEZE THE REPORT, LAST — after report.md is written, the count recorded and the round recorded, INGEST it into the record (the act your seat's help names that freezes your report as the base of the record and DELETES the file).
-From this point the report IS the record: there is no blue/report.md to open, every seat READS the living report through the tool, and it CHANGES only through the tool's edit and evidence acts, each of which appends an event the report is replayed from.
-Freezing is once-only; if it refuses, do NOT carry on as though a file still exists — record friction with the exact refusal and return round_record_appended honestly.
+FREEZE THE REPORT, LAST — after report.md is written, the count recorded and the round recorded, run the act your seat's help lists as freezing the round-0 report into the record as its base.
+Do this ONCE, at the very end.
+If it refuses, record friction with the exact refusal and return round_record_appended honestly.
 LINES OF INQUIRY: record every genuinely distinct approach you CONSIDERED, not only the one you took — with the hypothesis that would be true if it paid off, and later with what became of it and what changed your mind.
 The hypothesis is what makes the account honest, and the dead ends matter most: one you record is one the next run does not re-walk, and it is worth more than the tidy conclusion that survived.
 Alternatives reach the reader under their own headings — what you pursued, what you left for a later run, and what you weighed and rejected are three things a reader needs, not one list of winners.
