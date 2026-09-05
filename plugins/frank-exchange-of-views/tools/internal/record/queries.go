@@ -197,28 +197,10 @@ func ReportBaseExists(run Run) (bool, error) {
 	return recordHas(run, `SELECT 1 FROM "base_ingest" LIMIT 1`)
 }
 
-// FindingMarkerRecorded reports whether any finding OR anchor event names this marker id — the
-// membership question the torn-splice heal asks of an fx marker already sitting on the report.
-// Read errors fold into false: the caller then takes the ordinary fresh path, exactly as it did
-// when the merged read failed. Its proof twin below keeps the two namespaces as separate as the
-// folds kept them.
-func FindingMarkerRecorded(run Run, id string) bool {
-	if id == "" {
-		return false
-	}
-	found, err := recordHas(run, `SELECT 1 FROM "finding" WHERE "finding_id" = ?
-	  UNION SELECT 1 FROM "anchor" WHERE "id" = ? LIMIT 1`, id, id)
-	return err == nil && found
-}
-
-// ProofMarkerRecorded is FindingMarkerRecorded's twin for proof markers.
-func ProofMarkerRecorded(run Run, id string) bool {
-	if id == "" {
-		return false
-	}
-	found, err := recordHas(run, `SELECT 1 FROM "proof" WHERE "proof_id" = ? LIMIT 1`, id)
-	return err == nil && found
-}
+// FindingMarkerRecorded / ProofMarkerRecorded — the "does an event already name this marker id"
+// membership questions — lived here. They served the torn-splice adoption the three splicing verbs
+// ran; under report-as-record (#709) a marker exists only as its event, the orphan state cannot
+// arise, and the adoption (and these) are gone.
 
 // gradeAtColumn names the regrade/mint column for a contested dimension; "" is a dimension this
 // binary cannot read a grade at — the same refusal Gap.GradeAt returns false for.

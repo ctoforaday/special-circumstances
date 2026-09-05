@@ -282,57 +282,9 @@ func ProtectedAnchorIDs(md string) []string {
 	return append(ids, ProofAnchorIDs(md)...)
 }
 
-// missingFrom returns the ids in `expected` absent from `present` (in expected's order) —
-// the shared EXPECTED⊄PRESENT set-diff behind every dropped-anchor check.
-func missingFrom(expected, present []string) []string {
-	have := map[string]bool{}
-	for _, id := range present {
-		have[id] = true
-	}
-	var missing []string
-	for _, id := range expected {
-		if !have[id] {
-			missing = append(missing, id)
-		}
-	}
-	return missing
-}
-
-// MissingAnchorIDs returns the ids in `expected` that do NOT appear as FINDING-markers in
-// reportMD (in expected's order). It backs the scorecard's dropped_finding_markers detector —
-// a marker red anchored that is gone from the report is blue tampering. (Citations have
-// their own EXPECTED⊄PRESENT check, MissingCitationAnchorIDs; the PostToolUse backstop
-// sweeps both via MissingProtectedAnchorIDs.)
-func MissingAnchorIDs(expected []string, reportMD string) []string {
-	return missingFrom(expected, FindingAnchorIDs(reportMD))
-}
-
-// MissingCitationAnchorIDs returns the ids in `expected` (cite-event labels) absent from the
-// report's citation anchors — the citation-axis twin of MissingAnchorIDs, behind the
-// unbacked_citations detector.
-func MissingCitationAnchorIDs(expected []string, reportMD string) []string {
-	return missingFrom(expected, CitationAnchorIDs(reportMD))
-}
-
-// MissingProofAnchorIDs returns the ids in `expected` (proof-event labels) absent from the
-// report's proof anchors — the PROOF-axis twin of MissingCitationAnchorIDs.
-//
-// It is the last mile of a road that was already built. ProofAnchorIDs has existed since proof
-// anchors joined the protected union, so the hookgate lockdown already refuses a raw write that
-// drops one — but nothing ever READ that set to ask the opposite question: did a computation this
-// run actually performed reach the document at all? The protection existed without the
-// observation, which is the half-state its two siblings were each added to close.
-//
-// A proof whose anchor is absent is a claim the report makes on its own authority while the
-// evidence for it sits in the record and the cache, unreferenced. That is the shape #591 names:
-// a sentence framed as measured that resolves to no proof id.
-func MissingProofAnchorIDs(expected []string, reportMD string) []string {
-	return missingFrom(expected, ProofAnchorIDs(reportMD))
-}
-
-// MissingProtectedAnchorIDs returns the ids in `expected` (findings AND cite labels) absent
-// from the report's anchors of EITHER class — the union check the PostToolUse lockdown
-// backstop runs, so a raw write that drops a finding marker OR a citation anchor is caught.
-func MissingProtectedAnchorIDs(expected []string, reportMD string) []string {
-	return missingFrom(expected, ProtectedAnchorIDs(reportMD))
-}
+// The MissingAnchorIDs / MissingCitationAnchorIDs / MissingProofAnchorIDs /
+// MissingProtectedAnchorIDs EXPECTED⊄PRESENT checks lived here — they backed the scorecard's
+// dropped_finding_markers and unbacked_citations detectors, the proof-backing audit, and the
+// PostToolUse lockdown backstop. Under report-as-record (#709) the report is replayed from the
+// record and places only recorded markers, so EXPECTED⊄PRESENT is 0 by construction; every
+// consumer was removed, and these went with them.

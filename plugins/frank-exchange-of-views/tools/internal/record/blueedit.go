@@ -1,35 +1,9 @@
 package record
 
-import "fmt"
-
-// AnchorIDs returns the distinct finding-marker ids EXPECTED in blue/report.md — the id of
-// every `anchor` event on the record, in first-seen order. The blue-report lockdown's
-// PostToolUse backstop compares this to the ids actually present to catch a dropped marker.
-func AnchorIDs(run Run) ([]string, error) {
-	db, err := openRunForRead(run)
-	if err != nil {
-		return nil, err
-	}
-	if db == nil {
-		return nil, nil
-	}
-	// First-seen order, distinct, empties dropped — the same three rules the fold applied.
-	rows, err := db.Query(`SELECT "id" FROM "anchor" WHERE COALESCE("id", '') != ''
-	  GROUP BY "id" ORDER BY MIN("event_id")`)
-	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for its anchor ids: %w", err)
-	}
-	defer rows.Close()
-	var out []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, err
-		}
-		out = append(out, id)
-	}
-	return out, rows.Err()
-}
+// AnchorIDs (the distinct `anchor`-event ids EXPECTED in the report) lived here — it fed the
+// blue-report lockdown's PostToolUse dropped-marker backstop, which is gone with report-as-record
+// (#709). The report places only recorded markers now, so the EXPECTED⊄PRESENT question it answered
+// cannot have a non-empty answer.
 
 // ExistingBlueEditByKey reports whether this seat already recorded a `blue_edit` event
 // under --key. A crash-retried `blue edit` uses it to RECONCILE (re-apply the write

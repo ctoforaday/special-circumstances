@@ -348,7 +348,3 @@ func idIn(tok string) string {
 // changed, so every cite reopened its own neighbours. Caught by the twin case in the test rather
 // than in review.
 var anyAnchorToken = regexp.MustCompile(`<!--[a-z]+:[^>]*-->`)
-
-// stripAnchors removes every anchor token from a segment, so a marker ARRIVING beside a
-// reference is not read as that reference's text changing.
-func stripAnchors(s string) string { return anyAnchorToken.ReplaceAllString(s, "") }

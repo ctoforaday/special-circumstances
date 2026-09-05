@@ -136,17 +136,6 @@ func newProve() *cobra.Command {
 	return c
 }
 
-// truncateOutput bounds what the record carries. The FULL output is always on disk under
-// <run>/proofs/<sha>/output — this is the excerpt a projection shows, and the cap exists so
-// one chatty script cannot swamp every reader of the record.
-func truncateOutput(s string) string {
-	const cap = 2000
-	if len(s) <= cap {
-		return s
-	}
-	return s[:cap] + "\n… truncated; the full output is in <run>/proofs/<sha256>/output"
-}
-
 type proveResult struct {
 	Label      string `json:"proof_id,omitempty"`
 	SHA        string `json:"sha256"`
