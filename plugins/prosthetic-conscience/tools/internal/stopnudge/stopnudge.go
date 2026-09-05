@@ -51,6 +51,13 @@ const (
 type Thresholds struct {
 	TurnsNotice, TurnsWarn, TurnsUrgent    int
 	GrowthNotice, GrowthWarn, GrowthUrgent int
+
+	// BRANCH WAS IN THE RULE FROM THE START AND HAD NOWHERE TO GO. §III fixed three measures,
+	// each with its own edges, and `freshness.Measures` has collected `BranchCommits` all along —
+	// but this struct carried two, so a third of the preregistered rule was unimplementable
+	// rather than declined. Adding the fields is what makes the shipped gate the gate that was
+	// specified; it is not a new measure arriving after the data.
+	BranchNotice, BranchWarn, BranchUrgent int
 }
 
 // Configured reports whether any band edge has been set. An unconfigured nudge emits
@@ -187,18 +194,24 @@ func aboveFloor(m freshness.Measures) bool {
 // and an all-of rule would silence exactly the lopsided cases three measures exist to
 // catch.
 func highestBand(m freshness.Measures, th Thresholds) (Band, bool) {
-	crosses := func(turns, growth int) bool {
+	// AN UNMEASURED MEASURE ABSTAINS, it does not read as zero. Each arm is guarded by its own
+	// *Known/*Measured flag, so a session whose turns could not be counted is judged on growth and
+	// branch work rather than being handed a turn count of 0 it never had.
+	crosses := func(turns, growth, branch int) bool {
 		if turns > 0 && m.TurnsMeasured && m.Turns >= turns {
 			return true
 		}
-		return growth > 0 && m.GrowthKnown && m.Growth >= growth
+		if growth > 0 && m.GrowthKnown && m.Growth >= growth {
+			return true
+		}
+		return branch > 0 && m.BranchKnown && m.BranchCommits >= branch
 	}
 	switch {
-	case crosses(th.TurnsUrgent, th.GrowthUrgent):
+	case crosses(th.TurnsUrgent, th.GrowthUrgent, th.BranchUrgent):
 		return BandUrgent, true
-	case crosses(th.TurnsWarn, th.GrowthWarn):
+	case crosses(th.TurnsWarn, th.GrowthWarn, th.BranchWarn):
 		return BandWarn, true
-	case crosses(th.TurnsNotice, th.GrowthNotice):
+	case crosses(th.TurnsNotice, th.GrowthNotice, th.BranchNotice):
 		return BandNotice, true
 	}
 	return "", false
