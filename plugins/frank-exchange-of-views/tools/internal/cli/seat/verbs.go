@@ -350,7 +350,7 @@ func Show() *cobra.Command {
 		// a command invocation in a prompt, once for pushing judge-r2 past its ceiling. Both
 		// refusals were right, and this is where they pointed.
 		Long: "read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.\n\n" +
-			"A PROJECTION IS JSON ON STDOUT — PIPE IT, DO NOT SPOOL IT. `jq` is the filter for it; a projection " +
+			"A PROJECTION IS JSON ON STDOUT — PIPE IT, DO NOT SPOOL IT. `jq` is a REQUIRED tool of this suite, so it is here; a projection " +
 			"piped into it answers your question in ONE call. Writing the projection to a scratch file and re-reading it in " +
 			"python is THREE — the dump, a key-dump to learn the field names, then the extract — and each one is a process " +
 			"spawn and a full round-trip for a single question. MEASURED across one run: 251 `json.load` re-parses and 25 " +
