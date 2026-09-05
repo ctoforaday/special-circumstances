@@ -62,9 +62,11 @@ stderr:
 feov-record: merge: record: red-merge-r1 has already recorded a regrade this sitting, and it is a once-per-sitting act — the record keeps your first one rather than quietly replacing it. If the first was wrong, say so in the act that supersedes it; the record is append-only and both stay visible
 
 ═══ EVENTS ═══
-{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"complexity_cost":"GRADE_HIGH","fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"graded high at mint","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-merge-r1","ts":1,"type":"EVENT_TYPE_MINT"}
-{"key":"red-merge-r1:regrade:R1-1","regrade":{"basis":"blue narrowed the scope; consequence shrank","gap_id":"R1-1","likelihood":"GRADE_LOW","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_REGRADE"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"complexity_cost":"GRADE_HIGH","fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"graded high at mint","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-merge-r1","ts":3,"type":"EVENT_TYPE_MINT"}
+{"key":"red-merge-r1:regrade:R1-1","regrade":{"basis":"blue narrowed the scope; consequence shrank","gap_id":"R1-1","likelihood":"GRADE_LOW","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-merge-r1","ts":4,"type":"EVENT_TYPE_REGRADE"}
 
 ═══ RENDERS ═══
 -- debate
@@ -93,7 +95,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 | tier | what answered | seats |
 |---|---|---|
-| judgment | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
+| judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
 
 ## Read this first
 

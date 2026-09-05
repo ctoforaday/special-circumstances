@@ -25,9 +25,11 @@ stdout:
 minted R3-2
 
 ═══ EVENTS ═══
-{"key":"red-merge-r3:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":3,"seat_id":"red-merge-r3","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-merge-r3:mint:R3-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R3-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"L5-F3","problem":"minted once","required_fix":"","severity":"GRADE_MEDIUM"},"round":3,"seat_id":"red-merge-r3","ts":1,"type":"EVENT_TYPE_MINT"}
-{"key":"red-merge-r3:mint:R3-2","mint":{"acceptance_check":"y","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R3-2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"L6-F1","problem":"a different key mints","required_fix":"","severity":"GRADE_LOW"},"round":3,"seat_id":"red-merge-r3","ts":2,"type":"EVENT_TYPE_MINT"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-merge-r3:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":3,"seat_id":"red-merge-r3","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r3:mint:R3-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R3-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"L5-F3","problem":"minted once","required_fix":"","severity":"GRADE_MEDIUM"},"round":3,"seat_id":"red-merge-r3","ts":3,"type":"EVENT_TYPE_MINT"}
+{"key":"red-merge-r3:mint:R3-2","mint":{"acceptance_check":"y","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R3-2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"L6-F1","problem":"a different key mints","required_fix":"","severity":"GRADE_LOW"},"round":3,"seat_id":"red-merge-r3","ts":4,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
 -- debate
@@ -56,7 +58,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 | tier | what answered | seats |
 |---|---|---|
-| judgment | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
+| judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
 
 ## Read this first
 

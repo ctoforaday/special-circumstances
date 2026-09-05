@@ -120,18 +120,20 @@ stdout:
 certification recorded
 
 ═══ EVENTS ═══
-{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-merge-r1:position","position":{"text":"red's round position"},"round":1,"seat_id":"red-merge-r1","ts":1,"type":"EVENT_TYPE_POSITION"}
-{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_MINT"}
-{"closing":{"gap_id":"R1-1","text":"red's closing"},"key":"red-merge-r1:closing:R1-1","round":1,"seat_id":"red-merge-r1","ts":3,"type":"EVENT_TYPE_CLOSING"}
-{"key":"blue-respond-r1:position","position":{"text":"blue's round position"},"round":1,"seat_id":"blue-respond-r1","ts":4,"type":"EVENT_TYPE_POSITION"}
-{"closing":{"gap_id":"R1-1","text":"blue's closing"},"key":"blue-respond-r1:closing:R1-1","round":1,"seat_id":"blue-respond-r1","ts":5,"type":"EVENT_TYPE_CLOSING"}
-{"key":"blue-respond-r1:revision","revision":{"text":"repairs landed"},"round":1,"seat_id":"blue-respond-r1","ts":6,"type":"EVENT_TYPE_REVISION"}
-{"key":"blue-respond-r1:manifest_row:R1-1","manifest_row":{"gap_id":"R1-1","row":"figures recomputed; check run: pass"},"round":1,"seat_id":"blue-respond-r1","ts":7,"type":"EVENT_TYPE_MANIFEST_ROW"}
-{"key":"blue-respond-r1:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"R1-1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":1,"seat_id":"blue-respond-r1","ts":8,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"judge-r1","ts":9,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge-r1:opinion:R1-1","opinion":{"disposition":"DISPOSITION_CARRIED","final":true,"gap_id":"R1-1","principle":"correctness over economy","rationale":"the rationale body","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"round":1,"seat_id":"judge-r1","ts":10,"type":"EVENT_TYPE_OPINION"}
-{"certify":{"statement":"what a human should re-examine"},"key":"judge-r1:certify:#1","round":1,"seat_id":"judge-r1","ts":11,"type":"EVENT_TYPE_CERTIFY"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:position","position":{"text":"red's round position"},"round":1,"seat_id":"red-merge-r1","ts":3,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-merge-r1","ts":4,"type":"EVENT_TYPE_MINT"}
+{"closing":{"gap_id":"R1-1","text":"red's closing"},"key":"red-merge-r1:closing:R1-1","round":1,"seat_id":"red-merge-r1","ts":5,"type":"EVENT_TYPE_CLOSING"}
+{"key":"blue-respond-r1:position","position":{"text":"blue's round position"},"round":1,"seat_id":"blue-respond-r1","ts":6,"type":"EVENT_TYPE_POSITION"}
+{"closing":{"gap_id":"R1-1","text":"blue's closing"},"key":"blue-respond-r1:closing:R1-1","round":1,"seat_id":"blue-respond-r1","ts":7,"type":"EVENT_TYPE_CLOSING"}
+{"key":"blue-respond-r1:revision","revision":{"text":"repairs landed"},"round":1,"seat_id":"blue-respond-r1","ts":8,"type":"EVENT_TYPE_REVISION"}
+{"key":"blue-respond-r1:manifest_row:R1-1","manifest_row":{"gap_id":"R1-1","row":"figures recomputed; check run: pass"},"round":1,"seat_id":"blue-respond-r1","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond-r1:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"R1-1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":1,"seat_id":"blue-respond-r1","ts":10,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"judge-r1","ts":11,"type":"EVENT_TYPE_REGISTER"}
+{"key":"judge-r1:opinion:R1-1","opinion":{"disposition":"DISPOSITION_CARRIED","final":true,"gap_id":"R1-1","principle":"correctness over economy","rationale":"the rationale body","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"round":1,"seat_id":"judge-r1","ts":12,"type":"EVENT_TYPE_OPINION"}
+{"certify":{"statement":"what a human should re-examine"},"key":"judge-r1:certify:#1","round":1,"seat_id":"judge-r1","ts":13,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══
 -- debate
@@ -178,7 +180,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 | tier | what answered | seats |
 |---|---|---|
-| judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
+| judgment | _NOT MEASURED — nothing observed what replied_ | 3 of 3 |
 
 ## Read this first
 

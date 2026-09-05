@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +9,9 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // blue edit is the ONLY write path to blue/report.md for a response seat. These drive the
@@ -27,15 +28,30 @@ func writeReport(t *testing.T, runDir, body string) {
 	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	ingestReport(t, runDir)
+}
+
+// ingestReport freezes the just-written round-0 report into the record and removes the file
+// (#709): blue-synthesize is the one seat allowed to ingest, and every later verb reads and mutates
+// the report THROUGH THE RECORD. After this there is no file — read the current report with
+// readReport, which renders the projection.
+func ingestReport(t *testing.T, runDir string) {
+	t.Helper()
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
+		t.Fatalf("register blue-synthesize: %v", err)
+	}
+	if _, err := run(t, "ingest", "--run", runDir, "--seat-id", "blue-synthesize"); err != nil {
+		t.Fatalf("ingest the round-0 report: %v", err)
+	}
 }
 
 func readReport(t *testing.T, runDir string) string {
 	t.Helper()
-	b, err := os.ReadFile(filepath.Join(runDir, "blue", "report.md"))
+	md, err := reportproj.RenderFromRecord(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	return string(b)
+	return md
 }
 
 func countType(t *testing.T, runDir string, typ recordpb.EventType) int {

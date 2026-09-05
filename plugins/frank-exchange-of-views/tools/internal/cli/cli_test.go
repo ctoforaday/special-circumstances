@@ -150,6 +150,7 @@ func seedBlueReport(t *testing.T, runDir string) {
 	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	ingestReport(t, runDir)
 }
 
 // help captures a command's own help output, which cobra writes to its writer.

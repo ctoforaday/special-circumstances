@@ -1060,6 +1060,7 @@ Available Commands:
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
+  ingest          freeze the round-0 report into the record and remove the file — done once, by its author
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
   position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
@@ -1107,6 +1108,7 @@ Available Commands:
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
+  ingest          freeze the round-0 report into the record and remove the file — done once, by its author
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
   position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it

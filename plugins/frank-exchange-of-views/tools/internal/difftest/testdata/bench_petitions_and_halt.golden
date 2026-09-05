@@ -36,11 +36,13 @@ stdout:
 JUDICIAL HALT recorded — capture relays this verbatim
 
 ═══ EVENTS ═══
-{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-merge-r1:motion:#1","motion":{"basis":"the design erodes a consent gate","motion_id":"M1","petition":{"class":"PETITION_CLASS_SAFETY"},"relief":"halt and escalate","subject":"MOTION_SUBJECT_PETITION"},"round":1,"seat_id":"red-merge-r1","ts":1,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge-petition-red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"judge-petition-red-merge-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge-petition-red-merge-r1:motion_rule:#1","motion_rule":{"binds":"RULING_BINDS_BOTH","motion_id":"M1","opinion":"the relief binds the coming seats","petition":"PETITION_RULING_GRANTED","subject":"MOTION_SUBJECT_PETITION"},"round":1,"seat_id":"judge-petition-red-merge-r1","ts":3,"type":"EVENT_TYPE_MOTION_RULE"}
-{"halt":{"opinion":"continuing would compromise the consent gate"},"key":"judge-petition-red-merge-r1:halt:#1","round":1,"seat_id":"judge-petition-red-merge-r1","ts":4,"type":"EVENT_TYPE_HALT"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:motion:#1","motion":{"basis":"the design erodes a consent gate","motion_id":"M1","petition":{"class":"PETITION_CLASS_SAFETY"},"relief":"halt and escalate","subject":"MOTION_SUBJECT_PETITION"},"round":1,"seat_id":"red-merge-r1","ts":3,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge-petition-red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"judge-petition-red-merge-r1","ts":4,"type":"EVENT_TYPE_REGISTER"}
+{"key":"judge-petition-red-merge-r1:motion_rule:#1","motion_rule":{"binds":"RULING_BINDS_BOTH","motion_id":"M1","opinion":"the relief binds the coming seats","petition":"PETITION_RULING_GRANTED","subject":"MOTION_SUBJECT_PETITION"},"round":1,"seat_id":"judge-petition-red-merge-r1","ts":5,"type":"EVENT_TYPE_MOTION_RULE"}
+{"halt":{"opinion":"continuing would compromise the consent gate"},"key":"judge-petition-red-merge-r1:halt:#1","round":1,"seat_id":"judge-petition-red-merge-r1","ts":6,"type":"EVENT_TYPE_HALT"}
 
 ═══ RENDERS ═══
 -- debate
@@ -75,7 +77,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 | tier | what answered | seats |
 |---|---|---|
-| judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
+| judgment | _NOT MEASURED — nothing observed what replied_ | 3 of 3 |
 
 ## Read this first
 
