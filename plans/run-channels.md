@@ -231,7 +231,7 @@ load-bearing ones, each changing:
 
 | Carrier | Role |
 |---|---|
-| `record/recordpb/record.proto:1163-1197` | the messages + enums (see Migration) |
+| `record/recordpb/record.proto:1163-1200` (incl. `FrictionNone` at 1198-1200) | the messages + enums (see Migration) |
 | `record/record.go:921,925,931,935` | body dispatch for both messages |
 | `record/viewjson.go:999-1053` | the JSON view — gains `source`/`type` |
 | `record/estoppel.go:158,170,172` | the one live `kind` filter |
@@ -361,7 +361,7 @@ neither wanted the report to cite the channel. **Close #737 with this reasoning.
 | R4 | The rename sweeps the word into a namespace where it means something else (facts-are-fields cl.4). | low × med × low | `friction` survives as a `LogType` VALUE with its meaning intact; the sweep is name-only. Verified: no stdlib `log` import, `TOOL_ERROR` has no readers, `ESTOPPEL` has exactly one. |
 | R5 | Prompt-gate rejection on the PR-1/PR-4 wording (cost a round of reverts in #709). | high × med × low | §V runs all five gates; clauses phrased as acts, no verb/flag spelled, no obituary. |
 | R6 | Measuring success on one future run over-fits to it. | med × low × low | The targets are ratios and absences, not tuned constants; the census commands are recorded so any later run re-measures identically. |
-| R7 | **The rename silently blinds every archived run** — the SQL table name is derived from the message name, so a new binary reading an old record returns 0 rows, identical to a clean board. | high × high × med | Migration section: `reserved 2`, new field numbers 4/5, archived records read-only, and a LOUD schema refusal. §V check 2 asserts the error rather than the absence. **Blocked on #501** (the version gate is documented but emitted by nothing), which is stated as a hard prerequisite. |
+| R7 | **The rename silently blinds every archived run** — the SQL table name is derived from the message name (`recordsql/schema.go:117`), so a new binary reading an old record returns 0 rows, identical to a clean board. | high × high × med | Migration section: `reserved 2`, new field numbers 4/5, archived records read-only, and a LOUD refusal. The two changes that deliver it: (a) bump `eventSchema` 2→3 in `requirements.json:3` and regenerate `record/schema_gen.go:13` via `scripts/schemagen` — the epoch `setup.go:509-517` already refuses on; (b) extend `record/store.go:82-93`, which today fires only when `dbName` is ABSENT with `legacyShards` present and so lets an archived pre-rename `record.db` through to the zero. §V check 2 asserts the error rather than the absence. **Not blocked on #501** — both mechanisms exist today; see §III Migration for why that issue is stale and would have been an unbounded blocker. |
 | R8 | The envelope rename half-lands, breaking the `debate.js` → `capture.go` join across languages. | med × high × low | All three renames (CLI command, seat verb, envelope field) ship in ONE atomic PR; census B enumerates both sides; the friction-parity audit's own test covers the join. |
 | R9 | Deleting the survey forfeits the only surface-traversal signal (the pin's stated rationale). | high × low × low | Accepted and recorded in PR-1 rather than argued away: the instrument is unfalsifiable and is false where checkable. A real instrument (hook-observed help invocations) is named, and deliberately not built here. |
 
@@ -379,7 +379,7 @@ All commands are rooted at the repository root; `P=plugins/frank-exchange-of-vie
   flag-not-block).
 - L7: a `red-lens-r?-L7` seat id yields `L7-F1` from the generic `roleRe`, no label-code change.
 - **Schema refusal (the migration's own test):** open an archived pre-rename `records/record.db`
-  with the new binary and assert it **errors naming the schema version**. Asserting the error is
+  with the new binary and assert it **errors naming the event-schema epoch**. Asserting the error is
   the point — a test that merely checks "no rows" would pass on the bug.
 - Gates, each at its real path: `(cd $P/tools && go test ./integration/surface/... ./internal/cli/... ./cmd/seatprobe/...)`
   covers `promptverbs`, `constitutiondirective`, `retiredsurfaces`, and the naming tests
@@ -398,8 +398,9 @@ All commands are rooted at the repository root; `P=plugins/frank-exchange-of-vie
    (target 100%), and — untargeted but measured — bucket-D share and the duplicate rate.
 2. **Archived-run refusal.** Point the new binary at
    `run-archive/2026-09-02_quadratic-formula.tar.gz`'s `records/record.db` and confirm a **loud
-   error**, not an empty projection. This is the check that would have caught the defect the first
-   draft shipped.
+   error naming the event-schema epoch** (not the schema-version stamp, which is not the epoch),
+   never an empty projection. This is the check that would have caught the defect the first draft
+   shipped.
 3. **Report census.** Re-run the five #710 greps that produced 161 / 24 / 13 / 9 / 2 on the
    2026-09-02 report against the new run's `report.md`, and confirm every surviving access limit
    reads as a limit on the conclusion rather than an inlined hostname or status code.
