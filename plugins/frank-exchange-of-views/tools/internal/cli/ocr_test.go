@@ -1,12 +1,12 @@
 package cli
 
 import (
-	"context"
 	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
 )
 
 // A minimal PDF with one image-only page — structurally what a 1998 Acrobat PDFWriter scan
@@ -96,8 +96,8 @@ func TestOCRPagesRendersAScanAndNamesTheImages(t *testing.T) {
 }
 
 // THE GUARD THIS VERB IS MOST LIKELY TO NEED. A document whose text was already extracted
-// must not be re-read from pixels: it spends a model to re-derive, less accurately, a file
-// that is already on disk.
+// must not be re-read from pixels: OCR re-derives, less accurately, a file that is
+// already on disk.
 func TestOCRPagesRefusesADocumentThatAlreadyHasText(t *testing.T) {
 	yes := true
 	dir, sha := cacheScan(t, &yes, "application/pdf")
@@ -176,25 +176,27 @@ func TestOCRPagesReusesAnExistingRenderAtTheSameResolution(t *testing.T) {
 	}
 }
 
-// stubCLIReader answers without a network call. Every `ocr read` test uses one — a test that
-// needed credentials could not run in CI, and one that spent money on `go test ./...` would
-// be a worse thing than the bug it caught.
-type stubCLIReader struct {
+// stubCLIEngine answers without the C stack. Every `ocr read` test uses one — what is
+// under test here is the verb's plumbing, and the real engine's behaviour belongs to
+// internal/tessocr's own suite.
+type stubCLIEngine struct {
 	perCall func(n int) (string, error)
 	n       int
 }
 
-func (s *stubCLIReader) ReadPage(_ context.Context, _ string, _ []byte) (string, int64, int64, error) {
+func (s *stubCLIEngine) Identity() string { return "fake@test" }
+
+func (s *stubCLIEngine) ReadPage(_ []byte) (tessocr.PageResult, error) {
 	s.n++
 	t, err := s.perCall(s.n)
-	return t, 100, 10, err
+	return tessocr.PageResult{Text: t}, err
 }
 
-func withCLIReader(t *testing.T, fn func(n int) (string, error)) {
+func withCLIEngine(t *testing.T, fn func(n int) (string, error)) {
 	t.Helper()
-	prev := fetchcache.DefaultPageReader
-	fetchcache.DefaultPageReader = &stubCLIReader{perCall: fn}
-	t.Cleanup(func() { fetchcache.DefaultPageReader = prev })
+	prev := fetchcache.DefaultPageEngine
+	fetchcache.DefaultPageEngine = &stubCLIEngine{perCall: fn}
+	t.Cleanup(func() { fetchcache.DefaultPageEngine = prev })
 }
 
 // READING REQUIRES RENDERED PAGES, and says which verb makes them. A seat that reaches this
@@ -214,10 +216,11 @@ func TestOCRReadRefusesWhenNothingIsRendered(t *testing.T) {
 func TestOCRReadRecordsTheReadingAndMarksItOCRDerived(t *testing.T) {
 	no := false
 	dir, sha := cacheScan(t, &no, "application/pdf")
-	if _, err := run(t, "ocr", "pages", "--seat-id", "operator", "--sha", sha, "--dpi", "72", "--run", dir); err != nil {
+	// Rendered at the default — the engine's operative resolution, the only one read accepts.
+	if _, err := run(t, "ocr", "pages", "--seat-id", "operator", "--sha", sha, "--run", dir); err != nil {
 		t.Fatal(err)
 	}
-	withCLIReader(t, func(int) (string, error) { return "IEEE Std 1012-1998", nil })
+	withCLIEngine(t, func(int) (string, error) { return "IEEE Std 1012-1998", nil })
 
 	out, err := run(t, "ocr", "read", "--seat-id", "operator", "--sha", sha, "--run", dir)
 	if err != nil {
@@ -228,27 +231,49 @@ func TestOCRReadRecordsTheReadingAndMarksItOCRDerived(t *testing.T) {
 	if !strings.Contains(out, "ocr_derived: true") {
 		t.Errorf("summary does not state ocr_derived:\n%s", out)
 	}
-	for _, want := range []string{"model:", "text_path:", "text_sha:", "input_tokens:"} {
+	for _, want := range []string{"engine:", "text_path:", "text_sha:", "dpi:"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("summary missing %q:\n%s", want, out)
 		}
 	}
 	// NEVER THE TEXT ITSELF. The summary names a path, exactly as fetch does.
 	if strings.Contains(out, "IEEE Std 1012-1998") {
-		t.Error("the summary carried the transcription instead of naming the file")
+		t.Error("the summary carried the reading instead of naming the file")
 	}
 }
 
-// A SECOND READ OF THE SAME IMAGES IS NOT FREE AND IS NOT IDEMPOTENT. Re-reading would spend
-// a model again AND replace text a seat may already have cited from, with different bytes.
-func TestOCRReadReusesAnExistingReadingOfTheSameImages(t *testing.T) {
+// A RENDER AT ANOTHER RESOLUTION IS REFUSED BY NAME: the engine's constants are per-DPI,
+// and reading 72-DPI pixels with the 300-DPI tune would misdetect quietly.
+func TestOCRReadRefusesARenderAtAnotherResolution(t *testing.T) {
 	no := false
 	dir, sha := cacheScan(t, &no, "application/pdf")
 	if _, err := run(t, "ocr", "pages", "--seat-id", "operator", "--sha", sha, "--dpi", "72", "--run", dir); err != nil {
 		t.Fatal(err)
 	}
+	withCLIEngine(t, func(int) (string, error) { return "x", nil })
+
+	_, err := run(t, "ocr", "read", "--seat-id", "operator", "--sha", sha, "--run", dir)
+	if err == nil {
+		t.Fatal("a 72-DPI render was read with the 300-DPI tune")
+	}
+	for _, want := range []string{"tuned", "re-render"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal = %q, want it to mention %q", err, want)
+		}
+	}
+}
+
+// A SECOND READ OF THE SAME IMAGES IS REUSED. Re-deriving is cheap now, but silently
+// replacing a record a seat may already have cited from is not a side effect of
+// re-running a verb — --force is the deliberate lever.
+func TestOCRReadReusesAnExistingReadingOfTheSameImages(t *testing.T) {
+	no := false
+	dir, sha := cacheScan(t, &no, "application/pdf")
+	if _, err := run(t, "ocr", "pages", "--seat-id", "operator", "--sha", sha, "--run", dir); err != nil {
+		t.Fatal(err)
+	}
 	calls := 0
-	withCLIReader(t, func(int) (string, error) { calls++; return "once", nil })
+	withCLIEngine(t, func(int) (string, error) { calls++; return "once", nil })
 
 	if _, err := run(t, "ocr", "read", "--seat-id", "operator", "--sha", sha, "--run", dir); err != nil {
 		t.Fatal(err)
@@ -259,23 +284,23 @@ func TestOCRReadReusesAnExistingReadingOfTheSameImages(t *testing.T) {
 		t.Fatal(err)
 	}
 	if calls != first {
-		t.Errorf("a second read spent %d more model calls; want the existing reading reused", calls-first)
+		t.Errorf("a second read ran the engine %d more times; want the existing reading reused", calls-first)
 	}
 	if !strings.Contains(out, "reused: true") {
 		t.Errorf("the reuse was not reported:\n%s", out)
 	}
 }
 
-// `ocr read`'s summary carries the same partiality fact as fetch's (#679) — including on
-// the reuse path, where a stored record's holes must still reach a summary-only reader —
-// and omits it when clean, which is what keeps the assertions above true.
-func TestOCRReadSummaryCountsBlockedPages(t *testing.T) {
-	blocked := ocrReadSummary{Sha: "s", Model: "m", Pages: 3, DPI: 72, TextPath: "p", TextSha: "t", OCRDerived: true, BlockedPages: 2}
-	if out := blocked.render(); !strings.Contains(out, "ocr_blocked_pages: 2") {
-		t.Errorf("render does not count the holes:\n%s", out)
+// `ocr read`'s summary carries the same table fact as fetch's — including on the reuse
+// path, where a stored record's grid pages must still reach a summary-only reader — and
+// omits it when prose-only, which is what keeps the assertions above true.
+func TestOCRReadSummaryCountsTablePages(t *testing.T) {
+	tabled := ocrReadSummary{Sha: "s", Engine: "e", Pages: 3, DPI: 300, TextPath: "p", TextSha: "t", OCRDerived: true, TablePages: 2}
+	if out := tabled.render(); !strings.Contains(out, "table_pages: 2") {
+		t.Errorf("render does not count the table pages:\n%s", out)
 	}
-	clean := ocrReadSummary{Sha: "s", Model: "m", Pages: 3, DPI: 72, TextPath: "p", TextSha: "t", OCRDerived: true}
-	if out := clean.render(); strings.Contains(out, "ocr_blocked_pages") {
-		t.Errorf("a clean render printed a blocked count:\n%s", out)
+	clean := ocrReadSummary{Sha: "s", Engine: "e", Pages: 3, DPI: 300, TextPath: "p", TextSha: "t", OCRDerived: true}
+	if out := clean.render(); strings.Contains(out, "table_pages") {
+		t.Errorf("a prose-only render printed a table count:\n%s", out)
 	}
 }

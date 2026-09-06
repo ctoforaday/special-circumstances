@@ -552,7 +552,10 @@ jobs:
           CSTACK: ${{ runner.temp }}/cstack
         run: |
           eval "$(./third_party/pins/build-cstack.sh env linux-amd64 "$CSTACK")"
-          go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' ./internal/tessocr/
+          # fetchcache rides along since Wave 2 put the engine in the shipped graph
+          # (fetchcache imports tessocr): its fused read path deserves one run against
+          # the real engine, not only the pure-Go fake the default legs use.
+          go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' ./internal/tessocr/ ./internal/fetchcache/
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
       # sibling package binaries in parallel, so the "idle" cores the oversubscription

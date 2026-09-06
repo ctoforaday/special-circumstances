@@ -26,4 +26,9 @@ func TestStubRefusesLoudly(t *testing.T) {
 	if _, err := DetectGrid(nil, Grid300); !errors.Is(err, ErrNotCompiledIn) {
 		t.Errorf("DetectGrid = %v, want ErrNotCompiledIn", err)
 	}
+	// And the pipeline over the stub surfaces the same named refusal — the fused fetch
+	// path depends on this arriving as an error, never as an empty reading.
+	if _, err := en.ReadPage([]byte("png"), Grid300); !errors.Is(err, ErrNotCompiledIn) {
+		t.Errorf("ReadPage = %v, want ErrNotCompiledIn", err)
+	}
 }
