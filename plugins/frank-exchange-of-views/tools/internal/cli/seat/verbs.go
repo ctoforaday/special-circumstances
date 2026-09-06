@@ -551,17 +551,17 @@ func renderView(cmd *cobra.Command, want string) error {
 		case "", "json":
 			// The default arm, below.
 		case "markdown", "md":
-			// One fold for both renders: ledger and archive are two views of the same board,
-			// and each view.Markdown call would replay the whole record again.
-			board, err := record.BoardState(run)
+			// One record read for both renders: ledger and archive are two views of the same
+			// family, and each view.Markdown call would fetch it again.
+			in, err := view.InputOf(run)
 			if err != nil {
 				return err
 			}
-			led, err := view.MarkdownFrom(board, "ledger", "")
+			led, err := view.MarkdownFrom(in, "ledger", "")
 			if err != nil {
 				return err
 			}
-			arc, err := view.MarkdownFrom(board, "archive", "")
+			arc, err := view.MarkdownFrom(in, "archive", "")
 			if err != nil {
 				return err
 			}

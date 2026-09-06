@@ -32,9 +32,9 @@ import (
 //     above the edits blue recorded against them, with the exact old→new spans.
 
 // changesMD renders the blue_edit stack. gapID "" is the unscoped form.
-func changesMD(b *record.Board, gapID string) ([]byte, error) {
+func changesMD(in Input, gapID string) ([]byte, error) {
 	if gapID != "" {
-		return changesForGap(b, gapID)
+		return changesForGap(in, gapID)
 	}
 
 	out := []string{
@@ -47,7 +47,7 @@ func changesMD(b *record.Board, gapID string) ([]byte, error) {
 		"",
 	}
 	round, n, total := -1, 0, 0
-	for _, e := range b.Events {
+	for _, e := range in.Events {
 		// THE BODY IS THE TYPE. Matching the message cannot go stale against the enum the way
 		// `e.Type == "blue_edit"` could, and it is the same assertion the reader needs anyway.
 		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
@@ -92,8 +92,8 @@ func changesMD(b *record.Board, gapID string) ([]byte, error) {
 	// 40-character overlap floor is not catching the shape; it is a signal to read, never a
 	// score to celebrate. Both are printed even at zero, because an absent number reads as
 	// "not measured" and that is exactly how a dead measurement survives.
-	offered, applied, declined := record.DeclineStats(b)
-	estoppel := record.EstoppelRejections(b)
+	offered, applied, declined := record.DeclineStatsOf(in.Events, record.GapsByID(in.Gaps))
+	estoppel := record.EstoppelRejectionsOf(in.Events)
 	out = append(out, "## Measurements", "",
 		fmt.Sprintf("- **Concrete proposals**: %d offered · %d applied verbatim · %d declined (blue counter-edited or disputed) · %d unanswered",
 			offered, applied, declined, offered-applied-declined),
@@ -108,8 +108,8 @@ func changesMD(b *record.Board, gapID string) ([]byte, error) {
 }
 
 // changesForGap is the comparison form: what red required, then what blue did about it.
-func changesForGap(b *record.Board, gapID string) ([]byte, error) {
-	g, ok := b.Gaps[gapID]
+func changesForGap(in Input, gapID string) ([]byte, error) {
+	g, ok := record.GapsByID(in.Gaps)[gapID]
 	if !ok {
 		return nil, fmt.Errorf("view changes: no gap %s on the board — --id takes a gap id (a mint created it), and a view that answered for an id nobody minted would be inventing a comparison", gapID)
 	}
@@ -163,7 +163,7 @@ func changesForGap(b *record.Board, gapID string) ([]byte, error) {
 		body *recordpb.BlueEdit
 	}
 	var edits []recordedEdit
-	for _, e := range b.Events {
+	for _, e := range in.Events {
 		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok && ed.GetAnswers() == gapID {
 			edits = append(edits, recordedEdit{ev: e, body: ed})
 		}

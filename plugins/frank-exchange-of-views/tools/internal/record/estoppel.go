@@ -42,9 +42,9 @@ const minEstoppelOverlap = 40
 // bytes blue typed against the ones red prescribed. On `blue edit --accept` the tool supplied
 // those bytes from the mint, so it holds by construction and no transcription slip can cost it.
 // `BlueEdit.accepted` tells the two apart where that matters; estoppel does not care which.
-func appliedVerbatim(b *Board) map[string]string {
+func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
 	out := map[string]string{}
-	for _, e := range b.Events {
+	for _, e := range evs {
 		// THE BODY IS THE FILTER. "not a blue_edit" is the same set the `e.Type != "blue_edit"`
 		// test selected, and it cannot go stale against the enum the way a second reading of the
 		// type could.
@@ -53,7 +53,7 @@ func appliedVerbatim(b *Board) map[string]string {
 			continue
 		}
 		id := ed.GetAnswers()
-		g, ok := b.Gaps[id]
+		g, ok := gaps[id]
 		if !ok || g.Mint == nil {
 			continue
 		}
@@ -73,7 +73,7 @@ func EstoppelConflict(b *Board, quote string) (gapID, prescribed string) {
 	if len(q) == 0 {
 		return "", ""
 	}
-	for id, fixNew := range appliedVerbatim(b) {
+	for id, fixNew := range appliedVerbatim(b.Events, b.Gaps) {
 		p := collapse(fixNew)
 		if len(p) < minEstoppelOverlap && len(q) < minEstoppelOverlap {
 			continue
@@ -99,16 +99,22 @@ func EstoppelConflict(b *Board, quote string) (gapID, prescribed string) {
 // A gap red offered text for and blue has not answered at all is neither applied nor
 // declined: it is unanswered, and it is left out of both rather than scored as agreement.
 func DeclineStats(b *Board) (offered, applied, declined int) {
-	verbatim := appliedVerbatim(b)
+	return DeclineStatsOf(b.Events, b.Gaps)
+}
+
+// DeclineStatsOf is DeclineStats over the family pieces themselves (events + the gap index),
+// for the run-shaped renders.
+func DeclineStatsOf(evs []*Event, gaps map[string]*Gap) (offered, applied, declined int) {
+	verbatim := appliedVerbatim(evs, gaps)
 	answered := map[string]bool{}
-	for _, e := range b.Events {
+	for _, e := range evs {
 		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
 			if id := ed.GetAnswers(); id != "" {
 				answered[id] = true
 			}
 		}
 	}
-	for id, g := range b.Gaps {
+	for id, g := range gaps {
 		if g.Mint == nil || g.Mint.GetFixBasis() != "verified" {
 			continue
 		}
