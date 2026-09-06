@@ -1,5 +1,12 @@
 # A blocked page is a hole that names itself, and a retry never pays twice
 
+> **Superseded by plans/local-ocr.md (Wave 2, 2026-09-06).** The content filter left with
+> the API: the local engine refuses nothing, so there are no blocked pages, and the
+> blocked machinery (marker, blocked fields, `ocr_blocked_pages` in both summaries) is
+> deleted. What survives from this plan is the receipt design — per-page provenance rows
+> the reading record projects from, with render-sha staleness validation — whose resume
+> purpose retired with the dollars but whose never-serve-stale-pixels guarantee stands.
+
 Design for #679, from the #644 measurement. Status: under review — this plan is the
 decision document; no code lands until it merges. First draft FAILED the plan-auditor
 gate on four completeness gaps (the receipt/clear contradiction, the `ocr read` summary

@@ -144,8 +144,9 @@ var modules = []struct{ dir, ciJob string }{
 // tried and taught why not: musl cgo objects under the race build's linking broke every
 // package that touches net/os_user, and a box without the C stack cannot compile the
 // tagged graph at all. The engine's CI coverage is its own statically-linked test step
-// in the feov-record job; its race coverage is a decision deferred to when Wave 2 makes
-// the engine part of the shipped graph, and this comment is the record of that.
+// in the feov-record job; Wave 2 has now put the engine in the shipped graph (fetchcache
+// imports tessocr), so the divergence is real: the race sweep observes the stub, and the
+// tagged engine's race coverage remains the open decision this comment records.
 var raceScope = map[string][]string{
 	"plugins/prosthetic-conscience/tools":   {"./..."},
 	"plugins/frank-exchange-of-views/tools": {depsScopePrefix + "./cmd/feov-record"},

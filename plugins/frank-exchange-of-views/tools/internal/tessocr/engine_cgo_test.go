@@ -149,46 +149,52 @@ func TestEndToEndCorpus(t *testing.T) {
 		t.Errorf("p0010 text is %d bytes; the page carries ~500 words", len(text))
 	}
 
-	// p0054: the table benchmark page, through the whole grid branch — detect, TSV,
-	// rotated-band recovery, reconstruction — asserted at the Wave 0 measurements.
+	// p0054: the table benchmark page, through the WHOLE pipeline — ReadPage runs detect,
+	// the two TSV passes, the DERIVED rotated-band recovery and reconstruction — asserted
+	// at the Wave 0 measurements. Driving ReadPage rather than the components is the
+	// point: it proves the band derivation lands where the hand-tuned rectangle did.
 	tablePng, err := os.ReadFile(filepath.Join(dir, "p0054.png"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	gs, err = DetectGrid(tablePng, Grid300)
+	res, err := en.ReadPage(tablePng, Grid300)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !Grid300.Table(gs) {
-		t.Fatalf("p0054 measured %+v — the table page must fire", gs)
+	if !res.Table || res.RotatedPage {
+		t.Fatalf("p0054 = table:%v rotated:%v, want a portrait table page", res.Table, res.RotatedPage)
 	}
-	tsv, err := en.PageTSV(tablePng, PSMAuto)
-	if err != nil {
-		t.Fatal(err)
+	if res.Fallback != "" {
+		t.Fatalf("p0054 fell back (%q); Wave 0 reconstructed it at 380/385", res.Fallback)
 	}
-	sparse, err := en.PageTSV(tablePng, PSMSparseText)
-	if err != nil {
-		t.Fatal(err)
-	}
-	band, err := en.RotatedBand(tablePng, 930, 525, 1260, 330)
-	if err != nil {
-		t.Fatal(err)
-	}
-	headers := ParseRotatedBandHeaders(band)
-	table, st, err := Reconstruct(tsv, headers)
-	if err != nil {
-		t.Fatal(err)
-	}
-	st.PSMDisagreement = PSMDisagreement(MarkTokenCount(tsv), MarkTokenCount(sparse))
-	t.Logf("p0054: grid=%+v table=true headers=%d stats=%+v expected_intersections=%d table_bytes=%d",
-		gs, len(headers), st, st.ExpectedIntersections(), len(table))
-	if len(headers) != 11 {
-		t.Errorf("rotated band recovered %d headers, want 11 (Wave 0: all 11 verbatim)", len(headers))
+	st := *res.Reconstruction
+	t.Logf("p0054: grid=%+v stats=%+v expected_intersections=%d text_bytes=%d",
+		res.Grid, st, st.ExpectedIntersections(), len(res.Text))
+	if st.HeaderNamesFound != 11 {
+		t.Errorf("derived band recovered %d headers, want 11 (Wave 0: all 11 verbatim)", st.HeaderNamesFound)
 	}
 	if st.ColumnsFound != 11 || st.RowsFound != 35 {
 		t.Errorf("reconstruction found %dx%d, want 11 columns x 35 rows", st.ColumnsFound, st.RowsFound)
 	}
 	if st.MarksPlaced < 185 {
 		t.Errorf("marks placed = %d, Wave 0 measured 189/191", st.MarksPlaced)
+	}
+
+	// p0051: the whole-page ROTATED table (plan §VI amendment a) — the pipeline must
+	// probe, rotate, and reconstruct 10 columns via the Levels anchors.
+	rotPng, err := os.ReadFile(filepath.Join(dir, "p0051.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rres, err := en.ReadPage(rotPng, Grid300)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("p0051: table=%v rotated=%v fallback=%q recon=%+v", rres.Table, rres.RotatedPage, rres.Fallback, rres.Reconstruction)
+	if !rres.Table || !rres.RotatedPage {
+		t.Errorf("p0051 = table:%v rotated:%v, want the rotation recovered", rres.Table, rres.RotatedPage)
+	}
+	if rres.Reconstruction != nil && rres.Fallback == "" && rres.Reconstruction.ColumnsFound != 10 {
+		t.Errorf("p0051 reconstruction found %d columns, Wave 0 measured 10/10", rres.Reconstruction.ColumnsFound)
 	}
 }

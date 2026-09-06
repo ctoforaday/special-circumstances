@@ -16,6 +16,7 @@ import (
 	"github.com/klippa-app/go-pdfium/requests"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
 )
 
 // Page rendering turns a document with no text layer into images a SEAT can read (#644).
@@ -26,13 +27,21 @@ import (
 // Nothing here reads anything. What the images SAY is a later act by a seat, and keeping the
 // two apart is what lets this half be verified offline with no model in the loop.
 
-// DPI bounds. The floor is legibility and the ceiling is arithmetic: the 534-page Unicode
-// CJK chart in #636's corpus renders to roughly 1.5 MB a page at 200 DPI, and cost scales
-// with the square of the resolution. An unbounded --dpi is a way to fill a disk by typo.
+// DPI bounds. The floor is legibility and the ceiling is arithmetic: cost scales with the
+// square of the resolution, and an unbounded --dpi is a way to fill a disk by typo —
+// renderWithinDiskBudget states the budget that enforces it.
+//
+// THE DEFAULT IS THE ENGINE'S OPERATIVE RESOLUTION, derived rather than copied so the two
+// cannot drift. It was 200 while a model read the pages — 200 DPI sat exactly at that
+// model's vision ceiling, and rendering higher bought pixels the API downscaled away —
+// and that justification left with the model. 300 is where the local engine's table
+// geometry works: full column coverage in word boxes and a perfect rotated-header
+// recovery, where 200 loses half the grid (plans/local-ocr.md; the measured cost is
+// prose WER 0.40%→0.80%, ruled acceptable there).
 const (
 	MinRenderDPI     = 72
 	MaxRenderDPI     = 400
-	DefaultRenderDPI = 200
+	DefaultRenderDPI = tessocr.RenderDPI
 )
 
 // RenderRecord is what a render leaves behind: one JSON document per source document,
@@ -117,8 +126,8 @@ func ReadRenderRecord(run record.Run, sha string) (RenderRecord, bool, error) {
 //
 // GRAYSCALE, ALWAYS. PDFium hands back an RGBA raster and a scan carries no colour worth
 // keeping: measured 2026-08-30 on a letter page of scan-like noise at 200 DPI, RGBA is
-// 3.37 MB of PNG and grayscale is 2.31 MB — 31% less disk, 31% less to base64 and upload,
-// and nothing the reader could have used either way. (The other lever does not exist:
+// 3.37 MB of PNG and grayscale is 2.31 MB — 31% less disk, less to decode, and nothing
+// the engine could have used either way. (The other lever does not exist:
 // png.BestCompression produced byte-identical output to the default at every resolution,
 // because scan noise is incompressible. The colour model was the whole saving.)
 //
@@ -184,6 +193,11 @@ func RenderPages(run record.Run, sha string, body []byte, dpi int) (RenderRecord
 	}
 	if pc.PageCount == 0 {
 		return RenderRecord{}, fmt.Errorf("the document reports zero pages, so there is nothing to render")
+	}
+	// The disk budget fires here, after the count is known and before the first raster:
+	// this is the verb that PERSISTS pixels, so it is the one the budget exists for.
+	if err := renderWithinDiskBudget(pc.PageCount, dpi); err != nil {
+		return RenderRecord{}, err
 	}
 
 	shas := make([]string, 0, pc.PageCount)

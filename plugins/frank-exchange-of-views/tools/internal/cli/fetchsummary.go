@@ -43,31 +43,29 @@ type fetchSummary struct {
 	OCRDerived    bool   `json:"ocr_derived,omitempty"`
 
 	// The automatic read's own facts (#644). They appear ONLY where the document was a PDF
-	// with no text layer — the one case fetch spends a model on — and they are separate
-	// fields from the extraction's because they answer a different question. TextReason says
-	// why the DOCUMENT had no text layer; OCRReason says why there is no reading of its
-	// pixels either, and a seat that saw only the first would conclude the source is
-	// unreadable when in fact automatic reading was simply switched off.
+	// with no text layer — the one case fetch runs the OCR engine on — and they are
+	// separate fields from the extraction's because they answer a different question.
+	// TextReason says why the DOCUMENT had no text layer; OCRReason says why there is no
+	// reading of its pixels either, and a seat that saw only the first would conclude the
+	// source is unreadable when in fact automatic reading was switched off — or this
+	// binary was built without the engine, which OCRReason states in as many words.
 	OCRReason string `json:"ocr_reason,omitempty"`
-	// OCRBlockedPages counts pages the API's content filter refused (#679). Present only
-	// when nonzero, so a hole-free reading renders exactly as before; when present, the
-	// holes are also marked in the text and carried as fields on the reading record — a
-	// summary-only reader, a text reader and a record reader all learn the same fact.
-	OCRBlockedPages int    `json:"ocr_blocked_pages,omitempty"`
-	Model           string `json:"model,omitempty"`
-	DPI             int    `json:"dpi,omitempty"`
-	InTokens        int64  `json:"input_tokens,omitempty"`
-	OutTokens       int64  `json:"output_tokens,omitempty"`
+	// TablePages counts pages whose ruled grid the engine detected — their reconstruction
+	// stats live on the reading record. Present only when nonzero, so a prose-only reading
+	// renders without it.
+	TablePages int    `json:"table_pages,omitempty"`
+	Engine     string `json:"engine,omitempty"`
+	DPI        int    `json:"dpi,omitempty"`
 }
 
-// applyReading folds a model's reading of the page images into the summary.
+// applyReading folds the engine's reading of the page images into the summary.
 //
 // IT OVERWRITES TextExtracted, and that is the point of the whole change: the extraction
 // said false with a reason, the read then succeeded, and what the seat must be told is that
-// the text IS there — with `ocr_derived: true` beside it so nobody mistakes a transcription
-// for an author's text layer. The path is the reading's own file, never TextPath: two
-// producers writing one name is how a re-render at another resolution silently replaces the
-// text a citation was taken from.
+// the text IS there — with `ocr_derived: true` beside it so nobody mistakes a machine
+// reading for an author's text layer. The path is the reading's own file, never TextPath:
+// two producers writing one name is how a re-render at another resolution silently replaces
+// the text a citation was taken from.
 func (s *fetchSummary) applyReading(run record.Run, r fetchcache.ReadingRecord) {
 	yes := true
 	s.TextExtracted = &yes
@@ -76,15 +74,14 @@ func (s *fetchSummary) applyReading(run record.Run, r fetchcache.ReadingRecord) 
 	s.TextSha256 = r.TextSha
 	s.OCRDerived = true
 	// THE EXTRACTOR DID NOT PRODUCE THIS TEXT, so its id must not be left beside it. PDFium
-	// opened the document, counted 80 pages and found no glyphs; the transcription came from a
-	// model. Leaving `extractor: pdfium@v1.19.8` on a reading would name a producer an audit
-	// could re-run to get different bytes — and `model` is the word `ocr read` already uses for
-	// this fact, so it is the word used here rather than a second one meaning the same thing.
+	// opened the document, counted 80 pages and found no glyphs; the reading came from the
+	// OCR engine. `engine` is the word the reading record already uses for this fact, so it
+	// is the word used here rather than a second one meaning the same thing — and unlike
+	// the extractor's id it names a producer an audit CAN re-run for the same bytes.
 	s.Extractor = ""
-	s.Model = r.Model
+	s.Engine = r.Engine
 	s.DPI = r.DPI
-	s.InTokens, s.OutTokens = r.InTokens, r.OutTok
-	s.OCRBlockedPages = r.BlockedPages()
+	s.TablePages = r.TablePages()
 }
 
 // summarize projects a cache entry into what the seat is shown. Paths are absolute — a Run
@@ -114,8 +111,8 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 	return s
 }
 
-// applicableToOCR reports whether this is the one case fetch spends a model on: a PDF the
-// extractor looked at and found no text layer in.
+// applicableToOCR reports whether this is the one case fetch runs the OCR engine on: a PDF
+// the extractor looked at and found no text layer in.
 //
 // THE THREE-STATE POINTER IS LOAD-BEARING HERE. nil means nothing looked — an HTML page, an
 // index line written by an older binary — and rendering either to pixels would be absurd. A
@@ -158,11 +155,12 @@ func (s fetchSummary) render() string {
 		line("extractor", s.Extractor)
 		if s.OCRDerived {
 			line("ocr_derived", "true")
-			// STATED BESIDE THE TEXT IT QUALIFIES, and only when nonzero: a reading with
-			// holes must announce them before the seat opens the file, and a hole-free
-			// reading must render exactly as it always has.
-			if s.OCRBlockedPages > 0 {
-				line("ocr_blocked_pages", fmt.Sprint(s.OCRBlockedPages))
+			// STATED BESIDE THE TEXT IT QUALIFIES, and only when nonzero: a seat about to
+			// open the file learns that some pages are reconstructed tables whose
+			// confidence stats live on the reading record, and a prose-only reading
+			// renders without the line.
+			if s.TablePages > 0 {
+				line("table_pages", fmt.Sprint(s.TablePages))
 			}
 		}
 	default:
@@ -171,15 +169,13 @@ func (s fetchSummary) render() string {
 		line("extractor", s.Extractor)
 	}
 	// THE REASON IS PRINTED WHETHER OR NOT THERE IS TEXT. Where a reading succeeded it is
-	// empty and this line does not appear; where it did not — switched off, over the page cap,
-	// credentials refused — it is the only thing standing between the seat and the conclusion
-	// that the source itself is unreadable.
+	// empty and this line does not appear; where it did not — switched off, over the render
+	// budget, the engine absent from this binary — it is the only thing standing between
+	// the seat and the conclusion that the source itself is unreadable.
 	line("ocr_reason", s.OCRReason)
 	if s.OCRDerived {
-		line("model", s.Model)
+		line("engine", s.Engine)
 		line("dpi", fmt.Sprint(s.DPI))
-		line("input_tokens", fmt.Sprint(s.InTokens))
-		line("output_tokens", fmt.Sprint(s.OutTokens))
 	}
 	return b.String()
 }

@@ -1564,12 +1564,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// `fetch` any seat uses. Driving it here is what makes the cache path — miss,
 				// store, hit — real in the fuzz rather than unit-tested only.
 				//
-				// --ocr=false ALWAYS, AND THAT IS NOT A COVERAGE DODGE. fetch reads a PDF with no
-				// text layer by rendering its pages and asking a MODEL — the one path in this tool
-				// that leaves the machine. A sweep of 40 debates driving 418 fetches must never do
-				// that, and the flag is exactly how a caller says so, so passing it here drives the
-				// refusal rather than merely satisfying the gate that every flag be exercised. The
-				// default (on) belongs to a seat reading one real document, not to a fuzzer.
+				// --ocr=false ALWAYS, AND THAT IS NOT A COVERAGE DODGE. The reading is local now
+				// (plans/local-ocr.md) — no model, no network — but this fuzz binary is a default
+				// build whose OCR engine is the stub, and its synthetic sources are not scanned
+				// PDFs, so "on" would exercise nothing while making the sweep's output depend on
+				// which build variant ran it. Passing the flag drives the stated-refusal path and
+				// satisfies the gate that every flag be exercised; the default (on) belongs to a
+				// seat reading one real document, not to a fuzzer.
 				_, _ = r.exec("fetch", "--seat-id", seatID, "--url", sourceURL("/"+seatID), "--ocr=false")
 				r.extras("lens", seatID, nil)
 			}

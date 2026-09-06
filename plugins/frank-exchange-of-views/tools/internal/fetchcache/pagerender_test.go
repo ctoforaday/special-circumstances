@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
 )
 
 // THE FIXTURE IS THE ONE THAT MOTIVATED THE FEATURE: a page whose only content is an image,
@@ -87,26 +88,18 @@ func TestRenderedPagesAreGrayscale(t *testing.T) {
 	}
 	if cfg.ColorModel != color.GrayModel {
 		t.Errorf("page image colour model is %T, want color.GrayModel — a scan carries no colour "+
-			"worth 31%% more disk and 31%% more upload", cfg.ColorModel)
+			"worth 31%% more disk", cfg.ColorModel)
 	}
 }
 
-// AND THE DEFAULT RESOLUTION IS THE ONE THE READER CAN ACTUALLY USE. The high-resolution
-// vision tier caps an image at 2576 px on the long edge and 4784 visual tokens (one per 28x28
-// patch); a letter page at 200 DPI is 1700x2200 = 4819 tokens, already at that ceiling.
-// Rendering higher by default would spend disk and upload on pixels the API downscales away.
-func TestDefaultRenderDPISitsAtTheModelsCeiling(t *testing.T) {
-	const letterWidthPt, letterHeightPt = 612, 792
-	w := letterWidthPt * DefaultRenderDPI / 72
-	h := letterHeightPt * DefaultRenderDPI / 72
-	if tokens := ((w + 27) / 28) * ((h + 27) / 28); tokens > 4784*11/10 {
-		t.Errorf("a letter page at the default %d DPI is %dx%d = %d visual tokens, well past the "+
-			"4784 the model accepts; the API would downscale it and the extra bytes buy nothing",
-			DefaultRenderDPI, w, h, tokens)
-	}
-	if long := h; long > 2576 {
-		t.Errorf("a letter page at the default %d DPI is %d px on the long edge, past the 2576 "+
-			"the model accepts", DefaultRenderDPI, long)
+// AND THE DEFAULT RESOLUTION IS THE ENGINE'S OPERATIVE ONE. The old default sat at a
+// model's vision ceiling, and that justification left with the model; what pins the value
+// now is that every grid and reconstruction constant is tuned at tessocr.RenderDPI, and a
+// default that drifted from it would render pages the read path then refuses.
+func TestDefaultRenderDPIIsTheEnginesOperativeResolution(t *testing.T) {
+	if DefaultRenderDPI != tessocr.RenderDPI {
+		t.Errorf("DefaultRenderDPI = %d, want tessocr.RenderDPI (%d) — the default render must "+
+			"be the resolution the engine's constants are tuned for", DefaultRenderDPI, tessocr.RenderDPI)
 	}
 }
 
