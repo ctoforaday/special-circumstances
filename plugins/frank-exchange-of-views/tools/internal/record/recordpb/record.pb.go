@@ -802,6 +802,7 @@ const (
 	MotionSubject_MOTION_SUBJECT_GRADE       MotionSubject = 1
 	MotionSubject_MOTION_SUBJECT_PETITION    MotionSubject = 2
 	MotionSubject_MOTION_SUBJECT_DIRECTION   MotionSubject = 3
+	MotionSubject_MOTION_SUBJECT_DOCKET      MotionSubject = 4
 )
 
 // Enum value maps for MotionSubject.
@@ -811,12 +812,14 @@ var (
 		1: "MOTION_SUBJECT_GRADE",
 		2: "MOTION_SUBJECT_PETITION",
 		3: "MOTION_SUBJECT_DIRECTION",
+		4: "MOTION_SUBJECT_DOCKET",
 	}
 	MotionSubject_value = map[string]int32{
 		"MOTION_SUBJECT_UNSPECIFIED": 0,
 		"MOTION_SUBJECT_GRADE":       1,
 		"MOTION_SUBJECT_PETITION":    2,
 		"MOTION_SUBJECT_DIRECTION":   3,
+		"MOTION_SUBJECT_DOCKET":      4,
 	}
 )
 
@@ -4524,6 +4527,7 @@ type Motion struct {
 	//	*Motion_Grade
 	//	*Motion_Petition
 	//	*Motion_Direction
+	//	*Motion_Docket
 	Filing        isMotion_Filing `protobuf_oneof:"filing"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4621,6 +4625,15 @@ func (x *Motion) GetDirection() *DirectionMotion {
 	return nil
 }
 
+func (x *Motion) GetDocket() *DocketMotion {
+	if x != nil {
+		if x, ok := x.Filing.(*Motion_Docket); ok {
+			return x.Docket
+		}
+	}
+	return nil
+}
+
 type isMotion_Filing interface {
 	isMotion_Filing()
 }
@@ -4637,11 +4650,17 @@ type Motion_Direction struct {
 	Direction *DirectionMotion `protobuf:"bytes,12,opt,name=direction,proto3,oneof"`
 }
 
+type Motion_Docket struct {
+	Docket *DocketMotion `protobuf:"bytes,13,opt,name=docket,proto3,oneof"`
+}
+
 func (*Motion_Grade) isMotion_Filing() {}
 
 func (*Motion_Petition) isMotion_Filing() {}
 
 func (*Motion_Direction) isMotion_Filing() {}
+
+func (*Motion_Docket) isMotion_Filing() {}
 
 // GradeMotion contests a gap's grade on one dimension. Both of its checks belonged to the
 // retired `blue dispute` verb and did not come across with it: a motion against a gap that does
@@ -4756,6 +4775,165 @@ func (x *PetitionMotion) GetClass() PetitionClass {
 
 // DirectionMotion rules on a line of inquiry blue proposed. The id is the AVENUE's own — a
 // direction has no separate filing, because blue's proposal IS the filing.
+// DocketMotion puts a GAP before the bench. The filing is the DOCKETING — a seat escalating a gap
+// it cannot settle — and the ruling is the bench's disposition of it.
+//
+// THE GAP RIDES THE FILING AND NOT THE RULING, which is the whole join. `bench opinion` carried a
+// gap_id on the DISPOSITION and no motion id, so a bench ruling joined to nothing and nothing could
+// ask whether a gap that reached the bench was ever answered. Here the ask names the gap once, the
+// answer names the ask, and the pair is recoverable from either end.
+type DocketMotion struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	GapId         *string                `protobuf:"bytes,1,opt,name=gap_id,json=gapId,proto3,oneof" json:"gap_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocketMotion) Reset() {
+	*x = DocketMotion{}
+	mi := &file_record_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocketMotion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocketMotion) ProtoMessage() {}
+
+func (x *DocketMotion) ProtoReflect() protoreflect.Message {
+	mi := &file_record_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocketMotion.ProtoReflect.Descriptor instead.
+func (*DocketMotion) Descriptor() ([]byte, []int) {
+	return file_record_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *DocketMotion) GetGapId() string {
+	if x != nil && x.GapId != nil {
+		return *x.GapId
+	}
+	return ""
+}
+
+// DocketRuling is the bench's disposition of a docketed gap: the word that decides its fate, and
+// the reasoning that has to travel with it.
+//
+// IT IS A MESSAGE ARM WHERE ITS THREE SIBLINGS ARE ENUMS, and the reason is these six fields. The
+// enum arms say what was decided; only the bench also records WHY, what it weighed, and what would
+// reopen it. `record.proto`'s own note above MotionSubject argues the rulings are separate enums
+// because the vocabulary is subject-keyed — which docket satisfies, since its vocabulary IS the
+// shared Disposition enum. The departure is forced by the reasoning fields, not by the words.
+type DocketRuling struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// NO `subset` HERE, AND THAT IS THE POINT OF THE FIELD.
+	//
+	// `subset: "closes"` would admit only the values annotated `(closes) = true` — which is every
+	// disposition EXCEPT `carried`, the one the bench uses 76 times in 77. A ruling that cannot defer
+	// is not the bench's vocabulary; it is red's. The whole set is legal here, and `closes` is read
+	// by the gap view to decide the FATE rather than by the column to decide legality.
+	Disposition *Disposition `protobuf:"varint,1,opt,name=disposition,proto3,enum=feov.record.v1.Disposition,oneof" json:"disposition,omitempty"`
+	Principle   *string      `protobuf:"bytes,2,opt,name=principle,proto3,oneof" json:"principle,omitempty"`
+	Tension     *string      `protobuf:"bytes,3,opt,name=tension,proto3,oneof" json:"tension,omitempty"`
+	ReviewFlag  *string      `protobuf:"bytes,4,opt,name=review_flag,json=reviewFlag,proto3,oneof" json:"review_flag,omitempty"`
+	Settled     *string      `protobuf:"bytes,5,opt,name=settled,proto3,oneof" json:"settled,omitempty"`
+	ReopensOn   *string      `protobuf:"bytes,6,opt,name=reopens_on,json=reopensOn,proto3,oneof" json:"reopens_on,omitempty"`
+	// Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the
+	// checks above are what make "neither" and "both" unrepresentable.
+	Final         *bool `protobuf:"varint,7,opt,name=final,proto3,oneof" json:"final,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocketRuling) Reset() {
+	*x = DocketRuling{}
+	mi := &file_record_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocketRuling) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocketRuling) ProtoMessage() {}
+
+func (x *DocketRuling) ProtoReflect() protoreflect.Message {
+	mi := &file_record_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocketRuling.ProtoReflect.Descriptor instead.
+func (*DocketRuling) Descriptor() ([]byte, []int) {
+	return file_record_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *DocketRuling) GetDisposition() Disposition {
+	if x != nil && x.Disposition != nil {
+		return *x.Disposition
+	}
+	return Disposition_DISPOSITION_UNSPECIFIED
+}
+
+func (x *DocketRuling) GetPrinciple() string {
+	if x != nil && x.Principle != nil {
+		return *x.Principle
+	}
+	return ""
+}
+
+func (x *DocketRuling) GetTension() string {
+	if x != nil && x.Tension != nil {
+		return *x.Tension
+	}
+	return ""
+}
+
+func (x *DocketRuling) GetReviewFlag() string {
+	if x != nil && x.ReviewFlag != nil {
+		return *x.ReviewFlag
+	}
+	return ""
+}
+
+func (x *DocketRuling) GetSettled() string {
+	if x != nil && x.Settled != nil {
+		return *x.Settled
+	}
+	return ""
+}
+
+func (x *DocketRuling) GetReopensOn() string {
+	if x != nil && x.ReopensOn != nil {
+		return *x.ReopensOn
+	}
+	return ""
+}
+
+func (x *DocketRuling) GetFinal() bool {
+	if x != nil && x.Final != nil {
+		return *x.Final
+	}
+	return false
+}
+
 type DirectionMotion struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AvenueId      *string                `protobuf:"bytes,1,opt,name=avenue_id,json=avenueId,proto3,oneof" json:"avenue_id,omitempty"`
@@ -4765,7 +4943,7 @@ type DirectionMotion struct {
 
 func (x *DirectionMotion) Reset() {
 	*x = DirectionMotion{}
-	mi := &file_record_proto_msgTypes[33]
+	mi := &file_record_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4777,7 +4955,7 @@ func (x *DirectionMotion) String() string {
 func (*DirectionMotion) ProtoMessage() {}
 
 func (x *DirectionMotion) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[33]
+	mi := &file_record_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4790,7 +4968,7 @@ func (x *DirectionMotion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DirectionMotion.ProtoReflect.Descriptor instead.
 func (*DirectionMotion) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{33}
+	return file_record_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *DirectionMotion) GetAvenueId() string {
@@ -4811,12 +4989,24 @@ type MotionRule struct {
 	// is simply unwritable.
 	MotionId *string        `protobuf:"bytes,1,opt,name=motion_id,json=motionId,proto3,oneof" json:"motion_id,omitempty"`
 	Subject  *MotionSubject `protobuf:"varint,2,opt,name=subject,proto3,enum=feov.record.v1.MotionSubject,oneof" json:"subject,omitempty"`
-	Opinion  *string        `protobuf:"bytes,3,opt,name=opinion,proto3,oneof" json:"opinion,omitempty"`
+	// THE RULER'S ARGUMENT, AND IT IS REQUIRED — which the schema did not say until the docket
+	// subject needed it said.
+	//
+	// `prose()` has always refused an empty `--reason` for every subject's ruling, so the constraint
+	// held in fact while the message carried no annotation at all: `CheckRequired` never saw it and
+	// the column was nullable. That was survivable while `Opinion.rationale` carried the bench's
+	// prose with its own `required` + NOT NULL. The docket ruling puts the bench's argument HERE
+	// instead, so the two carriers move here with it rather than being retired.
+	//
+	// `flag: "reason"` is not decoration: without it flagFor derives `--opinion` from the field name,
+	// and CheckRequired would refuse naming a flag no verb registers.
+	Opinion *string `protobuf:"bytes,3,opt,name=opinion,proto3,oneof" json:"opinion,omitempty"`
 	// Types that are valid to be assigned to Ruling:
 	//
 	//	*MotionRule_Grade
 	//	*MotionRule_Petition
 	//	*MotionRule_Direction
+	//	*MotionRule_Docket
 	Ruling isMotionRule_Ruling `protobuf_oneof:"ruling"`
 	// binds is what the ruling OBLIGES of the coming seats. Enumerated on the ruling side, which
 	// the old table could not police: the filing's copy of the enum loop had always existed and
@@ -4828,7 +5018,7 @@ type MotionRule struct {
 
 func (x *MotionRule) Reset() {
 	*x = MotionRule{}
-	mi := &file_record_proto_msgTypes[34]
+	mi := &file_record_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4840,7 +5030,7 @@ func (x *MotionRule) String() string {
 func (*MotionRule) ProtoMessage() {}
 
 func (x *MotionRule) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[34]
+	mi := &file_record_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4853,7 +5043,7 @@ func (x *MotionRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MotionRule.ProtoReflect.Descriptor instead.
 func (*MotionRule) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{34}
+	return file_record_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *MotionRule) GetMotionId() string {
@@ -4911,6 +5101,15 @@ func (x *MotionRule) GetDirection() DirectionRuling {
 	return DirectionRuling_DIRECTION_RULING_UNSPECIFIED
 }
 
+func (x *MotionRule) GetDocket() *DocketRuling {
+	if x != nil {
+		if x, ok := x.Ruling.(*MotionRule_Docket); ok {
+			return x.Docket
+		}
+	}
+	return nil
+}
+
 func (x *MotionRule) GetBinds() RulingBinds {
 	if x != nil && x.Binds != nil {
 		return *x.Binds
@@ -4934,11 +5133,17 @@ type MotionRule_Direction struct {
 	Direction DirectionRuling `protobuf:"varint,12,opt,name=direction,proto3,enum=feov.record.v1.DirectionRuling,oneof"`
 }
 
+type MotionRule_Docket struct {
+	Docket *DocketRuling `protobuf:"bytes,13,opt,name=docket,proto3,oneof"`
+}
+
 func (*MotionRule_Grade) isMotionRule_Ruling() {}
 
 func (*MotionRule_Petition) isMotionRule_Ruling() {}
 
 func (*MotionRule_Direction) isMotionRule_Ruling() {}
+
+func (*MotionRule_Docket) isMotionRule_Ruling() {}
 
 // MotionAppeal records that a party pressed a ruling — whether or not it also complied. Arguing
 // and then yielding belongs on the record instead of vanishing.
@@ -4959,7 +5164,7 @@ type MotionAppeal struct {
 
 func (x *MotionAppeal) Reset() {
 	*x = MotionAppeal{}
-	mi := &file_record_proto_msgTypes[35]
+	mi := &file_record_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4971,7 +5176,7 @@ func (x *MotionAppeal) String() string {
 func (*MotionAppeal) ProtoMessage() {}
 
 func (x *MotionAppeal) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[35]
+	mi := &file_record_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4984,7 +5189,7 @@ func (x *MotionAppeal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MotionAppeal.ProtoReflect.Descriptor instead.
 func (*MotionAppeal) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{35}
+	return file_record_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *MotionAppeal) GetMotionId() string {
@@ -5060,7 +5265,7 @@ type Register struct {
 
 func (x *Register) Reset() {
 	*x = Register{}
-	mi := &file_record_proto_msgTypes[36]
+	mi := &file_record_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5072,7 +5277,7 @@ func (x *Register) String() string {
 func (*Register) ProtoMessage() {}
 
 func (x *Register) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[36]
+	mi := &file_record_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5085,7 +5290,7 @@ func (x *Register) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Register.ProtoReflect.Descriptor instead.
 func (*Register) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{36}
+	return file_record_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *Register) GetToolVersion() string {
@@ -5143,7 +5348,7 @@ type RoundVerdict struct {
 
 func (x *RoundVerdict) Reset() {
 	*x = RoundVerdict{}
-	mi := &file_record_proto_msgTypes[37]
+	mi := &file_record_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5155,7 +5360,7 @@ func (x *RoundVerdict) String() string {
 func (*RoundVerdict) ProtoMessage() {}
 
 func (x *RoundVerdict) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[37]
+	mi := &file_record_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5168,7 +5373,7 @@ func (x *RoundVerdict) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundVerdict.ProtoReflect.Descriptor instead.
 func (*RoundVerdict) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{37}
+	return file_record_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *RoundVerdict) GetVerdict() Verdict {
@@ -5203,7 +5408,7 @@ type Outcome struct {
 
 func (x *Outcome) Reset() {
 	*x = Outcome{}
-	mi := &file_record_proto_msgTypes[38]
+	mi := &file_record_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5215,7 +5420,7 @@ func (x *Outcome) String() string {
 func (*Outcome) ProtoMessage() {}
 
 func (x *Outcome) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[38]
+	mi := &file_record_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5228,7 +5433,7 @@ func (x *Outcome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Outcome.ProtoReflect.Descriptor instead.
 func (*Outcome) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{38}
+	return file_record_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *Outcome) GetVerdict() RunOutcome {
@@ -5275,7 +5480,7 @@ type Position struct {
 
 func (x *Position) Reset() {
 	*x = Position{}
-	mi := &file_record_proto_msgTypes[39]
+	mi := &file_record_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5287,7 +5492,7 @@ func (x *Position) String() string {
 func (*Position) ProtoMessage() {}
 
 func (x *Position) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[39]
+	mi := &file_record_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5300,7 +5505,7 @@ func (x *Position) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Position.ProtoReflect.Descriptor instead.
 func (*Position) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{39}
+	return file_record_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *Position) GetText() string {
@@ -5321,7 +5526,7 @@ type Halt struct {
 
 func (x *Halt) Reset() {
 	*x = Halt{}
-	mi := &file_record_proto_msgTypes[40]
+	mi := &file_record_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5333,7 +5538,7 @@ func (x *Halt) String() string {
 func (*Halt) ProtoMessage() {}
 
 func (x *Halt) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[40]
+	mi := &file_record_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5346,7 +5551,7 @@ func (x *Halt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Halt.ProtoReflect.Descriptor instead.
 func (*Halt) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{40}
+	return file_record_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *Halt) GetOpinion() string {
@@ -5367,7 +5572,7 @@ type Certify struct {
 
 func (x *Certify) Reset() {
 	*x = Certify{}
-	mi := &file_record_proto_msgTypes[41]
+	mi := &file_record_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5379,7 +5584,7 @@ func (x *Certify) String() string {
 func (*Certify) ProtoMessage() {}
 
 func (x *Certify) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[41]
+	mi := &file_record_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5392,7 +5597,7 @@ func (x *Certify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Certify.ProtoReflect.Descriptor instead.
 func (*Certify) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{41}
+	return file_record_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *Certify) GetStatement() string {
@@ -5411,7 +5616,7 @@ type Declare struct {
 
 func (x *Declare) Reset() {
 	*x = Declare{}
-	mi := &file_record_proto_msgTypes[42]
+	mi := &file_record_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5423,7 +5628,7 @@ func (x *Declare) String() string {
 func (*Declare) ProtoMessage() {}
 
 func (x *Declare) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[42]
+	mi := &file_record_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5436,7 +5641,7 @@ func (x *Declare) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Declare.ProtoReflect.Descriptor instead.
 func (*Declare) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{42}
+	return file_record_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *Declare) GetHolding() string {
@@ -6028,7 +6233,7 @@ const file_record_proto_rawDesc = "" +
 	"\f_estopped_by\"0\n" +
 	"\fFrictionNone\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
-	"\x05_text\"\x92\x04\n" +
+	"\x05_text\"\xca\x04\n" +
 	"\x06Motion\x12\xa4\x01\n" +
 	"\tmotion_id\x18\x01 \x01(\tB\x81\x01\x82\xb5\x18}\b\x01\x1awthe id everything else joins on — the tool assigns it, and a motion without one cannot be ruled, appealed or rendered(\x01H\x01R\bmotionId\x88\x01\x01\x12<\n" +
 	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x02R\asubject\x88\x01\x01\x12\x19\n" +
@@ -6037,7 +6242,8 @@ const file_record_proto_rawDesc = "" +
 	"\x05grade\x18\n" +
 	" \x01(\v2\x1b.feov.record.v1.GradeMotionH\x00R\x05grade\x12<\n" +
 	"\bpetition\x18\v \x01(\v2\x1e.feov.record.v1.PetitionMotionH\x00R\bpetition\x12?\n" +
-	"\tdirection\x18\f \x01(\v2\x1f.feov.record.v1.DirectionMotionH\x00R\tdirectionB\b\n" +
+	"\tdirection\x18\f \x01(\v2\x1f.feov.record.v1.DirectionMotionH\x00R\tdirection\x126\n" +
+	"\x06docket\x18\r \x01(\v2\x1c.feov.record.v1.DocketMotionH\x00R\x06docketB\b\n" +
 	"\x06filingB\f\n" +
 	"\n" +
 	"_motion_idB\n" +
@@ -6055,20 +6261,47 @@ const file_record_proto_rawDesc = "" +
 	"\t_proposed\"T\n" +
 	"\x0ePetitionMotion\x128\n" +
 	"\x05class\x18\x01 \x01(\x0e2\x1d.feov.record.v1.PetitionClassH\x00R\x05class\x88\x01\x01B\b\n" +
-	"\x06_class\"A\n" +
+	"\x06_class\"\xbb\x01\n" +
+	"\fDocketMotion\x12\x9f\x01\n" +
+	"\x06gap_id\x18\x01 \x01(\tB\x82\x01\x82\xb5\x18~\b\x01\x12\x02id\x1aiwhich gap is being put before the bench — a docket motion that names no gap is an escalation of nothing\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01B\t\n" +
+	"\a_gap_id\"\xd9\v\n" +
+	"\fDocketRuling\x12\xc0\x01\n" +
+	"\vdisposition\x18\x01 \x01(\x0e2\x1b.feov.record.v1.DispositionB|\x82\xb5\x18x\b\x01\x12\x02as\x1apthe bench's word, which decides the gap's fate — `carried` defers it to another round, everything else ends itH\x00R\vdisposition\x88\x01\x01\x12w\n" +
+	"\tprinciple\x18\x02 \x01(\tBT\x82\xb5\x18P\b\x01\x1aLthe rule the bench applied, stated so a later sitting can apply the same oneH\x01R\tprinciple\x88\x01\x01\x12\x90\x01\n" +
+	"\atension\x18\x03 \x01(\tBq\x82\xb5\x18m\b\x01\x1agthe values that pulled against each other, or empty when none did — an empty answer here is an answer8\x01H\x02R\atension\x88\x01\x01\x12~\n" +
+	"\vreview_flag\x18\x04 \x01(\tBX\x82\xb5\x18T\b\x01\x12\vreview-flag\x1aAwhat a human should look at again, or empty when nothing needs it8\x01H\x03R\n" +
+	"reviewFlag\x88\x01\x01\x12\x90\x01\n" +
+	"\asettled\x18\x05 \x01(\tBq\x82\xb5\x18m\b\x01\x1agwhat the losing party may no longer assert, as one sentence — not the gap id, and not the disposition8\x01H\x04R\asettled\x88\x01\x01\x12x\n" +
+	"\n" +
+	"reopens_on\x18\x06 \x01(\tBT\x82\xb5\x18P\x12\n" +
+	"reopens-on\x1aBthe evidence or condition that would make this worth raising againH\x05R\treopensOn\x88\x01\x01\x12\x19\n" +
+	"\x05final\x18\a \x01(\bH\x06R\x05final\x88\x01\x01:\xf2\x03\x92\xb5\x18\xb4\x02\n" +
+	"/\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL\x12\x80\x02a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round\x92\xb5\x18\xb4\x01\n" +
+	"'\"reopens_on\" IS NULL OR \"final\" IS NULL\x12\x88\x01--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly oneB\x0e\n" +
+	"\f_dispositionB\f\n" +
+	"\n" +
+	"_principleB\n" +
+	"\n" +
+	"\b_tensionB\x0e\n" +
+	"\f_review_flagB\n" +
+	"\n" +
+	"\b_settledB\r\n" +
+	"\v_reopens_onB\b\n" +
+	"\x06_final\"A\n" +
 	"\x0fDirectionMotion\x12 \n" +
 	"\tavenue_id\x18\x01 \x01(\tH\x00R\bavenueId\x88\x01\x01B\f\n" +
 	"\n" +
-	"_avenue_id\"\xc5\x04\n" +
+	"_avenue_id\"\x87\x06\n" +
 	"\n" +
 	"MotionRule\x12\xb3\x01\n" +
 	"\tmotion_id\x18\x01 \x01(\tB\x90\x01\x82\xb5\x18\x8b\x01\b\x01\x12\x02id\x1a\x82\x01the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312H\x01R\bmotionId\x88\x01\x01\x12<\n" +
-	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x02R\asubject\x88\x01\x01\x12\x1d\n" +
-	"\aopinion\x18\x03 \x01(\tH\x03R\aopinion\x88\x01\x01\x123\n" +
+	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x02R\asubject\x88\x01\x01\x12\xa6\x01\n" +
+	"\aopinion\x18\x03 \x01(\tB\x86\x01\x82\xb5\x18\x81\x01\b\x01\x12\x06reason\x1authe ruling's argument in the ruler's words — a ruling with no reasoning is a verdict the losing party cannot answerH\x03R\aopinion\x88\x01\x01\x123\n" +
 	"\x05grade\x18\n" +
 	" \x01(\x0e2\x1b.feov.record.v1.GradeRulingH\x00R\x05grade\x12<\n" +
 	"\bpetition\x18\v \x01(\x0e2\x1e.feov.record.v1.PetitionRulingH\x00R\bpetition\x12?\n" +
 	"\tdirection\x18\f \x01(\x0e2\x1f.feov.record.v1.DirectionRulingH\x00R\tdirection\x126\n" +
+	"\x06docket\x18\r \x01(\v2\x1c.feov.record.v1.DocketRulingH\x00R\x06docket\x126\n" +
 	"\x05binds\x18\x04 \x01(\x0e2\x1b.feov.record.v1.RulingBindsH\x04R\x05binds\x88\x01\x01B\b\n" +
 	"\x06rulingB\f\n" +
 	"\n" +
@@ -6230,12 +6463,13 @@ const file_record_proto_rawDesc = "" +
 	"\x15AVENUE_STATUS_PURSUED\x10\x02\x1a@\x8a\xb5\x18<you took the line — what it produced belongs in the report\x12\x86\x02\n" +
 	"\x16AVENUE_STATUS_DEFERRED\x10\x03\x1a\xe9\x01\x8a\xb5\x18\xe4\x01not this run. REQUIRES a reason saying what a later run should pick it up FOR: a deferral with no stated reason is indistinguishable from forgetting, and this status exists precisely to be read by a run that has not happened yet\x12\x85\x01\n" +
 	"\x16AVENUE_STATUS_DECLINED\x10\x04\x1ai\x8a\xb5\x18eyou considered it and chose not to. REQUIRES a reason — the road not taken is worthless without why\x12\x86\x01\n" +
-	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1ai\x8a\xb5\x18eyou started and stopped. REQUIRES a reason — what killed it is the part a future run actually needs*\xa7\x03\n" +
+	"\x17AVENUE_STATUS_ABANDONED\x10\x05\x1ai\x8a\xb5\x18eyou started and stopped. REQUIRES a reason — what killed it is the part a future run actually needs*\xcd\x04\n" +
 	"\rMotionSubject\x12\x1e\n" +
 	"\x1aMOTION_SUBJECT_UNSPECIFIED\x10\x00\x12Q\n" +
 	"\x14MOTION_SUBJECT_GRADE\x10\x01\x1a7\x8a\xb5\x18*you contest a gap's grade on one dimension\xa2\xb5\x18\x05merge\x12\x89\x01\n" +
 	"\x17MOTION_SUBJECT_PETITION\x10\x02\x1al\x8a\xb5\x18_you ask the bench to intervene — the constitutional short-circuit available to any party seat\xa2\xb5\x18\x05bench\x12\x96\x01\n" +
-	"\x18MOTION_SUBJECT_DIRECTION\x10\x03\x1ax\x8a\xb5\x18ka ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing\xa2\xb5\x18\x05merge*\xa3\x01\n" +
+	"\x18MOTION_SUBJECT_DIRECTION\x10\x03\x1ax\x8a\xb5\x18ka ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing\xa2\xb5\x18\x05merge\x12\xa3\x01\n" +
+	"\x15MOTION_SUBJECT_DOCKET\x10\x04\x1a\x87\x01\x8a\xb5\x18za gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate\xa2\xb5\x18\x05bench*\xa3\x01\n" +
 	"\vGradeRuling\x12\x1c\n" +
 	"\x18GRADE_RULING_UNSPECIFIED\x10\x00\x128\n" +
 	"\x15GRADE_RULING_ACCEPTED\x10\x01\x1a\x1d\x8a\xb5\x18\x19the proposed grade stands\x12<\n" +
@@ -6290,7 +6524,7 @@ func file_record_proto_rawDescGZIP() []byte {
 }
 
 var file_record_proto_enumTypes = make([]protoimpl.EnumInfo, 19)
-var file_record_proto_msgTypes = make([]protoimpl.MessageInfo, 44)
+var file_record_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
 var file_record_proto_goTypes = []any{
 	(SchemaVersion)(0),                    // 0: feov.record.v1.SchemaVersion
 	(EventType)(0),                        // 1: feov.record.v1.EventType
@@ -6344,34 +6578,36 @@ var file_record_proto_goTypes = []any{
 	(*Motion)(nil),                        // 49: feov.record.v1.Motion
 	(*GradeMotion)(nil),                   // 50: feov.record.v1.GradeMotion
 	(*PetitionMotion)(nil),                // 51: feov.record.v1.PetitionMotion
-	(*DirectionMotion)(nil),               // 52: feov.record.v1.DirectionMotion
-	(*MotionRule)(nil),                    // 53: feov.record.v1.MotionRule
-	(*MotionAppeal)(nil),                  // 54: feov.record.v1.MotionAppeal
-	(*Register)(nil),                      // 55: feov.record.v1.Register
-	(*RoundVerdict)(nil),                  // 56: feov.record.v1.RoundVerdict
-	(*Outcome)(nil),                       // 57: feov.record.v1.Outcome
-	(*Position)(nil),                      // 58: feov.record.v1.Position
-	(*Halt)(nil),                          // 59: feov.record.v1.Halt
-	(*Certify)(nil),                       // 60: feov.record.v1.Certify
-	(*Declare)(nil),                       // 61: feov.record.v1.Declare
-	nil,                                   // 62: feov.record.v1.NewMint.ByClassEntry
-	(*descriptorpb.FieldOptions)(nil),     // 63: google.protobuf.FieldOptions
-	(*descriptorpb.EnumValueOptions)(nil), // 64: google.protobuf.EnumValueOptions
-	(*descriptorpb.MessageOptions)(nil),   // 65: google.protobuf.MessageOptions
+	(*DocketMotion)(nil),                  // 52: feov.record.v1.DocketMotion
+	(*DocketRuling)(nil),                  // 53: feov.record.v1.DocketRuling
+	(*DirectionMotion)(nil),               // 54: feov.record.v1.DirectionMotion
+	(*MotionRule)(nil),                    // 55: feov.record.v1.MotionRule
+	(*MotionAppeal)(nil),                  // 56: feov.record.v1.MotionAppeal
+	(*Register)(nil),                      // 57: feov.record.v1.Register
+	(*RoundVerdict)(nil),                  // 58: feov.record.v1.RoundVerdict
+	(*Outcome)(nil),                       // 59: feov.record.v1.Outcome
+	(*Position)(nil),                      // 60: feov.record.v1.Position
+	(*Halt)(nil),                          // 61: feov.record.v1.Halt
+	(*Certify)(nil),                       // 62: feov.record.v1.Certify
+	(*Declare)(nil),                       // 63: feov.record.v1.Declare
+	nil,                                   // 64: feov.record.v1.NewMint.ByClassEntry
+	(*descriptorpb.FieldOptions)(nil),     // 65: google.protobuf.FieldOptions
+	(*descriptorpb.EnumValueOptions)(nil), // 66: google.protobuf.EnumValueOptions
+	(*descriptorpb.MessageOptions)(nil),   // 67: google.protobuf.MessageOptions
 }
 var file_record_proto_depIdxs = []int32{
 	1,  // 0: feov.record.v1.Event.type:type_name -> feov.record.v1.EventType
 	0,  // 1: feov.record.v1.Event.schema_version:type_name -> feov.record.v1.SchemaVersion
-	55, // 2: feov.record.v1.Event.register:type_name -> feov.record.v1.Register
-	56, // 3: feov.record.v1.Event.verdict:type_name -> feov.record.v1.RoundVerdict
-	57, // 4: feov.record.v1.Event.outcome:type_name -> feov.record.v1.Outcome
-	58, // 5: feov.record.v1.Event.position:type_name -> feov.record.v1.Position
-	59, // 6: feov.record.v1.Event.halt:type_name -> feov.record.v1.Halt
-	60, // 7: feov.record.v1.Event.certify:type_name -> feov.record.v1.Certify
-	61, // 8: feov.record.v1.Event.declare:type_name -> feov.record.v1.Declare
+	57, // 2: feov.record.v1.Event.register:type_name -> feov.record.v1.Register
+	58, // 3: feov.record.v1.Event.verdict:type_name -> feov.record.v1.RoundVerdict
+	59, // 4: feov.record.v1.Event.outcome:type_name -> feov.record.v1.Outcome
+	60, // 5: feov.record.v1.Event.position:type_name -> feov.record.v1.Position
+	61, // 6: feov.record.v1.Event.halt:type_name -> feov.record.v1.Halt
+	62, // 7: feov.record.v1.Event.certify:type_name -> feov.record.v1.Certify
+	63, // 8: feov.record.v1.Event.declare:type_name -> feov.record.v1.Declare
 	49, // 9: feov.record.v1.Event.motion:type_name -> feov.record.v1.Motion
-	53, // 10: feov.record.v1.Event.motion_rule:type_name -> feov.record.v1.MotionRule
-	54, // 11: feov.record.v1.Event.motion_appeal:type_name -> feov.record.v1.MotionAppeal
+	55, // 10: feov.record.v1.Event.motion_rule:type_name -> feov.record.v1.MotionRule
+	56, // 11: feov.record.v1.Event.motion_appeal:type_name -> feov.record.v1.MotionAppeal
 	27, // 12: feov.record.v1.Event.mint:type_name -> feov.record.v1.Mint
 	28, // 13: feov.record.v1.Event.class_new:type_name -> feov.record.v1.ClassNew
 	29, // 14: feov.record.v1.Event.close:type_name -> feov.record.v1.Close
@@ -6399,7 +6635,7 @@ var file_record_proto_depIdxs = []int32{
 	25, // 36: feov.record.v1.TelemetryLine.repair_regression:type_name -> feov.record.v1.RepairRegression
 	26, // 37: feov.record.v1.TelemetryLine.edge_deltas:type_name -> feov.record.v1.EdgeDeltas
 	24, // 38: feov.record.v1.NewMint.by_severity:type_name -> feov.record.v1.SeverityTally
-	62, // 39: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.NewMint.ByClassEntry
+	64, // 39: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.NewMint.ByClassEntry
 	2,  // 40: feov.record.v1.SeverityTally.grade:type_name -> feov.record.v1.Grade
 	5,  // 41: feov.record.v1.Mint.check_kind:type_name -> feov.record.v1.CheckKind
 	2,  // 42: feov.record.v1.Mint.severity:type_name -> feov.record.v1.Grade
@@ -6423,31 +6659,34 @@ var file_record_proto_depIdxs = []int32{
 	11, // 60: feov.record.v1.Motion.subject:type_name -> feov.record.v1.MotionSubject
 	50, // 61: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
 	51, // 62: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	52, // 63: feov.record.v1.Motion.direction:type_name -> feov.record.v1.DirectionMotion
-	16, // 64: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
-	2,  // 65: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
-	17, // 66: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
-	11, // 67: feov.record.v1.MotionRule.subject:type_name -> feov.record.v1.MotionSubject
-	12, // 68: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
-	13, // 69: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	14, // 70: feov.record.v1.MotionRule.direction:type_name -> feov.record.v1.DirectionRuling
-	18, // 71: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
-	11, // 72: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
-	3,  // 73: feov.record.v1.RoundVerdict.verdict:type_name -> feov.record.v1.Verdict
-	4,  // 74: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	63, // 75: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	64, // 76: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	64, // 77: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	64, // 78: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	64, // 79: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	65, // 80: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	20, // 81: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	19, // 82: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	83, // [83:83] is the sub-list for method output_type
-	83, // [83:83] is the sub-list for method input_type
-	81, // [81:83] is the sub-list for extension type_name
-	75, // [75:81] is the sub-list for extension extendee
-	0,  // [0:75] is the sub-list for field type_name
+	54, // 63: feov.record.v1.Motion.direction:type_name -> feov.record.v1.DirectionMotion
+	52, // 64: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
+	16, // 65: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
+	2,  // 66: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
+	17, // 67: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	6,  // 68: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
+	11, // 69: feov.record.v1.MotionRule.subject:type_name -> feov.record.v1.MotionSubject
+	12, // 70: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
+	13, // 71: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
+	14, // 72: feov.record.v1.MotionRule.direction:type_name -> feov.record.v1.DirectionRuling
+	53, // 73: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
+	18, // 74: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	11, // 75: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
+	3,  // 76: feov.record.v1.RoundVerdict.verdict:type_name -> feov.record.v1.Verdict
+	4,  // 77: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	65, // 78: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	66, // 79: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	66, // 80: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	66, // 81: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	66, // 82: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	67, // 83: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	20, // 84: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	19, // 85: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	86, // [86:86] is the sub-list for method output_type
+	86, // [86:86] is the sub-list for method input_type
+	84, // [84:86] is the sub-list for extension type_name
+	78, // [78:84] is the sub-list for extension extendee
+	0,  // [0:78] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }
@@ -6522,30 +6761,34 @@ func file_record_proto_init() {
 		(*Motion_Grade)(nil),
 		(*Motion_Petition)(nil),
 		(*Motion_Direction)(nil),
+		(*Motion_Docket)(nil),
 	}
 	file_record_proto_msgTypes[31].OneofWrappers = []any{}
 	file_record_proto_msgTypes[32].OneofWrappers = []any{}
 	file_record_proto_msgTypes[33].OneofWrappers = []any{}
-	file_record_proto_msgTypes[34].OneofWrappers = []any{
+	file_record_proto_msgTypes[34].OneofWrappers = []any{}
+	file_record_proto_msgTypes[35].OneofWrappers = []any{}
+	file_record_proto_msgTypes[36].OneofWrappers = []any{
 		(*MotionRule_Grade)(nil),
 		(*MotionRule_Petition)(nil),
 		(*MotionRule_Direction)(nil),
+		(*MotionRule_Docket)(nil),
 	}
-	file_record_proto_msgTypes[35].OneofWrappers = []any{}
-	file_record_proto_msgTypes[36].OneofWrappers = []any{}
 	file_record_proto_msgTypes[37].OneofWrappers = []any{}
 	file_record_proto_msgTypes[38].OneofWrappers = []any{}
 	file_record_proto_msgTypes[39].OneofWrappers = []any{}
 	file_record_proto_msgTypes[40].OneofWrappers = []any{}
 	file_record_proto_msgTypes[41].OneofWrappers = []any{}
 	file_record_proto_msgTypes[42].OneofWrappers = []any{}
+	file_record_proto_msgTypes[43].OneofWrappers = []any{}
+	file_record_proto_msgTypes[44].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
 			NumEnums:      19,
-			NumMessages:   44,
+			NumMessages:   46,
 			NumExtensions: 6,
 			NumServices:   0,
 		},
