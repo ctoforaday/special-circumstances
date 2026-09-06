@@ -58,6 +58,14 @@ type sittingInput struct {
 	AgentID   string `json:"agent_id"`
 	AgentType string `json:"agent_type"`
 	Cwd       string `json:"cwd"`
+	// AgentTranscriptPath is the finished seat's own transcript, resolved by the harness. It
+	// arrives on SubagentStop and is empty on SubagentStart, which is correct: a seat that has
+	// just been dispatched has produced no turns to read.
+	//
+	// PASSED THROUGH, NEVER READ HERE. This package's whole design is that it links nothing
+	// expensive; parsing a transcript is the writer's job, in the process that already carries
+	// the record.
+	AgentTranscriptPath string `json:"agent_transcript_path"`
 }
 
 // Start records the moment the harness dispatched an agent.
@@ -103,7 +111,7 @@ func handoff(stdin io.Reader, phase string) error {
 	if writer == "" {
 		return nil
 	}
-	spawn(writer, runDir, phase, in.AgentID, in.AgentType)
+	spawn(writer, runDir, phase, in.AgentID, in.AgentType, in.AgentTranscriptPath)
 	return nil
 }
 
@@ -111,17 +119,23 @@ func handoff(stdin io.Reader, phase string) error {
 // about this function is which events reach it and with what — that a turn end never does, that a
 // session with no run never does — and asserting that through a real subprocess would test the
 // exec plumbing instead of the filter.
-var spawn = func(writer, runDir, phase, agentID, agentType string) {
+var spawn = func(writer, runDir, phase, agentID, agentType, transcript string) {
 	// WAITED ON, not fired and forgotten: a detached child can be killed when the hook process
 	// exits, and a span silently missing one end is worse than a hook that took another
 	// millisecond. Its failure is deliberately discarded — it reports to stderr, and the hook's
 	// contract is to stay silent whatever happened.
-	_ = exec.Command(writer,
+	args := []string{
 		"-run", runDir,
 		"-phase", phase,
 		"-agent-id", agentID,
 		"-agent-type", agentType,
-	).Run()
+	}
+	// ONLY WHEN THERE IS ONE. SubagentStart carries no transcript, and an empty flag would make
+	// the writer distinguish "not sent" from "sent empty" for no reason.
+	if transcript != "" {
+		args = append(args, "-transcript", transcript)
+	}
+	_ = exec.Command(writer, args...).Run()
 }
 
 // writerFileName is the writer's name on this platform. It exists so the test that places a stub

@@ -13,7 +13,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/sittingwrite"
 )
 
-type handoffArgs struct{ writer, runDir, phase, agentID, agentType string }
+type handoffArgs struct{ writer, runDir, phase, agentID, agentType, transcript string }
 
 // capture swaps the spawn seam and records what the hook decided to hand over. It also puts a
 // writer on disk beside the test binary, because writerPath's absence check is part of what is
@@ -32,9 +32,21 @@ func capture(t *testing.T) *[]handoffArgs {
 
 	var got []handoffArgs
 	prev := spawn
-	spawn = func(w, r, p, id, ty string) { got = append(got, handoffArgs{w, r, p, id, ty}) }
+	spawn = func(w, r, p, id, ty, tr string) { got = append(got, handoffArgs{w, r, p, id, ty, tr}) }
 	t.Cleanup(func() { spawn = prev })
 	return &got
+}
+
+// payloadWith is payload plus the transcript path SubagentStop carries.
+func payloadWith(t *testing.T, agentID, agentType, cwd, transcript string) *strings.Reader {
+	t.Helper()
+	b, err := json.Marshal(map[string]string{
+		"agent_id": agentID, "agent_type": agentType, "cwd": cwd, "agent_transcript_path": transcript,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.NewReader(string(b))
 }
 
 func payload(t *testing.T, agentID, agentType, cwd string) *strings.Reader {
@@ -146,4 +158,37 @@ func liveRun(t *testing.T) (cwd, runDir string) {
 	}
 	runlive.WriteRunLiveMarker(cwd, runDir, nil, time.Now(), "run_test", "")
 	return cwd, runDir
+}
+
+// THE TRANSCRIPT PATH RIDES THE SPAWN, AND ONLY WHEN THERE IS ONE.
+//
+// It is what makes the turns readable during the run instead of at capture. The hook does not
+// open it — that is the writer's job, in the process that already carries the record — but if the
+// hook drops it the writer has nothing to ingest and the whole live path is dead.
+func TestStopCarriesTheTranscriptPathAndStartDoesNot(t *testing.T) {
+	got := capture(t)
+	dir, _ := liveRun(t)
+
+	body := payloadWith(t, "a1", "frank-exchange-of-views:red-auditor", dir, "/tmp/agent-a1.jsonl")
+	if err := Stop(body, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(*got) != 1 {
+		t.Fatalf("Stop spawned %d writers, want 1", len(*got))
+	}
+	if (*got)[0].transcript != "/tmp/agent-a1.jsonl" {
+		t.Errorf("the transcript path did not reach the writer: %q", (*got)[0].transcript)
+	}
+
+	// SubagentStart carries no transcript — a seat just dispatched has produced no turns.
+	*got = nil
+	if err := Start(payload(t, "a1", "frank-exchange-of-views:red-auditor", dir), &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if len(*got) != 1 {
+		t.Fatalf("Start spawned %d writers, want 1", len(*got))
+	}
+	if (*got)[0].transcript != "" {
+		t.Errorf("Start sent a transcript path %q; there are no turns at the opening end", (*got)[0].transcript)
+	}
 }

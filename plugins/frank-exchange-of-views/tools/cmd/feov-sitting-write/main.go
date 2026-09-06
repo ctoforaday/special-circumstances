@@ -18,9 +18,10 @@ func main() {
 	phase := flag.String("phase", "", "which end of the span: open or close")
 	agentID := flag.String("agent-id", "", "the harness handle for the subagent")
 	agentType := flag.String("agent-type", "", "the agent configuration it was dispatched as")
+	transcript := flag.String("transcript", "", "the finished seat's transcript, whose turns are ingested (SubagentStop only)")
 	flag.Parse()
 
-	if err := sittingwrite.Write(*run, sittingwrite.Phase(*phase), *agentID, *agentType); err != nil {
+	if err := sittingwrite.Write(*run, sittingwrite.Phase(*phase), *agentID, *agentType, *transcript); err != nil {
 		// Stderr and a non-zero exit, which the HOOK deliberately ignores: a seat is not blocked
 		// because the bookkeeping failed, and the hook's own contract is to stay silent.
 		fmt.Fprintln(os.Stderr, "feov-sitting-write:", err)
