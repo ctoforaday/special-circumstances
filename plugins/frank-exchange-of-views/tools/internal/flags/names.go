@@ -158,6 +158,11 @@ const (
 	// triages by filtering on it instead of reading every entry to find out which it was.
 	Type = "type"
 
+	// SourceText says how much of the cited source this seat actually READ. Its absence is the
+	// weak claim, not a missing answer: the verb records UNREAD, which is what a citation resting
+	// on a bibliographic record deserves.
+	SourceText = "source-text"
+
 	// Lineage, in two directions on one relation: what this gap replaces, and what replaces
 	// it. Symmetric words, because the reader has to hold both at once.
 	Supersedes   = "supersedes"
@@ -251,7 +256,7 @@ func All() []string {
 		As, None, Ended, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher,
-		Problem, Fix, Check, CheckKind, Type, Hypothesis, Script, Cites, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, SourceText, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor,
 		Principle, Tension, ReviewFlag, Relief, Binds,

@@ -261,6 +261,18 @@ var EnumFields = map[string][]EnumField{
 		},
 		Why: "the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace, so the write refuses one",
 	}},
+	// `cite`, and the READING is the half a citation could not previously state. A citation says
+	// a source backs a sentence; it never said whether anyone had read the source. That gap was
+	// the load-bearing caveat of a whole run, carried as the prose substring "unreachable from
+	// this container" and miscounted twice by grep.
+	"cite": {{
+		Key: "source_text_read", Flag: flags.SourceText, Optional: true, Values: []EnumValue{
+			ev("leaf", "the source's own text, in the bytes this run cached — the only reading that licenses a claim about what it SAYS"),
+			ev("summary_only", "someone else's account of it: an abstract, a secondary description, or the summary of an INTERESTED party"),
+			ev("unread", "never read — the citation rests on a record that the source EXISTS, not on anything it says"),
+		},
+		Why: "a claim about what a source SAYS rests on having read it; without this the report cannot distinguish a source read at the leaf from one known only through the summary of the party whose case depends on it",
+	}},
 	// `avenue`, the schema's word. It was "line-of-inquiry" — an event type the schema does not
 	// declare — so this whole set was advertised against a body that does not exist, and nothing
 	// noticed because the key was only ever looked up by the same stale name.

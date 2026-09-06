@@ -919,6 +919,21 @@ message Anchor {
 // Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
 // seat — it drives the staleness re-fetch trigger, so a value nothing can parse would silently
 // disable that check for the row.
+// SourceTextRead is HOW MUCH OF THE SOURCE THIS SEAT ACTUALLY READ, and it is the blue-side twin
+// of red's SourceOutcome. It exists because the distinction it carries was the load-bearing caveat
+// of a whole run and lived only as a PROSE SUBSTRING: "unreachable from this container". The run
+// then counted that phrase by grep and got it wrong twice — once counting a sentence that was
+// counting itself — because a grep cannot tell a source DISCUSSED from one merely LISTED.
+//
+// The default is the honest one. A citation nobody has asserted a reading for is UNREAD, so the
+// weak claim is what you get for free and the strong one has to be made on purpose.
+enum SourceTextRead {
+  SOURCE_TEXT_READ_UNSPECIFIED = 0;
+  SOURCE_TEXT_READ_UNREAD = 1 [(means) = "the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says"];
+  SOURCE_TEXT_READ_SUMMARY_ONLY = 2 [(means) = "read only through someone else's account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source"];
+  SOURCE_TEXT_READ_LEAF = 3 [(means) = "the source's own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS"];
+}
+
 message Cite {
   optional string label = 1;
   optional string url = 2;
@@ -928,6 +943,10 @@ message Cite {
   optional string access_date = 6;
   optional string cite_key = 7;
   optional string text = 9;
+
+  // HOW MUCH OF IT WAS READ. Not `required`: the verb defaults it to UNREAD, so the conservative
+  // claim costs a seat nothing and only a stronger one is asserted.
+  optional SourceTextRead source_text_read = 10;
 
   // `claim` held the cited sentence a SECOND time, beside `location` which held it to place the
   // anchor. One span, one field.

@@ -77,7 +77,7 @@ func (h *httpFetcher) Fetch(rawURL string) (*Response, error) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch: %s returned HTTP %d%s", rawURL, resp.StatusCode, egressNote(resp.StatusCode))
+		return nil, &Refusal{URL: rawURL, Status: resp.StatusCode, Note: egressNote(resp.StatusCode)}
 	}
 	// THE HEADERS ARE READ HERE OR NEVER. Content-Type is the source's own statement of what it
 	// just sent, available for exactly the length of this function and previously discarded at
@@ -114,6 +114,21 @@ func (h *httpFetcher) Fetch(rawURL string) (*Response, error) {
 // one unfounded certainty for another. So it names both readings and the check that decides,
 // and it fires only where a proxy is actually configured — in a direct-egress environment the
 // question does not arise and the extra sentence would be noise.
+// refusalClass answers WHO refused, and says `unknown` whenever it cannot tell. It fires on the
+// same statuses egressNote explains, and for the same reason: with a proxy configured, a refusal
+// is genuinely ambiguous between the container and the origin, and asserting either would trade
+// an honest unknown for an unfounded certainty.
+func refusalClass(status int) string {
+	switch status {
+	case http.StatusForbidden, http.StatusMethodNotAllowed, http.StatusProxyAuthRequired:
+		if proxyEnv() != "" {
+			return "unknown"
+		}
+		return "origin"
+	}
+	return "origin"
+}
+
 func egressNote(status int) string {
 	switch status {
 	case http.StatusForbidden, http.StatusMethodNotAllowed, http.StatusProxyAuthRequired:
