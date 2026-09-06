@@ -48,7 +48,10 @@ IDs and asked their intent.
 > seat that cannot name a single rejected option did not weigh any.`
 
 It mandates the survey, **pre-accuses** the seat (which bought the performative length), and
-fuses a deliberation log into a defect channel. **No gate pins this text.**
+fuses a deliberation log into a defect channel. **A gate DOES pin this text** — an assertion at
+`tests/simulator/debate.test.mjs:258-259` across five seat classes, plus ten prompt goldens; an
+earlier draft of this plan claimed otherwise on a wrong-scoped grep. The pin, its rationale, and
+the answer to it are in PR-1's census below.
 
 **The seats, asked directly:**
 - red-lens-r2-L5: *"Duty, not judgement… I wrote it at that length to be visibly compliant with a
@@ -95,6 +98,9 @@ the report's biggest caveat — is a source unread, or merely unreachable from h
 | operator-channel chars | 142,891 | **≤ 75,000** — the arithmetic, not an aspiration: PR-1 removes bucket B (68,169); A+C+D = 74,722 remain |
 | headed "verbs I read and did not use" sections | 64,960 (45.5%) | **0** |
 | entries with an explicit type + source | 0 of 35 | **all** |
+| report: process-voice tells (`this run/round/report`, `the debate`) | 161 | ≤ 5, provenance footer only |
+| report: inline lane-attribution tags | 24 | 0 |
+| report: inlined access limits | 13 | 0 — re-voiced as limits on the conclusion |
 
 **Two things are deliberately NOT targeted, and saying so is the point.** Bucket D (narration,
 4.3%) and the ~13% duplicate re-reports have no change proposed against them: D is small enough
@@ -102,9 +108,6 @@ that a mechanism would cost more than it saves, and the duplicates follow from s
 to read the channel — which §II records as a deliberate design property, not a defect. §V measures
 both so a later run can show whether that judgement held; neither carries a target it could be
 scored against, because nothing here is trying to move them.
-| report: process-voice tells (`this run/round/report`, `the debate`) | 161 | ≤ 5, provenance footer only |
-| report: inline lane-attribution tags | 24 | 0 |
-| report: inlined access limits | 13 | 0 — re-voiced as limits on the conclusion |
 
 **Non-goals.** No auto-filing to a tracker (credentials in a research container, tracker volume,
 and seat-error quality all argue against it, and triage judgement is irreducible). No addressable
@@ -157,7 +160,7 @@ $ grep -rl "OWES THE SURVEY" $P
 |---|---|
 | `$P/skills/research-protocol/scripts/debate.js:94` (definition) | **YES** — the edit |
 | `debate.js:688,738,856,882,1099,1131,1241,1274` (8 call sites) | no — call shape unchanged |
-| `$P/tests/simulator/debate.test.mjs:257-258` | **YES** — asserts `/THE REASON OWES THE SURVEY/ && /did NOT use/` across five seat classes; the assertion and its rationale comment (`:252-256`) are rewritten to pin the new narrow ask |
+| `$P/tests/simulator/debate.test.mjs:258-259` | **YES** — asserts `/THE REASON OWES THE SURVEY/ && /did NOT use/` across five seat classes (`:257` pins the ENVELOPE field and is a PR-2 consumer, not PR-1); the assertion and its rationale comment (`:252-256`) are rewritten to pin the new narrow ask |
 | `$P/tests/simulator/testdata/prompt-*.golden` (**10 files**) | **YES** — each carries the string; refreshed |
 | `$P/tools/internal/cli/seat/verbs.go:114` (`--none` help) | **YES** — retire "what you reached for and found" |
 | `$P/tools/integration/surface/promptverbs_test.go:259`, `$P/tools/releasegate/fuzz/promptverbs_test.go:259` | no — renders clauses for the flag scan; pins no wording |
@@ -243,12 +246,21 @@ load-bearing ones, each changing:
 | `cli/seat/seat.go` (`FrictionFooter`) | the footer closing every help page |
 | `integration/surface/retiredsurfaces_test.go:18` | pins `show …friction` as a RETIRED surface — the retired name must stay pinned under its old spelling |
 
-**Consumer census B — the string half (`*.js,*.mjs,*.md,*.json,*.golden`), same date:**
+**Consumer census B — the string half (`*.js,*.mjs,*.md,*.json,*.golden`), same date. Scoped to
+`plugins/`, NOT `$P`:** the envelope field is named in a SIBLING plugin, and a `$P`-scoped grep
+cannot see it — the same wrong-scope class this plan already had to correct once, one directory
+level up.
 ```
-$ grep -rl "friction" $P --include=*.js --include=*.mjs --include=*.md --include=*.json --include=*.golden
+$ grep -rl "friction" plugins/ --include=*.js --include=*.mjs --include=*.md --include=*.json --include=*.golden
 $ grep -rl "friction" docs/
 ```
-47 files. Prose surfaces, each changing: `agents/{lead-judge,blue-synthesizer,red-auditor,blue-researcher}.md`;
+48 files. **The cross-plugin carrier:** `plugins/prosthetic-conscience/skills/semantic-consent/SKILL.md:13`
+— *"the escalation channel is your return envelope: report the gap as `friction`"* — an ALWAYS-ON
+rule imported by this repository's `CLAUDE.md`, instructing every subagent to use the envelope
+field this PR renames. Left unchanged it is exactly the outcome `complete-the-concept` names: a
+constitution still teaching the old model after the code has moved. It changes with PR-2.
+
+Prose surfaces, each changing: `agents/{lead-judge,blue-synthesizer,red-auditor,blue-researcher}.md`;
 `skills/research-protocol/SKILL.md`; `skills/research-protocol/references/report_template.md`;
 `commands/research.md`; `tools/internal/cli/seat/help/{friction,ingest,mint}.md`;
 `docs/{seat-surface-naming,seat-duty-channel,why-a-seat-stops,seat-command-triggers,duty-docket-preregistration}.md`;
@@ -274,12 +286,29 @@ selecting archived estoppel events.
   `records/record.db` finds no `log` table and returns **zero rows — byte-identical to a clean
   board**, which is the exact defect class this plan exists to remove.
 - **Decision: archived records are read by the binary that wrote them, and the miss is made LOUD.**
-  The new binary MUST refuse a pre-rename schema with an error naming the version, never return an
+  The new binary MUST refuse a pre-rename record with an error naming the epoch, never return an
   empty result. No back-migration of archived tarballs; they are immutable records and re-writing
   them would destroy the thing they are for.
-- **This makes #501 a PREREQUISITE.** That issue records that `record.proto` documents a
-  schema-version gate "that does not exist and is emitted by nothing." The loud refusal above has
-  nothing to hang on until that gate is real. **PR-2 does not land before #501.**
+- **The gate to hang that on already exists, and it is NOT `Event.schema_version`.**
+  `recordpb/schemaversion.go:8-14` says so directly: that stamp is written and "read back by
+  nothing… THAT IS NOT THE EPOCH." The gate a run actually passes is **`record.EventSchema`**
+  (`record/schema_gen.go:13`, currently `2`), generated by `scripts/schemagen` from
+  `requirements.json:3` (`"eventSchema": 2`) and refused at `internal/setup/setup.go:509-517` —
+  *"equal runs, unequal refuses."* So the concrete change is: **bump `eventSchema` 2→3 in
+  `requirements.json` and regenerate `schema_gen.go`.**
+- **The existing refusal does not cover this case, and must be extended.** The loud-refusal
+  precedent at `record/store.go:82-93` fires only when `dbName` is ABSENT and `legacyShards`
+  (the JSONL era) are present. An archived pre-rename run has a perfectly good `records/record.db`
+  under `dbName`, so `openRun`/`openRunForRead` proceed, find no `log` table, and return zero rows
+  — precisely the silent zero this section exists to refuse. **Extend the check at `store.go` to
+  detect a pre-rename SQLite schema** (a `friction` table present with no `log` table) and refuse
+  in the same voice, naming the epoch that wrote it.
+- **#501 is NOT a prerequisite, and the earlier draft was wrong to make it one.** Its body is
+  measured on the JSONL era ("226 of 226 events have `schema_version` ABSENT"; "the Go `Event`
+  struct … has no such field at all") and is now stale — `record.go:414` stamps the field on every
+  write, so what survives of #501 is *read back by nothing*, not *emitted by nothing*. It also
+  defers its own fix to the unresolved store-authority question, which would make it an unbounded
+  blocker. PR-2 depends on `EventSchema` and `store.go`, both of which exist today.
 
 ### PR-3 — Access-state as a field (#736) `[MODIFY]`
 
@@ -300,7 +329,7 @@ smaller fix.
 Simpler than the prior draft, because the report now cites nothing: the operational half goes to
 the log and the report does not point at it; the epistemic half stays, re-voiced, and stands alone.
 
-- One generated tell-set (`internal/reportvoice`, `Tells()`), modelled on `flags.All()` +
+- `[NEW]` One generated tell-set (`internal/reportvoice`, `Tells()`), modelled on `flags.All()` +
   `TestNoRenderedPromptSpellsAFlag` (`promptverbs_test.go:489`, pinned 0).
 - A **non-blocking advisory** at `blue edit` (`edit.go:170`/`:142`) — names the tell and its
   destination, appends unchanged. Never returns an error. (Owner's call: flag for red, don't block.)
