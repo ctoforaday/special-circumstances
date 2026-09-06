@@ -74,7 +74,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	dj := DebateJSONOf(b)
+	dj := DebateJSONOfEvents(b.Events)
 
 	if len(dj.Rounds) != 2 {
 		t.Fatalf("want 2 rounds, got %d: %+v", len(dj.Rounds), dj.Rounds)
@@ -172,11 +172,10 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 		}),
 	})
 
-	b, err := BoardState(mustRun(t, runDir))
+	w, err := WorkJSONOfRun(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	w := WorkJSONOf(b)
 
 	if len(w.Open) != 1 || w.Open[0].ID != "R1-1" {
 		t.Fatalf("work list Open = %+v, want the single open gap R1-1", w.Open)

@@ -126,7 +126,7 @@ func TestRenderHTMLLive(t *testing.T) {
 
 func TestSummarizeResult(t *testing.T) {
 	cases := []struct{ in, want string }{
-		{`{"verdict":"FAIL","claim_count":15,"gaps":[1,2,3],"resolutions":[1],"citations_checked":4,"friction":["x"]}`,
+		{`{"verdict":"FAIL","claim_count":15,"gaps":[1,2,3],"resolutions":[1],"citations_checked":4,"log":["x"]}`,
 			"verdict FAIL · 15 claims · 3 gaps · 1 ruling · 4 citations checked · 1 friction"},
 		{`{"resolutions":[1,2]}`, "2 rulings"},
 		{`not json`, "not json"},

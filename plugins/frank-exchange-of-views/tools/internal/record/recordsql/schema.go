@@ -63,10 +63,74 @@ CREATE TRIGGER "events_are_append_only_delete" BEFORE DELETE ON "events" BEGIN
 END;
 `
 
+// SeatTurnDDL is the second table written by hand, and it is deliberately NOT an event.
+//
+// # Why this is not an event type
+//
+// Every other row in this database is an ACT BY A SEAT: minted, closed, cited, ruled. A turn is
+// not an act — it is a MEASUREMENT ABOUT a seat, taken from outside, and the seat cannot report
+// it (a seat has no access to its own token accounting or wall clock). Modelling it as an event
+// would put thousands of rows a run into the log that seats are held to, and make "the record" a
+// mixture of testimony and telemetry.
+//
+// # Why a raw table and not computed metrics
+//
+// The temptation is to store tokens/s, wall_ms, a thinking share. Every one of those is a
+// question someone will want asked differently later, and a stored answer to a question is a
+// second place the question lives. The raw turn goes in; seat_metrics and the time decomposition
+// are VIEWS over it (#684 F16). One writer, many readers, and no derived column anyone has to
+// keep in step.
+//
+// # Identity is a JOIN, not a copy
+//
+// A row is keyed by the HARNESS AGENT ID, and that is all the identity it carries. Which seat
+// that agent registered as is already on the record — `register` writes the agent -> seat binding
+// as a validated field, which is the one moment it is knowable (see record.SeatOfAgent). Copying
+// a seat id in here would be a second statement of a fact the record already holds, free to
+// disagree with it.
+//
+// APPEND-ONLY BY KEY RATHER THAN BY TRIGGER. `capture` is re-runnable, and a transcript GROWS
+// between runs, so ingest must be able to add turn 122 without rewriting turns 1..121. The
+// primary key makes a re-ingest of an already-recorded turn a no-op (INSERT OR IGNORE) rather
+// than an update: nothing here is ever rewritten, which is the same guarantee the events triggers
+// give, obtained from the key instead.
+const SeatTurnDDL = `
+CREATE TABLE "seat_turn" (
+  "agent_id"       TEXT    NOT NULL,
+  "turn_idx"       INTEGER NOT NULL,
+  "ts_ms"          INTEGER NOT NULL,
+  "model"          TEXT    NOT NULL,
+  "input_tokens"   INTEGER NOT NULL,
+  "output_tokens"  INTEGER NOT NULL,
+  "cache_read"     INTEGER NOT NULL,
+  "cache_creation" INTEGER NOT NULL,
+  -- A turn that carried a thinking block, and a turn that carried a tool_use block. Both are
+  -- read off the content blocks rather than inferred from token counts: the run-4 forensics
+  -- inferred thinking from a low output_tokens with a long span, which is a correlation, and
+  -- the block is the fact.
+  "is_thinking"    INTEGER NOT NULL,
+  "is_tool"        INTEGER NOT NULL,
+  PRIMARY KEY ("agent_id", "turn_idx")
+) STRICT;
+
+CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
+`
+
 // Schema returns the full DDL: the envelope, then one table per body type in a stable order.
+// QueryIndexDDL is the authored index set for the QUESTIONS the readers ask of growing body
+// tables — the storage half of a view conversion. The table DDL is generated from the
+// descriptors and carries only its primary key (event_id), so a reader narrowing by any OTHER
+// column scans the whole table, which is what planguard refuses on a growing table. An index
+// lands here when a guarded read path narrows by the column; it is authored, like ViewsDDL,
+// because which questions get asked is a decision, not a derivation.
+const QueryIndexDDL = `
+CREATE INDEX "round_verdict_verdict" ON "round_verdict" ("verdict");
+`
+
 func Schema() (string, error) {
 	var b strings.Builder
 	b.WriteString(EnvelopeDDL)
+	b.WriteString(SeatTurnDDL)
 	bodies, err := Bodies()
 	if err != nil {
 		return "", err
@@ -87,6 +151,7 @@ func Schema() (string, error) {
 		b.WriteString("\n")
 		b.WriteString(ddl)
 	}
+	b.WriteString(QueryIndexDDL)
 	return b.String(), nil
 }
 
@@ -309,7 +374,7 @@ func sqlType(fd protoreflect.FieldDescriptor) (string, error) {
 //
 // # There are no longer any enums nobody documents
 //
-// EventType and SchemaVersion used to be exempt, on the reason that no seat types them so no
+// EventType used to be exempt (with SchemaVersion, since removed), on the reason that no seat types it so no
 // --help renders them. True, and scoped to the only consumer `means` had at the time. This table
 // is a second consumer with a different audience — a human reading the record in SQL — and
 // `events.type` is the column every join keys on. So they are documented, the exemption is gone,
@@ -332,7 +397,7 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 			continue // the UNSPECIFIED zero is absence, and absence is NULL here
 		}
 		// EVERY VALUE CARRIES ITS MEANING NOW, so a miss is an error rather than a placeholder.
-		// The fallback string stood in for the EventType/SchemaVersion exemption, which is gone —
+		// The fallback string stood in for the EventType exemption, which is gone —
 		// and a default sentence is the shape this package refuses everywhere else: it puts a
 		// plausible value in the record where an unanswered question was.
 		means, err := recordpb.EnumValueDoc(v)
@@ -645,7 +710,6 @@ func enumTables(bodies []protoreflect.MessageDescriptor) (string, error) {
 	// find it" and "no such vocabulary is wanted" are the same silence.
 	for _, ed := range []protoreflect.EnumDescriptor{
 		recordpb.EventType(0).Descriptor(),
-		recordpb.SchemaVersion(0).Descriptor(),
 	} {
 		if !seen[ed.FullName()] {
 			seen[ed.FullName()] = true

@@ -23,7 +23,7 @@ func scenarios() []scenario {
 				base("register", "--run", "{RUN}", "--seat-id", "red-merge-r1"),
 				base("register", "--run", "{RUN}", "--seat-id", "blue-respond-r2"),
 				base("revision", "--run", "{RUN}", "--seat-id", "blue-respond-r2", "--reason", "first pass"),
-				base("friction", "--run", "{RUN}", "--seat-id", "blue-respond-r2", "--reason", "no PDF extraction"),
+				base("log", "--run", "{RUN}", "--seat-id", "blue-respond-r2", "--reason", "no PDF extraction"),
 				// implicit register: a seat that never registered still records
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--key", "F1",
 					"--severity", "medium", "--likelihood", "high", "--impact", "medium", "--quote", "## S2", "--reason", "unfounded leap"),

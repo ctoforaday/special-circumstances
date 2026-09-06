@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // This file is plans/record-sqlite.md §III step 4: the hand-written projections, replaced with
@@ -104,6 +105,52 @@ func RoundsWithRevision(run Run) int {
 	return n
 }
 
+// EventsOf reads back only the named event families, in record order — the read for a
+// projection that renders one kind of act (findings, friction, the debate prose) and has no
+// business hauling the whole record through the loader to get it. A run with no record yet
+// holds none of anything.
+func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return nil, err
+	}
+	if db == nil {
+		return nil, nil
+	}
+	words := make([]string, len(types))
+	for i, t := range types {
+		words[i] = recordpb.Word(t)
+	}
+	return recordsql.EventsOfTypes(db, words...)
+}
+
+// Rounds lists every round the record touched, ascending — the skeleton a per-round
+// projection hangs on, INCLUDING rounds whose only acts are outside that projection's
+// families (a round of nothing but mints still renders as an empty debate round).
+func Rounds(run Run) ([]int, error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return nil, err
+	}
+	if db == nil {
+		return nil, nil
+	}
+	rows, err := db.Query(`SELECT DISTINCT "round" FROM "events" ORDER BY "round"`)
+	if err != nil {
+		return nil, fmt.Errorf("record: asking the record for its rounds: %w", err)
+	}
+	defer rows.Close()
+	var out []int
+	for rows.Next() {
+		var r int
+		if err := rows.Scan(&r); err != nil {
+			return nil, err
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
 // RegisteredSeats lists the seat ids that registered in this run, in event order — every seat
 // the BUILD registered, whether or not it then sat.
 func RegisteredSeats(run Run) ([]string, error) {
@@ -130,28 +177,77 @@ func RegisteredSeats(run Run) ([]string, error) {
 	return out, rows.Err()
 }
 
-// FindingMarkerRecorded reports whether any finding OR anchor event names this marker id — the
-// membership question the torn-splice heal asks of an fx marker already sitting on the report.
-// Read errors fold into false: the caller then takes the ordinary fresh path, exactly as it did
-// when the merged read failed. Its proof twin below keeps the two namespaces as separate as the
-// folds kept them.
-func FindingMarkerRecorded(run Run, id string) bool {
-	if id == "" {
-		return false
-	}
-	found, err := recordHas(run, `SELECT 1 FROM "finding" WHERE "finding_id" = ?
-	  UNION SELECT 1 FROM "anchor" WHERE "id" = ? LIMIT 1`, id, id)
-	return err == nil && found
+// ReportOp is one recorded text mutation from the report_op view, in event order. Kind is "edit"
+// (A=old span, B=new span) or "insert" (A=anchoring quote, B=marker id). reportproj folds these
+// over the base; the SELECTION and ordering are the view's, not a Go walk of the event log.
+type ReportOp struct {
+	Kind string
+	A, B string
 }
 
-// ProofMarkerRecorded is FindingMarkerRecorded's twin for proof markers.
-func ProofMarkerRecorded(run Run, id string) bool {
-	if id == "" {
-		return false
+// ReportProjection returns the frozen base of blue's report and the ordered stream of text
+// mutations that reconstruct it (#709) — the inputs reportproj.Render folds. haveBase is false for a
+// run that never ingested (no base_ingest event); a run that recorded nothing yet is the same
+// honest zero. TWO base rows is a record-integrity error, never a silent pick — the base is
+// written once. The ops arrive in event-id order straight from the report_op view, so no reader
+// rebuilds that selection by scanning every event.
+func ReportProjection(run Run) (base string, haveBase bool, ops []ReportOp, err error) {
+	db, err := openRunForRead(run)
+	if err != nil {
+		return "", false, nil, err
 	}
-	found, err := recordHas(run, `SELECT 1 FROM "proof" WHERE "proof_id" = ? LIMIT 1`, id)
-	return err == nil && found
+	if db == nil {
+		return "", false, nil, nil // no record yet — no base, nothing to render
+	}
+	baseRows, err := db.Query(`SELECT "text" FROM "base_ingest" ORDER BY "event_id"`)
+	if err != nil {
+		return "", false, nil, fmt.Errorf("record: reading the report base: %w", err)
+	}
+	defer baseRows.Close()
+	seen := 0
+	for baseRows.Next() {
+		if seen++; seen > 1 {
+			return "", false, nil, fmt.Errorf("record: two base_ingest events on this run — the base is written once and never rewritten")
+		}
+		var t sql.NullString
+		if err := baseRows.Scan(&t); err != nil {
+			return "", false, nil, err
+		}
+		base, haveBase = t.String, true
+	}
+	if err := baseRows.Err(); err != nil {
+		return "", false, nil, err
+	}
+	if !haveBase {
+		return "", false, nil, nil
+	}
+	opRows, err := db.Query(`SELECT "kind", "a", "b" FROM "report_op" ORDER BY "event_id"`)
+	if err != nil {
+		return "", false, nil, fmt.Errorf("record: reading the report ops: %w", err)
+	}
+	defer opRows.Close()
+	for opRows.Next() {
+		var op ReportOp
+		var a, b sql.NullString
+		if err := opRows.Scan(&op.Kind, &a, &b); err != nil {
+			return "", false, nil, err
+		}
+		op.A, op.B = a.String, b.String
+		ops = append(ops, op)
+	}
+	return base, haveBase, ops, opRows.Err()
 }
+
+// ReportBaseExists reports whether this run has a frozen base — the write-once state test behind
+// `blue ingest`, answered by an EXISTS rather than a walk.
+func ReportBaseExists(run Run) (bool, error) {
+	return recordHas(run, `SELECT 1 FROM "base_ingest" LIMIT 1`)
+}
+
+// FindingMarkerRecorded / ProofMarkerRecorded — the "does an event already name this marker id"
+// membership questions — lived here. They served the torn-splice adoption the three splicing verbs
+// ran; under report-as-record (#709) a marker exists only as its event, the orphan state cannot
+// arise, and the adoption (and these) are gone.
 
 // gradeAtColumn names the regrade/mint column for a contested dimension; "" is a dimension this
 // binary cannot read a grade at — the same refusal Gap.GradeAt returns false for.

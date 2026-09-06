@@ -13,6 +13,8 @@ $ mint --run {RUN} --seat-id red-merge-r2 --class scope-creep --check-kind docum
 exit 0
 stdout:
 minted R2-1
+  acceptance check RECORDED as: reread
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ carry --run {RUN} --seat-id red-merge-r2 --id R2-1 --carried-from 1
 exit 2
@@ -20,8 +22,10 @@ stderr:
 feov-record: merge: record: carry claims gap R2-1 was closed in an earlier round, but no closure of it exists in the record — a carry RESTATES an earlier closure, so a first closure must go through `merge close` with --verified-by/--verified-with/--verified-against
 
 ═══ EVENTS ═══
-{"key":"red-merge-r2:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"red-merge-r2","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-merge-r2:mint:R2-1","mint":{"acceptance_check":"reread","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R2-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"carried case","required_fix":"","severity":"GRADE_MEDIUM"},"round":2,"seat_id":"red-merge-r2","ts":1,"type":"EVENT_TYPE_MINT"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-merge-r2:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"red-merge-r2","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r2:mint:R2-1","mint":{"acceptance_check":"reread","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R2-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"carried case","required_fix":"","severity":"GRADE_MEDIUM"},"round":2,"seat_id":"red-merge-r2","ts":3,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
 -- debate
@@ -50,7 +54,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 | tier | what answered | seats |
 |---|---|---|
-| judgment | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
+| judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
 
 ## Read this first
 

@@ -62,7 +62,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	// The work list is the SCANNING read a seat plans its sitting from, so the demand's TYPE has
 	// to be on it even though the rest of the acceptance check deliberately is not.
 	got = map[string]string{}
-	for _, g := range WorkJSONOf(b).Open {
+	for _, g := range mustWorkJSONT(t, mustRun(t, runDir)).Open {
 		got[g.ID] = g.CheckKind
 	}
 	if got["R1-1"] != "computation" || got["R1-2"] != "document" {
@@ -71,7 +71,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 }
 
 // AN EMPTY FRICTION LOG IS TWO DIFFERENT RUNS, and only one of them is fine.
-func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
+func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, ""); err != nil {
 		t.Fatal(err)
@@ -80,26 +80,26 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	j := FrictionJSONOf(b)
+	j := LogJSONOf(b.Events)
 	if j.Counts.Total != 0 || j.Counts.Attested != 0 {
 		t.Fatalf("a silent run: total=%d attested=%d, want 0/0", j.Counts.Total, j.Counts.Attested)
 	}
 
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.FrictionNone{Text: proto.String("read the board and my verb list; every refusal was my own error")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.Log{Text: proto.String("read the board and my verb list; every refusal was my own error"), Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = BoardState(mustRun(t, runDir))
-	j = FrictionJSONOf(b)
+	j = LogJSONOf(b.Events)
 	// The counts must now DIFFER from the silent run. Same total, different meaning — which is
 	// the whole point: zero-with-an-attestation is a statement someone can be wrong about,
 	// zero-alone is the absence of one.
 	if j.Counts.Total != 0 {
 		t.Errorf("an attestation must not count as a complaint: total=%d", j.Counts.Total)
 	}
-	if j.Counts.Attested != 1 || len(j.NothingBlocked) != 1 {
-		t.Fatalf("the attestation did not reach the view: attested=%d entries=%d", j.Counts.Attested, len(j.NothingBlocked))
+	if j.Counts.Attested != 1 || len(j.Log) != 1 {
+		t.Fatalf("the attestation did not reach the view: attested=%d entries=%d", j.Counts.Attested, len(j.Log))
 	}
-	if j.NothingBlocked[0].SeatID != "blue-respond-r1" {
+	if j.Log[0].SeatID != "blue-respond-r1" {
 		t.Error("the attestation must name the seat that made it — an unattributed one cannot be weighed")
 	}
 }
@@ -176,7 +176,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	if len(fromBoard) != 1 || !fromBoard["R1-2"] {
 		t.Fatalf("board says %v awaits proof, the debt query says [R1-2]", fromBoard)
 	}
-	for _, g := range WorkJSONOf(b).Open {
+	for _, g := range mustWorkJSONT(t, mustRun(t, runDir)).Open {
 		if g.AwaitingProof != fromBoard[g.ID] {
 			t.Errorf("work and board disagree on %s: %v vs %v", g.ID, g.AwaitingProof, fromBoard[g.ID])
 		}

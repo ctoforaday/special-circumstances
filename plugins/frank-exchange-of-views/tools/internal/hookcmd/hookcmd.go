@@ -34,15 +34,11 @@ package hookcmd
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-	"google.golang.org/protobuf/proto"
 	"io"
 	"os"
-	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/hookgate"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
 
 // Run invokes a hook entry point and guarantees the process exit code is 0.
@@ -74,65 +70,22 @@ func readInput(stdin io.Reader) (hookgate.Input, []byte, bool) {
 	return in, raw, ok
 }
 
-// readReportFile is the production report reader injected into hookgate.PostDropped.
-func readReportFile(path string) (string, error) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	return string(b), nil
-}
-
-// Pre denies a non-author raw write to a run's blue/report.md, and otherwise injects the run
-// directory and agent id into a Bash call that invokes the record tool.
+// Pre injects the run directory and the calling agent's id into a Bash call made inside a live
+// run, so a seat never mistypes the path and never loses the identity that binds it to its seat on
+// the record. It denies nothing: the blue-report write-lockdown it once carried protected a file
+// that no longer exists (report-as-record, #709), so injection is all that remains.
 func Pre(stdin io.Reader, stdout io.Writer) error {
 	in, raw, ok := readInput(stdin)
 	if !ok {
-		// Fail CLOSED, but narrowly: an unparseable payload that references a report path is
-		// denied conservatively; anything else gets no opinion (the matcher already scoped this
-		// to Write|Edit|Bash, so an odd payload is anomalous).
-		if strings.Contains(string(raw), "blue/report.md") || strings.Contains(string(raw), "blue\\\\report.md") {
-			emitPreDeny(stdout, hookgate.PreDenyReason()+" (hook input unparseable; denied conservatively)")
-		}
-		return nil
+		return nil // no payload to inject into
 	}
 	// The run directory is resolved from the payload's `cwd` — the SEAT's working directory,
 	// which is wire-supplied and documented, never this hook process's os.Getwd(). Absent or
-	// unusable marker → empty → no rewrite, matching InferRunDir's "say nothing rather than
-	// guess".
-	runDir := seat.InferRunDir(cwdOf(raw))
-	// NewRun: the hook fires against whatever the marker points at, and a hook is the wrong
-	// place to refuse a run — it advises, it does not gate. The reads below degrade to empty on
-	// an unresolved run exactly as they did when this was a string.
-	run, _ := record.NewRun(runDir)
-	switch outcome, payload := hookgate.PreOutcome(in, runDir); outcome {
-	case hookgate.OutcomeDeny:
-		// A DENIAL THIS GATE CANNOT EXPLAIN IS THE ONE IT MUST RECORD. When the refusal is "I
-		// could not read your tool_input", the seat did nothing wrong and the cause is in the
-		// tool — so it goes on the record as friction, not just into a reason string the run
-		// forgets. hookgate stays free of I/O; the write lives here.
-		if hookgate.InputUnreadable(in) {
-			fileToolFriction(run, in.ToolName)
-		}
-		emitPreDeny(stdout, payload)
-	case hookgate.OutcomeRewrite:
+	// unusable marker → empty → no rewrite, matching InferRunDir's "say nothing rather than guess".
+	runDir := runlive.InferRunDir(cwdOf(raw))
+	if outcome, payload := hookgate.PreOutcome(in, runDir); outcome == hookgate.OutcomeRewrite {
 		emitPreRewrite(stdout, in.ToolInput, payload)
 	}
-	return nil
-}
-
-// Post blocks and forces a repair when a non-author call dropped an immortal anchor from the
-// report by any mechanism — the backstop for the exotic Bash the Pre verb-set cannot enumerate.
-func Post(stdin io.Reader, stdout io.Writer) error {
-	in, _, ok := readInput(stdin)
-	if !ok {
-		return nil // best-effort backstop; PreToolUse is the real gate
-	}
-	missing, err := hookgate.PostDropped(in, hookgate.DefaultAnchorIDs, readReportFile)
-	if err != nil || len(missing) == 0 {
-		return nil
-	}
-	emitPostBlock(stdout, missing)
 	return nil
 }
 
@@ -196,51 +149,6 @@ func emitPreAsk(stdout io.Writer, reason string) {
 			"permissionDecisionReason": reason,
 		},
 	})
-}
-
-// fileToolFriction records a tool fault on the run's record.
-//
-// BEST EFFORT, AND SILENT ONLY WHERE THERE IS NOTHING TO WRITE TO. A hook can fire outside a run
-// (no marker, no run directory), and there is no record to carry the event then — the deny reason
-// still reaches the model, which is the channel that always exists. Where a run IS resolvable the
-// fault becomes durable, so a refusal nobody understood at the time is answerable afterwards.
-//
-// The write must never turn a hook into a failure: this gate's job is to answer, and a seat is
-// not blocked because the bookkeeping failed.
-func fileToolFriction(run record.Run, toolName string) {
-	if run.Dir() == "" {
-		return
-	}
-	f := &recordpb.Friction{
-		Text: proto.String(fmt.Sprintf("hookgate could not parse tool_input for %s, so the blue-report "+
-			"lockdown refused the call rather than risk bypassing it. The seat did nothing wrong; "+
-			"the tool_input shape and this gate's parser have diverged.", toolName)),
-		Kind: recordpb.FrictionKind_FRICTION_KIND_TOOL_ERROR.Enum(),
-	}
-	// Round -1 is UNKNOWN, and record.Identity is explicit that this is not round 0 — a hook
-	// fires outside any seat's round, and conflating the two produced the phantom-archive bug
-	// this field was added to prevent.
-	_, _ = record.Append(record.Identity{Run: run, SeatID: "hookgate", Round: -1}, f)
-}
-
-// emitPreDeny writes the PreToolUse deny document (exit stays 0).
-func emitPreDeny(stdout io.Writer, reason string) {
-	emit(stdout, map[string]any{
-		"hookSpecificOutput": map[string]any{
-			"hookEventName":            "PreToolUse",
-			"permissionDecision":       "deny",
-			"permissionDecisionReason": reason,
-		},
-	})
-}
-
-// emitPostBlock writes the PostToolUse block document (decision:block + reason), which forces the
-// seat to repair before proceeding.
-func emitPostBlock(stdout io.Writer, missing []string) {
-	reason := fmt.Sprintf("you removed immortal anchor(s) %s — blue/report.md carries red's finding-markers and blue's tool-managed citation anchors, and both are immortal. "+
-		"Restore the removed anchor(s) exactly, and make every change through `feov-record blue edit` (never a raw write).",
-		strings.Join(missing, ", "))
-	emit(stdout, map[string]any{"decision": "block", "reason": reason})
 }
 
 func emit(stdout io.Writer, doc map[string]any) {

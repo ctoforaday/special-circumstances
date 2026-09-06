@@ -98,9 +98,9 @@ Available Commands:
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  log             an entry for the operator who can retool you — what it asserts, said in the positive
   mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
   near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   position        your round narrative — the argument the other side answers, rendered as this round's RED section
@@ -125,6 +125,8 @@ Flags:
 Use "feov-record [command] --help" for more information about a command.
 
 ═══ EVENTS ═══
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 
 ═══ RENDERS ═══
 -- debate
@@ -146,6 +148,14 @@ indistinguishable from one that never looked._
 ---
 
 **Verdict:** _(no terminal outcome recorded — `bench outcome` was not run before assembly)_
+
+## How this run was conducted
+
+_Composed from the record, never from the run's configuration: these are the models that ANSWERED, measured at each seat's own first turn. A run can be configured for one tier and served by another, and a seat cannot see which — it reads the request._
+
+| tier | what answered | seats |
+|---|---|---|
+| judgment | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
 
 ## Read this first
 

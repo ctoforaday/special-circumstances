@@ -845,7 +845,7 @@ func TestTheKeyLabelIsTheFirstFieldTheBodyCarries(t *testing.T) {
 		{"label when there is no gap_id", &recordpb.Finding{Label: proto.String("F1")}, "F1"},
 		{"url is a label too", &recordpb.Cite{Url: proto.String("https://x")}, "https://x"},
 		{"an empty label is not a label", &recordpb.Finding{Label: proto.String("")}, ""},
-		{"no label at all", &recordpb.Friction{}, ""},
+		{"no label at all", &recordpb.Log{}, ""},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			if got := keyLabel(c.body); got != c.want {

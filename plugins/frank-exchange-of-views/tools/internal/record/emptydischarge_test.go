@@ -27,8 +27,11 @@ func TestAnEmptyDischargeIsRefused(t *testing.T) {
 		body proto.Message
 		want string
 	}{
-		{recordpb.EventType_EVENT_TYPE_FRICTION, &recordpb.Friction{}, "--reason"},
-		{recordpb.EventType_EVENT_TYPE_FRICTION_NONE, &recordpb.FrictionNone{}, "--reason"},
+		// TYPED BUT WORDLESS. The type is required too, so an entirely empty body is refused for
+		// the type before the prose is ever reached; this case is about the PROSE, so it supplies
+		// a type and leaves the words out.
+		{recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum()}, "--reason"},
+		{recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum()}, "--reason"},
 		{recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{}, "--reason"},
 		{recordpb.EventType_EVENT_TYPE_REVISION, &recordpb.Revision{}, "--reason"},
 	} {
@@ -52,8 +55,8 @@ func TestARealDischargeIsAccepted(t *testing.T) {
 		typ  recordpb.EventType
 		body proto.Message
 	}{
-		{recordpb.EventType_EVENT_TYPE_FRICTION, &recordpb.Friction{Text: prose}},
-		{recordpb.EventType_EVENT_TYPE_FRICTION_NONE, &recordpb.FrictionNone{Text: prose}},
+		{recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Text: prose, Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum()}},
+		{recordpb.EventType_EVENT_TYPE_LOG, &recordpb.Log{Text: prose, Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum()}},
 		{recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{Text: prose}},
 		{recordpb.EventType_EVENT_TYPE_REVISION, &recordpb.Revision{Text: prose}},
 	} {
@@ -63,12 +66,13 @@ func TestARealDischargeIsAccepted(t *testing.T) {
 	}
 }
 
-// THE EXPLICIT NEGATIVE NEEDS CONTENT TOO. `--none` is worth more than silence only when it says
-// what was looked at; without that it is silence with an event attached.
-func TestTheExplicitNegativeCannotBeEmpty(t *testing.T) {
-	err := validate(mustRun(t, recordtest.TmpRun(t)), "blue-respond-r1", recordpb.EventType_EVENT_TYPE_FRICTION_NONE, &recordpb.FrictionNone{})
-	if err == nil || !strings.Contains(err.Error(), "FOUND") {
-		t.Errorf("friction --none with no reason should say what the negative is FOR: %v", err)
+// THE CLEAN SITTING NEEDS CONTENT TOO. A nominal entry is worth more than silence only when it
+// says what was looked at; without that it is silence with an event attached.
+func TestTheNominalEntryCannotBeEmpty(t *testing.T) {
+	err := validate(mustRun(t, recordtest.TmpRun(t)), "blue-respond-r1", recordpb.EventType_EVENT_TYPE_LOG,
+		&recordpb.Log{Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum()})
+	if err == nil || !strings.Contains(err.Error(), "--reason") {
+		t.Errorf("a nominal entry with no reason should say what the positive statement is FOR: %v", err)
 	}
 }
 

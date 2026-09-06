@@ -25,6 +25,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/bench"
@@ -130,7 +131,7 @@ func newRoot() *cobra.Command {
 // pre-parse scan of os.Args for --run would be a second flag parser guessing at the same fact.
 // Where no run resolves there is no record to ask, so the answer is the flag or nothing.
 func dispatchedSeat() string {
-	runDir, err := seatenv.Resolve("", func() string { return seat.InferRunDir("") })
+	runDir, err := seatenv.Resolve("", func() string { return runlive.InferRunDir("") })
 	if err != nil {
 		return seatenv.Dispatched(nil)
 	}
@@ -233,7 +234,7 @@ namespace. Blue has no board verbs at all. The bench rules and never originates.
 			newGraph(),           // operator: render a run's actual behaviour from the record
 			newShowDiagnostics(), // operator: did the seats find their surface — exposure and use, as fields
 			newCountClaims(),     // operator/blue: deterministic claim_count over blue/report.md
-			newFriction(),        // operator: the friction channel — seats write it, the human reads it
+			newLog(),             // operator: the friction channel — seats write it, the human reads it
 			newFetch(),           // operator: cached, hash-verified web read — feeds the run source cache
 			newOCR(),             // operator: render a scan's pages so a seat can read what has no text layer
 			newSetup(),           // operator: build a research run's blackboard

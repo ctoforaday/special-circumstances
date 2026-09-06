@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/klippa-app/go-pdfium/requests"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/tessocr"
 )
 
 // THE AUTOMATIC PATH, AND WHY IT IS ONE CALL RATHER THAN TWO VERBS.
@@ -24,65 +26,63 @@ import (
 // So fetch takes it — ONE PAGE AT A TIME, AND NOTHING IS KEPT BUT THE TEXT. The first
 // composition rendered every page to disk and then read the directory back, which held every
 // page's raster in memory at once (#671) and persisted images the automatic path has no
-// further use for: the product of a fetch is the transcription, and the reading record
-// carries the hash of every image it was read from. So each page is rasterised, read, and
-// released before the next is touched; no page PNG and no render record are written. An
-// operator who wants the pixels themselves — to re-read a bad scan at 300 DPI, or to check a
-// transcription against a page — has `ocr pages`, whose whole product is the images.
+// further use for: the product of a fetch is the reading, and the reading record carries the
+// hash of every image it was read from. So each page is rasterised, read, and released
+// before the next is touched; no page PNG and no render record are written. An operator who
+// wants the pixels themselves — to check a reading against a page — has `ocr pages`, whose
+// whole product is the images.
 
 // ScanReader turns a cached document that yielded no text layer into a reading.
 //
 // It is an interface for exactly the reason Extractor is: the command layer's tests must
 // exercise fetch's PLUMBING — what the summary says, what is reused, what is refused —
-// without compiling a 5 MB WebAssembly module per test and without spending a model. The
-// real implementation ships as the default (see DefaultExtractor for why a no-op default
-// would be the dangerous arrangement).
+// without compiling a 5 MB WebAssembly module per test and without needing the engine's C
+// stack. The real implementation ships as the default (see DefaultExtractor for why a no-op
+// default would be the dangerous arrangement).
 type ScanReader interface {
-	// ReadScanned renders and reads e's document. It returns an error rather than an empty
+	// ReadScanned renders and reads e's document, at the engine's own operative resolution
+	// (tessocr.RenderDPI — the constants are per-DPI facts, so the resolution is the
+	// engine's to name, not a parameter to vary). It returns an error rather than an empty
 	// record when it could not: a reading nobody made and a reading that found nothing are
 	// different facts, and the caller states which in the reason it prints.
-	ReadScanned(ctx context.Context, run record.Run, e Entry, model string, dpi int) (ReadingRecord, error)
+	ReadScanned(ctx context.Context, run record.Run, e Entry) (ReadingRecord, error)
 }
 
 // DefaultScanReader is the process-wide ScanReader, swapped by tests and nothing else.
 var DefaultScanReader ScanReader = RenderAndRead{}
 
-// RenderAndRead is the real composition: PDFium rasterises, a model reads.
+// RenderAndRead is the real composition: PDFium rasterises, the local engine reads.
 type RenderAndRead struct{}
 
 // ReadScanned reads e's document one page at a time — rasterise, read, release — and returns
-// the reading. It persists the transcription and its record, never the page images.
+// the reading. It persists the reading and its record, never the page images.
 //
-// THE CAP IS CHECKED BEFORE ANYTHING IS RENDERED. The page count is a field the extractor
-// measured, so a 500-page scan is refused before the first raster. Where the count is 0 the
-// extractor could not measure it (an unreadable page tree), and the same cap fires again from
-// the document's own page count, after opening it but before any page is rendered or any
-// model is called.
+// THE BUDGET IS CHECKED BEFORE ANYTHING IS RENDERED. The page count is a field the extractor
+// measured, so a document over the render budget is refused before the first raster. Where
+// the count is 0 the extractor could not measure it (an unreadable page tree), and the same
+// budget fires again from the document's own page count, after opening it but before any
+// page is rendered.
 //
-// A READING AT THIS RESOLUTION IS NEVER PAID FOR TWICE. It is also not idempotent — a second
-// reading returns different bytes — so redoing it would replace a record a seat may already
-// have cited from. The guard is (document, DPI): rendering is deterministic for a fixed
-// renderer, so a stored reading at this DPI describes the same pixels this call would
-// produce, and the record's RenderShas still say exactly which. A malformed record is an
-// error, never an absence — treating it as absence would silently re-spend a model call per
-// page over a record somebody may have cited from.
-func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry, model string, dpi int) (ReadingRecord, error) {
+// A READING AT THIS RESOLUTION AND ENGINE IS NEVER DERIVED TWICE ON A FETCH. Not because it
+// is expensive any more — the engine is local and deterministic — but because rendering is
+// deterministic for a fixed renderer, so a stored reading at this DPI by this engine already
+// describes exactly the bytes this call would produce, and the record's RenderShas still say
+// which. A malformed record is an error, never an absence — treating it as absence would
+// silently replace a record somebody may have cited from.
+func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry) (ReadingRecord, error) {
 	if e.ContentType != "application/pdf" {
 		return ReadingRecord{}, fmt.Errorf("only application/pdf renders to pages, and sha %s is %s",
 			e.Sha, ContentTypeOrUnknown(e.ContentType))
 	}
-	if e.Pages > MaxReadPages {
-		return ReadingRecord{}, fmt.Errorf("the document has %d pages, over the %d-page cap on one "+
-			"automatic read (one model call a page); nothing was rendered. Read it deliberately "+
-			"with `ocr pages --sha %s` then `ocr read --sha %s`",
-			e.Pages, MaxReadPages, e.Sha, e.Sha)
+	if err := renderWithinDiskBudget(e.Pages, tessocr.RenderDPI); err != nil {
+		return ReadingRecord{}, err
 	}
 
 	prev, had, err := ReadReadingRecord(run, e.Sha)
 	if err != nil {
 		return ReadingRecord{}, err
 	}
-	if had && prev.DPI == dpi && len(prev.Pages) > 0 {
+	if had && prev.DPI == tessocr.RenderDPI && prev.Engine == DefaultPageEngine.Identity() && len(prev.Pages) > 0 {
 		return prev, nil
 	}
 
@@ -90,7 +90,7 @@ func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry, m
 	if rerr != nil {
 		return ReadingRecord{}, fmt.Errorf("the index names sha %s but its content file is unreadable: %w", e.Sha, rerr)
 	}
-	return renderAndReadPages(ctx, run, e.Sha, body, model, dpi)
+	return renderAndReadPages(run, e.Sha, body)
 }
 
 // renderAndReadPages is the fused loop: one page rasterised, read, and released at a time.
@@ -100,27 +100,37 @@ func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry, m
 // here the raster is released (renderPagePNG) and the PNG bytes go out of scope before the
 // next page is touched.
 //
-// IT CLEARS THE PAGES DIRECTORY THE WAY RenderPages DOES, AND FOR THE SAME REASON: a reading
-// replaces a reading wholesale. Whatever is there — a deliberate render's images, a previous
-// reading's texts — describes pixels or a resolution this reading is about to supersede, and
-// the per-page texts written below must never interleave with a stale set.
+// STALENESS IS HANDLED PER PAGE BY THE RECEIPTS (#679's design, kept): a receipt is reused
+// only when its render sha equals the sha of the page as rendered NOW and its engine matches
+// this binary's, so a DPI change or an engine bump mismatches every receipt and re-derives
+// every page. The document is content-addressed, so the page count cannot drift under a sha.
+// What IS still removed up front: the assembled text (a crash mid-loop must leave an honest
+// absence, not a stale document that reads as current) and any deliberate render's images
+// and record (the reading supersedes them; a stale render.json describing images this path
+// is about to orphan would be the record naming pixels nobody kept).
 //
-// The per-page texts are written as the loop runs and the record LAST, so a crash leaves
-// texts with no record — which reads as "not read" and re-reads cleanly. What a mid-document
-// crash costs is the model calls already spent; the alternative — a record naming pages that
-// were never read — is the failure that looks like success.
-func renderAndReadPages(ctx context.Context, run record.Run, sha string, body []byte, model string, dpi int) (ReadingRecord, error) {
-	if dpi < MinRenderDPI || dpi > MaxRenderDPI {
-		return ReadingRecord{}, fmt.Errorf("dpi %d is outside %d–%d: below the floor a page is "+
-			"illegible, above the ceiling a long document renders to gigabytes", dpi, MinRenderDPI, MaxRenderDPI)
-	}
+// The per-page texts and receipts are written as the loop runs and the record LAST, so a
+// crash leaves rows with no record — which reads as "not read", and the re-read validates
+// page by page instead of deriving again.
+func renderAndReadPages(run record.Run, sha string, body []byte) (ReadingRecord, error) {
+	// The resolution is the engine's own constant, not a parameter: the grid and
+	// reconstruction thresholds are per-DPI facts, and a caller-supplied DPI here would be
+	// an invitation to apply them to pixels they were not tuned for.
+	const dpi = tessocr.RenderDPI
 
 	dir := PagesDir(run, sha)
-	if err := os.RemoveAll(dir); err != nil {
-		return ReadingRecord{}, fmt.Errorf("clearing the previous render of %s: %w", sha, err)
-	}
 	if err := os.Remove(OCRTextPath(run, sha)); err != nil && !os.IsNotExist(err) {
 		return ReadingRecord{}, fmt.Errorf("clearing the previous reading of %s: %w", sha, err)
+	}
+	if err := os.Remove(renderRecordPath(run, sha)); err != nil && !os.IsNotExist(err) {
+		return ReadingRecord{}, fmt.Errorf("clearing the previous render record of %s: %w", sha, err)
+	}
+	if pngs, err := filepath.Glob(filepath.Join(dir, "p????.png")); err == nil {
+		for _, p := range pngs {
+			if err := os.Remove(p); err != nil {
+				return ReadingRecord{}, fmt.Errorf("clearing a superseded render of %s: %w", sha, err)
+			}
+		}
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return ReadingRecord{}, err
@@ -145,12 +155,11 @@ func renderAndReadPages(ctx context.Context, run record.Run, sha string, body []
 	if pc.PageCount == 0 {
 		return ReadingRecord{}, fmt.Errorf("the document reports zero pages, so there is nothing to read")
 	}
-	if pc.PageCount > MaxReadPages {
-		return ReadingRecord{}, fmt.Errorf("the document opens to %d pages, over the %d-page cap on one "+
-			"automatic read (one model call a page); nothing was rendered or read", pc.PageCount, MaxReadPages)
+	if err := renderWithinDiskBudget(pc.PageCount, dpi); err != nil {
+		return ReadingRecord{}, err
 	}
 
-	out := ReadingRecord{Sha: sha, Model: model, ReadAt: time.Now().UTC(), DPI: dpi}
+	out := ReadingRecord{Sha: sha, Engine: DefaultPageEngine.Identity(), ReadAt: time.Now().UTC(), DPI: dpi}
 	var assembled strings.Builder
 	for i := 0; i < pc.PageCount; i++ {
 		png, rerr := renderPagePNG(inst, doc.Document, i, dpi)
@@ -161,20 +170,12 @@ func renderAndReadPages(ctx context.Context, run record.Run, sha string, body []
 		}
 		out.RenderShas = append(out.RenderShas, Sha(png))
 
-		text, in, outTok, rerr := DefaultPageReader.ReadPage(ctx, model, png)
+		// The shared per-page step: reuse a matching receipt, keep every error fatal.
+		r, norm, rerr := readPageStep(run, sha, i+1, png, dpi)
 		if rerr != nil {
 			return ReadingRecord{}, fmt.Errorf("page %d: %w", i+1, rerr)
 		}
-		out.InTokens += in
-		out.OutTok += outTok
-
-		norm := normalizeReading(text)
-		if err := writeReplacing(PageTextPath(run, sha, i+1), []byte(norm)); err != nil {
-			return ReadingRecord{}, err
-		}
-		out.Pages = append(out.Pages, PageReading{
-			Page: i + 1, TextSha: Sha([]byte(norm)), Length: len([]rune(norm)),
-		})
+		out.Pages = append(out.Pages, r.pageReading())
 
 		assembled.WriteString(norm)
 		assembled.WriteString("\n\n")
@@ -200,7 +201,7 @@ func renderAndReadPages(ctx context.Context, run record.Run, sha string, body []
 //
 // It is a function rather than two inline loops because both callers — the automatic path
 // here and `ocr read`'s reuse guard — are asking one question, and a reuse rule that differed
-// between them by a subscript would spend a model on one path and not the other for reasons
+// between them by a subscript would re-derive on one path and not the other for reasons
 // nobody could see.
 func SameRenders(a, b []string) bool {
 	if len(a) != len(b) {

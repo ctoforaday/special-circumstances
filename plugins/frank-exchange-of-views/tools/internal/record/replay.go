@@ -226,6 +226,32 @@ func (g *Gap) ClosureReason() string {
 	return recordpb.Word(g.BenchClosure.GetDisposition())
 }
 
+// DocketGapByMotion indexes each docket motion's gap by the motion's id — the FILING carries the
+// gap, so every reader of a docket RULING has to come back through here to learn what it settled.
+//
+// It is one function rather than a fold repeated at each reader because it was three: the replay,
+// the debate projection and the closure states each recovered the same pairing, and three copies
+// of a join are three chances to disagree about which gap a ruling closed. A caller passes the
+// stream it already holds; a stream without the MOTION events yields an empty index, which is why
+// every caller's typed read asks for MOTION alongside MOTION_RULE.
+func DocketGapByMotion(evs []*Event) map[string]string {
+	out := map[string]string{}
+	for _, e := range evs {
+		f, ok := recordpb.BodyAs[*recordpb.Motion](e)
+		if !ok {
+			continue
+		}
+		d, isDocket := f.GetFiling().(*recordpb.Motion_Docket)
+		if !isDocket {
+			continue
+		}
+		if id := f.GetMotionId(); id != "" {
+			out[id] = d.Docket.GetGapId()
+		}
+	}
+	return out
+}
+
 // benchClosesGap says which dispositions end a gap's life on the board.
 //
 // # What this used to be, and why the shape was the bug
@@ -369,16 +395,7 @@ func BoardState(run Run) (*Board, error) {
 	// before its filing. A single pass that met one would look the gap up, find nothing, and
 	// close nothing: the disposition written, the gap still open, and no error anywhere. That is
 	// the shape this whole change exists to remove, so it is not reintroduced in the replay.
-	docketGap := map[string]string{}
-	for _, e := range ordered {
-		if f, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
-			if d, isDocket := f.GetFiling().(*recordpb.Motion_Docket); isDocket {
-				if id := f.GetMotionId(); id != "" {
-					docketGap[id] = d.Docket.GetGapId()
-				}
-			}
-		}
-	}
+	docketGap := DocketGapByMotion(ordered)
 
 	// THE SWITCH IS ON THE BODY, NOT ON THE TYPE FIELD. Every arm below reaches straight for a
 	// field the moment it matches, so binding the message and the type in one step removes the

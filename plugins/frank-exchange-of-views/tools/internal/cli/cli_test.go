@@ -19,6 +19,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 )
 
@@ -150,6 +151,7 @@ func seedBlueReport(t *testing.T, runDir string) {
 	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	ingestReport(t, runDir)
 }
 
 // help captures a command's own help output, which cobra writes to its writer.
@@ -601,10 +603,15 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 		}
 		return strings.TrimSpace(out)
 	}
-	if got := mint(); got != "minted R1-1" {
+	// THE ID IS THE FIRST LINE; the acceptance check is echoed under it. The echo exists because
+	// a shell can rewrite a --check before the tool sees it, and the mint used to print only the
+	// id — so a corrupted contract was invisible until someone read the board (measured,
+	// red-merge-r3, 2026-09-02_quadratic-formula).
+	firstLine := func(s string) string { return strings.SplitN(s, "\n", 2)[0] }
+	if got := firstLine(mint()); got != "minted R1-1" {
 		t.Errorf("first mint said %q", got)
 	}
-	if got := mint("--key", "L1-F3"); got != "minted R1-2" {
+	if got := firstLine(mint("--key", "L1-F3")); got != "minted R1-2" {
 		t.Errorf("second mint said %q", got)
 	}
 	// The retry: same command, same key, and the EXISTING id comes back.
@@ -664,8 +671,8 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.TrimSpace(plain) != "minted R1-2" {
-		t.Errorf("default mint = %q, want unchanged prose 'minted R1-2'", plain)
+	if got := strings.SplitN(strings.TrimSpace(plain), "\n", 2)[0]; got != "minted R1-2" {
+		t.Errorf("default mint = %q, want unchanged prose 'minted R1-2' on the first line", got)
 	}
 
 	// A handler failure under --json is structured: ok:false and a message, not a bare exit.
@@ -1152,25 +1159,37 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 		{"bench", "judge-r1"},
 	}
 	for _, tc := range cases {
-		t.Run("friction/"+tc.role, func(t *testing.T) {
+		t.Run("log/"+tc.role, func(t *testing.T) {
 			runDir := newRun(t)
-			out, err := run(t, "friction", "--run", runDir, "--seat-id", tc.seatID,
-				"--reason", "the capability I needed")
+			out, err := run(t, "log", "--run", runDir, "--seat-id", tc.seatID,
+				"--reason", "the capability I needed", "--type", "defect")
 			if err != nil {
 				t.Fatal(err)
 			}
-			if strings.TrimSpace(out) != "friction recorded" {
-				t.Errorf("friction said %q", out)
+			if strings.TrimSpace(out) != "log entry recorded: defect" {
+				t.Errorf("log said %q", out)
 			}
-			ev := lastBody(t, runDir, &recordpb.Friction{})
+			ev := lastBody(t, runDir, &recordpb.Log{})
 			if got := ev.GetText(); got != "the capability I needed" {
 				t.Errorf("text = %q", got)
 			}
 			// `text`, not `reason`. `--reason` is the word a SEAT types; the field it lands in is
-			// spelled per verb, and a friction stores `text`. setFields reads the schema, so it
+			// spelled per verb, and a log entry stores `text`. setFields reads the schema, so it
 			// reports what the record holds rather than what the seat typed.
-			if keys := setFields(ev); len(keys) != 1 || !keys["text"] {
-				t.Errorf("the friction body carries more than the seat's prose: %v", keys)
+			//
+			// TYPE AND SOURCE RIDE WITH IT, and that is the point of the channel: the prose is
+			// what the seat said, the type is what it ASSERTS, and the source is who recorded it.
+			// A body carrying only prose is the shape that made an operator read 142,891
+			// characters to learn which entries were actionable.
+			keys := setFields(ev)
+			if len(keys) != 3 || !keys["text"] || !keys["type"] || !keys["source"] {
+				t.Errorf("the log body is not prose + type + source: %v", keys)
+			}
+			if ev.GetType() != recordpb.LogType_LOG_TYPE_DEFECT {
+				t.Errorf("type = %v", ev.GetType())
+			}
+			if ev.GetSource() != recordpb.LogSource_LOG_SOURCE_SEAT {
+				t.Errorf("a seat's own entry must record source SEAT, got %v", ev.GetSource())
 			}
 		})
 	}
@@ -1477,7 +1496,7 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 	}
 	t.Setenv("CLAUDE_PROJECT_DIR", proj)
 
-	if got := seat.InferRunDir(proj); got != marker {
+	if got := runlive.InferRunDir(proj); got != marker {
 		t.Fatalf("precondition: marker should resolve to %q, got %q", marker, got)
 	}
 	// With the flag present the marker must not be consulted at all.

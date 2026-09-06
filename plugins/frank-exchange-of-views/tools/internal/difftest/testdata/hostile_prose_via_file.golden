@@ -18,6 +18,8 @@ $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind docum
 exit 0
 stdout:
 minted R1-1
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ finding --run {RUN} --seat-id red-lens-r1-L5 --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason-file {RUN}/prose.md
 exit 0
@@ -25,11 +27,13 @@ stdout:
 finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
 ═══ EVENTS ═══
-{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-merge-r1:position","position":{"text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"round":1,"seat_id":"red-merge-r1","ts":1,"type":"EVENT_TYPE_POSITION"}
-{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_MINT"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_LOW","label":"L5-F1","likelihood":"GRADE_LOW","location":"## S2","severity":"GRADE_LOW","text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"key":"red-lens-r1-L5:finding:L5-F1","round":1,"seat_id":"red-lens-r1-L5","ts":3,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-L5:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-L5","ts":4,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:position","position":{"text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"round":1,"seat_id":"red-merge-r1","ts":3,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-merge-r1","ts":4,"type":"EVENT_TYPE_MINT"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_LOW","label":"L5-F1","likelihood":"GRADE_LOW","location":"## S2","severity":"GRADE_LOW","text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"key":"red-lens-r1-L5:finding:L5-F1","round":1,"seat_id":"red-lens-r1-L5","ts":5,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-L5:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-L5","ts":6,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
 -- debate
@@ -67,7 +71,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 | tier | what answered | seats |
 |---|---|---|
-| judgment | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
+| judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
 
 ## Read this first
 

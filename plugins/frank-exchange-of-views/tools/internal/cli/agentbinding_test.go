@@ -161,8 +161,8 @@ func TestAnUnregisteredAgentIsRefused(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.AgentVar, "agent_never_registered")
 
-	_, err := run(t, "friction", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--reason", "acting without an identity")
+	_, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--reason", "acting without an identity", "--type", "defect")
 	if err == nil {
 		t.Fatal("an agent with no binding on the record filed an event anyway — the seat id was taken on trust, which is the thing this replaces")
 	}
@@ -186,10 +186,10 @@ func TestRegisterIsTheOneVerbThatMayRunUnbound(t *testing.T) {
 	}
 	// And now the SAME agent may act, with no --seat-id at all. That is the whole point: the id
 	// is typed once, at register, and never again.
-	if _, err := run(t, "friction", "--run", runDir, "--reason", "the tool has no path for X"); err != nil {
+	if _, err := run(t, "log", "--run", runDir, "--reason", "the tool has no path for X", "--type", "defect"); err != nil {
 		t.Fatalf("a registered agent still could not act without retyping its seat id: %v", err)
 	}
-	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_FRICTION).GetSeatId(); got != "red-lens-r1-L1" {
+	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG).GetSeatId(); got != "red-lens-r1-L1" {
 		t.Errorf("the event was filed under %q; the binding did not carry the identity", got)
 	}
 }
@@ -201,8 +201,8 @@ func TestWithoutAHandleTheFlagStillWorks(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.AgentVar, "")
 
-	if _, err := run(t, "friction", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--reason", "no hook in this environment"); err != nil {
+	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--reason", "no hook in this environment", "--type", "defect"); err != nil {
 		t.Fatalf("an unhooked caller was held to a binding it has no way to create: %v", err)
 	}
 }
@@ -215,7 +215,7 @@ func TestAFlagContradictingTheBindingIsRefused(t *testing.T) {
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "friction", "--run", runDir, "--seat-id", "red-lens-r1-L2", "--reason", "x")
+	_, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-L2", "--reason", "x", "--type", "defect")
 	if err == nil {
 		t.Fatal("an event was filed under a seat this agent did not register as; every found_by and estoppel downstream reads that attribution")
 	}

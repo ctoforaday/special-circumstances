@@ -22,12 +22,33 @@ CREATE TRIGGER "events_are_append_only_delete" BEFORE DELETE ON "events" BEGIN
   SELECT RAISE(ABORT, 'the record is append-only: an event cannot be removed after it is written');
 END;
 
+CREATE TABLE "seat_turn" (
+  "agent_id"       TEXT    NOT NULL,
+  "turn_idx"       INTEGER NOT NULL,
+  "ts_ms"          INTEGER NOT NULL,
+  "model"          TEXT    NOT NULL,
+  "input_tokens"   INTEGER NOT NULL,
+  "output_tokens"  INTEGER NOT NULL,
+  "cache_read"     INTEGER NOT NULL,
+  "cache_creation" INTEGER NOT NULL,
+  -- A turn that carried a thinking block, and a turn that carried a tool_use block. Both are
+  -- read off the content blocks rather than inferred from token counts: the run-4 forensics
+  -- inferred thinking from a low output_tokens with a long span, which is a correlation, and
+  -- the block is the fact.
+  "is_thinking"    INTEGER NOT NULL,
+  "is_tool"        INTEGER NOT NULL,
+  PRIMARY KEY ("agent_id", "turn_idx")
+) STRICT;
+
+CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
+
 CREATE TABLE "enum_event_type" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('anchor', 'evidence tied to a finding: where in the artifact the claim actually lives');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('avenue', 'a line of inquiry, from proposed through pursued, declined, deferred or abandoned');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('base_ingest', 'the frozen round-0 report, stored verbatim as the origin the diff-stack replays over');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('blue_edit', 'a change to the living report, recorded as old and new so the edit itself is auditable');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable');
@@ -36,10 +57,9 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('close', 'a merge closi
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a seat''s closing statement on a gap: the argument, not the disposition');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('declare', 'the bench stating a holding that later sittings are expected to apply');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('finding', 'something red found, graded but not yet minted as a gap');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('friction', 'a capability the tool did not have, recorded so the tooling gets fixed rather than worked around');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('friction_none', 'a seat stating it hit no friction — the negative answer, recorded so silence and `none` are different facts');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry_review', 'a review of the lines of inquiry themselves, rather than of a finding');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('log', 'an entry addressed to the operator who can retool the seat: a defect, a request, an impediment, or a nominal sitting');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('manifest_row', 'one row of the run''s manifest, tying a gap to what shipped for it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or a direction proposed');
@@ -54,15 +74,11 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('regrade', 'a gap''s gr
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('reproduce', 'an attempt to re-run a recorded proof, and whether what it computes is sound');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('retire', 'a claim withdrawn from the report, with the reason and what supersedes it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('revision', 'a revision to a seat''s own earlier text');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_close', 'the harness''s agent returning — the other end of that span');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('sitting_open', 'the harness dispatching an agent — one end of a sitting''s span, observed by a hook rather than claimed by a seat');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('spot_check', 'red re-checking a sample of prior work, or stating that it checked none and why');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('verdict', 'red''s round gate: PASS or FAIL against the open board');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('verify', 'a citation checked at the leaf: what the source did for the claim, and how sure the reader is');
-
-CREATE TABLE "enum_schema_version" (
-  "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL
-) STRICT;
-INSERT INTO "enum_schema_version" ("value", "means") VALUES ('1', 'the protobuf record: one event stream, one row per act, schema derived from these descriptors');
 
 CREATE TABLE "enum_verdict" (
   "value" TEXT PRIMARY KEY,
@@ -172,6 +188,14 @@ INSERT INTO "enum_check_kind" ("value", "means") VALUES ('computation', 'RUNNING
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('document', 'reading a shipped artifact settles it — the check is answered by prose that quotes what is there');
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('source', 'verifying an external source settles it — the claim stands or falls on what the cited material actually says');
 
+CREATE TABLE "enum_source_text_read" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('leaf', 'the source''s own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS');
+INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('summary_only', 'read only through someone else''s account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source');
+INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('unread', 'the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says');
+
 CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -208,12 +232,22 @@ INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('deferred', 'not thi
 INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('proposed', 'you intend to follow this line; the tool assigns it an id and red may rule on it');
 INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('pursued', 'you took the line — what it produced belongs in the report');
 
-CREATE TABLE "enum_friction_kind" (
+CREATE TABLE "enum_log_type" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_friction_kind" ("value", "means") VALUES ('estoppel', 'the TOOL refused a mint because the defect lives in text blue applied verbatim from red''s own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit');
-INSERT INTO "enum_friction_kind" ("value", "means") VALUES ('tool_error', 'the TOOL failed internally — unparseable input, an undecodable row, a check that could not run. Recorded rather than printed or swallowed, because an error nobody learns about is one nothing improves on. Distinct from a seat''s own friction so the counts an operator reads stay about capability gaps');
+INSERT INTO "enum_log_type" ("value", "means") VALUES ('defect', 'something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on');
+INSERT INTO "enum_log_type" ("value", "means") VALUES ('estoppel', 'the TOOL refused a mint because the defect lives in text blue applied verbatim from red''s own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit');
+INSERT INTO "enum_log_type" ("value", "means") VALUES ('friction', 'the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect');
+INSERT INTO "enum_log_type" ("value", "means") VALUES ('nominal', 'the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used');
+INSERT INTO "enum_log_type" ("value", "means") VALUES ('request', 'a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair');
+
+CREATE TABLE "enum_log_source" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_log_source" ("value", "means") VALUES ('seat', 'a seat filed this about its own sitting');
+INSERT INTO "enum_log_source" ("value", "means") VALUES ('tool', 'the tool emitted this itself, rather than a seat filing it');
 
 CREATE TABLE "register" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
@@ -221,7 +255,8 @@ CREATE TABLE "register" (
   "agent_id" TEXT,
   "served_model" TEXT,
   "requested_model" TEXT,
-  "run_via" TEXT
+  "run_via" TEXT,
+  "agent_type" TEXT
 ) STRICT;
 
 CREATE TABLE "round_verdict" (
@@ -484,7 +519,9 @@ CREATE TABLE "cite" (
   "location" TEXT,
   "access_date" TEXT,
   "cite_key" TEXT,
-  "text" TEXT
+  "text" TEXT,
+  "source_text_read" TEXT,
+  FOREIGN KEY ("source_text_read") REFERENCES "enum_source_text_read"("value")
 ) STRICT;
 
 CREATE TABLE "verify" (
@@ -515,7 +552,8 @@ CREATE TABLE "proof" (
   "drift" TEXT,
   "text" TEXT,
   "script" TEXT,
-  "exit" INTEGER
+  "exit" INTEGER,
+  "location" TEXT
 ) STRICT;
 
 CREATE TABLE "reproduce" (
@@ -550,7 +588,9 @@ CREATE TABLE "blue_edit" (
   "new" TEXT,
   "text" TEXT,
   "applied_verbatim" INTEGER,
-  CHECK ("applied_verbatim" IS NULL OR "applied_verbatim" IN (0, 1))
+  "accepted" INTEGER,
+  CHECK ("applied_verbatim" IS NULL OR "applied_verbatim" IN (0, 1)),
+  CHECK ("accepted" IS NULL OR "accepted" IN (0, 1))
 ) STRICT;
 
 CREATE TABLE "blue_edit_reopened" (
@@ -580,17 +620,14 @@ CREATE TABLE "manifest_row" (
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id")
 ) STRICT;
 
-CREATE TABLE "friction" (
+CREATE TABLE "log" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "text" TEXT,
-  "kind" TEXT,
+  "type" TEXT NOT NULL,
+  "source" TEXT,
   "estopped_by" TEXT,
-  FOREIGN KEY ("kind") REFERENCES "enum_friction_kind"("value")
-) STRICT;
-
-CREATE TABLE "friction_none" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "text" TEXT
+  FOREIGN KEY ("type") REFERENCES "enum_log_type"("value"),
+  FOREIGN KEY ("source") REFERENCES "enum_log_source"("value")
 ) STRICT;
 
 CREATE TABLE "inquiry_review" (
@@ -598,14 +635,131 @@ CREATE TABLE "inquiry_review" (
   "reason" TEXT
 ) STRICT;
 
+CREATE TABLE "base_ingest" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "text" TEXT
+) STRICT;
+
+CREATE TABLE "sitting_open" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "agent_id" TEXT,
+  "agent_type" TEXT
+) STRICT;
+
+CREATE TABLE "sitting_close" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "agent_id" TEXT,
+  "agent_type" TEXT
+) STRICT;
+
+CREATE INDEX "round_verdict_verdict" ON "round_verdict" ("verdict");
+
+-- THE AGENT -> SEAT BINDING, AS SQL, so a telemetry view can name a seat without any reader
+-- re-deriving the rule. It is the same rule record.SeatOfAgent applies in Go and states in prose:
+-- THE LAST REGISTER WINS, because a re-dispatch writes a fresh register event and a resumed seat
+-- legitimately arrives under a new agent id claiming a seat that is already bound. Treating that
+-- as a conflict would refuse every resume.
+--
+-- agent_type comes along because register records it too: it is what the HARNESS called the
+-- seat, beside what the seat called itself, and the two disagreeing is a thing worth being able
+-- to see rather than a thing to collapse here.
+CREATE VIEW "seat_of_agent" AS
+SELECT
+  r."agent_id"   AS "agent_id",
+  e."seat_id"    AS "seat_id",
+  r."agent_type" AS "agent_type",
+  e."round"      AS "registered_round"
+FROM "register" r
+JOIN "events" e ON e."id" = r."event_id"
+WHERE r."agent_id" IS NOT NULL AND r."agent_id" != ''
+  AND r."event_id" = (SELECT MAX(r2."event_id") FROM "register" r2 WHERE r2."agent_id" = r."agent_id");
+
+-- WHAT A SEAT COST, from the turns ingested at capture (#684 F16).
+--
+-- A LEFT JOIN, deliberately. A seat whose turns were measured but which never registered still
+-- appears, with a null seat_id — the alternative drops its rows from every total and reports a
+-- cheaper run than happened, which is the failure this whole issue keeps finding.
+--
+-- NULLIF(ts_ms, 0) is the parser's contract honoured in SQL: 0 means the line carried no
+-- timestamp, and letting it into MIN() would put the seat's start at the epoch and make wall_ms
+-- the age of the universe. A seat with no timestamped turn gets a null span, which is "not
+-- measured" and not zero.
+CREATE VIEW "seat_metrics" AS
+SELECT
+  t."agent_id"                                             AS "agent_id",
+  s."seat_id"                                              AS "seat_id",
+  s."agent_type"                                           AS "agent_type",
+  COUNT(*)                                                 AS "turns",
+  SUM(t."is_thinking")                                     AS "thinking_turns",
+  SUM(t."is_tool")                                         AS "tool_turns",
+  SUM(t."input_tokens")                                    AS "input_tokens",
+  SUM(t."output_tokens")                                   AS "output_tokens",
+  SUM(t."cache_read")                                      AS "cache_read",
+  SUM(t."cache_creation")                                  AS "cache_creation",
+  MIN(NULLIF(t."ts_ms", 0))                                AS "first_ts_ms",
+  MAX(NULLIF(t."ts_ms", 0))                                AS "last_ts_ms",
+  MAX(NULLIF(t."ts_ms", 0)) - MIN(NULLIF(t."ts_ms", 0))    AS "wall_ms"
+FROM "seat_turn" t
+LEFT JOIN "seat_of_agent" s ON s."agent_id" = t."agent_id"
+GROUP BY t."agent_id";
+
+-- HOW LONG EACH TURN TOOK, which the transcript never states: a turn's span is the gap to the one
+-- before it, so it is a window function over the seat's own ordering and cannot be a column.
+--
+-- The FIRST turn of a seat has no predecessor and gets a null span rather than a zero. Zero would
+-- say "instant", and a bucket summing it would quietly under-report every seat by its opening
+-- turn.
+CREATE VIEW "seat_turn_span" AS
+SELECT
+  "agent_id"      AS "agent_id",
+  "turn_idx"      AS "turn_idx",
+  "ts_ms"         AS "ts_ms",
+  "is_thinking"   AS "is_thinking",
+  "is_tool"       AS "is_tool",
+  "output_tokens" AS "output_tokens",
+  "ts_ms" - LAG("ts_ms") OVER (PARTITION BY "agent_id" ORDER BY "turn_idx") AS "span_ms"
+FROM "seat_turn"
+WHERE "ts_ms" > 0;
+
+-- WHERE A SEAT'S WALL CLOCK WENT, bucketed by WHAT THE TURN CONTAINED.
+--
+-- #684 F11 decomposed a run by hand into thinking / round-trip tail / big generation / stalls, and
+-- those last three are threshold judgements — 70-83 tok/s is "healthy generation", a 16-minute
+-- turn with 66 output tokens is "a stall". THOSE THRESHOLDS ARE NOT ENCODED HERE, on purpose. A
+-- number chosen once from one run, frozen into the schema, would be applied to every future run by
+-- readers who never saw it chosen, and a view is the worst place to hide a judgement because it
+-- looks like a measurement.
+--
+-- So the split is by fact: did the turn carry a thinking block, a tool_use block, both, or
+-- neither. An analysis that wants F11's buckets has span_ms and output_tokens per turn in
+-- seat_turn_span and can apply its own cutoffs, in the open, where the next reader can disagree.
+CREATE VIEW "seat_time_decomposition" AS
+SELECT
+  "agent_id"                     AS "agent_id",
+  CASE
+    WHEN "is_thinking" = 1 AND "is_tool" = 1 THEN 'thinking+tool'
+    WHEN "is_thinking" = 1                   THEN 'thinking'
+    WHEN "is_tool" = 1                       THEN 'tool'
+    ELSE 'text'
+  END                            AS "bucket",
+  COUNT(*)                       AS "turns",
+  SUM("span_ms")                 AS "span_ms",
+  SUM("output_tokens")           AS "output_tokens"
+FROM "seat_turn_span"
+GROUP BY "agent_id", "bucket";
+
 CREATE VIEW "gap" AS
 SELECT
   m."gap_id"                                   AS "gap_id",
   m."class"                                    AS "class",
+  m."location"                                 AS "location",
   m."problem"                                  AS "problem",
+  m."mint_reason"                              AS "mint_reason",
   m."required_fix"                             AS "required_fix",
   m."acceptance_check"                         AS "acceptance_check",
   m."check_kind"                               AS "check_kind",
+  m."fix_basis"                                AS "fix_basis",
+  m."fix_new"                                  AS "fix_new",
   m."severity"                                 AS "severity",
   m."likelihood"                               AS "likelihood",
   m."impact"                                   AS "impact",
@@ -662,8 +816,19 @@ SELECT
   m."event_id"                                                                        AS "minted_event"
 FROM "mint" m
 JOIN "events" e ON e."id" = m."event_id"
-LEFT JOIN "close" c ON c."gap_id" = m."gap_id"
-LEFT JOIN "events" ce ON ce."id" = c."event_id"
+-- A gap can be closed more than once — red re-adjudicates across rounds (defect_accepted in
+-- one, repaired in a later one). Take the EARLIEST close, exactly as the bench-close arm below
+-- takes its earliest closing ruling: a plain LEFT JOIN "close" fans out one row per close event,
+-- and a gap with two closes then counts twice in board_counts while the raw event walk counts it
+-- once (a projection disagreement the consistency oracle catches). closed_round's MIN already
+-- assumed the earliest; this makes the row do so too.
+LEFT JOIN (
+  SELECT c0."gap_id" AS "gap_id", MIN(c0."event_id") AS "event_id"
+  FROM "close" c0
+  GROUP BY c0."gap_id"
+) cx ON cx."gap_id" = m."gap_id"
+LEFT JOIN "close" c ON c."event_id" = cx."event_id"
+LEFT JOIN "events" ce ON ce."id" = cx."event_id"
 -- The bench's closing ruling, if it made one. A gap can be ruled on many times — carried in one
 -- round and disposed of in the next — so this is the EARLIEST ruling whose disposition closes,
 -- and whether it closes is read off the vocabulary rather than decided here.
@@ -849,3 +1014,34 @@ LEFT JOIN "motion_rule" lr ON lr."event_id" =
   (SELECT MAX(y."event_id") FROM "motion_rule" y
      WHERE y."motion_id" = p."avenue_id" AND y."subject" = 'direction')
 LEFT JOIN "events" lre ON lre."id" = lr."event_id";
+
+-- report_op is the ORDERED STREAM OF TEXT MUTATIONS that reconstruct blue's report (#709). The
+-- report is base + this stream replayed, so the SELECTION of which events mutate the text — and
+-- how each names its change — is a projection, authored HERE where every reader sees the same one,
+-- not re-derived by walking every event in Go. Each row is (event_id, kind, a, b):
+--   edit   → a=old span, b=new span (blue edit's splice, located and replaced at replay).
+--   insert → a=the anchoring quote, b=the marker id (Token(b) is spliced at that quote).
+-- The marker inserters are blue cite, blue prove, the finding's anchor event, and a red
+-- corroboration (a labelled verify). A marker event with no anchor location placed no marker in
+-- THIS report (a board/docket-only citation), so it is excluded rather than replayed as an empty
+-- insert. The FOLD itself stays in Go: replaying a splice needs the running text a prior op left,
+-- which SQL cannot carry — but nothing here builds state by scanning the whole event log.
+CREATE VIEW "report_op" AS
+  SELECT e."id" AS "event_id", 'edit' AS "kind", b."old" AS "a", b."new" AS "b"
+    FROM "blue_edit" b JOIN "events" e ON e."id" = b."event_id"
+  UNION ALL
+  SELECT e."id", 'insert', c."location", c."label"
+    FROM "cite" c JOIN "events" e ON e."id" = c."event_id"
+    WHERE COALESCE(c."location", '') != '' AND COALESCE(c."label", '') != ''
+  UNION ALL
+  SELECT e."id", 'insert', p."location", p."proof_id"
+    FROM "proof" p JOIN "events" e ON e."id" = p."event_id"
+    WHERE COALESCE(p."location", '') != '' AND COALESCE(p."proof_id", '') != ''
+  UNION ALL
+  SELECT e."id", 'insert', a."location", a."id"
+    FROM "anchor" a JOIN "events" e ON e."id" = a."event_id"
+    WHERE COALESCE(a."location", '') != '' AND COALESCE(a."id", '') != ''
+  UNION ALL
+  SELECT e."id", 'insert', v."claim", v."label"
+    FROM "verify" v JOIN "events" e ON e."id" = v."event_id"
+    WHERE COALESCE(v."label", '') != '' AND COALESCE(v."claim", '') != '';

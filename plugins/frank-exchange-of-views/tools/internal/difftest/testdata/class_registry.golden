@@ -182,7 +182,9 @@ stderr:
 feov-record: merge: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `merge class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
 
 ═══ EVENTS ═══
-{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
 
 ═══ RENDERS ═══
 -- debate
@@ -211,7 +213,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 | tier | what answered | seats |
 |---|---|---|
-| judgment | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
+| judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
 
 ## Read this first
 

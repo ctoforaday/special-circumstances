@@ -1,4 +1,4 @@
-prompt sha256: 4b132c399663384b798445f351086a853a1bb4a46f8c9a93405b19c5953ab684
+prompt sha256: 881bc32c429a8b36d7451a93be247d7a6731db602c53529fcfae6eba0e22c23e
 
 Blue synthesis for topic: "the seat prompt contract".
 PRE-FLIGHT: if research/2026-01-01_golden/inputs/red-gap-patterns.md exists, read it before merging — check your synthesis against red's known gap patterns.
@@ -18,14 +18,18 @@ Two claims resting on the same url are one source and two anchors, not two sourc
 REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your scratchpad under a NEUTRAL name and copy it into place with bash cp; a direct Write of the report path fails and wastes a round-trip.
 Recompute claim_count with the tool once report.md is written and relay the integer into the envelope; never hand-count it (two honest merges differed 2x before it was pinned).
 RECORD THE ROUND, with what this synthesis did and its claim_count as the reason; round_record_appended is TRUE only after that event exists.
+FREEZE THE REPORT, LAST — after report.md is written, the count recorded and the round recorded, run the act your seat's help lists as freezing the round-0 report into the record as its base.
+Do this ONCE, at the very end.
+If it refuses, record friction with the exact refusal and return round_record_appended honestly.
 LINES OF INQUIRY: record every genuinely distinct approach you CONSIDERED, not only the one you took — with the hypothesis that would be true if it paid off, and later with what became of it and what changed your mind.
 The hypothesis is what makes the account honest, and the dead ends matter most: one you record is one the next run does not re-walk, and it is worth more than the tidy conclusion that survived.
 Alternatives reach the reader under their own headings — what you pursued, what you left for a later run, and what you weighed and rejected are three things a reader needs, not one list of winners.
 This is not narration for the report: it is what makes "explore the alternatives" checkable instead of self-attested.
 PETITIONS: if fulfilling this seat's instructions would require asserting what you believe false, burying a real finding, or papering over a safety or ethics hazard, you may petition the bench via the envelope's petitions field (class: ethical|safety|integrity|constitutional, basis, relief) — heard BEFORE the debate continues, never sanctioned, and it does not pause your duties (attributed as blue-synthesize).
-FRICTION (blue-synthesize) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field.
-AND THE REASON OWES THE SURVEY: name the verbs you read in the tree and did NOT use, and why each was wrong for this sitting.
-A reason that lists only what you did is a receipt for the path you took and says nothing about the ones you rejected — and a seat that cannot name a single rejected option did not weigh any.
+LOG (blue-synthesize) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field.
+YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
+Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
+Where nothing impeded the work, say that instead.
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.

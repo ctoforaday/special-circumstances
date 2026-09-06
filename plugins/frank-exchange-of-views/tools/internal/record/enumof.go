@@ -94,6 +94,31 @@ func DispositionOf(word string) (recordpb.Disposition, bool) {
 
 // CheckKindOf resolves WHAT WOULD SETTLE an acceptance check — read a document, run a computation,
 // or verify a source. It is a different question from whether the check can be discharged now.
+// SourceTextReadOf resolves the word a seat types for how much of a source it read.
+func SourceTextReadOf(word string) (recordpb.SourceTextRead, bool) {
+	return enumOf[recordpb.SourceTextRead](recordpb.SourceTextRead(0).Descriptor(), word)
+}
+
+// LogTypeWords lists the log types a seat may choose, derived from the descriptor and skipping the
+// UNSPECIFIED zero — the same skip the SQL vocabulary table makes, so the surface and the storage
+// admit exactly the same set.
+func LogTypeWords() []string {
+	d := recordpb.LogType(0).Descriptor().Values()
+	out := make([]string, 0, d.Len())
+	for i := 0; i < d.Len(); i++ {
+		if w := recordpb.Word(recordpb.LogType(d.Get(i).Number())); w != "" {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+// LogTypeOf resolves the word a seat types on the log verb. Derived from the descriptor, so the
+// allowed set is the schema's and there is no second list to keep in step.
+func LogTypeOf(word string) (recordpb.LogType, bool) {
+	return enumOf[recordpb.LogType](recordpb.LogType(0).Descriptor(), word)
+}
+
 func CheckKindOf(word string) (recordpb.CheckKind, bool) {
 	return enumOf[recordpb.CheckKind](recordpb.CheckKind(0).Descriptor(), word)
 }

@@ -63,10 +63,11 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	// The census in plans/record-protobuf.md §II.1 said 32. If that number moves, the plan moves
 	// with it — this is the assertion that makes the plan's census checkable rather than asserted.
 	//
-	// It is 31 since #681 Scope 2: `Opinion` was a body of its own, and the bench's disposition is
-	// a docket MOTION's ruling now (`MotionRule.ruling.docket`), which is an arm of a body that
-	// already existed. One fewer event type, one fewer body, and the pair still corresponds.
-	const wantBodies = 31
+	// It is one FEWER since #681 Scope 2: `Opinion` was a body of its own, and the bench's
+	// disposition is a docket MOTION's ruling now (`MotionRule.ruling.docket`), which is an arm of
+	// a body that already existed. One fewer event type, one fewer body, and the pair still
+	// corresponds.
+	const wantBodies = 33
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)
@@ -79,7 +80,7 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 // proto3 without `optional` has implicit presence: an unset field and a zero-valued one marshal
 // to the same bytes under EmitUnpopulated=false. That collapse is fatal in three measured places
 // — `seq = 0` is the register event's real sequence number and difftest's rank key reads it;
-// `schema_version` absent must differ from 0, which is what the read discriminates on; and
+// an unset grade must differ from a zero one, which is what half these readers rest on; and
 // `applied_verbatim`/`independent`/`none` carry meaning by PRESENCE, never being written false.
 //
 // A single forgotten `optional` reintroduces the plausible zero this schema exists to delete,

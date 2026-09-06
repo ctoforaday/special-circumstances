@@ -313,14 +313,33 @@ func requireSupersededAreClosed(run Run) error {
 // and the envelope then reported 0 outstanding. This is the complete enforcement, at the
 // write path so no verdict route can bypass it. A FAIL is always allowed.
 func requirePassClosesAllGaps(run Run) error {
-	b, err := BoardState(run)
+	// The open set off the gap view; the motion and review arms off the typed stream — the
+	// same carriers every projection reads, so the gate and the surfaces cannot disagree.
+	m, err := MergedEvents(run)
+	if err != nil {
+		return err
+	}
+	evs := m.Events
+	db, err := openRunForRead(run)
 	if err != nil {
 		return err
 	}
 	var open []string
-	for _, id := range b.GapOrder {
-		if g := b.Gaps[id]; g != nil && g.Open {
+	if db != nil {
+		rows, err := db.Query(`SELECT "gap_id" FROM "gap" WHERE "open"`)
+		if err != nil {
+			return fmt.Errorf("record: asking the record for its open gaps: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				return err
+			}
 			open = append(open, id)
+		}
+		if err := rows.Err(); err != nil {
+			return err
 		}
 	}
 	if len(open) != 0 {
@@ -346,7 +365,7 @@ func requirePassClosesAllGaps(run Run) error {
 	// it too — the alternative was a second hand-written copy in a package that cannot see the
 	// first. A subject with no ruler annotated is an ERROR, not an unlabelled id: it would mean a
 	// motion that blocks a PASS and nobody has to answer.
-	for _, m := range Motions(b) {
+	for _, m := range MotionsOf(evs) {
 		if m.Ruled() {
 			continue
 		}
@@ -388,7 +407,7 @@ func requirePassClosesAllGaps(run Run) error {
 	// content of "red verifies every turn" — a carried-forward review would be a stale read wearing
 	// the shape of a fresh one, which is this repository's recurring defect rather than a fix for
 	// it.
-	if InquiryReviewDue(b) {
+	if InquiryReviewDueOf(evs) {
 		return fmt.Errorf("record: verdict PASS refused — this round has no line-of-inquiry review. " +
 			"READ THE REPORT ONCE (`show report`), list what the record claims this run investigated with " +
 			"`show lines-of-inquiry`, and answer in one act: `inquiry-review --reason \"<what the report " +
@@ -409,7 +428,7 @@ func requirePassClosesAllGaps(run Run) error {
 	// The remedy is a FINDING, not a gap: a lens structurally cannot mint, and the tool will not
 	// write the finding itself because that would mean inventing its three grades. Red grades its
 	// own finding and the merge decides whether to raise it.
-	if open := unansweredContradictions(b); len(open) > 0 {
+	if open := unansweredContradictions(evs); len(open) > 0 {
 		sort.Strings(open)
 		return fmt.Errorf("record: verdict PASS refused — red read a source that CONTRADICTS or does not support %d claim(s), and no finding was ever raised about them:\n  %s\n"+
 			"Each is red's own reading that the report says something its source does not. Raise it with `lens finding --quote \"<the claim>\" --reason \"<what the source actually says>\"` graded on every axis, so it enters the board with the lifecycle, the blue duty and the gate every other defect has. "+

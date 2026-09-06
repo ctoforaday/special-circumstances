@@ -31,7 +31,7 @@ injected seat identity, so a lens types `finding` and the role never appears in 
 these cells as commands is how the role prefix got back into the prompts — see
 `TestNoRenderedPromptNamesACommand`.
 
-## Every seat (`register` · `friction` · `show`)
+## Every seat (`register` · `log` · `show`)
 
 Three acts every role carries, listed once. The full command path is in the first cell of every row
 in this file — **that is what makes the table checkable** (`TestEveryVerbHasATriggerRow`), and it
@@ -40,7 +40,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
 | `lens register` `merge register` `blue register` `bench register` | first action at the seat | — | CLEAN |
-| `lens friction` `merge friction` `blue friction` `bench friction` | a capability gap, or the explicit `--none` that says nothing blocked you | — | CLEAN. Every seat WRITES it; the READ is the operator's (`feov-record friction`), because a capability gap is a report to the human who can retool the seat, not material for the debate |
+| `lens log` `merge log` `blue log` `bench log` | an entry for the operator, typed: a defect, a request, an impediment worth noting, or `--type nominal` for a clean sitting | — | CLEAN. Every seat WRITES it; the READ is the operator's (`feov-record log`), because a capability gap is a report to the human who can retool the seat, not material for the debate |
 | `lens show` `merge show` `blue show` `bench show` | read a projection | — | CLEAN (read path). The projections are their own vocabulary with their own gate — see `TestEveryViewNamesTheVerbThatFillsIt` — so the `show <view>` subtree is not enumerated here |
 
 ## Lens
@@ -75,6 +75,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
 | `blue edit` | any change to `blue/report.md` after round 0 | a raw Write/Edit to the file | EXECUTED — the lockdown: report.md is read-only to a response seat and the tool refuses an edit that drops, duplicates or invents an anchor |
+| `blue ingest` | freeze the round-0 report into the record, once, by its author at synthesis | ~~a raw write leaving a file behind~~ | EXECUTED (#709): reads the file verbatim into a `BaseIngest` event, PROVES the record renders it back byte-for-byte, then DELETES the file — after which the report is the base plus its diff-stack and there is no file to write, chattr, or bypass. Write-once (a second ingest is refused → `blue edit`) and author-only |
 | `blue cite` | a source backing a claim you are authoring | a hand-typed `[^1]` footnote | EXECUTED: the tool fetches, caches, hashes and splices the invisible anchor; assembly weaves the bibliography. Blue never types a footnote |
 | `blue prove` | a claim a program settles, and the gaps whose `check_kind` is `computation` | prose asserting the computation happened | EXECUTED (#277): a computation gap CANNOT be closed on prose, and the tool runs the script twice and records which of reproducible/observed it produced |
 | `blue line-of-inquiry propose` | a direction you are putting on the record, with what would be true if it paid off | — | CLEAN |

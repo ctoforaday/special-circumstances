@@ -1,24 +1,35 @@
 package hookgate
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
 
-// PreOutcome — the run-directory injection (#281).
-//
-// NOTE FOR ANYONE EDITING THIS FILE FROM A SHELL: the deny arm matches its write patterns
-// anywhere in a Bash command, so a heredoc containing `cp … blue/report.md` is refused as
-// though it were a write. Writing this file through the Write tool works; a `cat <<EOF` does
-// not. That is the same mention-vs-invocation confusion the rewrite arm's position matcher
-// exists to avoid, still present in the deny arm — recorded here because it was hit, not
-// theorised.
+// PreOutcome — the run-directory and identity injection (#281, #510).
 
 const liveRun = "/c/Users/gb/Projects/special-circumstances/research/2026-08-05_smoke"
 
 func bash(t *testing.T, command string) Input {
 	t.Helper()
-	return mkInput(t, "blue", "Bash", map[string]string{"command": command})
+	raw, err := json.Marshal(map[string]string{"command": command})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return Input{ToolName: "Bash", ToolInput: raw}
+}
+
+// seatBash is a Bash call from a DISPATCHED SEAT — one carrying both harness identity fields.
+//
+// bash() deliberately carries neither, which is a main-session call. Tests about the injection's
+// per-variable behaviour need a payload with more than one variable on it, or they assert their
+// property against a payload that had nothing to inject and pass without exercising anything.
+func seatBash(t *testing.T, command string) Input {
+	t.Helper()
+	in := bash(t, command)
+	in.AgentID = "agent_01"
+	in.AgentType = "frank-exchange-of-views:red-auditor"
+	return in
 }
 
 // THE REAL COMMAND, from the 2026-08-05 smoke, and the reason the emission is `export …;`
@@ -85,34 +96,26 @@ func TestInvocationPositionsAreRewritten(t *testing.T) {
 	}
 }
 
-// DENY WINS, structurally. A command that both writes the report and invokes the tool must be
-// DENIED — a rewrite emitted in its place is a deny that never happened, and the hook protocol
-// allows only one document.
-func TestDenyBeatsRewrite(t *testing.T) {
-	// INSIDE THE LIVE RUN, which is now what makes it the lockdown's business. The path used to
-	// be an unrelated /runs/x/... and denied anyway, because the gate matched the path SHAPE and
-	// never asked whether it was in a run.
-	reportPath := liveRun + "/blue/" + "report.md"
-	out, payload := PreOutcome(bash(t, `cp draft.md `+reportPath+` && "/c/bin/feov-record" blue edit --key F1`), liveRun)
-	if out != OutcomeDeny {
-		t.Fatalf("outcome %v, want deny — the blue-report lockdown must not open", out)
-	}
-	if strings.Contains(payload, "export FEOV_RUN") {
-		t.Error("a rewrite leaked into the deny reason")
-	}
-}
-
 // QUOTING IS A SECURITY BOUNDARY. A newline in the value would terminate the export statement
 // and turn the remainder into a command. The run directory comes off disk, and a file is not
 // trusted input just because we wrote it once.
 func TestHostileRunDirIsRefusedOrNeutralised(t *testing.T) {
 	in := bash(t, "feov-record verify")
 
-	if out, _ := PreOutcome(in, "/runs/x\nrm -rf /"); out == OutcomeRewrite {
-		t.Error("a run directory containing a newline was injected — that ends the export and runs the rest")
-	}
-	if out, _ := PreOutcome(in, "/runs/x\x00y"); out == OutcomeRewrite {
-		t.Error("a run directory containing a NUL was injected")
+	// THE PROPERTY IS THAT THE HOSTILE VALUE NEVER LANDS, not that nothing else does. This
+	// asserted `out != OutcomeRewrite`, which held only while the fixture carried no other
+	// variable to inject — the injection is PER-VARIABLE by design, so a refused FEOV_RUN
+	// alongside an attested agent type is a rewrite that correctly omits the run. Asserting the
+	// outcome tested the fixture; asserting the payload tests the boundary.
+	for _, hostile := range []string{"/runs/x\nrm -rf /", "/runs/x\x00y"} {
+		out, payload := PreOutcome(seatBash(t, "feov-record verify"), hostile)
+		if out == OutcomeRewrite && strings.Contains(payload, "FEOV_RUN") {
+			t.Errorf("a run directory containing a control character was injected — that ends the "+
+				"export and runs the rest:\n%s", payload)
+		}
+		if strings.Contains(payload, "rm -rf") || strings.Contains(payload, "\x00") {
+			t.Errorf("the hostile value reached the payload:\n%q", payload)
+		}
 	}
 	// An apostrophe is legal in a path, so it is ESCAPED rather than refused.
 	out, payload := PreOutcome(in, `/runs/it's here`)
@@ -124,10 +127,33 @@ func TestHostileRunDirIsRefusedOrNeutralised(t *testing.T) {
 	}
 }
 
-// Idempotent: a second hook pass, or a seat that copied a rewritten command, must not stack.
-func TestAlreadyInjectedIsLeftAlone(t *testing.T) {
-	if out, _ := PreOutcome(bash(t, `export FEOV_RUN='/runs/x'; feov-record verify`), liveRun); out == OutcomeRewrite {
-		t.Error("the export was stacked onto a command that already carried one")
+// Idempotent PER VARIABLE: a second hook pass, or a seat that copied a rewritten command, must not
+// stack the variable it already carries — and must still supply the ones it does not.
+//
+// This asserted that no rewrite happened at all, which was indistinguishable from the real
+// property while the fixture had only one variable to inject. Making it all-or-nothing is the
+// documented mistake: it would silently skip the identity of a seat that had copied a command
+// carrying FEOV_RUN, and an absent identity reads exactly like a main-session call.
+func TestAlreadyInjectedIsNotStacked(t *testing.T) {
+	_, payload := PreOutcome(seatBash(t, `export FEOV_RUN='/runs/x'; feov-record verify`), liveRun)
+	if n := strings.Count(payload, "export FEOV_RUN="); n > 1 {
+		t.Errorf("FEOV_RUN was exported %d times — the prefix stacked:\n%s", n, payload)
+	}
+	if strings.Contains(payload, "export FEOV_RUN='"+liveRun+"'") {
+		t.Errorf("the seat's own FEOV_RUN was overridden by a second export:\n%s", payload)
+	}
+}
+
+// The variable a command does NOT already carry still arrives. This is the half the all-or-nothing
+// shape lost, and the one whose absence is silent.
+func TestAMissingVariableIsStillInjectedBesideOneAlreadyPresent(t *testing.T) {
+	in := seatBash(t, `export FEOV_RUN='/runs/x'; feov-record verify`)
+	out, payload := PreOutcome(in, liveRun)
+	if out != OutcomeRewrite {
+		t.Fatalf("outcome %v: the agent type was not supplied to a command already carrying the run", out)
+	}
+	if !strings.Contains(payload, "export FEOV_AGENT_TYPE='frank-exchange-of-views:red-auditor'; ") {
+		t.Errorf("the attested agent type did not reach a command that already carried FEOV_RUN:\n%s", payload)
 	}
 }
 
@@ -141,7 +167,7 @@ func TestNoRunDirMeansNoRewrite(t *testing.T) {
 
 // Only Bash carries a command. Write/Edit have no shell to inject into.
 func TestNonBashToolsAreUntouched(t *testing.T) {
-	in := mkInput(t, "blue", "Write", map[string]string{"file_path": "/runs/x/notes.md", "command": "feov-record verify"})
+	in := Input{ToolName: "Write", ToolInput: []byte(`{"file_path":"/runs/x/notes.md","command":"feov-record verify"}`)}
 	if out, _ := PreOutcome(in, liveRun); out != OutcomeNone {
 		t.Error("a non-Bash tool call was rewritten")
 	}

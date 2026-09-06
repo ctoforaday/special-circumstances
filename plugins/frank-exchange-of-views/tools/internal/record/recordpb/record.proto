@@ -8,10 +8,24 @@
 // GENERATED CODE IS COMMITTED. Regenerate with `go run ./protogen` from scripts/; the schema's
 // content hash is stamped beside the bindings and gated in CI.
 //
-// FIELD NUMBERS ARE PERMANENT. A retired number goes in `reserved`, never back into service —
-// a renumber silently reinterprets every record already written. This is the one piece of
-// backwards compatibility the migration does NOT delete, because it is what makes the format
-// safe to change at all.
+// FIELD NUMBERS ARE INERT HERE, AND NAMES ARE WHAT BREAK. This file is a SCHEMA DEFINITION
+// LANGUAGE, not a wire format: nothing in this tree marshals or unmarshals binary protobuf.
+// `proto.Marshal` appears exactly once, at `recordsql/store.go` as `var _ = proto.Marshal` — an
+// import-keeper, not a call. Records live in SQLite and leave through protojson, and BOTH are
+// keyed on NAMES: `recordsql.TableName` is `snake(message.Name())`, every column is
+// `field.Name()`, every enum table is `"enum_" + snake(enum.Name())`, and foreign keys reference
+// `field.Name()`. Search this file for a field number's effect on storage and there is none.
+//
+// So the rule that used to stand here — "field numbers are permanent, a renumber silently
+// reinterprets every record already written" — described the textproto/binary era the SQLite
+// store retired. Renumbering costs nothing. RENAMING is the breaking change: rename a message
+// and the table moves; rename a field and the column moves; and a reader pointed at a record
+// written before the rename finds the old name absent and returns ZERO ROWS, which is
+// byte-identical to a clean board. That is the failure to design against, not renumbering.
+//
+// THIS HOLDS ONLY WHILE NOTHING WRITES THE WIRE FORMAT. If binary marshalling is ever
+// introduced, field numbers become load-bearing again and the permanence rule comes back with
+// them. Say so here if that day comes.
 
 syntax = "proto3";
 
@@ -171,24 +185,6 @@ message Sql {
   optional bool unique = 5;
 }
 
-// SchemaVersion is the format discriminator, and it is a POSITIVE FIELD rather than a parse
-// failure on purpose.
-//
-// Detecting an old record by "the unmarshal failed" recovers a fact from the shape of an error,
-// which is the defect this whole schema exists to remove. It also breaks forward reads: the
-// moment a later release adds anything, an older binary would report the record as OLDER than
-// itself, which is the opposite of true.
-//
-// IT BUMPS ON ENUM-VALUE ADDITIONS TOO, not only on field changes. Measured against
-// protobuf-go v1.36.12: protojson with DiscardUnknown=true does not reject an unknown enum
-// value, it silently drops the field to its zero value. So a newer `check_kind` read by an
-// older binary would become UNSPECIFIED without a word — a plausible zero manufactured by the
-// tolerance setting. The version gate refuses the line first; scripts/protogen gates the bump.
-enum SchemaVersion {
-  SCHEMA_VERSION_UNSPECIFIED = 0;  // absent: written before the schema existed. Always an error.
-  SCHEMA_VERSION_1 = 1 [(means) = "the protobuf record: one event stream, one row per act, schema derived from these descriptors"];
-}
-
 // EventType names the verb that wrote the event. It is redundant with the `body` oneof case and
 // checked against it at the single write path — two carriers of one fact with a gate between
 // them, which is legal precisely because the gate exists. It stays because it is in every
@@ -210,8 +206,7 @@ enum EventType {
   EVENT_TYPE_CLOSING = 9 [(means) = "a seat's closing statement on a gap: the argument, not the disposition"];
   EVENT_TYPE_DECLARE = 10 [(means) = "the bench stating a holding that later sittings are expected to apply"];
   EVENT_TYPE_FINDING = 11 [(means) = "something red found, graded but not yet minted as a gap"];
-  EVENT_TYPE_FRICTION = 12 [(means) = "a capability the tool did not have, recorded so the tooling gets fixed rather than worked around"];
-  EVENT_TYPE_FRICTION_NONE = 13 [(means) = "a seat stating it hit no friction — the negative answer, recorded so silence and `none` are different facts"];
+  EVENT_TYPE_LOG = 12 [(means) = "an entry addressed to the operator who can retool the seat: a defect, a request, an impediment, or a nominal sitting"];
   EVENT_TYPE_HALT = 14 [(means) = "the bench ending the run on a safety, ethics, consent or integrity boundary"];
   EVENT_TYPE_MANIFEST_ROW = 15 [(means) = "one row of the run's manifest, tying a gap to what shipped for it"];
   EVENT_TYPE_MINT = 16 [(means) = "a gap put on the board — the act that creates the entity every other act refers to"];
@@ -230,6 +225,9 @@ enum EventType {
   EVENT_TYPE_VERDICT = 30 [(means) = "red's round gate: PASS or FAIL against the open board"];
   EVENT_TYPE_VERIFY = 31 [(means) = "a citation checked at the leaf: what the source did for the claim, and how sure the reader is"];
   EVENT_TYPE_INQUIRY_REVIEW = 32 [(means) = "a review of the lines of inquiry themselves, rather than of a finding"];
+  EVENT_TYPE_BASE_INGEST = 33 [(means) = "the frozen round-0 report, stored verbatim as the origin the diff-stack replays over"];
+  EVENT_TYPE_SITTING_OPEN = 34 [(means) = "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"];
+  EVENT_TYPE_SITTING_CLOSE = 35 [(means) = "the harness's agent returning — the other end of that span"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -390,8 +388,8 @@ enum DirectionRuling {
 // throughout this record: a flag the seat never passed must not appear in the event at all, and
 // presence is read at 34 call sites. proto3 without `optional` has implicit presence, so an
 // unset field and a zero-valued one marshal to the same bytes under EmitUnpopulated=false —
-// `seq = 0` (the register event's real sequence number) would vanish from the line, and
-// schema_version could not distinguish "absent" from "0", which is the question the read rests
+// `seq = 0` (the register event's real sequence number) would vanish from the line, and a grade of
+// zero could not be told from an ungraded axis, which is the distinction half these readers rest
 // on. Requiredness is a validate-time duty declared separately, never inferred from optionality.
 message Event {
   // `seq` WAS FIELD 1 AND IS GONE. It was the seat's position within its own shard file, and its
@@ -442,7 +440,14 @@ message Event {
 
   optional EventType type = 7;
   optional string key = 8;
-  optional SchemaVersion schema_version = 9;
+  // 9 WAS `schema_version`, REMOVED 2026-09-06. It was a format discriminator for a reader that
+  // no longer exists: the line reader it gated went with the shard lines, and afterwards the field
+  // was stamped on every event and read by NOTHING. The compatibility question it claimed to
+  // answer is answered by the event-schema epoch, which is a fact about the BINARY compared at
+  // setup, not a column on every row. Kept reserved so the number cannot come back meaning
+  // something else.
+  reserved 9;
+  reserved "schema_version";
 
   oneof body {
     Register register = 20;
@@ -473,15 +478,18 @@ message Event {
     Revision revision = 46;
     Retire retire = 47;
     ManifestRow manifest_row = 48;
-    Friction friction = 49;
-    FrictionNone friction_none = 50;
+    Log log = 49;
     InquiryReview inquiry_review = 51;
+    BaseIngest base_ingest = 52;
+    SittingOpen sitting_open = 53;
+    SittingClose sitting_close = 54;
   }
 
-  // 52-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
-  // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, which
-  // is what the reserve is for — the block shrinks by one and nothing is renumbered.
-  reserved 52 to 80;
+  // 55-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
+  // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
+  // `base_ingest` and 53-54 for the sitting span, which is what the reserve is for — the block
+  // shrinks and nothing is renumbered.
+  reserved 55 to 80;
 }
 
 // TelemetryLine is the per-round projection, NOT a shard event.
@@ -800,6 +808,21 @@ message Anchor {
 // Cite records a source. access_date is ENGINE-SUPPLIED from the record clock, not typed by the
 // seat — it drives the staleness re-fetch trigger, so a value nothing can parse would silently
 // disable that check for the row.
+// SourceTextRead is HOW MUCH OF THE SOURCE THIS SEAT ACTUALLY READ, and it is the blue-side twin
+// of red's SourceOutcome. It exists because the distinction it carries was the load-bearing caveat
+// of a whole run and lived only as a PROSE SUBSTRING: "unreachable from this container". The run
+// then counted that phrase by grep and got it wrong twice — once counting a sentence that was
+// counting itself — because a grep cannot tell a source DISCUSSED from one merely LISTED.
+//
+// The default is the honest one. A citation nobody has asserted a reading for is UNREAD, so the
+// weak claim is what you get for free and the strong one has to be made on purpose.
+enum SourceTextRead {
+  SOURCE_TEXT_READ_UNSPECIFIED = 0;
+  SOURCE_TEXT_READ_UNREAD = 1 [(means) = "the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says"];
+  SOURCE_TEXT_READ_SUMMARY_ONLY = 2 [(means) = "read only through someone else's account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source"];
+  SOURCE_TEXT_READ_LEAF = 3 [(means) = "the source's own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS"];
+}
+
 message Cite {
   optional string label = 1;
   optional string url = 2;
@@ -809,6 +832,10 @@ message Cite {
   optional string access_date = 6;
   optional string cite_key = 7;
   optional string text = 9;
+
+  // HOW MUCH OF IT WAS READ. Not `required`: the verb defaults it to UNREAD, so the conservative
+  // claim costs a seat nothing and only a stronger one is asserted.
+  optional SourceTextRead source_text_read = 10;
 
   // `claim` held the cited sentence a SECOND time, beside `location` which held it to place the
   // anchor. One span, one field.
@@ -902,6 +929,14 @@ message Proof {
   // CONTENT, addressed by proof_sha — content is not a fact about the debate.
   optional string script = 9;
   optional int32 exit = 10;
+
+  // location is the anchoring quote the proof marker was spliced after — the same `--quote` cite
+  // and finding record. prove.go used to DROP it, because the only reader that needed the site
+  // was the marker already in report.md. Under report-as-record (#709) there is no file: the
+  // report is REPLAYED from the record, and the projection re-places the `<!--proof:p-…-->` marker
+  // by re-locating this quote. A site recoverable only from a spliced marker is a fact the record
+  // could not state; this field is that fact, held where a writer can refuse a wrong value.
+  optional string location = 11;
 }
 
 // Reproduce is red re-running a proof. REPRODUCING IS NOT PROVING: `reproduced` is COMPUTED by
@@ -982,6 +1017,16 @@ message Avenue {
 // BlueEdit is a change to the report. `answers` names the gap the edit responds to, and it is a
 // KEY rather than a convention — the prose habit it replaced linked only 73% of the time, which
 // is reliable enough to look like a key and not reliable enough to be one.
+// BaseIngest is the frozen round-0 report, stored VERBATIM at ingest (issue #709) — the origin the
+// diff-stack replays over. `blue edit` records each change as a BlueEdit; the current report is
+// this text with those edits folded back on. Written ONCE and never rewritten (a second ingest is
+// refused and redirected to `blue edit`), so the report has no writable file — only this base event
+// and its edits. `text` is the whole report, undecomposed: every reader operates on the rendered
+// text, not a document model, so there is nothing to parse and nothing to lose.
+message BaseIngest {
+  optional string text = 1;
+}
+
 message BlueEdit {
   optional string edit_key = 1;
   optional string answers = 2;
@@ -1010,6 +1055,19 @@ message BlueEdit {
   // referent needs looking at again. A verification of a reopened anchor is stale rather than
   // wrong, which is a different fact and gets a different word.
   repeated string reopened = 7;
+
+  // ACCEPTED — blue took red's prescription through `blue edit --accept` rather than typing it.
+  //
+  // WHY IT IS A SEPARATE FACT FROM applied_verbatim. Both are true on an acceptance, and only
+  // applied_verbatim is true when blue transcribed red's text by hand and the bytes happened to
+  // match. Collapsing them would make the two indistinguishable on the record — and the one
+  // measurement that matters here is whether blue is ACCEPTING more and arguing less, which a
+  // count that also includes perfect transcription cannot answer.
+  //
+  // The distinction is also a difference in kind, not degree: on the accept path the tool
+  // supplied the bytes, so verbatim-ness is structural. On the ordinary path it is the outcome
+  // of a comparison that a stray space would have failed.
+  optional bool accepted = 8;
 }
 
 message Revision {
@@ -1036,42 +1094,56 @@ message ManifestRow {
   optional string row = 2;
 }
 
-// FrictionKind is WHY a friction event exists, and it is a FIELD rather than something a reader
-// infers from the wording. estoppel.go:142-154 carries the history: the prose is aimed at a seat
-// and must stay editable, so the count an operator reads must not move when it is edited (#283).
-// A `{text}`-only Friction message would have reverted that fix silently.
-enum FrictionKind {
-  FRICTION_KIND_UNSPECIFIED = 0;  // a seat's own report: a capability it needed and did not have
-  FRICTION_KIND_ESTOPPEL = 1 [(means) = "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit"];     // an estoppel REFUSAL, recorded by the tool rather than the seat
-
-  // TOOL_ERROR is the record's answer to a swallowed error, and it is why the KIND field earns
-  // its keep twice over.
-  //
-  // A tool that cannot parse its own input, or drops a row it cannot decode, currently either
-  // prints somewhere nobody reads or says nothing at all — and an error nobody learns about is
-  // one the system cannot improve on. The friction channel already exists for exactly this
-  // escalation, so an internal failure becomes an EVENT rather than a silence.
-  //
-  // It is a distinct KIND rather than a plain friction event because friction is otherwise a
-  // SEAT's report of a missing capability, and folding tool faults into that count would move a
-  // number an operator reads for a reason unrelated to what it measures — the #283 property this
-  // enum exists to protect. Filter by kind; the counts stay honest.
-  FRICTION_KIND_TOOL_ERROR = 2 [(means) = "the TOOL failed internally — unparseable input, an undecodable row, a check that could not run. Recorded rather than printed or swallowed, because an error nobody learns about is one nothing improves on. Distinct from a seat's own friction so the counts an operator reads stay about capability gaps"];
+// LogSource is WHO recorded the entry, and LogType is WHAT IT ASSERTS. They are two axes and were
+// one enum: the old `FrictionKind` mixed a tool-emitted refusal in with a seat's own report, so a
+// "seat reports only" filter had to know which VALUES were tool values. Splitting them means a new
+// tool-emitted type never breaks that filter.
+//
+// The zero of each is declared because proto3 requires one, and is UNWRITABLE: schema.go skips the
+// UNSPECIFIED zero when building the enum vocabulary table ("absence is NULL here"), so the table
+// holds only real values and the column's FOREIGN KEY into it refuses an explicit zero. With
+// `required: true` the column is NOT NULL as well: NULL refused by the requirement, the zero by
+// the key.
+enum LogSource {
+  LOG_SOURCE_UNSPECIFIED = 0;
+  LOG_SOURCE_SEAT = 1 [(means) = "a seat filed this about its own sitting"];
+  LOG_SOURCE_TOOL = 2 [(means) = "the tool emitted this itself, rather than a seat filing it"];
 }
 
-// Friction is the escalation channel that keeps a missing tool from becoming a silent workaround
-// — and, when the tool refuses a mint under estoppel, the record of that refusal.
-message Friction {
+// LogType is WHAT THE ENTRY ASSERTS, and it is a FIELD rather than something a reader infers from
+// the wording. estoppel.go:142-154 carries the history: the prose is aimed at a seat and must stay
+// editable, so the count an operator reads must not move when it is edited (#283). A `{text}`-only
+// message would have reverted that fix silently.
+enum LogType {
+  LOG_TYPE_UNSPECIFIED = 0;
+  LOG_TYPE_NOMINAL = 1 [(means) = "the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used"];
+  LOG_TYPE_DEFECT = 2 [(means) = "something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on"];
+  LOG_TYPE_REQUEST = 3 [(means) = "a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair"];
+  LOG_TYPE_FRICTION = 4 [(means) = "the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect"];
+  LOG_TYPE_ESTOPPEL = 5 [(means) = "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit"];
+}
+
+// Log is the channel addressed to the OPERATOR WHO CAN RETOOL THE SEAT — not to the debate. It
+// keeps a missing tool from becoming a silent workaround, and records the tool's own refusals.
+//
+// THERE IS NO SEPARATE EMPTY FORM. A clean sitting is logged in the POSITIVE, as
+// `{source: SEAT, type: NOMINAL}`: "none" is an answer to a question about friction, and an entry
+// that says "none" is still an entry. The property the old explicit negative existed for survives
+// because a NOMINAL entry is still an EVENT — an attested-clean sitting stays distinguishable from
+// a channel nobody used, which is what silence could never say.
+message Log {
   optional string text = 1;
-  optional FrictionKind kind = 2;
+  optional LogType type = 2 [(sql) = {
+    required: true
+    why: "the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace — measured at 142,891 characters on one run"
+  }];
+  // SOURCE IS SET BY THE WRITE PATH, NOT ASKED. It is deliberately NOT `required`: that
+  // annotation means "a flag the seat supplies", and vocabulary_test enforces exactly that
+  // mapping. A seat cannot honestly claim to be the tool, so the seat verb sets SEAT and the
+  // tool's own writes set TOOL, at every call site.
+  optional LogSource source = 4;
   // estopped_by names the gap whose own --fix-new the refused mint was attacking.
   optional string estopped_by = 3;
-}
-
-// FrictionNone is the explicit negative: the seat was asked and had nothing to report. Distinct
-// from never having been asked, which is the whole reason it is its own event.
-message FrictionNone {
-  optional string text = 1;
 }
 
 // Motion, and the SECOND oneof is the whole point.
@@ -1406,6 +1478,63 @@ message Register {
   // seat writes before registering, so nothing observed how the run directory was resolved, and a
   // guess would put a fact on the record nobody measured.
   optional string run_via = 3;
+
+  // THE AGENT CONFIGURATION THE HARNESS SAYS THIS SEAT RAN UNDER — attested, never typed.
+  //
+  // agent_id says WHICH agent; this says which CONFIGURATION it was dispatched as, and the two
+  // refuse different things. It is what lets `register` reject a seat id from the wrong family:
+  // the roster gate bounds an id's SHAPE and states plainly that it "bounds the SHAPE, never the
+  // membership", so before this field nothing could tell that a lead-judge agent had registered
+  // as `red-merge-r1`.
+  //
+  // IT NAMES A ROLE AND NOT A SEAT, measured (#290, 2026-08-23): four types cover thirteen seats,
+  // and `frank-exchange-of-views:red-auditor` covers both the lenses and the merge. So it narrows
+  // the claim rather than settling it, and the record says which of the two it was by keeping the
+  // seat id as well.
+  //
+  // ABSENT IS NOT "": a run whose hook never fired carries no attestation on any register event,
+  // and that stays legible as NOT MEASURED rather than as an agent configured as nothing.
+  optional string agent_type = 6;
+}
+
+// SittingOpen and SittingClose are the two ends of ONE DISPATCH of one harness agent, each
+// written by a hook that observed it rather than by the seat it is about.
+//
+// WHY THEY EXIST: seat durations read ZERO (#265). StartedMs and EndedMs were taken from
+// FILESYSTEM MTIMES, so on the fallback path they were equal for every completed seat and the
+// duration branch never fired; on a running seat "elapsed" measured time since the last WRITE. A
+// span whose ends are file metadata is not a measurement of a sitting, it is a measurement of a
+// file, and the dashboard's timing instruments read authoritative while reading nothing.
+//
+// TWO MESSAGES AND NOT ONE WITH A PHASE FIELD. The event type is derived from the oneof field
+// name (recordpb.SetBody), so two fields sharing one message would resolve to whichever came
+// first and one of the two ends could never be stamped. They are also genuinely two acts by two
+// different hooks, which is what the vocabulary is for.
+//
+// NEITHER CARRIES A DURATION, deliberately. A span is the difference between two timestamps the
+// envelope already holds, and storing it as well would be a third copy of a fact two events state
+// — and the copy that goes stale is the one a reader trusts.
+message SittingOpen {
+  // agent_id IS THE ONLY THING THIS END CAN NAME. SubagentStart carries the harness handle and
+  // the agent configuration and NOTHING workflow-supplied (#290, measured 2026-08-23) — the
+  // dispatcher's own seat id does not reach it, and no probe sentinel appears in the payload. So
+  // the seat is resolved LATER, by joining this handle to the register event that names it, which
+  // is the same join record.SeatOfAgent already does.
+  //
+  // That is why the envelope's seat_id on this event is the hook's own origin and not a seat: an
+  // id invented here to look seat-shaped would be a guess written into a permanent record.
+  optional string agent_id = 1;
+
+  // agent_type is the configuration, and on THIS event it is also the filter that makes the
+  // record honest: SubagentStop fires at the MAIN agent's turn end as well, with a minted id and
+  // no type (19 seats against 50 turn ends in one measured session, zero exceptions either way —
+  // plans/hook-surface-spike.md §7a). An event with no type is not a sitting and is never written.
+  optional string agent_type = 2;
+}
+
+message SittingClose {
+  optional string agent_id = 1;
+  optional string agent_type = 2;
 }
 
 // RoundVerdict carries red's terminal gate on a round.

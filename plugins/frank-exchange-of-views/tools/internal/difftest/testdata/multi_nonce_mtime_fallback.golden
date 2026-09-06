@@ -47,8 +47,8 @@ Available Commands:
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   finding      a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
-  friction     a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help         Help about any command
+  log          an entry for the operator who can retool you — what it asserts, said in the positive
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
   verify       judge a citation blue authored, when the anchor exists and you have read what it points at
@@ -68,10 +68,12 @@ Flags:
 Use "feov-record [command] --help" for more information about a command.
 
 ═══ EVENTS ═══
-{"key":"red-lens-r1-L1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-lens-r1-L1","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_LOW","label":"L1-F1","likelihood":"GRADE_LOW","location":"## S2","severity":"GRADE_LOW","text":"older shard"},"key":"red-lens-r1-L1:finding:L1-F1","round":1,"seat_id":"red-lens-r1-L1","ts":1,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-L1:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-L1","ts":2,"type":"EVENT_TYPE_ANCHOR"}
-{"key":"red-lens-r1-L1:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-lens-r1-L1","ts":3,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-lens-r1-L1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-lens-r1-L1","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_LOW","label":"L1-F1","likelihood":"GRADE_LOW","location":"## S2","severity":"GRADE_LOW","text":"older shard"},"key":"red-lens-r1-L1:finding:L1-F1","round":1,"seat_id":"red-lens-r1-L1","ts":3,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-L1:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-L1","ts":4,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-lens-r1-L1:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-lens-r1-L1","ts":5,"type":"EVENT_TYPE_REGISTER"}
 
 ═══ RENDERS ═══
 -- debate
@@ -101,6 +103,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 | tier | what answered | seats |
 |---|---|---|
 | bulk | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
+| judgment | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
 
 ## Read this first
 

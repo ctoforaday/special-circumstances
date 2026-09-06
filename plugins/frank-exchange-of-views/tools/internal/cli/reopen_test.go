@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // AN EDIT THAT MOVES CITED TEXT REOPENS THE CITATION, END TO END.
@@ -36,7 +37,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return record.EvidenceJSONOf(b)
+		return record.EvidenceJSONOf(b.Events)
 	}
 	if got := evidence().Reopened; len(got) != 0 {
 		t.Fatalf("reopened = %v before any edit, want none", got)
@@ -65,11 +66,11 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 		t.Fatalf("reopened = %v, want the corroboration's citation — the footnote now backs a sentence nobody read", got)
 	}
 	// The anchor is still THERE: reopening is not losing, and the no-loss promise still holds.
-	md, err := record.ReadBlueReport(runtest.Open(t, runDir))
+	md, err := reportproj.RenderFromRecord(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(md), got[0]) {
+	if !strings.Contains(md, got[0]) {
 		t.Error("the anchor was lost rather than reopened — an anchor may transit an edit but never be dropped by one")
 	}
 }
@@ -78,11 +79,11 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 // seat sees in `show report` and copies into its quote.
 func anchoredLine(t *testing.T, runDir string) (string, string) {
 	t.Helper()
-	md, err := record.ReadBlueReport(runtest.Open(t, runDir))
+	md, err := reportproj.RenderFromRecord(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, l := range strings.Split(string(md), "\n") {
+	for _, l := range strings.Split(md, "\n") {
 		i := strings.Index(l, "<!--cite:")
 		if i < 0 {
 			continue

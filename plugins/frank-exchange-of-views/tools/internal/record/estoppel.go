@@ -37,11 +37,14 @@ const minEstoppelOverlap = 40
 // appliedVerbatim maps each gap id whose concrete proposal blue applied EXACTLY to the text
 // red prescribed. Only these gaps estop red.
 //
-// The fact is recorded at edit time by the tool comparing bytes (`blue edit` sets
-// applied_verbatim), never by a seat asserting it.
-func appliedVerbatim(b *Board) map[string]string {
+// The fact is recorded at edit time by the tool, never by a seat asserting it — TWO WAYS, and
+// the difference is one of kind. On an ordinary `blue edit` it is the outcome of comparing the
+// bytes blue typed against the ones red prescribed. On `blue edit --accept` the tool supplied
+// those bytes from the mint, so it holds by construction and no transcription slip can cost it.
+// `BlueEdit.accepted` tells the two apart where that matters; estoppel does not care which.
+func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
 	out := map[string]string{}
-	for _, e := range b.Events {
+	for _, e := range evs {
 		// THE BODY IS THE FILTER. "not a blue_edit" is the same set the `e.Type != "blue_edit"`
 		// test selected, and it cannot go stale against the enum the way a second reading of the
 		// type could.
@@ -50,7 +53,7 @@ func appliedVerbatim(b *Board) map[string]string {
 			continue
 		}
 		id := ed.GetAnswers()
-		g, ok := b.Gaps[id]
+		g, ok := gaps[id]
 		if !ok || g.Mint == nil {
 			continue
 		}
@@ -70,7 +73,7 @@ func EstoppelConflict(b *Board, quote string) (gapID, prescribed string) {
 	if len(q) == 0 {
 		return "", ""
 	}
-	for id, fixNew := range appliedVerbatim(b) {
+	for id, fixNew := range appliedVerbatim(b.Events, b.Gaps) {
 		p := collapse(fixNew)
 		if len(p) < minEstoppelOverlap && len(q) < minEstoppelOverlap {
 			continue
@@ -96,16 +99,22 @@ func EstoppelConflict(b *Board, quote string) (gapID, prescribed string) {
 // A gap red offered text for and blue has not answered at all is neither applied nor
 // declined: it is unanswered, and it is left out of both rather than scored as agreement.
 func DeclineStats(b *Board) (offered, applied, declined int) {
-	verbatim := appliedVerbatim(b)
+	return DeclineStatsOf(b.Events, b.Gaps)
+}
+
+// DeclineStatsOf is DeclineStats over the family pieces themselves (events + the gap index),
+// for the run-shaped renders.
+func DeclineStatsOf(evs []*Event, gaps map[string]*Gap) (offered, applied, declined int) {
+	verbatim := appliedVerbatim(evs, gaps)
 	answered := map[string]bool{}
-	for _, e := range b.Events {
+	for _, e := range evs {
 		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
 			if id := ed.GetAnswers(); id != "" {
 				answered[id] = true
 			}
 		}
 	}
-	for id, g := range b.Gaps {
+	for id, g := range gaps {
 		if g.Mint == nil || g.Mint.GetFixBasis() != "verified" {
 			continue
 		}
@@ -131,6 +140,27 @@ func collapse(s string) string { return strings.Join(strings.Fields(s), " ") }
 // authoring, and it must be audited as blue's text; only an identical pair estops red from
 // re-arguing what it wrote itself. Whitespace is NOT normalized here for that reason: the
 // looser the match, the more of blue's own writing red is barred from auditing.
+// Proposal hands back the pair a gap's mint recorded: the span red located, and the text it
+// prescribed to replace it with.
+//
+// IT EXISTS SO BLUE NEED NOT RETYPE THEM. `blue edit --accept` reads the pair here and edits with
+// it, which makes applied_verbatim true BY CONSTRUCTION rather than by the comparison below — the
+// difference between "blue agreed" and "blue agreed and transcribed 400 characters without a
+// typo". Same query, same row; the two callers want opposite ends of it.
+//
+// found=false means no mint for that gap. An empty fixNew with found=true is a real state — red
+// raised the gap without prescribing concrete text — and is the caller's to refuse, because the
+// refusal it wants to give names the verb it was called from.
+func Proposal(run Run, gapID string) (location, fixNew string, found bool, err error) {
+	var loc, fix sql.NullString
+	ok, err := queryRow(run, []any{&loc, &fix},
+		`SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !ok {
+		return "", "", false, err
+	}
+	return loc.String, fix.String, true, nil
+}
+
 func ProposalAppliedVerbatim(run Run, gapID, old, new string) (bool, error) {
 	// THE SPAN IS THE GAP'S OWN `location`. It was a separate `fix_old` holding the same
 	// sentence, matched by a second matcher — a gap's location and the span its proposal
@@ -163,14 +193,17 @@ func ProposalAppliedVerbatim(run Run, gapID, old, new string) (bool, error) {
 // It counts the FIELD, never the message. Rewriting the refusal's wording — which is prose
 // aimed at a seat and should stay editable — must not move a number an operator reads as
 // evidence about red's behaviour.
-func EstoppelRejections(b *Board) int {
+func EstoppelRejections(b *Board) int { return EstoppelRejectionsOf(b.Events) }
+
+// EstoppelRejectionsOf is EstoppelRejections over the events themselves.
+func EstoppelRejectionsOf(evs []*Event) int {
 	n := 0
-	for _, e := range b.Events {
-		// THE FIELD IS NOW THE SCHEMA'S, and the count reads the enum rather than a word. An
-		// absent kind is FRICTION_KIND_UNSPECIFIED — a seat's own report, which is exactly what
-		// the missing key meant before, so a friction with no kind still does not count.
-		if fr, ok := recordpb.BodyAs[*recordpb.Friction](e); ok &&
-			fr.GetKind() == recordpb.FrictionKind_FRICTION_KIND_ESTOPPEL {
+	for _, e := range evs {
+		// THE FIELD IS NOW THE SCHEMA'S, and the count reads the enum rather than a word. The
+		// type is required at the write, so an entry that is not an estoppel refusal carries a
+		// different type rather than an absent one, and still does not count.
+		if fr, ok := recordpb.BodyAs[*recordpb.Log](e); ok &&
+			fr.GetType() == recordpb.LogType_LOG_TYPE_ESTOPPEL {
 			n++
 		}
 	}

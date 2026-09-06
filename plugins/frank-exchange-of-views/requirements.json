@@ -26,6 +26,17 @@
       }
     },
     {
+      "name": "jq",
+      "purpose": "filter a record projection in ONE call — every read verb emits JSON on stdout, and the `show` group's help instructs every seat to pipe it here. REQUIRED rather than recommended because its absence is SILENT: nothing refuses, the seat falls back to spooling the projection to a scratch file and re-parsing it in python, and the run merely costs three process spawns and three round-trips per read instead of one (measured: 251 json.load re-parses and 25 key-dumps in a single run). A degradation nobody is told about is the plausible zero this suite exists to refuse, so the doctor stops at the door instead",
+      "tier": "required",
+      "check_cmd": "jq --version",
+      "install": {
+        "windows": "winget install --id jqlang.jq -e",
+        "darwin": "brew install jq",
+        "linux": "apt-get install jq (or the distro equivalent)"
+      }
+    },
+    {
       "name": "buf",
       "purpose": "convert a raw record shard line to JSON for inspection (`buf convert internal/record/recordpb/record.proto --type feov.record.v1.Event --from -#format=txtpb --to -#format=json`) — diagnostics only; nothing in the build or a run needs it, and `scripts/protogen` deliberately does not",
       "tier": "optional",

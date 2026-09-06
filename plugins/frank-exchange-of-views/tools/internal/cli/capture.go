@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/capture"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 )
 
 // newCapture is the operator command that runs /research's post-hoc capture step — ported from
@@ -26,9 +27,9 @@ func newCapture() *cobra.Command {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// RETURNED, NOT EXITED — see newScorecard. Same 1 -> 2 move, same reason.
 			if len(args) < 2 {
-				fmt.Fprintln(cmd.ErrOrStderr(), "usage: "+InvokedAs()+" capture <runDir> <workflow-transcript-dir>")
-				os.Exit(1)
+				return feov.Errorf(feov.MissingField, "usage: %s capture <run-dir> <workflow-transcript-dir>", InvokedAs())
 			}
 			// A POSITIONAL PATH IS THE EASIEST ONE TO GET WRONG — nothing injects it and nothing
 			// checks it. Opened rather than passed through, so a mistyped directory is refused

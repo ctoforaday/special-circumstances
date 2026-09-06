@@ -83,7 +83,7 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
 			"synopsis": "delivery graph", "verdict": "FAIL", "citations_checked": 0,
-			"gaps": []any{}, "petitions": []any{}, "friction": []any{}, "rulings": []any{},
+			"gaps": []any{}, "petitions": []any{}, "log": []any{}, "rulings": []any{},
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
 			"resolutions": []any{}, "grade_disputes": []any{}, "holdings": []any{},
 			"manifest": []any{"R1-1", "R1-2"}, "claim_count": 3,
@@ -93,9 +93,9 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 		case strings.HasPrefix(seatID, "red-merge"):
 			e["gaps"] = gaps
 			e["notes"] = redNotes
-			e["friction"] = []any{redFriction}
+			e["log"] = []any{redFriction}
 		case strings.HasPrefix(seatID, "blue-respond"):
-			e["friction"] = []any{blueFriction}
+			e["log"] = []any{blueFriction}
 		case strings.HasPrefix(seatID, "judge"):
 			e["holdings"] = []any{holding}
 			e["resolutions"] = []any{map[string]any{

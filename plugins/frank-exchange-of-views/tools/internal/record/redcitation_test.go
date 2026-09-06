@@ -252,7 +252,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ev := EvidenceJSONOf(b)
+	ev := EvidenceJSONOf(b.Events)
 	if len(ev.UnansweredContradictions) != 1 || ev.UnansweredContradictions[0] != claim {
 		t.Errorf("unanswered_contradictions = %v, want just %q — red cannot discharge a duty it cannot see", ev.UnansweredContradictions, claim)
 	}
@@ -282,7 +282,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ = BoardState(mustRun(t, runDir))
-	if got := EvidenceJSONOf(b).UnansweredContradictions; len(got) != 0 {
+	if got := EvidenceJSONOf(b.Events).UnansweredContradictions; len(got) != 0 {
 		t.Errorf("unanswered_contradictions = %v after the finding was raised, want empty", got)
 	}
 }
@@ -348,7 +348,7 @@ func TestAnEmptyReopenedIDNeverReachesTheProtectedSet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := reopenedAnchors(b)
+	got := reopenedAnchors(b.Events)
 	if len(got) != 1 || got[0] != "c-real" {
 		t.Errorf("reopenedAnchors = %#v, want exactly [c-real] — a blank would make the lockdown expect an anchor no document can carry, and a duplicate would count one reopening twice", got)
 	}

@@ -169,7 +169,7 @@ func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
 		t.Fatal("fixture assumption: judge-terminal's NAME cannot answer which round it is in")
 	}
 
-	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge-terminal", Round: 7}, &recordpb.Friction{Text: proto.String("a capability gap")})
+	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge-terminal", Round: 7}, &recordpb.Log{Text: proto.String("a capability gap"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge-terminal", Round: -1}, &recordpb.Friction{Text: proto.String("a capability gap")})
+	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge-terminal", Round: -1}, &recordpb.Log{Text: proto.String("a capability gap"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -253,7 +253,7 @@ func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 			t.Errorf("register reported dispatch %d, want %d — a seat told which attempt this is can "+
 				"say so; an opaque sitting id told it nothing it could use", n, dispatch)
 		}
-		if _, err := Append(id, &recordpb.FrictionNone{Text: proto.String("nothing blocked this sitting")}); err != nil {
+		if _, err := Append(id, &recordpb.Log{Text: proto.String("nothing blocked this sitting"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
 			t.Fatalf("dispatch %d could not record: %v\n\nA re-dispatched seat that cannot write is a "+
 				"crash retry that loses the whole sitting", dispatch, err)
 		}
@@ -270,7 +270,7 @@ func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 		switch e.GetType() {
 		case recordpb.EventType_EVENT_TYPE_REGISTER:
 			registers++
-		case recordpb.EventType_EVENT_TYPE_FRICTION_NONE:
+		case recordpb.EventType_EVENT_TYPE_LOG:
 			acts++
 		}
 	}

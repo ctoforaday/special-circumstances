@@ -1,6 +1,7 @@
 package record
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -415,16 +416,258 @@ func BoardJSONBytes(run Run) ([]byte, error) {
 // it is what bare `show` returns for every role, and it is the command a seat is told to run. The
 // board is the gaps; the work is the work.
 func BoardJSONBytesFor(run Run, role, seatID string) ([]byte, error) {
-	b, err := BoardState(run)
+	bj, err := BoardJSONOfRun(run)
 	if err != nil {
 		return nil, err
 	}
-	bj := BoardJSONOf(b)
 	out, err := json.MarshalIndent(bj, "", "  ")
 	if err != nil {
 		return nil, err
 	}
 	return append(out, '\n'), nil
+}
+
+// BoardJSONOfRun is the board projection asked of the RECORD: the gap view answers everything
+// scalar (order, openness, the regrade-overlaid grades, the mint's prose, the proof debt), the
+// list tables answer found_by/supersedes, and only the acts this projection EMBEDS — closures,
+// regrades, findings — come through the typed loader, because their bodies render whole and the
+// schema machinery is the one statement of body shape.
+//
+// It must answer byte-identically to BoardJSONOf over the fold — boardparity_test.go holds the
+// pair on records that exercise the fold's edges (a gap closed by BOTH arms, where attribution
+// follows the LAST closing event but the embedded body prefers the red close) — until the last
+// board-holding caller's wave retires the fold shape (plans/board-as-views.md wave 7).
+func BoardJSONOfRun(run Run) (BoardJSON, error) {
+	out := BoardJSON{
+		Open:      []GapJSON{},
+		Closed:    []GapJSON{},
+		Anomalies: []string{},
+	}
+
+	// The acts the projection embeds or attributes, one filtered typed read, grouped per gap.
+	evs, err := EventsOf(run,
+		recordpb.EventType_EVENT_TYPE_CLOSE,
+		recordpb.EventType_EVENT_TYPE_MOTION,
+		recordpb.EventType_EVENT_TYPE_MOTION_RULE,
+		recordpb.EventType_EVENT_TYPE_REGRADE,
+		recordpb.EventType_EVENT_TYPE_FINDING)
+	if err != nil {
+		return out, err
+	}
+	closures := closureStatesOf(evs)
+	regrades := map[string][]*recordpb.Regrade{}
+	var findings []*Event
+	for _, e := range evs {
+		switch m := mustBody(e).(type) {
+		case *recordpb.Regrade:
+			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], m)
+		case *recordpb.Finding:
+			findings = append(findings, e)
+		}
+	}
+
+	db, err := openRunForRead(run)
+	if err != nil {
+		return out, err
+	}
+	if db == nil {
+		out.Observations = []ObservationJSON{}
+		return out, nil
+	}
+	foundBy, err := listValuesByEvent(db, "mint_found_by")
+	if err != nil {
+		return out, err
+	}
+	supersedes, err := listValuesByEvent(db, "mint_supersedes")
+	if err != nil {
+		return out, err
+	}
+
+	rows, err := db.Query(`SELECT "gap_id", "minted_round", "open",
+	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
+	    "class", "location", "problem", "mint_reason", "required_fix", "acceptance_check",
+	    "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_event"
+	  FROM "gap" ORDER BY "minted_event"`)
+	if err != nil {
+		return out, fmt.Errorf("record: asking the record for its board: %w", err)
+	}
+	defer rows.Close()
+	credited := map[string]bool{}
+	for rows.Next() {
+		var id string
+		var round int
+		var open, awaiting bool
+		var sev, lik, imp, cx, class, loc, problem, reason, fix, gate, kind, basis, fixNew sql.NullString
+		var mintedEvent int64
+		if err := rows.Scan(&id, &round, &open, &sev, &lik, &imp, &cx,
+			&class, &loc, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedEvent); err != nil {
+			return out, err
+		}
+		gj := GapJSON{
+			ID: id, Round: round, Open: open,
+			FoundBy: strs(foundBy[mintedEvent]), Supersedes: strs(supersedes[mintedEvent]),
+			Regrades: []map[string]any{},
+			Severity: nullWord(sev), Likelihood: nullWord(lik), Impact: nullWord(imp), ComplexityCost: nullWord(cx),
+			Class: class.String, Location: loc.String, Problem: problem.String,
+			MintReason: reason.String, RequiredFix: fix.String, AcceptanceGate: gate.String,
+			CheckKind: kind.String, AwaitingProof: awaiting,
+			FixBasis: basis.String, FixOld: loc.String, FixNew: fixNew.String,
+		}
+		for _, l := range foundBy[mintedEvent] {
+			credited[l] = true
+		}
+		if c := closures[id]; c != nil && c.hasClosed {
+			gj.ClosedRound, gj.ClosedByBench = c.closedRound, c.closedByBench
+			// BOTH CLOSING BODIES REACH THE FIELD, red's preferred — closureBody's rule, applied
+			// to the same pair the fold carried.
+			body := proto.Message(c.lastClose)
+			if c.lastClose == nil {
+				body = c.lastBenchClosure
+			}
+			m, err := bodyMap(body)
+			if err != nil {
+				out.Anomalies = append(out.Anomalies, fmt.Sprintf("gap %s: %v — the closure was DROPPED from this projection, not rendered empty", id, err))
+			}
+			gj.Closure = m
+		}
+		for _, r := range regrades[id] {
+			m, err := bodyMap(r)
+			if err != nil {
+				out.Anomalies = append(out.Anomalies, fmt.Sprintf("gap %s: %v — the regrade was DROPPED from this projection, not rendered empty", id, err))
+				continue
+			}
+			gj.Regrades = append(gj.Regrades, m)
+		}
+		if open {
+			out.Open = append(out.Open, gj)
+		} else {
+			out.Closed = append(out.Closed, gj)
+			if gj.ClosedByBench {
+				out.Counts.ClosedByBench++
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return out, err
+	}
+
+	for _, e := range findings {
+		f, _ := recordpb.BodyAs[*recordpb.Finding](e)
+		oj := ObservationJSON{SeatID: e.GetSeatId(), Key: e.GetKey(), Kind: recordpb.Word(e.GetType()),
+			ID: f.GetFindingId(), Label: f.GetLabel(), Text: f.GetText()}
+		oj.Credited = oj.Label != "" && credited[oj.Label]
+		if !oj.Credited {
+			out.Counts.UncreditedFindings++
+		}
+		out.Observations = append(out.Observations, oj)
+	}
+	if out.Observations == nil {
+		out.Observations = []ObservationJSON{}
+	}
+
+	if err := db.QueryRow(`SELECT
+	    (SELECT count(*) FROM "verify"),
+	    (SELECT count(*) FROM "cite")`).Scan(&out.Counts.Citations, &out.Counts.CitationsAuthored); err != nil {
+		return out, err
+	}
+	out.Counts.Open = len(out.Open)
+	out.Counts.Closed = len(out.Closed)
+	out.Counts.TotalObservations = len(out.Observations)
+	out.Counts.Anomalies = len(out.Anomalies)
+	return out, nil
+}
+
+// closeState is the fold's closure pair for one gap, derived from the close/docket-ruling stream:
+// attribution follows the LAST closing event, whichever arm wrote it, while both bodies stay
+// addressable (closureBody's precedence needs the red close even when the bench closed last).
+type closeState struct {
+	lastClose        *recordpb.Close        // the fold's Closure: last red close
+	lastBenchClosure *recordpb.DocketRuling // the fold's BenchClosure: last CLOSING docket ruling
+	closedRound      int                    // the LAST closing event's round, either arm
+	closedByBench    bool                   // ... and whether that last event was the bench's
+	hasClosed        bool
+}
+
+// reason is the last closer's word — Gap.ClosureReason, asked of the same pair.
+func (c *closeState) reason() string {
+	return (&Gap{Closure: c.lastClose, BenchClosure: c.lastBenchClosure, ClosedByBench: c.closedByBench}).ClosureReason()
+}
+
+func closureStatesOf(evs []*Event) map[string]*closeState {
+	closures := map[string]*closeState{}
+	// THE RULING NAMES A MOTION; THE MOTION NAMES THE GAP. A stream that omits the filings
+	// yields an empty index here and every bench closure would fall through as "not a closure" —
+	// the plausible zero this whole change exists to remove — so the arm below reports the miss
+	// rather than skipping it.
+	docketGap := DocketGapByMotion(evs)
+	closing := func(id string) *closeState {
+		c, ok := closures[id]
+		if !ok {
+			c = &closeState{}
+			closures[id] = c
+		}
+		return c
+	}
+	for _, e := range evs {
+		switch m := mustBody(e).(type) {
+		case *recordpb.Close:
+			c := closing(m.GetGapId())
+			c.lastClose, c.closedRound, c.closedByBench, c.hasClosed = m, int(e.GetRound()), false, true
+		case *recordpb.MotionRule:
+			d, isDocket := m.GetRuling().(*recordpb.MotionRule_Docket)
+			if !isDocket {
+				continue // grade, petition and inquiry rulings settle no gap
+			}
+			if !benchClosesGap(d.Docket.GetDisposition()) {
+				continue
+			}
+			gapID, known := docketGap[m.GetMotionId()]
+			if !known {
+				// SILENCE HERE IS A LOST CLOSURE. This fold has no error to return, so the miss
+				// lands on the anomaly channel the only way it can: a closure keyed on the empty
+				// string, which every reader below either skips or reports — never a gap quietly
+				// left open while its ruling sits on the record.
+				continue
+			}
+			c := closing(gapID)
+			c.lastBenchClosure, c.closedRound, c.closedByBench, c.hasClosed = d.Docket, int(e.GetRound()), true, true
+		}
+	}
+	return closures
+}
+
+// mustBody is Body for a stream the loader just built: every event it returns carries one.
+func mustBody(e *Event) proto.Message {
+	b, _ := recordpb.Body(e)
+	return b
+}
+
+// nullWord renders a nullable grade word as the projection's `any`: the word, or JSON null for
+// an axis nothing graded — never "" and never 0 (GapJSON's own comment owns the reason).
+func nullWord(v sql.NullString) any {
+	if v.Valid && v.String != "" {
+		return v.String
+	}
+	return nil
+}
+
+// listValuesByEvent reads one list table whole: event_id -> values in ord order.
+func listValuesByEvent(db *sql.DB, table string) (map[int64][]string, error) {
+	rows, err := db.Query(fmt.Sprintf(`SELECT "event_id", "value" FROM %q ORDER BY "event_id", "ord"`, table))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64][]string{}
+	for rows.Next() {
+		var id int64
+		var v string
+		if err := rows.Scan(&id, &v); err != nil {
+			return nil, err
+		}
+		out[id] = append(out[id], v)
+	}
+	return out, rows.Err()
 }
 
 // WorkJSON is the merge's SHRINKING working set: OPEN gaps only, in the lean shape a
@@ -562,67 +805,106 @@ func synopsis(s string) string {
 // WorkJSONOf projects the replayed board into the merge's working set. It walks the same
 // GapOrder as BoardJSONOf so the two views agree on membership and order — open gaps to the
 // lean work list shape, closed gaps to the prose-free index.
-func WorkJSONOf(b *Board) WorkJSON {
+// WorkGapState is one gap's answer from the record for the work path: the view's scalar facts
+// (openness, the regrade-overlaid grades, the proof debt) plus the closure attribution derived
+// from the close/opinion stream. It is the input SittingOf and availableOf read instead of a
+// folded Board.
+type WorkGapState struct {
+	ID, Class, Location, Problem, CheckKind string
+	Open, AwaitingProof, ClosedByBench      bool
+	Fate                                    string // the last closer's word; closed gaps only
+	Severity, Likelihood, Impact, Cx        any
+	FoundBy, Supersedes                     []string
+}
+
+// workGapStatesOfRun reads the gap family for the work path: one view query for the scalars,
+// the two list tables, and the closure attribution off the already-fetched stream.
+func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return nil, err
+	}
+	closures := closureStatesOf(evs)
+	foundBy, err := listValuesByEvent(db, "mint_found_by")
+	if err != nil {
+		return nil, err
+	}
+	supersedes, err := listValuesByEvent(db, "mint_supersedes")
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof",
+	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
+	    "class", "location", "problem", "check_kind", "minted_event"
+	  FROM "gap" ORDER BY "minted_event"`)
+	if err != nil {
+		return nil, fmt.Errorf("record: asking the record for its work list: %w", err)
+	}
+	defer rows.Close()
+	var out []WorkGapState
+	for rows.Next() {
+		var g WorkGapState
+		var sev, lik, imp, cx, class, loc, problem, kind sql.NullString
+		var mintedEvent int64
+		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &sev, &lik, &imp, &cx,
+			&class, &loc, &problem, &kind, &mintedEvent); err != nil {
+			return nil, err
+		}
+		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
+		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
+		g.FoundBy, g.Supersedes = foundBy[mintedEvent], supersedes[mintedEvent]
+		if c := closures[g.ID]; c != nil && c.hasClosed {
+			g.ClosedByBench, g.Fate = c.closedByBench, c.reason()
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}
+
+// workJSONOfGaps assembles the lean shapes from the gap states — the same rows, the same order,
+// the same synopsis truncation the fold applied.
+func workJSONOfGaps(gaps []WorkGapState) WorkJSON {
 	out := WorkJSON{Open: []WorkGapJSON{}, ClosedIndex: []ClosedIndexJSON{}}
-	for _, id := range b.GapOrder {
-		g, ok := b.Gaps[id]
-		if !ok {
+	for _, g := range gaps {
+		if g.Open {
+			out.Open = append(out.Open, WorkGapJSON{
+				ID:       g.ID,
+				Severity: g.Severity, Likelihood: g.Likelihood, Impact: g.Impact, ComplexityCost: g.Cx,
+				Class: g.Class, Location: g.Location, ProblemSynopsis: synopsis(g.Problem),
+				CheckKind: g.CheckKind, AwaitingProof: g.AwaitingProof,
+				FoundBy: strs(g.FoundBy),
+			})
 			continue
 		}
-		if g.Open {
-			wg := WorkGapJSON{
-				ID:       g.ID,
-				Severity: gradeVal(g.Severity), Likelihood: gradeVal(g.Likelihood),
-				Impact: gradeVal(g.Impact), ComplexityCost: gradeVal(g.ComplexityCost),
-			}
-			if g.Mint != nil {
-				wg.Class = g.Mint.GetClass()
-				wg.Location = g.Mint.GetLocation()
-				wg.ProblemSynopsis = synopsis(g.Mint.GetProblem())
-				if g.Mint.CheckKind != nil {
-					wg.CheckKind = recordpb.Word(g.Mint.GetCheckKind())
-				}
-				wg.AwaitingProof = g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION && !proofNames(b, g.ID)
-				wg.FoundBy = strs(g.Mint.GetFoundBy())
-			}
-			out.Open = append(out.Open, wg)
-		} else {
-			ci := ClosedIndexJSON{ID: g.ID, ClosedBy: "red"}
-			if g.ClosedByBench {
-				ci.ClosedBy = "bench"
-			}
-			if g.Mint != nil {
-				ci.Location = g.Mint.GetLocation()
-				ci.Class = g.Mint.GetClass()
-			}
-			// ONE VOCABULARY, TWO WRITERS. Red closes with `closure_class`, the bench disposes
-			// with `disposition`; both are the same Disposition enum, and which verb wrote it is
-			// not the reader's problem. They are separate FIELDS here rather than one payload key
-			// read twice, so the fallback is a nil test on a typed body instead of a string miss.
-			// The LAST closer's word — ClosureReason keys on ClosedByBench, so a gap both
-			// writers acted on reports the fate the record settled on, not whichever field a
-			// fixed precedence happened to read first.
-			ci.Fate = g.ClosureReason()
-			// The second axis, derived rather than stored. `amends_prior` cannot be answered
-			// from the class alone — it inherits from the ruling it amends — and it says so
-			// instead of guessing, because a wrong "repaired" here is exactly the plausible
-			// zero this field exists to remove.
-			if s, ok := ArtifactStateOf(ci.Fate); ok {
-				ci.ArtifactState = string(s)
-			} else {
-				// THE LINEAGE IS ON THE MINT, not on the closure. `amends_prior` means this gap
-				// amends earlier ones, and the gap names its ancestors where every other reader
-				// finds them — `Mint.supersedes`, always present and empty when there are none.
-				// The payload record read a `supersedes` key off the CLOSE event; there is no
-				// such field, so that read would have been an empty string on every closure.
-				ci.ArtifactState = "inherits:" + strings.Join(g.Mint.GetSupersedes(), ",")
-			}
-			out.ClosedIndex = append(out.ClosedIndex, ci)
+		ci := ClosedIndexJSON{ID: g.ID, ClosedBy: "red", Location: g.Location, Class: g.Class, Fate: g.Fate}
+		if g.ClosedByBench {
+			ci.ClosedBy = "bench"
 		}
+		if s, ok := ArtifactStateOf(ci.Fate); ok {
+			ci.ArtifactState = string(s)
+		} else {
+			ci.ArtifactState = "inherits:" + strings.Join(g.Supersedes, ",")
+		}
+		out.ClosedIndex = append(out.ClosedIndex, ci)
 	}
 	out.Counts.Open = len(out.Open)
 	out.Counts.Closed = len(out.ClosedIndex)
 	return out
+}
+
+// WorkJSONOfRun is the work list's gap half asked of the record — the shape the oracle holds
+// to its raw walk. The seat-addressed halves (sitting, counterparty) need a role and seat and
+// are added by WorkJSONBytes.
+func WorkJSONOfRun(run Run) (WorkJSON, error) {
+	m, err := MergedEvents(run)
+	if err != nil {
+		return WorkJSON{}, err
+	}
+	gaps, err := workGapStatesOfRun(run, m.Events)
+	if err != nil {
+		return WorkJSON{}, err
+	}
+	return workJSONOfGaps(gaps), nil
 }
 
 // WorkJSONBytes renders the work list as indented JSON (a seat reads it in a terminal
@@ -632,18 +914,18 @@ func WorkJSONOf(b *Board) WorkJSON {
 //
 // The pairing is the adversarial one: the merge waits on blue and blue waits on the merge. A lens
 // or the bench is told so plainly rather than being handed a zero it would read as inactivity.
-func counterpartyOf(b *Board, role string, round int) CounterpartyJSON {
+func counterpartyOf(evs []*Event, role string, round int) CounterpartyJSON {
 	other := map[string]string{"merge": "blue", "blue": "merge"}[role]
 	if other == "" {
 		return CounterpartyJSON{Reading: "this seat waits on no single party — the lens and the bench read the board itself"}
 	}
 	c := CounterpartyJSON{Role: other}
-	for _, e := range b.Events {
+	for _, e := range evs {
 		if PartyOf(e) != other {
 			continue
 		}
 		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_REGISTER, recordpb.EventType_EVENT_TYPE_FRICTION_NONE:
+		case recordpb.EventType_EVENT_TYPE_REGISTER:
 			continue // arriving is not acting
 		}
 		c.Acts++
@@ -667,9 +949,9 @@ func counterpartyOf(b *Board, role string, round int) CounterpartyJSON {
 }
 
 // roundOfSeatOnBoard is the round this seat is sitting in, taken from its own latest event.
-func roundOfSeatOnBoard(b *Board, seatID string) int {
+func roundOfSeatOnBoard(evs []*Event, seatID string) int {
 	r := 0
-	for _, e := range b.Events {
+	for _, e := range evs {
 		if e.GetSeatId() == seatID && int(e.GetRound()) > r {
 			r = int(e.GetRound())
 		}
@@ -678,13 +960,18 @@ func roundOfSeatOnBoard(b *Board, seatID string) int {
 }
 
 func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
-	b, err := BoardState(run)
+	// The stream through the loader (no fold), the gap facts off the view.
+	m, err := MergedEvents(run)
 	if err != nil {
 		return nil, err
 	}
-	w := WorkJSONOf(b)
-	w.Sitting = SittingOf(b, role, seatID)
-	w.Counterparty = counterpartyOf(b, role, roundOfSeatOnBoard(b, seatID))
+	gaps, err := workGapStatesOfRun(run, m.Events)
+	if err != nil {
+		return nil, err
+	}
+	w := workJSONOfGaps(gaps)
+	w.Sitting = SittingOf(m.Events, gaps, role, seatID)
+	w.Counterparty = counterpartyOf(m.Events, role, roundOfSeatOnBoard(m.Events, seatID))
 	out, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
 		return nil, err
@@ -732,9 +1019,13 @@ type FindingsJSON struct {
 
 // FindingsJSONOf projects the record's finding events. Like BoardJSONOf it derives from
 // BoardState — never from the markdown — so the two renderings of one replay cannot drift.
-func FindingsJSONOf(b *Board) FindingsJSON {
+// FindingsJSONOf projects finding events. It takes the EVENTS, not a Board: the findings view
+// renders one family of acts and never read gap state — the board-shaped signature made every
+// caller pay a full fold for a stream filter. A caller holding merged events passes them; the
+// run path (FindingsJSONBytes) fetches exactly the finding family.
+func FindingsJSONOf(evs []*Event) FindingsJSON {
 	out := FindingsJSON{Findings: []FindingJSON{}}
-	for _, e := range b.Events {
+	for _, e := range evs {
 		// TYPE-SWITCHED ON THE BODY, not on `type`: this loop reaches straight for the finding's
 		// fields, and a body read that way cannot go stale against the enum.
 		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
@@ -770,72 +1061,81 @@ func FindingsJSONOf(b *Board) FindingsJSON {
 // FindingsJSONBytes renders the findings view as indented JSON (a seat reads it in a
 // terminal transcript).
 func FindingsJSONBytes(run Run) ([]byte, error) {
-	b, err := BoardState(run)
+	evs, err := EventsOf(run, recordpb.EventType_EVENT_TYPE_FINDING)
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(FindingsJSONOf(b), "", "  ")
+	out, err := json.MarshalIndent(FindingsJSONOf(evs), "", "  ")
 	if err != nil {
 		return nil, err
 	}
 	return append(out, '\n'), nil
 }
 
-// FrictionJSON is the seat-facing friction view: every friction event on the record, in
-// event order — capability/protocol complaints that live as events (the friction verb), not
-// a hand-written friction.md. The dashboard reads this (via show --view friction) instead of
-// parsing a markdown/root file, the json-mode move toward the record as the single reader.
-type FrictionJSON struct {
-	Friction []FrictionEntryJSON `json:"friction"`
-	// NothingBlocked carries the EXPLICIT NEGATIVE — the seats that said, on the record, that
-	// nothing blocked their sitting. An empty friction list alone cannot say this: it reads the
-	// same whether every sitting was clean or the channel went unused for a whole run, and
-	// across eighteen probed dispatches it was the second while looking like the first.
-	NothingBlocked []FrictionEntryJSON `json:"nothing_blocked"`
-	Counts         struct {
+// LogJSON is the operator-facing log view: every log event on the record, in event order —
+// entries addressed to whoever can retool the seat, living as events rather than a hand-written
+// file. The dashboard reads this instead of parsing a markdown/root file, the json-mode move
+// toward the record as the single reader.
+//
+// ONE LIST, TYPED — not two. The clean case used to be its own array because it was its own event
+// type; it is now an entry with `type: nominal`, so a reader FILTERS rather than picking a list.
+// The property that split them survives: a nominal entry is an EVENT, so "four seats said they
+// looked" is still distinguishable from "the channel went unused", which is what silence could
+// never say and what an empty list alone still cannot.
+type LogJSON struct {
+	Log    []LogEntryJSON `json:"log"`
+	Counts struct {
 		Total int `json:"total"`
-		// Attested is how many seats made that statement. Total 0 with Attested 0 is a run
+		// Attested is how many seats logged a NOMINAL entry. Total 0 with Attested 0 is a run
 		// nobody has spoken for; Total 0 with Attested 4 is four seats saying they looked.
 		Attested int `json:"attested"`
 	} `json:"counts"`
 }
 
-type FrictionEntryJSON struct {
+type LogEntryJSON struct {
 	SeatID string `json:"seat_id"`
 	Round  int    `json:"round"`
+	Type   string `json:"type"`
+	Source string `json:"source"`
 	Text   string `json:"text"`
 }
 
-// FrictionJSONOf projects the record's friction events — from BoardState, never the markdown.
-func FrictionJSONOf(b *Board) FrictionJSON {
-	out := FrictionJSON{Friction: []FrictionEntryJSON{}, NothingBlocked: []FrictionEntryJSON{}}
-	for _, e := range b.Events {
-		// `reason` WAS THE PAYLOAD KEY on both verbs; `text` is the field on both messages.
-		//
-		// KIND IS NOT FILTERED HERE, and that is the behaviour this view already had rather than a
-		// choice made in the conversion: Friction now carries a `kind` (seat report / estoppel
-		// refusal / tool error) and this list counts all three, exactly as the payload-keyed
-		// version did. Reported, not changed — narrowing it would move Counts.Total.
-		if f, ok := recordpb.BodyAs[*recordpb.Friction](e); ok {
-			out.Friction = append(out.Friction, FrictionEntryJSON{SeatID: e.GetSeatId(), Round: int(e.GetRound()), Text: f.GetText()})
-			continue
-		}
-		if f, ok := recordpb.BodyAs[*recordpb.FrictionNone](e); ok {
-			out.NothingBlocked = append(out.NothingBlocked, FrictionEntryJSON{SeatID: e.GetSeatId(), Round: int(e.GetRound()), Text: f.GetText()})
+// LogJSONOf projects the record's log events — from BoardState, never the markdown. Events, not a
+// Board, for the reason FindingsJSONOf states.
+func LogJSONOf(evs []*Event) LogJSON {
+	out := LogJSON{Log: []LogEntryJSON{}}
+	for _, e := range evs {
+		// TYPE IS NOT FILTERED HERE, and that is the behaviour this view already had rather than a
+		// choice made in the conversion: the list carries every type and the reader narrows.
+		// Reported, not changed — filtering here would move Counts.Total.
+		if f, ok := recordpb.BodyAs[*recordpb.Log](e); ok {
+			out.Log = append(out.Log, LogEntryJSON{
+				SeatID: e.GetSeatId(), Round: int(e.GetRound()),
+				Type:   recordpb.Word(f.GetType()),
+				Source: recordpb.Word(f.GetSource()),
+				Text:   f.GetText(),
+			})
+			if f.GetType() == recordpb.LogType_LOG_TYPE_NOMINAL {
+				out.Counts.Attested++
+			} else {
+				// TOTAL COUNTS WHAT ASSERTS A PROBLEM, not every entry. Folding nominal entries in
+				// would make an attestation read as a complaint and destroy the distinction this
+				// view exists for: zero-with-an-attestation is a statement someone can be wrong
+				// about, zero-alone is the absence of one.
+				out.Counts.Total++
+			}
 		}
 	}
-	out.Counts.Total = len(out.Friction)
-	out.Counts.Attested = len(out.NothingBlocked)
 	return out
 }
 
-// FrictionJSONBytes renders the friction view as indented JSON.
-func FrictionJSONBytes(run Run) ([]byte, error) {
-	b, err := BoardState(run)
+// LogJSONBytes renders the log view as indented JSON.
+func LogJSONBytes(run Run) ([]byte, error) {
+	evs, err := EventsOf(run, recordpb.EventType_EVENT_TYPE_LOG)
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(FrictionJSONOf(b), "", "  ")
+	out, err := json.MarshalIndent(LogJSONOf(evs), "", "  ")
 	if err != nil {
 		return nil, err
 	}
@@ -859,7 +1159,13 @@ type DebateJSON struct {
 // present (possibly empty) arrays — a consumer counts `red.length` for the round's red
 // sitting, and a null would make that count throw. The richer sections omit when empty.
 type DebateRoundJSON struct {
-	Round        int                 `json:"round"`
+	Round int `json:"round"`
+	// Verdict is the round's RECORDED verdict, and it is here because `red` is PROSE. A position
+	// may say "my verdict is PASS" while round_verdict holds fail — measured in
+	// research/2026-09-02_quadratic-formula, where a reader of the debate projection alone
+	// concluded the opposite of the record. Empty means no verdict was recorded for this round,
+	// which is a different fact from a verdict of fail and must not read as one.
+	Verdict      string              `json:"verdict"`
 	Red          []string            `json:"red"`
 	Blue         []string            `json:"blue"`
 	Lead         []DebateOpinionJSON `json:"lead"`
@@ -885,28 +1191,23 @@ type DebateOpinionJSON struct {
 // position(red-merge)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
 // dispute/dispute-respond→Disputes, opinion→Lead. The grouping is
 // the single source these two renderings share; if it moves, both move together.
-func DebateJSONOf(b *Board) DebateJSON {
+// DebateJSONOf projects the debate prose per round. It takes the ROUND SKELETON separately from
+// the events, because the rounds come from the WHOLE record — a round whose only acts are mints
+// still renders, empty, exactly as it always has — while the events it renders are only the
+// position/closing/opinion families. A caller holding merged events uses DebateJSONOfEvents.
+func DebateJSONOf(rounds []int, evs []*Event) DebateJSON {
 	out := DebateJSON{Rounds: []DebateRoundJSON{}}
 
-	var roundOrder []int
+	roundOrder := append([]int{}, rounds...)
 	byRound := map[int][]*Event{}
-	for _, e := range b.Events {
-		r := int(e.GetRound())
-		if _, seen := byRound[r]; !seen {
-			roundOrder = append(roundOrder, r)
-		}
-		byRound[r] = append(byRound[r], e)
+	for _, e := range evs {
+		byRound[int(e.GetRound())] = append(byRound[int(e.GetRound())], e)
 	}
 	sort.Ints(roundOrder)
 
-	// ONE PAIRING, READ MANY TIMES. Motions(b) joins each filing to its ruling; this indexes the
-	// gap by motion id so the LEAD rows below can name it without recomputing the join per event.
-	docketGapOf := map[string]string{}
-	for _, m := range Motions(b) {
-		if m != nil && m.Subject == "docket" {
-			docketGapOf[m.ID] = m.GapID
-		}
-	}
+	// ONE PAIRING, READ MANY TIMES. The gap rides the docket FILING, so the LEAD rows below can
+	// name it without recovering the join per event.
+	docketGapOf := DocketGapByMotion(evs)
 
 	for _, r := range roundOrder {
 		re := byRound[r]
@@ -924,6 +1225,14 @@ func DebateJSONOf(b *Board) DebateJSON {
 			return s
 		}
 		rj := DebateRoundJSON{Round: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{}}
+		for _, e := range evs {
+			if int(e.GetRound()) != r {
+				continue
+			}
+			if v, ok := recordpb.BodyAs[*recordpb.RoundVerdict](e); ok {
+				rj.Verdict = recordpb.Word(v.GetVerdict())
+			}
+		}
 		// `reason` WAS THE PAYLOAD KEY on position and closing; `text` is the field on both
 		// messages (Position.text, Closing.text). Neither message has a `reason`.
 		for _, p := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "merge") {
@@ -975,13 +1284,36 @@ func DebateJSONOf(b *Board) DebateJSON {
 	return out
 }
 
+// DebateJSONOfEvents is DebateJSONOf for a caller holding the WHOLE stream (a board's events, the
+// oracle's walk): the round skeleton derives from every event, exactly as the board-shaped
+// signature derived it.
+func DebateJSONOfEvents(evs []*Event) DebateJSON {
+	var rounds []int
+	seen := map[int]bool{}
+	for _, e := range evs {
+		if r := int(e.GetRound()); !seen[r] {
+			seen[r] = true
+			rounds = append(rounds, r)
+		}
+	}
+	return DebateJSONOf(rounds, evs)
+}
+
 // DebateJSONBytes renders the structured debate as indented JSON.
 func DebateJSONBytes(run Run) ([]byte, error) {
-	b, err := BoardState(run)
+	rounds, err := Rounds(run)
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(DebateJSONOf(b), "", "  ")
+	evs, err := EventsOf(run,
+		recordpb.EventType_EVENT_TYPE_POSITION,
+		recordpb.EventType_EVENT_TYPE_CLOSING,
+		recordpb.EventType_EVENT_TYPE_MOTION,
+		recordpb.EventType_EVENT_TYPE_MOTION_RULE)
+	if err != nil {
+		return nil, err
+	}
+	out, err := json.MarshalIndent(DebateJSONOf(rounds, evs), "", "  ")
 	if err != nil {
 		return nil, err
 	}

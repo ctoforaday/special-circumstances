@@ -138,6 +138,15 @@ var modules = []struct{ dir, ciJob string }{
 // concurrency is SPAWN the real binary, which no race detector observes from the parent.
 // This is also the module's slowest gate now: the graph includes fetchcache and cli, whose
 // suites are minutes, not seconds.
+//
+// A STATED LIMIT: the race sweep covers the DEFAULT build here AND in CI — the engine
+// behind -tags tessocr is not race-instrumented anywhere. Racing the tagged graph was
+// tried and taught why not: musl cgo objects under the race build's linking broke every
+// package that touches net/os_user, and a box without the C stack cannot compile the
+// tagged graph at all. The engine's CI coverage is its own statically-linked test step
+// in the feov-record job; Wave 2 has now put the engine in the shipped graph (fetchcache
+// imports tessocr), so the divergence is real: the race sweep observes the stub, and the
+// tagged engine's race coverage remains the open decision this comment records.
 var raceScope = map[string][]string{
 	"plugins/prosthetic-conscience/tools":   {"./..."},
 	"plugins/frank-exchange-of-views/tools": {depsScopePrefix + "./cmd/feov-record"},
@@ -223,6 +232,8 @@ var tools = []gate{
 		why: "one authored buildid, copied into modules that cannot import it"},
 	{id: "schemagen", kind: kindTool, dir: "scripts", args: []string{"run", "./schemagen", "-check"}, ciJob: "debate-sim",
 		why: "the binary and the plugin must read the same event-schema epoch"},
+	{id: "massgen", kind: kindTool, dir: "scripts", args: []string{"run", "./massgen", "-check"}, ciJob: "debate-sim",
+		why: "the engine's grade weights are generated from the schema; the pair drifted for six releases when both were hand-written"},
 }
 
 // nodeSuites are the .mjs suites CI drives directly. Enumerated in the workflow because

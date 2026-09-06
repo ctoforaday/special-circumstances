@@ -166,18 +166,25 @@ func TestPreSchema4RowsAreReclassifiedFromTheirOwnFields(t *testing.T) {
 		`{"schema":3,"kind":"seat","agent_id":"oldmissing","agent_type":"red","resolved":false}`,
 		`not json at all`,
 	}, "\n")
-	seats, unclassifiable := SeatIDs([]byte(m))
+	census := Seats([]byte(m))
+	seats := census.IDs
 	want := []string{"oldmissing", "oldnameless", "oldseat", "s4seat"}
 	if len(seats) != len(want) {
-		t.Fatalf("SeatIDs = %v, want %v", seats, want)
+		t.Fatalf("Seats().IDs = %v, want %v", seats, want)
 	}
 	for i := range want {
 		if seats[i] != want[i] {
-			t.Fatalf("SeatIDs = %v, want %v", seats, want)
+			t.Fatalf("Seats().IDs = %v, want %v", seats, want)
 		}
 	}
-	if unclassifiable != 0 {
-		t.Errorf("unclassifiable = %d, want 0", unclassifiable)
+	if census.Unclassifiable != 0 {
+		t.Errorf("unclassifiable = %d, want 0", census.Unclassifiable)
+	}
+	// `not json at all` is a line that does not parse. It is COUNTED, not skipped in
+	// silence — that count is what separates a seat lost to a torn append from a seat
+	// the hook never saw.
+	if census.Unreadable != 1 {
+		t.Errorf("unreadable = %d, want 1 — the non-JSON line was skipped in silence", census.Unreadable)
 	}
 	// The specific wrong answer must not recur.
 	for _, s := range seats {
@@ -192,11 +199,58 @@ func TestPreSchema4RowsAreReclassifiedFromTheirOwnFields(t *testing.T) {
 // understated denominator.
 func TestSeatRowsWithNoIDAreCountedNotDropped(t *testing.T) {
 	m := `{"schema":4,"kind":"seat","agent_id":"a1"}` + "\n" + `{"schema":4,"kind":"seat","agent_id":""}`
-	seats, unclassifiable := SeatIDs([]byte(m))
-	if len(seats) != 1 || seats[0] != "a1" {
-		t.Errorf("seats = %v", seats)
+	census := Seats([]byte(m))
+	if len(census.IDs) != 1 || census.IDs[0] != "a1" {
+		t.Errorf("seats = %v", census.IDs)
 	}
-	if unclassifiable != 1 {
-		t.Errorf("unclassifiable = %d, want 1", unclassifiable)
+	if census.Unclassifiable != 1 {
+		t.Errorf("unclassifiable = %d, want 1", census.Unclassifiable)
+	}
+}
+
+// A SEAT THAT IS CONTINUED STOPS TWICE, and the manifest records both stops.
+//
+// Measured on this repository's own manifest (trajectories-d628026a…): seat
+// a703a4ea4a2d4e09d captured at 07:08:23Z and again at 07:11:10Z, transcript grown
+// 356468 -> 452844 bytes. Before this, the id came back twice, Reconcile held it
+// twice, and `coverage` printed a per-ROW count beside a per-FILE disk count.
+func TestASeatCapturedTwiceCountsOnceAndIsReportedAsARepeat(t *testing.T) {
+	m := strings.Join([]string{
+		`{"schema":4,"kind":"seat","agent_id":"a703","agent_type":"Explore","resolved":true,"size_bytes":356468}`,
+		`{"schema":4,"kind":"seat","agent_id":"a703","agent_type":"Explore","resolved":true,"size_bytes":452844}`,
+		`{"schema":4,"kind":"seat","agent_id":"once","agent_type":"claude","resolved":true}`,
+	}, "\n")
+	census := Seats([]byte(m))
+	if len(census.IDs) != 2 || census.IDs[0] != "a703" || census.IDs[1] != "once" {
+		t.Fatalf("IDs = %v, want two distinct seats — a continued seat is one seat", census.IDs)
+	}
+	if census.Rows != 3 {
+		t.Errorf("Rows = %d, want 3 — the rows are still counted, just not as seats", census.Rows)
+	}
+	// ERASING THE REPEAT IS THE OTHER WRONG ANSWER. A seat that stopped twice is a
+	// fact about the run, and folding it into silence is what this plugin refuses.
+	if census.Repeats["a703"] != 2 {
+		t.Errorf("Repeats = %v, want a703 -> 2", census.Repeats)
+	}
+	if _, ok := census.Repeats["once"]; ok {
+		t.Errorf("Repeats = %v, want only the ids captured more than once", census.Repeats)
+	}
+}
+
+// Reconcile is a set difference on BOTH sides. `on` has been a map since the first
+// version because two files cannot share a name; Named was the side that counted
+// repeats, so a twice-captured seat that was also absent from disk was listed under
+// MISSING twice.
+func TestReconcileCollapsesADuplicateNamedID(t *testing.T) {
+	c := Reconcile("/p/sess.jsonl", []string{"dup", "dup", "gone"},
+		func(string) ([]os.DirEntry, error) { return []os.DirEntry{}, nil })
+	if !c.Measured {
+		t.Fatalf("not measured: %s", c.Why)
+	}
+	if len(c.Named) != 2 {
+		t.Errorf("Named = %v, want two — a duplicate id is one seat", c.Named)
+	}
+	if len(c.Missing) != 2 {
+		t.Errorf("Missing = %v, want each absent seat named exactly once", c.Missing)
 	}
 }

@@ -91,7 +91,7 @@ log(`resolved tiers — bulk: ${model}, judgment: ${judgmentModel}`)
 
 // Friction must survive a mid-run throw (retrospective §3 row 24): the envelope copy feeds
 // this script's aggregate, the file copy survives an abort. Both, always.
-const frictionClause = (who, role) => ` FRICTION (${who}) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field. AND THE REASON OWES THE SURVEY: name the verbs you read in the tree and did NOT use, and why each was wrong for this sitting. A reason that lists only what you did is a receipt for the path you took and says nothing about the ones you rejected — and a seat that cannot name a single rejected option did not weigh any.`
+const frictionClause = (who, role) => ` LOG (${who}) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field. YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead. Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined. Where nothing impeded the work, say that instead.`
 
 // Wall-clock doctrine (run-4 forensics, 2026-07-17): 80% of run time is API rounds at ~24s
 // each, and the corpus showed ZERO batched tool calls — every peek paid a full round. A
@@ -260,7 +260,12 @@ const GRADE = { type: 'string', enum: ['low', 'low_medium', 'medium', 'medium_hi
 // repair was EMPTYING likelihood, and the receptacle turned out to be a self-report
 // nobody could contest. See the 0.65.0 changelog entry.
 const MASS_MAPPING_VERSION = 'v2'
+// BEGIN GENERATED MASS — `cd scripts && go run ./massgen`. Source: record.proto Grade (mass).
+// A grade's weight is a property of the WORD, annotated on Grade and carried by
+// enum_grade.mass; this table is that annotation, rendered for the engine. Editing it here
+// is editing a copy — change record.proto and regenerate.
 const MASS = { trivial: 0.5, low: 1, 'low_medium': 1.5, medium: 2, 'medium_high': 2.5, high: 3, certain: 3.5, realized: 0 }
+// END GENERATED MASS
 const gapMass = (g) => (MASS[g.likelihood] ?? 0) * (MASS[g.impact] ?? 0)
 
 // Grade-dispute channel constants (run-4 report §3.3, clauses (v) and (vii)):
@@ -294,7 +299,7 @@ const PETITION_RULING = {
   type: 'object',
   required: ['rulings'],
   properties: {
-    friction: { type: 'array', items: { type: 'string' } },
+    log: { type: 'array', items: { type: 'string' } },
     // A PETITION SITTING CAN LAY DOWN A HOLDING TOO, and #361 was filed from exactly there: the
     // bench had a construction both parties needed and put it in a petition ruling's opinion
     // text, where red never read it. Routing it needs it on this envelope as well (#503).
@@ -361,7 +366,7 @@ const lawClause = ` LAW: if ${runDir}/inputs/law/ exists, read it before ruling 
 // The verb shipped (0.67.0) and renders under "### LEAD"; the harvest reads it (#413). The prompt
 // carried a paragraph naming it, because for two releases no prompt and no constitution did and
 // the bench could not know it existed. The paragraph is gone: `declare --help` now carries what it
-// is for, when to reach for it, why `opinion` cannot hold it, and the measured case — and the
+// is for, when to reach for it, why a docket ruling cannot hold it, and the measured case — and the
 // tree walk puts that page in front of the bench before it chooses. A verb the HELP does not name
 // is the capability nobody has; a verb only the PROMPT names is one the tool cannot be trusted for.
 const declareClause = ''
@@ -400,7 +405,7 @@ const BLUE_ENVELOPE = {
     // The array survives as gap ids alone, for the in-run shape check below. Coverage is scored
     // from the manifest-row EVENTS at capture, and the rows reach the reader in the report.
     manifest: { type: 'array', items: { type: 'string' } },
-    friction: { type: 'array', items: { type: 'string' } },
+    log: { type: 'array', items: { type: 'string' } },
     petitions: PETITIONS,
     // Grade-dispute channel (run-4 §3.3 — RATIFIED minimal form): blue's machine-readable
     // contest path against red's grades. Record-integrity insurance; zero expected savings.
@@ -497,7 +502,7 @@ const RED_ENVELOPE = {
     // of it — and it stays current for the whole run instead of being a snapshot of one round.
     citations_checked: { type: 'number', description: "the board's count of cite events, read back from the record — never hand-counted or estimated" },
     notes: { type: 'string' },
-    friction: { type: 'array', items: { type: 'string' } },
+    log: { type: 'array', items: { type: 'string' } },
   },
 }
 
@@ -510,7 +515,7 @@ const JUDGE_ENVELOPE = {
     // reads no record, so a holding recorded through `bench declare` reaches the other seats only
     // if it travels here — the same reason `relief` is on the petition envelope (#503).
     holdings: { type: 'array', items: { type: 'string' } },
-    friction: { type: 'array', items: { type: 'string' } },
+    log: { type: 'array', items: { type: 'string' } },
     resolutions: {
       type: 'array',
       items: {
@@ -552,6 +557,7 @@ const RED_LENSES = [
   'leaf-node citation verification (follow every reference; grade corroboration confidence per statement)',
   'logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance)',
   'dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots)',
+  'report voice (the report is addressed to a reader of its SUBJECT, and this lens reads it as one: every sentence that instead narrates the run that made it — its rounds, its lanes, its own draft history, the machinery that checked it, or the limits of the container it ran in. SEPARATION, NEVER DELETION: a limit on the CONCLUSION stays and is re-voiced, a fact about the RUN moves to the operator channel. DISCLOSURE IS NOT DISCHARGE — a sentence that admits it is narrating the run is still narrating the run)',
 ]
 
 // Engineered lane diversity (retrospective §3 row 6): distinct METHOD/SOURCE-CLASS lenses,
@@ -581,7 +587,7 @@ const LANE_METHODS = [
 // halt ruling ends the run (verdict HALTED — capture relays the opinion
 // verbatim, never smoothed); granted relief is surfaced to subsequent seats.
 const friction = [] // capability complaints from any agent, aggregated for /self-improve
-const takeFriction = (who, env) => { if (env && env.friction) for (const f of env.friction) friction.push(`${who}: ${f}`) }
+const takeFriction = (who, env) => { if (env && env.log) for (const f of env.log) friction.push(`${who}: ${f}`) }
 
 // W1.7 ROUND-PARITY RECOVERY (#249). The attestation duty is right — a revision is not on the
 // record until the transcript carries it — but killing the RUN over one seat's missed bookkeeping
@@ -609,7 +615,7 @@ async function ensureRoundRecord(env, who, owed, opts) {
   if (env && env.round_record_appended === true) return true
   log(`round-parity (W1.7): ${who} did not attest ${owed} — re-prompting once before continuing (#249 recovery)`)
   const retry = await agent(
-    `Round-record repair for ${who}. Your last turn did not attest the round record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. ${owed}. Do NOT re-do your substantive work and do NOT edit ${runDir}/blue/report.md again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), record a friction event saying exactly why — "${binDir}/feov-record" friction --run ${runDir} --seat-id ${who} --reason "<why>", and return round_record_appended false with a one-line note. Return the attestation.`,
+    `Round-record repair for ${who}. Your last turn did not attest the round record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. ${owed}. Do NOT re-do your substantive work and do NOT edit ${runDir}/blue/report.md again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), record on the operator channel saying exactly why, and return round_record_appended false with a one-line note. Return the attestation.`,
     { ...(opts || {}), label: `${who}-round-record · ${slug}`, phase: 'Debate', schema: ROUND_RECORD })
   if (retry && retry.round_record_appended === true) {
     log(`round-parity: ${who} attested on the retry — continuing`)
@@ -735,7 +741,7 @@ YOUR REPORT CONTAINS ONLY WHAT YOU CAN AUTHOR: the title, TL;DR, Catechism, tech
 
 CITATION HYGIENE, because red must be able to VERIFY every source at the leaf: the url you cite carries the FULL coordinate — owner/repo#N or a full URL, never a bare #N red cannot resolve without the repo — and every QUOTED span records a locating anchor (its section heading, or a nearby unique phrase) so red can grep it verbatim in the source. An unlocatable quote is graded LOW through no fault of the source. Two claims resting on the same url are one source and two anchors, not two sources.
 
-REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your scratchpad under a NEUTRAL name and copy it into place with bash cp; a direct Write of the report path fails and wastes a round-trip. Recompute claim_count with the tool once report.md is written and relay the integer into the envelope; never hand-count it (two honest merges differed 2x before it was pinned). RECORD THE ROUND, with what this synthesis did and its claim_count as the reason; round_record_appended is TRUE only after that event exists.${inquiryClause} ${petitionClause('blue-synthesize')}${frictionClause('blue-synthesize', 'blue')}${speedClause}${recordClause('blue-synthesize')} Return the blue envelope.`,
+REPORT WRITE PATH: report.md hits a filename-keyed Write-guard — draft to your scratchpad under a NEUTRAL name and copy it into place with bash cp; a direct Write of the report path fails and wastes a round-trip. Recompute claim_count with the tool once report.md is written and relay the integer into the envelope; never hand-count it (two honest merges differed 2x before it was pinned). RECORD THE ROUND, with what this synthesis did and its claim_count as the reason; round_record_appended is TRUE only after that event exists. FREEZE THE REPORT, LAST — after report.md is written, the count recorded and the round recorded, run the act your seat's help lists as freezing the round-0 report into the record as its base. Do this ONCE, at the very end. If it refuses, record friction with the exact refusal and return round_record_appended honestly.${inquiryClause} ${petitionClause('blue-synthesize')}${frictionClause('blue-synthesize', 'blue')}${speedClause}${recordClause('blue-synthesize')} Return the blue envelope.`,
   { ...judgment, label: `blue-synthesize · ${slug}`, phase: 'Blue', agentType: 'frank-exchange-of-views:blue-synthesizer', schema: BLUE_ENVELOPE })
 
 if (!blueEnv) throw new Error('blue synthesis returned null (agent failed) — aborting cleanly')
@@ -800,60 +806,62 @@ let pendingDisputes = []
 let overflowDisputes = [] // clause (vii): beyond the cap, batch-docketed as ONE judge item
 const heldDisputes = new Map() // `${gap_id}|${dimension}` -> dispute
 let gradeAdjustments = [] // judge grade_adjusted rulings for red to apply next round
-let prevClaimCount = 0 // W2i: rounds 2+ size citation dispatch on the DELTA, not the corpus
 takeFriction('blue-synthesize', blueEnv)
 
 while (!halted && round < maxRounds) {
   round++
   const prevGaps = redEnv ? redEnv.gaps : []
 
-  // Citation verification is SIZED TO ITS INPUT, and the input changes shape after round 1
-  // (W2i, from E0.5c's measured economics). Round 1's input is the whole corpus:
-  // ceil(claims/40), cap 4 — recomputed every round, never once (retrospective §3 row 2b:
-  // computed once, later rounds were systematically under-scaled exactly when the report was
-  // largest). From round 2 the citation ledger means verified claims stay verified, so the
-  // input is the NEW surface plus the stale set, not the corpus again: size on the claim-count
-  // DELTA, floor 1, cap 2. E0.5c measured citation yield collapsing 70-80% after round 1
-  // while L5/L6 hold flat, so the cap is where the economics stop paying (~$2.65-5.60 per
-  // surviving citation find vs ~$1 at L5/L6); the floor keeps the coverage duty staffed.
-  // From round 3 the ">2 rounds elapsed" staleness trigger fires and the sweep is O(corpus)
-  // again rather than O(delta), so both seats come back regardless of how little blue added.
-  // ASSUMPTION UNDER TEST: that post-round-1 collapse is re-measured every run via the W2h
-  // citation-yield-by-role scorecard row — if later rounds stop collapsing, the cap comes off.
-  const claimCount = blueEnv.claim_count || 20
-  const citationPasses = round === 1
-    ? Math.min(4, Math.max(1, Math.ceil(claimCount / 40)))
-    : Math.max(round >= 3 ? 2 : 1, Math.min(2, Math.ceil(Math.max(0, claimCount - prevClaimCount) / 40)))
-  prevClaimCount = claimCount
-  log(`round ${round}: dispatching ${citationPasses + 2} red lenses (${citationPasses} citation) over ${blueEnv.claim_count || '?'} claims`)
-
+  // ONE SEAT PER STRATEGIC AREA (#771). Each area is a distinct kind of attack on the report —
+  // evidence, logic, dark-side, voice — and each gets exactly one seat. The roster is a property
+  // of the areas, not of the corpus: a report twenty times larger dispatches the same lenses.
+  //
+  // NO SLICE, AND THAT IS THE DESIGN. Dividing a corpus between citation seats buys one thing,
+  // duplicate-avoidance, and costs the findings that justify the seat. Two of the three findings
+  // the evidence lens has on record are unreachable from a slice: a conceptual overclaim about
+  // what Little's Law can yield, and a fabricated verbatim quote presented under a leaf-verified
+  // attestation. A seat accountable for one section has no reason to notice that the evidence is
+  // weakest in another, and "three claims lean on one shaky source" is nobody's finding when the
+  // corpus is split.
+  //
+  // THE LOAD FITS ONE SEAT. The heaviest consolidated round in either archived run is 14
+  // verify+reproduce acts, which is what a single round-1 evidence seat carries in both. Bound
+  // worth stating: those runs hold 14 and 11 citations, so a corpus past ~40 claims is the
+  // untested case for a single seat.
+  //
+  // VOLUME IS AN INSTRUCTION, NOT A SEAT COUNT: consolidatedClause tells the seat that rounds 2+
+  // sweep the new and stale surface rather than the corpus again, which is where the citation
+  // economics live.
   const lensPasses = []
-  // Citation ledger: verified citations don't un-verify. Each citation pass reads the
+  // Citation ledger: verified citations don't un-verify. The evidence seat reads the
   // ledger first and skips claims already graded high-confidence in a prior round — but the
   // skip-trigger covers SOURCE drift as well as prose drift (retrospective §3 row 10: the
   // prose-only trigger suppressed exactly the re-check that catches a source moving).
   const ledgerClause = ` THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at. Read it FIRST. A claim blue backed with a source resolves to the url, title and sha256 of the bytes blue actually read, and THAT is what you re-fetch to audit the same artifact rather than a page that may have drifted since. A claim blue COMPUTED resolves to its script, and to whether anyone has re-run it — an unaudited proof looks exactly like a clean one until you check. Your own verifications come back ATTACHED TO THE SOURCE you checked: an empty one is a citation NOBODY has checked yet, and that is where your next pass is worth most. WHAT NOT TO RE-CHECK, because it is the round's whole economy: a claim verified at HIGH confidence in a prior round STAYS verified — do not re-fetch it UNLESS its section changed this round (read that off the recorded edits, not off blue's account of them), OR more than 2 rounds have elapsed since it was last verified, OR its access date and the source's volatility suggest drift (living documents, issue trackers, README stats). RECORD every claim you verify, naming the anchor you looked up and quoting the claim from the report. A SOURCE YOU FOUND YOURSELF IS A DIFFERENT ACT — blue never cited it, so there is no anchor to name — and it answers a different question: whether the claim is true in the WORLD, where verification asks only what blue's source did for it. VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small model's SUMMARY, not the source. Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim yourself (\`curl -sL <url>\`, \`gh issue view <n> --comments\`, \`pdftotext\`/pandoc) and read it. WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation. If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.`
-  // The consolidated citation duty (W2i, rounds 2+): fewer seats must not silently become
+  // The consolidated citation duty (W2i, rounds 2+): ONE seat must not silently become
   // less coverage. E0.5c's honest limit is that a finding-rate metric cannot price
   // VERIFICATION COVERAGE — the 65-86 pair/round ledger IS the PASS bar's evidence grade, and
-  // it is most of what the citation seats do. So the saving is bought from re-verification
+  // it is most of what the evidence seat does. So the saving is bought from re-verification
   // the ledger already says is unnecessary, never from the sweep itself, and what went
   // unexamined is stated rather than assumed.
-  const consolidatedClause = round === 1 ? '' : ` CONSOLIDATED CITATION SEAT (W2i): from round 2 the citation seats are deliberately fewer, because the ledger means a claim verified HIGH does not un-verify — your round's work is the NEW and the STALE surface, not the whole corpus again. Your duty is three things, in order: (1) verify every claim in your slice that is NEW or whose section CHANGED this round (the \`changes\` projection names them — the recorded edits, not blue's account of them); (2) re-fetch everything in your slice the ledger's staleness triggers fire on (>2 rounds since verification, volatile source, access-date drift); (3) SPOT-CHECK a sample of your slice's already-verified pairs — your discretion which, and reopen any that has drifted. COVERAGE IS AN OBSERVABLE, NOT AN ASSUMPTION: end your pass with a COVERAGE line stating what you verified, what you sampled, and what you left unexamined this round — an unstated gap in coverage is indistinguishable from a clean sweep, and the consolidation is only sound while the gap is visible.`
+  const consolidatedClause = round === 1 ? '' : ` YOUR ROUND'S SURFACE IS THE NEW AND THE STALE, NOT THE CORPUS AGAIN (W2i): the ledger means a claim verified HIGH does not un-verify. Your duty is three things, in order: (1) verify every claim that is NEW or whose section CHANGED this round (the \`changes\` projection names them — the recorded edits, not blue's account of them); (2) re-fetch everything the ledger's staleness triggers fire on (>2 rounds since verification, volatile source, access-date drift); (3) SPOT-CHECK a sample of the already-verified pairs — your discretion which, and reopen any that has drifted. COVERAGE IS AN OBSERVABLE, NOT AN ASSUMPTION: end your pass with a COVERAGE line stating what you verified, what you sampled, and what you left unexamined this round — an unstated gap in coverage is indistinguishable from a clean sweep. YOU OWN THE WHOLE EVIDENCE PICTURE, and that is the point of there being one of you: a defect like "three claims lean on one shaky source" or "the evidence is weakest exactly where the argument is strongest" is invisible to a seat holding a slice.`
 
   // ROLE-STABLE LENS IDENTITY (W2i): the lens number is now a ROLE, not a dispatch position.
-  // Citation slices are L1-L4, logic/completeness is ALWAYS L5, dark-side/risk is ALWAYS L6 —
+  // Citation slices are L1-L4, logic/completeness is ALWAYS L5, dark-side/risk is ALWAYS L6,
+  // report-voice is ALWAYS L7 —
   // regardless of how many citation seats a round dispatches. Positional numbering silently
   // slid L5/L6 down to L3/L4 whenever fewer than 4 citation passes ran (already true on
   // low-claim rounds, and the common case once W2i graduates the count), which breaks the
   // found_by role map that every cross-round lens-economics measurement is computed from.
-  for (let c = 0; c < citationPasses; c++) {
-    lensPasses.push({ role: c + 1, lens: `${RED_LENSES[0]}${citationPasses > 1 ? ` — instance ${c + 1} of ${citationPasses}: divide the report's sections evenly among instances and take slice ${c + 1}; citation ownership follows the slice (instance ${c + 1} owns the bibliography entries its sections cite). The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context` : ''}.${ledgerClause}${consolidatedClause}` })
-  }
-  lensPasses.push({ role: 5, lens: RED_LENSES[1] + steelmanClause }, { role: 6, lens: RED_LENSES[2] + steelmanClause })
+  lensPasses.push({ role: 1, lens: `${RED_LENSES[0]}.${ledgerClause}${consolidatedClause}` })
+  lensPasses.push({ role: 5, lens: RED_LENSES[1] + steelmanClause }, { role: 6, lens: RED_LENSES[2] + steelmanClause }, { role: 7, lens: RED_LENSES[3] })
+
+  // The round-start heartbeat. It counts AREAS now rather than instances, which is the whole
+  // change in one line: the number is a property of the roster, not of the corpus size.
+  log(`round ${round}: dispatching ${lensPasses.length} red lenses (one per strategic area)`)
 
   await parallel(lensPasses.map(({ role, lens }) => () => agent(
-    `Red audit, round ${round}, lens: ${lens}. RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows${round > 1 ? `. For a navigation HINT use the record of what blue actually edited and the gap each edit answers — never a hand-written file, and never in place of the full re-read above` : ''}. ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in ${runDir}/blue/report.md is REJECTED. Your lens number ${role} is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R${round}-N gap ids are the merge's. Only red-merge writes the round's RED narrative. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).${reliefFor('red')}${speedClause}${frictionClause(`red-lens-r${round}-L${role}`, 'lens')}${recordClause(`red-lens-r${round}-L${role}`)} Return a 3-line synopsis.`,
+    `Red audit, round ${round}, lens: ${lens}. RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows${round > 1 ? `. For a navigation HINT use the record of what blue actually edited and the gap each edit answers — never a hand-written file, and never in place of the full re-read above` : ''}. ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in ${runDir}/blue/report.md is REJECTED. Your lens number ${role} is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk, L7 report voice — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R${round}-N gap ids are the merge's. Only red-merge writes the round's RED narrative. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).${reliefFor('red')}${speedClause}${frictionClause(`red-lens-r${round}-L${role}`, 'lens')}${recordClause(`red-lens-r${round}-L${role}`)} Return a 3-line synopsis.`,
     { ...bulk, label: `red-lens-${role}-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-auditor' })))
 
   redEnv = await agent(
@@ -1260,7 +1268,7 @@ const ASSEMBLE_ENVELOPE = {
   properties: {
     synopsis: { type: 'string' },
     open_gaps: { type: 'integer', minimum: 0 }, // the board's counts.open, not red's docket
-    friction: { type: 'array', items: { type: 'string' } },
+    log: { type: 'array', items: { type: 'string' } },
   },
 }
 phase('Assemble')

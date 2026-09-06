@@ -8,12 +8,14 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/lens"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // cite: blue's ONLY mechanism for citing a source.
@@ -30,9 +32,9 @@ import (
 // failure is auto-logged as friction (a bare `fetch` miss is only an error — but the
 // DECISION to cite an unreachable source is a protocol event worth surfacing).
 //
-// Crash-safety mirrors lens finding: the marker write is the atomic commit and the cite
-// event follows, so a crash between them leaves an ORPHAN anchor the assembly surfaces as a
-// dangling citation — never a wedge, never a phantom event.
+// Crash-safety is the append-only record's: the cite event IS the anchor (it carries the quote,
+// and the report is replayed from the record), so there is no separate marker write to tear from
+// the event — a crash before the append leaves nothing, and a --key retry is idempotent.
 func newCite() *cobra.Command {
 	c := seat.Prose(seat.New("cite", func(s seat.Context, cmd *cobra.Command) (seat.Result, error) {
 		run, err := s.Run()
@@ -66,45 +68,35 @@ func newCite() *cobra.Command {
 		entry, _, _, err := fetchcache.Resolve(run, url, fetchcache.Default)
 		if err != nil {
 			msg := fmt.Sprintf("blue cite: could not load %s: %v — pick a reachable source or an archive.org snapshot", url, err)
-			if _, ferr := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(msg)}); ferr != nil {
+			if _, ferr := record.Append(s.Identity(), &recordpb.Log{Text: proto.String(msg), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum()}); ferr != nil {
 				return nil, ferr
 			}
 			return nil, errors.New(msg)
 		}
 
-		// A TORN SPLICE IS ADOPTED, NOT DOUBLED. The splice below and the event append after it
-		// are two acts with no transaction over them, so a crash between them leaves an anchor
-		// on this very sentence that no event backs — and retries are this record's ordinary
-		// weather (mint, cite and prove all carry crash-retry keys). The retry used to look for
-		// a prior EVENT, find none, and splice a second marker beside the orphan: one sentence,
-		// two tokens, one of them immortal and backing nothing. If the located quote already
-		// carries a citation anchor the record has never heard of, that anchor IS this cite's
-		// first attempt, and the retry finishes the interrupted act instead of starting a rival.
-		label := adoptTornCiteAnchor(run, quote)
-		if label == "" {
-			// Mint the label UP FRONT: it forms the marker, so it must exist before the report
-			// write. Append will not re-mint (the label is already in the payload).
-			label = record.NewCitationID()
-			marker := "<!--cite:" + label + "-->"
-
-			// Splice the invisible anchor at the located quote UNDER THE LOCK, atomically, via
-			// the shared anchor-insert (the same rule a finding is anchored by). Mis-quote or
-			// in-fence -> reject; nothing is written and no cite is recorded.
-			if err := record.MutateBlueReport(run, func(old []byte) ([]byte, error) {
-				next, aerr := lens.InsertAnchor(old, quote, marker)
-				switch {
-				case errors.Is(aerr, lens.ErrMisQuote):
-					return nil, fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
-				case errors.Is(aerr, lens.ErrInFence):
-					return nil, fmt.Errorf("blue cite: the quote resolves inside a code fence — cite a prose sentence, not code")
-				}
-				return next, aerr
-			}); err != nil {
-				return nil, err
+		// THE CITE EVENT IS THE ANCHOR. It carries the quote in Location, and reportproj.Render
+		// re-places the invisible <!--cite:c-…--> marker at that quote on every read. There is no
+		// file to splice, so there is no torn-splice window: the marker cannot exist without the
+		// event that names it, and a crash before the append leaves nothing to adopt. Mint the label
+		// (it forms the marker) and VALIDATE the placement against the current render — a mis-quote
+		// or in-fence quote is refused now with the same message, and the validated bytes discarded.
+		label := record.NewCitationID()
+		marker := "<!--cite:" + label + "-->"
+		current, err := reportproj.RenderFromRecord(run)
+		if err != nil {
+			return nil, err
+		}
+		if _, aerr := anchortext.InsertAnchor([]byte(current), quote, marker); aerr != nil {
+			switch {
+			case errors.Is(aerr, anchortext.ErrMisQuote):
+				return nil, fmt.Errorf("blue cite: the quoted content was not found in report.md — quote the EXACT sentence you are citing (via --quote) — the whole string is matched, so a section heading prepended to it matches nothing")
+			case errors.Is(aerr, anchortext.ErrInFence):
+				return nil, fmt.Errorf("blue cite: the quote resolves inside a code fence — cite a prose sentence, not code")
 			}
+			return nil, aerr
 		}
 
-		// The anchor is committed; the cite event follows. access_date is engine-supplied
+		// The anchor is recorded as the cite event. access_date is engine-supplied
 		// from the record clock (pinned under the golden harness), not typed by the seat.
 		body := &recordpb.Cite{
 			Label:      proto.String(label),
@@ -115,12 +107,25 @@ func newCite() *cobra.Command {
 			AccessDate: proto.String(record.Now().Format("2006-01-02")),
 			CiteKey:    proto.String(seat.Str(cmd, flags.Key)),
 		}
+		// THE DEFAULT IS THE WEAK CLAIM. A citation nobody has asserted a reading for is UNREAD:
+		// the honest state costs the seat nothing, and only a stronger one is stated on purpose.
+		read := recordpb.SourceTextRead_SOURCE_TEXT_READ_UNREAD
+		if w := seat.Str(cmd, flags.SourceText); w != "" {
+			v, known := record.SourceTextReadOf(w)
+			if !known || v == recordpb.SourceTextRead_SOURCE_TEXT_READ_UNSPECIFIED {
+				return nil, fmt.Errorf("blue cite: %q is not a reading this record can carry (leaf | summary_only | unread)", w)
+			}
+			read = v
+		}
+		body.SourceTextRead = &read
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
 		return citeResult{Label: label, URL: url, Sha256: entry.Sha}, nil
 	}))
 
+	enumhelp.Flag(c, flags.SourceText, record.MustEnum("cite", "source_text_read"),
+		"how much of the source you actually READ. Omitted records `unread` — the citation then rests on the source EXISTING, not on anything it says")
 	c.Flags().String(flags.Quote, "", flags.DescQuote+". The invisible citation anchor is spliced here, so a mis-quote is rejected rather than guessed at")
 	c.Flags().String(flags.URL, "", flags.DescURL)
 	c.Flags().String(flags.Title, "", flags.DescTitle)
@@ -140,24 +145,4 @@ func (r citeResult) Human() string {
 		return "cite " + r.Label + " (idempotent retry — existing anchor returned)"
 	}
 	return "citation recorded: " + r.Label + " — an invisible immortal anchor at the quote, woven into the bibliography at assembly (" + r.URL + ")"
-}
-
-// adoptTornCiteAnchor returns the label of a citation anchor already on the located quote that
-// no recorded event backs — a torn splice — or "" for the ordinary fresh path. The walk itself is
-// lens.OrphanAnchorAt, shared with `lens finding` and `blue prove`, which carry the same
-// two-act crash window; only the recorded set is this verb's.
-func adoptTornCiteAnchor(run record.Run, quote string) string {
-	rep, err := record.ReadBlueReport(run)
-	if err != nil {
-		return ""
-	}
-	labels, err := record.CitationLabels(run)
-	if err != nil {
-		return "" // cannot tell an orphan from a backed anchor; splice fresh rather than guess
-	}
-	recorded := map[string]bool{}
-	for _, l := range labels {
-		recorded[l] = true
-	}
-	return lens.OrphanAnchorAt(string(rep), quote, "cite", func(id string) bool { return recorded[id] })
 }

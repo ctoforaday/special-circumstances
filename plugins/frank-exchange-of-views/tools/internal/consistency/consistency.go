@@ -26,8 +26,6 @@ package consistency
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -37,9 +35,6 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
 )
-
-// anchorToken matches the three anchor classes as minted; group 1 is the id.
-var anchorToken = regexp.MustCompile(`<!--(?:fx|cite|proof):([a-z]-[0-9a-f]+)-->`)
 
 // gtGap is the ground truth for one gap, derived from the raw event walk.
 //
@@ -261,7 +256,13 @@ func Check(run record.Run) ([]string, error) {
 	}
 
 	// ---- the JSON projections ----
-	bj := record.BoardJSONOf(board)
+	// The RUN-shaped board — the projection the seats actually receive (wave 1b of
+	// plans/board-as-views.md) — so the oracle cross-examines the production read path, not a
+	// fold-shaped twin of it.
+	bj, err := record.BoardJSONOfRun(run)
+	if err != nil {
+		return append(v, fmt.Sprintf("board-json-refused: BoardJSONOfRun errored where the raw walk did not: %v", err)), nil
+	}
 	openGT, closedGT := 0, 0
 	for _, g := range gt.gaps {
 		if g.open {
@@ -301,7 +302,11 @@ func Check(run record.Run) ([]string, error) {
 		add("counts", "counts.anomalies=%d but the anomalies list carries %d", bj.Counts.Anomalies, len(bj.Anomalies))
 	}
 
-	wj := record.WorkJSONOf(board)
+	// The RUN-shaped work list — the production read path (wave 1c).
+	wj, err := record.WorkJSONOfRun(run)
+	if err != nil {
+		return append(v, fmt.Sprintf("work-json-refused: WorkJSONOfRun errored where the raw walk did not: %v", err)), nil
+	}
 	if got, want := idsOfWork(wj), openIDs(gt); !sameSet(got, want) {
 		add("work-mirror", "work.open=%v, raw walk open=%v", got, want)
 	}
@@ -319,7 +324,7 @@ func Check(run record.Run) ([]string, error) {
 		}
 	}
 
-	fj := record.FindingsJSONOf(board)
+	fj := record.FindingsJSONOf(board.Events)
 	gotLabels := map[string]bool{}
 	for _, f := range fj.Findings {
 		gotLabels[f.Label] = true
@@ -329,7 +334,12 @@ func Check(run record.Run) ([]string, error) {
 	}
 
 	// ---- the markdown renders ----
-	if ledger, err := view.MarkdownFrom(board, "ledger", ""); err != nil {
+	// The renders read the RUN-shaped input — the production path (wave 3).
+	rin, rerr := view.InputOf(run)
+	if rerr != nil {
+		return append(v, fmt.Sprintf("render-input-refused: view.InputOf errored where the raw walk did not: %v", rerr)), nil
+	}
+	if ledger, err := view.MarkdownFrom(rin, "ledger", ""); err != nil {
 		add("ledger-md", "render failed: %v", err)
 	} else {
 		s := string(ledger)
@@ -347,7 +357,7 @@ func Check(run record.Run) ([]string, error) {
 			}
 		}
 	}
-	if archive, err := view.MarkdownFrom(board, "archive", ""); err != nil {
+	if archive, err := view.MarkdownFrom(rin, "archive", ""); err != nil {
 		add("archive-md", "render failed: %v", err)
 	} else {
 		for id, g := range gt.gaps {
@@ -357,7 +367,7 @@ func Check(run record.Run) ([]string, error) {
 		}
 	}
 	if len(gt.avenues) > 0 {
-		if inq, err := view.MarkdownFrom(board, "lines-of-inquiry", ""); err != nil {
+		if inq, err := view.MarkdownFrom(rin, "lines-of-inquiry", ""); err != nil {
 			add("inquiry-md", "render failed: %v", err)
 		} else {
 			for id := range gt.avenues {
@@ -394,62 +404,16 @@ func Check(run record.Run) ([]string, error) {
 		add("lineage", "supersedes cycle: %s", cyc)
 	}
 
-	// ---- the anchor layer: report tokens and record events are a bijection ----
+	// ---- the anchor layer ----
 	//
-	// Splice and append are TWO ACTS with no transaction over them: `blue cite` mutates
-	// blue/report.md first and records the cite event second, so a crash between the two leaves
-	// an anchor token no event backs — and the crash-retry mints a FRESH label and splices a
-	// second anchor beside the orphan. Neither direction of the mismatch is legal in a settled
-	// record, and this rule is what makes the torn state visible at all.
-	if rep, rerr := os.ReadFile(filepath.Join(run.Dir(), "blue", "report.md")); rerr == nil {
-		inReport := map[string]bool{}
-		for _, m := range anchorToken.FindAllStringSubmatch(string(rep), -1) {
-			inReport[m[1]] = true
-		}
-		// Each class's recorded set is the union of the events entitled to name that id: a c-
-		// label may come from blue's cite or from red's labelled verify (a corroboration); an f-
-		// id from the finding or its anchor event; a p- id from the proof. Every splice precedes
-		// its append, so BOTH directions of each bijection are invariants of a settled record.
-		citeSet := map[string]bool{}
-		if labels, lerr := record.CitationLabels(run); lerr != nil {
-			add("anchor-record", "deriving expected citation labels: %v", lerr)
-		} else {
-			for _, l := range labels {
-				citeSet[l] = true
-			}
-		}
-		backed := func(id string) (bool, string) {
-			switch {
-			case strings.HasPrefix(id, "c-"):
-				return citeSet[id], "cite/verify"
-			case strings.HasPrefix(id, "f-"):
-				return gt.findingIDs[id] || gt.anchorEvIDs[id], "finding/anchor"
-			case strings.HasPrefix(id, "p-"):
-				return gt.proofIDs[id], "proof"
-			}
-			return true, "" // an alien class is claimcount's problem, not a torn splice
-		}
-		for tok := range inReport {
-			if ok, kind := backed(tok); !ok {
-				add("anchor-record", "report.md carries anchor %s and no %s event names it — a torn splice, and a naive retry would mint a duplicate beside it", tok, kind)
-			}
-		}
-		for l := range citeSet {
-			if !inReport[l] {
-				add("anchor-record", "the record carries citation label %s and report.md has no anchor for it — the citation will never render", l)
-			}
-		}
-		for id := range gt.proofIDs {
-			if !inReport[id] {
-				add("anchor-record", "the record carries proof id %s and report.md has no anchor for it — the proof backs no sentence", id)
-			}
-		}
-		for id := range gt.findingIDs {
-			if !inReport[id] {
-				add("anchor-record", "the record carries finding id %s and report.md has no marker for it", id)
-			}
-		}
-	}
+	// The report-token↔events bijection lived here: it read the marker tokens PRESENT in
+	// blue/report.md and matched them against the cite/finding/proof events, to catch a torn splice
+	// (a token on the page no event backs) or an orphan (an event whose marker never rendered).
+	// Under report-as-record (#709) the report IS the projection of these events — render places
+	// only recorded markers, and derives every token from an event — so both directions hold by
+	// construction and neither torn state can arise. Removed rather than kept as a check that can
+	// never fire. What survives is report-INDEPENDENT: the finding↔anchor-event pair below.
+	//
 	// The finding and its anchor event are appended as a PAIR after the splice; a finding with no
 	// anchor event is the crash window between the two appends, sealed by an idempotent retry
 	// that never looked. Report-independent, so it runs even when report.md is gone.

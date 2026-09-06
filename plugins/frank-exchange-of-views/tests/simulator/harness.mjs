@@ -64,10 +64,10 @@ export function makeWorld(respond) {
 export const blueEnv = (over = {}) => ({
   path: 'blue/report.md', tldr: 'tldr', claim_count: 40, saturation_reached: true, round_record_appended: true,
   manifest: [{ gap_id: 'R1-1', row: 'figures recomputed; acceptance check run: pass' }],
-  open_questions: [], friction: [], ...over,
+  open_questions: [], log: [], ...over,
 })
 export const redEnv = (over = {}) => ({
-  verdict: 'FAIL', gaps: [], citations_checked: 10, notes: '', friction: [],
+  verdict: 'FAIL', gaps: [], citations_checked: 10, notes: '', log: [],
   // Sharding observables (run-4 §4.5 conds 5+7): a healthy merge samples the archive from
   // round 2 and reports self-consistent shard counts.
   archive_spot_checks: ['R1-1'], ledger_closure_lines: 0, archive_blocks: 0, ...over,
@@ -76,8 +76,8 @@ export const gap = (id, over = {}) => ({
   id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor', existence: 'verified',
   severity: 'medium', likelihood: 'medium', impact: 'medium', complexity_cost: 'low', ...over,
 })
-export const judgeEnv = (over = {}) => ({ deadlock: false, resolutions: [], friction: [], ...over })
-export const petitionRulingEnv = (over = {}) => ({ rulings: [{ petitioner: 'x', class: 'ethical', ruling: 'denied' }], friction: [], ...over })
+export const judgeEnv = (over = {}) => ({ deadlock: false, resolutions: [], log: [], ...over })
+export const petitionRulingEnv = (over = {}) => ({ rulings: [{ petitioner: 'x', class: 'ethical', ruling: 'denied' }], log: [], ...over })
 
 // Role-routing responder: dispatches on the label prefix the script assigns each seat.
 // red / judge / blueSynth / blueRespond are queues consumed in call order (last entry

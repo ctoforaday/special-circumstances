@@ -66,6 +66,23 @@ func TestGolden(t *testing.T) {
 				})
 			}
 			m := newMapper()
+
+			// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now, so the
+			// seeded blue/report.md must be ingested before any verb reads or mutates it: blue-
+			// synthesize records the base and the file is deleted, exactly as the engine does after
+			// synthesis and before the rounds. Invisible setup, like the class-registry staging and
+			// the report seed above — the scenario's own commands are what the golden is about, but
+			// the BaseIngest and this register DO appear in the EVENTS section, as they must.
+			for _, setup := range []cmd{
+				{role: "register", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
+				{role: "ingest", args: []string{"--run", "{RUN}", "--seat-id", "blue-synthesize"}},
+			} {
+				if inv := runGo(bin, runDir, setup); inv.code != 0 {
+					t.Fatalf("round-0 setup %v: exit %d\nstderr: %s", setup.args, inv.code, inv.stderr)
+				}
+				m.observe(filepath.Join(runDir, "records"))
+			}
+
 			var transcript strings.Builder
 
 			for _, c := range sc.cmds {

@@ -261,7 +261,7 @@ func TestASeparatedRunKeepsNoEventsUnderTheRun(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, run), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, run))("blue-respond-r1")}, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, run), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, run))("blue-respond-r1")}, &recordpb.Friction{Text: proto.String("the verb I wanted was not there")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, run), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, run))("blue-respond-r1")}, &recordpb.Log{Text: proto.String("the verb I wanted was not there"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
 		t.Fatalf("append: %v", err)
 	}
 	t.Setenv(RecordRootEnv, "")

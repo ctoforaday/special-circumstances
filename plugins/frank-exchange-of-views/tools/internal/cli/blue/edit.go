@@ -1,7 +1,6 @@
 package blue
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -9,12 +8,15 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
 // edit: the ONLY write path to blue/report.md for a response seat.
@@ -51,6 +53,42 @@ func newEdit() *cobra.Command {
 		}
 		oldStr := seat.Str(cmd, flags.Quote)
 		newStr := seat.Str(cmd, flags.New)
+		gapID := seat.Str(cmd, flags.Answers)
+		accepting, err := cmd.Flags().GetBool(flags.Accept)
+		if err != nil {
+			return nil, err
+		}
+
+		// ACCEPTANCE: THE TOOL SUPPLIES THE TEXT, SO BLUE CANNOT MIS-TRANSCRIBE IT.
+		//
+		// The ordinary path asks blue to retype red's span and replacement and then decides, by
+		// comparing bytes, whether it got them right. A stray space, a smart quote or a re-wrapped
+		// line means blue did exactly what red asked while the record says it did not — and
+		// estoppel, which exists because blue was once penalised for doing as it was told, is what
+		// blue loses. Here the pair comes off the mint, so the agreement is structural.
+		//
+		// WHAT BLUE STILL SUPPLIES IS ITS REASON. Accepting is an act it should argue for, and
+		// --reason is the argument red re-audits against; nothing about agreeing removes that.
+		if accepting {
+			if gapID == "" {
+				return nil, fmt.Errorf("blue edit --accept needs --answers: the gap whose prescribed fix you are accepting")
+			}
+			if oldStr != "" || newStr != "" {
+				return nil, fmt.Errorf("blue edit --accept supplies --quote and --new for you, from the fix red recorded on %s — passing either would be a second source for one fact. Drop them, or drop --accept and write the edit yourself", gapID)
+			}
+			loc, fix, found, err := record.Proposal(run, gapID)
+			if err != nil {
+				return nil, err
+			}
+			if !found {
+				return nil, fmt.Errorf("blue edit --accept: no gap %s on the board", gapID)
+			}
+			if strings.TrimSpace(fix) == "" {
+				return nil, fmt.Errorf("blue edit --accept: gap %s prescribes no concrete text, so there is nothing to accept — red raised it without proposing a fix. Write the edit yourself with --quote and --new", gapID)
+			}
+			oldStr, newStr = loc, fix
+		}
+
 		if oldStr == "" {
 			return nil, fmt.Errorf("blue edit requires --quote: the EXACT current span to replace (matched across the invisible marker layer, like the Edit tool)")
 		}
@@ -59,6 +97,14 @@ func newEdit() *cobra.Command {
 		}
 		key := seat.Str(cmd, flags.Key)
 
+		// ADVISORY, COMPUTED BEFORE ANY RETURN so an idempotent retry carries it too — a seat
+		// re-running a crashed edit should hear the same note, not lose it to the fast path.
+		// Nothing here can refuse: the tells are collected and ride back on the result.
+		var tells []string
+		for _, f := range reportvoice.Find(newStr) {
+			tells = append(tells, fmt.Sprintf("%q reads as %s — %s", f.Match, f.Class, f.Redirect))
+		}
+
 		// Crash-retry: a committed blue_edit for this key means the op is already on the
 		// stack — reconcile the write idempotently, do NOT append a second op.
 		prior, err := record.ExistingBlueEditByKey(run, s.SeatID, key)
@@ -66,20 +112,28 @@ func newEdit() *cobra.Command {
 			return nil, err
 		}
 		if prior {
-			if err := applyEdit(run, oldStr, newStr); err != nil {
-				return nil, err
-			}
-			return editResult{Idempotent: true}, nil
+			// The op is already on the diff-stack, so the render already reflects it — there is
+			// nothing to re-apply. Under report-as-record the edit IS the event; no file to reconcile.
+			return editResult{VoiceTells: tells, Idempotent: true}, nil
 		}
 
 		// FRESH: validate against a consistent snapshot BEFORE committing the event, so a
-		// mis-quote or a marker-spanning edit never lands a phantom stack op.
-		peek, err := record.ReadBlueReport(run)
+		// mis-quote or a marker-spanning edit never lands a phantom stack op. The snapshot is the
+		// render of the record so far — there is no file.
+		peek, err := reportproj.RenderFromRecord(run)
 		if err != nil {
 			return nil, err
 		}
-		planned, err := validateEdit(string(peek), oldStr, newStr)
+		planned, err := validateEdit(peek, oldStr, newStr)
 		if err != nil {
+			// THE ORDINARY PATH'S ADVICE IS UNACTIONABLE HERE. Those refusals tell blue to adjust
+			// --quote or to copy an anchor into --new, and an accepting caller passes neither. The
+			// commonest is settleAbuttingAnchor's: blue placed a citation anchor against the span
+			// red located, so the recorded fix can no longer replace it cleanly.
+			if accepting {
+				return nil, fmt.Errorf("blue edit --accept: the fix recorded on %s no longer applies to the report as it now stands — %w. "+
+					"The prescription is stale rather than wrong: write the edit yourself with --quote and --new, carrying red's text and whatever has changed around it", gapID, err)
+			}
 			return nil, err
 		}
 
@@ -97,7 +151,7 @@ func newEdit() *cobra.Command {
 			//
 			// Computed from the SNAPSHOT the validation used, not from a re-read: the write
 			// has not happened yet, and a second read could see a different document.
-			Reopened: bluedoc.ReopenedAnchors(string(peek), planned),
+			Reopened: bluedoc.ReopenedAnchors(peek, planned),
 		}
 		// ESTOPPEL, RECORDED BY THE TOOL COMPARING BYTES (#267 stage 4).
 		//
@@ -108,7 +162,15 @@ func newEdit() *cobra.Command {
 		//
 		// Blue is not obliged to reach this state: a counter-edit simply does not set the
 		// flag, and record.DeclineStats counts that as blue exercising its right to disagree.
-		if gapID := seat.Str(cmd, flags.Answers); gapID != "" {
+		if accepting {
+			// BY CONSTRUCTION, NOT BY COMPARISON. The bytes came from the mint a few lines above,
+			// so there is nothing to compare and nothing a transcription slip could cost. Both
+			// facts are recorded: `accepted` says blue took red's text through the accept path,
+			// `applied_verbatim` says the text is red's — the second is what estoppel reads, and
+			// it must be true here for the same reason it is true after a perfect transcription.
+			body.Accepted = proto.Bool(true)
+			body.AppliedVerbatim = proto.Bool(true)
+		} else if gapID != "" {
 			verbatim, err := record.ProposalAppliedVerbatim(run, gapID, oldStr, newStr)
 			if err != nil {
 				return nil, err
@@ -120,23 +182,16 @@ func newEdit() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		if err := applyEdit(run, oldStr, newStr); err != nil {
-			return nil, err
-		}
-		return editResult{}, nil
+		return editResult{VoiceTells: tells}, nil
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
 	c.Flags().String(flags.Quote, "", flags.DescQuote+". It is matched ACROSS the invisible anchor layer, and rejected if it contains a finding-marker or a citation anchor")
 	c.Flags().String(flags.New, "", "the text that span should become")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to (R1-4) — the provenance join key; omit only for an edit that answers no gap")
+	c.Flags().Bool(flags.Accept, false, flags.DescAccept)
 	return c
 }
-
-// errMisQuote is the sentinel for "--old is not present" — applyEdit distinguishes it to
-// drive the crash-reconcile branch (old gone but new already present ⇒ the write landed).
-// It is bluedoc's, because the CHECK is bluedoc's; this alias keeps the local reads short.
-var errMisQuote = bluedoc.ErrMisQuote
 
 // planEdit is the PURE core: it computes the new report from replacing the span of `old`
 // with `new`.
@@ -144,8 +199,9 @@ var errMisQuote = bluedoc.ErrMisQuote
 // The three LEGALITY checks — present-and-unique, no word split, and anchors transit
 // unchanged — live in internal/bluedoc, because `merge mint` now has to answer the same
 // question about a concrete proposed fix before red may attach one. What stays here is the
-// part only blue does: the SPLICE. The crash-reconcile and the lock live in applyEdit; the
-// validation peek reuses this via validateEdit. Fuzzed directly (edit_fuzz_test.go).
+// part only blue does: the SPLICE. Under report-as-record no file is written — the BlueEdit event
+// IS the mutation and reportproj.Render replays this same splice. The validation peek reuses this
+// via validateEdit. Fuzzed directly (edit_fuzz_test.go).
 func planEdit(report, old, new string) (string, error) {
 	start, end, err := bluedoc.LocateUniqueReplacing("blue edit", report, old)
 	if err != nil {
@@ -163,12 +219,7 @@ func planEdit(report, old, new string) (string, error) {
 	if err := bluedoc.AnchorsTransitUnchanged("blue edit", report[start:end], new); err != nil {
 		return "", err
 	}
-	next := report[:start] + new + report[end:]
-	// SPLICE HYGIENE (see splice.go): tidy the two seams this edit created before anything else
-	// looks at the result. Deterministic, narrow, and silent — the alternative, measured, is blue
-	// spending a third of a round repairing its own doubled punctuation by hand.
-	next, _ = tidySeam(next, start+len(new)) // trailing seam first — the later offset is stable
-	next, _ = tidySeam(next, start)
+	next := reportproj.ApplySplice(report, start, end, new)
 	if dropped := droppedMarker(report, next); dropped != "" {
 		return "", fmt.Errorf("blue edit: internal error — this edit would drop %s (report unchanged)", anchor.Label(dropped))
 	}
@@ -180,23 +231,55 @@ func planEdit(report, old, new string) (string, error) {
 // document so the caller can record what this edit reopens, computed from the same snapshot the
 // validation used rather than from a re-read that may have moved.
 func validateEdit(report, old, new string) (string, error) {
-	return planEdit(report, old, new)
+	planned, err := planEdit(report, old, new)
+	if err != nil {
+		return "", err
+	}
+	if run := doubledTerminator(report, planned); run != "" {
+		return "", fmt.Errorf("blue edit: this replacement would leave %q in the report — a punctuation run the document did not have. "+
+			"A quote's TRAILING punctuation is trimmed before the span is located, so the span your --old names stops SHORT of the "+
+			"terminator; replacing it with text that carries its own terminator leaves the original one standing after it. This is "+
+			"how a repair makes the document strictly worse while reading as applied. Extend --old through the punctuation you mean "+
+			"to replace, or leave the terminator out of --new", run)
+	}
+	return planned, nil
 }
 
-// applyEdit performs the span replacement under the blue-report flock. IDEMPOTENT: on a
-// crash-retry where the write already landed (old gone, new present) it is a no-op.
-func applyEdit(run record.Run, old, new string) error {
-	return record.MutateBlueReport(run, func(cur []byte) ([]byte, error) {
-		report := string(cur)
-		next, err := planEdit(report, old, new)
-		if err != nil {
-			if errors.Is(err, errMisQuote) && strings.Contains(report, new) {
-				return cur, nil // already applied on a prior attempt — no-op (reconcile)
+// doubledTerminator names a punctuation run the edit would CREATE and the report did not have.
+//
+// MEASURED, and it is the shape this check exists for. In research/2026-09-02_quadratic-formula
+// (blue-respond-r2) red minted a punctuation repair with a `verified` fix basis, blue applied the
+// text verbatim, and the site went from a doubled terminator `."."` to a TRIPLED one `."."."`.
+// The same happened to two of blue's own edits in that sitting. All three were invisible until
+// blue re-ran red's acceptance check against the shipped document — the verb exited 0 every time.
+//
+// It compares RUNS RATHER THAN COUNTS so ordinary prose cannot trip it: a document may legitimately
+// gain a "?!" or an ellipsis. What it refuses is a run LONGER than any the document already had,
+// which is the signature of a terminator landing beside one rather than on top of it.
+func doubledTerminator(before, after string) string {
+	worst := func(s string) string {
+		longest := ""
+		for i := 0; i < len(s); {
+			j := i
+			for j < len(s) && strings.ContainsRune(anchortext.TrailingPunct, rune(s[j])) {
+				j++
 			}
-			return nil, err
+			if j-i > len(longest) {
+				longest = s[i:j]
+			}
+			if j == i {
+				i++
+			} else {
+				i = j
+			}
 		}
-		return []byte(next), nil
-	})
+		return longest
+	}
+	got := worst(after)
+	if len(got) > len(worst(before)) {
+		return got
+	}
+	return ""
 }
 
 // droppedMarker returns an immortal-anchor id (finding OR citation) present in before but
@@ -217,11 +300,24 @@ func droppedMarker(before, after string) string {
 
 type editResult struct {
 	Idempotent bool `json:"idempotent,omitempty"`
+	// VoiceTells is ADVICE, and the edit is already recorded by the time it is rendered. The
+	// report is written for a reader of its SUBJECT, and this names where the new text sounds
+	// like the run talking about itself. It does not refuse: a pattern cannot tell a report
+	// narrating its own construction from a report quoting a source that narrates something,
+	// and a gate that cannot tell the difference would silently cost the second one. Red's
+	// voice lens has the judgement; this only says where to look, while the seat is still here.
+	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
 func (r editResult) Human() string {
+	head := "blue edit recorded — diff-stack op appended, finding-markers preserved, report re-derived on read"
 	if r.Idempotent {
-		return "blue edit (idempotent retry — reconciled, no second stack op)"
+		head = "blue edit (idempotent retry — the op is already on the diff-stack, no second op)"
 	}
-	return "blue edit applied — report.md updated, finding-markers preserved, diff-stack op recorded"
+	if len(r.VoiceTells) == 0 {
+		return head
+	}
+	return head + "\n\nNOTE — this text sounds like the run rather than the subject. The edit is\nrecorded; this is not a refusal, and it may be wrong:\n  - " +
+		strings.Join(r.VoiceTells, "\n  - ") +
+		"\nSeparation, never deletion: an operational limit belongs on the operator\nchannel, and the part that limits the CONCLUSION stays here, re-voiced."
 }

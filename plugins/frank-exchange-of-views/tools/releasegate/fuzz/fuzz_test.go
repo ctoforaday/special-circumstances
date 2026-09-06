@@ -62,6 +62,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // Capture only seat-id characters — NOT the trailing "." in "SEAT_ID: red-merge-r1." — or the
@@ -395,7 +396,7 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 	if rulings == nil {
 		rulings = arr()
 	}
-	env := map[string]any{"rulings": rulings, "friction": arr()}
+	env := map[string]any{"rulings": rulings, "log": arr()}
 	if r.forceHalt {
 		// `bench halt` writes the record; the envelope's halt object is only what stops the
 		// engine. The fake already drove the verb correctly before #329 — it was the PROMPT
@@ -525,19 +526,15 @@ var verifyConfidence = []string{"high", "medium", "low"}
 func (r *runner) someCitation() string {
 	// A SEAT ID, because `show` only exists inside a seat's tree. Any seat reads the same
 	// projection; the lens is the one that acts on citations.
-	out, err := r.exec("show", "evidence", "--seat-id", "red-lens-r1-L1")
-	if err != nil {
+	b := r.board()
+	if b == nil {
 		return ""
 	}
-	var e struct {
-		Sources []struct {
-			Anchor string `json:"anchor"`
-		} `json:"sources"`
-	}
-	if json.Unmarshal([]byte(strings.TrimSpace(out)), &e) != nil || len(e.Sources) == 0 {
+	sources := record.EvidenceJSONOf(b.Events).Sources
+	if len(sources) == 0 {
 		return ""
 	}
-	return e.Sources[r.rng.Intn(len(e.Sources))].Anchor
+	return sources[r.rng.Intn(len(sources))].Anchor
 }
 
 // mint records a gap and returns the tool-assigned id (R<round>-N). The first mint of a run
@@ -639,7 +636,7 @@ func (r *runner) mint(seatID string) string {
 	// as blue's own edit drive does, so a legal pair exists whichever way the last edit left
 	// the file — and both branches (proposal present / prose only) run across the sweep.
 	if r.coin(40) {
-		if cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md")); err == nil {
+		if cur, err := reportproj.RenderFromRecord(r.run()); err == nil {
 			fixOld, fixNew := "rising over time", "climbing sharply"
 			if !strings.Contains(string(cur), fixOld) {
 				fixOld, fixNew = fixNew, fixOld
@@ -673,36 +670,55 @@ func (r *runner) mint(seatID string) string {
 // someFinding returns a random lens finding label on the record, or "" if none — feeds mint's
 // --found-by with a real TOOL-assigned label (L{role}-F{N}) rather than a fabricated one.
 func (r *runner) someFinding() string {
-	out, err := r.exec("show", "findings", "--seat-id", "red-merge-r1")
+	// THE FINDING FAMILY, NOT THE WHOLE FOLD. `show findings` is FindingsJSONBytes now —
+	// EventsOf(run, FINDING) into FindingsJSONOf — so this reproduces the CLI's own path rather
+	// than the board it used to ask for (#719). Byte-identity is the property that keeps this
+	// safe against the RNG, and it is identity with what the VERB does, not with what it did.
+	evs, err := record.EventsOf(r.runHandle, recordpb.EventType_EVENT_TYPE_FINDING)
 	if err != nil {
 		return ""
 	}
-	var f struct {
-		Findings []struct {
-			Label string `json:"label"`
-		} `json:"findings"`
-	}
-	if json.Unmarshal([]byte(strings.TrimSpace(out)), &f) != nil || len(f.Findings) == 0 {
+	findings := record.FindingsJSONOf(evs).Findings
+	if len(findings) == 0 {
 		return ""
 	}
-	return f.Findings[r.rng.Intn(len(f.Findings))].Label
+	return findings[r.rng.Intn(len(findings))].Label
+}
+
+// board reads the record IN PROCESS, through the same builders the binary renders from.
+//
+// THE HARNESS ASKING ITSELF A QUESTION IS NOT THE HARNESS TESTING THE BINARY, and conflating the
+// two is what made this sweep expensive. `openGaps`, `someCitation` and `someFinding` exist so the
+// FUZZ can decide what to do next — which gap to act on, which citation to name — and each shelled
+// `feov-record` to find out. Measured at 4 runs: `merge show board` 127 invocations, `lens show
+// evidence` 45, `merge show findings` 19, out of 1039 total. That is ~48 subprocesses per run, at
+// ~12ms each, buying nothing the sweep asserts.
+//
+// The COVERAGE those verbs owe is unaffected and is not weakened here: the projection sweep in
+// runOne drives every view on every role explicitly, which is what the surface gate reads (it goes
+// through `drive` now — the first invocation of each path per sweep spawns the binary, the rest
+// dispatch the same tree in process). These three call sites were never what proved `show board`
+// works — they were the harness reading its own board through a subprocess.
+//
+// BYTE-IDENTICAL BY CONSTRUCTION, which is why this is safe against the RNG. record.BoardJSONOf,
+// EvidenceJSONOf and FindingsJSONOf are the exact functions the CLI marshals, so the lists below
+// hold the same elements in the same order the parsed stdout did — and these feed rng.Intn, where
+// a reordering would silently move every downstream draw.
+func (r *runner) board() *record.Board {
+	b, err := record.BoardState(r.runHandle)
+	if err != nil {
+		return nil
+	}
+	return b
 }
 
 func (r *runner) openGaps() []string {
-	out, err := r.exec("show", "board", "--seat-id", "red-merge-r1")
-	if err != nil {
-		return nil
-	}
-	var b struct {
-		Open []struct {
-			ID string `json:"id"`
-		} `json:"open"`
-	}
-	if json.Unmarshal([]byte(out), &b) != nil {
+	b := r.board()
+	if b == nil {
 		return nil
 	}
 	var ids []string
-	for _, g := range b.Open {
+	for _, g := range record.BoardJSONOf(b).Open {
 		ids = append(ids, g.ID)
 	}
 	return ids
@@ -926,9 +942,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 	// sits rarely (5 frictions in the whole sweep), and 30% of rarely is a path the coverage gate
 	// reports as missing while the drive is right there.
 	if r.coin(60) {
-		r.do("friction", seatID).set("--reason", "fuzz friction from "+seatID).run()
+		r.do("log", seatID).set("--type", "defect").set("--reason", "fuzz defect from "+seatID).run()
 	} else {
-		r.do("friction", seatID).bare("--none").set("--reason", "fuzz: nothing blocked "+seatID).run()
+		r.do("log", seatID).set("--type", "nominal").set("--reason", "fuzz: nothing blocked "+seatID).run()
 	}
 	// line of inquiry carries an optional --method; feed it sometimes so that flag is exercised too.
 	// #246: a line of inquiry now has an id and a LIFECYCLE. Propose, then sometimes move it — the
@@ -1091,7 +1107,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// gap: prose naming a real gap with --answers empty is REFUSED, and this drive must
 		// exercise the path that is allowed to succeed.
 		r.maybe(45, func() {
-			cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+			cur, err := reportproj.RenderFromRecord(r.run())
 			if err != nil {
 				return
 			}
@@ -1200,7 +1216,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.register("blue", seatID)
 		r.extras("blue", seatID, nil)
-		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": r.maybePetition("blue", seatID), "friction": arr()}
+		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": r.maybePetition("blue", seatID), "log": arr()}
 
 	case strings.HasPrefix(seatID, "red-merge"):
 		r.register("merge", seatID)
@@ -1298,16 +1314,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						"gaps":              []any{map[string]any{"id": id, "supersedes": arr()}},
 						"closures":          arr(),
 						"dispute_responses": responses,
-						"petitions":         r.maybePetition("merge", seatID), "friction": arr()}
+						"petitions":         r.maybePetition("merge", seatID), "log": arr()}
 				}
 			}
 			if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
-				return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+				return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "log": arr()}
 			}
 			// Refused over something that is not a gap. Record the verdict the tool WILL take, so
 			// the record and the harness agree about how this round ended.
 			_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
-			return map[string]any{"verdict": "FAIL", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+			return map[string]any{"verdict": "FAIL", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "log": arr()}
 		}
 
 		// Something is unrepaired, so the round FAILs.
@@ -1320,7 +1336,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// from a stray git operation mid-round, and it was only ever driven on a PASS — so the
 		// `FAIL` half of a two-value enum had never been recorded by anything.
 		_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
-		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "log": arr()}
 
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.register("blue", seatID)
@@ -1348,7 +1364,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		for _, id := range open {
 			manifest = append(manifest, id)
 		}
-		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": disputes, "petitions": r.maybePetition("blue", seatID), "friction": arr()}
+		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": disputes, "petitions": r.maybePetition("blue", seatID), "log": arr()}
 
 	case strings.HasPrefix(seatID, "judge-petition"):
 		r.register("bench", seatID)
@@ -1427,9 +1443,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			if n := len(res); n > 0 {
 				res = res[:n-1]
 			}
-			return map[string]any{"resolutions": res, "deadlock": true, "friction": arr()}
+			return map[string]any{"resolutions": res, "deadlock": true, "log": arr()}
 		}
-		return map[string]any{"resolutions": res, "deadlock": deadlock, "friction": arr()}
+		return map[string]any{"resolutions": res, "deadlock": deadlock, "log": arr()}
 
 	case strings.HasPrefix(seatID, "assemble"):
 		r.register("bench", seatID)
@@ -1471,7 +1487,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		_, _ = r.exec(oargs...)
 		_, _ = r.exec("assemble", "--seat-id", "assemble-r1")
 		open := len(r.openGaps())
-		return map[string]any{"synopsis": "fuzz", "open_gaps": open, "friction": arr()}
+		return map[string]any{"synopsis": "fuzz", "open_gaps": open, "log": arr()}
 
 	default: // frontier, blue lanes, red lenses — register, and lenses record onto the channel
 		if seatID != "" {
@@ -1547,17 +1563,18 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// `fetch` any seat uses. Driving it here is what makes the cache path — miss,
 				// store, hit — real in the fuzz rather than unit-tested only.
 				//
-				// --ocr=false ALWAYS, AND THAT IS NOT A COVERAGE DODGE. fetch reads a PDF with no
-				// text layer by rendering its pages and asking a MODEL — the one path in this tool
-				// that leaves the machine. A sweep of 40 debates driving 418 fetches must never do
-				// that, and the flag is exactly how a caller says so, so passing it here drives the
-				// refusal rather than merely satisfying the gate that every flag be exercised. The
-				// default (on) belongs to a seat reading one real document, not to a fuzzer.
+				// --ocr=false ALWAYS, AND THAT IS NOT A COVERAGE DODGE. The reading is local now
+				// (plans/local-ocr.md) — no model, no network — but this fuzz binary is a default
+				// build whose OCR engine is the stub, and its synthetic sources are not scanned
+				// PDFs, so "on" would exercise nothing while making the sweep's output depend on
+				// which build variant ran it. Passing the flag drives the stated-refusal path and
+				// satisfies the gate that every flag be exercised; the default (on) belongs to a
+				// seat reading one real document, not to a fuzzer.
 				_, _ = r.exec("fetch", "--seat-id", seatID, "--url", sourceURL("/"+seatID), "--ocr=false")
 				r.extras("lens", seatID, nil)
 			}
 		}
-		return map[string]any{"synopsis": "fuzz", "petitions": arr(), "friction": arr(), "rulings": arr()}
+		return map[string]any{"synopsis": "fuzz", "petitions": arr(), "log": arr(), "rulings": arr()}
 	}
 }
 
@@ -1907,6 +1924,16 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	r := newRunner(bin, runDir, newLockedRand(seed))
 	r.forceUnverified = forceUnverified
 
+	// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now: blue-synthesize
+	// freezes the seeded report into the record and the file is deleted, exactly as the engine does
+	// after synthesis and before the rounds. Every verb from here reads and mutates the report
+	// through the record — without this, mint/finding/cite/edit all refuse with "no base has been
+	// ingested". Driven at round 0, so base_ingest is no longer exempt from the coverage gate.
+	r.register("blue", "blue-synthesize")
+	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize", "--reason", "freeze the round-0 synthesis into the record"); err != nil {
+		return outcome{seed: seed, runDir: runDir, err: "ingest the round-0 report: " + err.Error()}
+	}
+
 	res = outcome{seed: seed, runDir: runDir}
 	// NAMED RETURN + defer, because this function returns from a dozen places — an oracle that
 	// fires early would otherwise drop the run's apply-miss causes on the floor, which is the
@@ -1954,6 +1981,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// because the sweep had only ever driven the handful it asserted on. A view that only the
 	// merge reads is a view nobody checks from the seat that actually reads it.
 	// EVERY SEAT READS EVERY PROJECTION, and the seat id is what says which tree `show` is in.
+	//
+	// THROUGH `drive`, WHICH SPAWNS THE BINARY ONCE PER PATH AND THEN STOPS. What varies between
+	// runs here is the RECORD each projection meets, never the argv — measured at N=4, every one
+	// of these 48 paths fired at exactly 1-4 invocations per run, the same set on every seed. So
+	// the shape variation these oracles are built on is kept in full and the 76 process spawns a
+	// run paid for it are not; `drive`'s own comment carries the accounting.
 	for role, sid := range map[string]string{
 		"blue": "blue-respond-r1", "lens": "red-lens-r1-L1", "merge": "red-merge-r1", "bench": "judge-r1",
 	} {
@@ -1962,12 +1995,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 			if v == "changes" && len(ids) > 0 {
 				args = append(args, "--id", ids[0])
 			}
-			if _, err := tracked(bin, args...); err != nil {
+			if _, err := drive(bin, args...); err != nil {
 				res.err = role + " show " + v + " failed: " + err.Error()
 				return res
 			}
 		}
-		if _, err := tracked(bin, "show", "--run", runDir, "--seat-id", sid); err != nil {
+		if _, err := drive(bin, "show", "--run", runDir, "--seat-id", sid); err != nil {
 			res.err = role + " show (bare, the seat's pending work) failed: " + err.Error()
 			return res
 		}
@@ -1990,7 +2023,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		} {
 			for _, extra := range [][]string{nil, {"--window", "0"}} {
 				args := append([]string{"show", "report", "--anchor", a, "--run", runDir, "--seat-id", sid}, extra...)
-				out, err := tracked(bin, args...)
+				out, err := drive(bin, args...)
 				if err != nil {
 					res.err = strings.Join(args, " ") + " failed:\n" + truncate(string(out))
 					return res
@@ -2007,12 +2040,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// AN ANCHOR NOBODY MINTED IS REFUSED, NOT READ EMPTY — the read-side twin of `show changes
 	// --id R9-99`. An empty window says "the report has nothing here", which is a different
 	// fact from "that anchor is not in this report".
-	if out, err := tracked(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir, "--seat-id", "blue-respond-r1"); err == nil {
+	if out, err := drive(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir, "--seat-id", "blue-respond-r1"); err == nil {
 		res.err = "show report --anchor f-ffffffff SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
 		return res
 	}
 	// The OPERATOR's friction read — seats write the channel, the human reads it back.
-	if _, err := tracked(bin, "friction", "--run", runDir, "--seat-id", "operator"); err != nil {
+	if _, err := tracked(bin, "log", "--run", runDir, "--seat-id", "operator"); err != nil {
 		res.err = "operator friction read failed: " + err.Error()
 		return res
 	}
@@ -2025,7 +2058,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// `friction` left the SEAT menu (0.57.0) — it is the operator's read. The verb stays on
 	// every role; only the view moved.
 	for _, v := range []string{"findings"} {
-		out, err := tracked(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1")
+		out, err := drive(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show " + v + " did not return valid JSON:\n" + truncate(string(out))
@@ -2033,7 +2066,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		}
 	}
 	{
-		out, err := tracked(bin, "show", "debate", "--json", "--run", runDir, "--seat-id", "red-merge-r1")
+		out, err := drive(bin, "show", "debate", "--json", "--run", runDir, "--seat-id", "red-merge-r1")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show debate --json did not return valid JSON:\n" + truncate(string(out))
@@ -2054,14 +2087,14 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// role gate, so driving only `merge show --view` left the other three reachable but never
 	// reached — and --id (the scoped form) never passed at all.
 	for _, role := range []string{"blue", "lens", "bench"} {
-		if out, err := tracked(bin, "show", "debate", "--run", runDir, "--seat-id", seatOfRole(role)); err != nil {
+		if out, err := drive(bin, "show", "debate", "--run", runDir, "--seat-id", seatOfRole(role)); err != nil {
 			res.err = role + " show debate failed:\n" + truncate(string(out))
 			return res
 		}
 	}
 	if ids := mintedGapIDs(stageRun); len(ids) > 0 {
 		for _, role := range []string{"blue", "lens", "bench"} {
-			_, _ = tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", seatOfRole(role))
+			_, _ = drive(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", seatOfRole(role))
 		}
 	}
 	// THE SET IS DERIVED, because this exclusion was four names written here by hand and two of
@@ -2079,7 +2112,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		if jsonByName[v] {
 			continue // JSON by name — driven by their own oracles, not the markdown path
 		}
-		if out, err := tracked(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		if out, err := drive(bin, "show", v, "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 			res.err = "show " + v + " (projection) failed:\n" + truncate(string(out))
 			return res
 		}
@@ -2089,11 +2122,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
 	// rendered empty — the read-side twin of requireGap.
 	if ids := mintedGapIDs(stageRun); len(ids) > 0 {
-		if out, err := tracked(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+		if out, err := drive(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
 			res.err = "show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
 		}
-		if out, err := tracked(bin, "show", "changes", "--id", "R9-99", "--run", runDir, "--seat-id", "red-merge-r1"); err == nil {
+		if out, err := drive(bin, "show", "changes", "--id", "R9-99", "--run", runDir, "--seat-id", "red-merge-r1"); err == nil {
 			res.err = "show changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
 			return res
 		}
@@ -2379,9 +2412,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	}
 	res.dialectic = tallyDialectic(board)
 	// #256: count the citation axis's two real artifacts (see outcome). A cite that fetched and
-	// anchored leaves BOTH; a cite event alone leaves neither.
-	if md, err := os.ReadFile(filepath.Join(runDir, "blue", "report.md")); err == nil {
-		res.citeAnchors = strings.Count(string(md), "<!--cite:")
+	// anchored leaves BOTH; a cite event alone leaves neither. The report is the record projection
+	// now (#709), so the anchors are counted in the render, not a file.
+	if run, rerr := record.NewRun(runDir); rerr == nil {
+		if md, mErr := reportproj.RenderFromRecord(run); mErr == nil {
+			res.citeAnchors = strings.Count(md, "<!--cite:")
+		}
 	}
 	for _, e := range board.Events {
 		body, ok := recordpb.Body(e)
@@ -2459,12 +2495,12 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
 	"closing", "position", "regrade", "mint", "close",
-	"cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
+	"cite", "verify", "finding", "avenue", "reproduce", "log", "revision", "retire",
 	"manifest_row", "verdict", "spot_check", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
 	// so a gate listing only "friction" would report the channel covered while the arm that
 	// makes an empty log meaningful went undriven.
-	"friction_none",
+	"log",
 	// The motion collapse (#344): filed by any seat, ruled by one, appealed by the filer.
 	"motion", "motion_rule", "motion_appeal",
 	// Added 2026-08-04 by a census of every type record.Append can write: these three were
@@ -2473,6 +2509,14 @@ var verbsWithEvents = []string{
 	// detector's EXPECTED set is exactly these), `class-new` is the growing gap registry's
 	// write, `outcome` is the bench's.
 	"blue_edit", "anchor", "class_new", "outcome", "proof",
+	// base_ingest is the frozen round-0 report (#709), written by `blue ingest` at the start of
+	// every run (runOne) and so REQUIRED by the coverage gate like any other event-emitting verb.
+	"base_ingest",
+	// The sitting span (#265), and the first types here that NO VERB WRITES: they are appended by
+	// the SubagentStart/SubagentStop hook binaries, about a seat, and the goja harness execs the
+	// binary directly without a harness to fire hooks. Listed so the census is complete and
+	// exempted below from the random sweep, which cannot reach them.
+	"sitting_open", "sitting_close",
 	// The remaining schema types, named so the census below has a complete list to check against.
 	"closing", "inquiry_review", "register",
 }
@@ -2488,6 +2532,17 @@ var coverExempt = map[string]bool{
 	//
 	// The `Observation` a board carries is built from FINDING events, not from this type.
 	"observe": true,
+	// THE SITTING SPAN IS WRITTEN BY HOOKS, NOT BY VERBS, which is a different kind of
+	// homelessness from `observe`'s and is exempted for a different reason. `observe` has no
+	// writer at all; these two have a real one the FUZZ cannot invoke — the harness execs the
+	// binary with no client to fire SubagentStart or SubagentStop, so no seed could ever produce
+	// them however long it ran.
+	//
+	// They are driven, just not here: internal/hookcmd/sitting_test.go asserts both ends land,
+	// that a main-agent turn end does not, and that neither hook writes to stdout. Named rather
+	// than dropped, so "the sweep does not cover this" stays a line somebody reads.
+	"sitting_open":  true,
+	"sitting_close": true,
 }
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
@@ -2605,7 +2660,7 @@ var dialecticProseKey = map[string]string{
 	// does, and arguably a stronger one: a reader weighing "no friction this run" needs to know
 	// whether the seats looked and said so, or never used the channel. Those were the same
 	// bytes for eighteen recorded sittings, and this event is what separates them.
-	"friction_none": "text",
+	"log": "text",
 	// Blue's self-audit receipt, one per repaired gap. `row` is what blue checked and what
 	// checking it showed — the receipt reached no reader for a year, because the coverage metric
 	// counted the ENVELOPE array and the verb was named in no prompt at all (#318).
@@ -2624,10 +2679,11 @@ var dialecticProseKey = map[string]string{
 // with its reason. Stated rather than omitted: an absence with no reason is indistinguishable
 // from an oversight, which is precisely how this gate decayed.
 var reportExemptions = map[string]string{
-	"register":  "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
-	"anchor":    "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
-	"blue_edit": "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
-	"class_new": "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
+	"register":    "a seat announcing itself to the run — attribution machinery, and the attribution reaches the reader on every act that seat records, never as an entry of its own",
+	"anchor":      "an estoppel key spliced INTO blue/report.md — it is machinery for the edit path, and the text it anchors is the lifted content itself",
+	"blue_edit":   "mutates blue/report.md, which assembly lifts verbatim; the edit's effect IS in the report, and rendering the old/new spans again would duplicate the document",
+	"base_ingest": "the round-0 report frozen into the record (#709) — its text IS blue's report, the base every projection renders from, which assembly lifts verbatim; rendering it as an entry of its own would duplicate the whole document",
+	"class_new":   "registers a gap class; the class reaches the reader on every gap that carries it, not as an entry of its own",
 	// Red's independent re-run. The NOTE is its judgement; whether it reproduced is computed
 	// by the tool and rendered beside the proof either way (#343).
 	"reproduce": "reason",
@@ -3160,7 +3216,7 @@ func (r *runner) recentlyEditedOut() string {
 	if err != nil {
 		return ""
 	}
-	cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+	cur, err := reportproj.RenderFromRecord(r.run())
 	if err != nil {
 		return ""
 	}
@@ -3358,7 +3414,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			case gid == "":
 				r.noteApplyMiss("no proposal on the gap (red minted prose-only)")
 			default:
-				cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+				cur, err := reportproj.RenderFromRecord(r.run())
 				switch {
 				case err != nil:
 					r.noteApplyMiss("report unreadable: " + err.Error())
@@ -3445,7 +3501,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 
 // counterEdit makes a real edit that is NOT red's proposed text.
 func (r *runner) counterEdit(seatID, gapID string) {
-	cur, err := os.ReadFile(filepath.Join(r.runDir, "blue", "report.md"))
+	cur, err := reportproj.RenderFromRecord(r.run())
 	if err != nil {
 		return
 	}
@@ -3550,7 +3606,7 @@ func containsFlag(argv []string, flag string) bool {
 func sweepReadOnly(bin, runDir string) string {
 	// The transcript dir is the run dir here: dashboard tolerates finding no agent-*.jsonl,
 	// and what is under test is that it RENDERS whatever board shape the run reached.
-	if out, err := tracked(bin, dashboardArgv(runDir)...); err != nil {
+	if out, err := drive(bin, dashboardArgv(runDir)...); err != nil {
 		return "read-only surface `dashboard` failed on a real run shape:\n" + truncate(string(out))
 	}
 	for _, argv := range readOnlySurfaces {
@@ -3560,7 +3616,7 @@ func sweepReadOnly(bin, runDir string) string {
 		if !containsFlag(argv, "--seat-id") {
 			args = append(args, "--seat-id", "operator")
 		}
-		if out, err := tracked(bin, args...); err != nil {
+		if out, err := drive(bin, args...); err != nil {
 			return "read-only surface `" + strings.Join(argv, " ") + "` failed on a real run shape:\n" + truncate(string(out))
 		}
 	}
@@ -3685,13 +3741,18 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	// report a lens finding has no anchor quote to attach to and is refused, so red mints nothing
 	// and round 3 is a FAIL with an empty gaps array — the engine's degenerate-merge refusal,
 	// which is correct and is not this path. Without the class registry every `mint` is refused
-	// for an unknown class. runOne does both before it drives; so does this.
+	// for an unknown class. And without INGESTING the report (#709) every verb that reads it is
+	// refused with "no base has been ingested". runOne does all three before it drives; so does this.
 	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
 	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
 		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time.\n"), 0o644)
 	r := newRunner(bin, runDir, newLockedRand(1))
 	if err := record.StageForRun(r.run(), fuzzClasses...); err != nil {
 		t.Fatalf("staging the class registry: %v", err)
+	}
+	r.register("blue", "blue-synthesize")
+	if _, err := r.exec("ingest", "--seat-id", "blue-synthesize", "--reason", "freeze the round-0 synthesis into the record"); err != nil {
+		t.Fatalf("ingest the round-0 report: %v", err)
 	}
 	r.forceUnverified = true
 

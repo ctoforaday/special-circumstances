@@ -30,7 +30,7 @@ func newFetch() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "fetch",
 		Short: "cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes",
-		Long: "fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself, for any content type. Open what you need with Read, which can take an offset and a limit; a 67-page paper pasted into your context is the same waste whether it is legible or not. Where the source is a PDF, its text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling to read it. WHERE THAT PDF HAS NO TEXT LAYER — a scan, roughly one cited PDF in four — its pages are rendered to grayscale at 200 DPI and READ BY A MODEL, one call a page, and the transcription is named in the summary as ocr_derived text; this SPENDS TOKENS and needs credentials, `--ocr=false` caches the document unread, and a document over the page cap is refused rather than partly read. A transcription is ONE reading and nothing corroborates it — `ocr_derived: true` beside the text is what says so. A later fetch of the same URL is served from cache so every seat reads identical content. It writes no record event. A fetch failure is a non-zero error (pick another source); it does not itself log friction. " +
+		Long: "fetch GETs --url once, caches the bytes at <run>/cache/<sha256>, and prints A SUMMARY NAMING THE FILES — never the document itself, for any content type. Open what you need with Read, which can take an offset and a limit; a 67-page paper pasted into your context is the same waste whether it is legible or not. Where the source is a PDF, its text is extracted to <run>/cache/<sha256>.txt and named in the summary, so you need no PDF tooling to read it. WHERE THAT PDF HAS NO TEXT LAYER — a scan, roughly one cited PDF in four — its pages are rendered to grayscale at 300 DPI and read by the LOCAL OCR ENGINE compiled into this binary (tesseract + leptonica, statically linked): deterministic, reproducible, no model, no credentials, no network, seconds per document. The reading is named in the summary as ocr_derived text, keyed to the engine identity so an audit can re-derive it byte for byte; ruled-table pages are detected and reconstructed into |-separated rows with confidence stats on the record, and a reconstruction that cannot place its marks falls back to plain text WITH the failure stated. `--ocr=false` caches the document unread, and a document over the render disk budget is refused rather than partly read. Pages already read are never derived twice on a fetch: each carries a receipt validated against its image hash, so a retry or a crash resumes cleanly. A later fetch of the same URL is served from cache so every seat reads identical content. It writes no record event. A fetch failure is a non-zero error (pick another source); it does not itself log friction. " +
 			"AN UNREACHED SOURCE IS NOT EVIDENCE OF ABSENCE. Where this session runs behind an egress proxy, a host outside its allowlist answers 403 — the same status an origin uses to refuse a client — so a failure can be a fact about THIS CONTAINER or a fact about the SOURCE, and the two are different findings. The refusal says so where it can. Measured 2026-08-23: openai.com 403s through the proxy, and a research question shipped `open rather than resolved` on that basis. Where you cannot tell which it was, record that the source was UNREACHABLE FROM HERE rather than that the question is unresolved.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
@@ -62,18 +62,21 @@ func newFetch() *cobra.Command {
 
 			// A SCANNED DOCUMENT IS READ HERE, rather than handed back as a dead end (#644).
 			//
-			// This is the one place in this tool that spends a model on a plain read, and it is
-			// deliberately not left to the seat: the alternative was an INSTRUCTION telling a seat
-			// that `ocr pages` and `ocr read` exist, which is the weakest carrier available for a
-			// step the tool can simply take. It fires only where the extractor looked at a PDF and
-			// found no text layer — one document in four in the 2026-08-23 corpus — and it is
-			// bounded by the page cap and reused across fetches of the same document.
+			// The reading is LOCAL — the OCR engine statically linked into this binary — and it
+			// is deliberately not left to the seat: the alternative was an INSTRUCTION telling a
+			// seat that `ocr pages` and `ocr read` exist, which is the weakest carrier available
+			// for a step the tool can simply take. It fires only where the extractor looked at a
+			// PDF and found no text layer — one document in four in the 2026-08-23 corpus — and
+			// it is bounded by the render disk budget and reused across fetches of the same
+			// document.
 			//
-			// A READ FAILURE IS NEVER A FETCH FAILURE, exactly as an extraction failure is not: the
-			// bytes are cached and the source is perfectly good, it is the READING that is missing.
-			// So the reason travels on the summary and the command still exits 0. What must not
-			// happen is the reason travelling nowhere — a document with no text and no stated cause
-			// reads identically whether reading was refused, off, or broken.
+			// A READ FAILURE IS NEVER A FETCH FAILURE, exactly as an extraction failure is not:
+			// the bytes are cached and the source is perfectly good, it is the READING that is
+			// missing. So the reason travels on the summary and the command still exits 0 — this
+			// is also how a binary built WITHOUT the engine states itself: ocr_reason carries the
+			// engine-absent sentence instead of an empty reading. What must not happen is the
+			// reason travelling nowhere — a document with no text and no stated cause reads
+			// identically whether reading was refused, off, or broken.
 			if applicableToOCR(entry) {
 				switch on, _ := cmd.Flags().GetBool(flags.OCR); {
 				case !on:
@@ -81,8 +84,7 @@ func newFetch() *cobra.Command {
 						"with `ocr pages --%s %s` then `ocr read --%s %s`",
 						flags.OCR, flags.Sha, entry.Sha, flags.Sha, entry.Sha)
 				default:
-					rec, rerr := fetchcache.DefaultScanReader.ReadScanned(
-						cmd.Context(), run, entry, defaultReadModel, fetchcache.DefaultRenderDPI)
+					rec, rerr := fetchcache.DefaultScanReader.ReadScanned(cmd.Context(), run, entry)
 					if rerr != nil {
 						s.OCRReason = rerr.Error()
 					} else {
@@ -99,6 +101,6 @@ func newFetch() *cobra.Command {
 		},
 	}
 	c.Flags().String(flags.URL, "", "the http/https URL to read (fetched once, then served from the run cache)")
-	c.Flags().Bool(flags.OCR, true, "read a PDF that has no text layer by rendering its pages and asking a model; --ocr=false caches it unread")
+	c.Flags().Bool(flags.OCR, true, "read a PDF that has no text layer with the local OCR engine; --ocr=false caches it unread")
 	return c
 }

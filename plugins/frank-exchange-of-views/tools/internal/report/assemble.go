@@ -121,14 +121,6 @@ func Assemble(run record.Run) (string, error) {
 	return Write(run, title, docs, indexDoc(run, title, docs, board, board.Events))
 }
 
-func readOr(path, fallback string) string {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return fallback
-	}
-	return string(b)
-}
-
 // blueEmbed returns the parts of blue/report.md NOT already composed elsewhere. Blue's lifted
 // synthesis surfaces are dropped (they appear at the top), and the sections blue must never
 // author — the risk matrix, the board, the debate, a verdict, and now the footnotes /
@@ -1095,8 +1087,20 @@ func unmintedFindings(board *record.Board) string {
 			loc = " — " + loc
 		}
 		// A finding is addressed by COALESCENCE and nothing else: its label named in some gap's
-		// found_by. So a finding reaching this section means exactly one thing — the merge
-		// weighed it and did not mint it — and the section says so.
+		// found_by. What a finding reaching this section means is therefore ONE fact — no gap
+		// credits it — and NOT the second fact this comment used to assert, that "the merge
+		// weighed it and did not mint it".
+		//
+		// NOTHING ON THE RECORD SAYS THE MERGE WEIGHED ANYTHING. Deliberation is not an event;
+		// declining to mint writes nothing. Measured (#747): across one run three findings
+		// reached this section with no recorded reason, and one of them — a medium-severity
+		// allegation, with a reproducible `grep -ic` behind it, that blue had fabricated a
+		// verbatim quote — was dropped in the same round the merge closed the gap that very text
+		// was repairing. Rendering that as "weighed and declined" is the sentence that makes a
+		// silent drop read as a considered decision, which is the whole of the harm.
+		//
+		// So the section states the join and stops. `internal/view/view.go` says the same thing
+		// about the same set, and said something different until this change.
 		//
 		// `--reason` LANDS ON `text`: Finding's only prose channel, the same flag/field split
 		// recordpb/required.go declares for Verify.text and Close.prose.
@@ -1109,7 +1113,7 @@ func unmintedFindings(board *record.Board) string {
 	if len(rows) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("### Lens findings not raised to a gap (%d)\n\nRed's leaf audit that the merge weighed but did not mint — kept for the record, not a gate on the verdict.\n\n%s",
+	return fmt.Sprintf("### Lens findings credited by no gap (%d)\n\nRed's leaf audit that no gap on the board credits. Whether each was considered and declined, or never reached the merge at all, is NOT recorded — declining to mint writes nothing. Kept for the record, and not a gate on the verdict.\n\n%s",
 		len(rows), strings.Join(rows, "\n\n"))
 }
 
@@ -1144,6 +1148,33 @@ func debate(board *record.Board, evs []*record.Event) string {
 	var parts []string
 	for _, r := range order {
 		re := byRound[r]
+		// THE RECORDED VERDICT, RENDERED BESIDE THE PROSE THAT CLAIMS ONE.
+		//
+		// A seat's position is prose, and prose can say "my verdict is PASS" while the round's
+		// STRUCTURED verdict — the one the board and every audit read — says fail. That is not
+		// hypothetical: in research/2026-09-02_quadratic-formula red's round-5 position says
+		// exactly that, `round_verdict` holds fail for all five rounds, and this document rendered
+		// only the sentence. A reader of debate.md alone concluded the opposite of the record.
+		//
+		// The fix is not to detect the contradiction — that would be a string match on prose, and
+		// a wrong one would be worse than none. It is to render the FACT next to the claim, so a
+		// reader sees both and needs no inference.
+		recordedVerdict := ""
+		for _, e := range re {
+			if v, ok := recordpb.BodyAs[*recordpb.RoundVerdict](e); ok {
+				recordedVerdict = recordpb.Word(v.GetVerdict())
+			}
+		}
+		redHead := "### RED"
+		switch {
+		case recordedVerdict != "":
+			redHead = "### RED — recorded verdict: " + strings.ToUpper(recordedVerdict)
+		default:
+			// ABSENCE IS ITS OWN FACT. A round where red spoke and recorded no verdict is not a
+			// round that passed; it is one whose gate never closed, and silence renders the same
+			// as either. The ceiling case that produced this defect is exactly that shape.
+			redHead = "### RED — NO VERDICT RECORDED THIS ROUND"
+		}
 		var round []string
 		// THE BODY IS THE TYPE, and the party is still the seat's. `--reason` lands on
 		// Position.text and Closing.text — one prose channel each, declared for Closing in
@@ -1153,7 +1184,7 @@ func debate(board *record.Board, evs []*record.Event) string {
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
 				switch party {
 				case "merge":
-					round = append(round, "### RED\n"+p.GetText())
+					round = append(round, redHead+"\n"+p.GetText())
 				case "blue":
 					round = append(round, "### BLUE\n"+p.GetText())
 				}
@@ -1279,32 +1310,34 @@ func debate(board *record.Board, evs []*record.Event) string {
 	return b.String()
 }
 
-// frictionLog surfaces the tooling gaps the seats hit — friction events, recorded through the
-// friction verb but rendered by nothing before this (write-only, per the 2026-07-23 audit). A
-// missing capability the run hit is a finding about the tooling; surfacing it is how it reaches
-// the human who can retool the seat, instead of dying on an unread channel.
-func frictionLog(evs []*record.Event) string {
+// logSection surfaces what the seats told the operator — log events, recorded through the log
+// verb but rendered by nothing before this (write-only, per the 2026-07-23 audit). A missing
+// capability the run hit is a finding about the tooling; surfacing it is how it reaches the human
+// who can retool the seat, instead of dying on an unread channel.
+func logSection(evs []*record.Event) string {
 	var rows, attested []string
-	// TWO MESSAGES, ONE FIELD NAME. Both carry the seat's words on `text`; the empty-text skip
-	// that used to sit above the type test now sits inside each arm, which changes nothing
-	// except that the field is read from the message that actually has it.
+	// ONE MESSAGE, TYPED. The clean case used to be a second message; it is now a `nominal` entry,
+	// so the split below reads the TYPE rather than the message. Each entry renders with its type
+	// so the operator can triage by filtering instead of by reading.
 	for _, e := range evs {
-		if f, ok := recordpb.BodyAs[*recordpb.Friction](e); ok {
-			if t := strings.TrimSpace(f.GetText()); t != "" {
-				rows = append(rows, fmt.Sprintf("- **%s**: %s", e.GetSeatId(), t))
-			}
+		f, ok := recordpb.BodyAs[*recordpb.Log](e)
+		if !ok {
 			continue
 		}
-		if f, ok := recordpb.BodyAs[*recordpb.FrictionNone](e); ok {
-			if t := strings.TrimSpace(f.GetText()); t != "" {
-				attested = append(attested, fmt.Sprintf("- **%s**: %s", e.GetSeatId(), t))
-			}
+		t := strings.TrimSpace(f.GetText())
+		if t == "" {
+			continue
 		}
+		if f.GetType() == recordpb.LogType_LOG_TYPE_NOMINAL {
+			attested = append(attested, fmt.Sprintf("- **%s**: %s", e.GetSeatId(), t))
+			continue
+		}
+		rows = append(rows, fmt.Sprintf("- **%s** (%s): %s", e.GetSeatId(), recordpb.Word(f.GetType()), t))
 	}
 	if len(rows) == 0 && len(attested) == 0 {
 		return ""
 	}
-	out := "## Friction (tooling gaps the run hit)\n\n"
+	out := "## Log (what the run told the operator)\n\n"
 	if len(rows) > 0 {
 		out += strings.Join(rows, "\n") + "\n"
 	} else {

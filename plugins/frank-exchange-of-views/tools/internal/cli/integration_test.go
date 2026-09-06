@@ -25,6 +25,15 @@ import (
 
 // seatRun sets up a run directory with every seat registered, the way the engine does.
 func seatRun(t *testing.T) string {
+	return seatRunReport(t, "")
+}
+
+// seatRunReport is seatRun with the round-0 report body a caller needs. body=="" seeds the generic
+// report carrying the quotes the finding tests anchor to; a non-empty body is ingested instead, for
+// a test whose --quote is specific. Either way the report is INGESTED (#709), mirroring the real run
+// where blue-synthesize wrote and froze the report before red-lens files findings — so a caller must
+// NOT writeReport again afterwards, which would be a second, refused ingest.
+func seatRunReport(t *testing.T, body string) string {
 	t.Helper()
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
@@ -33,11 +42,11 @@ func seatRun(t *testing.T) string {
 			t.Fatalf("register %s: %v", id, err)
 		}
 	}
-	// A lens finding is now anchored into blue/report.md and rejected unless its
-	// --quote quote is present (slice 1b). Seed a report carrying the quotes the
-	// finding tests use, mirroring the real run where blue-synthesize wrote the report
-	// before red-lens files findings.
-	seedBlueReport(t, runDir)
+	if body == "" {
+		seedBlueReport(t, runDir)
+	} else {
+		writeReport(t, runDir, body)
+	}
 	return runDir
 }
 

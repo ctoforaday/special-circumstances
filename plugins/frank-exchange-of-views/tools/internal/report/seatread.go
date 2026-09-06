@@ -1,10 +1,8 @@
 package report
 
 import (
-	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
-	"os"
-	"path/filepath"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
 // BlueReportForReading returns blue/report.md THROUGH THE TOOL, with its anchor layer intact.
@@ -33,15 +31,12 @@ import (
 // part blue is responsible for carrying across an edit. Assembly resolves them at the END,
 // once, for a reader who will never edit again.
 func BlueReportForReading(run record.Run) ([]byte, error) {
-	path := filepath.Join(run.Dir(), "blue", "report.md")
-	md, err := os.ReadFile(path)
+	// The report is the record projection now (#709): there is no file. RenderFromRecord is loud
+	// when no base has been ingested — "there is nothing to read" rather than the plausible zero of
+	// an empty read — which is the same distinction the file-not-exist branch used to draw.
+	md, err := reportproj.RenderFromRecord(run)
 	if err != nil {
-		if os.IsNotExist(err) {
-			// A run before round 0's synthesis. An empty read here would be the plausible zero:
-			// "the report says nothing" and "there is no report yet" are different facts.
-			return nil, fmt.Errorf("no blue/report.md yet — the round-0 synthesis has not run, so there is nothing to read (this is NOT an empty report)")
-		}
 		return nil, err
 	}
-	return md, nil
+	return []byte(md), nil
 }

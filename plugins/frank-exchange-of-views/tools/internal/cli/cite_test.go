@@ -135,7 +135,7 @@ func TestBlueCiteFetchFailureRejectsAndFrictions(t *testing.T) {
 		t.Errorf("an unusable cite recorded %d cite events, want 0", n)
 	}
 	// But the DECISION to cite an unreachable source IS surfaced as friction.
-	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_FRICTION); n != 1 {
+	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG); n != 1 {
 		t.Errorf("an unusable cite recorded %d friction events, want 1", n)
 	}
 }

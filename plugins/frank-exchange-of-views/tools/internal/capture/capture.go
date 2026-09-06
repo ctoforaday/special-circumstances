@@ -4,7 +4,7 @@
 // the transcript tarball, appends each chair's scorecard, harvests precedents into law/proposed,
 // removes the run-live marker, and writes run-record-audit.md — exit 2 on any audit FAIL.
 //
-// The three record-backed audits (telemetry, friction-parity, record-parity) read the record
+// The three record-backed audits (telemetry, log-parity, record-parity) read the record
 // IN-PROCESS via record.BoardState → DebateJSONOf/FrictionJSONOf, never by spawning `merge show`.
 // The PRECEDENT HARVEST reads it too, never the envelopes' self-reported ruling arrays: a bench
 // that under-reports would promote less than it ruled, and one that reported nothing would
@@ -31,6 +31,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 	// Aliased: this package's own `Run` returns a named result called `report`, and the two
 	// spellings would shadow each other at exactly the call site that needs the constant.
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
@@ -94,9 +95,9 @@ func jsSlice(s string, n int) string {
 // ---- journal ----
 
 // ReadJournal walks journal.jsonl tolerantly: every result object and the friction arrays inside.
-func ReadJournal(transcriptDir string) (results []map[string]any, friction []EnvelopeFriction) {
+func ReadJournal(transcriptDir string) (results []map[string]any, friction []EnvelopeLog) {
 	results = []map[string]any{}
-	friction = []EnvelopeFriction{}
+	friction = []EnvelopeLog{}
 	b, err := os.ReadFile(filepath.Join(transcriptDir, "journal.jsonl"))
 	if err != nil {
 		return results, friction
@@ -116,13 +117,13 @@ func ReadJournal(transcriptDir string) (results []map[string]any, friction []Env
 			continue
 		}
 		results = append(results, r)
-		if fr, ok := r["friction"].([]any); ok {
+		if fr, ok := r["log"].([]any); ok {
 			// THE AGENT HANDLE TRAVELS WITH THE TEXT. It is the only thing on this line that can
 			// be joined to a seat, and dropping it here is what left the parity check comparing
-			// prose to prose. See FrictionAudit.
+			// prose to prose. See LogAudit.
 			agent := jsString(j["agentId"])
 			for _, f := range fr {
-				friction = append(friction, EnvelopeFriction{AgentID: agent, Text: jsString(f)})
+				friction = append(friction, EnvelopeLog{AgentID: agent, Text: jsString(f)})
 			}
 		}
 	}
@@ -247,15 +248,15 @@ func TelemetryAudit(run record.Run, redRounds int) Audit {
 
 // ---- AUDIT 3: friction parity ----
 
-// FrictionAudit checks every envelope-self-reported friction reached the record. onRecord is the
+// LogAudit checks every envelope-self-reported friction reached the record. onRecord is the
 // friction view's texts, read in-process. 60-char tolerant match in either direction.
-// EnvelopeFriction is one friction entry as a seat reported it in its RETURN ENVELOPE, carrying
+// EnvelopeLog is one friction entry as a seat reported it in its RETURN ENVELOPE, carrying
 // the harness agent that wrote it — the only handle on that line a record can be joined to.
-type EnvelopeFriction struct {
+type EnvelopeLog struct {
 	AgentID, Text string
 }
 
-// FrictionAudit checks that every seat which reported friction in its envelope also opened the
+// LogAudit checks that every seat which reported friction in its envelope also opened the
 // channel on the record. It joins on the SEAT, through the agent binding `register` writes.
 //
 // IT COMPARED PROSE TO PROSE, and reported 5 failures out of 5 on a run where every one of them
@@ -280,7 +281,7 @@ type EnvelopeFriction struct {
 // any register event — deliberately, so "not measured" stays legible rather than reading as an
 // agent whose handle is the empty string. Those entries are counted out loud and are NOT findings:
 // an unjoinable entry is a thing this audit cannot see, not a duty a seat skipped.
-func FrictionAudit(run record.Run, envelope []EnvelopeFriction, onRecord []record.FrictionEntryJSON) Audit {
+func LogAudit(run record.Run, envelope []EnvelopeLog, onRecord []record.LogEntryJSON) Audit {
 	wroteToRecord := map[string]bool{}
 	for _, fr := range onRecord {
 		wroteToRecord[fr.SeatID] = true
@@ -305,13 +306,13 @@ func FrictionAudit(run record.Run, envelope []EnvelopeFriction, onRecord []recor
 			strings.Join(unjoinable, "\n    - "))
 	}
 	if len(silent) > 0 {
-		return Audit{Check: "friction-parity", Verdict: "FAIL",
+		return Audit{Check: "log-parity", Verdict: "FAIL",
 			Detail: fmt.Sprintf("%d seat(s) reported friction in the envelope and opened no channel on the record "+
 				"(it should have been recorded via the friction verb during the run):\n    - %s%s",
 				len(silent), strings.Join(silent, "\n    - "), note)}
 	}
 	judged := len(envelope) - len(unjoinable)
-	return Audit{Check: "friction-parity", Verdict: "PASS",
+	return Audit{Check: "log-parity", Verdict: "PASS",
 		Detail: fmt.Sprintf("%d envelope entr%s joined to a seat, and every one of those seats is on the record "+
 			"(%d friction entr%s recorded in total)%s",
 			judged, plural(judged, "y", "ies"), len(onRecord), plural(len(onRecord), "y", "ies"), note)}
@@ -563,7 +564,7 @@ func AssemblyScreen(run record.Run) Audit {
 	if err != nil {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
-	ev := record.EvidenceJSONOf(board)
+	ev := record.EvidenceJSONOf(board.Events)
 	if ev.Counts.Sources == 0 {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no citations on the record — nothing to screen"}
 	}
@@ -1612,60 +1613,47 @@ func writeTarball(transcriptDir, outPath string, agentFiles []string) error {
 
 // ---- orchestration ----
 
-// appendCostToReport folds the per-seat-round cost table from cost.md into the run document as
-// a ## Cost section. No-op (returns "") when the target is absent (a run that never reached
-// assembly), already carries a ## Cost section (idempotent across re-runs), or cost.md has no
-// table. cost.md itself is left byte-identical.
-//
-// THE HEADING THE TABLE BRINGS IS DEMOTED, NOT DUPLICATED. The first cut wrote "## Cost" and
-// then pasted a slice that opens with its own "## Per seat-round" — so every archived report
-// carries a Cost section of exactly nine bytes: a heading, and nothing under it. An empty
-// section reads as a section that found nothing, which is a different claim from one whose
-// content is sitting immediately below it under another name.
-func appendCostToReport(reportPath, costPath string) string {
-	report, err := os.ReadFile(reportPath)
-	if err != nil {
-		return ""
-	}
-	if strings.Contains(string(report), "\n## Cost\n") {
-		return ""
-	}
-	costMd, err := os.ReadFile(costPath)
-	if err != nil {
-		return ""
-	}
-	table := perSeatRoundTable(string(costMd))
-	if table == "" {
-		return ""
-	}
-	table = strings.Replace(table, "## Per seat-round", "### Per seat-round", 1)
-	body := strings.TrimRight(string(report), "\n") + "\n\n## Cost\n\n" + table + "\n"
-	if err := os.WriteFile(reportPath, []byte(body), 0o644); err != nil {
-		return filepath.Base(reportPath) + ": cost append FAILED — " + jsSlice(err.Error(), 200)
-	}
-	return filepath.Base(reportPath) + ": cost breakdown folded in (## Cost)"
-}
-
-// perSeatRoundTable slices the "## Per seat-round" table out of a rendered cost.md — from that
-// heading up to the "## Notes" section — or "" if the markers are absent.
-func perSeatRoundTable(costMd string) string {
-	start := strings.Index(costMd, "## Per seat-round")
-	if start < 0 {
-		return ""
-	}
-	rest := costMd[start:]
-	if end := strings.Index(rest, "\n## Notes"); end >= 0 {
-		rest = rest[:end]
-	}
-	return strings.TrimRight(rest, "\n")
-}
-
 // Run executes capture: mechanics + the nine audits, writes run-record-audit.md, and returns the
 // audits, the report string, and whether any audit FAILed (exit 2). cwd-rooted side effects
 // (feov-memory, law, .claude/run-live.json) resolve from os.Getwd(), exactly as the JS used
 // process.cwd().
 // `now` is injected so the one non-deterministic input — how long ago the record stopped moving —
 // is controllable in a test, the same way WriteRunLiveMarker takes its clock.
+// ingestSeatTurns reads each seat transcript into per-turn rows on the record and returns the
+// line capture prints about it.
+//
+// IDENTITY IS NOT COPIED IN HERE. A row carries the harness agent id and nothing else; which seat
+// that agent registered as is already a validated field on the run's `register` event, so the
+// views join to it rather than this function restating it. The agent id comes off the transcript
+// LINE rather than the filename for the same reason — see seatturn.Parse.
+func ingestSeatTurns(run record.Run, transcriptDir string, agentFiles []string) string {
+	seats, rows, failed := 0, 0, 0
+	for _, f := range agentFiles {
+		b, err := os.ReadFile(filepath.Join(transcriptDir, f))
+		if err != nil {
+			failed++
+			continue
+		}
+		agentID, turns := seatturn.Parse(string(b))
+		if len(turns) == 0 {
+			continue
+		}
+		n, err := record.AppendSeatTurns(run, agentID, turns)
+		if err != nil {
+			failed++
+			continue
+		}
+		seats++
+		rows += n
+	}
+	line := fmt.Sprintf("seat turns: %d row(s) from %d transcript(s)", rows, seats)
+	if failed > 0 {
+		// NAMED, because the alternative is a smaller number that looks like a smaller run.
+		line += fmt.Sprintf(" — %d NOT INGESTED (unreadable or refused)", failed)
+	}
+	return line
+}
+
 func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, report string, exitFail bool, err error) {
 	var lines []string
 
@@ -1704,6 +1692,16 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		lines = append(lines, line)
 	}
 
+	// PER-TURN TELEMETRY ONTO THE RECORD, so the questions asked about it become SQL instead of
+	// another transcript scan (#684 F16). Three readers walk these files today for three slices
+	// of one question; the turn goes in once and seat_metrics, the time decomposition and cost
+	// become views over it.
+	//
+	// REPORTED, NEVER FATAL. Capture's job is the audits, and a run whose telemetry could not be
+	// read is still a run whose integrity must be checked — but a silent skip would leave an
+	// empty table that reads exactly like a run with no turns, so the count is always stated.
+	lines = append(lines, ingestSeatTurns(run, transcriptDir, agentFiles))
+
 	costF, cerr := os.Create(filepath.Join(run.Dir(), "cost.md"))
 	if cerr != nil {
 		return nil, "", false, cerr
@@ -1719,7 +1717,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		// set is assembled mid-run WITHOUT transcript access (the transcript dir reaches only
 		// capture), so this is the one stage that can. Slices the already-rendered cost.md
 		// (kept byte-identical) rather than re-generate.
-		if msg := appendCostToReport(filepath.Join(run.Dir(), reportdoc.FileRun), filepath.Join(run.Dir(), "cost.md")); msg != "" {
+		if msg := foldCaptureArtifacts(filepath.Join(run.Dir(), reportdoc.FileRun), filepath.Join(run.Dir(), "cost.md"), filepath.Join(run.Dir(), "run-record-audit.md")); msg != "" {
 			lines = append(lines, msg)
 		}
 	}
@@ -1729,9 +1727,9 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	// Record-backed reads, in-process (the JS spawned `merge show` views).
 	board, _ := record.BoardState(run)
 	redRounds, blueBlocks := 0, 0
-	onRecord := []record.FrictionEntryJSON{}
+	onRecord := []record.LogEntryJSON{}
 	if board != nil {
-		dj := record.DebateJSONOf(board)
+		dj := record.DebateJSONOfEvents(board.Events)
 		for _, r := range dj.Rounds {
 			if len(r.Red) > 0 {
 				redRounds++
@@ -1740,18 +1738,18 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 				blueBlocks++
 			}
 		}
-		// BOTH ARMS OF THE CHANNEL COUNT AS OPENING IT. `friction-none` is the attested empty
-		// case — "nothing blocked me", which is a seat closing the channel honestly — and a seat
-		// that files one has used the channel exactly as the duty asks.
-		fj := record.FrictionJSONOf(board)
-		onRecord = append(onRecord, fj.Friction...)
-		onRecord = append(onRecord, fj.NothingBlocked...)
+		// ONE ARM NOW, AND IT STILL COUNTS THE ATTESTED EMPTY CASE. The clean sitting used to be a
+		// second event type appended separately; it is a `nominal` ENTRY on the same list, so a
+		// seat that files one has used the channel exactly as the duty asks and needs no special
+		// collection to be seen doing it.
+		fj := record.LogJSONOf(board.Events)
+		onRecord = append(onRecord, fj.Log...)
 	}
 
 	audits = []Audit{
 		LivenessAudit(run, now),
 		TelemetryAudit(run, redRounds),
-		FrictionAudit(run, friction, onRecord),
+		LogAudit(run, friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(run),
 		FootnoteIntegrity(run),
@@ -1767,9 +1765,6 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		// Round 0's declared breadth against the lane seats that actually took theirs — the one
 		// run-config field nothing reconciled. See lanecoverage.go.
 		LaneCoverageAudit(run),
-		// The proof axis's missing detector: does a claim framed as measured point at the
-		// measurement, and does the measurement reach the claim. See proofbacking.go.
-		ProofBackingAudit(run),
 	}
 
 	cwd, _ := os.Getwd()

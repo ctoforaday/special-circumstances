@@ -23,6 +23,16 @@ start/prior-end semantics. The fix is usually one code path (snapshot at every o
 exit) + fail-closed on a missing chain link. Related: [[pattern-self-defeating-mitigation]],
 [[pattern-fail-open-guard-and-erasable-evidence]].
 
+**Extension — the verdict-less leg:** when a report ships a multi-leg check program and
+claims "all N pass", read the SCRIPT for the fail branch of each leg, not the output.
+Does every leg have a criterion that can increment the failure counter, or does one only
+PRINT its hits for a human to judge? A leg with no fail branch makes the summary line
+("legs failing: 0") read the same whether it was clean or never evaluated — and the
+report's argument that the check outlives the round is false for that leg. Also ask
+whether a threshold count ("N occurrences required") is inflated by the report's own
+self-description of the check, and whether the positive sub-tests are literal substring
+probes keyed on the phrasing the last round happened to produce.
+
 **Extension (round 4, L1-F1):** the "every-OBSERVED-exit" repair has its own degenerate
 case — the observer's OWN unobserved death (SIGKILL/power loss). Any interval-keyed
 mechanism (run-window logs, timestamp sweeps) whose END is then supplied by a much-later

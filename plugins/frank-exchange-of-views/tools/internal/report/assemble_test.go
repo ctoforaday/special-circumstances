@@ -316,7 +316,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 	}
 	d := debate(&record.Board{Events: evs}, evs)
 	for _, want := range []string{
-		"### Round 1", "### RED\ngap A stands", "### BLUE\ngap A repaired",
+		"### Round 1", "### RED — NO VERDICT RECORDED THIS ROUND\ngap A stands", "### BLUE\ngap A repaired",
 		"R1-1: carried",
 		// THE PETITION SECTION IS NOT HERE ANY MORE, and its absence is the point. It rendered
 		// both sides of a petition off the retired `petition`/`petition-rule` types — a second
@@ -542,8 +542,18 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 		},
 	}
 	got := boardSection(board)
-	if !strings.Contains(got, "Lens findings not raised to a gap (1)") {
+	if !strings.Contains(got, "Lens findings credited by no gap (1)") {
 		t.Errorf("exactly one un-minted finding should be surfaced:\n%s", got)
+	}
+	// THE SECTION STATES THE JOIN AND NOT A DELIBERATION. It used to say the merge "weighed but
+	// did not mint" these, which nothing on the record supports — declining to mint writes no
+	// event — and which is what made a silently dropped finding read as a considered decline
+	// (#747: three dropped in one run, one of them a fabricated-quote allegation).
+	if strings.Contains(got, "weighed but did not mint") {
+		t.Error("the section asserts the merge weighed these findings; no event records deliberation, and a silent drop then reads as a decision")
+	}
+	if !strings.Contains(got, "is NOT recorded") {
+		t.Errorf("the section does not say that whether these were considered is unrecorded:\n%s", got)
 	}
 	if !strings.Contains(got, "L5-F3") || !strings.Contains(got, "un-minted red reasoning kept") {
 		t.Errorf("the un-minted finding's substance must be surfaced:\n%s", got)
@@ -618,20 +628,30 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 	}
 }
 
-func TestFrictionRendered(t *testing.T) {
+func TestLogSectionRendered(t *testing.T) {
 	evs := []*record.Event{
-		recordtest.Event(t, "red-merge-r1", 0, &recordpb.Friction{Text: proto.String("the --cx flag is missing from help")}),
-		recordtest.Event(t, "blue-respond-r2", 0, &recordpb.Friction{Text: proto.String("manifest cap fights methodology gaps")}),
-		recordtest.Event(t, "red-merge-r1", 0, &recordpb.Mint{Problem: proto.String("not friction")}),
+		recordtest.Event(t, "red-merge-r1", 0, &recordpb.Log{Text: proto.String("the --cx flag is missing from help"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
+		recordtest.Event(t, "blue-respond-r2", 0, &recordpb.Log{Text: proto.String("manifest cap fights methodology gaps"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
+		// A NOMINAL entry renders in its own section, not among the problems: an attestation is
+		// not a complaint, and the split is by TYPE now rather than by message.
+		recordtest.Event(t, "judge-r2", 0, &recordpb.Log{Text: proto.String("the surface met the work"), Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
+		recordtest.Event(t, "red-merge-r1", 0, &recordpb.Mint{Problem: proto.String("not a log entry")}),
 	}
-	f := frictionLog(evs)
-	for _, want := range []string{"Friction (tooling gaps", "**red-merge-r1**: the --cx flag is missing", "**blue-respond-r2**: manifest cap fights"} {
+	f := logSection(evs)
+	// THE TYPE RENDERS BESIDE THE SEAT, which is the whole point of the channel: an operator
+	// triages by reading the type, not by reading the prose to work out which kind it was.
+	for _, want := range []string{
+		"Log (what the run told the operator",
+		"**red-merge-r1** (defect): the --cx flag is missing",
+		"**blue-respond-r2** (defect): manifest cap fights",
+		"**judge-r2**: the surface met the work",
+	} {
 		if !strings.Contains(f, want) {
-			t.Errorf("friction log missing %q:\n%s", want, f)
+			t.Errorf("log section missing %q:\n%s", want, f)
 		}
 	}
-	if empty := frictionLog(nil); empty != "" {
-		t.Errorf("no friction events should render nothing, got: %q", empty)
+	if empty := logSection(nil); empty != "" {
+		t.Errorf("no log events should render nothing, got: %q", empty)
 	}
 }
 

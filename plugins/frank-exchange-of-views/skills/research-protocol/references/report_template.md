@@ -11,7 +11,7 @@
                records/ event log; the views are rendered from it on read, never materialized.
 
   WHY A SET. Measured on the archived runs, 70–76% of the single report.md was process record —
-  the transcript, the board in full, a friction log LARGER THAN THE ENTIRE RESEARCH
+  the transcript, the board in full, an operator log LARGER THAN THE ENTIRE RESEARCH
   ARGUMENT — and the research the run was commissioned for was a quarter of its own deliverable.
   Six audiences were unioned into one artifact, so none could be addressed, revised or linked
   without the other five. NOTHING IS DROPPED BY THE SPLIT: every section still ships, in exactly
@@ -110,7 +110,7 @@
 
 # run.md — how the machinery behaved
 
-## Friction (tooling gaps the run hit)   <!-- [RECORD] the friction events, and the seats that reported nothing blocked them -->
+## Log (what the run told the operator)   <!-- [RECORD] the log entries, each with what it asserts; nominal entries render apart -->
 
 ## Record verification                   <!-- [RECORD] the record's own invariant check — a section, never a gate -->
 

@@ -193,6 +193,13 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	if err := requireDispatchableSeat(seatID); err != nil {
 		return 0, "", err
 	}
+	// AND THE MEMBERSHIP HALF, which the roster gate says outright that it cannot reach. The shape
+	// check above admits any well-formed id; this refuses one whose FAMILY the attested agent
+	// configuration cannot seat. Unattested callers — an operator, CI, a hookless run — pass
+	// through unchanged, so this adds a refusal where a fact exists and nothing anywhere else.
+	if err := CheckAttestedRole(seatenv.AgentType(), seatID); err != nil {
+		return 0, "", err
+	}
 	// A SEAT RECORDS INTO A RUN THAT EXISTS. IT NEVER CREATES ONE.
 	//
 	// `setup` makes run directories; every seat is dispatched into one that is already there. So
@@ -256,6 +263,9 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// absent, so a reader sees NOT MEASURED rather than a run that matched its configuration.
 	// It never blocks the register: a seat that cannot find its own trajectory has still arrived.
 	var served servedmodel.Observation
+	if at := seatenv.AgentType(); at != "" {
+		reg.AgentType = proto.String(at)
+	}
 	if agent := seatenv.AgentID(); agent != "" {
 		reg.AgentId = proto.String(agent)
 		obs, oerr := servedmodel.Observe(agent)
@@ -382,17 +392,10 @@ func allowSubstitution(run Run) bool {
 // envelope stamps the fields EVERY event carries whatever its body, in ONE place — so a second
 // write path cannot come to exist that forgets one.
 //
-// schema_version is among them, and its justification has CHANGED RATHER THAN HELD. It was
-// load-bearing because the line reader dropped an unstamped line as an incomplete write, inert and
-// unreported; that reader is gone with the shard lines, so today the field is stamped and stored
-// and read back by nothing. The compatibility gate a run actually passes is the event-shape epoch
-// (EventSchema, compared at setup). The stamp is kept because it costs one column and records
-// which schema wrote a row; it is NOT what refuses a skewed binary, and a comment claiming
-// otherwise would be the plausible zero in prose.
-//
-// ROLE IS SET ONLY WHEN THE SEAT ID RESOLVES TO ONE. The pre-schema struct carried
-// `json:"role,omitempty"`, so a seat matching no role had NO role field; presence keeps that fact
-// expressible, where proto.String("") would assert that its role is the empty string.
+// SCHEMA_VERSION IS NOT AMONG THEM ANY MORE. It was stamped here on every event and read by
+// nothing — the line reader that once gated on it went with the shard lines. What actually
+// refuses a binary that cannot read a record is the event-schema epoch, compared once at setup,
+// so the per-row copy was a fact restated where no one asked it.
 func envelope(ev *Event, ts, seatID string, round int, key string) {
 	ev.Ts = proto.String(ts)
 	ev.SeatId = proto.String(seatID)
@@ -401,7 +404,6 @@ func envelope(ev *Event, ts, seatID string, round int, key string) {
 		ev.Role = proto.String(r)
 	}
 	ev.Key = proto.String(key)
-	ev.SchemaVersion = recordpb.CurrentSchemaVersion.Enum()
 }
 
 // singleton verbs key on seat+verb; multi-instance verbs on their stable labels; the rest on a
@@ -918,13 +920,9 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 	//
 	// `spot-check` is deliberately NOT in this arm. Its bare form is a documented decision with
 	// a test pinning it, and its --none --reason exists for the same distinction this makes.
-	case *recordpb.Friction:
+	case *recordpb.Log:
 		if b.GetText() == "" {
-			return fmt.Errorf("record: friction requires --reason (what you reached for and could not get). If nothing blocked you, that is the --none form, and it needs a --reason too: an empty discharge cannot be told from a skipped one")
-		}
-	case *recordpb.FrictionNone:
-		if b.GetText() == "" {
-			return fmt.Errorf("record: friction --none requires --reason (what you reached for and FOUND). The explicit negative is only worth more than silence when it says what was looked at")
+			return fmt.Errorf("record: a log entry requires --reason. A clean sitting is logged in the POSITIVE — the nominal type, with a sentence saying so — because an empty discharge cannot be told from a skipped one")
 		}
 	case *recordpb.Position:
 		if b.GetText() == "" {

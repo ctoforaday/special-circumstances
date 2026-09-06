@@ -22,6 +22,6 @@ func Verbs() []*cobra.Command {
 		newDeclare(),
 		newOutcome(),
 		newAssemble(),
-		seat.Friction(),
+		seat.Log(),
 	)
 }

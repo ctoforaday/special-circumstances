@@ -110,7 +110,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	// the summary can say it.
 	//
 	// It USED to refuse, for a reason its own comment gave: the stale marker was what
-	// seat.InferRunDir handed to every verb invoked without --run. #526 removed that — setup
+	// runlive.InferRunDir handed to every verb invoked without --run. #526 removed that — setup
 	// bakes the run into <runDir>/.bin/feov-record, so a seat carries its run in its own
 	// environment and never has to ask — and ReadRunLiveMarker now answers "no single run" when
 	// more than one is open, so inference declines rather than guesses. With the misdirection
