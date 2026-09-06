@@ -257,6 +257,16 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   - N6 is measured on that: a board with a carried gap and no live docket motion leaves the MERGE
     sitting `Complete: false` and names the gap in `Open`.
 
+  **A carried gap cannot become invisible to everyone, and the floor is not `awaiting_docket`.**
+  That is the question this model has to answer, so it is answered with a mechanism rather than an
+  intention: `sitting.go:124-127` refuses a merge PASS over **any** open gap — "gap %s is open —
+  PASS is refused while it is" — independent of whether anything was ever docketed. A carried gap is
+  by definition still open, so it already blocks. `awaiting_docket` does not create the visibility;
+  it says WHY the gap is still there and what act would move it, turning a blocking item a seat
+  cannot interpret into one it can. If `awaiting_docket` were computed wrongly, or never shipped,
+  the gap remains blocking rather than silently passing — **the failure mode is a seat under-informed,
+  never a board wrongly clean**, which is the direction this whole plan cares about.
+
 - **`[MODIFY]` `record.Motion` gains a typed `GapID`** (`record/motion.go:231-254`). Today the
   struct carries `ID`, `Subject`, `Filer`, `Round`, `Basis`, `Relief`, `Ruling…` and the subject's
   own payload only through `Fields map[string]string`. Recovering the gap as `Fields["gap_id"]`
