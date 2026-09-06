@@ -181,9 +181,14 @@ Carrier censuses, run 2026-09-06:
    every miss listed; plus p0051/p0052 (the two heaviest ruled pages) at
    headers-and-shape level. Runs as a normal test against checked-in TSV fixtures, so
    CI needs no OCR run to enforce it.
-3. Static proof per release target: `file`/`ldd` assertions in the build script (linux/
-   windows: fully static; darwin: no non-libSystem dylibs), plus a smoke OCR of a
-   checked-in fixture page by every built binary that can execute on the build host.
+3. Static proof per release target, using the per-format mechanisms Wave 0 actually
+   validated (amended by §VI — `ldd` cannot audit PE or Mach-O on the linux build
+   host): linux — `ldd` reports "not a dynamic executable"; windows — `objdump -p`
+   import scan showing only KERNEL32 + UCRT api-sets; darwin — load-command scan
+   against the OS-provided allowlist {libSystem.B, CoreFoundation, libresolv.9}, the
+   two extras being Go-runtime link requirements satisfied by stubs at build time and
+   by the OS at run time. Plus a smoke OCR of a checked-in fixture page by every built
+   binary that can execute on the build host.
 4. End-to-end, local and free: fetch IEEE 1012 through the new path — expect all 80
    pages read (17 formerly-blocked included), wall time under ~3 minutes, table pages
    flagged with reconstruction stats, prose WER spot-checked against the model corpus.
@@ -192,3 +197,37 @@ Carrier censuses, run 2026-09-06:
    pages OF THE 300-DPI TUNE from Wave 0 (the 200-DPI boundaries — p0028/p0040/p0044,
    plus the p0025 flip — are the candidates; the pinned set is whatever the 300-DPI
    matrix names).
+
+## VI. Wave 0 outcomes (2026-09-06, measured; amends §II for Wave 1)
+
+All three workstreams completed; artifacts in ~/scratch-tessspike/, ~/scratch-crossbuild/,
+~/scratch-reconstruct/ (each RESULT.md carries CI-replayable commands).
+
+- **Detector, 300-DPI tune (final: SEL=151, h≥15000 v≥4500 i≥100)**: TP=33 FP=1 FN=0
+  TN=29 over the 63 labeled pages — recall 1.000, precision 0.971, 93 ms/page. The one
+  FP (p0025, boxed text) is structurally inseparable by this feature set and fails in
+  the direction the confidence field was designed for: over-detection degrades to plain
+  text with the failure stated. §V.5's pinned boundary set: tables p0066, p0028, p0044
+  (4 px over the intersection threshold), p0063, p0038, p0062; non-tables p0025 (pinned as FIRES-AND-DEGRADES-HONESTLY — it is the standing false positive, and its assertion is the fallback stating itself, not a clean rejection), p0071,
+  p0016/p0022/p0080 (the pages proving the h∧v conjunction is load-bearing), p0002.
+- **Reconstruction prototype**: p0054 at 380/385 cells against the oracle — and 381/385
+  against pixels, the delta being the oracle's own documented fabricated cell, which
+  §V.2's fixture must pin at the corrected expectation. Headers 11/11, row labels
+  35/35 paired (30 byte-exact), ~2 ms/page. The "~330" scoring census hardens to 385 (28 markdown rows = 35
+  physical rows × 11 columns). §II gains two amendments from p0051/p0052: **(a)
+  whole-page ROTATED tables exist in the corpus and the pipeline must detect and handle
+  orientation** (p0051 reconstructs 10/10 columns via an anchor once rotated; p0052 is
+  the hard case); **(b) the fallback trigger cannot be marks_placed/marks_total alone**
+  — OCR glyph dropout is invisible to it (p0052: 33/36 placed while missing 55% of the
+  page's marks) — so reconstruction stats add a PSM-disagreement signal and use the
+  detector's intersection count as an independent denominator.
+- **Cross-builds: every attempted target BUILDS from the single Linux runner with zig**
+  — windows/amd64, windows/arm64, and darwin/arm64 (no SDK: two 6-line .tbd stubs
+  satisfy Go's -lresolv/CoreFoundation, tesseract statically inside, only
+  libSystem-class dylibs). §II's darwin fallback (native macos runner legs) is NOT
+  needed for building; it survives only as the option for runtime smoke tests, which no
+  cross-compiled target gets on the build host. darwin/amd64 is the one untried target
+  — same recipe expected, proven in Wave 1 CI. Ten build gotchas recorded in
+  ~/scratch-crossbuild/RESULT.md (the load-bearing ones: leptonica's misnamed static
+  lib on windows, the case-sensitive NEON processor string, zig's SDK zlib.h
+  shadowing); warm-cache C stack ~1m46s, cold ≈5–10 min/target. No new pins.
