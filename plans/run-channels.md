@@ -227,6 +227,40 @@ that was a *judgement* rather than a lack of occasion. That is exactly what a `N
 carries: nothing blocked me, plus — where it applies — one sentence on what was deliberately
 declined. One positive entry, no ceremony, no negative form.
 
+**The property is enforced by code, and that code changes.** `record/sitting.go:92-97` is the
+duty-discharge gate: a sitting is reported OPEN unless the seat filed `EVENT_TYPE_FRICTION` **or**
+`EVENT_TYPE_FRICTION_NONE` — *"the friction channel is open — you have neither reported a capability
+gap nor said that nothing blocked you"*, with the comment recording that "across eighteen recorded
+sittings it was the second every time." Deleting `FrictionNone` removes one disjunct of a LIVE
+predicate. Without naming this site the property is preserved in prose and unenforced in fact.
+**New predicate: a `Log` event of any type discharges the duty** — one check instead of two, with
+`NOMINAL` as the clean discharge. That is a simplification, not a loss: the gate always asked "did
+this seat open the channel", and one event type now answers it.
+
+**Consumer census C — the `FrictionNone` DELETION** (distinct from the rename; the rename census
+above was derived for symbols that MOVE, this one is for a concept that GOES). Run 2026-09-06:
+```
+$ grep -rln "FrictionNone\|friction_none\|friction-none\|FRICTION_NONE" $P docs/
+```
+18 files. Each consumer and its disposition:
+
+| Consumer | Disposition |
+|---|---|
+| `record.proto:228` (`EVENT_TYPE_FRICTION_NONE = 13`), `:495` (oneof arm), `:1212` (message) | deleted |
+| `record/sitting.go:92-97` | predicate collapses to one disjunct (above) |
+| `capture/capture.go:1730-1735`; `capture_test.go:145-147,194-199` | the two-arm append collapses to one |
+| `record/viewjson.go:853,1036,1049` | `NothingBlocked[]` removed; one list filtered by `type` |
+| `report/assemble.go:1270` | the "seats that reported nothing blocked them" section folds into the typed render |
+| `record/record.go:935` | body dispatch arm removed |
+| `cli/seat/verbs.go:104` | the `--none` branch removed with the flag |
+| `seatprobe/seatprobe.go:155` | probe expectation updated |
+| `recordsql/testdata/schema.sql:41,592` | golden regenerated (`enum_event_type` row + `friction_none` table) |
+| `cli/vocabulary_test.go:145-148` | pins `friction_none` as an event type that is NOT a verb — pin removed |
+| `record/emptydischarge_test.go:31,56`; `record_test.go:256,273`; `checkkind_test.go` | rewritten against `type: NOMINAL` |
+| `recordsql/concurrency_test.go:93,101,119,145,148` | queries the `friction_none` table BY NAME |
+| `releasegate/fuzz/fuzz_test.go:2503,2663` | the fuzzer's event-type list and required-field map — the carrier `complete-the-concept` names explicitly |
+| `docs/seat-surface-naming.md` | prose |
+
 - `[MODIFY]` the seat's write takes the type (source is set by the write path, not asked of the
   seat) and **loses `--none`**; the operator read and the `## Friction` → `## Log` projection render
   and filter on both fields. `FrictionJSON`'s separate `NothingBlocked[]` array collapses into one
@@ -250,26 +284,32 @@ code no longer has — the half-state `complete-the-concept` exists to prevent. 
 one green suite.
 
 **Consumer census A — Go/proto, run 2026-09-06 from the repo root:**
+**The pattern is case- and separator-insensitive and includes `*.sql`,** because `Friction[A-Za-z]*`
+cannot match `EVENT_TYPE_FRICTION_NONE` or the lowercase table/enum-row forms, and the committed
+SQL golden is the artifact that actually proves this rename. An earlier draft's narrower pattern
+missed both.
 ```
 $ P=plugins/frank-exchange-of-views
-$ grep -rhno "Friction[A-Za-z]*\|frictionLog\|friction-parity" $P --include=*.go --include=*.proto \
-    | sed 's/.*://' | sort | uniq -c | sort -rn          # ~25 symbols, ~300 occurrences
-$ grep -rl "Friction\|frictionLog\|friction-parity" $P --include=*.go --include=*.proto  # 46 files
+$ grep -rhnoi "friction[a-z_-]*" $P --include=*.go --include=*.proto --include=*.sql \
+    | sed 's/.*://' | sort | uniq -c | sort -rn
+$ grep -rli "friction" $P --include=*.go --include=*.proto --include=*.sql   # 46 + schema.sql
 ```
 Counts: `Friction` 131, `FrictionNone` 41, `FrictionKind` 35, `FrictionEntryJSON` 11,
 `FrictionJSONOf` 10, `FrictionFooter` 9, `FrictionAudit` 9, `frictionLog` 5, `FrictionJSON` 4,
-`FrictionJSONBytes` 3, `friction-parity` 3, plus ~14 single-occurrence test names. 46 files; the
-load-bearing ones, each changing:
+`FrictionJSONBytes` 3, `friction-parity` 3, plus ~14 single-occurrence test names. The
+load-bearing carriers, each changing:
 
 | Carrier | Role |
 |---|---|
-| `record/recordpb/record.proto:11-14` (the retired permanence rule) and `:1163-1200` (incl. `FrictionNone` at 1198-1200) | the messages + enums (see No compatibility) |
+| `record/recordpb/record.proto:11-14` (the retired permanence rule), `:227-228` (`EVENT_TYPE_FRICTION`, `EVENT_TYPE_FRICTION_NONE`), `:495` (oneof arm `friction_none = 50`), `:924` (`Cite`), `:1182` (`FrictionKind`), `:1203` (`Friction`), `:1212` (`FrictionNone`) | the messages, enums and event types. **Line numbers re-derived after this branch's own proto edit shifted them ~12 lines** |
+| `record/recordsql/testdata/schema.sql:40-41,214-219,584-589,592` | the committed golden of the DERIVED SQL schema — `enum_event_type` rows, `enum_friction_kind` table, `friction` and `friction_none` tables. This is the artifact that proves the rename landed |
+| `record/sitting.go:92-97` | **the duty-discharge gate** — see below |
 | `record/record.go:921,925,931,935` | body dispatch for both messages |
-| `record/viewjson.go:999-1053` | the JSON view — gains `source`/`type` |
+| `record/viewjson.go:853,999-1053` | the JSON view — gains `source`/`type`, loses `NothingBlocked[]` |
 | `record/estoppel.go:158,170,172` | the one live `kind` filter |
 | `record/recordsql/schema.go:117` | **derives table names from message names** — see No compatibility |
-| `report/assemble.go:1258,1279`, `docs.go:127,154` | the `## Log` markdown projection |
-| `capture/capture.go:119,283,1719,1733` | envelope recovery + `FrictionAudit`→`LogAudit` (joins on seat; unaffected by the new fields) |
+| `report/assemble.go:1258,1270,1279`, `docs.go:127,154` | the `## Log` markdown projection |
+| `capture/capture.go:119,283,1719,1730-1735` | envelope recovery + `FrictionAudit`→`LogAudit`. The seat join is unaffected, but **`:1730-1735` collapses**: "BOTH ARMS OF THE CHANNEL COUNT AS OPENING IT" appends `fj.Friction` and `fj.NothingBlocked`; after the deletion there is one arm. Pinned by `capture_test.go:145-147,194-199` ("a filed friction-none IS the channel being used") |
 | `dashboard/model.go:29-31,96,270-282,348`, `render.go:147,340,424-434,615` | **operator-facing tile**, heading `<h2>Friction — logged pain points</h2>`, reads `FrictionJSONOf` |
 | `seatprobe/seatprobe.go:206-248,386`, `boards.go:450,556,614,707,720`, `production.go:71` | probe expectations |
 | `cli/seat/verbs.go:95,103,108,114`; `cli/blue/cite.go:70`, `blue/prove.go:66`; `cli/merge/mint.go:195-196` | the five write sites + the verb |
@@ -345,10 +385,12 @@ rewriting of archived tarballs, no code that reads a pre-rename record.
 Retained from the prior draft **on its own evidence**, not as a destination for #710: the report's
 single most load-bearing caveat is a prose substring, and the run miscounted it twice by grep
 (`report.md:66` counts a sentence that counts itself). Add `Cite.source_text_read ∈ {LEAF |
-SUMMARY_ONLY | UNREAD}` (`record.proto:905`, field 10; 8 reserved) and
-`fetchcache.Entry.{http_status, refusal_class, access_state}` (`fetchcache.go:92`) — the status is
-already seen and discarded at `httpfetcher.go:119`. Consumer censuses as pasted in the prior draft
-(7 `Cite` consumers, 4 changing) and re-run at implementation.
+SUMMARY_ONLY | UNREAD}` to `message Cite` (`record.proto:924` — line re-derived after this branch's
+proto edit) and `fetchcache.Entry.{http_status, refusal_class, access_state}` (`fetchcache.go:92`)
+— the status is already seen and discarded at `httpfetcher.go:119`. **No field number is specified
+and none is reserved:** numbers are inert here (see PR-2's No-compatibility section), so only the
+field NAME is load-bearing — it becomes the SQL column and the JSON key. Consumer census as pasted
+in the prior draft (7 `Cite` consumers, 4 changing), re-run at implementation.
 
 **Re-examined for minimalism:** the prose alternative — "just write the caveat correctly" — is what
 the run tried, and it produced two miscounts and a third hand-drawn access state. The field is the
@@ -408,6 +450,17 @@ All commands are rooted at the repository root; `P=plugins/frank-exchange-of-vie
 - blue-edit advisory: a tell in `--new` **appends the event** and emits the advisory (proves
   flag-not-block).
 - L7: a `red-lens-r?-L7` seat id yields `L7-F1` from the generic `roleRe`, no label-code change.
+- **Duty discharge (the property `NOMINAL` must preserve):** a seat that files ONLY a
+  `Log{type: NOMINAL}` closes its sitting — `record/sitting.go`'s predicate reports no open item;
+  a seat that files NOTHING still reports the channel open. Asserting BOTH is the point: the first
+  proves `NOMINAL` discharges, the second proves attested-clean is still distinguishable from an
+  unused channel, which is the whole reason the explicit negative existed.
+- **Channel-parity with one arm:** `capture`'s audit counts a `NOMINAL` entry as the channel being
+  used (the surviving half of the two-arm append at `capture.go:1730-1735`).
+- **The derived SQL golden is regenerated and proves the rename:**
+  `record/recordsql/testdata/schema.sql` contains `log` (and no `friction`/`friction_none` table,
+  no `enum_friction_kind`), with `enum_log_type` carrying `nominal`. This golden is the artifact
+  that shows the rename reached storage rather than only the Go types.
 - **Schema refusal (the no-compatibility directive's own test):** open an archived pre-rename `records/record.db`
   with the new binary and assert it **errors naming the event-schema epoch**. Asserting the error is
   the point — a test that merely checks "no rows" would pass on the bug.
