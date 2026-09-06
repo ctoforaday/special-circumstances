@@ -39,7 +39,7 @@ feov-record: record: motion rule requires --principle to say something (the rule
 
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-THREE SUBJECTS, THREE GAVELS. A grade dispute and a direction are ruled by the MERGE; a petition is ruled by the BENCH, before the debate continues. A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it is why `rule` is missing from the surfaces that do not hold the gavel.
+EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues. A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it is why `rule` is missing from the surfaces that do not hold the gavel.
 
 Usage:
   feov-record motion docket rule [flags]
@@ -80,7 +80,7 @@ feov-record: record: motion docket rule requires --reopens-on (what would change
 
 rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-THREE SUBJECTS, THREE GAVELS. A grade dispute and a direction are ruled by the MERGE; a petition is ruled by the BENCH, before the debate continues. A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it is why `rule` is missing from the surfaces that do not hold the gavel.
+EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues. A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it is why `rule` is missing from the surfaces that do not hold the gavel.
 
 Usage:
   feov-record motion docket rule [flags]

@@ -61,19 +61,32 @@ func tallyByGap(b *record.Board) map[string]*perGap {
 	// below could only ever see zero — and reported "no unanswered challenges" and "no challenges"
 	// as the same picture.
 	//
-	// ONLY THE DOCKET SUBJECT SETTLES A GAP. A grade or petition ruling answers a different
-	// question, so counting every ruled motion here would credit a gap with a disposition
-	// nobody wrote.
+	// TWO AXES, AND THEY ARE NOT THE SAME QUESTION. `motionsFiled`/`motionsRuled` ask WAS THIS
+	// CHALLENGE ANSWERED — the unanswered-challenge detector below reads them. `dispositions`
+	// asks DID THE BENCH SETTLE THE GAP, which only a docket ruling does: counting a grade or
+	// petition ruling there would credit a gap with a disposition nobody wrote.
+	//
+	// A DOCKET MOTION COUNTS ON BOTH, and it used to count on neither until ruled. That made the
+	// one shape this detector exists for invisible: a gap escalated to the bench and never
+	// answered scored motionsFiled=0, so `motionsFiled > 0 && motionsRuled == 0` could not fire,
+	// and the node rendered as an ordinary open gap. seat-command-triggers.md sells the docket
+	// motion as what makes "a gap could reach the bench and get no ruling with nothing able to
+	// notice" noticeable — and the detector for exactly that shape could not see it.
+	//
+	// ONLY THE SUBJECTS THAT NAME A GAP. A petition and an inquiry carry no gap id, and `get("")`
+	// would mint a phantom node keyed on the empty string.
 	for _, m := range record.Motions(b) {
 		switch m.Subject {
-		case "grade":
+		case "grade", "docket":
+			if m.GapID == "" {
+				continue
+			}
 			get(m.GapID).motionsFiled++
 			if m.Ruled() {
 				get(m.GapID).motionsRuled++
-			}
-		case "docket":
-			if m.Ruled() {
-				get(m.GapID).dispositions++
+				if m.Subject == "docket" {
+					get(m.GapID).dispositions++
+				}
 			}
 		}
 	}
@@ -205,7 +218,7 @@ func gapFlowMermaid(b *record.Board) string {
 		if hole {
 			class = "hole"
 		}
-		label := fmt.Sprintf("%s · %s<br/>%s%s<br/>closing×%d dispute×%d/%d disposition×%d",
+		label := fmt.Sprintf("%s · %s<br/>%s%s<br/>closing×%d motion×%d/%d disposition×%d",
 			id, g.Mint.GetClass(), state, sep(reason), pg.closings, pg.motionsFiled, pg.motionsRuled, pg.dispositions)
 		out.WriteString(fmt.Sprintf("  %s[\"%s\"]:::%s\n", nodeID("g", id), label, class))
 	}

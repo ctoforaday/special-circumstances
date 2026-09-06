@@ -3876,6 +3876,38 @@ func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
 	}
 }
 
+// mergeFilerFor names the MERGE seat that escalates a gap to the bench in the sitting the given
+// judge seat is holding. The merge seat for round N acts before the bench does, so it is already
+// registered by the time this is called; `judge-terminal` follows the last round, so it takes the
+// highest merge seat on the record.
+//
+// It falls back to the judge's own id rather than skipping the drive: a fallback that returned ""
+// would silently stop exercising both verbs, which is the failure this whole helper was rewritten
+// to stop reporting as coverage.
+func (r *runner) mergeFilerFor(judgeSeatID string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if n := regexp.MustCompile(`^judge-r(\d+)$`).FindStringSubmatch(judgeSeatID); n != nil {
+		if id := "red-merge-r" + n[1]; r.registered[id] {
+			return id
+		}
+	}
+	best, bestN := "", -1
+	for id := range r.registered {
+		m := regexp.MustCompile(`^red-merge-r(\d+)$`).FindStringSubmatch(id)
+		if m == nil {
+			continue
+		}
+		if n, _ := strconv.Atoi(m[1]); n > bestN {
+			best, bestN = id, n
+		}
+	}
+	if best != "" {
+		return best
+	}
+	return judgeSeatID
+}
+
 // benchDisposes puts a gap before the bench and rules it, which is TWO acts now.
 //
 // IT WAS ONE, and the difference is the point of #681: `bench opinion --id <gap>` needed only a
@@ -3888,7 +3920,17 @@ func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
 // refuses for a second reason and buries the first. Returning early leaves ONE refusal in
 // execFailWhy: the one that actually happened.
 func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...string) {
-	out, err := r.exec("motion", "docket", "file", "--json", "--seat-id", seatID, "--id", gapID,
+	// THE FILER IS NOT THE BENCH. Both halves ran under the judge's seat id, so the entire
+	// release-gate coverage of both docket verbs was 53 runs of the forum putting a question to
+	// itself and then answering it — the flow seatprobe's own board declares nonsensical
+	// ("the gavel problem in miniature"). The seat->verb graph said so in plain text and read as
+	// coverage: `motion docket file <- judge-r2, judge-r3, judge-r4, judge-terminal`.
+	//
+	// What that hid: gavel-scoping `file` the way `rule` is scoped would take the escalation route
+	// away from red and blue — the whole capability — and this gate would have stayed green,
+	// because the only seat it filed from is the one that keeps the verb either way.
+	filer := r.mergeFilerFor(seatID)
+	out, err := r.exec("motion", "docket", "file", "--json", "--seat-id", filer, "--id", gapID,
 		"--reason", "fuzz: "+gapID+" is contested and is the bench's to settle")
 	if err != nil {
 		return // recorded by noteExec under `motion docket file`

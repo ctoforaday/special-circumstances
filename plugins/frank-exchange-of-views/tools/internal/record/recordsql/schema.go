@@ -591,11 +591,26 @@ func oneofColumns(md protoreflect.MessageDescriptor, od protoreflect.OneofDescri
 		fks = append(fks, ffks...)
 		scalars = append(scalars, fmt.Sprintf("(%q IS NOT NULL)", fd.Name()))
 	}
-	if len(scalars) > 1 {
-		checks = append(checks, strings.Join(scalars, " + ")+" <= 1")
-	}
+	// THE MESSAGE ARMS COUNT TOO, THROUGH THE DISCRIMINATOR.
+	//
+	// This summed the SCALAR arms alone, and while every arm of every oneof was a scalar that WAS
+	// the oneof: at most one column non-null said exactly "at most one arm set". `MotionRule.ruling`
+	// gained a message arm (`docket`, #681 Scope 2) and the sentence stopped being true without
+	// changing a character — a row with `grade='accepted'` AND a `motion_rule_docket` child
+	// satisfies `(grade IS NOT NULL) + (petition IS NOT NULL) + (direction IS NOT NULL) <= 1`. The
+	// constraint went on READING like a complete statement of exclusivity while covering three of
+	// four arms, which is the failure mode this schema exists to remove: not a check that broke,
+	// a check that quietly narrowed.
+	//
+	// insertBody writes `<oneof>_case` for message arms ONLY, so it is NULL on every scalar-arm
+	// row and non-null on exactly one message arm. That makes it the right term: one column
+	// standing for all the message arms at once, because a single column cannot name two of them.
 	if messageArms {
 		cols = append(cols, fmt.Sprintf("  %q TEXT", string(od.Name())+"_case"))
+		scalars = append(scalars, fmt.Sprintf("(%q IS NOT NULL)", string(od.Name())+"_case"))
+	}
+	if len(scalars) > 1 {
+		checks = append(checks, strings.Join(scalars, " + ")+" <= 1")
 	}
 	return cols, checks, fks, children, nil
 }

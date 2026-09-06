@@ -4782,8 +4782,6 @@ func (x *PetitionMotion) GetClass() PetitionClass {
 	return PetitionClass_PETITION_CLASS_UNSPECIFIED
 }
 
-// DirectionMotion rules on a line of inquiry blue proposed. The id is the AVENUE's own — a
-// direction has no separate filing, because blue's proposal IS the filing.
 // DocketMotion puts a GAP before the bench. The filing is the DOCKETING — a seat escalating a gap
 // it cannot settle — and the ruling is the bench's disposition of it.
 //
@@ -4943,6 +4941,8 @@ func (x *DocketRuling) GetFinal() bool {
 	return false
 }
 
+// DirectionMotion rules on a line of inquiry blue proposed. The id is the AVENUE's own — a
+// direction has no separate filing, because blue's proposal IS the filing.
 type DirectionMotion struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	AvenueId      *string                `protobuf:"bytes,1,opt,name=avenue_id,json=avenueId,proto3,oneof" json:"avenue_id,omitempty"`
@@ -5957,7 +5957,7 @@ const file_record_proto_rawDesc = "" +
 	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
-	"\a_unique\"\xab\x10\n" +
+	"\a_unique\"\xba\x10\n" +
 	"\x05Event\x12\x13\n" +
 	"\x02ts\x18\x02 \x01(\tH\x01R\x02ts\x88\x01\x01\x12\x1c\n" +
 	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x12\x19\n" +
@@ -6009,7 +6009,7 @@ const file_record_proto_rawDesc = "" +
 	"\x05_roleB\a\n" +
 	"\x05_typeB\x06\n" +
 	"\x04_keyJ\x04\b\t\x10\n" +
-	"J\x04\b7\x10QR\x0eschema_version\"\xf0\x04\n" +
+	"J\x04\b7\x10QJ\x04\b$\x10%R\x0eschema_versionR\aopinion\"\xf0\x04\n" +
 	"\rTelemetryLine\x12\x19\n" +
 	"\x05round\x18\x01 \x01(\x05H\x00R\x05round\x88\x01\x01\x12,\n" +
 	"\x0fmapping_version\x18\x02 \x01(\tH\x01R\x0emappingVersion\x88\x01\x01\x12\"\n" +
@@ -6528,7 +6528,7 @@ const file_record_proto_rawDesc = "" +
 	"\aDeclare\x12\x1d\n" +
 	"\aholding\x18\x01 \x01(\tH\x00R\aholding\x88\x01\x01B\n" +
 	"\n" +
-	"\b_holding*\xb8\x1b\n" +
+	"\b_holding*\xd2\x1b\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x12e\n" +
@@ -6564,7 +6564,7 @@ const file_record_proto_rawDesc = "" +
 	"\x19EVENT_TYPE_INQUIRY_REVIEW\x10 \x1aI\x8a\xb5\x18Ea review of the lines of inquiry themselves, rather than of a finding\x12t\n" +
 	"\x16EVENT_TYPE_BASE_INGEST\x10!\x1aX\x8a\xb5\x18Tthe frozen round-0 report, stored verbatim as the origin the diff-stack replays over\x12\x93\x01\n" +
 	"\x17EVENT_TYPE_SITTING_OPEN\x10\"\x1av\x8a\xb5\x18rthe harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat\x12^\n" +
-	"\x18EVENT_TYPE_SITTING_CLOSE\x10#\x1a@\x8a\xb5\x18<the harness's agent returning — the other end of that span*\xf0\x05\n" +
+	"\x18EVENT_TYPE_SITTING_CLOSE\x10#\x1a@\x8a\xb5\x18<the harness's agent returning — the other end of that span\"\x04\b\x15\x10\x15*\x12EVENT_TYPE_OPINION*\xf0\x05\n" +
 	"\x05Grade\x12\"\n" +
 	"\x11GRADE_UNSPECIFIED\x10\x00\x1a\v\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\x00\x00\x12U\n" +
 	"\rGRADE_TRIVIAL\x10\x01\x1aB\x8a\xb5\x183cosmetic; nothing downstream changes if it is wrong\xa9\xb5\x18\x00\x00\x00\x00\x00\x00\xe0?\x12#\n" +

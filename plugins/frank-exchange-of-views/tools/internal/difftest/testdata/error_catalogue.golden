@@ -692,7 +692,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -771,7 +771,9 @@ feov-record: invalid argument "banana" for "--dimension" flag: --dimension must 
 
 file a grade motion — the tool assigns its id.
 
-THREE SUBJECTS, ONE EVENT, DIFFERENT CONTRACTS. `motion grade file` disputes a gap's grade and is ruled by the merge; `motion petition file` raises an ethical, safety, integrity or constitutional objection and is ruled by the BENCH, before the debate continues; a direction needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
+ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+
+`motion grade file` disputes a gap's grade; `motion petition file` raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues; `motion docket file` puts a GAP before the bench, which is the channel for a gap the filing seat cannot settle itself; an inquiry needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
 
 Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.
 
@@ -834,7 +836,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -882,7 +884,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -930,7 +932,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -978,7 +980,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1026,7 +1028,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1074,7 +1076,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1294,7 +1296,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1342,7 +1344,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:

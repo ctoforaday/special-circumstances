@@ -209,3 +209,67 @@ func TestAPursuedInquiryReaffirmedThisRoundIsNotStale(t *testing.T) {
 		}
 	}
 }
+
+// A `carried` RULING RE-OPENS THE FILING, AND THAT IS THE POINT OF `carried`.
+//
+// The docket affordance was keyed on "has this gap EVER been docketed", so it went silent
+// permanently at the first filing. `carried` is a deferral: the bench answers the motion and
+// deliberately keeps the gap alive with a stated condition for revisiting it, and the gap comes
+// back as a FRESH filing next round. Under the old key the surface that would prompt that filing
+// never fired again, so the one disposition the bench uses most often — 76 of 77 rulings on the
+// measured corpus — had no route back to the bench.
+//
+// THE KEY IS PENDING, NOT EVER-FILED. Every disposition except `carried` closes the gap, so an
+// OPEN gap whose docket motion is RULED is exactly the deferred one. An UNRULED motion still
+// suppresses the affordance, because asking the bench the same question twice while it is thinking
+// is not work.
+func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
+	// One motion per gap: G-carried is ruled and stays open; G-pending is filed and unruled;
+	// G-fresh was never docketed at all. Only G-pending must be silent.
+	file := func(motionID, gapID string) *Event {
+		return recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{
+			MotionId: proto.String(motionID),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Basis:    proto.String("red cannot settle " + gapID),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}},
+		})
+	}
+	b := &Board{
+		GapOrder: []string{"G-carried", "G-pending", "G-fresh"},
+		Gaps: map[string]*Gap{
+			"G-carried": {ID: "G-carried", Open: true},
+			"G-pending": {ID: "G-pending", Open: true},
+			"G-fresh":   {ID: "G-fresh", Open: true},
+		},
+		Events: []*Event{
+			file("M1", "G-carried"),
+			recordtest.Event(t, "judge-r1", 1, &recordpb.MotionRule{
+				MotionId: proto.String("M1"),
+				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+				Opinion:  proto.String("not this round"),
+				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+					ReopensOn:   proto.String("blue reporting what the stated direction found"),
+				}},
+			}),
+			file("M2", "G-pending"),
+		},
+	}
+	open := availableOf(b.Events, workStatesOfBoardT(b), "merge", "red-merge-r1")
+
+	for _, want := range []string{"G-carried", "G-fresh"} {
+		if !mentions(open, "gap "+want+" is open") {
+			t.Errorf("%s is open and the bench is not being offered it: %v", want, hows(open))
+		}
+	}
+	if mentions(open, "gap G-pending is open") {
+		t.Error("G-pending's motion is filed and UNRULED — offering a second filing asks the bench the same question twice")
+	}
+	// AND IT IS STILL AN AFFORDANCE. A blocking version would make a seat that obeyed it FURTHER
+	// from complete, because filing adds an unruled motion.
+	for _, it := range open {
+		if strings.Contains(it.What, "motion docket file") && it.Blocks {
+			t.Errorf("the docket affordance blocks closure: %q", it.What)
+		}
+	}
+}

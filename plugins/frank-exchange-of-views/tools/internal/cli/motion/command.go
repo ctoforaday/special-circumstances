@@ -53,8 +53,12 @@ import (
 // noticed, and it is the reason a verb's absence must be constructed rather than asserted.
 func NewCommandFor(actingRole string) *cobra.Command {
 	c := &cobra.Command{
-		Use:          "motion",
-		Short:        "file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.",
+		Use: "motion",
+		// THE ROLL IS BUILT, NOT TYPED. This said "a grade dispute, a petition, or a ruling on a
+		// direction" — three, written out — and `docket` made it four without making it wrong in
+		// any way a reader or a gate could see. Composed from the schema, a fifth subject cannot
+		// leave this line saying four.
+		Short:        "file and rule on a motion — " + GavelRoll() + ". One mechanism, one id.",
 		SilenceUsage: true,
 	}
 	// THE GAVEL IS NOT TYPED HERE. It was — `subject("petition", …, "bench")` — and the PASS gate
@@ -86,6 +90,25 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		nil, nil))
 	seat.MarkTree(c)
 	return c
+}
+
+// GavelRoll names every motion subject and the seat that rules it, COMPOSED FROM THE SCHEMA.
+//
+// It replaces three hand-written sentences — "THREE SUBJECTS, ONE EVENT", "THREE SUBJECTS, THREE
+// GAVELS", and this group's own Short — each of which was a census of the subject set typed into
+// prose. Adding `docket` made all three wrong, and nothing could tell: a page that says "three"
+// over four subjects is not a failing check, it is a sentence. The four difftest goldens carrying
+// those lines were regenerated in the same change and ratified the stale count.
+//
+// So the count is not stated at all and the roll is derived. MotionSubjects is the set and
+// SubjectRuler is the gavel, which are the same two facts `rulerFor` already reads to decide which
+// surface `rule` appears on — so the page and the tree cannot disagree about who holds what.
+func GavelRoll() string {
+	parts := make([]string, 0, len(record.MotionSubjects))
+	for _, name := range record.MotionSubjects {
+		parts = append(parts, name+" (the "+rulerFor(name)+" rules)")
+	}
+	return strings.Join(parts, ", ")
 }
 
 // rulerFor resolves the seat holding a subgroup's gavel from the schema.

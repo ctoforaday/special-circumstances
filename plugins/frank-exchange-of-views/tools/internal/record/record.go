@@ -1206,9 +1206,15 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 	//
 	// MOST OF WHAT IT POLICED IS NOW THE SCHEMA'S: verdict, outcome's verdict, avenue status,
 	// closure_class, check_kind, soundness, verify's outcome and confidence are all closed enums,
-	// where a value outside the set cannot be represented at all. Two are NOT — `Outcome.ended`
-	// and the bench's disposition are still open strings with declared sets — so the call stays,
-	// and it stays here, at the single write path.
+	// where a value outside the set cannot be represented at all. ONE is not — `Outcome.ended` is
+	// still an open string with a declared set — so the call stays, and it stays here, at the
+	// single write path.
+	//
+	// It said TWO, naming the bench's disposition as the second, and that stopped being true when
+	// the disposition became `DocketRuling.disposition`: a closed `Disposition` enum with a
+	// foreign key onto `enum_disposition`. `EnumFields["opinion"]` went with it. The comment
+	// survived the deletion because nothing reads a comment — checkOpenSets has exactly one arm
+	// and a reader trusting this line would have gone looking for the arm that polices dispositions.
 	return checkOpenSets(body)
 }
 

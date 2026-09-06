@@ -20,19 +20,20 @@ func newFile(subject string, required []string) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "file",
 		Short: "file a " + subject + " motion — the tool assigns its id",
-		// EACH SUBJECT'S `file` SAYS WHERE THE BOUNDARY IS. The three subjects write ONE event
-		// type with different required flags and different gavels, so a seat that opens the wrong
-		// one meets a refusal about a flag rather than about the subject it should have named.
+		// EACH SUBJECT'S `file` SAYS WHERE THE BOUNDARY IS. The subjects write ONE event type with
+		// different required flags and different gavels, so a seat that opens the wrong one meets
+		// a refusal about a flag rather than about the subject it should have named.
 		//
 		// The tree knowing about the split is not the same as the seat knowing: this page is what
 		// a seat actually reads, and it was blank. It went unnoticed because `motion` sat at the
 		// ROOT until the surface became seat-scoped, so the sibling gate never reached it.
 		Long: "file a " + subject + " motion — the tool assigns its id.\n\n" +
-			"THREE SUBJECTS, ONE EVENT, DIFFERENT CONTRACTS. `motion grade file` disputes a gap's " +
-			"grade and is ruled by the merge; `motion petition file` raises an ethical, safety, " +
-			"integrity or constitutional objection and is ruled by the BENCH, before the debate " +
-			"continues; a direction needs no file verb at all — proposing the line of inquiry IS " +
-			"the filing, and only its ruling is a motion.\n\n" +
+			"ONE EVENT, DIFFERENT CONTRACTS: " + GavelRoll() + ".\n\n" +
+			"`motion grade file` disputes a gap's grade; `motion petition file` raises an ethical, " +
+			"safety, integrity or constitutional objection, heard BEFORE the debate continues; " +
+			"`motion docket file` puts a GAP before the bench, which is the channel for a gap the " +
+			"filing seat cannot settle itself; an inquiry needs no file verb at all — proposing " +
+			"the line of inquiry IS the filing, and only its ruling is a motion.\n\n" +
 			"Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
@@ -202,10 +203,10 @@ func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 		// surface at all, so the page a seat CAN open should also say which ones it cannot.
 		Long: "rule on a " + subject + " motion — this verb is the " + ruler + " seat's, and it " +
 			"appears only on that surface.\n\n" +
-			"THREE SUBJECTS, THREE GAVELS. A grade dispute and a direction are ruled by the MERGE; " +
-			"a petition is ruled by the BENCH, before the debate continues. A motion is filed by " +
-			"any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it " +
-			"is why `rule` is missing from the surfaces that do not hold the gavel.",
+			"EVERY SUBJECT AND ITS GAVEL: " + GavelRoll() + ". The bench's two are heard BEFORE " +
+			"the debate continues. A motion is filed by any seat and ruled by one — that asymmetry " +
+			"is the mechanism, not an obstacle, and it is why `rule` is missing from the surfaces " +
+			"that do not hold the gavel.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
 			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,

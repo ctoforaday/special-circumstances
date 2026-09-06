@@ -214,6 +214,11 @@ enum EventType {
   EVENT_TYPE_MOTION_APPEAL = 18 [(means) = "an appeal of a ruling already made on a motion"];
   EVENT_TYPE_MOTION_RULE = 19 [(means) = "the bench's ruling on a filed motion, and whom it binds"];
   EVENT_TYPE_OBSERVE = 20 [(means) = "an observation recorded without a claim attached to it"];
+  // 21 was EVENT_TYPE_OPINION. Reserved rather than left free: a stored event carries its type
+  // as an integer, so a new type given 21 would silently inherit every pre-#681 bench ruling —
+  // and `Body` dispatches on this enum, so those events would be handed to the wrong arm.
+  reserved 21;
+  reserved "EVENT_TYPE_OPINION";
   EVENT_TYPE_OUTCOME = 22 [(means) = "the run's terminal act: how it ended and whether the question was answered"];
   EVENT_TYPE_POSITION = 23 [(means) = "a seat's stated position going into a round"];
   EVENT_TYPE_PROOF = 24 [(means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
@@ -490,6 +495,16 @@ message Event {
   // `base_ingest` and 53-54 for the sitting span, which is what the reserve is for — the block
   // shrinks and nothing is renumbered.
   reserved 55 to 80;
+
+  // 36 HELD `Opinion`, and it is reserved for the reason the block above is: the number is
+  // permanent even though the message is gone. The bench's disposition is a docket motion's
+  // ruling now (`MotionRule.ruling.docket`, #681 Scope 2), so nothing writes 36 any more — but
+  // events written BEFORE that change still carry those bytes, and a later body handed 36 would
+  // decode them as itself. Protobuf does not refuse a shape mismatch on a compatible wire type;
+  // it would return a message populated from another message's fields, with no error anywhere.
+  // 36 is the only free number below 55, so it is also the one a careless next edit would take.
+  reserved 36;
+  reserved "opinion";
 }
 
 // TelemetryLine is the per-round projection, NOT a shard event.
@@ -1231,8 +1246,6 @@ enum PetitionClass {
   PETITION_CLASS_CONSTITUTIONAL = 6 [(means) = "the instruction itself conflicts with the rules the run is bound by"];
 }
 
-// DirectionMotion rules on a line of inquiry blue proposed. The id is the AVENUE's own — a
-// direction has no separate filing, because blue's proposal IS the filing.
 // DocketMotion puts a GAP before the bench. The filing is the DOCKETING — a seat escalating a gap
 // it cannot settle — and the ruling is the bench's disposition of it.
 //
@@ -1323,6 +1336,8 @@ message DocketRuling {
   optional bool final = 7;
 }
 
+// DirectionMotion rules on a line of inquiry blue proposed. The id is the AVENUE's own — a
+// direction has no separate filing, because blue's proposal IS the filing.
 message DirectionMotion {
   optional string avenue_id = 1;
 }

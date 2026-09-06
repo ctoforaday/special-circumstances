@@ -66,6 +66,11 @@ type groundTruth struct {
 	verifyEvents  int
 	avenues       map[string]string // avenue id -> last status word
 	observations  int
+
+	// unpairedDocket are docket rulings whose filing this walk never saw. An oracle CANNOT
+	// `continue` past one: the miss and the honest zero are the same silence, and this fold's
+	// whole job is to be the thing that notices. See the MotionRule arm.
+	unpairedDocket []string
 }
 
 // closesSet is derived from the schema's own `closes` facet via record.ClosureClasses, so the
@@ -160,8 +165,23 @@ func walk(events []*record.Event) *groundTruth {
 			if !isDocket {
 				continue
 			}
-			g := gt.gaps[docketGap[m.GetMotionId()]]
+			// THE MISS IS RECORDED, NOT SKIPPED. `docketGap[...]` returns "" for a ruling whose
+			// filing is absent, `gaps[""]` is nil, and a `continue` here would count nothing —
+			// which is byte-for-byte what this oracle does on a record where the bench ruled on
+			// nothing. An oracle that quietly counted nothing would agree with a broken board,
+			// which is the one thing it must never do, so the silence becomes a finding instead.
+			//
+			// The write path refuses this today (`motion docket rule` rejects a motion id no
+			// filing created). That is exactly why it belongs here: the oracle's value is over
+			// records assembled some OTHER way, where the write path never ran.
+			gapID, paired := docketGap[m.GetMotionId()]
+			if !paired || gapID == "" {
+				gt.unpairedDocket = append(gt.unpairedDocket, m.GetMotionId())
+				continue
+			}
+			g := gt.gaps[gapID]
 			if g == nil {
+				gt.unpairedDocket = append(gt.unpairedDocket, m.GetMotionId()+" (names gap "+gapID+", which nothing minted)")
 				continue
 			}
 			w := recordpb.Word(d.Docket.GetDisposition())
@@ -215,6 +235,14 @@ func Check(run record.Run) ([]string, error) {
 	var v []string
 	add := func(rule, format string, args ...any) {
 		v = append(v, rule+": "+fmt.Sprintf(format, args...))
+	}
+
+	// A DOCKET RULING THE WALK COULD NOT PAIR settles no gap here and would settle none on the
+	// board either — so both sides agree, and the agreement is the failure. Reported before the
+	// replay comparison, because every count below is computed as though these rulings never
+	// happened.
+	for _, id := range gt.unpairedDocket {
+		add("docket-pairing", "motion %s has a docket RULING and no filing this walk could pair it to — its disposition settled nothing, on this oracle and on the board alike", id)
 	}
 
 	// ---- the replay itself ----
