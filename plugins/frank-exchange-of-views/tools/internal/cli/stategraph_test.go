@@ -250,6 +250,13 @@ func gapProbe(t *testing.T) entityProbe {
 			"--reopens-on", "a reproduction on a clean tree",
 			"--reason-file", writeTemp(t, "the rationale")}
 	}
+	docketRuleArgs := func(as string) []string {
+		return []string{"motion", "docket", "rule", "--id", "M1", "--as", as,
+			"--principle", "correctness first", "--tension", "correctness vs economy",
+			"--review-flag", "no", "--settled", "the grading stands as recorded",
+			"--reopens-on", "a reproduction on a clean tree",
+			"--reason-file", writeTemp(t, "the rationale")}
+	}
 	return entityProbe{
 		name: "gap", id: "R1-1",
 		states: []string{"unminted", "open", "closed"},
@@ -262,6 +269,14 @@ func gapProbe(t *testing.T) entityProbe {
 				"--reason", "carried from the prior round"}},
 			{"opinion:carried", opinionArgs("carried")},
 			{"opinion:not_a_defect", opinionArgs("not_a_defect")},
+			// THE SAME TWO EXITS THROUGH THE NEW VERB, and both are driven because the pair is
+			// the point: `carried` defers and leaves the gap OPEN, anything else ends it. A probe
+			// that drove only the closing word would report a lifecycle whose defer state the
+			// record can reach and the graph cannot see.
+			{"motion docket file", []string{"motion", "docket", "file", "--id", "R1-1",
+				"--reason", "contested and not mine to close"}},
+			{"motion docket rule:carried", docketRuleArgs("carried")},
+			{"motion docket rule:not_a_defect", docketRuleArgs("not_a_defect")},
 		},
 		buildTo: func(t *testing.T, state string) string {
 			t.Helper()
@@ -604,7 +619,10 @@ func inquiryOf(t *testing.T, runDir, id string) *record.Inquiry {
 // code can be asked for it; checked against the surface below, so the pairing cannot go stale
 // silently.
 var entityEvents = map[string][]string{
-	"gap":     {"mint", "close", "regrade", "opinion"},
+	// motion_rule is here as well as under "motion" because a DOCKET ruling closes a gap: the
+	// bench's disposition is a motion ruling now, so the gap's third exit is an event the motion
+	// entity also owns. One event, two entities, and saying so is what keeps both graphs honest.
+	"gap":     {"mint", "close", "regrade", "opinion", "motion_rule"},
 	"motion":  {"motion", "motion_rule", "motion_appeal"},
 	"inquiry": {"avenue"},
 }

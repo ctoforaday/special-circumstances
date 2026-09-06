@@ -73,13 +73,17 @@ func NewCommandFor(actingRole string) *cobra.Command {
 		// arrives. debate.js presses blue to appeal whether or not it yields, so a line that only
 		// said "the ruling stands" would have read as "do not bother".
 		"contest a gap's grade: the merge rules, and a rejected dispute may be appealed — an appeal records the argument, not a second ruling",
-		[]string{flags.ID, flags.Dimension, flags.Proposed}))
+		[]string{flags.ID, flags.Dimension, flags.Proposed}, nil))
 	c.AddCommand(subject(actingRole, "petition",
 		"an ethical | safety | integrity | constitutional objection: the BENCH rules, before the debate continues",
-		[]string{flags.Class, flags.Relief}))
+		[]string{flags.Class, flags.Relief}, nil))
+	c.AddCommand(subject(actingRole, "docket",
+		"put a GAP before the bench: any seat files, the BENCH rules, and its disposition decides the gap's fate",
+		[]string{flags.ID},
+		[]string{flags.Principle, flags.Tension, flags.ReviewFlag, flags.Settled, flags.ReopensOn, flags.Final}))
 	c.AddCommand(subject(actingRole, "inquiry",
 		"rule on a line blue proposed: the merge rules. There is NO file verb — the proposal is the filing (`blue line of inquiry`)",
-		nil))
+		nil, nil))
 	seat.MarkTree(c)
 	return c
 }
@@ -104,7 +108,7 @@ func rulerFor(name string) string {
 
 // subject builds one subgroup. `direction` gets no `file`: red rules on a line blue already
 // proposed, so a filing verb here would be a second way to say what `blue line of inquiry` already says.
-func subject(actingRole, name, short string, fileFlags []string) *cobra.Command {
+func subject(actingRole, name, short string, fileFlags, ruleFlags []string) *cobra.Command {
 	ruler := rulerFor(name)
 	c := &cobra.Command{
 		Use: name, Short: short, SilenceUsage: true,
@@ -158,9 +162,16 @@ func subject(actingRole, name, short string, fileFlags []string) *cobra.Command 
 	// and exactly one rules, which is a fact about which tree you are in rather than a refusal the
 	// verb performs. A seat that cannot rule this subject cannot name the command.
 	if actingRole == ruler {
-		c.AddCommand(newRule(name, ruler))
+		c.AddCommand(newRule(name, ruler, ruleFlags))
 	}
-	if name != "petition" {
+	// THE EXCLUSION KEYS ON THE RULER, NOT THE NAME — the class fix rather than the instance.
+	//
+	// It read `name != "petition"`, which states the instance and leaves the next bench-ruled
+	// subject to walk into a default nobody chose: adding `docket` would have minted an undesigned
+	// `motion docket appeal`, writing motion-appeal events against a bench ruling. A motion the
+	// BENCH rules has no appeal because the bench is the last forum — which is the reason petition
+	// never had one, said once, where it applies to every subject that will ever share the gavel.
+	if ruler != "bench" {
 		// A petition has no appeal: it is heard BEFORE the debate continues, so there is
 		// nothing to escalate to. Expressed by absence rather than by a runtime refusal.
 		c.AddCommand(newAppeal(name))

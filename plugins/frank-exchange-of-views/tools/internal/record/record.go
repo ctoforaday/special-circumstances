@@ -1227,6 +1227,8 @@ func filingSubject(m *recordpb.Motion) recordpb.MotionSubject {
 		return recordpb.MotionSubject_MOTION_SUBJECT_PETITION
 	case *recordpb.Motion_Direction:
 		return recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION
+	case *recordpb.Motion_Docket:
+		return recordpb.MotionSubject_MOTION_SUBJECT_DOCKET
 	}
 	return recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED
 }
@@ -1240,6 +1242,8 @@ func rulingSubject(r *recordpb.MotionRule) recordpb.MotionSubject {
 		return recordpb.MotionSubject_MOTION_SUBJECT_PETITION
 	case *recordpb.MotionRule_Direction:
 		return recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION
+	case *recordpb.MotionRule_Docket:
+		return recordpb.MotionSubject_MOTION_SUBJECT_DOCKET
 	}
 	return recordpb.MotionSubject_MOTION_SUBJECT_UNSPECIFIED
 }
@@ -1253,6 +1257,10 @@ func rulingWord(r *recordpb.MotionRule) string {
 		return recordpb.Word(v.Petition)
 	case *recordpb.MotionRule_Direction:
 		return recordpb.Word(v.Direction)
+	case *recordpb.MotionRule_Docket:
+		// THE WORD IS ON THE MESSAGE, not the arm — the docket arm is the only one carrying a
+		// message rather than an enum, because the bench records reasoning as well as a verdict.
+		return recordpb.Word(v.Docket.GetDisposition())
 	}
 	return ""
 }
@@ -1267,6 +1275,12 @@ func rulingNames(s recordpb.MotionSubject) []string {
 		return recordpb.Names(recordpb.PetitionRuling(0).Descriptor())
 	case recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION:
 		return recordpb.Names(recordpb.DirectionRuling(0).Descriptor())
+	case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
+		// The shared Disposition set (#342), not a docket-specific enum: the bench's vocabulary
+		// is the one `merge close` uses, which is what "one vocabulary, whichever verb closed
+		// it" means. A subject missing here returns nil, and the refusal then fires while
+		// offering an EMPTY list of legal words — technically correct and unactionable.
+		return recordpb.Names(recordpb.Disposition(0).Descriptor())
 	}
 	return nil
 }

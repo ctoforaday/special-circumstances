@@ -33,7 +33,7 @@ import (
 // express "required only when --on=grade", so a flag-discerned subject would put three divergent
 // contracts into hand-written RunE validation — a flag combination policed by prose, which is
 // the shape this suite exists to remove.
-var MotionSubjects = []string{"grade", "petition", "inquiry"}
+var MotionSubjects = []string{"grade", "petition", "inquiry", "docket"}
 
 // MotionVerdicts are the rulings, per subject. The KEY is `ruling` on every one of them and the
 // flag is `--as` on every one of them, which is the point: §I of the plan names
@@ -53,6 +53,12 @@ var MotionVerdicts = map[string][]EnumValue{
 		ev("out_of_scope", "a real question, but not THIS question"),
 		ev("too_thin", "in scope, and the hypothesis does not carry its budget as stated"),
 	},
+	// BY REFERENCE, NOT TRANSCRIBED. The bench's vocabulary IS the shared Disposition set (#342) —
+	// the same words `merge close` uses, which is what "one vocabulary, whichever verb closed it"
+	// means. Copying the words here would be the second list that drifts, and an August draft of
+	// this change did exactly that: it printed a set taken from the bench's CONSTITUTION rather
+	// than from the code, and got it wrong in both directions.
+	"docket": Dispositions,
 }
 
 // MotionFields are the ENUMERATED payload fields a subject's filing carries, beyond the verdict.
@@ -238,6 +244,16 @@ type Motion struct {
 
 	// Ruling is empty until ruled. THE ABSENCE IS INFORMATION: a motion filed and never ruled
 	// means the sitting did not happen, and the report says so rather than omitting the row.
+	// GapID is the gap this motion is ABOUT, or "" for a subject that is about no gap.
+	//
+	// A FIELD RATHER THAN Fields["gap_id"], and the difference decides a defect. The map read
+	// returns "" for a motion whose arm nobody folded — indistinguishable from a petition, which
+	// legitimately has no gap. That is how a bench-disposed gap could render as one nobody
+	// disposed of: the join simply came back empty and every reader treated the honest answer and
+	// the broken one the same. Typed, the fold that fills it is the only thing that can be wrong,
+	// and the compiler names the arm that was forgotten.
+	GapID string
+
 	Ruling      string
 	RulingBy    string
 	RulingRound int
@@ -341,6 +357,7 @@ func Motions(b *Board) []*Motion {
 			case *recordpb.Motion_Grade:
 				if fil.Grade.GapId != nil {
 					m.Fields["gap_id"] = fil.Grade.GetGapId()
+					m.GapID = fil.Grade.GetGapId()
 				}
 				if fil.Grade.Dimension != nil {
 					m.Fields["dimension"] = enumWord(fil.Grade.GetDimension())
@@ -356,6 +373,18 @@ func Motions(b *Board) []*Motion {
 				if fil.Direction.AvenueId != nil {
 					m.Fields["inquiry_id"] = fil.Direction.GetAvenueId()
 				}
+			case *recordpb.Motion_Docket:
+				if fil.Docket.GapId != nil {
+					m.Fields["gap_id"] = fil.Docket.GetGapId()
+					m.GapID = fil.Docket.GetGapId()
+				}
+			default:
+				// A FILING ARM NOBODY FOLDED RENDERS AS A MOTION WITH NO ASK IN IT. Fields stays
+				// empty, GapID stays "", and every reader shows the subject and nothing else —
+				// which reads as a motion that was filed carelessly rather than as a binary that
+				// is behind its own schema. There is no error return here, so the loudness has to
+				// be in what the reader sees.
+				m.Fields["unfolded_arm"] = fmt.Sprintf("%T", fil)
 			}
 		case *recordpb.MotionRule:
 			id := f.GetMotionId()
