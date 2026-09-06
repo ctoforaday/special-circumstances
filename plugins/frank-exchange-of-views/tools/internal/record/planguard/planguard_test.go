@@ -108,11 +108,21 @@ func TestGrowthSetIsDerivedFromTheSchema(t *testing.T) {
 	for _, n := range names {
 		set[n] = true
 	}
-	// `events` is the table nothing derives; a repeated-field child is the shape most easily
-	// dropped by a derivation that only walked top-level messages.
+	// `events` is declared by hand and is not a body arm, so it is in the set only because the
+	// derivation SUBTRACTS the bounded vocabularies rather than enumerating what grows. A
+	// repeated-field child is the shape most easily dropped by a derivation that walked only
+	// top-level messages.
 	for _, want := range []string{"events", "mint", "close", "cite", "mint_supersedes", "mint_found_by"} {
 		if !set[want] {
 			t.Errorf("the derived growth set is missing %q", want)
+		}
+	}
+	// AND THE OTHER HALF OF THE SUBTRACTION. An enum vocabulary is bounded — SQLite is right to
+	// scan an eight-row grade table — and counting one as growth would report every correct read
+	// of it as a defect, which is how a guard teaches people to ignore it.
+	for _, n := range names {
+		if strings.HasPrefix(n, "enum_") {
+			t.Errorf("%q is a bounded vocabulary and must not be in the growth set", n)
 		}
 	}
 }
