@@ -299,7 +299,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 	}
 	d := debate(&record.Board{Events: evs}, evs)
 	for _, want := range []string{
-		"### Round 1", "### RED\ngap A stands", "### BLUE\ngap A repaired",
+		"### Round 1", "### RED — NO VERDICT RECORDED THIS ROUND\ngap A stands", "### BLUE\ngap A repaired",
 		"R1-1: carried",
 		// THE PETITION SECTION IS NOT HERE ANY MORE, and its absence is the point. It rendered
 		// both sides of a petition off the retired `petition`/`petition-rule` types — a second

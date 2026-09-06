@@ -1136,6 +1136,33 @@ func debate(board *record.Board, evs []*record.Event) string {
 	var parts []string
 	for _, r := range order {
 		re := byRound[r]
+		// THE RECORDED VERDICT, RENDERED BESIDE THE PROSE THAT CLAIMS ONE.
+		//
+		// A seat's position is prose, and prose can say "my verdict is PASS" while the round's
+		// STRUCTURED verdict — the one the board and every audit read — says fail. That is not
+		// hypothetical: in research/2026-09-02_quadratic-formula red's round-5 position says
+		// exactly that, `round_verdict` holds fail for all five rounds, and this document rendered
+		// only the sentence. A reader of debate.md alone concluded the opposite of the record.
+		//
+		// The fix is not to detect the contradiction — that would be a string match on prose, and
+		// a wrong one would be worse than none. It is to render the FACT next to the claim, so a
+		// reader sees both and needs no inference.
+		recordedVerdict := ""
+		for _, e := range re {
+			if v, ok := recordpb.BodyAs[*recordpb.RoundVerdict](e); ok {
+				recordedVerdict = recordpb.Word(v.GetVerdict())
+			}
+		}
+		redHead := "### RED"
+		switch {
+		case recordedVerdict != "":
+			redHead = "### RED — recorded verdict: " + strings.ToUpper(recordedVerdict)
+		default:
+			// ABSENCE IS ITS OWN FACT. A round where red spoke and recorded no verdict is not a
+			// round that passed; it is one whose gate never closed, and silence renders the same
+			// as either. The ceiling case that produced this defect is exactly that shape.
+			redHead = "### RED — NO VERDICT RECORDED THIS ROUND"
+		}
 		var round []string
 		// THE BODY IS THE TYPE, and the party is still the seat's. `--reason` lands on
 		// Position.text and Closing.text — one prose channel each, declared for Closing in
@@ -1145,7 +1172,7 @@ func debate(board *record.Board, evs []*record.Event) string {
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
 				switch party {
 				case "merge":
-					round = append(round, "### RED\n"+p.GetText())
+					round = append(round, redHead+"\n"+p.GetText())
 				case "blue":
 					round = append(round, "### BLUE\n"+p.GetText())
 				}
