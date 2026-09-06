@@ -180,10 +180,14 @@ type ocrReadSummary struct {
 	// OCRDerived is always true here and is printed anyway. It is the field that keeps text a
 	// machine read off pixels distinguishable from text an author embedded, and a reader who
 	// does not see it stated has to infer it from the verb that produced the file.
-	OCRDerived bool  `json:"ocr_derived"`
-	InTokens   int64 `json:"input_tokens"`
-	OutTokens  int64 `json:"output_tokens"`
-	Reused     bool  `json:"reused"`
+	OCRDerived bool `json:"ocr_derived"`
+	// BlockedPages counts pages the content filter refused (#679), present only when
+	// nonzero — including on the reuse path, where the stored record may carry holes a
+	// summary-only reader must still learn about.
+	BlockedPages int   `json:"ocr_blocked_pages,omitempty"`
+	InTokens     int64 `json:"input_tokens"`
+	OutTokens    int64 `json:"output_tokens"`
+	Reused       bool  `json:"reused"`
 }
 
 func (s ocrReadSummary) render() string {
@@ -200,6 +204,9 @@ func (s ocrReadSummary) render() string {
 	line("text_path", s.TextPath)
 	line("text_sha", s.TextSha)
 	line("ocr_derived", "true")
+	if s.BlockedPages > 0 {
+		line("ocr_blocked_pages", fmt.Sprint(s.BlockedPages))
+	}
 	line("input_tokens", fmt.Sprint(s.InTokens))
 	line("output_tokens", fmt.Sprint(s.OutTokens))
 	line("reused", fmt.Sprint(s.Reused))
@@ -230,7 +237,8 @@ func newOCRRead() *cobra.Command {
 		Short: "ask a model what the rendered pages say, and record the transcription",
 		Long: "read sends each page image rendered by `ocr pages` to a model and asks for a transcription. The assembled text is written to <run>/cache/<sha>.ocr.txt and each page's own transcription beside its image. " +
 			"THIS VERB SPENDS A MODEL, one call per page. It needs credentials (ANTHROPIC_API_KEY, or `ant auth login`) and it is the only verb here that calls out of the machine. " +
-			"WHAT IT WRITES IS NOT REPRODUCIBLE: a re-read returns different bytes. The record carries an attestation — model, time, and the hashes of the images actually read — in place of the re-derivation an extraction supports.",
+			"WHAT IT WRITES IS NOT REPRODUCIBLE: a re-read returns different bytes. The record carries an attestation — model, time, and the hashes of the images actually read — in place of the re-derivation an extraction supports. " +
+			"A page the API's content filter refuses becomes a NAMED HOLE, not a failure: the marker sits in the text, blocked fields sit on the record, and ocr_blocked_pages in this summary counts them (#679). Pages already read are never paid for again — each carries a receipt validated against its image hash — and --force discards the receipts, blocked pages included, for a full re-read.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -257,6 +265,15 @@ func newOCRRead() *cobra.Command {
 				}
 			}
 
+			// --force MEANS FORCE: discard the paid-for receipts, blocked ones included, so
+			// every page is read again. Without this the per-page reuse (#679) would quietly
+			// turn --force into a no-op, which is the operator's lever removed by an
+			// optimisation they cannot see.
+			if force {
+				if err := fetchcache.ClearReceipts(run, sha); err != nil {
+					return err
+				}
+			}
 			rec, err := fetchcache.ReadRenderedPages(cmd.Context(), run, sha, model, rd)
 			if err != nil {
 				return err
@@ -283,8 +300,8 @@ func readSummaryOf(run record.Run, sha string, r fetchcache.ReadingRecord, reuse
 	return ocrReadSummary{
 		Sha: r.Sha, Model: r.Model, Pages: len(r.Pages), DPI: r.DPI,
 		TextPath: fetchcache.OCRTextPath(run, sha), TextSha: r.TextSha,
-		OCRDerived: true,
-		InTokens:   r.InTokens, OutTokens: r.OutTok, Reused: reused,
+		OCRDerived: true, BlockedPages: r.BlockedPages(),
+		InTokens: r.InTokens, OutTokens: r.OutTok, Reused: reused,
 	}
 }
 
