@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportvoice"
 )
 
 // edit: the ONLY write path to blue/report.md for a response seat.
@@ -59,6 +60,14 @@ func newEdit() *cobra.Command {
 		}
 		key := seat.Str(cmd, flags.Key)
 
+		// ADVISORY, COMPUTED BEFORE ANY RETURN so an idempotent retry carries it too — a seat
+		// re-running a crashed edit should hear the same note, not lose it to the fast path.
+		// Nothing here can refuse: the tells are collected and ride back on the result.
+		var tells []string
+		for _, f := range reportvoice.Find(newStr) {
+			tells = append(tells, fmt.Sprintf("%q reads as %s — %s", f.Match, f.Class, f.Redirect))
+		}
+
 		// Crash-retry: a committed blue_edit for this key means the op is already on the
 		// stack — reconcile the write idempotently, do NOT append a second op.
 		prior, err := record.ExistingBlueEditByKey(run, s.SeatID, key)
@@ -68,7 +77,7 @@ func newEdit() *cobra.Command {
 		if prior {
 			// The op is already on the diff-stack, so the render already reflects it — there is
 			// nothing to re-apply. Under report-as-record the edit IS the event; no file to reconcile.
-			return editResult{Idempotent: true}, nil
+			return editResult{VoiceTells: tells, Idempotent: true}, nil
 		}
 
 		// FRESH: validate against a consistent snapshot BEFORE committing the event, so a
@@ -120,7 +129,7 @@ func newEdit() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		return editResult{}, nil
+		return editResult{VoiceTells: tells}, nil
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
@@ -189,11 +198,24 @@ func droppedMarker(before, after string) string {
 
 type editResult struct {
 	Idempotent bool `json:"idempotent,omitempty"`
+	// VoiceTells is ADVICE, and the edit is already recorded by the time it is rendered. The
+	// report is written for a reader of its SUBJECT, and this names where the new text sounds
+	// like the run talking about itself. It does not refuse: a pattern cannot tell a report
+	// narrating its own construction from a report quoting a source that narrates something,
+	// and a gate that cannot tell the difference would silently cost the second one. Red's
+	// voice lens has the judgement; this only says where to look, while the seat is still here.
+	VoiceTells []string `json:"voice_tells,omitempty"`
 }
 
 func (r editResult) Human() string {
+	head := "blue edit recorded — diff-stack op appended, finding-markers preserved, report re-derived on read"
 	if r.Idempotent {
-		return "blue edit (idempotent retry — the op is already on the diff-stack, no second op)"
+		head = "blue edit (idempotent retry — the op is already on the diff-stack, no second op)"
 	}
-	return "blue edit recorded — diff-stack op appended, finding-markers preserved, report re-derived on read"
+	if len(r.VoiceTells) == 0 {
+		return head
+	}
+	return head + "\n\nNOTE — this text sounds like the run rather than the subject. The edit is\nrecorded; this is not a refusal, and it may be wrong:\n  - " +
+		strings.Join(r.VoiceTells, "\n  - ") +
+		"\nSeparation, never deletion: an operational limit belongs on the operator\nchannel, and the part that limits the CONCLUSION stays here, re-voiced."
 }

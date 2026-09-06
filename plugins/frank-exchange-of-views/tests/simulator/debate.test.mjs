@@ -84,14 +84,14 @@ const CITATION_CLAUSE = 'THE REPORT DOES NOT NAME ITS SOURCES'
 
 test('citationPasses recompute: round 1 sizes on the corpus, round 2 on the DELTA (W2i)', async () => {
   const world = makeWorld(makeResponder({
-    blueSynth: [blueEnv({ claim_count: 10 })],           // round 1: 1 citation pass + 2 -> 3 lenses
+    blueSynth: [blueEnv({ claim_count: 10 })],           // round 1: 1 citation pass + 3 -> 4 lenses
     blueRespond: [blueEnv({ claim_count: 200 })],        // +190 claims: a big delta, but capped at 2
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
     judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }] })],
   }))
   await world.run(script, ARGS)
-  assert.equal(lensesByRound(world, 1).length, 3, 'round 1: 1 citation pass + logic + risk')
-  assert.equal(lensesByRound(world, 2).length, 4, 'round 2: delta of 190 rescales to the cap of 2 citation + logic + risk')
+  assert.equal(lensesByRound(world, 1).length, 4, 'round 1: 1 citation pass + logic + risk + voice')
+  assert.equal(lensesByRound(world, 2).length, 5, 'round 2: delta of 190 rescales to the cap of 2 citation + logic + risk + voice')
 })
 
 test('W2i: a small round-2 delta drops to ONE citation seat — sized to input, not halved by rule', async () => {
@@ -104,7 +104,7 @@ test('W2i: a small round-2 delta drops to ONE citation seat — sized to input, 
   await world.run(script, ARGS)
   assert.equal(citationSeats(world, 1).length, 4, 'round 1 coverage is untouched by W2i')
   assert.equal(citationSeats(world, 2).length, 1, 'round 2 sizes on the 10-claim delta, not the 210-claim corpus')
-  assert.equal(lensesByRound(world, 2).length, 3, 'L5 + L6 dispatch every round regardless')
+  assert.equal(lensesByRound(world, 2).length, 4, 'L5 + L6 + L7 dispatch every round regardless')
 })
 
 test('W2i: round 3 restores both citation seats — the staleness sweep is O(corpus), not O(delta)', async () => {
@@ -122,14 +122,38 @@ test('W2i: round 3 restores both citation seats — the staleness sweep is O(cor
   assert.equal(citationSeats(world, 3).length, 2, 'round 3: the >2-rounds staleness trigger re-staffs the second seat')
 })
 
-test('W2i: lens numbers are ROLES — logic is always L5, dark-side always L6, whatever the citation count', async () => {
+test('L7 audits the report VOICE, and is told separation is not deletion', async () => {
+  const world = makeWorld(makeResponder({
+    blueSynth: [blueEnv({ claim_count: 10 })],
+    red: [redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, ARGS)
+  const voice = lensesByRound(world, 1).find((c) => c.opts.label.startsWith('red-lens-7-'))
+  assert.ok(voice, 'no L7 seat was dispatched — the report voice is audited by nobody')
+  assert.ok(voice.prompt.includes('report voice'), 'L7 is not the voice seat')
+  // MEASURED: the 2026-09-02 report carried 161 "this run / this round / the debate", 24 inline
+  // lane tags, 9 narrations of its own draft history and 2 of its verification apparatus, on a
+  // 4,000-year-old algebra question. The lens is told to read AS the subject's reader.
+  assert.ok(/addressed to a reader of its SUBJECT/.test(voice.prompt), 'L7 is not told whose reader it is')
+  // THE FAILURE MODE OF THIS LENS IS OVER-CORRECTION. A limit on the CONCLUSION is load-bearing
+  // and must survive re-voiced; only the fact about the RUN moves. A lens told merely "remove the
+  // process voice" deletes the caveat with it.
+  assert.ok(/SEPARATION, NEVER DELETION/.test(voice.prompt), 'L7 is not warned that the residue is load-bearing')
+  // And a report that ADMITS it is narrating itself is still narrating itself — the 2026-09-02
+  // report said so about itself in its own prose and shipped anyway.
+  assert.ok(/DISCLOSURE IS NOT DISCHARGE/.test(voice.prompt), 'L7 can be talked out of a leak by a disclosure')
+  // The steelman clause is L5/L6's duty over the lines of inquiry; L7 audits prose, not avenues.
+  assert.ok(!/steelman/i.test(voice.prompt), 'L7 carries the steelman duty, which belongs to L5/L6')
+})
+
+test('W2i: lens numbers are ROLES — logic is always L5, dark-side always L6, voice always L7, whatever the citation count', async () => {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ claim_count: 10 })],           // ONE citation pass: positionally L5/L6 would slide to L2/L3
     red: [redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
   const labels = lensesByRound(world, 1).map((c) => c.opts.label.match(/^red-lens-(\d+)-/)[1])
-  assert.deepEqual(labels.sort(), ['1', '5', '6'], 'citation slice L1, logic L5, dark-side L6 — no positional slide')
+  assert.deepEqual(labels.sort(), ['1', '5', '6', '7'], 'citation slice L1, logic L5, dark-side L6, voice L7 — no positional slide')
   const logic = lensesByRound(world, 1).find((c) => c.opts.label.startsWith('red-lens-5-'))
   assert.ok(logic.prompt.includes('logic and completeness'), 'L5 is the logic seat')
   // The LABEL FORMAT is the tool's — it assigns them and the findings view lists them, so the
@@ -465,11 +489,12 @@ test('citation passes scale with claim_count and carry the ledger clause', async
     const world = makeWorld(makeResponder({ blueSynth: [blueEnv({ claim_count: claims })], red: [redEnv({ verdict: 'PASS' })] }))
     await world.run(script, ARGS)
     const lenses = world.calls.filter((c) => c.opts.label.startsWith('red-lens'))
-    for (const c of lenses.slice(0, lenses.length - 2)) assert.ok(c.prompt.includes(CITATION_CLAUSE), 'citation lens carries the ledger clause')
+    // The last THREE are logic, dark-side and voice; the rest are citation slices.
+    for (const c of lenses.slice(0, lenses.length - 3)) assert.ok(c.prompt.includes(CITATION_CLAUSE), 'citation lens carries the ledger clause')
     return lenses.length
   }
-  assert.equal(await lensCount(10), 1 + 2)   // floor: one citation pass + logic + risk
-  assert.equal(await lensCount(200), 4 + 2)  // cap: four citation passes + logic + risk
+  assert.equal(await lensCount(10), 1 + 3)   // floor: one citation pass + logic + risk + voice
+  assert.equal(await lensCount(200), 4 + 3)  // cap: four citation passes + logic + risk + voice
 })
 
 test('the operator channel aggregates from every seat with attribution', async () => {
