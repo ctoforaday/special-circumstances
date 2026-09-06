@@ -1,6 +1,6 @@
 # Memory Architecture for Special Circumstances
 
-> STATUS 2026-09-02: not started (still a proposal — none of its components exists in the tree: no knowledge store or `.knowledge.toml`, no `/dream`, `/remember`, `/ingest` or `/memory-bootstrap` command, no `trajectory-review` or `knowledge-ingest` skill, no `memory-consolidator`/`memory-curator` agent, and sleeper-service — named home of 7.2/7.4 — is scaffold-only. The harness's native auto-memory `MEMORY.md` is in live use unmediated, and gray-area took the trajectory-mining half of the territory.)
+> STATUS 2026-09-06: live proposal, BLOCKED — not dormant and not rejected, and the distinction is the point. Nothing is built. It is blocked on sleeper-service (claude-port-plan Phase 4, still scaffold), and its §7 delivery shape — `dream.js` / `bootstrap.js` as Workflow scripts — predates [[committed-tooling-is-Go]] and needs re-planning before anything is written. TWO LIVE DOCUMENTS CITE IT: `session-telemetry-trailers.md` (for trajectory data) and `ideas/backlog.md`, which defers the durable home for run trajectories to "the memory-architecture proposal". That backlog item does NOT need this plan and should stop waiting on it — `run-archive/` is already the repo's durable, git-tracked home for what outlives a container, per CLAUDE.md.
 
 **Status:** Proposal (for discussion) · **Scope:** all three plugins · **Author:** design review follow-up
 **Supersedes:** the ad-hoc "stash it in CLAUDE.md / MEMORY.md / `memory:` frontmatter" position in `plans/claude-port-plan.md`

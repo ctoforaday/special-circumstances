@@ -75,7 +75,7 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 // proto3 without `optional` has implicit presence: an unset field and a zero-valued one marshal
 // to the same bytes under EmitUnpopulated=false. That collapse is fatal in three measured places
 // — `seq = 0` is the register event's real sequence number and difftest's rank key reads it;
-// `schema_version` absent must differ from 0, which is what the read discriminates on; and
+// an unset grade must differ from a zero one, which is what half these readers rest on; and
 // `applied_verbatim`/`independent`/`none` carry meaning by PRESENCE, never being written false.
 //
 // A single forgotten `optional` reintroduces the plausible zero this schema exists to delete,

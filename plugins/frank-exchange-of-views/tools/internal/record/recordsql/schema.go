@@ -383,7 +383,7 @@ func sqlType(fd protoreflect.FieldDescriptor) (string, error) {
 //
 // # There are no longer any enums nobody documents
 //
-// EventType and SchemaVersion used to be exempt, on the reason that no seat types them so no
+// EventType used to be exempt (with SchemaVersion, since removed), on the reason that no seat types it so no
 // --help renders them. True, and scoped to the only consumer `means` had at the time. This table
 // is a second consumer with a different audience — a human reading the record in SQL — and
 // `events.type` is the column every join keys on. So they are documented, the exemption is gone,
@@ -406,7 +406,7 @@ func enumTable(ed protoreflect.EnumDescriptor) (string, error) {
 			continue // the UNSPECIFIED zero is absence, and absence is NULL here
 		}
 		// EVERY VALUE CARRIES ITS MEANING NOW, so a miss is an error rather than a placeholder.
-		// The fallback string stood in for the EventType/SchemaVersion exemption, which is gone —
+		// The fallback string stood in for the EventType exemption, which is gone —
 		// and a default sentence is the shape this package refuses everywhere else: it puts a
 		// plausible value in the record where an unanswered question was.
 		means, err := recordpb.EnumValueDoc(v)
@@ -707,7 +707,6 @@ func enumTables(bodies []protoreflect.MessageDescriptor) (string, error) {
 	// find it" and "no such vocabulary is wanted" are the same silence.
 	for _, ed := range []protoreflect.EnumDescriptor{
 		recordpb.EventType(0).Descriptor(),
-		recordpb.SchemaVersion(0).Descriptor(),
 	} {
 		if !seen[ed.FullName()] {
 			seen[ed.FullName()] = true

@@ -29,7 +29,7 @@ import (
 
 // THE EXEMPTION IS GONE, AND ITS PREMISE IS WHY.
 //
-// `undocumentedEnums` held EventType and SchemaVersion, on the reason "whose values no seat ever
+// `undocumentedEnums` held EventType (and, until it was removed, SchemaVersion), on the reason "whose values no seat ever
 // types, so no --help renders them". That was true, and it was scoped to the only consumer `means`
 // had when it was written. There are three now: --help, the refusal a seat reads, and the record's
 // own vocabulary TABLES — and the third has an audience the first two do not, a human reading the
