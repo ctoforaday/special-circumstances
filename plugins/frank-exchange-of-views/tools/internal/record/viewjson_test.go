@@ -154,11 +154,10 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 		}),
 	})
 
-	b, err := BoardState(mustRun(t, runDir))
+	w, err := WorkJSONOfRun(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	w := WorkJSONOf(b)
 
 	if len(w.Open) != 1 || w.Open[0].ID != "R1-1" {
 		t.Fatalf("work list Open = %+v, want the single open gap R1-1", w.Open)

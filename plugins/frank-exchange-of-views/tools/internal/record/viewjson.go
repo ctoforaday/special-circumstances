@@ -453,35 +453,11 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 	if err != nil {
 		return out, err
 	}
-	type closeState struct {
-		lastClose        *recordpb.Close   // the fold's Closure: last red close
-		lastBenchClosure *recordpb.Opinion // the fold's BenchClosure: last CLOSING opinion
-		closedRound      int               // the LAST closing event's round, either arm
-		closedByBench    bool              // ... and whether that last event was the bench's
-		hasClosed        bool
-	}
-	closures := map[string]*closeState{}
+	closures := closureStatesOf(evs)
 	regrades := map[string][]*recordpb.Regrade{}
 	var findings []*Event
-	closing := func(id string) *closeState {
-		c, ok := closures[id]
-		if !ok {
-			c = &closeState{}
-			closures[id] = c
-		}
-		return c
-	}
 	for _, e := range evs {
 		switch m := mustBody(e).(type) {
-		case *recordpb.Close:
-			c := closing(m.GetGapId())
-			c.lastClose, c.closedRound, c.closedByBench, c.hasClosed = m, int(e.GetRound()), false, true
-		case *recordpb.Opinion:
-			if !benchClosesGap(m.GetDisposition()) {
-				continue
-			}
-			c := closing(m.GetGapId())
-			c.lastBenchClosure, c.closedRound, c.closedByBench, c.hasClosed = m, int(e.GetRound()), true, true
 		case *recordpb.Regrade:
 			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], m)
 		case *recordpb.Finding:
@@ -598,6 +574,48 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 	out.Counts.TotalObservations = len(out.Observations)
 	out.Counts.Anomalies = len(out.Anomalies)
 	return out, nil
+}
+
+// closeState is the fold's closure pair for one gap, derived from the close/opinion stream:
+// attribution follows the LAST closing event, whichever arm wrote it, while both bodies stay
+// addressable (closureBody's precedence needs the red close even when the bench closed last).
+type closeState struct {
+	lastClose        *recordpb.Close   // the fold's Closure: last red close
+	lastBenchClosure *recordpb.Opinion // the fold's BenchClosure: last CLOSING opinion
+	closedRound      int               // the LAST closing event's round, either arm
+	closedByBench    bool              // ... and whether that last event was the bench's
+	hasClosed        bool
+}
+
+// reason is the last closer's word — Gap.ClosureReason, asked of the same pair.
+func (c *closeState) reason() string {
+	return (&Gap{Closure: c.lastClose, BenchClosure: c.lastBenchClosure, ClosedByBench: c.closedByBench}).ClosureReason()
+}
+
+func closureStatesOf(evs []*Event) map[string]*closeState {
+	closures := map[string]*closeState{}
+	closing := func(id string) *closeState {
+		c, ok := closures[id]
+		if !ok {
+			c = &closeState{}
+			closures[id] = c
+		}
+		return c
+	}
+	for _, e := range evs {
+		switch m := mustBody(e).(type) {
+		case *recordpb.Close:
+			c := closing(m.GetGapId())
+			c.lastClose, c.closedRound, c.closedByBench, c.hasClosed = m, int(e.GetRound()), false, true
+		case *recordpb.Opinion:
+			if !benchClosesGap(m.GetDisposition()) {
+				continue
+			}
+			c := closing(m.GetGapId())
+			c.lastBenchClosure, c.closedRound, c.closedByBench, c.hasClosed = m, int(e.GetRound()), true, true
+		}
+	}
+	return closures
 }
 
 // mustBody is Body for a stream the loader just built: every event it returns carries one.
@@ -769,67 +787,106 @@ func synopsis(s string) string {
 // WorkJSONOf projects the replayed board into the merge's working set. It walks the same
 // GapOrder as BoardJSONOf so the two views agree on membership and order — open gaps to the
 // lean work list shape, closed gaps to the prose-free index.
-func WorkJSONOf(b *Board) WorkJSON {
+// WorkGapState is one gap's answer from the record for the work path: the view's scalar facts
+// (openness, the regrade-overlaid grades, the proof debt) plus the closure attribution derived
+// from the close/opinion stream. It is the input SittingOf and availableOf read instead of a
+// folded Board.
+type WorkGapState struct {
+	ID, Class, Location, Problem, CheckKind string
+	Open, AwaitingProof, ClosedByBench      bool
+	Fate                                    string // the last closer's word; closed gaps only
+	Severity, Likelihood, Impact, Cx        any
+	FoundBy, Supersedes                     []string
+}
+
+// workGapStatesOfRun reads the gap family for the work path: one view query for the scalars,
+// the two list tables, and the closure attribution off the already-fetched stream.
+func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return nil, err
+	}
+	closures := closureStatesOf(evs)
+	foundBy, err := listValuesByEvent(db, "mint_found_by")
+	if err != nil {
+		return nil, err
+	}
+	supersedes, err := listValuesByEvent(db, "mint_supersedes")
+	if err != nil {
+		return nil, err
+	}
+	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof",
+	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
+	    "class", "location", "problem", "check_kind", "minted_event"
+	  FROM "gap" ORDER BY "minted_event"`)
+	if err != nil {
+		return nil, fmt.Errorf("record: asking the record for its work list: %w", err)
+	}
+	defer rows.Close()
+	var out []WorkGapState
+	for rows.Next() {
+		var g WorkGapState
+		var sev, lik, imp, cx, class, loc, problem, kind sql.NullString
+		var mintedEvent int64
+		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &sev, &lik, &imp, &cx,
+			&class, &loc, &problem, &kind, &mintedEvent); err != nil {
+			return nil, err
+		}
+		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
+		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
+		g.FoundBy, g.Supersedes = foundBy[mintedEvent], supersedes[mintedEvent]
+		if c := closures[g.ID]; c != nil && c.hasClosed {
+			g.ClosedByBench, g.Fate = c.closedByBench, c.reason()
+		}
+		out = append(out, g)
+	}
+	return out, rows.Err()
+}
+
+// workJSONOfGaps assembles the lean shapes from the gap states — the same rows, the same order,
+// the same synopsis truncation the fold applied.
+func workJSONOfGaps(gaps []WorkGapState) WorkJSON {
 	out := WorkJSON{Open: []WorkGapJSON{}, ClosedIndex: []ClosedIndexJSON{}}
-	for _, id := range b.GapOrder {
-		g, ok := b.Gaps[id]
-		if !ok {
+	for _, g := range gaps {
+		if g.Open {
+			out.Open = append(out.Open, WorkGapJSON{
+				ID:       g.ID,
+				Severity: g.Severity, Likelihood: g.Likelihood, Impact: g.Impact, ComplexityCost: g.Cx,
+				Class: g.Class, Location: g.Location, ProblemSynopsis: synopsis(g.Problem),
+				CheckKind: g.CheckKind, AwaitingProof: g.AwaitingProof,
+				FoundBy: strs(g.FoundBy),
+			})
 			continue
 		}
-		if g.Open {
-			wg := WorkGapJSON{
-				ID:       g.ID,
-				Severity: gradeVal(g.Severity), Likelihood: gradeVal(g.Likelihood),
-				Impact: gradeVal(g.Impact), ComplexityCost: gradeVal(g.ComplexityCost),
-			}
-			if g.Mint != nil {
-				wg.Class = g.Mint.GetClass()
-				wg.Location = g.Mint.GetLocation()
-				wg.ProblemSynopsis = synopsis(g.Mint.GetProblem())
-				if g.Mint.CheckKind != nil {
-					wg.CheckKind = recordpb.Word(g.Mint.GetCheckKind())
-				}
-				wg.AwaitingProof = g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION && !proofNames(b, g.ID)
-				wg.FoundBy = strs(g.Mint.GetFoundBy())
-			}
-			out.Open = append(out.Open, wg)
-		} else {
-			ci := ClosedIndexJSON{ID: g.ID, ClosedBy: "red"}
-			if g.ClosedByBench {
-				ci.ClosedBy = "bench"
-			}
-			if g.Mint != nil {
-				ci.Location = g.Mint.GetLocation()
-				ci.Class = g.Mint.GetClass()
-			}
-			// ONE VOCABULARY, TWO WRITERS. Red closes with `closure_class`, the bench disposes
-			// with `disposition`; both are the same Disposition enum, and which verb wrote it is
-			// not the reader's problem. They are separate FIELDS here rather than one payload key
-			// read twice, so the fallback is a nil test on a typed body instead of a string miss.
-			// The LAST closer's word — ClosureReason keys on ClosedByBench, so a gap both
-			// writers acted on reports the fate the record settled on, not whichever field a
-			// fixed precedence happened to read first.
-			ci.Fate = g.ClosureReason()
-			// The second axis, derived rather than stored. `amends_prior` cannot be answered
-			// from the class alone — it inherits from the ruling it amends — and it says so
-			// instead of guessing, because a wrong "repaired" here is exactly the plausible
-			// zero this field exists to remove.
-			if s, ok := ArtifactStateOf(ci.Fate); ok {
-				ci.ArtifactState = string(s)
-			} else {
-				// THE LINEAGE IS ON THE MINT, not on the closure. `amends_prior` means this gap
-				// amends earlier ones, and the gap names its ancestors where every other reader
-				// finds them — `Mint.supersedes`, always present and empty when there are none.
-				// The payload record read a `supersedes` key off the CLOSE event; there is no
-				// such field, so that read would have been an empty string on every closure.
-				ci.ArtifactState = "inherits:" + strings.Join(g.Mint.GetSupersedes(), ",")
-			}
-			out.ClosedIndex = append(out.ClosedIndex, ci)
+		ci := ClosedIndexJSON{ID: g.ID, ClosedBy: "red", Location: g.Location, Class: g.Class, Fate: g.Fate}
+		if g.ClosedByBench {
+			ci.ClosedBy = "bench"
 		}
+		if s, ok := ArtifactStateOf(ci.Fate); ok {
+			ci.ArtifactState = string(s)
+		} else {
+			ci.ArtifactState = "inherits:" + strings.Join(g.Supersedes, ",")
+		}
+		out.ClosedIndex = append(out.ClosedIndex, ci)
 	}
 	out.Counts.Open = len(out.Open)
 	out.Counts.Closed = len(out.ClosedIndex)
 	return out
+}
+
+// WorkJSONOfRun is the work list's gap half asked of the record — the shape the oracle holds
+// to its raw walk. The seat-addressed halves (sitting, counterparty) need a role and seat and
+// are added by WorkJSONBytes.
+func WorkJSONOfRun(run Run) (WorkJSON, error) {
+	m, err := MergedEvents(run)
+	if err != nil {
+		return WorkJSON{}, err
+	}
+	gaps, err := workGapStatesOfRun(run, m.Events)
+	if err != nil {
+		return WorkJSON{}, err
+	}
+	return workJSONOfGaps(gaps), nil
 }
 
 // WorkJSONBytes renders the work list as indented JSON (a seat reads it in a terminal
@@ -839,13 +896,13 @@ func WorkJSONOf(b *Board) WorkJSON {
 //
 // The pairing is the adversarial one: the merge waits on blue and blue waits on the merge. A lens
 // or the bench is told so plainly rather than being handed a zero it would read as inactivity.
-func counterpartyOf(b *Board, role string, round int) CounterpartyJSON {
+func counterpartyOf(evs []*Event, role string, round int) CounterpartyJSON {
 	other := map[string]string{"merge": "blue", "blue": "merge"}[role]
 	if other == "" {
 		return CounterpartyJSON{Reading: "this seat waits on no single party — the lens and the bench read the board itself"}
 	}
 	c := CounterpartyJSON{Role: other}
-	for _, e := range b.Events {
+	for _, e := range evs {
 		if PartyOf(e) != other {
 			continue
 		}
@@ -874,9 +931,9 @@ func counterpartyOf(b *Board, role string, round int) CounterpartyJSON {
 }
 
 // roundOfSeatOnBoard is the round this seat is sitting in, taken from its own latest event.
-func roundOfSeatOnBoard(b *Board, seatID string) int {
+func roundOfSeatOnBoard(evs []*Event, seatID string) int {
 	r := 0
-	for _, e := range b.Events {
+	for _, e := range evs {
 		if e.GetSeatId() == seatID && int(e.GetRound()) > r {
 			r = int(e.GetRound())
 		}
@@ -885,13 +942,18 @@ func roundOfSeatOnBoard(b *Board, seatID string) int {
 }
 
 func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
-	b, err := BoardState(run)
+	// The stream through the loader (no fold), the gap facts off the view.
+	m, err := MergedEvents(run)
 	if err != nil {
 		return nil, err
 	}
-	w := WorkJSONOf(b)
-	w.Sitting = SittingOf(b, role, seatID)
-	w.Counterparty = counterpartyOf(b, role, roundOfSeatOnBoard(b, seatID))
+	gaps, err := workGapStatesOfRun(run, m.Events)
+	if err != nil {
+		return nil, err
+	}
+	w := workJSONOfGaps(gaps)
+	w.Sitting = SittingOf(m.Events, gaps, role, seatID)
+	w.Counterparty = counterpartyOf(m.Events, role, roundOfSeatOnBoard(m.Events, seatID))
 	out, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
 		return nil, err
