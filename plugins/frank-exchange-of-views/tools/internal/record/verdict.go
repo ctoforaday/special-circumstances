@@ -14,7 +14,8 @@ import (
 //
 // This engine computes the facts a seat would benefit from claiming, precisely so it cannot
 // claim them: fix_basis is derived from whether the pair validates against the live report,
-// proof_basis from running the script twice, applied_verbatim from comparing bytes. Each
+// proof_basis from running the script twice, applied_verbatim from comparing bytes — or, on
+// `blue edit --accept`, from the tool having supplied those bytes itself. Each
 // exists because a seat asked to self-report reports the flattering value.
 //
 // The terminal verdict — the single most consequential value the engine emits, the one the

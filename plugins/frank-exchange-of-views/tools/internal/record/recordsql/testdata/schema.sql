@@ -551,7 +551,9 @@ CREATE TABLE "blue_edit" (
   "new" TEXT,
   "text" TEXT,
   "applied_verbatim" INTEGER,
-  CHECK ("applied_verbatim" IS NULL OR "applied_verbatim" IN (0, 1))
+  "accepted" INTEGER,
+  CHECK ("applied_verbatim" IS NULL OR "applied_verbatim" IN (0, 1)),
+  CHECK ("accepted" IS NULL OR "accepted" IN (0, 1))
 ) STRICT;
 
 CREATE TABLE "blue_edit_reopened" (
