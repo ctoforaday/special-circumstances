@@ -13,6 +13,8 @@ $ mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --chec
 exit 0
 stdout:
 minted R3-1
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ mint --run {RUN} --seat-id red-merge-r3 --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
 exit 0
@@ -23,6 +25,8 @@ $ mint --run {RUN} --seat-id red-merge-r3 --key L6-F1 --class scope-creep --chec
 exit 0
 stdout:
 minted R3-2
+  acceptance check RECORDED as: y
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

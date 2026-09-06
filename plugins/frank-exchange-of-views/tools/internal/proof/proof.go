@@ -99,6 +99,24 @@ type Result struct {
 // difference is exactly what a reader needs. Neither outcome is refused — the run is GRADED,
 // because refusing the moving kind would bar the evidence that beats documentation, and
 // accepting it silently would launder a measurement as a proof.
+// ScriptSha is the proof's identity — sha256 of the script's bytes — computed WITHOUT running it.
+//
+// It exists so `prove` can tell a crash-retry from a key collision before it decides to skip the
+// work. Those two look identical at the key and are opposite facts: one is the same program
+// arriving twice, the other is a DIFFERENT program under a key an earlier dispatch already burned.
+func ScriptSha(runDir, scriptPath string) (string, error) {
+	abs := scriptPath
+	if !filepath.IsAbs(abs) {
+		abs = filepath.Join(runDir, scriptPath)
+	}
+	body, err := os.ReadFile(abs)
+	if err != nil {
+		return "", fmt.Errorf("proof: cannot read %s: %w", scriptPath, err)
+	}
+	sum := sha256.Sum256(body)
+	return hex.EncodeToString(sum[:]), nil
+}
+
 func Run(runDir, scriptPath string) (*Result, error) {
 	abs := scriptPath
 	if !filepath.IsAbs(abs) {

@@ -94,6 +94,8 @@ $ mint --run {RUN} --seat-id red-merge-r1 --class citation-drift --check-kind do
 exit 0
 stdout:
 minted R1-1
+  acceptance check RECORDED as: refetch and diff
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ position --run {RUN} --seat-id red-merge-r1 --reason round one: FAIL
 exit 0

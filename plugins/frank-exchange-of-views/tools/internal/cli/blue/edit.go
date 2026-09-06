@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/bluedoc"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/claimcount"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
@@ -230,7 +231,55 @@ func planEdit(report, old, new string) (string, error) {
 // document so the caller can record what this edit reopens, computed from the same snapshot the
 // validation used rather than from a re-read that may have moved.
 func validateEdit(report, old, new string) (string, error) {
-	return planEdit(report, old, new)
+	planned, err := planEdit(report, old, new)
+	if err != nil {
+		return "", err
+	}
+	if run := doubledTerminator(report, planned); run != "" {
+		return "", fmt.Errorf("blue edit: this replacement would leave %q in the report — a punctuation run the document did not have. "+
+			"A quote's TRAILING punctuation is trimmed before the span is located, so the span your --old names stops SHORT of the "+
+			"terminator; replacing it with text that carries its own terminator leaves the original one standing after it. This is "+
+			"how a repair makes the document strictly worse while reading as applied. Extend --old through the punctuation you mean "+
+			"to replace, or leave the terminator out of --new", run)
+	}
+	return planned, nil
+}
+
+// doubledTerminator names a punctuation run the edit would CREATE and the report did not have.
+//
+// MEASURED, and it is the shape this check exists for. In research/2026-09-02_quadratic-formula
+// (blue-respond-r2) red minted a punctuation repair with a `verified` fix basis, blue applied the
+// text verbatim, and the site went from a doubled terminator `."."` to a TRIPLED one `."."."`.
+// The same happened to two of blue's own edits in that sitting. All three were invisible until
+// blue re-ran red's acceptance check against the shipped document — the verb exited 0 every time.
+//
+// It compares RUNS RATHER THAN COUNTS so ordinary prose cannot trip it: a document may legitimately
+// gain a "?!" or an ellipsis. What it refuses is a run LONGER than any the document already had,
+// which is the signature of a terminator landing beside one rather than on top of it.
+func doubledTerminator(before, after string) string {
+	worst := func(s string) string {
+		longest := ""
+		for i := 0; i < len(s); {
+			j := i
+			for j < len(s) && strings.ContainsRune(anchortext.TrailingPunct, rune(s[j])) {
+				j++
+			}
+			if j-i > len(longest) {
+				longest = s[i:j]
+			}
+			if j == i {
+				i++
+			} else {
+				i = j
+			}
+		}
+		return longest
+	}
+	got := worst(after)
+	if len(got) > len(worst(before)) {
+		return got
+	}
+	return ""
 }
 
 // droppedMarker returns an immortal-anchor id (finding OR citation) present in before but

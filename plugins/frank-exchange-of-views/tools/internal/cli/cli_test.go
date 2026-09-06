@@ -603,10 +603,15 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 		}
 		return strings.TrimSpace(out)
 	}
-	if got := mint(); got != "minted R1-1" {
+	// THE ID IS THE FIRST LINE; the acceptance check is echoed under it. The echo exists because
+	// a shell can rewrite a --check before the tool sees it, and the mint used to print only the
+	// id — so a corrupted contract was invisible until someone read the board (measured,
+	// red-merge-r3, 2026-09-02_quadratic-formula).
+	firstLine := func(s string) string { return strings.SplitN(s, "\n", 2)[0] }
+	if got := firstLine(mint()); got != "minted R1-1" {
 		t.Errorf("first mint said %q", got)
 	}
-	if got := mint("--key", "L1-F3"); got != "minted R1-2" {
+	if got := firstLine(mint("--key", "L1-F3")); got != "minted R1-2" {
 		t.Errorf("second mint said %q", got)
 	}
 	// The retry: same command, same key, and the EXISTING id comes back.
@@ -666,8 +671,8 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.TrimSpace(plain) != "minted R1-2" {
-		t.Errorf("default mint = %q, want unchanged prose 'minted R1-2'", plain)
+	if got := strings.SplitN(strings.TrimSpace(plain), "\n", 2)[0]; got != "minted R1-2" {
+		t.Errorf("default mint = %q, want unchanged prose 'minted R1-2' on the first line", got)
 	}
 
 	// A handler failure under --json is structured: ok:false and a message, not a bare exit.
