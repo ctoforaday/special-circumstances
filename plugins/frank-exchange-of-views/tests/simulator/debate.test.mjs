@@ -82,90 +82,41 @@ const citationSeats = (world, r) => lensesByRound(world, r).filter((c) => lensRo
 // on its first four words.
 const CITATION_CLAUSE = 'THE REPORT DOES NOT NAME ITS SOURCES'
 
-test('citationPasses recompute: round 1 sizes on the corpus, round 2 on the DELTA (W2i)', async () => {
-  const world = makeWorld(makeResponder({
-    blueSynth: [blueEnv({ claim_count: 10 })],           // round 1: 1 citation pass + 3 -> 4 lenses
-    blueRespond: [blueEnv({ claim_count: 200 })],        // +190 claims: a big delta, but capped at 2
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }] })],
-  }))
-  await world.run(script, ARGS)
-  assert.equal(lensesByRound(world, 1).length, 4, 'round 1: 1 citation pass + logic + risk + voice')
-  assert.equal(lensesByRound(world, 2).length, 5, 'round 2: delta of 190 rescales to the cap of 2 citation + logic + risk + voice')
+// THE ROSTER IS A LIST OF AREAS, NOT A FUNCTION OF THE CORPUS (#771).
+//
+// Three tests stood here pinning citationPasses: round 1 sized on the corpus, round 2 on the
+// delta, round 3 restored by the staleness trigger. That arithmetic is gone with the instancing
+// it sized, and the replacement invariant is stronger and simpler — the number of lenses is a
+// property of the ROSTER. A corpus twenty times larger dispatches exactly the same seats.
+test('the lens roster does not scale with the corpus — one seat per strategic area', async () => {
+  const count = async (claims) => {
+    const world = makeWorld(makeResponder({
+      blueSynth: [blueEnv({ claim_count: claims })], red: [redEnv({ verdict: 'PASS' })],
+    }))
+    await world.run(script, ARGS)
+    return world.calls.filter((c) => c.opts.label.startsWith('red-lens')).length
+  }
+  assert.equal(await count(10), 4, 'evidence + logic + risk + voice')
+  assert.equal(await count(200), 4, 'a 20x corpus dispatches the SAME four areas')
 })
 
-test('W2i: a small round-2 delta drops to ONE citation seat — sized to input, not halved by rule', async () => {
-  const world = makeWorld(makeResponder({
-    blueSynth: [blueEnv({ claim_count: 200 })],          // round 1: the cap, 4 citation passes
-    blueRespond: [blueEnv({ claim_count: 210 })],        // +10 claims: one seat's worth of new surface
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }] })],
-  }))
-  await world.run(script, ARGS)
-  assert.equal(citationSeats(world, 1).length, 4, 'round 1 coverage is untouched by W2i')
-  assert.equal(citationSeats(world, 2).length, 1, 'round 2 sizes on the 10-claim delta, not the 210-claim corpus')
-  assert.equal(lensesByRound(world, 2).length, 4, 'L5 + L6 + L7 dispatch every round regardless')
-})
-
-test('W2i: round 3 restores both citation seats — the staleness sweep is O(corpus), not O(delta)', async () => {
+test('exactly one evidence seat sits per round, in every round', async () => {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ claim_count: 200 })],
-    blueRespond: [blueEnv({ claim_count: 202 }), blueEnv({ claim_count: 203 })], // near-zero deltas throughout
+    blueRespond: [blueEnv({ claim_count: 400 }), blueEnv({ claim_count: 401 })],
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R2-1')] }), redEnv({ verdict: 'PASS' })],
     judge: [
-      judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }] }),
+      judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'owed' }] }),
       judgeEnv({ resolutions: [{ gap_id: 'R2-1', resolution: 'carried', rationale: 'still owed' }] }),
     ],
   }))
   await world.run(script, ARGS)
-  assert.equal(citationSeats(world, 2).length, 1, 'round 2: delta of 2 buys one seat')
-  assert.equal(citationSeats(world, 3).length, 2, 'round 3: the >2-rounds staleness trigger re-staffs the second seat')
+  for (const r of [1, 2, 3]) {
+    assert.equal(citationSeats(world, r).length, 1, `round ${r} dispatches one evidence seat`)
+  }
 })
 
-test('L7 audits the report VOICE, and is told separation is not deletion', async () => {
-  const world = makeWorld(makeResponder({
-    blueSynth: [blueEnv({ claim_count: 10 })],
-    red: [redEnv({ verdict: 'PASS' })],
-  }))
-  await world.run(script, ARGS)
-  const voice = lensesByRound(world, 1).find((c) => c.opts.label.startsWith('red-lens-7-'))
-  assert.ok(voice, 'no L7 seat was dispatched — the report voice is audited by nobody')
-  assert.ok(voice.prompt.includes('report voice'), 'L7 is not the voice seat')
-  // MEASURED: the 2026-09-02 report carried 161 "this run / this round / the debate", 24 inline
-  // lane tags, 9 narrations of its own draft history and 2 of its verification apparatus, on a
-  // 4,000-year-old algebra question. The lens is told to read AS the subject's reader.
-  assert.ok(/addressed to a reader of its SUBJECT/.test(voice.prompt), 'L7 is not told whose reader it is')
-  // THE FAILURE MODE OF THIS LENS IS OVER-CORRECTION. A limit on the CONCLUSION is load-bearing
-  // and must survive re-voiced; only the fact about the RUN moves. A lens told merely "remove the
-  // process voice" deletes the caveat with it.
-  assert.ok(/SEPARATION, NEVER DELETION/.test(voice.prompt), 'L7 is not warned that the residue is load-bearing')
-  // And a report that ADMITS it is narrating itself is still narrating itself — the 2026-09-02
-  // report said so about itself in its own prose and shipped anyway.
-  assert.ok(/DISCLOSURE IS NOT DISCHARGE/.test(voice.prompt), 'L7 can be talked out of a leak by a disclosure')
-  // The steelman clause is L5/L6's duty over the lines of inquiry; L7 audits prose, not avenues.
-  assert.ok(!/steelman/i.test(voice.prompt), 'L7 carries the steelman duty, which belongs to L5/L6')
-})
-
-test('W2i: lens numbers are ROLES — logic is always L5, dark-side always L6, voice always L7, whatever the citation count', async () => {
-  const world = makeWorld(makeResponder({
-    blueSynth: [blueEnv({ claim_count: 10 })],           // ONE citation pass: positionally L5/L6 would slide to L2/L3
-    red: [redEnv({ verdict: 'PASS' })],
-  }))
-  await world.run(script, ARGS)
-  const labels = lensesByRound(world, 1).map((c) => c.opts.label.match(/^red-lens-(\d+)-/)[1])
-  assert.deepEqual(labels.sort(), ['1', '5', '6', '7'], 'citation slice L1, logic L5, dark-side L6, voice L7 — no positional slide')
-  const logic = lensesByRound(world, 1).find((c) => c.opts.label.startsWith('red-lens-5-'))
-  assert.ok(logic.prompt.includes('logic and completeness'), 'L5 is the logic seat')
-  // The LABEL FORMAT is the tool's — it assigns them and the findings view lists them, so the
-  // prompt spelling `L5-F{N}` was teaching a seat to recognise a string it never types. What the
-  // seat must know is that its number is a ROLE and holds across rounds, because that is what
-  // makes found_by comparable run-wide and it is not visible from anything the seat can read.
-  assert.ok(logic.prompt.includes('lens number 5'), 'the prompt names this lens its role (5)')
-  assert.ok(/is your ROLE and it is stable across rounds/.test(logic.prompt), 'the lens is not told its number is stable across rounds')
-  assert.ok(/labels on your findings are the tool's to assign/.test(logic.prompt), 'the lens is not told the labels are not its to invent')
-})
-
-test('W2i: the consolidated-citation duty binds rounds 2+ citation seats only, and keeps coverage observable', async () => {
+test('W2i: the consolidated duty binds the evidence seat from round 2, and keeps coverage observable', async () => {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ claim_count: 200 })],
     blueRespond: [blueEnv({ claim_count: 210 })],
@@ -173,13 +124,14 @@ test('W2i: the consolidated-citation duty binds rounds 2+ citation seats only, a
     judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }] })],
   }))
   await world.run(script, ARGS)
-  for (const c of citationSeats(world, 1)) assert.ok(!c.prompt.includes('CONSOLIDATED CITATION SEAT'), 'round 1 is not consolidated')
+  for (const c of citationSeats(world, 1)) assert.ok(!c.prompt.includes('YOUR ROUND'), 'round 1 sweeps the corpus, not the delta')
   const r2 = citationSeats(world, 2)[0]
-  assert.ok(r2.prompt.includes('CONSOLIDATED CITATION SEAT'), 'round 2 citation seat carries the consolidated duty')
+  assert.ok(r2.prompt.includes('YOUR ROUND'), 'the round-2 evidence seat carries the consolidated duty')
+  assert.ok(r2.prompt.includes('YOU OWN THE WHOLE EVIDENCE PICTURE'), 'one seat means the cross-corpus defect is reachable')
   assert.ok(r2.prompt.includes('SPOT-CHECK'), 'the duty keeps a spot-check of already-verified pairs')
   assert.ok(r2.prompt.includes('COVERAGE IS AN OBSERVABLE'), 'what went unexamined must be stated, not assumed')
   const dark = lensesByRound(world, 2).find((c) => c.opts.label.startsWith('red-lens-6-'))
-  assert.ok(!dark.prompt.includes('CONSOLIDATED CITATION SEAT'), 'L6 is untouched by citation consolidation')
+  assert.ok(!dark.prompt.includes('YOUR ROUND'), 'L6 is untouched by the evidence seat\'s duty')
 })
 
 // ---- Run-3 docket row 20: degenerate FAIL-with-empty-gaps throws, never loops ----
@@ -484,17 +436,17 @@ test('safety ceiling: fresh unrelated gaps every round never trigger the judge; 
   assert.ok(world.calls.find((c) => c.opts.label.startsWith('assemble')).prompt.includes('safety ceiling'))
 })
 
-test('citation passes scale with claim_count and carry the ledger clause', async () => {
-  const lensCount = async (claims) => {
+test('the evidence seat carries the ledger clause at any corpus size', async () => {
+  const evidence = async (claims) => {
     const world = makeWorld(makeResponder({ blueSynth: [blueEnv({ claim_count: claims })], red: [redEnv({ verdict: 'PASS' })] }))
     await world.run(script, ARGS)
     const lenses = world.calls.filter((c) => c.opts.label.startsWith('red-lens'))
-    // The last THREE are logic, dark-side and voice; the rest are citation slices.
-    for (const c of lenses.slice(0, lenses.length - 3)) assert.ok(c.prompt.includes(CITATION_CLAUSE), 'citation lens carries the ledger clause')
-    return lenses.length
+    assert.equal(lenses.length, 4, 'four areas')
+    return lenses[0]
   }
-  assert.equal(await lensCount(10), 1 + 3)   // floor: one citation pass + logic + risk + voice
-  assert.equal(await lensCount(200), 4 + 3)  // cap: four citation passes + logic + risk + voice
+  for (const claims of [10, 200]) {
+    assert.ok((await evidence(claims)).prompt.includes(CITATION_CLAUSE), 'the evidence seat carries the ledger clause')
+  }
 })
 
 test('the operator channel aggregates from every seat with attribution', async () => {
@@ -731,12 +683,19 @@ test('lens prompts carry harness notes: windowed full read, Grep counts lines, n
   }
 })
 
-test('multi-instance citation slices are assigned citation ownership', async () => {
+// NO SLICE IS ASSIGNED, AND THAT IS THE POINT (#771).
+//
+// This asserted that four citation instances each carried "citation ownership follows the slice".
+// Splitting bought only duplicate-avoidance and cost the findings worth having — two of the three
+// findings the citation lenses ever raised are unreachable from a slice. One seat owns the whole
+// evidence picture, so there is nothing to divide and no partition prose to keep in step.
+test('the evidence seat is given no slice to own', async () => {
   const world = makeWorld(makeResponder({ blueSynth: [blueEnv({ claim_count: 200 })], red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
-  const citation = world.calls.filter(c => c.opts.label.startsWith('red-lens')).slice(0, 4)
-  assert.equal(citation.length, 4, 'claim_count 200 scales to 4 citation instances')
-  for (const c of citation) assert.ok(c.prompt.includes('citation ownership follows the slice'))
+  for (const c of world.calls.filter((c) => c.opts.label.startsWith('red-lens'))) {
+    assert.ok(!/take slice|ownership follows the slice|instance \d+ of/.test(c.prompt),
+      `a lens was told to take a slice: ${c.opts.label}`)
+  }
 })
 
 // claim_count reaches the ROUND RECORD at synthesis and every blue response.

@@ -1,7 +1,6 @@
-prompt sha256: 641b6a18f1757cb009c0f9b4e2587fbd6a98742522f005535b9d1f123c2e0478
+prompt sha256: eff9074c7fa952fc833604f03cb5972e7b8a540e6ff8751a90ea6f6e7aa9747d
 
-Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; citation ownership follows the slice (instance 1 owns the bibliography entries its sections cite).
-The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
+Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
 Read it FIRST.
 A claim blue backed with a source resolves to the url, title and sha256 of the bytes blue actually read, and THAT is what you re-fetch to audit the same artifact rather than a page that may have drifted since.
