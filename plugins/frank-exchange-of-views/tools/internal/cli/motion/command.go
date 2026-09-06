@@ -80,6 +80,7 @@ func NewCommandFor(actingRole string) *cobra.Command {
 	c.AddCommand(subject(actingRole, "inquiry",
 		"rule on a line blue proposed: the merge rules. There is NO file verb — the proposal is the filing (`blue line of inquiry`)",
 		nil))
+	seat.MarkTree(c)
 	return c
 }
 

@@ -86,6 +86,7 @@ CREATE TABLE "enum_motion_subject" (
   "means" TEXT NOT NULL
 ) STRICT;
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('direction', 'a ruling on a line of inquiry blue proposed; the id is the AVENUE''s own, because the proposal IS the filing');
+INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('docket', 'a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap''s fate');
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('grade', 'you contest a gap''s grade on one dimension');
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('petition', 'you ask the bench to intervene — the constitutional short-circuit available to any party seat');
 
@@ -143,6 +144,19 @@ INSERT INTO "enum_direction_ruling" ("value", "means") VALUES ('endorsed', 'wort
 INSERT INTO "enum_direction_ruling" ("value", "means") VALUES ('out_of_scope', 'a real question, but not THIS question');
 INSERT INTO "enum_direction_ruling" ("value", "means") VALUES ('too_thin', 'in scope, but the hypothesis does not carry its budget');
 
+CREATE TABLE "enum_disposition" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL,
+  "closes" INTEGER NOT NULL CHECK ("closes" IN (0, 1))
+) STRICT;
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('amends_prior', 'a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('carried', 'NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes', 0);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_accepted', 'the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_owed_elsewhere', 'a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defect', 'blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
+
 CREATE TABLE "enum_ruling_binds" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -158,19 +172,6 @@ CREATE TABLE "enum_check_kind" (
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('computation', 'RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind');
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('document', 'reading a shipped artifact settles it — the check is answered by prose that quotes what is there');
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('source', 'verifying an external source settles it — the claim stands or falls on what the cited material actually says');
-
-CREATE TABLE "enum_disposition" (
-  "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL,
-  "closes" INTEGER NOT NULL CHECK ("closes" IN (0, 1))
-) STRICT;
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('amends_prior', 'a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('carried', 'NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes', 0);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_accepted', 'the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_owed_elsewhere', 'a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defect', 'blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
 
 CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
@@ -291,21 +292,43 @@ CREATE TABLE "motion_direction" (
   "avenue_id" TEXT
 ) STRICT;
 
+CREATE TABLE "motion_docket" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "motion"("event_id"),
+  "gap_id" TEXT NOT NULL,
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id")
+) STRICT;
+
 CREATE TABLE "motion_rule" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "motion_id" TEXT NOT NULL,
   "subject" TEXT,
-  "opinion" TEXT,
+  "opinion" TEXT NOT NULL,
   "binds" TEXT,
   "grade" TEXT,
   "petition" TEXT,
   "direction" TEXT,
+  "ruling_case" TEXT,
   CHECK (("grade" IS NOT NULL) + ("petition" IS NOT NULL) + ("direction" IS NOT NULL) <= 1),
   FOREIGN KEY ("subject") REFERENCES "enum_motion_subject"("value"),
   FOREIGN KEY ("binds") REFERENCES "enum_ruling_binds"("value"),
   FOREIGN KEY ("grade") REFERENCES "enum_grade_ruling"("value"),
   FOREIGN KEY ("petition") REFERENCES "enum_petition_ruling"("value"),
   FOREIGN KEY ("direction") REFERENCES "enum_direction_ruling"("value")
+) STRICT;
+
+CREATE TABLE "motion_rule_docket" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "motion_rule"("event_id"),
+  "disposition" TEXT NOT NULL,
+  "principle" TEXT NOT NULL,
+  "tension" TEXT NOT NULL,
+  "review_flag" TEXT NOT NULL,
+  "settled" TEXT NOT NULL,
+  "reopens_on" TEXT,
+  "final" INTEGER,
+  CHECK ("final" IS NULL OR "final" IN (0, 1)),
+  CHECK ("reopens_on" IS NOT NULL OR "final" IS NOT NULL),
+  CHECK ("reopens_on" IS NULL OR "final" IS NULL),
+  FOREIGN KEY ("disposition") REFERENCES "enum_disposition"("value")
 ) STRICT;
 
 CREATE TABLE "motion_appeal" (

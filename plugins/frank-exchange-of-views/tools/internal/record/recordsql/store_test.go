@@ -369,6 +369,10 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 		MotionId: proto.String("M1"),
 		Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
+		// REQUIRED SINCE THE DOCKET RULING PUT THE BENCH'S ARGUMENT ON THIS FIELD. `prose()` has
+		// always refused an empty `--reason` at the CLI, so every ruling a seat wrote carried one;
+		// this fixture wrote through the SQL path, which had no such rule until the annotation.
+		Opinion: proto.String("the proposed grade stands"),
 	})); err != nil {
 		t.Fatal(err)
 	}

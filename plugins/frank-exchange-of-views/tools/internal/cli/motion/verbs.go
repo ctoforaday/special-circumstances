@@ -373,11 +373,14 @@ func newAppeal(subject string) *cobra.Command {
 // A seat reading an unmarked flag supplies it or does not, learns which by being refused, and
 // spends the turn. The refusal itself is real (RequireMotionSubjectRef resolves the id against the
 // record), so this is the help disagreeing with the enforcement rather than a missing rule.
+// refHelp says WHICH id the verb wants. It no longer writes "REQUIRED — " itself: seat.MarkTree
+// walks this tree now and markRequired is the one writer of that word, so a hand-written copy here
+// rendered "REQUIRED — REQUIRED — the motion id".
 func refHelp(subject string) string {
 	if subject == "inquiry" {
-		return "REQUIRED — the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
+		return "the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
 	}
-	return "REQUIRED — the motion id (M1, M2 …)"
+	return "the motion id (M1, M2 …)"
 }
 
 type filed struct {
