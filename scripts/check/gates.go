@@ -138,6 +138,13 @@ var modules = []struct{ dir, ciJob string }{
 // concurrency is SPAWN the real binary, which no race detector observes from the parent.
 // This is also the module's slowest gate now: the graph includes fetchcache and cli, whose
 // suites are minutes, not seconds.
+//
+// A STATED DIVERGENCE: CI's race leg passes `-tags tessocr` (the OCR engine compiled in,
+// its C stack built by the job); this local gate races the DEFAULT build, where the
+// engine is its stub — a box without the C stack cannot compile the tagged graph, and a
+// gate that fails on every machine guards nothing. Today the divergence is zero-width
+// (nothing imports tessocr yet); when Wave 2 wires it into feov-record, the engine's
+// race coverage is CI's, and this comment is the record of that decision.
 var raceScope = map[string][]string{
 	"plugins/prosthetic-conscience/tools":   {"./..."},
 	"plugins/frank-exchange-of-views/tools": {depsScopePrefix + "./cmd/feov-record"},
