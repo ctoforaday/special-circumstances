@@ -140,11 +140,11 @@ func Counts(run record.Run) (open, closed int, err error) {
 // The decode error this used to return is gone with the decode: there is no longer a step between
 // producing a row and reading it that can fail.
 func Telemetry(run record.Run) ([]*recordpb.TelemetryLine, error) {
-	b, err := record.BoardState(run)
+	in, err := InputOf(run)
 	if err != nil {
 		return nil, err
 	}
-	return telemetryRows(b)
+	return telemetryRows(in)
 }
 
 // TelemetryJSONL returns the board-telemetry series as the raw JSONL wire bytes
@@ -152,11 +152,11 @@ func Telemetry(run record.Run) ([]*recordpb.TelemetryLine, error) {
 // old materialized telemetry file held, for callers that need the wire shape rather than
 // decoded rows.
 func TelemetryJSONL(run record.Run) ([]byte, error) {
-	b, err := record.BoardState(run)
+	in, err := InputOf(run)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := telemetryRows(b)
+	rows, err := telemetryRows(in)
 	if err != nil {
 		return nil, err
 	}
@@ -202,12 +202,12 @@ func TelemetryJSONL(run record.Run) ([]byte, error) {
 //
 // MarkdownViews() is what a test iterates now. A renderer with no name in this table does not
 // compile in; a name here with no test is one the coverage walk reports.
-var markdownViews = map[string]func(b *record.Board, scope string) ([]byte, error){
-	"changes":          func(b *record.Board, scope string) ([]byte, error) { return changesMD(b, scope) },
-	"ledger":           func(b *record.Board, _ string) ([]byte, error) { return ledgerMD(b), nil },
-	"archive":          func(b *record.Board, _ string) ([]byte, error) { return archiveMD(b), nil },
-	"debate":           func(b *record.Board, _ string) ([]byte, error) { return debateMD(b), nil },
-	"lines-of-inquiry": func(b *record.Board, _ string) ([]byte, error) { return inquiryMD(b), nil },
+var markdownViews = map[string]func(in Input, scope string) ([]byte, error){
+	"changes":          func(in Input, scope string) ([]byte, error) { return changesMD(in, scope) },
+	"ledger":           func(in Input, _ string) ([]byte, error) { return ledgerMD(in), nil },
+	"archive":          func(in Input, _ string) ([]byte, error) { return archiveMD(in), nil },
+	"debate":           func(in Input, _ string) ([]byte, error) { return debateMD(in), nil },
+	"lines-of-inquiry": func(in Input, _ string) ([]byte, error) { return inquiryMD(in), nil },
 }
 
 // MarkdownViews returns the markdown projection names, sorted. Exported so a test iterates the
@@ -221,34 +221,55 @@ func MarkdownViews() []string {
 	return out
 }
 
+// Input is what the renders read off the record: the gap family, whole (record.GapStates),
+// and the typed event stream. No Board — no counts, no derived board-wide state; a render
+// that needs a derived fact asks the family or derives it from the stream in front of the
+// reader (plans/board-as-views.md wave 3).
+type Input struct {
+	Gaps   []*record.Gap
+	Events []*record.Event
+}
+
+// InputOf assembles the render input from the record.
+func InputOf(run record.Run) (Input, error) {
+	gaps, err := record.GapStates(run)
+	if err != nil {
+		return Input{}, err
+	}
+	m, err := record.MergedEvents(run)
+	if err != nil {
+		return Input{}, err
+	}
+	return Input{Gaps: gaps, Events: m.Events}, nil
+}
+
 // Markdown returns one markdown projection, rendered in-memory from the record.
 // Byte-identical to what render.go formerly wrote to disk.
 // scope narrows a view that supports it (today: `changes`, by gap id). "" is unscoped.
 func Markdown(run record.Run, name, scope string) ([]byte, error) {
-	b, err := record.BoardState(run)
+	in, err := InputOf(run)
 	if err != nil {
 		return nil, err
 	}
-	return MarkdownFrom(b, name, scope)
+	return MarkdownFrom(in, name, scope)
 }
 
 // MarkdownFrom renders one markdown projection from a board already folded. A caller rendering
 // several views of the same state folds once and passes it here — every extra Markdown call is
 // another full replay of the record, which is the whole render price paid again for bytes the
 // caller already had.
-func MarkdownFrom(b *record.Board, name, scope string) ([]byte, error) {
+func MarkdownFrom(in Input, name, scope string) ([]byte, error) {
 	render, ok := markdownViews[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown markdown view %q (have: %s)", name, strings.Join(MarkdownViews(), ", "))
 	}
-	return render(b, scope)
+	return render(in, scope)
 }
 
 // ledgerMD — open gaps + closure index. NB: no trailing newline (render.go parity).
-func ledgerMD(b *record.Board) []byte {
+func ledgerMD(in Input) []byte {
 	var open, closed []*record.Gap
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
+	for _, g := range in.Gaps {
 		if g.Open {
 			open = append(open, g)
 		} else {
@@ -266,7 +287,7 @@ func ledgerMD(b *record.Board) []byte {
 	// is the merge's live work list of lens work it has neither minted nor credited — the same
 	// question the old "undisposed" footer asked, against the channel that still exists.
 	credited := map[string]bool{}
-	for _, g := range b.Gaps {
+	for _, g := range in.Gaps {
 		if g == nil || g.Mint == nil {
 			continue
 		}
@@ -275,7 +296,7 @@ func ledgerMD(b *record.Board) []byte {
 		}
 	}
 	var uncredited []*record.Observation
-	for _, o := range b.Observations {
+	for _, o := range record.ObservationsOf(in.Events) {
 		if lbl := o.Finding.GetLabel(); lbl == "" || !credited[lbl] {
 			uncredited = append(uncredited, o)
 		}
@@ -352,10 +373,10 @@ func ledgerMD(b *record.Board) []byte {
 }
 
 // archiveMD — closed gaps with closure records. NB: no trailing newline (render.go parity).
-func archiveMD(b *record.Board) []byte {
+func archiveMD(in Input) []byte {
 	var closed []*record.Gap
-	for _, id := range b.GapOrder {
-		if g := b.Gaps[id]; !g.Open {
+	for _, g := range in.Gaps {
+		if !g.Open {
 			closed = append(closed, g)
 		}
 	}
@@ -390,7 +411,7 @@ func archiveMD(b *record.Board) []byte {
 
 // telemetryLines computes the board-telemetry series as JSONL lines (the compute
 // that was inline in render.go), the shared source Telemetry decodes.
-func telemetryRows(b *record.Board) ([]*recordpb.TelemetryLine, error) {
+func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 	// THE SERIES IS DENSE OVER THE RUN'S ROUNDS, and it was keyed on MINT rounds alone.
 	//
 	// MEASURED 2026-08-22 on research/2026-08-22_is-7-prime. All five gaps were minted at round 1
@@ -410,12 +431,12 @@ func telemetryRows(b *record.Board) ([]*recordpb.TelemetryLine, error) {
 	// itself the convergence signal: a zero row says "nothing moved", a missing row says nothing
 	// at all. Dense also makes the audit's premise true by construction rather than by luck.
 	seenRound := map[int]bool{}
-	for r := 1; r <= record.CurrentRound(b); r++ {
+	for r := 1; r <= record.CurrentRoundOf(in.Events); r++ {
 		seenRound[r] = true
 	}
 	// Defensive: a gap minted or closed outside the event round span still gets its row.
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
+	byID := record.GapsByID(in.Gaps)
+	for _, g := range in.Gaps {
 		seenRound[g.Round] = true
 		if g.HasClosed {
 			seenRound[g.ClosedRound] = true
@@ -434,8 +455,7 @@ func telemetryRows(b *record.Board) ([]*recordpb.TelemetryLine, error) {
 	for _, r := range rounds {
 		var openAtR, minted, closedAtR, lineage []*record.Gap
 		realizedOpen := 0
-		for _, id := range b.GapOrder {
-			g := b.Gaps[id]
+		for _, g := range in.Gaps {
 			closedRound := 99 // mirrors `g.closedRound ?? 99`
 			if g.HasClosed {
 				closedRound = g.ClosedRound
@@ -459,7 +479,7 @@ func telemetryRows(b *record.Board) ([]*recordpb.TelemetryLine, error) {
 		var down, up float64
 		for _, g := range lineage {
 			for _, anc := range g.Mint.GetSupersedes() {
-				a := b.Gaps[anc]
+				a := byID[anc]
 				if a == nil {
 					continue
 				}
@@ -572,10 +592,10 @@ func telemetryRows(b *record.Board) ([]*recordpb.TelemetryLine, error) {
 }
 
 // debateMD — the round-by-round transcript. Trailing newline (render.go parity).
-func debateMD(b *record.Board) []byte {
+func debateMD(in Input) []byte {
 	var roundOrder []int
 	byRound := map[int][]*record.Event{}
-	for _, e := range b.Events {
+	for _, e := range in.Events {
 		r := int(e.GetRound())
 		if _, seen := byRound[r]; !seen {
 			roundOrder = append(roundOrder, r)
@@ -696,14 +716,14 @@ func debateMD(b *record.Board) []byte {
 }
 
 // inquiryMD — the exploration space grouped by fate. Trailing newline (render.go parity).
-func inquiryMD(b *record.Board) []byte {
+func inquiryMD(in Input) []byte {
 	// THE CHOOSING, NOT JUST THE PLAN (#246). This used to group one-shot line of inquiry entries by
 	// status. A line of inquiry now has an id, a hypothesis, a status that MOVES with a stated
 	// reason, and red's ruling — so the projection renders the DECISION: what was proposed,
 	// what became of it, why, and what red said about it. That sequence is the evidence of
 	// choosing; a flat list by final status records only the outcome.
 	inquiry := []string{"# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)", ""}
-	avs := record.Inquiries(b)
+	avs := record.InquiriesOf(in.Events)
 	if len(avs) == 0 {
 		inquiry = append(inquiry, "_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
@@ -749,7 +769,7 @@ func inquiryMD(b *record.Board) []byte {
 	// The revisit duty, made visible: a line of inquiry still open late in a run is one nobody has
 	// decided. The measured failure was not bad choosing, it was that nothing ever asked
 	// blue to choose again after round 0.
-	if stale := record.StaleInquiries(b); len(stale) > 0 {
+	if stale := record.StaleInquiriesOf(in.Events); len(stale) > 0 {
 		ids := make([]string, len(stale))
 		for i, a := range stale {
 			ids[i] = a.ID
