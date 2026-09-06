@@ -38,7 +38,7 @@ Scope 4's defect is separate and stated in its own section.
 | N5 | Every bench disposition has a motion id and joins to what it settled | `record.Motions` returns a `docket` motion for every bench-disposed gap; zero gaps with `ClosedByBench` and no motion id | 2 |
 | N6 | An **unruled** docket motion blocks the bench's sitting | `sitting.go`'s `case "bench"` already sweeps the subjects whose gavel is the bench, so a docket motion with no ruling makes that sitting `Complete: false` and names it in `Open`. Both directions, and **the second one states what this scope does NOT do**: a docket motion ruled `carried` is answered, so the bench is `Complete: true` — the gap stays open and keeps blocking the MERGE seat as an open gap, but nothing yet says WHY it is still there. That explanatory half is deferred; see below | 2 |
 | N7 | No renderer, comment or branch survives for a verb that cannot be written | `grep -rni opinion` over `plugins/frank-exchange-of-views/`, compared **before and against a stated exclusion list** — the English-word survivors named one by one in §III's census. NOT the case-differenced `comm` the earlier draft specified: that returns files carrying capital-`Opinion` and no lowercase one (10 today), so it can never reach 0 and is blind to every lowercase-only carrier — `cli/merge/close.go:145`, `docs/seat-command-triggers.md:96`, `cli/seat/verbs.go:187` and `boards.go`'s prose all say `bench opinion` in lower case | 2 |
-| N8 | Retiring the verb retires none of its **constraints** | `DocketRuling` carries **eight** of `Opinion`'s nine fields and both its `check` options. **A fourth carrier, which no draft listed:** `record/record.go:1156` runs
+| N8 | Retiring the verb retires none of its **constraints** | `DocketRuling` carries **seven** of `Opinion`'s nine fields and both its `check` options, with **two named omissions**: `gap_id` rides the FILING, and `rationale` is `MotionRule.opinion`, which every subject's ruling already uses. **And the second omission must not cost the constraint** — `Opinion.rationale` is `required: true` and `NOT NULL`, while `MotionRule.opinion` today carries no `(sql)` annotation and is nullable, so moving the prose there would drop two of its three carriers and leave only `prose()` at the CLI. `MotionRule.opinion` is therefore annotated `required: true` **as part of this scope** | 2 |
 `requireGap(run, b.GetGapId(), "opinion", "--id")`, whose refusal (`refs.go:88-90`) is the one that
 records how "eight judicial closures vanished from a board that went on reporting them open". Its
 successor belongs on the docket FILING, beside the grade branch at `record/record.go:976-999` — not
@@ -223,9 +223,21 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
     is the duplication this document objects to everywhere else; the ruler's argument belongs on the
     ruling, once, where every other subject already puts it.
 
-  N8's parity is therefore **seven of nine, with two named omissions**, and §V step 6 covers
-  `--reason` as well as `--principle` — the first to prove the prose still lands, the second to
-  prove requiredness survived the move onto an arm.
+  **And dropping `rationale` must not drop its enforcement, which the first draft of this decision
+  did silently.** `Opinion.rationale` has three carriers: the `required: true` annotation
+  (→ `CheckRequired`), `rationale TEXT NOT NULL` in the DDL, and the CLI. `MotionRule.opinion` has
+  **one** — `prose()` (`cli/motion/command.go:198-207`) — because it carries no `(sql)` annotation at
+  all (`record.proto:1299`) and is nullable (`schema.sql:298`). Moving the prose across as specified
+  would retire two carriers of a constraint N8 exists to preserve.
+
+  **So `MotionRule.opinion` gains `required: true` in this scope, and that is honest rather than
+  additive:** `prose()` already refuses an empty `--reason` for EVERY subject's ruling, so the
+  constraint holds in fact today and the schema simply does not say so. Annotating it restores both
+  carriers, makes the DDL match the behaviour, and is checked in §V. The alternative — accepting one
+  carrier and arguing it — fails N8 on its own terms.
+
+  N8's parity is therefore **seven of nine, with two named omissions and the prose constraint
+  strengthened rather than weakened**.
 - **`[MODIFY]` requiredness must follow the fields onto the arm, or six `required: true`
   annotations go INERT — and this is Phase 1's class, one level up.** `recordpb.CheckRequired`
   (`requiredfields.go:29-50`) and `RequiredOf` (`:80-88`) walk `md.Fields()` of the BODY message;
@@ -293,8 +305,24 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
 
   So the rule the merge sitting states, and it is BOARD-ONLY by design:
 
-  > every open gap is either closed or docketed — `add("gap " + id + " is open and not docketed —
-  > close it, or file `motion docket file --id " + id + "` to put it before the bench")`
+  > every open gap is either closed or docketed — an item naming `motion docket file` **as a verb,
+  > with no flags**, and carrying **`Blocks: false`**.
+
+  **Two things that row must get right, both of which the first draft got wrong.**
+
+  *It names no flags.* `sitting.go:37-49` forbids exactly that and records why: an affordance once
+  handed a seat `verify --key <k>`, a flag the verb does not have, so "the only instruction that duty
+  ever handed over could not run". A literal `motion docket file --id R1-1` reproduces it — that
+  invocation is refused without `--reason`, `--run` and `--seat-id`. No item in `sitting.go` or
+  `available.go` names a flag, and this one will not be the first.
+
+  *It does not block.* The open-gap row at `:124-128` already refuses the PASS; a second blocking row
+  for the same gap would be a duplicate, and — worse — a merge seat that OBEYED the item would be
+  further from `Complete: true` than before, because filing adds "motion M1 was filed and never
+  ruled" while the open-gap row still fires. The item is an **affordance**: it says what act moves a
+  gap the seat cannot close itself. What the seat gains by filing is not completeness — the run is
+  genuinely not finished until the bench rules — but the gap moving from *its* undecided pile to a
+  question the bench owes an answer to.
 
   **Board-only is what makes this cheap and what keeps #759 deferred.** It reads `b.Gaps` for
   openness and `record.Motions(b)` for a docket motion on that gap — the typed `GapID` this scope
@@ -771,7 +799,7 @@ anticipated. The full narrative is in the archaeology; these are the operative r
    - and the refusal comes from the generated DDL, asserted against the schema golden, not only from
      `record.go:1185-1189`'s Go arm — **all three carriers of the invariant, since a Go check passing
      tells you nothing about whether the table has one**.
-   Field parity is eight of nine, with `gap_id` argued in §I rather than in a commit message.
+   Field parity is SEVEN of nine, with `gap_id` and `rationale` both argued in §I rather than in a commit message.
 7. **Requiredness survived the move onto an arm.** `motion docket rule` omitting `--principle` is
    refused **in the annotation's own words** (`record: motion docket rule requires --principle …`),
    not by raw driver text about a NOT NULL column — and `--help` marks it REQUIRED. Both halves,
@@ -788,7 +816,11 @@ anticipated. The full narrative is in the archaeology; these are the operative r
    says the filing verb; filing it makes the bench sitting `Complete: false`; ruling it closes the
    gap. **Driven end-to-end rather than by hand-calling each verb** — §V Arm 1 hand-drives the file
    verb and is structurally blind to a missing producer.
-10. `record/gavel_test.go:22-47` must pass **unmodified**: it fails any `MotionSubject` without
+10. **The ruling's prose is still required, in the annotation's words.** `motion docket rule` without
+    `--reason` is refused; and because this scope annotates `MotionRule.opinion`, the refusal must
+    also hold for a **grade** ruling — the annotation is shared, and asserting only the docket case
+    would leave the widening unmeasured. `motion_rule.opinion` is `NOT NULL` in the regenerated DDL.
+11. `record/gavel_test.go:22-47` must pass **unmodified**: it fails any `MotionSubject` without
    `ruled_by`, and it is what makes `MOTION_SUBJECT_DOCKET`'s annotation non-optional.
 
 ### Scope 4
