@@ -91,7 +91,7 @@ log(`resolved tiers — bulk: ${model}, judgment: ${judgmentModel}`)
 
 // Friction must survive a mid-run throw (retrospective §3 row 24): the envelope copy feeds
 // this script's aggregate, the file copy survives an abort. Both, always.
-const frictionClause = (who, role) => ` FRICTION (${who}) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field. AND THE REASON OWES THE SURVEY: name the verbs you read in the tree and did NOT use, and why each was wrong for this sitting. A reason that lists only what you did is a receipt for the path you took and says nothing about the ones you rejected — and a seat that cannot name a single rejected option did not weigh any.`
+const frictionClause = (who, role) => ` FRICTION (${who}) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field. YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead. Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined. Where nothing impeded the work, say that instead.`
 
 // Wall-clock doctrine (run-4 forensics, 2026-07-17): 80% of run time is API rounds at ~24s
 // each, and the corpus showed ZERO batched tool calls — every peek paid a full round. A

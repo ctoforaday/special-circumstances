@@ -112,7 +112,7 @@ func Friction() *cobra.Command {
 		return Msg{Message: "friction recorded"}, nil
 	}))
 	c.Flags().Bool(flags.None, false,
-		"nothing blocked this sitting — the EXPLICIT negative, with --reason saying what you reached for and found. "+
+		"nothing blocked this sitting — the EXPLICIT negative, with --reason saying so in a sentence. "+
 			"Silence cannot say this: an empty friction log reads the same whether the sitting was clean or the channel went unused")
 	return c
 }

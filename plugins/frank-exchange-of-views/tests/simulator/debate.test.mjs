@@ -252,11 +252,31 @@ test('every seat prompt carries the friction clause (envelope + verb, not a hand
     // empty form, and the fact that silence is not the empty case — all three of which the
     // `friction` verb's own help now states, in those words, on the page the tree walk opens.
     // What is genuinely the PROMPT's is the ENVELOPE half (a schema field, not a verb) and the
-    // SURVEY: naming the verbs read and not used is the instrument the traversal is measured
-    // with, and no help page can ask a seat about the pages it chose not to act on.
+    // AUDIENCE: this channel is read by the operator who can retool the seat, which no help page
+    // can tell a seat about its own sitting.
+    //
+    // THE SURVEY IS GONE, AND IT WAS MEASURED OUT. This assertion used to require the prompt to
+    // demand a survey of "the verbs you read and did NOT use", defended here as the instrument
+    // the traversal is measured with. Measured on 2026-09-02_quadratic-formula: the surveys are
+    // 64,960 of 142,891 characters of this channel — 45.5% — and a mechanical search of all of
+    // them for a single proposed fix returns ZERO. The instrument is also unfalsifiable, and
+    // false where it can be checked: red-lens-r4-L2's survey states it rejected `reproduce` and
+    // `finding`, while that seat's own events record both. A check that cannot fail, and does not
+    // hold where it can be tested, is what the bench docked blue for at R3-5 in that same run.
+    // Both seats, asked afterwards, called it duty rather than judgement — one said it wrote to
+    // be "visibly compliant with a prompt that pre-accuses the seat", knowing the difference.
+    //
+    // WHAT REPLACED IT IS THE PART THEY DEFENDED: a decline that was a JUDGEMENT rather than an
+    // absence of occasion. The record holds every verb a seat ran, so "what I used" is derivable
+    // and never needs asking; what nothing derives is what a seat weighed and set aside. That is
+    // the one sentence this clause still asks for, and the only part of the survey with a reader.
     assert.ok(c.prompt.includes("envelope's friction field"), `${seat} lost the envelope half of the friction channel`)
-    assert.ok(/THE REASON OWES THE SURVEY/.test(c.prompt) && /did NOT use/.test(c.prompt),
-      `${seat} lost the survey duty — the rejected options are what make a friction reason evidence of weighing`)
+    assert.ok(/AUDIENCE IS THE OPERATOR/.test(c.prompt),
+      `${seat} lost the audience half — a capability gap is addressed to whoever can retool the seat, not to the debate`)
+    assert.ok(/JUDGEMENT rather than for want of occasion/.test(c.prompt),
+      `${seat} lost the judgement-decline ask — the one part of the retired survey the record cannot derive`)
+    assert.ok(!/OWES THE SURVEY/.test(c.prompt) && !/did NOT use/.test(c.prompt),
+      `${seat} still demands the verb survey — 45.5% of the channel, zero fix proposals, and unfalsifiable`)
     assert.ok(!/SILENCE IS NOT THE EMPTY CASE/.test(c.prompt),
       `${seat} restates the empty-form rule the verb's help states — two copies of one rule is what this pass removed`)
   }
