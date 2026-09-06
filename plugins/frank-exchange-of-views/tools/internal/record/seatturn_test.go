@@ -106,3 +106,101 @@ func runFor(t *testing.T) Run {
 	}
 	return run
 }
+
+// queryOne is a scalar read for the view assertions below.
+func queryOne(t *testing.T, run Run, q string, dest ...any) {
+	t.Helper()
+	db, err := openRun(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(q).Scan(dest...); err != nil {
+		t.Fatalf("%s: %v", q, err)
+	}
+}
+
+// AN UNSTAMPED TURN MUST NOT DRAG THE SEAT'S START TO THE EPOCH.
+//
+// The parser records 0 for a line that carried no timestamp, so a MIN() that let it in would put
+// the seat's first turn in 1970 and report a span of fifty-six years. NULLIF is the contract
+// honoured in SQL, and this is the assertion that says so.
+func TestSeatMetricsIgnoresUnstampedTurnsInTheSpan(t *testing.T) {
+	run := runFor(t)
+	if _, err := AppendSeatTurns(run, "AG", []seatturn.Turn{
+		{Index: 0, TSMillis: 1000, Model: "m", Output: 3, Thinking: true},
+		{Index: 1, TSMillis: 5500, Model: "m", Output: 20},
+		{Index: 2, TSMillis: 0, Model: "m", Output: 7}, // no timestamp on the line
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var turns, wall, first int64
+	queryOne(t, run, `SELECT turns, wall_ms, first_ts_ms FROM seat_metrics`, &turns, &wall, &first)
+	if turns != 3 {
+		t.Errorf("turns = %d, want 3 — an unstamped turn is still a turn", turns)
+	}
+	if first != 1000 {
+		t.Errorf("first_ts_ms = %d, want 1000", first)
+	}
+	if wall != 4500 {
+		t.Errorf("wall_ms = %d, want 4500 (5500-1000); an unstamped turn reached MIN()", wall)
+	}
+}
+
+// A SEAT WITH NO TIMESTAMPED TURN IS NOT MEASURED, AND THAT IS NOT ZERO. Reporting 0 would put a
+// seat that ran for twenty minutes into a throughput table as instantaneous.
+func TestSeatMetricsSaysNotMeasuredRatherThanZero(t *testing.T) {
+	run := runFor(t)
+	if _, err := AppendSeatTurns(run, "AG", []seatturn.Turn{{Index: 0, Model: "m", Output: 5}}); err != nil {
+		t.Fatal(err)
+	}
+	var wall *int64
+	queryOne(t, run, `SELECT wall_ms FROM seat_metrics`, &wall)
+	if wall != nil {
+		t.Errorf("wall_ms = %d for a seat with no timestamped turn, want NULL", *wall)
+	}
+}
+
+// TURNS FROM AN AGENT THAT NEVER REGISTERED STILL COUNT.
+//
+// The join to the seat is a LEFT join for this reason: an inner join would drop every row whose
+// agent has no register event, and report a cheaper run than happened. A crashed seat is exactly
+// the one whose cost you want to see.
+func TestSeatMetricsKeepsTurnsFromAnUnregisteredAgent(t *testing.T) {
+	run := runFor(t)
+	if _, err := AppendSeatTurns(run, "NEVER-REGISTERED", []seatturn.Turn{
+		{Index: 0, TSMillis: 1, Model: "m", Output: 11},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var out int64
+	var seat *string
+	queryOne(t, run, `SELECT output_tokens, seat_id FROM seat_metrics`, &out, &seat)
+	if out != 11 {
+		t.Errorf("output_tokens = %d, want 11 — the row was dropped by the join", out)
+	}
+	if seat != nil {
+		t.Errorf("seat_id = %q for an agent that never registered, want NULL", *seat)
+	}
+}
+
+// A SEAT'S FIRST TURN HAS NO PREDECESSOR, so its span is NULL and not 0. Zero would say
+// "instant", and a bucket summing it would under-report every seat by its opening turn.
+func TestSeatTurnSpanLeavesTheFirstTurnUnmeasured(t *testing.T) {
+	run := runFor(t)
+	if _, err := AppendSeatTurns(run, "AG", []seatturn.Turn{
+		{Index: 0, TSMillis: 1000, Model: "m"},
+		{Index: 1, TSMillis: 3000, Model: "m"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var span *int64
+	queryOne(t, run, `SELECT span_ms FROM seat_turn_span WHERE turn_idx = 0`, &span)
+	if span != nil {
+		t.Errorf("the first turn's span_ms = %d, want NULL", *span)
+	}
+	var second int64
+	queryOne(t, run, `SELECT span_ms FROM seat_turn_span WHERE turn_idx = 1`, &second)
+	if second != 2000 {
+		t.Errorf("the second turn's span_ms = %d, want 2000", second)
+	}
+}

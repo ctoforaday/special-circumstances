@@ -636,6 +636,100 @@ CREATE TABLE "sitting_close" (
   "agent_type" TEXT
 ) STRICT;
 
+-- THE AGENT -> SEAT BINDING, AS SQL, so a telemetry view can name a seat without any reader
+-- re-deriving the rule. It is the same rule record.SeatOfAgent applies in Go and states in prose:
+-- THE LAST REGISTER WINS, because a re-dispatch writes a fresh register event and a resumed seat
+-- legitimately arrives under a new agent id claiming a seat that is already bound. Treating that
+-- as a conflict would refuse every resume.
+--
+-- agent_type comes along because register records it too: it is what the HARNESS called the
+-- seat, beside what the seat called itself, and the two disagreeing is a thing worth being able
+-- to see rather than a thing to collapse here.
+CREATE VIEW "seat_of_agent" AS
+SELECT
+  r."agent_id"   AS "agent_id",
+  e."seat_id"    AS "seat_id",
+  r."agent_type" AS "agent_type",
+  e."round"      AS "registered_round"
+FROM "register" r
+JOIN "events" e ON e."id" = r."event_id"
+WHERE r."agent_id" IS NOT NULL AND r."agent_id" != ''
+  AND r."event_id" = (SELECT MAX(r2."event_id") FROM "register" r2 WHERE r2."agent_id" = r."agent_id");
+
+-- WHAT A SEAT COST, from the turns ingested at capture (#684 F16).
+--
+-- A LEFT JOIN, deliberately. A seat whose turns were measured but which never registered still
+-- appears, with a null seat_id — the alternative drops its rows from every total and reports a
+-- cheaper run than happened, which is the failure this whole issue keeps finding.
+--
+-- NULLIF(ts_ms, 0) is the parser's contract honoured in SQL: 0 means the line carried no
+-- timestamp, and letting it into MIN() would put the seat's start at the epoch and make wall_ms
+-- the age of the universe. A seat with no timestamped turn gets a null span, which is "not
+-- measured" and not zero.
+CREATE VIEW "seat_metrics" AS
+SELECT
+  t."agent_id"                                             AS "agent_id",
+  s."seat_id"                                              AS "seat_id",
+  s."agent_type"                                           AS "agent_type",
+  COUNT(*)                                                 AS "turns",
+  SUM(t."is_thinking")                                     AS "thinking_turns",
+  SUM(t."is_tool")                                         AS "tool_turns",
+  SUM(t."input_tokens")                                    AS "input_tokens",
+  SUM(t."output_tokens")                                   AS "output_tokens",
+  SUM(t."cache_read")                                      AS "cache_read",
+  SUM(t."cache_creation")                                  AS "cache_creation",
+  MIN(NULLIF(t."ts_ms", 0))                                AS "first_ts_ms",
+  MAX(NULLIF(t."ts_ms", 0))                                AS "last_ts_ms",
+  MAX(NULLIF(t."ts_ms", 0)) - MIN(NULLIF(t."ts_ms", 0))    AS "wall_ms"
+FROM "seat_turn" t
+LEFT JOIN "seat_of_agent" s ON s."agent_id" = t."agent_id"
+GROUP BY t."agent_id";
+
+-- HOW LONG EACH TURN TOOK, which the transcript never states: a turn's span is the gap to the one
+-- before it, so it is a window function over the seat's own ordering and cannot be a column.
+--
+-- The FIRST turn of a seat has no predecessor and gets a null span rather than a zero. Zero would
+-- say "instant", and a bucket summing it would quietly under-report every seat by its opening
+-- turn.
+CREATE VIEW "seat_turn_span" AS
+SELECT
+  "agent_id"      AS "agent_id",
+  "turn_idx"      AS "turn_idx",
+  "ts_ms"         AS "ts_ms",
+  "is_thinking"   AS "is_thinking",
+  "is_tool"       AS "is_tool",
+  "output_tokens" AS "output_tokens",
+  "ts_ms" - LAG("ts_ms") OVER (PARTITION BY "agent_id" ORDER BY "turn_idx") AS "span_ms"
+FROM "seat_turn"
+WHERE "ts_ms" > 0;
+
+-- WHERE A SEAT'S WALL CLOCK WENT, bucketed by WHAT THE TURN CONTAINED.
+--
+-- #684 F11 decomposed a run by hand into thinking / round-trip tail / big generation / stalls, and
+-- those last three are threshold judgements — 70-83 tok/s is "healthy generation", a 16-minute
+-- turn with 66 output tokens is "a stall". THOSE THRESHOLDS ARE NOT ENCODED HERE, on purpose. A
+-- number chosen once from one run, frozen into the schema, would be applied to every future run by
+-- readers who never saw it chosen, and a view is the worst place to hide a judgement because it
+-- looks like a measurement.
+--
+-- So the split is by fact: did the turn carry a thinking block, a tool_use block, both, or
+-- neither. An analysis that wants F11's buckets has span_ms and output_tokens per turn in
+-- seat_turn_span and can apply its own cutoffs, in the open, where the next reader can disagree.
+CREATE VIEW "seat_time_decomposition" AS
+SELECT
+  "agent_id"                     AS "agent_id",
+  CASE
+    WHEN "is_thinking" = 1 AND "is_tool" = 1 THEN 'thinking+tool'
+    WHEN "is_thinking" = 1                   THEN 'thinking'
+    WHEN "is_tool" = 1                       THEN 'tool'
+    ELSE 'text'
+  END                            AS "bucket",
+  COUNT(*)                       AS "turns",
+  SUM("span_ms")                 AS "span_ms",
+  SUM("output_tokens")           AS "output_tokens"
+FROM "seat_turn_span"
+GROUP BY "agent_id", "bucket";
+
 CREATE VIEW "gap" AS
 SELECT
   m."gap_id"                                   AS "gap_id",
