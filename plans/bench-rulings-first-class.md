@@ -141,8 +141,21 @@ Three consequences, and they shrink this scope rather than grow it:
    join has no order to be wrong about.** What remains in Go is the write path and `BoardState`'s
    own fold, which `record-sqlite.md` already names as its standing open thread — "the remaining Go
    folds, `BoardState` above all". This scope moves toward that, never away.
-3. **`record.Motion.GapID` comes from `motion_state.gap_id`** — **which is NOT yet a `COALESCE`, and
-   saying it was hid a join.** `views.go:225` is a bare `g."gap_id"` from the single
+3. **`record.Motion.GapID` is folded in Go from the FILING ARM; `motion_state.gap_id` is the same
+   fact for SQL readers; the parity gate is what keeps them one answer.** An earlier line said the
+   Go field "comes from `motion_state.gap_id`", which cannot be true and was the same shape as the
+   defect that went fatal in round 5: `Motions(b *Board)` (`record/motion.go:265`) is a **fold over
+   board events with no db handle**, and it must stay that way — `SittingOf` holds no handle either,
+   and the merge item this scope adds reads `Motions(b)`. Making `Motions` db-backed would drag
+   `SittingOf` into the contract change that keeps #759 deferred.
+
+   So there are two readers of one underlying fact — the filing arm's `gap_id` — and they are not
+   two implementations of a join: the view JOINS tables, the Go fold WALKS events, and
+   `record/motionqueries_parity_test.go` already exists to fail when the two disagree. Census 4
+   lists it `[MODIFY]` for exactly this reason; **that gate is the reason this is one answer rather
+   than two**, and if it did not exist this scope would have to build it.
+
+   Both sides still need the work, and the earlier text understated each:  `views.go:225` is a bare `g."gap_id"` from the single
    `LEFT JOIN "motion_grade" g` at `:231`. Docket needs a **new** `LEFT JOIN "motion_docket"` and a
    `COALESCE` that does not exist today. Likewise "`motion_answers` gains the docket arm in its
    `COALESCE`" was wrong: a docket disposition is not a column on `motion_rule` at all — the message
