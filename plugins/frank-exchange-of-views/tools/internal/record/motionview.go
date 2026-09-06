@@ -3,6 +3,8 @@ package record
 import (
 	"encoding/json"
 	"sort"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // THE MOTIONS VIEW, AND WHY IT HAD TO EXIST.
@@ -67,9 +69,9 @@ type MotionsJSON struct {
 }
 
 // motionsJSONOf projects every motion on the record, current vocabulary and legacy alike.
-func motionsJSONOf(b *Board) MotionsJSON {
+func motionsJSONOf(evs []*Event) MotionsJSON {
 	out := MotionsJSON{Motions: []MotionJSON{}}
-	for _, m := range Motions(b) {
+	for _, m := range MotionsOf(evs) {
 		if m == nil {
 			continue
 		}
@@ -104,13 +106,18 @@ func motionsJSONOf(b *Board) MotionsJSON {
 	return out
 }
 
-// MotionsJSONBytes renders the motions view as indented JSON.
+// MotionsJSONBytes renders the motions view as indented JSON. The exchange lives on four
+// event families; nothing else on the record decides a motion's state.
 func MotionsJSONBytes(run Run) ([]byte, error) {
-	b, err := BoardState(run)
+	evs, err := EventsOf(run,
+		recordpb.EventType_EVENT_TYPE_AVENUE,
+		recordpb.EventType_EVENT_TYPE_MOTION,
+		recordpb.EventType_EVENT_TYPE_MOTION_RULE,
+		recordpb.EventType_EVENT_TYPE_MOTION_APPEAL)
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(motionsJSONOf(b), "", "  ")
+	out, err := json.MarshalIndent(motionsJSONOf(evs), "", "  ")
 	if err != nil {
 		return nil, err
 	}

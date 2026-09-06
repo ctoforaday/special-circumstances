@@ -48,43 +48,22 @@ const (
 // The order matters: a halt outranks a pass, because a run stopped on safety or integrity
 // grounds did not end by passing however clean the board looked when it stopped.
 func DeriveVerdict(run Run) (verdict, why string, ok bool) {
-	b, err := BoardState(run)
+	// Three questions, three queries — a halt on the record, a recorded PASS, and how far the
+	// rounds got. The body-less-verdict rule holds by construction now: the PASS lives in the
+	// round_verdict row, and an event with no body row is refused by the loader, not read as
+	// anything.
+	halted, err := recordHas(run, `SELECT 1 FROM "halt" LIMIT 1`)
 	if err != nil {
 		return "", "the record could not be read: " + err.Error(), false
 	}
-	maxRound := 0
-	passed := false
-	halted := false
-	for i := range b.Events {
-		e := b.Events[i]
-		if r := int(e.GetRound()); r > maxRound {
-			maxRound = r
-		}
-		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_HALT:
-			// A HALT COUNTS ON ITS TYPE, not on its body being readable. The Halt body carries
-			// only the bench's opinion, which this function never reads, and the failure mode
-			// is asymmetric: a halt that did not register here lets a run that was STOPPED on
-			// safety grounds report VERIFIED. So the absence of a body is not allowed to
-			// suppress the halt.
-			halted = true
-		case recordpb.EventType_EVENT_TYPE_VERDICT:
-			// A verdict event with NO body is not a pass. It cannot be — the PASS lives in the
-			// body's enum and there is nothing else to read it from — but it is also not
-			// silently equivalent to a recorded FAIL, and it does not become one here: it
-			// leaves `passed` untouched, and if nothing else decides the run, DeriveVerdict
-			// returns ok=false rather than guessing.
-			// Named `hasBody`, not `ok`: this function's third RESULT is named ok, and a
-			// shadow of it here would make any later bare `return` report the loop's last
-			// body-presence as the verdict's derivability.
-			body, hasBody := recordpb.Body(e)
-			if !hasBody {
-				continue
-			}
-			if v, isVerdict := body.(*recordpb.RoundVerdict); isVerdict && v.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
-				passed = true
-			}
-		}
+	passed, err := recordHas(run, `SELECT 1 FROM "round_verdict" WHERE "verdict" = ? LIMIT 1`,
+		recordpb.Word(recordpb.Verdict_VERDICT_PASS))
+	if err != nil {
+		return "", "the record could not be read: " + err.Error(), false
+	}
+	var maxRound int
+	if _, err := queryRow(run, []any{&maxRound}, `SELECT COALESCE(max("round"), 0) FROM "events"`); err != nil {
+		return "", "the record could not be read: " + err.Error(), false
 	}
 	switch {
 	case halted:
