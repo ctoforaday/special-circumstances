@@ -277,18 +277,22 @@ compatibility, so there is no window to describe and no delta list to maintain: 
 refuses."*). So: renumber freely, no `reserved`, no delta list, no compatibility window, no
 rewriting of archived tarballs, no code that reads a pre-rename record.
 
-- **`record.proto:11-14` is retired by this directive and changes with it** — it is listed as a
-  carrier above. It currently states *"FIELD NUMBERS ARE PERMANENT … the one piece of backwards
-  compatibility the migration does NOT delete."* Left standing it is a comment teaching the
-  opposite of the code, which is the half-state `complete-the-concept` names.
-- **One thing is retained, and it is not compatibility — it is the precondition for having none.**
-  The permanence rule existed to protect *readers of old records*. Renumbering is safe exactly when
-  there are no such readers, which requires the binary to actually REFUSE them rather than quietly
-  mis-decode. `recordsql/schema.go:117` derives table names from message names, so `friction`→`log`
-  renames the SQL table and a new binary pointed at an archived run finds no `log` table and returns
-  **zero rows — byte-identical to a clean board.** That is not backwards compatibility; it is a
-  wrong answer, and `run-archive/` is re-read by every audit (`CLAUDE.md`), so the path is
-  exercised rather than theoretical.
+- **Field numbers are INERT here, and the rule that said otherwise was STALE — now corrected in the
+  file.** This tree never writes the binary wire format: `proto.Marshal` occurs exactly once, as an
+  import-keeper at `recordsql/store.go:585`. The proto is a schema definition language; storage and
+  JSON are both keyed on NAMES — `recordsql.TableName` = `snake(message.Name())`, columns =
+  `field.Name()`, enum tables = `"enum_" + snake(enum.Name())`, foreign keys on `field.Name()`.
+  `record.proto:11-14` claimed *"FIELD NUMBERS ARE PERMANENT … a renumber silently reinterprets
+  every record already written"* — true of the textproto/binary era the SQLite store retired, false
+  now. **Corrected in place** (this plan's one code change so far), so that neither the next author
+  nor the auditor re-derives the dead rule. The correction states its own expiry: if binary
+  marshalling is ever introduced, numbers become load-bearing again.
+- **The breaking change is a RENAME — which is exactly what PR-2 does.** Rename a message and the
+  table moves; rename a field and the column moves. A reader pointed at a pre-rename record finds
+  the old name absent and returns **zero rows — byte-identical to a clean board.** Not a
+  compatibility question; a wrong answer. `run-archive/` is re-read by every audit (`CLAUDE.md`),
+  so the path is exercised rather than theoretical — which is why the refusal below is the one
+  thing retained while everything else is cut.
 - **Declare the break:** bump `eventSchema` 2→3 in `requirements.json:3` and regenerate
   `record/schema_gen.go:13` via `scripts/schemagen`. This is the existing incompatibility
   DECLARATION, not a shim; it fires at `internal/setup/setup.go:584-594` (the `got != expectSchema`

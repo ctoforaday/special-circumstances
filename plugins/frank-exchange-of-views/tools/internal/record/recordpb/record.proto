@@ -8,10 +8,24 @@
 // GENERATED CODE IS COMMITTED. Regenerate with `go run ./protogen` from scripts/; the schema's
 // content hash is stamped beside the bindings and gated in CI.
 //
-// FIELD NUMBERS ARE PERMANENT. A retired number goes in `reserved`, never back into service —
-// a renumber silently reinterprets every record already written. This is the one piece of
-// backwards compatibility the migration does NOT delete, because it is what makes the format
-// safe to change at all.
+// FIELD NUMBERS ARE INERT HERE, AND NAMES ARE WHAT BREAK. This file is a SCHEMA DEFINITION
+// LANGUAGE, not a wire format: nothing in this tree marshals or unmarshals binary protobuf.
+// `proto.Marshal` appears exactly once, at `recordsql/store.go` as `var _ = proto.Marshal` — an
+// import-keeper, not a call. Records live in SQLite and leave through protojson, and BOTH are
+// keyed on NAMES: `recordsql.TableName` is `snake(message.Name())`, every column is
+// `field.Name()`, every enum table is `"enum_" + snake(enum.Name())`, and foreign keys reference
+// `field.Name()`. Search this file for a field number's effect on storage and there is none.
+//
+// So the rule that used to stand here — "field numbers are permanent, a renumber silently
+// reinterprets every record already written" — described the textproto/binary era the SQLite
+// store retired. Renumbering costs nothing. RENAMING is the breaking change: rename a message
+// and the table moves; rename a field and the column moves; and a reader pointed at a record
+// written before the rename finds the old name absent and returns ZERO ROWS, which is
+// byte-identical to a clean board. That is the failure to design against, not renumbering.
+//
+// THIS HOLDS ONLY WHILE NOTHING WRITES THE WIRE FORMAT. If binary marshalling is ever
+// introduced, field numbers become load-bearing again and the permanence rule comes back with
+// them. Say so here if that day comes.
 
 syntax = "proto3";
 
