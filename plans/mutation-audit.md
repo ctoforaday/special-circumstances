@@ -72,16 +72,17 @@ than mutation testing did.
 | target | result | reading |
 |---|---|---|
 | `internal/record/citationid.go` | 32 mutants, 31 behavioural, **100% killed**, 1 non-compiling | the citation-id machinery is fully killed by its own package |
+| `internal/record/refs.go` | 50 mutants, 50 behavioural, **100% killed**, 0 non-compiling | the other half of the citation machinery, same result — §V.7's original target is now swept whole |
 | `internal/claimcount` | 1 survivor of 2 | equivalent mutant: `j >= 0` -> `j > 0` on a `strings.Index` result, where index 0 cannot occur for a `-->` closer preceded by content |
 | `internal/anchor`, narrow | 19 survivors of 21 | an artifact of the narrow stage — see §IV |
 | `internal/anchor`, `-confirm` | 21 behavioural, **100% killed**, 0 survivors | settles it: the module kills every one; the file is asserted from `internal/record` and `internal/cli` |
 
 ## VI. Not yet swept
 
-- `internal/record/refs.go` — the other half of the citation machinery. Cheap now (~4s/mutant).
 - `internal/cli/blue/cite.go`, `internal/cli/lens/anchor.go` — the `internal/cli` suite runs 20+
   minutes ONCE, so per-mutant cost there is the open question the pool has not answered.
-- `internal/record/refs.go` and the `internal/cli` citation files remain, as above.
+- `internal/cli`'s citation files (`blue/cite.go`, `lens/anchor.go`) remain — that package's suite
+  runs 20+ minutes ONCE, so its per-mutant cost is the open question the pool has not answered.
 
 **Done since:** the `-confirm` wide stage on `internal/anchor` (§IV, §V). Measured cost, which is
 the number to plan the next wide stage from: **21 mutants in ~19 minutes on four workers**, most

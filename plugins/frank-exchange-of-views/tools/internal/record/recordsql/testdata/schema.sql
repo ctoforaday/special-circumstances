@@ -81,12 +81,6 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('spot_check', 'red re-c
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('verdict', 'red''s round gate: PASS or FAIL against the open board');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('verify', 'a citation checked at the leaf: what the source did for the claim, and how sure the reader is');
 
-CREATE TABLE "enum_schema_version" (
-  "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL
-) STRICT;
-INSERT INTO "enum_schema_version" ("value", "means") VALUES ('1', 'the protobuf record: one event stream, one row per act, schema derived from these descriptors');
-
 CREATE TABLE "enum_verdict" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL

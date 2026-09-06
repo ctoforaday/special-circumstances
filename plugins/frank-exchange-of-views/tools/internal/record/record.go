@@ -392,17 +392,10 @@ func allowSubstitution(run Run) bool {
 // envelope stamps the fields EVERY event carries whatever its body, in ONE place — so a second
 // write path cannot come to exist that forgets one.
 //
-// schema_version is among them, and its justification has CHANGED RATHER THAN HELD. It was
-// load-bearing because the line reader dropped an unstamped line as an incomplete write, inert and
-// unreported; that reader is gone with the shard lines, so today the field is stamped and stored
-// and read back by nothing. The compatibility gate a run actually passes is the event-shape epoch
-// (EventSchema, compared at setup). The stamp is kept because it costs one column and records
-// which schema wrote a row; it is NOT what refuses a skewed binary, and a comment claiming
-// otherwise would be the plausible zero in prose.
-//
-// ROLE IS SET ONLY WHEN THE SEAT ID RESOLVES TO ONE. The pre-schema struct carried
-// `json:"role,omitempty"`, so a seat matching no role had NO role field; presence keeps that fact
-// expressible, where proto.String("") would assert that its role is the empty string.
+// SCHEMA_VERSION IS NOT AMONG THEM ANY MORE. It was stamped here on every event and read by
+// nothing — the line reader that once gated on it went with the shard lines. What actually
+// refuses a binary that cannot read a record is the event-schema epoch, compared once at setup,
+// so the per-row copy was a fact restated where no one asked it.
 func envelope(ev *Event, ts, seatID string, round int, key string) {
 	ev.Ts = proto.String(ts)
 	ev.SeatId = proto.String(seatID)
@@ -411,7 +404,6 @@ func envelope(ev *Event, ts, seatID string, round int, key string) {
 		ev.Role = proto.String(r)
 	}
 	ev.Key = proto.String(key)
-	ev.SchemaVersion = recordpb.CurrentSchemaVersion.Enum()
 }
 
 // singleton verbs key on seat+verb; multi-instance verbs on their stable labels; the rest on a

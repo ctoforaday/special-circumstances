@@ -260,7 +260,12 @@ const GRADE = { type: 'string', enum: ['low', 'low_medium', 'medium', 'medium_hi
 // repair was EMPTYING likelihood, and the receptacle turned out to be a self-report
 // nobody could contest. See the 0.65.0 changelog entry.
 const MASS_MAPPING_VERSION = 'v2'
+// BEGIN GENERATED MASS — `cd scripts && go run ./massgen`. Source: record.proto Grade (mass).
+// A grade's weight is a property of the WORD, annotated on Grade and carried by
+// enum_grade.mass; this table is that annotation, rendered for the engine. Editing it here
+// is editing a copy — change record.proto and regenerate.
 const MASS = { trivial: 0.5, low: 1, 'low_medium': 1.5, medium: 2, 'medium_high': 2.5, high: 3, certain: 3.5, realized: 0 }
+// END GENERATED MASS
 const gapMass = (g) => (MASS[g.likelihood] ?? 0) * (MASS[g.impact] ?? 0)
 
 // Grade-dispute channel constants (run-4 report §3.3, clauses (v) and (vii)):
