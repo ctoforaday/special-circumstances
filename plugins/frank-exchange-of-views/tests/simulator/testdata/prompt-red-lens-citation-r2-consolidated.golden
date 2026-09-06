@@ -1,4 +1,4 @@
-prompt sha256: 69cb407aac7432d27740aadef553ebf30a99fef7d9f56c351bd02018d25019c5
+prompt sha256: 0b69417843d9e027becd16a097f923d4cc10c566bc70d36f3b4a5f5819aab4fb
 
 Red audit, round 2, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -19,7 +19,7 @@ COVERAGE IS AN OBSERVABLE, NOT AN ASSUMPTION: end your pass with a COVERAGE line
 RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows.
 For a navigation HINT use the record of what blue actually edited and the gap each edit answers — never a hand-written file, and never in place of the full re-read above.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in research/2026-01-01_golden/blue/report.md is REJECTED.
-Your lens number 1 is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R2-N gap ids are the merge's.
+Your lens number 1 is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk, L7 report voice — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R2-N gap ids are the merge's.
 Only red-merge writes the round's RED narrative.
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).

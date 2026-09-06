@@ -1,4 +1,4 @@
-prompt sha256: 97ad2ae13be8ddd31b8ee996a05aeae3c0ba18d48e8a286395dfc1c009d1c3e0
+prompt sha256: 04d334498df020d298e3614c68f26eda71f04ea0c122decfb600241b30016ec8
 
 Red audit, round 1, lens: dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots) STEELMAN DUTY: read the exploration space via the `lines-of-inquiry` projection (the tool renders it fresh from the line of inquiry events on the record).
 Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
@@ -10,7 +10,7 @@ Re-recording `pursued` WITH what it learned is a legitimate reaffirmation and se
 Measured over six runs: 83 of 86 lines of inquiry were declared in round 0 and NONE was ever revisited, so 'pursued' meant 'I intend to' and nothing could falsify it..
 RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in research/2026-01-01_golden/blue/report.md is REJECTED.
-Your lens number 6 is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R1-N gap ids are the merge's.
+Your lens number 6 is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk, L7 report voice — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R1-N gap ids are the merge's.
 Only red-merge writes the round's RED narrative.
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).

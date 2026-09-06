@@ -1,4 +1,4 @@
-prompt sha256: f395b763348f76214b554f92fdc91606d85a94220510ef69e2a7dfb3eaa8ec7c
+prompt sha256: 641b6a18f1757cb009c0f9b4e2587fbd6a98742522f005535b9d1f123c2e0478
 
 Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; citation ownership follows the slice (instance 1 owns the bibliography entries its sections cite).
 The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
@@ -16,7 +16,7 @@ WebSearch is for DISCOVERY — finding the url — never for the read that grade
 If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read..
 RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in research/2026-01-01_golden/blue/report.md is REJECTED.
-Your lens number 1 is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R1-N gap ids are the merge's.
+Your lens number 1 is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk, L7 report voice — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R1-N gap ids are the merge's.
 Only red-merge writes the round's RED narrative.
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
