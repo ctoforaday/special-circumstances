@@ -36,7 +36,7 @@ Scope 4's defect is separate and stated in its own section.
 | # | Criterion | How it is measured | Scope |
 |---|---|---|---|
 | N5 | Every bench disposition has a motion id and joins to what it settled | `record.Motions` returns a `docket` motion for every bench-disposed gap; zero gaps with `ClosedByBench` and no motion id | 2 |
-| N6 | An undisposed docket item blocks the bench's sitting | `sitting.go`'s `case "bench"` reports it in `Open` (the field is `Open []Item` with `Blocks`, not `Outstanding` — the earlier wording named a field that does not exist), and that sitting is `Complete: false`. **A gap ruled `carried` still counts as undisposed** — see the decision below | 2 |
+| N6 | An **unruled** docket motion blocks the bench's sitting | `sitting.go`'s `case "bench"` already sweeps the subjects whose gavel is the bench, so a docket motion with no ruling makes that sitting `Complete: false` and names it in `Open`. Both directions, and **the second one states what this scope does NOT do**: a docket motion ruled `carried` is answered, so the bench is `Complete: true` — the gap stays open and keeps blocking the MERGE seat as an open gap, but nothing yet says WHY it is still there. That explanatory half is deferred; see below | 2 |
 | N7 | No renderer, comment or branch survives for a verb that cannot be written | `grep -rni opinion` over `plugins/frank-exchange-of-views/`, compared **before and against a stated exclusion list** — the English-word survivors named one by one in §III's census. NOT the case-differenced `comm` the earlier draft specified: that returns files carrying capital-`Opinion` and no lowercase one (10 today), so it can never reach 0 and is blind to every lowercase-only carrier — `cli/merge/close.go:145`, `docs/seat-command-triggers.md:96`, `cli/seat/verbs.go:187` and `boards.go`'s prose all say `bench opinion` in lower case | 2 |
 | N8 | Retiring the verb retires none of its **constraints** | `DocketRuling` carries **eight** of `Opinion`'s nine fields and both its `check` options. **A fourth carrier, which no draft listed:** `record/record.go:1156` runs
 `requireGap(run, b.GetGapId(), "opinion", "--id")`, whose refusal (`refs.go:88-90`) is the one that
@@ -245,27 +245,44 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
     **all unchanged**. No invariant is bent and no reader migrates. The three gaps the last round
     opened here close by deletion rather than by specification.
   - A gap carried by the bench comes back by being **docketed again** next round.
-  - **Visibility is a view, which is where this belongs.** The `gap` view gains
-    `awaiting_docket` — an OPEN gap whose latest docket ruling was `carried` and which has no docket
-    motion filed since. It is computable from `motion_state` + `enum_disposition."closes"` and needs
-    no new Go fold.
-  - **Whose work is it?** The MERGE seat's, not the bench's. The bench keeps `NoSituation` for
-    `motion docket file` (filing to itself is the gavel problem), and merge already rules grade
-    motions and owns what reaches the bench. So `sitting.go`'s **merge** arm reports
-    `awaiting_docket` gaps as open items, and the **bench** arm is unchanged: an unruled docket
-    motion blocks, which it already would.
-  - N6 is measured on that: a board with a carried gap and no live docket motion leaves the MERGE
-    sitting `Complete: false` and names the gap in `Open`.
+  - The **bench** arm of `sitting.go` is unchanged and needs no edit: it already sweeps the subjects
+    whose gavel is the bench, so an unruled docket motion blocks that sitting the moment the subject
+    exists. **That is N6, and it is what this scope delivers.**
+  - **Whose work is the re-docketing?** The MERGE seat's, not the bench's — the bench keeps
+    `NoSituation` for `motion docket file`, because filing to itself is the gavel problem, and merge
+    already rules grade motions and owns what reaches the bench. **Telling merge so is the deferred
+    half below.**
 
-  **A carried gap cannot become invisible to everyone, and the floor is not `awaiting_docket`.**
-  That is the question this model has to answer, so it is answered with a mechanism rather than an
-  intention: `sitting.go:124-127` refuses a merge PASS over **any** open gap — "gap %s is open —
-  PASS is refused while it is" — independent of whether anything was ever docketed. A carried gap is
-  by definition still open, so it already blocks. `awaiting_docket` does not create the visibility;
-  it says WHY the gap is still there and what act would move it, turning a blocking item a seat
-  cannot interpret into one it can. If `awaiting_docket` were computed wrongly, or never shipped,
-  the gap remains blocking rather than silently passing — **the failure mode is a seat under-informed,
-  never a board wrongly clean**, which is the direction this whole plan cares about.
+  **THE EXPLANATORY HALF IS DEFERRED, AND SCOPED DOWN DELIBERATELY RATHER THAN QUIETLY.**
+  `gap.awaiting_docket` and the merge sitting arm that would report it are **not in this scope**.
+  Four gate rounds put every remaining gap in that one mechanism, and three of them were structural
+  rather than editorial:
+
+  - `SittingOf(b *Board, role, seatID string)` (`sitting.go:85`) holds **no `Run` and no db handle** —
+    which is exactly why `gapsAwaitingProofOn` (`:233-245`) re-folds `awaiting_proof` in Go while
+    `estoppel.go:262-269` reads the same view column from a handle. So "the merge arm reads
+    `awaiting_docket` from the view" is unwritable as stated: it needs either a `SittingOf` contract
+    change with its own consumer census (`viewjson.go:686`, `seatprobe/naming.go:182`,
+    `cmd/seatprobe/main.go:431`, plus tests), or a second Go fold — which this scope's own canonical-
+    views rule forbids.
+  - `awaiting_docket`'s "**latest** docket ruling" needs an ordering key `motion_state` does not
+    expose (`views.go:214-232` has `motion_id`, `filed_round`, `ruled_round` and no event id), and
+    motion ids are `M1`, `M2`, … so lexicographic order breaks at `M10`.
+  - And the measurement I first wrote for it — "the merge sitting is `Complete: false` and names the
+    gap" — **passes today with the defect intact**, because `sitting.go:124-128` already blocks on
+    every open gap. A vacuous check, in the plan whose subject is vacuous checks.
+
+  **What is lost by deferring, stated so the truncation is visible:** a carried gap still blocks —
+  it is open, and an open gap refuses a merge PASS independent of docketing — but the seat is told
+  only "gap R1-1 is open", not that the bench carried it and a fresh docket motion is the act that
+  moves it. **The failure mode is a seat under-informed, never a board wrongly clean**, which is why
+  this half can wait and the rest cannot.
+
+  **What the full concept would additionally touch**, per [[complete-the-concept]]: the `gap` view
+  (a new `awaiting_docket` column and the ordering key it needs), `sitting.go`'s merge arm and
+  `SittingOf`'s signature, that signature's four consumers, and a §V assertion that a carried-and-open
+  gap reads `awaiting_docket` true while a later closing ruling or a live unruled motion reads false.
+  Tracked as its own scope with its own gate — not folded back in.
 
 - **`[MODIFY]` `record.Motion` gains a typed `GapID`** (`record/motion.go:231-254`). Today the
   struct carries `ID`, `Subject`, `Filer`, `Round`, `Basis`, `Relief`, `Ruling…` and the subject's
@@ -708,11 +725,12 @@ anticipated. The full narrative is in the archaeology; these are the operative r
    refused **in the annotation's own words** (`record: motion docket rule requires --principle …`),
    not by raw driver text about a NOT NULL column — and `--help` marks it REQUIRED. Both halves,
    because the DDL constraint alone passes the first and fails the second silently.
-7. **A carried docket motion is still outstanding.** A bench sitting that has ruled every docket
-   motion `carried` is `Complete: false` and names them in `Open`; one that ruled them with a
-   closing disposition is `Complete: true`. Both directions, since the one-directional version
-   passes against a `unruled` that never changed. Asserted against `motion_state` as well as the
-   sitting, because the view is where the rule now lives.
+7. **N6, on the surface this scope actually changes.** A bench sitting with an UNRULED docket motion
+   is `Complete: false` and names it in `Open`; the same sitting with that motion ruled — `carried`
+   included — is `Complete: true`. Both directions, and the second is the one that records what was
+   deferred rather than hiding it. **Not** asserted against `motion_state.unruled`, which this scope
+   leaves untouched, and **not** against the merge sitting, whose open-gap row already fires for
+   every open gap and would pass with the defect intact.
 8. `record/gavel_test.go:22-47` must pass **unmodified**: it fails any `MotionSubject` without
    `ruled_by`, and it is what makes `MOTION_SUBJECT_DOCKET`'s annotation non-optional.
 
