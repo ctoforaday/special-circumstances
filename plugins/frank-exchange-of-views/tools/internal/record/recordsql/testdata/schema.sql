@@ -188,6 +188,14 @@ INSERT INTO "enum_check_kind" ("value", "means") VALUES ('computation', 'RUNNING
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('document', 'reading a shipped artifact settles it — the check is answered by prose that quotes what is there');
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('source', 'verifying an external source settles it — the claim stands or falls on what the cited material actually says');
 
+CREATE TABLE "enum_finding_about" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_finding_about" ("value", "means") VALUES ('gap', 'a gap already on the docket, by its id — a defect in the record rather than in the report');
+INSERT INTO "enum_finding_about" ("value", "means") VALUES ('inquiry', 'a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty''s own anchor');
+INSERT INTO "enum_finding_about" ("value", "means") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there');
+
 CREATE TABLE "enum_source_text_read" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -488,9 +496,12 @@ CREATE TABLE "finding" (
   "severity" TEXT,
   "likelihood" TEXT,
   "impact" TEXT,
+  "about_kind" TEXT,
+  "about_ref" TEXT,
   FOREIGN KEY ("severity") REFERENCES "enum_grade"("value"),
   FOREIGN KEY ("likelihood") REFERENCES "enum_grade"("value"),
-  FOREIGN KEY ("impact") REFERENCES "enum_grade"("value")
+  FOREIGN KEY ("impact") REFERENCES "enum_grade"("value"),
+  FOREIGN KEY ("about_kind") REFERENCES "enum_finding_about"("value")
 ) STRICT;
 
 CREATE TABLE "observe" (
