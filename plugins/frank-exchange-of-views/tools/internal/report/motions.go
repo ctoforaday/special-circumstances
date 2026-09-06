@@ -83,6 +83,12 @@ func motionHead(m *record.Motion) string {
 		return "petition (" + m.Fields["class"] + ")"
 	case "inquiry":
 		return "direction " + m.Fields["inquiry_id"]
+	case "docket":
+		// THE SECOND SUBJECT THAT IS ABOUT A GAP, and the row is unreadable without it. Left to
+		// the default arm this renders as the bare word "docket" — the bench's disposition of a
+		// specific gap, printed as a row naming no gap at all, in the section whose whole promise
+		// is "an ask and its answer are one row".
+		return "docket " + m.Fields["gap_id"]
 	default:
 		return m.Subject
 	}

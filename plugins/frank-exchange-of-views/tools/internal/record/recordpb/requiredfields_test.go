@@ -38,16 +38,15 @@ func TestARequiredFieldIsRefusedWhenAbsent(t *testing.T) {
 // A check written against emptiness rather than presence would refuse it, and the seat would have
 // no way to say that at all.
 func TestAnEmptyValueTheSeatPassedSatisfiesTheRequirement(t *testing.T) {
-	body := &Opinion{
-		GapId:       proto.String("R1-1"),
+	body := &DocketRuling{
 		Disposition: Disposition_DISPOSITION_CARRIED.Enum(),
 		Principle:   proto.String("p"),
 		Tension:     proto.String("t"),
 		ReviewFlag:  proto.String(""), // said, and said to be nothing
 		Settled:     proto.String("the claim as it stood may not be re-asserted"),
-		Rationale:   proto.String("r"),
+		ReopensOn:   proto.String("a reproduction on the shipped binary"),
 	}
-	if err := CheckRequired("bench opinion", body); err != nil {
+	if err := CheckRequired("motion docket rule", body); err != nil {
 		t.Errorf("an explicitly empty review flag was refused: %v", err)
 	}
 }

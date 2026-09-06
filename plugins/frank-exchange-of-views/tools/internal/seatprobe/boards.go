@@ -366,7 +366,8 @@ Reversibility under load was not tested.
 					"systems and what specifically would count as documenting a reversal, and it stops being thin."},
 		},
 		Expect: []Expectation{
-			{Seat: "blue-respond-r1", Verb: "closing", Because: "A docketed gap is ruled on by the bench from the closings, the transcript and the final state. A blue that repairs and files no closing has left its case to red's account of it."},
+
+			{Seat: "blue-respond-r1", Verb: "motion docket file", Because: "This sitting is arguing rather than repairing, and a motion is filed by ANY seat. Blue's channel to escalate a gap it believes red is wrong about — without waiting for red to choose to re-raise it. That is a new capability and it is the point: the gap goes before the bench because blue put it there, and the bench's answer is on the record either way."}, {Seat: "blue-respond-r1", Verb: "closing", Because: "A docketed gap is ruled on by the bench from the closings, the transcript and the final state. A blue that repairs and files no closing has left its case to red's account of it."},
 			{Seat: "blue-respond-r1", Verb: "motion grade appeal", Because: "The grade is contestable and, once refused, the appeal is the ONE accounted way to press it. `contests_ruling` used to record only disagreement that won; the appeal records the argument whether or not it prevails."},
 			{Seat: "blue-respond-r1", Verb: "line-of-inquiry move", Because: "Two lines are ruled and neither has a fate. Every line of inquiry at proposed or pursued owes a MOVE each round — a line declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead is the shape that made 83 of 86 lines land in round 0 and never change."},
 			{Seat: "blue-respond-r1", Verb: "motion inquiry appeal", Because: "One line was ruled too-thin. If blue still believes in it, the appeal is where that argument lives — and it is filed whether or not blue also pursues the line, which is the whole point of separating it from the status move."},
@@ -517,6 +518,7 @@ Figures were read from the deployed configuration at the pinned revision.
 			{Seat: "red-merge-r1", Verb: "motion inquiry rule", Because: "Blue proposed a line and it is unruled. Red had no verb to reject a direction for six runs and rejected none; the projection blue reads shows an unruled line as one nobody has sat on."},
 			{Seat: "red-merge-r1", Verb: "inquiry-support", Because: "The report's own account of what this run investigated is part of the report, and it is the one part `lens verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-round and `verdict --as PASS` is refused while any line is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that line."},
 			{Seat: "red-merge-r1", Verb: "closing", Because: "Every gap red re-raises and every grade motion it rules `rejected` is docket-bound, and the closing is red's case to the bench."},
+			{Seat: "red-merge-r1", Verb: "motion docket file", Because: "The closing above states the case; THIS puts the gap on the record as one the bench owes an answer to. Until the docket was a motion that case was prose — the board said `docket-bound` and nothing wrote it down, so a gap could reach the bench and get no ruling with nothing able to notice. The merge is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
 			{Seat: "red-merge-r1", Verb: "verdict", Because: "The round's terminal act. A PASS is checked against the open board AND against unanswered motions, so it is a claim the tool will refuse rather than a summary."},
 		},
 	}
@@ -582,7 +584,7 @@ No material downside was identified.
 				Fix:      "State what was searched, or withdraw the claim.",
 				Check:    "The claim names the search that produced it.", CheckKind: "document",
 				Severity: "certain", Likelihood: "high", Impact: "high", Complexity: "medium",
-				Baits: "opinion",
+				Baits: "motion docket rule",
 				Why: "A contested gap reaches the bench to be DISPOSED of. Carrying it with a stated " +
 					"direction is a real disposition and was driven exactly once before a gate noticed.",
 				RedClosing: "The claim is unfalsifiable as written. \"No material downside was identified\" " +
@@ -601,17 +603,29 @@ No material downside was identified.
 			Subject: "petition", Filer: "blue-respond-r1", Class: "integrity",
 			Relief: "strike the requirement to assert a search that was never run, or name the search",
 			Basis:  "the gap's required_fix asks the report to state what was searched, and no search was run; writing one would be asserting what I believe false",
+		}, {
+			// THE EXPECTATION BELOW IS UNREACHABLE WITHOUT THIS. `motion docket rule` answers a
+			// FILED motion; a board that expected the ruling and staged no filing would let the
+			// seat fail an expectation it had no way to meet — which is the defect
+			// TestEveryExpectationIsReachableOnItsBoard exists to catch, and which the `needs`
+			// map enforces for this verb.
+			Subject: "docket", Filer: "red-merge-r1", GapID: "R1-1",
+			Basis: "red re-raised this gap and blue's answer did not move it; it is the bench's to settle, not mine to close",
 		}},
 		Expect: []Expectation{
-			{Seat: "judge-r2", Verb: "opinion", Because: "The bench's disposition both rules and ends the gap, and `carried` is the one value that defers instead of closing. A gap that reaches the bench and gets no opinion is a docket item nobody disposed of."},
+			// ONE ROW, NOT TWO. The retired `opinion` expectation stood here beside this one
+			// through the additive half of #681; a verb the bench role no longer offers reports
+			// UNMET on every probe, and an expectation that cannot be met teaches its reader to
+			// skim the whole board.
+			{Seat: "judge-r2", Verb: "motion docket rule", Because: "The bench's disposition both rules and ends the gap, and `carried` is the one value that defers instead of closing — a gap that reaches the bench and gets no ruling is a docket item nobody disposed of. The disposition joins to the ask that raised it."},
 			{Seat: "judge-r2", Verb: "motion petition rule", Because: "A petition is heard BEFORE the debate continues, so an unruled one stops the run rather than waiting. The bench holds this gavel alone."},
 			{Seat: "judge-r2", Verb: "certify", Because: "The bench keeps no memory between runs, so what it would want a human to re-examine exists only if it is recorded. The report promotes it into `Read this first`."},
 			{Seat: "judge-r2", Verb: "declare", Because: "The petition turns on what `required_fix` MEANS — whether it can " +
 				"license an assertion the run cannot support. That construction binds how every gap on the board is read and " +
-				"moves none of them, so `opinion` (which demands an id and a fate) cannot carry it. Measured: a bench with " +
+				"moves none of them, so a docket ruling (which demands a motion id and a fate) cannot carry it. Measured: a bench with " +
 				"exactly this holding put it in a petition ruling's opinion text, the channel least likely to be read (#361)."},
 			{Seat: "judge-r2", Verb: "outcome", Because: "The run's terminal determination, distinct from red's verdict. CEILING in particular carries the caveat that this is NOT a judged failure to verify, and the stamp loses that if the word is wrong."},
-			{Seat: "judge-r2", Verb: "log", Because: "The bench has a holding both parties need — a construction of a term that changes no gap's fate — and NO verb states it: `opinion` requires an id and a fate-changing disposition (#361). A real bench found this and recorded it here; a bench that instead buries the holding in a ruling's prose has put it on the channel least likely to be read."},
+			{Seat: "judge-r2", Verb: "log", Because: "The bench has a holding both parties need — a construction of a term that changes no gap's fate — and NO verb states it: a docket ruling requires a motion id and a fate-changing disposition (#361). A real bench found this and recorded it here; a bench that instead buries the holding in a ruling's prose has put it on the channel least likely to be read."},
 		},
 	}
 }
@@ -746,6 +760,8 @@ func Boards() map[string]Board {
 // filing verbs by role the way the RULING verbs already are, or accept the openness and say so
 // where a seat can read it. Tracked rather than quietly excused — see the issue named below.
 var NoSituation = map[string]string{
+	"lens motion docket file":     "a lens files FINDINGS; the merge turns them into graded gaps and decides what reaches the bench. A lens has no gap of its own to escalate.",
+	"bench motion docket file":    "the bench RULES docket motions. Filing one to itself is the gavel problem in miniature — the forum putting a question to the forum, then answering it.",
 	"lens motion grade file":      "a lens files FINDINGS; the merge turns them into graded gaps. Contesting a grade it never set has no sitting.",
 	"lens motion grade appeal":    "follows from the above: nothing for a lens to appeal.",
 	"lens motion inquiry appeal":  "directions are blue's to propose and blue's to press; a lens has no line of its own at stake.",

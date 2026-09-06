@@ -28,8 +28,14 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		name, wants string
 		args        []string
 	}{
-		{"opinion --id", "no mint event created", []string{"opinion", "--seat-id", "judge-r1",
-			"--id", "R9-9", "--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--final"}},
+		// THE GAP REFERENCE MOVED TO THE FILING. `bench opinion --id` named the gap; the bench's
+		// ruling names the MOTION, so the dangling-gap case this row has always pinned is now
+		// `motion docket file --id`, and the dangling-motion case is the row below it.
+		{"motion docket file --id", "no mint event created", []string{"motion", "docket", "file", "--seat-id", "judge-r1",
+			"--id", "R9-9", "--reason", "escalating a gap nobody minted"}},
+		{"motion docket rule --id", "which no filing created", []string{"motion", "docket", "rule", "--seat-id", "judge-r1",
+			"--id", "M9", "--as", "carried", "--principle", "p", "--tension", "t",
+			"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final"}},
 		{"motion grade file --id", "no mint event created", []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1",
 			"--id", "R9-9", "--dimension", "severity", "--proposed", "low", "--reason", "b"}},
 		{"motion grade rule --id", "which no filing created", []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1",
@@ -80,17 +86,21 @@ func TestValidReferencesStillResolve(t *testing.T) {
 	first := mintGap(t, runDir, "first", "reference-integrity")
 	second := mintGap(t, runDir, "second", "reference-integrity")
 
+	// The bench's two references — the gap on the filing, the motion on the ruling — both
+	// resolve, which is the converse of the two rows above.
+	m := docketFile(t, runDir, "red-merge-r1", first, "put before the bench")
 	for _, c := range [][]string{
-		{"opinion", "--seat-id", "judge-r1", "--id", first, "--as", "carried",
+		{"motion", "docket", "rule", "--seat-id", "judge-r1", "--id", m, "--as", "carried",
 			"--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "the ruling"},
 		{"close", "--seat-id", "red-merge-r1", "--id", first, "--as", "repaired",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--superseded-by", second, "--reason", "verified"},
 	} {
-		// c[0] is the verb; the role that used to sit in front of it is gone, so only ONE
-		// element is lifted out before --run.
-		args := append([]string{c[0], "--run", runDir}, c[1:]...)
+		// cmdPath lifts the verb PATH out — a subject tree is three words deep where a bare
+		// verb is one — so `--run` lands after the command and before its flags.
+		path := cmdPath(c)
+		args := append(append(append([]string{}, path...), "--run", runDir), c[len(path):]...)
 		if _, err := run(t, args...); err != nil {
-			t.Errorf("a reference that DOES resolve was refused: %v (%v)", err, c[0])
+			t.Errorf("a reference that DOES resolve was refused: %v (%v)", err, strings.Join(path, " "))
 		}
 	}
 }

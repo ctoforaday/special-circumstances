@@ -94,7 +94,9 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
-| `bench opinion` | ruling on a docketed item, with principle, tension and review-flag | — | CLEAN |
+| ~~`bench opinion`~~ | ruling on a docketed item, with principle, tension and review-flag | — | EXECUTED (#681): RETIRED. The docket is a motion, so the disposition carries a motion id and joins to the ask that raised it — see the two `motion docket` rows above. Kept as a ledger row because this file's rows are history, not a command list |
+| `motion docket file` | an open gap you cannot settle yourself and the bench should | — | CLEAN. Filed by ANY seat — the merge because it owns what reaches the bench, blue to escalate a gap it believes red is wrong about |
+| `motion docket rule` | the bench disposing of a docketed gap, with principle, tension, review-flag and settled | — | CLEAN. `carried` defers it to another round and answers the motion; the gap comes back as a fresh filing, which is why an open gap still refuses a merge PASS |
 | `bench outcome` | the run's terminal act | — | CLEAN. It carried no reasoning at all until a bench seat reached for `--reason`, found nothing, and filed the absence as friction — so `--reason` is required (#375): the verdict is derived, how the sitting ENDED is not |
 | `bench halt` | end the run on a safety boundary | `motion petition rule --as halt` | EXECUTED (#329, verified 2026-08-13): debate.js emits `ruling: 'halt'` zero times; the halt is `bench halt` and the petition enum rules `granted\|denied` only |
 | `bench certify` | asking a human to re-examine something at run end | — | CLEAN. The fold-into-`outcome` decision is REVERSED (#328): a certification and a verdict are different speech acts |

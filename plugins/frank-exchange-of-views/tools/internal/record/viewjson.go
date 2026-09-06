@@ -214,7 +214,7 @@ func BoardJSONOf(b *Board) BoardJSON {
 		// BOTH CLOSING BODIES REACH THIS FIELD, and the pair is why the nil test is a switch.
 		//
 		// replay.go now splits the closure into `Closure` (a `merge close`) and `BenchClosure` (a
-		// `bench opinion` whose disposition ended the gap), and warns in its own words that
+		// a docket ruling whose disposition ended the gap), and warns in its own words that
 		// `g.Closure != nil` no longer means "closed by anything". The pre-split payload held
 		// EITHER body and this projection rendered whichever arrived — so reading only `Closure`
 		// here would drop every bench closure out of the board silently, which is the exact failure
@@ -382,7 +382,7 @@ func gradeVal(g recordpb.Grade) any {
 
 // closureBody is the gap's closing event, whichever verb wrote it.
 //
-// `merge close` and `bench opinion` are different acts with different evidence bars and they write
+// `merge close` and the bench's docket ruling are different acts with different evidence bars and they write
 // different messages, but a seat AUDITING a closure asks one question — how did this gap end — and
 // the board has always answered it in one field. The two-field split lives in replay.go so the
 // typed readers cannot conflate them; this is the one place that deliberately re-joins them, and it
@@ -447,13 +447,18 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 	// The acts the projection embeds or attributes, one filtered typed read, grouped per gap.
 	evs, err := EventsOf(run,
 		recordpb.EventType_EVENT_TYPE_CLOSE,
-		recordpb.EventType_EVENT_TYPE_OPINION,
+		recordpb.EventType_EVENT_TYPE_MOTION,
+		recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 		recordpb.EventType_EVENT_TYPE_REGRADE,
 		recordpb.EventType_EVENT_TYPE_FINDING)
 	if err != nil {
 		return out, err
 	}
-	closures := closureStatesOf(evs)
+	closures, unpairedDocket := closureStatesOf(evs)
+	for _, id := range unpairedDocket {
+		out.Anomalies = append(out.Anomalies, fmt.Sprintf(
+			"motion %s: a docket RULING with no filing in this stream — the gap it disposes of cannot be identified, so it is reported OPEN here; the ruling was DROPPED from this projection, not rendered empty", id))
+	}
 	regrades := map[string][]*recordpb.Regrade{}
 	var findings []*Event
 	for _, e := range evs {
@@ -576,14 +581,14 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 	return out, nil
 }
 
-// closeState is the fold's closure pair for one gap, derived from the close/opinion stream:
+// closeState is the fold's closure pair for one gap, derived from the close/docket-ruling stream:
 // attribution follows the LAST closing event, whichever arm wrote it, while both bodies stay
 // addressable (closureBody's precedence needs the red close even when the bench closed last).
 type closeState struct {
-	lastClose        *recordpb.Close   // the fold's Closure: last red close
-	lastBenchClosure *recordpb.Opinion // the fold's BenchClosure: last CLOSING opinion
-	closedRound      int               // the LAST closing event's round, either arm
-	closedByBench    bool              // ... and whether that last event was the bench's
+	lastClose        *recordpb.Close        // the fold's Closure: last red close
+	lastBenchClosure *recordpb.DocketRuling // the fold's BenchClosure: last CLOSING docket ruling
+	closedRound      int                    // the LAST closing event's round, either arm
+	closedByBench    bool                   // ... and whether that last event was the bench's
 	hasClosed        bool
 }
 
@@ -592,8 +597,18 @@ func (c *closeState) reason() string {
 	return (&Gap{Closure: c.lastClose, BenchClosure: c.lastBenchClosure, ClosedByBench: c.closedByBench}).ClosureReason()
 }
 
-func closureStatesOf(evs []*Event) map[string]*closeState {
+// It returns the unpaired docket rulings alongside the closures. A ruling whose filing is not in
+// the stream settles nothing, and "settled nothing" is indistinguishable from "the bench ruled on
+// nothing" — so it is handed back rather than dropped, and each caller puts it on the channel it
+// actually has: the projection has `anomalies`, the two typed loaders have an error.
+func closureStatesOf(evs []*Event) (map[string]*closeState, []string) {
 	closures := map[string]*closeState{}
+	var unpaired []string
+	// THE RULING NAMES A MOTION; THE MOTION NAMES THE GAP. A stream that omits the filings
+	// yields an empty index here and every bench closure would fall through as "not a closure" —
+	// the plausible zero this whole change exists to remove — so the arm below reports the miss
+	// rather than skipping it.
+	docketGap := DocketGapByMotion(evs)
 	closing := func(id string) *closeState {
 		c, ok := closures[id]
 		if !ok {
@@ -607,15 +622,28 @@ func closureStatesOf(evs []*Event) map[string]*closeState {
 		case *recordpb.Close:
 			c := closing(m.GetGapId())
 			c.lastClose, c.closedRound, c.closedByBench, c.hasClosed = m, int(e.GetRound()), false, true
-		case *recordpb.Opinion:
-			if !benchClosesGap(m.GetDisposition()) {
+		case *recordpb.MotionRule:
+			d, isDocket := m.GetRuling().(*recordpb.MotionRule_Docket)
+			if !isDocket {
+				continue // grade, petition and inquiry rulings settle no gap
+			}
+			if !benchClosesGap(d.Docket.GetDisposition()) {
 				continue
 			}
-			c := closing(m.GetGapId())
-			c.lastBenchClosure, c.closedRound, c.closedByBench, c.hasClosed = m, int(e.GetRound()), true, true
+			gapID, known := docketGap[m.GetMotionId()]
+			if !known || gapID == "" {
+				// SILENCE HERE IS A LOST CLOSURE, so it is not silent. A `continue` alone leaves
+				// the gap OPEN with its ruling sitting on the record and nothing anywhere saying
+				// so — and `show board` reaches this fold rather than the replay, so the path a
+				// seat actually calls would have been the blind one while replay.go errored.
+				unpaired = append(unpaired, m.GetMotionId())
+				continue
+			}
+			c := closing(gapID)
+			c.lastBenchClosure, c.closedRound, c.closedByBench, c.hasClosed = d.Docket, int(e.GetRound()), true, true
 		}
 	}
-	return closures
+	return closures, unpaired
 }
 
 // mustBody is Body for a stream the loader just built: every event it returns carries one.
@@ -758,7 +786,7 @@ type ClosedIndexJSON struct {
 	Location string `json:"location"`
 	Class    string `json:"class"`
 	// Fate is the disposition that ended it — red's `close --as` (closure_class) or the
-	// bench's `opinion --as` (disposition). One vocabulary since #342, so a reader does not
+	// bench's `motion docket rule --as` (disposition). One vocabulary since #342, so a reader does not
 	// have to know which verb produced the word before it can interpret it.
 	Fate string `json:"fate"`
 	// ClosedBy is "bench" or "red", and it is what makes the difference above legible.
@@ -789,7 +817,7 @@ func synopsis(s string) string {
 // lean work list shape, closed gaps to the prose-free index.
 // WorkGapState is one gap's answer from the record for the work path: the view's scalar facts
 // (openness, the regrade-overlaid grades, the proof debt) plus the closure attribution derived
-// from the close/opinion stream. It is the input SittingOf and availableOf read instead of a
+// from the close and docket-ruling stream. It is the input SittingOf and availableOf read instead of a
 // folded Board.
 type WorkGapState struct {
 	ID, Class, Location, Problem, CheckKind string
@@ -806,7 +834,10 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 	if err != nil || db == nil {
 		return nil, err
 	}
-	closures := closureStatesOf(evs)
+	closures, unpairedDocket := closureStatesOf(evs)
+	if len(unpairedDocket) > 0 {
+		return nil, fmt.Errorf("record: the work list cannot be computed: docket ruling(s) on motion(s) %s have no filing on this record, so which gap each settles is unknown — a seat told a gap is open when the bench has disposed of it is the failure this refuses to produce", strings.Join(unpairedDocket, ", "))
+	}
 	foundBy, err := listValuesByEvent(db, "mint_found_by")
 	if err != nil {
 		return nil, err
@@ -1129,7 +1160,7 @@ func LogJSONBytes(run Run) ([]byte, error) {
 // operator-side audits (telemetry, record-parity) counted `### RED`/`### BLUE` sections by
 // regex over the markdown — a second reader of a projection, the exact defect class the
 // board/findings/friction JSON views removed. The section counts (and, for scorecards, the
-// section TEXT) are position/opinion/closing events; served here they are read, not parsed.
+// section TEXT) are position, closing and docket-ruling events; served here they are read, not parsed.
 //
 // It derives from BoardState like the other JSON views — never from debate.md — so the two
 // renderings of one replay cannot drift.
@@ -1171,12 +1202,13 @@ type DebateOpinionJSON struct {
 
 // DebateJSONOf groups the record's events by round exactly as render.go's debate loop does:
 // position(red-merge)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
-// dispute/dispute-respond→Disputes, opinion→Lead. The grouping is
+// dispute/dispute-respond→Disputes, a docket motion's ruling→Lead. The grouping is
 // the single source these two renderings share; if it moves, both move together.
 // DebateJSONOf projects the debate prose per round. It takes the ROUND SKELETON separately from
 // the events, because the rounds come from the WHOLE record — a round whose only acts are mints
 // still renders, empty, exactly as it always has — while the events it renders are only the
-// position/closing/opinion families. A caller holding merged events uses DebateJSONOfEvents.
+// position, closing, motion and motion-rule families. A caller holding merged events uses
+// DebateJSONOfEvents.
 func DebateJSONOf(rounds []int, evs []*Event) DebateJSON {
 	out := DebateJSON{Rounds: []DebateRoundJSON{}}
 
@@ -1186,6 +1218,10 @@ func DebateJSONOf(rounds []int, evs []*Event) DebateJSON {
 		byRound[int(e.GetRound())] = append(byRound[int(e.GetRound())], e)
 	}
 	sort.Ints(roundOrder)
+
+	// ONE PAIRING, READ MANY TIMES. The gap rides the docket FILING, so the LEAD rows below can
+	// name it without recovering the join per event.
+	docketGapOf := DocketGapByMotion(evs)
 
 	for _, r := range roundOrder {
 		re := byRound[r]
@@ -1234,16 +1270,28 @@ func DebateJSONOf(rounds []int, evs []*Event) DebateJSON {
 			}
 		}
 		for _, e := range re {
-			// `reason` WAS THE PAYLOAD KEY for the bench's argument; `rationale` is the field, and
-			// the JSON key was already `rationale` — the record and the view disagreed on the name
-			// of one fact and the schema settles it.
-			if o, ok := recordpb.BodyAs[*recordpb.Opinion](e); ok {
-				rj.Lead = append(rj.Lead, DebateOpinionJSON{
-					GapID: o.GetGapId(), Disposition: recordpb.Word(o.GetDisposition()),
-					Principle: o.GetPrinciple(), Tension: o.GetTension(),
-					ReviewFlag: o.GetReviewFlag(), Rationale: o.GetRationale(),
-				})
+			// THE GAP COMES FROM THE MOTION, NOT THE RULING. The bench's disposition is a docket
+			// motion's ruling now, and the gap it settles rides the FILING — so this reads the
+			// join rather than a field on the body. `Motions(b)` is the one place that pairing is
+			// computed; recovering it here a second way is how eight readers came to disagree.
+			//
+			// The ruler's argument is `MotionRule.opinion`, which every subject's ruling carries.
+			// It kept the JSON key `rationale`, because that is the name this view has always
+			// used for the bench's reasoning and renaming it would move a fact nobody asked to
+			// move.
+			r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
+			if !ok {
+				continue
 			}
+			d, isDocket := r.GetRuling().(*recordpb.MotionRule_Docket)
+			if !isDocket {
+				continue
+			}
+			rj.Lead = append(rj.Lead, DebateOpinionJSON{
+				GapID: docketGapOf[r.GetMotionId()], Disposition: recordpb.Word(d.Docket.GetDisposition()),
+				Principle: d.Docket.GetPrinciple(), Tension: d.Docket.GetTension(),
+				ReviewFlag: d.Docket.GetReviewFlag(), Rationale: r.GetOpinion(),
+			})
 		}
 		out.Rounds = append(out.Rounds, rj)
 	}
@@ -1274,7 +1322,8 @@ func DebateJSONBytes(run Run) ([]byte, error) {
 	evs, err := EventsOf(run,
 		recordpb.EventType_EVENT_TYPE_POSITION,
 		recordpb.EventType_EVENT_TYPE_CLOSING,
-		recordpb.EventType_EVENT_TYPE_OPINION)
+		recordpb.EventType_EVENT_TYPE_MOTION,
+		recordpb.EventType_EVENT_TYPE_MOTION_RULE)
 	if err != nil {
 		return nil, err
 	}

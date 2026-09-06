@@ -428,9 +428,27 @@ func TestHarvestPrecedents(t *testing.T) {
 		t.Fatal("fixture must exceed the old 600-char cap")
 	}
 	board := &record.Board{Events: []*record.Event{
-		recordtest.Event(t, "judge-r2", 2, &recordpb.Opinion{
-			GapId:       proto.String("R2-3"),
-			Disposition: recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED.Enum(),
+		// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and it takes both events. The
+		// gap rides the FILING — the harvest joins them through record.Motions to learn which
+		// gap a disposition settled — so a fixture with only the ruling would anchor every
+		// harvested holding to the empty string and still report a full count.
+		recordtest.Event(t, "red-merge-r2", 2, &recordpb.Motion{
+			MotionId: proto.String("M3"),
+			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+			Basis:    proto.String("red cannot settle R2-3"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R2-3")}},
+		}),
+		recordtest.Event(t, "judge-r2", 2, &recordpb.MotionRule{
+			MotionId: proto.String("M3"),
+			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+			Opinion:  proto.String("the cost of the repair exceeds the exposure"),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED.Enum(),
+				Principle:   proto.String("a known cost beats an unknown one"),
+				Tension:     proto.String(""), ReviewFlag: proto.String(""),
+				Settled: proto.String("the claim as it stood may not be re-asserted"),
+				Final:   proto.Bool(true),
+			}},
 		}),
 		// The petition's FILER is on the motion event, not on the ruling — the ruling names
 		// only the motion. Harvesting the petitioner means joining the two.
@@ -446,7 +464,26 @@ func TestHarvestPrecedents(t *testing.T) {
 			Opinion:  proto.String("scope narrowed to shipped artifacts"),
 			Ruling:   &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_GRANTED},
 		}),
-		recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{Disposition: recordpb.Disposition_DISPOSITION_CARRIED.Enum(), Rationale: proto.String(longRationale)}),
+		// THE RULER'S ARGUMENT IS `MotionRule.opinion` NOW — the prose channel every subject's
+		// ruling carries — which is what the no-truncation assertion below reads.
+		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{
+			MotionId: proto.String("M5"),
+			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+			Basis:    proto.String("put R1-9 to the bench"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-9")}},
+		}),
+		recordtest.Event(t, "judge-r1", 1, &recordpb.MotionRule{
+			MotionId: proto.String("M5"),
+			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+			Opinion:  proto.String(longRationale),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordpb.Disposition_DISPOSITION_CARRIED.Enum(),
+				Principle:   proto.String("a deferral still owes a direction"),
+				Tension:     proto.String(""), ReviewFlag: proto.String(""),
+				Settled:   proto.String(""),
+				ReopensOn: proto.String("a reproduction on the shipped binary"),
+			}},
+		}),
 		// #361's verb. It moves no gap and has no envelope field, so it was unreachable by
 		// construction — the one verb whose whole purpose is stating a holding.
 		recordtest.Event(t, "judge-r2", 2, &recordpb.Declare{
@@ -464,7 +501,7 @@ func TestHarvestPrecedents(t *testing.T) {
 
 	r := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(repo, "law"), board)
 	if r.Count != 4 {
-		t.Fatalf("want 4 rulings harvested (2 opinions, 1 petition, 1 declaration), got %d", r.Count)
+		t.Fatalf("want 4 rulings harvested (2 docket dispositions, 1 petition, 1 declaration), got %d", r.Count)
 	}
 	out, err := os.ReadFile(r.Path)
 	if err != nil {

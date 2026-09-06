@@ -68,13 +68,7 @@ func TestBenchCarriedLeavesTheGapOpenWhileClosedDoesNot(t *testing.T) {
 		{carried, "carried", "the repair is unverified at the leaf; it needs another round"},
 		{closed, "repaired", "the repair discharges the defect and the anchor is checkable"},
 	} {
-		if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
-			"--id", c.id, "--as", c.as, "--principle", c.principle,
-			"--tension", "thoroughness against ceremony",
-			"--review-flag", "no — the ruling is mechanical", "--settled", "the proposition this ruling bars", "--final",
-			"--reason", "the ruling as reasoned"); err != nil {
-			t.Fatalf("bench opinion %s: %v", c.as, err)
-		}
+		benchDisposes(t, runDir, c.id, c.as, c.principle)
 	}
 
 	if !gapIsOpen(t, runDir, carried) {
@@ -272,12 +266,15 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 	}
 
 	// A halt must NOT be reachable as a disposition on a ruling: that is the typo path
-	// the separate verb exists to close off.
+	// the separate verb exists to close off. The ruling that could carry it is
+	// `motion docket rule --as` now; the property is the same and so is the word that must
+	// be refused.
 	id := mintGap(t, runDir, "not-haltable", "halt-is-its-own-verb")
-	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
-		"--id", id, "--as", "halt", "--principle", "p", "--tension", "t",
-		"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "attempting to halt via a disposition"); err == nil {
-		t.Error("`opinion --as halt` was accepted; ending the run must not be reachable by a mistyped disposition")
+	m := docketFile(t, runDir, "red-merge-r1", id, "put before the bench")
+	args := benchRuleArgs(m, "halt", "p")
+	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge-r1"}, args[3:]...)
+	if _, err := run(t, args...); err == nil {
+		t.Error("`motion docket rule --as halt` was accepted; ending the run must not be reachable by a mistyped disposition")
 	}
 }
 

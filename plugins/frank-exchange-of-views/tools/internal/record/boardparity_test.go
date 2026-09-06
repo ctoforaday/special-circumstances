@@ -12,7 +12,7 @@ import (
 // THE RUN-SHAPED BOARD MUST ANSWER BYTE-IDENTICALLY TO THE FOLD-SHAPED ONE — the wave-1b
 // contract (plans/board-as-views.md §II.3), held on the fold's edges: a gap closed by BOTH arms
 // (attribution follows the LAST closing event while the embedded body prefers the red close), a
-// non-closing opinion that must close nothing, regrade overlays, credited and uncredited
+// non-closing docket ruling that must close nothing, regrade overlays, credited and uncredited
 // findings, and the verify/cite count split. This test retires with the fold shape in wave 7.
 func TestBoardJSONFromViewsMatchesTheFold(t *testing.T) {
 	runDir := newRun(t)
@@ -63,15 +63,29 @@ func TestBoardJSONFromViewsMatchesTheFold(t *testing.T) {
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		AnchorSeat:   proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"),
 		Prose: proto.String("verified at the leaf")})
-	app(judge2, &recordpb.Opinion{GapId: proto.String("R1-3"),
+	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING (#681 Scope 2), so each of these is a
+	// PAIR: red files the gap to the bench, the bench rules. The gap rides the FILING, which is
+	// why both halves have to be on the record for either projection to attribute the closure.
+	docket := func(motionID, gapID string, rule *recordpb.DocketRuling) {
+		t.Helper()
+		app(red, &recordpb.Motion{MotionId: proto.String(motionID),
+			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Basis:   proto.String("red cannot settle " + gapID),
+			Filing:  &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
+		app(judge2, &recordpb.MotionRule{MotionId: proto.String(motionID),
+			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Opinion: proto.String("ra"),
+			Ruling:  &recordpb.MotionRule_Docket{Docket: rule}})
+	}
+	docket("M1", "R1-3", &recordpb.DocketRuling{
 		Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 		Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
-		Rationale: proto.String("ra"), Settled: proto.String("st"), Final: proto.Bool(true)})
-	// A CARRIED opinion on an open gap closes NOTHING — the vocabulary's own facet decides.
-	app(judge2, &recordpb.Opinion{GapId: proto.String("R1-2"),
+		Settled: proto.String("st"), Final: proto.Bool(true)})
+	// A CARRIED ruling on an open gap closes NOTHING — the vocabulary's own facet decides.
+	docket("M2", "R1-2", &recordpb.DocketRuling{
 		Disposition: recordpb.Disposition_DISPOSITION_CARRIED.Enum(),
 		Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
-		Rationale: proto.String("ra"), Settled: proto.String("st"), ReopensOn: proto.String("new evidence")})
+		Settled: proto.String("st"), ReopensOn: proto.String("new evidence")})
 
 	// The count split: one verify (red's read), one cite (blue's authoring).
 	app(red, &recordpb.Verify{Url: proto.String("https://example.org"), Claim: proto.String("c"),

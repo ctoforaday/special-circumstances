@@ -422,6 +422,15 @@ var satisfiedByAnyOf = map[string][]string{
 // and a loop over the role's direct children would have marked the group and left the verbs
 // under it unmarked — help that says everything is optional, which is the silent half of exactly
 // the defect this function exists to remove.
+// MarkTree is markTree for a command tree mounted outside the role verbs.
+//
+// THE MOTION GROUP WAS NEVER WALKED. seatVerbs applies markTree to every role verb — "a verb that
+// had to remember to mark its own required flags is a verb that can forget, and the forgetting is
+// silent" — but `motion` is mounted separately at root.go, so its leaves got none of it. It looked
+// fine only because refHelp hand-wrote "REQUIRED — " into `--id`'s usage, which is the second copy
+// markRequired exists to be the sole writer of.
+func MarkTree(c *cobra.Command) { markTree(c) }
+
 func markTree(c *cobra.Command) {
 	if c.HasSubCommands() {
 		for _, sub := range c.Commands() {

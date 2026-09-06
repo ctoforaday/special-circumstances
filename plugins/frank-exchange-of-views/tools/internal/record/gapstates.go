@@ -3,6 +3,7 @@ package record
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
@@ -20,7 +21,8 @@ func GapStates(run Run) ([]*Gap, error) {
 		recordpb.EventType_EVENT_TYPE_MINT,
 		recordpb.EventType_EVENT_TYPE_REGRADE,
 		recordpb.EventType_EVENT_TYPE_CLOSE,
-		recordpb.EventType_EVENT_TYPE_OPINION)
+		recordpb.EventType_EVENT_TYPE_MOTION,
+		recordpb.EventType_EVENT_TYPE_MOTION_RULE)
 	if err != nil {
 		return nil, err
 	}
@@ -36,7 +38,10 @@ func GapStates(run Run) ([]*Gap, error) {
 			regrades[m.GetGapId()] = append(regrades[m.GetGapId()], m)
 		}
 	}
-	closures := closureStatesOf(evs)
+	closures, unpairedDocket := closureStatesOf(evs)
+	if len(unpairedDocket) > 0 {
+		return nil, fmt.Errorf("record: docket ruling(s) on motion(s) %s have no filing on this record — the gap each settles rides its FILING, so an unpaired ruling would leave a disposed gap reading as open", strings.Join(unpairedDocket, ", "))
+	}
 
 	db, err := openRunForRead(run)
 	if err != nil || db == nil {

@@ -66,7 +66,6 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion fil
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_appeal', 'an appeal of a ruling already made on a motion');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion_rule', 'the bench''s ruling on a filed motion, and whom it binds');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('observe', 'an observation recorded without a claim attached to it');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('opinion', 'the bench ruling on a gap, with the principle applied and the tension acknowledged');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('outcome', 'the run''s terminal act: how it ended and whether the question was answered');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('position', 'a seat''s stated position going into a round');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('proof', 'a script that was RUN, with its hash and exit status — the answer a computation check demands');
@@ -102,6 +101,7 @@ CREATE TABLE "enum_motion_subject" (
   "means" TEXT NOT NULL
 ) STRICT;
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('direction', 'a ruling on a line of inquiry blue proposed; the id is the AVENUE''s own, because the proposal IS the filing');
+INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('docket', 'a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap''s fate');
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('grade', 'you contest a gap''s grade on one dimension');
 INSERT INTO "enum_motion_subject" ("value", "means") VALUES ('petition', 'you ask the bench to intervene — the constitutional short-circuit available to any party seat');
 
@@ -159,6 +159,19 @@ INSERT INTO "enum_direction_ruling" ("value", "means") VALUES ('endorsed', 'wort
 INSERT INTO "enum_direction_ruling" ("value", "means") VALUES ('out_of_scope', 'a real question, but not THIS question');
 INSERT INTO "enum_direction_ruling" ("value", "means") VALUES ('too_thin', 'in scope, but the hypothesis does not carry its budget');
 
+CREATE TABLE "enum_disposition" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL,
+  "closes" INTEGER NOT NULL CHECK ("closes" IN (0, 1))
+) STRICT;
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('amends_prior', 'a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('carried', 'NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes', 0);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_accepted', 'the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_owed_elsewhere', 'a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defect', 'blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
+INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
+
 CREATE TABLE "enum_ruling_binds" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -174,19 +187,6 @@ CREATE TABLE "enum_check_kind" (
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('computation', 'RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind');
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('document', 'reading a shipped artifact settles it — the check is answered by prose that quotes what is there');
 INSERT INTO "enum_check_kind" ("value", "means") VALUES ('source', 'verifying an external source settles it — the claim stands or falls on what the cited material actually says');
-
-CREATE TABLE "enum_disposition" (
-  "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL,
-  "closes" INTEGER NOT NULL CHECK ("closes" IN (0, 1))
-) STRICT;
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('amends_prior', 'a defect found BETWEEN two repairs that each closed clean earlier — REQUIRES supersedes so the lineage is explicit', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('carried', 'NOT a closure: the gap survives to the next round with a stated research direction the coming seat owes', 0);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_accepted', 'the fix costs more than the defect (complexity above likelihood x impact) and the risk is taken KNOWINGLY, with the argument on the record', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('defect_owed_elsewhere', 'a real defect whose fix is owned outside this debate; it leaves here and is not silently dropped', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defect', 'blue argued the finding was wrong and the argument held; nothing was repaired because nothing needed to be', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
-INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
 
 CREATE TABLE "enum_source_text_read" (
   "value" TEXT PRIMARY KEY,
@@ -326,21 +326,43 @@ CREATE TABLE "motion_direction" (
   "avenue_id" TEXT
 ) STRICT;
 
+CREATE TABLE "motion_docket" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "motion"("event_id"),
+  "gap_id" TEXT NOT NULL,
+  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id")
+) STRICT;
+
 CREATE TABLE "motion_rule" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "motion_id" TEXT NOT NULL,
   "subject" TEXT,
-  "opinion" TEXT,
+  "opinion" TEXT NOT NULL,
   "binds" TEXT,
   "grade" TEXT,
   "petition" TEXT,
   "direction" TEXT,
-  CHECK (("grade" IS NOT NULL) + ("petition" IS NOT NULL) + ("direction" IS NOT NULL) <= 1),
+  "ruling_case" TEXT,
+  CHECK (("grade" IS NOT NULL) + ("petition" IS NOT NULL) + ("direction" IS NOT NULL) + ("ruling_case" IS NOT NULL) <= 1),
   FOREIGN KEY ("subject") REFERENCES "enum_motion_subject"("value"),
   FOREIGN KEY ("binds") REFERENCES "enum_ruling_binds"("value"),
   FOREIGN KEY ("grade") REFERENCES "enum_grade_ruling"("value"),
   FOREIGN KEY ("petition") REFERENCES "enum_petition_ruling"("value"),
   FOREIGN KEY ("direction") REFERENCES "enum_direction_ruling"("value")
+) STRICT;
+
+CREATE TABLE "motion_rule_docket" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "motion_rule"("event_id"),
+  "disposition" TEXT NOT NULL,
+  "principle" TEXT NOT NULL,
+  "tension" TEXT NOT NULL,
+  "review_flag" TEXT NOT NULL,
+  "settled" TEXT NOT NULL,
+  "reopens_on" TEXT,
+  "final" INTEGER,
+  CHECK ("final" IS NULL OR "final" IN (0, 1)),
+  CHECK ("reopens_on" IS NOT NULL OR "final" IS NOT NULL),
+  CHECK ("reopens_on" IS NULL OR "final" IS NULL),
+  FOREIGN KEY ("disposition") REFERENCES "enum_disposition"("value")
 ) STRICT;
 
 CREATE TABLE "motion_appeal" (
@@ -454,24 +476,6 @@ CREATE TABLE "spot_check_ids" (
   "ord"      INTEGER NOT NULL,
   "value"    TEXT    NOT NULL,
   PRIMARY KEY ("event_id", "ord")
-) STRICT;
-
-CREATE TABLE "opinion" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "gap_id" TEXT NOT NULL,
-  "disposition" TEXT NOT NULL,
-  "principle" TEXT NOT NULL,
-  "tension" TEXT NOT NULL,
-  "review_flag" TEXT NOT NULL,
-  "rationale" TEXT NOT NULL,
-  "settled" TEXT NOT NULL,
-  "reopens_on" TEXT,
-  "final" INTEGER,
-  CHECK ("final" IS NULL OR "final" IN (0, 1)),
-  CHECK ("reopens_on" IS NOT NULL OR "final" IS NOT NULL),
-  CHECK ("reopens_on" IS NULL OR "final" IS NULL),
-  FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id"),
-  FOREIGN KEY ("disposition") REFERENCES "enum_disposition"("value")
 ) STRICT;
 
 CREATE TABLE "finding" (
@@ -828,14 +832,28 @@ LEFT JOIN "events" ce ON ce."id" = cx."event_id"
 -- The bench's closing ruling, if it made one. A gap can be ruled on many times — carried in one
 -- round and disposed of in the next — so this is the EARLIEST ruling whose disposition closes,
 -- and whether it closes is read off the vocabulary rather than decided here.
+--
+-- TWO HOPS NOW, BECAUSE THE GAP RIDES THE FILING. The bench's disposition was its own event
+-- carrying a gap_id; it is a docket motion's RULING, and the gap is on the motion that asked.
+-- So: the ruling arm gives the disposition, its motion_rule gives the motion id, and the docket
+-- FILING gives the gap. Written here once rather than at each reader, which is what this view is
+-- for — the same join was hand-written at eight readers before motion_state existed.
+--
+-- AND IT HAD TO CHANGE IN THE SAME COMMIT AS THE DELETE. SQLite does not validate a view body at
+-- CREATE, so a view left reading "opinion" after that table went would have applied cleanly and
+-- returned no bench closures at all: every disposed gap reading as undisposed, which is the exact
+-- defect this whole change exists to remove.
 LEFT JOIN (
-  SELECT o."gap_id" AS "gap_id", MIN(o."event_id") AS "event_id"
-  FROM "opinion" o
-  JOIN "enum_disposition" d ON d."value" = o."disposition"
+  SELECT md."gap_id" AS "gap_id", MIN(mr."event_id") AS "event_id"
+  FROM "motion_rule_docket" rd
+  JOIN "motion_rule" mr ON mr."event_id" = rd."event_id"
+  JOIN "motion" mo ON mo."motion_id" = mr."motion_id"
+  JOIN "motion_docket" md ON md."event_id" = mo."event_id"
+  JOIN "enum_disposition" d ON d."value" = rd."disposition"
   WHERE d."closes"
-  GROUP BY o."gap_id"
+  GROUP BY md."gap_id"
 ) bc ON bc."gap_id" = m."gap_id"
-LEFT JOIN "opinion" bo ON bo."event_id" = bc."event_id"
+LEFT JOIN "motion_rule_docket" bo ON bo."event_id" = bc."event_id"
 LEFT JOIN "events" be ON be."id" = bc."event_id";
 
 -- The board's own count, asked once. Every consumer that wants "how many gaps are open" reads this
@@ -917,7 +935,13 @@ SELECT
   fr."grade"                                             AS "grade",
   fr."petition"                                          AS "petition",
   fr."direction"                                         AS "direction",
-  COALESCE(fr."grade", fr."petition", fr."direction")    AS "ruling",
+  -- THE DOCKET ARM IS A TABLE, NOT A COLUMN, and that is why it is joined rather than read.
+  -- Its three siblings are enums and land as columns on "motion_rule"; the bench's is a MESSAGE
+  -- (it carries the principle, the tension and what would reopen it), so its disposition lives
+  -- one table down. Left out of the COALESCE below, "ruling" is NULL for every bench ruling ever
+  -- made and RequireUnruledMotion reads the whole docket as unanswered.
+  rd."disposition"                                       AS "docket",
+  COALESCE(fr."grade", fr."petition", fr."direction", rd."disposition") AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
   fre."round"                                            AS "ruled_round",
   fa."reason"                                            AS "appeal_reason",
@@ -926,6 +950,7 @@ SELECT
 FROM (SELECT "motion_id" FROM "motion_rule" UNION SELECT "motion_id" FROM "motion_appeal") ids
 LEFT JOIN "motion_rule" fr ON fr."event_id" =
   (SELECT MIN(x."event_id") FROM "motion_rule" x WHERE x."motion_id" = ids."motion_id")
+LEFT JOIN "motion_rule_docket" rd ON rd."event_id" = fr."event_id"
 LEFT JOIN "events" fre ON fre."id" = fr."event_id"
 LEFT JOIN "motion_appeal" fa ON fa."event_id" =
   (SELECT MIN(y."event_id") FROM "motion_appeal" y WHERE y."motion_id" = ids."motion_id")
@@ -942,10 +967,13 @@ SELECT
   m."subject"                          AS "subject",
   me."seat_id"                         AS "filed_by",
   me."round"                           AS "filed_round",
-  g."gap_id"                           AS "gap_id",
+  -- THE GAP COMES FROM WHICHEVER FILING ARM CARRIES ONE. A bare read off motion_grade was correct
+  -- while grade was the only subject about a gap; docket is the second.
+  COALESCE(g."gap_id", gd."gap_id")    AS "gap_id",
   a."grade"                            AS "grade_ruling",
   a."petition"                         AS "petition_ruling",
   a."direction"                        AS "direction_ruling",
+  a."docket"                           AS "docket_ruling",
   a."ruled_by"                         AS "ruled_by",
   a."ruled_round"                      AS "ruled_round",
   (a."ruled_by" IS NULL)               AS "unruled",
@@ -954,6 +982,7 @@ SELECT
 FROM "motion" m
 JOIN "events" me ON me."id" = m."event_id"
 LEFT JOIN "motion_grade" g ON g."event_id" = m."event_id"
+LEFT JOIN "motion_docket" gd ON gd."event_id" = m."event_id"
 LEFT JOIN "motion_answers" a ON a."motion_id" = m."motion_id";
 
 -- A LINE OF INQUIRY, whole: proposed by whom, saying what, where its status stands now, and

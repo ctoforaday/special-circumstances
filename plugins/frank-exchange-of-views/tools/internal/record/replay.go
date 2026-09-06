@@ -135,8 +135,8 @@ type Gap struct {
 	// closure arrives as one of two different messages.
 	//
 	// `merge close` writes a Close (a closure_class, an anchor triple, a successor, a
-	// carried-from); `bench opinion` writes an Opinion (a disposition, a principle, a rationale)
-	// and closes the gap when that disposition is not `carried`. The old map-shaped payload let
+	// carried-from); the bench writes a DocketRuling on a motion (a disposition, a principle, what
+	// it settles) and closes the gap when that disposition is not `carried`. The old map-shaped payload let
 	// one field hold either, which is why every reader downstream spells the same question twice —
 	// `Str("closure_class")`, and if that is empty, `Str("disposition")`. Typed, they cannot share
 	// a field, and that duplicated question now has one answer: ClosureReason.
@@ -144,7 +144,7 @@ type Gap struct {
 	// WATCH THE NIL TEST. `g.Closure != nil` used to mean "closed by anything" and now means
 	// "closed by a `close` event". HasClosed is the unchanged answer to "closed at all".
 	Closure        *recordpb.Close
-	BenchClosure   *recordpb.Opinion
+	BenchClosure   *recordpb.DocketRuling
 	Regrades       []*recordpb.Regrade
 	Severity       recordpb.Grade
 	Likelihood     recordpb.Grade
@@ -224,6 +224,32 @@ func (g *Gap) ClosureReason() string {
 		}
 	}
 	return recordpb.Word(g.BenchClosure.GetDisposition())
+}
+
+// DocketGapByMotion indexes each docket motion's gap by the motion's id — the FILING carries the
+// gap, so every reader of a docket RULING has to come back through here to learn what it settled.
+//
+// It is one function rather than a fold repeated at each reader because it was three: the replay,
+// the debate projection and the closure states each recovered the same pairing, and three copies
+// of a join are three chances to disagree about which gap a ruling closed. A caller passes the
+// stream it already holds; a stream without the MOTION events yields an empty index, which is why
+// every caller's typed read asks for MOTION alongside MOTION_RULE.
+func DocketGapByMotion(evs []*Event) map[string]string {
+	out := map[string]string{}
+	for _, e := range evs {
+		f, ok := recordpb.BodyAs[*recordpb.Motion](e)
+		if !ok {
+			continue
+		}
+		d, isDocket := f.GetFiling().(*recordpb.Motion_Docket)
+		if !isDocket {
+			continue
+		}
+		if id := f.GetMotionId(); id != "" {
+			out[id] = d.Docket.GetGapId()
+		}
+	}
+	return out
 }
 
 // benchClosesGap says which dispositions end a gap's life on the board.
@@ -359,6 +385,18 @@ func BoardState(run Run) (*Board, error) {
 	// record.proto, where removing it also removed a read-before-write from the write path.
 	ordered := m.Events
 
+	// THE DOCKET RULING'S GAP RIDES ITS FILING, so the gap it settles has to be known before the
+	// ruling is read — and a ruling CAN be read first.
+	//
+	// The old reason for a pre-pass is gone: replay no longer sorts, and MergedEvents returns
+	// insertion order. But `motion_rule.motion_id` deliberately carries no foreign key (its
+	// referent is subject-dependent, which record.proto argues in place), and recordtest.Seed
+	// inserts in slice order — so nothing at the storage layer refuses a ruling that arrives
+	// before its filing. A single pass that met one would look the gap up, find nothing, and
+	// close nothing: the disposition written, the gap still open, and no error anywhere. That is
+	// the shape this whole change exists to remove, so it is not reintroduced in the replay.
+	docketGap := DocketGapByMotion(ordered)
+
 	// THE SWITCH IS ON THE BODY, NOT ON THE TYPE FIELD. Every arm below reaches straight for a
 	// field the moment it matches, so binding the message and the type in one step removes the
 	// pair that could disagree — an event whose `type` says mint and whose body is a Close cannot
@@ -428,25 +466,40 @@ func BoardState(run Run) (*Board, error) {
 			// while ClosedBy said bench — mixed attribution, found by the consistency oracle on
 			// the bench-then-red seed (the reverse order of the measured 2026-08-22 incident).
 			g.ClosedByBench = false
-		case *recordpb.Opinion:
+		case *recordpb.MotionRule:
 			// THE BENCH'S RULINGS REACH RED'S BOARD.
 			//
-			// Bench dispositions lived only in the judge's event stream, so the
-			// projection over-reported open gaps by the number of bench closures after
-			// every sitting and diverged further each round. The 2026-07-18 run's
-			// red-merge-r3 measured it: the render said 9 open / 9 closed against a
-			// hand-written board of 3 open / 15 closed, the difference being exactly the
-			// six gaps judge-r2 had closed. Nothing carried them across, and red could
-			// not close them itself without corrupting its own closure history.
-			g := b.Gaps[m.GetGapId()]
-			if g == nil {
-				return nil, missingGap("opinion", e, m.GetGapId())
+			// Bench dispositions lived only in the judge's event stream, so the projection
+			// over-reported open gaps by the number of bench closures after every sitting and
+			// diverged further each round. The 2026-07-18 run's red-merge-r3 measured it: the
+			// render said 9 open / 9 closed against a hand-written board of 3 open / 15 closed,
+			// the difference being exactly the six gaps judge-r2 had closed. Nothing carried them
+			// across, and red could not close them itself without corrupting its own closure
+			// history.
+			//
+			// It is a MOTION RULING now rather than its own event, so the gap arrives through the
+			// index above rather than off the body.
+			d, isDocket := m.GetRuling().(*recordpb.MotionRule_Docket)
+			if !isDocket {
+				continue // grade, petition and direction rulings settle no gap
 			}
-			if !benchClosesGap(m.GetDisposition()) {
+			gapID, known := docketGap[m.GetMotionId()]
+			if !known {
+				// A RULING WHOSE FILING IS NOT ON THE RECORD. RequireMotionSubjectRef refuses this
+				// at the write, so reaching it means the record was assembled some other way —
+				// and dropping it silently is what let eight judicial closures vanish from a
+				// board that went on reporting them open.
+				return nil, missingGap("motion docket rule", e, "the motion "+m.GetMotionId()+" it answers")
+			}
+			g := b.Gaps[gapID]
+			if g == nil {
+				return nil, missingGap("motion docket rule", e, gapID)
+			}
+			if !benchClosesGap(d.Docket.GetDisposition()) {
 				continue
 			}
 			g.Open = false
-			g.BenchClosure = m
+			g.BenchClosure = d.Docket
 			g.ClosedRound = int(e.GetRound())
 			g.HasClosed = true
 			g.ClosedByBench = true

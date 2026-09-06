@@ -62,7 +62,7 @@ const DispositionCarried = "carried"
 
 // Dispositions is HOW A GAP ENDED — one vocabulary for both closing verbs (#342).
 //
-// `merge close` (red closes on verified repair) and `bench opinion` (the bench closes on
+// `merge close` (red closes on verified repair) and `motion docket rule` (the bench closes on
 // judgement) are different acts with different evidence bars, and they stay different verbs.
 // What they must not have is different WORDS for the same outcome: before this, a reader had
 // to know which verb produced a closure before it could interpret the word, and four surfaces
@@ -299,11 +299,6 @@ var EnumFields = map[string][]EnumField{
 		// side effect. required.go owns requiredness.
 		Optional: true,
 		Why:      "the class is HOW the gap ended, and every downstream reader interprets it — the closure index, the repair_regression denominator, and the successor invariant that fires on repaired_with_regression alone. An unrecognized class lands in no bucket and the gap reads as closed for no stated reason",
-	}},
-	"opinion": {{
-		Key: "disposition", Flag: flags.As, Values: Dispositions,
-		Optional: true,
-		Why:      "the bench's disposition both RULES and ends the gap; `carried` is the one value that defers instead of closing, and the replay keys the gap's whole fate on that distinction. A near-miss spelling silently carried a gap the bench meant to close, or closed one it meant to carry",
 	}},
 	"mint": {
 		{

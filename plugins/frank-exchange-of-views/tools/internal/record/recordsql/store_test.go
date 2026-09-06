@@ -369,6 +369,10 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 		MotionId: proto.String("M1"),
 		Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 		Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
+		// REQUIRED SINCE THE DOCKET RULING PUT THE BENCH'S ARGUMENT ON THIS FIELD. `prose()` has
+		// always refused an empty `--reason` at the CLI, so every ruling a seat wrote carried one;
+		// this fixture wrote through the SQL path, which had no such rule until the annotation.
+		Opinion: proto.String("the proposed grade stands"),
 	})); err != nil {
 		t.Fatal(err)
 	}
@@ -411,15 +415,30 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 			})); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_OPINION, &recordpb.Opinion{
-				GapId:       proto.String("R1-1"),
-				Disposition: c.as.Enum(),
-				Principle:   proto.String("correctness over economy"),
-				Tension:     proto.String("the repair costs a round"),
-				ReviewFlag:  proto.String("no"),
-				Settled:     proto.String("the claim as it stood may not be re-asserted"),
-				Final:       proto.Bool(true),
-				Rationale:   proto.String("stated"),
+			// TWO ROWS, BECAUSE THE GAP RIDES THE FILING. The `gap` view joins the ruling
+			// back to its docket motion to learn which gap was disposed of, so a fixture
+			// that inserts only the ruling leaves the join empty — and an empty join reports
+			// the gap still open, which is exactly the wrong answer this test exists to catch.
+			if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+				MotionId: proto.String("M1"),
+				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+				Basis:    proto.String("red cannot settle this one"),
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}},
+			})); err != nil {
+				t.Fatalf("the record refused a docket motion: %v", err)
+			}
+			if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
+				MotionId: proto.String("M1"),
+				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+				Opinion:  proto.String("stated"),
+				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+					Disposition: c.as.Enum(),
+					Principle:   proto.String("correctness over economy"),
+					Tension:     proto.String("the repair costs a round"),
+					ReviewFlag:  proto.String("no"),
+					Settled:     proto.String("the claim as it stood may not be re-asserted"),
+					Final:       proto.Bool(true),
+				}},
 			})); err != nil {
 				t.Fatalf("the record refused a disposition the bench is instructed to use: %v", err)
 			}
@@ -551,16 +570,15 @@ func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			Prose:        proto.String("closing a gap nobody minted"),
 		}, recordpb.EventType_EVENT_TYPE_CLOSE},
-		{"ruled on", &recordpb.Opinion{
-			GapId:       proto.String("R9-9"),
-			Disposition: recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED.Enum(),
-			Principle:   proto.String("p"),
-			Tension:     proto.String("t"),
-			ReviewFlag:  proto.String("no"),
-			Settled:     proto.String("the claim as it stood may not be re-asserted"),
-			Final:       proto.Bool(true),
-			Rationale:   proto.String("r"),
-		}, recordpb.EventType_EVENT_TYPE_OPINION},
+		// PUT TO THE BENCH. The bench's disposition names no gap of its own any more — the gap
+		// rides the FILING — so the foreign key that used to sit on the ruling now sits here,
+		// which is the only place it can be checked at the write.
+		{"docketed to the bench", &recordpb.Motion{
+			MotionId: proto.String("M1"),
+			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+			Basis:    proto.String("escalating a gap nobody minted"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R9-9")}},
+		}, recordpb.EventType_EVENT_TYPE_MOTION},
 		{"contested by a grade motion", &recordpb.Motion{
 			MotionId: proto.String("M1"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),

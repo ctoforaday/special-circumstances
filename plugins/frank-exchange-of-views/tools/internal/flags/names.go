@@ -244,9 +244,9 @@ const (
 	DPI   = "dpi"
 	Force = "force"
 	// OCR sits on `fetch`, where it is ON by default: a PDF with no text layer is read
-	// automatically rather than handed back as a dead end with two more commands a seat has
-	// to already know about. --ocr=false is the operator saying "cache it, do not spend a
-	// model on it".
+	// automatically — by the local engine, in seconds — rather than handed back as a dead
+	// end with two more commands a seat has to already know about. --ocr=false is the
+	// operator saying "cache it unread".
 	OCR = "ocr"
 
 	// The operator `scorecard` command: a chair's in-run self-read.

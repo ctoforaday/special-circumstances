@@ -68,7 +68,7 @@ func closedGap(c *recordpb.Close) *record.Gap {
 // benchGap builds a gap the BENCH disposed of: a bench body, no `close` body — the shape that
 // can never carry an anchor, and the reason this kernel takes the board.
 func benchGap() *record.Gap {
-	return &record.Gap{HasClosed: true, BenchClosure: &recordpb.Opinion{}, ClosedByBench: true}
+	return &record.Gap{HasClosed: true, BenchClosure: &recordpb.DocketRuling{}, ClosedByBench: true}
 }
 
 func boardOf(gaps map[string]*record.Gap, order ...string) *record.Board {
@@ -113,7 +113,7 @@ func TestBenchDispositionsLeaveBothCounts(t *testing.T) {
 // genuinely anchored repair goes unmeasured.
 func TestABlueCloseTheBenchLaterRuledOnStaysCounted(t *testing.T) {
 	g := closedGap(&recordpb.Close{AnchorSeat: proto.String("L1"), AnchorTool: proto.String("grep"), AnchorTarget: proto.String("x")})
-	g.BenchClosure = &recordpb.Opinion{}
+	g.BenchClosure = &recordpb.DocketRuling{}
 	g.ClosedByBench = true // the LAST closer was the bench; the closure is still blue's
 
 	a, total := ComputeAnchoredClosures(boardOf(map[string]*record.Gap{"G1": g}, "G1"))

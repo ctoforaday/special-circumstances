@@ -282,9 +282,26 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
-		recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED), Principle: proto.String("correctness"), Tension: proto.String("cost"), ReviewFlag: proto.String("false"), Settled: proto.String("the claim as it stood may not be re-asserted"),
-			Final:     proto.Bool(true),
-			Rationale: proto.String("needs a probe")}),
+		// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and the transcript's "R1-1: carried"
+		// line is a JOIN across both events: the gap is on the filing, the word on the ruling.
+		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{
+			MotionId: proto.String("M2"),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Basis:    proto.String("red cannot settle R1-1"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}},
+		}),
+		recordtest.Event(t, "judge-r1", 1, &recordpb.MotionRule{
+			MotionId: proto.String("M2"),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Opinion:  proto.String("needs a probe"),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+				Principle:   proto.String("correctness"), Tension: proto.String("cost"),
+				ReviewFlag: proto.String("false"),
+				Settled:    proto.String("the claim as it stood may not be re-asserted"),
+				ReopensOn:  proto.String("the probe"),
+			}},
+		}),
 		// A petition is a MOTION now — the retired `petition` event type has no arm in the schema,
 		// so the fixture could only ever have described a state nothing writes.
 		recordtest.Event(t, "blue-r1", 1, &recordpb.Motion{
@@ -683,7 +700,7 @@ func TestTheBenchsOwnClosuresAreNotBluesUnauditedRepairs(t *testing.T) {
 			// Blue repaired this one and filed no receipt: a real missing manifest row.
 			"R1-1": {ID: "R1-1", HasClosed: true, Closure: &recordpb.Close{}},
 			// The bench disposed of this one. Nobody repaired it, so no receipt is owed.
-			"R1-2": {ID: "R1-2", HasClosed: true, BenchClosure: &recordpb.Opinion{}, ClosedByBench: true},
+			"R1-2": {ID: "R1-2", HasClosed: true, BenchClosure: &recordpb.DocketRuling{}, ClosedByBench: true},
 		},
 	}
 	got := correctnessManifest(board)
@@ -704,7 +721,7 @@ func TestTheBenchsOwnClosuresAreNotBluesUnauditedRepairs(t *testing.T) {
 // the one section whose stated purpose is to report exactly this.
 func TestABlueRepairTheBenchLaterRuledOnIsStillCharged(t *testing.T) {
 	g := &record.Gap{ID: "R1-1", HasClosed: true, Closure: &recordpb.Close{}}
-	g.BenchClosure = &recordpb.Opinion{}
+	g.BenchClosure = &recordpb.DocketRuling{}
 	g.ClosedByBench = true
 
 	got := correctnessManifest(&record.Board{GapOrder: []string{"R1-1"}, Gaps: map[string]*record.Gap{"R1-1": g}})

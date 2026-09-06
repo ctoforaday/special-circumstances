@@ -17,7 +17,6 @@ const role = "bench"
 func Verbs() []*cobra.Command {
 	return seat.RoleVerbs(role,
 		seat.Register(),
-		newOpinion(),
 		newHalt(),
 		newCertify(),
 		newDeclare(),

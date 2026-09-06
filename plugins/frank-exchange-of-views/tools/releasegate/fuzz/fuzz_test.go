@@ -1394,8 +1394,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// Carried is exactly the disposition that reopens: the gap stays live and owes
 				// blue a direction, so what reopens it is blue taking that direction. Driving it
 				// here fixes the coverage hole and the contradiction in one move.
-				_, _ = r.exec("opinion", "--seat-id", seatID, "--id", id, "--as", "carried",
-					"--principle", "thoroughness", "--tension", "cost", "--review-flag", "false", "--settled", "the proposition this ruling bars",
+				r.benchDisposes(seatID, id, "carried",
 					"--reopens-on", "blue pursuing the stated direction and reporting what it found",
 					"--reason", "fuzz: carried with a stated direction for "+id)
 			}
@@ -1404,8 +1403,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// closure vocabulary now, and the sweep must reach all of it — bench opinion
 				// had driven exactly one closing word.
 				disp = pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere", "amends_prior"})
-				_, _ = r.exec("opinion", "--seat-id", seatID, "--id", id, "--as", disp,
-					"--principle", "correctness", "--tension", "cost", "--review-flag", "false", "--settled", "the proposition this ruling bars", "--final", "--reason", "opinion-rationale-for-"+id)
+				r.benchDisposes(seatID, id, disp,
+					"--final", "--reason", "docket-rationale-for-"+id)
 			}
 			res = append(res, map[string]any{"gap_id": id, "resolution": disp, "reason": "fuzz"})
 		}
@@ -1564,12 +1563,13 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// `fetch` any seat uses. Driving it here is what makes the cache path — miss,
 				// store, hit — real in the fuzz rather than unit-tested only.
 				//
-				// --ocr=false ALWAYS, AND THAT IS NOT A COVERAGE DODGE. fetch reads a PDF with no
-				// text layer by rendering its pages and asking a MODEL — the one path in this tool
-				// that leaves the machine. A sweep of 40 debates driving 418 fetches must never do
-				// that, and the flag is exactly how a caller says so, so passing it here drives the
-				// refusal rather than merely satisfying the gate that every flag be exercised. The
-				// default (on) belongs to a seat reading one real document, not to a fuzzer.
+				// --ocr=false ALWAYS, AND THAT IS NOT A COVERAGE DODGE. The reading is local now
+				// (plans/local-ocr.md) — no model, no network — but this fuzz binary is a default
+				// build whose OCR engine is the stub, and its synthetic sources are not scanned
+				// PDFs, so "on" would exercise nothing while making the sweep's output depend on
+				// which build variant ran it. Passing the flag drives the stated-refusal path and
+				// satisfies the gate that every flag be exercised; the default (on) belongs to a
+				// seat reading one real document, not to a fuzzer.
 				_, _ = r.exec("fetch", "--seat-id", seatID, "--url", sourceURL("/"+seatID), "--ocr=false")
 				r.extras("lens", seatID, nil)
 			}
@@ -2494,7 +2494,7 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // emitting one fails loudly (the old gate guarded only cite/finding). `halt` terminates the run
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
-	"closing", "position", "opinion", "regrade", "mint", "close",
+	"closing", "position", "regrade", "mint", "close",
 	"cite", "verify", "finding", "avenue", "reproduce", "log", "revision", "retire",
 	"manifest_row", "verdict", "spot_check", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
@@ -2638,7 +2638,7 @@ var dialecticProseKey = map[string]string{
 	// matched, so this gate was inert for most of the types it claims to cover, reporting "the
 	// report renders every recorded prose" over rules that could not fire. fieldStr makes the miss
 	// loud, which is how these were found.
-	"position": "text", "closing": "text", "opinion": "rationale",
+	"position": "text", "closing": "text",
 	// Motions: the ASK and the ANSWER, on one id. `petition-rule` alone used to be the half-dialog — the
 	// reader got the bench's ruling with no question attached.
 	// The board.
@@ -3874,4 +3874,85 @@ func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
 	if first != "[deadlocked lanes rounds runDir verdict]" {
 		t.Errorf("sortedKeys = %s, want sorted order", first)
 	}
+}
+
+// mergeFilerFor names the MERGE seat that escalates a gap to the bench in the sitting the given
+// judge seat is holding. The merge seat for round N acts before the bench does, so it is already
+// registered by the time this is called; `judge-terminal` follows the last round, so it takes the
+// highest merge seat on the record.
+//
+// It falls back to the judge's own id rather than skipping the drive: a fallback that returned ""
+// would silently stop exercising both verbs, which is the failure this whole helper was rewritten
+// to stop reporting as coverage.
+func (r *runner) mergeFilerFor(judgeSeatID string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if n := regexp.MustCompile(`^judge-r(\d+)$`).FindStringSubmatch(judgeSeatID); n != nil {
+		if id := "red-merge-r" + n[1]; r.registered[id] {
+			return id
+		}
+	}
+	best, bestN := "", -1
+	for id := range r.registered {
+		m := regexp.MustCompile(`^red-merge-r(\d+)$`).FindStringSubmatch(id)
+		if m == nil {
+			continue
+		}
+		if n, _ := strconv.Atoi(m[1]); n > bestN {
+			best, bestN = id, n
+		}
+	}
+	if best != "" {
+		return best
+	}
+	return judgeSeatID
+}
+
+// benchDisposes puts a gap before the bench and rules it, which is TWO acts now.
+//
+// IT WAS ONE, and the difference is the point of #681: `bench opinion --id <gap>` needed only a
+// gap, so the disposition joined to nothing and nothing could ask whether a gap that reached the
+// bench was ever answered. A ruling names the MOTION; the gap rides the filing.
+//
+// THE FILING'S RESULT IS READ RATHER THAN DISCARDED. Both halves used to be `_, _ = r.exec(...)`.
+// noteExec records a refusal either way, so the run was not blind — but the id is needed here, and
+// a filing that failed would otherwise be followed by a ruling naming an empty motion, which
+// refuses for a second reason and buries the first. Returning early leaves ONE refusal in
+// execFailWhy: the one that actually happened.
+func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...string) {
+	// THE FILER IS NOT THE BENCH. Both halves ran under the judge's seat id, so the entire
+	// release-gate coverage of both docket verbs was 53 runs of the forum putting a question to
+	// itself and then answering it — the flow seatprobe's own board declares nonsensical
+	// ("the gavel problem in miniature"). The seat->verb graph said so in plain text and read as
+	// coverage: `motion docket file <- judge-r2, judge-r3, judge-r4, judge-terminal`.
+	//
+	// What that hid: gavel-scoping `file` the way `rule` is scoped would take the escalation route
+	// away from red and blue — the whole capability — and this gate would have stayed green,
+	// because the only seat it filed from is the one that keeps the verb either way.
+	filer := r.mergeFilerFor(seatID)
+	out, err := r.exec("motion", "docket", "file", "--json", "--seat-id", filer, "--id", gapID,
+		"--reason", "fuzz: "+gapID+" is contested and is the bench's to settle")
+	if err != nil {
+		return // recorded by noteExec under `motion docket file`
+	}
+	// THE RESULT IS NESTED IN THE ENVELOPE. `seat.Emit` writes
+	// {"verb":…,"role":…,"ok":true,"result":{…}}, and reading `motion_id` at the top level
+	// unmarshals cleanly into a zero — no error, no id, and the ruling below silently skipped.
+	//
+	// THAT IS EXACTLY WHAT HAPPENED, and the coverage gate is what said so: `motion docket file`
+	// ran 113 times across 40 runs while `motion docket rule` was never invoked once, reported as
+	// "false green — add a drive, or an exemption with its reason". A helper that returns early on
+	// a parse it got wrong looks identical to one whose precondition legitimately did not hold.
+	var filed struct {
+		Result struct {
+			MotionID string `json:"motion_id"`
+		} `json:"result"`
+	}
+	if json.Unmarshal([]byte(out), &filed) != nil || filed.Result.MotionID == "" {
+		return
+	}
+	args := append([]string{"motion", "docket", "rule", "--seat-id", seatID, "--id", filed.Result.MotionID,
+		"--as", disposition, "--principle", "correctness", "--tension", "cost",
+		"--review-flag", "false", "--settled", "the proposition this ruling bars"}, extra...)
+	_, _ = r.exec(args...)
 }
