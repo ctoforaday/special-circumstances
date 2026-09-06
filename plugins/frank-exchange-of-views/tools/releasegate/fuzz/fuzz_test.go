@@ -148,7 +148,10 @@ type runner struct {
 	runHandle  record.Run
 	rng        *lockedRand
 	registered map[string]bool
-	classMade  bool
+	// verbatimGaps: gap id -> the fix_new text blue applied verbatim from red's own mint. The
+	// estoppel drive reads it to build a --quote that red's OWN prescription must refuse.
+	verbatimGaps map[string]string
+	classMade    bool
 	// #277: the gap ids minted with --check-kind computation. Such a gap CANNOT be closed
 	// until a proof answers it, so closeGap satisfies it first — otherwise the fuzzer
 	// accumulates unclosable gaps and every open-gap-scaled drive grows with them (measured:
@@ -255,6 +258,31 @@ func (c *cmd) on(pct int, flag, val string) *cmd {
 	return c
 }
 func (c *cmd) run() (string, error) { return c.r.exec(c.args...) }
+
+// noteVerbatimGap remembers a gap whose prescribed text blue has just applied VERBATIM, and the
+// text itself. That pair is the estoppel precondition: red minting a fresh gap whose --quote
+// overlaps this text is red attacking its own prescription, and the tool refuses it.
+//
+// It is carried here rather than re-derived because the fuzz's red drive has to choose the quote
+// BEFORE it can know whether one applies, and EstoppelConflict is not exported to this package.
+func (r *runner) noteVerbatimGap(gapID, fixNew string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.verbatimGaps == nil {
+		r.verbatimGaps = map[string]string{}
+	}
+	r.verbatimGaps[gapID] = fixNew
+}
+
+// aVerbatimGap returns one gap/text pair blue applied verbatim, or "" if none has landed yet.
+func (r *runner) aVerbatimGap() (string, string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for id, fn := range r.verbatimGaps {
+		return id, fn // map order is fine: any applied pair estops equally
+	}
+	return "", ""
+}
 
 // noteApplyMiss records WHY the verbatim-apply branch declined, so the estoppel precondition's
 // count of zero arrives with a cause rather than inviting the reader to guess one.
@@ -667,6 +695,63 @@ func (r *runner) mint(seatID string) string {
 	return env.Result.GapID
 }
 
+// collapseWS mirrors record.collapse, which is unexported: the guard measures its threshold on
+// whitespace-collapsed text, so a length taken any other way would pick a different sentence.
+func collapseWS(s string) string { return strings.Join(strings.Fields(s), " ") }
+
+// mintEstopped mints a gap whose --quote is text blue applied VERBATIM from red's own --fix-new,
+// with no --supersedes naming the gap that prescribed it. That is exactly the shape merge/mint.go
+// refuses, and the refusal is what writes the tool's `log --type estoppel` entry.
+//
+// IT EXPECTS TO FAIL, and the failure is the drive. `exec` records the refusal through noteExec
+// either way, so a run where the guard STOPPED firing shows up as estoppels=0 with the applies
+// still counted — the two numbers together say whether the guard is quiet or gone. A drive that
+// merely called `log --type estoppel` would have satisfied the gate while proving neither.
+func (r *runner) mintEstopped(seatID string) {
+	gapID, fixNew := r.aVerbatimGap()
+	if gapID == "" {
+		return // nothing has been applied verbatim yet; the precondition genuinely does not hold
+	}
+	// THE QUOTE IS THE WHOLE SENTENCE, AND IT HAS TO BE — the guard's skip is an AND:
+	//
+	//   if len(prescribed) < minEstoppelOverlap && len(quote) < minEstoppelOverlap { continue }
+	//
+	// minEstoppelOverlap is 40, and the prescription this fuzz swaps ("climbing sharply") is 16,
+	// so a mint quoting the prescription ALONE leaves both sides short and the guard declines by
+	// design — a short span can legitimately occur in text red never wrote. Quoting the sentence
+	// that CONTAINS it puts one side over the threshold, which is the real shape: red raising a
+	// finding against a passage whose substance is its own prescription.
+	//
+	// This is why the seeded report sentence is longer than it needs to be for the swap. At its
+	// old length ("The cost is rising over time.", 29 chars) NO span of the fixture reached 40,
+	// so the estoppel guard was unreachable from this sweep no matter what was minted — and
+	// `verbatimApplied` counted the precondition happily for the whole time.
+	cur, rerr := reportproj.RenderFromRecord(r.run())
+	if rerr != nil {
+		return
+	}
+	sentence := ""
+	for _, line := range strings.Split(string(cur), "\n") {
+		if strings.Contains(line, fixNew) && len(collapseWS(line)) >= 40 {
+			sentence = strings.TrimSpace(line)
+			break
+		}
+	}
+	if sentence == "" {
+		return // the applied text is no longer on the page, or no line around it is long enough
+	}
+	_, err := r.exec("mint", "--seat-id", seatID, "--class", "fuzzcls",
+		"--problem", "fuzz: raising a defect against text I prescribed", "--check-kind", "document",
+		"--check", "acc", "--fix", "reword it", "--likelihood", r.g(), "--impact", r.g(),
+		"--quote", sentence,
+		"--reason", "fuzz: estoppel probe — this quotes red's own prescription on "+gapID)
+	// THE REFUSAL IS NOT COUNTED HERE. `estoppels` is read off the RECORD in the walk below,
+	// where the tool's own `log --type estoppel` entry either exists or does not — a driver that
+	// counted its own error would report the guard as firing on any refusal at all, including one
+	// for a quote that simply was not on the page.
+	_ = err
+}
+
 // someFinding returns a random lens finding label on the record, or "" if none — feeds mint's
 // --found-by with a real TOOL-assigned label (L{role}-F{N}) rather than a fabricated one.
 func (r *runner) someFinding() string {
@@ -941,9 +1026,24 @@ func (r *runner) extras(role, seatID string, open []string) {
 	// nobody ships. It also left `bench friction --none` never passed across 60 runs: the bench
 	// sits rarely (5 frictions in the whole sweep), and 30% of rarely is a path the coverage gate
 	// reports as missing while the drive is right there.
-	if r.coin(60) {
+	// EVERY TYPE A SEAT MAY FILE, not two of them. This was a coin over `defect`/`nominal`, so
+	// `request` and `friction` were never once driven across the whole sweep — and `friction` is
+	// the one that used to BE a verb: `bench friction --none` was driven until the run-channels
+	// rename folded it into `log --type`, and the drive did not follow. The gate reported both as
+	// undriven enum values for however long that was, on a surface that only runs at a tag.
+	//
+	// `estoppel` is NOT here and its absence is a rule, not a gap: the enum's own text says it is
+	// recorded by the TOOL, not filed by a seat. Driving it from a seat would manufacture a
+	// refusal that never happened and teach the sweep an act the design forbids. It is driven
+	// where it is actually produced — see the estoppel scenario in blueRespondTo/mint.
+	switch pick(r.rng, []string{"defect", "defect", "defect", "nominal", "nominal", "request", "friction"}) {
+	case "defect":
 		r.do("log", seatID).set("--type", "defect").set("--reason", "fuzz defect from "+seatID).run()
-	} else {
+	case "request":
+		r.do("log", seatID).set("--type", "request").set("--reason", "fuzz: "+seatID+" wanted an act that is on no surface").run()
+	case "friction":
+		r.do("log", seatID).set("--type", "friction").set("--reason", "fuzz: the work was impeded for "+seatID+", noted without a claim that it is actionable").run()
+	default:
 		r.do("log", seatID).set("--type", "nominal").set("--reason", "fuzz: nothing blocked "+seatID).run()
 	}
 	// line of inquiry carries an optional --method; feed it sometimes so that flag is exercised too.
@@ -1079,14 +1179,26 @@ func (r *runner) extras(role, seatID string, open []string) {
 			if r.coin(50) {
 				url = sourceURL("/" + seatID)
 			}
-			r.do("cite", seatID).
+			// HOW MUCH OF IT WAS READ, and all three answers. The flag was never passed at all,
+			// so every citation this sweep ever wrote took the DEFAULT — `unread` — and the two
+			// stronger readings were unreachable. That is the worst shape for this particular
+			// field: `leaf` is the only value that licenses a claim about what a source SAYS, so
+			// the sweep exercised the citation axis exclusively through the one reading that
+			// licenses nothing.
+			//
+			// Omitting the flag stays in the rotation, because the DEFAULT is a distinct path
+			// from passing `unread` explicitly and it is the one a real seat hits most.
+			cite := r.do("cite", seatID).
 				set("--quote", "§ fuzz").
 				set("--url", url).
 				set("--title", "fuzz source "+seatID).
 				on(50, "--quote", "fuzz cited claim "+seatID).
 				on(40, "--key", fmt.Sprintf("C%d", 1+r.rng.Intn(2))).
-				on(50, "--reason", "fuzz: why this source backs the claim").
-				run()
+				on(50, "--reason", "fuzz: why this source backs the claim")
+			if r.coin(75) {
+				cite = cite.set("--source-text", pick(r.rng, []string{"leaf", "summary_only", "unread"}))
+			}
+			cite.run()
 		})
 		// An UNREACHABLE source is an unusable citation: the cite must be REJECTED and the failure
 		// auto-logged as friction. Driving it here proves the reject path never wedges the run.
@@ -1273,6 +1385,14 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		for range fresh {
 			r.mint(seatID)
 		}
+		// THE ESTOPPEL GUARD, DRIVEN WHERE IT IS ACTUALLY PRODUCED.
+		//
+		// `log --type estoppel` is written by the TOOL, never by a seat, so the coverage gate's
+		// "never driven" on it could not be answered by a `log` call — that would have recorded a
+		// refusal that never happened. This produces the real one: red mints a fresh gap against
+		// the very text it prescribed and blue applied verbatim, which is red attacking its own
+		// words, and the tool refuses and logs it.
+		r.maybe(35, func() { r.mintEstopped(seatID) })
 
 		// RED'S PER-LINE SUPPORT VERDICT USED TO BE DRIVEN HERE, before the round verdict,
 		// because `verdict --as PASS` was refused while any line was unvoted. Both the verb and
@@ -1628,6 +1748,10 @@ type outcome struct {
 	// applyMisses is why it did not, by cause — carried out of the run so a ZERO above arrives
 	// with its explanation instead of inviting one.
 	applyMisses map[string]int
+	// estoppels is the TOOL's own `log --type estoppel` entries: a mint refused against text
+	// blue had applied verbatim from red's prescription. Read off the record, never from the
+	// driver, so it distinguishes "the guard never fired" from "the guard is gone".
+	estoppels int
 }
 
 // installAgent wires r as the seat backend on vm: it parses the seat id from each agent() prompt
@@ -1908,7 +2032,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// The trailing sentence is the EDIT TARGET: `blue edit` swaps it between two fixed
 	// phrasings, so every round has a valid unique span to replace whichever way the last
 	// edit left it, while the anchor quote above stays untouched for findings and cites.
-	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time.\n"), 0o644)
+	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"), 0o644)
 	// THE RUN DECLARES ITS CLASS VOCABULARY, because a real run does. The fuzz used to be exempt
 	// by accident: no registry staged meant `validateClass` accepted every slug, so the fuzz drove
 	// `mint` for its whole life without ever exercising the check the flag's help describes. When
@@ -2436,6 +2560,13 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 			if t.GetFixBasis() == "verified" {
 				res.verifiedBasis++
 			}
+		case *recordpb.Log:
+			// SOURCE IS CHECKED, NOT JUST TYPE. An estoppel entry a SEAT filed is a seat claiming
+			// the tool refused it; only the tool's own is evidence the guard ran.
+			if t.GetType() == recordpb.LogType_LOG_TYPE_ESTOPPEL &&
+				t.GetSource() == recordpb.LogSource_LOG_SOURCE_TOOL {
+				res.estoppels++
+			}
 		}
 	}
 	if ents, err := os.ReadDir(filepath.Join(runDir, "cache")); err == nil {
@@ -2916,6 +3047,7 @@ func TestFuzzDebate(t *testing.T) {
 	editAnswers := 0                // #267: blue_edit events that carried the provenance key
 	verifiedBasis := 0              // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
 	verbatimApplied := 0            // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
+	estoppels := 0                  // the TOOL's own refusals of a mint against text blue applied verbatim
 	applyMisses := map[string]int{} // and why it did not, by cause — a bare 0 above named none of them
 
 	for i := 0; i < n; i++ {
@@ -2961,6 +3093,7 @@ func TestFuzzDebate(t *testing.T) {
 			editAnswers += o.editAnswers
 			verifiedBasis += o.verifiedBasis
 			verbatimApplied += o.verbatimApplied
+			estoppels += o.estoppels
 			for why, n := range o.applyMisses {
 				applyMisses[why] += n
 			}
@@ -2987,8 +3120,8 @@ func TestFuzzDebate(t *testing.T) {
 		sort.Strings(causes)
 		misses = "\n  verbatim-apply declined: " + strings.Join(causes, "\n                          ")
 	}
-	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim%s",
-		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, misses)
+	t.Logf("fuzzed %d debate runs · %d failed · verdicts=%v · rounds=%v\n  dialectic events emitted: %v\n  citation axis: %d anchors spliced · %d sources cached\n  provenance: %d of %d blue_edit ops carried --answers · %d of %d gaps earned fix_basis=verified · %d edits applied a proposal verbatim · %d estoppel refusals%s",
+		completed, len(failures), verdicts, roundHist, dcov, citeAnchors, cacheFiles, editAnswers, dcov["blue_edit"], verifiedBasis, dcov["mint"], verbatimApplied, estoppels, misses)
 	// FULL-SURFACE COVERAGE GATE. A green fuzz that never drove a verb is a false green (the lens
 	// stub emitted neither cite nor finding for the whole life of PR-1, unexercised end to end).
 	// Assert EVERY event-emitting seat verb fired at least once across the run set — so a
@@ -3046,6 +3179,16 @@ func TestFuzzDebate(t *testing.T) {
 		}
 		if verbatimApplied == 0 {
 			t.Errorf("fuzz recorded ZERO verbatim applications across %d runs — nothing ever estopped red, so the stage-4 guard is unexercised (false green)", completed)
+		}
+		// AND THE GUARD ITSELF FIRED, which the line above only establishes the PRECONDITION for.
+		// Verbatim applications were counted for the whole life of this gate while the estoppel
+		// path was never once reached: red never minted against the text blue had applied, so the
+		// refusal that writes `log --type estoppel` had no way to happen and the enum value was
+		// reported as undriven — for however long, on a gate that only runs at a tag.
+		if estoppels == 0 {
+			t.Errorf("fuzz recorded ZERO tool estoppel refusals across %d runs (with %d verbatim applications) — "+
+				"red never minted against text it had prescribed and blue had applied, so merge/mint.go's estoppel guard "+
+				"is unexercised and `log --type estoppel` is unreachable (false green)", completed, verbatimApplied)
 		}
 	}
 	if !measured {
@@ -3421,11 +3564,30 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 				case !strings.Contains(string(cur), fo):
 					r.noteApplyMiss("the proposed span is no longer in the report (an earlier edit moved it)")
 				default:
-					if _, err := r.do("edit", seatID).set("--quote", fo).set("--new", fn).
-						set("--answers", id).set("--reason", "fuzz: applying red's proposed text verbatim").run(); err != nil {
+					// TWO WAYS TO APPLY THE SAME PROPOSAL, and the sweep only ever drove one.
+					//
+					// `--accept` is the whole point of the flag: the tool reads --quote and --new
+					// off the gap's own mint, so blue accepts red's text WITHOUT retyping it.
+					// Retyping is the path that can silently diverge — a seat that mistypes one
+					// character has authored an edit while claiming to have accepted one — which
+					// is why the flag exists and why leaving it undriven mattered.
+					//
+					// Both arms stay. They are different write paths: `--accept` is refused when
+					// red prescribed no concrete text, and the explicit arm is what a seat uses
+					// when it is applying something red did NOT prescribe verbatim.
+					edit := r.do("edit", seatID).set("--answers", id)
+					if r.coin(50) {
+						edit = edit.bare("--accept").
+							set("--reason", "fuzz: accepting red's prescribed fix on "+id+" exactly as recorded")
+					} else {
+						edit = edit.set("--quote", fo).set("--new", fn).
+							set("--reason", "fuzz: applying red's proposed text verbatim")
+					}
+					if _, err := edit.run(); err != nil {
 						r.noteApplyMiss("blue edit REFUSED: " + firstLine(err.Error()))
 						break
 					}
+					r.noteVerbatimGap(id, fn)
 					continue
 				}
 			}
@@ -3745,7 +3907,7 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	// refused with "no base has been ingested". runOne does all three before it drives; so does this.
 	_ = os.MkdirAll(filepath.Join(runDir, "blue"), 0o755)
 	_ = os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
-		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time.\n"), 0o644)
+		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"), 0o644)
 	r := newRunner(bin, runDir, newLockedRand(1))
 	if err := record.StageForRun(r.run(), fuzzClasses...); err != nil {
 		t.Fatalf("staging the class registry: %v", err)

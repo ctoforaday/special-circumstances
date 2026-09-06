@@ -36,7 +36,7 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"),
-		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time.\n"), 0o644); err != nil {
+		[]byte("# § fuzz\n\nA § fuzz sentence to anchor findings.\n\nThe cost is rising over time across the whole sampled corpus.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	stageRun, err := record.NewRun(runDir)
