@@ -50,9 +50,26 @@ const Timeout = 60 * time.Second
 //	              network call is the common case and it is legitimate: what an API actually
 //	              does beats what its documentation says. But it is a MEASUREMENT, not a
 //	              proof, and a report must not read the two as the same thing.
+//	NotPortable   deterministic where it was WRITTEN, and different when run from the store.
+//	              The proof survives only as the bytes in `proofs/<sha>/`, so this is the one
+//	              basis that says: nobody else can check this.
+//
+// WHY THE THIRD BASIS EXISTS, measured. `Reproducible` used to mean "ran twice from the author's
+// own path and matched", and the store was never consulted — so a script resolving anything
+// relative to its own location was graded on a path no re-runner ever uses. In
+// research/2026-09-02_quadratic-formula that produced 28 proofs all recorded `reproducible` while
+// six of them do not reproduce, and one (`r1_persistence`) exits 0 from the store while printing
+// INVERTED answers: a re-auditor gets a document-contradicting result with no error at all. The
+// author's directory is three levels under the run, the store is two, and `__file__`-relative
+// path arithmetic silently changes meaning between them.
+//
+// The engine does not FORBID that shape — a proof may legitimately read the tree it measures.
+// It measures it, and grades it down honestly, which is strictly better than a prohibition that
+// would refuse work the run wants to do.
 const (
 	Reproducible = "reproducible"
 	Observed     = "observed"
+	NotPortable  = "not_portable"
 )
 
 // Result is one recorded execution.
@@ -124,7 +141,34 @@ func Run(runDir, scriptPath string) (*Result, error) {
 	if err := store(runDir, res, body); err != nil {
 		return nil, err
 	}
+	// GRADED FROM THE STORE, because the store is where every later reader runs it. Running twice
+	// from the author's own path proves determinism THERE and says nothing about whether the
+	// artifact this run ships can be checked by anybody else — which is the only question the
+	// basis is asked. A proof that already moved is left as Observed: it has declared itself a
+	// measurement, and re-running it from a second path cannot make it more so.
+	if res.Basis == Reproducible {
+		stored, sexit, serr := executeStored(runDir, res)
+		switch {
+		case serr != nil:
+			res.Basis = NotPortable
+			res.Drift = "does not run from the proof store: " + serr.Error()
+		case stored != res.Output || sexit != res.Exit:
+			res.Basis = NotPortable
+			res.Drift = "runs from the proof store and says something else — " + describeDrift(res.Output, stored, res.Exit, sexit)
+		}
+	}
 	return res, nil
+}
+
+// executeStored runs the copy in `proofs/<sha>/`, which is the only copy that outlives the run
+// directory's working files and the only one a later audit can reach.
+func executeStored(runDir string, r *Result) (string, int, error) {
+	stored := filepath.Join(runDir, "proofs", r.SHA, "script"+filepath.Ext(r.Script))
+	argv, err := interpreterFor(stored)
+	if err != nil {
+		return "", 0, err
+	}
+	return execute(runDir, argv, stored)
 }
 
 // execute runs one pass with the run directory as the working directory.

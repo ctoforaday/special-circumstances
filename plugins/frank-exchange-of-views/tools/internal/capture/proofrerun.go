@@ -136,11 +136,15 @@ func ProofRerunAudit(run record.Run, sample int) Audit {
 			notes = append(notes, fmt.Sprintf("FAIL %s could not be re-run: %v", short(p.sha), err))
 		case matches:
 			// Reproduced. Nothing to say per proof; the count says it.
-		case p.basis == proof.Observed:
-			// Recorded AS a measurement that moves. Divergence is its nature, not a defect.
+		case p.basis == proof.Observed || p.basis == proof.NotPortable:
+			// Recorded AS something that does not hold still: `observed` moves by nature, and
+			// `not_portable` was graded at deposit precisely because it says something else from
+			// the store. Divergence here is the recorded fact arriving on time, not a defect —
+			// and this audit becoming a REGRESSION detector rather than a discoverer of what
+			// prove already knew is the whole point of grading from the store.
 			moved++
 			notes = append(notes, fmt.Sprintf("moved %s diverged, as its recorded `%s` basis says it may (%s)",
-				short(p.sha), proof.Observed, firstDifference(want, got)))
+				short(p.sha), orQ(p.basis), firstDifference(want, got)))
 		default:
 			fails++
 			notes = append(notes, fmt.Sprintf("FAIL %s recorded basis `%s` and NO LONGER REPRODUCES — %s",
