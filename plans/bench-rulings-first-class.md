@@ -282,7 +282,7 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   (a new `awaiting_docket` column and the ordering key it needs), `sitting.go`'s merge arm and
   `SittingOf`'s signature, that signature's four consumers, and a §V assertion that a carried-and-open
   gap reads `awaiting_docket` true while a later closing ruling or a live unruled motion reads false.
-  Tracked as its own scope with its own gate — not folded back in.
+  **Tracked as #759**, with the three structural problems and the vacuity trap written down — its own scope, its own gate, not folded back in.
 
 - **`[MODIFY]` `record.Motion` gains a typed `GapID`** (`record/motion.go:231-254`). Today the
   struct carries `ID`, `Subject`, `Filer`, `Round`, `Basis`, `Relief`, `Ruling…` and the subject's
