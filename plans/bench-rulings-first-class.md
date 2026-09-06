@@ -250,7 +250,7 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   **Latent, not live — measured before specifying:** `GradeMotion`, `PetitionMotion` and
   `DirectionMotion` carry **zero** `required: true` between them, so nothing is unenforced today and
   `DocketRuling` would be the first arm to fall in. Specify the mechanism — descend into the set arm
-  in `CheckRequired`/`RequiredOf` — and state which of the eight are required for a docket ruling.
+  in `CheckRequired`/`RequiredOf`. **The set is stated below rather than promised.**
   §V gains a check that `motion docket rule` omitting `--principle` is refused **in the
   annotation's own words**, not by the driver.
 - **Those two `check` options could not have reached the database before Phase 1.** `option (check)`
@@ -391,8 +391,15 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   takes `fileFlags`, and **the flags must not appear on the other three subjects' `--help`** — a
   grade ruling offering `--principle` is the surface lying about what it accepts. Requiredness rides
   the body annotations through `seat.Records(c, "motion_rule")`, which resolves off the message, so
-  the per-subject part must be conditional there too — state which of the eight are required for a
-  docket ruling and which are optional.
+  the per-subject part must be conditional there too.
+
+  **The required set, stated — this plan asked for it twice and never said it.** Taken from
+  `Opinion`'s own annotations (`record.proto:794-866`), so it is the set being PRESERVED rather than
+  a fresh judgement: `disposition`, `principle`, `tension` and `review_flag` are **required**;
+  `settled` is **optional**; `reopens_on` and `final` are **optional individually** and governed as a
+  PAIR by the two `check` options — exactly one must be present, a rule no per-field annotation can
+  state, which is why they are checks and not annotations. Plus `--reason`, required by
+  `MotionRule.opinion`'s new annotation.
 - **`[NO VERB]` `motion docket appeal`, and it is NOT automatic — checked, not assumed.**
   `cli/motion/command.go:162` still reads `if name != "petition"`, so adding `docket` would **mint an
   undesigned appeal verb by default**, writing `motion-appeal` events against a bench ruling. The
