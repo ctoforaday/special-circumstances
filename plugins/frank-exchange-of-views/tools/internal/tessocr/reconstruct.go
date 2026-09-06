@@ -112,6 +112,10 @@ func Reconstruct(tsv string, headers []string) (string, Stats, error) {
 // lines, a multi-line group being one wrapped name ("Installation and\nCheckout").
 func ParseRotatedBandHeaders(band string) []string {
 	var out []string
+	// CRLF is normalized FIRST: a Windows checkout hands this fixture (and a Windows
+	// tesseract run hands this band) \r\n endings, under which the blank-line split below
+	// matches nothing and eleven headers collapse into one — caught by CI's Windows leg.
+	band = strings.ReplaceAll(band, "\r\n", "\n")
 	for _, grp := range strings.Split(strings.TrimSpace(band), "\n\n") {
 		name := strings.Join(strings.Fields(grp), " ")
 		if name != "" {

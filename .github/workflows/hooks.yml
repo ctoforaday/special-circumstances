@@ -1556,17 +1556,20 @@ jobs:
             for pair in windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
               os="${pair%/*}"; arch="${pair#*/}"; ext=""
               [ "$os" = "windows" ] && ext=".exe"
-              out="${DIST}/${name}_${os}_${arch}${ext}"
+              # The -o template appears LITERALLY in both branches: sc-doctor's release
+              # contract test parses this file for it, so the name the job writes and the
+              # name the doctor asks for cannot drift (factoring it into a variable was
+              # caught by exactly that test).
               if [ -x third_party/pins/build-cstack.sh ]; then
                 t="${os}-${arch}"
                 work="${RUNNER_TEMP}/cstack"
                 [ -d "${work}/${t}/prefix" ] || third_party/pins/build-cstack.sh "$t" "$work"
                 env $(third_party/pins/build-cstack.sh env "$t" "$work") \
                   CGO_ENABLED=1 GOOS="$os" GOARCH="$arch" \
-                  go build -tags tessocr -trimpath -ldflags "-s -w" -o "$out" "./cmd/${name}"
-                third_party/pins/build-cstack.sh check "$out"
+                  go build -tags tessocr -trimpath -ldflags "-s -w" -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
+                third_party/pins/build-cstack.sh check "${DIST}/${name}_${os}_${arch}${ext}"
               else
-                GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" -o "$out" "./cmd/${name}"
+                GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
               fi
             done
           done
