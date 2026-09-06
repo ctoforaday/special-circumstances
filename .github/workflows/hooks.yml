@@ -538,18 +538,21 @@ jobs:
         env:
           CSTACK: ${{ runner.temp }}/cstack
         run: ./third_party/pins/build-cstack.sh linux-amd64 "$CSTACK"
-      - name: engine build environment
+      # THE ENGINE'S ENV IS SCOPED TO THE ENGINE'S STEP, NEVER EXPORTED JOB-WIDE. A
+      # GITHUB_ENV export was tried and taught the lesson: with musl CC and CGO_ENABLED=1
+      # global, every package's test binary (net, os/user) linked cgo against zig objects
+      # under Go's INTERNAL linker — missing libc symbols and zig's sanitizer handlers,
+      # module-wide. The engine step below runs exactly the invocation Wave 1 validated
+      # locally: eval'd env, external linkmode, fully static — zig links compiler-rt, and
+      # nothing outside the step sees the toolchain.
+      - name: the OCR engine's own suite, real engine, statically linked
         if: runner.os == 'Linux'
         shell: bash
         env:
           CSTACK: ${{ runner.temp }}/cstack
-        # env mode speaks EVAL (`export KEY="VALUE"` plus a commented hint); GITHUB_ENV
-        # takes bare KEY=VALUE and nothing else. The sed pair translates one dialect to
-        # the other — keep-export-lines drops the hint, unwrap-quotes keeps the value raw
-        # (a quoted value would smuggle literal quotes into the flags). The first grep
-        # attempt matched NOTHING and pipefail reported it, which is the correct fate for
-        # a filter whose zero is a wrong shape rather than an empty set.
-        run: ./third_party/pins/build-cstack.sh env linux-amd64 "$CSTACK" | sed -n 's/^export //p' | sed 's/="\(.*\)"$/=\1/' >> "$GITHUB_ENV"
+        run: |
+          eval "$(./third_party/pins/build-cstack.sh env linux-amd64 "$CSTACK")"
+          go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' ./internal/tessocr/
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
       # sibling package binaries in parallel, so the "idle" cores the oversubscription
@@ -577,9 +580,9 @@ jobs:
       #
       # Both ternary arms are workflow literals, so this ${{ }} expands no external input —
       # which is why it may sit in the run line where rule-sweep's base ref may not.
-      # `-tags tessocr` on Linux only: the engine's C stack exists there (steps above);
-      # Windows runs the tag-less stub. Both ternary arms are workflow literals.
-      - run: go test ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ${{ runner.os == 'Linux' && '-tags tessocr' || '' }} ./...
+      # The module suite runs the DEFAULT build everywhere — the engine's stub, the same
+      # bytes a stackless dev box compiles; the real engine has its own step above.
+      - run: go test ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
         env:
           FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
       # Race detection needs cgo, which needs a C toolchain; both CI images ship
@@ -608,9 +611,9 @@ jobs:
       # holds this derivation and the local gate's (expandScope) to the same target.
       - if: runner.os == 'Linux'
         run: |
-          pkgs="$(go list -tags tessocr -deps ./cmd/feov-record | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')"
+          pkgs="$(go list -deps ./cmd/feov-record | grep '^github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools')"
           test -n "$pkgs"
-          echo "$pkgs" | xargs go test -race -tags tessocr
+          echo "$pkgs" | xargs go test -race
         # EXPLICIT even though the step is Linux-only now: this job sets no default
         # shell, and a script whose syntax assumes bash should say so where it runs.
         shell: bash

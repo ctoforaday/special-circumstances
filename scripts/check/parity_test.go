@@ -160,8 +160,8 @@ func TestEveryModuleCIBuildsIsDeclared(t *testing.T) {
 func TestRaceScopesMatchTheWorkflow(t *testing.T) {
 	wf := workflow(t)
 	feov := jobBlock(t, wf, "feov-record")
-	if !strings.Contains(feov, "go list -tags tessocr -deps ./cmd/feov-record") ||
-		!strings.Contains(feov, "xargs go test -race -tags tessocr") {
+	if !strings.Contains(feov, "go list -deps ./cmd/feov-record") ||
+		!strings.Contains(feov, "xargs go test -race") {
 		t.Error("the feov-record job no longer derives its -race scope from the feov-record " +
 			"binary's import graph; raceScope still claims it does")
 	}
