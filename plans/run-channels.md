@@ -204,15 +204,20 @@ actually carrying.
       honest home for content that today has to pose as a defect report.
     - `ESTOPPEL` — the tool refused a mint; `(TOOL, ESTOPPEL)`. Retained: it is read at
       `estoppel.go:173`.
-  - **The zero value exists but is UNWRITABLE.** proto3 requires an enum to declare a zero, so
-    `LOG_TYPE_UNSPECIFIED = 0` and `LOG_SOURCE_UNSPECIFIED = 0` are declared — but each field also
-    carries a **`subset` facet** excluding them, so the generated column constraint
-    (`recordsql/schema.go:475`, `"col" IS NULL OR "col" IN (…)`, derived from the descriptor —
-    `record.proto:163-170`: *"the subset is DERIVED and there is no second list to keep"*) admits
-    only the real values. Presence alone is not enough: without this, `type: LOG_TYPE_UNSPECIFIED`
-    satisfies `required`, passes the write, and restores exactly the untyped entry the requirement
-    exists to prevent — the plausible zero one level in. Today `UNSPECIFIED = 0` doubles as "unset"
-    *and* "a seat's capability gap"; after this it means nothing and cannot be written.
+  - **The zero value exists but is ALREADY UNWRITABLE — by machinery that exists, not machinery
+    this plan invents.** proto3 requires an enum zero, so `LOG_TYPE_UNSPECIFIED = 0` and
+    `LOG_SOURCE_UNSPECIFIED = 0` are declared. They cannot be written because
+    `recordsql/schema.go:341` SKIPS the zero when building the enum vocabulary table — *"the
+    UNSPECIFIED zero is absence, and absence is NULL here"* — so the table holds only real values
+    (see `schema.sql:214-219`: `enum_friction_kind` carries rows for `estoppel` and `tool_error`
+    only) and the column carries `FOREIGN KEY ("kind") REFERENCES "enum_friction_kind"("value")`
+    (`schema.sql:589`). An explicit zero fails that foreign key. Combined with
+    `required: true` (NOT NULL), an entry must carry a real value: NULL is refused by the
+    requirement, the zero by the FK. **A `subset` facet is NOT used and would not work** — it names
+    a value facet that must first be declared as an enum-option extension (`schema.go:460-464`
+    hard-errors otherwise), and its generated expression `"col" IS NULL OR "col" IN (…)`
+    (`schema.go:475`) admits NULL and never mentions the zero. Today `UNSPECIFIED = 0` doubles as
+    "unset" *and* "a seat's capability gap"; after this it means nothing and cannot be stored.
   - **BOTH fields carry `(sql) = { required: true }`**, and this is load-bearing rather than
     tidiness. Without it `Log{text: "…"}` with no type would discharge the sitting while asserting
     nothing — a contentless discharge in the very channel whose empty-discharge rule
@@ -342,7 +347,7 @@ $ comm -23 <(grep -rli friction $P --include=*.go --include=*.proto --include=*.
 | `releasegate/fuzz/fuzz_test.go` (21 hits) | **drives the verb and the flag by string**: `:947` `r.do("friction", seatID).bare("--none").set("--reason", …)`; comments `:933-941`; event-type list `:2503` and required-field map `:2663`. A fuzzer still driving a deleted flag is the carrier `complete-the-concept` names explicitly |
 | `internal/diagnostics/survey_test.go:210` | asserts on the literal `feov-record friction --none --reason "…"` |
 | `cli/agentbinding_test.go` (4), `crossseat_test.go` (4), `verbs_test.go` (3), `prosechannel_test.go` (2), `vocabulary_test.go` (2), `bindingscope_test.go`, `blue/verify_test.go`, `seat/seat_test.go:59` (`&cobra.Command{Use: "friction"}`) | invoke the verb by name |
-| `cli/bench/opinion.go`, `cli/merge/spot_check.go`, `record/inquiry.go`, `record/refs.go` | production code naming the verb in help/error text |
+| `cli/bench/opinion.go`, `cli/merge/spot_check.go`, `record/inquiry.go`, `record/refs.go`, **`cli/blue/verify.go:35`** (*"report this as friction … and stop"*), **`cli/dashboard.go:30`** (command `Long` help), **`proof/interpreter.go:144`**, **`record/agentrole.go:78`**, **`record/roster.go:125`** (*"the friction verb is the channel for it"*), **`seatenv/identity.go:142`** | production code naming the verb in RUNTIME help/error text a seat reads — the help-text carrier `complete-the-concept` names. The six bolded were missed by a predicate that looked for `"friction"` as a quoted token and not for the verb named inside prose |
 | `seatprobe/boards.go` (7), `seatprobe/production.go`, `recordsql/testdata/schema.sql` | **already in the carrier table above** — which itself disproves the claim that A2's 46 files are where all the symbols live |
 | `difftest/scenarios_test.go`, `diagnostics/seen_test.go`, `proof/interpreter_test.go`, `seatenv/seatenv_test.go`, `releasegate/fuzz/{blueestoppel,termination}_test.go` | scenario/expectation strings naming the verb |
 | `flags/names.go:190` | comment citing "the `friction --none` pattern". **`flags.None` at `:109` is NOT deleted** — `spot-check --none` uses the same flag word (`fuzz_test.go:1036`). PR-2 removes `--none` from the LOG verb only; the vocabulary entry stays |
@@ -381,7 +386,7 @@ The load-bearing carriers, each changing:
 | `dashboard/model.go:29-31,96,270-282,348`, `render.go:147,340,424-434,615` | **operator-facing tile**, heading `<h2>Friction — logged pain points</h2>`, reads `FrictionJSONOf` |
 | `seatprobe/seatprobe.go:206-248,386`, `boards.go:450,556,614,707,720`, `production.go:71` | probe expectations |
 | `cli/seat/verbs.go:95,103,108,114`; `cli/blue/cite.go:70`, `blue/prove.go:66`; `cli/merge/mint.go:195-196` | the five write sites + the verb |
-| `cli/friction.go:26,28,69` | the operator read + command name |
+| `cli/friction.go:26,28,69` and **`:83-84,92`** (the hidden `--none` refusal path that tells a seat where the write lives) | the operator read + command name |
 | `cli/root.go:218,233`; `cli/{blue,merge,lens,bench}/command.go` | root wiring + four `seat.Friction()` registrations |
 | `cli/seat/seat.go` (`FrictionFooter`) | the footer closing every help page |
 | `integration/surface/retiredsurfaces_test.go:18` | pins `show …friction` as a RETIRED surface — the retired name must stay pinned under its old spelling |
@@ -526,7 +531,7 @@ All commands are rooted at the repository root; `P=plugins/frank-exchange-of-vie
   on an untyped entry — without (c) a contentless `Log{text: …}` would discharge the duty while
   asserting nothing. And (c) alone stops one value short: proto3 forces a zero into the enum, so
   presence is satisfiable by writing `UNSPECIFIED` explicitly, which is the same hole one level in.
-  (c) is what makes `required: true` real; (c2) is what makes the `subset` facet real. Both must
+  (c) is what makes `required: true` real; (c2) is the regression test that the enum-vocabulary FOREIGN KEY still refuses an explicit zero. Both must
   fail before either is trusted.
 - **Channel-parity with one arm:** `capture`'s audit counts a `NOMINAL` entry as the channel being
   used (the surviving half of the two-arm append at `capture.go:1730-1735`).
