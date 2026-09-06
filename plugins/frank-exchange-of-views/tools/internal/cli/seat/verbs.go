@@ -8,6 +8,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchor"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/jsonshape"
@@ -74,46 +75,58 @@ func Register() *cobra.Command {
 	})
 }
 
-// Friction records a capability or protocol complaint — or, with --none, the explicit statement
-// that nothing blocked this sitting.
+// Log records an entry addressed to the OPERATOR WHO CAN RETOOL THE SEAT — a defect, a request, an
+// impediment worth noting, or a nominal sitting. It is not material for the debate.
 //
-// WHY THE EXPLICIT NEGATIVE EXISTS. Across eighteen probed seat dispatches, not one friction
-// event was ever recorded, and "no friction on the record" is equally consistent with a clean
-// sitting and with a seat that hit walls and never used the channel. Those are the same bytes,
-// which is this project's recurring defect and the reason nobody could tell which had happened.
+// WHY THE CLEAN CASE IS STILL AN ENTRY. Across eighteen probed seat dispatches, not one entry was
+// ever recorded, and "nothing on the record" is equally consistent with a clean sitting and with a
+// seat that hit walls and never used the channel. Those are the same bytes, which is this
+// project's recurring defect and the reason nobody could tell which had happened. So the clean
+// case is logged in the POSITIVE, as `nominal`: an entry, not an absence, which silence cannot
+// imitate.
 //
-// It is not that seats were unwilling. Most refusals they met were their OWN errors, correctly
-// read as such — that is not friction and should not be filed. But one seat, blocked by a motion
-// it could not read, reasoned in its own words that no read verb existed, searched ten-plus
-// calls, and then GUESSED rather than reporting it: filing costs a turn and does not unblock,
-// while guessing might. A seat under that pressure needs the report to be a duty it discharges,
-// not an invitation it declines.
+// It is not that seats were unwilling. Most refusals they meet are their OWN errors, correctly
+// read as such — that is not a defect and should not be filed. But one seat, blocked by a motion
+// it could not read, reasoned in its own words that no read verb existed, searched ten-plus calls,
+// and then GUESSED rather than reporting it: filing costs a turn and does not unblock, while
+// guessing might. A seat under that pressure needs the report to be a duty it discharges, not an
+// invitation it declines.
 //
-// The shape is `spot-check --none --reason`, already in this tree for the same reason: a duty
-// whose empty case must be ASSERTED rather than inferred from silence.
-func Friction() *cobra.Command {
-	c := Prose(New("friction", func(s Context, cmd *cobra.Command) (Result, error) {
-		none, _ := cmd.Flags().GetBool(flags.None)
+// THE TYPE IS WHY THE OPERATOR CAN TRIAGE. Measured on 2026-09-02_quadratic-formula, the channel
+// ran 142,891 characters and a reader had to read all of it to learn which entries were
+// actionable. `--type` moves that from the reader's inference to the writer's assertion — and
+// `friction` is a first-class value precisely so an entry that is NOT a request for change has an
+// honest home instead of having to pose as one.
+func Log() *cobra.Command {
+	c := Prose(New("log", func(s Context, cmd *cobra.Command) (Result, error) {
+		word := Str(cmd, flags.Type)
 		text, err := Reason(cmd)
 		if err != nil {
 			return nil, err
 		}
-		if none {
-			// An empty discharge that does not say what you looked for is indistinguishable
-			// from a skipped duty — the same rule spot-check applies to its own --none.
-			if _, err := record.Append(s.Identity(), &recordpb.FrictionNone{Text: proto.String(text)}); err != nil {
-				return nil, err
-			}
-			return Msg{Message: "recorded: nothing blocked this sitting"}, nil
+		// THE TYPE IS THE TRIAGE, so it is asked for and refused rather than defaulted. A default
+		// would put every entry in one bucket and hand the reader back the job of working out
+		// which it was — which is the reading this field exists to replace.
+		if word == "" {
+			return nil, fmt.Errorf("record: a log entry requires --type. Say what this entry ASSERTS: %s. A clean sitting is `nominal` — logged in the positive, because an entry saying nothing is still an entry", strings.Join(record.LogTypeWords(), " | "))
 		}
-		if _, err := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(text)}); err != nil {
+		lt, known := record.LogTypeOf(word)
+		if !known || lt == recordpb.LogType_LOG_TYPE_UNSPECIFIED {
+			return nil, fmt.Errorf("record: %q is not a log type this record can carry (%s)", word, strings.Join(record.LogTypeWords(), " | "))
+		}
+		src := recordpb.LogSource_LOG_SOURCE_SEAT
+		if _, err := record.Append(s.Identity(), &recordpb.Log{
+			Text:   proto.String(text),
+			Type:   &lt,
+			Source: &src,
+		}); err != nil {
 			return nil, err
 		}
-		return Msg{Message: "friction recorded"}, nil
+		return Msg{Message: "log entry recorded: " + recordpb.Word(lt)}, nil
 	}))
-	c.Flags().Bool(flags.None, false,
-		"nothing blocked this sitting — the EXPLICIT negative, with --reason saying what you reached for and found. "+
-			"Silence cannot say this: an empty friction log reads the same whether the sitting was clean or the channel went unused")
+	enumhelp.Flag(c, flags.Type, record.MustEnum("log", "type"),
+		"REQUIRED — what this entry asserts. `nominal` is the clean sitting said in the positive; "+
+			"`friction` is an impediment you are NOTING and which may be neither actionable nor advisable to change")
 	return c
 }
 

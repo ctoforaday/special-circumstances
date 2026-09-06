@@ -247,6 +247,32 @@ var EnumFields = map[string][]EnumField{
 		// tool accepted and the reader resolved by argument order.
 		Why: "the verdict stamp reads this to say HOW a non-pass ended; an unrecognized word decorates the stamp with nothing, which reads exactly like a run that ended for no stated reason",
 	}},
+	// `log`, and the TYPE is the whole reason the channel is worth reading. Measured on
+	// 2026-09-02_quadratic-formula the channel ran 142,891 characters with no types on it, so an
+	// operator had to READ all of it to learn which entries were actionable — 46% were, 48% was
+	// mandated ceremony, and nothing on the entry said which was which.
+	"log": {{
+		Key: "type", Flag: flags.Type, Values: []EnumValue{
+			ev("nominal", "the surface met the work — the clean sitting, said in the POSITIVE, because an entry saying nothing is still an entry and silence cannot say it"),
+			ev("defect", "something is broken: it did the wrong thing, or failed where it should have worked"),
+			ev("request", "a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong"),
+			ev("friction", "the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect"),
+			ev("estoppel", "the TOOL refused a mint against text the other side prescribed — recorded by the tool, not filed by a seat"),
+		},
+		Why: "the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace, so the write refuses one",
+	}},
+	// `cite`, and the READING is the half a citation could not previously state. A citation says
+	// a source backs a sentence; it never said whether anyone had read the source. That gap was
+	// the load-bearing caveat of a whole run, carried as the prose substring "unreachable from
+	// this container" and miscounted twice by grep.
+	"cite": {{
+		Key: "source_text_read", Flag: flags.SourceText, Optional: true, Values: []EnumValue{
+			ev("leaf", "the source's own text, in the bytes this run cached — the only reading that licenses a claim about what it SAYS"),
+			ev("summary_only", "someone else's account of it: an abstract, a secondary description, or the summary of an INTERESTED party"),
+			ev("unread", "never read — the citation rests on a record that the source EXISTS, not on anything it says"),
+		},
+		Why: "a claim about what a source SAYS rests on having read it; without this the report cannot distinguish a source read at the leaf from one known only through the summary of the party whose case depends on it",
+	}},
 	// `avenue`, the schema's word. It was "line-of-inquiry" — an event type the schema does not
 	// declare — so this whole set was advertised against a body that does not exist, and nothing
 	// noticed because the key was only ever looked up by the same stale name.

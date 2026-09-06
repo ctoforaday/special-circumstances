@@ -9,7 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-// newFriction is the OPERATOR's read of the friction channel.
+// newLog is the OPERATOR's read of the log channel.
 //
 // # Why it is not a seat projection
 //
@@ -23,10 +23,10 @@ import (
 // removing the only CLI path would have left that instruction pointing at nothing — trading a
 // misplaced view for a broken one. So it moves here, beside `verify`, `graph` and `scorecard`,
 // which are the other reads that exist for the human rather than the run.
-func newFriction() *cobra.Command {
+func newLog() *cobra.Command {
 	c := &cobra.Command{
-		Use:   "friction",
-		Short: "read the run's friction channel (operator; every capability gap a seat reported, and every seat that reported none)",
+		Use:   "log",
+		Short: "read the run's log channel (operator; every capability gap a seat reported, and every seat that reported none)",
 		Long: "friction prints the capability and protocol complaints seats recorded, and — separately — the seats that " +
 			"explicitly said nothing blocked them. The two counts are not interchangeable: an empty complaint list with " +
 			"no attestations is a channel nobody used, which is what eighteen recorded sittings turned out to be.\n\n" +
@@ -66,7 +66,7 @@ func newFriction() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			b, err := record.FrictionJSONBytes(run)
+			b, err := record.LogJSONBytes(run)
 			if err != nil {
 				return err
 			}

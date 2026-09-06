@@ -1,4 +1,4 @@
-prompt sha256: 558006a90a531f5a2a0862856419104374d76b5bf422aa1bd76daafa9d4b9da0
+prompt sha256: 0b69417843d9e027becd16a097f923d4cc10c566bc70d36f3b4a5f5819aab4fb
 
 Red audit, round 2, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -19,16 +19,17 @@ COVERAGE IS AN OBSERVABLE, NOT AN ASSUMPTION: end your pass with a COVERAGE line
 RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows.
 For a navigation HINT use the record of what blue actually edited and the gap each edit answers — never a hand-written file, and never in place of the full re-read above.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in research/2026-01-01_golden/blue/report.md is REJECTED.
-Your lens number 1 is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R2-N gap ids are the merge's.
+Your lens number 1 is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk, L7 report voice — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R2-N gap ids are the merge's.
 Only red-merge writes the round's RED narrative.
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
-FRICTION (red-lens-r2-L1) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field.
-AND THE REASON OWES THE SURVEY: name the verbs you read in the tree and did NOT use, and why each was wrong for this sitting.
-A reason that lists only what you did is a receipt for the path you took and says nothing about the ones you rejected — and a seat that cannot name a single rejected option did not weigh any.
+LOG (red-lens-r2-L1) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field.
+YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
+Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
+Where nothing impeded the work, say that instead.
 YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read how YOUR CHAIR is doing on the question in front of you so far.
 It is a projection of this run's record on your own surface, it needs no selector because your chair is the seat you registered as, and its own page says what the rows mean.
 SEAT_ID: red-lens-r2-L1.

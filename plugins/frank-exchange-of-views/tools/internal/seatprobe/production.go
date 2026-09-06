@@ -68,7 +68,7 @@ func backendFor(b Board) debatejs.Backend {
 	return func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
 			"synopsis": "seatprobe capture", "verdict": "FAIL", "citations_checked": 0,
-			"gaps": []any{}, "petitions": []any{}, "friction": []any{}, "rulings": []any{},
+			"gaps": []any{}, "petitions": []any{}, "log": []any{}, "rulings": []any{},
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
 			"resolutions": []any{}, "grade_disputes": []any{},
 			"manifest": manifest, "claim_count": len(b.Claims),

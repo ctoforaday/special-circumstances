@@ -57,10 +57,9 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('close', 'a merge closi
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a seat''s closing statement on a gap: the argument, not the disposition');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('declare', 'the bench stating a holding that later sittings are expected to apply');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('finding', 'something red found, graded but not yet minted as a gap');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('friction', 'a capability the tool did not have, recorded so the tooling gets fixed rather than worked around');
-INSERT INTO "enum_event_type" ("value", "means") VALUES ('friction_none', 'a seat stating it hit no friction — the negative answer, recorded so silence and `none` are different facts');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry_review', 'a review of the lines of inquiry themselves, rather than of a finding');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('log', 'an entry addressed to the operator who can retool the seat: a defect, a request, an impediment, or a nominal sitting');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('manifest_row', 'one row of the run''s manifest, tying a gap to what shipped for it');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('mint', 'a gap put on the board — the act that creates the entity every other act refers to');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('motion', 'a motion filed: a grade contested, a petition to the bench, or a direction proposed');
@@ -189,6 +188,14 @@ INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defec
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
 
+CREATE TABLE "enum_source_text_read" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('leaf', 'the source''s own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS');
+INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('summary_only', 'read only through someone else''s account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source');
+INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('unread', 'the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says');
+
 CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -225,12 +232,22 @@ INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('deferred', 'not thi
 INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('proposed', 'you intend to follow this line; the tool assigns it an id and red may rule on it');
 INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('pursued', 'you took the line — what it produced belongs in the report');
 
-CREATE TABLE "enum_friction_kind" (
+CREATE TABLE "enum_log_type" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_friction_kind" ("value", "means") VALUES ('estoppel', 'the TOOL refused a mint because the defect lives in text blue applied verbatim from red''s own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit');
-INSERT INTO "enum_friction_kind" ("value", "means") VALUES ('tool_error', 'the TOOL failed internally — unparseable input, an undecodable row, a check that could not run. Recorded rather than printed or swallowed, because an error nobody learns about is one nothing improves on. Distinct from a seat''s own friction so the counts an operator reads stay about capability gaps');
+INSERT INTO "enum_log_type" ("value", "means") VALUES ('defect', 'something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on');
+INSERT INTO "enum_log_type" ("value", "means") VALUES ('estoppel', 'the TOOL refused a mint because the defect lives in text blue applied verbatim from red''s own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit');
+INSERT INTO "enum_log_type" ("value", "means") VALUES ('friction', 'the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect');
+INSERT INTO "enum_log_type" ("value", "means") VALUES ('nominal', 'the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used');
+INSERT INTO "enum_log_type" ("value", "means") VALUES ('request', 'a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair');
+
+CREATE TABLE "enum_log_source" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_log_source" ("value", "means") VALUES ('seat', 'a seat filed this about its own sitting');
+INSERT INTO "enum_log_source" ("value", "means") VALUES ('tool', 'the tool emitted this itself, rather than a seat filing it');
 
 CREATE TABLE "register" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
@@ -498,7 +515,9 @@ CREATE TABLE "cite" (
   "location" TEXT,
   "access_date" TEXT,
   "cite_key" TEXT,
-  "text" TEXT
+  "text" TEXT,
+  "source_text_read" TEXT,
+  FOREIGN KEY ("source_text_read") REFERENCES "enum_source_text_read"("value")
 ) STRICT;
 
 CREATE TABLE "verify" (
@@ -597,17 +616,14 @@ CREATE TABLE "manifest_row" (
   FOREIGN KEY ("gap_id") REFERENCES "mint"("gap_id")
 ) STRICT;
 
-CREATE TABLE "friction" (
+CREATE TABLE "log" (
   "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
   "text" TEXT,
-  "kind" TEXT,
+  "type" TEXT NOT NULL,
+  "source" TEXT,
   "estopped_by" TEXT,
-  FOREIGN KEY ("kind") REFERENCES "enum_friction_kind"("value")
-) STRICT;
-
-CREATE TABLE "friction_none" (
-  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
-  "text" TEXT
+  FOREIGN KEY ("type") REFERENCES "enum_log_type"("value"),
+  FOREIGN KEY ("source") REFERENCES "enum_log_source"("value")
 ) STRICT;
 
 CREATE TABLE "inquiry_review" (

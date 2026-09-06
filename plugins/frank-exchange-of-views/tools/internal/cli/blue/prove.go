@@ -63,7 +63,7 @@ func newProve() *cobra.Command {
 			// A proof that will not run is not evidence, and the failure is a capability
 			// signal — the same treatment `blue cite` gives an unreachable source.
 			msg := err.Error()
-			if _, ferr := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(msg)}); ferr != nil {
+			if _, ferr := record.Append(s.Identity(), &recordpb.Log{Text: proto.String(msg), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum()}); ferr != nil {
 				return nil, ferr
 			}
 			return nil, err

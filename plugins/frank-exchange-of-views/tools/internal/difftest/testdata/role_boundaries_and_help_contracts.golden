@@ -20,8 +20,8 @@ Available Commands:
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   finding      a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
-  friction     a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help         Help about any command
+  log          an entry for the operator who can retool you — what it asserts, said in the positive
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
   verify       judge a citation blue authored, when the anchor exists and you have read what it points at
@@ -64,9 +64,9 @@ Available Commands:
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   edit            change the report — the only path into report.md, and how every repair lands
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
   ingest          freeze the round-0 report into the record and remove the file — done once, by its author
+  log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
   position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
@@ -113,9 +113,9 @@ Available Commands:
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   edit            change the report — the only path into report.md, and how every repair lands
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
   ingest          freeze the round-0 report into the record and remove the file — done once, by its author
+  log             an entry for the operator who can retool you — what it asserts, said in the positive
   manifest-row    your receipt for one repaired gap: what you checked, and what checking it showed
   position        your round narrative — the argument the other side answers, rendered as this round's BLUE section
   prove           settle a claim by RUNNING something, when computing the answer beats arguing about it
@@ -161,9 +161,9 @@ Available Commands:
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   declare      a holding that binds how the whole record is READ, when the dispute is over what a term MEANS and no gap moves
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction     a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   halt         stop the run at a safety or consent boundary, when continuing would itself be the harm
   help         Help about any command
+  log          an entry for the operator who can retool you — what it asserts, said in the positive
   opinion      dispose of one contested gap with a written ruling — the bench's answer to a docketed item
   outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does

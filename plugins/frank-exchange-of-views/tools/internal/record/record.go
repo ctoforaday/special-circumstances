@@ -920,13 +920,9 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 	//
 	// `spot-check` is deliberately NOT in this arm. Its bare form is a documented decision with
 	// a test pinning it, and its --none --reason exists for the same distinction this makes.
-	case *recordpb.Friction:
+	case *recordpb.Log:
 		if b.GetText() == "" {
-			return fmt.Errorf("record: friction requires --reason (what you reached for and could not get). If nothing blocked you, that is the --none form, and it needs a --reason too: an empty discharge cannot be told from a skipped one")
-		}
-	case *recordpb.FrictionNone:
-		if b.GetText() == "" {
-			return fmt.Errorf("record: friction --none requires --reason (what you reached for and FOUND). The explicit negative is only worth more than silence when it says what was looked at")
+			return fmt.Errorf("record: a log entry requires --reason. A clean sitting is logged in the POSITIVE — the nominal type, with a sentence saying so — because an empty discharge cannot be told from a skipped one")
 		}
 	case *recordpb.Position:
 		if b.GetText() == "" {

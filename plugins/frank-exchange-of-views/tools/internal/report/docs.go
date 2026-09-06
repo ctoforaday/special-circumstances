@@ -124,7 +124,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	jud.add(motions(board))
 
 	var runsec sections
-	runsec.add(frictionLog(evs))
+	runsec.add(logSection(evs))
 	// The record's own invariant check, rendered for the human the report is for. See
 	// recordVerification: a section, never a gate.
 	runsec.add(recordVerification(board))

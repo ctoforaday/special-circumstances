@@ -78,7 +78,7 @@ message Event {
 
   optional uint32 schema_version = 9;   // the format discriminator — see §II.5
 
-  oneof body { /* 35 bodies — the census below is the whole set */ }
+  oneof body { /* 34 bodies — the census below is the whole set */ }
 }
 ```
 
@@ -94,7 +94,7 @@ central artifact is one message per event type, so the set it covers is not an a
 Produced by `grep -rhoE '(record\.)?Append\([^,]+, *[^,]+, *"[a-z_-]+"' --include="*.go"
 internal/cli internal/record internal/capture` (30 types) **plus `register`**, which `Append`
 never writes — `RegisterSeat` mints it directly (`record.go`), so no grep over `Append` can
-see it. **35 messages: 30 + `register` + `inquiry-review` + `base-ingest` + `sitting-open` + `sitting-close`.**
+see it. **34 messages: 30 + `register` + `inquiry-review` + `base-ingest` + `sitting-open` + `sitting-close`, less `friction-none` — the clean sitting is now a `nominal` entry on `log` rather than its own body (plans/run-channels.md, PR-2).**
 
 `sitting-open` and `sitting-close` are the census's THIRD blind spot, and they are blind to it in a
 new way: no grep over `Append`'s call sites can see them because **no seat writes them**. They are
@@ -411,7 +411,7 @@ Re-armed by: any change under `internal/record/`, any `.proto` change, any golde
 | Check | Where | What re-arms it |
 |---|---|---|
 | `EventType` ↔ `body` oneof correspondence, derived from the descriptor | `recordpb/correspondence_test.go` | any `.proto` change. Mutation-killed in both directions. |
-| the body count agrees with §II.1's census of 35 | `recordpb/correspondence_test.go:63-68` | any `.proto` change — **and it cites this plan by path**, so the census above is load-bearing |
+| the body count agrees with §II.1's census of 34 | `recordpb/correspondence_test.go:63-68` | any `.proto` change — **and it cites this plan by path**, so the census above is load-bearing |
 | every scalar field has explicit presence | `recordpb/correspondence_test.go` | a dropped `optional` |
 | every generated enum value has a description, and every description names a live value | `recordpb/descriptions_test.go` | a new or removed enum value |
 | every requirement names a live field | `recordpb/requiredfields_test.go` | a field rename or delete |

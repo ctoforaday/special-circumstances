@@ -148,7 +148,7 @@ func TestAnUnrunnableProofIsRefusedAndLogsFriction(t *testing.T) {
 		"--quote", "A sentence to anchor to.", "--script", s, "--reason", "r"); err == nil {
 		t.Fatal("a script with no known interpreter was accepted as evidence")
 	}
-	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_FRICTION) == 0 {
+	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG) == 0 {
 		t.Error("the refusal logged no friction, so the capability gap is invisible to the retool loop")
 	}
 	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_PROOF) != 0 {

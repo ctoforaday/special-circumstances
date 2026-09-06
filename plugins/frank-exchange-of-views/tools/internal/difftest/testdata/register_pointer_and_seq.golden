@@ -25,10 +25,50 @@ exit 0
 stdout:
 revision recorded — the round is on the record
 
-$ friction --run {RUN} --seat-id blue-respond-r2 --reason no PDF extraction
-exit 0
-stdout:
-friction recorded
+$ log --run {RUN} --seat-id blue-respond-r2 --reason no PDF extraction
+exit 2
+stderr:
+feov-record: required flag(s) "type" not set
+
+an entry for the operator who can retool you — what it asserts, said in the positive
+
+An event that survives aborts, so something you hit is on the record even if the sitting does not finish.
+
+CLOSE THIS CHANNEL EVERY SITTING, including the ones that went well. A clean sitting is NOMINAL — said in the positive, because an entry that says nothing is still an entry, and silence cannot say it: an absent log reads the same whether the sitting was clean or the channel went unused.
+
+SAY WHAT THE ENTRY ASSERTS. The reader triages this channel by FILTERING on that, instead of reading every entry to find out which it was — so the assertion is the field that makes the channel worth reading at all. An impediment you are merely NOTING has its own word, and is not a request for change: it does not have to be actionable, or advisable.
+
+MOST REFUSALS ARE YOURS and belong in no entry: a wrong verb, a wrong flag, a bad quote — take the correction and move on. A refusal naming a verb you cannot find, or a fact the record holds and no view will show you, IS the finding: report it instead of engineering around it, because a workaround leaves no trace and a missing capability then looks exactly like one nobody wanted.
+
+YOUR AUDIENCE IS THE OPERATOR, not the other seats. This channel is read by whoever can retool you; it is not material for the debate, and nothing here is answered by the other side.
+
+If you need a verb or a flag that is not listed here, it does not exist for you:
+do not improvise around it, and do not hand-write the artifact. Record what you
+needed and what you would have done with your role's 'friction' verb — a missing
+capability is a finding about the tooling, and that channel is how it gets fixed.
+
+Usage:
+  feov-record log [flags]
+
+Flags:
+  -h, --help            help for log
+      --reason string   your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -   read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --type nominal    REQUIRED — REQUIRED — what this entry asserts. nominal is the clean sitting said in the positive; `friction` is an impediment you are NOTING and which may be neither actionable nor advisable to change
+
+Enumerated values:
+  --type
+    nominal   the surface met the work — the clean sitting, said in the POSITIVE, because an entry saying nothing is still an entry and silence cannot say it
+    defect    something is broken: it did the wrong thing, or failed where it should have worked
+    request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong
+    friction  the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect
+    estoppel  the TOOL refused a mint against text the other side prescribed — recorded by the tool, not filed by a seat
+
+Global Flags:
+      --json               emit a structured JSON result (and structured errors) instead of human text
+      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
+      --schema             print the event-schema epoch this binary writes, and exit
+      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
 $ finding --run {RUN} --seat-id red-lens-r1-L5 --key F1 --severity medium --likelihood high --impact medium --quote ## S2 --reason unfounded leap
 exit 0
@@ -41,9 +81,8 @@ finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FIND
 {"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond-r2:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"blue-respond-r2","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond-r2:revision","revision":{"text":"first pass"},"round":2,"seat_id":"blue-respond-r2","ts":4,"type":"EVENT_TYPE_REVISION"}
-{"friction":{"text":"no PDF extraction"},"key":"blue-respond-r2:friction:#1","round":2,"seat_id":"blue-respond-r2","ts":5,"type":"EVENT_TYPE_FRICTION"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"L5-F1","likelihood":"GRADE_HIGH","location":"## S2","severity":"GRADE_MEDIUM","text":"unfounded leap"},"key":"red-lens-r1-L5:finding:L5-F1","round":1,"seat_id":"red-lens-r1-L5","ts":6,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-L5:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-L5","ts":7,"type":"EVENT_TYPE_ANCHOR"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"L5-F1","likelihood":"GRADE_HIGH","location":"## S2","severity":"GRADE_MEDIUM","text":"unfounded leap"},"key":"red-lens-r1-L5:finding:L5-F1","round":1,"seat_id":"red-lens-r1-L5","ts":5,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-L5:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-L5","ts":6,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
 -- debate

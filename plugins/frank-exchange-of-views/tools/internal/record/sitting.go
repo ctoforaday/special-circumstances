@@ -88,12 +88,16 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 	s := SittingJSON{Seat: seatID, Role: role, Open: []Item{}}
 	add := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: true}) }
 
-	// EVERY SEAT CLOSES THE FRICTION CHANNEL. Silence is not the empty case: an absent friction
-	// log reads the same whether the sitting was clean or the channel went unused, and across
-	// eighteen recorded sittings it was the second every time.
-	if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_FRICTION) &&
-		!seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_FRICTION_NONE) {
-		add("the friction channel is open — you have neither reported a capability gap nor said that nothing blocked you")
+	// EVERY SEAT CLOSES THE LOG CHANNEL. Silence is not the empty case: an absent log reads the
+	// same whether the sitting was clean or the channel went unused, and across eighteen recorded
+	// sittings it was the second every time.
+	//
+	// ONE DISJUNCT, NOT TWO. This used to test FRICTION or FRICTION_NONE, because the clean case
+	// was its own event type. It is now a `nominal` entry — an entry, not an absence — so any log
+	// event discharges the duty and the type says which case it was. The property is unchanged:
+	// an attested-clean sitting is still an EVENT, and still distinguishable from silence.
+	if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_LOG) {
+		add("the log channel is open — you have neither reported a capability gap nor said that nothing blocked you")
 	}
 
 	switch role {

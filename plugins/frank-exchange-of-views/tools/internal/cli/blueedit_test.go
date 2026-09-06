@@ -494,7 +494,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 		t.Errorf("a refused mint still landed on the board (%d -> %d)", before, n)
 	}
 	// A guard that silently blocks is invisible.
-	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_FRICTION) == 0 {
+	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG) == 0 {
 		t.Error("the estoppel rejection logged no friction — the block is unmeasurable, which is how a dead guard survives")
 	}
 }

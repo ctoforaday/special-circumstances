@@ -98,9 +98,9 @@ Available Commands:
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  friction        a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
+  log             an entry for the operator who can retool you — what it asserts, said in the positive
   mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
   near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
   position        your round narrative — the argument the other side answers, rendered as this round's RED section

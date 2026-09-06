@@ -30,12 +30,12 @@ const hostile = "quotes \"like this\", $vars, 'apostrophes', `backticks`\nand a 
 
 func TestPayloadArrivesIntactThroughStdin(t *testing.T) {
 	runDir := seatRun(t)
-	out, err := runStdin(t, hostile, "friction", "--run", runDir,
-		"--seat-id", "red-lens-r1-L1", "--reason-file", "-")
+	out, err := runStdin(t, hostile, "log", "--run", runDir,
+		"--seat-id", "red-lens-r1-L1", "--type", "defect", "--reason-file", "-")
 	if err != nil {
 		t.Fatalf("--reason-file - : %v (%s)", err, out)
 	}
-	if got := lastBody(t, runDir, &recordpb.Friction{}).GetText(); got != hostile {
+	if got := lastBody(t, runDir, &recordpb.Log{}).GetText(); got != hostile {
 		t.Errorf("the payload did not survive stdin.\n got: %q\nwant: %q", got, hostile)
 	}
 }
@@ -180,11 +180,11 @@ func runStdin(t *testing.T, stdin string, args ...string) (string, error) {
 // used to create no longer exists.
 func TestReasonFileReadsStdinThroughTheDashConvention(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := runStdin(t, hostile, "friction", "--run", runDir,
-		"--seat-id", "red-lens-r1-L1", "--reason-file", "-"); err != nil {
+	if _, err := runStdin(t, hostile, "log", "--run", runDir,
+		"--seat-id", "red-lens-r1-L1", "--type", "defect", "--reason-file", "-"); err != nil {
 		t.Fatalf("--reason-file -: %v", err)
 	}
-	ev := lastBody(t, runDir, &recordpb.Friction{})
+	ev := lastBody(t, runDir, &recordpb.Log{})
 	if got := ev.GetText(); got != hostile {
 		t.Errorf("text = %q, want the stdin content intact", got)
 	}

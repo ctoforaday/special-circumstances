@@ -84,14 +84,14 @@ const CITATION_CLAUSE = 'THE REPORT DOES NOT NAME ITS SOURCES'
 
 test('citationPasses recompute: round 1 sizes on the corpus, round 2 on the DELTA (W2i)', async () => {
   const world = makeWorld(makeResponder({
-    blueSynth: [blueEnv({ claim_count: 10 })],           // round 1: 1 citation pass + 2 -> 3 lenses
+    blueSynth: [blueEnv({ claim_count: 10 })],           // round 1: 1 citation pass + 3 -> 4 lenses
     blueRespond: [blueEnv({ claim_count: 200 })],        // +190 claims: a big delta, but capped at 2
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
     judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }] })],
   }))
   await world.run(script, ARGS)
-  assert.equal(lensesByRound(world, 1).length, 3, 'round 1: 1 citation pass + logic + risk')
-  assert.equal(lensesByRound(world, 2).length, 4, 'round 2: delta of 190 rescales to the cap of 2 citation + logic + risk')
+  assert.equal(lensesByRound(world, 1).length, 4, 'round 1: 1 citation pass + logic + risk + voice')
+  assert.equal(lensesByRound(world, 2).length, 5, 'round 2: delta of 190 rescales to the cap of 2 citation + logic + risk + voice')
 })
 
 test('W2i: a small round-2 delta drops to ONE citation seat — sized to input, not halved by rule', async () => {
@@ -104,7 +104,7 @@ test('W2i: a small round-2 delta drops to ONE citation seat — sized to input, 
   await world.run(script, ARGS)
   assert.equal(citationSeats(world, 1).length, 4, 'round 1 coverage is untouched by W2i')
   assert.equal(citationSeats(world, 2).length, 1, 'round 2 sizes on the 10-claim delta, not the 210-claim corpus')
-  assert.equal(lensesByRound(world, 2).length, 3, 'L5 + L6 dispatch every round regardless')
+  assert.equal(lensesByRound(world, 2).length, 4, 'L5 + L6 + L7 dispatch every round regardless')
 })
 
 test('W2i: round 3 restores both citation seats — the staleness sweep is O(corpus), not O(delta)', async () => {
@@ -122,14 +122,38 @@ test('W2i: round 3 restores both citation seats — the staleness sweep is O(cor
   assert.equal(citationSeats(world, 3).length, 2, 'round 3: the >2-rounds staleness trigger re-staffs the second seat')
 })
 
-test('W2i: lens numbers are ROLES — logic is always L5, dark-side always L6, whatever the citation count', async () => {
+test('L7 audits the report VOICE, and is told separation is not deletion', async () => {
+  const world = makeWorld(makeResponder({
+    blueSynth: [blueEnv({ claim_count: 10 })],
+    red: [redEnv({ verdict: 'PASS' })],
+  }))
+  await world.run(script, ARGS)
+  const voice = lensesByRound(world, 1).find((c) => c.opts.label.startsWith('red-lens-7-'))
+  assert.ok(voice, 'no L7 seat was dispatched — the report voice is audited by nobody')
+  assert.ok(voice.prompt.includes('report voice'), 'L7 is not the voice seat')
+  // MEASURED: the 2026-09-02 report carried 161 "this run / this round / the debate", 24 inline
+  // lane tags, 9 narrations of its own draft history and 2 of its verification apparatus, on a
+  // 4,000-year-old algebra question. The lens is told to read AS the subject's reader.
+  assert.ok(/addressed to a reader of its SUBJECT/.test(voice.prompt), 'L7 is not told whose reader it is')
+  // THE FAILURE MODE OF THIS LENS IS OVER-CORRECTION. A limit on the CONCLUSION is load-bearing
+  // and must survive re-voiced; only the fact about the RUN moves. A lens told merely "remove the
+  // process voice" deletes the caveat with it.
+  assert.ok(/SEPARATION, NEVER DELETION/.test(voice.prompt), 'L7 is not warned that the residue is load-bearing')
+  // And a report that ADMITS it is narrating itself is still narrating itself — the 2026-09-02
+  // report said so about itself in its own prose and shipped anyway.
+  assert.ok(/DISCLOSURE IS NOT DISCHARGE/.test(voice.prompt), 'L7 can be talked out of a leak by a disclosure')
+  // The steelman clause is L5/L6's duty over the lines of inquiry; L7 audits prose, not avenues.
+  assert.ok(!/steelman/i.test(voice.prompt), 'L7 carries the steelman duty, which belongs to L5/L6')
+})
+
+test('W2i: lens numbers are ROLES — logic is always L5, dark-side always L6, voice always L7, whatever the citation count', async () => {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ claim_count: 10 })],           // ONE citation pass: positionally L5/L6 would slide to L2/L3
     red: [redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
   const labels = lensesByRound(world, 1).map((c) => c.opts.label.match(/^red-lens-(\d+)-/)[1])
-  assert.deepEqual(labels.sort(), ['1', '5', '6'], 'citation slice L1, logic L5, dark-side L6 — no positional slide')
+  assert.deepEqual(labels.sort(), ['1', '5', '6', '7'], 'citation slice L1, logic L5, dark-side L6, voice L7 — no positional slide')
   const logic = lensesByRound(world, 1).find((c) => c.opts.label.startsWith('red-lens-5-'))
   assert.ok(logic.prompt.includes('logic and completeness'), 'L5 is the logic seat')
   // The LABEL FORMAT is the tool's — it assigns them and the findings view lists them, so the
@@ -229,16 +253,16 @@ test('docket window is the whole debate: an id re-raised after skipping a round 
 
 // ---- Run-3 docket rows 21 + 24: friction everywhere, persisted in prompts ----
 
-test('blue-synthesize friction reaches the aggregate (row 21)', async () => {
+test('blue-synthesize log entries reach the aggregate (row 21)', async () => {
   const world = makeWorld(makeResponder({
-    blueSynth: [blueEnv({ friction: ['write-block on blue/report.md'] })],
+    blueSynth: [blueEnv({ log: ['write-block on blue/report.md'] })],
     red: [redEnv({ verdict: 'PASS' })],
   }))
   const out = await world.run(script, ARGS)
   assert.ok(out.friction.includes('blue-synthesize: write-block on blue/report.md'))
 })
 
-test('every seat prompt carries the friction clause (envelope + verb, not a hand-written file); lenses are transcript-forbidden and record findings via the tool', async () => {
+test('every seat prompt carries the log clause (envelope + verb, not a hand-written file); lenses are transcript-forbidden and record findings via the tool', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
@@ -252,11 +276,31 @@ test('every seat prompt carries the friction clause (envelope + verb, not a hand
     // empty form, and the fact that silence is not the empty case — all three of which the
     // `friction` verb's own help now states, in those words, on the page the tree walk opens.
     // What is genuinely the PROMPT's is the ENVELOPE half (a schema field, not a verb) and the
-    // SURVEY: naming the verbs read and not used is the instrument the traversal is measured
-    // with, and no help page can ask a seat about the pages it chose not to act on.
-    assert.ok(c.prompt.includes("envelope's friction field"), `${seat} lost the envelope half of the friction channel`)
-    assert.ok(/THE REASON OWES THE SURVEY/.test(c.prompt) && /did NOT use/.test(c.prompt),
-      `${seat} lost the survey duty — the rejected options are what make a friction reason evidence of weighing`)
+    // AUDIENCE: this channel is read by the operator who can retool the seat, which no help page
+    // can tell a seat about its own sitting.
+    //
+    // THE SURVEY IS GONE, AND IT WAS MEASURED OUT. This assertion used to require the prompt to
+    // demand a survey of "the verbs you read and did NOT use", defended here as the instrument
+    // the traversal is measured with. Measured on 2026-09-02_quadratic-formula: the surveys are
+    // 64,960 of 142,891 characters of this channel — 45.5% — and a mechanical search of all of
+    // them for a single proposed fix returns ZERO. The instrument is also unfalsifiable, and
+    // false where it can be checked: red-lens-r4-L2's survey states it rejected `reproduce` and
+    // `finding`, while that seat's own events record both. A check that cannot fail, and does not
+    // hold where it can be tested, is what the bench docked blue for at R3-5 in that same run.
+    // Both seats, asked afterwards, called it duty rather than judgement — one said it wrote to
+    // be "visibly compliant with a prompt that pre-accuses the seat", knowing the difference.
+    //
+    // WHAT REPLACED IT IS THE PART THEY DEFENDED: a decline that was a JUDGEMENT rather than an
+    // absence of occasion. The record holds every verb a seat ran, so "what I used" is derivable
+    // and never needs asking; what nothing derives is what a seat weighed and set aside. That is
+    // the one sentence this clause still asks for, and the only part of the survey with a reader.
+    assert.ok(c.prompt.includes("envelope's log field"), `${seat} lost the envelope half of the operator channel`)
+    assert.ok(/AUDIENCE IS THE OPERATOR/.test(c.prompt),
+      `${seat} lost the audience half — a capability gap is addressed to whoever can retool the seat, not to the debate`)
+    assert.ok(/JUDGEMENT rather than for want of occasion/.test(c.prompt),
+      `${seat} lost the judgement-decline ask — the one part of the retired survey the record cannot derive`)
+    assert.ok(!/OWES THE SURVEY/.test(c.prompt) && !/did NOT use/.test(c.prompt),
+      `${seat} still demands the verb survey — 45.5% of the channel, zero fix proposals, and unfalsifiable`)
     assert.ok(!/SILENCE IS NOT THE EMPTY CASE/.test(c.prompt),
       `${seat} restates the empty-form rule the verb's help states — two copies of one rule is what this pass removed`)
   }
@@ -445,17 +489,18 @@ test('citation passes scale with claim_count and carry the ledger clause', async
     const world = makeWorld(makeResponder({ blueSynth: [blueEnv({ claim_count: claims })], red: [redEnv({ verdict: 'PASS' })] }))
     await world.run(script, ARGS)
     const lenses = world.calls.filter((c) => c.opts.label.startsWith('red-lens'))
-    for (const c of lenses.slice(0, lenses.length - 2)) assert.ok(c.prompt.includes(CITATION_CLAUSE), 'citation lens carries the ledger clause')
+    // The last THREE are logic, dark-side and voice; the rest are citation slices.
+    for (const c of lenses.slice(0, lenses.length - 3)) assert.ok(c.prompt.includes(CITATION_CLAUSE), 'citation lens carries the ledger clause')
     return lenses.length
   }
-  assert.equal(await lensCount(10), 1 + 2)   // floor: one citation pass + logic + risk
-  assert.equal(await lensCount(200), 4 + 2)  // cap: four citation passes + logic + risk
+  assert.equal(await lensCount(10), 1 + 3)   // floor: one citation pass + logic + risk + voice
+  assert.equal(await lensCount(200), 4 + 3)  // cap: four citation passes + logic + risk + voice
 })
 
-test('friction aggregates from every seat with attribution', async () => {
+test('the operator channel aggregates from every seat with attribution', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')], friction: ['no PDF extraction'] }), redEnv({ verdict: 'PASS', friction: [] })],
-    blueRespond: [blueEnv({ friction: ['rate-limited on WebFetch'] })],
+    red: [redEnv({ gaps: [gap('R1-1')], log: ['no PDF extraction'] }), redEnv({ verdict: 'PASS', log: [] })],
+    blueRespond: [blueEnv({ log: ['rate-limited on WebFetch'] })],
   }))
   const out = await world.run(script, ARGS)
   assert.ok(out.friction.includes('red-merge-r1: no PDF extraction'))
@@ -1049,8 +1094,8 @@ test('the record contract arms SEAT_ID and the binary path on every seat', async
   assert.ok(!/DOES NOT EXIST FOR YOU/.test(lens), 'the prompt restates the friction footer that closes every help page')
   assert.ok(/Routing around it into markdown is the failure this contract exists to prevent/.test(lens), 'the prompt no longer names what routing around the tool costs')
   // The escalation path travels with the same footer, on every page. The prompt's own carrier for
-  // it is the friction clause, asserted at every seat by the friction test above.
-  assert.ok(/FRICTION \(/.test(lens), 'the escalation path is stated')
+  // it is the log clause, asserted at every seat by the log test above.
+  assert.ok(/LOG \(/.test(lens), 'the escalation path is stated')
 
   // AND IT NAMES NO COMMAND. The contract is the ladder, not a list — a partial list satisfies
   // the seat's need to know what exists and stops it looking, which is the whole reason the

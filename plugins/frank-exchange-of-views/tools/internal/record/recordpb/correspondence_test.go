@@ -62,7 +62,7 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 
 	// The census in plans/record-protobuf.md §II.1 says 35. If that number moves, the plan moves
 	// with it — this is the assertion that makes the plan's census checkable rather than asserted.
-	const wantBodies = 35
+	const wantBodies = 34
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)

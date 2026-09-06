@@ -71,7 +71,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 }
 
 // AN EMPTY FRICTION LOG IS TWO DIFFERENT RUNS, and only one of them is fine.
-func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
+func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, ""); err != nil {
 		t.Fatal(err)
@@ -80,26 +80,26 @@ func TestTheFrictionViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	j := FrictionJSONOf(b.Events)
+	j := LogJSONOf(b.Events)
 	if j.Counts.Total != 0 || j.Counts.Attested != 0 {
 		t.Fatalf("a silent run: total=%d attested=%d, want 0/0", j.Counts.Total, j.Counts.Attested)
 	}
 
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.FrictionNone{Text: proto.String("read the board and my verb list; every refusal was my own error")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.Log{Text: proto.String("read the board and my verb list; every refusal was my own error"), Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = BoardState(mustRun(t, runDir))
-	j = FrictionJSONOf(b.Events)
+	j = LogJSONOf(b.Events)
 	// The counts must now DIFFER from the silent run. Same total, different meaning — which is
 	// the whole point: zero-with-an-attestation is a statement someone can be wrong about,
 	// zero-alone is the absence of one.
 	if j.Counts.Total != 0 {
 		t.Errorf("an attestation must not count as a complaint: total=%d", j.Counts.Total)
 	}
-	if j.Counts.Attested != 1 || len(j.NothingBlocked) != 1 {
-		t.Fatalf("the attestation did not reach the view: attested=%d entries=%d", j.Counts.Attested, len(j.NothingBlocked))
+	if j.Counts.Attested != 1 || len(j.Log) != 1 {
+		t.Fatalf("the attestation did not reach the view: attested=%d entries=%d", j.Counts.Attested, len(j.Log))
 	}
-	if j.NothingBlocked[0].SeatID != "blue-respond-r1" {
+	if j.Log[0].SeatID != "blue-respond-r1" {
 		t.Error("the attestation must name the seat that made it — an unattributed one cannot be weighed")
 	}
 }

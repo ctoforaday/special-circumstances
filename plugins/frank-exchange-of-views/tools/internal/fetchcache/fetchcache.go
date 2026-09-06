@@ -26,6 +26,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"os"
 	"path/filepath"
@@ -117,6 +119,35 @@ type Entry struct {
 	OCRDerived bool `json:"ocr_derived,omitempty"`
 	// Pages is the document's page count where the format has one, else 0.
 	Pages int `json:"pages,omitempty"`
+
+	// HTTPStatus is the status the origin (or whatever answered for it) returned. It is here
+	// because a REFUSED fetch used to leave no trace at all: the error went back to the seat and
+	// the index recorded nothing, so "we could not read this" survived only as prose in a
+	// report — where a run then counted it by grep and got the count wrong twice.
+	HTTPStatus int `json:"http_status,omitempty"`
+
+	// RefusalClass says WHO refused, and its most important value is the one that admits it does
+	// not know. A 403 from an egress proxy refusing the host and a 403 from an origin refusing
+	// the client are the same status line, and nothing in the response separates them — one is a
+	// fact about this container, the other a fact about the source, and they license completely
+	// different next actions. Where a proxy is configured the honest answer is `unknown`, and
+	// recording that is the point: an ambiguity carried is not an ambiguity resolved by guess.
+	//
+	//	origin   — no proxy is configured, so the refusal is the source's own
+	//	unknown   — a proxy is configured and the two readings cannot be told apart
+	RefusalClass string `json:"refusal_class,omitempty"`
+}
+
+// Refusal is a fetch that was answered and REFUSED, carried as a typed error so the status
+// survives the trip back to a caller that would otherwise see only prose.
+type Refusal struct {
+	URL    string
+	Status int
+	Note   string
+}
+
+func (r *Refusal) Error() string {
+	return fmt.Sprintf("fetch: %s returned HTTP %d%s", r.URL, r.Status, r.Note)
 }
 
 // Sha is the lowercase-hex sha256 of b — the cache key and the hash a citation records.
@@ -278,6 +309,16 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 	}
 	resp, ferr := f.Fetch(url)
 	if ferr != nil {
+		// A REFUSAL IS EVIDENCE, and it used to have nowhere to live. The index now carries the
+		// attempt — url, status, and who refused — so a later reader can tell a source that does
+		// not exist from one this container could not reach. The error still goes back: recording
+		// the refusal does not make it a success.
+		var ref *Refusal
+		if errors.As(ferr, &ref) {
+			_ = appendIndexIfAbsent(run, Entry{
+				URL: url, HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
+			})
+		}
 		return Entry{}, nil, false, ferr
 	}
 	entry := Entry{URL: url, ContentType: MediaType(resp.ContentType)}

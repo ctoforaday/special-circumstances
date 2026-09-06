@@ -187,15 +187,22 @@ func newMint() *cobra.Command {
 				// recorded an entry that rendered with EMPTY TEXT in the operator's
 				// friction read: the block was logged and its explanation was not, which
 				// is the same blank entry an empty discharge produces.
-				// THE KIND IS A VALUE NOW, not a key/word pair. `text` is the field the
-				// friction projection reads, and the old payload set the wrong key — every
-				// estoppel block recorded an entry that rendered with EMPTY TEXT, so the
-				// block was logged and its explanation was not. The schema removes the way
-				// to make that mistake: there is one prose field and one typed kind.
-				kind := recordpb.FrictionKind_FRICTION_KIND_ESTOPPEL
-				fr := &recordpb.Friction{
+				// THE TYPE IS A VALUE NOW, not a key/word pair. `text` is the field the log
+				// projection reads, and the old payload set the wrong key — every estoppel
+				// block recorded an entry that rendered with EMPTY TEXT, so the block was
+				// logged and its explanation was not. The schema removes the way to make that
+				// mistake: one prose field, one typed assertion, one source.
+				//
+				// SOURCE IS TOOL, and that is the axis the old single enum conflated: this is
+				// the tool refusing a mint, not a seat filing a report about its sitting, and
+				// an operator filtering for seat reports must not have to know which VALUES
+				// were tool values to exclude it.
+				lt := recordpb.LogType_LOG_TYPE_ESTOPPEL
+				src := recordpb.LogSource_LOG_SOURCE_TOOL
+				fr := &recordpb.Log{
 					Text:       proto.String(msg),
-					Kind:       &kind,
+					Type:       &lt,
+					Source:     &src,
 					EstoppedBy: proto.String(prior),
 				}
 				if _, ferr := record.Append(s.Identity(), fr); ferr != nil {

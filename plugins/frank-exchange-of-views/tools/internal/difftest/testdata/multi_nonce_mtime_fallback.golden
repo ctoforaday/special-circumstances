@@ -47,8 +47,8 @@ Available Commands:
   count-claims count the FOOTNOTED declarative claims in blue's report (read-only)
   fetch        cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   finding      a defect in the TEXT, when the problem is the writing itself or there is nothing to go and fetch
-  friction     a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   help         Help about any command
+  log          an entry for the operator who can retool you — what it asserts, said in the positive
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
   reproduce    re-run a recorded computation and judge whether it proves the sentence it is attached to
   verify       judge a citation blue authored, when the anchor exists and you have read what it points at

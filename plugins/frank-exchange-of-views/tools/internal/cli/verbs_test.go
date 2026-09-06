@@ -65,8 +65,8 @@ func seedReferents(t *testing.T, runDir string) {
 	// nothing in the run, and the lens's presence used to come from a seeded `observe` — retired
 	// with #327. `friction` is the lens verb with no referents of its own, so it seeds presence
 	// without seeding state any case then has to work around.
-	if _, err := run(t, "friction", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--reason", "seeded so the lens seat has sat"); err != nil {
+	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--reason", "seeded so the lens seat has sat", "--type", "defect"); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -276,10 +276,10 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		if board, err := record.BoardState(run); err == nil {
 			bj := record.BoardJSONOf(board)
 			fj := record.FindingsJSONOf(board.Events)
-			frj := record.FrictionJSONOf(board.Events)
+			frj := record.LogJSONOf(board.Events)
 			friction.Count = frj.Counts.Total
-			if n := len(frj.Friction); n > 0 {
-				last := frj.Friction[n-1]
+			if n := len(frj.Log); n > 0 {
+				last := frj.Log[n-1]
 				friction.Last = last.SeatID + ": " + last.Text
 			}
 			obs := map[string]int{}

@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/fetchcache"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
@@ -67,7 +68,7 @@ func newCite() *cobra.Command {
 		entry, _, _, err := fetchcache.Resolve(run, url, fetchcache.Default)
 		if err != nil {
 			msg := fmt.Sprintf("blue cite: could not load %s: %v — pick a reachable source or an archive.org snapshot", url, err)
-			if _, ferr := record.Append(s.Identity(), &recordpb.Friction{Text: proto.String(msg)}); ferr != nil {
+			if _, ferr := record.Append(s.Identity(), &recordpb.Log{Text: proto.String(msg), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_TOOL.Enum()}); ferr != nil {
 				return nil, ferr
 			}
 			return nil, errors.New(msg)
@@ -106,12 +107,25 @@ func newCite() *cobra.Command {
 			AccessDate: proto.String(record.Now().Format("2006-01-02")),
 			CiteKey:    proto.String(seat.Str(cmd, flags.Key)),
 		}
+		// THE DEFAULT IS THE WEAK CLAIM. A citation nobody has asserted a reading for is UNREAD:
+		// the honest state costs the seat nothing, and only a stronger one is stated on purpose.
+		read := recordpb.SourceTextRead_SOURCE_TEXT_READ_UNREAD
+		if w := seat.Str(cmd, flags.SourceText); w != "" {
+			v, known := record.SourceTextReadOf(w)
+			if !known || v == recordpb.SourceTextRead_SOURCE_TEXT_READ_UNSPECIFIED {
+				return nil, fmt.Errorf("blue cite: %q is not a reading this record can carry (leaf | summary_only | unread)", w)
+			}
+			read = v
+		}
+		body.SourceTextRead = &read
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
 		return citeResult{Label: label, URL: url, Sha256: entry.Sha}, nil
 	}))
 
+	enumhelp.Flag(c, flags.SourceText, record.MustEnum("cite", "source_text_read"),
+		"how much of the source you actually READ. Omitted records `unread` — the citation then rests on the source EXISTING, not on anything it says")
 	c.Flags().String(flags.Quote, "", flags.DescQuote+". The invisible citation anchor is spliced here, so a mis-quote is rejected rather than guessed at")
 	c.Flags().String(flags.URL, "", flags.DescURL)
 	c.Flags().String(flags.Title, "", flags.DescTitle)

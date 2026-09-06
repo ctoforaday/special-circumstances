@@ -1125,25 +1125,37 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 		{"bench", "judge-r1"},
 	}
 	for _, tc := range cases {
-		t.Run("friction/"+tc.role, func(t *testing.T) {
+		t.Run("log/"+tc.role, func(t *testing.T) {
 			runDir := newRun(t)
-			out, err := run(t, "friction", "--run", runDir, "--seat-id", tc.seatID,
-				"--reason", "the capability I needed")
+			out, err := run(t, "log", "--run", runDir, "--seat-id", tc.seatID,
+				"--reason", "the capability I needed", "--type", "defect")
 			if err != nil {
 				t.Fatal(err)
 			}
-			if strings.TrimSpace(out) != "friction recorded" {
-				t.Errorf("friction said %q", out)
+			if strings.TrimSpace(out) != "log entry recorded: defect" {
+				t.Errorf("log said %q", out)
 			}
-			ev := lastBody(t, runDir, &recordpb.Friction{})
+			ev := lastBody(t, runDir, &recordpb.Log{})
 			if got := ev.GetText(); got != "the capability I needed" {
 				t.Errorf("text = %q", got)
 			}
 			// `text`, not `reason`. `--reason` is the word a SEAT types; the field it lands in is
-			// spelled per verb, and a friction stores `text`. setFields reads the schema, so it
+			// spelled per verb, and a log entry stores `text`. setFields reads the schema, so it
 			// reports what the record holds rather than what the seat typed.
-			if keys := setFields(ev); len(keys) != 1 || !keys["text"] {
-				t.Errorf("the friction body carries more than the seat's prose: %v", keys)
+			//
+			// TYPE AND SOURCE RIDE WITH IT, and that is the point of the channel: the prose is
+			// what the seat said, the type is what it ASSERTS, and the source is who recorded it.
+			// A body carrying only prose is the shape that made an operator read 142,891
+			// characters to learn which entries were actionable.
+			keys := setFields(ev)
+			if len(keys) != 3 || !keys["text"] || !keys["type"] || !keys["source"] {
+				t.Errorf("the log body is not prose + type + source: %v", keys)
+			}
+			if ev.GetType() != recordpb.LogType_LOG_TYPE_DEFECT {
+				t.Errorf("type = %v", ev.GetType())
+			}
+			if ev.GetSource() != recordpb.LogSource_LOG_SOURCE_SEAT {
+				t.Errorf("a seat's own entry must record source SEAT, got %v", ev.GetSource())
 			}
 		})
 	}

@@ -1,4 +1,4 @@
-prompt sha256: 0b53ce66f9f7fb211cd94e642636d1e582bcfba2f01b9db9eece46c090786566
+prompt sha256: 24c7f72bbf6c68f69fe59656b06fbf2c61697cfd9e87c3156772e4b47cc86014
 
 Terminal dispute disposition for topic "the seat prompt contract" (debate ended VERIFIED after round 2; this docket fires at the exit boundary).
 Undisposed grade disputes: [{"gap_id":"R1-1","dimension":"likelihood","proposed":"low","evidence":"the harm needs two independent failures","traffic_class":"grade_dispute_terminal_pending"}].
@@ -6,9 +6,10 @@ Read the transcript in full, and read the board back, before you rule.
 LAW: if research/2026-01-01_golden/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.
 NOTHING CAN BE CARRIED AT A TERMINAL EXIT — there is no next round to carry it into.
 Each dispute either moves to a corrected grade, which you state, or it ships CONTESTED and the report records it as contested. deadlock: false.
-FRICTION (judge-terminal) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field.
-AND THE REASON OWES THE SURVEY: name the verbs you read in the tree and did NOT use, and why each was wrong for this sitting.
-A reason that lists only what you did is a receipt for the path you took and says nothing about the ones you rejected — and a seat that cannot name a single rejected option did not weigh any.
+LOG (judge-terminal) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field.
+YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
+Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
+Where nothing impeded the work, say that instead.
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.

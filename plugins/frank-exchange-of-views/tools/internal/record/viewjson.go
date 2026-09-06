@@ -907,7 +907,7 @@ func counterpartyOf(evs []*Event, role string, round int) CounterpartyJSON {
 			continue
 		}
 		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_REGISTER, recordpb.EventType_EVENT_TYPE_FRICTION_NONE:
+		case recordpb.EventType_EVENT_TYPE_REGISTER:
 			continue // arriving is not acting
 		}
 		c.Acts++
@@ -1054,65 +1054,70 @@ func FindingsJSONBytes(run Run) ([]byte, error) {
 	return append(out, '\n'), nil
 }
 
-// FrictionJSON is the seat-facing friction view: every friction event on the record, in
-// event order — capability/protocol complaints that live as events (the friction verb), not
-// a hand-written friction.md. The dashboard reads this (via show --view friction) instead of
-// parsing a markdown/root file, the json-mode move toward the record as the single reader.
-type FrictionJSON struct {
-	Friction []FrictionEntryJSON `json:"friction"`
-	// NothingBlocked carries the EXPLICIT NEGATIVE — the seats that said, on the record, that
-	// nothing blocked their sitting. An empty friction list alone cannot say this: it reads the
-	// same whether every sitting was clean or the channel went unused for a whole run, and
-	// across eighteen probed dispatches it was the second while looking like the first.
-	NothingBlocked []FrictionEntryJSON `json:"nothing_blocked"`
-	Counts         struct {
+// LogJSON is the operator-facing log view: every log event on the record, in event order —
+// entries addressed to whoever can retool the seat, living as events rather than a hand-written
+// file. The dashboard reads this instead of parsing a markdown/root file, the json-mode move
+// toward the record as the single reader.
+//
+// ONE LIST, TYPED — not two. The clean case used to be its own array because it was its own event
+// type; it is now an entry with `type: nominal`, so a reader FILTERS rather than picking a list.
+// The property that split them survives: a nominal entry is an EVENT, so "four seats said they
+// looked" is still distinguishable from "the channel went unused", which is what silence could
+// never say and what an empty list alone still cannot.
+type LogJSON struct {
+	Log    []LogEntryJSON `json:"log"`
+	Counts struct {
 		Total int `json:"total"`
-		// Attested is how many seats made that statement. Total 0 with Attested 0 is a run
+		// Attested is how many seats logged a NOMINAL entry. Total 0 with Attested 0 is a run
 		// nobody has spoken for; Total 0 with Attested 4 is four seats saying they looked.
 		Attested int `json:"attested"`
 	} `json:"counts"`
 }
 
-type FrictionEntryJSON struct {
+type LogEntryJSON struct {
 	SeatID string `json:"seat_id"`
 	Round  int    `json:"round"`
+	Type   string `json:"type"`
+	Source string `json:"source"`
 	Text   string `json:"text"`
 }
 
-// FrictionJSONOf projects the record's friction events — from BoardState, never the markdown.
-// FrictionJSONOf projects the two friction families. Events, not a Board, for the reason
-// FindingsJSONOf states.
-func FrictionJSONOf(evs []*Event) FrictionJSON {
-	out := FrictionJSON{Friction: []FrictionEntryJSON{}, NothingBlocked: []FrictionEntryJSON{}}
+// LogJSONOf projects the record's log events — from BoardState, never the markdown. Events, not a
+// Board, for the reason FindingsJSONOf states.
+func LogJSONOf(evs []*Event) LogJSON {
+	out := LogJSON{Log: []LogEntryJSON{}}
 	for _, e := range evs {
-		// `reason` WAS THE PAYLOAD KEY on both verbs; `text` is the field on both messages.
-		//
-		// KIND IS NOT FILTERED HERE, and that is the behaviour this view already had rather than a
-		// choice made in the conversion: Friction now carries a `kind` (seat report / estoppel
-		// refusal / tool error) and this list counts all three, exactly as the payload-keyed
-		// version did. Reported, not changed — narrowing it would move Counts.Total.
-		if f, ok := recordpb.BodyAs[*recordpb.Friction](e); ok {
-			out.Friction = append(out.Friction, FrictionEntryJSON{SeatID: e.GetSeatId(), Round: int(e.GetRound()), Text: f.GetText()})
-			continue
-		}
-		if f, ok := recordpb.BodyAs[*recordpb.FrictionNone](e); ok {
-			out.NothingBlocked = append(out.NothingBlocked, FrictionEntryJSON{SeatID: e.GetSeatId(), Round: int(e.GetRound()), Text: f.GetText()})
+		// TYPE IS NOT FILTERED HERE, and that is the behaviour this view already had rather than a
+		// choice made in the conversion: the list carries every type and the reader narrows.
+		// Reported, not changed — filtering here would move Counts.Total.
+		if f, ok := recordpb.BodyAs[*recordpb.Log](e); ok {
+			out.Log = append(out.Log, LogEntryJSON{
+				SeatID: e.GetSeatId(), Round: int(e.GetRound()),
+				Type:   recordpb.Word(f.GetType()),
+				Source: recordpb.Word(f.GetSource()),
+				Text:   f.GetText(),
+			})
+			if f.GetType() == recordpb.LogType_LOG_TYPE_NOMINAL {
+				out.Counts.Attested++
+			} else {
+				// TOTAL COUNTS WHAT ASSERTS A PROBLEM, not every entry. Folding nominal entries in
+				// would make an attestation read as a complaint and destroy the distinction this
+				// view exists for: zero-with-an-attestation is a statement someone can be wrong
+				// about, zero-alone is the absence of one.
+				out.Counts.Total++
+			}
 		}
 	}
-	out.Counts.Total = len(out.Friction)
-	out.Counts.Attested = len(out.NothingBlocked)
 	return out
 }
 
-// FrictionJSONBytes renders the friction view as indented JSON.
-func FrictionJSONBytes(run Run) ([]byte, error) {
-	evs, err := EventsOf(run,
-		recordpb.EventType_EVENT_TYPE_FRICTION,
-		recordpb.EventType_EVENT_TYPE_FRICTION_NONE)
+// LogJSONBytes renders the log view as indented JSON.
+func LogJSONBytes(run Run) ([]byte, error) {
+	evs, err := EventsOf(run, recordpb.EventType_EVENT_TYPE_LOG)
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(FrictionJSONOf(evs), "", "  ")
+	out, err := json.MarshalIndent(LogJSONOf(evs), "", "  ")
 	if err != nil {
 		return nil, err
 	}
