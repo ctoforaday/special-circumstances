@@ -1,7 +1,7 @@
 {
   "name": "prosthetic-conscience",
   "displayName": "Prosthetic Conscience",
-  "version": "0.42.0",
+  "version": "2.0.0",
   "description": "Core adversarial + cowork behaviour for Special Circumstances: Design-by-Contract rules-as-skills, pair programming, spec-driven development + /plan-audit, project memory, context checkpointing for compaction survival (/checkpoint + a PreCompact seal hook), proficiency skills, quality hooks, validation-loop, and environment preflight (/prosthetic-conscience:doctor).",
   "author": {
     "name": "Gregory Block"
