@@ -1085,8 +1085,20 @@ func unmintedFindings(board *record.Board) string {
 			loc = " — " + loc
 		}
 		// A finding is addressed by COALESCENCE and nothing else: its label named in some gap's
-		// found_by. So a finding reaching this section means exactly one thing — the merge
-		// weighed it and did not mint it — and the section says so.
+		// found_by. What a finding reaching this section means is therefore ONE fact — no gap
+		// credits it — and NOT the second fact this comment used to assert, that "the merge
+		// weighed it and did not mint it".
+		//
+		// NOTHING ON THE RECORD SAYS THE MERGE WEIGHED ANYTHING. Deliberation is not an event;
+		// declining to mint writes nothing. Measured (#747): across one run three findings
+		// reached this section with no recorded reason, and one of them — a medium-severity
+		// allegation, with a reproducible `grep -ic` behind it, that blue had fabricated a
+		// verbatim quote — was dropped in the same round the merge closed the gap that very text
+		// was repairing. Rendering that as "weighed and declined" is the sentence that makes a
+		// silent drop read as a considered decision, which is the whole of the harm.
+		//
+		// So the section states the join and stops. `internal/view/view.go` says the same thing
+		// about the same set, and said something different until this change.
 		//
 		// `--reason` LANDS ON `text`: Finding's only prose channel, the same flag/field split
 		// recordpb/required.go declares for Verify.text and Close.prose.
@@ -1099,7 +1111,7 @@ func unmintedFindings(board *record.Board) string {
 	if len(rows) == 0 {
 		return ""
 	}
-	return fmt.Sprintf("### Lens findings not raised to a gap (%d)\n\nRed's leaf audit that the merge weighed but did not mint — kept for the record, not a gate on the verdict.\n\n%s",
+	return fmt.Sprintf("### Lens findings credited by no gap (%d)\n\nRed's leaf audit that no gap on the board credits. Whether each was considered and declined, or never reached the merge at all, is NOT recorded — declining to mint writes nothing. Kept for the record, and not a gate on the verdict.\n\n%s",
 		len(rows), strings.Join(rows, "\n\n"))
 }
 
