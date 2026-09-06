@@ -51,10 +51,30 @@ func newProve() *cobra.Command {
 			return nil, fmt.Errorf("blue prove requires --script: the path (under the run directory) of the program that settles it")
 		}
 
-		// Crash-retry: a committed proof for this key is already recorded.
+		// CRASH-RETRY AND KEY COLLISION LOOK IDENTICAL AT THE KEY, AND ARE OPPOSITE FACTS.
+		//
+		// A retry is the SAME program arriving twice: returning the recorded sha is right, and
+		// re-running it would splice a second anchor. A collision is a DIFFERENT program under a
+		// key an earlier dispatch of this seat already burned — and this used to take the same
+		// path, answering "already recorded as <sha>" and recording NOTHING. A seat that believed
+		// the message shipped a report claiming a proof it does not hold, and a resumed dispatch
+		// cannot see which keys its earlier self used. Measured in
+		// research/2026-09-02_quadratic-formula (blue-respond-r1, --key P1).
+		//
+		// The script's own sha settles it, and costs a file read rather than an execution.
 		if prior, err := record.ExistingProofByKey(run, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {
 			return nil, err
 		} else if prior != "" {
+			now, serr := proof.ScriptSha(run.Dir(), script)
+			if serr != nil {
+				return nil, serr
+			}
+			if now != prior {
+				return nil, fmt.Errorf("blue prove: --key %q already names proof %s on this run, and %s hashes to %s — "+
+					"a key is one program's name, not a slot to reuse. This is not a retry: recording nothing here would "+
+					"leave you citing a proof of something else. Give this program its own --key",
+					seat.Str(cmd, flags.Key), prior[:12], script, now[:12])
+			}
 			return proveResult{SHA: prior, Idempotent: true}, nil
 		}
 

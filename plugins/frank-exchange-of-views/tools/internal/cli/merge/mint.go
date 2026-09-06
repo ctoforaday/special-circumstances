@@ -215,7 +215,7 @@ func newMint() *cobra.Command {
 		if _, err := record.Append(s.Identity(), p); err != nil {
 			return nil, err
 		}
-		return mintResult{GapID: gapID}, nil
+		return mintResult{GapID: gapID, Check: seat.Str(cmd, flags.Check)}, nil
 	}))
 
 	c.Flags().String(flags.Key, "", flags.DescKey)
@@ -249,13 +249,30 @@ func newMint() *cobra.Command {
 type mintResult struct {
 	GapID      string `json:"gap_id"`
 	Idempotent bool   `json:"idempotent,omitempty"`
+	// Check is the acceptance check AS RECORDED, echoed back because the seat cannot otherwise
+	// see what landed.
+	//
+	// MEASURED: in research/2026-09-02_quadratic-formula (red-merge-r3) backticks in two --check
+	// strings were substituted by the shell BEFORE mint ever saw them, so one gap's recorded check
+	// held the command OUTPUTS instead of the commands and another lost its projection name. The
+	// mint succeeded, printed only the new id, and echoed nothing — the corruption surfaced only
+	// when someone read the board afterwards. The tool cannot prevent a shell from rewriting its
+	// own argv; what it can do is show what it stored, which is the one thing that makes the
+	// difference visible while the seat is still there to fix it. No verb amends a check after
+	// mint, so the moment of the write is the only moment.
+	Check string `json:"acceptance_check,omitempty"`
 }
 
 func (r mintResult) Human() string {
+	head := "minted " + r.GapID
 	if r.Idempotent {
-		return "minted " + r.GapID + " (idempotent retry — existing id returned)"
+		head += " (idempotent retry — existing id returned)"
 	}
-	return "minted " + r.GapID
+	if r.Check == "" {
+		return head
+	}
+	return head + "\n  acceptance check RECORDED as: " + r.Check +
+		"\n  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)"
 }
 
 // contains reports membership, so an --supersedes that already names the estopping gap
