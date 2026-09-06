@@ -29,7 +29,18 @@ type fetchSummary struct {
 	Filename    string `json:"filename,omitempty"`
 	Bytes       int    `json:"bytes"`
 	CacheHit    bool   `json:"cache_hit"`
-	Pages       int    `json:"pages,omitempty"`
+	// SharedBodyWith names other urls already cached under these EXACT bytes. Two different
+	// sources answering with one body is not what a document looks like — it is what a bot wall,
+	// a login interstitial or a "no results" page looks like, and content-addressing collapses
+	// those onto one entry that satisfies "fetch-once, hash-verified" perfectly while the hash
+	// certifies the BLOCKADE rather than the source.
+	SharedBodyWith []string `json:"shared_body_with,omitempty"`
+	// RetrievedVia names the archive snapshot these bytes came from, when the live source refused
+	// and the fallback recovered one. Empty means the bytes are the live source's own.
+	RetrievedVia string `json:"retrieved_via,omitempty"`
+	// TextRetrieved false means these bytes are a RECORD THAT THE SOURCE EXISTS, not its text.
+	TextRetrieved bool `json:"text_retrieved"`
+	Pages         int  `json:"pages,omitempty"`
 
 	// TextExtracted is a pointer for the same three-state reason the Entry field is: nil means
 	// nothing was attempted (this content type is not one anything extracts), false means it was
@@ -87,20 +98,26 @@ func (s *fetchSummary) applyReading(run record.Run, r fetchcache.ReadingRecord) 
 // summarize projects a cache entry into what the seat is shown. Paths are absolute — a Run
 // resolves its directory once, at construction — because the seat's next act is to Read one.
 func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchSummary {
+	// Best-effort: a cache whose index cannot be read is a fetch that still succeeded, and
+	// refusing here would trade a real document for a missing warning.
+	shared, _ := fetchcache.URLsSharingBody(run, e.Sha, e.URL)
 	s := fetchSummary{
-		URL:           e.URL,
-		Sha256:        e.Sha,
-		Path:          fetchcache.Path(run, e.Sha),
-		ContentType:   e.ContentType,
-		Filename:      e.Filename,
-		Bytes:         bodyLen,
-		CacheHit:      hit,
-		Pages:         e.Pages,
-		TextExtracted: e.TextExtracted,
-		TextSha256:    e.TextSha,
-		TextReason:    e.TextReason,
-		Extractor:     e.Extractor,
-		OCRDerived:    e.OCRDerived,
+		URL:            e.URL,
+		Sha256:         e.Sha,
+		Path:           fetchcache.Path(run, e.Sha),
+		ContentType:    e.ContentType,
+		Filename:       e.Filename,
+		Bytes:          bodyLen,
+		CacheHit:       hit,
+		SharedBodyWith: shared,
+		RetrievedVia:   e.RetrievedVia,
+		TextRetrieved:  e.TextRetrieved,
+		Pages:          e.Pages,
+		TextExtracted:  e.TextExtracted,
+		TextSha256:     e.TextSha,
+		TextReason:     e.TextReason,
+		Extractor:      e.Extractor,
+		OCRDerived:     e.OCRDerived,
 	}
 	// THE PATH IS NAMED ONLY WHEN THE FILE IS THERE. A text_path pointing at a file that was
 	// never written is worse than no field at all: a seat would Read it, get a not-found, and
@@ -141,6 +158,33 @@ func (s fetchSummary) render() string {
 	line("filename", s.Filename)
 	line("bytes", fmt.Sprint(s.Bytes))
 	line("cache_hit", fmt.Sprint(s.CacheHit))
+	// PROVENANCE FIRST: these bytes may not be the live source, and every later judgement about
+	// what the source SAYS depends on knowing that before reading a word of it.
+	if s.RetrievedVia != "" {
+		fmt.Fprintf(&b, "retrieved_via: %s\n", s.RetrievedVia)
+		if !s.TextRetrieved {
+			fmt.Fprintf(&b, "text_retrieved: false\n"+
+				"  ^ THESE BYTES ARE A RECORD THAT THE SOURCE EXISTS, NOT ITS TEXT. That is a real finding and a\n"+
+				"    legitimate citation — as source-text `unread`. It is not a reading, and nothing about what the\n"+
+				"    source SAYS may rest on it.\n")
+		}
+		fmt.Fprintf(&b, "  ^ THE LIVE SOURCE REFUSED THIS CONTAINER AND THESE BYTES ARE AN ARCHIVE SNAPSHOT — what the\n"+
+			"    source said on that date, retrieved from a third party. Usable, and NOT the same artifact: say so\n"+
+			"    in any claim about what the source currently says.\n"+
+			"    READ IT BEFORE YOU CITE IT AS READ. Measured against the sources that actually failed in\n"+
+			"    2026-09-02_quadratic-formula, a snapshot of a SUBSCRIPTION article is usually the landing page —\n"+
+			"    title, abstract and analytics — not the text. That is a source you have NOT read at the leaf, and\n"+
+			"    a citation must say so rather than inherit the snapshot's apparent success.\n")
+	}
+	// LOUD, AND ABOVE THE TEXT LINES, because a seat that reads no further has still been told the
+	// one thing that decides whether this is a source at all.
+	if len(s.SharedBodyWith) > 0 {
+		fmt.Fprintf(&b, "shared_body_with: %s\n", strings.Join(s.SharedBodyWith, ", "))
+		fmt.Fprintf(&b, "  ^ THESE EXACT BYTES WERE ALREADY SERVED FOR THE URL(S) ABOVE. Two different sources do not\n"+
+			"    answer with one body: this is the shape of a bot wall, a login interstitial or a no-results page.\n"+
+			"    The sha is hash-verified and certifies the BLOCKADE, not the document. Read the file before citing\n"+
+			"    it, and if it is a wall, this source is UNREAD — cite it as such or not at all.\n")
+	}
 	if s.Pages > 0 {
 		line("pages", fmt.Sprint(s.Pages))
 	}

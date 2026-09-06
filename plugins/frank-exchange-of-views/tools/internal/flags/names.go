@@ -171,6 +171,17 @@ const (
 	// on a bibliographic record deserves.
 	SourceText = "source-text"
 
+	// Via names WHICH BACKEND to reach a source through. The strategies answer different
+	// questions — an archive says what a page said on a date, an open-access lookup says whether
+	// a legal copy exists, a metadata lookup says only that the source exists — and choosing
+	// wrongly is how a run cites a landing page believing it read a paper.
+	Via = "via"
+
+	// At bounds an archive lookup to a date (YYYYMMDD): the latest capture at or before it. A
+	// priority question needs the FIRST time a thing was visible, which "closest to now" can
+	// never answer.
+	At = "at"
+
 	// Lineage, in two directions on one relation: what this gap replaces, and what replaces
 	// it. Symmetric words, because the reader has to hold both at once.
 	Supersedes   = "supersedes"
@@ -264,7 +275,7 @@ func All() []string {
 		As, None, Ended, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher,
-		Problem, Fix, Check, CheckKind, Type, SourceText, Hypothesis, Script, Cites, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, SourceText, Via, At, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor,
 		Principle, Tension, ReviewFlag, Relief, Binds,

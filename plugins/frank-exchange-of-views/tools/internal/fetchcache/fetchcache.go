@@ -136,6 +136,19 @@ type Entry struct {
 	//	origin   — no proxy is configured, so the refusal is the source's own
 	//	unknown   — a proxy is configured and the two readings cannot be told apart
 	RefusalClass string `json:"refusal_class,omitempty"`
+
+	// RetrievedVia names the archive snapshot these bytes came from, when the live source refused
+	// and the fallback found one. Empty means the bytes are the live source's own.
+	//
+	// IT IS PROVENANCE, NOT A FOOTNOTE. A snapshot is a different artifact: what the source said
+	// on a date, retrieved from a third party. A citation that could not say so would claim to
+	// have read something it did not.
+	RetrievedVia string `json:"retrieved_via,omitempty"`
+
+	// TextRetrieved says whether the bytes are the SOURCE'S TEXT or only a record that it exists.
+	// A metadata answer is a real finding and a legitimate citation — as `source_text_read:
+	// unread`. It is not a reading, and nothing may cite it as one.
+	TextRetrieved bool `json:"text_retrieved,omitempty"`
 }
 
 // Refusal is a fetch that was answered and REFUSED, carried as a typed error so the status
@@ -314,12 +327,28 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		// not exist from one this container could not reach. The error still goes back: recording
 		// the refusal does not make it a success.
 		var ref *Refusal
-		if errors.As(ferr, &ref) {
-			_ = appendIndexIfAbsent(run, Entry{
-				URL: url, HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
-			})
+		if !errors.As(ferr, &ref) {
+			return Entry{}, nil, false, ferr
 		}
-		return Entry{}, nil, false, ferr
+		_ = appendIndexIfAbsent(run, Entry{
+			URL: url, HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
+		})
+		// THE REFUSAL IS NOT THE END OF THE ATTEMPT, but the right next move depends on WHAT this
+		// source is — and choosing wrongly is how a run ends up citing a landing page.
+		att := Recover(f, url, ViaAuto, "")
+		if att == nil {
+			return Entry{}, nil, false, ferr
+		}
+		entry := Entry{
+			URL: url, ContentType: att.ContentType,
+			HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
+			RetrievedVia: att.Via, TextRetrieved: att.TextRetrieved,
+		}
+		entry, serr := Store(run, entry, att.Body)
+		if serr != nil {
+			return Entry{}, nil, false, ferr
+		}
+		return entry, att.Body, false, nil
 	}
 	entry := Entry{URL: url, ContentType: MediaType(resp.ContentType)}
 	entry.Sha = Sha(resp.Body)
@@ -367,6 +396,46 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 // cache miss because its caller is about to serve those bytes; this caller wants the
 // RECORD — what the document is, whether text came out of it — and answering "no entry" for
 // a document the index plainly describes would be a false statement about the index.
+// URLsSharingBody lists every OTHER url already cached under these exact bytes.
+//
+// THE SAME BODY FOR TWO DIFFERENT SOURCES IS NOT WHAT A DOCUMENT LOOKS LIKE. It is what a bot
+// wall, a login interstitial or a "no results" page looks like — and because the cache is
+// content-addressed, those collapse onto ONE entry that satisfies "fetch-once, hash-verified"
+// perfectly. The hash then certifies the BLOCKADE rather than the source.
+//
+// MEASURED in research/2026-09-02_quadratic-formula: three unrelated JSTOR articles — Savage 1989,
+// Heaton 1896, and one more — all cached as sha 32ed6315…, a single 3,038-byte challenge page. The
+// bibliography cited one of them as "the record for John Savage, Factoring Quadratics", whose
+// cached bytes are a wall it shares with an unrelated paper. A citation to an unreadable source,
+// presented as a source.
+//
+// It is deliberately NOT content sniffing. No keyword list, no page-shape heuristic — just the
+// arithmetic the cache already does: these bytes were already served for something else. That is
+// evidence a reader can check, and it cannot be fooled by a wall nobody has seen before.
+func URLsSharingBody(run record.Run, sha, exceptURL string) ([]string, error) {
+	f, err := os.Open(indexPath(run))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	defer f.Close()
+	var out []string
+	seen := map[string]bool{exceptURL: true}
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
+	for sc.Scan() {
+		var got Entry
+		if json.Unmarshal(sc.Bytes(), &got) != nil || got.Sha != sha || seen[got.URL] {
+			continue
+		}
+		seen[got.URL] = true
+		out = append(out, got.URL)
+	}
+	return out, sc.Err()
+}
+
 func LookupSha(run record.Run, sha string) (Entry, bool, error) {
 	f, err := os.Open(indexPath(run))
 	if err != nil {

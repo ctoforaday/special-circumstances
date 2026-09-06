@@ -3,6 +3,8 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -50,6 +52,37 @@ func newFetch() *cobra.Command {
 			url, _ := cmd.Flags().GetString(flags.URL)
 			if url == "" {
 				return feov.Errorf(feov.MissingField, "fetch: --url <url> is required")
+			}
+			via, _ := cmd.Flags().GetString(flags.Via)
+			at, _ := cmd.Flags().GetString(flags.At)
+			// A NAMED BACKEND IS AN INSTRUCTION, NOT A FALLBACK. `--via archive` means read the
+			// archive whether or not the live source would answer — which is how a seat asks
+			// "what did this say in 2019" about a page that is perfectly reachable today.
+			// REFUSED AT THE SITE, because a near-miss must not take the other branch silently.
+			// `--via archiv` falling through to a live fetch would answer a question the seat did
+			// not ask and look like success.
+			if via != "" && !slices.Contains(fetchcache.Vias(), via) {
+				return feov.Errorf(feov.Validation, "fetch: unknown --via %q (%s)", via, strings.Join(fetchcache.Vias(), " | "))
+			}
+			if via != "" && via != fetchcache.ViaLive {
+				att := fetchcache.Recover(fetchcache.Default, url, via, at)
+				if att == nil {
+					return fmt.Errorf("fetch --via %s: that backend has no answer for %s. The strategies answer "+
+						"different questions: try `metadata` to learn whether the source exists at all, or `live` for the source itself", via, url)
+				}
+				entry, serr := fetchcache.Store(run, fetchcache.Entry{
+					URL: url, ContentType: att.ContentType,
+					RetrievedVia: att.Via, TextRetrieved: att.TextRetrieved,
+				}, att.Body)
+				if serr != nil {
+					return serr
+				}
+				sv := summarize(run, entry, len(att.Body), false)
+				if jsonMode, _ := cmd.Flags().GetBool(flags.JSON); jsonMode {
+					return json.NewEncoder(cmd.OutOrStdout()).Encode(sv)
+				}
+				fmt.Fprint(cmd.OutOrStdout(), sv.render())
+				return nil
 			}
 			entry, body, hit, err := fetchcache.Resolve(run, url, fetchcache.Default)
 			if err != nil {
@@ -101,6 +134,13 @@ func newFetch() *cobra.Command {
 		},
 	}
 	c.Flags().String(flags.URL, "", "the http/https URL to read (fetched once, then served from the run cache)")
+	c.Flags().String(flags.Via, "", "reach the source through a named backend instead of the live URL: "+
+		strings.Join(fetchcache.Vias(), " | ")+". They answer DIFFERENT questions — `archive` what the page said on a date "+
+		"(right for web pages, usually the landing page for a subscription article), `oa` whether a legal open copy exists, "+
+		"`metadata` only that the source exists and where (no text, and the honest answer when there is none to get), "+
+		"`arxiv` the preprint's PDF or LaTeX source. Omitted, a refusal falls back through them in that order")
+	c.Flags().String(flags.At, "", "with --via archive: bound the capture to YYYYMMDD and take the latest at or before it. "+
+		"A priority question needs the FIRST time something was visible, which the newest capture cannot answer")
 	c.Flags().Bool(flags.OCR, true, "read a PDF that has no text layer with the local OCR engine; --ocr=false caches it unread")
 	return c
 }
