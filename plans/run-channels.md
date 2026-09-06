@@ -241,6 +241,14 @@ aggregates at `:583-584`, emits at `:1300`; recovered by `capture.go:119` as `r[
 **All three rename**, in ONE atomic PR — the envelope is a cross-language contract between
 `debate.js` and Go, and a half-applied rename silently breaks the capture join.
 
+**The prose sweep rides in the same PR** (decided, not deferred): the four constitutions,
+`SKILL.md`, `report_template.md`, `commands/research.md`, the five `docs/` pages, the three
+`seat/help/*.md`, and the cross-plugin `semantic-consent/SKILL.md:13`. It is a large single PR, and
+that is the correct trade: the constitutions and the envelope schema name the SAME field, so
+splitting them leaves a window where an always-on rule instructs every subagent to use a field the
+code no longer has — the half-state `complete-the-concept` exists to prevent. One PR, one rename,
+one green suite.
+
 **Consumer census A — Go/proto, run 2026-09-06 from the repo root:**
 ```
 $ P=plugins/frank-exchange-of-views
