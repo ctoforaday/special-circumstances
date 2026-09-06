@@ -1,4 +1,4 @@
-prompt sha256: 5e65b940ab67a274dee42ccdbf641fbb28cb3fdb11e94a533c98a008229eb217
+prompt sha256: 69cb407aac7432d27740aadef553ebf30a99fef7d9f56c351bd02018d25019c5
 
 Red audit, round 2, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
@@ -26,7 +26,7 @@ HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
-FRICTION (red-lens-r2-L1) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field.
+LOG (red-lens-r2-L1) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field.
 YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
 Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
 Where nothing impeded the work, say that instead.

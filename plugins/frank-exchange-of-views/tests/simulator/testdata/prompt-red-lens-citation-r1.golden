@@ -1,4 +1,4 @@
-prompt sha256: ce57502d6113004490ec81bdf1a3d130d3823ee489c709cf484bf77db561c974
+prompt sha256: f395b763348f76214b554f92fdc91606d85a94220510ef69e2a7dfb3eaa8ec7c
 
 Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement) — instance 1 of 4: divide the report's sections evenly among instances and take slice 1; citation ownership follows the slice (instance 1 owns the bibliography entries its sections cite).
 The slice is what you are ACCOUNTABLE for, not what you read — you read the whole document either way (below), and audit your slice against that full context.
@@ -23,7 +23,7 @@ HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
-FRICTION (red-lens-r1-L1) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field.
+LOG (red-lens-r1-L1) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field.
 YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
 Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
 Where nothing impeded the work, say that instead.

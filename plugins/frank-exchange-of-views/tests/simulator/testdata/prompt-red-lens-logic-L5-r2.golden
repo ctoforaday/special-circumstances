@@ -1,4 +1,4 @@
-prompt sha256: 4a05e0a683594f48e4792554a576d843de7b0038f31db18e8d7030fec03ae4d8
+prompt sha256: 3775ae5e744019f99c195fb1602d696e5354b5a51c60295dcc65fba7926cdff6
 
 Red audit, round 2, lens: logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance) STEELMAN DUTY: read the exploration space via the `lines-of-inquiry` projection (the tool renders it fresh from the line of inquiry events on the record).
 Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
@@ -18,7 +18,7 @@ HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
-FRICTION (red-lens-r2-L5) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field.
+LOG (red-lens-r2-L5) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field.
 YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
 Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
 Where nothing impeded the work, say that instead.

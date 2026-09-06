@@ -112,3 +112,14 @@ HEADLINE: rulings_without_opinion 4 [DETECTOR] · carried_share 0 [BENCHMARK] ·
 - `petitions_filed` [measure] — Petition handling: **0**
 
 HEADLINE: rulings_without_opinion 11 [DETECTOR] · carried_share 0 [BENCHMARK] · blue_sections_citing_direction 4/3 [BENCHMARK]
+
+## 2026-09-02_quadratic-formula
+
+- `carried_share` [benchmark] — Not a router: **0** (0/18; baseline 76/77)
+- `blue_sections_citing_direction` [benchmark] — Direction-uptake (headline): **7/4** (textual proxy: blue sections referencing the bench after a LEAD section; baseline ~100%)
+- `rulings_without_opinion` [detector] — Opinion form: **18**
+- `undeclared_inspection_risk` [detector] — Evidence confinement: **0** (no opinion referenced trajectory evidence this run)
+  - reads WITH the attestation-integrity audit at capture: this counts declarations, that reconciles claims against actual tool calls
+- `petitions_filed` [measure] — Petition handling: **1**
+
+HEADLINE: rulings_without_opinion 18 [DETECTOR] · carried_share 0 [BENCHMARK] · blue_sections_citing_direction 7/4 [BENCHMARK]

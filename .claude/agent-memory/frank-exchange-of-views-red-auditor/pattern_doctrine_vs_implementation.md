@@ -39,3 +39,18 @@ artifact but not this one: the asymmetry proves the mechanism was known and the 
 real hole, not ignorance. Check where a "not an entry point" file physically lives and what
 the harness does with that location; and diff sibling artifacts for guard flags one carries
 and the other lacks.
+
+**Extension — the report's own HONESTY/REMEDY paragraph contradicted by a sibling program in
+the same section (quadratic-formula R4, L2-F3 -> R4-1):** a paragraph titled "one defect this
+report cannot fix, disclosed so the footnote ships explained not unexplained" narrated ONE
+stranded title anchor ("A citation anchor placed in round 2..."), singular throughout — while
+two paragraphs above, the section's own shipped doc-check program was written against "the two
+known stranded ones", and the title line actually rendered two cite anchors. So the prose
+under-counts and mis-attributes the very defect it exists to disclose, and a sibling program in
+the same section already carries the true count. QUESTION to carry: when a report has a
+self-disclosure / self-audit / "here is our own defect" paragraph, does its count and
+attribution match the section's own program output and the actual rendered artifact (title
+line, anchor set, token count)? The honesty-showcase site is where an inaccuracy is least
+expected and most damaging. Also: a bench "defect_owed_elsewhere" ruling on the ANCHOR debt
+(tooling) does NOT estop a successor about whether the PROSE disclosing that debt is accurate —
+different site, different question, name the ruled gap in supersedes.
