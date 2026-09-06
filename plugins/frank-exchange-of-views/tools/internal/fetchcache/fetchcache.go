@@ -136,6 +136,14 @@ type Entry struct {
 	//	origin   — no proxy is configured, so the refusal is the source's own
 	//	unknown   — a proxy is configured and the two readings cannot be told apart
 	RefusalClass string `json:"refusal_class,omitempty"`
+
+	// RetrievedVia names the archive snapshot these bytes came from, when the live source refused
+	// and the fallback found one. Empty means the bytes are the live source's own.
+	//
+	// IT IS PROVENANCE, NOT A FOOTNOTE. A snapshot is a different artifact: what the source said
+	// on a date, retrieved from a third party. A citation that could not say so would claim to
+	// have read something it did not.
+	RetrievedVia string `json:"retrieved_via,omitempty"`
 }
 
 // Refusal is a fetch that was answered and REFUSED, carried as a typed error so the status
@@ -314,12 +322,35 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		// not exist from one this container could not reach. The error still goes back: recording
 		// the refusal does not make it a success.
 		var ref *Refusal
-		if errors.As(ferr, &ref) {
-			_ = appendIndexIfAbsent(run, Entry{
-				URL: url, HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
-			})
+		if !errors.As(ferr, &ref) {
+			return Entry{}, nil, false, ferr
 		}
-		return Entry{}, nil, false, ferr
+		_ = appendIndexIfAbsent(run, Entry{
+			URL: url, HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
+		})
+		// THE REFUSAL IS NOT THE END OF THE ATTEMPT. Every recovery in the measured run was a seat
+		// doing this by hand against the Wayback CDX; the tool now does it, because a capability
+		// that must be rebuilt by hand each time is one most seats will skip.
+		snapURL, stamp, _ := SnapshotFor(f, url)
+		if snapURL == "" {
+			return Entry{}, nil, false, ferr
+		}
+		snapResp, serr := f.Fetch(snapURL)
+		if serr != nil {
+			return Entry{}, nil, false, ferr
+		}
+		// STORED UNDER THE URL THE SEAT ASKED FOR, so a later read of the same source is served
+		// these bytes — and carrying the provenance, so nothing can mistake them for the live page.
+		entry := Entry{
+			URL: url, ContentType: MediaType(snapResp.ContentType),
+			HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
+			RetrievedVia: ArchiveNote(snapURL, stamp),
+		}
+		entry, serr = Store(run, entry, snapResp.Body)
+		if serr != nil {
+			return Entry{}, nil, false, ferr
+		}
+		return entry, snapResp.Body, false, nil
 	}
 	entry := Entry{URL: url, ContentType: MediaType(resp.ContentType)}
 	entry.Sha = Sha(resp.Body)

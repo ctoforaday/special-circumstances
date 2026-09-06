@@ -35,7 +35,10 @@ type fetchSummary struct {
 	// those onto one entry that satisfies "fetch-once, hash-verified" perfectly while the hash
 	// certifies the BLOCKADE rather than the source.
 	SharedBodyWith []string `json:"shared_body_with,omitempty"`
-	Pages          int      `json:"pages,omitempty"`
+	// RetrievedVia names the archive snapshot these bytes came from, when the live source refused
+	// and the fallback recovered one. Empty means the bytes are the live source's own.
+	RetrievedVia string `json:"retrieved_via,omitempty"`
+	Pages        int    `json:"pages,omitempty"`
 
 	// TextExtracted is a pointer for the same three-state reason the Entry field is: nil means
 	// nothing was attempted (this content type is not one anything extracts), false means it was
@@ -108,6 +111,7 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		Bytes:          bodyLen,
 		CacheHit:       hit,
 		SharedBodyWith: shared,
+		RetrievedVia:   e.RetrievedVia,
 		Pages:          e.Pages,
 		TextExtracted:  e.TextExtracted,
 		TextSha256:     e.TextSha,
@@ -154,6 +158,14 @@ func (s fetchSummary) render() string {
 	line("filename", s.Filename)
 	line("bytes", fmt.Sprint(s.Bytes))
 	line("cache_hit", fmt.Sprint(s.CacheHit))
+	// PROVENANCE FIRST: these bytes may not be the live source, and every later judgement about
+	// what the source SAYS depends on knowing that before reading a word of it.
+	if s.RetrievedVia != "" {
+		fmt.Fprintf(&b, "retrieved_via: %s\n", s.RetrievedVia)
+		fmt.Fprintf(&b, "  ^ THE LIVE SOURCE REFUSED THIS CONTAINER AND THESE BYTES ARE AN ARCHIVE SNAPSHOT — what the\n"+
+			"    source said on that date, retrieved from a third party. Usable, and NOT the same artifact: say so\n"+
+			"    in any claim about what the source currently says, and remember a snapshot can be partial.\n")
+	}
 	// LOUD, AND ABOVE THE TEXT LINES, because a seat that reads no further has still been told the
 	// one thing that decides whether this is a source at all.
 	if len(s.SharedBodyWith) > 0 {
