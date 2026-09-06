@@ -1,4 +1,4 @@
-prompt sha256: a09ec52b509235e28d88189cbaebf84b9994d082c91cfa8fbced397e6481d583
+prompt sha256: e8ab2cca2b3283c95541158a3ffd62b9a829f33255b41771e35432603ae435d2
 
 Red audit, round 1, lens: dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots) STEELMAN DUTY: read the exploration space via the `lines-of-inquiry` projection (the tool renders it fresh from the line of inquiry events on the record).
 Blue's DECLINED and ABANDONED lines of inquiry are the case AGAINST its own design, and the measured blind spot is that nobody audits them — a weak reason for declining a strong alternative survives untouched because it reads as humility.
@@ -18,8 +18,9 @@ SPEED: every message you send costs a ~20s round-trip regardless of content — 
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
 FRICTION (red-lens-r1-L6) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field.
-AND THE REASON OWES THE SURVEY: name the verbs you read in the tree and did NOT use, and why each was wrong for this sitting.
-A reason that lists only what you did is a receipt for the path you took and says nothing about the ones you rejected — and a seat that cannot name a single rejected option did not weigh any.
+YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
+Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
+Where nothing impeded the work, say that instead.
 YOUR IN-RUN SCORECARD (THIS run, not a prior one): before you read the open docket, read how YOUR CHAIR is doing on the question in front of you so far.
 It is a projection of this run's record on your own surface, it needs no selector because your chair is the seat you registered as, and its own page says what the rows mean.
 SEAT_ID: red-lens-r1-L6.

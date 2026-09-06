@@ -1,4 +1,4 @@
-prompt sha256: 33ff03c70bd8a37a574c0049551ff7cca7f08f16e0ade7ef5f5b0e729b9cebc0
+prompt sha256: 21bbef37eb58f9a808a7e7b33568efc97e556d1c55b91a7170a73c67c9e7813e
 
 Final assembly for topic "the seat prompt contract", run directory research/2026-01-01_golden.
 Debate outcome: VERIFIED after 2 round(s).
@@ -16,8 +16,9 @@ A tool cannot mis-author a synthesis surface — the run-5 catechism defect, whe
 THE AUTHORITATIVE OPEN COUNT IS THE BOARD'S, after every closure and ruling: read it back and report it as open_gaps in your envelope.
 Collated friction so far (report any of your own as well): [].
 FRICTION (assemble) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field.
-AND THE REASON OWES THE SURVEY: name the verbs you read in the tree and did NOT use, and why each was wrong for this sitting.
-A reason that lists only what you did is a receipt for the path you took and says nothing about the ones you rejected — and a seat that cannot name a single rejected option did not weigh any.
+YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead.
+Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined.
+Where nothing impeded the work, say that instead.
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.
 Peek and search files with the native Read (offset/limit), Grep, and Glob tools — NEVER sed/awk/head/tail/cat/grep through Bash for file access (a shell spawn costs 10-100x a native read and buys nothing).
 KNOWN HARNESS LIMIT (W1.11, on file three times — do NOT re-log it as friction): Glob/Grep may refuse paths outside the session's registered working directories ("Path does not exist") while Read and Bash reach them; for searches under the run directory the SANCTIONED fallback is Bash grep/ls — this is the one exception to the no-shell-file-access rule.
