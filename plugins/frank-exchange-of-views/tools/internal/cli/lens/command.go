@@ -22,6 +22,6 @@ func Verbs() []*cobra.Command {
 		newVerify(),
 		newCorroborate(),
 		newReproduce(),
-		seat.Friction(),
+		seat.Log(),
 	)
 }

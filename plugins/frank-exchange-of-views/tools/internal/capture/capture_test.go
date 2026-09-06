@@ -79,7 +79,7 @@ func fixtureRun(t *testing.T, ledgerLines, archiveBlocks int) string {
 	write(t, filepath.Join(dir, "red", "archive.md"), ab.String())
 	write(t, filepath.Join(dir, "blue", "CHANGELOG.md"), "## Round 1\nedits\n## Round 2\nedits\n")
 	write(t, filepath.Join(dir, "trajectories", "journal.jsonl"),
-		`{"type":"result","result":{"ledger_closure_lines":`+itoa(ledgerLines)+`,"archive_blocks":`+itoa(archiveBlocks)+`,"friction":["red-merge-r1: needed a PDF extractor for X"]}}`+"\n")
+		`{"type":"result","result":{"ledger_closure_lines":`+itoa(ledgerLines)+`,"archive_blocks":`+itoa(archiveBlocks)+`,"log":["red-merge-r1: needed a PDF extractor for X"]}}`+"\n")
 	return dir
 }
 
@@ -139,12 +139,12 @@ func frictionRun(t *testing.T, seat, agentID string, wrote string) string {
 	}
 	evs := []*recordpb.Event{recordtest.At(t, seat, 1, seat+":register:#1", reg)}
 	switch wrote {
-	case "friction":
+	case "log":
 		evs = append(evs, recordtest.At(t, seat, 1, seat+":friction:#1",
-			&recordpb.Friction{Text: proto.String("the seat's own words, recorded")}))
+			&recordpb.Log{Text: proto.String("the seat's own words, recorded"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}))
 	case "friction-none":
 		evs = append(evs, recordtest.At(t, seat, 1, seat+":friction_none:#1",
-			&recordpb.FrictionNone{Text: proto.String("the seat's own words, recorded")}))
+			&recordpb.Log{Text: proto.String("the seat's own words, recorded"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}))
 	case "":
 	default:
 		t.Fatalf("frictionRun does not know how to write %q", wrote)
@@ -153,23 +153,23 @@ func frictionRun(t *testing.T, seat, agentID string, wrote string) string {
 	return dir
 }
 
-func recordFriction(t *testing.T, runDir string) []record.FrictionEntryJSON {
+func recordFriction(t *testing.T, runDir string) []record.LogEntryJSON {
 	t.Helper()
 	b, err := record.BoardState(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	fj := record.FrictionJSONOf(b.Events)
-	return append(append([]record.FrictionEntryJSON{}, fj.Friction...), fj.NothingBlocked...)
+	fj := record.LogJSONOf(b.Events)
+	return append(append([]record.LogEntryJSON{}, fj.Log...), fj.Log...)
 }
 
 // THE CASE THAT FAILED 5 OUT OF 5 IN PRODUCTION: a seat writes its friction to the record and then
 // PARAPHRASES it into its return envelope. Comparing prose to prose called that a missing record.
 func TestASeatThatParaphrasesItselfStillReconciles(t *testing.T) {
-	run := frictionRun(t, "blue-synthesize", "a24445d32ad697bd4", "friction")
-	env := []EnvelopeFriction{{AgentID: "a24445d32ad697bd4",
+	run := frictionRun(t, "blue-synthesize", "a24445d32ad697bd4", "log")
+	env := []EnvelopeLog{{AgentID: "a24445d32ad697bd4",
 		Text: "blue-synthesize: citation-hygiene: entirely different wording from the record"}}
-	got := FrictionAudit(runtest.Open(t, run), env, recordFriction(t, run))
+	got := LogAudit(runtest.Open(t, run), env, recordFriction(t, run))
 	if got.Verdict != "PASS" {
 		t.Errorf("the seat opened the channel; the envelope is a re-worded copy, not a second duty.\ngot %s: %s", got.Verdict, got.Detail)
 	}
@@ -179,8 +179,8 @@ func TestASeatThatParaphrasesItselfStillReconciles(t *testing.T) {
 // channel on the record.
 func TestASeatThatToldOnlyTheHarnessIsAFinding(t *testing.T) {
 	run := frictionRun(t, "red-merge-r1", "a78f5dfdc4aa2ea54", "")
-	env := []EnvelopeFriction{{AgentID: "a78f5dfdc4aa2ea54", Text: "needed a PDF extractor for X"}}
-	got := FrictionAudit(runtest.Open(t, run), env, recordFriction(t, run))
+	env := []EnvelopeLog{{AgentID: "a78f5dfdc4aa2ea54", Text: "needed a PDF extractor for X"}}
+	got := LogAudit(runtest.Open(t, run), env, recordFriction(t, run))
 	if got.Verdict != "FAIL" {
 		t.Fatalf("friction the record never got: want FAIL, got %s (%s)", got.Verdict, got.Detail)
 	}
@@ -194,8 +194,8 @@ func TestASeatThatToldOnlyTheHarnessIsAFinding(t *testing.T) {
 // `friction-none` is the attested empty case — a seat closing the channel honestly has used it.
 func TestTheAttestedEmptyCaseCountsAsOpeningTheChannel(t *testing.T) {
 	run := frictionRun(t, "judge-r2", "a7e42caf6c06aec62", "friction-none")
-	env := []EnvelopeFriction{{AgentID: "a7e42caf6c06aec62", Text: "No capability gaps encountered."}}
-	if got := FrictionAudit(runtest.Open(t, run), env, recordFriction(t, run)); got.Verdict != "PASS" {
+	env := []EnvelopeLog{{AgentID: "a7e42caf6c06aec62", Text: "No capability gaps encountered."}}
+	if got := LogAudit(runtest.Open(t, run), env, recordFriction(t, run)); got.Verdict != "PASS" {
 		t.Errorf("a filed friction-none IS the channel being used; got %s: %s", got.Verdict, got.Detail)
 	}
 }
@@ -205,8 +205,8 @@ func TestTheAttestedEmptyCaseCountsAsOpeningTheChannel(t *testing.T) {
 // something must say so rather than accuse.
 func TestAnUnjoinableEntryIsReportedRatherThanBlamed(t *testing.T) {
 	run := frictionRun(t, "blue-respond-r2", "", "")
-	env := []EnvelopeFriction{{AgentID: "", Text: "Friction channel closed: no capability gaps."}}
-	got := FrictionAudit(runtest.Open(t, run), env, recordFriction(t, run))
+	env := []EnvelopeLog{{AgentID: "", Text: "Friction channel closed: no capability gaps."}}
+	got := LogAudit(runtest.Open(t, run), env, recordFriction(t, run))
 	if got.Verdict == "FAIL" {
 		t.Errorf("an entry with no agent binding is unmeasurable, not a duty skipped.\ngot %s: %s", got.Verdict, got.Detail)
 	}

@@ -166,11 +166,11 @@ func ProposalAppliedVerbatim(run Run, gapID, old, new string) (bool, error) {
 func EstoppelRejections(b *Board) int {
 	n := 0
 	for _, e := range b.Events {
-		// THE FIELD IS NOW THE SCHEMA'S, and the count reads the enum rather than a word. An
-		// absent kind is FRICTION_KIND_UNSPECIFIED — a seat's own report, which is exactly what
-		// the missing key meant before, so a friction with no kind still does not count.
-		if fr, ok := recordpb.BodyAs[*recordpb.Friction](e); ok &&
-			fr.GetKind() == recordpb.FrictionKind_FRICTION_KIND_ESTOPPEL {
+		// THE FIELD IS NOW THE SCHEMA'S, and the count reads the enum rather than a word. The
+		// type is required at the write, so an entry that is not an estoppel refusal carries a
+		// different type rather than an absent one, and still does not count.
+		if fr, ok := recordpb.BodyAs[*recordpb.Log](e); ok &&
+			fr.GetType() == recordpb.LogType_LOG_TYPE_ESTOPPEL {
 			n++
 		}
 	}

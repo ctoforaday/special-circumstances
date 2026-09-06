@@ -91,7 +91,7 @@ log(`resolved tiers — bulk: ${model}, judgment: ${judgmentModel}`)
 
 // Friction must survive a mid-run throw (retrospective §3 row 24): the envelope copy feeds
 // this script's aggregate, the file copy survives an abort. Both, always.
-const frictionClause = (who, role) => ` FRICTION (${who}) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's friction field. YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead. Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined. Where nothing impeded the work, say that instead.`
+const frictionClause = (who, role) => ` LOG (${who}) — CLOSE THIS CHANNEL BEFORE YOU FINISH: on the record, AND in the envelope's log field. YOUR AUDIENCE IS THE OPERATOR WHO CAN RETOOL YOU, not the other seats: what you reached for, what it did, and what you wanted instead. Where you set an act aside as a JUDGEMENT rather than for want of occasion, give that one sentence — the record shows what you ran, never what you weighed and declined. Where nothing impeded the work, say that instead.`
 
 // Wall-clock doctrine (run-4 forensics, 2026-07-17): 80% of run time is API rounds at ~24s
 // each, and the corpus showed ZERO batched tool calls — every peek paid a full round. A
@@ -294,7 +294,7 @@ const PETITION_RULING = {
   type: 'object',
   required: ['rulings'],
   properties: {
-    friction: { type: 'array', items: { type: 'string' } },
+    log: { type: 'array', items: { type: 'string' } },
     // A PETITION SITTING CAN LAY DOWN A HOLDING TOO, and #361 was filed from exactly there: the
     // bench had a construction both parties needed and put it in a petition ruling's opinion
     // text, where red never read it. Routing it needs it on this envelope as well (#503).
@@ -400,7 +400,7 @@ const BLUE_ENVELOPE = {
     // The array survives as gap ids alone, for the in-run shape check below. Coverage is scored
     // from the manifest-row EVENTS at capture, and the rows reach the reader in the report.
     manifest: { type: 'array', items: { type: 'string' } },
-    friction: { type: 'array', items: { type: 'string' } },
+    log: { type: 'array', items: { type: 'string' } },
     petitions: PETITIONS,
     // Grade-dispute channel (run-4 §3.3 — RATIFIED minimal form): blue's machine-readable
     // contest path against red's grades. Record-integrity insurance; zero expected savings.
@@ -497,7 +497,7 @@ const RED_ENVELOPE = {
     // of it — and it stays current for the whole run instead of being a snapshot of one round.
     citations_checked: { type: 'number', description: "the board's count of cite events, read back from the record — never hand-counted or estimated" },
     notes: { type: 'string' },
-    friction: { type: 'array', items: { type: 'string' } },
+    log: { type: 'array', items: { type: 'string' } },
   },
 }
 
@@ -510,7 +510,7 @@ const JUDGE_ENVELOPE = {
     // reads no record, so a holding recorded through `bench declare` reaches the other seats only
     // if it travels here — the same reason `relief` is on the petition envelope (#503).
     holdings: { type: 'array', items: { type: 'string' } },
-    friction: { type: 'array', items: { type: 'string' } },
+    log: { type: 'array', items: { type: 'string' } },
     resolutions: {
       type: 'array',
       items: {
@@ -581,7 +581,7 @@ const LANE_METHODS = [
 // halt ruling ends the run (verdict HALTED — capture relays the opinion
 // verbatim, never smoothed); granted relief is surfaced to subsequent seats.
 const friction = [] // capability complaints from any agent, aggregated for /self-improve
-const takeFriction = (who, env) => { if (env && env.friction) for (const f of env.friction) friction.push(`${who}: ${f}`) }
+const takeFriction = (who, env) => { if (env && env.log) for (const f of env.log) friction.push(`${who}: ${f}`) }
 
 // W1.7 ROUND-PARITY RECOVERY (#249). The attestation duty is right — a revision is not on the
 // record until the transcript carries it — but killing the RUN over one seat's missed bookkeeping
@@ -609,7 +609,7 @@ async function ensureRoundRecord(env, who, owed, opts) {
   if (env && env.round_record_appended === true) return true
   log(`round-parity (W1.7): ${who} did not attest ${owed} — re-prompting once before continuing (#249 recovery)`)
   const retry = await agent(
-    `Round-record repair for ${who}. Your last turn did not attest the round record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. ${owed}. Do NOT re-do your substantive work and do NOT edit ${runDir}/blue/report.md again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), record a friction event saying exactly why — "${binDir}/feov-record" friction --run ${runDir} --seat-id ${who} --reason "<why>", and return round_record_appended false with a one-line note. Return the attestation.`,
+    `Round-record repair for ${who}. Your last turn did not attest the round record, so the run cannot yet show ${owed}. Put it on the record NOW — nothing else. ${owed}. Do NOT re-do your substantive work and do NOT edit ${runDir}/blue/report.md again; this turn exists only to close the parity gap. If you genuinely cannot (the duty does not apply, or a tool refuses you), record on the operator channel saying exactly why, and return round_record_appended false with a one-line note. Return the attestation.`,
     { ...(opts || {}), label: `${who}-round-record · ${slug}`, phase: 'Debate', schema: ROUND_RECORD })
   if (retry && retry.round_record_appended === true) {
     log(`round-parity: ${who} attested on the retry — continuing`)
@@ -1260,7 +1260,7 @@ const ASSEMBLE_ENVELOPE = {
   properties: {
     synopsis: { type: 'string' },
     open_gaps: { type: 'integer', minimum: 0 }, // the board's counts.open, not red's docket
-    friction: { type: 'array', items: { type: 'string' } },
+    log: { type: 'array', items: { type: 'string' } },
   },
 }
 phase('Assemble')

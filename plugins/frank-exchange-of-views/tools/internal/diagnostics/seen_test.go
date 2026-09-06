@@ -32,7 +32,7 @@ func trajectory(t *testing.T, lines ...string) string {
 
 // lensActs is the role's act list, as cli.CommandPaths() renders it with the role stripped.
 func lensActs() []string {
-	return []string{"finding", "verify", "corroborate", "reproduce", "friction", "register", "show"}
+	return []string{"finding", "verify", "corroborate", "reproduce", "log", "register", "show"}
 }
 
 // THE PADDED NAME IS NOT DROPPED. Cobra pads the name column to the width of the LONGEST name,

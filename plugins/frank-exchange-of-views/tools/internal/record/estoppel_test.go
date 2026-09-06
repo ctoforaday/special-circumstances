@@ -130,9 +130,10 @@ func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 	// THE TEXT IS THE SUBJECT — this test is about a counter that survives the refusal being
 	// REWORDED — and the earlier conversion dropped it, leaving two identical empty frictions.
 	fr := func(text string) *Event {
-		return recordtest.Event(t, "red-merge-r2", 2, &recordpb.Friction{
-			Text: proto.String(text),
-			Kind: recordtest.P(recordpb.FrictionKind_FRICTION_KIND_ESTOPPEL),
+		return recordtest.Event(t, "red-merge-r2", 2, &recordpb.Log{
+			Text:   proto.String(text),
+			Type:   recordtest.P(recordpb.LogType_LOG_TYPE_ESTOPPEL),
+			Source: recordtest.P(recordpb.LogSource_LOG_SOURCE_TOOL),
 		})
 	}
 	b := board(t, nil, []*Event{
@@ -150,7 +151,7 @@ func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 // position matcher exists to avoid.
 func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
 	b := board(t, nil, []*Event{
-		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Friction{}),
+		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Log{}),
 	})
 	if got := EstoppelRejections(b); got != 0 {
 		t.Errorf("EstoppelRejections = %d, want 0 — a seat QUOTING the refusal did not cause one", got)
@@ -161,7 +162,7 @@ func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
 // fire" rather than "the detector is broken".
 func TestNoRejectionsCountsZero(t *testing.T) {
 	b := board(t, nil, []*Event{
-		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Friction{Text: proto.String("the fetch cache refused an unreachable url")}),
+		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Log{Text: proto.String("the fetch cache refused an unreachable url"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 	})
 	if got := EstoppelRejections(b); got != 0 {
 		t.Errorf("EstoppelRejections = %d, want 0", got)

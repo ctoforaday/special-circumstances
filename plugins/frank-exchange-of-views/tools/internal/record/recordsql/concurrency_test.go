@@ -90,7 +90,7 @@ func TestConcurrentSeatsDoNotLoseEvents(t *testing.T) {
 	t.Cleanup(func() { _ = CloseAll() })
 	// NO ERRORS IS NOT NO LOSS, so the rows are counted rather than inferred from silence.
 	var got int
-	if err := db.QueryRow(`SELECT count(*) FROM "friction_none"`).Scan(&got); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM "log"`).Scan(&got); err != nil {
 		t.Fatal(err)
 	}
 	if want := seats * concEach; got != want {
@@ -98,7 +98,7 @@ func TestConcurrentSeatsDoNotLoseEvents(t *testing.T) {
 	}
 	// Every body must have its envelope: a half-written act replays as a seat that did nothing.
 	var orphans int
-	if err := db.QueryRow(`SELECT count(*) FROM "friction_none" f LEFT JOIN "events" e ON e."id" = f."event_id" WHERE e."id" IS NULL`).Scan(&orphans); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM "log" f LEFT JOIN "events" e ON e."id" = f."event_id" WHERE e."id" IS NULL`).Scan(&orphans); err != nil {
 		t.Fatal(err)
 	}
 	if orphans != 0 {
@@ -116,8 +116,10 @@ func writeAsChild(t *testing.T, path, seat string) {
 	t.Cleanup(func() { _ = CloseAll() })
 	for i := 0; i < concEach; i++ {
 		ev := &recordpb.Event{}
-		if _, err := recordpb.SetBody(ev, &recordpb.FrictionNone{
-			Text: proto.String("nothing blocked this sitting"),
+		if _, err := recordpb.SetBody(ev, &recordpb.Log{
+			Text:   proto.String("nothing blocked this sitting"),
+			Type:   recordpb.LogType_LOG_TYPE_NOMINAL.Enum(),
+			Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum(),
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -142,10 +144,10 @@ func writeAsChild(t *testing.T, path, seat string) {
 			defer tx.Rollback() //nolint:errcheck // the commit is what matters
 			var prior int
 			if err := tx.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = ?`,
-				seat, "friction_none").Scan(&prior); err != nil {
+				seat, "log").Scan(&prior); err != nil {
 				return err
 			}
-			ev.Key = proto.String(seat + ":friction_none:#" + strconv.Itoa(prior+1))
+			ev.Key = proto.String(seat + ":log:#" + strconv.Itoa(prior+1))
 			if _, err := InsertTx(tx, ev); err != nil {
 				return err
 			}

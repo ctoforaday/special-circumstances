@@ -180,12 +180,13 @@ repairs regressed while the one audited dimension — citations — ran at ~4%.)
   is the one document in the run nothing checks.
 - AFTER each task, YOU MUST return exactly the envelope the invoker specifies — the payload
   is the file; the envelope is the handle.
-- AFTER every sitting — not only the ones that went wrong — YOU MUST close the friction
-  channel explicitly: your role's friction verb, with a --reason naming the thing and the
+- AFTER every sitting — not only the ones that went wrong — YOU MUST close the operator
+  channel explicitly: your role's log act, saying what it ASSERTS and naming the thing and the
   shape the work actually wanted, for each capability gap, missing tool, or TEMPLATE/PROTOCOL
   MISFIT (a section that made no sense for the topic, a field with nothing honest to put in
-  it, content with no home); and when nothing blocked you, say what you reached for and
-  found. Across eighteen recorded seat sittings the channel went unclosed every single time
+  it, content with no home). An impediment you are merely NOTING has its own word and need
+  not be actionable. When nothing blocked you, say so in the POSITIVE — an entry that says
+  nothing is still an entry, and silence cannot say it. Across eighteen recorded seat sittings the channel went unclosed every single time
   — including one seat that worked out, in its own reasoning, that a verb it needed did not
   exist, and then guessed instead of saying so. YOU MUST NOT silently degrade or force the
   material to fit.

@@ -396,7 +396,7 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 	if rulings == nil {
 		rulings = arr()
 	}
-	env := map[string]any{"rulings": rulings, "friction": arr()}
+	env := map[string]any{"rulings": rulings, "log": arr()}
 	if r.forceHalt {
 		// `bench halt` writes the record; the envelope's halt object is only what stops the
 		// engine. The fake already drove the verb correctly before #329 — it was the PROMPT
@@ -942,9 +942,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 	// sits rarely (5 frictions in the whole sweep), and 30% of rarely is a path the coverage gate
 	// reports as missing while the drive is right there.
 	if r.coin(60) {
-		r.do("friction", seatID).set("--reason", "fuzz friction from "+seatID).run()
+		r.do("log", seatID).set("--type", "defect").set("--reason", "fuzz defect from "+seatID).run()
 	} else {
-		r.do("friction", seatID).bare("--none").set("--reason", "fuzz: nothing blocked "+seatID).run()
+		r.do("log", seatID).set("--type", "nominal").set("--reason", "fuzz: nothing blocked "+seatID).run()
 	}
 	// line of inquiry carries an optional --method; feed it sometimes so that flag is exercised too.
 	// #246: a line of inquiry now has an id and a LIFECYCLE. Propose, then sometimes move it — the
@@ -1216,7 +1216,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.register("blue", seatID)
 		r.extras("blue", seatID, nil)
-		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": r.maybePetition("blue", seatID), "friction": arr()}
+		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": r.maybePetition("blue", seatID), "log": arr()}
 
 	case strings.HasPrefix(seatID, "red-merge"):
 		r.register("merge", seatID)
@@ -1314,16 +1314,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						"gaps":              []any{map[string]any{"id": id, "supersedes": arr()}},
 						"closures":          arr(),
 						"dispute_responses": responses,
-						"petitions":         r.maybePetition("merge", seatID), "friction": arr()}
+						"petitions":         r.maybePetition("merge", seatID), "log": arr()}
 				}
 			}
 			if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
-				return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+				return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "log": arr()}
 			}
 			// Refused over something that is not a gap. Record the verdict the tool WILL take, so
 			// the record and the harness agree about how this round ended.
 			_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
-			return map[string]any{"verdict": "FAIL", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+			return map[string]any{"verdict": "FAIL", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "log": arr()}
 		}
 
 		// Something is unrepaired, so the round FAILs.
@@ -1336,7 +1336,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// from a stray git operation mid-round, and it was only ever driven on a PASS — so the
 		// `FAIL` half of a two-value enum had never been recorded by anything.
 		_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
-		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "friction": arr()}
+		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "log": arr()}
 
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.register("blue", seatID)
@@ -1364,7 +1364,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		for _, id := range open {
 			manifest = append(manifest, id)
 		}
-		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": disputes, "petitions": r.maybePetition("blue", seatID), "friction": arr()}
+		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": disputes, "petitions": r.maybePetition("blue", seatID), "log": arr()}
 
 	case strings.HasPrefix(seatID, "judge-petition"):
 		r.register("bench", seatID)
@@ -1444,9 +1444,9 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			if n := len(res); n > 0 {
 				res = res[:n-1]
 			}
-			return map[string]any{"resolutions": res, "deadlock": true, "friction": arr()}
+			return map[string]any{"resolutions": res, "deadlock": true, "log": arr()}
 		}
-		return map[string]any{"resolutions": res, "deadlock": deadlock, "friction": arr()}
+		return map[string]any{"resolutions": res, "deadlock": deadlock, "log": arr()}
 
 	case strings.HasPrefix(seatID, "assemble"):
 		r.register("bench", seatID)
@@ -1488,7 +1488,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		_, _ = r.exec(oargs...)
 		_, _ = r.exec("assemble", "--seat-id", "assemble-r1")
 		open := len(r.openGaps())
-		return map[string]any{"synopsis": "fuzz", "open_gaps": open, "friction": arr()}
+		return map[string]any{"synopsis": "fuzz", "open_gaps": open, "log": arr()}
 
 	default: // frontier, blue lanes, red lenses — register, and lenses record onto the channel
 		if seatID != "" {
@@ -1574,7 +1574,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				r.extras("lens", seatID, nil)
 			}
 		}
-		return map[string]any{"synopsis": "fuzz", "petitions": arr(), "friction": arr(), "rulings": arr()}
+		return map[string]any{"synopsis": "fuzz", "petitions": arr(), "log": arr(), "rulings": arr()}
 	}
 }
 
@@ -2045,7 +2045,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		return res
 	}
 	// The OPERATOR's friction read — seats write the channel, the human reads it back.
-	if _, err := tracked(bin, "friction", "--run", runDir, "--seat-id", "operator"); err != nil {
+	if _, err := tracked(bin, "log", "--run", runDir, "--seat-id", "operator"); err != nil {
 		res.err = "operator friction read failed: " + err.Error()
 		return res
 	}
@@ -2495,12 +2495,12 @@ func TestDispatchRefusesUnsetModel(t *testing.T) {
 // and is covered by TestFuzzHaltPath, not the random sweep — the gate skips it (see coverExempt).
 var verbsWithEvents = []string{
 	"closing", "position", "opinion", "regrade", "mint", "close",
-	"cite", "verify", "finding", "avenue", "reproduce", "friction", "revision", "retire",
+	"cite", "verify", "finding", "avenue", "reproduce", "log", "revision", "retire",
 	"manifest_row", "verdict", "spot_check", "certify", "declare", "halt",
 	// friction-none is the EXPLICIT NEGATIVE arm of the friction verb — a distinct event type,
 	// so a gate listing only "friction" would report the channel covered while the arm that
 	// makes an empty log meaningful went undriven.
-	"friction_none",
+	"log",
 	// The motion collapse (#344): filed by any seat, ruled by one, appealed by the filer.
 	"motion", "motion_rule", "motion_appeal",
 	// Added 2026-08-04 by a census of every type record.Append can write: these three were
@@ -2660,7 +2660,7 @@ var dialecticProseKey = map[string]string{
 	// does, and arguably a stronger one: a reader weighing "no friction this run" needs to know
 	// whether the seats looked and said so, or never used the channel. Those were the same
 	// bytes for eighteen recorded sittings, and this event is what separates them.
-	"friction_none": "text",
+	"log": "text",
 	// Blue's self-audit receipt, one per repaired gap. `row` is what blue checked and what
 	// checking it showed — the receipt reached no reader for a year, because the coverage metric
 	// counted the ENVELOPE array and the verb was named in no prompt at all (#318).

@@ -229,16 +229,16 @@ test('docket window is the whole debate: an id re-raised after skipping a round 
 
 // ---- Run-3 docket rows 21 + 24: friction everywhere, persisted in prompts ----
 
-test('blue-synthesize friction reaches the aggregate (row 21)', async () => {
+test('blue-synthesize log entries reach the aggregate (row 21)', async () => {
   const world = makeWorld(makeResponder({
-    blueSynth: [blueEnv({ friction: ['write-block on blue/report.md'] })],
+    blueSynth: [blueEnv({ log: ['write-block on blue/report.md'] })],
     red: [redEnv({ verdict: 'PASS' })],
   }))
   const out = await world.run(script, ARGS)
   assert.ok(out.friction.includes('blue-synthesize: write-block on blue/report.md'))
 })
 
-test('every seat prompt carries the friction clause (envelope + verb, not a hand-written file); lenses are transcript-forbidden and record findings via the tool', async () => {
+test('every seat prompt carries the log clause (envelope + verb, not a hand-written file); lenses are transcript-forbidden and record findings via the tool', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
@@ -270,7 +270,7 @@ test('every seat prompt carries the friction clause (envelope + verb, not a hand
     // absence of occasion. The record holds every verb a seat ran, so "what I used" is derivable
     // and never needs asking; what nothing derives is what a seat weighed and set aside. That is
     // the one sentence this clause still asks for, and the only part of the survey with a reader.
-    assert.ok(c.prompt.includes("envelope's friction field"), `${seat} lost the envelope half of the friction channel`)
+    assert.ok(c.prompt.includes("envelope's log field"), `${seat} lost the envelope half of the operator channel`)
     assert.ok(/AUDIENCE IS THE OPERATOR/.test(c.prompt),
       `${seat} lost the audience half — a capability gap is addressed to whoever can retool the seat, not to the debate`)
     assert.ok(/JUDGEMENT rather than for want of occasion/.test(c.prompt),
@@ -472,10 +472,10 @@ test('citation passes scale with claim_count and carry the ledger clause', async
   assert.equal(await lensCount(200), 4 + 2)  // cap: four citation passes + logic + risk
 })
 
-test('friction aggregates from every seat with attribution', async () => {
+test('the operator channel aggregates from every seat with attribution', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')], friction: ['no PDF extraction'] }), redEnv({ verdict: 'PASS', friction: [] })],
-    blueRespond: [blueEnv({ friction: ['rate-limited on WebFetch'] })],
+    red: [redEnv({ gaps: [gap('R1-1')], log: ['no PDF extraction'] }), redEnv({ verdict: 'PASS', log: [] })],
+    blueRespond: [blueEnv({ log: ['rate-limited on WebFetch'] })],
   }))
   const out = await world.run(script, ARGS)
   assert.ok(out.friction.includes('red-merge-r1: no PDF extraction'))
@@ -1069,8 +1069,8 @@ test('the record contract arms SEAT_ID and the binary path on every seat', async
   assert.ok(!/DOES NOT EXIST FOR YOU/.test(lens), 'the prompt restates the friction footer that closes every help page')
   assert.ok(/Routing around it into markdown is the failure this contract exists to prevent/.test(lens), 'the prompt no longer names what routing around the tool costs')
   // The escalation path travels with the same footer, on every page. The prompt's own carrier for
-  // it is the friction clause, asserted at every seat by the friction test above.
-  assert.ok(/FRICTION \(/.test(lens), 'the escalation path is stated')
+  // it is the log clause, asserted at every seat by the log test above.
+  assert.ok(/LOG \(/.test(lens), 'the escalation path is stated')
 
   // AND IT NAMES NO COMMAND. The contract is the ladder, not a list — a partial list satisfies
   // the seat's need to know what exists and stops it looking, which is the whole reason the

@@ -24,7 +24,7 @@ func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
 	b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
 		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.BlueEdit{Answers: proto.String("R1-2")}),
 		// Both duties a blue seat owes on an empty board, discharged, so nothing blocks.
-		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.Friction{}),
+		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.Log{}),
 		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.Revision{}),
 	}}
 	s := SittingOf(b, "blue", "blue-respond-r1")

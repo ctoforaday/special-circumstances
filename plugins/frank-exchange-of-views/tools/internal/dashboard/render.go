@@ -144,7 +144,7 @@ func summarizeResult(raw any) string {
 	if c, ok := j["citations_checked"].(float64); ok {
 		bits = append(bits, itoa(int(c))+" citations checked")
 	}
-	if fr, ok := j["friction"].([]any); ok && len(fr) > 0 {
+	if fr, ok := j["log"].([]any); ok && len(fr) > 0 {
 		bits = append(bits, itoa(len(fr))+" friction")
 	}
 	if len(bits) == 0 {

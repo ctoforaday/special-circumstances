@@ -29,6 +29,6 @@ func Verbs() []*cobra.Command {
 		newClaimIndex(),
 		seat.Position("position-blue"),
 		seat.Closing("closing-blue"),
-		seat.Friction(),
+		seat.Log(),
 	)
 }

@@ -1251,32 +1251,34 @@ func debate(board *record.Board, evs []*record.Event) string {
 	return b.String()
 }
 
-// frictionLog surfaces the tooling gaps the seats hit — friction events, recorded through the
-// friction verb but rendered by nothing before this (write-only, per the 2026-07-23 audit). A
-// missing capability the run hit is a finding about the tooling; surfacing it is how it reaches
-// the human who can retool the seat, instead of dying on an unread channel.
-func frictionLog(evs []*record.Event) string {
+// logSection surfaces what the seats told the operator — log events, recorded through the log
+// verb but rendered by nothing before this (write-only, per the 2026-07-23 audit). A missing
+// capability the run hit is a finding about the tooling; surfacing it is how it reaches the human
+// who can retool the seat, instead of dying on an unread channel.
+func logSection(evs []*record.Event) string {
 	var rows, attested []string
-	// TWO MESSAGES, ONE FIELD NAME. Both carry the seat's words on `text`; the empty-text skip
-	// that used to sit above the type test now sits inside each arm, which changes nothing
-	// except that the field is read from the message that actually has it.
+	// ONE MESSAGE, TYPED. The clean case used to be a second message; it is now a `nominal` entry,
+	// so the split below reads the TYPE rather than the message. Each entry renders with its type
+	// so the operator can triage by filtering instead of by reading.
 	for _, e := range evs {
-		if f, ok := recordpb.BodyAs[*recordpb.Friction](e); ok {
-			if t := strings.TrimSpace(f.GetText()); t != "" {
-				rows = append(rows, fmt.Sprintf("- **%s**: %s", e.GetSeatId(), t))
-			}
+		f, ok := recordpb.BodyAs[*recordpb.Log](e)
+		if !ok {
 			continue
 		}
-		if f, ok := recordpb.BodyAs[*recordpb.FrictionNone](e); ok {
-			if t := strings.TrimSpace(f.GetText()); t != "" {
-				attested = append(attested, fmt.Sprintf("- **%s**: %s", e.GetSeatId(), t))
-			}
+		t := strings.TrimSpace(f.GetText())
+		if t == "" {
+			continue
 		}
+		if f.GetType() == recordpb.LogType_LOG_TYPE_NOMINAL {
+			attested = append(attested, fmt.Sprintf("- **%s**: %s", e.GetSeatId(), t))
+			continue
+		}
+		rows = append(rows, fmt.Sprintf("- **%s** (%s): %s", e.GetSeatId(), recordpb.Word(f.GetType()), t))
 	}
 	if len(rows) == 0 && len(attested) == 0 {
 		return ""
 	}
-	out := "## Friction (tooling gaps the run hit)\n\n"
+	out := "## Log (what the run told the operator)\n\n"
 	if len(rows) > 0 {
 		out += strings.Join(rows, "\n") + "\n"
 	} else {

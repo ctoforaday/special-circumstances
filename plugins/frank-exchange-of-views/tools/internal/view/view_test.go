@@ -573,7 +573,7 @@ func TestMarkdownDebateSkipsEmptyRounds(t *testing.T) {
 	runDir := t.TempDir()
 	lens := "red-lens-r3-L1"
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, lens, 3, lens+":friction:#1", &recordpb.Friction{Text: proto.String("not debate content")}),
+		recordtest.At(t, lens, 3, lens+":friction:#1", &recordpb.Log{Text: proto.String("not debate content"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 	})
 	debate := md(t, runDir, "debate")
 	if strings.Contains(debate, "## Round 3") {

@@ -4,7 +4,7 @@
 // the transcript tarball, appends each chair's scorecard, harvests precedents into law/proposed,
 // removes the run-live marker, and writes run-record-audit.md — exit 2 on any audit FAIL.
 //
-// The three record-backed audits (telemetry, friction-parity, record-parity) read the record
+// The three record-backed audits (telemetry, log-parity, record-parity) read the record
 // IN-PROCESS via record.BoardState → DebateJSONOf/FrictionJSONOf, never by spawning `merge show`.
 // The PRECEDENT HARVEST reads it too, never the envelopes' self-reported ruling arrays: a bench
 // that under-reports would promote less than it ruled, and one that reported nothing would
@@ -94,9 +94,9 @@ func jsSlice(s string, n int) string {
 // ---- journal ----
 
 // ReadJournal walks journal.jsonl tolerantly: every result object and the friction arrays inside.
-func ReadJournal(transcriptDir string) (results []map[string]any, friction []EnvelopeFriction) {
+func ReadJournal(transcriptDir string) (results []map[string]any, friction []EnvelopeLog) {
 	results = []map[string]any{}
-	friction = []EnvelopeFriction{}
+	friction = []EnvelopeLog{}
 	b, err := os.ReadFile(filepath.Join(transcriptDir, "journal.jsonl"))
 	if err != nil {
 		return results, friction
@@ -116,13 +116,13 @@ func ReadJournal(transcriptDir string) (results []map[string]any, friction []Env
 			continue
 		}
 		results = append(results, r)
-		if fr, ok := r["friction"].([]any); ok {
+		if fr, ok := r["log"].([]any); ok {
 			// THE AGENT HANDLE TRAVELS WITH THE TEXT. It is the only thing on this line that can
 			// be joined to a seat, and dropping it here is what left the parity check comparing
-			// prose to prose. See FrictionAudit.
+			// prose to prose. See LogAudit.
 			agent := jsString(j["agentId"])
 			for _, f := range fr {
-				friction = append(friction, EnvelopeFriction{AgentID: agent, Text: jsString(f)})
+				friction = append(friction, EnvelopeLog{AgentID: agent, Text: jsString(f)})
 			}
 		}
 	}
@@ -247,15 +247,15 @@ func TelemetryAudit(run record.Run, redRounds int) Audit {
 
 // ---- AUDIT 3: friction parity ----
 
-// FrictionAudit checks every envelope-self-reported friction reached the record. onRecord is the
+// LogAudit checks every envelope-self-reported friction reached the record. onRecord is the
 // friction view's texts, read in-process. 60-char tolerant match in either direction.
-// EnvelopeFriction is one friction entry as a seat reported it in its RETURN ENVELOPE, carrying
+// EnvelopeLog is one friction entry as a seat reported it in its RETURN ENVELOPE, carrying
 // the harness agent that wrote it — the only handle on that line a record can be joined to.
-type EnvelopeFriction struct {
+type EnvelopeLog struct {
 	AgentID, Text string
 }
 
-// FrictionAudit checks that every seat which reported friction in its envelope also opened the
+// LogAudit checks that every seat which reported friction in its envelope also opened the
 // channel on the record. It joins on the SEAT, through the agent binding `register` writes.
 //
 // IT COMPARED PROSE TO PROSE, and reported 5 failures out of 5 on a run where every one of them
@@ -280,7 +280,7 @@ type EnvelopeFriction struct {
 // any register event — deliberately, so "not measured" stays legible rather than reading as an
 // agent whose handle is the empty string. Those entries are counted out loud and are NOT findings:
 // an unjoinable entry is a thing this audit cannot see, not a duty a seat skipped.
-func FrictionAudit(run record.Run, envelope []EnvelopeFriction, onRecord []record.FrictionEntryJSON) Audit {
+func LogAudit(run record.Run, envelope []EnvelopeLog, onRecord []record.LogEntryJSON) Audit {
 	wroteToRecord := map[string]bool{}
 	for _, fr := range onRecord {
 		wroteToRecord[fr.SeatID] = true
@@ -305,13 +305,13 @@ func FrictionAudit(run record.Run, envelope []EnvelopeFriction, onRecord []recor
 			strings.Join(unjoinable, "\n    - "))
 	}
 	if len(silent) > 0 {
-		return Audit{Check: "friction-parity", Verdict: "FAIL",
+		return Audit{Check: "log-parity", Verdict: "FAIL",
 			Detail: fmt.Sprintf("%d seat(s) reported friction in the envelope and opened no channel on the record "+
 				"(it should have been recorded via the friction verb during the run):\n    - %s%s",
 				len(silent), strings.Join(silent, "\n    - "), note)}
 	}
 	judged := len(envelope) - len(unjoinable)
-	return Audit{Check: "friction-parity", Verdict: "PASS",
+	return Audit{Check: "log-parity", Verdict: "PASS",
 		Detail: fmt.Sprintf("%d envelope entr%s joined to a seat, and every one of those seats is on the record "+
 			"(%d friction entr%s recorded in total)%s",
 			judged, plural(judged, "y", "ies"), len(onRecord), plural(len(onRecord), "y", "ies"), note)}
@@ -1716,7 +1716,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	// Record-backed reads, in-process (the JS spawned `merge show` views).
 	board, _ := record.BoardState(run)
 	redRounds, blueBlocks := 0, 0
-	onRecord := []record.FrictionEntryJSON{}
+	onRecord := []record.LogEntryJSON{}
 	if board != nil {
 		dj := record.DebateJSONOfEvents(board.Events)
 		for _, r := range dj.Rounds {
@@ -1727,18 +1727,18 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 				blueBlocks++
 			}
 		}
-		// BOTH ARMS OF THE CHANNEL COUNT AS OPENING IT. `friction-none` is the attested empty
-		// case — "nothing blocked me", which is a seat closing the channel honestly — and a seat
-		// that files one has used the channel exactly as the duty asks.
-		fj := record.FrictionJSONOf(board.Events)
-		onRecord = append(onRecord, fj.Friction...)
-		onRecord = append(onRecord, fj.NothingBlocked...)
+		// ONE ARM NOW, AND IT STILL COUNTS THE ATTESTED EMPTY CASE. The clean sitting used to be a
+		// second event type appended separately; it is a `nominal` ENTRY on the same list, so a
+		// seat that files one has used the channel exactly as the duty asks and needs no special
+		// collection to be seen doing it.
+		fj := record.LogJSONOf(board.Events)
+		onRecord = append(onRecord, fj.Log...)
 	}
 
 	audits = []Audit{
 		LivenessAudit(run, now),
 		TelemetryAudit(run, redRounds),
-		FrictionAudit(run, friction, onRecord),
+		LogAudit(run, friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(run),
 		FootnoteIntegrity(run),

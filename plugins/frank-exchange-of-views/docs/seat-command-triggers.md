@@ -31,7 +31,7 @@ injected seat identity, so a lens types `finding` and the role never appears in 
 these cells as commands is how the role prefix got back into the prompts — see
 `TestNoRenderedPromptNamesACommand`.
 
-## Every seat (`register` · `friction` · `show`)
+## Every seat (`register` · `log` · `show`)
 
 Three acts every role carries, listed once. The full command path is in the first cell of every row
 in this file — **that is what makes the table checkable** (`TestEveryVerbHasATriggerRow`), and it
@@ -40,7 +40,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | command | the one trigger | competing channel | verdict |
 |---|---|---|---|
 | `lens register` `merge register` `blue register` `bench register` | first action at the seat | — | CLEAN |
-| `lens friction` `merge friction` `blue friction` `bench friction` | a capability gap, or the explicit `--none` that says nothing blocked you | — | CLEAN. Every seat WRITES it; the READ is the operator's (`feov-record friction`), because a capability gap is a report to the human who can retool the seat, not material for the debate |
+| `lens log` `merge log` `blue log` `bench log` | an entry for the operator, typed: a defect, a request, an impediment worth noting, or `--type nominal` for a clean sitting | — | CLEAN. Every seat WRITES it; the READ is the operator's (`feov-record log`), because a capability gap is a report to the human who can retool the seat, not material for the debate |
 | `lens show` `merge show` `blue show` `bench show` | read a projection | — | CLEAN (read path). The projections are their own vocabulary with their own gate — see `TestEveryViewNamesTheVerbThatFillsIt` — so the `show <view>` subtree is not enumerated here |
 
 ## Lens

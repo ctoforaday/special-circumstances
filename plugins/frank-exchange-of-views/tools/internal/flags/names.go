@@ -154,6 +154,10 @@ const (
 	// computation, or verify a source. It is what lets red demand evidence prose cannot fake.
 	CheckKind = "check-kind"
 
+	// Type is what a log entry ASSERTS — defect, request, friction, nominal. The operator
+	// triages by filtering on it instead of reading every entry to find out which it was.
+	Type = "type"
+
 	// Lineage, in two directions on one relation: what this gap replaces, and what replaces
 	// it. Symmetric words, because the reader has to hold both at once.
 	Supersedes   = "supersedes"
@@ -247,7 +251,7 @@ func All() []string {
 		As, None, Ended, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher,
-		Problem, Fix, Check, CheckKind, Hypothesis, Script, Cites, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor,
 		Principle, Tension, ReviewFlag, Relief, Binds,

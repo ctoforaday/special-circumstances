@@ -133,8 +133,7 @@ const (
 	EventType_EVENT_TYPE_CLOSING        EventType = 9
 	EventType_EVENT_TYPE_DECLARE        EventType = 10
 	EventType_EVENT_TYPE_FINDING        EventType = 11
-	EventType_EVENT_TYPE_FRICTION       EventType = 12
-	EventType_EVENT_TYPE_FRICTION_NONE  EventType = 13
+	EventType_EVENT_TYPE_LOG            EventType = 12
 	EventType_EVENT_TYPE_HALT           EventType = 14
 	EventType_EVENT_TYPE_MANIFEST_ROW   EventType = 15
 	EventType_EVENT_TYPE_MINT           EventType = 16
@@ -174,8 +173,7 @@ var (
 		9:  "EVENT_TYPE_CLOSING",
 		10: "EVENT_TYPE_DECLARE",
 		11: "EVENT_TYPE_FINDING",
-		12: "EVENT_TYPE_FRICTION",
-		13: "EVENT_TYPE_FRICTION_NONE",
+		12: "EVENT_TYPE_LOG",
 		14: "EVENT_TYPE_HALT",
 		15: "EVENT_TYPE_MANIFEST_ROW",
 		16: "EVENT_TYPE_MINT",
@@ -212,8 +210,7 @@ var (
 		"EVENT_TYPE_CLOSING":        9,
 		"EVENT_TYPE_DECLARE":        10,
 		"EVENT_TYPE_FINDING":        11,
-		"EVENT_TYPE_FRICTION":       12,
-		"EVENT_TYPE_FRICTION_NONE":  13,
+		"EVENT_TYPE_LOG":            12,
 		"EVENT_TYPE_HALT":           14,
 		"EVENT_TYPE_MANIFEST_ROW":   15,
 		"EVENT_TYPE_MINT":           16,
@@ -1023,69 +1020,125 @@ func (DirectionRuling) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{14}
 }
 
-// FrictionKind is WHY a friction event exists, and it is a FIELD rather than something a reader
-// infers from the wording. estoppel.go:142-154 carries the history: the prose is aimed at a seat
-// and must stay editable, so the count an operator reads must not move when it is edited (#283).
-// A `{text}`-only Friction message would have reverted that fix silently.
-type FrictionKind int32
+// LogSource is WHO recorded the entry, and LogType is WHAT IT ASSERTS. They are two axes and were
+// one enum: the old `FrictionKind` mixed a tool-emitted refusal in with a seat's own report, so a
+// "seat reports only" filter had to know which VALUES were tool values. Splitting them means a new
+// tool-emitted type never breaks that filter.
+//
+// The zero of each is declared because proto3 requires one, and is UNWRITABLE: schema.go skips the
+// UNSPECIFIED zero when building the enum vocabulary table ("absence is NULL here"), so the table
+// holds only real values and the column's FOREIGN KEY into it refuses an explicit zero. With
+// `required: true` the column is NOT NULL as well: NULL refused by the requirement, the zero by
+// the key.
+type LogSource int32
 
 const (
-	FrictionKind_FRICTION_KIND_UNSPECIFIED FrictionKind = 0 // a seat's own report: a capability it needed and did not have
-	FrictionKind_FRICTION_KIND_ESTOPPEL    FrictionKind = 1 // an estoppel REFUSAL, recorded by the tool rather than the seat
-	// TOOL_ERROR is the record's answer to a swallowed error, and it is why the KIND field earns
-	// its keep twice over.
-	//
-	// A tool that cannot parse its own input, or drops a row it cannot decode, currently either
-	// prints somewhere nobody reads or says nothing at all — and an error nobody learns about is
-	// one the system cannot improve on. The friction channel already exists for exactly this
-	// escalation, so an internal failure becomes an EVENT rather than a silence.
-	//
-	// It is a distinct KIND rather than a plain friction event because friction is otherwise a
-	// SEAT's report of a missing capability, and folding tool faults into that count would move a
-	// number an operator reads for a reason unrelated to what it measures — the #283 property this
-	// enum exists to protect. Filter by kind; the counts stay honest.
-	FrictionKind_FRICTION_KIND_TOOL_ERROR FrictionKind = 2
+	LogSource_LOG_SOURCE_UNSPECIFIED LogSource = 0
+	LogSource_LOG_SOURCE_SEAT        LogSource = 1
+	LogSource_LOG_SOURCE_TOOL        LogSource = 2
 )
 
-// Enum value maps for FrictionKind.
+// Enum value maps for LogSource.
 var (
-	FrictionKind_name = map[int32]string{
-		0: "FRICTION_KIND_UNSPECIFIED",
-		1: "FRICTION_KIND_ESTOPPEL",
-		2: "FRICTION_KIND_TOOL_ERROR",
+	LogSource_name = map[int32]string{
+		0: "LOG_SOURCE_UNSPECIFIED",
+		1: "LOG_SOURCE_SEAT",
+		2: "LOG_SOURCE_TOOL",
 	}
-	FrictionKind_value = map[string]int32{
-		"FRICTION_KIND_UNSPECIFIED": 0,
-		"FRICTION_KIND_ESTOPPEL":    1,
-		"FRICTION_KIND_TOOL_ERROR":  2,
+	LogSource_value = map[string]int32{
+		"LOG_SOURCE_UNSPECIFIED": 0,
+		"LOG_SOURCE_SEAT":        1,
+		"LOG_SOURCE_TOOL":        2,
 	}
 )
 
-func (x FrictionKind) Enum() *FrictionKind {
-	p := new(FrictionKind)
+func (x LogSource) Enum() *LogSource {
+	p := new(LogSource)
 	*p = x
 	return p
 }
 
-func (x FrictionKind) String() string {
+func (x LogSource) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (FrictionKind) Descriptor() protoreflect.EnumDescriptor {
+func (LogSource) Descriptor() protoreflect.EnumDescriptor {
 	return file_record_proto_enumTypes[15].Descriptor()
 }
 
-func (FrictionKind) Type() protoreflect.EnumType {
+func (LogSource) Type() protoreflect.EnumType {
 	return &file_record_proto_enumTypes[15]
 }
 
-func (x FrictionKind) Number() protoreflect.EnumNumber {
+func (x LogSource) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use FrictionKind.Descriptor instead.
-func (FrictionKind) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use LogSource.Descriptor instead.
+func (LogSource) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{15}
+}
+
+// LogType is WHAT THE ENTRY ASSERTS, and it is a FIELD rather than something a reader infers from
+// the wording. estoppel.go:142-154 carries the history: the prose is aimed at a seat and must stay
+// editable, so the count an operator reads must not move when it is edited (#283). A `{text}`-only
+// message would have reverted that fix silently.
+type LogType int32
+
+const (
+	LogType_LOG_TYPE_UNSPECIFIED LogType = 0
+	LogType_LOG_TYPE_NOMINAL     LogType = 1
+	LogType_LOG_TYPE_DEFECT      LogType = 2
+	LogType_LOG_TYPE_REQUEST     LogType = 3
+	LogType_LOG_TYPE_FRICTION    LogType = 4
+	LogType_LOG_TYPE_ESTOPPEL    LogType = 5
+)
+
+// Enum value maps for LogType.
+var (
+	LogType_name = map[int32]string{
+		0: "LOG_TYPE_UNSPECIFIED",
+		1: "LOG_TYPE_NOMINAL",
+		2: "LOG_TYPE_DEFECT",
+		3: "LOG_TYPE_REQUEST",
+		4: "LOG_TYPE_FRICTION",
+		5: "LOG_TYPE_ESTOPPEL",
+	}
+	LogType_value = map[string]int32{
+		"LOG_TYPE_UNSPECIFIED": 0,
+		"LOG_TYPE_NOMINAL":     1,
+		"LOG_TYPE_DEFECT":      2,
+		"LOG_TYPE_REQUEST":     3,
+		"LOG_TYPE_FRICTION":    4,
+		"LOG_TYPE_ESTOPPEL":    5,
+	}
+)
+
+func (x LogType) Enum() *LogType {
+	p := new(LogType)
+	*p = x
+	return p
+}
+
+func (x LogType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (LogType) Descriptor() protoreflect.EnumDescriptor {
+	return file_record_proto_enumTypes[16].Descriptor()
+}
+
+func (LogType) Type() protoreflect.EnumType {
+	return &file_record_proto_enumTypes[16]
+}
+
+func (x LogType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use LogType.Descriptor instead.
+func (LogType) EnumDescriptor() ([]byte, []int) {
+	return file_record_proto_rawDescGZIP(), []int{16}
 }
 
 // GradeDimension is which axis of a gap's grading is contested.
@@ -1128,11 +1181,11 @@ func (x GradeDimension) String() string {
 }
 
 func (GradeDimension) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[16].Descriptor()
+	return file_record_proto_enumTypes[17].Descriptor()
 }
 
 func (GradeDimension) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[16]
+	return &file_record_proto_enumTypes[17]
 }
 
 func (x GradeDimension) Number() protoreflect.EnumNumber {
@@ -1141,7 +1194,7 @@ func (x GradeDimension) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use GradeDimension.Descriptor instead.
 func (GradeDimension) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{16}
+	return file_record_proto_rawDescGZIP(), []int{17}
 }
 
 // THE PETITION CLASSES, AND THIS ENUM WAS NEVER MIGRATED TO THEM.
@@ -1195,11 +1248,11 @@ func (x PetitionClass) String() string {
 }
 
 func (PetitionClass) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[17].Descriptor()
+	return file_record_proto_enumTypes[18].Descriptor()
 }
 
 func (PetitionClass) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[17]
+	return &file_record_proto_enumTypes[18]
 }
 
 func (x PetitionClass) Number() protoreflect.EnumNumber {
@@ -1208,7 +1261,7 @@ func (x PetitionClass) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PetitionClass.Descriptor instead.
 func (PetitionClass) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{17}
+	return file_record_proto_rawDescGZIP(), []int{18}
 }
 
 // WHO GRANTED RELIEF BINDS, AND NOT ONE OF ITS OLD VALUES COULD EVER BE PASSED.
@@ -1263,11 +1316,11 @@ func (x RulingBinds) String() string {
 }
 
 func (RulingBinds) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[18].Descriptor()
+	return file_record_proto_enumTypes[19].Descriptor()
 }
 
 func (RulingBinds) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[18]
+	return &file_record_proto_enumTypes[19]
 }
 
 func (x RulingBinds) Number() protoreflect.EnumNumber {
@@ -1276,7 +1329,7 @@ func (x RulingBinds) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RulingBinds.Descriptor instead.
 func (RulingBinds) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{18}
+	return file_record_proto_rawDescGZIP(), []int{19}
 }
 
 // SqlCheck is one table-level rule and what it protects.
@@ -1539,8 +1592,7 @@ type Event struct {
 	//	*Event_Revision
 	//	*Event_Retire
 	//	*Event_ManifestRow
-	//	*Event_Friction
-	//	*Event_FrictionNone
+	//	*Event_Log
 	//	*Event_InquiryReview
 	//	*Event_BaseIngest
 	//	*Event_SittingOpen
@@ -1897,19 +1949,10 @@ func (x *Event) GetManifestRow() *ManifestRow {
 	return nil
 }
 
-func (x *Event) GetFriction() *Friction {
+func (x *Event) GetLog() *Log {
 	if x != nil {
-		if x, ok := x.Body.(*Event_Friction); ok {
-			return x.Friction
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetFrictionNone() *FrictionNone {
-	if x != nil {
-		if x, ok := x.Body.(*Event_FrictionNone); ok {
-			return x.FrictionNone
+		if x, ok := x.Body.(*Event_Log); ok {
+			return x.Log
 		}
 	}
 	return nil
@@ -2071,12 +2114,8 @@ type Event_ManifestRow struct {
 	ManifestRow *ManifestRow `protobuf:"bytes,48,opt,name=manifest_row,json=manifestRow,proto3,oneof"`
 }
 
-type Event_Friction struct {
-	Friction *Friction `protobuf:"bytes,49,opt,name=friction,proto3,oneof"`
-}
-
-type Event_FrictionNone struct {
-	FrictionNone *FrictionNone `protobuf:"bytes,50,opt,name=friction_none,json=frictionNone,proto3,oneof"`
+type Event_Log struct {
+	Log *Log `protobuf:"bytes,49,opt,name=log,proto3,oneof"`
 }
 
 type Event_InquiryReview struct {
@@ -2153,9 +2192,7 @@ func (*Event_Retire) isEvent_Body() {}
 
 func (*Event_ManifestRow) isEvent_Body() {}
 
-func (*Event_Friction) isEvent_Body() {}
-
-func (*Event_FrictionNone) isEvent_Body() {}
+func (*Event_Log) isEvent_Body() {}
 
 func (*Event_InquiryReview) isEvent_Body() {}
 
@@ -4522,32 +4559,43 @@ func (x *ManifestRow) GetRow() string {
 	return ""
 }
 
-// Friction is the escalation channel that keeps a missing tool from becoming a silent workaround
-// — and, when the tool refuses a mint under estoppel, the record of that refusal.
-type Friction struct {
+// Log is the channel addressed to the OPERATOR WHO CAN RETOOL THE SEAT — not to the debate. It
+// keeps a missing tool from becoming a silent workaround, and records the tool's own refusals.
+//
+// THERE IS NO SEPARATE EMPTY FORM. A clean sitting is logged in the POSITIVE, as
+// `{source: SEAT, type: NOMINAL}`: "none" is an answer to a question about friction, and an entry
+// that says "none" is still an entry. The property the old explicit negative existed for survives
+// because a NOMINAL entry is still an EVENT — an attested-clean sitting stays distinguishable from
+// a channel nobody used, which is what silence could never say.
+type Log struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Text  *string                `protobuf:"bytes,1,opt,name=text,proto3,oneof" json:"text,omitempty"`
-	Kind  *FrictionKind          `protobuf:"varint,2,opt,name=kind,proto3,enum=feov.record.v1.FrictionKind,oneof" json:"kind,omitempty"`
+	Type  *LogType               `protobuf:"varint,2,opt,name=type,proto3,enum=feov.record.v1.LogType,oneof" json:"type,omitempty"`
+	// SOURCE IS SET BY THE WRITE PATH, NOT ASKED. It is deliberately NOT `required`: that
+	// annotation means "a flag the seat supplies", and vocabulary_test enforces exactly that
+	// mapping. A seat cannot honestly claim to be the tool, so the seat verb sets SEAT and the
+	// tool's own writes set TOOL, at every call site.
+	Source *LogSource `protobuf:"varint,4,opt,name=source,proto3,enum=feov.record.v1.LogSource,oneof" json:"source,omitempty"`
 	// estopped_by names the gap whose own --fix-new the refused mint was attacking.
 	EstoppedBy    *string `protobuf:"bytes,3,opt,name=estopped_by,json=estoppedBy,proto3,oneof" json:"estopped_by,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Friction) Reset() {
-	*x = Friction{}
+func (x *Log) Reset() {
+	*x = Log{}
 	mi := &file_record_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Friction) String() string {
+func (x *Log) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Friction) ProtoMessage() {}
+func (*Log) ProtoMessage() {}
 
-func (x *Friction) ProtoReflect() protoreflect.Message {
+func (x *Log) ProtoReflect() protoreflect.Message {
 	mi := &file_record_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -4559,74 +4607,35 @@ func (x *Friction) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Friction.ProtoReflect.Descriptor instead.
-func (*Friction) Descriptor() ([]byte, []int) {
+// Deprecated: Use Log.ProtoReflect.Descriptor instead.
+func (*Log) Descriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{29}
 }
 
-func (x *Friction) GetText() string {
+func (x *Log) GetText() string {
 	if x != nil && x.Text != nil {
 		return *x.Text
 	}
 	return ""
 }
 
-func (x *Friction) GetKind() FrictionKind {
-	if x != nil && x.Kind != nil {
-		return *x.Kind
+func (x *Log) GetType() LogType {
+	if x != nil && x.Type != nil {
+		return *x.Type
 	}
-	return FrictionKind_FRICTION_KIND_UNSPECIFIED
+	return LogType_LOG_TYPE_UNSPECIFIED
 }
 
-func (x *Friction) GetEstoppedBy() string {
+func (x *Log) GetSource() LogSource {
+	if x != nil && x.Source != nil {
+		return *x.Source
+	}
+	return LogSource_LOG_SOURCE_UNSPECIFIED
+}
+
+func (x *Log) GetEstoppedBy() string {
 	if x != nil && x.EstoppedBy != nil {
 		return *x.EstoppedBy
-	}
-	return ""
-}
-
-// FrictionNone is the explicit negative: the seat was asked and had nothing to report. Distinct
-// from never having been asked, which is the whole reason it is its own event.
-type FrictionNone struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Text          *string                `protobuf:"bytes,1,opt,name=text,proto3,oneof" json:"text,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *FrictionNone) Reset() {
-	*x = FrictionNone{}
-	mi := &file_record_proto_msgTypes[30]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *FrictionNone) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*FrictionNone) ProtoMessage() {}
-
-func (x *FrictionNone) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[30]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use FrictionNone.ProtoReflect.Descriptor instead.
-func (*FrictionNone) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{30}
-}
-
-func (x *FrictionNone) GetText() string {
-	if x != nil && x.Text != nil {
-		return *x.Text
 	}
 	return ""
 }
@@ -4666,7 +4675,7 @@ type Motion struct {
 
 func (x *Motion) Reset() {
 	*x = Motion{}
-	mi := &file_record_proto_msgTypes[31]
+	mi := &file_record_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4678,7 +4687,7 @@ func (x *Motion) String() string {
 func (*Motion) ProtoMessage() {}
 
 func (x *Motion) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[31]
+	mi := &file_record_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4691,7 +4700,7 @@ func (x *Motion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Motion.ProtoReflect.Descriptor instead.
 func (*Motion) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{31}
+	return file_record_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *Motion) GetMotionId() string {
@@ -4795,7 +4804,7 @@ type GradeMotion struct {
 
 func (x *GradeMotion) Reset() {
 	*x = GradeMotion{}
-	mi := &file_record_proto_msgTypes[32]
+	mi := &file_record_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4807,7 +4816,7 @@ func (x *GradeMotion) String() string {
 func (*GradeMotion) ProtoMessage() {}
 
 func (x *GradeMotion) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[32]
+	mi := &file_record_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4820,7 +4829,7 @@ func (x *GradeMotion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GradeMotion.ProtoReflect.Descriptor instead.
 func (*GradeMotion) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{32}
+	return file_record_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GradeMotion) GetGapId() string {
@@ -4854,7 +4863,7 @@ type PetitionMotion struct {
 
 func (x *PetitionMotion) Reset() {
 	*x = PetitionMotion{}
-	mi := &file_record_proto_msgTypes[33]
+	mi := &file_record_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4866,7 +4875,7 @@ func (x *PetitionMotion) String() string {
 func (*PetitionMotion) ProtoMessage() {}
 
 func (x *PetitionMotion) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[33]
+	mi := &file_record_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4879,7 +4888,7 @@ func (x *PetitionMotion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PetitionMotion.ProtoReflect.Descriptor instead.
 func (*PetitionMotion) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{33}
+	return file_record_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *PetitionMotion) GetClass() PetitionClass {
@@ -4900,7 +4909,7 @@ type DirectionMotion struct {
 
 func (x *DirectionMotion) Reset() {
 	*x = DirectionMotion{}
-	mi := &file_record_proto_msgTypes[34]
+	mi := &file_record_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4912,7 +4921,7 @@ func (x *DirectionMotion) String() string {
 func (*DirectionMotion) ProtoMessage() {}
 
 func (x *DirectionMotion) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[34]
+	mi := &file_record_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4925,7 +4934,7 @@ func (x *DirectionMotion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DirectionMotion.ProtoReflect.Descriptor instead.
 func (*DirectionMotion) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{34}
+	return file_record_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *DirectionMotion) GetAvenueId() string {
@@ -4963,7 +4972,7 @@ type MotionRule struct {
 
 func (x *MotionRule) Reset() {
 	*x = MotionRule{}
-	mi := &file_record_proto_msgTypes[35]
+	mi := &file_record_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4975,7 +4984,7 @@ func (x *MotionRule) String() string {
 func (*MotionRule) ProtoMessage() {}
 
 func (x *MotionRule) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[35]
+	mi := &file_record_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4988,7 +4997,7 @@ func (x *MotionRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MotionRule.ProtoReflect.Descriptor instead.
 func (*MotionRule) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{35}
+	return file_record_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *MotionRule) GetMotionId() string {
@@ -5094,7 +5103,7 @@ type MotionAppeal struct {
 
 func (x *MotionAppeal) Reset() {
 	*x = MotionAppeal{}
-	mi := &file_record_proto_msgTypes[36]
+	mi := &file_record_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5106,7 +5115,7 @@ func (x *MotionAppeal) String() string {
 func (*MotionAppeal) ProtoMessage() {}
 
 func (x *MotionAppeal) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[36]
+	mi := &file_record_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5119,7 +5128,7 @@ func (x *MotionAppeal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MotionAppeal.ProtoReflect.Descriptor instead.
 func (*MotionAppeal) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{36}
+	return file_record_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *MotionAppeal) GetMotionId() string {
@@ -5211,7 +5220,7 @@ type Register struct {
 
 func (x *Register) Reset() {
 	*x = Register{}
-	mi := &file_record_proto_msgTypes[37]
+	mi := &file_record_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5223,7 +5232,7 @@ func (x *Register) String() string {
 func (*Register) ProtoMessage() {}
 
 func (x *Register) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[37]
+	mi := &file_record_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5236,7 +5245,7 @@ func (x *Register) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Register.ProtoReflect.Descriptor instead.
 func (*Register) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{37}
+	return file_record_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *Register) GetToolVersion() string {
@@ -5320,7 +5329,7 @@ type SittingOpen struct {
 
 func (x *SittingOpen) Reset() {
 	*x = SittingOpen{}
-	mi := &file_record_proto_msgTypes[38]
+	mi := &file_record_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5332,7 +5341,7 @@ func (x *SittingOpen) String() string {
 func (*SittingOpen) ProtoMessage() {}
 
 func (x *SittingOpen) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[38]
+	mi := &file_record_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5345,7 +5354,7 @@ func (x *SittingOpen) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SittingOpen.ProtoReflect.Descriptor instead.
 func (*SittingOpen) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{38}
+	return file_record_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *SittingOpen) GetAgentId() string {
@@ -5372,7 +5381,7 @@ type SittingClose struct {
 
 func (x *SittingClose) Reset() {
 	*x = SittingClose{}
-	mi := &file_record_proto_msgTypes[39]
+	mi := &file_record_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5384,7 +5393,7 @@ func (x *SittingClose) String() string {
 func (*SittingClose) ProtoMessage() {}
 
 func (x *SittingClose) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[39]
+	mi := &file_record_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5397,7 +5406,7 @@ func (x *SittingClose) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SittingClose.ProtoReflect.Descriptor instead.
 func (*SittingClose) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{39}
+	return file_record_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *SittingClose) GetAgentId() string {
@@ -5434,7 +5443,7 @@ type RoundVerdict struct {
 
 func (x *RoundVerdict) Reset() {
 	*x = RoundVerdict{}
-	mi := &file_record_proto_msgTypes[40]
+	mi := &file_record_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5446,7 +5455,7 @@ func (x *RoundVerdict) String() string {
 func (*RoundVerdict) ProtoMessage() {}
 
 func (x *RoundVerdict) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[40]
+	mi := &file_record_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5459,7 +5468,7 @@ func (x *RoundVerdict) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoundVerdict.ProtoReflect.Descriptor instead.
 func (*RoundVerdict) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{40}
+	return file_record_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *RoundVerdict) GetVerdict() Verdict {
@@ -5494,7 +5503,7 @@ type Outcome struct {
 
 func (x *Outcome) Reset() {
 	*x = Outcome{}
-	mi := &file_record_proto_msgTypes[41]
+	mi := &file_record_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5506,7 +5515,7 @@ func (x *Outcome) String() string {
 func (*Outcome) ProtoMessage() {}
 
 func (x *Outcome) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[41]
+	mi := &file_record_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5519,7 +5528,7 @@ func (x *Outcome) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Outcome.ProtoReflect.Descriptor instead.
 func (*Outcome) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{41}
+	return file_record_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *Outcome) GetVerdict() RunOutcome {
@@ -5566,7 +5575,7 @@ type Position struct {
 
 func (x *Position) Reset() {
 	*x = Position{}
-	mi := &file_record_proto_msgTypes[42]
+	mi := &file_record_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5578,7 +5587,7 @@ func (x *Position) String() string {
 func (*Position) ProtoMessage() {}
 
 func (x *Position) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[42]
+	mi := &file_record_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5591,7 +5600,7 @@ func (x *Position) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Position.ProtoReflect.Descriptor instead.
 func (*Position) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{42}
+	return file_record_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *Position) GetText() string {
@@ -5612,7 +5621,7 @@ type Halt struct {
 
 func (x *Halt) Reset() {
 	*x = Halt{}
-	mi := &file_record_proto_msgTypes[43]
+	mi := &file_record_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5624,7 +5633,7 @@ func (x *Halt) String() string {
 func (*Halt) ProtoMessage() {}
 
 func (x *Halt) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[43]
+	mi := &file_record_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5637,7 +5646,7 @@ func (x *Halt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Halt.ProtoReflect.Descriptor instead.
 func (*Halt) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{43}
+	return file_record_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *Halt) GetOpinion() string {
@@ -5658,7 +5667,7 @@ type Certify struct {
 
 func (x *Certify) Reset() {
 	*x = Certify{}
-	mi := &file_record_proto_msgTypes[44]
+	mi := &file_record_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5670,7 +5679,7 @@ func (x *Certify) String() string {
 func (*Certify) ProtoMessage() {}
 
 func (x *Certify) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[44]
+	mi := &file_record_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5683,7 +5692,7 @@ func (x *Certify) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Certify.ProtoReflect.Descriptor instead.
 func (*Certify) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{44}
+	return file_record_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *Certify) GetStatement() string {
@@ -5702,7 +5711,7 @@ type Declare struct {
 
 func (x *Declare) Reset() {
 	*x = Declare{}
-	mi := &file_record_proto_msgTypes[45]
+	mi := &file_record_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5714,7 +5723,7 @@ func (x *Declare) String() string {
 func (*Declare) ProtoMessage() {}
 
 func (x *Declare) ProtoReflect() protoreflect.Message {
-	mi := &file_record_proto_msgTypes[45]
+	mi := &file_record_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5727,7 +5736,7 @@ func (x *Declare) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Declare.ProtoReflect.Descriptor instead.
 func (*Declare) Descriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{45}
+	return file_record_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *Declare) GetHolding() string {
@@ -5878,7 +5887,7 @@ const file_record_proto_rawDesc = "" +
 	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
-	"\a_unique\"\xfc\x11\n" +
+	"\a_unique\"\xa8\x11\n" +
 	"\x05Event\x12\x13\n" +
 	"\x02ts\x18\x02 \x01(\tH\x01R\x02ts\x88\x01\x01\x12\x1c\n" +
 	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x12\x19\n" +
@@ -5917,9 +5926,8 @@ const file_record_proto_rawDesc = "" +
 	"\tblue_edit\x18- \x01(\v2\x18.feov.record.v1.BlueEditH\x00R\bblueEdit\x126\n" +
 	"\brevision\x18. \x01(\v2\x18.feov.record.v1.RevisionH\x00R\brevision\x120\n" +
 	"\x06retire\x18/ \x01(\v2\x16.feov.record.v1.RetireH\x00R\x06retire\x12@\n" +
-	"\fmanifest_row\x180 \x01(\v2\x1b.feov.record.v1.ManifestRowH\x00R\vmanifestRow\x126\n" +
-	"\bfriction\x181 \x01(\v2\x18.feov.record.v1.FrictionH\x00R\bfriction\x12C\n" +
-	"\rfriction_none\x182 \x01(\v2\x1c.feov.record.v1.FrictionNoneH\x00R\ffrictionNone\x12F\n" +
+	"\fmanifest_row\x180 \x01(\v2\x1b.feov.record.v1.ManifestRowH\x00R\vmanifestRow\x12'\n" +
+	"\x03log\x181 \x01(\v2\x13.feov.record.v1.LogH\x00R\x03log\x12F\n" +
 	"\x0einquiry_review\x183 \x01(\v2\x1d.feov.record.v1.InquiryReviewH\x00R\rinquiryReview\x12=\n" +
 	"\vbase_ingest\x184 \x01(\v2\x1a.feov.record.v1.BaseIngestH\x00R\n" +
 	"baseIngest\x12@\n" +
@@ -6319,18 +6327,17 @@ const file_record_proto_rawDesc = "" +
 	"\x06gap_id\x18\x01 \x01(\tB\x11\x82\xb5\x18\r\"\vmint.gap_idH\x00R\x05gapId\x88\x01\x01\x12\x15\n" +
 	"\x03row\x18\x02 \x01(\tH\x01R\x03row\x88\x01\x01B\t\n" +
 	"\a_gap_idB\x06\n" +
-	"\x04_row\"\xa2\x01\n" +
-	"\bFriction\x12\x17\n" +
-	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01\x125\n" +
-	"\x04kind\x18\x02 \x01(\x0e2\x1c.feov.record.v1.FrictionKindH\x01R\x04kind\x88\x01\x01\x12$\n" +
-	"\vestopped_by\x18\x03 \x01(\tH\x02R\n" +
+	"\x04_row\"\xa2\x03\n" +
+	"\x03Log\x12\x17\n" +
+	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01\x12\xf6\x01\n" +
+	"\x04type\x18\x02 \x01(\x0e2\x17.feov.record.v1.LogTypeB\xc3\x01\x82\xb5\x18\xbe\x01\b\x01\x1a\xb9\x01the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace — measured at 142,891 characters on one runH\x01R\x04type\x88\x01\x01\x126\n" +
+	"\x06source\x18\x04 \x01(\x0e2\x19.feov.record.v1.LogSourceH\x02R\x06source\x88\x01\x01\x12$\n" +
+	"\vestopped_by\x18\x03 \x01(\tH\x03R\n" +
 	"estoppedBy\x88\x01\x01B\a\n" +
 	"\x05_textB\a\n" +
-	"\x05_kindB\x0e\n" +
-	"\f_estopped_by\"0\n" +
-	"\fFrictionNone\x12\x17\n" +
-	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
-	"\x05_text\"\x92\x04\n" +
+	"\x05_typeB\t\n" +
+	"\a_sourceB\x0e\n" +
+	"\f_estopped_by\"\x92\x04\n" +
 	"\x06Motion\x12\xa4\x01\n" +
 	"\tmotion_id\x18\x01 \x01(\tB\x81\x01\x82\xb5\x18}\b\x01\x1awthe id everything else joins on — the tool assigns it, and a motion without one cannot be ruled, appealed or rendered(\x01H\x01R\bmotionId\x88\x01\x01\x12<\n" +
 	"\asubject\x18\x02 \x01(\x0e2\x1d.feov.record.v1.MotionSubjectH\x02R\asubject\x88\x01\x01\x12\x19\n" +
@@ -6451,7 +6458,7 @@ const file_record_proto_rawDesc = "" +
 	"\b_holding*\xa8\x01\n" +
 	"\rSchemaVersion\x12\x1e\n" +
 	"\x1aSCHEMA_VERSION_UNSPECIFIED\x10\x00\x12w\n" +
-	"\x10SCHEMA_VERSION_1\x10\x01\x1aa\x8a\xb5\x18]the protobuf record: one event stream, one row per act, schema derived from these descriptors*\xaa\x1d\n" +
+	"\x10SCHEMA_VERSION_1\x10\x01\x1aa\x8a\xb5\x18]the protobuf record: one event stream, one row per act, schema derived from these descriptors*\xa8\x1c\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x12e\n" +
@@ -6465,9 +6472,8 @@ const file_record_proto_rawDesc = "" +
 	"\x12EVENT_TYPE_CLOSING\x10\t\x1aJ\x8a\xb5\x18Fa seat's closing statement on a gap: the argument, not the disposition\x12a\n" +
 	"\x12EVENT_TYPE_DECLARE\x10\n" +
 	"\x1aI\x8a\xb5\x18Ethe bench stating a holding that later sittings are expected to apply\x12S\n" +
-	"\x12EVENT_TYPE_FINDING\x10\v\x1a;\x8a\xb5\x187something red found, graded but not yet minted as a gap\x12}\n" +
-	"\x13EVENT_TYPE_FRICTION\x10\f\x1ad\x8a\xb5\x18`a capability the tool did not have, recorded so the tooling gets fixed rather than worked around\x12\x8f\x01\n" +
-	"\x18EVENT_TYPE_FRICTION_NONE\x10\r\x1aq\x8a\xb5\x18ma seat stating it hit no friction — the negative answer, recorded so silence and `none` are different facts\x12d\n" +
+	"\x12EVENT_TYPE_FINDING\x10\v\x1a;\x8a\xb5\x187something red found, graded but not yet minted as a gap\x12\x8c\x01\n" +
+	"\x0eEVENT_TYPE_LOG\x10\f\x1ax\x8a\xb5\x18tan entry addressed to the operator who can retool the seat: a defect, a request, an impediment, or a nominal sitting\x12d\n" +
 	"\x0fEVENT_TYPE_HALT\x10\x0e\x1aO\x8a\xb5\x18Kthe bench ending the run on a safety, ethics, consent or integrity boundary\x12b\n" +
 	"\x17EVENT_TYPE_MANIFEST_ROW\x10\x0f\x1aE\x8a\xb5\x18Aone row of the run's manifest, tying a gap to what shipped for it\x12m\n" +
 	"\x0fEVENT_TYPE_MINT\x10\x10\x1aX\x8a\xb5\x18Ta gap put on the board — the act that creates the entity every other act refers to\x12n\n" +
@@ -6568,11 +6574,18 @@ const file_record_proto_rawDesc = "" +
 	"\x1cDIRECTION_RULING_UNSPECIFIED\x10\x00\x12F\n" +
 	"\x19DIRECTION_RULING_ENDORSED\x10\x01\x1a'\x8a\xb5\x18#worth this run's time — pursue it\x12M\n" +
 	"\x1dDIRECTION_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12Y\n" +
-	"\x19DIRECTION_RULING_TOO_THIN\x10\x03\x1a:\x8a\xb5\x186in scope, but the hypothesis does not carry its budget*\x8d\x05\n" +
-	"\fFrictionKind\x12\x1d\n" +
-	"\x19FRICTION_KIND_UNSPECIFIED\x10\x00\x12\x8a\x02\n" +
-	"\x16FRICTION_KIND_ESTOPPEL\x10\x01\x1a\xed\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\x12\xd0\x02\n" +
-	"\x18FRICTION_KIND_TOOL_ERROR\x10\x02\x1a\xb1\x02\x8a\xb5\x18\xac\x02the TOOL failed internally — unparseable input, an undecodable row, a check that could not run. Recorded rather than printed or swallowed, because an error nobody learns about is one nothing improves on. Distinct from a seat's own friction so the counts an operator reads stay about capability gaps*\x96\x03\n" +
+	"\x19DIRECTION_RULING_TOO_THIN\x10\x03\x1a:\x8a\xb5\x186in scope, but the hypothesis does not carry its budget*\xbe\x01\n" +
+	"\tLogSource\x12\x1a\n" +
+	"\x16LOG_SOURCE_UNSPECIFIED\x10\x00\x12@\n" +
+	"\x0fLOG_SOURCE_SEAT\x10\x01\x1a+\x8a\xb5\x18'a seat filed this about its own sitting\x12S\n" +
+	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\x87\t\n" +
+	"\aLogType\x12\x18\n" +
+	"\x14LOG_TYPE_UNSPECIFIED\x10\x00\x12\xc3\x01\n" +
+	"\x10LOG_TYPE_NOMINAL\x10\x01\x1a\xac\x01\x8a\xb5\x18\xa7\x01the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used\x12\xeb\x01\n" +
+	"\x0fLOG_TYPE_DEFECT\x10\x02\x1a\xd5\x01\x8a\xb5\x18\xd0\x01something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on\x12\xcb\x01\n" +
+	"\x10LOG_TYPE_REQUEST\x10\x03\x1a\xb4\x01\x8a\xb5\x18\xaf\x01a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair\x12\xd7\x01\n" +
+	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\xbf\x01\x8a\xb5\x18\xba\x01the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect\x12\x85\x02\n" +
+	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xed\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit*\x96\x03\n" +
 	"\x0eGradeDimension\x12\x1f\n" +
 	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12;\n" +
 	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a\x1d\x8a\xb5\x18\x19how bad it is if it bites\x12\x86\x01\n" +
@@ -6609,8 +6622,8 @@ func file_record_proto_rawDescGZIP() []byte {
 	return file_record_proto_rawDescData
 }
 
-var file_record_proto_enumTypes = make([]protoimpl.EnumInfo, 19)
-var file_record_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
+var file_record_proto_enumTypes = make([]protoimpl.EnumInfo, 20)
+var file_record_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
 var file_record_proto_goTypes = []any{
 	(SchemaVersion)(0),                    // 0: feov.record.v1.SchemaVersion
 	(EventType)(0),                        // 1: feov.record.v1.EventType
@@ -6627,41 +6640,41 @@ var file_record_proto_goTypes = []any{
 	(GradeRuling)(0),                      // 12: feov.record.v1.GradeRuling
 	(PetitionRuling)(0),                   // 13: feov.record.v1.PetitionRuling
 	(DirectionRuling)(0),                  // 14: feov.record.v1.DirectionRuling
-	(FrictionKind)(0),                     // 15: feov.record.v1.FrictionKind
-	(GradeDimension)(0),                   // 16: feov.record.v1.GradeDimension
-	(PetitionClass)(0),                    // 17: feov.record.v1.PetitionClass
-	(RulingBinds)(0),                      // 18: feov.record.v1.RulingBinds
-	(*SqlCheck)(nil),                      // 19: feov.record.v1.SqlCheck
-	(*Sql)(nil),                           // 20: feov.record.v1.Sql
-	(*Event)(nil),                         // 21: feov.record.v1.Event
-	(*TelemetryLine)(nil),                 // 22: feov.record.v1.TelemetryLine
-	(*NewMint)(nil),                       // 23: feov.record.v1.NewMint
-	(*SeverityTally)(nil),                 // 24: feov.record.v1.SeverityTally
-	(*RepairRegression)(nil),              // 25: feov.record.v1.RepairRegression
-	(*EdgeDeltas)(nil),                    // 26: feov.record.v1.EdgeDeltas
-	(*Mint)(nil),                          // 27: feov.record.v1.Mint
-	(*ClassNew)(nil),                      // 28: feov.record.v1.ClassNew
-	(*Close)(nil),                         // 29: feov.record.v1.Close
-	(*Closing)(nil),                       // 30: feov.record.v1.Closing
-	(*Regrade)(nil),                       // 31: feov.record.v1.Regrade
-	(*SpotCheck)(nil),                     // 32: feov.record.v1.SpotCheck
-	(*Opinion)(nil),                       // 33: feov.record.v1.Opinion
-	(*Finding)(nil),                       // 34: feov.record.v1.Finding
-	(*Observe)(nil),                       // 35: feov.record.v1.Observe
-	(*Anchor)(nil),                        // 36: feov.record.v1.Anchor
-	(*Cite)(nil),                          // 37: feov.record.v1.Cite
-	(*Verify)(nil),                        // 38: feov.record.v1.Verify
-	(*Proof)(nil),                         // 39: feov.record.v1.Proof
-	(*Reproduce)(nil),                     // 40: feov.record.v1.Reproduce
-	(*InquiryReview)(nil),                 // 41: feov.record.v1.InquiryReview
-	(*Avenue)(nil),                        // 42: feov.record.v1.Avenue
-	(*BaseIngest)(nil),                    // 43: feov.record.v1.BaseIngest
-	(*BlueEdit)(nil),                      // 44: feov.record.v1.BlueEdit
-	(*Revision)(nil),                      // 45: feov.record.v1.Revision
-	(*Retire)(nil),                        // 46: feov.record.v1.Retire
-	(*ManifestRow)(nil),                   // 47: feov.record.v1.ManifestRow
-	(*Friction)(nil),                      // 48: feov.record.v1.Friction
-	(*FrictionNone)(nil),                  // 49: feov.record.v1.FrictionNone
+	(LogSource)(0),                        // 15: feov.record.v1.LogSource
+	(LogType)(0),                          // 16: feov.record.v1.LogType
+	(GradeDimension)(0),                   // 17: feov.record.v1.GradeDimension
+	(PetitionClass)(0),                    // 18: feov.record.v1.PetitionClass
+	(RulingBinds)(0),                      // 19: feov.record.v1.RulingBinds
+	(*SqlCheck)(nil),                      // 20: feov.record.v1.SqlCheck
+	(*Sql)(nil),                           // 21: feov.record.v1.Sql
+	(*Event)(nil),                         // 22: feov.record.v1.Event
+	(*TelemetryLine)(nil),                 // 23: feov.record.v1.TelemetryLine
+	(*NewMint)(nil),                       // 24: feov.record.v1.NewMint
+	(*SeverityTally)(nil),                 // 25: feov.record.v1.SeverityTally
+	(*RepairRegression)(nil),              // 26: feov.record.v1.RepairRegression
+	(*EdgeDeltas)(nil),                    // 27: feov.record.v1.EdgeDeltas
+	(*Mint)(nil),                          // 28: feov.record.v1.Mint
+	(*ClassNew)(nil),                      // 29: feov.record.v1.ClassNew
+	(*Close)(nil),                         // 30: feov.record.v1.Close
+	(*Closing)(nil),                       // 31: feov.record.v1.Closing
+	(*Regrade)(nil),                       // 32: feov.record.v1.Regrade
+	(*SpotCheck)(nil),                     // 33: feov.record.v1.SpotCheck
+	(*Opinion)(nil),                       // 34: feov.record.v1.Opinion
+	(*Finding)(nil),                       // 35: feov.record.v1.Finding
+	(*Observe)(nil),                       // 36: feov.record.v1.Observe
+	(*Anchor)(nil),                        // 37: feov.record.v1.Anchor
+	(*Cite)(nil),                          // 38: feov.record.v1.Cite
+	(*Verify)(nil),                        // 39: feov.record.v1.Verify
+	(*Proof)(nil),                         // 40: feov.record.v1.Proof
+	(*Reproduce)(nil),                     // 41: feov.record.v1.Reproduce
+	(*InquiryReview)(nil),                 // 42: feov.record.v1.InquiryReview
+	(*Avenue)(nil),                        // 43: feov.record.v1.Avenue
+	(*BaseIngest)(nil),                    // 44: feov.record.v1.BaseIngest
+	(*BlueEdit)(nil),                      // 45: feov.record.v1.BlueEdit
+	(*Revision)(nil),                      // 46: feov.record.v1.Revision
+	(*Retire)(nil),                        // 47: feov.record.v1.Retire
+	(*ManifestRow)(nil),                   // 48: feov.record.v1.ManifestRow
+	(*Log)(nil),                           // 49: feov.record.v1.Log
 	(*Motion)(nil),                        // 50: feov.record.v1.Motion
 	(*GradeMotion)(nil),                   // 51: feov.record.v1.GradeMotion
 	(*PetitionMotion)(nil),                // 52: feov.record.v1.PetitionMotion
@@ -6695,69 +6708,69 @@ var file_record_proto_depIdxs = []int32{
 	50, // 9: feov.record.v1.Event.motion:type_name -> feov.record.v1.Motion
 	54, // 10: feov.record.v1.Event.motion_rule:type_name -> feov.record.v1.MotionRule
 	55, // 11: feov.record.v1.Event.motion_appeal:type_name -> feov.record.v1.MotionAppeal
-	27, // 12: feov.record.v1.Event.mint:type_name -> feov.record.v1.Mint
-	28, // 13: feov.record.v1.Event.class_new:type_name -> feov.record.v1.ClassNew
-	29, // 14: feov.record.v1.Event.close:type_name -> feov.record.v1.Close
-	30, // 15: feov.record.v1.Event.closing:type_name -> feov.record.v1.Closing
-	31, // 16: feov.record.v1.Event.regrade:type_name -> feov.record.v1.Regrade
-	32, // 17: feov.record.v1.Event.spot_check:type_name -> feov.record.v1.SpotCheck
-	33, // 18: feov.record.v1.Event.opinion:type_name -> feov.record.v1.Opinion
-	34, // 19: feov.record.v1.Event.finding:type_name -> feov.record.v1.Finding
-	35, // 20: feov.record.v1.Event.observe:type_name -> feov.record.v1.Observe
-	36, // 21: feov.record.v1.Event.anchor:type_name -> feov.record.v1.Anchor
-	37, // 22: feov.record.v1.Event.cite:type_name -> feov.record.v1.Cite
-	38, // 23: feov.record.v1.Event.verify:type_name -> feov.record.v1.Verify
-	39, // 24: feov.record.v1.Event.proof:type_name -> feov.record.v1.Proof
-	40, // 25: feov.record.v1.Event.reproduce:type_name -> feov.record.v1.Reproduce
-	42, // 26: feov.record.v1.Event.avenue:type_name -> feov.record.v1.Avenue
-	44, // 27: feov.record.v1.Event.blue_edit:type_name -> feov.record.v1.BlueEdit
-	45, // 28: feov.record.v1.Event.revision:type_name -> feov.record.v1.Revision
-	46, // 29: feov.record.v1.Event.retire:type_name -> feov.record.v1.Retire
-	47, // 30: feov.record.v1.Event.manifest_row:type_name -> feov.record.v1.ManifestRow
-	48, // 31: feov.record.v1.Event.friction:type_name -> feov.record.v1.Friction
-	49, // 32: feov.record.v1.Event.friction_none:type_name -> feov.record.v1.FrictionNone
-	41, // 33: feov.record.v1.Event.inquiry_review:type_name -> feov.record.v1.InquiryReview
-	43, // 34: feov.record.v1.Event.base_ingest:type_name -> feov.record.v1.BaseIngest
-	57, // 35: feov.record.v1.Event.sitting_open:type_name -> feov.record.v1.SittingOpen
-	58, // 36: feov.record.v1.Event.sitting_close:type_name -> feov.record.v1.SittingClose
-	2,  // 37: feov.record.v1.TelemetryLine.max_severity:type_name -> feov.record.v1.Grade
-	23, // 38: feov.record.v1.TelemetryLine.new_mint:type_name -> feov.record.v1.NewMint
-	25, // 39: feov.record.v1.TelemetryLine.repair_regression:type_name -> feov.record.v1.RepairRegression
-	26, // 40: feov.record.v1.TelemetryLine.edge_deltas:type_name -> feov.record.v1.EdgeDeltas
-	24, // 41: feov.record.v1.NewMint.by_severity:type_name -> feov.record.v1.SeverityTally
-	65, // 42: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.NewMint.ByClassEntry
-	2,  // 43: feov.record.v1.SeverityTally.grade:type_name -> feov.record.v1.Grade
-	5,  // 44: feov.record.v1.Mint.check_kind:type_name -> feov.record.v1.CheckKind
-	2,  // 45: feov.record.v1.Mint.severity:type_name -> feov.record.v1.Grade
-	2,  // 46: feov.record.v1.Mint.likelihood:type_name -> feov.record.v1.Grade
-	2,  // 47: feov.record.v1.Mint.impact:type_name -> feov.record.v1.Grade
-	2,  // 48: feov.record.v1.Mint.complexity_cost:type_name -> feov.record.v1.Grade
-	6,  // 49: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.Disposition
-	2,  // 50: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
-	2,  // 51: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
-	2,  // 52: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
-	2,  // 53: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
-	6,  // 54: feov.record.v1.Opinion.disposition:type_name -> feov.record.v1.Disposition
-	2,  // 55: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
-	2,  // 56: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
-	2,  // 57: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
-	7,  // 58: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
-	8,  // 59: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
-	9,  // 60: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
-	10, // 61: feov.record.v1.Avenue.status:type_name -> feov.record.v1.AvenueStatus
-	15, // 62: feov.record.v1.Friction.kind:type_name -> feov.record.v1.FrictionKind
+	28, // 12: feov.record.v1.Event.mint:type_name -> feov.record.v1.Mint
+	29, // 13: feov.record.v1.Event.class_new:type_name -> feov.record.v1.ClassNew
+	30, // 14: feov.record.v1.Event.close:type_name -> feov.record.v1.Close
+	31, // 15: feov.record.v1.Event.closing:type_name -> feov.record.v1.Closing
+	32, // 16: feov.record.v1.Event.regrade:type_name -> feov.record.v1.Regrade
+	33, // 17: feov.record.v1.Event.spot_check:type_name -> feov.record.v1.SpotCheck
+	34, // 18: feov.record.v1.Event.opinion:type_name -> feov.record.v1.Opinion
+	35, // 19: feov.record.v1.Event.finding:type_name -> feov.record.v1.Finding
+	36, // 20: feov.record.v1.Event.observe:type_name -> feov.record.v1.Observe
+	37, // 21: feov.record.v1.Event.anchor:type_name -> feov.record.v1.Anchor
+	38, // 22: feov.record.v1.Event.cite:type_name -> feov.record.v1.Cite
+	39, // 23: feov.record.v1.Event.verify:type_name -> feov.record.v1.Verify
+	40, // 24: feov.record.v1.Event.proof:type_name -> feov.record.v1.Proof
+	41, // 25: feov.record.v1.Event.reproduce:type_name -> feov.record.v1.Reproduce
+	43, // 26: feov.record.v1.Event.avenue:type_name -> feov.record.v1.Avenue
+	45, // 27: feov.record.v1.Event.blue_edit:type_name -> feov.record.v1.BlueEdit
+	46, // 28: feov.record.v1.Event.revision:type_name -> feov.record.v1.Revision
+	47, // 29: feov.record.v1.Event.retire:type_name -> feov.record.v1.Retire
+	48, // 30: feov.record.v1.Event.manifest_row:type_name -> feov.record.v1.ManifestRow
+	49, // 31: feov.record.v1.Event.log:type_name -> feov.record.v1.Log
+	42, // 32: feov.record.v1.Event.inquiry_review:type_name -> feov.record.v1.InquiryReview
+	44, // 33: feov.record.v1.Event.base_ingest:type_name -> feov.record.v1.BaseIngest
+	57, // 34: feov.record.v1.Event.sitting_open:type_name -> feov.record.v1.SittingOpen
+	58, // 35: feov.record.v1.Event.sitting_close:type_name -> feov.record.v1.SittingClose
+	2,  // 36: feov.record.v1.TelemetryLine.max_severity:type_name -> feov.record.v1.Grade
+	24, // 37: feov.record.v1.TelemetryLine.new_mint:type_name -> feov.record.v1.NewMint
+	26, // 38: feov.record.v1.TelemetryLine.repair_regression:type_name -> feov.record.v1.RepairRegression
+	27, // 39: feov.record.v1.TelemetryLine.edge_deltas:type_name -> feov.record.v1.EdgeDeltas
+	25, // 40: feov.record.v1.NewMint.by_severity:type_name -> feov.record.v1.SeverityTally
+	65, // 41: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.NewMint.ByClassEntry
+	2,  // 42: feov.record.v1.SeverityTally.grade:type_name -> feov.record.v1.Grade
+	5,  // 43: feov.record.v1.Mint.check_kind:type_name -> feov.record.v1.CheckKind
+	2,  // 44: feov.record.v1.Mint.severity:type_name -> feov.record.v1.Grade
+	2,  // 45: feov.record.v1.Mint.likelihood:type_name -> feov.record.v1.Grade
+	2,  // 46: feov.record.v1.Mint.impact:type_name -> feov.record.v1.Grade
+	2,  // 47: feov.record.v1.Mint.complexity_cost:type_name -> feov.record.v1.Grade
+	6,  // 48: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.Disposition
+	2,  // 49: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
+	2,  // 50: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
+	2,  // 51: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
+	2,  // 52: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
+	6,  // 53: feov.record.v1.Opinion.disposition:type_name -> feov.record.v1.Disposition
+	2,  // 54: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
+	2,  // 55: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
+	2,  // 56: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
+	7,  // 57: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
+	8,  // 58: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
+	9,  // 59: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
+	10, // 60: feov.record.v1.Avenue.status:type_name -> feov.record.v1.AvenueStatus
+	16, // 61: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
+	15, // 62: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
 	11, // 63: feov.record.v1.Motion.subject:type_name -> feov.record.v1.MotionSubject
 	51, // 64: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
 	52, // 65: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
 	53, // 66: feov.record.v1.Motion.direction:type_name -> feov.record.v1.DirectionMotion
-	16, // 67: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
+	17, // 67: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
 	2,  // 68: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
-	17, // 69: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	18, // 69: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
 	11, // 70: feov.record.v1.MotionRule.subject:type_name -> feov.record.v1.MotionSubject
 	12, // 71: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
 	13, // 72: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
 	14, // 73: feov.record.v1.MotionRule.direction:type_name -> feov.record.v1.DirectionRuling
-	18, // 74: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	19, // 74: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
 	11, // 75: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
 	3,  // 76: feov.record.v1.RoundVerdict.verdict:type_name -> feov.record.v1.Verdict
 	4,  // 77: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
@@ -6767,8 +6780,8 @@ var file_record_proto_depIdxs = []int32{
 	67, // 81: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
 	67, // 82: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
 	68, // 83: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	20, // 84: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	19, // 85: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	21, // 84: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	20, // 85: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
 	86, // [86:86] is the sub-list for method output_type
 	86, // [86:86] is the sub-list for method input_type
 	84, // [84:86] is the sub-list for extension type_name
@@ -6813,8 +6826,7 @@ func file_record_proto_init() {
 		(*Event_Revision)(nil),
 		(*Event_Retire)(nil),
 		(*Event_ManifestRow)(nil),
-		(*Event_Friction)(nil),
-		(*Event_FrictionNone)(nil),
+		(*Event_Log)(nil),
 		(*Event_InquiryReview)(nil),
 		(*Event_BaseIngest)(nil),
 		(*Event_SittingOpen)(nil),
@@ -6847,20 +6859,20 @@ func file_record_proto_init() {
 	file_record_proto_msgTypes[27].OneofWrappers = []any{}
 	file_record_proto_msgTypes[28].OneofWrappers = []any{}
 	file_record_proto_msgTypes[29].OneofWrappers = []any{}
-	file_record_proto_msgTypes[30].OneofWrappers = []any{}
-	file_record_proto_msgTypes[31].OneofWrappers = []any{
+	file_record_proto_msgTypes[30].OneofWrappers = []any{
 		(*Motion_Grade)(nil),
 		(*Motion_Petition)(nil),
 		(*Motion_Direction)(nil),
 	}
+	file_record_proto_msgTypes[31].OneofWrappers = []any{}
 	file_record_proto_msgTypes[32].OneofWrappers = []any{}
 	file_record_proto_msgTypes[33].OneofWrappers = []any{}
-	file_record_proto_msgTypes[34].OneofWrappers = []any{}
-	file_record_proto_msgTypes[35].OneofWrappers = []any{
+	file_record_proto_msgTypes[34].OneofWrappers = []any{
 		(*MotionRule_Grade)(nil),
 		(*MotionRule_Petition)(nil),
 		(*MotionRule_Direction)(nil),
 	}
+	file_record_proto_msgTypes[35].OneofWrappers = []any{}
 	file_record_proto_msgTypes[36].OneofWrappers = []any{}
 	file_record_proto_msgTypes[37].OneofWrappers = []any{}
 	file_record_proto_msgTypes[38].OneofWrappers = []any{}
@@ -6870,14 +6882,13 @@ func file_record_proto_init() {
 	file_record_proto_msgTypes[42].OneofWrappers = []any{}
 	file_record_proto_msgTypes[43].OneofWrappers = []any{}
 	file_record_proto_msgTypes[44].OneofWrappers = []any{}
-	file_record_proto_msgTypes[45].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
-			NumEnums:      19,
-			NumMessages:   47,
+			NumEnums:      20,
+			NumMessages:   46,
 			NumExtensions: 6,
 			NumServices:   0,
 		},

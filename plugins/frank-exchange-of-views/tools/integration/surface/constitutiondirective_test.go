@@ -109,24 +109,29 @@ func normalizeWS(s string) string { return strings.Join(strings.Fields(s), " ") 
 // Same shape as the surface-discovery gate above and the same justification: the constitutions are
 // authored markdown the harness reads directly, so the text cannot be generated, and a guard is
 // what the rules allow when generation is impossible. What it holds is the DUTY and the account
-// owed when nothing blocked you; what it refuses is any copy of what `friction --help` says on the
+// owed when nothing blocked you; what it refuses is any copy of what the log verb's help says on the
 // page a seat opens.
-func TestEveryConstitutionStatesTheFrictionDutyAndNoneRestatesTheVerb(t *testing.T) {
+func TestEveryConstitutionStatesTheLogDutyAndNoneRestatesTheVerb(t *testing.T) {
 	want := []string{
 		// The duty, including the sittings that went fine — the half that gets dropped.
 		"not only the ones that went wrong",
-		// What counts as friction beyond a missing verb. This is a JUDGEMENT about the work,
+		// What counts as a report beyond a missing verb. This is a JUDGEMENT about the work,
 		// which is why it is constitutional rather than in the verb's help.
 		"TEMPLATE/PROTOCOL MISFIT",
-		// And the empty case owes an account, not silence.
-		"when nothing blocked you, say what you reached for and found",
+		// And the clean case owes an account, not silence — stated in the POSITIVE.
+		//
+		// THE PHRASE MOVED, and the old one is why. It used to read "say what you reached for and
+		// found", which is the wording seats took as a heading for a survey of every verb they
+		// read and rejected: 45.5% of one run's channel, with zero fix proposals anywhere in it.
+		// The clean sitting is now an ENTRY that asserts a nominal type, not an inventory.
+		"say so in the POSITIVE",
 	}
-	// What `friction --help` states, on every page, at the moment a seat reaches the channel. A
+	// What the log verb's help states, on every page, at the moment a seat reaches the channel. A
 	// constitution restating it is the fifth copy of a sentence that needs one.
 	banned := []string{
 		"Silence is not the empty case",
 		"not your mistake, it is the finding",
-		"An absent friction log reads identically",
+		"An absent log reads identically",
 	}
 	paths, err := repotree.Constitutions()
 	if err != nil {

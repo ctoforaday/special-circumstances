@@ -152,7 +152,6 @@ var verbOfEvent = map[recordpb.EventType]string{
 	recordpb.EventType_EVENT_TYPE_AVENUE:         "line-of-inquiry",
 	recordpb.EventType_EVENT_TYPE_BLUE_EDIT:      "edit",
 	recordpb.EventType_EVENT_TYPE_CLASS_NEW:      "class-new",
-	recordpb.EventType_EVENT_TYPE_FRICTION_NONE:  "friction-none",
 	recordpb.EventType_EVENT_TYPE_INQUIRY_REVIEW: "inquiry-support",
 	recordpb.EventType_EVENT_TYPE_MANIFEST_ROW:   "manifest-row",
 	recordpb.EventType_EVENT_TYPE_MOTION:         "motion file",
@@ -240,11 +239,11 @@ func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
 		}
 		c.Used[verb]++
 		// THE BODY IS THE TYPE, so asking for a Friction body asks the same question
-		// `e.Type == "friction"` did — and a FrictionNone event, which is a different fact, is
-		// refused by the assertion rather than by a second string compare that could drift from
-		// it. `text` is the field the schema gives the seat's own sentence; `reason` was the
-		// payload key that carried it.
-		if f, ok := recordpb.BodyAs[*recordpb.Friction](e); ok {
+		// `e.Type == "friction"` did. The clean case is no longer a different MESSAGE — it is a
+		// `nominal` entry on the same one — so it lands here too and the type distinguishes it.
+		// `text` is the field the schema gives the seat's own sentence; `reason` was the payload
+		// key that carried it.
+		if f, ok := recordpb.BodyAs[*recordpb.Log](e); ok {
 			c.Friction = append(c.Friction, f.GetText())
 		}
 	}

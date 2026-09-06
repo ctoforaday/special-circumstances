@@ -33,37 +33,37 @@ import (
 // not the operator's READ; the operator's tree carries the read and no seat verbs. The same words
 // reach different commands because the identity already decided which surface they are on, which
 // is the whole point of scoping it.
-func TestTheTwoFrictionsAreOnDifferentSurfaces(t *testing.T) {
+func TestTheTwoLogsAreOnDifferentSurfaces(t *testing.T) {
 	// The seat's own write verb takes --reason, on the seat's tree.
 	runDir := seatRun(t)
-	if _, err := run(t, "friction", "--run", runDir, "--seat-id", "red-lens-r1-L1",
-		"--reason", "the tool has no path for X"); err != nil {
+	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		"--reason", "the tool has no path for X", "--type", "defect"); err != nil {
 		t.Fatalf("a seat's own friction write was refused: %v", err)
 	}
-	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_FRICTION).GetFriction().GetText(); got != "the tool has no path for X" {
+	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG).GetLog().GetText(); got != "the tool has no path for X" {
 		t.Errorf("reason = %q", got)
 	}
 	// And the operator's READ is not on that tree at all — it is not a verb a seat can reach,
 	// so there is nothing for a seat to land on by accident.
 	lens := NewRootFor("red-lens-r1-L1")
-	c, _, err := lens.Find([]string{"friction"})
+	c, _, err := lens.Find([]string{"log"})
 	if err != nil {
 		t.Fatalf("the lens has no friction verb: %v", err)
 	}
 	if c.Flags().Lookup("reason") == nil {
-		t.Error("the friction a lens reaches is not the write verb — the surfaces have crossed")
+		t.Error("the log a lens reaches is not the write verb — the surfaces have crossed")
 	}
 }
 
 // The operator's read is what this command IS. A refusal that also broke it would trade one
 // unreachable channel for another.
-func TestTheOperatorFrictionReadStillWorks(t *testing.T) {
-	out, err := run(t, "friction", "--seat-id", "operator", "--run", recordtest.TmpRun(t))
+func TestTheOperatorLogReadStillWorks(t *testing.T) {
+	out, err := run(t, "log", "--seat-id", "operator", "--run", recordtest.TmpRun(t))
 	if err != nil {
-		t.Fatalf("the operator's friction read failed: %v", err)
+		t.Fatalf("the operator log read failed: %v", err)
 	}
-	if !strings.Contains(out, "friction") || !strings.Contains(out, "nothing_blocked") {
-		t.Errorf("the read did not return the friction projection:\n%s", out)
+	if !strings.Contains(out, "log") || !strings.Contains(out, "counts") {
+		t.Errorf("the read did not return the log projection:\n%s", out)
 	}
 }
 
