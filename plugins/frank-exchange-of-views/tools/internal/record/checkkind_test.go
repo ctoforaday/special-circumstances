@@ -62,7 +62,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	// The work list is the SCANNING read a seat plans its sitting from, so the demand's TYPE has
 	// to be on it even though the rest of the acceptance check deliberately is not.
 	got = map[string]string{}
-	for _, g := range WorkJSONOf(b).Open {
+	for _, g := range mustWorkJSONT(t, mustRun(t, runDir)).Open {
 		got[g.ID] = g.CheckKind
 	}
 	if got["R1-1"] != "computation" || got["R1-2"] != "document" {
@@ -176,7 +176,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	if len(fromBoard) != 1 || !fromBoard["R1-2"] {
 		t.Fatalf("board says %v awaits proof, the debt query says [R1-2]", fromBoard)
 	}
-	for _, g := range WorkJSONOf(b).Open {
+	for _, g := range mustWorkJSONT(t, mustRun(t, runDir)).Open {
 		if g.AwaitingProof != fromBoard[g.ID] {
 			t.Errorf("work and board disagree on %s: %v vs %v", g.ID, g.AwaitingProof, fromBoard[g.ID])
 		}

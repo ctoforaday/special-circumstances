@@ -48,11 +48,8 @@ import (
 // (whether you disagree, whether the claim should go) that no derivation can make for the seat.
 // An affordance line for those would be an expectation that cannot be honestly met, which is the
 // defect TestEveryExpectationIsReachableOnItsBoard exists to catch one layer up.
-func availableOf(b *Board, role, seatID string) []Item {
+func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item {
 	out := []Item{}
-	if b == nil {
-		return out
-	}
 	// Blocks is FALSE on every one of these: an affordance is open work, not owed work,
 	// and that distinction is the whole content of the rule this file used to split a list
 	// in half to honour.
@@ -70,35 +67,35 @@ func availableOf(b *Board, role, seatID string) []Item {
 		// both texts promised one. The `How` also named a status set that excluded `pursued`,
 		// which is where a followed line comes to REST — so a seat that did the right thing
 		// was told to abandon or defer it. Both are fixed at the single predicate now.
-		for _, a := range StaleInquiries(b) {
+		for _, a := range StaleInquiriesOf(evs) {
 			add(fmt.Sprintf("line of inquiry %s is at %q and has not moved since round %d — a line declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Round))
 		}
 		// A repair with no receipt is one nobody audited, including its author.
-		for _, id := range gapsEditedWithoutManifest(b, seatID) {
+		for _, id := range gapsEditedWithoutManifest(evs, seatID) {
 			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
 		}
 	case "merge":
-		if anyClosedGap(b) && !seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_SPOT_CHECK) {
+		if anyClosedGap(gaps) && !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_SPOT_CHECK) {
 			add("the closure archive is not empty and this sitting has sampled none of it")
 		}
 		// Accepting a grade motion does not move the grade. Saying so is not doing it.
-		for _, id := range gapsWithAcceptedMotionAndNoRegrade(b) {
+		for _, id := range gapsWithAcceptedMotionAndNoRegrade(evs) {
 			add("gap " + id + " had a grade motion ACCEPTED and no regrade followed it — accepting a dispute does not move the grade, and a grade that moved with no regrade event reads as though the dispute was answered by silence")
 		}
 	case "lens":
-		for _, key := range citedClaimsWithoutVerify(b) {
+		for _, key := range citedClaimsWithoutVerify(evs) {
 			add("citation " + key + " is on the record and nobody has verified it against what the source actually says")
 		}
-		for _, id := range proofsWithoutReproduce(b) {
+		for _, id := range proofsWithoutReproduce(evs) {
 			add("proof " + id + " is recorded and nobody has re-run it — a proof is audited by RE-RUNNING it, not by reading it")
 		}
 	}
 	return out
 }
 
-func anyClosedGap(b *Board) bool {
-	for _, id := range b.GapOrder {
-		if g := b.Gaps[id]; g != nil && !g.Open {
+func anyClosedGap(gaps []WorkGapState) bool {
+	for _, g := range gaps {
+		if !g.Open {
 			return true
 		}
 	}
@@ -113,11 +110,11 @@ func anyClosedGap(b *Board) bool {
 // `gap_id` and `row`. So the second arm matched nothing on any event this tool has ever written.
 // Its removal changes no outcome, which is the point: the live arm is the one that was always
 // doing the work.
-func gapsEditedWithoutManifest(b *Board, seatID string) []string {
+func gapsEditedWithoutManifest(evs []*Event, seatID string) []string {
 	edited, rowed := map[string]bool{}, map[string]bool{}
 	var order []string
-	for i := range b.Events {
-		e := b.Events[i]
+	for i := range evs {
+		e := evs[i]
 		if e.GetSeatId() != seatID {
 			continue
 		}
@@ -177,10 +174,10 @@ func gapsEditedWithoutManifest(b *Board, seatID string) []string {
 // replay interleaves, so a ruling can arrive before the motion it answers; motion.go carries the
 // two-pass projection that survives that, and its header records shipping the single-pass bug
 // once already. A private join here would re-earn it.
-func gapsWithAcceptedMotionAndNoRegrade(b *Board) []string {
+func gapsWithAcceptedMotionAndNoRegrade(evs []*Event) []string {
 	regraded := map[string]bool{}
-	for i := range b.Events {
-		body, ok := recordpb.Body(b.Events[i])
+	for i := range evs {
+		body, ok := recordpb.Body(evs[i])
 		if !ok {
 			continue
 		}
@@ -195,7 +192,7 @@ func gapsWithAcceptedMotionAndNoRegrade(b *Board) []string {
 	}
 	var out []string
 	seen := map[string]bool{}
-	for _, m := range Motions(b) {
+	for _, m := range MotionsOf(evs) {
 		if m.Subject != "grade" || m.Ruling != "accepted" {
 			continue
 		}
@@ -226,10 +223,10 @@ func gapsWithAcceptedMotionAndNoRegrade(b *Board) []string {
 // `blue cite` records the anchor id as `label` (c-<hex>, the token it splices into the report);
 // `lens verify` records the citation it checked as `anchor`. An INDEPENDENT verify carries no
 // anchor and deliberately discharges nothing: it is a check against a source blue never cited.
-func citedClaimsWithoutVerify(b *Board) []string {
+func citedClaimsWithoutVerify(evs []*Event) []string {
 	verified := map[string]bool{}
-	for i := range b.Events {
-		body, ok := recordpb.Body(b.Events[i])
+	for i := range evs {
+		body, ok := recordpb.Body(evs[i])
 		if !ok {
 			continue
 		}
@@ -245,8 +242,8 @@ func citedClaimsWithoutVerify(b *Board) []string {
 	}
 	var out []string
 	seen := map[string]bool{}
-	for i := range b.Events {
-		body, ok := recordpb.Body(b.Events[i])
+	for i := range evs {
+		body, ok := recordpb.Body(evs[i])
 		if !ok {
 			continue
 		}
@@ -284,10 +281,10 @@ func citedClaimsWithoutVerify(b *Board) []string {
 // what the seat carries away. See the return notes: `lens reproduce` takes `--id <sha256>`, so a
 // seat handed a `p-…` label still has to resolve it through `lens show evidence` — the same
 // shape of dead-end the `--key` note below records, and left as found rather than redesigned here.
-func proofsWithoutReproduce(b *Board) []string {
+func proofsWithoutReproduce(evs []*Event) []string {
 	rerun := map[string]bool{}
-	for i := range b.Events {
-		body, ok := recordpb.Body(b.Events[i])
+	for i := range evs {
+		body, ok := recordpb.Body(evs[i])
 		if !ok {
 			continue
 		}
@@ -299,8 +296,8 @@ func proofsWithoutReproduce(b *Board) []string {
 	}
 	var out []string
 	seen := map[string]bool{}
-	for i := range b.Events {
-		body, ok := recordpb.Body(b.Events[i])
+	for i := range evs {
+		body, ok := recordpb.Body(evs[i])
 		if !ok {
 			continue
 		}
