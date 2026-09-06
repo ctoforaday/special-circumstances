@@ -19,11 +19,13 @@ package sittingwrite
 
 import (
 	"fmt"
+	"os"
 
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 )
 
 // HookSeat is the envelope seat_id on an event a HOOK wrote about a seat it cannot name.
@@ -43,9 +45,25 @@ const (
 	Close Phase = "close"
 )
 
-// Write appends the sitting event. The caller has already established that this is a real seat in
-// a live run; this does not re-litigate that.
-func Write(runDir string, phase Phase, agentID, agentType string) error {
+// Write appends the sitting event and, at the closing end, ingests the seat's turns.
+//
+// The caller has already established that this is a real seat in a live run; this does not
+// re-litigate that.
+//
+// # Why the turn ingest rides here
+//
+// The per-turn rows were first ingested at `capture`, which runs at the END of a run. That left
+// seat_turn unreadable by everything running DURING one — most of all the live dashboard, which
+// re-parses every seat transcript on every 15s render precisely because it could not ask the
+// record (#684 F15/F16). Ingesting as each seat STOPS puts the rows on the record while the run is
+// still going, which is the only arrangement in which one table answers every reader.
+//
+// IT BELONGS IN THIS PROCESS AND NOT IN THE HOOK. internal/sittinghook says why at length: that
+// hook fires at every main-agent turn end in every session, and linking the record there measured
+// 3.555 ms and 13.06 MB against 1.189 ms and 2.94 MB. This process is spawned only once the hook
+// has established a seat and a run — about 38 times a run — and it already carries the record.
+// The transcript is therefore parsed HERE, behind the same filter that guards the span write.
+func Write(runDir string, phase Phase, agentID, agentType, transcriptPath string) error {
 	if agentID == "" || agentType == "" {
 		return fmt.Errorf("sittingwrite: refusing to write a sitting with no agent identity — the "+
 			"hook is what decides this is a seat, and it handed over %q/%q", agentID, agentType)
@@ -65,6 +83,36 @@ func Write(runDir string, phase Phase, agentID, agentType string) error {
 	}
 	// Round -1 is UNKNOWN and is NOT round 0: a hook fires outside any seat's round, and
 	// conflating the two is the phantom-archive defect this field exists to prevent.
-	_, err = record.Append(record.Identity{Run: run, SeatID: HookSeat, Round: -1}, body)
-	return err
+	if _, err := record.Append(record.Identity{Run: run, SeatID: HookSeat, Round: -1}, body); err != nil {
+		return err
+	}
+	return ingestTurns(run, phase, transcriptPath)
+}
+
+// ingestTurns reads the finished seat's transcript into per-turn rows.
+//
+// THE SPAN IS THE OBLIGATION; THE TURNS ARE BEST EFFORT. The span event is this process's reason
+// to exist and its failure is returned. A transcript that cannot be read or parsed loses
+// telemetry and nothing else, so it reports to stderr and lets the span stand — the alternative
+// is a non-zero exit that makes a readable span look like a failed write.
+func ingestTurns(run record.Run, phase Phase, transcriptPath string) error {
+	if phase != Close || transcriptPath == "" {
+		return nil // no turns at the opening end, and none to read without a path
+	}
+	body, err := os.ReadFile(transcriptPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sittingwrite: reading %s for its turns: %v\n", transcriptPath, err)
+		return nil
+	}
+	// THE AGENT COMES OFF THE TRANSCRIPT, not from the caller's flag. The lines state which agent
+	// produced them; the flag states which agent stopped. They agree, and preferring the record
+	// in the file keeps one source for the fact — see seatturn.Parse.
+	agentID, turns := seatturn.Parse(string(body))
+	if agentID == "" || len(turns) == 0 {
+		return nil
+	}
+	if _, err := record.AppendSeatTurns(run, agentID, turns); err != nil {
+		fmt.Fprintf(os.Stderr, "sittingwrite: ingesting %d turns for %s: %v\n", len(turns), agentID, err)
+	}
+	return nil
 }
