@@ -37,8 +37,11 @@ const minEstoppelOverlap = 40
 // appliedVerbatim maps each gap id whose concrete proposal blue applied EXACTLY to the text
 // red prescribed. Only these gaps estop red.
 //
-// The fact is recorded at edit time by the tool comparing bytes (`blue edit` sets
-// applied_verbatim), never by a seat asserting it.
+// The fact is recorded at edit time by the tool, never by a seat asserting it — TWO WAYS, and
+// the difference is one of kind. On an ordinary `blue edit` it is the outcome of comparing the
+// bytes blue typed against the ones red prescribed. On `blue edit --accept` the tool supplied
+// those bytes from the mint, so it holds by construction and no transcription slip can cost it.
+// `BlueEdit.accepted` tells the two apart where that matters; estoppel does not care which.
 func appliedVerbatim(b *Board) map[string]string {
 	out := map[string]string{}
 	for _, e := range b.Events {
@@ -131,6 +134,27 @@ func collapse(s string) string { return strings.Join(strings.Fields(s), " ") }
 // authoring, and it must be audited as blue's text; only an identical pair estops red from
 // re-arguing what it wrote itself. Whitespace is NOT normalized here for that reason: the
 // looser the match, the more of blue's own writing red is barred from auditing.
+// Proposal hands back the pair a gap's mint recorded: the span red located, and the text it
+// prescribed to replace it with.
+//
+// IT EXISTS SO BLUE NEED NOT RETYPE THEM. `blue edit --accept` reads the pair here and edits with
+// it, which makes applied_verbatim true BY CONSTRUCTION rather than by the comparison below — the
+// difference between "blue agreed" and "blue agreed and transcribed 400 characters without a
+// typo". Same query, same row; the two callers want opposite ends of it.
+//
+// found=false means no mint for that gap. An empty fixNew with found=true is a real state — red
+// raised the gap without prescribing concrete text — and is the caller's to refuse, because the
+// refusal it wants to give names the verb it was called from.
+func Proposal(run Run, gapID string) (location, fixNew string, found bool, err error) {
+	var loc, fix sql.NullString
+	ok, err := queryRow(run, []any{&loc, &fix},
+		`SELECT "location", "fix_new" FROM "mint" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !ok {
+		return "", "", false, err
+	}
+	return loc.String, fix.String, true, nil
+}
+
 func ProposalAppliedVerbatim(run Run, gapID, old, new string) (bool, error) {
 	// THE SPAN IS THE GAP'S OWN `location`. It was a separate `fix_old` holding the same
 	// sentence, matched by a second matcher — a gap's location and the span its proposal

@@ -88,6 +88,14 @@ const (
 	// a join key.
 	Answers = "answers"
 
+	// Accept turns `blue edit` from an authoring act into an ACCEPTANCE: the tool supplies the
+	// span and the replacement from the gap named by --answers, and blue supplies neither.
+	//
+	// A BOOL BESIDE --answers, NOT A FLAG CARRYING THE GAP ID. The gap already has a name on this
+	// verb and a second one would be two words for one meaning — the defect this file's own
+	// header declares.
+	Accept = "accept"
+
 	// A line of inquiry's ABSTRACT: what would be true if it pays off. Distinct from
 	// --problem (a defect) and --reason (the argument for an act) because it is a forward
 	// claim, and it is what makes a later abandonment checkable.
@@ -242,7 +250,7 @@ func All() []string {
 	return []string{
 		Run, SeatID, Schema, JSON,
 		Reason, ReasonFile,
-		ID, IDs, Key, Quote, New, Answers, URL, Title, Format, Window,
+		ID, IDs, Key, Quote, New, Answers, Accept, URL, Title, Format, Window,
 		Sitting, Trajectory,
 		As, None, Ended, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
@@ -335,8 +343,9 @@ const (
 	// DescQuote is the whole contract of --quote, and it is stated once because it was the
 	// contradiction: quote the text and NOTHING else. A section heading, a dash or a pipe
 	// prepended to it makes the match fail, and the match is what places the anchor.
-	DescQuote = "the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs"
-	DescKey   = "a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice"
-	DescURL   = "the source's http/https URL — fetched once and cached, so both sides read the same bytes"
-	DescTitle = "the source's name, as it appears in the composed bibliography"
+	DescQuote  = "the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs"
+	DescAccept = "take red's prescribed fix EXACTLY as recorded on the gap named by --answers, instead of retyping it: the tool supplies --quote and --new from the mint, so you pass neither. Your --reason is still yours and still required — it is the argument for accepting. Refused when red prescribed no concrete text"
+	DescKey    = "a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice"
+	DescURL    = "the source's http/https URL — fetched once and cached, so both sides read the same bytes"
+	DescTitle  = "the source's name, as it appears in the composed bibliography"
 )

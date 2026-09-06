@@ -528,3 +528,132 @@ func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 		t.Fatalf("an unrelated finding was estopped — the guard is over-broad: %v", err)
 	}
 }
+
+// --- blue edit --accept: the tool supplies red's text so blue cannot mis-transcribe it -------
+
+// ACCEPTING APPLIES RED'S RECORDED FIX, with blue passing neither span nor replacement.
+func TestAcceptAppliesTheRecordedFix(t *testing.T) {
+	runDir := newRun(t)
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	mintGap(t, runDir, "G0", "overclaim")
+	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
+	registerBlue(t, runDir)
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "A1", "--answers", gap, "--accept",
+		"--reason", "red is right and its wording is the one I would have written"); err != nil {
+		t.Fatalf("accept: %v", err)
+	}
+	b := lastBody(t, runDir, &recordpb.BlueEdit{})
+	if b.GetNew() != prescribedText {
+		t.Errorf("accepted edit applied %q, want red's prescribed text %q", b.GetNew(), prescribedText)
+	}
+	if !b.GetAccepted() {
+		t.Error("the edit is not marked accepted, so an acceptance is indistinguishable from a perfect transcription")
+	}
+	// BOTH facts, and applied_verbatim is the one estoppel reads — it must be true here for the
+	// same reason it is true after a byte-perfect retype.
+	if !b.GetAppliedVerbatim() {
+		t.Error("an accepted edit is not applied_verbatim, so nothing estops red on text red itself wrote")
+	}
+}
+
+// BLUE'S ARGUMENT IS STILL BLUE'S. Accepting removes the transcription, not the duty to say why.
+func TestAcceptStillRequiresBluesReason(t *testing.T) {
+	runDir := newRun(t)
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	mintGap(t, runDir, "G0", "overclaim")
+	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
+	registerBlue(t, runDir)
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "A1", "--answers", gap, "--accept")
+	if err == nil {
+		t.Fatal("accepting with no --reason was allowed; the argument red re-audits against would be absent")
+	}
+	if !strings.Contains(err.Error(), "--reason") {
+		t.Errorf("refusal does not name --reason: %v", err)
+	}
+}
+
+// A GAP WITH NO PRESCRIBED TEXT HAS NOTHING TO ACCEPT, and the refusal says which gap and why.
+func TestAcceptRefusedWithoutFixNew(t *testing.T) {
+	runDir := newRun(t)
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	gap := mintGap(t, runDir, "G0", "overclaim")
+	registerBlue(t, runDir)
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "A1", "--answers", gap, "--accept", "--reason", "accepting")
+	if err == nil {
+		t.Fatal("accepted a gap that prescribes no text")
+	}
+	for _, want := range []string{gap, "nothing to accept"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("refusal does not name %q: %v", want, err)
+		}
+	}
+}
+
+// TWO SOURCES FOR ONE FACT IS REFUSED, not silently merged.
+func TestAcceptRefusesSuppliedText(t *testing.T) {
+	runDir := newRun(t)
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	mintGap(t, runDir, "G0", "overclaim")
+	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
+	registerBlue(t, runDir)
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "A1", "--answers", gap, "--accept",
+		"--quote", "Five independent verification approaches agree", "--new", "my own wording",
+		"--reason", "accepting")
+	if err == nil {
+		t.Fatal("--accept alongside --quote/--new was allowed — two sources for one fact")
+	}
+}
+
+// A STALE PRESCRIPTION IS REFUSED WITH ADVICE AN ACCEPTING CALLER CAN ACT ON. The ordinary
+// path's message tells blue to adjust --quote or copy an anchor into --new; blue passes neither.
+func TestAcceptRefusedWhenThePrescriptionNoLongerApplies(t *testing.T) {
+	runDir := newRun(t)
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	mintGap(t, runDir, "G0", "overclaim")
+	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
+	registerBlue(t, runDir)
+	// Blue moves the span first, so red's located text is no longer there to replace.
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "E0", "--quote", "Five independent verification approaches agree",
+		"--new", "Several approaches agree", "--reason", "tightening first"); err != nil {
+		t.Fatalf("moving the span: %v", err)
+	}
+	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+		"--key", "A1", "--answers", gap, "--accept", "--reason", "accepting")
+	if err == nil {
+		t.Fatal("accepted a prescription whose span is gone")
+	}
+	if !strings.Contains(err.Error(), "--quote") {
+		t.Errorf("refusal does not point at the path blue can actually take: %v", err)
+	}
+}
+
+// IDEMPOTENT ON RETRY, exactly like any edit — the accept path takes --key and does not exempt
+// itself from the crash-retry reconciliation.
+func TestAcceptIsIdempotentOnRetry(t *testing.T) {
+	runDir := newRun(t)
+	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
+	mintGap(t, runDir, "G0", "overclaim")
+	gap := mintWithProposal(t, runDir, "G1", "Five independent verification approaches agree", prescribedText)
+	registerBlue(t, runDir)
+	for i := 0; i < 2; i++ {
+		if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
+			"--key", "A1", "--answers", gap, "--accept", "--reason", "accepting"); err != nil {
+			t.Fatalf("accept attempt %d: %v", i+1, err)
+		}
+	}
+	// One op on the stack, not two: the second call reconciled through ExistingBlueEditByKey.
+	n := 0
+	for _, e := range events(t, runDir) {
+		if _, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("a retried accept appended %d blue_edit ops, want 1", n)
+	}
+}

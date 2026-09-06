@@ -4259,7 +4259,19 @@ type BlueEdit struct {
 	// It is a REOPENING, not an invalidation: the reference stands, and what changed is that its
 	// referent needs looking at again. A verification of a reopened anchor is stale rather than
 	// wrong, which is a different fact and gets a different word.
-	Reopened      []string `protobuf:"bytes,7,rep,name=reopened,proto3" json:"reopened,omitempty"`
+	Reopened []string `protobuf:"bytes,7,rep,name=reopened,proto3" json:"reopened,omitempty"`
+	// ACCEPTED — blue took red's prescription through `blue edit --accept` rather than typing it.
+	//
+	// WHY IT IS A SEPARATE FACT FROM applied_verbatim. Both are true on an acceptance, and only
+	// applied_verbatim is true when blue transcribed red's text by hand and the bytes happened to
+	// match. Collapsing them would make the two indistinguishable on the record — and the one
+	// measurement that matters here is whether blue is ACCEPTING more and arguing less, which a
+	// count that also includes perfect transcription cannot answer.
+	//
+	// The distinction is also a difference in kind, not degree: on the accept path the tool
+	// supplied the bytes, so verbatim-ness is structural. On the ordinary path it is the outcome
+	// of a comparison that a stray space would have failed.
+	Accepted      *bool `protobuf:"varint,8,opt,name=accepted,proto3,oneof" json:"accepted,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4341,6 +4353,13 @@ func (x *BlueEdit) GetReopened() []string {
 		return x.Reopened
 	}
 	return nil
+}
+
+func (x *BlueEdit) GetAccepted() bool {
+	if x != nil && x.Accepted != nil {
+		return *x.Accepted
+	}
+	return false
 }
 
 type Revision struct {
@@ -6273,7 +6292,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"BaseIngest\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
-	"\x05_text\"\xa3\x02\n" +
+	"\x05_text\"\xd1\x02\n" +
 	"\bBlueEdit\x12\x1e\n" +
 	"\bedit_key\x18\x01 \x01(\tH\x00R\aeditKey\x88\x01\x01\x12\x1d\n" +
 	"\aanswers\x18\x02 \x01(\tH\x01R\aanswers\x88\x01\x01\x12\x15\n" +
@@ -6281,14 +6300,16 @@ const file_record_proto_rawDesc = "" +
 	"\x03new\x18\x04 \x01(\tH\x03R\x03new\x88\x01\x01\x12\x17\n" +
 	"\x04text\x18\x05 \x01(\tH\x04R\x04text\x88\x01\x01\x12.\n" +
 	"\x10applied_verbatim\x18\x06 \x01(\bH\x05R\x0fappliedVerbatim\x88\x01\x01\x12\x1a\n" +
-	"\breopened\x18\a \x03(\tR\breopenedB\v\n" +
+	"\breopened\x18\a \x03(\tR\breopened\x12\x1f\n" +
+	"\baccepted\x18\b \x01(\bH\x06R\baccepted\x88\x01\x01B\v\n" +
 	"\t_edit_keyB\n" +
 	"\n" +
 	"\b_answersB\x06\n" +
 	"\x04_oldB\x06\n" +
 	"\x04_newB\a\n" +
 	"\x05_textB\x13\n" +
-	"\x11_applied_verbatim\",\n" +
+	"\x11_applied_verbatimB\v\n" +
+	"\t_accepted\",\n" +
 	"\bRevision\x12\x17\n" +
 	"\x04text\x18\x01 \x01(\tH\x00R\x04text\x88\x01\x01B\a\n" +
 	"\x05_text\"\xa2\x03\n" +
