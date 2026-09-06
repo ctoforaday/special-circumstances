@@ -1600,54 +1600,6 @@ func writeTarball(transcriptDir, outPath string, agentFiles []string) error {
 
 // ---- orchestration ----
 
-// appendCostToReport folds the per-seat-round cost table from cost.md into the run document as
-// a ## Cost section. No-op (returns "") when the target is absent (a run that never reached
-// assembly), already carries a ## Cost section (idempotent across re-runs), or cost.md has no
-// table. cost.md itself is left byte-identical.
-//
-// THE HEADING THE TABLE BRINGS IS DEMOTED, NOT DUPLICATED. The first cut wrote "## Cost" and
-// then pasted a slice that opens with its own "## Per seat-round" — so every archived report
-// carries a Cost section of exactly nine bytes: a heading, and nothing under it. An empty
-// section reads as a section that found nothing, which is a different claim from one whose
-// content is sitting immediately below it under another name.
-func appendCostToReport(reportPath, costPath string) string {
-	report, err := os.ReadFile(reportPath)
-	if err != nil {
-		return ""
-	}
-	if strings.Contains(string(report), "\n## Cost\n") {
-		return ""
-	}
-	costMd, err := os.ReadFile(costPath)
-	if err != nil {
-		return ""
-	}
-	table := perSeatRoundTable(string(costMd))
-	if table == "" {
-		return ""
-	}
-	table = strings.Replace(table, "## Per seat-round", "### Per seat-round", 1)
-	body := strings.TrimRight(string(report), "\n") + "\n\n## Cost\n\n" + table + "\n"
-	if err := os.WriteFile(reportPath, []byte(body), 0o644); err != nil {
-		return filepath.Base(reportPath) + ": cost append FAILED — " + jsSlice(err.Error(), 200)
-	}
-	return filepath.Base(reportPath) + ": cost breakdown folded in (## Cost)"
-}
-
-// perSeatRoundTable slices the "## Per seat-round" table out of a rendered cost.md — from that
-// heading up to the "## Notes" section — or "" if the markers are absent.
-func perSeatRoundTable(costMd string) string {
-	start := strings.Index(costMd, "## Per seat-round")
-	if start < 0 {
-		return ""
-	}
-	rest := costMd[start:]
-	if end := strings.Index(rest, "\n## Notes"); end >= 0 {
-		rest = rest[:end]
-	}
-	return strings.TrimRight(rest, "\n")
-}
-
 // Run executes capture: mechanics + the nine audits, writes run-record-audit.md, and returns the
 // audits, the report string, and whether any audit FAILed (exit 2). cwd-rooted side effects
 // (feov-memory, law, .claude/run-live.json) resolve from os.Getwd(), exactly as the JS used
@@ -1752,7 +1704,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		// set is assembled mid-run WITHOUT transcript access (the transcript dir reaches only
 		// capture), so this is the one stage that can. Slices the already-rendered cost.md
 		// (kept byte-identical) rather than re-generate.
-		if msg := appendCostToReport(filepath.Join(run.Dir(), reportdoc.FileRun), filepath.Join(run.Dir(), "cost.md")); msg != "" {
+		if msg := foldCaptureArtifacts(filepath.Join(run.Dir(), reportdoc.FileRun), filepath.Join(run.Dir(), "cost.md"), filepath.Join(run.Dir(), "run-record-audit.md")); msg != "" {
 			lines = append(lines, msg)
 		}
 	}

@@ -100,3 +100,53 @@ func CountSeatTurns(run Run) (int, error) {
 	}
 	return n, nil
 }
+
+// SeatMetric is one seat's measured cost, read from the seat_metrics view.
+//
+// The nullable fields are nullable BECAUSE THE ANSWER CAN BE "NOT MEASURED", and that is a
+// different fact from zero. A seat whose turns carried no timestamps has no span; a seat that
+// never registered has no seat id. Rendering either as 0 or "" would put a twenty-minute seat in
+// a table as instantaneous, or file its cost under the empty seat.
+type SeatMetric struct {
+	AgentID       string
+	SeatID        *string
+	AgentType     *string
+	Turns         int
+	ThinkingTurns int
+	ToolTurns     int
+	InputTokens   int
+	OutputTokens  int
+	CacheRead     int
+	CacheCreation int
+	WallMillis    *int64
+}
+
+// SeatMetrics reads the per-seat measurements a capture ingested, ordered by seat then agent so
+// the rendering is stable across runs.
+//
+// An absent seat_turn table is not an error: a run captured before this existed, or one whose
+// transcripts could not be read, simply has nothing to report — and the caller renders that
+// absence rather than a table of zeroes.
+func SeatMetrics(run Run) ([]SeatMetric, error) {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return nil, err
+	}
+	rows, err := db.Query(`SELECT "agent_id","seat_id","agent_type","turns","thinking_turns","tool_turns",
+	  "input_tokens","output_tokens","cache_read","cache_creation","wall_ms"
+	  FROM "seat_metrics" ORDER BY COALESCE("seat_id", ''), "agent_id"`)
+	if err != nil {
+		return nil, fmt.Errorf("record: reading seat metrics: %w", err)
+	}
+	defer rows.Close()
+	var out []SeatMetric
+	for rows.Next() {
+		var m SeatMetric
+		if err := rows.Scan(&m.AgentID, &m.SeatID, &m.AgentType, &m.Turns, &m.ThinkingTurns, &m.ToolTurns,
+			&m.InputTokens, &m.OutputTokens, &m.CacheRead, &m.CacheCreation, &m.WallMillis); err != nil {
+			return nil, fmt.Errorf("record: scanning a seat metric: %w", err)
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
