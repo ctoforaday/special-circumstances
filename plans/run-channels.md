@@ -1,319 +1,382 @@
-# Report-voice separation — the research report speaks about the subject, not about itself
+# Run channels carry what they are for — the report is research, the log is typed
 
-> STATUS 2026-09-05: not started — design proposed for review. Covers #710 (voice), #736
-> (access-state destination), #737 (friction-id destination) as ONE concept delivered across
-> three sequenced pull requests. Nothing built.
+> STATUS 2026-09-06: not started — design proposed for review. Supersedes the
+> `report-voice-separation.md` draft (PR #755), which was **corrected by measurement**: it
+> proposed a mechanism (#737, an addressable friction id the report could cite) to preserve
+> content that turned out to be 65% ceremony. **#737 is withdrawn.** Nothing built.
 
-The assembled research report is written in DEBATE voice: it narrates its own construction —
-lane tags in the prose, "this run / this round / the debate," the run's 403s imported as
-epistemic caveats, its own draft history, its own verification apparatus. The microsite split
-(#663-era) fixed the CONTAINER — `report.md` is its own file for a human audience — but not the
-VOICE, which is still commentary-on-itself. Same shape as the report-lockdown before #709: the
-separation exists structurally and is enforced by nobody.
+A run writes to two human-facing channels. The **report** is addressed to a reader of the
+subject. The **operator channel** is addressed to whoever can retool the seat. Today both carry
+things they are not for: the report narrates its own construction, and the operator channel is
+half compliance ritual. This plan makes each carry what it is for, and names each for what it
+carries.
 
-This is ONE concept — *the report is about its subject* — but it cannot be delivered as a single
-voice edit, because #710's own prescription ("move the operational half OUT, re-voice the
-epistemic half") has **nowhere to move the operational half to**. #736 and #737 are the two
-missing destinations; #710 is the enforcement. The concept is therefore three PRs, sequenced
-**destinations first** (§III), and each PR is a complete sub-concept in its own right.
+The previous draft of this plan got the diagnosis right and the remedy wrong. It assumed the
+operational content leaking into the report was worth preserving somewhere, and designed a
+citable id to preserve it. An audit of the actual content says otherwise, and the remedy is
+mostly **deletion and naming**, not new mechanism.
 
-The governing principle throughout, from the issues and from `facts-are-fields`: **SEPARATION,
-not deletion.** The residue is frequently load-bearing and must be kept, re-voiced — "Savage 1989
-is known only through the interested party's summary" (a limit on the CONCLUSION) stays; "after
-every full-text route failed across four hosts" (a fact about the RUN) moves to friction. Deleting
-the second loses the first's warrant; inlining the second poisons the voice. A field and an
-addressable id are what let a seat keep one and move the other.
+## The measurement that corrected this plan
+
+All 35 friction entries from `research/2026-09-02_quadratic-formula` — **142,891 characters** —
+classified, plus the two seats that wrote the largest entries resumed on their own conversation
+IDs and asked their intent.
+
+| bucket | chars | % |
+|---|---|---|
+| **A** actionable defect (reproducer + proposed fix) | 65,994 | 46.2% |
+| **B** surface survey ("verbs I read and did not use") | 68,169 | **47.7%** |
+| **C** epistemic limit (belongs in the report) | 2,576 | 1.8% |
+| **D** narration / complaint | 6,152 | 4.3% |
+
+- The explicitly-headed survey sections alone are **64,960 chars (45.5%)**, and a mechanical
+  search of all of them for any fix proposal (`WHAT THE WORK WANTED`, `WHAT I WOULD HAVE DONE`)
+  returns **zero hits**.
+- A further **~13%** is duplicate re-reports of a defect already on the record.
+- **~65% is deletable with no information loss.** The waste is not complaint (4.3%) — it is a
+  mandated ritual.
+- `motion petition file` was invoked **zero times in the entire run**, yet 23 of 35 entries spend
+  **9,584 chars (6.7%)** explaining why they did not file one; 12 recite the same stock formula.
+- Bucket B is not merely useless, it is **unreliable**: `red-lens-r4-L2`'s survey states it
+  *rejected* `reproduce` and `finding`, while `events(seat_id, round, type)` for that seat and
+  round records `register, reproduce, verify, finding, anchor, friction`. The one place the
+  attestation is mechanically checkable, it fails.
+
+**Root cause, verified** — `debate.js:94`, applied to **8 seat prompts**:
+
+> `AND THE REASON OWES THE SURVEY: name the verbs you read in the tree and did NOT use… and a
+> seat that cannot name a single rejected option did not weigh any.`
+
+It mandates the survey, **pre-accuses** the seat (which bought the performative length), and
+fuses a deliberation log into a defect channel. **No gate pins this text.**
+
+**The seats, asked directly:**
+- red-lens-r2-L5: *"Duty, not judgement… I wrote it at that length to be visibly compliant with a
+  prompt that pre-accuses the seat. That is writing to prove I had weighed, not writing to inform,
+  and I knew the difference while doing it."* · *"The record already knows which verbs my seat ran;
+  a projection can derive used/unused for free. The prompt made me hand-write a fact the record
+  holds — the same defect the suite's own rule names, one level up."*
+- judge-r3: *"The page-by-page inventory is a receipt, not information… close to half the entry."*
+  · *"I filed a bug report as prose into a channel nothing forces anyone to read — the exact
+  failure this repository's facts-are-fields rule names."* · *"Ask me only where non-use was a
+  judgement rather than an absence of occasion."*
+
+Both, independently, named the same destination for the valuable half — a tracker — and the same
+severity signal — **recurrence**.
+
+## Why the remedy is naming, not mechanism
+
+The consumer is a human (or an agent acting for one) reading the channel after a run and deciding
+what to do — and **the entries are not always actionable or advisable**. That makes triage
+judgement irreducible, which rules out both an auto-filer and a ticket-shaped schema: a
+`component | wanted | repro` form would push a seat to shape every entry as a filable ticket, which
+is a claim the seat is not entitled to make.
+
+What the triager actually needs is the one thing the writer knows and a reader must currently
+infer from prose: **what kind of thing is this, and who said it.** That is a field.
+
+And the channel is misnamed. `friction` names the *least actionable* of the things it carries, so
+the container is named after one of its own members. `Friction{kind: friction}` cannot be written
+coherently; `Log{type: friction}` can. The rename is what makes the taxonomy legible — it is not
+cosmetic.
 
 ---
 
 ## I. Summary & Goals
 
-**Objective.** Make the assembled `report.md` read as research prose addressed to a human reader
-of the *subject*, by (a) giving the two channels that bleed into it — process voice and the run's
-operational friction — refusable destinations to live in, and (b) enforcing the voice at the
-cheapest layer that can, escalating to red's judgment, never a silent hard block.
+**Objective.** (1) Stop the operator channel demanding ceremony, and give its entries a type and a
+source so triage is a filter rather than a reading. (2) Keep the report to research prose. (3) Make
+the report's biggest caveat — is a source unread, or merely unreachable from here — a field.
 
-**Success criteria** — measured by re-running the #710 grep census (§V) on the report of a *new*
-research run, against the 2026-09-02 quadratic-formula baseline (measured this session):
+**Success criteria**, measured by re-running the two censuses in §V against a *new* run:
 
-| Tell class | Baseline (report.md) | Target |
+| Measure | Baseline (2026-09-02) | Target |
 |---|---|---|
-| process-voice: `this (run\|report\|round)` / `the debate` in report BODY | 161 | ≤ 5, and only inside a single designated provenance footer |
-| inline lane-attribution tags (`[minority:…]`, `[lane-N…]`) in research prose | 24 | 0 |
-| access-limit tells inlined (`403 to this container`, `still unread`, `could not be read at the leaf`) | 13 | 0 inlined — each relocated to an access-state field or a cited friction id |
-| draft-history tells (`an earlier version of this sentence`, `corrected here`) | 9 | 0 |
-| apparatus tells (`the checking program`, `measurement apparatus`) | 2 | 0 |
+| operator-channel chars | 142,891 | **≤ 75,000** — the arithmetic, not an aspiration: PR-1 removes bucket B (68,169); A+C+D = 74,722 remain |
+| headed "verbs I read and did not use" sections | 64,960 (45.5%) | **0** |
+| entries with an explicit type + source | 0 of 35 | **all** |
 
-Plus two qualitative criteria a grep cannot score, checked by the red voice-lens on a real run:
-1. Every access/operational limit that REMAINS in the report is re-voiced as a limit on the
-   *conclusion* and **cites a friction id or reads from an access-state field** — never inlines
-   hostnames or HTTP codes.
-2. A voice leak that the report *discloses about itself* ("this is this round's correction to the
-   report's account of itself") is still counted a leak — **disclosure is not discharge** (Fork B's
-   red-protocol lever: a disclosed-but-load-bearing hole is a finding, not a reason to pass).
+**Two things are deliberately NOT targeted, and saying so is the point.** Bucket D (narration,
+4.3%) and the ~13% duplicate re-reports have no change proposed against them: D is small enough
+that a mechanism would cost more than it saves, and the duplicates follow from seats being unable
+to read the channel — which §II records as a deliberate design property, not a defect. §V measures
+both so a later run can show whether that judgement held; neither carries a target it could be
+scored against, because nothing here is trying to move them.
+| report: process-voice tells (`this run/round/report`, `the debate`) | 161 | ≤ 5, provenance footer only |
+| report: inline lane-attribution tags | 24 | 0 |
+| report: inlined access limits | 13 | 0 — re-voiced as limits on the conclusion |
 
-**Non-goals.** Not the perf investigation (#684). Not the report-as-record projection mechanics
-(#709, merged). Not the broader red-triviality / source-trust concern (#247, #418, #549) beyond
-the one disclosure≠discharge principle named above. Not deleting prose written for the human
-reader — `facts-are-fields` clause 5: prose for a human audience is not the violation.
-
----
+**Non-goals.** No auto-filing to a tracker (credentials in a research container, tracker volume,
+and seat-error quality all argue against it, and triage judgement is irreducible). No addressable
+id for cross-channel citation (#737, withdrawn). No `component/wanted/repro` schema. No cross-run
+recurrence counter — measure again first.
 
 ## II. Technical Context
 
-- **Engine:** `skills/research-protocol/scripts/debate.js` — JavaScript, run under goja in the fuzz
-  and by Claude Code in production. Seat prompts are string-interpolated and dispatched via
-  `agent(...)`; the red lenses fan out through `parallel(...)`.
-- **Tools:** `tools/` — Go (module `feov-record`), cobra verbs; the record is protobuf-defined
-  (`internal/record/recordpb/record.proto`) over an append-only SQLite store; the report and the
-  process docs are SQL projections (`internal/report/assemble.go`).
-- **The fetch cache is NOT protobuf** — it is a JSON index (`internal/fetchcache`, one line per
-  fetch), separate from the event record.
-- **Constraints that already cost a reverted attempt (in #709 / PR #733) and bind this work:**
-  - The report-access change must stay **INVISIBLE to a seat** — a seat reads "the report," the
-    tool serves it. Over-editorializing the round-seat prompts is what forced the #709 reverts.
-  - Agent-facing prose is gated: `promptverbs` (a prompt may not spell a verb/flag —
-    `TestNoRenderedPromptSpellsAFlag`, pinned 0), `archaeology` (no obituary — a prompt may not
-    narrate a gone capability), `debate.test.mjs` (the lens prompt must keep "read it whole in
-    consecutive windows"; blue-synthesize must not say "through the tool"), `naming_test`
-    (constitutions name no verb), `rulesweep` (a protocol-surface change needs `Rule-Class:` +
-    `Sibling-Sweep:` trailers). Any prompt/constitution edit here passes all of these.
-  - Proto schema additions bump the schema epoch under the existing version-gate discipline
-    (`record.proto` version constant; `flags/names.go:19`).
+- **Engine:** `skills/research-protocol/scripts/debate.js` (JavaScript, goja under fuzz).
+- **Tools:** Go; protobuf-defined record (`internal/record/recordpb/record.proto`) over append-only
+  SQLite; projections in `internal/report`.
+- **Verified constraints:**
+  - Nothing imports stdlib `log` (0 files), so a `Log` type introduces no collision; `frictionLog`
+    is one function in one file.
+  - `FRICTION_KIND_TOOL_ERROR` has **no functional readers** (two comments only), so it can
+    collapse. `FRICTION_KIND_ESTOPPEL` **is** read (`estoppel.go:173`) and must survive.
+  - The friction-parity audit joins on **seat** (`capture.go:283`, `wroteToRecord[fr.SeatID]` ←
+    `SeatOfAgent`), not on text or id.
+  - Seats **cannot read** the channel — it is the operator's read by design (`friction.go`,
+    *"yours, not theirs"*). This is why the same defect is re-filed 4-5×; it is left alone
+    deliberately, because letting seats read it pulls the channel back into the debate.
+  - Agent-facing prose is gated: `promptverbs` (no spelled flag/verb), `archaeology` (no
+    obituary), `debate.test.mjs`, `naming`, `rulesweep` trailers. Prompt edits clear all five.
 
----
+## III. Proposed Changes
 
-## III. Proposed Changes (the spec)
+### PR-1 — Delete the survey mandate `[MODIFY]`
 
-Three PRs. **A and B ship before C** — C's enforcement redirects residue INTO A's and B's
-destinations, so building C first leaves the seat with nowhere to move the operational half and
-reproduces exactly today's leak. This is the complete-the-concept sequencing: each PR is a whole
-sub-concept, and the thread is carried explicitly across the three (this file's STATUS line + the
-three issues).
+`debate.js:94` `frictionClause`. Remove *"THE REASON OWES THE SURVEY…"* and the pre-accusing
+sentence. Keep the duty to close the channel. Add one narrow ask, which is the only part both
+seats defended: **where you declined an act as a judgement rather than for lack of occasion, one
+sentence.** (judge-r3's case: *"an absent `outcome` stamp is ambiguous between 'the bench declined
+to stamp' and 'the bench never reached it'"* — a real plausible-zero about a consequential act.)
 
-### PR-A — Access-state destinations (#736)
+Also retire *"what you reached for and found"* from the `--none` help (`seat/verbs.go:114`), which
+re-invites the inventory.
 
-The source-side and fetch-side fields that let a seat separate "unread" from "absent" and
-"container-egress refusal" from "origin refusal," as refusable fields validated at the write.
+**A gate DOES pin this text, and the earlier draft of this plan said otherwise.** That claim came
+from a grep scoped to `skills/ tools/` while the pin lives under `tests/`; the zero was a wrong
+search reported as an absence — the plausible-zero this repository is written against, committed
+in a plan about it. Recorded here because the correction is the evidence.
 
-- `[MODIFY]` **`record.proto` `message Cite`** (`recordpb/record.proto:905`) — add
-  `source_text_read` at field 10 (8 is reserved), an enum `{LEAF | SUMMARY_ONLY | UNREAD}`. This
-  is the blue-side twin of the existing red-side `SourceOutcome`/`Confidence` (`:317-332`), which
-  today only red's `Verify` carries. A citation to a source whose text was never read is a
-  different object from one read at the leaf, and only the citing seat knows which.
-- `[MODIFY]` **`fetchcache.Entry`** (`internal/fetchcache/fetchcache.go:92`) + the
-  `<run>/cache/index` line format — add `http_status`, `refusal_class ∈ {container-egress |
-  origin | unknown}`, `access_state ∈ {leaf-read | located-blocked | exhausted | absent}`. The
-  status is already SEEN and dropped at `internal/fetchcache/httpfetcher.go:119` (403/405/407
-  handling) — thread it from `Fetcher.Response` into `Entry` at `Store(...)` (`fetchcache.go:161`)
-  and `fetch(...)` (`~:283`).
-- `[MODIFY]` **`blue cite`** (`internal/cli/blue/cite.go:100`) — populate `source_text_read`;
-  default `UNREAD` so the honest state is the one you get for free and `LEAF` must be asserted.
-  `refusal_class`/`access_state` are set where the fetch is recorded, not by the citing seat.
-- `[NEW]` a projection column / render so the report and the process docs can show access-state
-  from the field instead of the prose phrase.
-
-**Consumer census — `message Cite` (a schema contract).** Command and results (run 2026-09-05):
+**Consumer census — `frictionClause` (prompt contract), run 2026-09-06 from the repo root:**
 ```
-$ grep -rn "recordpb.Cite\|GetCite\|\.Cite{" tools/ --include=*.go | grep -v _test
+$ P=plugins/frank-exchange-of-views
+$ grep -rn "frictionClause" $P/skills $P/tools --include=*.js --include=*.go
+$ grep -rl "OWES THE SURVEY" $P
 ```
-| Consumer | Role | Changes? |
-|---|---|---|
-| `internal/cli/blue/cite.go:100` | writer (`&recordpb.Cite{}`) | YES — populate `source_text_read` (default `UNREAD`) |
-| `internal/record/available.go:253` | type-switch on `*recordpb.Cite` | no — ignores new field |
-| `internal/record/evidenceview.go:295` | evidence projection | YES — render access-state in the evidence view |
-| `internal/record/citationid.go:67` | citation-id assignment | no |
-| `internal/record/consistency.go:163` | consistency walk | no |
-| `internal/report/{docs.go,proofs.go,assemble.go}` | report + bibliography projection | YES — render access-state instead of the prose phrase |
-| `internal/report/assemble_cite_test.go`, fuzz/golden fixtures | tests/goldens | YES — assert the new field; `golden -update` |
+| Consumer | Changes? |
+|---|---|
+| `$P/skills/research-protocol/scripts/debate.js:94` (definition) | **YES** — the edit |
+| `debate.js:688,738,856,882,1099,1131,1241,1274` (8 call sites) | no — call shape unchanged |
+| `$P/tests/simulator/debate.test.mjs:257-258` | **YES** — asserts `/THE REASON OWES THE SURVEY/ && /did NOT use/` across five seat classes; the assertion and its rationale comment (`:252-256`) are rewritten to pin the new narrow ask |
+| `$P/tests/simulator/testdata/prompt-*.golden` (**10 files**) | **YES** — each carries the string; refreshed |
+| `$P/tools/internal/cli/seat/verbs.go:114` (`--none` help) | **YES** — retire "what you reached for and found" |
+| `$P/tools/integration/surface/promptverbs_test.go:259`, `$P/tools/releasegate/fuzz/promptverbs_test.go:259` | no — renders clauses for the flag scan; pins no wording |
 
-Additive field with an honest default (`UNREAD`): readers that ignore it are unaffected; the four
-YES rows are the render/assert sites. Re-running the grep surfaces nothing this table omits.
+**The rationale the pin defends, answered rather than deleted.** `debate.test.mjs:254-256` argues
+the survey "is the instrument the traversal is measured with, and no help page can ask a seat about
+the pages it chose not to act on." The second half is true — the record's event types are all
+*acts that write events* (`register, finding, verify, …`); there is no event for reading a help
+page, so traversal genuinely is not otherwise recorded. But the instrument is **unfalsifiable
+self-attestation**, and in the one case where it can be checked mechanically it is **false**:
+`red-lens-r4-L2`'s survey states it rejected `reproduce` and `finding` while that seat's own events
+record both. A check that cannot fail, and does not hold where it can be tested, is what the bench
+docked blue for at R3-5 in this same run. Deleting it forfeits the *appearance* of a measurement,
+not a measurement.
 
-### PR-A friction-writer note
+**Stated loss:** after PR-1 there is no signal at all about surface traversal. A real instrument is
+possible — help invocations are observable at the hook/trajectory layer, where tool calls are seen
+— but that is new mechanism this plan deliberately does not build. It is named here so the choice
+is on the record rather than discovered later.
 
-`source_text_read` is set by the *citing* seat; `refusal_class`/`access_state`/`http_status` are
-set where the fetch is recorded (`fetchcache.Store`), not by any seat — so a citation and its
-fetch record can disagree honestly (cited-from-summary over a leaf-readable fetch, or vice versa),
-and that disagreement is itself a signal red can read.
+This PR alone is expected to remove ~48% of the channel's volume.
 
-### PR-B — Friction as an addressable, citable destination (#737)
+### PR-2 — `friction` → `log`, with `source` and `type` `[MODIFY]`
 
-A docketed gap gets an id the report cites (`R2-8`, `R3-4`); a pure-capability friction gap gets
-none, so the report re-inlines its whole operational story. Give friction an id and a render, and
-a report→friction citation path.
+Rename the channel to what it is, and split the one overloaded enum into the two axes it is
+actually carrying.
 
-- `[MODIFY]` **`record.proto` `message Friction`** (`:1184`) — the friction event gains a
-  run-unique **citable id** (e.g. `F12`), minted by the mint pattern mirroring `MintGapID` /
-  `NextFindingLabel`. `FrictionKind` (`:1163`) unchanged. **Naming note (facts-are-fields cl.4):**
-  the friction domain already uses "address" for the write-vs-read command surface
-  (`frictionaddress_test.go`); this new field is a *citable id*, a distinct concept — the spec and
-  code call it `friction id` / `citable id`, never "friction address," so a future sweep does not
-  conflate the two.
-- `[MODIFY]` **mint the id in ONE place, not per writer.** Friction bodies are appended from **five
-  sites** — `internal/cli/seat/verbs.go:108` (the `friction` seat verb), `internal/cli/blue/cite.go:70`
-  and `internal/cli/blue/prove.go:66` and `internal/cli/merge/mint.go:196` (tool-emitted), plus the
-  estoppel path. A `MintFrictionID` helper called at the single `record.Append` path for a
-  `*recordpb.Friction` body (where `citationid`/`findinglabel` are already assigned) gives every
-  writer the id for free; each of the five then returns it so a seat can cite it.
-- `[MODIFY]` **the seat-facing friction projection** — `internal/record/viewjson.go`:
-  `FrictionEntryJSON` (`:1014`, fields `SeatID/Round/Text` at `:1033`), `FrictionJSONOf` (`:1023`),
-  `FrictionJSONBytes` (`:1046`). This is the view a seat READS friction through (`friction.go:69`,
-  `dashboard/model.go:285`); if the id is not added here, no seat can discover it to cite. **This is
-  the load-bearing carrier the concept turns on.**
-- `[MODIFY]` **`frictionLog` markdown projection** (`internal/report/assemble.go:1258`, header
-  `:1279`, wired at `docs.go:127`) — render each friction row *with its id*, so `## Friction` is a
-  citable index.
-- `[NEW]` a **report→friction citation form** the report body can carry — a seat writes "Savage's
-  contents are the interested party's summary `[friction F12]`" instead of inlining five hostnames
-  and four status codes. The render resolves the pointer; the operational detail lives in
-  `## Friction`, once.
+- `[MODIFY]` `record.proto`: `message Friction` → `message Log`; `message FrictionNone` →
+  `message LogNone`; `enum FrictionKind` → **two** enums:
+  - `LogSource ∈ { SEAT, TOOL }` — who recorded it. Today this is inferable only by knowing which
+    enum values are tool-emitted; making it explicit means a new tool-emitted type never breaks a
+    "seat reports only" filter.
+  - `LogType ∈ { DEFECT, REQUEST, FRICTION, ESTOPPEL }` — what is being claimed.
+    - `DEFECT` — something is broken. Absorbs today's `TOOL_ERROR` as `(TOOL, DEFECT)`; verified
+      to have no functional readers.
+    - `REQUEST` — a capability that does not exist. This is the category that made "bug" wrong as
+      a name: *"`reproduce` needs a `does_not_run` outcome"* is a request, and it is among the
+      best content in the corpus.
+    - `FRICTION` — impeded the work; noted, **not necessarily actionable or advisable**. The
+      honest home for content that today has to pose as a defect report.
+    - `ESTOPPEL` — the tool refused a mint; `(TOOL, ESTOPPEL)`. Retained: it is read at
+      `estoppel.go:173`.
+  - `UNSPECIFIED` stops carrying meaning. Today `UNSPECIFIED = 0` doubles as "unset" *and* "a
+    seat's capability gap" — a default value with semantics, which is the plausible-zero shape.
+- `[MODIFY]` the seat's write to take the type (source is set by the write path, not asked of the
+  seat); the operator read and `## Friction` → `## Log` projection to render and filter on both.
 
-**Consumer census — `message Friction` + `FrictionEntryJSON` (schema contracts).** Command and
-results (run 2026-09-05):
+**Three renames this PR must decide, because each has mechanical readers — decided here:**
+the **CLI command** (`cli/friction.go:28` `Use: "friction"`), the **seat verb**
+(`seat/verbs.go:95` `New("friction", …)`, help keyed at `seat/help/friction.md`), and the
+**envelope field** (`debate.js` declares `friction` in five envelope schemas at `:297,403,500,513,1263`,
+aggregates at `:583-584`, emits at `:1300`; recovered by `capture.go:119` as `r["friction"]` and
+`dashboard/render.go:147` as `j["friction"]`; tagged `json:"friction"` at `viewjson.go:1000`).
+**All three rename**, in ONE atomic PR — the envelope is a cross-language contract between
+`debate.js` and Go, and a half-applied rename silently breaks the capture join.
+
+**Consumer census A — Go/proto, run 2026-09-06 from the repo root:**
 ```
-$ grep -rn "recordpb.Friction\|GetFriction\|FrictionJSON\|FrictionEntryJSON\|frictionLog" tools/ --include=*.go | grep -v _test
+$ P=plugins/frank-exchange-of-views
+$ grep -rhno "Friction[A-Za-z]*\|frictionLog\|friction-parity" $P --include=*.go --include=*.proto \
+    | sed 's/.*://' | sort | uniq -c | sort -rn          # ~25 symbols, ~300 occurrences
+$ grep -rl "Friction\|frictionLog\|friction-parity" $P --include=*.go --include=*.proto  # 46 files
 ```
-| Consumer | Role | Changes? |
-|---|---|---|
-| `cli/seat/verbs.go:108`, `cli/blue/cite.go:70`, `cli/blue/prove.go:66`, `cli/merge/mint.go:196` | Friction writers (5 sites) | YES — return the minted id |
-| `record/viewjson.go:1014,1023,1033,1046` (`FrictionEntryJSON`/`FrictionJSONOf`/`Bytes`) | seat-facing JSON view | YES — carry the id |
-| `report/assemble.go:1258` (`frictionLog`), `docs.go:127` | markdown `## Friction` | YES — render the id |
-| `capture/capture.go:283` (`FrictionAudit`, verdicts `:308/:314`); onRecord built `:1719,:1733`; envelope half `debate.js:619` | friction-parity audit | **no re-key** — the join keys on SEAT (`wroteToRecord[fr.SeatID]` ← `SeatOfAgent(e.AgentID)`, `:285-292`); the envelope carries no minted id, so the id can NEVER be the join key. (The 90-char slice at `:291` is display-only for the failure detail; the `:250` comment's "60-char substring" describes a superseded fallback, not the live join — do not trust it.) |
-| `record/estoppel.go:172`, `seatprobe/seatprobe.go:247`, `dashboard/model.go:285` | kind-filter / probe / dashboard | no — ignore the id |
+Counts: `Friction` 131, `FrictionNone` 41, `FrictionKind` 35, `FrictionEntryJSON` 11,
+`FrictionJSONOf` 10, `FrictionFooter` 9, `FrictionAudit` 9, `frictionLog` 5, `FrictionJSON` 4,
+`FrictionJSONBytes` 3, `friction-parity` 3, plus ~14 single-occurrence test names. 46 files; the
+load-bearing ones, each changing:
 
-The id is additive; the four YES rows are the write/render sites, the "no re-key" row is the one the
-prior census gestured at without locating. Re-running the grep surfaces nothing this table omits.
+| Carrier | Role |
+|---|---|
+| `record/recordpb/record.proto:1163-1197` | the messages + enums (see Migration) |
+| `record/record.go:921,925,931,935` | body dispatch for both messages |
+| `record/viewjson.go:999-1053` | the JSON view — gains `source`/`type` |
+| `record/estoppel.go:158,170,172` | the one live `kind` filter |
+| `record/recordsql/schema.go:117` | **derives table names from message names** — see Migration |
+| `report/assemble.go:1258,1279`, `docs.go:127,154` | the `## Log` markdown projection |
+| `capture/capture.go:119,283,1719,1733` | envelope recovery + `FrictionAudit`→`LogAudit` (joins on seat; unaffected by the new fields) |
+| `dashboard/model.go:29-31,96,270-282,348`, `render.go:147,340,424-434,615` | **operator-facing tile**, heading `<h2>Friction — logged pain points</h2>`, reads `FrictionJSONOf` |
+| `seatprobe/seatprobe.go:206-248,386`, `boards.go:450,556,614,707,720`, `production.go:71` | probe expectations |
+| `cli/seat/verbs.go:95,103,108,114`; `cli/blue/cite.go:70`, `blue/prove.go:66`; `cli/merge/mint.go:195-196` | the five write sites + the verb |
+| `cli/friction.go:26,28,69` | the operator read + command name |
+| `cli/root.go:218,233`; `cli/{blue,merge,lens,bench}/command.go` | root wiring + four `seat.Friction()` registrations |
+| `cli/seat/seat.go` (`FrictionFooter`) | the footer closing every help page |
+| `integration/surface/retiredsurfaces_test.go:18` | pins `show …friction` as a RETIRED surface — the retired name must stay pinned under its old spelling |
 
-### PR-C — Voice enforcement (#710)
-
-Layered cheapest-first. Your call, recorded: **flag for red, don't block.** The mechanical layer
-is *advisory* — it never returns an error that refuses a `blue edit` — and the actual gate is
-red's voice lens. Both read ONE generated tell-set (facts-are-fields: no second hand-kept copy).
-
-- `[NEW]` **the voice tell-set, generated from one named source.** Model it on the flag-word
-  precedent: `internal/flags/names.go` declares one constant per word, `flags.All()`
-  (`names.go:241`) enumerates them, and `TestNoRenderedPromptSpellsAFlag`
-  (`integration/surface/promptverbs_test.go:489`, pinned 0) is the single gate over every
-  agent-facing file. Add `internal/reportvoice` with a `Tells()` enumerator (process-voice
-  substrings/patterns: `this run|this round|this report|the debate`, lane tags `\[minority:…\]` /
-  `\[lane-\d…\]`, apparatus `the checking program|measurement apparatus`, draft-history `an earlier
-  version of this (sentence|bullet)|corrected here`). It is the ONE source both the blue-edit
-  warner and the red voice-lens read. A **staleness gate** pins it (mirroring the flag gate); where
-  a tell is a phrase that cannot be exhaustively generated, the gate is the documented fallback
-  (`constitutiondirective_test.go:20-23` is the precedent for "generate where you can, guard where
-  you can't, and say why").
-- `[MODIFY]` **`blue edit` — a non-blocking flag-and-redirect.** Hook at `validateEdit` /
-  `planEdit` (`internal/cli/blue/edit.go:170` / `:142`), which already receive `new`. On a tell
-  match, **do not return an error** (that would block; the user's call is flag-not-block). Instead
-  emit a stderr advisory naming the tell and its destination ("this reads as process voice; move
-  the operational half to `blue friction` and cite its id; keep the epistemic half re-voiced"),
-  and append the edit unchanged. The `ingest.go:53-55` refuse-and-redirect is the *shape* to copy
-  but softened to advise-and-proceed. This is a courtesy redirect in-the-moment, not a gate.
-- `[NEW]` **red voice lens (L7).** In `debate.js`: append a 4th dimension to `RED_LENSES`
-  (`:551-555`), push `{ role: 7, lens: RED_LENSES[3] + <clause> }` at `:853`, and update **both**
-  hardcoded role-map strings that enumerate the lens set as exactly L1-L6 and will otherwise speak
-  the old six-lens model after L7 lands: the ROLE-STABLE dispatch comment at `debate.js:845`
-  ("Citation slices are L1-L4, logic/completeness is ALWAYS L5, dark-side/risk is ALWAYS L6") and
-  the lens-prompt role map at `debate.js:856`. The Go finding-label machinery is **generic over
-  `-L\d+`** (`record/findinglabel.go:12` `roleRe`), so no label code changes — only the debate.js
-  dispatch and the descriptive comment at `findinglabel.go:11`. The L7 lens reads the same
-  `reportvoice.Tells()` set, mints findings on leaks the advisory layer let through, and carries the
-  **disclosure≠discharge** clause: a self-narrating sentence is a leak even when the report admits it.
-- `[MODIFY]` **constitutions + the two authoring prompts.** Give the existing AUDIENCE-split
-  primitive teeth for blue's report prose. It already exists for the bench (`lead-judge.md:117`
-  "the split is by AUDIENCE… the bench's own voice, never wearing the debate's authority") and in
-  `SKILL.md:41` ("its audience is human. Write for the reader"). Extend it to blue: a research-voice
-  clause in `agents/blue-synthesizer.md:33` (the report's author) and, minimally, in the
-  blue-synthesize/blue-respond prompts (`debate.js:729`, `:1080`) — phrased as ACTS not verbs, no
-  obituaries, keeping the report-access invisible to the seat. The red-auditor constitution
-  (`agents/red-auditor.md:59`) names voice as an audit dimension. The global debate-voice clause
-  `recordClause` (`debate.js:240`) is CORRECT for act-reasoning on the record and is **left alone**
-  — the fix distinguishes the report SURFACES (human audience) from the reasoning channel, it does
-  not de-voice the record.
-
-**Consumer census — the L1-L6 role numbering (a prompt contract).** Command and results
-(run 2026-09-05):
+**Consumer census B — the string half (`*.js,*.mjs,*.md,*.json,*.golden`), same date:**
 ```
-$ grep -rn "RED_LENSES\|ALWAYS L5\|ALWAYS L6\|L1-L4\|role: [567]" skills/research-protocol/scripts/debate.js
-$ grep -rn "L1-L4\|L5 logic\|L6 dark-side" tools/ agents/ --include=*.go --include=*.md
+$ grep -rl "friction" $P --include=*.js --include=*.mjs --include=*.md --include=*.json --include=*.golden
+$ grep -rl "friction" docs/
 ```
-| Carrier | What it says | Changes for L7? |
-|---|---|---|
-| `debate.js:551-555` (`RED_LENSES`) | the 3 dimension strings | YES — append the voice dimension |
-| `debate.js:853` (`lensPasses.push`) | fixes roles L5/L6 | YES — push `{ role: 7, … }` |
-| `debate.js:845` (ROLE-STABLE dispatch comment) | "L1-L4 … ALWAYS L5 … ALWAYS L6" | YES — enumerates the old six-lens set |
-| `debate.js:856` (lens-prompt role map) | "L1-L4 citation, L5 logic, L6 dark-side" | YES — the seat-facing role map |
-| `record/findinglabel.go:12` (`roleRe = -(L\d+)`) | extracts the role generically | no — regex is generic over `L<n>` |
-| `record/findinglabel.go:11` (comment) | "L1-L4 … L5 logic, L6 dark-side" | doc-hygiene — update the comment, no logic |
+47 files. Prose surfaces, each changing: `agents/{lead-judge,blue-synthesizer,red-auditor,blue-researcher}.md`;
+`skills/research-protocol/SKILL.md`; `skills/research-protocol/references/report_template.md`;
+`commands/research.md`; `tools/internal/cli/seat/help/{friction,ingest,mint}.md`;
+`docs/{seat-surface-naming,seat-duty-channel,why-a-seat-stops,seat-command-triggers,duty-docket-preregistration}.md`;
+plus repo-root `docs/setup-script.md`. Machine surfaces: `hooks/hooks.json`;
+`tests/simulator/{debate.test.mjs,harness.mjs}` + 13 `testdata/prompt-*.golden`;
+`dashboard/testdata/render-{live,terminal}.golden`; 12 `difftest/testdata/*.golden`.
+`#541`'s issue text names the channel and is updated with it.
 
-The role NUMBER is consumed generically (the regex), so no label code changes; the four YES rows
-are the debate.js dispatch + the two role-map strings (`:845` and `:856`) that would otherwise
-speak the old six-lens model. The prior claim that the enumeration lived "ONLY" at `:551-555` was
-wrong — `:845` is a third site. Re-running the greps surfaces nothing this table omits.
+### PR-2 Migration — the part the first draft omitted `[NEW]`
 
-### Proposed structure (new/changed files)
+`record.proto:11-14` states the constraint this PR would otherwise violate: *"FIELD NUMBERS ARE
+PERMANENT … a renumber silently reinterprets every record already written."* Splitting `kind`
+(field 2) into two fields would make archived `kind=1` (ESTOPPEL) decode as `LogType`=1, and
+archived `kind=0` decode as untyped — silently, and `estoppel.go`'s rewritten filter would stop
+selecting archived estoppel events.
 
-```
-plugins/frank-exchange-of-views/
-  skills/research-protocol/scripts/debate.js        [MODIFY] RED_LENSES +L7, role-map string,
-                                                             blue research-voice clause (acts-not-verbs)
-  agents/blue-synthesizer.md                         [MODIFY] research-voice authoring clause
-  agents/red-auditor.md                              [MODIFY] voice as an audit dimension
-  tools/internal/reportvoice/tells.go                [NEW]    the ONE generated tell-set + Tells()
-  tools/internal/reportvoice/tells_test.go           [NEW]    staleness/pin gate
-  tools/internal/cli/blue/edit.go                    [MODIFY] advisory flag-and-redirect on new_text
-  tools/internal/cli/friction.go                     [MODIFY] mint addressable friction id
-  tools/internal/record/recordpb/record.proto        [MODIFY] Cite.source_text_read; Friction id
-  tools/internal/fetchcache/fetchcache.go            [MODIFY] Entry.{http_status,refusal_class,access_state}
-  tools/internal/fetchcache/httpfetcher.go           [MODIFY] thread status into Entry
-  tools/internal/cli/blue/cite.go                    [MODIFY] populate source_text_read
-  tools/internal/report/assemble.go                  [MODIFY] frictionLog renders ids; access-state render
-```
+- **Reserve, never reuse:** `reserved 2; reserved "kind";` in `message Log`. `source` and `type`
+  take **new field numbers 4 and 5** (3 is `estopped_by`). Enum values are numbered so
+  `ESTOPPEL` remains recoverable rather than colliding with a new value at 1.
+- **The table name is derived, and that is the sharper hazard.** `recordsql/schema.go:117` builds
+  table names from message names, so this rename turns `friction`→`log` and
+  `friction_none`→`log_none` in the SQL schema. A new binary reading an archived run's
+  `records/record.db` finds no `log` table and returns **zero rows — byte-identical to a clean
+  board**, which is the exact defect class this plan exists to remove.
+- **Decision: archived records are read by the binary that wrote them, and the miss is made LOUD.**
+  The new binary MUST refuse a pre-rename schema with an error naming the version, never return an
+  empty result. No back-migration of archived tarballs; they are immutable records and re-writing
+  them would destroy the thing they are for.
+- **This makes #501 a PREREQUISITE.** That issue records that `record.proto` documents a
+  schema-version gate "that does not exist and is emitted by nothing." The loud refusal above has
+  nothing to hang on until that gate is real. **PR-2 does not land before #501.**
+
+### PR-3 — Access-state as a field (#736) `[MODIFY]`
+
+Retained from the prior draft **on its own evidence**, not as a destination for #710: the report's
+single most load-bearing caveat is a prose substring, and the run miscounted it twice by grep
+(`report.md:66` counts a sentence that counts itself). Add `Cite.source_text_read ∈ {LEAF |
+SUMMARY_ONLY | UNREAD}` (`record.proto:905`, field 10; 8 reserved) and
+`fetchcache.Entry.{http_status, refusal_class, access_state}` (`fetchcache.go:92`) — the status is
+already seen and discarded at `httpfetcher.go:119`. Consumer censuses as pasted in the prior draft
+(7 `Cite` consumers, 4 changing) and re-run at implementation.
+
+**Re-examined for minimalism:** the prose alternative — "just write the caveat correctly" — is what
+the run tried, and it produced two miscounts and a third hand-drawn access state. The field is the
+smaller fix.
+
+### PR-4 — Report voice (#710) `[MODIFY]`
+
+Simpler than the prior draft, because the report now cites nothing: the operational half goes to
+the log and the report does not point at it; the epistemic half stays, re-voiced, and stands alone.
+
+- One generated tell-set (`internal/reportvoice`, `Tells()`), modelled on `flags.All()` +
+  `TestNoRenderedPromptSpellsAFlag` (`promptverbs_test.go:489`, pinned 0).
+- A **non-blocking advisory** at `blue edit` (`edit.go:170`/`:142`) — names the tell and its
+  destination, appends unchanged. Never returns an error. (Owner's call: flag for red, don't block.)
+- A red **voice lens L7**: append to `RED_LENSES` (`debate.js:551-555`), push `{role: 7}` at
+  `:853`, update **both** role-map strings (`:845` and `:856`). `findinglabel.go:12` `roleRe` is
+  generic over `-L\d+`, so no label code changes. The lens carries **disclosure ≠ discharge**: a
+  self-narrating sentence is a leak even where the report admits it.
+- Research-voice clauses extending the existing AUDIENCE split (`lead-judge.md:117`,
+  `SKILL.md:41`) to blue's report prose. `recordClause` (`debate.js:240`) is correct for
+  act-reasoning and is left alone.
+
+### WITHDRAWN — #737 (addressable friction id + report→log citation)
+
+The measurement says the content it would have preserved is 65% ceremony, and the channel's own
+doctrine says a capability gap is *"a report addressed to the human who can retool the seat, not
+material for the debate"* (`friction.go`). A report→log citation re-imports what the design
+deliberately routes away. Both seats, asked, wanted the opposite pointer (gap → tracker) and
+neither wanted the report to cite the channel. **Close #737 with this reasoning.**
 
 ---
 
 ## IV. Risk & Mitigation
 
-| # | Risk | L×I×C | Mitigation (step) |
+| # | Risk | L×I×C | Mitigation |
 |---|---|---|---|
-| R1 | **Over-redaction**: enforcement strips load-bearing residue (the Savage caveat) instead of relocating it → the conclusion loses its warrant. | med × high × med | SEPARATION-not-deletion is the stated principle; the mechanical layer is advisory (never deletes); PR-A/PR-B ship the destinations FIRST so there is somewhere to move the residue. §V criterion 1 checks residue is relocated, not lost. |
-| R2 | **Prompt-gate rejection** — a voice clause spells a verb, narrates a gone capability, or drops the lens prompt's required phrase. Cost a full round of reverts in #709. | high × med × low | §II names all five gates; every prompt/constitution edit runs them (`promptverbs`, `archaeology`, `debate.test`, `naming_test`, `rulesweep`) in §V; clauses phrased as acts, report-access kept invisible to the seat. |
-| R3 | **The tell-set becomes a hand-kept second copy** — reproducing facts-are-fields one level up. | med × med × low | ONE named source (`reportvoice.Tells()`), read by both the warner and the lens; a pin/staleness gate; the documented fallback doctrine where a phrase can't be generated. |
-| R4 | **Voice lens false-positives on legitimate subject prose** (a quoted source says "this round"), or consumes red's construction budget. | med × low × low | Flag-not-block: the advisory layer never refuses; the L7 lens mints findings under red JUDGMENT (a false positive is cheap — it is argued, not enforced); L7 is a lens dimension, not a new lane, so it rides existing red dispatch. |
-| R5 | **Silent scope truncation** — shipping C (voice) without A/B (destinations), which reads as done while the residue still has nowhere to go. | med × high × low | The concept is enumerated as all three PRs here; sequencing A/B before C is a stated gate; the STATUS line + three issues carry the thread (complete-the-concept). |
-| R6 | **Schema-epoch / fixture churn** from the proto + cache-index additions. | low × med × low | Additive fields with honest defaults (`UNREAD`); version-gate bump per existing discipline; golden/fuzz fixtures updated in the same PR as the field. |
+| R1 | Deleting the mandate also loses the small defensible subset (judgement-based declines). | med × med × low | PR-1 replaces the mandate with the narrow ask both seats defended; §V counts that those sentences still appear. |
+| R2 | `REQUEST` invites wishlist inflation — seats filing features they'd like rather than gaps they hit. | med × med × low | The clause stays anchored to what the seat *walked into*; §V watches the request:defect ratio and the per-entry length. |
+| R3 | Seats mis-type entries. | high × low × low | Mis-typing is cheap — the triager re-reads; a wrong type is strictly better than today's zero types. `source` is set by the write path, not asked. |
+| R4 | The rename sweeps the word into a namespace where it means something else (facts-are-fields cl.4). | low × med × low | `friction` survives as a `LogType` VALUE with its meaning intact; the sweep is name-only. Verified: no stdlib `log` import, `TOOL_ERROR` has no readers, `ESTOPPEL` has exactly one. |
+| R5 | Prompt-gate rejection on the PR-1/PR-4 wording (cost a round of reverts in #709). | high × med × low | §V runs all five gates; clauses phrased as acts, no verb/flag spelled, no obituary. |
+| R6 | Measuring success on one future run over-fits to it. | med × low × low | The targets are ratios and absences, not tuned constants; the census commands are recorded so any later run re-measures identically. |
+| R7 | **The rename silently blinds every archived run** — the SQL table name is derived from the message name, so a new binary reading an old record returns 0 rows, identical to a clean board. | high × high × med | Migration section: `reserved 2`, new field numbers 4/5, archived records read-only, and a LOUD schema refusal. §V check 2 asserts the error rather than the absence. **Blocked on #501** (the version gate is documented but emitted by nothing), which is stated as a hard prerequisite. |
+| R8 | The envelope rename half-lands, breaking the `debate.js` → `capture.go` join across languages. | med × high × low | All three renames (CLI command, seat verb, envelope field) ship in ONE atomic PR; census B enumerates both sides; the friction-parity audit's own test covers the join. |
+| R9 | Deleting the survey forfeits the only surface-traversal signal (the pin's stated rationale). | high × low × low | Accepted and recorded in PR-1 rather than argued away: the instrument is unfalsifiable and is false where checkable. A real instrument (hook-observed help invocations) is named, and deliberately not built here. |
 
----
+## V. Verification Plan
 
-## V. Verification Plan (the checklist)
+All commands are rooted at the repository root; `P=plugins/frank-exchange-of-views`.
 
-**Automated (exact commands):**
-- `reportvoice` unit + pin gate: `go test ./internal/reportvoice/...` — `Tells()` enumerates the
-  measured tell classes; the staleness gate fails if a tell is added in one reader and not the
-  source.
-- blue-edit advisory: a test that `blue edit` with a tell in `--new` **appends the event** (does
-  not error) AND emits the advisory — proves flag-not-block.
-- L7 dispatch + label: `go test ./internal/record/... ./internal/difftest/...` — a `red-lens-r?-L7`
-  seat id yields `L7-F1` from the generic `roleRe` with no label-code change; the fuzz exercises a
-  run that dispatches L7.
-- proto/cache round-trip: `go test ./internal/record/... ./internal/fetchcache/...` — `Cite`
-  carries `source_text_read`; `Entry` carries the three access fields; defaults are the honest
-  ones.
-- friction id: `go test ./internal/cli/... ./internal/report/...` — a friction event gets a
-  run-unique id; `frictionLog` renders it; a report→friction citation resolves.
-- prompt/constitution gates (the #709 lesson): `go test ./tools/integration/surface/...`
-  (`promptverbs`, `archaeology`, `constitutiondirective`, `naming`) and
-  `node skills/research-protocol/scripts/debate.test.mjs`; golden refresh
-  `(cd scripts && go run ./golden -update)`; `rulesweep` trailers on the protocol-surface commit.
-- full suite + `deadcode ./...` clean.
+**Automated:**
+- `(cd $P/tools && go test ./internal/record/... ./internal/cli/... ./internal/report/... ./internal/capture/... ./internal/dashboard/... ./internal/seatprobe/...)`
+  — `Log`/`LogNone` round-trip; `source`/`type` persist on new fields 4/5; `(TOOL, DEFECT)` covers
+  the retired `TOOL_ERROR`; `estoppel.go`'s filter still selects `(TOOL, ESTOPPEL)`; `LogAudit`
+  still joins on seat; the dashboard tile renders the new heading.
+- `(cd $P/tools && go test ./internal/reportvoice/...)` — `Tells()` pin/staleness gate.
+- blue-edit advisory: a tell in `--new` **appends the event** and emits the advisory (proves
+  flag-not-block).
+- L7: a `red-lens-r?-L7` seat id yields `L7-F1` from the generic `roleRe`, no label-code change.
+- **Schema refusal (the migration's own test):** open an archived pre-rename `records/record.db`
+  with the new binary and assert it **errors naming the schema version**. Asserting the error is
+  the point — a test that merely checks "no rows" would pass on the bug.
+- Gates, each at its real path: `(cd $P/tools && go test ./integration/surface/... ./internal/cli/... ./cmd/seatprobe/...)`
+  covers `promptverbs`, `constitutiondirective`, `retiredsurfaces`, and the naming tests
+  (`internal/seatprobe/naming.go`, `cmd/seatprobe/naming_report_test.go`,
+  `internal/cli/viewnaming_test.go`); `node $P/tests/simulator/debate.test.mjs`;
+  `scripts/archaeology`; `(cd scripts && go run ./golden -update)`; `rulesweep` trailers on the
+  protocol-surface commit.
+- Full suite + `(cd $P/tools && deadcode ./...)` clean.
 
-**Driveable check on REAL data (required, not synthetic):** re-run the #710 grep census (the exact
-five greps in §I, which produced 161 / 24 / 13 / 9 / 2 on the 2026-09-02 baseline) against the
-`report.md` of a **fresh** research run after C ships, and confirm the targets in §I are met AND
-that each surviving access limit cites a friction id or reads an access-state field. Fixtures prove
-the label logic and the schema round-trip; only a real run's report surfaces whether the *voice*
-actually separated — the thing a grep over a synthetic fixture cannot stage.
+**Driveable checks on REAL data (all three required — fixtures cannot surface any of them):**
+1. **Channel census, on a NEW run** (post-change; the query below cannot be run against the
+   archived baseline, whose table is still `friction` — that is the migration's point, not a
+   loophole):
+   `select e.seat_id, e.round, l.type, l.source, length(l.text) from log l join events e on e.id=l.event_id`.
+   Report total chars (target ≤75,000), headed-survey chars (target 0), type/source coverage
+   (target 100%), and — untargeted but measured — bucket-D share and the duplicate rate.
+2. **Archived-run refusal.** Point the new binary at
+   `run-archive/2026-09-02_quadratic-formula.tar.gz`'s `records/record.db` and confirm a **loud
+   error**, not an empty projection. This is the check that would have caught the defect the first
+   draft shipped.
+3. **Report census.** Re-run the five #710 greps that produced 161 / 24 / 13 / 9 / 2 on the
+   2026-09-02 report against the new run's `report.md`, and confirm every surviving access limit
+   reads as a limit on the conclusion rather than an inlined hostname or status code.
 
-**Auditor gate:** `/plan-audit` on this spec (Alignment, Completeness, Safety) before it is treated
-as approved; then per-PR the plan-auditor on each PR's own scope.
+**Auditor gate:** `/plan-audit` on this plan; then per-PR on each PR's own scope.
+
+**Sequencing.** PR-1 first and alone — it is pure deletion, ships immediately, and its effect is
+measurable on the next run independently of everything else. PR-2 next. PR-3 and PR-4 are
+independent of both and of each other.
