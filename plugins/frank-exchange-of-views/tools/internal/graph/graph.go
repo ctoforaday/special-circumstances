@@ -22,7 +22,7 @@ func nodeID(prefix, s string) string { return prefix + "_" + nonID.ReplaceAllStr
 // perGap holds the dialectic tally the graph annotates each gap with — the numbers that make a
 // hole visible (a challenge with no ruling, a gap closed with no argument on the record).
 type perGap struct {
-	closings, motionsFiled, motionsRuled, opinions int
+	closings, motionsFiled, motionsRuled, dispositions int
 }
 
 // tallyByGap takes the BOARD, not raw events, because a ruling cannot be attributed to a gap
@@ -42,33 +42,39 @@ func tallyByGap(b *record.Board) map[string]*perGap {
 		return m[id]
 	}
 	for _, e := range b.Events {
-		// THE BODY IS THE TYPE. A closing and an opinion each carry their OWN gap_id field, so
-		// the id is read off the message that holds it rather than off a key that might sit on
-		// anything — and an event with no body has no gap to attribute, which is not the same
-		// fact as an event whose gap_id is empty.
+		// THE BODY IS THE TYPE. A closing carries its OWN gap_id field, so the id is read off
+		// the message that holds it rather than off a key that might sit on anything — and an
+		// event with no body has no gap to attribute, which is not the same fact as an event
+		// whose gap_id is empty.
 		body, ok := recordpb.Body(e)
 		if !ok {
 			continue
 		}
-		switch f := body.(type) {
-		case *recordpb.Closing:
+		if f, ok := body.(*recordpb.Closing); ok {
 			get(f.GetGapId()).closings++
-		case *recordpb.Opinion:
-			get(f.GetGapId()).opinions++
 		}
 	}
-	// A GRADE MOTION IS THIS GAP'S CHALLENGE. These counters read `dispute`/`dispute-respond`
+	// A GRADE MOTION IS THIS GAP'S CHALLENGE, AND A DOCKET RULING IS ITS DISPOSITION. Both come
+	// off the same join for the same reason: the gap rides the FILING, and neither the ruling
+	// event nor the raw stream can attribute one. These counters read `dispute`/`dispute-respond`
 	// until the motion collapse retired both types, after which the unanswered-challenge detector
 	// below could only ever see zero — and reported "no unanswered challenges" and "no challenges"
 	// as the same picture.
+	//
+	// ONLY THE DOCKET SUBJECT SETTLES A GAP. A grade or petition ruling answers a different
+	// question, so counting every ruled motion here would credit a gap with a disposition
+	// nobody wrote.
 	for _, m := range record.Motions(b) {
-		if m.Subject != "grade" {
-			continue
-		}
-		g := m.Fields["gap_id"]
-		get(g).motionsFiled++
-		if m.Ruled() {
-			get(g).motionsRuled++
+		switch m.Subject {
+		case "grade":
+			get(m.GapID).motionsFiled++
+			if m.Ruled() {
+				get(m.GapID).motionsRuled++
+			}
+		case "docket":
+			if m.Ruled() {
+				get(m.GapID).dispositions++
+			}
 		}
 	}
 	return m
@@ -88,7 +94,7 @@ func Mermaid(b *record.Board) string {
 }
 
 // seatFlowMermaid groups seats into round subgraphs, each seat labelled with its event tally —
-// so a round where a seat emitted nothing it should have (an empty debate, a skipped opinion)
+// so a round where a seat emitted nothing it should have (an empty debate, a skipped ruling)
 // shows as a thin node.
 func seatFlowMermaid(b *record.Board) string {
 	type seat struct {
@@ -158,7 +164,7 @@ func tallyLabel(t map[string]int) string {
 }
 
 // gapFlowMermaid renders each gap as a node coloured by terminal state, annotated with its
-// dialectic tally, plus supersedes edges. A gap CLOSED with no closing and no opinion, or a
+// dialectic tally, plus supersedes edges. A gap CLOSED with no closing and no disposition, or a
 // gap with a dispute but zero dispute-responds, is a hole the annotation makes visible.
 func gapFlowMermaid(b *record.Board) string {
 	tally := tallyByGap(b)
@@ -186,20 +192,21 @@ func gapFlowMermaid(b *record.Board) string {
 			class = "closed"
 			// ONE QUESTION, ONE ANSWER. This was `closure_class` else `disposition` — the
 			// merge's word or the bench's — and the two now live on different messages
-			// (`Close` and `Opinion`), so the fallback belongs to the Gap rather than being
+			// (`Close` and a docket motion's `DocketRuling`), so the fallback belongs to the
+			// Gap rather than being
 			// spelled out again here. `g.Closure != nil` would no longer serve: it means
 			// "closed by a `close` event", so a bench closure would read as a torn one.
 			reason = g.ClosureReason()
 		}
 		// A hole is a genuine defect, not merely a quiet gap: a dispute nobody answered, or a
 		// TORN closure — closed with no recorded reason (no closure_class, no disposition). A
-		// merge close that carries its closure_class is NOT a hole, even with no opinion.
+		// merge close that carries its closure_class is NOT a hole, even with no disposition.
 		hole := (pg.motionsFiled > 0 && pg.motionsRuled == 0) || (!g.Open && reason == "")
 		if hole {
 			class = "hole"
 		}
-		label := fmt.Sprintf("%s · %s<br/>%s%s<br/>closing×%d dispute×%d/%d opinion×%d",
-			id, g.Mint.GetClass(), state, sep(reason), pg.closings, pg.motionsFiled, pg.motionsRuled, pg.opinions)
+		label := fmt.Sprintf("%s · %s<br/>%s%s<br/>closing×%d dispute×%d/%d disposition×%d",
+			id, g.Mint.GetClass(), state, sep(reason), pg.closings, pg.motionsFiled, pg.motionsRuled, pg.dispositions)
 		out.WriteString(fmt.Sprintf("  %s[\"%s\"]:::%s\n", nodeID("g", id), label, class))
 	}
 	// supersedes edges — a gap's lineage.
@@ -249,7 +256,7 @@ func Dot(b *record.Board) string {
 		if (pg.motionsFiled > 0 && pg.motionsRuled == 0) || (!g.Open && reason == "") {
 			fill = "#f6ead0"
 		}
-		out.WriteString(fmt.Sprintf("  %q [label=%q, fillcolor=%q];\n", id, fmt.Sprintf("%s\\n%s\\nclose%d mot%d/%d op%d", id, state, pg.closings, pg.motionsFiled, pg.motionsRuled, pg.opinions), fill))
+		out.WriteString(fmt.Sprintf("  %q [label=%q, fillcolor=%q];\n", id, fmt.Sprintf("%s\\n%s\\nclose%d mot%d/%d disp%d", id, state, pg.closings, pg.motionsFiled, pg.motionsRuled, pg.dispositions), fill))
 	}
 	for _, id := range b.GapOrder {
 		g := b.Gaps[id]

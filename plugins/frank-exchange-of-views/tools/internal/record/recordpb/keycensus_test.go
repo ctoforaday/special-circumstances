@@ -62,6 +62,7 @@ var notFields = map[string]string{
 	"notes":      "SpotCheck's prose when a sample WAS taken, beside `reason` for when none was; one channel split by which branch wrote it. SpotCheck.reason replaces both",
 	"reference":  "a free-text third spelling of a source on the one verb that reads one red found itself. Verify.url + Verify.title replace it, as Cite already named sources",
 	"claim":      "on a CITE it re-quoted the sentence `location` already held to place the anchor. Verify.claim is a different field and still exists",
+	"rationale":  "the bench's own prose channel on the retired `opinion` body. The disposition is a docket motion's ruling now, and every subject's ruling carries its ruler's argument on MotionRule.opinion (flag `--reason`) — so the fact survives on a field that already held it for the other three subjects, rather than on a fifth name for one concept",
 
 	// NEVER A PAYLOAD KEY.
 	"script": "a FILENAME in the proof cache (proof.go:191,225), not a recorded field — the proof's script lives on disk and the record carries its sha256",

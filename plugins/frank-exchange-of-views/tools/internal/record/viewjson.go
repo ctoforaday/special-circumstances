@@ -213,7 +213,7 @@ func BoardJSONOf(b *Board) BoardJSON {
 		// BOTH CLOSING BODIES REACH THIS FIELD, and the pair is why the nil test is a switch.
 		//
 		// replay.go now splits the closure into `Closure` (a `merge close`) and `BenchClosure` (a
-		// `bench opinion` whose disposition ended the gap), and warns in its own words that
+		// a docket ruling whose disposition ended the gap), and warns in its own words that
 		// `g.Closure != nil` no longer means "closed by anything". The pre-split payload held
 		// EITHER body and this projection rendered whichever arrived — so reading only `Closure`
 		// here would drop every bench closure out of the board silently, which is the exact failure
@@ -381,7 +381,7 @@ func gradeVal(g recordpb.Grade) any {
 
 // closureBody is the gap's closing event, whichever verb wrote it.
 //
-// `merge close` and `bench opinion` are different acts with different evidence bars and they write
+// `merge close` and the bench's docket ruling are different acts with different evidence bars and they write
 // different messages, but a seat AUDITING a closure asks one question — how did this gap end — and
 // the board has always answered it in one field. The two-field split lives in replay.go so the
 // typed readers cannot conflate them; this is the one place that deliberately re-joins them, and it
@@ -899,6 +899,15 @@ func DebateJSONOf(b *Board) DebateJSON {
 	}
 	sort.Ints(roundOrder)
 
+	// ONE PAIRING, READ MANY TIMES. Motions(b) joins each filing to its ruling; this indexes the
+	// gap by motion id so the LEAD rows below can name it without recomputing the join per event.
+	docketGapOf := map[string]string{}
+	for _, m := range Motions(b) {
+		if m != nil && m.Subject == "docket" {
+			docketGapOf[m.ID] = m.GapID
+		}
+	}
+
 	for _, r := range roundOrder {
 		re := byRound[r]
 		// Party comes from PartyOf — the stamped field, never a strings.HasPrefix on the
@@ -938,16 +947,28 @@ func DebateJSONOf(b *Board) DebateJSON {
 			}
 		}
 		for _, e := range re {
-			// `reason` WAS THE PAYLOAD KEY for the bench's argument; `rationale` is the field, and
-			// the JSON key was already `rationale` — the record and the view disagreed on the name
-			// of one fact and the schema settles it.
-			if o, ok := recordpb.BodyAs[*recordpb.Opinion](e); ok {
-				rj.Lead = append(rj.Lead, DebateOpinionJSON{
-					GapID: o.GetGapId(), Disposition: recordpb.Word(o.GetDisposition()),
-					Principle: o.GetPrinciple(), Tension: o.GetTension(),
-					ReviewFlag: o.GetReviewFlag(), Rationale: o.GetRationale(),
-				})
+			// THE GAP COMES FROM THE MOTION, NOT THE RULING. The bench's disposition is a docket
+			// motion's ruling now, and the gap it settles rides the FILING — so this reads the
+			// join rather than a field on the body. `Motions(b)` is the one place that pairing is
+			// computed; recovering it here a second way is how eight readers came to disagree.
+			//
+			// The ruler's argument is `MotionRule.opinion`, which every subject's ruling carries.
+			// It kept the JSON key `rationale`, because that is the name this view has always
+			// used for the bench's reasoning and renaming it would move a fact nobody asked to
+			// move.
+			r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
+			if !ok {
+				continue
 			}
+			d, isDocket := r.GetRuling().(*recordpb.MotionRule_Docket)
+			if !isDocket {
+				continue
+			}
+			rj.Lead = append(rj.Lead, DebateOpinionJSON{
+				GapID: docketGapOf[r.GetMotionId()], Disposition: recordpb.Word(d.Docket.GetDisposition()),
+				Principle: d.Docket.GetPrinciple(), Tension: d.Docket.GetTension(),
+				ReviewFlag: d.Docket.GetReviewFlag(), Rationale: r.GetOpinion(),
+			})
 		}
 		out.Rounds = append(out.Rounds, rj)
 	}

@@ -103,14 +103,28 @@ LEFT JOIN "events" ce ON ce."id" = c."event_id"
 -- The bench's closing ruling, if it made one. A gap can be ruled on many times — carried in one
 -- round and disposed of in the next — so this is the EARLIEST ruling whose disposition closes,
 -- and whether it closes is read off the vocabulary rather than decided here.
+--
+-- TWO HOPS NOW, BECAUSE THE GAP RIDES THE FILING. The bench's disposition was its own event
+-- carrying a gap_id; it is a docket motion's RULING, and the gap is on the motion that asked.
+-- So: the ruling arm gives the disposition, its motion_rule gives the motion id, and the docket
+-- FILING gives the gap. Written here once rather than at each reader, which is what this view is
+-- for — the same join was hand-written at eight readers before motion_state existed.
+--
+-- AND IT HAD TO CHANGE IN THE SAME COMMIT AS THE DELETE. SQLite does not validate a view body at
+-- CREATE, so a view left reading "opinion" after that table went would have applied cleanly and
+-- returned no bench closures at all: every disposed gap reading as undisposed, which is the exact
+-- defect this whole change exists to remove.
 LEFT JOIN (
-  SELECT o."gap_id" AS "gap_id", MIN(o."event_id") AS "event_id"
-  FROM "opinion" o
-  JOIN "enum_disposition" d ON d."value" = o."disposition"
+  SELECT md."gap_id" AS "gap_id", MIN(mr."event_id") AS "event_id"
+  FROM "motion_rule_docket" rd
+  JOIN "motion_rule" mr ON mr."event_id" = rd."event_id"
+  JOIN "motion" mo ON mo."motion_id" = mr."motion_id"
+  JOIN "motion_docket" md ON md."event_id" = mo."event_id"
+  JOIN "enum_disposition" d ON d."value" = rd."disposition"
   WHERE d."closes"
-  GROUP BY o."gap_id"
+  GROUP BY md."gap_id"
 ) bc ON bc."gap_id" = m."gap_id"
-LEFT JOIN "opinion" bo ON bo."event_id" = bc."event_id"
+LEFT JOIN "motion_rule_docket" bo ON bo."event_id" = bc."event_id"
 LEFT JOIN "events" be ON be."id" = bc."event_id";
 
 -- The board's own count, asked once. Every consumer that wants "how many gaps are open" reads this
@@ -192,7 +206,13 @@ SELECT
   fr."grade"                                             AS "grade",
   fr."petition"                                          AS "petition",
   fr."direction"                                         AS "direction",
-  COALESCE(fr."grade", fr."petition", fr."direction")    AS "ruling",
+  -- THE DOCKET ARM IS A TABLE, NOT A COLUMN, and that is why it is joined rather than read.
+  -- Its three siblings are enums and land as columns on "motion_rule"; the bench's is a MESSAGE
+  -- (it carries the principle, the tension and what would reopen it), so its disposition lives
+  -- one table down. Left out of the COALESCE below, "ruling" is NULL for every bench ruling ever
+  -- made and RequireUnruledMotion reads the whole docket as unanswered.
+  rd."disposition"                                       AS "docket",
+  COALESCE(fr."grade", fr."petition", fr."direction", rd."disposition") AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
   fre."round"                                            AS "ruled_round",
   fa."reason"                                            AS "appeal_reason",
@@ -201,6 +221,7 @@ SELECT
 FROM (SELECT "motion_id" FROM "motion_rule" UNION SELECT "motion_id" FROM "motion_appeal") ids
 LEFT JOIN "motion_rule" fr ON fr."event_id" =
   (SELECT MIN(x."event_id") FROM "motion_rule" x WHERE x."motion_id" = ids."motion_id")
+LEFT JOIN "motion_rule_docket" rd ON rd."event_id" = fr."event_id"
 LEFT JOIN "events" fre ON fre."id" = fr."event_id"
 LEFT JOIN "motion_appeal" fa ON fa."event_id" =
   (SELECT MIN(y."event_id") FROM "motion_appeal" y WHERE y."motion_id" = ids."motion_id")
@@ -217,10 +238,13 @@ SELECT
   m."subject"                          AS "subject",
   me."seat_id"                         AS "filed_by",
   me."round"                           AS "filed_round",
-  g."gap_id"                           AS "gap_id",
+  -- THE GAP COMES FROM WHICHEVER FILING ARM CARRIES ONE. A bare read off motion_grade was correct
+  -- while grade was the only subject about a gap; docket is the second.
+  COALESCE(g."gap_id", gd."gap_id")    AS "gap_id",
   a."grade"                            AS "grade_ruling",
   a."petition"                         AS "petition_ruling",
   a."direction"                        AS "direction_ruling",
+  a."docket"                           AS "docket_ruling",
   a."ruled_by"                         AS "ruled_by",
   a."ruled_round"                      AS "ruled_round",
   (a."ruled_by" IS NULL)               AS "unruled",
@@ -229,6 +253,7 @@ SELECT
 FROM "motion" m
 JOIN "events" me ON me."id" = m."event_id"
 LEFT JOIN "motion_grade" g ON g."event_id" = m."event_id"
+LEFT JOIN "motion_docket" gd ON gd."event_id" = m."event_id"
 LEFT JOIN "motion_answers" a ON a."motion_id" = m."motion_id";
 
 -- A LINE OF INQUIRY, whole: proposed by whom, saying what, where its status stands now, and

@@ -27,7 +27,44 @@ import (
 // a legitimate ruling — is present, and a field never passed is absent. Testing for "" instead
 // would refuse the first and accept nothing extra.
 func CheckRequired(verb string, body proto.Message) error {
+	if err := checkRequiredIn(verb, body.ProtoReflect()); err != nil {
+		return err
+	}
+	// AND THE SUBJECT'S OWN ARM, WHOSE ANNOTATIONS ARE AS BINDING AS THE BODY'S.
+	//
+	// The bench's five reasoning fields used to sit on a top-level body (`Opinion`) and are now a
+	// oneof ARM — `MotionRule.ruling.docket`. A walk over the body's own fields sees `docket` as
+	// one message field carrying no `required` marking of its own, so every annotation inside it
+	// became unreachable the moment it moved: `--principle ""` recorded a ruling with no stated
+	// rule, which is the exact decoration this verb exists to refuse.
+	//
+	// It did not fail loudly, because the DDL derives NOT NULL from the SAME annotations and the
+	// database still refused the empty-STRING case — as raw driver text naming a column, not a
+	// flag. Half-mediated: the record was safe and the seat was untaught.
+	//
+	// SYNTHETIC ONEOFS ARE SKIPPED. Every proto3 `optional` field is one, so a walk that does not
+	// filter them would recurse into every scalar on every body.
 	m := body.ProtoReflect()
+	md := m.Descriptor()
+	for i := 0; i < md.Oneofs().Len(); i++ {
+		od := md.Oneofs().Get(i)
+		if od.IsSynthetic() {
+			continue
+		}
+		fd := m.WhichOneof(od)
+		if fd == nil || fd.Kind() != protoreflect.MessageKind {
+			continue
+		}
+		if err := checkRequiredIn(verb, m.Get(fd).Message()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkRequiredIn is the walk over ONE message's own fields. Split out so the body and its filing
+// or ruling arm are checked by the same code rather than by two copies that can disagree.
+func checkRequiredIn(verb string, m protoreflect.Message) error {
 	md := m.Descriptor()
 	for i := 0; i < md.Fields().Len(); i++ {
 		fd := md.Fields().Get(i)

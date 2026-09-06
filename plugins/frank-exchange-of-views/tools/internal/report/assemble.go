@@ -13,8 +13,8 @@
 //
 //   - TOOL-COMPOSED FROM THE RECORD: the verdict (the terminal `outcome` event), the risk
 //     matrix (the board), the three research areas (line-of-inquiry events by fate), the red
-//     findings (the board's gaps), and the debate transcript (position/closing/dispute/
-//     opinion/petition-rule/halt/certify events). The event log is the source of truth; the
+//     findings (the board's gaps), and the debate transcript (position/closing/motion/
+//     motion-rule/halt/certify events). The event log is the source of truth; the
 //     rendered projection .md files are in-run artifacts for the seats, NOT read here.
 //
 // The blue sections are RAW-SLICED, never parsed-and-rendered: round-tripping markdown through
@@ -819,13 +819,15 @@ func boardSection(board *record.Board) string {
 				g.Mint.GetAcceptanceCheck(),
 				foundBy))
 		} else {
-			// THE `close` EVENT'S CLASS, and the fallback covers the gap a BENCH opinion closed.
+			// THE `close` EVENT'S CLASS, and the fallback covers the gap a BENCH DISPOSITION
+			// closed.
 			//
 			// `g.Closure` is now the Close body ONLY: replay.go splits a bench closure onto
-			// BenchClosure, and its own comment warns that `g.Closure != nil` no longer means
-			// "closed by anything". A nil Closure spells the empty word here and falls through to
-			// "closed", which is what the old single-payload read produced for a bench closure
-			// (an Opinion payload has no `closure_class` key). Behaviour held.
+			// BenchClosure (the docket motion's ruling), and its own comment warns that
+			// `g.Closure != nil` no longer means "closed by anything". A nil Closure spells the
+			// empty word here and falls through to "closed", which is what the old
+			// single-payload read produced for a bench closure (a bench disposition has no
+			// `closure_class` key). Behaviour held.
 			// THE LAST CLOSER'S WORD, and no flattering default. This read g.Closure alone and
 			// defaulted "" to "repaired" — and g.Closure is nil for every BENCH closure, so a gap
 			// the bench ruled `defect_accepted` (a live defect, shipping in this very report)
@@ -920,7 +922,7 @@ func correctnessManifest(board *record.Board) string {
 	//
 	// THE PREDICATE IS THE CLOSING BODY, NOT ClosedByBench — and the distinction is the whole
 	// correctness of this loop. ClosedByBench follows the LAST closing event (replay.go, where
-	// it is cleared on a later `close` and set on a later `opinion`), so a gap blue closed with
+	// it is cleared on a later `close` and set on a later docket ruling), so a gap blue closed with
 	// no receipt that the bench afterwards ruled on carries ClosedByBench=true while still
 	// holding blue's `close` body. Keyed on the flag, that gap silently leaves this list — a
 	// receipt genuinely missing, dropped from the one section whose purpose is to say so, which
@@ -1112,8 +1114,8 @@ func unmintedFindings(board *record.Board) string {
 }
 
 // debate composes the one transcript from the event log: per round, the parties' positions
-// and closings, the grade disputes and their answers, then the bench's opinions and petition
-// rulings; then the terminal bench disposition (halt / certify). Everything the parties and
+// and closings, the grade disputes and their answers, then the bench's docket dispositions and
+// petition rulings; then the terminal bench disposition (halt / certify). Everything the parties and
 // the bench put on the record, in one place — the seat re-narrated none of it.
 // debate takes the BOARD as well as the events, because a petition's ruling cannot be attributed
 // to its filing from an event alone: motion-rule carries motion_id, never the filer or subject of
@@ -1127,6 +1129,16 @@ func debate(board *record.Board, evs []*record.Event) string {
 			order = append(order, r)
 		}
 		byRound[r] = append(byRound[r], e)
+	}
+
+	// ONE PAIRING, READ MANY TIMES. A docket ruling names the gap it settles only through its
+	// motion's FILING, so the join is computed once here — record.Motions is the one place it
+	// lives, and recovering it a second way is how two renderers come to disagree.
+	docketGapOf := map[string]string{}
+	for _, m := range record.Motions(board) {
+		if m != nil && m.Subject == "docket" {
+			docketGapOf[m.ID] = m.GapID
+		}
 	}
 
 	var parts []string
@@ -1169,22 +1181,30 @@ func debate(board *record.Board, evs []*record.Event) string {
 		// the class but no petition id (#312), so pairing two filings by the same seat in one
 		// round would be a guess. They are rendered in the order they happened, which is a fact,
 		// and the run-level count check below says plainly if a filing went unanswered.
-		// The bench's in-round acts: opinions on the docket.
+		// The bench's in-round acts: its rulings on DOCKET motions — the dispositions that
+		// settle a gap. A grade or petition ruling answers a different question and does not
+		// belong under LEAD's per-gap list.
 		var lead []string
 		for _, e := range re {
-			o, ok := recordpb.BodyAs[*recordpb.Opinion](e)
+			mr, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
 			if !ok {
 				continue
 			}
-			// `--reason` LANDS ON `rationale` — Opinion's prose channel, declared in
+			d, isDocket := mr.GetRuling().(*recordpb.MotionRule_Docket)
+			if !isDocket {
+				continue
+			}
+			// `--reason` LANDS ON `MotionRule.opinion` — the ruler's prose channel, declared in
 			// recordpb/required.go ("a disposition with no stated reasoning is
-			// indistinguishable from a default"). `disposition` stays a STRING in the schema,
-			// so it renders as written.
+			// indistinguishable from a default"). THE GAP IS NOT ON THE RULING: it rides the
+			// docket motion's filing, so it comes from the join built above.
 			lead = append(lead, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
 				// The vocabulary's word, not the generated constant name — see view.go's
-				// opinion renderer, where the same substitution was needed for the same reason.
-				o.GetGapId(), recordpb.Word(o.GetDisposition()), o.GetPrinciple(),
-				o.GetTension(), o.GetReviewFlag(), o.GetRationale()))
+				// disposition renderer, where the same substitution was needed for the same
+				// reason.
+				docketGapOf[mr.GetMotionId()], recordpb.Word(d.Docket.GetDisposition()),
+				d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag(),
+				mr.GetOpinion()))
 		}
 		if len(lead) > 0 {
 			round = append(round, "### LEAD\n"+strings.Join(lead, "\n"))

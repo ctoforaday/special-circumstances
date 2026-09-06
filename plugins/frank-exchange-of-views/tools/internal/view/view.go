@@ -333,7 +333,8 @@ func ledgerMD(b *record.Board) []byte {
 	ledgerParts = append(ledgerParts, "## CLOSURE INDEX", "")
 	for _, g := range closed {
 		// ONE QUESTION, ONE ANSWER. `Str("closure_class")` used to reach a payload that held
-		// EITHER a close or an opinion; those are separate messages now, and record.ClosureReason
+		// EITHER a close or a bench disposition; those are separate messages now (`Close` and a
+		// docket motion's `DocketRuling`), and record.ClosureReason
 		// is the join — it names this site as one of the four that spelled the fallback by hand.
 		// A bench-closed gap therefore reads as its DISPOSITION where it previously fell through
 		// to the bare word `closed`.
@@ -368,8 +369,8 @@ func archiveMD(b *record.Board) []byte {
 		}
 		// A BENCH-CLOSED GAP CARRIES NO `close` BODY. Closure and BenchClosure are separate
 		// messages now, so every field of the anchor triple is ABSENT for one — which is exactly
-		// what the single-payload read already rendered, because an opinion payload never held an
-		// anchor key either. Read as pointers: `carried_from` is a PRESENCE question.
+		// what the single-payload read already rendered, because a bench disposition never held
+		// an anchor key either. Read as pointers: `carried_from` is a PRESENCE question.
 		var anchorSeat, anchorTool, anchorTarget, carriedFrom *string
 		if c := g.Closure; c != nil {
 			anchorSeat, anchorTool, anchorTarget, carriedFrom = c.AnchorSeat, c.AnchorTool, c.AnchorTarget, c.CarriedFrom
@@ -584,6 +585,17 @@ func debateMD(b *record.Board) []byte {
 	}
 	sort.Ints(roundOrder)
 
+	// ONE PAIRING, READ MANY TIMES. The gap a bench disposition settles rides the docket motion's
+	// FILING, never its ruling, so this indexes the gap by motion id once and the LEAD lines
+	// below name it without recomputing the join per event. The twin in record/viewjson.go
+	// (DebateJSONOf) builds the same map for the same reason.
+	docketGapOf := map[string]string{}
+	for _, m := range record.Motions(b) {
+		if m != nil && m.Subject == "docket" {
+			docketGapOf[m.ID] = m.GapID
+		}
+	}
+
 	debateParts := []string{"# debate.md — RENDERED PROJECTION (source of truth: records/ event log)"}
 	for _, r := range roundOrder {
 		re := byRound[r]
@@ -626,14 +638,14 @@ func debateMD(b *record.Board) []byte {
 		}
 		// THE BENCH'S WHOLE OUTPUT, not only the part that moves a gap.
 		//
-		// This built ### LEAD from `opinion` events ALONE, so two of the bench's three acts were
-		// invisible on the surface a seat reads to catch up (#360, #361):
+		// This built ### LEAD from the bench's gap dispositions ALONE, so two of its three acts
+		// were invisible on the surface a seat reads to catch up (#360, #361):
 		//
 		//   - a PETITION RULING, including granted relief meant to bind the next round. Measured:
 		//     a bench granted a petition in part, issued operative relief, and recorded in its own
 		//     friction that it had "issued a direction to red knowing it has no carrier".
 		//   - a DECLARATION, which has no gap to name by construction and so could never have
-		//     appeared in a list keyed on opinions.
+		//     appeared in a list keyed on dispositions.
 		//
 		// The bench is this system's ethical and safety boundary. A boundary whose rulings cannot
 		// reach the seat they bind is decoration, and an undelivered ruling is worse than an
@@ -643,29 +655,36 @@ func debateMD(b *record.Board) []byte {
 		for _, e := range re {
 			// THE SWITCH IS ON THE BODY. Every arm reaches straight for a field, so binding the
 			// message and the type in one step removes the pair that could disagree. An event with
-			// NO body names none of these three verbs — BoardState has already announced it as an
+			// NO body names none of these verbs — BoardState has already announced it as an
 			// anomaly — so it is skipped here exactly as a non-matching type was.
 			body, ok := recordpb.Body(e)
 			if !ok {
 				continue
 			}
 			switch t := body.(type) {
-			case *recordpb.Opinion:
-				// `reason` WAS THE PAYLOAD KEY for the bench's argument; the field is `rationale`
-				// (required.go: Opinion.rationale is typed as --reason).
-				ops = append(ops, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
-					// recordpb.Word, NOT the enum's own String(). A generated enum prints its Go
-					// constant name — a seat reading the debate would be shown
-					// `DISPOSITION_REPAIRED` where the vocabulary's word belongs. The typing made
-					// this a rendering bug that no longer announces itself as a type error.
-					t.GetGapId(), recordpb.Word(t.GetDisposition()), t.GetPrinciple(),
-					t.GetTension(), t.GetReviewFlag(), t.GetRationale()))
 			case *recordpb.Declare:
 				ops = append(ops, "- **DECLARED** (binds how the record is read; moves no gap)\n"+t.GetHolding())
 			case *recordpb.MotionRule:
-				// Only the PETITION subject: a grade or direction ruling answers a motion the
-				// motions view already renders with its ask beside it. A petition ruling is the
-				// bench acting on the run itself, and its opinion is the operative part.
+				// THE BENCH'S DISPOSITION OF A DOCKETED GAP. The gap comes from the JOIN, not
+				// from the ruling: a ruling carries only the ask's id, so `docketGapOf` above is
+				// the only thing that can name what was settled. The bench's argument is
+				// `MotionRule.opinion`, the prose channel every subject's ruling carries.
+				if d, isDocket := t.GetRuling().(*recordpb.MotionRule_Docket); isDocket {
+					ops = append(ops, fmt.Sprintf("- %s: %s — principle: %s; tension: %s; review: %s\n%s",
+						// recordpb.Word, NOT the enum's own String(). A generated enum prints its
+						// Go constant name — a seat reading the debate would be shown
+						// `DISPOSITION_REPAIRED` where the vocabulary's word belongs. The typing
+						// made this a rendering bug that no longer announces itself as a type
+						// error.
+						docketGapOf[t.GetMotionId()], recordpb.Word(d.Docket.GetDisposition()),
+						d.Docket.GetPrinciple(), d.Docket.GetTension(), d.Docket.GetReviewFlag(),
+						t.GetOpinion()))
+					continue
+				}
+				// Otherwise only the PETITION subject: a grade or direction ruling answers a
+				// motion the motions view already renders with its ask beside it. A petition
+				// ruling is the bench acting on the run itself, and its opinion is the operative
+				// part.
 				if t.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_PETITION {
 					continue
 				}

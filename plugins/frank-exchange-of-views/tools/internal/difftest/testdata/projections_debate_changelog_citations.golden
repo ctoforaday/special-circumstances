@@ -109,10 +109,15 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ opinion --run {RUN} --seat-id judge-r1 --id R1-1 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --final --reason the rationale body
+$ motion docket file --run {RUN} --seat-id red-merge-r1 --id R1-1 --reason contested, and not red's to close
 exit 0
 stdout:
-opinion recorded: R1-1 carried
+motion M2 filed (docket)
+
+$ motion docket rule --run {RUN} --seat-id judge-r1 --id M2 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --final --reason the rationale body
+exit 0
+stdout:
+motion M2 ruled carried
 
 $ certify --run {RUN} --seat-id judge-r1 --reason what a human should re-examine
 exit 0
@@ -130,8 +135,9 @@ certification recorded
 {"key":"blue-respond-r1:manifest_row:R1-1","manifest_row":{"gap_id":"R1-1","row":"figures recomputed; check run: pass"},"round":1,"seat_id":"blue-respond-r1","ts":7,"type":"EVENT_TYPE_MANIFEST_ROW"}
 {"key":"blue-respond-r1:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"R1-1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":1,"seat_id":"blue-respond-r1","ts":8,"type":"EVENT_TYPE_MOTION"}
 {"key":"judge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"judge-r1","ts":9,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge-r1:opinion:R1-1","opinion":{"disposition":"DISPOSITION_CARRIED","final":true,"gap_id":"R1-1","principle":"correctness over economy","rationale":"the rationale body","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"round":1,"seat_id":"judge-r1","ts":10,"type":"EVENT_TYPE_OPINION"}
-{"certify":{"statement":"what a human should re-examine"},"key":"judge-r1:certify:#1","round":1,"seat_id":"judge-r1","ts":11,"type":"EVENT_TYPE_CERTIFY"}
+{"key":"red-merge-r1:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"R1-1"},"motion_id":"M2","subject":"MOTION_SUBJECT_DOCKET"},"round":1,"seat_id":"red-merge-r1","ts":10,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge-r1:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_CARRIED","final":true,"principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"M2","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"round":1,"seat_id":"judge-r1","ts":11,"type":"EVENT_TYPE_MOTION_RULE"}
+{"certify":{"statement":"what a human should re-examine"},"key":"judge-r1:certify:#1","round":1,"seat_id":"judge-r1","ts":12,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══
 -- debate

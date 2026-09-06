@@ -175,7 +175,13 @@ func scenarios() []scenario {
 				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--quote", "throughput doubled",
 					"--title", "https://example.invalid/paper", "--trust", "high", "--access-date", "2026-07-18"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge-r1"),
-				base("opinion", "--run", "{RUN}", "--seat-id", "judge-r1", "--id", "R1-1", "--as", "carried",
+				// THE BENCH'S DISPOSITION IS TWO COMMANDS: red docksets the gap it cannot settle,
+				// the bench rules on that filing. The differential drives both because the
+				// projection under test reads the JOIN — the gap is on the filing and the
+				// disposition on the ruling.
+				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--id", "R1-1",
+					"--reason", "contested, and not red's to close"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge-r1", "--id", "M2", "--as", "carried",
 					"--principle", "correctness over economy", "--tension", "thoroughness vs cost",
 					"--review-flag", "the figure was never recomputed", "--settled", "the proposition this ruling bars", "--final", "--reason", "the rationale body"),
 				base("certify", "--run", "{RUN}", "--seat-id", "judge-r1", "--reason", "what a human should re-examine"),
@@ -194,12 +200,28 @@ func scenarios() []scenario {
 			},
 		},
 		{
-			name: "opinion_requires_each_unconditional_field", // oracle: opinions, not dispositions
+			name: "docket_ruling_requires_each_unconditional_field", // oracle: reasons, not just fates
+			// A REAL GAP AND A REAL FILING FIRST, or the refusal measured is the dangling
+			// reference rather than the missing field. `bench opinion` needed only the gap; the
+			// bench's ruling answers a MOTION, so both halves have to be on the record before the
+			// field rules are what answers.
+			//
+			// `--reason` is supplied on both attempts for the same reason: cobra refuses the
+			// reason flag-group at PARSE, before the record sees the body at all, so an
+			// invocation without it pins the parser's message and never reaches the contract this
+			// scenario is named for.
 			cmds: []cmd{
+				base("register", "--run", "{RUN}", "--seat-id", "red-merge-r1"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "scope-creep",
+					"--check-kind", "document", "--check", "x", "--severity", "medium",
+					"--likelihood", "medium", "--impact", "medium", "--problem", "docketed"),
+				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--id", "R1-1",
+					"--reason", "contested, and not red's to close"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge-r2"),
-				base("opinion", "--run", "{RUN}", "--seat-id", "judge-r2", "--id", "R2-1", "--as", "repaired"),
-				base("opinion", "--run", "{RUN}", "--seat-id", "judge-r2", "--id", "R2-1", "--as", "repaired",
-					"--principle", "p", "--tension", "t"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge-r2", "--id", "M1",
+					"--as", "repaired", "--reason", "r"),
+				base("motion", "docket", "rule", "--run", "{RUN}", "--seat-id", "judge-r2", "--id", "M1",
+					"--as", "repaired", "--reason", "r", "--principle", "p", "--tension", "t"),
 			},
 		},
 		{

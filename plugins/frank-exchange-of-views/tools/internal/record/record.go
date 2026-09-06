@@ -997,9 +997,55 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 				return err
 			}
 		}
+		// A DOCKET MOTION IS ABOUT A GAP TOO, and this check came across with the verb.
+		//
+		// `bench opinion` carried `requireGap(run, b.GetGapId(), "opinion", "--id")` because the
+		// 2026-07-18 damage was exactly this: eight judicial acts naming gaps nothing had minted,
+		// ACCEPTED at write time and dropped at replay. The gap moved from the disposition to the
+		// filing, so the check moves here with it.
+		//
+		// THE FOREIGN KEY IS NOT A SUBSTITUTE. `motion_docket.gap_id` references `mint.gap_id`, so
+		// the row genuinely cannot be stored — but a CHECK's or an FK's `why` does not reach the
+		// seat, and the refusal arrives as "constraint failed: FOREIGN KEY constraint failed
+		// (787)". The record is safe and the seat is untaught, which is half of what a refusal is
+		// for.
+		//
+		// NO requireOpenGap: the retired verb did not demand one, and a bench ruling on a gap red
+		// has already closed is a real act (the consistency oracle has a fixture for exactly that
+		// order). Adding the demand here would be a new gate wearing a migration's clothes.
+		if b.GetSubject() == recordpb.MotionSubject_MOTION_SUBJECT_DOCKET {
+			if err := requireGap(run, b.GetDocket().GetGapId(), "motion docket file", "--id"); err != nil {
+				return err
+			}
+		}
 	case *recordpb.MotionAppeal:
 		return RequireMotionSubjectRef(run, b.GetSubject(), b.GetMotionId())
 	case *recordpb.MotionRule:
+		// WHAT WOULD REOPEN THIS, ANSWERED ONE WAY OR THE OTHER (#502) — the bench's ruling only.
+		//
+		// A losing party's three questions are which proposition fell, what still stands, and what
+		// would change the outcome. `settled` answers the first (annotated, refused before this
+		// switch); this answers the third; the second is derivable and deliberately not stored.
+		//
+		// EITHER FIELD SATISFIES IT. `final: true` says nothing would reopen it, which is a real
+		// answer and not an omission — the `friction --none` shape, for the same measured reason:
+		// an empty channel that cannot assert its own emptiness goes unclosed.
+		//
+		// THE SCHEMA CARRIES THIS TOO, as two (check) options on DocketRuling, and the pair is not
+		// a restatement: the tool refuses in words a bench can act on, and the database refuses
+		// independently of the tool, because a CHECK's `why` does not currently reach the seat —
+		// its violation arrives as raw driver text. Close that and this guard becomes redundant.
+		//
+		// It moved here with the verb. The other three subjects rule with a word and a reason and
+		// have no reopening to answer for, so the check is on the arm rather than the event.
+		if d, ok := b.GetRuling().(*recordpb.MotionRule_Docket); ok {
+			if d.Docket.ReopensOn == nil && d.Docket.Final == nil {
+				return fmt.Errorf("record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round")
+			}
+			if d.Docket.ReopensOn != nil && d.Docket.Final != nil {
+				return fmt.Errorf("record: --final says nothing would reopen this and --reopens-on names what would. They are opposite answers to one question; pass exactly one")
+			}
+		}
 		// THE VERDICT SET IS KEYED ON (SUBJECT, RULING), which EnumFields cannot express: it is
 		// keyed by event TYPE, and one `motion-rule` carries granted|denied for a petition and
 		// accepted|rejected for a grade. So the check lives here, and the CLI's help is generated
@@ -1152,55 +1198,6 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 		if b.GetConfidence() == recordpb.Confidence_CONFIDENCE_UNSPECIFIED {
 			return fmt.Errorf("record: verify requires --confidence high|medium|low — how sure you are of that determination, which is a DIFFERENT question from what the determination was. `refutes` you would defend and `refutes` you are unsure of are different facts, and low confidence is a call for more evidence rather than a fail")
 		}
-	case *recordpb.Opinion:
-		if err := requireGap(run, b.GetGapId(), "opinion", "--id"); err != nil {
-			return err
-		}
-		// THE PRESENCE LOOP THAT STOOD HERE WAS THE TWELFTH RESTATEMENT, and like the other ten
-		// it could never run. It asked presence for gap_id, disposition, principle, tension and
-		// review_flag — every one of them annotated `required` — so CheckRequired refused all five
-		// above, with the annotation's own words, before this switch was entered. It read as live
-		// because it was commented and explained itself; that is the whole failure mode.
-		//
-		// WHAT REMAINS IS CONDITIONAL, which is the test for belonging below rather than above.
-
-		// WHAT WOULD REOPEN THIS, ANSWERED ONE WAY OR THE OTHER (#502).
-		//
-		// A losing party's three questions are which proposition fell, what still stands, and what
-		// would change the outcome. `settled` answers the first (annotated, refused above); this
-		// answers the third; the second is derivable from the first plus the artifact state
-		// (ArtifactStateOf) and is deliberately not stored, because a derivable field stored is a
-		// second hand-kept copy.
-		//
-		// EITHER FIELD SATISFIES IT. `final: true` says nothing would reopen it, which is a real
-		// answer and not an omission — the `friction --none` shape, and for the same measured
-		// reason: an empty channel that cannot assert its own emptiness goes unclosed.
-		//
-		// THE SCHEMA CARRIES THIS TOO, as a (check) on Opinion, and the pair is not a restatement
-		// of the kind deleted above: that one duplicated an UNCONDITIONAL annotation which runs
-		// first and makes the copy unreachable. This is the `Close` pattern — the tool refuses in
-		// words a bench can act on, and the database refuses independently of the tool, because a
-		// CHECK's `why` does not currently reach the seat (its violation arrives as raw driver
-		// text). Close that and this guard becomes the restatement it is not yet.
-		if b.ReopensOn == nil && b.Final == nil {
-			return fmt.Errorf("record: opinion requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round")
-		}
-		if b.ReopensOn != nil && b.Final != nil {
-			return fmt.Errorf("record: --final says nothing would reopen this and --reopens-on names what would. They are opposite answers to one question; pass exactly one")
-		}
-		// A VERB THAT OWNS AN ACT MUST OWN IT — and this guard is now the type system's job.
-		//
-		// petition_rule.go states the safety property plainly: "a halt is deliberately NOT a value
-		// of --as ... giving it its own verb means it can never be reached by a typo in an enum".
-		// That was untrue while --as took any string, so `opinion --as halt` recorded an opinion
-		// whose disposition reads like the run's terminal act and stops nothing. This block was the
-		// repair: refuse the one word that is somebody else's verb.
-		//
-		// `disposition` is a closed enum now, so `halt` is not a value that can be constructed —
-		// the property petition_rule.go claimed is finally structural rather than a listed
-		// exception. The guard is deleted rather than kept as belt-and-braces: a runtime check for
-		// a state the type system forbids is dead code that reads like a live defense, and the next
-		// reader would take it as evidence the set is still open.
 	}
 	// The closed sets, checked from one declaration (enums.go) rather than five
 	// hand-written copies. LAST, so the more specific refusal leads when a body has
@@ -1212,7 +1209,7 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 	// MOST OF WHAT IT POLICED IS NOW THE SCHEMA'S: verdict, outcome's verdict, avenue status,
 	// closure_class, check_kind, soundness, verify's outcome and confidence are all closed enums,
 	// where a value outside the set cannot be represented at all. Two are NOT — `Outcome.ended`
-	// and `Opinion.disposition` are still open strings with declared sets — so the call stays,
+	// and the bench's disposition are still open strings with declared sets — so the call stays,
 	// and it stays here, at the single write path.
 	return checkOpenSets(body)
 }

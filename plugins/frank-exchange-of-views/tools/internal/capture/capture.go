@@ -1322,7 +1322,7 @@ type ruling struct {
 // was unharvestable by construction rather than by omission: the one verb whose entire purpose
 // is to state a holding could not reach the place holdings are promoted from.
 //
-// DELIBERATELY NOT HARVESTED: `motion-rule` on a grade or direction. Those are rulings, and a
+// DELIBERATELY NOT HARVESTED: `motion-rule` on a grade or a direction. Those are rulings, and a
 // grade holding ("disclosure does not lower likelihood") reads like a rule — but the harvest
 // template's `question:` would have to be the motion's ask, which lives on the separate `motion`
 // event, and promoting a ruling without the ask it answered is how a holding loses its scope.
@@ -1341,20 +1341,20 @@ func rulingsFromRecord(board *record.Board) []ruling {
 		}
 	}
 
+	// THE GAP A DISPOSITION SETTLES RIDES THE FILING, never the ruling — a `motion-rule` carries
+	// the ask's id and nothing else that identifies its subject matter. record.Motions is the one
+	// place that pairing is computed; harvesting the gap any other way keys every disposition on
+	// the empty string, which is the shape of the defect this function was written to escape.
+	docketGapOf := map[string]string{}
+	for _, m := range record.Motions(board) {
+		if m != nil && m.Subject == "docket" {
+			docketGapOf[m.ID] = m.GapID
+		}
+	}
+
 	var out []ruling
 	for _, e := range board.Events {
 		switch e.GetType() {
-		case recordpb.EventType_EVENT_TYPE_OPINION:
-			o, ok := recordpb.BodyAs[*recordpb.Opinion](e)
-			if !ok {
-				continue
-			}
-			out = append(out, ruling{
-				kind:        "docket",
-				gapID:       o.GetGapId(),
-				disposition: recordpb.Word(o.GetDisposition()),
-				rationale:   o.GetRationale(),
-			})
 		case recordpb.EventType_EVENT_TYPE_DECLARE:
 			// No gap and no fate — that is the point of the verb. The holding IS the ruling.
 			d, ok := recordpb.BodyAs[*recordpb.Declare](e)
@@ -1367,23 +1367,36 @@ func rulingsFromRecord(board *record.Board) []ruling {
 				rationale:   d.GetHolding(),
 			})
 		case recordpb.EventType_EVENT_TYPE_MOTION_RULE:
-			// Only the PETITION subject reaches the precedent harvest: a grade or direction
-			// ruling answers a motion the motions view renders with its ask beside it.
+			// Only the DOCKET and PETITION subjects reach the precedent harvest: a grade or
+			// direction ruling answers a motion the motions view renders with its ask beside it.
 			//
-			// THE SUBJECT IS NOW THE ONEOF, not a string compare. A petition ruling carries its
-			// verdict on the `petition` arm, so reading the arm IS the subject test — a grade
-			// ruling cannot answer it, where the old `Str("subject") != "petition"` depended on a
-			// field that could disagree with the value beside it.
+			// THE SUBJECT IS THE ONEOF, not a string compare. Each subject's ruling carries its
+			// verdict on its own arm, so reading the arm IS the subject test — a grade ruling
+			// cannot answer either of these, where the old `Str("subject") != "petition"`
+			// depended on a field that could disagree with the value beside it.
 			r, ok := recordpb.BodyAs[*recordpb.MotionRule](e)
-			if !ok || r.GetSubject() != recordpb.MotionSubject_MOTION_SUBJECT_PETITION {
+			if !ok {
 				continue
 			}
-			out = append(out, ruling{
-				kind:        "petition",
-				petitioner:  filedBy[r.GetMotionId()],
-				disposition: recordpb.Word(r.GetPetition()),
-				rationale:   r.GetOpinion(),
-			})
+			switch ruled := r.GetRuling().(type) {
+			case *recordpb.MotionRule_Docket:
+				// The bench disposing of a docketed gap. Its argument is `MotionRule.opinion` —
+				// the prose channel every subject's ruling carries — and the gap comes from the
+				// join above, because the ruling does not hold it.
+				out = append(out, ruling{
+					kind:        "docket",
+					gapID:       docketGapOf[r.GetMotionId()],
+					disposition: recordpb.Word(ruled.Docket.GetDisposition()),
+					rationale:   r.GetOpinion(),
+				})
+			case *recordpb.MotionRule_Petition:
+				out = append(out, ruling{
+					kind:        "petition",
+					petitioner:  filedBy[r.GetMotionId()],
+					disposition: recordpb.Word(ruled.Petition),
+					rationale:   r.GetOpinion(),
+				})
+			}
 		}
 	}
 	return out

@@ -39,10 +39,28 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 		// The `confidence` event type went with the per-claim confidence grades; blue's round-1
 		// section is carried by its position, which is what this test reads.
 	})
+	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and it takes two events: the FILING
+	// carries the gap (that is the join the Lead rows read through Motions(b)) and the RULING
+	// carries the disposition and the bench's prose. Seeding only the ruling would leave the
+	// Lead row naming no gap, which is exactly the silent-empty this split exists to remove.
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{Tension: proto.String("speed against certainty"), ReviewFlag: proto.String("no"), Settled: proto.String("the claim as it stood may not be re-asserted"),
-			Final:     proto.Bool(true),
-			Rationale: proto.String("because"), GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Principle: proto.String("correctness first")}),
+		recordtest.At(t, merge, 1, merge+":motion:M1", &recordpb.Motion{
+			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Basis:  proto.String("red cannot settle this one"),
+			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}},
+		}),
+		recordtest.At(t, judge, 1, judge+":motion-rule:M1", &recordpb.MotionRule{
+			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Opinion: proto.String("because"),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+				Principle:   proto.String("correctness first"),
+				Tension:     proto.String("speed against certainty"),
+				ReviewFlag:  proto.String("no"),
+				Settled:     proto.String("the claim as it stood may not be re-asserted"),
+				Final:       proto.Bool(true),
+			}},
+		}),
 	})
 	// Round 2: red positions again, blue does not (a red-only round — its Red is non-empty,
 	// its Blue is the empty array a consumer counts as zero, never a null).

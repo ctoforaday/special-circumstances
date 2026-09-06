@@ -93,6 +93,21 @@ func walk(events []*record.Event) *groundTruth {
 		avenues:       map[string]string{},
 	}
 	closes := closesSet()
+	// THE DOCKET RULING'S GAP RIDES ITS FILING, and this walk is single-pass over the events as
+	// given. `motion_rule.motion_id` carries no foreign key and a seeded record can present a
+	// ruling first, so the pairing is built before the walk — an oracle that quietly counted
+	// nothing would agree with a broken board, which is the one thing it must never do.
+	docketGap := map[string]string{}
+	for _, e := range events {
+		if f, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
+			if d, isDocket := f.GetFiling().(*recordpb.Motion_Docket); isDocket {
+				if id := f.GetMotionId(); id != "" {
+					docketGap[id] = d.Docket.GetGapId()
+				}
+			}
+		}
+	}
+
 	for _, e := range events {
 		body, ok := recordpb.Body(e)
 		if !ok {
@@ -135,12 +150,26 @@ func walk(events []*record.Event) *groundTruth {
 			g.lastCloser = "red"
 			g.lastClass = recordpb.Word(m.GetClosureClass())
 			g.lastCloseRound = int(e.GetRound())
-		case *recordpb.Opinion:
-			g := gt.gaps[m.GetGapId()]
+		case *recordpb.MotionRule:
+			// THIS ORACLE KEEPS ITS OWN FOLD, DELIBERATELY. Everywhere else in this change the
+			// SQL views became canonical and the Go readers were pointed at them — but a
+			// cross-check whose whole value is being a SECOND opinion cannot share an
+			// implementation with the thing it checks. Pointing this at `motion_state` would look
+			// like tidying and would delete the check.
+			//
+			// So the join is rebuilt here from the events, including the same
+			// filing-may-arrive-after-the-ruling care replay takes: docketGap is built in a prior
+			// pass (see below), because a ruling read before its filing would find no gap and
+			// silently count nothing.
+			d, isDocket := m.GetRuling().(*recordpb.MotionRule_Docket)
+			if !isDocket {
+				continue
+			}
+			g := gt.gaps[docketGap[m.GetMotionId()]]
 			if g == nil {
 				continue
 			}
-			w := recordpb.Word(m.GetDisposition())
+			w := recordpb.Word(d.Docket.GetDisposition())
 			if !closes[w] {
 				g.carriedCount++
 				continue

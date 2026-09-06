@@ -41,13 +41,35 @@ func redClose(t *testing.T, seat string, round int, id string, class recordpb.Di
 	})
 }
 
-func opinion(t *testing.T, seat string, round int, id string, d recordpb.Disposition) *recordpb.Event {
+// THE BENCH'S DISPOSITION IS TWO EVENTS, and the fixtures say so in two calls rather than one
+// helper that hides it. The gap rides the FILING and the disposition rides the RULING, so a
+// fixture with only the ruling gives the oracle a ruling that settles no gap — and an oracle
+// that quietly counts nothing agrees with every broken board there is.
+
+// docketed is the FILING half: a seat that cannot settle a gap puts it before the bench.
+func docketed(t *testing.T, seat string, round int, motionID, gapID string) *recordpb.Event {
 	t.Helper()
-	return recordtest.At(t, seat, round, seat+":opinion:"+id, &recordpb.Opinion{
-		GapId: proto.String(id), Disposition: d.Enum(),
-		Principle: proto.String("correctness first"), Tension: proto.String("economy"),
-		ReviewFlag: proto.String(""), Rationale: proto.String("ruled on the merits"),
-		Settled: proto.String("the claim as it stood"), Final: proto.Bool(true),
+	return recordtest.At(t, seat, round, seat+":motion:"+motionID, &recordpb.Motion{
+		MotionId: proto.String(motionID),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+		Basis:    proto.String("red cannot settle this one"),
+		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}},
+	})
+}
+
+// benchRule is the RULING half: the disposition, and the reasoning that travels with it.
+func benchRule(t *testing.T, seat string, round int, motionID string, d recordpb.Disposition) *recordpb.Event {
+	t.Helper()
+	return recordtest.At(t, seat, round, seat+":motion-rule:"+motionID, &recordpb.MotionRule{
+		MotionId: proto.String(motionID),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+		Opinion:  proto.String("ruled on the merits"),
+		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			Disposition: d.Enum(),
+			Principle:   proto.String("correctness first"), Tension: proto.String("economy"),
+			ReviewFlag: proto.String(""),
+			Settled:    proto.String("the claim as it stood"), Final: proto.Bool(true),
+		}},
 	})
 }
 
@@ -68,7 +90,8 @@ func TestDualClosureRedThenBench(t *testing.T) {
 	recordtest.Seed(t, dir,
 		mint(t, "red-merge-r1", 1, "R1-1"),
 		redClose(t, "red-merge-r2", 2, "R1-1", recordpb.Disposition_DISPOSITION_REPAIRED),
-		opinion(t, "judge-r2", 2, "R1-1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
+		docketed(t, "red-merge-r2", 2, "M1", "R1-1"),
+		benchRule(t, "judge-r2", 2, "M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
 	)
 	check(t, dir)
 }
@@ -78,7 +101,12 @@ func TestDualClosureBenchThenRed(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		mint(t, "red-merge-r1", 1, "R1-1"),
-		opinion(t, "judge-r2", 2, "R1-1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
+		// THE RULING BEFORE ITS FILING, deliberately. `motion_rule.motion_id` carries no foreign
+		// key and a seeded record can present them in this order, so the oracle must pair them in
+		// a prior pass — a single pass would find no gap here and count nothing, which reads
+		// exactly like a board with no bench closure on it.
+		benchRule(t, "judge-r2", 2, "M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
+		docketed(t, "red-merge-r2", 2, "M1", "R1-1"),
 		redClose(t, "red-merge-r3", 3, "R1-1", recordpb.Disposition_DISPOSITION_REPAIRED),
 	)
 	check(t, dir)
@@ -89,7 +117,8 @@ func TestCarriedThenClosed(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		mint(t, "red-merge-r1", 1, "R1-1"),
-		opinion(t, "judge-r1", 1, "R1-1", recordpb.Disposition_DISPOSITION_CARRIED),
+		docketed(t, "red-merge-r1", 1, "M1", "R1-1"),
+		benchRule(t, "judge-r1", 1, "M1", recordpb.Disposition_DISPOSITION_CARRIED),
 		redClose(t, "red-merge-r2", 2, "R1-1", recordpb.Disposition_DISPOSITION_REPAIRED),
 	)
 	check(t, dir)
@@ -100,7 +129,8 @@ func TestCarriedOnlyStaysOpen(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
 		mint(t, "red-merge-r1", 1, "R1-1"),
-		opinion(t, "judge-r1", 1, "R1-1", recordpb.Disposition_DISPOSITION_CARRIED),
+		docketed(t, "red-merge-r1", 1, "M1", "R1-1"),
+		benchRule(t, "judge-r1", 1, "M1", recordpb.Disposition_DISPOSITION_CARRIED),
 	)
 	check(t, dir)
 }

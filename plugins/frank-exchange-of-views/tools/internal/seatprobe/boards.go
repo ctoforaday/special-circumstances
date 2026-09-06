@@ -584,7 +584,7 @@ No material downside was identified.
 				Fix:      "State what was searched, or withdraw the claim.",
 				Check:    "The claim names the search that produced it.", CheckKind: "document",
 				Severity: "certain", Likelihood: "high", Impact: "high", Complexity: "medium",
-				Baits: "opinion",
+				Baits: "motion docket rule",
 				Why: "A contested gap reaches the bench to be DISPOSED of. Carrying it with a stated " +
 					"direction is a real disposition and was driven exactly once before a gate noticed.",
 				RedClosing: "The claim is unfalsifiable as written. \"No material downside was identified\" " +
@@ -613,16 +613,19 @@ No material downside was identified.
 			Basis: "red re-raised this gap and blue's answer did not move it; it is the bench's to settle, not mine to close",
 		}},
 		Expect: []Expectation{
-			{Seat: "judge-r2", Verb: "opinion", Because: "The bench's disposition both rules and ends the gap, and `carried` is the one value that defers instead of closing. A gap that reaches the bench and gets no opinion is a docket item nobody disposed of."},
-			{Seat: "judge-r2", Verb: "motion docket rule", Because: "The docketed gap is the bench's to dispose of, and the disposition now joins to the ask that raised it — `carried` defers it to another round, everything else ends it. Sits BESIDE `opinion` while both are live: the additive commit leaves the old verb reachable so the destructive one is the only thing that compares two live contracts."},
+			// ONE ROW, NOT TWO. The retired `opinion` expectation stood here beside this one
+			// through the additive half of #681; a verb the bench role no longer offers reports
+			// UNMET on every probe, and an expectation that cannot be met teaches its reader to
+			// skim the whole board.
+			{Seat: "judge-r2", Verb: "motion docket rule", Because: "The bench's disposition both rules and ends the gap, and `carried` is the one value that defers instead of closing — a gap that reaches the bench and gets no ruling is a docket item nobody disposed of. The disposition joins to the ask that raised it."},
 			{Seat: "judge-r2", Verb: "motion petition rule", Because: "A petition is heard BEFORE the debate continues, so an unruled one stops the run rather than waiting. The bench holds this gavel alone."},
 			{Seat: "judge-r2", Verb: "certify", Because: "The bench keeps no memory between runs, so what it would want a human to re-examine exists only if it is recorded. The report promotes it into `Read this first`."},
 			{Seat: "judge-r2", Verb: "declare", Because: "The petition turns on what `required_fix` MEANS — whether it can " +
 				"license an assertion the run cannot support. That construction binds how every gap on the board is read and " +
-				"moves none of them, so `opinion` (which demands an id and a fate) cannot carry it. Measured: a bench with " +
+				"moves none of them, so a docket ruling (which demands a motion id and a fate) cannot carry it. Measured: a bench with " +
 				"exactly this holding put it in a petition ruling's opinion text, the channel least likely to be read (#361)."},
 			{Seat: "judge-r2", Verb: "outcome", Because: "The run's terminal determination, distinct from red's verdict. CEILING in particular carries the caveat that this is NOT a judged failure to verify, and the stamp loses that if the word is wrong."},
-			{Seat: "judge-r2", Verb: "friction", Because: "The bench has a holding both parties need — a construction of a term that changes no gap's fate — and NO verb states it: `opinion` requires an id and a fate-changing disposition (#361). A real bench found this and recorded it here; a bench that instead buries the holding in a ruling's prose has put it on the channel least likely to be read."},
+			{Seat: "judge-r2", Verb: "friction", Because: "The bench has a holding both parties need — a construction of a term that changes no gap's fate — and NO verb states it: a docket ruling requires a motion id and a fate-changing disposition (#361). A real bench found this and recorded it here; a bench that instead buries the holding in a ruling's prose has put it on the channel least likely to be read."},
 		},
 	}
 }

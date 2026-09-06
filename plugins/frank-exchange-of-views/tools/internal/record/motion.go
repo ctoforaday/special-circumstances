@@ -199,6 +199,16 @@ func motionRulingWord(r *recordpb.MotionRule) string {
 		return enumWord(v.Petition)
 	case *recordpb.MotionRule_Direction:
 		return enumWord(v.Direction)
+	case *recordpb.MotionRule_Docket:
+		// THE WORD IS ON THE MESSAGE, not the arm — the docket arm is the only one carrying a
+		// message rather than an enum, because the bench records reasoning as well as a verdict.
+		//
+		// Left out, this returns "" for every bench ruling ever made: Motion.Ruled() is false, the
+		// motions view reports the whole docket as filed-and-unanswered, and Compute's
+		// gaps_with_disposition is 0. Not an error anywhere — the honest "nobody ruled" and the
+		// broken read are the same number. record.go's rulingWord is the twin of this switch and
+		// it has the arm; that is exactly how a pair drifts.
+		return enumWord(v.Docket.GetDisposition())
 	}
 	return ""
 }

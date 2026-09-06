@@ -141,7 +141,7 @@ exit 2
 stderr:
 feov-record: "mint" is not on your surface — it is the merge seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
 
-feov-record — the bench — opinions, halt, certification. Never originates.
+feov-record — the bench — rulings, halt, certification. Never originates.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -162,7 +162,6 @@ Available Commands:
   friction     a capability gap or protocol misfit — and the explicit empty form, for the sittings where nothing blocked you
   halt         stop the run at a safety or consent boundary, when continuing would itself be the harm
   help         Help about any command
-  opinion      dispose of one contested gap with a written ruling — the bench's answer to a docketed item
   outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
 

@@ -388,7 +388,7 @@ func validateContractCases() []validateContract {
 		// The message must name the flag the PARSER accepts. It named --gap-id for as
 		// long as that flag existed and kept naming it after the rename, because the
 		// spelling was derived from the payload key rather than stated.
-		{"opinion missing every field", recordpb.EventType_EVENT_TYPE_OPINION, &recordpb.Opinion{}, "opinion requires --id"},
+		{"a motion ruling missing every field", recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{}, "motion rule requires --id"},
 		// AN UNKNOWN VERB IS UNREPRESENTABLE: the type is an enum and the body is a message, so there
 		// is no "no-such-verb" to pass. The arm that ignored it is gone with the string.
 	}
@@ -414,16 +414,14 @@ func TestValidateVerbContracts(t *testing.T) {
 	}
 }
 
-// opinion demands all five fields, and names the one that is missing with the
-// flag spelling the seat actually typed.
-// The expected spellings are LITERALS. This test used to compute them with the same
-// underscore-to-hyphen transform the code under test used, which made it a tautology: it
-// asserted the code agreed with itself, and passed happily while the message taught
-// --gap-id and --disposition, two flags the parser had stopped accepting. A test that
-// reimplements its subject cannot indict it.
-// opinionRunDir is a run in which R1-1 exists, so an opinion's reference resolves and the
-// test can be about the missing FIELD rather than the missing gap.
-func opinionRunDir(t *testing.T) string {
+// docketRunDir is a run in which R1-1 exists AND motion M1 has been docketed against it, so a
+// bench ruling's references both resolve and the test can be about the missing FIELD rather than
+// the missing gap or the missing filing.
+//
+// IT TAKES BOTH EVENTS, and that is the shape of the verb now. The gap rides the FILING and the
+// disposition rides the RULING, so a fixture that seeds only one of them leaves the other end of
+// the join empty — and an empty join reads exactly like a ruling nobody made.
+func docketRunDir(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, ""); err != nil {
@@ -433,82 +431,117 @@ func opinionRunDir(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Mint{AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+	redID := Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}
+	if _, err := Append(redID, &recordpb.Mint{AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(redID, &recordpb.Motion{
+		MotionId: proto.String("M1"),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+		Basis:    proto.String("red cannot settle this and puts it to the bench"),
+		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(id)}},
+	}); err != nil {
 		t.Fatal(err)
 	}
 	return runDir
 }
 
-func TestValidateOpinionNamesEachMissingField(t *testing.T) {
-	wantFlag := map[string]string{
-		"gap_id":      "--id",
-		"disposition": "--as",
-		"principle":   "--principle",
-		"tension":     "--tension",
-		"review_flag": "--review-flag",
-		"settled":     "--settled",
-	}
+// The bench's ruling demands every field its schema marks required, and names the one that is
+// missing with the flag spelling the seat actually typed.
+//
+// The expected spellings are LITERALS. This test used to compute them with the same
+// underscore-to-hyphen transform the code under test used, which made it a tautology: it
+// asserted the code agreed with itself, and passed happily while the message taught
+// --gap-id and --disposition, two flags the parser had stopped accepting. A test that
+// reimplements its subject cannot indict it.
+//
+// IT IS TWO EVENTS NOW, and the split is why the census is split with it. `gap_id` is the
+// FILING's field — a docket motion that names no gap is an escalation of nothing — and the five
+// reasoning fields are the RULING's. Asserting them all against one body would be asserting a
+// shape the record no longer has.
+func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	// EACH FIELD CLEARED IN TURN, on a body that is otherwise complete. Clearing is `nil`, which
-	// is what "the seat never passed it" means — a `proto.String("")` would SATISFY the
-	// requirement, because the check is presence and an empty answer is an answer.
-	complete := func() *recordpb.Opinion {
-		return &recordpb.Opinion{
-			GapId:       proto.String("R1-1"),
-			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
-			Principle:   proto.String("x"),
-			Tension:     proto.String("x"),
-			ReviewFlag:  proto.String("x"),
-			Settled:     proto.String("the claim as it stood may not be re-asserted"),
-			Final:       proto.Bool(true),
-			Rationale:   proto.String("the ruling's reasoning"),
+	// is what "the seat never passed it" means — a `proto.String("")` would SATISFY a presence
+	// requirement, because an empty answer is an answer for the two fields that allow it.
+	complete := func() *recordpb.MotionRule {
+		return &recordpb.MotionRule{
+			MotionId: proto.String("M1"),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Opinion:  proto.String("the ruling's reasoning"),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+				Principle:   proto.String("x"),
+				Tension:     proto.String("x"),
+				ReviewFlag:  proto.String("x"),
+				Settled:     proto.String("the claim as it stood may not be re-asserted"),
+				Final:       proto.Bool(true),
+			}},
 		}
 	}
 	for _, c := range []struct {
-		field string
-		clear func(*recordpb.Opinion)
+		field, wantFlag string
+		clear           func(*recordpb.MotionRule)
 	}{
-		// The gap must EXIST and be NAMED CORRECTLY: references are checked at write time, so
-		// gap_id carries the real minted id rather than a placeholder. With a bogus id the
+		// The motion must EXIST and be NAMED CORRECTLY: references are checked at write time, so
+		// motion_id carries the real filed id rather than a placeholder. With a bogus id the
 		// reference check fires first and this would assert on the wrong refusal.
-		{"gap_id", func(o *recordpb.Opinion) { o.GapId = nil }},
-		{"disposition", func(o *recordpb.Opinion) { o.Disposition = nil }},
-		{"principle", func(o *recordpb.Opinion) { o.Principle = nil }},
-		{"tension", func(o *recordpb.Opinion) { o.Tension = nil }},
-		{"review_flag", func(o *recordpb.Opinion) { o.ReviewFlag = nil }},
+		{"motion_id", "--id", func(r *recordpb.MotionRule) { r.MotionId = nil }},
+		{"opinion", "--reason", func(r *recordpb.MotionRule) { r.Opinion = nil }},
+		{"disposition", "--as", func(r *recordpb.MotionRule) { r.GetDocket().Disposition = nil }},
+		{"principle", "--principle", func(r *recordpb.MotionRule) { r.GetDocket().Principle = nil }},
+		{"tension", "--tension", func(r *recordpb.MotionRule) { r.GetDocket().Tension = nil }},
+		{"review_flag", "--review-flag", func(r *recordpb.MotionRule) { r.GetDocket().ReviewFlag = nil }},
+		{"settled", "--settled", func(r *recordpb.MotionRule) { r.GetDocket().Settled = nil }},
 	} {
 		t.Run("missing "+c.field, func(t *testing.T) {
 			o := complete()
 			c.clear(o)
-			err := validate(mustRun(t, opinionRunDir(t)), "judge-r1", recordpb.EventType_EVENT_TYPE_OPINION, o)
+			err := validate(mustRun(t, docketRunDir(t)), "judge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o)
 			if err == nil {
-				t.Fatalf("opinion accepted without %s", c.field)
+				t.Fatalf("a docket ruling was accepted without %s", c.field)
 			}
-			if !strings.Contains(err.Error(), wantFlag[c.field]) {
-				t.Errorf("error %q does not name %q — the seat's only teacher is this string", err, wantFlag[c.field])
+			if !strings.Contains(err.Error(), c.wantFlag) {
+				t.Errorf("error %q does not name %q — the seat's only teacher is this string", err, c.wantFlag)
 			}
 		})
 	}
 
-	if err := validate(mustRun(t, opinionRunDir(t)), "judge-r1", recordpb.EventType_EVENT_TYPE_OPINION, complete()); err != nil {
-		t.Errorf("a complete opinion was refused: %v", err)
+	// THE FILING OWNS THE GAP, so its own omission is asserted on the filing.
+	t.Run("a docket filing missing the gap", func(t *testing.T) {
+		err := validate(mustRun(t, docketRunDir(t)), "red-merge-r1", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+			MotionId: proto.String("M2"),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Basis:    proto.String("put it to the bench"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{}},
+		})
+		if err == nil {
+			t.Fatal("a docket motion naming no gap was accepted — an escalation of nothing")
+		}
+		if !strings.Contains(err.Error(), "--id") {
+			t.Errorf("error %q does not name --id", err)
+		}
+	})
+
+	if err := validate(mustRun(t, docketRunDir(t)), "judge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
+		t.Errorf("a complete docket ruling was refused: %v", err)
 	}
 
 	// AN EMPTY VALUE STILL COUNTS AS PRESENT for the two fields checked by presence: `--review-flag
-	// false` is a legitimate ruling, so the check is Has and not non-empty. `rationale` is the
-	// exception — it is the prose the ruling turns on — and `disposition` is the exception to the
-	// exception: an empty disposition rules nothing, and it is now an enum, so the empty case
+	// false` is a legitimate ruling, so the check is Has and not non-empty. The ruler's `opinion`
+	// is the exception — it is the prose the ruling turns on — and `disposition` is the exception
+	// to the exception: an empty disposition rules nothing, and it is an enum, so the empty case
 	// cannot even be written.
 	//
-	// `principle` LEFT THIS SET on 2026-08-22 (operator's call). The comment above used to say
-	// "the fields checked by presence" and mean three; it means two. See
-	// TestTheOpinionDemandsARuleButNotAnInventedTension for the asymmetry and its argument —
+	// `principle` LEFT THIS SET on 2026-08-22 (operator's call). See
+	// TestTheBenchDemandsARuleButNotAnInventedTension for the asymmetry and its argument —
 	// stated there rather than restated here, so the two cannot drift into disagreeing about one
 	// contract.
 	empty := complete()
-	empty.Tension = proto.String("")
-	empty.ReviewFlag = proto.String("")
-	if err := validate(mustRun(t, opinionRunDir(t)), "judge-r1", recordpb.EventType_EVENT_TYPE_OPINION, empty); err != nil {
-		t.Errorf("opinion fields present-but-empty were refused: %v", err)
+	empty.GetDocket().Tension = proto.String("")
+	empty.GetDocket().ReviewFlag = proto.String("")
+	empty.GetDocket().Settled = proto.String("")
+	if err := validate(mustRun(t, docketRunDir(t)), "judge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
+		t.Errorf("docket ruling fields present-but-empty were refused: %v", err)
 	}
 }
 
@@ -1079,46 +1112,42 @@ func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 //
 // The asymmetry is the whole content of the decision (operator, 2026-08-22), so it is asserted
 // as an asymmetry rather than three separate facts. A ruling always applies SOME rule, and an
-// empty `principle` is the decoration `bench opinion` exists to refuse — the measured failure is
-// a bench that ruled `carried` on 64 of 65 items, a router rather than a judge. Demanding the
-// other two would produce invented tension and pro-forma review flags, which read as reasoning
-// and are worse than an honest blank.
-func TestTheOpinionDemandsARuleButNotAnInventedTension(t *testing.T) {
-	full := func() *recordpb.Opinion {
-		return &recordpb.Opinion{
-			GapId:       proto.String("R1-1"),
-			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
-			Principle:   proto.String("a claim rests on its weakest citation"),
-			Tension:     proto.String("correctness vs economy"),
-			ReviewFlag:  proto.String("no human review needed"),
-			Settled:     proto.String("the claim as it stood may not be re-asserted"),
-			Final:       proto.Bool(true),
-			Rationale:   proto.String("the repair holds at the leaf"),
+// empty `principle` is the decoration the bench's disposition exists to refuse — the measured
+// failure is a bench that ruled `carried` on 64 of 65 items, a router rather than a judge.
+// Demanding the other two would produce invented tension and pro-forma review flags, which read
+// as reasoning and are worse than an honest blank.
+//
+// It rides a docket motion's RULING now rather than its own verb; the contract is unchanged and
+// the carrier is not.
+func TestTheBenchDemandsARuleButNotAnInventedTension(t *testing.T) {
+	full := func() *recordpb.MotionRule {
+		return &recordpb.MotionRule{
+			MotionId: proto.String("M1"),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Opinion:  proto.String("the repair holds at the leaf"),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+				Principle:   proto.String("a claim rests on its weakest citation"),
+				Tension:     proto.String("correctness vs economy"),
+				ReviewFlag:  proto.String("no human review needed"),
+				Settled:     proto.String("the claim as it stood may not be re-asserted"),
+				Final:       proto.Bool(true),
+			}},
 		}
 	}
-	// A REAL GAP on the record, so the reference check passes and the FIELD rules are what answer.
-	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: 1}, ""); err != nil {
-		t.Fatal(err)
-	}
+	// A REAL GAP AND A REAL FILING on the record, so the reference checks pass and the FIELD
+	// rules are what answer.
+	runDir := docketRunDir(t)
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge-r1", Round: 1}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: 1}, &recordpb.Mint{
-		GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"),
-		Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
-		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
-		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-	}); err != nil {
-		t.Fatal(err)
-	}
 
-	// EMPTY, not absent: the point is that presence alone no longer satisfies `principle`.
+	// EMPTY, not absent: the point is that presence alone does not satisfy `principle`.
 	empty := full()
-	empty.Principle = proto.String("")
-	err := validate(mustRun(t, runDir), "judge-r1", recordpb.EventType_EVENT_TYPE_OPINION, empty)
+	empty.GetDocket().Principle = proto.String("")
+	err := validate(mustRun(t, runDir), "judge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty)
 	if err == nil {
-		t.Error("an opinion with an EMPTY principle was accepted — a ruling with no stated rule is indistinguishable from a default, which is what this verb exists to prevent")
+		t.Error("a docket ruling with an EMPTY principle was accepted — a ruling with no stated rule is indistinguishable from a default, which is what this verb exists to prevent")
 	} else if !strings.Contains(err.Error(), "principle") {
 		t.Errorf("the refusal does not name --principle, so a bench cannot tell which field it missed: %v", err)
 	}
@@ -1126,14 +1155,14 @@ func TestTheOpinionDemandsARuleButNotAnInventedTension(t *testing.T) {
 	// And the other two still take an honest blank.
 	for _, tc := range []struct {
 		name string
-		set  func(*recordpb.Opinion)
+		set  func(*recordpb.MotionRule)
 	}{
-		{"tension", func(o *recordpb.Opinion) { o.Tension = proto.String("") }},
-		{"review_flag", func(o *recordpb.Opinion) { o.ReviewFlag = proto.String("") }},
+		{"tension", func(r *recordpb.MotionRule) { r.GetDocket().Tension = proto.String("") }},
+		{"review_flag", func(r *recordpb.MotionRule) { r.GetDocket().ReviewFlag = proto.String("") }},
 	} {
 		o := full()
 		tc.set(o)
-		if err := validate(mustRun(t, runDir), "judge-r1", recordpb.EventType_EVENT_TYPE_OPINION, o); err != nil {
+		if err := validate(mustRun(t, runDir), "judge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
 			t.Errorf("an empty %s was refused: %v\nNot every ruling has two values in conflict, and most need no human to look — demanding these produces invented tension and pro-forma flags, which read as reasoning", tc.name, err)
 		}
 	}

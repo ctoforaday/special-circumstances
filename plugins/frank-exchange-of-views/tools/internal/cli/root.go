@@ -72,7 +72,11 @@ func seatVerbs(role string) ([]*cobra.Command, string) {
 	case "blue":
 		return blue.Verbs(), "blue seats — revisions, manifest rows, directions. No board verbs at all."
 	case "bench":
-		return bench.Verbs(), "the bench — opinions, halt, certification. Never originates."
+		// "opinions" NAMED A VERB THE BENCH NO LONGER HAS. `bench opinion` is retired (#681) and
+		// the disposition is a docket motion's ruling, so the line offered a capability the
+		// surface below it does not list — the exact mismatch a seat reads as "the tool is
+		// missing something" and works around.
+		return bench.Verbs(), "the bench — rulings, halt, certification. Never originates."
 	}
 	return nil, ""
 }

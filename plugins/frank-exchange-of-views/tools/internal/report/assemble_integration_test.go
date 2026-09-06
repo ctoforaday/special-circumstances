@@ -100,12 +100,26 @@ func TestAssembleEndToEnd(t *testing.T) {
 		AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED),
 		Line: proto.String("rewrite the cache lock-free"), Reason: proto.String("cost exceeds the benefit at this scale"),
 	})
-	add("judge-r1", &recordpb.Opinion{
-		GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
-		Principle: proto.String("correctness"), Tension: proto.String("cost vs certainty"),
-		ReviewFlag: proto.String("false"), Settled: proto.String("the claim as it stood may not be re-asserted"),
-		Final:     proto.Bool(true),
-		Rationale: proto.String("a model-check is owed before this closes"),
+	// THE BENCH OPINES IN TWO ACTS, and through the production write path both are refusable:
+	// red DOCKETS the gap it cannot settle, and the bench RULES on that filing. The gap rides
+	// the filing, so the ruling alone would be a disposition of nothing.
+	add("red-merge-r1", &recordpb.Motion{
+		MotionId: proto.String("M1"),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+		Basis:    proto.String("red cannot settle R1-1 without the model-check"),
+		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}},
+	})
+	add("judge-r1", &recordpb.MotionRule{
+		MotionId: proto.String("M1"),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+		Opinion:  proto.String("a model-check is owed before this closes"),
+		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+			Principle:   proto.String("correctness"), Tension: proto.String("cost vs certainty"),
+			ReviewFlag: proto.String("false"),
+			Settled:    proto.String("the claim as it stood may not be re-asserted"),
+			ReopensOn:  proto.String("a model-check of the two-writer interleaving"),
+		}},
 	})
 	add("judge-terminal", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
@@ -180,9 +194,22 @@ func TestAssembleEndToEnd(t *testing.T) {
 			t.Errorf("README.md missing %q\n---\n%s", want, index)
 		}
 	}
-	// A document with no content is not written at all — this run filed no motions.
-	if _, serr := os.Stat(filepath.Join(runDir, FileJudgments)); serr == nil {
-		t.Errorf("judgments.md was written for a run with no motions — an empty heading standing in for a document")
+	// THE BENCH'S DISPOSITION IS A MOTION NOW, so this run DOES file one and judgments.md is
+	// written. That inverts what this assertion used to say — the old fixture wrote a `bench
+	// opinion`, which was not a motion, so the judgments document was legitimately empty.
+	judgments := read(FileJudgments)
+	for _, want := range []string{"## Motions", "**M1** · docket R1-1", "**ruled carried** by judge-r1"} {
+		if !strings.Contains(judgments, want) {
+			t.Errorf("judgments.md missing %q — the bench's disposition is a docket motion, and the "+
+				"section whose promise is \"an ask and its answer are one row\" must carry it\n---\n%s", want, judgments)
+		}
+	}
+
+	// A document with no content is still not written at all — this run ran no computations, so
+	// the evidence document has no body. The property this pins has not moved; only the document
+	// that demonstrates it, because judgments.md is no longer empty.
+	if _, serr := os.Stat(filepath.Join(runDir, FileEvidence)); serr == nil {
+		t.Errorf("evidence.md was written for a run with no proofs — an empty heading standing in for a document")
 	}
 
 	// Blue over-authored a Risk Matrix, a stale verdict, and hand-authored footnotes; none may

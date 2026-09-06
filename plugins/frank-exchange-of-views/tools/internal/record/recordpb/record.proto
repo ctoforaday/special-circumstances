@@ -219,7 +219,6 @@ enum EventType {
   EVENT_TYPE_MOTION_APPEAL = 18 [(means) = "an appeal of a ruling already made on a motion"];
   EVENT_TYPE_MOTION_RULE = 19 [(means) = "the bench's ruling on a filed motion, and whom it binds"];
   EVENT_TYPE_OBSERVE = 20 [(means) = "an observation recorded without a claim attached to it"];
-  EVENT_TYPE_OPINION = 21 [(means) = "the bench ruling on a gap, with the principle applied and the tension acknowledged"];
   EVENT_TYPE_OUTCOME = 22 [(means) = "the run's terminal act: how it ended and whether the question was answered"];
   EVENT_TYPE_POSITION = 23 [(means) = "a seat's stated position going into a round"];
   EVENT_TYPE_PROOF = 24 [(means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
@@ -462,7 +461,6 @@ message Event {
     Closing closing = 33;
     Regrade regrade = 34;
     SpotCheck spot_check = 35;
-    Opinion opinion = 36;
     Finding finding = 37;
     Observe observe = 38;
     Anchor anchor = 39;
@@ -766,105 +764,6 @@ message SpotCheck {
 
   reserved 2;
   reserved "notes";
-}
-
-// Opinion is the bench ruling on a gap.
-message Opinion {
-  // ONE QUESTION, TWO ASSERTABLE ANSWERS — the `friction --none` shape.
-  //
-  // "What would reopen this?" has a real answer of "nothing", and that answer must be POSITIVE.
-  // Left as an empty `reopens_on` it is indistinguishable from a bench that skipped the field,
-  // which is the defect the friction channel carried for eighteen consecutive sittings until
-  // `--none` made the empty case sayable.
-  option (check) = {
-    expr: "\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
-    why: "a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round"
-  };
-
-  // REFUSED TOGETHER rather than silently preferring one: a ruling that says both "this is final"
-  // and "here is what would undo it" has not decided, and picking for it would record a decision
-  // nobody made. It is a rule about two fields, so it lives here rather than in one verb's parse
-  // — the CLI is not the only writer, and the database was willing to store the contradiction.
-  option (check) = {
-    expr: "\"reopens_on\" IS NULL OR \"final\" IS NULL"
-    why: "--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one"
-  };
-
-  optional string gap_id = 1 [(sql) = {
-    required: true
-    flag: "id"
-    references: "mint.gap_id"
-    why: "which gap is being ruled on"
-  }];
-
-  // THE BENCH'S WORD, AND WHY IT IS NO LONGER A STRING.
-  //
-  // This field was `string` on a recorded decision: "its set is open — closing it would mean a
-  // legitimate bench ruling failing HARD mid-round." The premise was already false when it was
-  // written. `checkOpenSets` refuses any word outside `benchDispositions` at record.go:1131, so a
-  // bench ruling outside the set ALREADY failed hard mid-round; the string bought nothing except
-  // that the closed set lived in Go, one file from the field, where the schema could not see it.
-  //
-  // That is not hypothetical. The engine and the bench's own constitution instructed three
-  // dispositions the record refused, and the terminal dispute docket had no legal value at all —
-  // the drift was possible precisely because the vocabulary was not in the schema to be read off.
-  //
-  // Typed, the set is one declaration with four readers: the flag parser, the DDL's foreign key,
-  // the `closes` column the gap view folds on, and `--help`.
-  optional Disposition disposition = 2 [(sql) = {
-    required: true
-    flag: "as"
-    why: "how the gap ends, or `carried` to defer it with a stated research direction"
-  }];
-
-  // NON-EMPTY, and this is the one of the three that is. Decided 2026-08-22 by the operator,
-  // as a contract question rather than a storage one.
-  //
-  // A ruling always applies SOME rule, so an empty `principle` is exactly the decoration this
-  // verb was built to refuse — the measured failure is a bench that ruled `carried` on 64 of 65
-  // items, a router rather than a judge. `tension` and `review_flag` stay presence-only on the
-  // opposite argument: not every ruling has two values in conflict and most need no human to
-  // look, so demanding them would produce INVENTED tension and pro-forma flags, which read as
-  // reasoning and are worse than an honest blank.
-  optional string principle = 3 [(sql) = {
-    required: true
-    why: "the rule you are applying, stated so a later sitting can apply it too"
-  }];
-  optional string tension = 4 [(sql) = {
-    required: true
-    allow_empty: true
-    why: "what pulls the other way — a ruling with no acknowledged counterweight is an assertion"
-  }];
-  optional string review_flag = 5 [(sql) = {
-    required: true
-    allow_empty: true
-    flag: "review-flag"
-    why: "why a human should, or should not, look at this"
-  }];
-  optional string rationale = 6 [(sql) = {
-    required: true
-    flag: "reason"
-    why: "the ruling's rationale — a disposition with no stated reasoning is indistinguishable from a default"
-  }];
-
-  // THE PROPOSITION NOW BARRED. A finding is a claim, its evidence and its demand; a fate says
-  // which of the three fell only to whoever wrote it. Presence-only for the same reason `tension`
-  // is: demanding prose here would produce a restatement of the disposition, which reads as
-  // reasoning and is worse than an honest blank.
-  optional string settled = 7 [(sql) = {
-    required: true
-    allow_empty: true
-    why: "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition"
-  }];
-
-  optional string reopens_on = 8 [(sql) = {
-    flag: "reopens-on"
-    why: "the evidence or condition that would make this worth raising again"
-  }];
-
-  // Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the
-  // check above is what makes "neither" unrepresentable.
-  optional bool final = 9;
 }
 
 // Finding is a lens observation. The label is TOOL-assigned (L{lens}-F{n}); an unlabelled

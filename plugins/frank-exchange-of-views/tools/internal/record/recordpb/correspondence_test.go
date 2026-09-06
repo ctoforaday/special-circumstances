@@ -60,9 +60,13 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 		}
 	}
 
-	// The census in plans/record-protobuf.md §II.1 says 32. If that number moves, the plan moves
+	// The census in plans/record-protobuf.md §II.1 said 32. If that number moves, the plan moves
 	// with it — this is the assertion that makes the plan's census checkable rather than asserted.
-	const wantBodies = 32
+	//
+	// It is 31 since #681 Scope 2: `Opinion` was a body of its own, and the bench's disposition is
+	// a docket MOTION's ruling now (`MotionRule.ruling.docket`), which is an arm of a body that
+	// already existed. One fewer event type, one fewer body, and the pair still corresponds.
+	const wantBodies = 31
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)

@@ -354,7 +354,7 @@ const PETITION_RULING = {
 // never enacts it (capture harvests this run's rulings for human review).
 const lawClause = ` LAW: if ${runDir}/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.`
 // #361 was filed BY A BENCH, in a run, because it had a finding both parties needed on the record
-// and no way to state it: `bench opinion` requires an --id and a fate-changing --as, so it
+// and no way to state it: a docket ruling requires a motion id and a fate-changing --as, so it
 // disposes of a docketed gap and nothing else. The bench put its construction in a petition
 // ruling's opinion text, where red never read it.
 //

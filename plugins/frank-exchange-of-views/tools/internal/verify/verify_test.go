@@ -31,12 +31,12 @@ func TestGapsDisposedAcceptsBothClosureFields(t *testing.T) {
 		GapOrder: []string{"C1", "C2", "OPEN", "TORN"},
 		Gaps: map[string]*record.Gap{
 			// The two closures land in DIFFERENT FIELDS now, which is the distinction this test is
-			// about made structural: a merge writes a Close, the bench writes an Opinion, and the
-			// old map-shaped payload let one field hold either — which is why every reader spelled
-			// the same question twice.
+			// about made structural: a merge writes a Close, the bench writes a DocketRuling on a
+			// docket motion, and the old map-shaped payload let one field hold either — which is
+			// why every reader spelled the same question twice.
 			"C1": {ID: "C1", Open: false, Closure: &recordpb.Close{
 				ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
-			"C2": {ID: "C2", Open: false, BenchClosure: &recordpb.Opinion{
+			"C2": {ID: "C2", Open: false, BenchClosure: &recordpb.DocketRuling{
 				Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum()}},
 			"OPEN": {ID: "OPEN", Open: true}, // ignored
 			// Closed with NO stated reason: a Close whose class was never set. The old fixture
@@ -74,9 +74,14 @@ func TestDialecticRefsResolve(t *testing.T) {
 	b := &record.Board{
 		Gaps: map[string]*record.Gap{"R1-1": {ID: "R1-1"}},
 		Events: []*record.Event{
-			recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{
-				GapId:       proto.String("R1-1"),
-				Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
+			// A DOCKET MOTION IS THE DIALECTIC ACT THAT NAMES A GAP, not the ruling. A ruling
+			// carries only the ask's id, so there is no gap on it to dangle — the reference this
+			// check can still test is the FILING's, and that is what is seeded here.
+			recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{
+				MotionId: proto.String("M1"),
+				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+				Basis:    proto.String("put it to the bench"),
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}},
 			}),
 			recordtest.Event(t, "blue-r1", 1, &recordpb.Closing{GapId: proto.String("PHANTOM")}),
 		},
@@ -149,12 +154,31 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 		GapOrder: []string{"G1", "G2"},
 		Gaps: map[string]*record.Gap{
 			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{FoundBy: []string{"L5-F1"}}},
-			"G2": {ID: "G2", Open: false, BenchClosure: &recordpb.Opinion{Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
+			"G2": {ID: "G2", Open: false, BenchClosure: &recordpb.DocketRuling{Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 		},
 		Events: []*record.Event{
 			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Finding{Label: proto.String("L5-F1")}), // minted
 			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Finding{Label: proto.String("L5-F2")}), // un-minted
-			recordtest.Event(t, "judge-r1", 1, &recordpb.Opinion{GapId: proto.String("G2"), Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}),
+			// BOTH HALVES, because gaps_with_disposition is a JOIN: the gap rides the filing and
+			// the disposition rides the ruling. Seeded with only the ruling the count is 0, which
+			// is the same number an honest run with no bench sitting produces.
+			recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{
+				MotionId: proto.String("M1"),
+				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+				Basis:    proto.String("put G2 to the bench"),
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G2")}},
+			}),
+			recordtest.Event(t, "judge-r1", 1, &recordpb.MotionRule{
+				MotionId: proto.String("M1"),
+				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+				Opinion:  proto.String("the repair holds"),
+				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+					Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
+					Principle:   proto.String("a claim rests on its weakest citation"),
+					Tension:     proto.String(""), ReviewFlag: proto.String(""),
+					Settled: proto.String(""), Final: proto.Bool(true),
+				}},
+			}),
 			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Verify{Claim: proto.String("c1"), Anchor: proto.String("r1")}),
 			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Verify{Claim: proto.String("c2"), Anchor: proto.String("r2")}),
 			recordtest.Event(t, "judge-r1", 1, &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("the ceiling was reached")}),
@@ -173,7 +197,7 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 	if s.Citations != 2 {
 		t.Errorf("citations tally wrong: got %d, want 2: %+v", s.Citations, s)
 	}
-	if s.GapsWithOpinion != 1 || s.GapsWithClosing != 0 {
+	if s.GapsWithDisposition != 1 || s.GapsWithClosing != 0 {
 		t.Errorf("dialectic coverage wrong: %+v", s)
 	}
 	if s.Verdict != "CEILING" {

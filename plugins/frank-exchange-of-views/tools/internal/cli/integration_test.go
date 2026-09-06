@@ -93,18 +93,12 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "bench-closes-this", "cross-seat-visibility")
 
-	// The bench rules the gap closed.
-	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
-		"--id", id, "--as", "repaired",
-		"--principle", "the repair discharges the defect at the leaf",
-		"--tension", "thoroughness against ceremony",
-		"--review-flag", "no — the closure is mechanical and the anchor is checkable", "--settled", "the proposition this ruling bars", "--final",
-		"--reason", "closed at the bench, not by red"); err != nil {
-		// NEVER skip here. A skip would excuse exactly the defect this test exists to
-		// catch, and a suite that excuses its own subject is how the projection shipped
-		// blind to bench closures in the first place.
-		t.Fatalf("the bench must be able to rule on a gap by id: %v", err)
-	}
+	// The bench rules the gap closed — a docket motion filed and ruled.
+	//
+	// NEVER skip on a failure in here. A skip would excuse exactly the defect this test exists
+	// to catch, and a suite that excuses its own subject is how the projection shipped blind to
+	// bench closures in the first place. benchDisposes fails the test rather than skipping.
+	benchDisposes(t, runDir, id, "repaired", "the repair discharges the defect at the leaf")
 
 	// WHICH SECTION the gap sits in is the whole question. The first form of this
 	// assertion only checked that the ledger mentioned a closure index SOMEWHERE, which

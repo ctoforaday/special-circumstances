@@ -532,10 +532,27 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 			Status:   recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED),
 		}),
 	})
+	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and the LEAD row needs both halves:
+	// the gap comes from the FILING through record.Motions, the disposition from the RULING.
+	// Seeded alone, the ruling renders a LEAD line naming the empty string for its gap.
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, judge, 1, judge+":opinion:R1-1", &recordpb.Opinion{GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Principle: proto.String("correctness first"), Tension: proto.String("speed against certainty"), ReviewFlag: proto.String("none"), Settled: proto.String("the claim as it stood may not be re-asserted"),
-			Final:     proto.Bool(true),
-			Rationale: proto.String("because")}),
+		recordtest.At(t, merge, 1, merge+":motion:M1", &recordpb.Motion{
+			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Basis:  proto.String("red cannot settle R1-1"),
+			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}},
+		}),
+		recordtest.At(t, judge, 1, judge+":motion-rule:M1", &recordpb.MotionRule{
+			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Opinion: proto.String("because"),
+			Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+				Principle:   proto.String("correctness first"),
+				Tension:     proto.String("speed against certainty"),
+				ReviewFlag:  proto.String("none"),
+				Settled:     proto.String("the claim as it stood may not be re-asserted"),
+				Final:       proto.Bool(true),
+			}},
+		}),
 	})
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, lens, 1, lens+":verify:https://x", &recordpb.Verify{Claim: proto.String("the source says so"), Anchor: proto.String("c-abc"), Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_MEDIUM), Text: proto.String("read at the leaf"), AccessDate: proto.String("2026-07-18")}),
