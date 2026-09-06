@@ -31,6 +31,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 	// Aliased: this package's own `Run` returns a named result called `report`, and the two
 	// spellings would shadow each other at exactly the call site that needs the constant.
 	reportdoc "github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
@@ -1653,6 +1654,41 @@ func perSeatRoundTable(costMd string) string {
 // process.cwd().
 // `now` is injected so the one non-deterministic input — how long ago the record stopped moving —
 // is controllable in a test, the same way WriteRunLiveMarker takes its clock.
+// ingestSeatTurns reads each seat transcript into per-turn rows on the record and returns the
+// line capture prints about it.
+//
+// IDENTITY IS NOT COPIED IN HERE. A row carries the harness agent id and nothing else; which seat
+// that agent registered as is already a validated field on the run's `register` event, so the
+// views join to it rather than this function restating it. The agent id comes off the transcript
+// LINE rather than the filename for the same reason — see seatturn.Parse.
+func ingestSeatTurns(run record.Run, transcriptDir string, agentFiles []string) string {
+	seats, rows, failed := 0, 0, 0
+	for _, f := range agentFiles {
+		b, err := os.ReadFile(filepath.Join(transcriptDir, f))
+		if err != nil {
+			failed++
+			continue
+		}
+		agentID, turns := seatturn.Parse(string(b))
+		if len(turns) == 0 {
+			continue
+		}
+		n, err := record.AppendSeatTurns(run, agentID, turns)
+		if err != nil {
+			failed++
+			continue
+		}
+		seats++
+		rows += n
+	}
+	line := fmt.Sprintf("seat turns: %d row(s) from %d transcript(s)", rows, seats)
+	if failed > 0 {
+		// NAMED, because the alternative is a smaller number that looks like a smaller run.
+		line += fmt.Sprintf(" — %d NOT INGESTED (unreadable or refused)", failed)
+	}
+	return line
+}
+
 func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, report string, exitFail bool, err error) {
 	var lines []string
 
@@ -1690,6 +1726,16 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	if line := reapOrphanMirrors(now); line != "" {
 		lines = append(lines, line)
 	}
+
+	// PER-TURN TELEMETRY ONTO THE RECORD, so the questions asked about it become SQL instead of
+	// another transcript scan (#684 F16). Three readers walk these files today for three slices
+	// of one question; the turn goes in once and seat_metrics, the time decomposition and cost
+	// become views over it.
+	//
+	// REPORTED, NEVER FATAL. Capture's job is the audits, and a run whose telemetry could not be
+	// read is still a run whose integrity must be checked — but a silent skip would leave an
+	// empty table that reads exactly like a run with no turns, so the count is always stated.
+	lines = append(lines, ingestSeatTurns(run, transcriptDir, agentFiles))
 
 	costF, cerr := os.Create(filepath.Join(run.Dir(), "cost.md"))
 	if cerr != nil {

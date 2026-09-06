@@ -22,6 +22,26 @@ CREATE TRIGGER "events_are_append_only_delete" BEFORE DELETE ON "events" BEGIN
   SELECT RAISE(ABORT, 'the record is append-only: an event cannot be removed after it is written');
 END;
 
+CREATE TABLE "seat_turn" (
+  "agent_id"       TEXT    NOT NULL,
+  "turn_idx"       INTEGER NOT NULL,
+  "ts_ms"          INTEGER NOT NULL,
+  "model"          TEXT    NOT NULL,
+  "input_tokens"   INTEGER NOT NULL,
+  "output_tokens"  INTEGER NOT NULL,
+  "cache_read"     INTEGER NOT NULL,
+  "cache_creation" INTEGER NOT NULL,
+  -- A turn that carried a thinking block, and a turn that carried a tool_use block. Both are
+  -- read off the content blocks rather than inferred from token counts: the run-4 forensics
+  -- inferred thinking from a low output_tokens with a long span, which is a correlation, and
+  -- the block is the fact.
+  "is_thinking"    INTEGER NOT NULL,
+  "is_tool"        INTEGER NOT NULL,
+  PRIMARY KEY ("agent_id", "turn_idx")
+) STRICT;
+
+CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
+
 CREATE TABLE "enum_event_type" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
