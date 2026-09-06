@@ -543,9 +543,13 @@ jobs:
         shell: bash
         env:
           CSTACK: ${{ runner.temp }}/cstack
-        # env mode prints KEY=VALUE lines plus a commented go-build hint for humans;
-        # GITHUB_ENV rejects anything that is not KEY=VALUE, so the hint is filtered.
-        run: ./third_party/pins/build-cstack.sh env linux-amd64 "$CSTACK" | grep -E '^[A-Za-z_][A-Za-z0-9_]*=' >> "$GITHUB_ENV"
+        # env mode speaks EVAL (`export KEY="VALUE"` plus a commented hint); GITHUB_ENV
+        # takes bare KEY=VALUE and nothing else. The sed pair translates one dialect to
+        # the other — keep-export-lines drops the hint, unwrap-quotes keeps the value raw
+        # (a quoted value would smuggle literal quotes into the flags). The first grep
+        # attempt matched NOTHING and pipefail reported it, which is the correct fate for
+        # a filter whose zero is a wrong shape rather than an empty set.
+        run: ./third_party/pins/build-cstack.sh env linux-amd64 "$CSTACK" | sed -n 's/^export //p' | sed 's/="\(.*\)"$/=\1/' >> "$GITHUB_ENV"
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
       # sibling package binaries in parallel, so the "idle" cores the oversubscription
