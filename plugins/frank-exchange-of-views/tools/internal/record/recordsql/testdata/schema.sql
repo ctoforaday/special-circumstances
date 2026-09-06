@@ -636,6 +636,8 @@ CREATE TABLE "sitting_close" (
   "agent_type" TEXT
 ) STRICT;
 
+CREATE INDEX "round_verdict_verdict" ON "round_verdict" ("verdict");
+
 -- THE AGENT -> SEAT BINDING, AS SQL, so a telemetry view can name a seat without any reader
 -- re-deriving the rule. It is the same rule record.SeatOfAgent applies in Go and states in prose:
 -- THE LAST REGISTER WINS, because a re-dispatch writes a fresh register event and a resumed seat

@@ -185,6 +185,167 @@ type PageReading struct {
 	// Length is the transcription's length in runes — a cheap shape check on a page that came
 	// back far shorter than its neighbours, which is what a refusal or a truncation looks like.
 	Length int `json:"length"`
+	// Blocked marks a page the API's content filter refused to transcribe (#679). The page's
+	// text is the named hole, not a transcription; this field is what machinery reads, the
+	// marker in the text is what a citing seat reads, and both say the same fact.
+	Blocked bool `json:"blocked,omitempty"`
+	// BlockedReason is the API's message, verbatim with its request id, so the refusal can be
+	// cited and re-examined without re-paying for it.
+	BlockedReason string `json:"blocked_reason,omitempty"`
+}
+
+// blockedPolicySentence is the API's content-filter refusal, quoted exactly.
+//
+// THIS IS A STRING-SHAPED KEY AND THE FAILURE DIRECTION IS CLOSED, which is the answer
+// [[facts-are-fields]] is owed for it: the API reports the block as a 400
+// invalid_request_error with this sentence in the body and NO structured code to key on
+// (measured on #679, 4/4 attempts, two models). If Anthropic rewords it, blockedByPolicy
+// stops classifying, the error falls through to the fatal path, and the read refuses
+// loudly — a wrong-way drift costs a usable document, never a silent hole.
+const blockedPolicySentence = "Output blocked by content filtering policy"
+
+// blockedByPolicy reports whether err is the content filter refusing to emit a
+// transcription: a typed API 400 carrying the sentence. Anything else — credentials,
+// rate limits, network — keeps today's fatal semantics.
+func blockedByPolicy(err error) bool {
+	var apiErr *anthropic.Error
+	return errors.As(err, &apiErr) && apiErr.StatusCode == 400 &&
+		strings.Contains(err.Error(), blockedPolicySentence)
+}
+
+// blockedMarker is the hole as a citing seat sees it, in the page text and the assembled
+// document. The page number is IN the marker because the assembled text is where a reader
+// meets it, offset from any per-page file.
+func blockedMarker(page int) string {
+	return fmt.Sprintf("[page %d: output blocked by content filtering policy]", page)
+}
+
+// pageReceipt is one page's provenance row: what was rendered, what read it, what came
+// back, and what it cost. Receipts are written as the loop runs — the reading record is a
+// PROJECTION of them, assembled last — so a crash mid-document leaves rows that a re-run
+// validates page by page instead of re-paying (#679's page-79 problem).
+type pageReceipt struct {
+	Page      int       `json:"page"`
+	RenderSha string    `json:"render_sha"`
+	DPI       int       `json:"dpi"`
+	Model     string    `json:"model"`
+	ReadAt    time.Time `json:"read_at"`
+	TextSha   string    `json:"text_sha"`
+	Length    int       `json:"length"`
+	InTokens  int64     `json:"input_tokens"`
+	OutTok    int64     `json:"output_tokens"`
+	Blocked   bool      `json:"blocked,omitempty"`
+	Reason    string    `json:"blocked_reason,omitempty"`
+}
+
+// receiptPath is one page's receipt, beside its text.
+func receiptPath(run record.Run, sha string, n int) string {
+	return filepath.Join(PagesDir(run, sha), fmt.Sprintf("p%04d.receipt.json", n))
+}
+
+// readReceipt returns a page's receipt, and whether one exists. A malformed receipt is an
+// ERROR, never an absence: treated as absence it would re-spend a model call over a row
+// somebody may already have cited from — the same rule every record reader here follows.
+func readReceipt(run record.Run, sha string, n int) (pageReceipt, bool, error) {
+	b, err := os.ReadFile(receiptPath(run, sha, n))
+	if os.IsNotExist(err) {
+		return pageReceipt{}, false, nil
+	}
+	if err != nil {
+		return pageReceipt{}, false, err
+	}
+	var r pageReceipt
+	if err := json.Unmarshal(b, &r); err != nil {
+		return pageReceipt{}, false, fmt.Errorf("receipt for page %d of %s is unreadable: %w — "+
+			"`ocr read --force` discards receipts and reads again", n, sha, err)
+	}
+	return r, true, nil
+}
+
+// ClearReceipts removes every receipt, which is what `ocr read --force` means: discard
+// the paid-for rows, blocked ones included, and read everything again.
+func ClearReceipts(run record.Run, sha string) error {
+	matches, err := filepath.Glob(filepath.Join(PagesDir(run, sha), "p????.receipt.json"))
+	if err != nil {
+		return err
+	}
+	for _, m := range matches {
+		if err := os.Remove(m); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// readPageStep is the ONE per-page act both loops share — the deliberate `ocr read` over
+// rendered images and fetch's fused rasterise-and-read (#679 requires them identical, and
+// a copy would let them drift on exactly the semantics that took a plan to settle).
+//
+// Given the page's PNG bytes as rendered NOW, it: reuses a receipt whose render sha and
+// model match — including a blocked receipt, because a deterministic refusal is a fact
+// already paid for — after verifying the text on disk still matches the receipt's hash;
+// otherwise spends the model call, classifying a content-filter refusal into a named hole
+// (marker text, blocked fields) and letting every other error stay fatal. Text first,
+// receipt second, so a crash between the two leaves a page that re-reads rather than a
+// receipt naming text that was never written.
+func readPageStep(ctx context.Context, run record.Run, sha string, page int, png []byte, model string, dpi int) (pageReceipt, string, error) {
+	renderSha := Sha(png)
+	if r, ok, err := readReceipt(run, sha, page); err != nil {
+		return pageReceipt{}, "", err
+	} else if ok && r.RenderSha == renderSha && r.Model == model {
+		b, rerr := os.ReadFile(PageTextPath(run, sha, page))
+		if rerr != nil || Sha(b) != r.TextSha {
+			return pageReceipt{}, "", fmt.Errorf("page %d of %s has a receipt but its text is missing or "+
+				"altered (%v) — the pair is corrupt; `ocr read --force` discards receipts and reads again",
+				page, sha, rerr)
+		}
+		return r, string(b), nil
+	}
+
+	text, in, outTok, rerr := DefaultPageReader.ReadPage(ctx, model, png)
+	blocked := false
+	reason := ""
+	if rerr != nil {
+		if !blockedByPolicy(rerr) {
+			// A READER ERROR IS AN ERROR, NOT AN EMPTY PAGE — unchanged from the original
+			// design; only the filter's deterministic refusal becomes a hole.
+			return pageReceipt{}, "", rerr
+		}
+		blocked = true
+		reason = rerr.Error()
+		text = blockedMarker(page)
+	}
+
+	norm := normalizeReading(text)
+	if err := writeReplacing(PageTextPath(run, sha, page), []byte(norm)); err != nil {
+		return pageReceipt{}, "", err
+	}
+	r := pageReceipt{
+		Page: page, RenderSha: renderSha, DPI: dpi, Model: model, ReadAt: time.Now().UTC(),
+		TextSha: Sha([]byte(norm)), Length: len([]rune(norm)), InTokens: in, OutTok: outTok,
+		Blocked: blocked, Reason: reason,
+	}
+	b, err := json.MarshalIndent(r, "", "  ")
+	if err != nil {
+		return pageReceipt{}, "", err
+	}
+	if err := writeReplacing(receiptPath(run, sha, page), append(b, '\n')); err != nil {
+		return pageReceipt{}, "", err
+	}
+	return r, norm, nil
+}
+
+// BlockedPages is how many pages of this reading the content filter refused. Derived from
+// the pages slice rather than stored — a count field beside it would be a second copy of
+// the same fact, free to disagree.
+func (r ReadingRecord) BlockedPages() int {
+	n := 0
+	for _, p := range r.Pages {
+		if p.Blocked {
+			n++
+		}
+	}
+	return n
 }
 
 // ReadingRecord is one document's reading, written beside its page images.
@@ -260,22 +421,17 @@ func ReadRenderedPages(ctx context.Context, run record.Run, sha, model string, r
 		if err != nil {
 			return ReadingRecord{}, fmt.Errorf("page %d image: %w", i, err)
 		}
-		// A READER ERROR IS AN ERROR, NOT AN EMPTY PAGE. Continuing past it would write a blank
-		// where a page was, and the assembled text would then be a document with a silent hole
-		// in it — indistinguishable, downstream, from a page that is genuinely blank.
-		text, in, outTok, rerr := DefaultPageReader.ReadPage(ctx, model, png)
+		// The shared per-page step: reuse a matching receipt without a call, turn a
+		// content-filter refusal into a NAMED hole, keep every other error fatal (#679).
+		r, norm, rerr := readPageStep(ctx, run, sha, i, png, model, rd.DPI)
 		if rerr != nil {
 			return ReadingRecord{}, fmt.Errorf("page %d: %w", i, rerr)
 		}
-		out.InTokens += in
-		out.OutTok += outTok
-
-		norm := normalizeReading(text)
-		if err := writeReplacing(PageTextPath(run, sha, i), []byte(norm)); err != nil {
-			return ReadingRecord{}, err
-		}
+		out.InTokens += r.InTokens
+		out.OutTok += r.OutTok
 		out.Pages = append(out.Pages, PageReading{
-			Page: i, TextSha: Sha([]byte(norm)), Length: len([]rune(norm)),
+			Page: i, TextSha: r.TextSha, Length: r.Length,
+			Blocked: r.Blocked, BlockedReason: r.Reason,
 		})
 
 		assembled.WriteString(norm)

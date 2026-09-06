@@ -273,7 +273,11 @@ func Check(run record.Run) ([]string, error) {
 		add("counts", "counts.anomalies=%d but the anomalies list carries %d", bj.Counts.Anomalies, len(bj.Anomalies))
 	}
 
-	wj := record.WorkJSONOf(board)
+	// The RUN-shaped work list — the production read path (wave 1c).
+	wj, err := record.WorkJSONOfRun(run)
+	if err != nil {
+		return append(v, fmt.Sprintf("work-json-refused: WorkJSONOfRun errored where the raw walk did not: %v", err)), nil
+	}
 	if got, want := idsOfWork(wj), openIDs(gt); !sameSet(got, want) {
 		add("work-mirror", "work.open=%v, raw walk open=%v", got, want)
 	}

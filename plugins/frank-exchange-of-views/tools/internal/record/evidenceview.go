@@ -206,23 +206,23 @@ type EvidenceJSON struct {
 }
 
 // EvidenceJSONOf projects the record's evidence layer in event order.
-func EvidenceJSONOf(b *Board) EvidenceJSON {
+func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 	out := EvidenceJSON{
 		Sources:     []EvidenceSourceJSON{},
 		Proofs:      []EvidenceProofJSON{},
 		Independent: []EvidenceVerificationJSON{},
 	}
-	if out.UnansweredContradictions = unansweredContradictions(b); out.UnansweredContradictions == nil {
+	if out.UnansweredContradictions = unansweredContradictions(evs); out.UnansweredContradictions == nil {
 		out.UnansweredContradictions = []string{}
 	}
-	if out.Reopened = reopenedAnchors(b); out.Reopened == nil {
+	if out.Reopened = reopenedAnchors(evs); out.Reopened == nil {
 		out.Reopened = []string{}
 	}
 
 	// Red's verifications, split by whether they name a citation. The anchored ones are indexed
 	// so each source carries its own; the rest are corroboration and stand alone.
 	byAnchor := map[string][]EvidenceVerificationJSON{}
-	for _, e := range b.Events {
+	for _, e := range evs {
 		// BodyAs returns false for BOTH no body and a body of another type. Neither is a
 		// verification, and neither is rendered as a check with every field blank.
 		vf, ok := recordpb.BodyAs[*recordpb.Verify](e)
@@ -267,7 +267,7 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 
 	// Red's re-runs, keyed by the proof sha they checked — the one join the record supports.
 	reruns := map[string]*EvidenceReproductionJSON{}
-	for _, e := range b.Events {
+	for _, e := range evs {
 		r, ok := recordpb.BodyAs[*recordpb.Reproduce](e)
 		if !ok {
 			continue
@@ -284,7 +284,7 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 		}
 	}
 
-	for _, e := range b.Events {
+	for _, e := range evs {
 		// TWO ARMS, so this stays `Body` plus a type switch rather than two `BodyAs` passes:
 		// one walk of the events, and an event is a cite or a proof or neither.
 		body, ok := recordpb.Body(e)
@@ -364,11 +364,15 @@ func EvidenceJSONOf(b *Board) EvidenceJSON {
 
 // EvidenceJSONBytes renders the evidence view as indented JSON.
 func EvidenceJSONBytes(run Run) ([]byte, error) {
-	b, err := BoardState(run)
+	evs, err := EventsOf(run,
+		recordpb.EventType_EVENT_TYPE_CITE,
+		recordpb.EventType_EVENT_TYPE_VERIFY,
+		recordpb.EventType_EVENT_TYPE_PROOF,
+		recordpb.EventType_EVENT_TYPE_REPRODUCE)
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(EvidenceJSONOf(b), "", "  ")
+	out, err := json.MarshalIndent(EvidenceJSONOf(evs), "", "  ")
 	if err != nil {
 		return nil, err
 	}

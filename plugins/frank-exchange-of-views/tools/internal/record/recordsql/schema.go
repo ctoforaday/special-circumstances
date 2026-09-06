@@ -117,6 +117,16 @@ CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
 `
 
 // Schema returns the full DDL: the envelope, then one table per body type in a stable order.
+// QueryIndexDDL is the authored index set for the QUESTIONS the readers ask of growing body
+// tables — the storage half of a view conversion. The table DDL is generated from the
+// descriptors and carries only its primary key (event_id), so a reader narrowing by any OTHER
+// column scans the whole table, which is what planguard refuses on a growing table. An index
+// lands here when a guarded read path narrows by the column; it is authored, like ViewsDDL,
+// because which questions get asked is a decision, not a derivation.
+const QueryIndexDDL = `
+CREATE INDEX "round_verdict_verdict" ON "round_verdict" ("verdict");
+`
+
 func Schema() (string, error) {
 	var b strings.Builder
 	b.WriteString(EnvelopeDDL)
@@ -141,6 +151,7 @@ func Schema() (string, error) {
 		b.WriteString("\n")
 		b.WriteString(ddl)
 	}
+	b.WriteString(QueryIndexDDL)
 	return b.String(), nil
 }
 

@@ -83,15 +83,11 @@ func RoundIn(run Run) func(string) int {
 // The bool is not decoration: a run with no rounds on it yet and a run whose record cannot be read
 // both have no answer, and a caller that took 0 for either would be back where this started.
 func lastRoundOn(run Run) (int, bool) {
-	m, err := MergedEvents(run)
-	if err != nil {
+	var max, n int
+	if _, err := queryRow(run, []any{&max, &n},
+		`SELECT COALESCE(max("round"), 0), count(*) FROM "events"`); err != nil {
 		return 0, false
 	}
-	max, found := 0, false
-	for _, e := range m.Events {
-		if r := int(e.GetRound()); r > max {
-			max, found = r, true
-		}
-	}
+	found := n > 0
 	return max, found
 }

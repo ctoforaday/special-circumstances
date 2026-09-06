@@ -265,3 +265,17 @@ func TestOCRReadReusesAnExistingReadingOfTheSameImages(t *testing.T) {
 		t.Errorf("the reuse was not reported:\n%s", out)
 	}
 }
+
+// `ocr read`'s summary carries the same partiality fact as fetch's (#679) — including on
+// the reuse path, where a stored record's holes must still reach a summary-only reader —
+// and omits it when clean, which is what keeps the assertions above true.
+func TestOCRReadSummaryCountsBlockedPages(t *testing.T) {
+	blocked := ocrReadSummary{Sha: "s", Model: "m", Pages: 3, DPI: 72, TextPath: "p", TextSha: "t", OCRDerived: true, BlockedPages: 2}
+	if out := blocked.render(); !strings.Contains(out, "ocr_blocked_pages: 2") {
+		t.Errorf("render does not count the holes:\n%s", out)
+	}
+	clean := ocrReadSummary{Sha: "s", Model: "m", Pages: 3, DPI: 72, TextPath: "p", TextSha: "t", OCRDerived: true}
+	if out := clean.render(); strings.Contains(out, "ocr_blocked_pages") {
+		t.Errorf("a clean render printed a blocked count:\n%s", out)
+	}
+}

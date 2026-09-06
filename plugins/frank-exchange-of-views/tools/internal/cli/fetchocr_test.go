@@ -190,3 +190,48 @@ func TestFetchJSONCarriesTheReadingsFacts(t *testing.T) {
 		t.Errorf("extractor = %q is credited with a transcription a model produced", got.Extractor)
 	}
 }
+
+// A READING WITH HOLES ANNOUNCES THEM IN THE SUMMARY (#679): a summary-only reader learns
+// the count before opening the text, in both renders — and a hole-free reading renders
+// exactly as it always has, which is what keeps every existing assertion above true.
+func TestFetchSummaryCountsBlockedPages(t *testing.T) {
+	sr := &stubScanReader{rec: fetchcache.ReadingRecord{
+		ReadAt: time.Now(), TextSha: "textsha", DPI: 200,
+		Pages: []fetchcache.PageReading{
+			{Page: 1, TextSha: "p1", Length: 42},
+			{Page: 2, TextSha: "p2", Length: 12, Blocked: true, BlockedReason: "Output blocked by content filtering policy (req_x)"},
+			{Page: 3, TextSha: "p3", Length: 40},
+		},
+	}}
+	out, err := fetchScanned(t, sr, scannedPDF(3))
+	if err != nil {
+		t.Fatalf("fetch: %v", err)
+	}
+	if !strings.Contains(out, "ocr_blocked_pages: 1") {
+		t.Errorf("summary does not count the hole:\n%s", out)
+	}
+
+	jsonOut, err := fetchScanned(t, &stubScanReader{rec: sr.rec}, scannedPDF(3), "--json")
+	if err != nil {
+		t.Fatalf("fetch --json: %v", err)
+	}
+	if !strings.Contains(jsonOut, `"ocr_blocked_pages":1`) {
+		t.Errorf("json summary does not carry the count:\n%s", jsonOut)
+	}
+}
+
+// And the absent case stays absent: zero holes must not print a zero, which would make
+// every clean reading's render carry a field that only means something when it doesn't.
+func TestFetchSummaryOmitsBlockedPagesWhenClean(t *testing.T) {
+	sr := &stubScanReader{rec: fetchcache.ReadingRecord{
+		ReadAt: time.Now(), TextSha: "textsha", DPI: 200,
+		Pages: []fetchcache.PageReading{{Page: 1, TextSha: "p1", Length: 42}},
+	}}
+	out, err := fetchScanned(t, sr, scannedPDF(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "ocr_blocked_pages") {
+		t.Errorf("a clean reading printed a blocked count:\n%s", out)
+	}
+}

@@ -163,9 +163,12 @@ func ProposalAppliedVerbatim(run Run, gapID, old, new string) (bool, error) {
 // It counts the FIELD, never the message. Rewriting the refusal's wording — which is prose
 // aimed at a seat and should stay editable — must not move a number an operator reads as
 // evidence about red's behaviour.
-func EstoppelRejections(b *Board) int {
+func EstoppelRejections(b *Board) int { return EstoppelRejectionsOf(b.Events) }
+
+// EstoppelRejectionsOf is EstoppelRejections over the events themselves.
+func EstoppelRejectionsOf(evs []*Event) int {
 	n := 0
-	for _, e := range b.Events {
+	for _, e := range evs {
 		// THE FIELD IS NOW THE SCHEMA'S, and the count reads the enum rather than a word. An
 		// absent kind is FRICTION_KIND_UNSPECIFIED — a seat's own report, which is exactly what
 		// the missing key meant before, so a friction with no kind still does not count.
