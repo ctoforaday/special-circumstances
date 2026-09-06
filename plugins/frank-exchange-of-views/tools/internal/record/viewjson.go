@@ -1141,7 +1141,13 @@ type DebateJSON struct {
 // present (possibly empty) arrays — a consumer counts `red.length` for the round's red
 // sitting, and a null would make that count throw. The richer sections omit when empty.
 type DebateRoundJSON struct {
-	Round        int                 `json:"round"`
+	Round int `json:"round"`
+	// Verdict is the round's RECORDED verdict, and it is here because `red` is PROSE. A position
+	// may say "my verdict is PASS" while round_verdict holds fail — measured in
+	// research/2026-09-02_quadratic-formula, where a reader of the debate projection alone
+	// concluded the opposite of the record. Empty means no verdict was recorded for this round,
+	// which is a different fact from a verdict of fail and must not read as one.
+	Verdict      string              `json:"verdict"`
 	Red          []string            `json:"red"`
 	Blue         []string            `json:"blue"`
 	Lead         []DebateOpinionJSON `json:"lead"`
@@ -1197,6 +1203,14 @@ func DebateJSONOf(rounds []int, evs []*Event) DebateJSON {
 			return s
 		}
 		rj := DebateRoundJSON{Round: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{}}
+		for _, e := range evs {
+			if int(e.GetRound()) != r {
+				continue
+			}
+			if v, ok := recordpb.BodyAs[*recordpb.RoundVerdict](e); ok {
+				rj.Verdict = recordpb.Word(v.GetVerdict())
+			}
+		}
 		// `reason` WAS THE PAYLOAD KEY on position and closing; `text` is the field on both
 		// messages (Position.text, Closing.text). Neither message has a `reason`.
 		for _, p := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "merge") {
