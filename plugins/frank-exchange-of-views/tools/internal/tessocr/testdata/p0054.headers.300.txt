@@ -1,0 +1,22 @@
+Acquisition
+
+Supply
+
+Management
+
+Concept
+
+Requirements
+
+Design
+
+Implementation
+
+Test
+
+Installation and
+Checkout
+
+Operation
+
+Maintenance

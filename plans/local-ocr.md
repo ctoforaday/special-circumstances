@@ -107,10 +107,13 @@ the full 80-page matrix; those constants are what Wave 1 ships and §V.5 pins.
 Wave 1 (engine in-tree): `internal/tessocr` package [NEW] (cgo shim, embed, detector,
 TSV, reconstruction), `third_party/pins/` [NEW] (tarball URLs + sha256s + build script
 lifted from the spike), CI [MODIFY hooks.yml] with two decisions made here rather than
-discovered: **(a) the cross-GOOS vet matrix survives cgo** — cross-vet runs with cgo
-implicitly disabled (no per-target CC), and `internal/tessocr` carries a `!cgo` stub
-file so the package type-checks under CGO_ENABLED=0; the matrix's header comment gains
-that stated exception; **(b) PR jobs build the C stack behind an actions/cache keyed on
+discovered: **(a) the engine sits behind a dedicated `tessocr` build tag, not the `cgo`
+tag** — Wave 1 implementation found the `!cgo` stub insufficient: cgo defaults ON where
+a host compiler exists, so a plain `go build ./...` on any box without the C stack
+would fail to compile; with the tag, the tag-less default is the stub everywhere (which
+also makes the cross-GOOS vet matrix trivially safe), and CI's Linux feov legs and the
+release job always pass `-tags tessocr` with the stack built — the engine still
+compiles and tests on every PR; **(b) PR jobs build the C stack behind an actions/cache keyed on
 the sha256 of PINS.txt** (~4m20s cold, seconds warm; the engine compiles and tests on
 every PR, never build-tagged out of them), while the RELEASE job builds from pinned
 source cache-free — the release-reads-no-cache poisoning invariant stands untouched and

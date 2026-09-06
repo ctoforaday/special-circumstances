@@ -1,0 +1,28 @@
+# Pinned downloads for the tessocr C stack (plans/local-ocr.md; spikes 2026-09-06).
+# Format, one record per line, machine-read by build-cstack.sh:
+#   <sha256>  <file>  <url>
+# Notes live on comment lines, never inline — the fields are a record, not prose.
+#
+# The tesseract and leptonica versions here are mirrored as pin constants in
+# internal/tessocr/tessocr.go (the Identity() the reading record carries);
+# build-cstack.sh and TestIdentityMatchesPins each refuse a drift between the two.
+
+# Toolchain (linux-x86_64 HOST binaries; the cross targets all build from this one host).
+70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00  zig-0.16.0.tar.xz  https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz
+d6c83076c575bc00b823522ac974bda66d0af05d6ddc30e739c12385cf32c6cc  cmake-4.4.3.tar.gz  https://github.com/Kitware/CMake/releases/download/v4.4.3/cmake-4.4.3-linux-x86_64.tar.gz
+
+# The C stack, built in this order.
+bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16  zlib-1.3.2.tar.gz  https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz
+a9d4df463d36a6e5f9c29bd6f4967312d17e996c1854f3511f833924eb1993cf  libpng-1.6.58.tar.gz  https://github.com/pnggroup/libpng/archive/refs/tags/v1.6.58.tar.gz
+c73363397f96eb1295602bf44d708a994ad42046c791bf03ea0505d829bdb6a7  leptonica-1.87.0.tar.gz  https://github.com/DanBloomberg/leptonica/releases/download/1.87.0/leptonica-1.87.0.tar.gz
+9218e62793116d42a9f6d14cd9348518b27f382096eea3d0f2d1a24616bb5884  tesseract-5.5.3.tar.gz  https://github.com/tesseract-ocr/tesseract/archive/refs/tags/5.5.3.tar.gz
+
+# Pinned but NOT built: input is PNG-only, so leptonica links with just zlib+libpng.
+# Kept pinned so enabling either format later is a build flag, not a new supply-chain act.
+6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e  libjpeg-turbo-3.2.0.tar.gz  https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz
+62b15f44c10106065211efa22a2dc77937bd97ee1f6e3afd2c9659010de112eb  libtiff-4.7.2.tar.gz  https://gitlab.com/libtiff/libtiff/-/archive/v4.7.2/libtiff-v4.7.2.tar.gz
+
+# Language data (tessdata_fast @ commit 87416418657359cb625c412a48b6e1d6d41c29bd),
+# go:embed'ed at internal/tessocr/eng.traineddata; TestEmbeddedTraineddataPin holds the
+# embedded bytes to this hash.
+7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2  eng.traineddata  https://github.com/tesseract-ocr/tessdata_fast/raw/8741641865/eng.traineddata

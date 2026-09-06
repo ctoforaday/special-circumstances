@@ -510,6 +510,49 @@ jobs:
           # request can write is a cache a release build would read.
           package-manager-cache: false
           node-version: "24"
+      # THE OCR ENGINE'S C STACK (plans/local-ocr.md Wave 1). The Linux legs build and
+      # test the REAL engine (`-tags tessocr` + the env build-cstack.sh emits); the
+      # Windows legs prove the tag-less STUB compiles — the engine still ships for
+      # Windows, its C stack built per target by the release job, and what a PR proves
+      # there is that the package type-checks engineless. The cache key is PINS.txt's
+      # content hash: same pins, same objects, and a pin bump misses by construction.
+      # THE RELEASE JOB READS NO CACHE (its own setup-go states the poisoning rule), so
+      # this cache existing cannot reach a published byte.
+      # NOT ON PUSH, for the same reason setup-go's cache above is not: a main push and a
+      # tag build are the same event, and a tag build must touch no cache. Everything
+      # that is not a push — pull requests, the nightly, a dispatch — may restore and
+      # save. zizmor's static rule cannot evaluate the condition, so the finding is
+      # answered rather than suppressed-and-forgotten: on the one event class that
+      # publishes, this step does not run, and the release job additionally builds its
+      # C stacks from pinned sources with no cache in reach.
+      - name: C stack for the OCR engine (cache)
+        if: runner.os == 'Linux' && github.event_name != 'push'
+        id: cstack
+        uses: actions/cache@v4  # zizmor: ignore[cache-poisoning]
+        with:
+          path: ${{ runner.temp }}/cstack
+          key: cstack-${{ runner.os }}-${{ hashFiles('plugins/frank-exchange-of-views/tools/third_party/pins/PINS.txt') }}
+      - name: C stack for the OCR engine (build on miss)
+        if: runner.os == 'Linux' && steps.cstack.outputs.cache-hit != 'true'
+        shell: bash
+        env:
+          CSTACK: ${{ runner.temp }}/cstack
+        run: ./third_party/pins/build-cstack.sh linux-amd64 "$CSTACK"
+      # THE ENGINE'S ENV IS SCOPED TO THE ENGINE'S STEP, NEVER EXPORTED JOB-WIDE. A
+      # GITHUB_ENV export was tried and taught the lesson: with musl CC and CGO_ENABLED=1
+      # global, every package's test binary (net, os/user) linked cgo against zig objects
+      # under Go's INTERNAL linker — missing libc symbols and zig's sanitizer handlers,
+      # module-wide. The engine step below runs exactly the invocation Wave 1 validated
+      # locally: eval'd env, external linkmode, fully static — zig links compiler-rt, and
+      # nothing outside the step sees the toolchain.
+      - name: the OCR engine's own suite, real engine, statically linked
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          CSTACK: ${{ runner.temp }}/cstack
+        run: |
+          eval "$(./third_party/pins/build-cstack.sh env linux-amd64 "$CSTACK")"
+          go test -tags tessocr -count=1 -ldflags '-linkmode external -extldflags "-static"' ./internal/tessocr/
       # FUZZ_C stays at the in-code default. Raising it to 24 on Windows was tried and
       # MEASURED WRONG: the fuzz itself improved (403s -> 368s) but `go test ./...` runs
       # sibling package binaries in parallel, so the "idle" cores the oversubscription
@@ -537,6 +580,8 @@ jobs:
       #
       # Both ternary arms are workflow literals, so this ${{ }} expands no external input —
       # which is why it may sit in the run line where rule-sweep's base ref may not.
+      # The module suite runs the DEFAULT build everywhere — the engine's stub, the same
+      # bytes a stackless dev box compiles; the real engine has its own step above.
       - run: go test ${{ (github.event_name == 'pull_request' && runner.os == 'Windows') && '-short' || '' }} ./...
         env:
           FEOV_RELEASE_GATE: ${{ github.event_name == 'schedule' && '1' || '' }}
@@ -1508,12 +1553,33 @@ jobs:
           DIST: ${{ runner.temp }}/dist
         run: |
           mkdir -p "$DIST"
+          # CAPABILITY-KEYED, NOT PLUGIN-NAME-KEYED: a plugin shipping third_party/pins/
+          # gets its C stack built per target from pinned sources (plans/local-ocr.md
+          # Wave 1 — cache-free here, per this job's rule), cgo on and the engine tag
+          # set; a plugin without stays the pure cross-compile it always was. Each cgo
+          # artifact is then PROVEN static in its own format by staticproof — ldd cannot
+          # read PE or Mach-O, and darwin's allowlist is {libSystem.B, CoreFoundation,
+          # libresolv.9} per the plan's §V.3.
           for cmd in cmd/*/; do
             name="$(basename "$cmd")"
             for pair in windows/amd64 windows/arm64 darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
               os="${pair%/*}"; arch="${pair#*/}"; ext=""
               [ "$os" = "windows" ] && ext=".exe"
-              GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w"                 -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
+              # The -o template appears LITERALLY in both branches: sc-doctor's release
+              # contract test parses this file for it, so the name the job writes and the
+              # name the doctor asks for cannot drift (factoring it into a variable was
+              # caught by exactly that test).
+              if [ -x third_party/pins/build-cstack.sh ]; then
+                t="${os}-${arch}"
+                work="${RUNNER_TEMP}/cstack"
+                [ -d "${work}/${t}/prefix" ] || third_party/pins/build-cstack.sh "$t" "$work"
+                env $(third_party/pins/build-cstack.sh env "$t" "$work") \
+                  CGO_ENABLED=1 GOOS="$os" GOARCH="$arch" \
+                  go build -tags tessocr -trimpath -ldflags "-s -w" -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
+                third_party/pins/build-cstack.sh check "${DIST}/${name}_${os}_${arch}${ext}"
+              else
+                GOOS="$os" GOARCH="$arch" go build -trimpath -ldflags "-s -w" -o "${DIST}/${name}_${os}_${arch}${ext}" "./cmd/${name}"
+              fi
             done
           done
           # sha256sum runs IN the directory so the sums name bare files, which is what the
