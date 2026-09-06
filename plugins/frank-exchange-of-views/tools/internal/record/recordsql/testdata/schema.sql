@@ -616,6 +616,8 @@ CREATE TABLE "sitting_close" (
   "agent_type" TEXT
 ) STRICT;
 
+CREATE INDEX "round_verdict_verdict" ON "round_verdict" ("verdict");
+
 CREATE VIEW "gap" AS
 SELECT
   m."gap_id"                                   AS "gap_id",

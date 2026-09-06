@@ -563,7 +563,7 @@ func AssemblyScreen(run record.Run) Audit {
 	if err != nil {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
-	ev := record.EvidenceJSONOf(board)
+	ev := record.EvidenceJSONOf(board.Events)
 	if ev.Counts.Sources == 0 {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no citations on the record — nothing to screen"}
 	}
