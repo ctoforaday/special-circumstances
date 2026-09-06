@@ -755,8 +755,14 @@ type WorkGapJSON struct {
 	// before it decides how to spend the sitting.
 	CheckKind string `json:"check_kind"`
 	// The debt, on the read a seat plans its sitting from. See BoardGapJSON.AwaitingProof.
-	AwaitingProof bool     `json:"awaiting_proof"`
-	FoundBy       []string `json:"found_by"`
+	AwaitingProof bool `json:"awaiting_proof"`
+	// THE OTHER DEBT, AND IT IS THE STRUCTURED TWIN OF A PROSE DUTY. availableOf says in words
+	// that the bench carried this gap and what would reopen it; a seat acting on the JSON needs
+	// the same fact as a field rather than by matching on the sentence. `omitempty` on the
+	// condition and not on the flag: false is a real answer, "" is the absence of one.
+	AwaitingDocket  bool     `json:"awaiting_docket"`
+	DocketReopensOn string   `json:"docket_reopens_on,omitempty"`
+	FoundBy         []string `json:"found_by"`
 }
 
 // ClosedIndexJSON is a closed gap reduced to what a near-match screen needs — id, location,
@@ -822,9 +828,17 @@ func synopsis(s string) string {
 type WorkGapState struct {
 	ID, Class, Location, Problem, CheckKind string
 	Open, AwaitingProof, ClosedByBench      bool
-	Fate                                    string // the last closer's word; closed gaps only
-	Severity, Likelihood, Impact, Cx        any
-	FoundBy, Supersedes                     []string
+	// AwaitingDocket: OPEN, the bench has carried it, and nothing is pending. Off the view, the
+	// same way AwaitingProof is — the alternative was a second Go fold of a question the SQL
+	// already answers, which is what #681's standing rule forbids.
+	AwaitingDocket bool
+	// DocketReopensOn is what the latest carry said would bring it back, or "" when the bench
+	// has never carried it. It is the SUBSTANCE of the deferral: without it a seat is told the
+	// gap was carried and not what to do about it.
+	DocketReopensOn                  string
+	Fate                             string // the last closer's word; closed gaps only
+	Severity, Likelihood, Impact, Cx any
+	FoundBy, Supersedes              []string
 }
 
 // workGapStatesOfRun reads the gap family for the work path: one view query for the scalars,
@@ -846,7 +860,7 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof",
+	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof", "awaiting_docket", "docket_reopens_on",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "problem", "check_kind", "minted_event"
 	  FROM "gap" ORDER BY "minted_event"`)
@@ -857,12 +871,14 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 	var out []WorkGapState
 	for rows.Next() {
 		var g WorkGapState
-		var sev, lik, imp, cx, class, loc, problem, kind sql.NullString
+		var sev, lik, imp, cx, class, loc, problem, kind, reopensOn sql.NullString
 		var mintedEvent int64
-		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &sev, &lik, &imp, &cx,
+		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &g.AwaitingDocket, &reopensOn,
+			&sev, &lik, &imp, &cx,
 			&class, &loc, &problem, &kind, &mintedEvent); err != nil {
 			return nil, err
 		}
+		g.DocketReopensOn = reopensOn.String
 		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
 		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
 		g.FoundBy, g.Supersedes = foundBy[mintedEvent], supersedes[mintedEvent]
@@ -885,6 +901,7 @@ func workJSONOfGaps(gaps []WorkGapState) WorkJSON {
 				Severity: g.Severity, Likelihood: g.Likelihood, Impact: g.Impact, ComplexityCost: g.Cx,
 				Class: g.Class, Location: g.Location, ProblemSynopsis: synopsis(g.Problem),
 				CheckKind: g.CheckKind, AwaitingProof: g.AwaitingProof,
+				AwaitingDocket: g.AwaitingDocket, DocketReopensOn: g.DocketReopensOn,
 				FoundBy: strs(g.FoundBy),
 			})
 			continue

@@ -108,9 +108,30 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 			}
 		}
 		for _, g := range gaps {
-			if g.Open && !pending[g.ID] {
-				add("gap " + g.ID + " is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself")
+			if !g.Open || pending[g.ID] {
+				continue
 			}
+			// ONE ROW PER GAP, BETTER WORDS WHEN THE BOARD KNOWS MORE (#759).
+			//
+			// A carried gap and a gap nobody has ever docketed both reach this line, and until
+			// the view could tell them apart they got the same sentence — true of both and
+			// actionable on neither. A SECOND row for the carried case would be the wrong fix:
+			// two items naming one gap is a duplicate, and the open-gap row in sitting.go
+			// already blocks PASS over it. So the row is REPLACED, not added.
+			//
+			// The reopens-on condition is the substance. "The bench carried this" tells a seat
+			// the history; "the bench carried it until blue reports what the stated direction
+			// found" tells it what has to happen, and that sentence is the bench's own words off
+			// the record rather than this file's paraphrase of them.
+			if g.AwaitingDocket {
+				what := "gap " + g.ID + " is open because the BENCH CARRIED it — the motion was answered, so nothing is pending and the gap returns only if it is docketed again"
+				if g.DocketReopensOn != "" {
+					what += ". The ruling says what reopens it: " + g.DocketReopensOn
+				}
+				add(what)
+				continue
+			}
+			add("gap " + g.ID + " is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself")
 		}
 		if anyClosedGap(gaps) && !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_SPOT_CHECK) {
 			add("the closure archive is not empty and this sitting has sampled none of it")
