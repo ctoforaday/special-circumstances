@@ -262,7 +262,11 @@ func (m Motion) Ruled() bool { return m.Ruling != "" }
 // `petition`/`petition-rule` and `avenue-rule` instead, and those are handled by the DUAL-READ in
 // compat.go — deliberately separate, so the shape of a motion is not bent to accommodate the
 // three shapes it replaced.
-func Motions(b *Board) []*Motion {
+func Motions(b *Board) []*Motion { return MotionsOf(b.Events) }
+
+// MotionsOf is Motions over the events themselves — the stream is all the join ever read, and
+// the run-shaped readers (plans/board-as-views.md wave 1c) fetch events without a fold.
+func MotionsOf(evs []*Event) []*Motion {
 	byID := map[string]*Motion{}
 	var order []string
 
@@ -290,7 +294,7 @@ func Motions(b *Board) []*Motion {
 	// rules it, so the two live in different shards and the ruling can replay first. Gathered
 	// inside pass 1 this map was read before it was filled, and a direction motion came out with
 	// no filer, no round and no ask — rendering as an answer to a question nobody asked.
-	for _, e := range b.Events {
+	for _, e := range evs {
 		av, ok := recordpb.BodyAs[*recordpb.Avenue](e)
 		// A MOVE IS NOT A PROPOSAL, and the discriminator is PRESENCE. The schema states
 		// `supersedes_status` marks the event as a move, so a proposal does not carry the field at
@@ -304,7 +308,7 @@ func Motions(b *Board) []*Motion {
 		}
 	}
 
-	for _, e := range b.Events {
+	for _, e := range evs {
 		body, ok := recordpb.Body(e)
 		if !ok {
 			// No body at all. Not an empty motion — an event this pass has nothing to read, and
@@ -400,7 +404,7 @@ func Motions(b *Board) []*Motion {
 	// identifies what it is about — no gap id, no avenue id — so this lookup IS the attribution.
 	// Reading a ruling's subject matter from the ruling event alone would key every one of them on
 	// the empty string and report a board with no rulings on it.
-	for _, e := range b.Events {
+	for _, e := range evs {
 		id, ok := motionIDOf(e)
 		if !ok || id == "" {
 			continue

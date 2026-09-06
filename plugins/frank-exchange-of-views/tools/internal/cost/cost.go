@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
@@ -316,9 +317,68 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 
 	if run.Dir() != "" {
 		reportTierCheck(run, rows, p)
+		reportSeatMeasurements(run, p)
 		reportTelemetry(run, p)
 	}
 	return nil
+}
+
+// reportSeatMeasurements renders the per-seat section FROM THE RECORD, not from another pass over
+// the transcripts.
+//
+// # Why this section is not a fourth transcript scan
+//
+// Everything above it is computed by re-reading every agent-*.jsonl. This is read from the
+// seat_metrics view over the seat_turn rows `capture` ingested minutes earlier in the same
+// process (#684 F16). It is the first consumer of that table, and it carries what no scan here
+// ever produced: how many turns a seat took, how many of them were THINKING, and how long the
+// seat actually spanned.
+//
+// # Why here and not a seat verb
+//
+// The audience is the operator and the post-hoc reader, and this section rides into the assembled
+// run document with the rest of cost.md. It is deliberately NOT reachable from a seat's surface:
+// the scorecard's own help already says a number reading badly means recognise the failure and
+// adapt, never perform the metric at the expense of the duty it measures — and a seat handed its
+// own throughput is being invited to do exactly that, for a number that is none of its business.
+//
+// NOT MEASURED IS PRINTED AS SUCH. A seat whose turns carried no timestamps has no span and a
+// seat that never registered has no seat id; both render as an em dash rather than 0 or blank,
+// because a twenty-minute seat shown as instantaneous is worse than one shown as unknown.
+func reportSeatMeasurements(run record.Run, p func(string)) {
+	metrics, err := record.SeatMetrics(run)
+	if err != nil || len(metrics) == 0 {
+		// SILENCE ONLY WHEN THERE IS NOTHING TO SAY. A run captured before seat_turn existed has
+		// no rows, and an empty table here would read as a run whose seats took no turns.
+		return
+	}
+	p("\n## Per seat (measured)\n")
+	p("Read from the record's `seat_metrics` view — the turns `capture` ingested, not a re-scan of the transcripts.\n")
+	p("| seat | agent | turns | thinking | tool | wall | input | output | cache-read |")
+	p("|---|---|---|---|---|---|---|---|---|")
+	for _, m := range metrics {
+		p(fmt.Sprintf("| %s | `%s` | %d | %d | %d | %s | %d | %d | %d |",
+			orDash(m.SeatID), m.AgentID, m.Turns, m.ThinkingTurns, m.ToolTurns,
+			durationOrDash(m.WallMillis), m.InputTokens, m.OutputTokens, m.CacheRead))
+	}
+}
+
+// orDash renders an absent seat id as a dash. An agent with no register event is a REAL row —
+// a seat that crashed before registering still cost what it cost — and blanking the cell would
+// make it look like a formatting slip rather than a fact about the run.
+func orDash(s *string) string {
+	if s == nil || *s == "" {
+		return "—"
+	}
+	return *s
+}
+
+// durationOrDash renders a span, or a dash when it was never measured.
+func durationOrDash(ms *int64) string {
+	if ms == nil {
+		return "—"
+	}
+	return (time.Duration(*ms) * time.Millisecond).Round(time.Second).String()
 }
 
 func reportTierCheck(run record.Run, rows []Row, p func(string)) {

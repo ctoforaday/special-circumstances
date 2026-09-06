@@ -619,44 +619,95 @@ func TestJsSliceCountsUTF16Units(t *testing.T) {
 	}
 }
 
-func TestAppendCostToReport(t *testing.T) {
+func TestFoldCarriesEverySectionToItsHome(t *testing.T) {
 	dir := t.TempDir()
-	report := filepath.Join(dir, "report.md")
+	report := filepath.Join(dir, "run.md")
 	costMd := filepath.Join(dir, "cost.md")
-	os.WriteFile(report, []byte("# Report\n\n## Analysis\n\nbody.\n"), 0o644)
-	os.WriteFile(costMd, []byte("# Cost audit\n\n## Per seat-round\n\n| round | seat | $ |\n|---|---|---|\n| 1 | red-lens | $0.42 |\n| | **TOTAL** | **$0.42** |\n\n## Notes\n\n- cache stuff\n"), 0o644)
+	auditMd := filepath.Join(dir, "run-record-audit.md")
+	os.WriteFile(report, []byte("# The run\n\n## Friction\n\nbody.\n"), 0o644)
+	os.WriteFile(costMd, []byte("# Cost audit\n\nMeasured from 3 transcripts in /tmp/x.\n\n"+
+		"## Per seat-round\n\n| round | seat | $ |\n|---|---|---|\n| 1 | red-lens | $0.42 |\n\n"+
+		"## Per seat (measured)\n\n| seat | turns |\n|---|---|\n| red-lens | 121 |\n\n"+
+		"## Notes\n\n- cache stuff\n\n"+
+		"## Tier check\n\n- all seats ran at their configured tier\n\n"+
+		"## Board telemetry (per round)\n\n| round | open |\n|---|---|\n| 1 | 8 |\n"), 0o644)
+	os.WriteFile(auditMd, []byte("# Run record audit\n\n- friction-parity: PASS\n"), 0o644)
 
-	msg := appendCostToReport(report, costMd)
+	msg := foldCaptureArtifacts(report, costMd, auditMd)
 	if msg == "" {
-		t.Fatal("expected a fold-in message")
+		t.Fatal("expected a fold message")
 	}
-	got, _ := os.ReadFile(report)
-	// THE HEADING THE SLICE BRINGS IS DEMOTED, so the fold produces ONE section with a table
-	// under it. Pasted as-is, "## Cost" is a heading with nothing beneath it and the table
-	// belongs to a sibling — nine bytes of section, in every archived report.
-	if !strings.Contains(string(got), "## Cost\n\n### Per seat-round") {
-		t.Errorf("cost table not folded under ## Cost:\n%s", got)
+	got := string(mustRead(t, report))
+
+	// EVERY SECTION HAS A HOME. The previous fold carried one table of five sections and reported
+	// success; the other four were written, archived and never read by anyone reading the run.
+	for _, want := range []string{
+		"## Cost", "### Per seat-round", "### Per seat (measured)", "### Notes",
+		"## Tier check", "## Board telemetry", "## Integrity audits",
+		"red-lens | $0.42", "| red-lens | 121 |", "cache stuff",
+		"configured tier", "| 1 | 8 |", "friction-parity: PASS",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the folded run document is missing %q:\n%s", want, got)
+		}
 	}
-	if strings.Contains(string(got), "## Cost\n\n## ") {
-		t.Errorf("## Cost shipped as an empty heading with the table under a sibling:\n%s", got)
+
+	// NOT EVERYTHING IS "COST". A tier mismatch is a provisioning finding and telemetry is the
+	// round trend; filing either under a spending heading puts it where nobody would look.
+	if strings.Contains(got, "## Cost\n\n### Tier check") {
+		t.Error("the tier check was filed under Cost")
 	}
-	if !strings.Contains(string(got), "red-lens | $0.42") {
-		t.Errorf("table rows missing:\n%s", got)
+	// The heading a section brings is DEMOTED, not duplicated: "## Cost" immediately followed by
+	// another "## " is a heading with nothing beneath it.
+	if strings.Contains(got, "## Cost\n\n## ") {
+		t.Errorf("## Cost shipped as an empty heading:\n%s", got)
 	}
-	if strings.Contains(string(got), "## Notes") {
-		t.Errorf("only the table (not Notes/tier) should fold in:\n%s", got)
+	// The preamble describes cost.md, not the run, and must not be carried in.
+	if strings.Contains(got, "Measured from 3 transcripts") {
+		t.Errorf("cost.md's own provenance line was folded into the run document:\n%s", got)
 	}
-	// Idempotent: a second call must not double-append.
-	before := string(got)
-	appendCostToReport(report, costMd)
-	after, _ := os.ReadFile(report)
-	if string(after) != before {
-		t.Error("second append changed report.md — not idempotent")
+
+	// Idempotent: capture is re-runnable and a second pass must not append the same sections.
+	before := got
+	foldCaptureArtifacts(report, costMd, auditMd)
+	if after := string(mustRead(t, report)); after != before {
+		t.Error("a second fold changed the run document — not idempotent")
 	}
-	// No report.md → no-op, no panic.
-	if appendCostToReport(filepath.Join(dir, "nope.md"), costMd) != "" {
-		t.Error("absent report.md should be a silent no-op")
+
+	// No run document → no-op, no panic.
+	if foldCaptureArtifacts(filepath.Join(dir, "nope.md"), costMd, auditMd) != "" {
+		t.Error("an absent run document should be a silent no-op")
 	}
+}
+
+// AN UNROUTED SECTION IS REFUSED, NOT SKIPPED.
+//
+// This is the exact defect being repaired: a section with no route used to vanish while the fold
+// reported success. A new section in cost.md must fail loudly here rather than go missing from
+// every future run document.
+func TestFoldRefusesASectionItHasNoHomeFor(t *testing.T) {
+	dir := t.TempDir()
+	report := filepath.Join(dir, "run.md")
+	costMd := filepath.Join(dir, "cost.md")
+	os.WriteFile(report, []byte("# The run\n"), 0o644)
+	os.WriteFile(costMd, []byte("# Cost audit\n\n## Per seat-round\n\nx\n\n## Brand New Section\n\ny\n"), 0o644)
+
+	msg := foldCaptureArtifacts(report, costMd, filepath.Join(dir, "absent.md"))
+	if !strings.Contains(msg, "REFUSED") || !strings.Contains(msg, "Brand New Section") {
+		t.Errorf("an unrouted section must be refused BY NAME; got %q", msg)
+	}
+	if strings.Contains(string(mustRead(t, report)), "## Cost") {
+		t.Error("the fold wrote a partial document rather than refusing whole")
+	}
+}
+
+func mustRead(t *testing.T, path string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
 }
 
 // A STRAY IS A RECORDS TREE WITH NO RUN AROUND IT.

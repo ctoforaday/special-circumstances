@@ -412,12 +412,9 @@ func ExistingCorroborationLabel(run Run, seatID, url, claim string) (string, err
 // The match is deliberately loose — any finding by any lens quoting the same claim answers it.
 // A stricter join (same seat, same round) would refuse a contradiction one lens found and
 // another raised, which is the collaboration the lens roles exist for.
-func unansweredContradictions(b *Board) []string {
-	if b == nil {
-		return nil
-	}
+func unansweredContradictions(evs []*Event) []string {
 	answered := map[string]bool{}
-	for _, e := range b.Events {
+	for _, e := range evs {
 		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
 			if loc := strings.TrimSpace(f.GetLocation()); loc != "" {
 				answered[loc] = true
@@ -426,7 +423,7 @@ func unansweredContradictions(b *Board) []string {
 	}
 	seen := map[string]bool{}
 	var out []string
-	for _, e := range b.Events {
+	for _, e := range evs {
 		v, ok := recordpb.BodyAs[*recordpb.Verify](e)
 		if !ok || !contradicts(v.GetOutcome()) {
 			continue
@@ -461,13 +458,10 @@ func contradicts(o recordpb.SourceOutcome) bool {
 // documents are gone: `blue/report.md` holds only its current state, and the before-image an
 // edit replaced exists nowhere else. The one channel that text moves through is the only place
 // this fact can be captured at the moment it becomes true.
-func reopenedAnchors(b *Board) []string {
-	if b == nil {
-		return nil
-	}
+func reopenedAnchors(evs []*Event) []string {
 	seen := map[string]bool{}
 	var out []string
-	for _, e := range b.Events {
+	for _, e := range evs {
 		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
 		if !ok {
 			continue

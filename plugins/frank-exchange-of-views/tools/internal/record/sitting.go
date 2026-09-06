@@ -81,12 +81,11 @@ type SittingJSON struct {
 	Open     []Item `json:"open"`
 }
 
-// SittingOf computes what the given seat still owes on this board.
-func SittingOf(b *Board, role, seatID string) SittingJSON {
+// SittingOf computes what the given seat still owes on this record — the events carry every
+// act, and the gap rows carry the view's answers (openness, the proof debt) so no fold decides
+// them a second time (plans/board-as-views.md wave 1c).
+func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJSON {
 	s := SittingJSON{Seat: seatID, Role: role, Open: []Item{}}
-	if b == nil {
-		return s
-	}
 	add := func(what string) { s.Open = append(s.Open, Item{What: what, Blocks: true}) }
 
 	// EVERY SEAT CLOSES THE LOG CHANNEL. Silence is not the empty case: an absent log reads the
@@ -97,7 +96,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 	// was its own event type. It is now a `nominal` entry — an entry, not an absence — so any log
 	// event discharges the duty and the type says which case it was. The property is unchanged:
 	// an attested-clean sitting is still an EVENT, and still distinguishable from silence.
-	if !seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_LOG) {
+	if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_LOG) {
 		add("the log channel is open — you have neither reported a capability gap nor said that nothing blocked you")
 	}
 
@@ -105,7 +104,11 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 	case "blue":
 		// A computation demand prose cannot answer. The merge is REFUSED if it tries to close
 		// one unproved, so an unanswered demand does not settle — it carries into the next round.
-		for _, id := range gapsAwaitingProofOn(b) {
+		for _, g := range gaps {
+			if !g.AwaitingProof {
+				continue
+			}
+			id := g.ID
 			// TWO HONEST ANSWERS, and the second is not a lesser one: there is no verb for
 			// contesting a check_kind, so a seat that thinks the demand is wrong argues it in
 			// the edit that answers the gap. Naming only `prove` would make disagreement look
@@ -119,15 +122,15 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 		// genuinely failed to deliver a line's research, red MINTS A GAP, and an open gap already
 		// reaches blue through the ordinary route with a grade, a required fix and the PASS gate
 		// behind it. Restoring a second duty here would be the same fact told twice.
-		if !seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
+		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_REVISION) {
 			add("the round record is missing — a revision that is not on the record did not happen as far as the debate is concerned (W1.7)")
 		}
 	case "merge":
 		// Both of these already REFUSE `verdict --as PASS`. Naming them here is the same list,
 		// arriving when the seat can still act on it rather than at the terminal act.
-		for _, id := range b.GapOrder {
-			if g := b.Gaps[id]; g != nil && g.Open {
-				add("gap " + id + " is open — PASS is refused while it is")
+		for _, g := range gaps {
+			if g.Open {
+				add("gap " + g.ID + " is open — PASS is refused while it is")
 			}
 		}
 		// THE VIEW NAMES THE GAVEL BECAUSE THE REFUSAL DOES. requirePassClosesAllGaps refuses
@@ -139,7 +142,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 		// WHO IS BLOCKED DOES NOT CHANGE HERE. An unruled petition still blocks a merge PASS: the
 		// run is not finished until the bench answers it. What changes is that the seat is told
 		// whose answer it is waiting for.
-		for _, m := range Motions(b) {
+		for _, m := range MotionsOf(evs) {
 			if m != nil && !m.Ruled() {
 				phrase, err := rulerPhrase(m.Subject)
 				if err != nil {
@@ -159,10 +162,10 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 		// whether the BODY delivered them, and where it did not, a gap. The report is regenerated
 		// each round, so a review recorded before this round's edits answers a question about a
 		// document that no longer exists.
-		if InquiryReviewDue(b) {
+		if InquiryReviewDueOf(evs) {
 			add("the report's account of its own research has not been read this round — PASS is refused until one `inquiry-review` says what the read found (and any shortfall is minted as a gap)")
 		}
-		if !seatDid(b, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
+		if !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_VERDICT) {
 			add("your terminal act is missing — the run cannot say from its own record that it was ever verified")
 		}
 	// THE LENS HAS NO CASE, AND THAT IS THE RULE HOLDING RATHER THAN A GAP IN IT.
@@ -186,7 +189,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 		// hand-written subject name here is a fourth copy of it that goes stale the moment a
 		// bench-ruled subject is added: the new subject's unruled motions would simply not appear
 		// on the bench's list, which reads as a bench with nothing outstanding.
-		for _, m := range Motions(b) {
+		for _, m := range MotionsOf(evs) {
 			if m == nil || m.Ruled() {
 				continue
 			}
@@ -203,7 +206,7 @@ func SittingOf(b *Board, role, seatID string) SittingJSON {
 	}
 	// THE AFFORDANCES GO ON THE SAME LIST, and they go on it LAST so the blocking items read
 	// first. They carry Blocks:false, so they are visible without being owed.
-	s.Open = append(s.Open, availableOf(b, role, seatID)...)
+	s.Open = append(s.Open, availableOf(evs, gaps, role, seatID)...)
 	s.Complete = !s.Blocked()
 	return s
 }
@@ -224,8 +227,8 @@ func (s SittingJSON) Blocked() bool {
 // The type is an EventType rather than a string: a caller that mistypes `"spot_check"` for
 // `"spot-check"` used to get a silent false — a duty that reads as undischarged forever, or as
 // discharged when it was not, depending on which side of the comparison drifted.
-func seatDid(b *Board, seatID string, typ recordpb.EventType) bool {
-	for _, e := range b.Events {
+func seatDid(evs []*Event, seatID string, typ recordpb.EventType) bool {
+	for _, e := range evs {
 		if e.GetSeatId() == seatID && e.GetType() == typ {
 			return true
 		}
@@ -233,17 +236,5 @@ func seatDid(b *Board, seatID string, typ recordpb.EventType) bool {
 	return false
 }
 
-// gapsAwaitingProofOn is GapsAwaitingProof against a board the caller already holds.
-func gapsAwaitingProofOn(b *Board) []string {
-	var out []string
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
-		if g == nil || !g.Open || g.Mint == nil {
-			continue
-		}
-		if g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION && !proofNames(b, id) {
-			out = append(out, id)
-		}
-	}
-	return out
-}
+// gapsAwaitingProofOn is gone: the gap rows carry awaiting_proof off the view, the same join
+// the close gate reads, so the sitting and the gate cannot disagree about what is owed.

@@ -111,10 +111,13 @@ type Inquiry struct {
 }
 
 // Inquiries replays the line of inquiry events into current state, in proposal order.
-func Inquiries(b *Board) []*Inquiry {
+func Inquiries(b *Board) []*Inquiry { return InquiriesOf(b.Events) }
+
+// InquiriesOf is Inquiries over the events themselves, for the run-shaped readers.
+func InquiriesOf(evs []*Event) []*Inquiry {
 	byID := map[string]*Inquiry{}
 	var order []string
-	for _, e := range b.Events {
+	for _, e := range evs {
 		body, ok := recordpb.Body(e)
 		if !ok {
 			// NO BODY IS NOT AN EMPTY ONE. An event the schema carries no body for names no line
@@ -274,9 +277,12 @@ func RequireInquiryRef(run Run, id string) error {
 // There was no shared accessor for it, which is part of why the predicate below drifted: a
 // round-aware check had nothing to be aware WITH, so two callers wrote a status-only test and
 // described it in prose as though it looked at the round.
-func CurrentRound(b *Board) int {
+func CurrentRound(b *Board) int { return CurrentRoundOf(b.Events) }
+
+// CurrentRoundOf is CurrentRound over the events themselves.
+func CurrentRoundOf(evs []*Event) int {
 	max := 0
-	for _, e := range b.Events {
+	for _, e := range evs {
 		// A BARE DISPATCH IS NOT A ROUND. `register` is every seat's first act and says only that
 		// it was seated — it decides nothing and records no work — so counting it advances the
 		// board's idea of "now" past every earlier seat and leaves their round-scoped duties
@@ -344,10 +350,13 @@ func CurrentRound(b *Board) int {
 //	abandoned,
 //	deferred    settled, never surfaced. `deferred` is a DECISION ("worth taking, and not by THIS
 //	            run"), not an omission.
-func StaleInquiries(b *Board) []*Inquiry {
-	now := CurrentRound(b)
+func StaleInquiries(b *Board) []*Inquiry { return StaleInquiriesOf(b.Events) }
+
+// StaleInquiriesOf is StaleInquiries over the events themselves.
+func StaleInquiriesOf(evs []*Event) []*Inquiry {
+	now := CurrentRoundOf(evs)
 	var out []*Inquiry
-	for _, a := range Inquiries(b) {
+	for _, a := range InquiriesOf(evs) {
 		switch a.Status {
 		case "proposed":
 			out = append(out, a)
@@ -417,12 +426,15 @@ func InquiryRuling(run Run, inquiryID string) string {
 // A board with NO lines of inquiry owes nothing. There is no account of research on the page to
 // read, and the per-line gate was likewise silent on an empty set — so this is behaviour held,
 // not a hole opened.
-func InquiryReviewDue(b *Board) bool {
-	if len(Inquiries(b)) == 0 {
+func InquiryReviewDue(b *Board) bool { return InquiryReviewDueOf(b.Events) }
+
+// InquiryReviewDueOf is InquiryReviewDue over the events themselves.
+func InquiryReviewDueOf(evs []*Event) bool {
+	if len(InquiriesOf(evs)) == 0 {
 		return false
 	}
-	now := CurrentRound(b)
-	for _, e := range b.Events {
+	now := CurrentRoundOf(evs)
+	for _, e := range evs {
 		// THE BODY IS THE TYPE, as everywhere else in this file: a match on the message cannot go
 		// stale against the enum. No field is read — the event's existence in this round IS the
 		// fact — but the type test still goes through the body so a renamed enum value fails to

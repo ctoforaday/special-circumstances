@@ -530,7 +530,7 @@ func (r *runner) someCitation() string {
 	if b == nil {
 		return ""
 	}
-	sources := record.EvidenceJSONOf(b).Sources
+	sources := record.EvidenceJSONOf(b.Events).Sources
 	if len(sources) == 0 {
 		return ""
 	}

@@ -1166,6 +1166,19 @@ message BlueEdit {
   // referent needs looking at again. A verification of a reopened anchor is stale rather than
   // wrong, which is a different fact and gets a different word.
   repeated string reopened = 7;
+
+  // ACCEPTED — blue took red's prescription through `blue edit --accept` rather than typing it.
+  //
+  // WHY IT IS A SEPARATE FACT FROM applied_verbatim. Both are true on an acceptance, and only
+  // applied_verbatim is true when blue transcribed red's text by hand and the bytes happened to
+  // match. Collapsing them would make the two indistinguishable on the record — and the one
+  // measurement that matters here is whether blue is ACCEPTING more and arguing less, which a
+  // count that also includes perfect transcription cannot answer.
+  //
+  // The distinction is also a difference in kind, not degree: on the accept path the tool
+  // supplied the bytes, so verbatim-ness is structural. On the ordinary path it is the outcome
+  // of a comparison that a stray space would have failed.
+  optional bool accepted = 8;
 }
 
 message Revision {

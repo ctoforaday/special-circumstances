@@ -52,6 +52,42 @@ func newEdit() *cobra.Command {
 		}
 		oldStr := seat.Str(cmd, flags.Quote)
 		newStr := seat.Str(cmd, flags.New)
+		gapID := seat.Str(cmd, flags.Answers)
+		accepting, err := cmd.Flags().GetBool(flags.Accept)
+		if err != nil {
+			return nil, err
+		}
+
+		// ACCEPTANCE: THE TOOL SUPPLIES THE TEXT, SO BLUE CANNOT MIS-TRANSCRIBE IT.
+		//
+		// The ordinary path asks blue to retype red's span and replacement and then decides, by
+		// comparing bytes, whether it got them right. A stray space, a smart quote or a re-wrapped
+		// line means blue did exactly what red asked while the record says it did not — and
+		// estoppel, which exists because blue was once penalised for doing as it was told, is what
+		// blue loses. Here the pair comes off the mint, so the agreement is structural.
+		//
+		// WHAT BLUE STILL SUPPLIES IS ITS REASON. Accepting is an act it should argue for, and
+		// --reason is the argument red re-audits against; nothing about agreeing removes that.
+		if accepting {
+			if gapID == "" {
+				return nil, fmt.Errorf("blue edit --accept needs --answers: the gap whose prescribed fix you are accepting")
+			}
+			if oldStr != "" || newStr != "" {
+				return nil, fmt.Errorf("blue edit --accept supplies --quote and --new for you, from the fix red recorded on %s — passing either would be a second source for one fact. Drop them, or drop --accept and write the edit yourself", gapID)
+			}
+			loc, fix, found, err := record.Proposal(run, gapID)
+			if err != nil {
+				return nil, err
+			}
+			if !found {
+				return nil, fmt.Errorf("blue edit --accept: no gap %s on the board", gapID)
+			}
+			if strings.TrimSpace(fix) == "" {
+				return nil, fmt.Errorf("blue edit --accept: gap %s prescribes no concrete text, so there is nothing to accept — red raised it without proposing a fix. Write the edit yourself with --quote and --new", gapID)
+			}
+			oldStr, newStr = loc, fix
+		}
+
 		if oldStr == "" {
 			return nil, fmt.Errorf("blue edit requires --quote: the EXACT current span to replace (matched across the invisible marker layer, like the Edit tool)")
 		}
@@ -89,6 +125,14 @@ func newEdit() *cobra.Command {
 		}
 		planned, err := validateEdit(peek, oldStr, newStr)
 		if err != nil {
+			// THE ORDINARY PATH'S ADVICE IS UNACTIONABLE HERE. Those refusals tell blue to adjust
+			// --quote or to copy an anchor into --new, and an accepting caller passes neither. The
+			// commonest is settleAbuttingAnchor's: blue placed a citation anchor against the span
+			// red located, so the recorded fix can no longer replace it cleanly.
+			if accepting {
+				return nil, fmt.Errorf("blue edit --accept: the fix recorded on %s no longer applies to the report as it now stands — %w. "+
+					"The prescription is stale rather than wrong: write the edit yourself with --quote and --new, carrying red's text and whatever has changed around it", gapID, err)
+			}
 			return nil, err
 		}
 
@@ -117,7 +161,15 @@ func newEdit() *cobra.Command {
 		//
 		// Blue is not obliged to reach this state: a counter-edit simply does not set the
 		// flag, and record.DeclineStats counts that as blue exercising its right to disagree.
-		if gapID := seat.Str(cmd, flags.Answers); gapID != "" {
+		if accepting {
+			// BY CONSTRUCTION, NOT BY COMPARISON. The bytes came from the mint a few lines above,
+			// so there is nothing to compare and nothing a transcription slip could cost. Both
+			// facts are recorded: `accepted` says blue took red's text through the accept path,
+			// `applied_verbatim` says the text is red's — the second is what estoppel reads, and
+			// it must be true here for the same reason it is true after a perfect transcription.
+			body.Accepted = proto.Bool(true)
+			body.AppliedVerbatim = proto.Bool(true)
+		} else if gapID != "" {
 			verbatim, err := record.ProposalAppliedVerbatim(run, gapID, oldStr, newStr)
 			if err != nil {
 				return nil, err
@@ -136,6 +188,7 @@ func newEdit() *cobra.Command {
 	c.Flags().String(flags.Quote, "", flags.DescQuote+". It is matched ACROSS the invisible anchor layer, and rejected if it contains a finding-marker or a citation anchor")
 	c.Flags().String(flags.New, "", "the text that span should become")
 	c.Flags().Var(flags.GapID().WithCheck(record.GapExists), flags.Answers, "the gap id this edit responds to (R1-4) — the provenance join key; omit only for an edit that answers no gap")
+	c.Flags().Bool(flags.Accept, false, flags.DescAccept)
 	return c
 }
 

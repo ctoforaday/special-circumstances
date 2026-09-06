@@ -115,11 +115,7 @@ func TestTheSittingViewNamesTheGavelAndStillBlocks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := BoardState(mustRun(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := SittingOf(b, "merge", "red-merge-r1")
+	s := sittingOfRunT(t, mustRun(t, runDir), "merge", "red-merge-r1")
 
 	var line string
 	for _, o := range s.Open {
