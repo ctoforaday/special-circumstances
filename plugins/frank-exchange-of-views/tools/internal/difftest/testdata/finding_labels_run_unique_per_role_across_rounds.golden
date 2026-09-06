@@ -1,20 +1,20 @@
-$ finding --run {RUN} --seat-id red-lens-r1-L1 --key F1 --severity medium --likelihood medium --impact medium --quote ## S2 --reason round one
+$ finding --run {RUN} --seat-id red-lens-r1-evidence --key F1 --severity medium --likelihood medium --impact medium --quote ## S2 --reason round one
 exit 0
 stdout:
-finding recorded: L1-F1 — the run-unique label a gap's found_by names (id FINDING001)
+finding recorded: evidence-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
-$ finding --run {RUN} --seat-id red-lens-r2-L1 --key F1 --severity medium --likelihood medium --impact medium --quote ## S2 --reason round two
+$ finding --run {RUN} --seat-id red-lens-r2-evidence --key F1 --severity medium --likelihood medium --impact medium --quote ## S2 --reason round two
 exit 0
 stdout:
-finding recorded: L1-F2 — the run-unique label a gap's found_by names (id FINDING001)
+finding recorded: evidence-F2 — the run-unique label a gap's found_by names (id FINDING001)
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"L1-F1","likelihood":"GRADE_MEDIUM","location":"## S2","severity":"GRADE_MEDIUM","text":"round one"},"key":"red-lens-r1-L1:finding:L1-F1","round":1,"seat_id":"red-lens-r1-L1","ts":2,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-L1:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-L1","ts":3,"type":"EVENT_TYPE_ANCHOR"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"L1-F2","likelihood":"GRADE_MEDIUM","location":"## S2","severity":"GRADE_MEDIUM","text":"round two"},"key":"red-lens-r2-L1:finding:L1-F2","round":2,"seat_id":"red-lens-r2-L1","ts":4,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r2-L1:anchor:FINDING001","round":2,"seat_id":"red-lens-r2-L1","ts":5,"type":"EVENT_TYPE_ANCHOR"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"evidence-F1","likelihood":"GRADE_MEDIUM","location":"## S2","severity":"GRADE_MEDIUM","text":"round one"},"key":"red-lens-r1-evidence:finding:evidence-F1","round":1,"seat_id":"red-lens-r1-evidence","ts":2,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-evidence:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-evidence","ts":3,"type":"EVENT_TYPE_ANCHOR"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"evidence-F2","likelihood":"GRADE_MEDIUM","location":"## S2","severity":"GRADE_MEDIUM","text":"round two"},"key":"red-lens-r2-evidence:finding:evidence-F2","round":2,"seat_id":"red-lens-r2-evidence","ts":4,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r2-evidence:anchor:FINDING001","round":2,"seat_id":"red-lens-r2-evidence","ts":5,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
 -- debate

@@ -93,8 +93,8 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	// DISPOSITION rather than an unknown observation. It did the latter for as long as
 	// this case has existed: the case was named for a refusal it never reached, and the
 	// golden recorded the wrong message without anything noticing.
-	capture(command(bin, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"))
-	capture(command(bin, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	capture(command(bin, "register", "--run", runDir, "--seat-id", "red-lens-r1-evidence"))
+	capture(command(bin, "finding", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--key", "F1", "--severity", "low", "--likelihood", "low", "--impact", "low",
 		"--quote", "somewhere", "--reason", "a valid finding"))
 
@@ -183,7 +183,7 @@ func hasFlag(argv []string, flag string) bool {
 func defaultSeat(role string) string {
 	switch role {
 	case "lens":
-		return "red-lens-r1-L1"
+		return "red-lens-r1-evidence"
 	case "blue":
 		return "blue-respond-r1"
 	case "bench":

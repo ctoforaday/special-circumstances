@@ -61,7 +61,7 @@ func TestFoundByResolves(t *testing.T) {
 			"G2": {ID: "G2", Mint: &recordpb.Mint{FoundBy: []string{"GHOST"}}},
 		},
 		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-r1-L1", 1, &recordpb.Finding{Label: proto.String("L1-F1")}),
+			recordtest.Event(t, "red-lens-r1-evidence", 1, &recordpb.Finding{Label: proto.String("L1-F1")}),
 		},
 	}
 	c := find(t, Run(b), "found-by-resolves")
@@ -140,7 +140,7 @@ func TestRegisterBeforeAppend(t *testing.T) {
 		Events: []*record.Event{
 			recordtest.Event(t, "blue-r1", 0, &recordpb.Register{}),
 			recordtest.Event(t, "blue-r1", 0, &recordpb.Position{}),
-			recordtest.Event(t, "red-lens-r1-L5", 0, &recordpb.Finding{}), // never registered
+			recordtest.Event(t, "red-lens-r1-logic", 0, &recordpb.Finding{}), // never registered
 		},
 	}
 	c := find(t, Run(b), "register-before-append")
@@ -157,8 +157,8 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 			"G2": {ID: "G2", Open: false, BenchClosure: &recordpb.DocketRuling{Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 		},
 		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Finding{Label: proto.String("L5-F1")}), // minted
-			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Finding{Label: proto.String("L5-F2")}), // un-minted
+			recordtest.Event(t, "red-lens-r1-logic", 1, &recordpb.Finding{Label: proto.String("L5-F1")}), // minted
+			recordtest.Event(t, "red-lens-r1-logic", 1, &recordpb.Finding{Label: proto.String("L5-F2")}), // un-minted
 			// BOTH HALVES, because gaps_with_disposition is a JOIN: the gap rides the filing and
 			// the disposition rides the ruling. Seeded with only the ruling the count is 0, which
 			// is the same number an honest run with no bench sitting produces.
@@ -179,8 +179,8 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 					Settled: proto.String(""), Final: proto.Bool(true),
 				}},
 			}),
-			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Verify{Claim: proto.String("c1"), Anchor: proto.String("r1")}),
-			recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Verify{Claim: proto.String("c2"), Anchor: proto.String("r2")}),
+			recordtest.Event(t, "red-lens-r1-logic", 1, &recordpb.Verify{Claim: proto.String("c1"), Anchor: proto.String("r1")}),
+			recordtest.Event(t, "red-lens-r1-logic", 1, &recordpb.Verify{Claim: proto.String("c2"), Anchor: proto.String("r2")}),
 			recordtest.Event(t, "judge-r1", 1, &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("the ceiling was reached")}),
 		},
 	}

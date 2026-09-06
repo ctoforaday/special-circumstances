@@ -307,7 +307,7 @@ func TestMarkdownArchiveShowsCarriedClosures(t *testing.T) {
 // no gap credits? That footer is a live work list, and it is the half that was ever load-bearing.
 func TestMarkdownSurfacesUncreditedFindings(t *testing.T) {
 	runDir := t.TempDir()
-	lens := "red-lens-r1-L1"
+	lens := "red-lens-r1-evidence"
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, lens, 1, lens+":finding:F1", &recordpb.Finding{Text: proto.String(strings.Repeat("long prose ", 40))}),
 		recordtest.At(t, lens, 1, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("short")}),
@@ -500,7 +500,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 	merge := "red-merge-r1"
 	blue := "blue-lane-1"
 	judge := "judge-r1"
-	lens := "red-lens-r1-L1"
+	lens := "red-lens-r1-evidence"
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, merge, 1, merge+":position", &recordpb.Position{Text: proto.String("red says so")}),
 		// The gap has to EXIST before anything speaks about it — the closing statement and the
@@ -588,7 +588,7 @@ func TestMarkdownDebateAndInquiry(t *testing.T) {
 
 func TestMarkdownDebateSkipsEmptyRounds(t *testing.T) {
 	runDir := t.TempDir()
-	lens := "red-lens-r3-L1"
+	lens := "red-lens-r3-evidence"
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, lens, 3, lens+":friction:#1", &recordpb.Log{Text: proto.String("not debate content"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 	})

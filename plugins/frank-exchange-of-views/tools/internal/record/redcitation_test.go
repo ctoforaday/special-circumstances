@@ -36,7 +36,7 @@ func corroboration(label, url, claim string, outcome recordpb.SourceOutcome) *re
 // claims. `blue cite` never had this problem because it keys on its minted label.
 func TestOneSourceCorroboratesManyClaims(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: 1}
+	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestOneSourceCorroboratesManyClaims(t *testing.T) {
 // reader of the document at all.
 func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: 1}
+	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 // grades nobody chose, feeding the mass calculation that decides what a gap is worth.
 func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	lens := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: 1}
+	lens := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: 1}
 	merge := Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: 1}
 	for _, id := range []Identity{lens, merge} {
 		if _, _, err := RegisterSeat(id, ""); err != nil {
@@ -198,7 +198,7 @@ func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 // same as blue's. Before this they were spliced into the report and protected by nothing.
 func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: 1}
+	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 // outstanding" and "nobody checked" are the same absence.
 func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: 1}
+	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -294,7 +294,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 // production code and it was sitting in code written the same day.
 func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: 1}
+	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: 1}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +311,7 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 		{"no claim", "https://example.org/s", ""},
 		{"neither", "", ""},
 	} {
-		got, err := ExistingCorroborationLabel(mustRun(t, runDir), "red-lens-r1-L1", tc.url, tc.claim)
+		got, err := ExistingCorroborationLabel(mustRun(t, runDir), "red-lens-r1-evidence", tc.url, tc.claim)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
@@ -320,7 +320,7 @@ func TestTheCorroborationGuardsHoldEachHalfSeparately(t *testing.T) {
 		}
 	}
 	// And the complete pair DOES find it, or the guard above would pass by never matching at all.
-	if got, err := ExistingCorroborationLabel(mustRun(t, runDir), "red-lens-r1-L1", "https://example.org/s", "the claim"); err != nil || got != label {
+	if got, err := ExistingCorroborationLabel(mustRun(t, runDir), "red-lens-r1-evidence", "https://example.org/s", "the claim"); err != nil || got != label {
 		t.Errorf("the complete pair returned %q (err %v), want %q — the negative cases above prove nothing if the positive never matches", got, err, label)
 	}
 }

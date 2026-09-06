@@ -68,7 +68,7 @@ func idKinds() []idKind {
 			// minter here is exercised with a seat id, so the two describe different halves of
 			// the same vocabulary. Restated deliberately, which is what an exception looks like.
 			pattern: regexp.MustCompile(`^[A-Za-z0-9]+-F\d+$`),
-			mint:    func(run Run) (string, error) { return NextFindingLabel(run, "red-lens-r1-L1") },
+			mint:    func(run Run) (string, error) { return NextFindingLabel(run, "red-lens-r1-evidence") },
 		},
 	}
 }

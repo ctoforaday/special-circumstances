@@ -172,7 +172,7 @@ func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 
 func TestRegisterSeatAcceptsTheEngineAssignedShapes(t *testing.T) {
 	for _, id := range []string{
-		"red-lens-r1-L1", "red-merge-r12", "blue-lane-3", "blue-respond-r2", "blue-synthesize",
+		"red-lens-r1-evidence", "red-merge-r12", "blue-lane-3", "blue-respond-r2", "blue-synthesize",
 		"frontier", "judge-r1", "judge-terminal", "judge-petition-red-merge-r1", "assemble", "operator",
 	} {
 		runDir := newRun(t)
@@ -193,7 +193,7 @@ func TestRegisterSeatRefusesAnIdNoDispatchProduces(t *testing.T) {
 		"a",                             // the old contract: any safe string
 		"red-lens-banana",               // the prefix guard's blind spot
 		"red-lens-r1",                   // a lens with no lens index
-		"red-lens-r1-L1-oops",           // a real id with something appended
+		"red-lens-r1-evidence-oops",     // a real id with something appended
 		"blue-r1",                       // invented, and it was live in three fixtures
 		"judge-petition",                // the bare pre-#394 form: one shard for every sitting
 		"judge-petition-judge-petition", // there is no sitting about a sitting

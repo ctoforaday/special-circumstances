@@ -243,7 +243,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 		args    []string
 		wantErr string
 	}{
-		{"lens finding without --run", []string{"finding", "--seat-id", "red-lens-r1-L1"}, "lens: --run <runDir> is required"},
+		{"lens finding without --run", []string{"finding", "--seat-id", "red-lens-r1-evidence"}, "lens: --run <runDir> is required"},
 		// WITHOUT AN IDENTITY THERE IS NO TREE, so the refusal is about the identity rather
 		// than about the verb. That is the contract now: the surface is scoped to whoever is
 		// asking, and nothing can be shown — or refused — until that is answered.
@@ -303,7 +303,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 // the role the caller failed to be.
 func TestRoleBindingIsEnforcedAtTheCLI(t *testing.T) {
 	runDir := newRun(t)
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err == nil {
 		t.Fatal("a LENS seat minted a board gap through the merge role")
@@ -453,7 +453,7 @@ func TestBoardVerbsExistOnlyInTheMergeRole(t *testing.T) {
 func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	runDir := newRun(t)
 	seedBlueReport(t, runDir)
-	seatID := "red-lens-r1-L1"
+	seatID := "red-lens-r1-evidence"
 
 	out, err := run(t, "register", "--run", runDir, "--seat-id", seatID)
 	if err != nil {
@@ -477,12 +477,12 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	}
 	// The ID leads the message now: it is what the merge will name, and a seat told only
 	// "recorded" has to invent a way to refer to this later.
-	if !strings.Contains(out, "finding recorded:") || !strings.Contains(out, "L1-F1") {
+	if !strings.Contains(out, "finding recorded:") || !strings.Contains(out, "evidence-F1") {
 		t.Errorf("finding said %q", out)
 	}
 
 	ev := lastBody(t, runDir, &recordpb.Finding{})
-	if got := ev.GetLabel(); got != "L1-F1" {
+	if got := ev.GetLabel(); got != "evidence-F1" {
 		t.Errorf("label = %q", got)
 	}
 	if got := ev.GetSeverity(); got != recordpb.Grade_GRADE_HIGH {
@@ -497,7 +497,7 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if env.GetRound() != 1 {
 		t.Errorf("round = %d, want 1 from the seat id", env.GetRound())
 	}
-	if env.GetKey() != seatID+":finding:L1-F1" {
+	if env.GetKey() != seatID+":finding:evidence-F1" {
 		t.Errorf("key = %q", env.GetKey())
 	}
 }
@@ -507,7 +507,7 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 func TestUnpassedFlagsAreAbsentFromThePayload(t *testing.T) {
 	runDir := newRun(t)
 	seedBlueReport(t, runDir)
-	seatID := "red-lens-r1-L1"
+	seatID := "red-lens-r1-evidence"
 	// --quote and --reason are required (1b); likelihood/impact are still optional,
 	// so they are the unpassed flags whose absence this pins.
 	if _, err := run(t, "finding", "--run", runDir, "--seat-id", seatID,
@@ -996,7 +996,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 				"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+			if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 				"--key", "F1", "--quote", "l", "--reason", "t",
 				"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 				t.Fatal(err)
@@ -1153,7 +1153,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 // lens and one from the bench are the same event with the same payload.
 func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 	cases := []struct{ role, seatID string }{
-		{"lens", "red-lens-r1-L1"},
+		{"lens", "red-lens-r1-evidence"},
 		{"merge", "red-merge-r1"},
 		{"blue", "blue-lane-1"},
 		{"bench", "judge-r1"},
@@ -1424,7 +1424,7 @@ func TestVerbsRefusePositionalArguments(t *testing.T) {
 // nothing has to remember to move it.
 func TestTheBuildIsStampedOnTheFirstAct(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-evidence"); err != nil {
 		t.Fatal(err)
 	}
 	reg := lastBody(t, runDir, &recordpb.Register{})
@@ -1473,7 +1473,7 @@ func TestRunDirIsInferredFromTheLiveMarkerWhenTheFlagIsOmitted(t *testing.T) {
 
 	// No --run. The precondition must pass, so any error is about the verb's own
 	// flags rather than the missing run directory.
-	_, err := run(t, "register", "--seat-id", "red-lens-r1-L1")
+	_, err := run(t, "register", "--seat-id", "red-lens-r1-evidence")
 	if err != nil && strings.Contains(err.Error(), "--run <runDir> is required") {
 		t.Fatalf("run dir was not inferred: %v", err)
 	}
@@ -1500,7 +1500,7 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 		t.Fatalf("precondition: marker should resolve to %q, got %q", marker, got)
 	}
 	// With the flag present the marker must not be consulted at all.
-	if _, err := run(t, "register", "--run", explicit, "--seat-id", "red-lens-r1-L1"); err != nil {
+	if _, err := run(t, "register", "--run", explicit, "--seat-id", "red-lens-r1-evidence"); err != nil {
 		t.Fatalf("explicit --run should be honoured: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(explicit, "records")); err != nil {

@@ -40,7 +40,7 @@ func ProbeAgentID(seatID string) string { return "probe-" + seatID }
 // Seats are registered on every board: a motion names its filer, a ruling names its ruler, and an
 // unregistered seat is refused before any board state exists.
 var Seats = []struct{ Role, ID string }{
-	{"lens", "red-lens-r1-L1"},
+	{"lens", "red-lens-r1-evidence"},
 	{"merge", "red-merge-r1"},
 	{"blue", "blue-respond-r1"},
 	{"bench", "judge-r2"},

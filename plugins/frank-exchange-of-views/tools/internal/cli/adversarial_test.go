@@ -69,7 +69,7 @@ func adversarialCases() []adversarialCase {
 	fileGrade := seatStep{"motion", "grade", "file", "--seat-id", "blue-respond-r1",
 		"--id", "R1-1", "--dimension", "severity", "--proposed", "low",
 		"--reason", "the consequence is bounded by the caller's own validation"}
-	filePetition := seatStep{"motion", "petition", "file", "--seat-id", "red-lens-r1-L1",
+	filePetition := seatStep{"motion", "petition", "file", "--seat-id", "red-lens-r1-evidence",
 		"--class", "safety", "--relief", "halt before the next round",
 		"--reason", "continuing would require asserting a consent gate that does not exist"}
 	propose := seatStep{"line-of-inquiry", "propose", "--seat-id", "blue-respond-r1",
@@ -164,7 +164,7 @@ func adversarialCases() []adversarialCase {
 		{
 			name:  "any seat may appeal, not only the filer",
 			setup: []seatStep{propose, {"motion", "inquiry", "rule", "--seat-id", "red-merge-r1", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question"}},
-			act:   seatStep{"motion", "inquiry", "appeal", "--seat-id", "red-lens-r1-L1", "--id", "Q1", "--reason", "a lens presses a direction blue proposed"},
+			act:   seatStep{"motion", "inquiry", "appeal", "--seat-id", "red-lens-r1-evidence", "--id", "Q1", "--reason", "a lens presses a direction blue proposed"},
 			guards: "STANDING IS OPEN ON PURPOSE and this pins it. A motion belongs to the run, not " +
 				"to its filer — a lens files a safety petition and it is BLUE the granted relief " +
 				"binds. The code comment used to say `the filer` while the code checked nobody, so " +
@@ -205,7 +205,7 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name: "a petition class outside the four is refused",
-			act:  seatStep{"motion", "petition", "file", "--seat-id", "red-lens-r1-L1", "--class", "aesthetic", "--relief", "halt", "--reason", "petitioning on a standard nobody wrote"},
+			act:  seatStep{"motion", "petition", "file", "--seat-id", "red-lens-r1-evidence", "--class", "aesthetic", "--relief", "halt", "--reason", "petitioning on a standard nobody wrote"},
 			// THE ORDER IS THE SCHEMA'S, and this expectation used to carry a different one — from
 			// the hand-written table that listed four classes PetitionClass did not have. Two of
 			// the four were refused at the write for words the help advertised. The set is derived
@@ -298,7 +298,7 @@ func TestEveryAdversarialScenarioStatesWhatItGuards(t *testing.T) {
 func adversarialRun(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
-	for _, id := range []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
+	for _, id := range []string{"red-lens-r1-evidence", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}

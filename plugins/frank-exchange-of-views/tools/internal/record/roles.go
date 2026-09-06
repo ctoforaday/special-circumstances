@@ -11,7 +11,7 @@ import (
 // Without this the role boundary was a naming convention, not a boundary. A lens
 // seat could not run `feov-record lens mint` — the lens namespace has no mint
 // verb — but nothing stopped it running `feov-record merge mint --seat-id
-// red-lens-r1-L1`, and it minted a board gap. Verified before this file existed;
+// red-lens-r1-evidence`, and it minted a board gap. Verified before this file existed;
 // the tool said "minted R1-1".
 //
 // That mattered more than a missing guard usually does, because the verb set
@@ -94,7 +94,7 @@ func roleOfSeat(seatID string) string {
 // PartyOf answers "which party wrote this" from the EVENT, not from its seat id (#348).
 //
 // NOT named RoleOf: that name is taken by the LENS-INDEX reader (findinglabel.go), which
-// extracts "L2" from "red-lens-r3-L2" and is the concurrency namespace this change must not
+// extracts "L2" from "red-lens-r3-adversary" and is the concurrency namespace this change must not
 // touch — collapsing it once made 39 of 60 disposals ambiguous. Two different things were about
 // to share one name, which is the collision this whole exercise exists to prevent.
 //

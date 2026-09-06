@@ -28,20 +28,26 @@ func TestConcurrentSeatsRace(t *testing.T) {
 	const seats = 6
 	const perSeat = 4
 
+	// SIX REAL AREAS, because a lens seat is now named for what it audits and the roster refuses
+	// an id no dispatch could produce. Six concurrent writers is what this test is about; the
+	// areas are simply the six the engine has.
+	areas := []string{"evidence", "logic", "dark-side", "voice", "computation", "adversary"}
+
 	var wg sync.WaitGroup
 	errs := make(chan error, seats*perSeat*3)
 	for s := 1; s <= seats; s++ {
 		wg.Add(1)
 		go func(s int) {
 			defer wg.Done()
-			seatID := fmt.Sprintf("red-lens-r1-L%d", s)
+			area := areas[s-1]
+			seatID := "red-lens-r1-" + area
 			if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID, Round: RoundIn(mustRun(t, runDir))(seatID)}, ""); err != nil {
 				errs <- err
 				return
 			}
 			for i := 0; i < perSeat; i++ {
 				f := &recordpb.Finding{
-					Label:      proto.String(fmt.Sprintf("L%d-F%d", s, i)),
+					Label:      proto.String(fmt.Sprintf("%s-F%d", area, i)),
 					Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 					Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 					Impact:     recordtest.P(recordpb.Grade_GRADE_HIGH),

@@ -199,12 +199,12 @@ func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
 // board would silently under-count findings in exactly the runs that worked hardest.
 func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L2"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-adversary"); err != nil {
 		t.Fatalf("register L2: %v", err)
 	}
 	for _, l := range []struct{ seat, label string }{
-		{"red-lens-r1-L1", "L1-F1"}, // local --key F1 → tool assigns L1-F1 (role-prefixed)
-		{"red-lens-r1-L2", "L2-F1"}, // and L2-F1
+		{"red-lens-r1-evidence", "L1-F1"},  // local --key F1 → tool assigns L1-F1 (role-prefixed)
+		{"red-lens-r1-adversary", "L2-F1"}, // and L2-F1
 	} {
 		if _, err := run(t, "finding", "--run", runDir, "--seat-id", l.seat,
 			"--key", "F1", "--quote", "§1", "--reason", "a finding",
@@ -220,7 +220,7 @@ func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 			seen[f.GetLabel()] = true
 		}
 	}
-	if !seen["L1-F1"] || !seen["L2-F1"] {
+	if !seen["evidence-F1"] || !seen["adversary-F1"] {
 		t.Errorf("the merge sees %v, want both lenses — findings from every seat are rows in one record", seen)
 	}
 }

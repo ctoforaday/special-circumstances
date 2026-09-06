@@ -35,7 +35,7 @@ func BinFields(command, binName string) []string {
 // CommandWords reduces the tokens after the binary to the ones that can name a command.
 //
 // A token following a flag is that flag's VALUE and can never be the verb. Dropping those is what
-// stops `--seat-id red-lens-r1-L1` and `--reason "close it"` from nominating one.
+// stops `--seat-id red-lens-r1-evidence` and `--reason "close it"` from nominating one.
 //
 // THE ROLE IS NOT PART OF THE VERB. The surface names verbs role-relatively (`show`, not
 // `blue show`), because that is how an expectation is written — and since the tree was scoped to

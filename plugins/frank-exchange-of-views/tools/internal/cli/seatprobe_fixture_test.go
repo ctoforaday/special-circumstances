@@ -88,7 +88,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
+	for _, id := range []string{"red-lens-r1-evidence", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}

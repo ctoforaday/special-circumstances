@@ -63,6 +63,10 @@ func skeletonOfTemplate(arg string) (string, bool) {
 // roster grows a construct it cannot handle, and it silently passing every id forever after.
 func skeletonOfPattern(p string) (string, bool) {
 	s := strings.TrimPrefix(strings.TrimSuffix(p, "$"), "^")
+	// The two interpolated shapes the roster uses, longest first so the compound one is not
+	// half-eaten by the atom inside it. A NUMBER is a round or an index; a HYPHENATED WORD is a
+	// lens area, which is a name rather than a position.
+	s = strings.ReplaceAll(s, `[a-z]+(?:-[a-z]+)*`, hole)
 	s = strings.ReplaceAll(s, `\d+`, hole)
 	if strings.ContainsAny(s, `\[]()*+?{}|.`) {
 		return "", false
@@ -178,5 +182,41 @@ func TestThePetitionPrefixMatchesTheOneDebateComposes(t *testing.T) {
 	if head != petitionPrefix {
 		t.Errorf("debate.js names petition sittings %q; petitionPrefix is %q, so every petition seat "+
 			"is refused at register", m[1], petitionPrefix)
+	}
+}
+
+// areaKey captures each strategic area debate.js declares.
+var areaKey = regexp.MustCompile(`\{ key: '([a-z]+(?:-[a-z]+)*)', lens:`)
+
+// THE AREA LIST IS ONE FACT WITH TWO AUTHORS, so it is bound rather than trusted.
+//
+// LensAreas is what makes a lens seat id REFUSABLE — the shape pattern admits any hyphenated
+// word, and membership is what says `red-lens-r1-evidence-oops` is not a seat. debate.js is what
+// actually dispatches. If an area is added there and not here, every seat of the new kind is
+// refused at `register`, its first act, in a message naming the seat rather than the omission.
+// If it is added here and not there, the roster admits an id no run can produce.
+func TestTheLensAreasMatchWhatTheEngineDeclares(t *testing.T) {
+	src, err := os.ReadFile(debateSource)
+	if err != nil {
+		t.Fatalf("cannot read debate.js — the dispatch this list binds against: %v", err)
+	}
+	ms := areaKey.FindAllStringSubmatch(string(src), -1)
+	if len(ms) < 4 {
+		t.Fatalf("found %d areas in debate.js, expected at least the four that always sit — this bind "+
+			"is reading the wrong thing and would pass on a near-empty set", len(ms))
+	}
+	declared := map[string]bool{}
+	for _, m := range ms {
+		declared[m[1]] = true
+		if !isLensArea(m[1]) {
+			t.Errorf("debate.js dispatches lens area %q and record.LensAreas does not list it — every seat "+
+				"of that area is refused at register, its first act", m[1])
+		}
+	}
+	for _, a := range LensAreas {
+		if !declared[a] {
+			t.Errorf("record.LensAreas lists %q and debate.js declares no such area — the roster admits an "+
+				"id no run can produce", a)
+		}
 	}
 }

@@ -536,9 +536,9 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 			"R1-1": {ID: "R1-1", Mint: &recordpb.Mint{FoundBy: []string{"L5-F1", "L6-F2"}}},
 		},
 		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-r1-L5", 0, &recordpb.Finding{Label: proto.String("L5-F1"), Text: proto.String("minted — omit")}),
-			recordtest.Event(t, "red-lens-r1-L6", 0, &recordpb.Finding{Label: proto.String("L6-F2"), Text: proto.String("also minted — omit")}),
-			recordtest.Event(t, "red-lens-r1-L5", 0, &recordpb.Finding{Label: proto.String("L5-F3"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
+			recordtest.Event(t, "red-lens-r1-logic", 0, &recordpb.Finding{Label: proto.String("L5-F1"), Text: proto.String("minted — omit")}),
+			recordtest.Event(t, "red-lens-r1-dark-side", 0, &recordpb.Finding{Label: proto.String("L6-F2"), Text: proto.String("also minted — omit")}),
+			recordtest.Event(t, "red-lens-r1-logic", 0, &recordpb.Finding{Label: proto.String("L5-F3"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
 		},
 	}
 	got := boardSection(board)
@@ -586,7 +586,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 			}},
 		},
 		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-r1-L5", 0, &recordpb.Finding{
+			recordtest.Event(t, "red-lens-r1-logic", 0, &recordpb.Finding{
 				Label:    proto.String("L5-F1"),
 				Location: proto.String("§H2"),
 				Text:     proto.String("what red actually observed at the leaf"),

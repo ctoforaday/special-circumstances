@@ -44,7 +44,7 @@ func TestTheBindingGuardCoversWritesAndNotReads(t *testing.T) {
 	}{
 		{"red-merge-r1", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "c",
 			"--likelihood", "low", "--impact", "low", "--problem", "p"}},
-		{"red-lens-r1-L1", []string{"friction", "--reason", "the tool has no path for X"}},
+		{"red-lens-r1-evidence", []string{"friction", "--reason", "the tool has no path for X"}},
 		{"blue-respond-r1", []string{"revision", "--reason", "round record"}},
 	} {
 		argv := append(append([]string{}, w.argv...), "--run", runDir, "--seat-id", w.seat)

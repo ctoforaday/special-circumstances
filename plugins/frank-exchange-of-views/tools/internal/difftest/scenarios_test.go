@@ -25,7 +25,7 @@ func scenarios() []scenario {
 				base("revision", "--run", "{RUN}", "--seat-id", "blue-respond-r2", "--reason", "first pass"),
 				base("log", "--run", "{RUN}", "--seat-id", "blue-respond-r2", "--reason", "no PDF extraction"),
 				// implicit register: a seat that never registered still records
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--key", "F1",
+				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-logic", "--key", "F1",
 					"--severity", "medium", "--likelihood", "high", "--impact", "medium", "--quote", "## S2", "--reason", "unfounded leap"),
 			},
 		},
@@ -96,27 +96,27 @@ func scenarios() []scenario {
 		{
 			name: "multi_nonce_mtime_fallback", // oracle: no terminal event -> latest mtime, explicitly
 			cmds: []cmd{
-				base("register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1"),
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--key", "F1",
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-r1-evidence"),
+				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-evidence", "--key", "F1",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "## S2", "--reason", "older shard"),
-				base("register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1"),
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-r1-evidence"),
 				{
 					role: "lens",
-					args: []string{"finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--key", "F2",
+					args: []string{"finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-evidence", "--key", "F2",
 						"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "## S2", "--reason", "newer shard"},
 					mtimes: map[string]time.Time{
-						"events-red-lens-r1-L1-NONCE001.jsonl": time.Unix(1_700_000_000, 0),
-						"events-red-lens-r1-L1-NONCE002.jsonl": time.Unix(1_700_000_600, 0),
+						"events-red-lens-r1-evidence-NONCE001.jsonl": time.Unix(1_700_000_000, 0),
+						"events-red-lens-r1-evidence-NONCE002.jsonl": time.Unix(1_700_000_600, 0),
 					},
 				},
 			},
 		},
 		{
-			name: "finding_labels_run_unique_per_role_across_rounds", // oracle: the tool assigns L{role}-F{N}, the sequence spanning rounds — a lens cannot reuse a label, so round two gets L1-F2, not another L1-F1
+			name: "finding_labels_run_unique_per_role_across_rounds", // oracle: the tool assigns <area>-F{N}, the sequence spanning rounds — a lens cannot reuse a label, so round two gets evidence-F2, not another evidence-F1
 			cmds: []cmd{
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--key", "F1",
+				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-evidence", "--key", "F1",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--quote", "## S2", "--reason", "round one"),
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r2-L1", "--key", "F1",
+				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r2-evidence", "--key", "F1",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--quote", "## S2", "--reason", "round two"),
 			},
 		},
@@ -153,7 +153,7 @@ func scenarios() []scenario {
 				base("position", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--reason-file", "{RUN}/prose.md"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "scope-creep", "--check-kind", "document", "--check", "x",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason-file", "{RUN}/prose.md"),
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--key", "F1",
+				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-logic", "--key", "F1",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "## S2", "--reason-file", "{RUN}/prose.md"),
 			},
 		},
@@ -172,7 +172,7 @@ func scenarios() []scenario {
 				base("manifest-row", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1", "--reason", "figures recomputed; check run: pass"),
 				base("motion", "grade", "file", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1",
 					"--dimension", "likelihood", "--proposed", "low", "--reason", "the harm needs two failures"),
-				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--quote", "throughput doubled",
+				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-r1-evidence", "--quote", "throughput doubled",
 					"--title", "https://example.invalid/paper", "--trust", "high", "--access-date", "2026-07-18"),
 				base("register", "--run", "{RUN}", "--seat-id", "judge-r1"),
 				// THE BENCH'S DISPOSITION IS TWO COMMANDS: red docksets the gap it cannot settle,
@@ -227,7 +227,7 @@ func scenarios() []scenario {
 		{
 			name: "role_boundaries_and_help_contracts", // oracle: the drift test
 			cmds: []cmd{
-				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--class", "x"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-r1-evidence", "--class", "x"),
 				base("mint", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--class", "x"),
 				base("close", "--run", "{RUN}", "--seat-id", "blue-respond-r1", "--id", "R1-1"),
 				base("mint", "--run", "{RUN}", "--seat-id", "judge-r1", "--class", "x"),
@@ -267,18 +267,18 @@ func scenarios() []scenario {
 		{
 			name: "full_round_integration", // oracle: the integration test
 			cmds: []cmd{
-				base("register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1"),
-				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--quote", "claim one",
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-r1-evidence"),
+				base("verify", "--run", "{RUN}", "--seat-id", "red-lens-r1-evidence", "--quote", "claim one",
 					"--title", "https://example.invalid/a", "--trust", "high", "--access-date", "2026-07-18"),
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L1", "--key", "F1",
+				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-evidence", "--key", "F1",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "high", "--quote", "## S2", "--reason", "citation does not support"),
-				base("register", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5"),
-				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-L5", "--key", "F1",
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-r1-logic"),
+				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-r1-logic", "--key", "F1",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--quote", "## S4", "--reason", "a leap of faith"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-merge-r1"),
 				base("mint", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--class", "citation-drift", "--check-kind", "document", "--check", "refetch and diff",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "medium",
-					"--quote", "## S2", "--found-by", "L1-F1,L5-F1", "--problem", "the cited source does not say this"),
+					"--quote", "## S2", "--found-by", "evidence-F1,logic-F1", "--problem", "the cited source does not say this"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--reason", "round one: FAIL"),
 				base("verdict", "--run", "{RUN}", "--seat-id", "red-merge-r1", "--as", "FAIL"),
 			},

@@ -119,7 +119,7 @@ func verbIn(command, binName string, verbs map[string]bool) string {
 	// THE VERB IS NOT ALWAYS THE FIRST TOKEN, and assuming it was cost this counter a whole
 	// board. One probed seat wrote its flags first —
 	//
-	//	fxr.exe --run "." --seat-id red-lens-r1-L1 lens finding --key F1 ...
+	//	fxr.exe --run "." --seat-id red-lens-r1-evidence lens finding --key F1 ...
 	//
 	// — so a scan that stopped at the first dash found nothing and reported a seat with 22 tool
 	// calls as having reached for no verb at all. Which is precisely the reading this file exists

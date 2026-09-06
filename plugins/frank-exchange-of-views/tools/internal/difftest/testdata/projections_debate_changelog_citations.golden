@@ -51,7 +51,7 @@ exit 0
 stdout:
 motion M1 filed (grade)
 
-$ verify --run {RUN} --seat-id red-lens-r1-L1 --quote throughput doubled --title https://example.invalid/paper --trust high --access-date 2026-07-18
+$ verify --run {RUN} --seat-id red-lens-r1-evidence --quote throughput doubled --title https://example.invalid/paper --trust high --access-date 2026-07-18
 exit 2
 stderr:
 feov-record: unknown flag: --title

@@ -74,7 +74,7 @@ func TestMergedEventsOnAnEmptyOrAbsentRun(t *testing.T) {
 // THE ROUND, AND WHETHER THE NAME ANSWERS IT AT ALL.
 //
 // This used to assert a bare int, so `assemble` and `judge-terminal` pinned to 0 — the same value
-// `red-lens-r0-L1` pins to, and 0 is SYNTHESIS, a real round with real events. The two cases were
+// `red-lens-r0-evidence` pins to, and 0 is SYNTHESIS, a real round with real events. The two cases were
 // indistinguishable by construction, and that is #327: a bench closure at run END read as a
 // closure BEFORE round 1, put a phantom entry in the archive, and made the W1.8 spot-check floor
 // demand samples from rounds whose seats had done nothing wrong.
@@ -88,11 +88,11 @@ func TestRoundOf(t *testing.T) {
 		known bool
 	}{
 		// The name states it.
-		{"red-lens-r3-L5", 3, true},
+		{"red-lens-r3-logic", 3, true},
 		{"red-merge-r12", 12, true},
 		{"judge-r1", 1, true},
 		{"blue-respond-r7", 7, true},
-		{"red-lens-r0-L1", 0, true},
+		{"red-lens-r0-evidence", 0, true},
 		{"first-r2-then-r9", 2, true}, // the FIRST match wins, not the last
 		// A petition sitting is named for its petitioner, so it inherits that seat's round —
 		// which is why the bare `judge-petition` was retired (#394).
@@ -295,7 +295,7 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 // the credit join is keyed on exactly that.
 func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 	runDir := newRun(t)
-	lens := "red-lens-r1-L1"
+	lens := "red-lens-r1-evidence"
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, lens, 1, lens+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("first")}),
 		recordtest.At(t, lens, 1, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("second")}),
@@ -885,7 +885,7 @@ func TestSingletonVerbsAreDeclaredForTheVerbsThatAreOnce(t *testing.T) {
 // findings land.
 func TestTheSameLabelInALaterRoundIsNotACollision(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	for _, seat := range []string{"red-lens-r1-L1", "red-lens-r2-L1"} {
+	for _, seat := range []string{"red-lens-r1-evidence", "red-lens-r2-evidence"} {
 		id := Identity{Run: mustRun(t, runDir), SeatID: seat, Round: RoundIn(mustRun(t, runDir))(seat)}
 		if _, _, err := RegisterSeat(id, ""); err != nil {
 			t.Fatal(err)
