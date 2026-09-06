@@ -250,3 +250,47 @@ func TestFetchSummaryOmitsTablePagesWhenProseOnly(t *testing.T) {
 		t.Errorf("a prose-only reading printed a table count:\n%s", out)
 	}
 }
+
+// --at ALONE WAS A SILENT NO-OP, AND THE DATE IS THE WHOLE QUESTION.
+//
+// `--at` bounds an ARCHIVE capture and is read on the non-live path only. On a live fetch the
+// flag was parsed and dropped: a seat asking what a page said in 2019 got TODAY'S page back with
+// a success message and nothing anywhere saying its date had been ignored. That is the same shape
+// the `--via` near-miss refusal exists to close — `--via archiv` must not quietly become a live
+// fetch — one flag over, and it survived because the wrong answer looks exactly like the right one.
+//
+// THE SUCCESS CASE IS NOT ASSERTED HERE, deliberately: it needs a real archive backend, which is
+// the same reason the release-gate sweep drives this refusal rather than the capture path.
+func TestFetchRefusesAnArchiveDateWithNoArchiveBackend(t *testing.T) {
+	for _, tc := range []struct{ name, via string }{
+		{"no --via at all", ""},
+		{"--via live, which reads no captures", "live"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			args := []string{"--ocr=false", "--at", "20190101"}
+			if tc.via != "" {
+				args = append(args, "--via", tc.via)
+			}
+			out, err := fetchScanned(t, &stubScanReader{}, fetchcache.Extraction{}, args...)
+			if err == nil {
+				t.Fatalf("--at was accepted and silently ignored; the fetch reported success:\n%s", out)
+			}
+			// The refusal has to name the way out, not just the fault: a seat that wanted the
+			// 2019 capture needs to be told which flag gets it.
+			if !strings.Contains(err.Error(), "--via archive") {
+				t.Errorf("the refusal does not say how to actually bound a capture: %v", err)
+			}
+			if !strings.Contains(err.Error(), "20190101") {
+				t.Errorf("the refusal does not quote the date it is declining to use: %v", err)
+			}
+		})
+	}
+}
+
+// AND IT STILL FETCHES WITHOUT THE FLAG — the anti-vacuity half. A refusal that fired on every
+// live fetch would satisfy the test above and break the verb.
+func TestALiveFetchWithNoDateIsUnaffected(t *testing.T) {
+	if _, err := fetchScanned(t, &stubScanReader{}, fetchcache.Extraction{}, "--ocr=false", "--via", "live"); err != nil {
+		t.Fatalf("an ordinary --via live fetch was refused: %v", err)
+	}
+}
