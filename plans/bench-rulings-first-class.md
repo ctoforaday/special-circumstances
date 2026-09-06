@@ -194,10 +194,25 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   over them, which an enum arm cannot hold and which N8 forbids dropping. So: the vocabulary stays
   keyed on the subject as that comment demands, and the arm is a message because the bench records
   an argument as well as a word.
-- **`DocketRuling`'s fields: eight, and the two `check` options.** `disposition` (the shared
+- **`DocketRuling`'s fields: SEVEN, and the two `check` options.** `disposition` (the shared
   `Disposition` enum, #342 — by reference, not transcription), `principle`, `tension`,
-  `review_flag`, `rationale`, `settled`, `reopens_on`, `final`; plus `reopens_on XOR final` and
-  "not both", verbatim with their `why`. **`gap_id` does NOT come**, per the decision above.
+  `review_flag`, `settled`, `reopens_on`, `final`; plus `reopens_on XOR final` and "not both",
+  verbatim with their `why`. **Two of `Opinion`'s nine do not come, and both omissions are argued
+  here rather than deferred to a commit message:**
+  - `gap_id` — it rides the FILING, per the standing decision above.
+  - **`rationale` — because `MotionRule.opinion` already IS it, and keeping both would refuse every
+    ruling a seat correctly wrote.** `Opinion.rationale` carries `flag: "reason"` and
+    `required: true` (`record.proto:842-846`); `MotionRule.opinion` is written from `--reason` by
+    `newRule` (`cli/motion/verbs.go:220-232`). With `CheckRequired` descending into the arm — which
+    this scope specifies — a `DocketRuling.rationale` would be absent on every write, because
+    `--reason` went to `MotionRule.opinion`, so **every `motion docket rule` would be refused
+    "requires --reason" while the seat had passed `--reason`.** Two prose channels for one argument
+    is the duplication this document objects to everywhere else; the ruler's argument belongs on the
+    ruling, once, where every other subject already puts it.
+
+  N8's parity is therefore **seven of nine, with two named omissions**, and §V step 6 covers
+  `--reason` as well as `--principle` — the first to prove the prose still lands, the second to
+  prove requiredness survived the move onto an arm.
 - **`[MODIFY]` requiredness must follow the fields onto the arm, or six `required: true`
   annotations go INERT — and this is Phase 1's class, one level up.** `recordpb.CheckRequired`
   (`requiredfields.go:29-50`) and `RequiredOf` (`:80-88`) walk `md.Fields()` of the BODY message;
@@ -248,10 +263,31 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   - The **bench** arm of `sitting.go` is unchanged and needs no edit: it already sweeps the subjects
     whose gavel is the bench, so an unruled docket motion blocks that sitting the moment the subject
     exists. **That is N6, and it is what this scope delivers.**
-  - **Whose work is the re-docketing?** The MERGE seat's, not the bench's — the bench keeps
-    `NoSituation` for `motion docket file`, because filing to itself is the gavel problem, and merge
-    already rules grade motions and owns what reaches the bench. **Telling merge so is the deferred
-    half below.**
+  - **Whose work is the docketing?** The MERGE seat's — the bench keeps `NoSituation` for
+    `motion docket file`, because filing to itself is the gavel problem, and merge already rules
+    grade motions and owns what reaches the bench.
+
+- **`[MODIFY]` `sitting.go`'s merge arm: an open gap must be CLOSED or DOCKETED. In scope, and
+  narrowing without it was a truncation rather than a cut.**
+
+  Round 5 found the hole and it is fatal to the change as it stood: **after the deletion the bench
+  would have no reachable way to dispose of a gap at all.** `bench opinion --id <gap>` is one act
+  needing only a gap; `motion docket rule --id <M#>` is refused unless a filing exists
+  (`RequireMotionSubjectRef`, `RequireSubjectMatches`). Nothing files one — the engine computes the
+  contested docket in JavaScript (`debate.js:1030-1041,1127`) and writes nothing to the record, the
+  bench cannot file, and the merge-side instruction had been deferred. **N5 would have shipped with
+  no writer**, and §V Arm 1 could not have seen it because it hand-drives the file verb.
+
+  So the rule the merge sitting states, and it is BOARD-ONLY by design:
+
+  > every open gap is either closed or docketed — `add("gap " + id + " is open and not docketed —
+  > close it, or file `motion docket file --id " + id + "` to put it before the bench")`
+
+  **Board-only is what makes this cheap and what keeps #759 deferred.** It reads `b.Gaps` for
+  openness and `record.Motions(b)` for a docket motion on that gap — the typed `GapID` this scope
+  already adds. No view, no db handle on `SittingOf`, no ordering key, none of the three structural
+  problems that made the carried-specific work hard. #759 keeps only what genuinely needs them: the
+  explanation that the bench CARRIED this one, rather than that it was never docketed.
 
   **THE EXPLANATORY HALF IS DEFERRED, AND SCOPED DOWN DELIBERATELY RATHER THAN QUIETLY.**
   `gap.awaiting_docket` and the merge sitting arm that would report it are **not in this scope**.
@@ -581,6 +617,8 @@ recorded contract. 52 files. The load-bearing ones:
 | `tests/simulator/testdata/prompt-judge-terminal.golden:6` | the judge prompt's `lawClause` | [MODIFY] the source (`debate.js:355`), then REGENERATE |
 | `motionview_test.go`, `motionqueries_parity_test.go`, `viewfamilies_test.go`, `verdict_test.go`, `cli/verbs_test.go`, `payload_test.go`, `fuzz/termination_test.go`, `fuzz/delivery_test.go`, `bench_petitions_and_halt.golden`, `sequential_ids_across_rounds.golden` | `MotionRule.opinion` and `Halt.opinion` | NO CHANGE — **same STRING, different CONCEPT**; both fields outlive the event |
 | `hookgate/hookgate_test.go`, `cli/agentbinding_test.go` | the hook's "has no opinion" (allow) sense | NO CHANGE — unrelated word |
+| `cli/bench/outcome_test.go:23`, `cli/enum_help_test.go:61`, `graph/graph_test.go:14` | prose and archaeology naming the verb | **[MODIFY]** — comments describing a verb that will not exist |
+| `cli/helpcontract_test.go:246,370,372` | uses `bench opinion --as` as the **worked example** for `enumhelp.Registered` | **[MODIFY]** — re-point at `motion docket rule --as`; a contract's example must name a live verb or there is nothing to check it against |
 
 **Agent-facing** — `agents/lead-judge.md:58` states the verb's contract in prose ("every ruling is a
 written opinion — disposition, the principle applied, the values in tension…") and must be rewritten
@@ -650,7 +688,7 @@ table, including the forks the delivered scopes settled, is in the archaeology.
 | # | Risk | Likelihood × Impact | Mitigation |
 |---|---|---|---|
 | R1 | **The `opinion` prose-key clobber, a fourth time.** `opinion` is both an event type and a prose key; `a12362c` records three sweeps that clobbered the key while retargeting the type | high × med | The guarded sites are enumerated in Scope 2 as explicit NO CHANGE rows. A mechanical rename is forbidden; the sweep is a reviewed list |
-| R2 | **The replay index is forgotten and the bug lands silently.** A pass that meets a ruling before its filing drops the disposition — rendering the gap as one nobody disposed of | med × high | The index is specified in §II with its REAL justification (`recordtest.Seed` order, and `motion_rule.motion_id` carrying no foreign key), and §V step 4 drives the out-of-order case. **Two replays, not one:** `record/replay.go` and `consistency/consistency.go:138-151` both reconstruct the bench closure independently, and the earlier mitigation named only the first — so the identical defect would have landed unguarded in the file whose job is to catch exactly this |
+| R2 | **The replay index is forgotten and the bug lands silently.** A pass that meets a ruling before its filing drops the disposition — rendering the gap as one nobody disposed of | med × high | The index is specified in §II with its REAL justification (`recordtest.Seed` order, and `motion_rule.motion_id` carrying no foreign key), and §V's out-of-order replay step drives it. **Two replays, not one:** `record/replay.go` and `consistency/consistency.go:138-151` both reconstruct the bench closure independently, and the earlier mitigation named only the first — so the identical defect would have landed unguarded in the file whose job is to catch exactly this |
 | R3 | **Any-seat filing is a new capability.** An adversarial blue could docket every gap it dislikes to buy rounds | med × low | The bench rules each one and `carried` is a real disposition, so the cost lands on the filer's round budget. Watched, not gated: the capture auditor already reports per-seat act counts. Gating it before it has been seen would be an invented obligation |
 | R4 | **Scope 1 landed and Scope 2 never does**, leaving the docket unrecorded indefinitely | **realized in part** — Scopes 1 and 3 shipped 2026-09-04/05; Scope 2 has not | Named as the accepted cost of splitting. [[complete-the-concept]] requires the remaining half be *tracked*, not remembered: **#681** carries this scope and was filed before any of the plan was implemented. It is open |
 | R5 | **This document's citations go stale.** It took 523 commits to invalidate the August set; Scopes 1 and 3 moved several within days | high × med | Every §III row cites a symbol as well as a line, and §V step 1 re-runs the censuses rather than trusting these tables. A line number in this document is a convenience, never the identifier |
@@ -708,9 +746,9 @@ anticipated. The full narrative is in the archaeology; these are the operative r
    not, and that `awaiting_proof` / `stranded` still compute.
 4. The probe surface gate must **fail** when the sitting board's staged docket motion is removed. A
    reachability check that has never been seen to fail is a claim, not a check.
-4. `record/replay_test.go`: a docket motion-rule closes its gap (`Open: false`,
+5. `record/replay_test.go`: a docket motion-rule closes its gap (`Open: false`,
    `ClosedByBench: true`, `Anomalies` empty), **with the ruling's shard written first**.
-5. **The constraint check (N8), and it is BEHAVIOURAL — the structural half is deleted because it
+6. **The constraint check (N8), and it is BEHAVIOURAL — the structural half is deleted because it
    could pass while the constraint was absent.** An earlier draft said "`DocketRuling` must carry all
    nine fields and both options", verified by reading the `.proto`. Before Phase 1 that reading would
    have been TRUE while `armTable` dropped both options on the floor: the annotation present, the
@@ -721,17 +759,23 @@ anticipated. The full narrative is in the archaeology; these are the operative r
      `record.go:1185-1189`'s Go arm — **all three carriers of the invariant, since a Go check passing
      tells you nothing about whether the table has one**.
    Field parity is eight of nine, with `gap_id` argued in §I rather than in a commit message.
-6. **Requiredness survived the move onto an arm.** `motion docket rule` omitting `--principle` is
+7. **Requiredness survived the move onto an arm.** `motion docket rule` omitting `--principle` is
    refused **in the annotation's own words** (`record: motion docket rule requires --principle …`),
    not by raw driver text about a NOT NULL column — and `--help` marks it REQUIRED. Both halves,
    because the DDL constraint alone passes the first and fails the second silently.
-7. **N6, on the surface this scope actually changes.** A bench sitting with an UNRULED docket motion
+8. **N6, on the surface this scope actually changes.** A bench sitting with an UNRULED docket motion
    is `Complete: false` and names it in `Open`; the same sitting with that motion ruled — `carried`
    included — is `Complete: true`. Both directions, and the second is the one that records what was
    deferred rather than hiding it. **Not** asserted against `motion_state.unruled`, which this scope
    leaves untouched, and **not** against the merge sitting, whose open-gap row already fires for
    every open gap and would pass with the defect intact.
-8. `record/gavel_test.go:22-47` must pass **unmodified**: it fails any `MotionSubject` without
+9. **The bench can actually dispose of a gap, from the state a real sitting starts in.** This is the
+   check round 5 showed was missing, and the one that would have caught the change shipping a bench
+   with no channel: from a board carrying an OPEN, undocketed gap, the merge sitting names it and
+   says the filing verb; filing it makes the bench sitting `Complete: false`; ruling it closes the
+   gap. **Driven end-to-end rather than by hand-calling each verb** — §V Arm 1 hand-drives the file
+   verb and is structurally blind to a missing producer.
+10. `record/gavel_test.go:22-47` must pass **unmodified**: it fails any `MotionSubject` without
    `ruled_by`, and it is what makes `MOTION_SUBJECT_DOCKET`'s annotation non-optional.
 
 ### Scope 4
