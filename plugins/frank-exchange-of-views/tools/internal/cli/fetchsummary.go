@@ -164,7 +164,11 @@ func (s fetchSummary) render() string {
 		fmt.Fprintf(&b, "retrieved_via: %s\n", s.RetrievedVia)
 		fmt.Fprintf(&b, "  ^ THE LIVE SOURCE REFUSED THIS CONTAINER AND THESE BYTES ARE AN ARCHIVE SNAPSHOT — what the\n"+
 			"    source said on that date, retrieved from a third party. Usable, and NOT the same artifact: say so\n"+
-			"    in any claim about what the source currently says, and remember a snapshot can be partial.\n")
+			"    in any claim about what the source currently says.\n"+
+			"    READ IT BEFORE YOU CITE IT AS READ. Measured against the sources that actually failed in\n"+
+			"    2026-09-02_quadratic-formula, a snapshot of a SUBSCRIPTION article is usually the landing page —\n"+
+			"    title, abstract and analytics — not the text. That is a source you have NOT read at the leaf, and\n"+
+			"    a citation must say so rather than inherit the snapshot's apparent success.\n")
 	}
 	// LOUD, AND ABOVE THE TEXT LINES, because a seat that reads no further has still been told the
 	// one thing that decides whether this is a source at all.
