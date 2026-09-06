@@ -100,6 +100,51 @@ test('the lens roster does not scale with the corpus — one seat per strategic 
   assert.equal(await count(200), 4, 'a 20x corpus dispatches the SAME four areas')
 })
 
+// AREAS ARE OPT-IN PER RUN (#771). Seven areas is four dispatch waves against a measured ~2-agent
+// concurrency cap where four is two, so the default stays what has always sat and the rest are
+// asked for. A run that wants an adversary lens says so.
+test('the default roster is the four areas that have always sat', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  const roles = world.calls.filter((c) => c.opts.label.startsWith('red-lens'))
+    .map((c) => c.opts.label.match(/red-lens-(\d+)-/)[1])
+  assert.deepEqual(roles, ['1', '5', '6', '7'], 'evidence, logic, dark-side, voice — and nothing opt-in')
+})
+
+test('an opt-in area is dispatched with its own stable number, and only when asked for', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, { ...ARGS, lensAreas: ['evidence', 'adversary', 'architecture'] })
+  const roles = world.calls.filter((c) => c.opts.label.startsWith('red-lens'))
+    .map((c) => c.opts.label.match(/red-lens-(\d+)-/)[1])
+  assert.deepEqual(roles, ['1', '9', '10'], 'evidence + adversary(9) + architecture(10); logic and voice not asked for')
+})
+
+// A TYPO'D AREA IS A LENS THAT SILENTLY DOES NOT SIT — a run missing an entire kind of audit,
+// reading exactly like a run that asked for fewer. It is refused at the door, naming both sides.
+test('an unknown area name is refused before any seat is dispatched', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await assert.rejects(
+    () => world.run(script, { ...ARGS, lensAreas: ['evidence', 'adversarial'] }),
+    (e) => /unknown lens area/.test(e.message) && /adversarial/.test(e.message) && /architecture/.test(e.message))
+  assert.equal(world.calls.length, 0, 'nothing was dispatched before the refusal')
+})
+
+// THE RETIRED NUMBERS STAY RETIRED, AND THIS TEST IS WHERE THAT RULE LIVES.
+//
+// Records on disk carry found_by labels under 2, 3 and 4, so an area claiming one makes an
+// existing record say something false about who found what — the rule proto field numbers follow,
+// for the same reason. It is asserted here rather than written into debate.js because a SEAT
+// cannot act on which numbers are retired; only someone adding an area can, and they will meet
+// this test.
+test('no area claims a retired lens number', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, { ...ARGS, lensAreas: ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'adversary', 'architecture'] })
+  const roles = world.calls.filter((c) => c.opts.label.startsWith('red-lens'))
+    .map((c) => Number(c.opts.label.match(/red-lens-(\d+)-/)[1]))
+  assert.deepEqual(roles, [1, 5, 6, 7, 8, 9, 10])
+  for (const r of [2, 3, 4]) assert.ok(!roles.includes(r), `lens number ${r} is retired and must not be reused`)
+})
+
 test('exactly one evidence seat sits per round, in every round', async () => {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ claim_count: 200 })],
