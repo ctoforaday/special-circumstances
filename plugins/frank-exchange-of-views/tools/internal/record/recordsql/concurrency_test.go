@@ -124,7 +124,6 @@ func writeAsChild(t *testing.T, path, seat string) {
 		ev.SeatId = proto.String(seat)
 		ev.Round = proto.Int32(1)
 		ev.Ts = proto.String("2026-01-01T00:00:00Z")
-		ev.SchemaVersion = recordpb.CurrentSchemaVersion.Enum()
 
 		// THE SHAPE IS THE POINT: COUNT, THEN WRITE, IN ONE TRANSACTION.
 		//

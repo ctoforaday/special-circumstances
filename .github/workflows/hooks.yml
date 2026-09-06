@@ -1296,6 +1296,9 @@ jobs:
       - name: The record binary and the plugin read the same event schema
         run: go run ./schemagen -check
         working-directory: scripts
+      - name: The engine's grade weights are the schema's (a second table drifted for six releases)
+        run: go run ./massgen -check
+        working-directory: scripts
       - name: Hook bootstrap guards degrade gracefully (empty-bin window must never crash-storm)
         # Enumerates EVERY plugin's hooks.json, not just prosthetic-conscience's.
         # Naming one plugin was correct while it shipped the only hooks; a second

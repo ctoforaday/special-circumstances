@@ -171,24 +171,6 @@ message Sql {
   optional bool unique = 5;
 }
 
-// SchemaVersion is the format discriminator, and it is a POSITIVE FIELD rather than a parse
-// failure on purpose.
-//
-// Detecting an old record by "the unmarshal failed" recovers a fact from the shape of an error,
-// which is the defect this whole schema exists to remove. It also breaks forward reads: the
-// moment a later release adds anything, an older binary would report the record as OLDER than
-// itself, which is the opposite of true.
-//
-// IT BUMPS ON ENUM-VALUE ADDITIONS TOO, not only on field changes. Measured against
-// protobuf-go v1.36.12: protojson with DiscardUnknown=true does not reject an unknown enum
-// value, it silently drops the field to its zero value. So a newer `check_kind` read by an
-// older binary would become UNSPECIFIED without a word — a plausible zero manufactured by the
-// tolerance setting. The version gate refuses the line first; scripts/protogen gates the bump.
-enum SchemaVersion {
-  SCHEMA_VERSION_UNSPECIFIED = 0;  // absent: written before the schema existed. Always an error.
-  SCHEMA_VERSION_1 = 1 [(means) = "the protobuf record: one event stream, one row per act, schema derived from these descriptors"];
-}
-
 // EventType names the verb that wrote the event. It is redundant with the `body` oneof case and
 // checked against it at the single write path — two carriers of one fact with a gate between
 // them, which is legal precisely because the gate exists. It stays because it is in every
@@ -393,8 +375,8 @@ enum DirectionRuling {
 // throughout this record: a flag the seat never passed must not appear in the event at all, and
 // presence is read at 34 call sites. proto3 without `optional` has implicit presence, so an
 // unset field and a zero-valued one marshal to the same bytes under EmitUnpopulated=false —
-// `seq = 0` (the register event's real sequence number) would vanish from the line, and
-// schema_version could not distinguish "absent" from "0", which is the question the read rests
+// `seq = 0` (the register event's real sequence number) would vanish from the line, and a grade of
+// zero could not be told from an ungraded axis, which is the distinction half these readers rest
 // on. Requiredness is a validate-time duty declared separately, never inferred from optionality.
 message Event {
   // `seq` WAS FIELD 1 AND IS GONE. It was the seat's position within its own shard file, and its
@@ -445,7 +427,14 @@ message Event {
 
   optional EventType type = 7;
   optional string key = 8;
-  optional SchemaVersion schema_version = 9;
+  // 9 WAS `schema_version`, REMOVED 2026-09-06. It was a format discriminator for a reader that
+  // no longer exists: the line reader it gated went with the shard lines, and afterwards the field
+  // was stamped on every event and read by NOTHING. The compatibility question it claimed to
+  // answer is answered by the event-schema epoch, which is a fact about the BINARY compared at
+  // setup, not a column on every row. Kept reserved so the number cannot come back meaning
+  // something else.
+  reserved 9;
+  reserved "schema_version";
 
   oneof body {
     Register register = 20;

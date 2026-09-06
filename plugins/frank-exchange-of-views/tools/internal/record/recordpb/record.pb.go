@@ -37,65 +37,6 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// SchemaVersion is the format discriminator, and it is a POSITIVE FIELD rather than a parse
-// failure on purpose.
-//
-// Detecting an old record by "the unmarshal failed" recovers a fact from the shape of an error,
-// which is the defect this whole schema exists to remove. It also breaks forward reads: the
-// moment a later release adds anything, an older binary would report the record as OLDER than
-// itself, which is the opposite of true.
-//
-// IT BUMPS ON ENUM-VALUE ADDITIONS TOO, not only on field changes. Measured against
-// protobuf-go v1.36.12: protojson with DiscardUnknown=true does not reject an unknown enum
-// value, it silently drops the field to its zero value. So a newer `check_kind` read by an
-// older binary would become UNSPECIFIED without a word — a plausible zero manufactured by the
-// tolerance setting. The version gate refuses the line first; scripts/protogen gates the bump.
-type SchemaVersion int32
-
-const (
-	SchemaVersion_SCHEMA_VERSION_UNSPECIFIED SchemaVersion = 0 // absent: written before the schema existed. Always an error.
-	SchemaVersion_SCHEMA_VERSION_1           SchemaVersion = 1
-)
-
-// Enum value maps for SchemaVersion.
-var (
-	SchemaVersion_name = map[int32]string{
-		0: "SCHEMA_VERSION_UNSPECIFIED",
-		1: "SCHEMA_VERSION_1",
-	}
-	SchemaVersion_value = map[string]int32{
-		"SCHEMA_VERSION_UNSPECIFIED": 0,
-		"SCHEMA_VERSION_1":           1,
-	}
-)
-
-func (x SchemaVersion) Enum() *SchemaVersion {
-	p := new(SchemaVersion)
-	*p = x
-	return p
-}
-
-func (x SchemaVersion) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (SchemaVersion) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[0].Descriptor()
-}
-
-func (SchemaVersion) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[0]
-}
-
-func (x SchemaVersion) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use SchemaVersion.Descriptor instead.
-func (SchemaVersion) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{0}
-}
-
 // EventType names the verb that wrote the event. It is redundant with the `body` oneof case and
 // checked against it at the single write path — two carriers of one fact with a gate between
 // them, which is legal precisely because the gate exists. It stays because it is in every
@@ -236,11 +177,11 @@ func (x EventType) String() string {
 }
 
 func (EventType) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[1].Descriptor()
+	return file_record_proto_enumTypes[0].Descriptor()
 }
 
 func (EventType) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[1]
+	return &file_record_proto_enumTypes[0]
 }
 
 func (x EventType) Number() protoreflect.EnumNumber {
@@ -249,7 +190,7 @@ func (x EventType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use EventType.Descriptor instead.
 func (EventType) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{1}
+	return file_record_proto_rawDescGZIP(), []int{0}
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -311,11 +252,11 @@ func (x Grade) String() string {
 }
 
 func (Grade) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[2].Descriptor()
+	return file_record_proto_enumTypes[1].Descriptor()
 }
 
 func (Grade) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[2]
+	return &file_record_proto_enumTypes[1]
 }
 
 func (x Grade) Number() protoreflect.EnumNumber {
@@ -324,7 +265,7 @@ func (x Grade) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Grade.Descriptor instead.
 func (Grade) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{2}
+	return file_record_proto_rawDescGZIP(), []int{1}
 }
 
 // Verdict is red's binary gate. PASS is CHECKED against the open board, not taken on the seat's
@@ -363,11 +304,11 @@ func (x Verdict) String() string {
 }
 
 func (Verdict) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[3].Descriptor()
+	return file_record_proto_enumTypes[2].Descriptor()
 }
 
 func (Verdict) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[3]
+	return &file_record_proto_enumTypes[2]
 }
 
 func (x Verdict) Number() protoreflect.EnumNumber {
@@ -376,7 +317,7 @@ func (x Verdict) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Verdict.Descriptor instead.
 func (Verdict) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{3}
+	return file_record_proto_rawDescGZIP(), []int{2}
 }
 
 // RunOutcome is how the SITTING ended. The report's verdict stamp switches on it, so an
@@ -421,11 +362,11 @@ func (x RunOutcome) String() string {
 }
 
 func (RunOutcome) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[4].Descriptor()
+	return file_record_proto_enumTypes[3].Descriptor()
 }
 
 func (RunOutcome) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[4]
+	return &file_record_proto_enumTypes[3]
 }
 
 func (x RunOutcome) Number() protoreflect.EnumNumber {
@@ -434,7 +375,7 @@ func (x RunOutcome) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RunOutcome.Descriptor instead.
 func (RunOutcome) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{4}
+	return file_record_proto_rawDescGZIP(), []int{3}
 }
 
 // CheckKind is WHAT WOULD SETTLE an acceptance check. COMPUTATION is the one with teeth: a gap
@@ -477,11 +418,11 @@ func (x CheckKind) String() string {
 }
 
 func (CheckKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[5].Descriptor()
+	return file_record_proto_enumTypes[4].Descriptor()
 }
 
 func (CheckKind) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[5]
+	return &file_record_proto_enumTypes[4]
 }
 
 func (x CheckKind) Number() protoreflect.EnumNumber {
@@ -490,7 +431,7 @@ func (x CheckKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CheckKind.Descriptor instead.
 func (CheckKind) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{5}
+	return file_record_proto_rawDescGZIP(), []int{4}
 }
 
 // ClosureClass is HOW A GAP ENDED — one vocabulary for both closing verbs. Before it was
@@ -549,11 +490,11 @@ func (x Disposition) String() string {
 }
 
 func (Disposition) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[6].Descriptor()
+	return file_record_proto_enumTypes[5].Descriptor()
 }
 
 func (Disposition) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[6]
+	return &file_record_proto_enumTypes[5]
 }
 
 func (x Disposition) Number() protoreflect.EnumNumber {
@@ -562,7 +503,7 @@ func (x Disposition) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Disposition.Descriptor instead.
 func (Disposition) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{6}
+	return file_record_proto_rawDescGZIP(), []int{5}
 }
 
 // SourceOutcome is WHAT THE SOURCE DID for a claim — a different question from how sure the
@@ -617,11 +558,11 @@ func (x SourceOutcome) String() string {
 }
 
 func (SourceOutcome) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[7].Descriptor()
+	return file_record_proto_enumTypes[6].Descriptor()
 }
 
 func (SourceOutcome) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[7]
+	return &file_record_proto_enumTypes[6]
 }
 
 func (x SourceOutcome) Number() protoreflect.EnumNumber {
@@ -630,7 +571,7 @@ func (x SourceOutcome) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use SourceOutcome.Descriptor instead.
 func (SourceOutcome) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{7}
+	return file_record_proto_rawDescGZIP(), []int{6}
 }
 
 // Confidence is how sure the auditor is OF THE DETERMINATION, whatever the determination was.
@@ -673,11 +614,11 @@ func (x Confidence) String() string {
 }
 
 func (Confidence) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[8].Descriptor()
+	return file_record_proto_enumTypes[7].Descriptor()
 }
 
 func (Confidence) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[8]
+	return &file_record_proto_enumTypes[7]
 }
 
 func (x Confidence) Number() protoreflect.EnumNumber {
@@ -686,7 +627,7 @@ func (x Confidence) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Confidence.Descriptor instead.
 func (Confidence) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{8}
+	return file_record_proto_rawDescGZIP(), []int{7}
 }
 
 // Soundness: REPRODUCING IS NOT PROVING. Re-running a script and getting the same bytes measures
@@ -725,11 +666,11 @@ func (x Soundness) String() string {
 }
 
 func (Soundness) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[9].Descriptor()
+	return file_record_proto_enumTypes[8].Descriptor()
 }
 
 func (Soundness) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[9]
+	return &file_record_proto_enumTypes[8]
 }
 
 func (x Soundness) Number() protoreflect.EnumNumber {
@@ -738,7 +679,7 @@ func (x Soundness) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Soundness.Descriptor instead.
 func (Soundness) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{9}
+	return file_record_proto_rawDescGZIP(), []int{8}
 }
 
 // AvenueStatus is a line of inquiry's fate. The lines-of-inquiry projection groups BY status, so
@@ -786,11 +727,11 @@ func (x AvenueStatus) String() string {
 }
 
 func (AvenueStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[10].Descriptor()
+	return file_record_proto_enumTypes[9].Descriptor()
 }
 
 func (AvenueStatus) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[10]
+	return &file_record_proto_enumTypes[9]
 }
 
 func (x AvenueStatus) Number() protoreflect.EnumNumber {
@@ -799,7 +740,7 @@ func (x AvenueStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use AvenueStatus.Descriptor instead.
 func (AvenueStatus) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{10}
+	return file_record_proto_rawDescGZIP(), []int{9}
 }
 
 // MotionSubject is what a motion is ABOUT. The ruling vocabulary is keyed on it, which is why
@@ -840,11 +781,11 @@ func (x MotionSubject) String() string {
 }
 
 func (MotionSubject) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[11].Descriptor()
+	return file_record_proto_enumTypes[10].Descriptor()
 }
 
 func (MotionSubject) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[11]
+	return &file_record_proto_enumTypes[10]
 }
 
 func (x MotionSubject) Number() protoreflect.EnumNumber {
@@ -853,7 +794,7 @@ func (x MotionSubject) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use MotionSubject.Descriptor instead.
 func (MotionSubject) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{11}
+	return file_record_proto_rawDescGZIP(), []int{10}
 }
 
 // The ruling sets, one per subject. A single flat set cannot express this: one motion-rule
@@ -892,11 +833,11 @@ func (x GradeRuling) String() string {
 }
 
 func (GradeRuling) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[12].Descriptor()
+	return file_record_proto_enumTypes[11].Descriptor()
 }
 
 func (GradeRuling) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[12]
+	return &file_record_proto_enumTypes[11]
 }
 
 func (x GradeRuling) Number() protoreflect.EnumNumber {
@@ -905,7 +846,7 @@ func (x GradeRuling) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use GradeRuling.Descriptor instead.
 func (GradeRuling) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{12}
+	return file_record_proto_rawDescGZIP(), []int{11}
 }
 
 type PetitionRuling int32
@@ -941,11 +882,11 @@ func (x PetitionRuling) String() string {
 }
 
 func (PetitionRuling) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[13].Descriptor()
+	return file_record_proto_enumTypes[12].Descriptor()
 }
 
 func (PetitionRuling) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[13]
+	return &file_record_proto_enumTypes[12]
 }
 
 func (x PetitionRuling) Number() protoreflect.EnumNumber {
@@ -954,7 +895,7 @@ func (x PetitionRuling) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PetitionRuling.Descriptor instead.
 func (PetitionRuling) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{13}
+	return file_record_proto_rawDescGZIP(), []int{12}
 }
 
 type DirectionRuling int32
@@ -993,11 +934,11 @@ func (x DirectionRuling) String() string {
 }
 
 func (DirectionRuling) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[14].Descriptor()
+	return file_record_proto_enumTypes[13].Descriptor()
 }
 
 func (DirectionRuling) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[14]
+	return &file_record_proto_enumTypes[13]
 }
 
 func (x DirectionRuling) Number() protoreflect.EnumNumber {
@@ -1006,7 +947,7 @@ func (x DirectionRuling) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use DirectionRuling.Descriptor instead.
 func (DirectionRuling) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{14}
+	return file_record_proto_rawDescGZIP(), []int{13}
 }
 
 // FrictionKind is WHY a friction event exists, and it is a FIELD rather than something a reader
@@ -1058,11 +999,11 @@ func (x FrictionKind) String() string {
 }
 
 func (FrictionKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[15].Descriptor()
+	return file_record_proto_enumTypes[14].Descriptor()
 }
 
 func (FrictionKind) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[15]
+	return &file_record_proto_enumTypes[14]
 }
 
 func (x FrictionKind) Number() protoreflect.EnumNumber {
@@ -1071,7 +1012,7 @@ func (x FrictionKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FrictionKind.Descriptor instead.
 func (FrictionKind) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{15}
+	return file_record_proto_rawDescGZIP(), []int{14}
 }
 
 // GradeDimension is which axis of a gap's grading is contested.
@@ -1114,11 +1055,11 @@ func (x GradeDimension) String() string {
 }
 
 func (GradeDimension) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[16].Descriptor()
+	return file_record_proto_enumTypes[15].Descriptor()
 }
 
 func (GradeDimension) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[16]
+	return &file_record_proto_enumTypes[15]
 }
 
 func (x GradeDimension) Number() protoreflect.EnumNumber {
@@ -1127,7 +1068,7 @@ func (x GradeDimension) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use GradeDimension.Descriptor instead.
 func (GradeDimension) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{16}
+	return file_record_proto_rawDescGZIP(), []int{15}
 }
 
 // THE PETITION CLASSES, AND THIS ENUM WAS NEVER MIGRATED TO THEM.
@@ -1181,11 +1122,11 @@ func (x PetitionClass) String() string {
 }
 
 func (PetitionClass) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[17].Descriptor()
+	return file_record_proto_enumTypes[16].Descriptor()
 }
 
 func (PetitionClass) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[17]
+	return &file_record_proto_enumTypes[16]
 }
 
 func (x PetitionClass) Number() protoreflect.EnumNumber {
@@ -1194,7 +1135,7 @@ func (x PetitionClass) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PetitionClass.Descriptor instead.
 func (PetitionClass) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{17}
+	return file_record_proto_rawDescGZIP(), []int{16}
 }
 
 // WHO GRANTED RELIEF BINDS, AND NOT ONE OF ITS OLD VALUES COULD EVER BE PASSED.
@@ -1249,11 +1190,11 @@ func (x RulingBinds) String() string {
 }
 
 func (RulingBinds) Descriptor() protoreflect.EnumDescriptor {
-	return file_record_proto_enumTypes[18].Descriptor()
+	return file_record_proto_enumTypes[17].Descriptor()
 }
 
 func (RulingBinds) Type() protoreflect.EnumType {
-	return &file_record_proto_enumTypes[18]
+	return &file_record_proto_enumTypes[17]
 }
 
 func (x RulingBinds) Number() protoreflect.EnumNumber {
@@ -1262,7 +1203,7 @@ func (x RulingBinds) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RulingBinds.Descriptor instead.
 func (RulingBinds) EnumDescriptor() ([]byte, []int) {
-	return file_record_proto_rawDescGZIP(), []int{18}
+	return file_record_proto_rawDescGZIP(), []int{17}
 }
 
 // SqlCheck is one table-level rule and what it protects.
@@ -1456,8 +1397,8 @@ func (x *Sql) GetUnique() bool {
 // throughout this record: a flag the seat never passed must not appear in the event at all, and
 // presence is read at 34 call sites. proto3 without `optional` has implicit presence, so an
 // unset field and a zero-valued one marshal to the same bytes under EmitUnpopulated=false —
-// `seq = 0` (the register event's real sequence number) would vanish from the line, and
-// schema_version could not distinguish "absent" from "0", which is the question the read rests
+// `seq = 0` (the register event's real sequence number) would vanish from the line, and a grade of
+// zero could not be told from an ungraded axis, which is the distinction half these readers rest
 // on. Requiredness is a validate-time duty declared separately, never inferred from optionality.
 type Event struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1490,10 +1431,9 @@ type Event struct {
 	// strings.HasPrefix(seat_id, "red-merge") — including the branch deciding whether a position
 	// renders as RED or BLUE — so a seat id that failed to match its expected prefix rendered as
 	// the wrong party, silently. Stamped once at the write; never re-derived.
-	Role          *string        `protobuf:"bytes,6,opt,name=role,proto3,oneof" json:"role,omitempty"`
-	Type          *EventType     `protobuf:"varint,7,opt,name=type,proto3,enum=feov.record.v1.EventType,oneof" json:"type,omitempty"`
-	Key           *string        `protobuf:"bytes,8,opt,name=key,proto3,oneof" json:"key,omitempty"`
-	SchemaVersion *SchemaVersion `protobuf:"varint,9,opt,name=schema_version,json=schemaVersion,proto3,enum=feov.record.v1.SchemaVersion,oneof" json:"schema_version,omitempty"`
+	Role *string    `protobuf:"bytes,6,opt,name=role,proto3,oneof" json:"role,omitempty"`
+	Type *EventType `protobuf:"varint,7,opt,name=type,proto3,enum=feov.record.v1.EventType,oneof" json:"type,omitempty"`
+	Key  *string    `protobuf:"bytes,8,opt,name=key,proto3,oneof" json:"key,omitempty"`
 	// Types that are valid to be assigned to Body:
 	//
 	//	*Event_Register
@@ -1606,13 +1546,6 @@ func (x *Event) GetKey() string {
 		return *x.Key
 	}
 	return ""
-}
-
-func (x *Event) GetSchemaVersion() SchemaVersion {
-	if x != nil && x.SchemaVersion != nil {
-		return *x.SchemaVersion
-	}
-	return SchemaVersion_SCHEMA_VERSION_UNSPECIFIED
 }
 
 func (x *Event) GetBody() isEvent_Body {
@@ -5883,15 +5816,14 @@ const file_record_proto_rawDesc = "" +
 	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
-	"\a_unique\"\xfc\x11\n" +
+	"\a_unique\"\xb4\x11\n" +
 	"\x05Event\x12\x13\n" +
 	"\x02ts\x18\x02 \x01(\tH\x01R\x02ts\x88\x01\x01\x12\x1c\n" +
 	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x12\x19\n" +
 	"\x05round\x18\x05 \x01(\x05H\x03R\x05round\x88\x01\x01\x12\x17\n" +
 	"\x04role\x18\x06 \x01(\tH\x04R\x04role\x88\x01\x01\x122\n" +
 	"\x04type\x18\a \x01(\x0e2\x19.feov.record.v1.EventTypeH\x05R\x04type\x88\x01\x01\x12\x15\n" +
-	"\x03key\x18\b \x01(\tH\x06R\x03key\x88\x01\x01\x12I\n" +
-	"\x0eschema_version\x18\t \x01(\x0e2\x1d.feov.record.v1.SchemaVersionH\aR\rschemaVersion\x88\x01\x01\x126\n" +
+	"\x03key\x18\b \x01(\tH\x06R\x03key\x88\x01\x01\x126\n" +
 	"\bregister\x18\x14 \x01(\v2\x18.feov.record.v1.RegisterH\x00R\bregister\x128\n" +
 	"\averdict\x18\x15 \x01(\v2\x1c.feov.record.v1.RoundVerdictH\x00R\averdict\x123\n" +
 	"\aoutcome\x18\x16 \x01(\v2\x17.feov.record.v1.OutcomeH\x00R\aoutcome\x126\n" +
@@ -5937,8 +5869,8 @@ const file_record_proto_rawDesc = "" +
 	"\x06_roundB\a\n" +
 	"\x05_roleB\a\n" +
 	"\x05_typeB\x06\n" +
-	"\x04_keyB\x11\n" +
-	"\x0f_schema_versionJ\x04\b7\x10Q\"\xf0\x04\n" +
+	"\x04_keyJ\x04\b\t\x10\n" +
+	"J\x04\b7\x10QR\x0eschema_version\"\xf0\x04\n" +
 	"\rTelemetryLine\x12\x19\n" +
 	"\x05round\x18\x01 \x01(\x05H\x00R\x05round\x88\x01\x01\x12,\n" +
 	"\x0fmapping_version\x18\x02 \x01(\tH\x01R\x0emappingVersion\x88\x01\x01\x12\"\n" +
@@ -6455,10 +6387,7 @@ const file_record_proto_rawDesc = "" +
 	"\aDeclare\x12\x1d\n" +
 	"\aholding\x18\x01 \x01(\tH\x00R\aholding\x88\x01\x01B\n" +
 	"\n" +
-	"\b_holding*\xa8\x01\n" +
-	"\rSchemaVersion\x12\x1e\n" +
-	"\x1aSCHEMA_VERSION_UNSPECIFIED\x10\x00\x12w\n" +
-	"\x10SCHEMA_VERSION_1\x10\x01\x1aa\x8a\xb5\x18]the protobuf record: one event stream, one row per act, schema derived from these descriptors*\xaa\x1d\n" +
+	"\b_holding*\xaa\x1d\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12w\n" +
 	"\x13EVENT_TYPE_REGISTER\x10\x01\x1a^\x8a\xb5\x18Za seat took its seat — the first act of any seat, stamping the tool version it ran under\x12e\n" +
@@ -6616,171 +6545,169 @@ func file_record_proto_rawDescGZIP() []byte {
 	return file_record_proto_rawDescData
 }
 
-var file_record_proto_enumTypes = make([]protoimpl.EnumInfo, 19)
+var file_record_proto_enumTypes = make([]protoimpl.EnumInfo, 18)
 var file_record_proto_msgTypes = make([]protoimpl.MessageInfo, 47)
 var file_record_proto_goTypes = []any{
-	(SchemaVersion)(0),                    // 0: feov.record.v1.SchemaVersion
-	(EventType)(0),                        // 1: feov.record.v1.EventType
-	(Grade)(0),                            // 2: feov.record.v1.Grade
-	(Verdict)(0),                          // 3: feov.record.v1.Verdict
-	(RunOutcome)(0),                       // 4: feov.record.v1.RunOutcome
-	(CheckKind)(0),                        // 5: feov.record.v1.CheckKind
-	(Disposition)(0),                      // 6: feov.record.v1.Disposition
-	(SourceOutcome)(0),                    // 7: feov.record.v1.SourceOutcome
-	(Confidence)(0),                       // 8: feov.record.v1.Confidence
-	(Soundness)(0),                        // 9: feov.record.v1.Soundness
-	(AvenueStatus)(0),                     // 10: feov.record.v1.AvenueStatus
-	(MotionSubject)(0),                    // 11: feov.record.v1.MotionSubject
-	(GradeRuling)(0),                      // 12: feov.record.v1.GradeRuling
-	(PetitionRuling)(0),                   // 13: feov.record.v1.PetitionRuling
-	(DirectionRuling)(0),                  // 14: feov.record.v1.DirectionRuling
-	(FrictionKind)(0),                     // 15: feov.record.v1.FrictionKind
-	(GradeDimension)(0),                   // 16: feov.record.v1.GradeDimension
-	(PetitionClass)(0),                    // 17: feov.record.v1.PetitionClass
-	(RulingBinds)(0),                      // 18: feov.record.v1.RulingBinds
-	(*SqlCheck)(nil),                      // 19: feov.record.v1.SqlCheck
-	(*Sql)(nil),                           // 20: feov.record.v1.Sql
-	(*Event)(nil),                         // 21: feov.record.v1.Event
-	(*TelemetryLine)(nil),                 // 22: feov.record.v1.TelemetryLine
-	(*NewMint)(nil),                       // 23: feov.record.v1.NewMint
-	(*SeverityTally)(nil),                 // 24: feov.record.v1.SeverityTally
-	(*RepairRegression)(nil),              // 25: feov.record.v1.RepairRegression
-	(*EdgeDeltas)(nil),                    // 26: feov.record.v1.EdgeDeltas
-	(*Mint)(nil),                          // 27: feov.record.v1.Mint
-	(*ClassNew)(nil),                      // 28: feov.record.v1.ClassNew
-	(*Close)(nil),                         // 29: feov.record.v1.Close
-	(*Closing)(nil),                       // 30: feov.record.v1.Closing
-	(*Regrade)(nil),                       // 31: feov.record.v1.Regrade
-	(*SpotCheck)(nil),                     // 32: feov.record.v1.SpotCheck
-	(*Opinion)(nil),                       // 33: feov.record.v1.Opinion
-	(*Finding)(nil),                       // 34: feov.record.v1.Finding
-	(*Observe)(nil),                       // 35: feov.record.v1.Observe
-	(*Anchor)(nil),                        // 36: feov.record.v1.Anchor
-	(*Cite)(nil),                          // 37: feov.record.v1.Cite
-	(*Verify)(nil),                        // 38: feov.record.v1.Verify
-	(*Proof)(nil),                         // 39: feov.record.v1.Proof
-	(*Reproduce)(nil),                     // 40: feov.record.v1.Reproduce
-	(*InquiryReview)(nil),                 // 41: feov.record.v1.InquiryReview
-	(*Avenue)(nil),                        // 42: feov.record.v1.Avenue
-	(*BaseIngest)(nil),                    // 43: feov.record.v1.BaseIngest
-	(*BlueEdit)(nil),                      // 44: feov.record.v1.BlueEdit
-	(*Revision)(nil),                      // 45: feov.record.v1.Revision
-	(*Retire)(nil),                        // 46: feov.record.v1.Retire
-	(*ManifestRow)(nil),                   // 47: feov.record.v1.ManifestRow
-	(*Friction)(nil),                      // 48: feov.record.v1.Friction
-	(*FrictionNone)(nil),                  // 49: feov.record.v1.FrictionNone
-	(*Motion)(nil),                        // 50: feov.record.v1.Motion
-	(*GradeMotion)(nil),                   // 51: feov.record.v1.GradeMotion
-	(*PetitionMotion)(nil),                // 52: feov.record.v1.PetitionMotion
-	(*DirectionMotion)(nil),               // 53: feov.record.v1.DirectionMotion
-	(*MotionRule)(nil),                    // 54: feov.record.v1.MotionRule
-	(*MotionAppeal)(nil),                  // 55: feov.record.v1.MotionAppeal
-	(*Register)(nil),                      // 56: feov.record.v1.Register
-	(*SittingOpen)(nil),                   // 57: feov.record.v1.SittingOpen
-	(*SittingClose)(nil),                  // 58: feov.record.v1.SittingClose
-	(*RoundVerdict)(nil),                  // 59: feov.record.v1.RoundVerdict
-	(*Outcome)(nil),                       // 60: feov.record.v1.Outcome
-	(*Position)(nil),                      // 61: feov.record.v1.Position
-	(*Halt)(nil),                          // 62: feov.record.v1.Halt
-	(*Certify)(nil),                       // 63: feov.record.v1.Certify
-	(*Declare)(nil),                       // 64: feov.record.v1.Declare
-	nil,                                   // 65: feov.record.v1.NewMint.ByClassEntry
-	(*descriptorpb.FieldOptions)(nil),     // 66: google.protobuf.FieldOptions
-	(*descriptorpb.EnumValueOptions)(nil), // 67: google.protobuf.EnumValueOptions
-	(*descriptorpb.MessageOptions)(nil),   // 68: google.protobuf.MessageOptions
+	(EventType)(0),                        // 0: feov.record.v1.EventType
+	(Grade)(0),                            // 1: feov.record.v1.Grade
+	(Verdict)(0),                          // 2: feov.record.v1.Verdict
+	(RunOutcome)(0),                       // 3: feov.record.v1.RunOutcome
+	(CheckKind)(0),                        // 4: feov.record.v1.CheckKind
+	(Disposition)(0),                      // 5: feov.record.v1.Disposition
+	(SourceOutcome)(0),                    // 6: feov.record.v1.SourceOutcome
+	(Confidence)(0),                       // 7: feov.record.v1.Confidence
+	(Soundness)(0),                        // 8: feov.record.v1.Soundness
+	(AvenueStatus)(0),                     // 9: feov.record.v1.AvenueStatus
+	(MotionSubject)(0),                    // 10: feov.record.v1.MotionSubject
+	(GradeRuling)(0),                      // 11: feov.record.v1.GradeRuling
+	(PetitionRuling)(0),                   // 12: feov.record.v1.PetitionRuling
+	(DirectionRuling)(0),                  // 13: feov.record.v1.DirectionRuling
+	(FrictionKind)(0),                     // 14: feov.record.v1.FrictionKind
+	(GradeDimension)(0),                   // 15: feov.record.v1.GradeDimension
+	(PetitionClass)(0),                    // 16: feov.record.v1.PetitionClass
+	(RulingBinds)(0),                      // 17: feov.record.v1.RulingBinds
+	(*SqlCheck)(nil),                      // 18: feov.record.v1.SqlCheck
+	(*Sql)(nil),                           // 19: feov.record.v1.Sql
+	(*Event)(nil),                         // 20: feov.record.v1.Event
+	(*TelemetryLine)(nil),                 // 21: feov.record.v1.TelemetryLine
+	(*NewMint)(nil),                       // 22: feov.record.v1.NewMint
+	(*SeverityTally)(nil),                 // 23: feov.record.v1.SeverityTally
+	(*RepairRegression)(nil),              // 24: feov.record.v1.RepairRegression
+	(*EdgeDeltas)(nil),                    // 25: feov.record.v1.EdgeDeltas
+	(*Mint)(nil),                          // 26: feov.record.v1.Mint
+	(*ClassNew)(nil),                      // 27: feov.record.v1.ClassNew
+	(*Close)(nil),                         // 28: feov.record.v1.Close
+	(*Closing)(nil),                       // 29: feov.record.v1.Closing
+	(*Regrade)(nil),                       // 30: feov.record.v1.Regrade
+	(*SpotCheck)(nil),                     // 31: feov.record.v1.SpotCheck
+	(*Opinion)(nil),                       // 32: feov.record.v1.Opinion
+	(*Finding)(nil),                       // 33: feov.record.v1.Finding
+	(*Observe)(nil),                       // 34: feov.record.v1.Observe
+	(*Anchor)(nil),                        // 35: feov.record.v1.Anchor
+	(*Cite)(nil),                          // 36: feov.record.v1.Cite
+	(*Verify)(nil),                        // 37: feov.record.v1.Verify
+	(*Proof)(nil),                         // 38: feov.record.v1.Proof
+	(*Reproduce)(nil),                     // 39: feov.record.v1.Reproduce
+	(*InquiryReview)(nil),                 // 40: feov.record.v1.InquiryReview
+	(*Avenue)(nil),                        // 41: feov.record.v1.Avenue
+	(*BaseIngest)(nil),                    // 42: feov.record.v1.BaseIngest
+	(*BlueEdit)(nil),                      // 43: feov.record.v1.BlueEdit
+	(*Revision)(nil),                      // 44: feov.record.v1.Revision
+	(*Retire)(nil),                        // 45: feov.record.v1.Retire
+	(*ManifestRow)(nil),                   // 46: feov.record.v1.ManifestRow
+	(*Friction)(nil),                      // 47: feov.record.v1.Friction
+	(*FrictionNone)(nil),                  // 48: feov.record.v1.FrictionNone
+	(*Motion)(nil),                        // 49: feov.record.v1.Motion
+	(*GradeMotion)(nil),                   // 50: feov.record.v1.GradeMotion
+	(*PetitionMotion)(nil),                // 51: feov.record.v1.PetitionMotion
+	(*DirectionMotion)(nil),               // 52: feov.record.v1.DirectionMotion
+	(*MotionRule)(nil),                    // 53: feov.record.v1.MotionRule
+	(*MotionAppeal)(nil),                  // 54: feov.record.v1.MotionAppeal
+	(*Register)(nil),                      // 55: feov.record.v1.Register
+	(*SittingOpen)(nil),                   // 56: feov.record.v1.SittingOpen
+	(*SittingClose)(nil),                  // 57: feov.record.v1.SittingClose
+	(*RoundVerdict)(nil),                  // 58: feov.record.v1.RoundVerdict
+	(*Outcome)(nil),                       // 59: feov.record.v1.Outcome
+	(*Position)(nil),                      // 60: feov.record.v1.Position
+	(*Halt)(nil),                          // 61: feov.record.v1.Halt
+	(*Certify)(nil),                       // 62: feov.record.v1.Certify
+	(*Declare)(nil),                       // 63: feov.record.v1.Declare
+	nil,                                   // 64: feov.record.v1.NewMint.ByClassEntry
+	(*descriptorpb.FieldOptions)(nil),     // 65: google.protobuf.FieldOptions
+	(*descriptorpb.EnumValueOptions)(nil), // 66: google.protobuf.EnumValueOptions
+	(*descriptorpb.MessageOptions)(nil),   // 67: google.protobuf.MessageOptions
 }
 var file_record_proto_depIdxs = []int32{
-	1,  // 0: feov.record.v1.Event.type:type_name -> feov.record.v1.EventType
-	0,  // 1: feov.record.v1.Event.schema_version:type_name -> feov.record.v1.SchemaVersion
-	56, // 2: feov.record.v1.Event.register:type_name -> feov.record.v1.Register
-	59, // 3: feov.record.v1.Event.verdict:type_name -> feov.record.v1.RoundVerdict
-	60, // 4: feov.record.v1.Event.outcome:type_name -> feov.record.v1.Outcome
-	61, // 5: feov.record.v1.Event.position:type_name -> feov.record.v1.Position
-	62, // 6: feov.record.v1.Event.halt:type_name -> feov.record.v1.Halt
-	63, // 7: feov.record.v1.Event.certify:type_name -> feov.record.v1.Certify
-	64, // 8: feov.record.v1.Event.declare:type_name -> feov.record.v1.Declare
-	50, // 9: feov.record.v1.Event.motion:type_name -> feov.record.v1.Motion
-	54, // 10: feov.record.v1.Event.motion_rule:type_name -> feov.record.v1.MotionRule
-	55, // 11: feov.record.v1.Event.motion_appeal:type_name -> feov.record.v1.MotionAppeal
-	27, // 12: feov.record.v1.Event.mint:type_name -> feov.record.v1.Mint
-	28, // 13: feov.record.v1.Event.class_new:type_name -> feov.record.v1.ClassNew
-	29, // 14: feov.record.v1.Event.close:type_name -> feov.record.v1.Close
-	30, // 15: feov.record.v1.Event.closing:type_name -> feov.record.v1.Closing
-	31, // 16: feov.record.v1.Event.regrade:type_name -> feov.record.v1.Regrade
-	32, // 17: feov.record.v1.Event.spot_check:type_name -> feov.record.v1.SpotCheck
-	33, // 18: feov.record.v1.Event.opinion:type_name -> feov.record.v1.Opinion
-	34, // 19: feov.record.v1.Event.finding:type_name -> feov.record.v1.Finding
-	35, // 20: feov.record.v1.Event.observe:type_name -> feov.record.v1.Observe
-	36, // 21: feov.record.v1.Event.anchor:type_name -> feov.record.v1.Anchor
-	37, // 22: feov.record.v1.Event.cite:type_name -> feov.record.v1.Cite
-	38, // 23: feov.record.v1.Event.verify:type_name -> feov.record.v1.Verify
-	39, // 24: feov.record.v1.Event.proof:type_name -> feov.record.v1.Proof
-	40, // 25: feov.record.v1.Event.reproduce:type_name -> feov.record.v1.Reproduce
-	42, // 26: feov.record.v1.Event.avenue:type_name -> feov.record.v1.Avenue
-	44, // 27: feov.record.v1.Event.blue_edit:type_name -> feov.record.v1.BlueEdit
-	45, // 28: feov.record.v1.Event.revision:type_name -> feov.record.v1.Revision
-	46, // 29: feov.record.v1.Event.retire:type_name -> feov.record.v1.Retire
-	47, // 30: feov.record.v1.Event.manifest_row:type_name -> feov.record.v1.ManifestRow
-	48, // 31: feov.record.v1.Event.friction:type_name -> feov.record.v1.Friction
-	49, // 32: feov.record.v1.Event.friction_none:type_name -> feov.record.v1.FrictionNone
-	41, // 33: feov.record.v1.Event.inquiry_review:type_name -> feov.record.v1.InquiryReview
-	43, // 34: feov.record.v1.Event.base_ingest:type_name -> feov.record.v1.BaseIngest
-	57, // 35: feov.record.v1.Event.sitting_open:type_name -> feov.record.v1.SittingOpen
-	58, // 36: feov.record.v1.Event.sitting_close:type_name -> feov.record.v1.SittingClose
-	2,  // 37: feov.record.v1.TelemetryLine.max_severity:type_name -> feov.record.v1.Grade
-	23, // 38: feov.record.v1.TelemetryLine.new_mint:type_name -> feov.record.v1.NewMint
-	25, // 39: feov.record.v1.TelemetryLine.repair_regression:type_name -> feov.record.v1.RepairRegression
-	26, // 40: feov.record.v1.TelemetryLine.edge_deltas:type_name -> feov.record.v1.EdgeDeltas
-	24, // 41: feov.record.v1.NewMint.by_severity:type_name -> feov.record.v1.SeverityTally
-	65, // 42: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.NewMint.ByClassEntry
-	2,  // 43: feov.record.v1.SeverityTally.grade:type_name -> feov.record.v1.Grade
-	5,  // 44: feov.record.v1.Mint.check_kind:type_name -> feov.record.v1.CheckKind
-	2,  // 45: feov.record.v1.Mint.severity:type_name -> feov.record.v1.Grade
-	2,  // 46: feov.record.v1.Mint.likelihood:type_name -> feov.record.v1.Grade
-	2,  // 47: feov.record.v1.Mint.impact:type_name -> feov.record.v1.Grade
-	2,  // 48: feov.record.v1.Mint.complexity_cost:type_name -> feov.record.v1.Grade
-	6,  // 49: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.Disposition
-	2,  // 50: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
-	2,  // 51: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
-	2,  // 52: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
-	2,  // 53: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
-	6,  // 54: feov.record.v1.Opinion.disposition:type_name -> feov.record.v1.Disposition
-	2,  // 55: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
-	2,  // 56: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
-	2,  // 57: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
-	7,  // 58: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
-	8,  // 59: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
-	9,  // 60: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
-	10, // 61: feov.record.v1.Avenue.status:type_name -> feov.record.v1.AvenueStatus
-	15, // 62: feov.record.v1.Friction.kind:type_name -> feov.record.v1.FrictionKind
-	11, // 63: feov.record.v1.Motion.subject:type_name -> feov.record.v1.MotionSubject
-	51, // 64: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
-	52, // 65: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	53, // 66: feov.record.v1.Motion.direction:type_name -> feov.record.v1.DirectionMotion
-	16, // 67: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
-	2,  // 68: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
-	17, // 69: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
-	11, // 70: feov.record.v1.MotionRule.subject:type_name -> feov.record.v1.MotionSubject
-	12, // 71: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
-	13, // 72: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	14, // 73: feov.record.v1.MotionRule.direction:type_name -> feov.record.v1.DirectionRuling
-	18, // 74: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
-	11, // 75: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
-	3,  // 76: feov.record.v1.RoundVerdict.verdict:type_name -> feov.record.v1.Verdict
-	4,  // 77: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	66, // 78: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	67, // 79: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	67, // 80: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	67, // 81: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	67, // 82: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	68, // 83: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	20, // 84: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	19, // 85: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	86, // [86:86] is the sub-list for method output_type
-	86, // [86:86] is the sub-list for method input_type
-	84, // [84:86] is the sub-list for extension type_name
-	78, // [78:84] is the sub-list for extension extendee
-	0,  // [0:78] is the sub-list for field type_name
+	0,  // 0: feov.record.v1.Event.type:type_name -> feov.record.v1.EventType
+	55, // 1: feov.record.v1.Event.register:type_name -> feov.record.v1.Register
+	58, // 2: feov.record.v1.Event.verdict:type_name -> feov.record.v1.RoundVerdict
+	59, // 3: feov.record.v1.Event.outcome:type_name -> feov.record.v1.Outcome
+	60, // 4: feov.record.v1.Event.position:type_name -> feov.record.v1.Position
+	61, // 5: feov.record.v1.Event.halt:type_name -> feov.record.v1.Halt
+	62, // 6: feov.record.v1.Event.certify:type_name -> feov.record.v1.Certify
+	63, // 7: feov.record.v1.Event.declare:type_name -> feov.record.v1.Declare
+	49, // 8: feov.record.v1.Event.motion:type_name -> feov.record.v1.Motion
+	53, // 9: feov.record.v1.Event.motion_rule:type_name -> feov.record.v1.MotionRule
+	54, // 10: feov.record.v1.Event.motion_appeal:type_name -> feov.record.v1.MotionAppeal
+	26, // 11: feov.record.v1.Event.mint:type_name -> feov.record.v1.Mint
+	27, // 12: feov.record.v1.Event.class_new:type_name -> feov.record.v1.ClassNew
+	28, // 13: feov.record.v1.Event.close:type_name -> feov.record.v1.Close
+	29, // 14: feov.record.v1.Event.closing:type_name -> feov.record.v1.Closing
+	30, // 15: feov.record.v1.Event.regrade:type_name -> feov.record.v1.Regrade
+	31, // 16: feov.record.v1.Event.spot_check:type_name -> feov.record.v1.SpotCheck
+	32, // 17: feov.record.v1.Event.opinion:type_name -> feov.record.v1.Opinion
+	33, // 18: feov.record.v1.Event.finding:type_name -> feov.record.v1.Finding
+	34, // 19: feov.record.v1.Event.observe:type_name -> feov.record.v1.Observe
+	35, // 20: feov.record.v1.Event.anchor:type_name -> feov.record.v1.Anchor
+	36, // 21: feov.record.v1.Event.cite:type_name -> feov.record.v1.Cite
+	37, // 22: feov.record.v1.Event.verify:type_name -> feov.record.v1.Verify
+	38, // 23: feov.record.v1.Event.proof:type_name -> feov.record.v1.Proof
+	39, // 24: feov.record.v1.Event.reproduce:type_name -> feov.record.v1.Reproduce
+	41, // 25: feov.record.v1.Event.avenue:type_name -> feov.record.v1.Avenue
+	43, // 26: feov.record.v1.Event.blue_edit:type_name -> feov.record.v1.BlueEdit
+	44, // 27: feov.record.v1.Event.revision:type_name -> feov.record.v1.Revision
+	45, // 28: feov.record.v1.Event.retire:type_name -> feov.record.v1.Retire
+	46, // 29: feov.record.v1.Event.manifest_row:type_name -> feov.record.v1.ManifestRow
+	47, // 30: feov.record.v1.Event.friction:type_name -> feov.record.v1.Friction
+	48, // 31: feov.record.v1.Event.friction_none:type_name -> feov.record.v1.FrictionNone
+	40, // 32: feov.record.v1.Event.inquiry_review:type_name -> feov.record.v1.InquiryReview
+	42, // 33: feov.record.v1.Event.base_ingest:type_name -> feov.record.v1.BaseIngest
+	56, // 34: feov.record.v1.Event.sitting_open:type_name -> feov.record.v1.SittingOpen
+	57, // 35: feov.record.v1.Event.sitting_close:type_name -> feov.record.v1.SittingClose
+	1,  // 36: feov.record.v1.TelemetryLine.max_severity:type_name -> feov.record.v1.Grade
+	22, // 37: feov.record.v1.TelemetryLine.new_mint:type_name -> feov.record.v1.NewMint
+	24, // 38: feov.record.v1.TelemetryLine.repair_regression:type_name -> feov.record.v1.RepairRegression
+	25, // 39: feov.record.v1.TelemetryLine.edge_deltas:type_name -> feov.record.v1.EdgeDeltas
+	23, // 40: feov.record.v1.NewMint.by_severity:type_name -> feov.record.v1.SeverityTally
+	64, // 41: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.NewMint.ByClassEntry
+	1,  // 42: feov.record.v1.SeverityTally.grade:type_name -> feov.record.v1.Grade
+	4,  // 43: feov.record.v1.Mint.check_kind:type_name -> feov.record.v1.CheckKind
+	1,  // 44: feov.record.v1.Mint.severity:type_name -> feov.record.v1.Grade
+	1,  // 45: feov.record.v1.Mint.likelihood:type_name -> feov.record.v1.Grade
+	1,  // 46: feov.record.v1.Mint.impact:type_name -> feov.record.v1.Grade
+	1,  // 47: feov.record.v1.Mint.complexity_cost:type_name -> feov.record.v1.Grade
+	5,  // 48: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.Disposition
+	1,  // 49: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
+	1,  // 50: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
+	1,  // 51: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
+	1,  // 52: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
+	5,  // 53: feov.record.v1.Opinion.disposition:type_name -> feov.record.v1.Disposition
+	1,  // 54: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
+	1,  // 55: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
+	1,  // 56: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
+	6,  // 57: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
+	7,  // 58: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
+	8,  // 59: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
+	9,  // 60: feov.record.v1.Avenue.status:type_name -> feov.record.v1.AvenueStatus
+	14, // 61: feov.record.v1.Friction.kind:type_name -> feov.record.v1.FrictionKind
+	10, // 62: feov.record.v1.Motion.subject:type_name -> feov.record.v1.MotionSubject
+	50, // 63: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
+	51, // 64: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
+	52, // 65: feov.record.v1.Motion.direction:type_name -> feov.record.v1.DirectionMotion
+	15, // 66: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
+	1,  // 67: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
+	16, // 68: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	10, // 69: feov.record.v1.MotionRule.subject:type_name -> feov.record.v1.MotionSubject
+	11, // 70: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
+	12, // 71: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
+	13, // 72: feov.record.v1.MotionRule.direction:type_name -> feov.record.v1.DirectionRuling
+	17, // 73: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	10, // 74: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
+	2,  // 75: feov.record.v1.RoundVerdict.verdict:type_name -> feov.record.v1.Verdict
+	3,  // 76: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	65, // 77: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	66, // 78: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	66, // 79: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	66, // 80: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	66, // 81: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	67, // 82: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	19, // 83: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	18, // 84: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	85, // [85:85] is the sub-list for method output_type
+	85, // [85:85] is the sub-list for method input_type
+	83, // [83:85] is the sub-list for extension type_name
+	77, // [77:83] is the sub-list for extension extendee
+	0,  // [0:77] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }
@@ -6883,7 +6810,7 @@ func file_record_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
-			NumEnums:      19,
+			NumEnums:      18,
 			NumMessages:   47,
 			NumExtensions: 6,
 			NumServices:   0,

@@ -22,12 +22,21 @@ import (
 // produced the run called that mapping `v2` — so anything joining runs by mapping_version split
 // one population in two. PR0 aligned the stamp; this test is what stops the pair drifting again.
 //
-// WHY A GUARD AND NOT GENERATION, because facts-are-fields requires that answer. Generating one
-// side from the other is the better fix and it is not available: debate.js is loaded by node and
-// by goja at runtime, with no build step in between, so there is nowhere to generate INTO. A
-// generated file would have to be committed and kept fresh by exactly the check written here,
-// one level up and with more moving parts. The guard is what you build when generation is
-// impossible; this comment is the required statement of why it was.
+// IT IS GENERATION NOW, AND THIS COMMENT'S PREDECESSOR SAID WHY IT COULD NOT BE.
+//
+// It read: "Generating one side from the other is the better fix and it is not available:
+// debate.js is loaded by node and by goja at runtime, with no build step in between, so there is
+// nowhere to generate INTO." True when written, and it rested on something that has since
+// changed — NEITHER table was authoritative then, so generating one from the other would only
+// have moved the guess. A grade's weight is now a facet on the schema, so both sides DERIVE from
+// it: Go's MASS off the descriptors, the engine's off `scripts/massgen`, gated by `massgen -check`
+// in CI. The "nowhere to generate into" was answered by writing INTO debate.js between markers,
+// since a file with no imports cannot reach a generated module beside it.
+//
+// SO WHAT IS THIS TEST FOR, now that neither table is hand-written? It is the cross-check of two
+// DERIVATIONS from one source: a bug in massgen's rendering, or in the Go reader, shows up here as
+// disagreement even though the schema is fine. It is cheap, and the thing it guards — the pair
+// carrying different values — is what actually happened for six releases.
 //
 // The parse is deliberately narrow. It reads the two declarations by shape and FAILS LOUDLY if
 // it cannot find them — a regex that silently matches nothing would report agreement between a
