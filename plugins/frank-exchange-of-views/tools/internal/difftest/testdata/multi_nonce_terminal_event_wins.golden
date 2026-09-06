@@ -13,6 +13,8 @@ $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind docum
 exit 0
 stdout:
 minted R1-1
+  acceptance check RECORDED as: a
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ register --run {RUN} --seat-id red-merge-r1
 exit 0
@@ -29,6 +31,8 @@ $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind docum
 exit 0
 stdout:
 minted R1-2
+  acceptance check RECORDED as: b
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ verdict --run {RUN} --seat-id red-merge-r1 --as FAIL
 exit 0

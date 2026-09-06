@@ -229,6 +229,8 @@ $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind docum
 exit 0
 stdout:
 minted R1-1
+  acceptance check RECORDED as: grep the sites
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}

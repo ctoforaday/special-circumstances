@@ -13,11 +13,15 @@ $ mint --run {RUN} --seat-id red-merge-r1 --class a --check-kind document --chec
 exit 0
 stdout:
 minted R1-1
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ mint --run {RUN} --seat-id red-merge-r1 --class a --check-kind document --check x --severity low --likelihood low --impact low --problem r1 second
 exit 0
 stdout:
 minted R1-2
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ register --run {RUN} --seat-id red-merge-r2
 exit 0
@@ -34,6 +38,8 @@ $ mint --run {RUN} --seat-id red-merge-r2 --class a --check-kind document --chec
 exit 0
 stdout:
 minted R2-1
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ spot-check --run {RUN} --seat-id red-merge-r2 --ids R1-1, R1-2 --reason both re-read
 exit 2

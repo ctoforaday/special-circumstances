@@ -18,6 +18,8 @@ $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind docum
 exit 0
 stdout:
 minted R1-1
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ finding --run {RUN} --seat-id red-lens-r1-L5 --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason-file {RUN}/prose.md
 exit 0

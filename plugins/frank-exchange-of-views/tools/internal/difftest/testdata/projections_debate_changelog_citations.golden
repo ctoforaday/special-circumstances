@@ -18,6 +18,8 @@ $ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind docum
 exit 0
 stdout:
 minted R1-1
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ closing --run {RUN} --seat-id red-merge-r1 --id R1-1 --reason red's closing
 exit 0
