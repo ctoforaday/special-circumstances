@@ -230,11 +230,30 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   all (`record.proto:1299`) and is nullable (`schema.sql:298`). Moving the prose across as specified
   would retire two carriers of a constraint N8 exists to preserve.
 
-  **So `MotionRule.opinion` gains `required: true` in this scope, and that is honest rather than
-  additive:** `prose()` already refuses an empty `--reason` for EVERY subject's ruling, so the
-  constraint holds in fact today and the schema simply does not say so. Annotating it restores both
-  carriers, makes the DDL match the behaviour, and is checked in §V. The alternative — accepting one
-  carrier and arguing it — fails N8 on its own terms.
+  **So `MotionRule.opinion` gains the annotation in this scope — spelled in full, because two of its
+  three parts are load-bearing:**
+
+  ```proto
+  optional string opinion = 3 [(sql) = { required: true, flag: "reason", why: "…" }];
+  ```
+
+  `flag: "reason"` is not decoration. `recordpb.flagFor` (`requiredfields.go:64-72`) derives the flag
+  from the FIELD NAME when the option is absent, so `required: true` alone makes `CheckRequired`
+  refuse with `requires --opinion` — **a flag no verb registers** — and `seat.markRequired` then
+  fails `TestEveryRequiredFieldIsMarkedInTheHelp` with "it registers no `--opinion`". `why:` is
+  equally required: `TestEveryRequiredFieldCarriesItsReason` fails any required field without one.
+  §V steps 7 and 10 assert the refusal names `--reason`, which the bare annotation could not produce.
+
+  **And it is NOT free, which the earlier draft asserted and was wrong about.** "The constraint holds
+  in fact today" is true of the CLI path — `newRule`'s `prose()` — and **false of the SQL writers**.
+  `TestAnUnruledMotionIsAColumn` (`recordsql/store_test.go:352`) inserts a `MotionRule` at `:368`
+  carrying `Ruling: Grade{ACCEPTED}` and **no `Opinion`**; `insertBody` omits absent scalars and
+  `column()` emits `NOT NULL` from the annotation, so that insert is refused the moment this lands.
+  Two more fixtures encode a ruling the record would no longer accept: `graph/graph_test.go:104` and
+  `record/available_test.go:92,121` (in-memory boards, so they survive — but they are writing a shape
+  the schema is about to forbid). All three are `[MODIFY]`, and `recordsql/store_test.go` is
+  **re-marked from NO CHANGE** in the fourth census: the widening breaks the very test that census
+  called untouched.
 
   N8's parity is therefore **seven of nine, with two named omissions and the prose constraint
   strengthened rather than weakened**.
@@ -323,6 +342,21 @@ Everything here is the August §III.A and §III.B, re-cited and with the ruler a
   gap the seat cannot close itself. What the seat gains by filing is not completeness — the run is
   genuinely not finished until the bench rules — but the gap moving from *its* undecided pile to a
   question the bench owes an answer to.
+
+  **It goes in `record/available.go`, NOT `sitting.go`'s merge arm — and the plan put it in the
+  wrong file.** `SittingOf`'s `add` hard-codes `Item{What: what, Blocks: true}` (`sitting.go:90`);
+  every non-blocking item in this system comes from `availableOf`'s own `add`
+  (`available.go:56-58`), whose comment states the contract — "Blocks is FALSE on every one of
+  these: an affordance is open work, not owed work". Written literally in the merge arm the row
+  would BLOCK, which is the outcome §III spends a paragraph arguing against. So `record/available.go`
+  is a `[MODIFY]` of this scope, and it was in the censuses only as two NO CHANGE rows.
+
+  **And its standing note is retired BY this change rather than blocking it.** `available.go:46-48`
+  says: "`closing` wants the docket, **which is not recoverable from board state alone**". That is
+  accurate today and is exactly what this scope ends — after the docket subject exists, a docket
+  motion IS a board event, and the docket becomes derivable. The note is updated as part of the
+  change, and the fact that the tree already complained about this absence is evidence for the shape
+  rather than against it.
 
   **Board-only is what makes this cheap and what keeps #759 deferred.** It reads `b.Gaps` for
   openness and `record.Motions(b)` for a docket motion on that gap — the typed `GapID` this scope
@@ -629,7 +663,12 @@ $ grep -rni 'three subjects\|three gavels' .
 |---|---|---|
 | `record/motion.go:529,559,583` | the Go readers of `motion_answers` / `motion_state` | **[MODIFY]** — both views are contracts this scope changes, and no earlier census listed them in that role |
 | `recordsql/viewfamilies_test.go:122,129,137` | asserts `motion_answers` is FIRST-WINS, deliberately | **NO CHANGE — and it is why `carried` re-dockets.** Listed so the sweep meets the invariant as a decision rather than an obstacle |
-| `recordsql/store_test.go:377` | the module's only consumer of `motion_state.unruled` | **NO CHANGE** under the re-file model; it was the one reader the struck design would have flipped |
+| `recordsql/store_test.go:352-377` | `TestAnUnruledMotionIsAColumn` | **[MODIFY] — re-marked from NO CHANGE, and the reason is this scope's own widening.** Its `motion_state.unruled` read is untouched by the re-file model, but its INSERT at `:368` carries no `Opinion`, so `MotionRule.opinion`'s new `NOT NULL` refuses it. A census row can go stale inside the same document that wrote it |
+| **`record/available.go`** | `availableOf` — where the merge affordance actually goes | **[MODIFY]**, plus its `:46-48` note ("the docket … is not recoverable from board state alone"), which this scope retires |
+| **`record/available_test.go:90,92,95,119,121,124`** | the test carrier of that file, and two `MotionRule` fixtures with no `Opinion` | **[MODIFY]** |
+| **`graph/graph_test.go:104`** | a `MotionRule` fixture with no `Opinion` | **[MODIFY]** — in-memory, so it survives, but it encodes a shape the schema will forbid |
+| **`report/motions_test.go:15,21`** | `TestAnUnruledMotionIsReported` — **the only recorded contract for `motions()` / `motionRow` / `motionHead`**, all of which this scope modifies | **[MODIFY]** |
+| **`recordsql/readmix_test.go:44,56,153`**, **`record/idnamespace_test.go:200`** | motion-arm fixtures | **[MODIFY]** — each constructs a filing arm and needs the docket case |
 | `record/motionqueries_parity_test.go:35` | the Go-vs-SQL parity gate over these views | **[MODIFY]** — parity must cover the docket arm or the two answers drift unmeasured |
 | **`cli/motion/verbs.go:30-36`** | the `file` help: "**THREE SUBJECTS**, ONE EVENT, DIFFERENT CONTRACTS… `motion grade file`… `motion petition file`" | **[MODIFY] — false the moment docket lands**, and `motion docket file --help` would describe only grade and petition **to the blue seat this new capability is for** |
 | **`cli/motion/verbs.go:181-185`** | the `rule` help: "**THREE SUBJECTS, THREE GAVELS.** A grade dispute and a direction are ruled by the MERGE; a petition is ruled by the BENCH" | **[MODIFY].** §III quotes this paragraph as AUTHORITY for who may file and never listed it as a carrier — the sweep would have left the authority stale |
@@ -827,7 +866,12 @@ anticipated. The full narrative is in the archaeology; these are the operative r
     `--reason` is refused; and because this scope annotates `MotionRule.opinion`, the refusal must
     also hold for a **grade** ruling — the annotation is shared, and asserting only the docket case
     would leave the widening unmeasured. `motion_rule.opinion` is `NOT NULL` in the regenerated DDL.
-11. `record/gavel_test.go:22-47` must pass **unmodified**: it fails any `MotionSubject` without
+11. **The docket motion's row renders the pointer, not the prose.** `report/motions_test.go` asserts
+    a ruled docket motion's `## Motions` row carries the disposition and a round pointer and does
+    **not** carry the rationale — which lives in `### LEAD`, chronologically. Without this the only
+    check on §III's `motionRow` change is a human reading Arm 1's output, and the rule it enforces is
+    the human's own stated constraint: outcomes point at the thinking rather than restate it.
+12. `record/gavel_test.go:22-47` must pass **unmodified**: it fails any `MotionSubject` without
    `ruled_by`, and it is what makes `MOTION_SUBJECT_DOCKET`'s annotation non-optional.
 
 ### Scope 4
