@@ -85,6 +85,11 @@ var enforcedElsewhere = map[string]string{
 	// form. `graph` was already correct. `show board --format` was NOT: it tested for markdown and
 	// fell through to JSON for everything else at exit 0, so a typo and the default were the same
 	// bytes. That one is fixed at the site rather than excused here.
+	// A FETCH-TIME ROUTE, NOT A PAYLOAD FIELD. `--via` picks which backend answers; nothing about
+	// the choice reaches an event, so EnumFields — which keys by event type — has nothing to hold
+	// it. fetch refuses an unknown value in its own RunE before any backend runs, naming the set.
+	"fetch --via": "refused in fetch's own RunE against fetchcache.Vias() before any backend runs — a route is chosen per call and never reaches a payload, so EnumFields cannot key it",
+
 	"graph --format":       "refused in graph's own RunE default arm — a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
 	"diagnostics --format": "refused in show diagnostics' own RunE default arm — a read-side rendering choice never reaches a payload, so EnumFields cannot key it",
 	"tiers --format":       "refused in show tiers' own RunE default arm — same reason as its sibling on this group: a read-side rendering choice never reaches a payload, so EnumFields cannot key it",

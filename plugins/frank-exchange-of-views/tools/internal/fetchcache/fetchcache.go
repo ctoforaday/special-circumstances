@@ -144,6 +144,11 @@ type Entry struct {
 	// on a date, retrieved from a third party. A citation that could not say so would claim to
 	// have read something it did not.
 	RetrievedVia string `json:"retrieved_via,omitempty"`
+
+	// TextRetrieved says whether the bytes are the SOURCE'S TEXT or only a record that it exists.
+	// A metadata answer is a real finding and a legitimate citation — as `source_text_read:
+	// unread`. It is not a reading, and nothing may cite it as one.
+	TextRetrieved bool `json:"text_retrieved,omitempty"`
 }
 
 // Refusal is a fetch that was answered and REFUSED, carried as a typed error so the status
@@ -328,29 +333,22 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 		_ = appendIndexIfAbsent(run, Entry{
 			URL: url, HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
 		})
-		// THE REFUSAL IS NOT THE END OF THE ATTEMPT. Every recovery in the measured run was a seat
-		// doing this by hand against the Wayback CDX; the tool now does it, because a capability
-		// that must be rebuilt by hand each time is one most seats will skip.
-		snapURL, stamp, _ := SnapshotFor(f, url)
-		if snapURL == "" {
+		// THE REFUSAL IS NOT THE END OF THE ATTEMPT, but the right next move depends on WHAT this
+		// source is — and choosing wrongly is how a run ends up citing a landing page.
+		att := Recover(f, url, ViaAuto, "")
+		if att == nil {
 			return Entry{}, nil, false, ferr
 		}
-		snapResp, serr := f.Fetch(snapURL)
-		if serr != nil {
-			return Entry{}, nil, false, ferr
-		}
-		// STORED UNDER THE URL THE SEAT ASKED FOR, so a later read of the same source is served
-		// these bytes — and carrying the provenance, so nothing can mistake them for the live page.
 		entry := Entry{
-			URL: url, ContentType: MediaType(snapResp.ContentType),
+			URL: url, ContentType: att.ContentType,
 			HTTPStatus: ref.Status, RefusalClass: refusalClass(ref.Status),
-			RetrievedVia: ArchiveNote(snapURL, stamp),
+			RetrievedVia: att.Via, TextRetrieved: att.TextRetrieved,
 		}
-		entry, serr = Store(run, entry, snapResp.Body)
+		entry, serr := Store(run, entry, att.Body)
 		if serr != nil {
 			return Entry{}, nil, false, ferr
 		}
-		return entry, snapResp.Body, false, nil
+		return entry, att.Body, false, nil
 	}
 	entry := Entry{URL: url, ContentType: MediaType(resp.ContentType)}
 	entry.Sha = Sha(resp.Body)

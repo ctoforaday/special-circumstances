@@ -38,7 +38,9 @@ type fetchSummary struct {
 	// RetrievedVia names the archive snapshot these bytes came from, when the live source refused
 	// and the fallback recovered one. Empty means the bytes are the live source's own.
 	RetrievedVia string `json:"retrieved_via,omitempty"`
-	Pages        int    `json:"pages,omitempty"`
+	// TextRetrieved false means these bytes are a RECORD THAT THE SOURCE EXISTS, not its text.
+	TextRetrieved bool `json:"text_retrieved"`
+	Pages         int  `json:"pages,omitempty"`
 
 	// TextExtracted is a pointer for the same three-state reason the Entry field is: nil means
 	// nothing was attempted (this content type is not one anything extracts), false means it was
@@ -112,6 +114,7 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		CacheHit:       hit,
 		SharedBodyWith: shared,
 		RetrievedVia:   e.RetrievedVia,
+		TextRetrieved:  e.TextRetrieved,
 		Pages:          e.Pages,
 		TextExtracted:  e.TextExtracted,
 		TextSha256:     e.TextSha,
@@ -162,6 +165,12 @@ func (s fetchSummary) render() string {
 	// what the source SAYS depends on knowing that before reading a word of it.
 	if s.RetrievedVia != "" {
 		fmt.Fprintf(&b, "retrieved_via: %s\n", s.RetrievedVia)
+		if !s.TextRetrieved {
+			fmt.Fprintf(&b, "text_retrieved: false\n"+
+				"  ^ THESE BYTES ARE A RECORD THAT THE SOURCE EXISTS, NOT ITS TEXT. That is a real finding and a\n"+
+				"    legitimate citation — as source-text `unread`. It is not a reading, and nothing about what the\n"+
+				"    source SAYS may rest on it.\n")
+		}
 		fmt.Fprintf(&b, "  ^ THE LIVE SOURCE REFUSED THIS CONTAINER AND THESE BYTES ARE AN ARCHIVE SNAPSHOT — what the\n"+
 			"    source said on that date, retrieved from a third party. Usable, and NOT the same artifact: say so\n"+
 			"    in any claim about what the source currently says.\n"+
