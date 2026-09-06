@@ -94,6 +94,11 @@ func DispositionOf(word string) (recordpb.Disposition, bool) {
 
 // CheckKindOf resolves WHAT WOULD SETTLE an acceptance check — read a document, run a computation,
 // or verify a source. It is a different question from whether the check can be discharged now.
+// FindingAboutOf resolves the word a lens types for what a finding is anchored to.
+func FindingAboutOf(word string) (recordpb.FindingAbout, bool) {
+	return enumOf[recordpb.FindingAbout](recordpb.FindingAbout(0).Descriptor(), word)
+}
+
 // SourceTextReadOf resolves the word a seat types for how much of a source it read.
 func SourceTextReadOf(word string) (recordpb.SourceTextRead, bool) {
 	return enumOf[recordpb.SourceTextRead](recordpb.SourceTextRead(0).Descriptor(), word)

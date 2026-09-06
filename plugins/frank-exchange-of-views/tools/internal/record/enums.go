@@ -261,6 +261,17 @@ var EnumFields = map[string][]EnumField{
 		},
 		Why: "the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace, so the write refuses one",
 	}},
+	// `finding`, and the ABOUT is the anchor a quote could not provide. Measured: a missing line
+	// of inquiry pinned to a sentence the finding called fine, and a missing risk matrix pinned to
+	// a section opening, because a live quote was the only target the verb accepted.
+	"finding": {{
+		Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: []EnumValue{
+			ev("section", "a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there"),
+			ev("inquiry", "a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned"),
+			ev("gap", "a gap already on the docket, by its id — a defect in the record rather than in the report"),
+		},
+		Why: "an absence has no sentence to quote, so it used to borrow an innocent one as a handle and the gap list pointed a reader at good prose. These targets are references the record can CHECK: an avenue id either names a line this run proposed or it does not",
+	}},
 	// `cite`, and the READING is the half a citation could not previously state. A citation says
 	// a source backs a sentence; it never said whether anyone had read the source. That gap was
 	// the load-bearing caveat of a whole run, carried as the prose substring "unreachable from

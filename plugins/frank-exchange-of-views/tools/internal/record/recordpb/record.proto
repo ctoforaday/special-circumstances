@@ -791,6 +791,29 @@ message SpotCheck {
 
 // Finding is a lens observation. The label is TOOL-assigned (L{lens}-F{n}); an unlabelled
 // finding can never be credited in a gap's found_by and its work is lost.
+// FindingAbout is WHAT A FINDING IS ANCHORED TO when the thing it names is not on the page.
+//
+// A finding used to require a live report quote, so a defect about an ABSENCE had to borrow an
+// innocent sentence as a handle. Measured in research/2026-09-02_quadratic-formula: a missing line
+// of inquiry was pinned to the Diophantus sentence the finding explicitly called fine, and a
+// missing risk matrix — the word "risk" occurs zero times in that report — was pinned to the
+// opening of section F. "A reader of the gap list will land on good prose and have to read three
+// paragraphs to learn that the sentence is only a handle."
+//
+// IT THROTTLED THE STEELMAN DUTY IN PARTICULAR. Red's duty is to audit the REASONS declined and
+// abandoned lines were set aside, and the strongest such findings are arguments against a reason —
+// which is not report prose at all. The audit worked anyway, and every one of its findings
+// mis-anchored.
+//
+// The targets below are REFERENCES THE RECORD CAN CHECK, which a borrowed quote never was: an
+// avenue id either names a line this run proposed or it does not.
+enum FindingAbout {
+  FINDING_ABOUT_UNSPECIFIED = 0;
+  FINDING_ABOUT_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
+  FINDING_ABOUT_INQUIRY = 2 [(means) = "a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor"];
+  FINDING_ABOUT_GAP = 3 [(means) = "a gap already on the docket, by its id — a defect in the record rather than in the report"];
+}
+
 message Finding {
   optional string finding_id = 1;
   optional string finding_key = 2;
@@ -800,6 +823,12 @@ message Finding {
   optional Grade severity = 6;
   optional Grade likelihood = 7;
   optional Grade impact = 8;
+
+  // WHAT THIS FINDING IS ABOUT, when it is not about a sentence. Exactly one of `location` (a live
+  // report quote, which places a marker) or this pair is set — a finding anchored to nothing is
+  // the state the verb refuses, and one anchored to BOTH is claiming two subjects.
+  optional FindingAbout about_kind = 9;
+  optional string about_ref = 10;
 }
 
 // Observe is a seat-labelled observation, disposed of by the merge.

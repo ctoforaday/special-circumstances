@@ -1017,7 +1017,15 @@ type FindingJSON struct {
 	Likelihood any    `json:"likelihood"`
 	Impact     any    `json:"impact"`
 	Location   string `json:"location"`
-	Text       string `json:"text"`
+	// About names what this finding is anchored to when its subject is NOT in the report — a
+	// section it is missing from, a line of inquiry whose stated reason is being argued against,
+	// or a gap. Empty means the finding anchors to `location`, a live sentence.
+	//
+	// A merge reading this list needs to know which: a finding with no location is not one whose
+	// anchor went missing, it is one whose subject was never on the page.
+	AboutKind string `json:"about_kind,omitempty"`
+	AboutRef  string `json:"about_ref,omitempty"`
+	Text      string `json:"text"`
 }
 
 // FindingsJSON is the seat-facing findings view: every lens finding on the record, in
@@ -1053,8 +1061,10 @@ func FindingsJSONOf(evs []*Event) FindingsJSON {
 			Role:   RoleOf(e.GetSeatId()),
 			// `reason` WAS THE PAYLOAD KEY; `text` IS THE FIELD. Finding carries one prose
 			// channel and this is it — there is no Finding.reason.
-			Location: f.GetLocation(),
-			Text:     f.GetText(),
+			Location:  f.GetLocation(),
+			AboutKind: recordpb.Word(f.GetAboutKind()),
+			AboutRef:  f.GetAboutRef(),
+			Text:      f.GetText(),
 		}
 		// PRESENCE, NOT TRUTHINESS — and the POINTER is passed, not GetSeverity().
 		//
