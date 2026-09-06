@@ -142,7 +142,7 @@ seats defended: **where you declined an act as a judgement rather than for lack 
 sentence.** (judge-r3's case: *"an absent `outcome` stamp is ambiguous between 'the bench declined
 to stamp' and 'the bench never reached it'"* — a real plausible-zero about a consequential act.)
 
-Also retire *"what you reached for and found"* from the `--none` help (`seat/verbs.go:114`), which
+Also retire *"what you reached for and found"* from the `--none` help (`seat/verbs.go:114`) — PR-2 deletes that flag outright, and this
 re-invites the inventory.
 
 **A gate DOES pin this text, and the earlier draft of this plan said otherwise.** That claim came
@@ -162,7 +162,7 @@ $ grep -rl "OWES THE SURVEY" $P
 | `debate.js:688,738,856,882,1099,1131,1241,1274` (8 call sites) | no — call shape unchanged |
 | `$P/tests/simulator/debate.test.mjs:258-259` | **YES** — asserts `/THE REASON OWES THE SURVEY/ && /did NOT use/` across five seat classes (`:257` pins the ENVELOPE field and is a PR-2 consumer, not PR-1); the assertion and its rationale comment (`:252-256`) are rewritten to pin the new narrow ask |
 | `$P/tests/simulator/testdata/prompt-*.golden` (**10 files**) | **YES** — each carries the string; refreshed |
-| `$P/tools/internal/cli/seat/verbs.go:114` (`--none` help) | **YES** — retire "what you reached for and found" |
+| `$P/tools/internal/cli/seat/verbs.go:114` (`--none` help) | **YES** — retire "what you reached for and found"; PR-2 then deletes the flag itself |
 | `$P/tools/integration/surface/promptverbs_test.go:259`, `$P/tools/releasegate/fuzz/promptverbs_test.go:259` | no — renders clauses for the flag scan; pins no wording |
 
 **The rationale the pin defends, answered rather than deleted.** `debate.test.mjs:254-256` argues
@@ -188,12 +188,13 @@ This PR alone is expected to remove ~48% of the channel's volume.
 Rename the channel to what it is, and split the one overloaded enum into the two axes it is
 actually carrying.
 
-- `[MODIFY]` `record.proto`: `message Friction` → `message Log`; `message FrictionNone` →
-  `message LogNone`; `enum FrictionKind` → **two** enums:
+- `[MODIFY]` `record.proto`: `message Friction` → `message Log`; **`message FrictionNone` is
+  DELETED, not renamed** (see below); `enum FrictionKind` → **two** enums:
   - `LogSource ∈ { SEAT, TOOL }` — who recorded it. Today this is inferable only by knowing which
     enum values are tool-emitted; making it explicit means a new tool-emitted type never breaks a
     "seat reports only" filter.
-  - `LogType ∈ { DEFECT, REQUEST, FRICTION, ESTOPPEL }` — what is being claimed.
+  - `LogType ∈ { NOMINAL, DEFECT, REQUEST, FRICTION, ESTOPPEL }` — what the entry asserts.
+    - `NOMINAL` — the surface met the work. **This replaces `FrictionNone` and the `--none` flag.**
     - `DEFECT` — something is broken. Absorbs today's `TOOL_ERROR` as `(TOOL, DEFECT)`; verified
       to have no functional readers.
     - `REQUEST` — a capability that does not exist. This is the category that made "bug" wrong as
@@ -205,8 +206,31 @@ actually carrying.
       `estoppel.go:173`.
   - `UNSPECIFIED` stops carrying meaning. Today `UNSPECIFIED = 0` doubles as "unset" *and* "a
     seat's capability gap" — a default value with semantics, which is the plausible-zero shape.
-- `[MODIFY]` the seat's write to take the type (source is set by the write path, not asked of the
-  seat); the operator read and `## Friction` → `## Log` projection to render and filter on both.
+
+**Why `FrictionNone` dies rather than becoming `LogNone`.** "None" is an answer to a question about
+*friction* — you either hit some or you didn't. It is incoherent in a **log**, where an entry that
+says "none" is still an entry. Under `log` every entry ASSERTS something, so the clean sitting is
+logged in the positive: `Log{source: SEAT, type: NOMINAL, text: "the surface met the work"}`.
+
+This preserves the property the explicit negative existed for — `verbs.go:80-93` records that across
+eighteen probed dispatches "no friction on the record" was equally consistent with a clean sitting
+and an unused channel, "those are the same bytes." A `NOMINAL` entry is still an event, so an
+attested-clean sitting remains distinguishable from a channel nobody used; the distinctness came
+from the event existing, never from it being a separate message.
+
+Not named `NONE` (adjacent to `UNSPECIFIED`, and reads as unset — the confusion that prompted this
+change) and not `CLEAN` (this repository uses "clean board" for the dangerous FALSE negative, so
+the word is already loaded — `facts-are-fields` cl.4).
+
+**It also merges with PR-1's narrow ask.** The one thing both seats defended was naming a decline
+that was a *judgement* rather than a lack of occasion. That is exactly what a `NOMINAL` entry's text
+carries: nothing blocked me, plus — where it applies — one sentence on what was deliberately
+declined. One positive entry, no ceremony, no negative form.
+
+- `[MODIFY]` the seat's write takes the type (source is set by the write path, not asked of the
+  seat) and **loses `--none`**; the operator read and the `## Friction` → `## Log` projection render
+  and filter on both fields. `FrictionJSON`'s separate `NothingBlocked[]` array collapses into one
+  entry list filtered by `type`.
 
 **Three renames this PR must decide, because each has mechanical readers — decided here:**
 the **CLI command** (`cli/friction.go:28` `Use: "friction"`), the **seat verb**
@@ -369,7 +393,7 @@ All commands are rooted at the repository root; `P=plugins/frank-exchange-of-vie
 
 **Automated:**
 - `(cd $P/tools && go test ./internal/record/... ./internal/cli/... ./internal/report/... ./internal/capture/... ./internal/dashboard/... ./internal/seatprobe/...)`
-  — `Log`/`LogNone` round-trip; `source`/`type` persist on new fields 4/5; `(TOOL, DEFECT)` covers
+  — `Log` round-trip and `FrictionNone`/`--none` fully removed (no `log_none` table); `source`/`type` persist on new fields 4/5; `(TOOL, DEFECT)` covers
   the retired `TOOL_ERROR`; `estoppel.go`'s filter still selects `(TOOL, ESTOPPEL)`; `LogAudit`
   still joins on seat; the dashboard tile renders the new heading.
 - `(cd $P/tools && go test ./internal/reportvoice/...)` — `Tells()` pin/staleness gate.
