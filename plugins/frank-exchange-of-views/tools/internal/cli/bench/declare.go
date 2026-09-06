@@ -20,8 +20,9 @@ import (
 //	No declaratory disposition — `bench opinion` requires --id plus a fate-changing --as, so
 //	the one channel both seats read was unavailable for the one holding both seats most need.
 //
-// It had a finding both parties needed on the record and no way to state it. `opinion` is built
-// to DISPOSE of a docketed gap: it wants an id and a fate. Every bench act changed something's
+// Quoted as written. That verb is `motion docket rule` now (#681) and the argument is unchanged by
+// the rename: it had a finding both parties needed on the record and no way to state it. Disposing
+// of a docketed gap wants an id and a fate. Every bench act changed something's
 // fate, so a holding that changes none had no verb — and the bench put it in a petition ruling's
 // opinion text, which was the channel least likely to be read (#360).
 //
@@ -38,11 +39,11 @@ import (
 //
 // # Why no --id, and why that is the point rather than an omission
 //
-// A declaration that named a gap would be an opinion, and `opinion` already exists. The absence
-// of the flag is the verb's whole content: this act is about the record as a whole, and forcing
+// A declaration that named a gap would be a disposition, and `motion docket rule` already does
+// that. The absence of the flag is the verb's whole content: this act is about the record as a whole, and forcing
 // it to name one gap would either falsify what it says or send the bench back to prose.
 //
-// It renders into `show debate` beside the opinions, because the surface a seat reads to catch up
+// It renders into `show debate` beside the bench's dispositions, because the surface a seat reads to catch up
 // is the surface a binding statement has to be on. A ruling that reaches no reader is decoration
 // — and the bench is this system's ethical and safety boundary, which makes an undelivered one
 // worse than an unread finding: an unread finding costs a reader, an undelivered ruling costs

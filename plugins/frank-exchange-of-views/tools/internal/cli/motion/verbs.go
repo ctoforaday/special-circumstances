@@ -20,19 +20,20 @@ func newFile(subject string, required []string) *cobra.Command {
 	c := &cobra.Command{
 		Use:   "file",
 		Short: "file a " + subject + " motion — the tool assigns its id",
-		// EACH SUBJECT'S `file` SAYS WHERE THE BOUNDARY IS. The three subjects write ONE event
-		// type with different required flags and different gavels, so a seat that opens the wrong
-		// one meets a refusal about a flag rather than about the subject it should have named.
+		// EACH SUBJECT'S `file` SAYS WHERE THE BOUNDARY IS. The subjects write ONE event type with
+		// different required flags and different gavels, so a seat that opens the wrong one meets
+		// a refusal about a flag rather than about the subject it should have named.
 		//
 		// The tree knowing about the split is not the same as the seat knowing: this page is what
 		// a seat actually reads, and it was blank. It went unnoticed because `motion` sat at the
 		// ROOT until the surface became seat-scoped, so the sibling gate never reached it.
 		Long: "file a " + subject + " motion — the tool assigns its id.\n\n" +
-			"THREE SUBJECTS, ONE EVENT, DIFFERENT CONTRACTS. `motion grade file` disputes a gap's " +
-			"grade and is ruled by the merge; `motion petition file` raises an ethical, safety, " +
-			"integrity or constitutional objection and is ruled by the BENCH, before the debate " +
-			"continues; a direction needs no file verb at all — proposing the line of inquiry IS " +
-			"the filing, and only its ruling is a motion.\n\n" +
+			"ONE EVENT, DIFFERENT CONTRACTS: " + GavelRoll() + ".\n\n" +
+			"`motion grade file` disputes a gap's grade; `motion petition file` raises an ethical, " +
+			"safety, integrity or constitutional objection, heard BEFORE the debate continues; " +
+			"`motion docket file` puts a GAP before the bench, which is the channel for a gap the " +
+			"filing seat cannot settle itself; an inquiry needs no file verb at all — proposing " +
+			"the line of inquiry IS the filing, and only its ruling is a motion.\n\n" +
 			"Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
@@ -102,6 +103,19 @@ func newFile(subject string, required []string) *cobra.Command {
 					return feov.Errorf(feov.Validation, "motion petition file: %q is not a petition class", seat.Str(cmd, flags.Class))
 				}
 				body.Filing = &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: &cls}}
+			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
+				body.Filing = &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{
+					GapId: proto.String(seat.Str(cmd, flags.ID)),
+				}}
+			default:
+				// A SUBJECT WITH NO ARM WROTE A MOTION WITH NO SUBSTANCE, SILENTLY. `validate`
+				// checks a filing that is PRESENT; it cannot check one that was never set. So a
+				// subject added to the schema and forgotten here recorded its own name and nothing
+				// else — an ask with no ask in it, which every reader renders as a motion and no
+				// reader can act on.
+				//
+				// Loud here, because the alternative is a record that looks written.
+				return feov.Errorf(feov.Conflict, "motion %s file: this binary knows the subject and has no filing arm for it — the schema and the CLI have diverged, and writing the motion would record an ask with no substance", subject)
 			}
 			if r := seat.Str(cmd, flags.Relief); r != "" {
 				body.Relief = proto.String(r)
@@ -169,7 +183,17 @@ func payloadKey(flag string) string {
 }
 
 // rule: the ruler answers, on the motion's id.
-func newRule(subject, ruler string) *cobra.Command {
+// newRule builds a subject's `rule` verb.
+//
+// ruleFlags is the subject's OWN prose fields, and it is a second list rather than the one
+// `subject()` already passes: that one is fileFlags, what the FILING carries, and conflating them
+// would put `--dimension` on a ruling. Until docket there was no subject whose ruling carried
+// anything but the verdict and the reason, so the mechanism did not exist — `--binds` is gated by
+// MotionFieldEnum, which is an ENUM table and cannot express free text.
+//
+// THEY DO NOT APPEAR ON THE OTHER SUBJECTS. A grade ruling offering `--principle` is the surface
+// lying about what it accepts, and the help IS the contract a seat reads.
+func newRule(subject, ruler string, ruleFlags []string) *cobra.Command {
 	e := record.MotionVerdictEnum(subject)
 	c := &cobra.Command{
 		Use:   "rule",
@@ -179,10 +203,10 @@ func newRule(subject, ruler string) *cobra.Command {
 		// surface at all, so the page a seat CAN open should also say which ones it cannot.
 		Long: "rule on a " + subject + " motion — this verb is the " + ruler + " seat's, and it " +
 			"appears only on that surface.\n\n" +
-			"THREE SUBJECTS, THREE GAVELS. A grade dispute and a direction are ruled by the MERGE; " +
-			"a petition is ruled by the BENCH, before the debate continues. A motion is filed by " +
-			"any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it " +
-			"is why `rule` is missing from the surfaces that do not hold the gavel.",
+			"EVERY SUBJECT AND ITS GAVEL: " + GavelRoll() + ". The bench's two are heard BEFORE " +
+			"the debate continues. A motion is filed by any seat and ruled by one — that asymmetry " +
+			"is the mechanism, not an obstacle, and it is why `rule` is missing from the surfaces " +
+			"that do not hold the gavel.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			s := seat.Of(cmd)
 			// AND IT MUST BE THE RUN THE ENGINE DISPATCHED. Same reason as the seat check below,
@@ -253,6 +277,34 @@ func newRule(subject, ruler string) *cobra.Command {
 					return feov.Errorf(feov.Validation, "motion inquiry rule: %q is not a ruling on a direction", word)
 				}
 				body.Ruling = &recordpb.MotionRule_Direction{Direction: v}
+			case recordpb.MotionSubject_MOTION_SUBJECT_DOCKET:
+				d, ok := record.DispositionOf(word)
+				if !ok {
+					return feov.Errorf(feov.Validation, "motion docket rule: %q is not a disposition", word)
+				}
+				dr := &recordpb.DocketRuling{
+					Disposition: &d,
+					Principle:   proto.String(seat.Str(cmd, flags.Principle)),
+					Tension:     proto.String(seat.Str(cmd, flags.Tension)),
+					ReviewFlag:  proto.String(seat.Str(cmd, flags.ReviewFlag)),
+					Settled:     proto.String(seat.Str(cmd, flags.Settled)),
+				}
+				// EXACTLY ONE OF THESE, and the schema refuses the other two states. Set only
+				// what was passed: an empty `reopens_on` written as present would satisfy the
+				// "at least one" check while saying nothing, which is the shape --final exists
+				// to make sayable.
+				if r := seat.Str(cmd, flags.ReopensOn); r != "" {
+					dr.ReopensOn = proto.String(r)
+				}
+				if fin, _ := cmd.Flags().GetBool(flags.Final); fin {
+					dr.Final = proto.Bool(true)
+				}
+				body.Ruling = &recordpb.MotionRule_Docket{Docket: dr}
+			default:
+				// The ruling half of the same silence: no arm leaves Ruling nil, `rulingWord`
+				// returns "", and record.go refuses — but naming the SUBJECT rather than the
+				// word is what tells the reader the binary is behind its own schema.
+				return feov.Errorf(feov.Conflict, "motion %s rule: this binary knows the subject and has no ruling arm for it — the schema and the CLI have diverged", subject)
 			}
 			// WHO THE RELIEF BINDS travels with the ruling that grants it (#360). Optional,
 			// because a denial binds nobody — and a grant that names no addressee is exactly the
@@ -273,6 +325,14 @@ func newRule(subject, ruler string) *cobra.Command {
 	seat.Prose(c)
 	c.Flags().String(flags.ID, "", refHelp(subject))
 	enumhelp.Flag(c, flags.As, e, "your ruling")
+	for _, f := range ruleFlags {
+		switch f {
+		case flags.Final:
+			c.Flags().Bool(f, false, ruleFlagHelp[f])
+		default:
+			c.Flags().String(f, "", ruleFlagHelp[f])
+		}
+	}
 	if be, ok := record.MotionFieldEnum(subject, "binds", flags.Binds); ok {
 		enumhelp.Flag(c, flags.Binds, be, "who granted relief BINDS — set it when you grant, or the relief reaches no prompt and nothing reports that it did not")
 	}
@@ -373,11 +433,14 @@ func newAppeal(subject string) *cobra.Command {
 // A seat reading an unmarked flag supplies it or does not, learns which by being refused, and
 // spends the turn. The refusal itself is real (RequireMotionSubjectRef resolves the id against the
 // record), so this is the help disagreeing with the enforcement rather than a missing rule.
+// refHelp says WHICH id the verb wants. It no longer writes "REQUIRED — " itself: seat.MarkTree
+// walks this tree now and markRequired is the one writer of that word, so a hand-written copy here
+// rendered "REQUIRED — REQUIRED — the motion id".
 func refHelp(subject string) string {
 	if subject == "inquiry" {
-		return "REQUIRED — the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
+		return "the LINE-OF-INQUIRY id (Q1, Q2 …): a direction's filing is the proposal, so it joins on the line of inquiry's own id, not an M-number"
 	}
-	return "REQUIRED — the motion id (M1, M2 …)"
+	return "the motion id (M1, M2 …)"
 }
 
 type filed struct {
@@ -421,4 +484,16 @@ func enumOf[E ~int32](d protoreflect.EnumDescriptor, word string) (E, bool) {
 		return E(0), false
 	}
 	return E(vd.Number()), true
+}
+
+// ruleFlagHelp is what each subject-specific ruling flag asks for. Written here rather than at the
+// registration so the two subjects that share a flag would share its words — and so a flag added
+// to ruleFlags without a line here renders an empty usage, which is visible immediately.
+var ruleFlagHelp = map[string]string{
+	flags.Principle:  "the rule you applied, stated so a later sitting can apply the same one",
+	flags.Tension:    "the values that pulled against each other — empty is a real answer when none did",
+	flags.ReviewFlag: "what a human should look at again — empty when nothing needs it",
+	flags.Settled:    "what the losing party may no longer assert, in one sentence",
+	flags.ReopensOn:  "the evidence or condition that would make this worth raising again — or pass --final to say nothing would",
+	flags.Final:      "nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two",
 }

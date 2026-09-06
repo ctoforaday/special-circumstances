@@ -43,8 +43,7 @@ import (
 // cite something" is not an affordance, it is advice; "claim c-3 is cited and nobody has verified
 // it" is a fact about this board with one act attached to it.
 //
-// NOT DERIVED, AND SAID RATHER THAN LEFT AS A SILENT HOLE: `closing` wants the docket, which is
-// not recoverable from board state alone; `motion grade file` and `retire` turn on a judgement
+// NOT DERIVED, AND SAID RATHER THAN LEFT AS A SILENT HOLE: `motion grade file` and `retire` turn on a judgement
 // (whether you disagree, whether the claim should go) that no derivation can make for the seat.
 // An affordance line for those would be an expectation that cannot be honestly met, which is the
 // defect TestEveryExpectationIsReachableOnItsBoard exists to catch one layer up.
@@ -75,6 +74,44 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 			add("gap " + id + " was answered by an edit and carries no manifest row — the report names a gap YOU repaired that carries no row as a repair nobody audited, including its author")
 		}
 	case "merge":
+		// AN OPEN GAP IS EITHER CLOSED OR DOCKETED, and until the docket was a motion this could
+		// not be said here at all — the note above used to record that "`closing` wants the
+		// docket, which is not recoverable from board state alone". It is now: a docket motion is
+		// an event, so "which gaps are before the bench" is a question the board answers.
+		//
+		// AN AFFORDANCE, NOT A DUTY. The open-gap row in sitting.go already refuses this seat's
+		// PASS, so a second blocking item would be a duplicate — and worse, a seat that OBEYED it
+		// would be further from complete than before, because filing adds an unruled motion. What
+		// filing buys is not completeness but the gap moving from this seat's undecided pile to a
+		// question the bench owes an answer to.
+		//
+		// NO FLAGS IN THE TEXT. This file's own contract, and the reason is recorded above: an
+		// affordance once handed a seat a flag the verb does not have, so the only instruction the
+		// duty ever gave could not run.
+		// PENDING, NOT EVER-FILED — and the difference is the whole `carried` design.
+		//
+		// A docket motion that has been RULED is answered. If the gap is still open after that
+		// answer, the answer was `carried`: every other disposition closes the gap, so an open gap
+		// with a ruled docket motion is EXACTLY the deferral, and the ruling states what would
+		// bring it back. Keyed on ever-filed, this affordance went silent permanently at the first
+		// filing, so the re-file the deferral asks for was never once offered — the capability the
+		// bench deliberately kept alive, and no surface said so. Measured: after M2 was ruled
+		// `carried` on R1-2, `show work` listed the gap as blocking PASS and offered nothing to do
+		// about it, while a never-docketed R1-3 got the affordance.
+		//
+		// An UNRULED motion still suppresses it, because filing a second time while the first is
+		// pending asks the bench the same question twice.
+		pending := map[string]bool{}
+		for _, m := range MotionsOf(evs) {
+			if m != nil && m.Subject == "docket" && m.GapID != "" && !m.Ruled() {
+				pending[m.GapID] = true
+			}
+		}
+		for _, g := range gaps {
+			if g.Open && !pending[g.ID] {
+				add("gap " + g.ID + " is open and you have not closed it — `motion docket file` puts it before the bench, which is the channel for a gap you cannot settle yourself")
+			}
+		}
 		if anyClosedGap(gaps) && !seatDid(evs, seatID, recordpb.EventType_EVENT_TYPE_SPOT_CHECK) {
 			add("the closure archive is not empty and this sitting has sampled none of it")
 		}

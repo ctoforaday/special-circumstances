@@ -581,53 +581,9 @@ Global Flags:
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-── opinion missing fields
+── docket rule without the gavel
 exit 2
-feov-record: "opinion" is not on your surface — it is the bench seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
-
-feov-record — the red merge seat — the board's only writer.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
-
-Usage:
-  feov-record [flags]
-  feov-record [command]
-
-Available Commands:
-  carry           restate an earlier round's closure, when the work is done and you are not re-attesting it
-  close           close a gap with the verification you did THIS round, naming what you checked it against
-  closing         your closing argument on one docketed gap, when the bench is about to rule on it
-  completion      Generate the autocompletion script for the specified shell
-  count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
-  fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
-  help            Help about any command
-  inquiry-support your per-round vote on whether the report still carries a direction blue proposed
-  log             an entry for the operator who can retool you — what it asserts, said in the positive
-  mint            turn lens findings into a graded gap on the board, when a defect is real and belongs there
-  near-match      screen a candidate against the board BEFORE minting, so a reopen does not arrive as a fresh gap
-  position        your round narrative — the argument the other side answers, rendered as this round's RED section
-  register        your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
-  regrade         move a grade on a gap that already exists, with the reason it moved
-  spot-check      sample the closure archive — a duty every round owes, including the rounds with nothing to sample
-  verdict         the seat's terminal act: the PASS or FAIL, and the checkpoint that follows it
-
-Command groups — each holds commands THIS page does not list:
-  class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
-  show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
-
-Flags:
-  -h, --help               help for feov-record
-      --json               emit a structured JSON result (and structured errors) instead of human text
-      --run string         the run directory. The PreToolUse hook injects it in a real run, which is why you rarely type it. A value that DISAGREES with the run you were dispatched into is refused rather than obeyed
-      --schema             print the event-schema epoch this binary writes, and exit
-      --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
-  -v, --version            version for feov-record
-
-Use "feov-record [command] --help" for more information about a command.
+feov-record: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-merge-r1 (merge). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
 
 ── verdict in the wrong case
 exit 2
@@ -736,7 +692,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -815,7 +771,9 @@ feov-record: invalid argument "banana" for "--dimension" flag: --dimension must 
 
 file a grade motion — the tool assigns its id.
 
-THREE SUBJECTS, ONE EVENT, DIFFERENT CONTRACTS. `motion grade file` disputes a gap's grade and is ruled by the merge; `motion petition file` raises an ethical, safety, integrity or constitutional objection and is ruled by the BENCH, before the debate continues; a direction needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
+ONE EVENT, DIFFERENT CONTRACTS: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules).
+
+`motion grade file` disputes a gap's grade; `motion petition file` raises an ethical, safety, integrity or constitutional objection, heard BEFORE the debate continues; `motion docket file` puts a GAP before the bench, which is the channel for a gap the filing seat cannot settle itself; an inquiry needs no file verb at all — proposing the line of inquiry IS the filing, and only its ruling is a motion.
 
 Any seat may file. Exactly one rules, and `rule` appears only on that seat's surface.
 
@@ -878,7 +836,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -926,7 +884,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -974,7 +932,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1022,7 +980,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1070,7 +1028,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1118,7 +1076,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1338,7 +1296,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -1386,7 +1344,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   class           the gap-class registry: what KINDS of defect this run recognises
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:

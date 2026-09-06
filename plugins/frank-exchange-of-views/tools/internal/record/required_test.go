@@ -18,8 +18,6 @@ import (
 // So this is behavioural, not structural: for every field the table declares, a payload
 // missing exactly that field must actually be REFUSED by validate.
 
-// runWithGap is a run directory in which R1-1 actually exists. Since references are now
-// checked at write time, a fixture that names a gap must create it — which is the point.
 // seatFor picks a seat of the role that owns each verb, since validate now resolves
 // round-scoped references and needs to know who is writing.
 func seatFor(typ string) string {
@@ -33,22 +31,6 @@ func seatFor(typ string) string {
 	}
 }
 
-func runWithGap(t *testing.T) string {
-	t.Helper()
-	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, ""); err != nil {
-		t.Fatal(err)
-	}
-	id, err := MintGapID(mustRun(t, runDir), 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Mint{AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
-		t.Fatal(err)
-	}
-	return runDir
-}
-
 // review_flag is required by PRESENCE, not by being non-empty, and that distinction is
 // load-bearing: `--review-flag false` is a legitimate ruling ("no, a human need not look
 // at this"), and a generic present-and-non-empty check would refuse it. Three separate
@@ -56,14 +38,19 @@ func runWithGap(t *testing.T) string {
 func TestAFalsyReviewFlagSatisfiesTheRequirement(t *testing.T) {
 	// `review_flag` is a STRING field carrying the seat's answer; "false" is an answer, and the
 	// requirement is satisfied by the field being SET, not by it being non-empty.
-	o := &recordpb.Opinion{
-		GapId: proto.String("R1-1"), Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
-		Principle: proto.String("p"), Tension: proto.String("t"),
-		ReviewFlag: proto.String("false"), Settled: proto.String("the claim as it stood may not be re-asserted"),
-		Final:     proto.Bool(true),
-		Rationale: proto.String("r"),
+	o := &recordpb.MotionRule{
+		MotionId: proto.String("M1"),
+		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+		Opinion:  proto.String("r"),
+		Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+			Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+			Principle:   proto.String("p"), Tension: proto.String("t"),
+			ReviewFlag: proto.String("false"),
+			Settled:    proto.String("the claim as it stood may not be re-asserted"),
+			Final:      proto.Bool(true),
+		}},
 	}
-	if err := validate(mustRun(t, runWithGap(t)), "judge-r1", recordpb.EventType_EVENT_TYPE_OPINION, o); err != nil {
+	if err := validate(mustRun(t, docketRunDir(t)), "judge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
 		t.Errorf("a legitimately falsy review_flag was treated as missing: %v", err)
 	}
 }

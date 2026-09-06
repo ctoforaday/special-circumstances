@@ -1060,31 +1060,42 @@ func TestBlueVerbContracts(t *testing.T) {
 	})
 }
 
-// The bench rules with reasons or it does not rule: every one of the five
-// fields is required, and the refusal names the missing flag.
-func TestBenchOpinionRequiresEachUnconditionalField(t *testing.T) {
+// The bench rules with reasons or it does not rule: every one of its fields is required, and
+// the refusal names the missing flag.
+//
+// IT IS `motion docket rule` NOW. The contract is the deleted `bench opinion`'s, unchanged: the
+// same six words, the same "name the flag a seat can type" duty. What moved is the carrier and
+// what `--id` MEANS — it named the gap on the old verb and names the MOTION here, because the
+// gap rides the filing. That is why the fixture files a docket motion first: without it the
+// refusal under test would be the dangling-motion one.
+func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "judge-r1"
-	// The gap must EXIST: --id is a reference and is checked at write time, so without
-	// a real gap this test would assert on the dangling-reference refusal instead of the
-	// missing-field one it is about.
+	// The gap must EXIST: `motion docket file --id` is a reference and is checked at write time,
+	// so without a real gap the FILING below would be refused and this test would never reach the
+	// ruling it is about.
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
 		"--key", "k", "--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
+	}
+	if _, err := run(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "red-merge-r1",
+		"--id", "R1-1", "--reason", "contested, and not mine to close"); err != nil {
+		t.Fatalf("the docket filing was refused, so the ruling has nothing to answer: %v", err)
 	}
 	// EVERY ENTRY HERE IS UNCONDITIONALLY REQUIRED, because the loop below omits each in turn
 	// and asserts the refusal names it. --reopens-on is NOT unconditional (--final answers the
 	// same question the other way), so it is supplied separately for the complete call and is
 	// not a subtest of its own (#502).
 	full := map[string]string{
-		"id": "R1-1", "as": "carried", "principle": "correctness first",
+		"id": "M1", "as": "carried", "principle": "correctness first",
 		"tension": "correctness vs economy", "review-flag": "no",
 		"settled": "blue must repair c-65ca0a9e",
 	}
 	for missing := range full {
 		t.Run("missing --"+missing, func(t *testing.T) {
-			args := []string{"opinion", "--run", runDir, "--seat-id", seatID}
+			args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", seatID,
+				"--reason", "the rationale"}
 			for k, v := range full {
 				if k != missing {
 					args = append(args, "--"+k, v)
@@ -1092,10 +1103,10 @@ func TestBenchOpinionRequiresEachUnconditionalField(t *testing.T) {
 			}
 			_, err := run(t, args...)
 			if err == nil {
-				t.Fatalf("an opinion was accepted without --%s", missing)
+				t.Fatalf("a docket ruling was accepted without --%s", missing)
 			}
 			// The refusal NAMES the missing flag. What the field is for lives in
-			// `bench opinion --help`, which the seat is required to have read before running
+			// `motion docket rule --help`, which the seat is required to have read before running
 			// the command — restating it in the error would be a second copy of the same text,
 			// free to drift from the one cobra generates.
 			if !strings.Contains(err.Error(), missing) {
@@ -1103,20 +1114,38 @@ func TestBenchOpinionRequiresEachUnconditionalField(t *testing.T) {
 			}
 		})
 	}
-	args := []string{"opinion", "--run", runDir, "--seat-id", seatID,
+	// AND THE RULER'S OWN PROSE, which the docket ruling made `required` on MotionRule for every
+	// subject. It is not in the map above because it is supplied by a different flag pair
+	// (--reason / --reason-file) than the fields the loop omits by name.
+	t.Run("missing --reason", func(t *testing.T) {
+		args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", seatID}
+		for k, v := range full {
+			args = append(args, "--"+k, v)
+		}
+		args = append(args, "--reopens-on", "a reproduction on a clean tree")
+		if _, err := run(t, args...); err == nil {
+			t.Fatal("a ruling with no reasoning was accepted — a verdict the losing party cannot answer")
+		} else if !strings.Contains(err.Error(), "reason") {
+			t.Errorf("the refusal does not name --reason: %v", err)
+		}
+	})
+
+	args := []string{"motion", "docket", "rule", "--run", runDir, "--seat-id", seatID,
 		"--reason-file", writeTemp(t, "the rationale"), "--reopens-on", "a reproduction on a clean tree"}
 	for k, v := range full {
 		args = append(args, "--"+k, v)
 	}
 	out, err := run(t, args...)
 	if err != nil {
-		t.Fatalf("a complete opinion was refused: %v", err)
+		t.Fatalf("a complete docket ruling was refused: %v", err)
 	}
-	if !strings.Contains(out, "opinion recorded: R1-1 carried") {
-		t.Errorf("opinion said %q", out)
+	if !strings.Contains(out, "motion M1 ruled carried") {
+		t.Errorf("the docket ruling said %q", out)
 	}
-	if got := lastBody(t, runDir, &recordpb.Opinion{}).GetRationale(); got != "the rationale" {
-		t.Errorf("rationale = %q", got)
+	// THE RULER'S ARGUMENT IS `MotionRule.opinion` — the prose channel every subject's ruling
+	// carries — where the retired verb kept it on `Opinion.rationale`.
+	if got := lastBody(t, runDir, &recordpb.MotionRule{}).GetOpinion(); got != "the rationale" {
+		t.Errorf("the ruler's argument = %q", got)
 	}
 }
 

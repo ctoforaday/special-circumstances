@@ -203,6 +203,7 @@ func TestEveryExpectationIsReachableOnItsBoard(t *testing.T) {
 	}{
 		"motion grade rule":    {"a filed grade motion", func(b Board) bool { return hasMotion(b, "grade", false) }},
 		"motion petition rule": {"a filed petition motion", func(b Board) bool { return hasMotion(b, "petition", false) }},
+		"motion docket rule":   {"a filed docket motion", func(b Board) bool { return hasMotion(b, "docket", false) }},
 		"motion inquiry rule":  {"a proposed line of inquiry", func(b Board) bool { return len(b.Inquiries) > 0 }},
 		"motion grade appeal":  {"a RULED grade motion", func(b Board) bool { return hasMotion(b, "grade", true) }},
 		"motion inquiry appeal": {"a RULED line of inquiry", func(b Board) bool {

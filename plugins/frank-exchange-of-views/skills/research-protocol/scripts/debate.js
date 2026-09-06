@@ -359,14 +359,14 @@ const PETITION_RULING = {
 // never enacts it (capture harvests this run's rulings for human review).
 const lawClause = ` LAW: if ${runDir}/inputs/law/ exists, read it before ruling — statute > precedent > case-local argument; PRECEDENT IS ARGUMENT, NOT EVIDENCE (the artifact and the leaf are the only evidence; where a precedent conflicts with the leaf, the leaf wins and you flag the conflict for human review); a precedent either party cites MUST be addressed in your opinion; PERSUASIVE holdings persuade, only AFFIRMED ones bind; your rulings this run are harvested as PERSUASIVE proposals for human review — you propose law, you never enact it.`
 // #361 was filed BY A BENCH, in a run, because it had a finding both parties needed on the record
-// and no way to state it: `bench opinion` requires an --id and a fate-changing --as, so it
+// and no way to state it: a docket ruling requires a motion id and a fate-changing --as, so it
 // disposes of a docketed gap and nothing else. The bench put its construction in a petition
 // ruling's opinion text, where red never read it.
 //
 // The verb shipped (0.67.0) and renders under "### LEAD"; the harvest reads it (#413). The prompt
 // carried a paragraph naming it, because for two releases no prompt and no constitution did and
 // the bench could not know it existed. The paragraph is gone: `declare --help` now carries what it
-// is for, when to reach for it, why `opinion` cannot hold it, and the measured case — and the
+// is for, when to reach for it, why a docket ruling cannot hold it, and the measured case — and the
 // tree walk puts that page in front of the bench before it chooses. A verb the HELP does not name
 // is the capability nobody has; a verb only the PROMPT names is one the tool cannot be trusted for.
 const declareClause = ''

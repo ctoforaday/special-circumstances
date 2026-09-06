@@ -132,9 +132,16 @@ func TestSameWordCatchesTyposAndNothingWider(t *testing.T) {
 // than a legitimate act the tool has not heard of.
 func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
 	closeSet := EnumFields["close"]
-	opinionSet := EnumFields["opinion"]
-	if len(closeSet) != 1 || len(opinionSet) != 1 {
-		t.Fatal("both closing verbs must declare exactly one closed set")
+	if len(closeSet) != 1 {
+		t.Fatal("`merge close` must declare exactly one closed set")
+	}
+	// THE BENCH'S SET IS KEYED ON (SUBJECT, RULING) NOW, so it is read from the motion table
+	// rather than from EnumFields — `bench opinion` was its own event type with its own entry,
+	// and the disposition is a docket motion's ruling. Read through the same accessor the CLI's
+	// help and the write check use, so a set this test agrees with is the set a seat is offered.
+	benchSet := MotionVerdictEnum("docket").Values
+	if len(benchSet) == 0 {
+		t.Fatal("the bench's docket vocabulary is empty — an empty set would pass every check below without comparing anything")
 	}
 	closes := map[string]bool{}
 	for _, v := range Names(closeSet[0].Values) {
@@ -142,7 +149,7 @@ func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
 	}
 	// Every class red may close with must also be a disposition the bench may rule, or the
 	// two verbs mean different things by the same outcome — which is what #342 removed.
-	for _, v := range Names(opinionSet[0].Values) {
+	for _, v := range Names(benchSet) {
 		if v == DispositionCarried {
 			continue
 		}
@@ -152,7 +159,7 @@ func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
 	}
 	for _, v := range closeSet[0].Values {
 		found := false
-		for _, d := range opinionSet[0].Values {
+		for _, d := range benchSet {
 			if d == v {
 				found = true
 			}

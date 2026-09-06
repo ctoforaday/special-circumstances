@@ -214,7 +214,11 @@ enum EventType {
   EVENT_TYPE_MOTION_APPEAL = 18 [(means) = "an appeal of a ruling already made on a motion"];
   EVENT_TYPE_MOTION_RULE = 19 [(means) = "the bench's ruling on a filed motion, and whom it binds"];
   EVENT_TYPE_OBSERVE = 20 [(means) = "an observation recorded without a claim attached to it"];
-  EVENT_TYPE_OPINION = 21 [(means) = "the bench ruling on a gap, with the principle applied and the tension acknowledged"];
+  // 21 was EVENT_TYPE_OPINION. Reserved rather than left free: a stored event carries its type
+  // as an integer, so a new type given 21 would silently inherit every pre-#681 bench ruling —
+  // and `Body` dispatches on this enum, so those events would be handed to the wrong arm.
+  reserved 21;
+  reserved "EVENT_TYPE_OPINION";
   EVENT_TYPE_OUTCOME = 22 [(means) = "the run's terminal act: how it ended and whether the question was answered"];
   EVENT_TYPE_POSITION = 23 [(means) = "a seat's stated position going into a round"];
   EVENT_TYPE_PROOF = 24 [(means) = "a script that was RUN, with its hash and exit status — the answer a computation check demands"];
@@ -358,6 +362,7 @@ enum MotionSubject {
   MOTION_SUBJECT_GRADE = 1 [(means) = "you contest a gap's grade on one dimension", (ruled_by) = "merge"];
   MOTION_SUBJECT_PETITION = 2 [(means) = "you ask the bench to intervene — the constitutional short-circuit available to any party seat", (ruled_by) = "bench"];
   MOTION_SUBJECT_DIRECTION = 3 [(means) = "a ruling on a line of inquiry blue proposed; the id is the AVENUE's own, because the proposal IS the filing", (ruled_by) = "merge"];
+  MOTION_SUBJECT_DOCKET = 4 [(means) = "a gap put before the BENCH for disposition: the filer states the case, the bench rules and its word decides the gap's fate", (ruled_by) = "bench"];
 }
 
 // The ruling sets, one per subject. A single flat set cannot express this: one motion-rule
@@ -466,7 +471,6 @@ message Event {
     Closing closing = 33;
     Regrade regrade = 34;
     SpotCheck spot_check = 35;
-    Opinion opinion = 36;
     Finding finding = 37;
     Observe observe = 38;
     Anchor anchor = 39;
@@ -491,6 +495,16 @@ message Event {
   // `base_ingest` and 53-54 for the sitting span, which is what the reserve is for — the block
   // shrinks and nothing is renumbered.
   reserved 55 to 80;
+
+  // 36 HELD `Opinion`, and it is reserved for the reason the block above is: the number is
+  // permanent even though the message is gone. The bench's disposition is a docket motion's
+  // ruling now (`MotionRule.ruling.docket`, #681 Scope 2), so nothing writes 36 any more — but
+  // events written BEFORE that change still carry those bytes, and a later body handed 36 would
+  // decode them as itself. Protobuf does not refuse a shape mismatch on a compatible wire type;
+  // it would return a message populated from another message's fields, with no error anywhere.
+  // 36 is the only free number below 55, so it is also the one a careless next edit would take.
+  reserved 36;
+  reserved "opinion";
 }
 
 // TelemetryLine is the per-round projection, NOT a shard event.
@@ -773,105 +787,6 @@ message SpotCheck {
 
   reserved 2;
   reserved "notes";
-}
-
-// Opinion is the bench ruling on a gap.
-message Opinion {
-  // ONE QUESTION, TWO ASSERTABLE ANSWERS — the `friction --none` shape.
-  //
-  // "What would reopen this?" has a real answer of "nothing", and that answer must be POSITIVE.
-  // Left as an empty `reopens_on` it is indistinguishable from a bench that skipped the field,
-  // which is the defect the friction channel carried for eighteen consecutive sittings until
-  // `--none` made the empty case sayable.
-  option (check) = {
-    expr: "\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
-    why: "a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round"
-  };
-
-  // REFUSED TOGETHER rather than silently preferring one: a ruling that says both "this is final"
-  // and "here is what would undo it" has not decided, and picking for it would record a decision
-  // nobody made. It is a rule about two fields, so it lives here rather than in one verb's parse
-  // — the CLI is not the only writer, and the database was willing to store the contradiction.
-  option (check) = {
-    expr: "\"reopens_on\" IS NULL OR \"final\" IS NULL"
-    why: "--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one"
-  };
-
-  optional string gap_id = 1 [(sql) = {
-    required: true
-    flag: "id"
-    references: "mint.gap_id"
-    why: "which gap is being ruled on"
-  }];
-
-  // THE BENCH'S WORD, AND WHY IT IS NO LONGER A STRING.
-  //
-  // This field was `string` on a recorded decision: "its set is open — closing it would mean a
-  // legitimate bench ruling failing HARD mid-round." The premise was already false when it was
-  // written. `checkOpenSets` refuses any word outside `benchDispositions` at record.go:1131, so a
-  // bench ruling outside the set ALREADY failed hard mid-round; the string bought nothing except
-  // that the closed set lived in Go, one file from the field, where the schema could not see it.
-  //
-  // That is not hypothetical. The engine and the bench's own constitution instructed three
-  // dispositions the record refused, and the terminal dispute docket had no legal value at all —
-  // the drift was possible precisely because the vocabulary was not in the schema to be read off.
-  //
-  // Typed, the set is one declaration with four readers: the flag parser, the DDL's foreign key,
-  // the `closes` column the gap view folds on, and `--help`.
-  optional Disposition disposition = 2 [(sql) = {
-    required: true
-    flag: "as"
-    why: "how the gap ends, or `carried` to defer it with a stated research direction"
-  }];
-
-  // NON-EMPTY, and this is the one of the three that is. Decided 2026-08-22 by the operator,
-  // as a contract question rather than a storage one.
-  //
-  // A ruling always applies SOME rule, so an empty `principle` is exactly the decoration this
-  // verb was built to refuse — the measured failure is a bench that ruled `carried` on 64 of 65
-  // items, a router rather than a judge. `tension` and `review_flag` stay presence-only on the
-  // opposite argument: not every ruling has two values in conflict and most need no human to
-  // look, so demanding them would produce INVENTED tension and pro-forma flags, which read as
-  // reasoning and are worse than an honest blank.
-  optional string principle = 3 [(sql) = {
-    required: true
-    why: "the rule you are applying, stated so a later sitting can apply it too"
-  }];
-  optional string tension = 4 [(sql) = {
-    required: true
-    allow_empty: true
-    why: "what pulls the other way — a ruling with no acknowledged counterweight is an assertion"
-  }];
-  optional string review_flag = 5 [(sql) = {
-    required: true
-    allow_empty: true
-    flag: "review-flag"
-    why: "why a human should, or should not, look at this"
-  }];
-  optional string rationale = 6 [(sql) = {
-    required: true
-    flag: "reason"
-    why: "the ruling's rationale — a disposition with no stated reasoning is indistinguishable from a default"
-  }];
-
-  // THE PROPOSITION NOW BARRED. A finding is a claim, its evidence and its demand; a fate says
-  // which of the three fell only to whoever wrote it. Presence-only for the same reason `tension`
-  // is: demanding prose here would produce a restatement of the disposition, which reads as
-  // reasoning and is worse than an honest blank.
-  optional string settled = 7 [(sql) = {
-    required: true
-    allow_empty: true
-    why: "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition"
-  }];
-
-  optional string reopens_on = 8 [(sql) = {
-    flag: "reopens-on"
-    why: "the evidence or condition that would make this worth raising again"
-  }];
-
-  // Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the
-  // check above is what makes "neither" unrepresentable.
-  optional bool final = 9;
 }
 
 // Finding is a lens observation. The label is TOOL-assigned (L{lens}-F{n}); an unlabelled
@@ -1278,6 +1193,7 @@ message Motion {
     GradeMotion grade = 10;
     PetitionMotion petition = 11;
     DirectionMotion direction = 12;
+    DocketMotion docket = 13;
   }
 }
 
@@ -1330,6 +1246,96 @@ enum PetitionClass {
   PETITION_CLASS_CONSTITUTIONAL = 6 [(means) = "the instruction itself conflicts with the rules the run is bound by"];
 }
 
+// DocketMotion puts a GAP before the bench. The filing is the DOCKETING — a seat escalating a gap
+// it cannot settle — and the ruling is the bench's disposition of it.
+//
+// THE GAP RIDES THE FILING AND NOT THE RULING, which is the whole join. `bench opinion` carried a
+// gap_id on the DISPOSITION and no motion id, so a bench ruling joined to nothing and nothing could
+// ask whether a gap that reached the bench was ever answered. Here the ask names the gap once, the
+// answer names the ask, and the pair is recoverable from either end.
+message DocketMotion {
+  optional string gap_id = 1 [(sql) = {
+    required: true
+    flag: "id"
+    references: "mint.gap_id"
+    why: "which gap is being put before the bench — a docket motion that names no gap is an escalation of nothing"
+  }];
+}
+
+// DocketRuling is the bench's disposition of a docketed gap: the word that decides its fate, and
+// the reasoning that has to travel with it.
+//
+// IT IS A MESSAGE ARM WHERE ITS THREE SIBLINGS ARE ENUMS, and the reason is these six fields. The
+// enum arms say what was decided; only the bench also records WHY, what it weighed, and what would
+// reopen it. `record.proto`'s own note above MotionSubject argues the rulings are separate enums
+// because the vocabulary is subject-keyed — which docket satisfies, since its vocabulary IS the
+// shared Disposition enum. The departure is forced by the reasoning fields, not by the words.
+message DocketRuling {
+  // ONE QUESTION, TWO ASSERTABLE ANSWERS — the `friction --none` shape.
+  //
+  // "What would reopen this?" has a real answer of "nothing", and that answer must be POSITIVE.
+  // Left as an empty `reopens_on` it is indistinguishable from a bench that skipped the field,
+  // which is the defect the friction channel carried for eighteen consecutive sittings until
+  // `--none` made the empty case sayable.
+  option (check) = {
+    expr: "\"reopens_on\" IS NOT NULL OR \"final\" IS NOT NULL"
+    why: "a ruling owes what would change its outcome: --reopens-on names it, or --final says nothing would. Saying neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round"
+  };
+
+  // REFUSED TOGETHER rather than silently preferring one: a ruling that says both "this is final"
+  // and "here is what would undo it" has not decided, and picking for it would record a decision
+  // nobody made.
+  option (check) = {
+    expr: "\"reopens_on\" IS NULL OR \"final\" IS NULL"
+    why: "--final says nothing would reopen this and --reopens-on names what would; they are opposite answers to one question, so pass exactly one"
+  };
+
+  // NO `subset` HERE, AND THAT IS THE POINT OF THE FIELD.
+  //
+  // `subset: "closes"` would admit only the values annotated `(closes) = true` — which is every
+  // disposition EXCEPT `carried`, the one the bench uses 76 times in 77. A ruling that cannot defer
+  // is not the bench's vocabulary; it is red's. The whole set is legal here, and `closes` is read
+  // by the gap view to decide the FATE rather than by the column to decide legality.
+  optional Disposition disposition = 1 [(sql) = {
+    required: true
+    flag: "as"
+    why: "the bench's word, which decides the gap's fate — `carried` defers it to another round, everything else ends it"
+  }];
+
+  optional string principle = 2 [(sql) = {
+    required: true
+    why: "the rule the bench applied, stated so a later sitting can apply the same one"
+  }];
+
+  optional string tension = 3 [(sql) = {
+    required: true
+    allow_empty: true
+    why: "the values that pulled against each other, or empty when none did — an empty answer here is an answer"
+  }];
+
+  optional string review_flag = 4 [(sql) = {
+    required: true
+    allow_empty: true
+    flag: "review-flag"
+    why: "what a human should look at again, or empty when nothing needs it"
+  }];
+
+  optional string settled = 5 [(sql) = {
+    required: true
+    allow_empty: true
+    why: "what the losing party may no longer assert, as one sentence — not the gap id, and not the disposition"
+  }];
+
+  optional string reopens_on = 6 [(sql) = {
+    flag: "reopens-on"
+    why: "the evidence or condition that would make this worth raising again"
+  }];
+
+  // Recorded only when TRUE. Absent means the ruling answered with `reopens_on` instead; the
+  // checks above are what make "neither" and "both" unrepresentable.
+  optional bool final = 7;
+}
+
 // DirectionMotion rules on a line of inquiry blue proposed. The id is the AVENUE's own — a
 // direction has no separate filing, because blue's proposal IS the filing.
 message DirectionMotion {
@@ -1368,12 +1374,28 @@ message MotionRule {
     why: "the motion this answers — a ruling that names no motion is an answer to nothing, and the join it belongs to is the whole of #312"
   }];
   optional MotionSubject subject = 2;
-  optional string opinion = 3;
+  // THE RULER'S ARGUMENT, AND IT IS REQUIRED — which the schema did not say until the docket
+  // subject needed it said.
+  //
+  // `prose()` has always refused an empty `--reason` for every subject's ruling, so the constraint
+  // held in fact while the message carried no annotation at all: `CheckRequired` never saw it and
+  // the column was nullable. That was survivable while `Opinion.rationale` carried the bench's
+  // prose with its own `required` + NOT NULL. The docket ruling puts the bench's argument HERE
+  // instead, so the two carriers move here with it rather than being retired.
+  //
+  // `flag: "reason"` is not decoration: without it flagFor derives `--opinion` from the field name,
+  // and CheckRequired would refuse naming a flag no verb registers.
+  optional string opinion = 3 [(sql) = {
+    required: true
+    flag: "reason"
+    why: "the ruling's argument in the ruler's words — a ruling with no reasoning is a verdict the losing party cannot answer"
+  }];
 
   oneof ruling {
     GradeRuling grade = 10;
     PetitionRuling petition = 11;
     DirectionRuling direction = 12;
+    DocketRuling docket = 13;
   }
 
   // binds is what the ruling OBLIGES of the coming seats. Enumerated on the ruling side, which

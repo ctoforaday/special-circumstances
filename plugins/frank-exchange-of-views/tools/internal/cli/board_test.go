@@ -73,11 +73,7 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 		"--reason", "the check passes"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
-	if _, err := run(t, "opinion", "--run", runDir, "--seat-id", "judge-r1",
-		"--id", closedByBench, "--as", "repaired", "--principle", "p", "--tension", "t",
-		"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "closed on the merits"); err != nil {
-		t.Fatalf("bench opinion: %v", err)
-	}
+	benchDisposes(t, runDir, closedByBench, "repaired", "the repair discharges the defect")
 
 	b := board(t, runDir, "red-merge-r1")
 	if got := ids(b.Open); len(got) != 1 || got[0] != open1 {

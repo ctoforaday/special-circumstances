@@ -1507,7 +1507,13 @@ test('W2e: the declare capability is on the bench surface, and no prompt re-teac
     // silent again — which is the failure W2e was filed for, not the wording of any paragraph.
     const page = readFileSync(new URL('../../tools/internal/cli/seat/help/declare.md', import.meta.url), 'utf8')
     assert.ok(/binds how the whole record is READ/.test(page), 'the declare help does not say what distinguishes a holding from an opinion')
-    assert.ok(/`opinion` cannot carry it/.test(page), 'the declare help does not say why the opinion verb cannot hold it')
+    // THE ASSERTION NAMES THE LIVE VERB, and it used to name a dead one. `opinion` retired in
+    // #681 Scope 2 and this regex went on passing, so the gate that exists to keep the page
+    // teaching the distinction was instead PINNING the page to a verb the bench cannot run:
+    // correcting the prose would have broken a green test. A check keyed on a retired name is
+    // not a weaker check, it is a check pointed at the wrong thing.
+    assert.ok(/docket ruling cannot carry it/.test(page), 'the declare help does not say why a docket ruling cannot hold it')
+    assert.ok(!/`opinion`/.test(page), 'the declare help still names the retired `opinion` verb')
   }
 
   // The law clause is still bench-wide and still the prompt's: statute over precedent over

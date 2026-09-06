@@ -54,7 +54,7 @@ Available Commands:
   verify       judge a citation blue authored, when the anchor exists and you have read what it points at
 
 Command groups — each holds commands THIS page does not list:
-  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion       file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:

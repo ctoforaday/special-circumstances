@@ -119,3 +119,57 @@ func TestRuledGradeMotionIsNotAHole(t *testing.T) {
 func mint() *recordpb.Mint {
 	return &recordpb.Mint{Class: proto.String("c")}
 }
+
+// A GAP THAT REACHED THE BENCH AND GOT NO RULING IS THE SHAPE THIS DETECTOR IS FOR.
+//
+// The docket arm counted only RULED motions, and only into `dispositions` — so an unruled docket
+// motion scored motionsFiled=0 and `motionsFiled > 0 && motionsRuled == 0` could never fire. A gap
+// escalated to the bench and left unanswered rendered as an ordinary open gap, which is exactly
+// the "nothing able to notice" that docs/seat-command-triggers.md says the docket motion removes.
+//
+// The three cases are one test because the middle one is what makes the first meaningful: a
+// detector that flags everything is not a detector.
+func TestAnUnruledDocketMotionIsAHoleAndARuledOneIsNot(t *testing.T) {
+	docket := func(gapID, motionID string, ruled bool) []*record.Event {
+		evs := []*record.Event{recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{
+			MotionId: proto.String(motionID),
+			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}},
+		})}
+		if ruled {
+			evs = append(evs, recordtest.Event(t, "judge-r1", 1, &recordpb.MotionRule{
+				MotionId: proto.String(motionID),
+				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
+				Opinion:  proto.String("heard"),
+				Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+					// CARRIED, so the gap stays OPEN. Ruled-and-still-open is the case that
+					// separates "the bench answered" from "the gap closed" — a closing
+					// disposition would make this pass for the wrong reason.
+					Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED),
+					ReopensOn:   proto.String("the stated direction reporting back"),
+				}},
+			}))
+		}
+		return evs
+	}
+	b := &record.Board{
+		GapOrder: []string{"UNHEARD", "HEARD", "NEVER-FILED"},
+		Gaps: map[string]*record.Gap{
+			"UNHEARD":     {ID: "UNHEARD", Open: true, Mint: mint()},
+			"HEARD":       {ID: "HEARD", Open: true, Mint: mint()},
+			"NEVER-FILED": {ID: "NEVER-FILED", Open: true, Mint: mint()},
+		},
+	}
+	b.Events = append(docket("UNHEARD", "M1", false), docket("HEARD", "M2", true)...)
+
+	out := gapFlowMermaid(b)
+	if got := lineClass(out, "g_UNHEARD"); got != "hole" {
+		t.Errorf("a gap put before the bench and never ruled is not flagged, got %q:\n%s", got, out)
+	}
+	if got := lineClass(out, "g_HEARD"); got != "open" {
+		t.Errorf("a docket motion the bench RULED is not a hole, got %q:\n%s", got, out)
+	}
+	if got := lineClass(out, "g_NEVER_FILED"); got != "open" {
+		t.Errorf("a gap nobody docketed is an ordinary open gap, got %q:\n%s", got, out)
+	}
+}

@@ -193,6 +193,8 @@ func Build(run record.Run, b Board, exec Exec) error {
 		switch m.Subject {
 		case "grade":
 			args = append(args, "--id", m.GapID, "--dimension", m.Dimension, "--proposed", m.Proposed)
+		case "docket":
+			args = append(args, "--id", m.GapID)
 		case "petition":
 			args = append(args, "--class", m.Class, "--relief", m.Relief)
 		}
@@ -202,7 +204,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		if m.Ruled == "" {
 			continue
 		}
-		ruler := map[string]string{"grade": "red-merge-r1", "petition": "judge-r2"}[m.Subject]
+		ruler := map[string]string{"grade": "red-merge-r1", "petition": "judge-r2", "docket": "judge-r2"}[m.Subject]
 		if _, err := exec("motion", m.Subject, "rule", "--run", run.Dir(), "--seat-id", ruler,
 			"--id", fmt.Sprintf("M%d", i+1), "--as", m.Ruled,
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {

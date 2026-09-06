@@ -27,7 +27,7 @@ Available Commands:
   verify       judge a citation blue authored, when the anchor exists and you have read what it points at
 
 Command groups — each holds commands THIS page does not list:
-  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion       file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -76,7 +76,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -125,7 +125,7 @@ Available Commands:
 
 Command groups — each holds commands THIS page does not list:
   line-of-inquiry a direction the report could take, and what became of it — `propose` one, `move` one you already proposed
-  motion          file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion          file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show            read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:
@@ -143,7 +143,7 @@ exit 2
 stderr:
 feov-record: "mint" is not on your surface — it is the merge seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
 
-feov-record — the bench — opinions, halt, certification. Never originates.
+feov-record — the bench — rulings, halt, certification. Never originates.
 
 If you need a verb or a flag that is not listed here, it does not exist for you:
 do not improvise around it, and do not hand-write the artifact. Record what you
@@ -164,12 +164,11 @@ Available Commands:
   halt         stop the run at a safety or consent boundary, when continuing would itself be the harm
   help         Help about any command
   log          an entry for the operator who can retool you — what it asserts, said in the positive
-  opinion      dispose of one contested gap with a written ruling — the bench's answer to a docketed item
   outcome      stamp how the run ENDED, as a fact — a different question from red's PASS or FAIL
   register     your first act at the seat, and the one call that needs your seat id — nothing else runs until it does
 
 Command groups — each holds commands THIS page does not list:
-  motion       file and rule on a motion — a grade dispute, a petition, or a ruling on a direction. One mechanism, one id.
+  motion       file and rule on a motion — grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). One mechanism, one id.
   show         read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK
 
 Flags:

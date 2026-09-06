@@ -142,7 +142,7 @@ func Failed(checks []Check) []Check {
 
 // gapsDisposed: a gap is either OPEN or CLOSED WITH A RECORDED REASON. A closure carries its
 // reason in one of two fields depending on WHO closed it: a merge `close` carries a
-// `closure_class`, while a bench `opinion` that ends the gap carries a `disposition`
+// `closure_class`, while the bench's ruling on a `docket` motion carries a `disposition`
 // (closed / not_a_defect / defect_accepted — see replay.go benchClosesGap). Either is a
 // decision; a closed gap with NEITHER is a torn closure — closed by the replay with no reason
 // on the record.
@@ -154,7 +154,7 @@ func gapsDisposed(b *record.Board) Check {
 			continue
 		}
 		// ASK THE GAP, NOT THE CLOSURE FIELD. The merge's `closure_class` and the bench's
-		// `disposition` now live on two different messages (`Close` and `Opinion`), and
+		// `disposition` now live on two different messages (`Close` and `DocketRuling`), and
 		// `g.Closure != nil` no longer means "closed by anything" — it means "closed by a
 		// `close` event". Reading it here would report every bench-closed gap as a torn
 		// closure, which is the regression the test above this check pins.
@@ -196,8 +196,8 @@ func foundByResolves(b *record.Board) Check {
 		"a gap credits a finding that no lens recorded (attribution to a finding nobody made)", bad)
 }
 
-// dialecticRefsResolve: every act that argues ABOUT a gap (closing, dispute, dispute-respond,
-// opinion) names a gap that exists. A dialectic event pointing at a phantom gap is a thread
+// dialecticRefsResolve: every act that argues ABOUT a gap (a closing, or a motion filed about
+// it) names a gap that exists. A dialectic event pointing at a phantom gap is a thread
 // with no anchor — it renders under nothing and audits nothing.
 func dialecticRefsResolve(b *record.Board) Check {
 	var bad []string
@@ -211,19 +211,21 @@ func dialecticRefsResolve(b *record.Board) Check {
 		}
 	}
 	return result("dialectic-refs-resolve",
-		"every closing/dispute/opinion names a gap that exists",
+		"every closing/grade motion/docket motion names a gap that exists",
 		"a dialectic act argues about a gap that is not on the record", bad)
 }
 
 // dialecticGapID returns the gap a dialectic act argues about, and whether the event is a
 // dialectic act at all.
 //
-// THE THREE ACTS DO NOT SPELL THE GAP THE SAME WAY, which is what made this a function rather
-// than one payload key read three times. A `closing` and an `opinion` each carry `gap_id` on
-// their own message; a `motion` does NOT — only a GRADE motion is about a gap, and its id lives
-// one level down on `Motion.grade.gap_id`. A petition or a direction motion is a dialectic act
-// with no gap, which is why ok=true with an empty id is a real answer here and not a miss: the
-// caller skips an empty id exactly as it did when the payload had no such key.
+// THE ACTS DO NOT SPELL THE GAP THE SAME WAY, which is what made this a function rather than
+// one payload key read three times. A `closing` carries `gap_id` on its own message; a `motion`
+// does NOT — only a GRADE or a DOCKET motion is about a gap, and its id lives one level down on
+// `Motion.grade.gap_id` / `Motion.docket.gap_id`. A RULING is not read here at all: it carries
+// only the ask's id, so the gap it settles is reachable solely through the filing this function
+// already checks. A petition or a direction motion is a dialectic act with no gap, which is why
+// ok=true with an empty id is a real answer here and not a miss: the caller skips an empty id
+// exactly as it did when the payload had no such key.
 func dialecticGapID(e *record.Event) (string, bool) {
 	body, ok := recordpb.Body(e)
 	if !ok {
@@ -232,11 +234,12 @@ func dialecticGapID(e *record.Event) (string, bool) {
 	switch f := body.(type) {
 	case *recordpb.Closing:
 		return f.GetGapId(), true
-	case *recordpb.Opinion:
-		return f.GetGapId(), true
 	case *recordpb.Motion:
-		if g, isGrade := f.GetFiling().(*recordpb.Motion_Grade); isGrade {
-			return g.Grade.GetGapId(), true
+		switch fil := f.GetFiling().(type) {
+		case *recordpb.Motion_Grade:
+			return fil.Grade.GetGapId(), true
+		case *recordpb.Motion_Docket:
+			return fil.Docket.GetGapId(), true
 		}
 		return "", true
 	}
@@ -380,7 +383,7 @@ func nonEmpty(s, fallback string) string {
 // Stats is the authoritative tally of a run's record — the numbers a human would otherwise
 // grep for. GapsOpen is the ground truth an external consumer must match: the 2026-07-22 run's
 // envelope self-reported 10 outstanding while GapsOpen was 2 (#83). Dialectic coverage
-// (gaps_with_closing/dispute/opinion) is how "is the argument on the record?" becomes a number
+// (gaps_with_closing/dispute/disposition) is how "is the argument on the record?" becomes a number
 // — the record-only migration's progress bar.
 type Stats struct {
 	Verdict          string         `json:"verdict"`
@@ -399,7 +402,10 @@ type Stats struct {
 	Citations       int `json:"citations"`
 	GapsWithClosing int `json:"gaps_with_closing"`
 	GapsWithDispute int `json:"gaps_with_dispute"`
-	GapsWithOpinion int `json:"gaps_with_opinion"`
+	// GapsWithDisposition counts gaps the BENCH has settled: a `docket` motion, RULED. Only that
+	// subject settles a gap — a grade or a petition ruling answers a different question — so it
+	// is the subject, not the ruling event, that qualifies the count.
+	GapsWithDisposition int `json:"gaps_with_disposition"`
 }
 
 // Compute tallies the record. Read-only, one replay.
@@ -427,7 +433,7 @@ func Compute(b *record.Board) Stats {
 		}
 	}
 	findingLabels := map[string]bool{}
-	withClosing, withDispute, withOpinion := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	withClosing, withDispute, withDisposition := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, e := range b.Events {
 		// COUNTED ON THE TYPE, NOT THE BODY. A verify event with an unreadable body is still a
 		// verification red performed; gating this on the body would let a decode gap silently
@@ -449,10 +455,6 @@ func Compute(b *record.Board) Stats {
 			if gid := f.GetGapId(); gid != "" {
 				withClosing[gid] = true
 			}
-		case *recordpb.Opinion:
-			if gid := f.GetGapId(); gid != "" {
-				withOpinion[gid] = true
-			}
 		case *recordpb.Motion:
 			// The grade-challenge stat. It counted `dispute` events until the motion collapse
 			// retired the type, after which it reported 0 for every run — indistinguishable
@@ -471,6 +473,18 @@ func Compute(b *record.Board) Stats {
 			}
 		}
 	}
+	// THE DISPOSITION STAT NEEDS THE JOIN, so it cannot be gathered in the loop above. A ruling
+	// carries only the ask's id; the gap rides the FILING. record.Motions is the one place that
+	// pairing is computed, and reading it a second way here is how counters come to disagree.
+	for _, m := range record.Motions(b) {
+		if m == nil || m.Subject != "docket" || !m.Ruled() {
+			continue
+		}
+		if m.GapID != "" {
+			withDisposition[m.GapID] = true
+		}
+	}
+
 	s.Findings = len(findingLabels)
 	for l := range findingLabels {
 		if minted[l] {
@@ -493,6 +507,6 @@ func Compute(b *record.Board) Stats {
 	}
 	s.GapsWithClosing = len(withClosing)
 	s.GapsWithDispute = len(withDispute)
-	s.GapsWithOpinion = len(withOpinion)
+	s.GapsWithDisposition = len(withDisposition)
 	return s
 }

@@ -1,3 +1,26 @@
+$ register --run {RUN} --seat-id red-merge-r1
+exit 0
+stdout:
+registered red-merge-r1
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+
+$ mint --run {RUN} --seat-id red-merge-r1 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
+exit 0
+stdout:
+minted R1-1
+  acceptance check RECORDED as: x
+  (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
+
+$ motion docket file --run {RUN} --seat-id red-merge-r1 --id R1-1 --reason contested, and not red's to close
+exit 0
+stdout:
+motion M1 filed (docket)
+
 $ register --run {RUN} --seat-id judge-r2
 exit 0
 stdout:
@@ -9,39 +32,30 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as repaired
+$ motion docket rule --run {RUN} --seat-id judge-r2 --id M1 --as repaired --reason r
 exit 2
 stderr:
-feov-record: required flag(s) "principle", "review-flag", "settled", "tension" not set
+feov-record: record: motion rule requires --principle to say something (the rule the bench applied, stated so a later sitting can apply the same one)
 
-dispose of one contested gap with a written ruling — the bench's answer to a docketed item
+rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-A ruling is an OPINION, not a disposition — the principle applied and the values in tension are required because a bare fate teaches the next round nothing.
-
-Every value ends the gap except `carried`, which defers it with a stated direction.
-
-For a holding that binds how the record is READ and moves no gap, use `declare`: this verb needs an id and a fate, and cannot carry one.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues. A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it is why `rule` is missing from the surfaces that do not hold the gavel.
 
 Usage:
-  feov-record opinion [flags]
+  feov-record motion docket rule [flags]
 
 Flags:
-      --as as-value          REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
-      --final                nothing would reopen this: settled on the merits, and more evidence cannot change it. The assertable form of an empty --reopens-on, so a decided question is distinguishable from a skipped field
-  -h, --help                 help for opinion
-      --id gap-id            REQUIRED — the gap being ruled on
-      --principle string     REQUIRED — the principle applied — a ruling is an OPINION, not a disposition
+      --as as-value          your ruling
+      --final                nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two
+  -h, --help                 help for rule
+      --id string            REQUIRED — the motion id (M1, M2 …)
+      --principle string     the rule you applied, stated so a later sitting can apply the same one
       --reason string        REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -        read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --reopens-on string    what would change this outcome — the evidence or condition that would make it worth raising again. If nothing would, pass --final instead: that is a different answer, not a missing one
-      --review-flag string   REQUIRED — why a human should, or should not, look at this
-      --settled string       REQUIRED — THE PROPOSITION NOW BARRED, as one sentence — not the gap id, and not the disposition. A finding is a claim, its evidence and its demand; a fate says which of the three fell only to whoever wrote it. Say what the losing party may no longer assert
-      --tension string       REQUIRED — the values in tension (e.g. correctness vs economy)
+      --reopens-on string    the evidence or condition that would make this worth raising again — or pass --final to say nothing would
+      --review-flag string   what a human should look at again — empty when nothing needs it
+      --settled string       what the losing party may no longer assert, in one sentence
+      --tension string       the values that pulled against each other — empty is a real answer when none did
 
 Enumerated values:
   --as
@@ -59,39 +73,30 @@ Global Flags:
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ opinion --run {RUN} --seat-id judge-r2 --id R2-1 --as repaired --principle p --tension t
+$ motion docket rule --run {RUN} --seat-id judge-r2 --id M1 --as repaired --reason r --principle p --tension t
 exit 2
 stderr:
-feov-record: required flag(s) "review-flag", "settled" not set
+feov-record: record: motion docket rule requires --reopens-on (what would change this outcome) or --final (nothing would). A ruling that says neither leaves the losing party unable to tell a settled question from an unanswered one, which is the difference between an appeal and a wasted round
 
-dispose of one contested gap with a written ruling — the bench's answer to a docketed item
+rule on a docket motion — this verb is the bench seat's, and it appears only on that surface.
 
-A ruling is an OPINION, not a disposition — the principle applied and the values in tension are required because a bare fate teaches the next round nothing.
-
-Every value ends the gap except `carried`, which defers it with a stated direction.
-
-For a holding that binds how the record is READ and moves no gap, use `declare`: this verb needs an id and a fate, and cannot carry one.
-
-If you need a verb or a flag that is not listed here, it does not exist for you:
-do not improvise around it, and do not hand-write the artifact. Record what you
-needed and what you would have done with your role's 'friction' verb — a missing
-capability is a finding about the tooling, and that channel is how it gets fixed.
+EVERY SUBJECT AND ITS GAVEL: grade (the merge rules), petition (the bench rules), inquiry (the merge rules), docket (the bench rules). The bench's two are heard BEFORE the debate continues. A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle, and it is why `rule` is missing from the surfaces that do not hold the gavel.
 
 Usage:
-  feov-record opinion [flags]
+  feov-record motion docket rule [flags]
 
 Flags:
-      --as as-value          REQUIRED — your ruling AND the gap's fate. Every value ends the gap except carried, which defers it to a later round with a stated direction. One vocabulary with red's closure classes since #342
-      --final                nothing would reopen this: settled on the merits, and more evidence cannot change it. The assertable form of an empty --reopens-on, so a decided question is distinguishable from a skipped field
-  -h, --help                 help for opinion
-      --id gap-id            REQUIRED — the gap being ruled on
-      --principle string     REQUIRED — the principle applied — a ruling is an OPINION, not a disposition
+      --as as-value          your ruling
+      --final                nothing would reopen this. The assertable empty case for --reopens-on: pass exactly one of the two
+  -h, --help                 help for rule
+      --id string            REQUIRED — the motion id (M1, M2 …)
+      --principle string     the rule you applied, stated so a later sitting can apply the same one
       --reason string        REQUIRED — your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
       --reason-file -        read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --reopens-on string    what would change this outcome — the evidence or condition that would make it worth raising again. If nothing would, pass --final instead: that is a different answer, not a missing one
-      --review-flag string   REQUIRED — why a human should, or should not, look at this
-      --settled string       REQUIRED — THE PROPOSITION NOW BARRED, as one sentence — not the gap id, and not the disposition. A finding is a claim, its evidence and its demand; a fate says which of the three fell only to whoever wrote it. Say what the losing party may no longer assert
-      --tension string       REQUIRED — the values in tension (e.g. correctness vs economy)
+      --reopens-on string    the evidence or condition that would make this worth raising again — or pass --final to say nothing would
+      --review-flag string   what a human should look at again — empty when nothing needs it
+      --settled string       what the losing party may no longer assert, in one sentence
+      --tension string       the values that pulled against each other — empty is a real answer when none did
 
 Enumerated values:
   --as
@@ -112,7 +117,10 @@ Global Flags:
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"judge-r2:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"judge-r2","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-merge-r1","ts":3,"type":"EVENT_TYPE_MINT"}
+{"key":"red-merge-r1:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"R1-1"},"motion_id":"M1","subject":"MOTION_SUBJECT_DOCKET"},"round":1,"seat_id":"red-merge-r1","ts":4,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge-r2:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"judge-r2","ts":5,"type":"EVENT_TYPE_REGISTER"}
 
 ═══ RENDERS ═══
 -- debate
@@ -129,7 +137,7 @@ indistinguishable from one that never looked._
 ═══ REPORT ═══
 # _(blue/report.md has no title — not authored here)_
 
-**Report** · [Board](docket.md) · [Debate](debate.md) · [Run](run.md)
+**Report** · [Board](docket.md) · [Debate](debate.md) · [Judgments](judgments.md) · [Run](run.md)
 
 ---
 
@@ -141,11 +149,13 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 | tier | what answered | seats |
 |---|---|---|
-| judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
+| judgment | _NOT MEASURED — nothing observed what replied_ | 3 of 3 |
 
 ## Read this first
 
-_(no open gaps remain — nothing outstanding to re-examine)_
+1 open gap(s) remain, most severe first — full statements in [the board](docket.md).
+
+1. **[medium]** docketed (R1-1) — 
 
 ## TL;DR
 
@@ -167,7 +177,7 @@ _(blue/report.md has no "## Analysis" section — not authored here; blue owns t
 
 | Risk | Likelihood | Impact | Complexity to mitigate | Mitigation / disposition |
 |---|---|---|---|---|
-| _(no open gaps)_ |  |  |  |  |
+| docketed | medium | medium | — | — |
 
 The matrix is a scan surface: each row's full problem statement, required fix and acceptance check are in [the board](docket.md).
 
