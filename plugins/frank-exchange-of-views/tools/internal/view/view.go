@@ -292,7 +292,7 @@ func ledgerMD(b *record.Board) []byte {
 			// prose under it). Finding carries no `reason`.
 			lines[i] = fmt.Sprintf("- %s %s: %s", o.SeatID, name, truncate(o.Finding.GetText(), 120))
 		}
-		notesFooter = "\n## lens findings credited by no gap (each is work the merge has not yet weighed)\n\n" + strings.Join(lines, "\n") + "\n"
+		notesFooter = "\n## lens findings credited by no gap (whether each was weighed is not recorded)\n\n" + strings.Join(lines, "\n") + "\n"
 	}
 
 	ledgerParts := []string{

@@ -525,8 +525,18 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 		},
 	}
 	got := boardSection(board)
-	if !strings.Contains(got, "Lens findings not raised to a gap (1)") {
+	if !strings.Contains(got, "Lens findings credited by no gap (1)") {
 		t.Errorf("exactly one un-minted finding should be surfaced:\n%s", got)
+	}
+	// THE SECTION STATES THE JOIN AND NOT A DELIBERATION. It used to say the merge "weighed but
+	// did not mint" these, which nothing on the record supports — declining to mint writes no
+	// event — and which is what made a silently dropped finding read as a considered decline
+	// (#747: three dropped in one run, one of them a fabricated-quote allegation).
+	if strings.Contains(got, "weighed but did not mint") {
+		t.Error("the section asserts the merge weighed these findings; no event records deliberation, and a silent drop then reads as a decision")
+	}
+	if !strings.Contains(got, "is NOT recorded") {
+		t.Errorf("the section does not say that whether these were considered is unrecorded:\n%s", got)
 	}
 	if !strings.Contains(got, "L5-F3") || !strings.Contains(got, "un-minted red reasoning kept") {
 		t.Errorf("the un-minted finding's substance must be surfaced:\n%s", got)
