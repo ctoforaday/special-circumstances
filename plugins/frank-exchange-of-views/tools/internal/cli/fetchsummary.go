@@ -49,10 +49,15 @@ type fetchSummary struct {
 	// pixels either, and a seat that saw only the first would conclude the source is
 	// unreadable when in fact automatic reading was simply switched off.
 	OCRReason string `json:"ocr_reason,omitempty"`
-	Model     string `json:"model,omitempty"`
-	DPI       int    `json:"dpi,omitempty"`
-	InTokens  int64  `json:"input_tokens,omitempty"`
-	OutTokens int64  `json:"output_tokens,omitempty"`
+	// OCRBlockedPages counts pages the API's content filter refused (#679). Present only
+	// when nonzero, so a hole-free reading renders exactly as before; when present, the
+	// holes are also marked in the text and carried as fields on the reading record — a
+	// summary-only reader, a text reader and a record reader all learn the same fact.
+	OCRBlockedPages int    `json:"ocr_blocked_pages,omitempty"`
+	Model           string `json:"model,omitempty"`
+	DPI             int    `json:"dpi,omitempty"`
+	InTokens        int64  `json:"input_tokens,omitempty"`
+	OutTokens       int64  `json:"output_tokens,omitempty"`
 }
 
 // applyReading folds a model's reading of the page images into the summary.
@@ -79,6 +84,7 @@ func (s *fetchSummary) applyReading(run record.Run, r fetchcache.ReadingRecord) 
 	s.Model = r.Model
 	s.DPI = r.DPI
 	s.InTokens, s.OutTokens = r.InTokens, r.OutTok
+	s.OCRBlockedPages = r.BlockedPages()
 }
 
 // summarize projects a cache entry into what the seat is shown. Paths are absolute — a Run
@@ -152,6 +158,12 @@ func (s fetchSummary) render() string {
 		line("extractor", s.Extractor)
 		if s.OCRDerived {
 			line("ocr_derived", "true")
+			// STATED BESIDE THE TEXT IT QUALIFIES, and only when nonzero: a reading with
+			// holes must announce them before the seat opens the file, and a hole-free
+			// reading must render exactly as it always has.
+			if s.OCRBlockedPages > 0 {
+				line("ocr_blocked_pages", fmt.Sprint(s.OCRBlockedPages))
+			}
 		}
 	default:
 		line("text_extracted", "false")

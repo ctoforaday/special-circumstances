@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -100,15 +101,21 @@ func (RenderAndRead) ReadScanned(ctx context.Context, run record.Run, e Entry, m
 // here the raster is released (renderPagePNG) and the PNG bytes go out of scope before the
 // next page is touched.
 //
-// IT CLEARS THE PAGES DIRECTORY THE WAY RenderPages DOES, AND FOR THE SAME REASON: a reading
-// replaces a reading wholesale. Whatever is there — a deliberate render's images, a previous
-// reading's texts — describes pixels or a resolution this reading is about to supersede, and
-// the per-page texts written below must never interleave with a stale set.
+// THE WHOLESALE CLEAR IS GONE, REPLACED BY PER-PAGE RECEIPT VALIDATION (#679). The clear's
+// job was staleness — never serve a 72-DPI reading for 200-DPI pixels — and the receipts do
+// that job strictly better: a receipt is reused only when its render sha equals the sha of
+// the page as rendered NOW, so a DPI change mismatches every receipt and replaces every
+// page, which is the old clear's outcome without the old clear's amnesia about model calls
+// already paid for. The document is content-addressed, so the page count cannot drift under
+// a sha. What IS still removed up front: the assembled text (a crash mid-loop must leave an
+// honest absence, not a stale document that reads as current) and any deliberate render's
+// images and record (the reading supersedes them, exactly as the old clear held; a stale
+// render.json describing images this path is about to orphan would be the record naming
+// pixels nobody kept).
 //
-// The per-page texts are written as the loop runs and the record LAST, so a crash leaves
-// texts with no record — which reads as "not read" and re-reads cleanly. What a mid-document
-// crash costs is the model calls already spent; the alternative — a record naming pages that
-// were never read — is the failure that looks like success.
+// The per-page texts and receipts are written as the loop runs and the record LAST, so a
+// crash leaves rows with no record — which reads as "not read", and the re-read validates
+// page by page instead of paying again.
 func renderAndReadPages(ctx context.Context, run record.Run, sha string, body []byte, model string, dpi int) (ReadingRecord, error) {
 	if dpi < MinRenderDPI || dpi > MaxRenderDPI {
 		return ReadingRecord{}, fmt.Errorf("dpi %d is outside %d–%d: below the floor a page is "+
@@ -116,11 +123,18 @@ func renderAndReadPages(ctx context.Context, run record.Run, sha string, body []
 	}
 
 	dir := PagesDir(run, sha)
-	if err := os.RemoveAll(dir); err != nil {
-		return ReadingRecord{}, fmt.Errorf("clearing the previous render of %s: %w", sha, err)
-	}
 	if err := os.Remove(OCRTextPath(run, sha)); err != nil && !os.IsNotExist(err) {
 		return ReadingRecord{}, fmt.Errorf("clearing the previous reading of %s: %w", sha, err)
+	}
+	if err := os.Remove(renderRecordPath(run, sha)); err != nil && !os.IsNotExist(err) {
+		return ReadingRecord{}, fmt.Errorf("clearing the previous render record of %s: %w", sha, err)
+	}
+	if pngs, err := filepath.Glob(filepath.Join(dir, "p????.png")); err == nil {
+		for _, p := range pngs {
+			if err := os.Remove(p); err != nil {
+				return ReadingRecord{}, fmt.Errorf("clearing a superseded render of %s: %w", sha, err)
+			}
+		}
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return ReadingRecord{}, err
@@ -161,19 +175,17 @@ func renderAndReadPages(ctx context.Context, run record.Run, sha string, body []
 		}
 		out.RenderShas = append(out.RenderShas, Sha(png))
 
-		text, in, outTok, rerr := DefaultPageReader.ReadPage(ctx, model, png)
+		// The shared per-page step: reuse a matching receipt without a call, turn a
+		// content-filter refusal into a NAMED hole, keep every other error fatal (#679).
+		r, norm, rerr := readPageStep(ctx, run, sha, i+1, png, model, dpi)
 		if rerr != nil {
 			return ReadingRecord{}, fmt.Errorf("page %d: %w", i+1, rerr)
 		}
-		out.InTokens += in
-		out.OutTok += outTok
-
-		norm := normalizeReading(text)
-		if err := writeReplacing(PageTextPath(run, sha, i+1), []byte(norm)); err != nil {
-			return ReadingRecord{}, err
-		}
+		out.InTokens += r.InTokens
+		out.OutTok += r.OutTok
 		out.Pages = append(out.Pages, PageReading{
-			Page: i + 1, TextSha: Sha([]byte(norm)), Length: len([]rune(norm)),
+			Page: i + 1, TextSha: r.TextSha, Length: r.Length,
+			Blocked: r.Blocked, BlockedReason: r.Reason,
 		})
 
 		assembled.WriteString(norm)
