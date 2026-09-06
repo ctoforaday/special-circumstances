@@ -174,6 +174,14 @@ INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('not_a_defec
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired', 'the repair was verified at the leaf and nothing regressed', 1);
 INSERT INTO "enum_disposition" ("value", "means", "closes") VALUES ('repaired_with_regression', 'repaired, but something else broke — REQUIRES a successor naming the gap that carries the regression forward', 1);
 
+CREATE TABLE "enum_source_text_read" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('leaf', 'the source''s own text was read at the leaf, in the bytes the run cached. The only value that licenses a claim about what the source SAYS');
+INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('summary_only', 'read only through someone else''s account of it — an abstract, a secondary description, or the summary of an INTERESTED party. Everything the report says about its contents is that account, not the source');
+INSERT INTO "enum_source_text_read" ("value", "means") VALUES ('unread', 'the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says');
+
 CREATE TABLE "enum_source_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -493,7 +501,9 @@ CREATE TABLE "cite" (
   "location" TEXT,
   "access_date" TEXT,
   "cite_key" TEXT,
-  "text" TEXT
+  "text" TEXT,
+  "source_text_read" TEXT,
+  FOREIGN KEY ("source_text_read") REFERENCES "enum_source_text_read"("value")
 ) STRICT;
 
 CREATE TABLE "verify" (
