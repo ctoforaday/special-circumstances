@@ -142,7 +142,7 @@ seats defended: **where you declined an act as a judgement rather than for lack 
 sentence.** (judge-r3's case: *"an absent `outcome` stamp is ambiguous between 'the bench declined
 to stamp' and 'the bench never reached it'"* — a real plausible-zero about a consequential act.)
 
-Also retire *"what you reached for and found"* from the `--none` help (`seat/verbs.go:114`) — PR-2 deletes that flag outright, and this
+Also retire *"what you reached for and found"* from the `--none` help (`seat/verbs.go:114`) — PR-2 removes `--none` from the log verb (the `flags.None` vocabulary entry stays — `spot-check` uses it), and this
 re-invites the inventory.
 
 **A gate DOES pin this text, and the earlier draft of this plan said otherwise.** That claim came
@@ -162,7 +162,7 @@ $ grep -rl "OWES THE SURVEY" $P
 | `debate.js:688,738,856,882,1099,1131,1241,1274` (8 call sites) | no — call shape unchanged |
 | `$P/tests/simulator/debate.test.mjs:258-259` | **YES** — asserts `/THE REASON OWES THE SURVEY/ && /did NOT use/` across five seat classes (`:257` pins the ENVELOPE field and is a PR-2 consumer, not PR-1); the assertion and its rationale comment (`:252-256`) are rewritten to pin the new narrow ask |
 | `$P/tests/simulator/testdata/prompt-*.golden` (**10 files**) | **YES** — each carries the string; refreshed |
-| `$P/tools/internal/cli/seat/verbs.go:114` (`--none` help) | **YES** — retire "what you reached for and found"; PR-2 then deletes the flag itself |
+| `$P/tools/internal/cli/seat/verbs.go:114` (`--none` help) | **YES** — retire "what you reached for and found"; PR-2 then removes it from the log verb |
 | `$P/tools/integration/surface/promptverbs_test.go:259`, `$P/tools/releasegate/fuzz/promptverbs_test.go:259` | no — renders clauses for the flag scan; pins no wording |
 
 **The rationale the pin defends, answered rather than deleted.** `debate.test.mjs:254-256` argues
@@ -194,7 +194,7 @@ actually carrying.
     enum values are tool-emitted; making it explicit means a new tool-emitted type never breaks a
     "seat reports only" filter.
   - `LogType ∈ { NOMINAL, DEFECT, REQUEST, FRICTION, ESTOPPEL }` — what the entry asserts.
-    - `NOMINAL` — the surface met the work. **This replaces `FrictionNone` and the `--none` flag.**
+    - `NOMINAL` — the surface met the work. **This replaces `FrictionNone` and the log verb's `--none` form.**
     - `DEFECT` — something is broken. Absorbs today's `TOOL_ERROR` as `(TOOL, DEFECT)`; verified
       to have no functional readers.
     - `REQUEST` — a capability that does not exist. This is the category that made "bug" wrong as
@@ -204,8 +204,15 @@ actually carrying.
       honest home for content that today has to pose as a defect report.
     - `ESTOPPEL` — the tool refused a mint; `(TOOL, ESTOPPEL)`. Retained: it is read at
       `estoppel.go:173`.
-  - `UNSPECIFIED` stops carrying meaning. Today `UNSPECIFIED = 0` doubles as "unset" *and* "a
-    seat's capability gap" — a default value with semantics, which is the plausible-zero shape.
+  - **The zero value exists but is UNWRITABLE.** proto3 requires an enum to declare a zero, so
+    `LOG_TYPE_UNSPECIFIED = 0` and `LOG_SOURCE_UNSPECIFIED = 0` are declared — but each field also
+    carries a **`subset` facet** excluding them, so the generated column constraint
+    (`recordsql/schema.go:475`, `"col" IS NULL OR "col" IN (…)`, derived from the descriptor —
+    `record.proto:163-170`: *"the subset is DERIVED and there is no second list to keep"*) admits
+    only the real values. Presence alone is not enough: without this, `type: LOG_TYPE_UNSPECIFIED`
+    satisfies `required`, passes the write, and restores exactly the untyped entry the requirement
+    exists to prevent — the plausible zero one level in. Today `UNSPECIFIED = 0` doubles as "unset"
+    *and* "a seat's capability gap"; after this it means nothing and cannot be written.
   - **BOTH fields carry `(sql) = { required: true }`**, and this is load-bearing rather than
     tidiness. Without it `Log{text: "…"}` with no type would discharge the sitting while asserting
     nothing — a contentless discharge in the very channel whose empty-discharge rule
@@ -315,11 +322,35 @@ $ grep -rhnoi "friction[a-z_-]*" $P --include=*.go --include=*.proto --include=*
 $ grep -rli "friction" $P --include=*.go --include=*.proto --include=*.sql | wc -l
     124
 ```
-**Triage of the 124:** the `friction` 420 majority is comments, doc-strings, test names and
-identifier fragments — incidental prose that follows the rename mechanically. The 46 files of A2
-are where the SYMBOLS live and are what the carrier table enumerates; the remaining 78 are
-prose-only and change by the same sweep without individual dispositions. `FrictionKind` reads 25
-here and 35 in A2 because the case-insensitive pattern splits
+**Triage of the 124 — and an earlier draft of this triage was WRONG in this plan's own subject
+matter.** It waived the 78-file residue as "prose-only". It is not: computed with
+`comm -23 <(A1 files) <(A2 files)` = exactly 78, of which **24 carry a functional call site** —
+the verb or the flag encoded as a COMMAND-LINE STRING, invisible to a symbol grep and therefore
+missed by A2. Dismissing those as prose is precisely the `facts-are-fields` failure this plan
+exists to fix, committed inside the plan.
+
+```
+$ comm -23 <(grep -rli friction $P --include=*.go --include=*.proto --include=*.sql | sort) \
+           <(grep -rl "Friction\|frictionLog\|friction-parity" $P --include=*.go --include=*.proto | sort)
+    78 files → 24 functional, 54 comment-only
+```
+
+**The 24 functional residue files, disposed:**
+
+| Carrier | Why it is not prose |
+|---|---|
+| `releasegate/fuzz/fuzz_test.go` (21 hits) | **drives the verb and the flag by string**: `:947` `r.do("friction", seatID).bare("--none").set("--reason", …)`; comments `:933-941`; event-type list `:2503` and required-field map `:2663`. A fuzzer still driving a deleted flag is the carrier `complete-the-concept` names explicitly |
+| `internal/diagnostics/survey_test.go:210` | asserts on the literal `feov-record friction --none --reason "…"` |
+| `cli/agentbinding_test.go` (4), `crossseat_test.go` (4), `verbs_test.go` (3), `prosechannel_test.go` (2), `vocabulary_test.go` (2), `bindingscope_test.go`, `blue/verify_test.go`, `seat/seat_test.go:59` (`&cobra.Command{Use: "friction"}`) | invoke the verb by name |
+| `cli/bench/opinion.go`, `cli/merge/spot_check.go`, `record/inquiry.go`, `record/refs.go` | production code naming the verb in help/error text |
+| `seatprobe/boards.go` (7), `seatprobe/production.go`, `recordsql/testdata/schema.sql` | **already in the carrier table above** — which itself disproves the claim that A2's 46 files are where all the symbols live |
+| `difftest/scenarios_test.go`, `diagnostics/seen_test.go`, `proof/interpreter_test.go`, `seatenv/seatenv_test.go`, `releasegate/fuzz/{blueestoppel,termination}_test.go` | scenario/expectation strings naming the verb |
+| `flags/names.go:190` | comment citing "the `friction --none` pattern". **`flags.None` at `:109` is NOT deleted** — `spot-check --none` uses the same flag word (`fuzz_test.go:1036`). PR-2 removes `--none` from the LOG verb only; the vocabulary entry stays |
+
+The remaining **54 are genuinely comment-only** and follow the rename mechanically without
+individual dispositions.
+
+`FrictionKind` reads 25 in A1 and 35 in A2 because the case-insensitive pattern splits
 `FrictionKind_FRICTION_KIND_ESTOPPEL` into separate tokens — the same occurrences, counted
 differently.
 
@@ -490,10 +521,13 @@ All commands are rooted at the repository root; `P=plugins/frank-exchange-of-vie
 - **Duty discharge (the property `NOMINAL` must preserve), THREE assertions:** (a) a seat that
   files ONLY a `Log{type: NOMINAL}` closes its sitting — `record/sitting.go`'s predicate reports no
   open item; (b) a seat that files NOTHING still reports the channel open; (c) a `Log` written with
-  **no type is REFUSED at the write**. (a) and (b) pin discharge-vs-open, but neither can fail on
-  an untyped entry — without (c) a contentless `Log{text: …}` would discharge the duty while
-  asserting nothing, and the test suite would pass over the hole. (c) is what makes `required:
-  true` real rather than decorative.
+  **no type is REFUSED at the write**, AND (c2) a `Log` written with an **explicit
+  `LOG_TYPE_UNSPECIFIED` is refused too**. (a) and (b) pin discharge-vs-open, but neither can fail
+  on an untyped entry — without (c) a contentless `Log{text: …}` would discharge the duty while
+  asserting nothing. And (c) alone stops one value short: proto3 forces a zero into the enum, so
+  presence is satisfiable by writing `UNSPECIFIED` explicitly, which is the same hole one level in.
+  (c) is what makes `required: true` real; (c2) is what makes the `subset` facet real. Both must
+  fail before either is trusted.
 - **Channel-parity with one arm:** `capture`'s audit counts a `NOMINAL` entry as the channel being
   used (the surviving half of the two-arm append at `capture.go:1730-1735`).
 - **The derived SQL golden is regenerated and proves the rename:**
