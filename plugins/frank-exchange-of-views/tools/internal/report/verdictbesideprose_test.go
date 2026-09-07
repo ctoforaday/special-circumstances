@@ -28,7 +28,7 @@ func TestTheRecordedVerdictRendersBesideRedsProse(t *testing.T) {
 			Text: proto.String("Nothing on the board is open. My verdict is PASS."),
 		}),
 	}
-	got := debate(&record.Board{Events: evs}, evs)
+	got := debate(record.FamilyOfBoard(&record.Board{Events: evs}), evs)
 	if !strings.Contains(got, "recorded verdict: FAIL") {
 		t.Errorf("the round's recorded verdict is not rendered beside the prose that claims one:\n%s", got)
 	}
@@ -46,7 +46,7 @@ func TestARoundWithNoRecordedVerdictSaysSo(t *testing.T) {
 	evs := []*record.Event{
 		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Position{Text: proto.String("gap A stands")}),
 	}
-	got := debate(&record.Board{Events: evs}, evs)
+	got := debate(record.FamilyOfBoard(&record.Board{Events: evs}), evs)
 	if !strings.Contains(got, "NO VERDICT RECORDED") {
 		t.Errorf("a round with no recorded verdict renders indistinguishably from one that had a verdict:\n%s", got)
 	}

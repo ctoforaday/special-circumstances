@@ -39,12 +39,12 @@ func newVerify() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			board, err := record.BoardState(run)
+			fam, err := record.FamilyOf(run)
 			if err != nil {
 				return fmt.Errorf("verify: %w", err)
 			}
-			checks := verify.Run(board)
-			stats := verify.Compute(board)
+			checks := verify.Run(fam)
+			stats := verify.Compute(fam)
 
 			jsonMode, _ := cmd.Flags().GetBool(flags.JSON)
 			if jsonMode {

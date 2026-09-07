@@ -58,7 +58,7 @@ type siteDoc struct {
 // RenderSite builds the whole set into one HTML file. It takes the RAW document bodies (no
 // markdown link bar, no repeated H1) because the tab strip and the header say those things
 // better here.
-func RenderSite(title string, docs []Doc, board *record.Board) string {
+func RenderSite(title string, docs []Doc, fam record.Family) string {
 	short := strings.TrimSpace(strings.TrimPrefix(title, "# "))
 
 	// TWO PASSES, and the reason is the join: pass one renders each document and records
@@ -81,8 +81,8 @@ func RenderSite(title string, docs []Doc, board *record.Board) string {
 		CSS:       template.CSS(siteCSS),
 		JS:        template.JS(strings.Replace(siteJS, "MERMAID_CDN_URL", mermaidCDN, 1)),
 	}
-	if verdict, cls := verdictBadge(board); verdict != "" {
-		page.Badges = template.HTML(fmt.Sprintf("<span class=\"badge %s\">%s</span>%s", cls, escape(verdict), countBadges(board)))
+	if verdict, cls := verdictBadge(fam); verdict != "" {
+		page.Badges = template.HTML(fmt.Sprintf("<span class=\"badge %s\">%s</span>%s", cls, escape(verdict), countBadges(fam)))
 	}
 	for i, d := range docs {
 		body := siteLinks(linkIDs(bodies[i], anchor, d.File), files)
@@ -91,7 +91,7 @@ func RenderSite(title string, docs []Doc, board *record.Board) string {
 			// first question behind the verdict, and it is a picture. Markdown cannot carry
 			// it (GitHub strips inline SVG), so it is drawn HERE, in the reading tier, while
 			// the durable tier keeps the same numbers as text.
-			if c := boardChart(board); c != "" {
+			if c := boardChart(fam); c != "" {
 				body = "<h2>The board, by round</h2>\n" + c + body
 			}
 		}
@@ -140,11 +140,8 @@ func slugFile(f string) string {
 // verdictBadge is the one fact the header exists for, and it comes off the RECORD. The colour
 // is a rendering of the verdict, never a judgement added to it: a ceiling termination is not a
 // failure, and must not be painted as one.
-func verdictBadge(board *record.Board) (string, string) {
-	if board == nil {
-		return "", ""
-	}
-	o := outcomeOf(board.Events)
+func verdictBadge(fam record.Family) (string, string) {
+	o := outcomeOf(fam.Events)
 	if o == nil {
 		return "no terminal outcome recorded", "unknown"
 	}
@@ -163,10 +160,9 @@ func verdictBadge(board *record.Board) (string, string) {
 
 // countBadges puts the board's shape beside the verdict: how many gaps are still open is the
 // second question every reader asks and the single report made them scroll for it.
-func countBadges(board *record.Board) string {
+func countBadges(fam record.Family) string {
 	open, closed := 0, 0
-	for _, id := range board.GapOrder {
-		g := board.Gaps[id]
+	for _, g := range fam.Gaps {
 		if g == nil {
 			continue
 		}

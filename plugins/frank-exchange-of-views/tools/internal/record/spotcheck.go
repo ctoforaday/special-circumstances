@@ -58,8 +58,8 @@ type SpotCheck struct {
 // ONE COMPUTATION, TWO READERS. verify enforces it and the report renders it; deriving the floor
 // twice would be two definitions free to disagree, which is the shape of defect this whole audit
 // keeps finding.
-func SpotCheckAudit(b *Board) (checks []SpotCheck, debt []int, falseEmpty []SpotCheck) {
-	if b == nil {
+func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []SpotCheck) {
+	if len(f.Gaps) == 0 && len(f.Events) == 0 {
 		return nil, nil, nil
 	}
 	// The archive at the START of round R: every gap closed in a round strictly before R.
@@ -79,7 +79,7 @@ func SpotCheckAudit(b *Board) (checks []SpotCheck, debt []int, falseEmpty []Spot
 	// error.
 	archivedBefore := func(round int) int {
 		n := 0
-		for _, g := range b.Gaps {
+		for _, g := range f.Gaps {
 			if g != nil && g.HasClosed && g.ClosedRound > 0 && g.ClosedRound < round {
 				n++
 			}
@@ -92,7 +92,7 @@ func SpotCheckAudit(b *Board) (checks []SpotCheck, debt []int, falseEmpty []Spot
 	// round-number keying W1.8 replaced, in a new spelling.
 	mergeSat := map[int]bool{}
 	discharged := map[int]bool{}
-	for _, e := range b.Events {
+	for _, e := range f.Events {
 		// REGISTERING IS NOT SITTING. A seat announces itself before it does anything, and a
 		// round where the merge registered and then the run ended — a ceiling hit, a PASS, a
 		// halt between the two — owed a sample it never had the chance to take. The floor is

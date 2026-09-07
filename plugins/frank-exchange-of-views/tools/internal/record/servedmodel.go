@@ -38,10 +38,10 @@ func (s SeatModel) Substituted() bool { return s.Requested != "" && s.Requested 
 // THE LAST REGISTER WINS, matching SeatOfAgent: a re-dispatched seat writes a fresh register, and
 // the latest one is the sitting that actually ran. A seat re-dispatched into a substituted
 // environment must not be masked by its first, clean dispatch.
-func SeatModels(b *Board) []SeatModel {
+func SeatModels(f Family) []SeatModel {
 	order := []string{}
 	bySeat := map[string]*SeatModel{}
-	for _, e := range b.Events {
+	for _, e := range f.Events {
 		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
 			continue
 		}

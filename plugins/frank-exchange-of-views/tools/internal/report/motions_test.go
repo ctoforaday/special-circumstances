@@ -23,7 +23,7 @@ func TestAnUnruledMotionIsReported(t *testing.T) {
 			}},
 		}),
 	}}
-	out := motions(b)
+	out := motions(record.FamilyOfBoard(b))
 	if !strings.Contains(out, "NOT RULED") || !strings.Contains(out, "1 motion(s) received no ruling") {
 		t.Errorf("an unanswered motion must be named, both on its row and in the tally:\n%s", out)
 	}

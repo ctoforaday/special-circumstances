@@ -68,12 +68,15 @@ func Files() []string { return append([]string(nil), docOrder...) }
 func AssembleAll(run record.Run) ([]Doc, error) {
 	blue := blueReport(run)
 
-	board, err := record.BoardState(run)
+	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return nil, fmt.Errorf("assemble: board: %w", err)
 	}
-	bj := record.BoardJSONOf(board)
-	evs := board.Events
+	bj, err := record.BoardJSONOfRun(run)
+	if err != nil {
+		return nil, fmt.Errorf("assemble: board json: %w", err)
+	}
+	evs := fam.Events
 	outcome := outcomeOf(evs)
 
 	_, question := heading(blue)
@@ -89,23 +92,23 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// WHAT ANSWERED, before what was found. A reader deciding how much weight this document
 	// carries needs the verdict and the adversary's actual strength in the same breath: a PASS
 	// from a tier nobody configured is not the PASS the run was set up to produce.
-	r.add(conduct(board))
+	r.add(conduct(fam))
 	// The gloss opens "Read this first" — EXCEPT when there is no outcome, where the stamp
 	// already says exactly that and repeating it is the duplication this whole pass removes.
 	gloss := ""
 	if outcome != nil {
 		gloss = verdictGloss(outcome)
 	}
-	r.add(orientation(board, evs, gloss))
+	r.add(orientation(fam, evs, gloss))
 	r.add(sectionOr(blue, "TL;DR"))
 	r.add(sectionOr(blue, "The Catechism"))
 	r.add(sectionOr(blue, "Technical foundations"))
 	r.add(sectionOr(blue, "Analysis"))
 	r.add(riskMatrix(bj))
 	// THREE DESCRIPTIVE AREAS, and every line of inquiry lands in exactly one.
-	r.add(inquiries(board, "Research areas", accepted))
-	r.add(inquiries(board, "Future research directions", deferred))
-	r.add(inquiries(board, "Alternatives considered", rejected))
+	r.add(inquiries(fam, "Research areas", accepted))
+	r.add(inquiries(fam, "Future research directions", deferred))
+	r.add(inquiries(fam, "Alternatives considered", rejected))
 	r.add(sectionOr(blue, "Open questions"))
 	// The embed carries ONLY blue content not already composed above — its lifted synthesis
 	// surfaces and any tool-owned sections it wrongly authored are dropped (see blueEmbed).
@@ -115,19 +118,19 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	}
 
 	var docket sections
-	docket.add(boardSection(board))
+	docket.add(boardSection(fam))
 
 	var deb sections
-	deb.add(debate(board, evs))
+	deb.add(debate(fam, evs))
 
 	var jud sections
-	jud.add(motions(board))
+	jud.add(motions(fam))
 
 	var runsec sections
 	runsec.add(logSection(evs))
 	// The record's own invariant check, rendered for the human the report is for. See
 	// recordVerification: a section, never a gate.
-	runsec.add(recordVerification(board))
+	runsec.add(recordVerification(fam))
 
 	var chg sections
 	chg.add(revisionHistory(evs))
@@ -271,11 +274,11 @@ func navBar(current string, set []Doc) string {
 // indexDoc is the run directory's front door: what this run asked, what it answered, and which
 // document holds what. It is written for a human opening an archived run months later with no
 // memory of it, which is the only reader a run directory reliably gets.
-func indexDoc(run record.Run, title string, set []Doc, board *record.Board, evs []*record.Event) string {
+func indexDoc(run record.Run, title string, set []Doc, fam record.Family, evs []*record.Event) string {
 	var b strings.Builder
 	b.WriteString(title + "\n\n")
 	b.WriteString(navBar("", set) + "\n\n---\n\n")
-	b.WriteString(factBox(board, evs) + "\n\n")
+	b.WriteString(factBox(fam, evs) + "\n\n")
 	b.WriteString("## The documents\n\n")
 	for _, d := range set {
 		fmt.Fprintf(&b, "- **[%s](%s)** — %s\n", d.Nav, d.File, d.Blurb)
@@ -289,11 +292,10 @@ func indexDoc(run record.Run, title string, set []Doc, board *record.Board, evs 
 
 // factBox answers "what is this run and how much do I trust it" in one glance. Every cell is a
 // field off the record — nothing here is derived from the prose it sits above.
-func factBox(board *record.Board, evs []*record.Event) string {
+func factBox(fam record.Family, evs []*record.Event) string {
 	open, closed := 0, 0
 	rounds := 0
-	for _, id := range board.GapOrder {
-		g := board.Gaps[id]
+	for _, g := range fam.Gaps {
 		if g == nil {
 			continue
 		}

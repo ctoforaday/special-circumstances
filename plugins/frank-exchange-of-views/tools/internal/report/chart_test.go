@@ -20,12 +20,12 @@ func chartBoard(gaps ...*record.Gap) *record.Board {
 // round, with the open board as their difference. The numbers ship twice — direct labels on
 // the line ends and a table under the figure — because a picture is never the only copy.
 func TestBoardChartCumulativeSeries(t *testing.T) {
-	got := boardChart(chartBoard(
+	got := boardChart(record.FamilyOfBoard(chartBoard(
 		&record.Gap{ID: "R1-1", Round: 1, HasClosed: true, ClosedRound: 2},
 		&record.Gap{ID: "R1-2", Round: 1, HasClosed: true, ClosedRound: 3},
 		&record.Gap{ID: "R2-1", Round: 2, HasClosed: true, ClosedRound: 2},
 		&record.Gap{ID: "R3-1", Round: 3, Open: true},
-	))
+	)))
 	for _, want := range []string{
 		`<figure class="chart">`,
 		`role="img"`,
@@ -48,13 +48,13 @@ func TestBoardChartCumulativeSeries(t *testing.T) {
 // Nothing worth drawing yields NOTHING — not an empty axes frame that reads like a broken
 // chart. No board, no gaps, or a single round all decline the same way.
 func TestBoardChartDeclinesThinBoards(t *testing.T) {
-	if got := boardChart(nil); got != "" {
+	if got := boardChart(record.FamilyOfBoard(nil)); got != "" {
 		t.Errorf("nil board drew a chart:\n%s", got)
 	}
-	if got := boardChart(chartBoard()); got != "" {
+	if got := boardChart(record.FamilyOfBoard(chartBoard())); got != "" {
 		t.Errorf("gapless board drew a chart:\n%s", got)
 	}
-	if got := boardChart(chartBoard(&record.Gap{ID: "R1-1", Round: 1, Open: true})); got != "" {
+	if got := boardChart(record.FamilyOfBoard(chartBoard(&record.Gap{ID: "R1-1", Round: 1, Open: true}))); got != "" {
 		t.Errorf("a single-round board drew a one-dot trajectory:\n%s", got)
 	}
 }
@@ -70,7 +70,7 @@ func TestBoardChartOpensTheRunDocument(t *testing.T) {
 		{File: FileReport, Nav: "Report", Blurb: "the research", Body: "## Read this first\n\nfine\n"},
 		{File: FileRun, Nav: "Run", Blurb: "the machinery", Body: "## Friction\n\nnone\n"},
 	}
-	html := RenderSite("# T", docs, board)
+	html := RenderSite("# T", docs, record.FamilyOfBoard(board))
 	if !strings.Contains(html, "<h2>The board, by round</h2>") || !strings.Contains(html, `<figure class="chart">`) {
 		t.Errorf("the run document did not open with the board chart")
 	}
