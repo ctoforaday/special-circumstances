@@ -10,11 +10,44 @@
 > the whole of the survivor acceptance process.** This plan invented an obligation the state of the
 > art does not have — a written `why` per survivor, refused at the read if empty — and then made it
 > a *release gate*, so v2.0.0 could not ship until three modules' backlogs had been argued through
-> in prose. The cost was certain and recurring; the yield was two secret patterns found once.
+> in prose.
 >
-> The one durable finding is kept in `CLAUDE.md`: coverage cannot see whether a test would NOTICE,
-> and `internal/secrets` reported 100% of statements while two of its eight patterns could be
-> deleted with the suite green. That is a caution about reading coverage, not a programme.
+> **What it actually yielded, measured on the day of the decision by the session that ran the
+> sweeps (PR #800, filed in parallel with the removal):**
+>
+> | module | survivors | killed | defects found |
+> |---|---|---|---|
+> | `prosthetic-conscience/tools` | 66 | 88% | 0 |
+> | `gray-area/tools` | 70 | 75% | 1 |
+>
+> The single find came from a **deletion operator written on the last day**, and it outlives the
+> tool: ten fields of gray-area's capture manifest row can be dropped with the suite green
+> (`SessionID`, `TranscriptPath`, `CapturedAt`, `PromptID`, `StopHookActive`, `Effort` among them),
+> filed as #797.
+>
+> **A SURVIVOR WAS NOT THE FACT IT READ AS, and this is the finding that condemns the gate rather
+> than the sweep.** A mutant was tried against its OWN package, so a survivor meant *survived its
+> own package*, never *survived the module*. 15 of the 16 packages holding survivors in
+> prosthetic-conscience have importers, so most of that list was the artifact rather than the
+> signal — the worst-looking one, `hookunit.go:71` (whether the secrets gate scans an unparseable
+> payload, the #211 bypass), is killed by `TestMalformedPayloadIsScannedNotWavedThrough` one
+> package over. `-confirm` bought the true answer at ~8 minutes a mutant: ~9 hours for the smallest
+> module. So the release gate would have reconciled a tagged module against explanations that were
+> mostly untrue — a record of judgements nobody was in a position to make, which is the
+> allowlist-wearing-a-schema failure the explaining existed to prevent.
+>
+> **IT COULD NOT REACH ITS OWN MOTIVATING DEFECT.** `internal/secrets` reported 100% of statements
+> while two of its eight patterns could be deleted with the suite green — that observation is why
+> this instrument was built, and it is NOT something the instrument found. The operator table was
+> six binary flips (`&&`↔`||`, `==`↔`!=`, `>=`→`>`, `<=`→`<`), deliberately frozen so survivor
+> counts stayed comparable; none of them removes a row from a table. An earlier version of this
+> banner and the removal commit both called those two patterns the tool's yield. That was wrong,
+> and wrong in the flattering direction.
+>
+> The durable lesson is kept in `CLAUDE.md`: coverage says a line RAN, never that a test would
+> NOTICE it changing. Ask that question by hand where a silently-wrong answer is the whole risk —
+> delete the row, invert the branch, see whether anything fails. That is a caution about reading
+> coverage, not a programme.
 >
 > Split out of `plans/historical/red-citations.md` §V.7, which was filed as historical while this
 > half was still being implemented from.
