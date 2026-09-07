@@ -133,6 +133,8 @@ SELECT
   m."gap_id"                                   AS "gap_id",
   m."class"                                    AS "class",
   m."location"                                 AS "location",
+  m."about_kind"                               AS "about_kind",
+  m."about_ref"                                AS "about_ref",
   m."problem"                                  AS "problem",
   m."mint_reason"                              AS "mint_reason",
   m."required_fix"                             AS "required_fix",

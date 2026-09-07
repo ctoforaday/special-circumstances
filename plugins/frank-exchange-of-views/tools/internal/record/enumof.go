@@ -92,8 +92,12 @@ func DispositionOf(word string) (recordpb.Disposition, bool) {
 	return enumOf[recordpb.Disposition](recordpb.Disposition(0).Descriptor(), word)
 }
 
-// CheckKindOf resolves WHAT WOULD SETTLE an acceptance check — read a document, run a computation,
-// or verify a source. It is a different question from whether the check can be discharged now.
+// AboutKindOf resolves the word a seat types for what a finding or a gap is anchored to — one
+// vocabulary, because `lens finding` and `merge mint` name the same three things.
+func AboutKindOf(word string) (recordpb.AboutKind, bool) {
+	return enumOf[recordpb.AboutKind](recordpb.AboutKind(0).Descriptor(), word)
+}
+
 // SourceTextReadOf resolves the word a seat types for how much of a source it read.
 func SourceTextReadOf(word string) (recordpb.SourceTextRead, bool) {
 	return enumOf[recordpb.SourceTextRead](recordpb.SourceTextRead(0).Descriptor(), word)

@@ -33,25 +33,32 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
-      --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
-      --complexity grade         what fixing it costs, on the same scale
-      --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
-      --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
-  -h, --help                     help for mint
-      --impact grade             REQUIRED — how bad the consequence is if it lands
-      --key string               a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice
-      --likelihood grade         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them
-      --new string               OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
-      --problem string           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
-      --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
-      --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
-      --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
+      --about string                     the reference --about-kind names: a section heading, an avenue id, or a gap id. It is CHECKED against the record, which a borrowed quote never was
+      --about-kind section|inquiry|gap   anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE. The same pair the lens finding verb takes
+      --check string                     REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
+      --check-kind computation           REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
+      --class slug                       REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
+      --complexity grade                 what fixing it costs, on the same scale
+      --fix string                       the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
+      --found-by list                    comma-separated lens findings that surfaced it (L5-F3,L6-F2)
+  -h, --help                             help for mint
+      --impact grade                     REQUIRED — how bad the consequence is if it lands
+      --key string                       a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice
+      --likelihood grade                 REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them
+      --new string                       OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
+      --problem string                   REQUIRED — what is wrong (or pass it via --reason)
+      --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
+      --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --severity grade                   how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
+  --about-kind
+    section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
+    inquiry  a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned
+    gap      a gap already on the docket, by its id — a defect in the record rather than in the report
+
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
     computation  RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind
@@ -87,25 +94,32 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
-      --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
-      --complexity grade         what fixing it costs, on the same scale
-      --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
-      --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
-  -h, --help                     help for mint
-      --impact grade             REQUIRED — how bad the consequence is if it lands
-      --key string               a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice
-      --likelihood grade         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them
-      --new string               OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
-      --problem string           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
-      --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
-      --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
-      --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
+      --about string                     the reference --about-kind names: a section heading, an avenue id, or a gap id. It is CHECKED against the record, which a borrowed quote never was
+      --about-kind section|inquiry|gap   anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE. The same pair the lens finding verb takes
+      --check string                     REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
+      --check-kind computation           REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
+      --class slug                       REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
+      --complexity grade                 what fixing it costs, on the same scale
+      --fix string                       the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
+      --found-by list                    comma-separated lens findings that surfaced it (L5-F3,L6-F2)
+  -h, --help                             help for mint
+      --impact grade                     REQUIRED — how bad the consequence is if it lands
+      --key string                       a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice
+      --likelihood grade                 REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them
+      --new string                       OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
+      --problem string                   REQUIRED — what is wrong (or pass it via --reason)
+      --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
+      --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --severity grade                   how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
+  --about-kind
+    section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
+    inquiry  a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned
+    gap      a gap already on the docket, by its id — a defect in the record rather than in the report
+
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
     computation  RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind
@@ -141,25 +155,32 @@ Usage:
   feov-record mint [flags]
 
 Flags:
-      --check string             REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
-      --check-kind computation   REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
-      --class slug               REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
-      --complexity grade         what fixing it costs, on the same scale
-      --fix string               the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
-      --found-by list            comma-separated lens findings that surfaced it (L5-F3,L6-F2)
-  -h, --help                     help for mint
-      --impact grade             REQUIRED — how bad the consequence is if it lands
-      --key string               a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice
-      --likelihood grade         REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them
-      --new string               OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
-      --problem string           REQUIRED — what is wrong (or pass it via --reason)
-      --quote string             the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs. For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission
-      --reason string            your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
-      --reason-file -            read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
-      --severity grade           how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
-      --supersedes list          comma-separated ancestor ids this gap replaces; lineage is never dropped
+      --about string                     the reference --about-kind names: a section heading, an avenue id, or a gap id. It is CHECKED against the record, which a borrowed quote never was
+      --about-kind section|inquiry|gap   anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE. The same pair the lens finding verb takes
+      --check string                     REQUIRED — the acceptance check red will RUN at re-audit — the pre-agreed contract, not a description
+      --check-kind computation           REQUIRED — what would SETTLE that check — read a document, RUN a computation, or verify a source. A computation check cannot be closed by prose: it closes only when a proof answers this gap
+      --class slug                       REQUIRED — the gap's slug — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb
+      --complexity grade                 what fixing it costs, on the same scale
+      --fix string                       the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it
+      --found-by list                    comma-separated lens findings that surfaced it (L5-F3,L6-F2)
+  -h, --help                             help for mint
+      --impact grade                     REQUIRED — how bad the consequence is if it lands
+      --key string                       a stable local handle of your own (C1, F2, P3 …) making a retried call idempotent — a repeat under the same handle returns the first result instead of acting twice
+      --likelihood grade                 REQUIRED — how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what the grade meant before v2 split them
+      --new string                       OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified
+      --problem string                   REQUIRED — what is wrong (or pass it via --reason)
+      --quote string                     the EXACT text from blue/report.md, quoted verbatim and NOTHING else — no section heading, no dash, no pipe: this whole string is matched against the report, so anything you prepend makes it match nothing. Name the section in --reason, where prose belongs
+      --reason string                    your reasoning or argument for this act — the substance the report renders and the other side answers; --reason-file for anything long or from stdin with -
+      --reason-file -                    read --reason from a file, or from stdin with - — the same field as --reason, for anything long or that would fight shell quoting
+      --severity grade                   how bad this is: low | low_medium | medium | medium_high | high | certain | realized | trivial
+      --supersedes list                  comma-separated ancestor ids this gap replaces; lineage is never dropped
 
 Enumerated values:
+  --about-kind
+    section  a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there
+    inquiry  a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned
+    gap      a gap already on the docket, by its id — a defect in the record rather than in the report
+
   --check-kind
     document     reading a shipped artifact settles it — the check is answered by prose that quotes what is there
     computation  RUNNING something settles it. This check CANNOT be closed by prose: it closes only when a proof answers the gap. Reach for it wherever the answer would be PRODUCED rather than asserted — arithmetic, a simulation, a forecast, a parse, a count, a re-derivation are common cases and not the whole of it; if you can imagine a script that would end the argument, this is the kind

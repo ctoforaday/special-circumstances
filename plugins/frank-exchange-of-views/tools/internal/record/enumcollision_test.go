@@ -35,6 +35,15 @@ var knownEnumKeyCollisions = map[string]string{
 		"'gate not applicable' on every run ever recorded (#410). Any reader of this key MUST " +
 		"name its event type in a constant asserted against enum(), the way passClosesAllGaps " +
 		"does — see TestPassVerdictIsAWordItsEventTypeCanActuallyCarry.",
+	"about_kind": "`finding` and `mint` declare it with the SAME three values, and that is the " +
+		"reason it is safe rather than an excuse for it. The hazard this map guards is DISJOINT " +
+		"vocabularies under one key, where a cross-type read matches nothing and reports the miss " +
+		"as an answer; identical vocabularies have no such miss. They are identical on purpose: a " +
+		"gap is where a finding ends up, and `merge mint`'s help used to send an omission back to " +
+		"the borrowed quote `lens finding` had just stopped taking. " +
+		"TestAFindingAndAGapAnchorToTheSameThings compares the two sets rather than restating " +
+		"them, so a value added to one and not the other fails there — which is what keeps this " +
+		"entry true.",
 }
 
 // sharedEnumKeys returns every payload key declared by more than one event type.
