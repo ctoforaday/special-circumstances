@@ -186,6 +186,53 @@ SELECT
   (c."event_id" IS NULL AND bc."event_id" IS NULL
      AND m."check_kind" = 'computation'
      AND NOT EXISTS(SELECT 1 FROM "proof" p WHERE p."answers" = m."gap_id"))          AS "awaiting_proof",
+  -- THE BENCH HEARD IT AND KEPT IT ALIVE, and this is the column that lets a seat be told so.
+  --
+  -- carried is 76 of 77 bench rulings in the measured base rate, and it ANSWERS its motion: the
+  -- gap comes back by being docketed again next round. Without this the merge seat was told only
+  -- "gap R1-1 is open — PASS is refused while it is", which is true of a gap nobody has ever put
+  -- before the bench and of one the bench has considered twice and deliberately deferred. Same
+  -- sentence, two very different situations, and the seat cannot act differently on them.
+  --
+  -- ORDER-FREE, ON PURPOSE (#759). The tempting predicate is "the LATEST docket ruling is
+  -- carried", and there is no key to say which that is at the level this was first specified:
+  -- motion ids are Sprintf M%d so lexicographic order breaks at M10, and two docket motions in
+  -- one round have no defined latest. Stated as set membership the question does not need an
+  -- order at all: the gap is OPEN, at least one docket ruling on it carried, and nothing is
+  -- pending. A closing ruling cannot coexist with open — bc is in the openness test above — so
+  -- that arm is implied rather than repeated.
+  --
+  -- AND NOTHING PENDING, which is the arm that keeps this from double-counting. A gap already
+  -- re-docketed and awaiting an answer is not awaiting a FILING, and reporting it as such would
+  -- ask the merge seat to file the same question at the bench twice.
+  (c."event_id" IS NULL AND bc."event_id" IS NULL
+     AND EXISTS(SELECT 1 FROM "motion_docket" md2
+                  JOIN "motion" mo2 ON mo2."event_id" = md2."event_id"
+                  JOIN "motion_rule" mr2 ON mr2."motion_id" = mo2."motion_id"
+                  JOIN "motion_rule_docket" rd2 ON rd2."event_id" = mr2."event_id"
+                  JOIN "enum_disposition" d2 ON d2."value" = rd2."disposition"
+                WHERE md2."gap_id" = m."gap_id" AND NOT d2."closes")
+     AND NOT EXISTS(SELECT 1 FROM "motion_docket" md3
+                      JOIN "motion" mo3 ON mo3."event_id" = md3."event_id"
+                    WHERE md3."gap_id" = m."gap_id"
+                      AND NOT EXISTS(SELECT 1 FROM "motion_rule" mr3
+                                     WHERE mr3."motion_id" = mo3."motion_id"))) AS "awaiting_docket",
+  -- WHAT THE BENCH SAID WOULD BRING IT BACK. A carried ruling must carry reopens_on or final
+  -- and cannot carry both (the DocketRuling CHECKs), so on a carry this is the stated condition
+  -- and it is the substance of the deferral — the difference between "the bench deferred this"
+  -- and "the bench deferred this until blue reports what the stated direction found".
+  --
+  -- HERE AN ORDER IS BOTH AVAILABLE AND MEANINGFUL, which is why this one takes a LIMIT where the
+  -- flag above refuses to. motion_rule.event_id is the events primary key: monotonic, unique,
+  -- and nothing to do with the motion-id spelling that has no usable order. The LATEST carry is
+  -- the live one — an earlier round's condition has already been answered by the re-filing.
+  (SELECT rd4."reopens_on" FROM "motion_docket" md4
+     JOIN "motion" mo4 ON mo4."event_id" = md4."event_id"
+     JOIN "motion_rule" mr4 ON mr4."motion_id" = mo4."motion_id"
+     JOIN "motion_rule_docket" rd4 ON rd4."event_id" = mr4."event_id"
+     JOIN "enum_disposition" d4 ON d4."value" = rd4."disposition"
+   WHERE md4."gap_id" = m."gap_id" AND NOT d4."closes"
+   ORDER BY mr4."event_id" DESC LIMIT 1)                                            AS "docket_reopens_on",
   -- LINEAGE FROM THE OTHER END: the LAST gap that claimed to replace this one, and whether
   -- that promise is broken — a superseded ancestor still open is the same defect counted
   -- twice, which is what the verdict gate refuses.

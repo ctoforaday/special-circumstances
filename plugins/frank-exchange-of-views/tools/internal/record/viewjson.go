@@ -768,8 +768,14 @@ type WorkGapJSON struct {
 	// before it decides how to spend the sitting.
 	CheckKind string `json:"check_kind"`
 	// The debt, on the read a seat plans its sitting from. See BoardGapJSON.AwaitingProof.
-	AwaitingProof bool     `json:"awaiting_proof"`
-	FoundBy       []string `json:"found_by"`
+	AwaitingProof bool `json:"awaiting_proof"`
+	// THE OTHER DEBT, AND IT IS THE STRUCTURED TWIN OF A PROSE DUTY. availableOf says in words
+	// that the bench carried this gap and what would reopen it; a seat acting on the JSON needs
+	// the same fact as a field rather than by matching on the sentence. `omitempty` on the
+	// condition and not on the flag: false is a real answer, "" is the absence of one.
+	AwaitingDocket  bool     `json:"awaiting_docket"`
+	DocketReopensOn string   `json:"docket_reopens_on,omitempty"`
+	FoundBy         []string `json:"found_by"`
 }
 
 // ClosedIndexJSON is a closed gap reduced to what a near-match screen needs — id, location,
@@ -838,9 +844,17 @@ type WorkGapState struct {
 	ID, Class, Location, Problem, CheckKind string
 	AboutKind, AboutRef                     string
 	Open, AwaitingProof, ClosedByBench      bool
-	Fate                                    string // the last closer's word; closed gaps only
-	Severity, Likelihood, Impact, Cx        any
-	FoundBy, Supersedes                     []string
+	// AwaitingDocket: OPEN, the bench has carried it, and nothing is pending. Off the view, the
+	// same way AwaitingProof is — the alternative was a second Go fold of a question the SQL
+	// already answers, which is what #681's standing rule forbids.
+	AwaitingDocket bool
+	// DocketReopensOn is what the latest carry said would bring it back, or "" when the bench
+	// has never carried it. It is the SUBSTANCE of the deferral: without it a seat is told the
+	// gap was carried and not what to do about it.
+	DocketReopensOn                  string
+	Fate                             string // the last closer's word; closed gaps only
+	Severity, Likelihood, Impact, Cx any
+	FoundBy, Supersedes              []string
 }
 
 // workGapStatesOfRun reads the gap family for the work path: one view query for the scalars,
@@ -862,7 +876,7 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 	if err != nil {
 		return nil, err
 	}
-	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof",
+	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof", "awaiting_docket", "docket_reopens_on",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event"
 	  FROM "gap" ORDER BY "minted_event"`)
@@ -873,12 +887,18 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 	var out []WorkGapState
 	for rows.Next() {
 		var g WorkGapState
-		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind sql.NullString
+		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind, reopensOn sql.NullString
 		var mintedEvent int64
-		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &sev, &lik, &imp, &cx,
+		// THE SCAN ORDER IS THE SELECT'S ORDER, and both sides of this merge added a column:
+		// awaiting_docket/docket_reopens_on here, about_kind/about_ref on main. A scan that kept
+		// one side's order would still COMPILE and would silently read each value into the wrong
+		// field — every gap's problem text landing in about_ref and so on.
+		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &g.AwaitingDocket, &reopensOn,
+			&sev, &lik, &imp, &cx,
 			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent); err != nil {
 			return nil, err
 		}
+		g.DocketReopensOn = reopensOn.String
 		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
 		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
 		g.AboutKind, g.AboutRef = aboutKind.String, aboutRef.String
@@ -903,6 +923,7 @@ func workJSONOfGaps(gaps []WorkGapState) WorkJSON {
 				Class: g.Class, Location: g.Location,
 				AboutKind: g.AboutKind, AboutRef: g.AboutRef, ProblemSynopsis: synopsis(g.Problem),
 				CheckKind: g.CheckKind, AwaitingProof: g.AwaitingProof,
+				AwaitingDocket: g.AwaitingDocket, DocketReopensOn: g.DocketReopensOn,
 				FoundBy: strs(g.FoundBy),
 			})
 			continue

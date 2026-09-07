@@ -273,3 +273,62 @@ func TestACarriedDocketRulingOffersTheGapBackToTheBench(t *testing.T) {
 		}
 	}
 }
+
+// A CARRIED GAP GETS DIFFERENT WORDS, AND THAT DIFFERENCE IS THE WHOLE POINT (#759).
+//
+// The vacuous version of this test is "the merge sitting is incomplete and names the gap" — which
+// passed before any of this existed, because the merge arm already blocks on every open gap. So
+// what is asserted here is the DISTINCTION: a carried gap and a never-docketed one must not read
+// the same, the carried one must carry the bench's stated condition, and neither may add a second
+// blocking row for a gap sitting.go already blocks on.
+func TestACarriedGapReadsDifferentlyFromOneNobodyDocketed(t *testing.T) {
+	gaps := []WorkGapState{
+		{ID: "CARRIED", Open: true, AwaitingDocket: true,
+			DocketReopensOn: "blue reporting what the stated direction found"},
+		{ID: "FRESH", Open: true},
+	}
+	open := availableOf(nil, gaps, "merge", "red-merge-r1")
+
+	find := func(id string) string {
+		t.Helper()
+		for _, it := range open {
+			if strings.Contains(it.What, "gap "+id+" ") {
+				if it.Blocks {
+					t.Errorf("%s: the docket affordance BLOCKS — sitting.go's open-gap row already "+
+						"refuses PASS over it, so this would be a second blocking row for one gap", id)
+				}
+				return it.What
+			}
+		}
+		t.Fatalf("%s has no row at all: %v", id, hows(open))
+		return ""
+	}
+	carried, fresh := find("CARRIED"), find("FRESH")
+
+	// THE ANTI-VACUITY ASSERTION. Everything else here would still pass if both gaps got the
+	// generic sentence; this is the line that fails when they do.
+	if carried == fresh {
+		t.Fatalf("a carried gap and a gap nobody has docketed read identically:\n  %q", carried)
+	}
+	if !strings.Contains(carried, "CARRIED it") {
+		t.Errorf("the carried gap's row does not say the bench carried it: %q", carried)
+	}
+	if !strings.Contains(carried, "blue reporting what the stated direction found") {
+		t.Errorf("the carried gap's row drops the bench's stated condition, which is the substance "+
+			"of the deferral: %q", carried)
+	}
+	// ONE ROW PER GAP. A second item naming the same gap is the duplicate #759 names explicitly.
+	rows := 0
+	for _, it := range open {
+		if strings.Contains(it.What, "gap CARRIED ") {
+			rows++
+		}
+	}
+	if rows != 1 {
+		t.Errorf("the carried gap has %d rows on the work list, want exactly 1: %v", rows, hows(open))
+	}
+	// And the never-docketed gap still gets the filing instruction it always did.
+	if !strings.Contains(fresh, "motion docket file") {
+		t.Errorf("the undocketed gap lost its filing affordance: %q", fresh)
+	}
+}
