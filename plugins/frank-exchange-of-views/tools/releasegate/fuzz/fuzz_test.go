@@ -1690,7 +1690,30 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// which build variant ran it. Passing the flag drives the stated-refusal path and
 				// satisfies the gate that every flag be exercised; the default (on) belongs to a
 				// seat reading one real document, not to a fuzzer.
-				_, _ = r.exec("fetch", "--seat-id", seatID, "--url", sourceURL("/"+seatID), "--ocr=false")
+				// --via live IS DRIVEN; THE OTHER FIVE ARE NOT, AND THAT IS THE HERMETIC LINE.
+				//
+				// `live` takes the ordinary Resolve path against this sweep's own test server, so
+				// naming it explicitly is a real drive of a real branch (the near-miss refusal
+				// above runs, and `live` is checked against Vias() before the equality test picks
+				// the local path). Every other backend — archive, oa, metadata, arxiv, auto —
+				// reaches an EXTERNAL service through Recover, and a sweep that called them would
+				// make 40 runs' worth of network requests to third parties and gain a green that
+				// depended on their uptime. The flag is exercised; the backends are not this
+				// gate's to prove.
+				fetchArgs := []string{"fetch", "--seat-id", seatID, "--url", sourceURL("/" + seatID), "--ocr=false"}
+				if r.coin(40) {
+					fetchArgs = append(fetchArgs, "--via", "live")
+				}
+				_, _ = r.exec(fetchArgs...)
+				// --at DRIVES ITS REFUSAL, which is the only honest way to drive it here: it is
+				// read on the non-live path alone, so a hermetic sweep cannot reach its success
+				// case at all. It used to be a SILENT NO-OP on a live fetch — the date dropped,
+				// today's page returned, success reported — and that is now a refusal, so this
+				// exercises a path a seat will actually hit rather than standing in for one.
+				r.maybe(20, func() {
+					_, _ = r.exec("fetch", "--seat-id", seatID, "--url", sourceURL("/"+seatID),
+						"--ocr=false", "--at", "20190101")
+				})
 				r.extras("lens", seatID, nil)
 			}
 		}

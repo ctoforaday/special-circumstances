@@ -64,6 +64,17 @@ func newFetch() *cobra.Command {
 			if via != "" && !slices.Contains(fetchcache.Vias(), via) {
 				return feov.Errorf(feov.Validation, "fetch: unknown --via %q (%s)", via, strings.Join(fetchcache.Vias(), " | "))
 			}
+			// --at WITHOUT A BACKEND THAT READS IT WAS A SILENT NO-OP. It is consumed only on the
+			// non-live path (Recover takes it); a live fetch read the flag and dropped it, so a
+			// seat asking "what did this say in 2019" with --at alone got TODAY'S page and a
+			// success message. The date is the whole question there, and losing it silently
+			// answers a different one — the same shape the --via near-miss refusal above exists
+			// to close, one flag over.
+			if at != "" && (via == "" || via == fetchcache.ViaLive) {
+				return feov.Errorf(feov.Validation,
+					"fetch: --at %s bounds an ARCHIVE capture and nothing else reads it — pass --via archive, "+
+						"or drop --at. Alone it would have fetched the live source and silently ignored your date", at)
+			}
 			if via != "" && via != fetchcache.ViaLive {
 				att := fetchcache.Recover(fetchcache.Default, url, via, at)
 				if att == nil {
