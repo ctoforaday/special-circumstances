@@ -204,3 +204,42 @@ func CheckOrphanedHandles() error {
 		"    with recordsql.CloseUnder(dir) BEFORE removing it, in that order.")
 	return errors.New(b.String())
 }
+
+// ServedBy writes a seat's TRAJECTORY so a reader can resolve which model answered it, and
+// returns the agent id to put on its register.
+//
+// THE TRAJECTORY IS THE STATEMENT OF RECORD for the serving model, so a fixture that wants a
+// seat to have been answered by something has to say it where the reader looks. It used to be a
+// field on the register, which every test set and production never once did — the fixture proved
+// the reader and nothing proved the write, and the write could not have worked: register is the
+// seat's first act and the model appears on the first assistant turn.
+//
+// requested is optional: pass it to declare a substitution the way the harness does, with a
+// `fallback` block naming both ends. Callers share one CLAUDE_CONFIG_DIR per test, so several
+// seats can be given trajectories in the same run.
+func ServedBy(t *testing.T, agentID, served, requested string) string {
+	t.Helper()
+	root := os.Getenv("CLAUDE_CONFIG_DIR")
+	if root == "" {
+		root = t.TempDir()
+		t.Setenv("CLAUDE_CONFIG_DIR", root)
+	}
+	content := `[{"type":"text","text":"hi"}]`
+	if requested != "" {
+		content = `[{"from":{"model":"` + requested + `"},"to":{"model":"` + served + `"},"type":"fallback"}]`
+	}
+	line := `{"agentId":"` + agentID + `","type":"assistant","message":{"model":"` + served +
+		`","role":"assistant","content":` + content + `}}` + "\n"
+	// THE LAYOUT IS THE HARNESS'S, and the fixture has to use it: Locate globs
+	// `projects/<project>/<session>/subagents/agent-<id>.jsonl`, so a file dropped at the root is
+	// honestly not found — which is the same answer a seat with no trajectory gets, and would make
+	// this helper a fixture that silently measures nothing.
+	dir := filepath.Join(root, "projects", "p", "s", "subagents")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "agent-"+agentID+".jsonl"), []byte(line), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return agentID
+}

@@ -92,7 +92,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 	// WHAT ANSWERED, before what was found. A reader deciding how much weight this document
 	// carries needs the verdict and the adversary's actual strength in the same breath: a PASS
 	// from a tier nobody configured is not the PASS the run was set up to produce.
-	r.add(conduct(fam))
+	r.add(conduct(run, fam))
 	// The gloss opens "Read this first" — EXCEPT when there is no outcome, where the stamp
 	// already says exactly that and repeating it is the duplication this whole pass removes.
 	gloss := ""

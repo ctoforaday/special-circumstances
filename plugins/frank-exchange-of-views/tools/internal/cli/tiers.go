@@ -33,8 +33,8 @@ func newShowTiers() *cobra.Command {
 		Use:   "tiers",
 		Short: "WHAT THIS RUN ASKED FOR AND WHAT ANSWERED IT: the configured tier per seat class beside the model actually served to each seat, from the record",
 		Long: "tiers joins the run's CONFIGURED model tiers (inputs/run-config.json — the request) against the " +
-			"model that actually answered each seat (register.served_model — measured at the seat's first act from its " +
-			"own trajectory, where the harness declares a substitution by naming both ends).\n\n" +
+			"model that actually answered each seat — read from that seat's own trajectory, which `register` names by " +
+			"recording its agent id, and where the harness declares a substitution by naming both ends).\n\n" +
 			"A seat nobody measured reads NOT MEASURED. It never reads as the configured model, and it never reads as " +
 			"a blank that could be mistaken for agreement: a run where nothing looked is not a run that matched.",
 		Args:          cobra.NoArgs,
@@ -113,7 +113,7 @@ type TierReport struct {
 func tierReport(run record.Run, b record.Family) TierReport {
 	bulk, judgment := modeltier.Config(run.Dir())
 	rep := TierReport{RunDir: run.Dir(), ConfiguredBulk: bulk, ConfiguredJudge: judgment}
-	for _, sm := range record.SeatModels(b) {
+	for _, sm := range record.SeatModels(run, b) {
 		if sm.Class == "" {
 			continue // the operator and anything off the roster ride no tier
 		}

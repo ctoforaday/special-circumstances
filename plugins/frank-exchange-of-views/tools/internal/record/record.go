@@ -44,8 +44,6 @@ import (
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/buildid"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/servedmodel"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -247,37 +245,18 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// so, and a revision identifies the binary exactly where a semver only identifies an
 	// intent to ship. buildid reads it from the build itself, so nothing has to remember it.
 	reg := &recordpb.Register{ToolVersion: proto.String(buildid.Revision())}
-	// THE SERVING MODEL, MEASURED HERE BECAUSE THIS IS THE FIRST MOMENT IT CAN BE.
+	// THE AGENT ID IS WHAT THIS CAN MEASURE. It names the seat's trajectory, and the trajectory is
+	// where the serving model is stated — read from it when a reader asks, which is any moment
+	// after this one. `register` is the seat's FIRST act: a fresh trajectory's opening records are
+	// all `user` turns and the model appears on the first ASSISTANT turn, which has not happened.
 	//
-	// run-config records what was REQUESTED. Nothing recorded what was SERVED, and across the
-	// 2026-08-23 runs 44 of 63 seats were answered by a model nobody asked for — the configured
-	// research tier never ran, and a certified report went out naming a methodology that had not
-	// happened. The harness DECLARES the swap on the seat's own first assistant turn, before the
-	// seat's first tool call, so `register` can read it rather than capture inferring a price tier
-	// from transcripts hours later.
-	//
-	// Engine-observed, like agent_id and run_via, and for the same reason: a seat asked which
-	// model is answering it can only report what it was told.
-	//
-	// A FAILURE TO MEASURE IS NOT A CLEAN RESULT. The reason goes to stderr and the fields stay
-	// absent, so a reader sees NOT MEASURED rather than a run that matched its configuration.
-	// It never blocks the register: a seat that cannot find its own trajectory has still arrived.
-	var served servedmodel.Observation
+	// Engine-observed, like run_via, and for the same reason: a seat asked which model is
+	// answering it can only report what it was told.
 	if at := seatenv.AgentType(); at != "" {
 		reg.AgentType = proto.String(at)
 	}
 	if agent := seatenv.AgentID(); agent != "" {
 		reg.AgentId = proto.String(agent)
-		obs, oerr := servedmodel.Observe(agent)
-		if oerr != nil {
-			fmt.Fprintf(os.Stderr, "register: serving model NOT MEASURED for %s — %v\n", seatID, oerr)
-		} else {
-			served = obs
-			reg.ServedModel = proto.String(obs.Served)
-			if obs.Substituted() {
-				reg.RequestedModel = proto.String(obs.Requested)
-			}
-		}
 	}
 	if runVia != "" {
 		reg.RunVia = proto.String(runVia)
@@ -302,73 +281,12 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// `verify` and `capture` can hold the run to it even if this seat works around the error the
 	// way the friction footer teaches. Refusing BEFORE the write would leave the one piece of
 	// evidence unrecorded in exactly the case it matters.
-	if err := tierGate(run, seatID, served); err != nil {
-		return dispatch, dbName, err
-	}
+
 	// WHAT THE TWO RETURNS ARE NOW. The first was a NONCE, an opaque sitting id a seat could do
 	// nothing with; it is the dispatch NUMBER, which is the thing that was actually being
 	// communicated ("this is your second dispatch"). The second was the shard path a seat wrote to
 	// — there is no shard, so it is the record's location.
 	return dispatch, dbName, nil
-}
-
-// tierGate refuses a seat that was answered by a model other than the tier its class was
-// dispatched on.
-//
-// # Why it refuses in BOTH directions
-//
-// The existing post-hoc audit grades a dearer-than-configured seat FAIL ("the fable trap") and a
-// cheaper one WARN, and capture exits 2 only on a FAIL. The measured incident was CHEAPER —
-// `claude-fable-5` configured, `claude-opus-4-8` served — so the one check that noticed it
-// graded it a warning and capture exited 0. The framing was wrong: the question a research debate
-// asks of its tier is not "did this cost more than budgeted" but "did the adversary run at the
-// strength the run claims", and a weaker adversary silently substituted is the worse failure of
-// the two. Any mismatch stops the run.
-//
-// # Why it can be overridden, and why the override is not a flag
-//
-// An operator who knows the environment will not serve the configured tier may still want the run.
-// That decision is theirs and it is made ONCE, at setup, where it is written to run-config as a
-// field. It is deliberately not a flag on this verb: a seat typing --allow-substitution would be
-// the party under test excusing itself.
-func tierGate(run Run, seatID string, o servedmodel.Observation) error {
-	if o.Served == "" {
-		return nil // NOT MEASURED — already said so on stderr; a silence here would be a claim.
-	}
-	class := TierClassOfSeat(seatID)
-	if class == "" {
-		return nil // the operator and anything off the roster ride no tier
-	}
-	model, judgmentModel := modeltier.Config(run.Dir())
-	configured := model
-	if class == "judgment" {
-		configured = judgmentModel
-	}
-	if configured == "" {
-		return nil // a run that declared no tier for this class cannot be held to one
-	}
-	want, got := modeltier.Of(configured), modeltier.Of(o.Served)
-	if want == got && !o.Substituted() {
-		return nil
-	}
-	declared := ""
-	if o.Substituted() {
-		declared = fmt.Sprintf(" The harness declared the substitution itself: %s -> %s.", o.Requested, o.Served)
-	}
-	if allowSubstitution(run) {
-		fmt.Fprintf(os.Stderr, "register: MODEL SUBSTITUTION, ALLOWED BY THIS RUN'S CONFIG — %s is a %s seat, configured %s (%s tier), served %s (%s tier).%s\n",
-			seatID, class, configured, want, o.Served, got, declared)
-		return nil
-	}
-	return feov.Errorf(feov.Validation,
-		"register: %s is a %s seat and this run configured %s for that class (%s tier), but the model ANSWERING it is %s (%s tier).%s "+
-			"STOP AND REPORT THIS — do not proceed with the sitting and do not work around it. The run's whole premise is which "+
-			"model argues which side, so a substituted tier does not merely cost differently: it changes the strength of the "+
-			"adversary while every downstream surface still describes the configured one, and a report certified on that basis "+
-			"states a methodology that did not happen. The measurement is on the record (register.served_model), so it survives "+
-			"this refusal. An operator who accepts the substitution re-runs `setup` with the allow-substitution field set, which "+
-			"is their call and not a seat's",
-		seatID, class, configured, want, o.Served, got, declared)
 }
 
 // allowSubstitution reads the operator's standing decision from run-config.

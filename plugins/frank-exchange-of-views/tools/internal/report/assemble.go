@@ -145,7 +145,7 @@ func blueEmbed(blue string) string {
 		// what left the report, written by the party that removed it — the record already
 		// carries the claim, the reason and the successor, checked at the write.
 		"claims withdrawn": true,
-		// Composed from register.served_model, and the one section a seat provably cannot
+		// Composed from each seat's own trajectory, and the one section a seat provably cannot
 		// author: a seat reads the run's CONFIGURATION and never learns what replied to it.
 		// Blue authoring this would ship the unmeasured premise beside the measured one, in
 		// the same document, and the reader would have no way to tell which is which — which
