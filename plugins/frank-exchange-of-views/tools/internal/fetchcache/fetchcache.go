@@ -119,6 +119,18 @@ type Entry struct {
 	OCRDerived bool `json:"ocr_derived,omitempty"`
 	// Pages is the document's page count where the format has one, else 0.
 	Pages int `json:"pages,omitempty"`
+	// NotRenderable marks a response that arrived as an unrendered app skeleton rather than a
+	// document — bytes, a 200, a sha, and no prose, because nothing here runs JavaScript. A seat
+	// verifying a citation against one of these is checking the skeleton, and the miss reads
+	// exactly like an honest check.
+	//
+	// A POINTER, for the reason TextExtracted is one: nil means nobody asked (an older index
+	// line, or a content type the question does not apply to) and false means asked and
+	// answered no. A plain bool collapses those into the reading that flatters.
+	NotRenderable *bool `json:"not_renderable,omitempty"`
+	// NotRenderableReason states what the detector saw, whenever NotRenderable is true — the
+	// ratio or the empty mount point. A flag with no reason is a verdict a reader cannot check.
+	NotRenderableReason string `json:"not_renderable_reason,omitempty"`
 
 	// HTTPStatus is the status the origin (or whatever answered for it) returned. It is here
 	// because a REFUSED fetch used to leave no trace at all: the error went back to the seat and
@@ -374,6 +386,18 @@ func Resolve(run record.Run, url string, f Fetcher) (e Entry, b []byte, hit bool
 			// honest record — [[facts-are-fields]] clause 3.
 			entry.TextReason = ex.Reason
 		}
+	}
+	// OUTSIDE THE EXTRACTION BLOCK, BECAUSE HTML NEVER ENTERS IT. DefaultExtractor is a PDF
+	// extractor and reports Attempted=false for HTML deliberately; a check placed inside would
+	// be dead code on precisely the content type it is about.
+	//
+	// The answer is recorded either way for HTML — "we looked and it is a document" is the fact
+	// that makes the flag's ABSENCE mean something.
+	if strings.Contains(entry.ContentType, "html") {
+		shell := ShellReason(entry.ContentType, resp.Body)
+		notRenderable := shell != ""
+		entry.NotRenderable = &notRenderable
+		entry.NotRenderableReason = shell
 	}
 	stored, serr := Store(run, entry, resp.Body)
 	if serr != nil {
