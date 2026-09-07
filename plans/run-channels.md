@@ -417,7 +417,7 @@ plus repo-root `docs/setup-script.md`. Machine surfaces: `hooks/hooks.json`;
 ### PR-2 — No compatibility, and the one refusal that makes that safe
 
 **Directive: no migration, no archaeology, no backwards compatibility.** This is what the format
-already says of itself (`record/schema_gen.go:10-13`: *"Nothing here promises backwards
+already says of itself (`record/schema_gen.go:10-13` — still there, still at epoch 2: *"Nothing here promises backwards
 compatibility, so there is no window to describe and no delta list to maintain: equal runs, unequal
 refuses."*). So: renumber freely, no `reserved`, no delta list, no compatibility window, no
 rewriting of archived tarballs, no code that reads a pre-rename record.
@@ -447,6 +447,46 @@ rewriting of archived tarballs, no code that reads a pre-rename record.
   `legacyShards` (the JSONL era) present. An archived pre-rename run has a valid
   `records/record.db`, so `openRun`/`openRunForRead` proceed to the silent zero. Extend it to refuse
   a pre-rename SQLite schema (a `friction` table with no `log` table) in the same voice.
+
+> **CORRECTED 2026-09-07 — BOTH BULLETS ABOVE ARE WRONG, and the second is wrong twice.**
+> Left standing because the reasoning that produced them is the instructive part.
+>
+> **Nothing was bumped and nothing was declared.** `eventSchema` stays at 2 and
+> `requirements.json` is untouched. The first attempt did bump it and additionally stamped
+> `PRAGMA user_version` into every database to compare against. gblock refused it: *"We just
+> removed all the schema version stuff on purpose… No archaeology, no backwards
+> compatibility."* An epoch comparison is version machinery, and this repository does not have
+> any — the directive at the head of this section applies to the REFUSAL too, which is the part
+> the section did not notice about itself.
+>
+> **The bullet named the wrong mechanism, and this plan never established what produced the
+> zero.** `record/store.go` was not the site and a `friction`-table-with-no-`log`-table check
+> was not the fix. Probed directly against the archived run:
+>
+> ```
+> recordsql.Events(db)               -> 0, `event 8 has type "friction", which the schema does not declare`
+> recordsql.EventsOfTypes(db, "log") -> 0, nil
+> ```
+>
+> **The record already refuses.** `eventsWhere` (`recordsql/read.go:78-85`, pre-existing) errors
+> on an `events.type` word the schema does not declare, one row at a time. The zero comes from
+> the NARROWED read: `WHERE type IN ('log')` filters those rows out in SQL before anything looks
+> at them. `EventsOfTypes`' own doc said *"a word the vocabulary does not hold simply matches
+> nothing, exactly as it would in the stream"* — true of the ARGUMENT, assumed of the DATABASE,
+> and the second claim is the bug.
+>
+> **Shipped instead (PR #790, 63 lines):** `refuseUndeclaredTypes` runs one
+> `SELECT DISTINCT type FROM events` before narrowing and refuses any word the schema's own enum
+> does not declare, naming the words it FOUND rather than the ones it expected. No epoch, no
+> stamp, no former-name table, nothing that knows what a word used to be. It also caught a case
+> this plan never considered: `EVENT_TYPE_OPINION` is retired and reserved
+> (`record.proto:217-221`), so that archive's 17 `opinion` events were invisible to narrowed
+> reads as well — a defect an epoch comparison would have masked by refusing the whole file for
+> the wrong reason.
+>
+> **The lesson, and it is [[facts-are-fields]] clause 2 verbatim:** *before blaming the format,
+> find what actually produced the number.* This section blamed the schema epoch, was written by
+> someone citing that clause, and was audited without either of us running the two calls above.
 - **#501 is not a prerequisite.** Its body is measured on the JSONL era ("226 of 226 events have
   `schema_version` ABSENT") and is stale — `record.go:414` stamps the field on every write, so what
   survives is *read back by nothing*, not *emitted by nothing*. It also defers to the unresolved
@@ -506,7 +546,7 @@ neither wanted the report to cite the channel. **Close #737 with this reasoning.
 | R4 | The rename sweeps the word into a namespace where it means something else (facts-are-fields cl.4). | low × med × low | `friction` survives as a `LogType` VALUE with its meaning intact; the sweep is name-only. Verified: no stdlib `log` import, `TOOL_ERROR` has no readers, `ESTOPPEL` has exactly one. |
 | R5 | Prompt-gate rejection on the PR-1/PR-4 wording (cost a round of reverts in #709). | high × med × low | §V runs all five gates; clauses phrased as acts, no verb/flag spelled, no obituary. |
 | R6 | Measuring success on one future run over-fits to it. | med × low × low | The targets are ratios and absences, not tuned constants; the census commands are recorded so any later run re-measures identically. |
-| R7 | **The rename silently blinds every archived run** — the SQL table name is derived from the message name (`recordsql/schema.go:117`), so a new binary reading an old record returns 0 rows, identical to a clean board. | high × high × med | No-compatibility section: renumber freely — numbers are inert, names are the schema — archived records unreadable BY DESIGN, and a LOUD refusal so "unreadable" is not "returns a clean board". The two changes that deliver it: (a) bump `eventSchema` 2→3 in `requirements.json:3` and regenerate `record/schema_gen.go:13` via `scripts/schemagen` — the epoch `setup.go:584-594` already refuses on; (b) extend `record/store.go:82-93`, which today fires only when `dbName` is ABSENT with `legacyShards` present and so lets an archived pre-rename `record.db` through to the zero. §V check 2 asserts the error rather than the absence. **Not blocked on #501** — both mechanisms exist today; see §III for why that issue is stale and would have been an unbounded blocker. |
+| R7 | **The rename silently blinds every archived run** — the SQL table name is derived from the message name (`recordsql/schema.go:117`), so a new binary reading an old record returns 0 rows, identical to a clean board. | high × high × med | No-compatibility section: renumber freely — numbers are inert, names are the schema — archived records unreadable BY DESIGN, and a LOUD refusal so "unreadable" is not "returns a clean board". **MITIGATION AS PLANNED WAS WRONG; SHIPPED DIFFERENTLY — see the CORRECTED note in §III.** The plan called for (a) an `eventSchema` 2→3 bump and (b) a table-shape check in `record/store.go`. Neither happened: an epoch comparison is version machinery this repository does not have, and the plan never established what produced the zero. It is the NARROWED read — `EventsOfTypes`' `WHERE type IN (…)` filters undeclared rows out in SQL, while the full replay (`recordsql/read.go:78-85`) already refuses them. PR #790 checks the record's own `events.type` vocabulary against the schema's enum before narrowing. §V check 2 still asserts the error rather than the absence, which is the part that held. **Not blocked on #501** — see §III for why that issue is stale and would have been an unbounded blocker. |
 | R8 | The envelope rename half-lands, breaking the `debate.js` → `capture.go` join across languages. | med × high × low | All three renames (CLI command, seat verb, envelope field) ship in ONE atomic PR; census B enumerates both sides; the friction-parity audit's own test covers the join. |
 | R9 | Deleting the survey forfeits the only surface-traversal signal (the pin's stated rationale). | high × low × low | Accepted and recorded in PR-1 rather than argued away: the instrument is unfalsifiable and is false where checkable. A real instrument (hook-observed help invocations) is named, and deliberately not built here. |
 
@@ -539,9 +579,14 @@ All commands are rooted at the repository root; `P=plugins/frank-exchange-of-vie
   `record/recordsql/testdata/schema.sql` contains `log` (and no `friction`/`friction_none` table,
   no `enum_friction_kind`), with `enum_log_type` carrying `nominal`. This golden is the artifact
   that shows the rename reached storage rather than only the Go types.
-- **Schema refusal (the no-compatibility directive's own test):** open an archived pre-rename `records/record.db`
-  with the new binary and assert it **errors naming the event-schema epoch**. Asserting the error is
-  the point — a test that merely checks "no rows" would pass on the bug.
+- **Schema refusal (the no-compatibility directive's own test):** open an archived pre-rename
+  `records/record.db` with the new binary and assert it **errors, naming the undeclared event types
+  it found**. Asserting the error is the point — a test that merely checks "no rows" would pass on
+  the bug. (This read "naming the event-schema epoch" until 2026-09-07; no epoch is compared, and
+  the correction is in §III.) Shipped as three tests in
+  `record/recordsql/undeclaredtype_test.go`, the load-bearing one being that **an honest zero stays
+  zero**: a record whose vocabulary is wholly declared still answers a narrowed read for a type it
+  does not hold with no events and no error.
 - Gates, each at its real path: `(cd $P/tools && go test ./integration/surface/... ./internal/cli/... ./cmd/seatprobe/...)`
   covers `promptverbs`, `constitutiondirective`, `retiredsurfaces`, and the naming tests
   (`internal/seatprobe/naming.go`, `cmd/seatprobe/naming_report_test.go`,
@@ -559,9 +604,15 @@ All commands are rooted at the repository root; `P=plugins/frank-exchange-of-vie
    (target 100%), and — untargeted but measured — bucket-D share and the duplicate rate.
 2. **Archived-run refusal.** Point the new binary at
    `run-archive/2026-09-02_quadratic-formula.tar.gz`'s `records/record.db` and confirm a **loud
-   error naming the event-schema epoch** (not the schema-version stamp, which is not the epoch),
-   never an empty projection. This is the check that would have caught the defect the first draft
-   shipped.
+   error**, never an empty projection. This is the check that would have caught the defect the
+   first draft shipped, and asserting the ERROR rather than the absence is the half of this item
+   that survived — a test that merely checked "no rows" would pass on the bug.
+   - **DONE, and not by the mechanism this plan named.** The refusal names *the undeclared event
+     types it found in the record* — `friction, friction_none, opinion` — not an epoch, because
+     no epoch is compared. Requiring the error to "name the event-schema epoch" was this plan
+     assuming its own answer; see the CORRECTED note in §III. Measured after PR #790:
+     `feov-record log --run <archived>` exits **2**, where it previously printed
+     `{"log": [], "counts": {"total": 0, "attested": 0}}` and exited 0.
 3. **Report census.** Re-run the five #710 greps that produced 161 / 24 / 13 / 9 / 2 on the
    2026-09-02 report against the new run's `report.md`, and confirm every surviving access limit
    reads as a limit on the conclusion rather than an inlined hostname or status code.
