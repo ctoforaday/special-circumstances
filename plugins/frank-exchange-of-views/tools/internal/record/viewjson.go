@@ -91,7 +91,16 @@ type GapJSON struct {
 	// unset, so a gap anchored by quote reads exactly as it did.
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
-	Problem   string `json:"problem"`
+	// MintedLocation is the sentence as it read WHEN THE GAP WAS MINTED, present only when the
+	// text has since changed. Location above is where that text is NOW — carried through the
+	// edits rather than frozen (#453) — and keeping both is what stops a relocation from being a
+	// silent substitution of blue's words for the ones red objected to.
+	MintedLocation string `json:"minted_location,omitempty"`
+	// LocationEdits is every edit that moved it, in order. A pointer that had been repaired and
+	// said nothing would leave red re-auditing a sentence it never saw with no way to tell
+	// whether the text drifted or was rewritten under the gap.
+	LocationEdits []GapEdit `json:"location_edits,omitempty"`
+	Problem       string    `json:"problem"`
 	// MintReason is red's ARGUMENT for the gap, distinct from what is wrong with the text.
 	// A bench adjudicating what a required_fix may demand asked for exactly this and could not
 	// find it; mint was accepting --reason and discarding it. See merge/mint.go.
@@ -308,6 +317,15 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 		Anomalies: []string{},
 	}
 
+	// WHERE EACH GAP'S SENTENCE WENT, read once for the whole board. A location is prose captured
+	// at mint; the edits that moved it are on the record, so it is replayed rather than shown
+	// stale. A read failure leaves the map empty and every location reads as minted, which is the
+	// honest degradation: no edit is INVENTED on a run whose edits could not be read.
+	gapEdits, geErr := GapEdits(run)
+	if geErr != nil {
+		gapEdits = map[string][]GapEdit{}
+	}
+
 	// The acts the projection embeds or attributes, one filtered typed read, grouped per gap.
 	evs, err := EventsOf(run,
 		recordpb.EventType_EVENT_TYPE_CLOSE,
@@ -376,7 +394,8 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 			FoundBy: strs(foundBy[mintedEvent]), Supersedes: strs(supersedes[mintedEvent]),
 			Regrades: []map[string]any{},
 			Severity: nullWord(sev), Likelihood: nullWord(lik), Impact: nullWord(imp), ComplexityCost: nullWord(cx),
-			Class: class.String, Location: loc.String,
+			Class: class.String, Location: currentLoc(loc.String, gapEdits[id]),
+			MintedLocation: mintedIfMoved(loc.String, gapEdits[id]), LocationEdits: gapEdits[id],
 			AboutKind: aboutKind.String, AboutRef: aboutRef.String, Problem: problem.String,
 			MintReason: reason.String, RequiredFix: fix.String, AcceptanceGate: gate.String,
 			CheckKind: kind.String, AwaitingProof: awaiting,
@@ -615,9 +634,14 @@ type WorkGapJSON struct {
 	// The anchor for a gap about something NOT in the report. Without these a seat reading its
 	// own work list sees `location: ""` and no other pointer — the gap says where it is only
 	// when the where is a quote.
-	AboutKind       string `json:"about_kind,omitempty"`
-	AboutRef        string `json:"about_ref,omitempty"`
-	ProblemSynopsis string `json:"problem_synopsis"`
+	AboutKind string `json:"about_kind,omitempty"`
+	AboutRef  string `json:"about_ref,omitempty"`
+	// EditedSince is every edit that moved this gap's sentence SINCE THE READER'S LAST ROUND —
+	// the change history red would otherwise have to reconstruct by diffing the report against a
+	// memory of it. A gap whose text blue rewrote is the commonest thing red re-audits, and
+	// before this the work list showed the sentence as minted and said nothing about the rewrite.
+	EditedSince     []GapEdit `json:"edited_since,omitempty"`
+	ProblemSynopsis string    `json:"problem_synopsis"`
 	// CheckKind rides the work list too, though nothing else about the acceptance check does.
 	// The comment above says required_fix and acceptance_check belong to the seat that OPENS
 	// the gap — but check_kind is not a description of the demand, it is the demand's TYPE,
@@ -700,6 +724,7 @@ func synopsis(s string) string {
 type WorkGapState struct {
 	ID, Class, Location, Problem, CheckKind string
 	AboutKind, AboutRef                     string
+	Edits                                   []GapEdit
 	Open, AwaitingProof, ClosedByBench      bool
 	// AwaitingDocket: OPEN, the bench has carried it, and nothing is pending. Off the view, the
 	// same way AwaitingProof is — the alternative was a second Go fold of a question the SQL
@@ -733,6 +758,10 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 	if err != nil {
 		return nil, err
 	}
+	gapEdits, geErr := GapEdits(run)
+	if geErr != nil {
+		gapEdits = map[string][]GapEdit{}
+	}
 	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof", "awaiting_docket", "docket_reopens_on",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event"
@@ -759,6 +788,8 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
 		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
 		g.AboutKind, g.AboutRef = aboutKind.String, aboutRef.String
+		g.Edits = gapEdits[g.ID]
+		g.Location = CurrentLocation(g.Location, g.Edits)
 		g.FoundBy, g.Supersedes = foundBy[mintedEvent], supersedes[mintedEvent]
 		if c := closures[g.ID]; c != nil && c.hasClosed {
 			g.ClosedByBench, g.Fate = c.closedByBench, c.reason()
@@ -770,7 +801,11 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 
 // workJSONOfGaps assembles the lean shapes from the gap states — the same rows, the same order,
 // the same synopsis truncation the fold applied.
-func workJSONOfGaps(gaps []WorkGapState) WorkJSON {
+// since is the round from which an edit counts as NEW TO THIS READER: the one before the seat's
+// own, so a seat sitting in round 3 sees what happened in round 2 — the round it was not present
+// for. Zero means "no round known", and then every edit is shown rather than none: a reader whose
+// round could not be determined is better handed the whole history than silently handed none.
+func workJSONOfGaps(gaps []WorkGapState, since int) WorkJSON {
 	out := WorkJSON{Open: []WorkGapJSON{}, ClosedIndex: []ClosedIndexJSON{}}
 	for _, g := range gaps {
 		if g.Open {
@@ -778,8 +813,10 @@ func workJSONOfGaps(gaps []WorkGapState) WorkJSON {
 				ID:       g.ID,
 				Severity: g.Severity, Likelihood: g.Likelihood, Impact: g.Impact, ComplexityCost: g.Cx,
 				Class: g.Class, Location: g.Location,
-				AboutKind: g.AboutKind, AboutRef: g.AboutRef, ProblemSynopsis: synopsis(g.Problem),
-				CheckKind: g.CheckKind, AwaitingProof: g.AwaitingProof,
+				AboutKind: g.AboutKind, AboutRef: g.AboutRef,
+				EditedSince:     editsSince(g.Edits, since),
+				ProblemSynopsis: synopsis(g.Problem),
+				CheckKind:       g.CheckKind, AwaitingProof: g.AwaitingProof,
 				AwaitingDocket: g.AwaitingDocket, DocketReopensOn: g.DocketReopensOn,
 				FoundBy: strs(g.FoundBy),
 			})
@@ -814,7 +851,7 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 	if err != nil {
 		return WorkJSON{}, err
 	}
-	return workJSONOfGaps(gaps), nil
+	return workJSONOfGaps(gaps, 0), nil
 }
 
 // WorkJSONBytes renders the work list as indented JSON (a seat reads it in a terminal
@@ -879,7 +916,7 @@ func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	w := workJSONOfGaps(gaps)
+	w := workJSONOfGaps(gaps, roundOfSeatOnBoard(m.Events, seatID)-1)
 	w.Sitting = SittingOf(m.Events, gaps, role, seatID)
 	w.Counterparty = counterpartyOf(m.Events, role, roundOfSeatOnBoard(m.Events, seatID))
 	out, err := json.MarshalIndent(w, "", "  ")
@@ -1239,4 +1276,35 @@ func DebateJSONBytes(run Run) ([]byte, error) {
 		return nil, err
 	}
 	return append(out, '\n'), nil
+}
+
+// currentLoc is CurrentLocation with the board's argument order, so the literal stays readable at
+// the call site.
+func currentLoc(minted string, edits []GapEdit) string { return CurrentLocation(minted, edits) }
+
+// mintedIfMoved returns the minted text ONLY when it is no longer what the location says. Emitting
+// it always would put two identical strings on every gap and teach a reader to skip both.
+func mintedIfMoved(minted string, edits []GapEdit) string {
+	if cur := CurrentLocation(minted, edits); cur != minted {
+		return minted
+	}
+	return ""
+}
+
+// editsSince narrows a gap's change history to what the reader has not already seen.
+//
+// A seat sitting in round 3 is shown round 2 onward: the rounds it was not present for. Passing 0
+// shows everything, which is what a caller with no round context gets — handing back nothing there
+// would be the plausible zero this whole field exists to remove.
+func editsSince(edits []GapEdit, since int) []GapEdit {
+	if len(edits) == 0 {
+		return nil
+	}
+	var out []GapEdit
+	for _, e := range edits {
+		if e.Round >= since {
+			out = append(out, e)
+		}
+	}
+	return out
 }
