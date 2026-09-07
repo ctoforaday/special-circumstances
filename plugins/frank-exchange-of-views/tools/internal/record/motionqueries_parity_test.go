@@ -12,7 +12,7 @@ import (
 // inquiryRulingFold is the fold InquiryRuling replaced, kept HERE as the parity oracle: the
 // query and the fold read the same record, and this test refuses to let them disagree.
 func inquiryRulingFold(run Run, inquiryID string) string {
-	b, err := BoardState(run)
+	b, err := FamilyOf(run)
 	if err != nil {
 		return ""
 	}

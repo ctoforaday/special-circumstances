@@ -38,7 +38,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	b, _ = BoardState(mustRun(t, runDir))
+	b, _ = FamilyOf(mustRun(t, runDir))
 	j = motionsJSONOf(b.Events)
 	m = j.Motions[0]
 	if !m.Ruled || m.Ruling != "rejected" || m.Opinion == "" {

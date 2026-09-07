@@ -282,14 +282,6 @@ type Motion struct {
 // Ruled reports whether the motion has an answer.
 func (m Motion) Ruled() bool { return m.Ruling != "" }
 
-// Motions replays the motion events into current state, in filing order.
-//
-// It reads the `motion` types only. Pre-collapse records carry `dispute`/`dispute-respond`,
-// `petition`/`petition-rule` and `avenue-rule` instead, and those are handled by the DUAL-READ in
-// compat.go — deliberately separate, so the shape of a motion is not bent to accommodate the
-// three shapes it replaced.
-func Motions(b *Board) []*Motion { return MotionsOf(b.Events) }
-
 // MotionsOf is Motions over the events themselves — the stream is all the join ever read, and
 // the run-shaped readers (plans/board-as-views.md wave 1c) fetch events without a fold.
 func MotionsOf(evs []*Event) []*Motion {

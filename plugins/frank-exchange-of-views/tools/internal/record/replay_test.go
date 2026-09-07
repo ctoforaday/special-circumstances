@@ -250,14 +250,14 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 		// for it is a hard error rather than a skip (see missingGap). Seeding them would fail the
 		// fixture, not the assertion.
 	})
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(b.GapOrder) != 2 || b.GapOrder[0] != "R1-1" {
-		t.Fatalf("GapOrder = %v, want mint order [R1-1 R1-2]", b.GapOrder)
+	if len(b.Gaps) != 2 || b.Gaps[0].ID != "R1-1" {
+		t.Fatalf("family order = %v, want mint order [R1-1 R1-2]", b.Gaps)
 	}
-	g1 := b.Gaps["R1-1"]
+	g1 := b.Gap("R1-1")
 	if !g1.Open {
 		t.Error("R1-1 should still be open")
 	}
@@ -271,7 +271,7 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	if len(g1.Regrades) != 1 {
 		t.Errorf("regrade history not kept: %d entries", len(g1.Regrades))
 	}
-	g2 := b.Gaps["R1-2"]
+	g2 := b.Gap("R1-2")
 	if g2.Open || !g2.HasClosed || g2.ClosedRound != 1 {
 		t.Errorf("R1-2 closure not replayed: %+v", g2)
 	}
@@ -281,7 +281,7 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	}
 	// R9-9 was never minted, so it is not on the board — which is now true by construction rather
 	// than by the replay choosing to skip it.
-	if b.Gaps["R9-9"] != nil {
+	if b.Gap("R9-9") != nil {
 		t.Error("an event about an unknown gap created one")
 	}
 }
@@ -300,16 +300,17 @@ func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 		recordtest.At(t, lens, 1, lens+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("first")}),
 		recordtest.At(t, lens, 1, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("second")}),
 	})
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(b.Observations) != 2 {
-		t.Fatalf("both findings must replay onto the board, got %d", len(b.Observations))
+	obs := ObservationsOf(b.Events)
+	if len(obs) != 2 {
+		t.Fatalf("both findings must replay onto the board, got %d", len(obs))
 	}
 	for _, want := range []string{"F1", "F2"} {
 		found := false
-		for _, o := range b.Observations {
+		for _, o := range obs {
 			if o.Finding.GetLabel() == want {
 				found = true
 			}
@@ -1273,7 +1274,7 @@ func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 		}), "2026-08-22T11:00:00.000000000Z"),
 	})
 
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1290,7 +1291,7 @@ func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 
 	// AND THE CONSUMER THAT READS IT AGREES. This is the half that shipped broken: the reduction
 	// was already correct, so only a consumer walking Board.Events could see the defect.
-	inq := Inquiries(b)
+	inq := InquiriesOf(b.Events)
 	if len(inq) != 1 {
 		t.Fatalf("expected one line of inquiry, got %d", len(inq))
 	}

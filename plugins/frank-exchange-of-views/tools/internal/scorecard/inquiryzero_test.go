@@ -32,13 +32,13 @@ func avenue(t *testing.T, id, line string, st recordpb.AvenueStatus, reason stri
 // cross-run memory row asserting no alternatives were explored in a run that explored 35. A wrong
 // number is worse than a missing one precisely here, because the next run inherits it.
 func TestLinesOfInquiryComeFromTheRecordNotTheEnvelopes(t *testing.T) {
-	board := &record.Board{Events: []*record.Event{
+	board := famOfEventsT([]*record.Event{
 		avenue(t, "Q1", "the ring-theoretic generalisation", recordpb.AvenueStatus_AVENUE_STATUS_PURSUED, ""),
 		avenue(t, "Q2", "non-English prior art", recordpb.AvenueStatus_AVENUE_STATUS_DECLINED,
 			"the originality claim is scoped to English sources, so this is out of scope for the question asked"),
-	}}
+	})
 	// The envelopes carry NOTHING — exactly the state that produced the false zero.
-	rows := blueRows(record.Run{}, []map[string]any{{"claim_count": float64(10)}}, nil, famOfBoardT(board))
+	rows := blueRows(record.Run{}, []map[string]any{{"claim_count": float64(10)}}, nil, board)
 
 	r := rowByMetric(rows, "lines_of_inquiry")
 	if r == nil {
@@ -59,7 +59,7 @@ func TestLinesOfInquiryComeFromTheRecordNotTheEnvelopes(t *testing.T) {
 // line declined in one round and pursued in another as two lines, inflating the very breadth
 // number this row exists to keep honest.
 func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
-	board := &record.Board{Events: []*record.Event{
+	board := famOfEventsT([]*record.Event{
 		avenue(t, "Q1", "the Medium essay", recordpb.AvenueStatus_AVENUE_STATUS_DECLINED, "no access channel exists for it"),
 		func() *record.Event {
 			st := recordpb.AvenueStatus_AVENUE_STATUS_PURSUED
@@ -67,8 +67,8 @@ func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
 				AvenueId: proto.String("Q1"), Status: &st, SupersedesStatus: proto.String("declined"),
 			})
 		}(),
-	}}
-	rows := blueRows(record.Run{}, nil, nil, famOfBoardT(board))
+	})
+	rows := blueRows(record.Run{}, nil, nil, board)
 	got := string(rowByMetric(rows, "lines_of_inquiry").Value.(objJSON))
 	if !strings.Contains(got, `"pursued":1`) {
 		t.Errorf("a line that moved declined->pursued is not counted under its CURRENT status: %s", got)

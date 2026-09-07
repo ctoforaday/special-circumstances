@@ -50,11 +50,11 @@ func TestNearMatchRanksDuplicateAboveUnrelated(t *testing.T) {
 		gapSpec{"R1-1", "the cache eviction races the concurrent reader and returns stale entries", "cache.go:88", true},
 		gapSpec{"R1-2", "the documentation heading uses the wrong capitalization", "README.md:1", true})
 
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := NearMatch(FamilyOfBoard(b), "cache eviction races the reader returning stale entries", "cache.go", 5)
+	got := NearMatch(b, "cache eviction races the reader returning stale entries", "cache.go", 5)
 	if len(got) == 0 {
 		t.Fatal("expected at least one near-match")
 	}
@@ -78,13 +78,13 @@ func TestNearMatchLocationBonus(t *testing.T) {
 	mintBoard(t, runDir,
 		gapSpec{"R1-1", "an off-by-one in the loop bound", "parser.go:42", true})
 
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Same candidate text; only the presence of the matching --quote differs.
-	without := NearMatch(FamilyOfBoard(b), "off-by-one in the loop bound", "", 5)
-	with := NearMatch(FamilyOfBoard(b), "off-by-one in the loop bound", "parser.go:42", 5)
+	without := NearMatch(b, "off-by-one in the loop bound", "", 5)
+	with := NearMatch(b, "off-by-one in the loop bound", "parser.go:42", 5)
 	if len(without) != 1 || len(with) != 1 {
 		t.Fatalf("expected one match each, got without=%d with=%d", len(without), len(with))
 	}
@@ -99,11 +99,11 @@ func TestNearMatchScoresClosedGaps(t *testing.T) {
 	mintBoard(t, runDir,
 		gapSpec{"R1-1", "the retry backoff overflows on the tenth attempt", "retry.go:12", false})
 
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := NearMatch(FamilyOfBoard(b), "retry backoff overflows on the tenth attempt", "", 5)
+	got := NearMatch(b, "retry backoff overflows on the tenth attempt", "", 5)
 	if len(got) != 1 || got[0].ID != "R1-1" {
 		t.Fatalf("closed gap must still be screened: %+v", got)
 	}
@@ -120,15 +120,15 @@ func TestNearMatchTopNAndNoOverlap(t *testing.T) {
 		specs = append(specs, gapSpec{id, "shared token alpha beta gamma delta " + id, "file.go", true})
 	}
 	mintBoard(t, runDir, specs...)
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := NearMatch(FamilyOfBoard(b), "alpha beta gamma delta", "", 3)
+	got := NearMatch(b, "alpha beta gamma delta", "", 3)
 	if len(got) != 3 {
 		t.Errorf("topN=3 must cap the result at 3, got %d", len(got))
 	}
-	none := NearMatch(FamilyOfBoard(b), "wholly unrelated zulu yankee xray tokens", "", 5)
+	none := NearMatch(b, "wholly unrelated zulu yankee xray tokens", "", 5)
 	if len(none) != 0 {
 		t.Errorf("a candidate with no overlap must return nothing, got %+v", none)
 	}

@@ -123,7 +123,7 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := record.BoardState(runtest.Open(t, runDir))
+	b, err := record.FamilyOf(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

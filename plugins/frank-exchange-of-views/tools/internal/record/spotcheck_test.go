@@ -10,14 +10,22 @@ import (
 )
 
 // board builds a Board with the gaps and events a spot-check audit reads.
-func spotBoard(gaps map[string]*Gap, evs ...*Event) *Board {
-	// GapOrder names every gap, as the fold guarantees; sorted so the fixture is deterministic.
+func spotBoard(gaps map[string]*Gap, evs ...*Event) Family {
+	// Sorted ids so the fixture family is deterministic, as the fold's GapOrder was.
 	var order []string
 	for id := range gaps {
 		order = append(order, id)
 	}
 	sort.Strings(order)
-	return &Board{Gaps: gaps, GapOrder: order, Events: evs}
+	var ordered []*Gap
+	for _, id := range order {
+		g := gaps[id]
+		if g != nil && g.ID == "" {
+			g.ID = id
+		}
+		ordered = append(ordered, g)
+	}
+	return NewFamily(ordered, evs)
 }
 
 func closedIn(round int) *Gap { return &Gap{HasClosed: true, ClosedRound: round, Open: false} }
@@ -32,7 +40,7 @@ func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Close{}),
 		recordtest.Event(t, "red-merge-r2", 2, &recordpb.Position{}),
 	)
-	_, debt, _ := SpotCheckAudit(FamilyOfBoard(b))
+	_, debt, _ := SpotCheckAudit(b)
 	if len(debt) != 1 || debt[0] != 2 {
 		t.Fatalf("round 2 entered with an archived closure and sampled none — expected debt [2], got %v", debt)
 	}
@@ -42,7 +50,7 @@ func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 	b = spotBoard(map[string]*Gap{"R2-1": closedIn(2)},
 		recordtest.Event(t, "red-merge-r2", 2, &recordpb.Close{}),
 	)
-	if _, debt, _ := SpotCheckAudit(FamilyOfBoard(b)); len(debt) != 0 {
+	if _, debt, _ := SpotCheckAudit(b); len(debt) != 0 {
 		t.Errorf("a closure made DURING the round was not in the archive at its start; no debt is owed: %v", debt)
 	}
 
@@ -52,7 +60,7 @@ func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Close{}),
 		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Position{}),
 	)
-	if _, debt, _ := SpotCheckAudit(FamilyOfBoard(b)); len(debt) != 0 {
+	if _, debt, _ := SpotCheckAudit(b); len(debt) != 0 {
 		t.Errorf("the merge did not sit in round 2; no duty was skipped: %v", debt)
 	}
 }
@@ -63,7 +71,7 @@ func TestSpotCheckDischargeClearsTheDebt(t *testing.T) {
 		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Close{}),
 		recordtest.Event(t, "red-merge-r2", 2, &recordpb.SpotCheck{Ids: []string{"R1-1"}, Reason: proto.String("the anchor still resolves")}),
 	)
-	checks, debt, falseEmpty := SpotCheckAudit(FamilyOfBoard(b))
+	checks, debt, falseEmpty := SpotCheckAudit(b)
 	if len(debt) != 0 || len(falseEmpty) != 0 {
 		t.Fatalf("a real sample discharges the duty: debt=%v falseEmpty=%v", debt, falseEmpty)
 	}
@@ -83,7 +91,7 @@ func TestAFalseEmptyClaimIsCaught(t *testing.T) {
 		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Close{}),
 		recordtest.Event(t, "red-merge-r2", 2, &recordpb.SpotCheck{None: proto.Bool(true), Reason: proto.String("nothing archived")}),
 	)
-	_, debt, falseEmpty := SpotCheckAudit(FamilyOfBoard(b))
+	_, debt, falseEmpty := SpotCheckAudit(b)
 	if len(falseEmpty) != 1 {
 		t.Fatalf("a --none claim against a non-empty archive must be caught: %v", falseEmpty)
 	}
@@ -100,13 +108,13 @@ func TestAFalseEmptyClaimIsCaught(t *testing.T) {
 	b = spotBoard(map[string]*Gap{},
 		recordtest.Event(t, "red-merge-r1", 1, &recordpb.SpotCheck{None: proto.Bool(true), Reason: proto.String("nothing archived")}),
 	)
-	if _, _, fe := SpotCheckAudit(FamilyOfBoard(b)); len(fe) != 0 {
+	if _, _, fe := SpotCheckAudit(b); len(fe) != 0 {
 		t.Errorf("an honestly-empty round is a discharge, not a violation: %v", fe)
 	}
 }
 
 func TestSpotCheckAuditHandlesANilBoard(t *testing.T) {
-	if c, d, f := SpotCheckAudit(FamilyOfBoard(nil)); c != nil || d != nil || f != nil {
+	if c, d, f := SpotCheckAudit(NewFamily(nil, nil)); c != nil || d != nil || f != nil {
 		t.Errorf("a nil board must not panic or invent violations: %v %v %v", c, d, f)
 	}
 }

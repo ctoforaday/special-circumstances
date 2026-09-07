@@ -85,23 +85,6 @@ func EstoppelConflict(f Family, quote string) (gapID, prescribed string) {
 	return "", ""
 }
 
-// DeclineStats counts how often blue exercised its right to disagree with a concrete
-// proposal — the measurement that falsifies this whole design if it comes back zero.
-//
-// offered: gaps red gave concrete text for. applied: those blue took verbatim. declined:
-// those blue answered with its OWN edit instead, or contested.
-//
-// IF BLUE NEVER DECLINES, THE MECHANISM IS MANUFACTURING AGREEMENT RATHER THAN EARNING IT.
-// Applying is instant and free; a counter-edit costs a round and invites re-audit; a dispute
-// needs red's agreement. The cheapest path is always compliance, so a 100% apply rate is the
-// same pathology this file exists to fix, inverted — and it is only visible if counted.
-//
-// A gap red offered text for and blue has not answered at all is neither applied nor
-// declined: it is unanswered, and it is left out of both rather than scored as agreement.
-func DeclineStats(b *Board) (offered, applied, declined int) {
-	return DeclineStatsOf(b.Events, b.Gaps)
-}
-
 // DeclineStatsOf is DeclineStats over the family pieces themselves (events + the gap index),
 // for the run-shaped renders.
 func DeclineStatsOf(evs []*Event, gaps map[string]*Gap) (offered, applied, declined int) {
@@ -187,14 +170,6 @@ func ProposalAppliedVerbatim(run Run, gapID, old, new string) (bool, error) {
 // reading ZERO both when the guard never fired and when someone reworded the message (#283).
 // Write `recordpb.FrictionKind_FRICTION_KIND_ESTOPPEL` / `_TOOL_ERROR`; read the field.
 
-// EstoppelRejections counts the mints refused because their location was text red itself
-// prescribed and blue applied verbatim.
-//
-// It counts the FIELD, never the message. Rewriting the refusal's wording — which is prose
-// aimed at a seat and should stay editable — must not move a number an operator reads as
-// evidence about red's behaviour.
-func EstoppelRejections(b *Board) int { return EstoppelRejectionsOf(b.Events) }
-
 // EstoppelRejectionsOf is EstoppelRejections over the events themselves.
 func EstoppelRejectionsOf(evs []*Event) int {
 	n := 0
@@ -216,21 +191,6 @@ func EstoppelRejectionsOf(evs []*Event) int {
 // value (`recordpb.CheckKind_CHECK_KIND_COMPUTATION`) and the QUESTION now has one home:
 // `Gap.NeedsComputation()` in replay.go, which every one of those sites calls. Where a lowercase
 // spelling is genuinely needed for a projection it is `recordpb.Spelling`, never a literal.
-
-// proofNames is ProofAnswers against a board the caller already has. The projections run it per
-// open gap, and re-reading the whole record each time would make a board render quadratic in its
-// own size.
-func proofNames(b *Board, gapID string) bool {
-	if gapID == "" || b == nil {
-		return false
-	}
-	for _, e := range b.Events {
-		if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && p.GetAnswers() == gapID {
-			return true
-		}
-	}
-	return false
-}
 
 // ProofAnswers reports whether any recorded proof names this gap in its --answers.
 //

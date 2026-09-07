@@ -339,7 +339,7 @@ func TestReleaseHeldLocksIsSafeWhenNothingIsHeld(t *testing.T) {
 		t.Fatal(err)
 	}
 	releaseHeldLocks()
-	if _, err := BoardState(mustRun(t, runDir)); err != nil {
+	if _, err := FamilyOf(mustRun(t, runDir)); err != nil {
 		t.Errorf("board replay after a spurious release: %v", err)
 	}
 }

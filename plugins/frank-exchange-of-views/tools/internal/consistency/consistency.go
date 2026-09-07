@@ -245,15 +245,17 @@ func Check(run record.Run) ([]string, error) {
 		add("docket-pairing", "motion %s has a docket RULING and no filing this walk could pair it to — its disposition settled nothing, on this oracle and on the board alike", id)
 	}
 
-	// ---- the replay itself ----
-	board, err := record.BoardState(run)
+	// ---- the family, which replaced the replay (plans/board-as-views.md wave 7) ----
+	// GapStates is now the one assembly every production reader derives from; the oracle holds
+	// IT to the raw walk, exactly as it held the fold.
+	fam, err := record.FamilyOf(run)
 	if err != nil {
-		// The walk tolerates what the replay refuses (a mutation on an unknown gap), so a record
-		// the replay cannot read at all is itself the finding.
-		return append(v, fmt.Sprintf("replay-refused: BoardState errored where the raw walk did not: %v", err)), nil
+		// The walk tolerates what the family read refuses, so a record the family cannot be
+		// assembled from at all is itself the finding.
+		return append(v, fmt.Sprintf("family-refused: FamilyOf errored where the raw walk did not: %v", err)), nil
 	}
 	for id, g := range gt.gaps {
-		rg := board.Gaps[id]
+		rg := fam.Gap(id)
 		if rg == nil {
 			add("replay-agreement", "gap %s exists in the raw walk and not on the board", id)
 			continue
@@ -277,9 +279,9 @@ func Check(run record.Run) ([]string, error) {
 				recordpb.Word(rg.Severity), recordpb.Word(rg.Likelihood), recordpb.Word(rg.Impact), recordpb.Word(rg.ComplexityCost))
 		}
 	}
-	for id := range board.Gaps {
-		if gt.gaps[id] == nil {
-			add("replay-agreement", "gap %s exists on the board and not in the raw walk", id)
+	for _, rg := range fam.Gaps {
+		if gt.gaps[rg.ID] == nil {
+			add("replay-agreement", "gap %s exists in the family and not in the raw walk", rg.ID)
 		}
 	}
 
@@ -352,7 +354,7 @@ func Check(run record.Run) ([]string, error) {
 		}
 	}
 
-	fj := record.FindingsJSONOf(board.Events)
+	fj := record.FindingsJSONOf(fam.Events)
 	gotLabels := map[string]bool{}
 	for _, f := range fj.Findings {
 		gotLabels[f.Label] = true
@@ -417,7 +419,7 @@ func Check(run record.Run) ([]string, error) {
 	}
 
 	// ---- the lineage graph ----
-	mmd := graph.Mermaid(record.FamilyOfBoard(board))
+	mmd := graph.Mermaid(fam)
 	for id, g := range gt.gaps {
 		if !strings.Contains(mmd, `["`+id) && !strings.Contains(mmd, id) {
 			add("graph", "gap %s has no node in the mermaid graph", id)

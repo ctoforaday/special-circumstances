@@ -143,23 +143,5 @@ func NewFamily(gaps []*Gap, evs []*Event) Family {
 	return Family{Gaps: gaps, Events: evs, byID: GapsByID(gaps)}
 }
 
-// FamilyOfBoard is the TRANSITIONAL constructor for a caller still holding a fold-built Board
-// (the fuzz harness until its wave-6.5 re-point). It reads exactly what the retired signatures
-// read; it dies with the fold in wave 7.
-func FamilyOfBoard(b *Board) Family {
-	if b == nil {
-		return NewFamily(nil, nil)
-	}
-	// GapOrder names every gap on a fold-built board; a fixture that leaves it empty is
-	// stating a board with no listed gaps, exactly as the GapOrder walks always read it.
-	gaps := make([]*Gap, 0, len(b.GapOrder))
-	for _, id := range b.GapOrder {
-		if g := b.Gaps[id]; g != nil {
-			gaps = append(gaps, g)
-		}
-	}
-	return NewFamily(gaps, b.Events)
-}
-
 // Gap is the family's index: the gap by id, or nil — the same answer b.Gaps[id] gave.
 func (f Family) Gap(id string) *Gap { return f.byID[id] }

@@ -9,15 +9,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// board assembles a Board directly from events, so these tests exercise the estoppel logic
+// board assembles a Family directly from events, so these tests exercise the estoppel logic
 // rather than the shard reader (which record_test.go already covers).
-func board(t *testing.T, gapFix map[string]string, evs []*Event) *Board {
+func board(t *testing.T, gapFix map[string]string, evs []*Event) Family {
 	t.Helper()
-	b := &Board{Gaps: map[string]*Gap{}}
+	var order []string
 	for id := range gapFix {
-		b.GapOrder = append(b.GapOrder, id)
+		order = append(order, id)
 	}
-	sort.Strings(b.GapOrder)
+	sort.Strings(order)
+	gaps := map[string]*Gap{}
 	for id, fixNew := range gapFix {
 		m := &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), FixBasis: proto.String("proposed")}
 		if fixNew != "" {
@@ -27,10 +28,13 @@ func board(t *testing.T, gapFix map[string]string, evs []*Event) *Board {
 			m.Location = proto.String("OLD:" + id)
 			m.FixNew = proto.String(fixNew)
 		}
-		b.Gaps[id] = &Gap{ID: id, Open: true, Mint: m}
+		gaps[id] = &Gap{ID: id, Open: true, Mint: m}
 	}
-	b.Events = evs
-	return b
+	var ordered []*Gap
+	for _, id := range order {
+		ordered = append(ordered, gaps[id])
+	}
+	return NewFamily(ordered, evs)
 }
 
 const prescribed = "Five verification approaches agree, all sharing one definition of primality."
@@ -56,7 +60,7 @@ func edit(t *testing.T, gapID string, verbatim bool) *Event {
 func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
 	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", true)})
 
-	id, got := EstoppelConflict(FamilyOfBoard(b), "Five verification approaches agree, all sharing one definition of primality.")
+	id, got := EstoppelConflict(b, "Five verification approaches agree, all sharing one definition of primality.")
 	if id != "R1-1" {
 		t.Fatalf("EstoppelConflict = %q, want R1-1 — red re-raising its own prescribed text went undetected", id)
 	}
@@ -68,7 +72,7 @@ func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
 // A fragment of the prescribed sentence is the same act as quoting the whole of it.
 func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
 	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", true)})
-	if id, _ := EstoppelConflict(FamilyOfBoard(b), "agree, all sharing one definition of primality"); id != "R1-1" {
+	if id, _ := EstoppelConflict(b, "agree, all sharing one definition of primality"); id != "R1-1" {
 		t.Errorf("a quoted FRAGMENT of red's own prescription escaped the guard (got %q)", id)
 	}
 }
@@ -77,7 +81,7 @@ func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
 // blue's authorship and red audits it normally — that is the right to disagree staying real.
 func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", false)})
-	if id, _ := EstoppelConflict(FamilyOfBoard(b), prescribed); id != "" {
+	if id, _ := EstoppelConflict(b, prescribed); id != "" {
 		t.Errorf("red was estopped from auditing text BLUE authored (gap %q) — a counter-edit is not red's prescription", id)
 	}
 }
@@ -86,7 +90,7 @@ func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 // shield over the report.
 func TestNoEstoppelForUnrelatedText(t *testing.T) {
 	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", true)})
-	if id, _ := EstoppelConflict(FamilyOfBoard(b), "An entirely different sentence about sieve performance and its costs."); id != "" {
+	if id, _ := EstoppelConflict(b, "An entirely different sentence about sieve performance and its costs."); id != "" {
 		t.Errorf("an unrelated finding was estopped by gap %q — the guard is over-broad", id)
 	}
 }
@@ -95,7 +99,7 @@ func TestNoEstoppelForUnrelatedText(t *testing.T) {
 // real finding is worse than missing an estoppel, so the guard declines to fire here.
 func TestShortPrescriptionsDoNotEstop(t *testing.T) {
 	b := board(t, map[string]string{"R1-1": "7 is prime."}, []*Event{edit(t, "R1-1", true)})
-	if id, _ := EstoppelConflict(FamilyOfBoard(b), "7 is prime."); id != "" {
+	if id, _ := EstoppelConflict(b, "7 is prime."); id != "" {
 		t.Errorf("a %d-character prescription estopped a finding (gap %q); the floor is %d",
 			len("7 is prime."), id, minEstoppelOverlap)
 	}
@@ -115,7 +119,7 @@ func TestDeclineStatsSeparatesAppliedFromDeclinedFromUnanswered(t *testing.T) {
 		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.BlueEdit{Answers: proto.String("R1-4")}),
 	})
 
-	offered, applied, declined := DeclineStats(b)
+	offered, applied, declined := DeclineStatsOf(b.Events, GapsByID(b.Gaps))
 	if offered != 3 {
 		t.Errorf("offered = %d, want 3 — only gaps carrying a concrete proposal are offers", offered)
 	}
@@ -145,7 +149,7 @@ func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 		fr("merge mint: estoppel — this gap's location is text YOU prescribed"),
 		fr("Refused: you are raising a fresh gap against your own prescription."), // reworded
 	})
-	if got := EstoppelRejections(b); got != 2 {
+	if got := EstoppelRejectionsOf(b.Events); got != 2 {
 		t.Errorf("EstoppelRejections = %d, want 2 — rewording the message must not move a number read as evidence about red", got)
 	}
 }
@@ -158,7 +162,7 @@ func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
 	b := board(t, nil, []*Event{
 		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Log{}),
 	})
-	if got := EstoppelRejections(b); got != 0 {
+	if got := EstoppelRejectionsOf(b.Events); got != 0 {
 		t.Errorf("EstoppelRejections = %d, want 0 — a seat QUOTING the refusal did not cause one", got)
 	}
 }
@@ -169,7 +173,7 @@ func TestNoRejectionsCountsZero(t *testing.T) {
 	b := board(t, nil, []*Event{
 		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Log{Text: proto.String("the fetch cache refused an unreachable url"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 	})
-	if got := EstoppelRejections(b); got != 0 {
+	if got := EstoppelRejectionsOf(b.Events); got != 0 {
 		t.Errorf("EstoppelRejections = %d, want 0", got)
 	}
 }

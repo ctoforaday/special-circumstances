@@ -328,7 +328,7 @@ func seatRunForContracts(t *testing.T) string {
 		"--reason", "the computation a probe re-runs"); err != nil {
 		t.Fatalf("seed proof: %v", err)
 	}
-	b, err := record.BoardState(runtest.Open(t, runDir))
+	b, err := record.FamilyOf(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

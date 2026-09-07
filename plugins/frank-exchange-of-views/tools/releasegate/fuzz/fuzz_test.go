@@ -2496,7 +2496,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	if board, err := record.FamilyOf(runtest.Open(t, runDir)); err == nil {
 		openCount := 0
 		for _, gOrd := range board.Gaps {
-		id := gOrd.ID
+			id := gOrd.ID
 			if g := board.Gap(id); g != nil && g.Open {
 				openCount++
 			}
@@ -2527,7 +2527,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		if recorded != "" && recorded != "VERIFIED" && recorded != "HALTED" && openCount == 0 && len(board.Gaps) > 0 {
 			benchClosed := 0
 			for _, gOrd := range board.Gaps {
-		id := gOrd.ID
+				id := gOrd.ID
 				if g := board.Gap(id); g != nil && g.ClosedByBench {
 					benchClosed++
 				}

@@ -6,13 +6,12 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// workStatesOfBoardT derives WorkGapState rows from a hand-built Board fixture, reading exactly
-// what the retired board-shaped path read — so the sitting/affordance tests keep their synthetic
-// fixtures while the production path reads the record (plans/board-as-views.md wave 1c).
-func workStatesOfBoardT(b *Board) []WorkGapState {
+// workStatesOfFamilyT derives WorkGapState rows from a hand-built family fixture, reading
+// exactly what the retired board-shaped path read — so the sitting/affordance tests keep their
+// synthetic fixtures while the production path reads the record.
+func workStatesOfFamilyT(f Family) []WorkGapState {
 	var out []WorkGapState
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
+	for _, g := range f.Gaps {
 		if g == nil {
 			continue
 		}
@@ -26,7 +25,7 @@ func workStatesOfBoardT(b *Board) []WorkGapState {
 			if g.Mint.CheckKind != nil {
 				w.CheckKind = recordpb.Word(g.Mint.GetCheckKind())
 			}
-			w.AwaitingProof = g.Open && g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION && !proofNames(b, g.ID)
+			w.AwaitingProof = g.Open && g.Mint.GetCheckKind() == recordpb.CheckKind_CHECK_KIND_COMPUTATION && !proofNamesT(f.Events, g.ID)
 			w.FoundBy, w.Supersedes = g.Mint.GetFoundBy(), g.Mint.GetSupersedes()
 		}
 		if !g.Open {
@@ -59,4 +58,27 @@ func mustWorkJSONT(t *testing.T, run Run) WorkJSON {
 		t.Fatal(err)
 	}
 	return w
+}
+
+// proofNamesT is the retired board-side proof join, kept for the synthetic fixtures.
+func proofNamesT(evs []*Event, gapID string) bool {
+	if gapID == "" {
+		return false
+	}
+	for _, e := range evs {
+		if p, ok := recordpb.BodyAs[*recordpb.Proof](e); ok && p.GetAnswers() == gapID {
+			return true
+		}
+	}
+	return false
+}
+
+// mustBoardJSONT is BoardJSONOfRun or a fatal.
+func mustBoardJSONT(t *testing.T, run Run) BoardJSON {
+	t.Helper()
+	bj, err := BoardJSONOfRun(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return bj
 }

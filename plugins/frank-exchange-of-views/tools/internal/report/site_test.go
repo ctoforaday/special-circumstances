@@ -9,9 +9,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-func siteFixture(t *testing.T) (string, *record.Board) {
+func siteFixture(t *testing.T) (string, record.Family) {
 	t.Helper()
-	board := &record.Board{
+	board := &boardT{
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
 		Events: []*record.Event{
@@ -22,7 +22,7 @@ func siteFixture(t *testing.T) (string, *record.Board) {
 		{File: FileReport, Nav: "Report", Blurb: "the research", Body: "## Read this first\n\nR1-1 is still open.\n"},
 		{File: FileDocket, Nav: "Board", Blurb: "the gaps", Body: "### R1-1 — eviction races the reader\n\ncache.go:88\n"},
 	}
-	return RenderSite("# Whether the cache is coherent", docs, record.FamilyOfBoard(board)), board
+	return RenderSite("# Whether the cache is coherent", docs, board.fam()), board.fam()
 }
 
 // ONE FILE. A reader opens it out of a tarball months later, offline — so nothing the page
@@ -80,7 +80,7 @@ func TestTheVerdictBadgeComesOffTheRecord(t *testing.T) {
 	if !strings.Contains(html, "1 open") {
 		t.Errorf("the board's shape is not in the header")
 	}
-	if w, cls := verdictBadge(record.FamilyOfBoard(&record.Board{})); w != "no terminal outcome recorded" || cls != "unknown" {
+	if w, cls := verdictBadge((record.NewFamily(nil, nil))); w != "no terminal outcome recorded" || cls != "unknown" {
 		t.Errorf("a run with no outcome must say so rather than show a verdict: %q %q", w, cls)
 	}
 	_ = board

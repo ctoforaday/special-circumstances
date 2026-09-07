@@ -27,7 +27,7 @@ func find(t *testing.T, checks []Check, name string) Check {
 // regression that shipped in the first cut (it looked only for closure_class and flagged all
 // eight opinion-closed gaps in the 2026-07-22 run).
 func TestGapsDisposedAcceptsBothClosureFields(t *testing.T) {
-	b := &record.Board{
+	b := &boardT{
 		GapOrder: []string{"C1", "C2", "OPEN", "TORN"},
 		Gaps: map[string]*record.Gap{
 			// The two closures land in DIFFERENT FIELDS now, which is the distinction this test is
@@ -44,7 +44,7 @@ func TestGapsDisposedAcceptsBothClosureFields(t *testing.T) {
 			"TORN": {ID: "TORN", Open: false, Closure: &recordpb.Close{}},
 		},
 	}
-	c := find(t, Run(record.FamilyOfBoard(b)), "gaps-disposed")
+	c := find(t, Run(b.fam()), "gaps-disposed")
 	if c.OK {
 		t.Fatalf("expected a torn closure to fail the check:\n%+v", c)
 	}
@@ -54,7 +54,7 @@ func TestGapsDisposedAcceptsBothClosureFields(t *testing.T) {
 }
 
 func TestFoundByResolves(t *testing.T) {
-	b := &record.Board{
+	b := &boardT{
 		GapOrder: []string{"G1", "G2"},
 		Gaps: map[string]*record.Gap{
 			"G1": {ID: "G1", Mint: &recordpb.Mint{FoundBy: []string{"L1-F1"}}},
@@ -64,14 +64,14 @@ func TestFoundByResolves(t *testing.T) {
 			recordtest.Event(t, "red-lens-r1-evidence", 1, &recordpb.Finding{Label: proto.String("L1-F1")}),
 		},
 	}
-	c := find(t, Run(record.FamilyOfBoard(b)), "found-by-resolves")
+	c := find(t, Run(b.fam()), "found-by-resolves")
 	if c.OK || len(c.Violations) != 1 || c.Violations[0] != "G2→GHOST" {
 		t.Errorf("a found_by naming a finding nobody recorded must be flagged: %+v", c)
 	}
 }
 
 func TestDialecticRefsResolve(t *testing.T) {
-	b := &record.Board{
+	b := &boardT{
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1"}},
 		Events: []*record.Event{
@@ -87,7 +87,7 @@ func TestDialecticRefsResolve(t *testing.T) {
 			recordtest.Event(t, "blue-r1", 1, &recordpb.Closing{GapId: proto.String("PHANTOM")}),
 		},
 	}
-	c := find(t, Run(record.FamilyOfBoard(b)), "dialectic-refs-resolve")
+	c := find(t, Run(b.fam()), "dialectic-refs-resolve")
 	if c.OK || len(c.Violations) != 1 || c.Violations[0] != "blue-r1/closing→PHANTOM" {
 		t.Errorf("a closing about a nonexistent gap must be flagged: %+v", c)
 	}
@@ -106,52 +106,52 @@ func TestDialecticRefsResolve(t *testing.T) {
 // whole point of one — but building it past a validation the real writer enforces turns the test
 // into a mirror of the implementation. The fixture has to be a state the WRITER could reach.
 func TestPassClosesAllGaps(t *testing.T) {
-	openUnderPass := &record.Board{
+	openUnderPass := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
 		Events:   []*record.Event{recordtest.Event(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})},
 	}
-	if c := find(t, Run(record.FamilyOfBoard(openUnderPass)), "pass-closes-all-gaps"); c.OK {
+	if c := find(t, Run(openUnderPass.fam()), "pass-closes-all-gaps"); c.OK {
 		t.Error("PASS with an open gap must fail the #67 gate")
 	}
 	// A FAIL verdict makes the gate inapplicable — an open gap is expected there.
-	failed := &record.Board{
+	failed := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
 		Events:   []*record.Event{recordtest.Event(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()})},
 	}
-	if c := find(t, Run(record.FamilyOfBoard(failed)), "pass-closes-all-gaps"); !c.OK {
+	if c := find(t, Run(failed.fam()), "pass-closes-all-gaps"); !c.OK {
 		t.Error("a FAIL verdict must not trip the PASS gate")
 	}
 	// And a terminal CEILING outcome, which is a different event and a different question.
 	// Whether outcome=VERIFIED with open gaps should ALSO be a violation is a live design
 	// question, not something this fix decided — see the issue at passClosesAllGaps.
-	ceiling := &record.Board{
+	ceiling := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
 		Events:   []*record.Event{recordtest.Event(t, "judge-r1", 1, &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("the ceiling was reached")})},
 	}
-	if c := find(t, Run(record.FamilyOfBoard(ceiling)), "pass-closes-all-gaps"); !c.OK {
+	if c := find(t, Run(ceiling.fam()), "pass-closes-all-gaps"); !c.OK {
 		t.Error("a CEILING outcome must not trip the PASS gate")
 	}
 }
 
 func TestRegisterBeforeAppend(t *testing.T) {
-	b := &record.Board{
+	b := &boardT{
 		Events: []*record.Event{
 			recordtest.Event(t, "blue-r1", 0, &recordpb.Register{}),
 			recordtest.Event(t, "blue-r1", 0, &recordpb.Position{}),
 			recordtest.Event(t, "red-lens-r1-logic", 0, &recordpb.Finding{}), // never registered
 		},
 	}
-	c := find(t, Run(record.FamilyOfBoard(b)), "register-before-append")
+	c := find(t, Run(b.fam()), "register-before-append")
 	if c.OK || len(c.Violations) != 1 {
 		t.Errorf("a seat whose first event is not register must be flagged: %+v", c)
 	}
 }
 
 func TestComputeStatsReproducesCoverage(t *testing.T) {
-	b := &record.Board{
+	b := &boardT{
 		GapOrder: []string{"G1", "G2"},
 		Gaps: map[string]*record.Gap{
 			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{FoundBy: []string{"L5-F1"}}},
@@ -185,7 +185,7 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 			recordtest.Event(t, "judge-r1", 1, &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("the ceiling was reached")}),
 		},
 	}
-	s := Compute(record.FamilyOfBoard(b))
+	s := Compute(b.fam())
 	if s.GapsTotal != 2 || s.GapsOpen != 1 || s.GapsClosed != 1 {
 		t.Errorf("gap counts wrong: %+v", s)
 	}
@@ -218,12 +218,12 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 // hand-edited shard, a legacy run, a regressed live gate — is the only thing this check is for,
 // and it is what a test of it has to construct.
 func TestPassClosesAllGapsFiresOnAPassWithAnOpenGap(t *testing.T) {
-	b := &record.Board{
+	b := &boardT{
 		Events:   []*record.Event{recordtest.Event(t, "", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
 	}
-	got := passClosesAllGaps(record.FamilyOfBoard(b))
+	got := passClosesAllGaps(b.fam())
 	if got.OK {
 		t.Fatalf("a PASS verdict with R1-1 still open must FAIL the gate; got ok with detail %q", got.Detail)
 	}
@@ -233,12 +233,12 @@ func TestPassClosesAllGapsFiresOnAPassWithAnOpenGap(t *testing.T) {
 }
 
 func TestPassClosesAllGapsPassesWhenPassClosedEverything(t *testing.T) {
-	b := &record.Board{
+	b := &boardT{
 		Events:   []*record.Event{recordtest.Event(t, "", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: false}},
 	}
-	if got := passClosesAllGaps(record.FamilyOfBoard(b)); !got.OK {
+	if got := passClosesAllGaps(b.fam()); !got.OK {
 		t.Errorf("a PASS with every gap closed must pass; got %q %v", got.Detail, got.Violations)
 	}
 }
@@ -250,12 +250,12 @@ func TestPassClosesAllGapsIsNotApplicableWithoutAPassVerdict(t *testing.T) {
 		recordtest.Event(t, "", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 		recordtest.Event(t, "", 0, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_VERIFIED)}),
 	} {
-		b := &record.Board{
+		b := &boardT{
 			Events:   []*record.Event{ev},
 			GapOrder: []string{"R1-1"},
 			Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
 		}
-		if got := passClosesAllGaps(record.FamilyOfBoard(b)); !got.OK {
+		if got := passClosesAllGaps(b.fam()); !got.OK {
 			t.Errorf("%s must leave the gate inapplicable, not fire it: %q",
 				recordpb.Word(ev.GetType()), got.Detail)
 		}
@@ -284,7 +284,7 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 	// A REGISTERED seat, because this test also asserts the whole run has no failures — and a
 	// bare event with no seat id trips register-before-append, which would make the assertion
 	// pass or fail for a reason that has nothing to do with the third state.
-	b := &record.Board{
+	b := &boardT{
 		Events: []*record.Event{
 			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
 			recordtest.Event(t, "red-merge-r1", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
@@ -292,7 +292,7 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
 	}
-	got := find(t, Run(record.FamilyOfBoard(b)), "pass-closes-all-gaps")
+	got := find(t, Run(b.fam()), "pass-closes-all-gaps")
 	if !got.NA {
 		t.Errorf("a FAIL verdict leaves the PASS gate inapplicable; NA must say so: %+v", got)
 	}
@@ -304,10 +304,10 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 	if !got.OK {
 		t.Error("an inapplicable check must not read as failed; the exit code is for violations")
 	}
-	if len(Failed(Run(record.FamilyOfBoard(b)))) != 0 {
+	if len(Failed(Run(b.fam()))) != 0 {
 		t.Error("an inapplicable check must not appear in Failed()")
 	}
-	if na := NotApplicable(Run(record.FamilyOfBoard(b))); len(na) != 1 || na[0].Name != "pass-closes-all-gaps" {
+	if na := NotApplicable(Run(b.fam())); len(na) != 1 || na[0].Name != "pass-closes-all-gaps" {
 		t.Errorf("NotApplicable() = %+v, want exactly the PASS gate", na)
 	}
 	if got.Detail == "" {
@@ -318,14 +318,14 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 // A check that HELD must not be marked n/a — the distinction has to cut both ways or it is
 // decoration.
 func TestAHeldCheckIsNotMarkedNA(t *testing.T) {
-	b := &record.Board{
+	b := &boardT{
 		Events:   []*record.Event{recordtest.Event(t, "", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"R1-1"},
 		Gaps: map[string]*record.Gap{
 			"R1-1": {ID: "R1-1", Open: false, Closure: &recordpb.Close{ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 		},
 	}
-	got := find(t, Run(record.FamilyOfBoard(b)), "pass-closes-all-gaps")
+	got := find(t, Run(b.fam()), "pass-closes-all-gaps")
 	if got.NA {
 		t.Errorf("a PASS that closed everything HELD; it did not fail to apply: %+v", got)
 	}
@@ -336,12 +336,12 @@ func TestAHeldCheckIsNotMarkedNA(t *testing.T) {
 
 // A violated check reports FAIL, and is neither n/a nor ok.
 func TestAViolatedCheckReportsFail(t *testing.T) {
-	b := &record.Board{
+	b := &boardT{
 		Events:   []*record.Event{recordtest.Event(t, "", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
 	}
-	got := find(t, Run(record.FamilyOfBoard(b)), "pass-closes-all-gaps")
+	got := find(t, Run(b.fam()), "pass-closes-all-gaps")
 	if got.OK || got.NA || got.Status() != "FAIL" {
 		t.Errorf("a PASS over an open gap must be FAIL, got %+v (status %q)", got, got.Status())
 	}

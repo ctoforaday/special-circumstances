@@ -45,7 +45,7 @@ func verifyEvent(t *testing.T, anchor string) *Event {
 }
 
 func TestAnUnverifiedCitationIsAfforded(t *testing.T) {
-	b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{citeEvent(t, "c-a08c9764", "the floor is 30 days")}}
+	b := NewFamily(nil, []*Event{citeEvent(t, "c-a08c9764", "the floor is 30 days")})
 	got := citedClaimsWithoutVerify(b.Events)
 	if len(got) != 1 || got[0] != "c-a08c9764" {
 		t.Fatalf("an unverified citation afforded %v — the join key is not reaching the event", got)
@@ -53,10 +53,10 @@ func TestAnUnverifiedCitationIsAfforded(t *testing.T) {
 }
 
 func TestAVerifiedCitationStopsBeingAfforded(t *testing.T) {
-	b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{
+	b := NewFamily(nil, []*Event{
 		citeEvent(t, "c-a08c9764", "the floor is 30 days"),
 		verifyEvent(t, "c-a08c9764"),
-	}}
+	})
 	if got := citedClaimsWithoutVerify(b.Events); len(got) != 0 {
 		t.Errorf("the affordance survived its own discharge: %v", got)
 	}
@@ -67,7 +67,7 @@ func TestAVerifiedCitationStopsBeingAfforded(t *testing.T) {
 // citation nobody looked at.
 func TestAnIndependentVerifyDoesNotDischargeACitation(t *testing.T) {
 	indep := recordtest.Event(t, "red-lens-r1-evidence", 0, &recordpb.Verify{Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)})
-	b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{citeEvent(t, "c-a08c9764", "x"), indep}}
+	b := NewFamily(nil, []*Event{citeEvent(t, "c-a08c9764", "x"), indep})
 	if got := citedClaimsWithoutVerify(b.Events); len(got) != 1 {
 		t.Errorf("an independent verify silenced an uninspected citation: %v", got)
 	}
@@ -76,11 +76,11 @@ func TestAnIndependentVerifyDoesNotDischargeACitation(t *testing.T) {
 // The affordance must reach the seat, not merely exist — the surrounding derivation is what a
 // lens actually reads.
 func TestTheLensSeesTheAffordance(t *testing.T) {
-	b := &Board{Gaps: map[string]*Gap{}, Events: []*Event{citeEvent(t, "c-a08c9764", "x")}}
+	b := NewFamily(nil, []*Event{citeEvent(t, "c-a08c9764", "x")})
 	// Asked of the SITTING, not of availableOf: "reaches the seat" is a claim about the one list
 	// a seat reads, and this test passed for as long as the affordance existed on a surface the
 	// seat's completion check could not see.
-	got := SittingOf(b.Events, workStatesOfBoardT(b), "lens", "red-lens-r1-evidence").Open
+	got := SittingOf(b.Events, workStatesOfFamilyT(b), "lens", "red-lens-r1-evidence").Open
 	if !mentions(got, "c-a08c9764") {
 		t.Errorf("the lens is not shown the unverified citation on its work list: %v", hows(got))
 	}

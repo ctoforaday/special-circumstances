@@ -48,7 +48,7 @@ func TestOneSourceCorroboratesManyClaims(t *testing.T) {
 				"One source bearing on several claims is the ordinary case; keyed on the URL, only the first could ever record.", i+1, err)
 		}
 	}
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,7 +211,7 @@ func TestRedsCitationAnchorsAreProtectedLikeBlues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +248,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,7 +281,7 @@ func TestTheEvidenceViewNamesTheContradictionsStillOwed(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	b, _ = BoardState(mustRun(t, runDir))
+	b, _ = FamilyOf(mustRun(t, runDir))
 	if got := EvidenceJSONOf(b.Events).UnansweredContradictions; len(got) != 0 {
 		t.Errorf("unanswered_contradictions = %v after the finding was raised, want empty", got)
 	}
@@ -344,7 +344,7 @@ func TestAnEmptyReopenedIDNeverReachesTheProtectedSet(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}

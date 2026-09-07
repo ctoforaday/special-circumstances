@@ -1447,9 +1447,9 @@ func writeTemp(t *testing.T, body string) string {
 
 // boardState is the replayed board, for assertions about what the events MEAN
 // rather than what they say.
-func boardState(t *testing.T, runDir string) (*record.Board, error) {
+func boardState(t *testing.T, runDir string) (record.Family, error) {
 	t.Helper()
-	return record.BoardState(runtest.Open(t, runDir))
+	return record.FamilyOf(runtest.Open(t, runDir))
 }
 
 // The other half of the contract: when a run IS live, a seat that forgot --run is
