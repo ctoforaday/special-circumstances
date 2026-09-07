@@ -871,13 +871,13 @@ while (!halted && round < maxRounds) {
   // unexamined is stated rather than assumed.
   const consolidatedClause = round === 1 ? '' : ` YOUR ROUND'S SURFACE IS THE NEW AND THE STALE, NOT THE CORPUS AGAIN (W2i): the ledger means a claim verified HIGH does not un-verify. Your duty is three things, in order: (1) verify every claim that is NEW or whose section CHANGED this round (the \`changes\` projection names them — the recorded edits, not blue's account of them); (2) re-fetch everything the ledger's staleness triggers fire on (>2 rounds since verification, volatile source, access-date drift); (3) SPOT-CHECK a sample of the already-verified pairs — your discretion which, and reopen any that has drifted. COVERAGE IS AN OBSERVABLE, NOT AN ASSUMPTION: end your pass with a COVERAGE line stating what you verified, what you sampled, and what you left unexamined this round — an unstated gap in coverage is indistinguishable from a clean sweep. YOU OWN THE WHOLE EVIDENCE PICTURE, and that is the point of there being one of you: a defect like "three claims lean on one shaky source" or "the evidence is weakest exactly where the argument is strongest" is invisible to a seat holding a slice.`
 
-  // ROLE-STABLE LENS IDENTITY (W2i): the lens number is now a ROLE, not a dispatch position.
-  // Citation slices are L1-L4, logic/completeness is ALWAYS L5, dark-side/risk is ALWAYS L6,
-  // report-voice is ALWAYS L7 —
-  // regardless of how many citation seats a round dispatches. Positional numbering silently
-  // slid L5/L6 down to L3/L4 whenever fewer than 4 citation passes ran (already true on
-  // low-claim rounds, and the common case once W2i graduates the count), which breaks the
-  // found_by role map that every cross-round lens-economics measurement is computed from.
+  // ROLE-STABLE LENS IDENTITY: a lens is identified by its AREA, and the area is what it
+  // audits — so its identity cannot depend on how many lenses a round dispatches. That is the
+  // property the found_by role map needs: every cross-round lens-economics measurement joins
+  // on it, and a credit chain reading `adversary-F1` says what found the gap without a lookup.
+  // Selecting fewer areas for a round therefore changes WHO SITS and nothing about what the
+  // seats that do sit are called. record.LensAreas holds the same list on the Go side, bound
+  // to this one in both directions by TestTheLensAreasMatchWhatTheEngineDeclares.
   for (const a of RED_AREAS) {
     if (!selectedAreas.includes(a.key)) continue
     const extra = a.key === 'evidence' ? `.${ledgerClause}${consolidatedClause}`
