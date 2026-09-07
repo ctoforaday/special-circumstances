@@ -979,55 +979,61 @@ func (DirectionRuling) EnumDescriptor() ([]byte, []int) {
 //
 // The targets below are REFERENCES THE RECORD CAN CHECK, which a borrowed quote never was: an
 // avenue id either names a line this run proposed or it does not.
-type FindingAbout int32
+//
+// IT IS `AboutKind` AND NOT `FindingAbout` BECAUSE A GAP ANCHORS THE SAME WAY. `merge mint` took
+// `--quote` and told the seat, in its own help, to "quote the sentence where it SHOULD be — that
+// is how a lens finding anchors an omission". Naming this after the finding would leave the seat
+// spelling one act two ways across two verbs, which is a worse failure for the reader of the help
+// than a slightly longer enum name is for anyone.
+type AboutKind int32
 
 const (
-	FindingAbout_FINDING_ABOUT_UNSPECIFIED FindingAbout = 0
-	FindingAbout_FINDING_ABOUT_SECTION     FindingAbout = 1
-	FindingAbout_FINDING_ABOUT_INQUIRY     FindingAbout = 2
-	FindingAbout_FINDING_ABOUT_GAP         FindingAbout = 3
+	AboutKind_ABOUT_KIND_UNSPECIFIED AboutKind = 0
+	AboutKind_ABOUT_KIND_SECTION     AboutKind = 1
+	AboutKind_ABOUT_KIND_INQUIRY     AboutKind = 2
+	AboutKind_ABOUT_KIND_GAP         AboutKind = 3
 )
 
-// Enum value maps for FindingAbout.
+// Enum value maps for AboutKind.
 var (
-	FindingAbout_name = map[int32]string{
-		0: "FINDING_ABOUT_UNSPECIFIED",
-		1: "FINDING_ABOUT_SECTION",
-		2: "FINDING_ABOUT_INQUIRY",
-		3: "FINDING_ABOUT_GAP",
+	AboutKind_name = map[int32]string{
+		0: "ABOUT_KIND_UNSPECIFIED",
+		1: "ABOUT_KIND_SECTION",
+		2: "ABOUT_KIND_INQUIRY",
+		3: "ABOUT_KIND_GAP",
 	}
-	FindingAbout_value = map[string]int32{
-		"FINDING_ABOUT_UNSPECIFIED": 0,
-		"FINDING_ABOUT_SECTION":     1,
-		"FINDING_ABOUT_INQUIRY":     2,
-		"FINDING_ABOUT_GAP":         3,
+	AboutKind_value = map[string]int32{
+		"ABOUT_KIND_UNSPECIFIED": 0,
+		"ABOUT_KIND_SECTION":     1,
+		"ABOUT_KIND_INQUIRY":     2,
+		"ABOUT_KIND_GAP":         3,
 	}
 )
 
-func (x FindingAbout) Enum() *FindingAbout {
-	p := new(FindingAbout)
+func (x AboutKind) Enum() *AboutKind {
+	p := new(AboutKind)
 	*p = x
 	return p
 }
 
-func (x FindingAbout) String() string {
+func (x AboutKind) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (FindingAbout) Descriptor() protoreflect.EnumDescriptor {
+func (AboutKind) Descriptor() protoreflect.EnumDescriptor {
 	return file_record_proto_enumTypes[14].Descriptor()
 }
 
-func (FindingAbout) Type() protoreflect.EnumType {
+func (AboutKind) Type() protoreflect.EnumType {
 	return &file_record_proto_enumTypes[14]
 }
 
-func (x FindingAbout) Number() protoreflect.EnumNumber {
+func (x AboutKind) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use FindingAbout.Descriptor instead.
-func (FindingAbout) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use AboutKind.Descriptor instead.
+func (AboutKind) EnumDescriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{14}
 }
 
@@ -2630,9 +2636,23 @@ type Mint struct {
 	Neighbor      *string `protobuf:"bytes,6,opt,name=neighbor,proto3,oneof" json:"neighbor,omitempty"`
 	Distinguisher *string `protobuf:"bytes,7,opt,name=distinguisher,proto3,oneof" json:"distinguisher,omitempty"`
 	// location is the defect's span, quoted verbatim from the report and matched against it.
-	Location    *string `protobuf:"bytes,8,opt,name=location,proto3,oneof" json:"location,omitempty"`
-	Problem     *string `protobuf:"bytes,9,opt,name=problem,proto3,oneof" json:"problem,omitempty"`
-	RequiredFix *string `protobuf:"bytes,10,opt,name=required_fix,json=requiredFix,proto3,oneof" json:"required_fix,omitempty"`
+	Location *string `protobuf:"bytes,8,opt,name=location,proto3,oneof" json:"location,omitempty"`
+	// WHAT THIS GAP IS ABOUT, when it is not about a sentence — the same pair a lens finding carries,
+	// resolved by the same code and spelled with the same two flags.
+	//
+	// It exists because the alternative was written down in mint's own help: "for a gap about
+	// something MISSING, quote the sentence where it SHOULD be". That instruction asks a seat to
+	// point at prose it is not objecting to, and the anchor it produces is a handle rather than a
+	// subject — the defect Finding.about_kind was added to remove. A gap minted FROM such a finding
+	// inherited it, so removing it on one verb and not the other left the concept half-landed.
+	//
+	// An anchor is OPTIONAL on a gap and REQUIRED on a finding, which is the pre-existing difference
+	// between the two verbs and is not changed here; what is enforced is that a gap does not claim
+	// both, because a gap has one subject.
+	AboutKind   *AboutKind `protobuf:"varint,23,opt,name=about_kind,json=aboutKind,proto3,enum=feov.record.v1.AboutKind,oneof" json:"about_kind,omitempty"`
+	AboutRef    *string    `protobuf:"bytes,24,opt,name=about_ref,json=aboutRef,proto3,oneof" json:"about_ref,omitempty"`
+	Problem     *string    `protobuf:"bytes,9,opt,name=problem,proto3,oneof" json:"problem,omitempty"`
+	RequiredFix *string    `protobuf:"bytes,10,opt,name=required_fix,json=requiredFix,proto3,oneof" json:"required_fix,omitempty"`
 	// fix_new is the text that span should become — validated against the LIVE report, so a seat
 	// cannot prescribe text without having read what it prescribes against.
 	//
@@ -2754,6 +2774,20 @@ func (x *Mint) GetDistinguisher() string {
 func (x *Mint) GetLocation() string {
 	if x != nil && x.Location != nil {
 		return *x.Location
+	}
+	return ""
+}
+
+func (x *Mint) GetAboutKind() AboutKind {
+	if x != nil && x.AboutKind != nil {
+		return *x.AboutKind
+	}
+	return AboutKind_ABOUT_KIND_UNSPECIFIED
+}
+
+func (x *Mint) GetAboutRef() string {
+	if x != nil && x.AboutRef != nil {
+		return *x.AboutRef
 	}
 	return ""
 }
@@ -3257,8 +3291,8 @@ type Finding struct {
 	// WHAT THIS FINDING IS ABOUT, when it is not about a sentence. Exactly one of `location` (a live
 	// report quote, which places a marker) or this pair is set — a finding anchored to nothing is
 	// the state the verb refuses, and one anchored to BOTH is claiming two subjects.
-	AboutKind     *FindingAbout `protobuf:"varint,9,opt,name=about_kind,json=aboutKind,proto3,enum=feov.record.v1.FindingAbout,oneof" json:"about_kind,omitempty"`
-	AboutRef      *string       `protobuf:"bytes,10,opt,name=about_ref,json=aboutRef,proto3,oneof" json:"about_ref,omitempty"`
+	AboutKind     *AboutKind `protobuf:"varint,9,opt,name=about_kind,json=aboutKind,proto3,enum=feov.record.v1.AboutKind,oneof" json:"about_kind,omitempty"`
+	AboutRef      *string    `protobuf:"bytes,10,opt,name=about_ref,json=aboutRef,proto3,oneof" json:"about_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3349,11 +3383,11 @@ func (x *Finding) GetImpact() Grade {
 	return Grade_GRADE_UNSPECIFIED
 }
 
-func (x *Finding) GetAboutKind() FindingAbout {
+func (x *Finding) GetAboutKind() AboutKind {
 	if x != nil && x.AboutKind != nil {
 		return *x.AboutKind
 	}
-	return FindingAbout_FINDING_ABOUT_UNSPECIFIED
+	return AboutKind_ABOUT_KIND_UNSPECIFIED
 }
 
 func (x *Finding) GetAboutRef() string {
@@ -6149,7 +6183,7 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"_down_massB\n" +
 	"\n" +
-	"\b_up_mass\"\x90\x11\n" +
+	"\b_up_mass\"\x8e\x12\n" +
 	"\x04Mint\x12\x96\x01\n" +
 	"\x06gap_id\x18\x01 \x01(\tBz\x82\xb5\x18v\b\x01\x1apthe gap id is what every later act refers to; a mint without one is a finding nothing can cite, close or rule on(\x01H\x00R\x05gapId\x88\x01\x01\x12\x1e\n" +
 	"\bmint_key\x18\x02 \x01(\tH\x01R\amintKey\x88\x01\x01\x12\xf7\x01\n" +
@@ -6160,28 +6194,31 @@ const file_record_proto_rawDesc = "" +
 	"definition\x88\x01\x01\x12\x1f\n" +
 	"\bneighbor\x18\x06 \x01(\tH\x05R\bneighbor\x88\x01\x01\x12)\n" +
 	"\rdistinguisher\x18\a \x01(\tH\x06R\rdistinguisher\x88\x01\x01\x12\x1f\n" +
-	"\blocation\x18\b \x01(\tH\aR\blocation\x88\x01\x01\x12\x8d\x01\n" +
-	"\aproblem\x18\t \x01(\tBn\x82\xb5\x18j\b\x01\x1afwhat is wrong; --reason fills it too — a gap with no stated problem cannot be repaired or re-auditedH\bR\aproblem\x88\x01\x01\x12&\n" +
+	"\blocation\x18\b \x01(\tH\aR\blocation\x88\x01\x01\x12=\n" +
+	"\n" +
+	"about_kind\x18\x17 \x01(\x0e2\x19.feov.record.v1.AboutKindH\bR\taboutKind\x88\x01\x01\x12 \n" +
+	"\tabout_ref\x18\x18 \x01(\tH\tR\baboutRef\x88\x01\x01\x12\x8d\x01\n" +
+	"\aproblem\x18\t \x01(\tBn\x82\xb5\x18j\b\x01\x1afwhat is wrong; --reason fills it too — a gap with no stated problem cannot be repaired or re-auditedH\n" +
+	"R\aproblem\x88\x01\x01\x12&\n" +
 	"\frequired_fix\x18\n" +
-	" \x01(\tH\tR\vrequiredFix\x88\x01\x01\x12\x1c\n" +
-	"\afix_new\x18\f \x01(\tH\n" +
-	"R\x06fixNew\x88\x01\x01\x12 \n" +
-	"\tfix_basis\x18\r \x01(\tH\vR\bfixBasis\x88\x01\x01\x12\x88\x01\n" +
-	"\x10acceptance_check\x18\x0e \x01(\tBX\x82\xb5\x18T\b\x01\x12\x05check\x1aIthe acceptance check red will run at re-audit — the pre-agreed contractH\fR\x0facceptanceCheck\x88\x01\x01\x12\xa3\x02\n" +
+	" \x01(\tH\vR\vrequiredFix\x88\x01\x01\x12\x1c\n" +
+	"\afix_new\x18\f \x01(\tH\fR\x06fixNew\x88\x01\x01\x12 \n" +
+	"\tfix_basis\x18\r \x01(\tH\rR\bfixBasis\x88\x01\x01\x12\x88\x01\n" +
+	"\x10acceptance_check\x18\x0e \x01(\tBX\x82\xb5\x18T\b\x01\x12\x05check\x1aIthe acceptance check red will run at re-audit — the pre-agreed contractH\x0eR\x0facceptanceCheck\x88\x01\x01\x12\xa3\x02\n" +
 	"\n" +
 	"check_kind\x18\x0f \x01(\x0e2\x19.feov.record.v1.CheckKindB\xe3\x01\x82\xb5\x18\xde\x01\b\x01\x12\n" +
-	"check-kind\x1a\xcd\x01document | computation | source — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation, and measured across six runs no seat ever wrote oneH\rR\tcheckKind\x88\x01\x01\x126\n" +
-	"\bseverity\x18\x10 \x01(\x0e2\x15.feov.record.v1.GradeH\x0eR\bseverity\x88\x01\x01\x12\xbf\x01\n" +
+	"check-kind\x1a\xcd\x01document | computation | source — what would SETTLE your acceptance check. A run where every check is a document probe can never ask for a computation, and measured across six runs no seat ever wrote oneH\x0fR\tcheckKind\x88\x01\x01\x126\n" +
+	"\bseverity\x18\x10 \x01(\x0e2\x15.feov.record.v1.GradeH\x10R\bseverity\x88\x01\x01\x12\xbf\x01\n" +
 	"\n" +
-	"likelihood\x18\x11 \x01(\x0e2\x15.feov.record.v1.GradeB\x82\x01\x82\xb5\x18~\b\x01\x1azit multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungradedH\x0fR\n" +
+	"likelihood\x18\x11 \x01(\x0e2\x15.feov.record.v1.GradeB\x82\x01\x82\xb5\x18~\b\x01\x1azit multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungradedH\x11R\n" +
 	"likelihood\x88\x01\x01\x12\xb7\x01\n" +
-	"\x06impact\x18\x12 \x01(\x0e2\x15.feov.record.v1.GradeB\x82\x01\x82\xb5\x18~\b\x01\x1azit multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungradedH\x10R\x06impact\x88\x01\x01\x12C\n" +
-	"\x0fcomplexity_cost\x18\x13 \x01(\x0e2\x15.feov.record.v1.GradeH\x11R\x0ecomplexityCost\x88\x01\x01\x12\x1e\n" +
+	"\x06impact\x18\x12 \x01(\x0e2\x15.feov.record.v1.GradeB\x82\x01\x82\xb5\x18~\b\x01\x1azit multiplies into the gap's mass, so an absent grade is scored as ZERO and the gap reads as harmless rather than ungradedH\x12R\x06impact\x88\x01\x01\x12C\n" +
+	"\x0fcomplexity_cost\x18\x13 \x01(\x0e2\x15.feov.record.v1.GradeH\x13R\x0ecomplexityCost\x88\x01\x01\x12\x1e\n" +
 	"\n" +
 	"supersedes\x18\x14 \x03(\tR\n" +
 	"supersedes\x12\x19\n" +
 	"\bfound_by\x18\x15 \x03(\tR\afoundBy\x12$\n" +
-	"\vmint_reason\x18\x16 \x01(\tH\x12R\n" +
+	"\vmint_reason\x18\x16 \x01(\tH\x14R\n" +
 	"mintReason\x88\x01\x01B\t\n" +
 	"\a_gap_idB\v\n" +
 	"\t_mint_keyB\b\n" +
@@ -6191,7 +6228,10 @@ const file_record_proto_rawDesc = "" +
 	"\v_definitionB\v\n" +
 	"\t_neighborB\x10\n" +
 	"\x0e_distinguisherB\v\n" +
-	"\t_locationB\n" +
+	"\t_locationB\r\n" +
+	"\v_about_kindB\f\n" +
+	"\n" +
+	"_about_refB\n" +
 	"\n" +
 	"\b_problemB\x0f\n" +
 	"\r_required_fixB\n" +
@@ -6264,7 +6304,7 @@ const file_record_proto_rawDesc = "" +
 	"\x04none\x18\x03 \x01(\bH\x00R\x04none\x88\x01\x01\x12\x1b\n" +
 	"\x06reason\x18\x04 \x01(\tH\x01R\x06reason\x88\x01\x01B\a\n" +
 	"\x05_noneB\t\n" +
-	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xb7\x04\n" +
+	"\a_reasonJ\x04\b\x02\x10\x03R\x05notes\"\xb4\x04\n" +
 	"\aFinding\x12\"\n" +
 	"\n" +
 	"finding_id\x18\x01 \x01(\tH\x00R\tfindingId\x88\x01\x01\x12$\n" +
@@ -6277,9 +6317,9 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"likelihood\x18\a \x01(\x0e2\x15.feov.record.v1.GradeH\x06R\n" +
 	"likelihood\x88\x01\x01\x122\n" +
-	"\x06impact\x18\b \x01(\x0e2\x15.feov.record.v1.GradeH\aR\x06impact\x88\x01\x01\x12@\n" +
+	"\x06impact\x18\b \x01(\x0e2\x15.feov.record.v1.GradeH\aR\x06impact\x88\x01\x01\x12=\n" +
 	"\n" +
-	"about_kind\x18\t \x01(\x0e2\x1c.feov.record.v1.FindingAboutH\bR\taboutKind\x88\x01\x01\x12 \n" +
+	"about_kind\x18\t \x01(\x0e2\x19.feov.record.v1.AboutKindH\bR\taboutKind\x88\x01\x01\x12 \n" +
 	"\tabout_ref\x18\n" +
 	" \x01(\tH\tR\baboutRef\x88\x01\x01B\r\n" +
 	"\v_finding_idB\x0e\n" +
@@ -6738,12 +6778,12 @@ const file_record_proto_rawDesc = "" +
 	"\x1cDIRECTION_RULING_UNSPECIFIED\x10\x00\x12F\n" +
 	"\x19DIRECTION_RULING_ENDORSED\x10\x01\x1a'\x8a\xb5\x18#worth this run's time — pursue it\x12M\n" +
 	"\x1dDIRECTION_RULING_OUT_OF_SCOPE\x10\x02\x1a*\x8a\xb5\x18&a real question, but not THIS question\x12Y\n" +
-	"\x19DIRECTION_RULING_TOO_THIN\x10\x03\x1a:\x8a\xb5\x186in scope, but the hypothesis does not carry its budget*\x86\x04\n" +
-	"\fFindingAbout\x12\x1d\n" +
-	"\x19FINDING_ABOUT_UNSPECIFIED\x10\x00\x12\xb0\x01\n" +
-	"\x15FINDING_ABOUT_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\xab\x01\n" +
-	"\x15FINDING_ABOUT_INQUIRY\x10\x02\x1a\x8f\x01\x8a\xb5\x18\x8a\x01a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor\x12v\n" +
-	"\x11FINDING_ABOUT_GAP\x10\x03\x1a_\x8a\xb5\x18[a gap already on the docket, by its id — a defect in the record rather than in the report*\x90\x05\n" +
+	"\x19DIRECTION_RULING_TOO_THIN\x10\x03\x1a:\x8a\xb5\x186in scope, but the hypothesis does not carry its budget*\xf7\x03\n" +
+	"\tAboutKind\x12\x1a\n" +
+	"\x16ABOUT_KIND_UNSPECIFIED\x10\x00\x12\xad\x01\n" +
+	"\x12ABOUT_KIND_SECTION\x10\x01\x1a\x94\x01\x8a\xb5\x18\x8f\x01a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there\x12\xa8\x01\n" +
+	"\x12ABOUT_KIND_INQUIRY\x10\x02\x1a\x8f\x01\x8a\xb5\x18\x8a\x01a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor\x12s\n" +
+	"\x0eABOUT_KIND_GAP\x10\x03\x1a_\x8a\xb5\x18[a gap already on the docket, by its id — a defect in the record rather than in the report*\x90\x05\n" +
 	"\x0eSourceTextRead\x12 \n" +
 	"\x1cSOURCE_TEXT_READ_UNSPECIFIED\x10\x00\x12\xb6\x01\n" +
 	"\x17SOURCE_TEXT_READ_UNREAD\x10\x01\x1a\x98\x01\x8a\xb5\x18\x93\x01the text was never read — the citation rests on a record that the source EXISTS (a bibliographic index, a search result), not on anything it says\x12\xf6\x01\n" +
@@ -6813,7 +6853,7 @@ var file_record_proto_goTypes = []any{
 	(GradeRuling)(0),                      // 11: feov.record.v1.GradeRuling
 	(PetitionRuling)(0),                   // 12: feov.record.v1.PetitionRuling
 	(DirectionRuling)(0),                  // 13: feov.record.v1.DirectionRuling
-	(FindingAbout)(0),                     // 14: feov.record.v1.FindingAbout
+	(AboutKind)(0),                        // 14: feov.record.v1.AboutKind
 	(SourceTextRead)(0),                   // 15: feov.record.v1.SourceTextRead
 	(LogSource)(0),                        // 16: feov.record.v1.LogSource
 	(LogType)(0),                          // 17: feov.record.v1.LogType
@@ -6913,58 +6953,59 @@ var file_record_proto_depIdxs = []int32{
 	26, // 38: feov.record.v1.NewMint.by_severity:type_name -> feov.record.v1.SeverityTally
 	67, // 39: feov.record.v1.NewMint.by_class:type_name -> feov.record.v1.NewMint.ByClassEntry
 	1,  // 40: feov.record.v1.SeverityTally.grade:type_name -> feov.record.v1.Grade
-	4,  // 41: feov.record.v1.Mint.check_kind:type_name -> feov.record.v1.CheckKind
-	1,  // 42: feov.record.v1.Mint.severity:type_name -> feov.record.v1.Grade
-	1,  // 43: feov.record.v1.Mint.likelihood:type_name -> feov.record.v1.Grade
-	1,  // 44: feov.record.v1.Mint.impact:type_name -> feov.record.v1.Grade
-	1,  // 45: feov.record.v1.Mint.complexity_cost:type_name -> feov.record.v1.Grade
-	5,  // 46: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.Disposition
-	1,  // 47: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
-	1,  // 48: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
-	1,  // 49: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
-	1,  // 50: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
-	1,  // 51: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
-	1,  // 52: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
-	1,  // 53: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
-	14, // 54: feov.record.v1.Finding.about_kind:type_name -> feov.record.v1.FindingAbout
-	15, // 55: feov.record.v1.Cite.source_text_read:type_name -> feov.record.v1.SourceTextRead
-	6,  // 56: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
-	7,  // 57: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
-	8,  // 58: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
-	9,  // 59: feov.record.v1.Avenue.status:type_name -> feov.record.v1.AvenueStatus
-	17, // 60: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
-	16, // 61: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
-	10, // 62: feov.record.v1.Motion.subject:type_name -> feov.record.v1.MotionSubject
-	51, // 63: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
-	52, // 64: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
-	55, // 65: feov.record.v1.Motion.direction:type_name -> feov.record.v1.DirectionMotion
-	53, // 66: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
-	18, // 67: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
-	1,  // 68: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
-	19, // 69: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
-	5,  // 70: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
-	10, // 71: feov.record.v1.MotionRule.subject:type_name -> feov.record.v1.MotionSubject
-	11, // 72: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
-	12, // 73: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
-	13, // 74: feov.record.v1.MotionRule.direction:type_name -> feov.record.v1.DirectionRuling
-	54, // 75: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
-	20, // 76: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
-	10, // 77: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
-	2,  // 78: feov.record.v1.RoundVerdict.verdict:type_name -> feov.record.v1.Verdict
-	3,  // 79: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
-	68, // 80: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
-	69, // 81: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
-	69, // 82: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
-	69, // 83: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	69, // 84: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	70, // 85: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	22, // 86: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	21, // 87: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	88, // [88:88] is the sub-list for method output_type
-	88, // [88:88] is the sub-list for method input_type
-	86, // [86:88] is the sub-list for extension type_name
-	80, // [80:86] is the sub-list for extension extendee
-	0,  // [0:80] is the sub-list for field type_name
+	14, // 41: feov.record.v1.Mint.about_kind:type_name -> feov.record.v1.AboutKind
+	4,  // 42: feov.record.v1.Mint.check_kind:type_name -> feov.record.v1.CheckKind
+	1,  // 43: feov.record.v1.Mint.severity:type_name -> feov.record.v1.Grade
+	1,  // 44: feov.record.v1.Mint.likelihood:type_name -> feov.record.v1.Grade
+	1,  // 45: feov.record.v1.Mint.impact:type_name -> feov.record.v1.Grade
+	1,  // 46: feov.record.v1.Mint.complexity_cost:type_name -> feov.record.v1.Grade
+	5,  // 47: feov.record.v1.Close.closure_class:type_name -> feov.record.v1.Disposition
+	1,  // 48: feov.record.v1.Regrade.severity:type_name -> feov.record.v1.Grade
+	1,  // 49: feov.record.v1.Regrade.likelihood:type_name -> feov.record.v1.Grade
+	1,  // 50: feov.record.v1.Regrade.impact:type_name -> feov.record.v1.Grade
+	1,  // 51: feov.record.v1.Regrade.complexity_cost:type_name -> feov.record.v1.Grade
+	1,  // 52: feov.record.v1.Finding.severity:type_name -> feov.record.v1.Grade
+	1,  // 53: feov.record.v1.Finding.likelihood:type_name -> feov.record.v1.Grade
+	1,  // 54: feov.record.v1.Finding.impact:type_name -> feov.record.v1.Grade
+	14, // 55: feov.record.v1.Finding.about_kind:type_name -> feov.record.v1.AboutKind
+	15, // 56: feov.record.v1.Cite.source_text_read:type_name -> feov.record.v1.SourceTextRead
+	6,  // 57: feov.record.v1.Verify.outcome:type_name -> feov.record.v1.SourceOutcome
+	7,  // 58: feov.record.v1.Verify.confidence:type_name -> feov.record.v1.Confidence
+	8,  // 59: feov.record.v1.Reproduce.soundness:type_name -> feov.record.v1.Soundness
+	9,  // 60: feov.record.v1.Avenue.status:type_name -> feov.record.v1.AvenueStatus
+	17, // 61: feov.record.v1.Log.type:type_name -> feov.record.v1.LogType
+	16, // 62: feov.record.v1.Log.source:type_name -> feov.record.v1.LogSource
+	10, // 63: feov.record.v1.Motion.subject:type_name -> feov.record.v1.MotionSubject
+	51, // 64: feov.record.v1.Motion.grade:type_name -> feov.record.v1.GradeMotion
+	52, // 65: feov.record.v1.Motion.petition:type_name -> feov.record.v1.PetitionMotion
+	55, // 66: feov.record.v1.Motion.direction:type_name -> feov.record.v1.DirectionMotion
+	53, // 67: feov.record.v1.Motion.docket:type_name -> feov.record.v1.DocketMotion
+	18, // 68: feov.record.v1.GradeMotion.dimension:type_name -> feov.record.v1.GradeDimension
+	1,  // 69: feov.record.v1.GradeMotion.proposed:type_name -> feov.record.v1.Grade
+	19, // 70: feov.record.v1.PetitionMotion.class:type_name -> feov.record.v1.PetitionClass
+	5,  // 71: feov.record.v1.DocketRuling.disposition:type_name -> feov.record.v1.Disposition
+	10, // 72: feov.record.v1.MotionRule.subject:type_name -> feov.record.v1.MotionSubject
+	11, // 73: feov.record.v1.MotionRule.grade:type_name -> feov.record.v1.GradeRuling
+	12, // 74: feov.record.v1.MotionRule.petition:type_name -> feov.record.v1.PetitionRuling
+	13, // 75: feov.record.v1.MotionRule.direction:type_name -> feov.record.v1.DirectionRuling
+	54, // 76: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
+	20, // 77: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
+	10, // 78: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
+	2,  // 79: feov.record.v1.RoundVerdict.verdict:type_name -> feov.record.v1.Verdict
+	3,  // 80: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
+	68, // 81: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
+	69, // 82: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
+	69, // 83: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
+	69, // 84: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
+	69, // 85: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	70, // 86: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	22, // 87: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	21, // 88: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	89, // [89:89] is the sub-list for method output_type
+	89, // [89:89] is the sub-list for method input_type
+	87, // [87:89] is the sub-list for extension type_name
+	81, // [81:87] is the sub-list for extension extendee
+	0,  // [0:81] is the sub-list for field type_name
 }
 
 func init() { file_record_proto_init() }

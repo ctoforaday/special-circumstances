@@ -609,6 +609,21 @@ message Mint {
 
   // location is the defect's span, quoted verbatim from the report and matched against it.
   optional string location = 8;
+
+  // WHAT THIS GAP IS ABOUT, when it is not about a sentence — the same pair a lens finding carries,
+  // resolved by the same code and spelled with the same two flags.
+  //
+  // It exists because the alternative was written down in mint's own help: "for a gap about
+  // something MISSING, quote the sentence where it SHOULD be". That instruction asks a seat to
+  // point at prose it is not objecting to, and the anchor it produces is a handle rather than a
+  // subject — the defect Finding.about_kind was added to remove. A gap minted FROM such a finding
+  // inherited it, so removing it on one verb and not the other left the concept half-landed.
+  //
+  // An anchor is OPTIONAL on a gap and REQUIRED on a finding, which is the pre-existing difference
+  // between the two verbs and is not changed here; what is enforced is that a gap does not claim
+  // both, because a gap has one subject.
+  optional AboutKind about_kind = 23;
+  optional string about_ref = 24;
   optional string problem = 9 [(sql) = {
     required: true
     why: "what is wrong; --reason fills it too — a gap with no stated problem cannot be repaired or re-audited"
@@ -807,11 +822,17 @@ message SpotCheck {
 //
 // The targets below are REFERENCES THE RECORD CAN CHECK, which a borrowed quote never was: an
 // avenue id either names a line this run proposed or it does not.
-enum FindingAbout {
-  FINDING_ABOUT_UNSPECIFIED = 0;
-  FINDING_ABOUT_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
-  FINDING_ABOUT_INQUIRY = 2 [(means) = "a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor"];
-  FINDING_ABOUT_GAP = 3 [(means) = "a gap already on the docket, by its id — a defect in the record rather than in the report"];
+//
+// IT IS `AboutKind` AND NOT `FindingAbout` BECAUSE A GAP ANCHORS THE SAME WAY. `merge mint` took
+// `--quote` and told the seat, in its own help, to "quote the sentence where it SHOULD be — that
+// is how a lens finding anchors an omission". Naming this after the finding would leave the seat
+// spelling one act two ways across two verbs, which is a worse failure for the reader of the help
+// than a slightly longer enum name is for anyone.
+enum AboutKind {
+  ABOUT_KIND_UNSPECIFIED = 0;
+  ABOUT_KIND_SECTION = 1 [(means) = "a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there"];
+  ABOUT_KIND_INQUIRY = 2 [(means) = "a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty's own anchor"];
+  ABOUT_KIND_GAP = 3 [(means) = "a gap already on the docket, by its id — a defect in the record rather than in the report"];
 }
 
 message Finding {
@@ -827,7 +848,7 @@ message Finding {
   // WHAT THIS FINDING IS ABOUT, when it is not about a sentence. Exactly one of `location` (a live
   // report quote, which places a marker) or this pair is set — a finding anchored to nothing is
   // the state the verb refuses, and one anchored to BOTH is claiming two subjects.
-  optional FindingAbout about_kind = 9;
+  optional AboutKind about_kind = 9;
   optional string about_ref = 10;
 }
 

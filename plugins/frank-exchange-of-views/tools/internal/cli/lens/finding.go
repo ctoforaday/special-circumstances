@@ -47,7 +47,8 @@ func newFinding() *cobra.Command {
 		}
 		location := seat.Str(cmd, flags.Quote)
 		aboutKind, aboutRef := seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About)
-		about, aboutSet, aerr := resolveAbout(run, aboutKind, aboutRef)
+		about, aboutRefP, aerr := record.ResolveAbout("lens finding", run, aboutKind, aboutRef)
+		aboutSet := about != nil
 		if aerr != nil {
 			return nil, aerr
 		}
@@ -133,7 +134,7 @@ func newFinding() *cobra.Command {
 			Location:   proto.String(seat.Str(cmd, flags.Quote)),
 			Text:       proto.String(text),
 			AboutKind:  about,
-			AboutRef:   aboutRefOrNil(aboutSet, aboutRef),
+			AboutRef:   aboutRefP,
 			Severity:   seat.GradeOrNil(&severity),
 			Likelihood: seat.GradeOrNil(&likelihood),
 			Impact:     seat.GradeOrNil(&impact),
@@ -166,41 +167,6 @@ func newFinding() *cobra.Command {
 	c.Flags().String(flags.About, "", "the reference --about-kind names: a section heading, an avenue id, or a gap id. "+
 		"It is CHECKED against the record, which a borrowed quote never was")
 	return c
-}
-
-// resolveAbout turns the pair into a checked reference. The check is the whole value of this
-// anchor: a quote could be any sentence in the report, but an avenue id either names a line this
-// run proposed or it does not, and a gap id either sits on the docket or it does not.
-func resolveAbout(run record.Run, kind, ref string) (*recordpb.FindingAbout, bool, error) {
-	if kind == "" && strings.TrimSpace(ref) == "" {
-		return nil, false, nil
-	}
-	if kind == "" || strings.TrimSpace(ref) == "" {
-		return nil, false, fmt.Errorf("lens finding: --about-kind and --about are one anchor and are given together — " +
-			"the kind says what sort of thing you are naming, the reference says which one")
-	}
-	k, ok := record.FindingAboutOf(kind)
-	if !ok || k == recordpb.FindingAbout_FINDING_ABOUT_UNSPECIFIED {
-		return nil, false, fmt.Errorf("lens finding: %q is not a thing a finding can be about (section | inquiry | gap)", kind)
-	}
-	switch k {
-	case recordpb.FindingAbout_FINDING_ABOUT_INQUIRY:
-		if err := record.RequireInquiryRef(run, ref); err != nil {
-			return nil, false, err
-		}
-	case recordpb.FindingAbout_FINDING_ABOUT_GAP:
-		if err := record.GapExists(run.Dir(), ref); err != nil {
-			return nil, false, err
-		}
-	}
-	return &k, true, nil
-}
-
-func aboutRefOrNil(set bool, ref string) *string {
-	if !set {
-		return nil
-	}
-	return proto.String(ref)
 }
 
 type findingResult struct {

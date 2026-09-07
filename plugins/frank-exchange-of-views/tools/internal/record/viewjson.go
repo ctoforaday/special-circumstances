@@ -86,7 +86,12 @@ type GapJSON struct {
 
 	Class    string `json:"class"`
 	Location string `json:"location"`
-	Problem  string `json:"problem"`
+	// AboutKind/AboutRef are the anchor for a gap about something that is NOT report text — the
+	// same pair a finding carries, because a gap is where that finding ends up. Omitted when
+	// unset, so a gap anchored by quote reads exactly as it did.
+	AboutKind string `json:"about_kind,omitempty"`
+	AboutRef  string `json:"about_ref,omitempty"`
+	Problem   string `json:"problem"`
 	// MintReason is red's ARGUMENT for the gap, distinct from what is wrong with the text.
 	// A bench adjudicating what a required_fix may demand asked for exactly this and could not
 	// find it; mint was accepting --reason and discarding it. See merge/mint.go.
@@ -183,6 +188,8 @@ func BoardJSONOf(b *Board) BoardJSON {
 		if g.Mint != nil {
 			gj.Class = g.Mint.GetClass()
 			gj.Location = g.Mint.GetLocation()
+			gj.AboutKind = recordpb.Word(g.Mint.GetAboutKind())
+			gj.AboutRef = g.Mint.GetAboutRef()
 			gj.Problem = g.Mint.GetProblem()
 			// MINT_REASON HAS NO FIELD IN record.proto AND IS LEFT UNSET HERE.
 			//
@@ -489,8 +496,8 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 
 	rows, err := db.Query(`SELECT "gap_id", "minted_round", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
-	    "class", "location", "problem", "mint_reason", "required_fix", "acceptance_check",
-	    "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_event"
+	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
+	    "acceptance_check", "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_event"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return out, fmt.Errorf("record: asking the record for its board: %w", err)
@@ -501,10 +508,10 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 		var id string
 		var round int
 		var open, awaiting bool
-		var sev, lik, imp, cx, class, loc, problem, reason, fix, gate, kind, basis, fixNew sql.NullString
+		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, reason, fix, gate, kind, basis, fixNew sql.NullString
 		var mintedEvent int64
 		if err := rows.Scan(&id, &round, &open, &sev, &lik, &imp, &cx,
-			&class, &loc, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedEvent); err != nil {
+			&class, &loc, &aboutKind, &aboutRef, &problem, &reason, &fix, &gate, &kind, &awaiting, &basis, &fixNew, &mintedEvent); err != nil {
 			return out, err
 		}
 		gj := GapJSON{
@@ -512,7 +519,8 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 			FoundBy: strs(foundBy[mintedEvent]), Supersedes: strs(supersedes[mintedEvent]),
 			Regrades: []map[string]any{},
 			Severity: nullWord(sev), Likelihood: nullWord(lik), Impact: nullWord(imp), ComplexityCost: nullWord(cx),
-			Class: class.String, Location: loc.String, Problem: problem.String,
+			Class: class.String, Location: loc.String,
+			AboutKind: aboutKind.String, AboutRef: aboutRef.String, Problem: problem.String,
 			MintReason: reason.String, RequiredFix: fix.String, AcceptanceGate: gate.String,
 			CheckKind: kind.String, AwaitingProof: awaiting,
 			FixBasis: basis.String, FixOld: loc.String, FixNew: fixNew.String,
@@ -740,13 +748,18 @@ type CounterpartyJSON struct {
 // prose — required_fix and acceptance_check stay on the board (--view board / ledger) for the
 // seat that opens the gap; the work list is for scanning the open set, not re-deriving it.
 type WorkGapJSON struct {
-	ID              string `json:"id"`
-	Severity        any    `json:"severity"`
-	Likelihood      any    `json:"likelihood"`
-	Impact          any    `json:"impact"`
-	ComplexityCost  any    `json:"complexity_cost"`
-	Class           string `json:"class"`
-	Location        string `json:"location"`
+	ID             string `json:"id"`
+	Severity       any    `json:"severity"`
+	Likelihood     any    `json:"likelihood"`
+	Impact         any    `json:"impact"`
+	ComplexityCost any    `json:"complexity_cost"`
+	Class          string `json:"class"`
+	Location       string `json:"location"`
+	// The anchor for a gap about something NOT in the report. Without these a seat reading its
+	// own work list sees `location: ""` and no other pointer — the gap says where it is only
+	// when the where is a quote.
+	AboutKind       string `json:"about_kind,omitempty"`
+	AboutRef        string `json:"about_ref,omitempty"`
 	ProblemSynopsis string `json:"problem_synopsis"`
 	// CheckKind rides the work list too, though nothing else about the acceptance check does.
 	// The comment above says required_fix and acceptance_check belong to the seat that OPENS
@@ -782,9 +795,11 @@ type WorkGapJSON struct {
 // ruling is estopped and re-raising it is relitigation. A seat that cannot tell them apart cannot
 // obey either rule.
 type ClosedIndexJSON struct {
-	ID       string `json:"id"`
-	Location string `json:"location"`
-	Class    string `json:"class"`
+	ID        string `json:"id"`
+	Location  string `json:"location"`
+	AboutKind string `json:"about_kind,omitempty"`
+	AboutRef  string `json:"about_ref,omitempty"`
+	Class     string `json:"class"`
 	// Fate is the disposition that ended it — red's `close --as` (closure_class) or the
 	// bench's `motion docket rule --as` (disposition). One vocabulary since #342, so a reader does not
 	// have to know which verb produced the word before it can interpret it.
@@ -821,6 +836,7 @@ func synopsis(s string) string {
 // folded Board.
 type WorkGapState struct {
 	ID, Class, Location, Problem, CheckKind string
+	AboutKind, AboutRef                     string
 	Open, AwaitingProof, ClosedByBench      bool
 	Fate                                    string // the last closer's word; closed gaps only
 	Severity, Likelihood, Impact, Cx        any
@@ -848,7 +864,7 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 	}
 	rows, err := db.Query(`SELECT "gap_id", "open", "awaiting_proof",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
-	    "class", "location", "problem", "check_kind", "minted_event"
+	    "class", "location", "about_kind", "about_ref", "problem", "check_kind", "minted_event"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for its work list: %w", err)
@@ -857,14 +873,15 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 	var out []WorkGapState
 	for rows.Next() {
 		var g WorkGapState
-		var sev, lik, imp, cx, class, loc, problem, kind sql.NullString
+		var sev, lik, imp, cx, class, loc, aboutKind, aboutRef, problem, kind sql.NullString
 		var mintedEvent int64
 		if err := rows.Scan(&g.ID, &g.Open, &g.AwaitingProof, &sev, &lik, &imp, &cx,
-			&class, &loc, &problem, &kind, &mintedEvent); err != nil {
+			&class, &loc, &aboutKind, &aboutRef, &problem, &kind, &mintedEvent); err != nil {
 			return nil, err
 		}
 		g.Severity, g.Likelihood, g.Impact, g.Cx = nullWord(sev), nullWord(lik), nullWord(imp), nullWord(cx)
 		g.Class, g.Location, g.Problem, g.CheckKind = class.String, loc.String, problem.String, kind.String
+		g.AboutKind, g.AboutRef = aboutKind.String, aboutRef.String
 		g.FoundBy, g.Supersedes = foundBy[mintedEvent], supersedes[mintedEvent]
 		if c := closures[g.ID]; c != nil && c.hasClosed {
 			g.ClosedByBench, g.Fate = c.closedByBench, c.reason()
@@ -883,13 +900,15 @@ func workJSONOfGaps(gaps []WorkGapState) WorkJSON {
 			out.Open = append(out.Open, WorkGapJSON{
 				ID:       g.ID,
 				Severity: g.Severity, Likelihood: g.Likelihood, Impact: g.Impact, ComplexityCost: g.Cx,
-				Class: g.Class, Location: g.Location, ProblemSynopsis: synopsis(g.Problem),
+				Class: g.Class, Location: g.Location,
+				AboutKind: g.AboutKind, AboutRef: g.AboutRef, ProblemSynopsis: synopsis(g.Problem),
 				CheckKind: g.CheckKind, AwaitingProof: g.AwaitingProof,
 				FoundBy: strs(g.FoundBy),
 			})
 			continue
 		}
-		ci := ClosedIndexJSON{ID: g.ID, ClosedBy: "red", Location: g.Location, Class: g.Class, Fate: g.Fate}
+		ci := ClosedIndexJSON{ID: g.ID, ClosedBy: "red", Location: g.Location,
+			AboutKind: g.AboutKind, AboutRef: g.AboutRef, Class: g.Class, Fate: g.Fate}
 		if g.ClosedByBench {
 			ci.ClosedBy = "bench"
 		}

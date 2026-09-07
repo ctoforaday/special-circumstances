@@ -320,6 +320,18 @@ var EnumFields = map[string][]EnumField{
 			},
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever the 2026-08-05 smoke measured missing: blue wrote zero programs across the run, not because it ignored the invitation but because NOTHING ASKED — all ten of red's checks were document probes, and R1-1 was literally \"execute the assembly step\". Red could only ever ask whether the report SAYS something. A `computation` check is a demand that cannot be answered in prose",
 		},
+		// THE SAME SET `finding` CARRIES, WORD FOR WORD, because it is the same question asked at
+		// the next step of one act. Mint's help used to send an omission back to a borrowed quote —
+		// "quote the sentence where it SHOULD be" — which is the handle the finding had just been
+		// taught to stop using.
+		{
+			Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: []EnumValue{
+				ev("section", "a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there"),
+				ev("inquiry", "a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned"),
+				ev("gap", "a gap already on the docket, by its id — a defect in the record rather than in the report"),
+			},
+			Why: "a gap about an absence has no sentence to quote either, and the gap list is the surface a reader actually walks: an anchor that points at prose the gap calls fine sends them to the wrong paragraph. These targets are references the record can CHECK",
+		},
 	},
 	"reproduce": {{
 		Key: "soundness", Flag: flags.As, Values: []EnumValue{
