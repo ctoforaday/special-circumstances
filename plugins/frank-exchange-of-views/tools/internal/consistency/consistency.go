@@ -417,7 +417,7 @@ func Check(run record.Run) ([]string, error) {
 	}
 
 	// ---- the lineage graph ----
-	mmd := graph.Mermaid(board)
+	mmd := graph.Mermaid(record.FamilyOfBoard(board))
 	for id, g := range gt.gaps {
 		if !strings.Contains(mmd, `["`+id) && !strings.Contains(mmd, id) {
 			add("graph", "gap %s has no node in the mermaid graph", id)

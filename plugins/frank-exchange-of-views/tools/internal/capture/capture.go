@@ -560,11 +560,11 @@ func stripCode(s string) string {
 }
 
 func AssemblyScreen(run record.Run) Audit {
-	board, err := record.BoardState(run)
+	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
-	ev := record.EvidenceJSONOf(board.Events)
+	ev := record.EvidenceJSONOf(fam.Events)
 	if ev.Counts.Sources == 0 {
 		return Audit{Check: "assembly-screen", Verdict: "SKIP", Detail: "no citations on the record — nothing to screen"}
 	}
@@ -799,7 +799,7 @@ const (
 )
 
 func BackfillAudit(run record.Run) Audit {
-	board, err := record.BoardState(run)
+	fam, err := record.FamilyOf(run)
 	if err != nil {
 		// ABSENT IS NOT CLEAN. A run whose record cannot be read has not been audited, and
 		// saying so is the whole point — the shape this audit replaced reported a plausible
@@ -814,7 +814,7 @@ func BackfillAudit(run record.Run) Audit {
 	seats := map[string]*seatSpan{}
 	order := []string{}
 	unparsed := 0
-	for _, e := range board.Events {
+	for _, e := range fam.Events {
 		ts, perr := record.ParseStamp(e.GetTs())
 		if perr != nil {
 			unparsed++
@@ -904,14 +904,13 @@ type Claim struct {
 // function split that line back apart on "|" and re-derived the gap id with `^(R\d+-\d+)`.
 // Fields to string to regex to fields, with a markdown file in the middle purely as a courier.
 func AttestationAudit(run record.Run, transcriptDir string, agentFiles []string, sampleFloor int) Audit {
-	board, err := record.BoardState(run)
+	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return Audit{Check: "attestation-integrity", Verdict: "SKIP", Detail: "the record could not be read: " + err.Error()}
 	}
 	var claims []Claim
-	for _, id := range board.GapOrder {
-		g := board.Gaps[id]
-		if g == nil || g.Closure == nil {
+	for _, g := range fam.Gaps {
+		if g.Closure == nil {
 			continue
 		}
 		// A CARRIED closure attests nothing — it is last round's verification restated, and
@@ -1120,11 +1119,11 @@ func jsStringify(v any) string {
 // transcript pass stays for what the record cannot cover: runs recorded before the field existed,
 // and seats that never registered.
 func recordTierFindings(run record.Run, model, judgmentModel string) (findings []string, measured, total int) {
-	board, err := record.BoardState(run)
-	if err != nil || board == nil {
+	fam, err := record.FamilyOf(run)
+	if err != nil {
 		return nil, 0, 0
 	}
-	for _, sm := range record.SeatModels(record.FamilyOfBoard(board)) {
+	for _, sm := range record.SeatModels(fam) {
 		if sm.Class == "" {
 			continue
 		}
@@ -1329,14 +1328,14 @@ type ruling struct {
 // event, and promoting a ruling without the ask it answered is how a holding loses its scope.
 // That is a change to WHAT law/proposed contains, not to where the harvest reads; it wants its
 // own decision. Named here so the smaller scope is visible rather than silent.
-func rulingsFromRecord(board *record.Board) []ruling {
-	if board == nil {
+func rulingsFromRecord(evs []*record.Event) []ruling {
+	if evs == nil {
 		return nil
 	}
 	// A petition ruling names the motion, not the filer. The filer is the seat that appended
 	// the `motion` event, which is the only place that fact exists.
 	filedBy := map[string]string{}
-	for _, e := range board.Events {
+	for _, e := range evs {
 		if m, ok := recordpb.BodyAs[*recordpb.Motion](e); ok {
 			filedBy[m.GetMotionId()] = e.GetSeatId()
 		}
@@ -1347,14 +1346,14 @@ func rulingsFromRecord(board *record.Board) []ruling {
 	// place that pairing is computed; harvesting the gap any other way keys every disposition on
 	// the empty string, which is the shape of the defect this function was written to escape.
 	docketGapOf := map[string]string{}
-	for _, m := range record.Motions(board) {
+	for _, m := range record.MotionsOf(evs) {
 		if m != nil && m.Subject == "docket" {
 			docketGapOf[m.ID] = m.GapID
 		}
 	}
 
 	var out []ruling
-	for _, e := range board.Events {
+	for _, e := range evs {
 		switch e.GetType() {
 		case recordpb.EventType_EVENT_TYPE_DECLARE:
 			// No gap and no fate — that is the point of the verb. The holding IS the ruling.
@@ -1418,9 +1417,9 @@ func rulingsClaimedByEnvelopes(results []map[string]any) int {
 	return n
 }
 
-func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, board *record.Board) HarvestResult {
+func HarvestPrecedents(run record.Run, results []map[string]any, lawDir string, evs []*record.Event) HarvestResult {
 	slug := slugOf(run)
-	rulings := rulingsFromRecord(board)
+	rulings := rulingsFromRecord(evs)
 	claimed := rulingsClaimedByEnvelopes(results)
 	if len(rulings) == 0 {
 		// STATED, not implied. "0 rulings" is otherwise the output of both an honest quiet run
@@ -1507,11 +1506,11 @@ type ScorecardResult struct {
 	Reason  string
 }
 
-func WriteScorecards(run record.Run, results []map[string]any, memoryDir string, board *record.Board) ScorecardResult {
+func WriteScorecards(run record.Run, results []map[string]any, memoryDir string, fam *record.Family) ScorecardResult {
 	if _, err := os.Stat(memoryDir); err != nil {
 		return ScorecardResult{Written: false, Reason: fmt.Sprintf("no %s — scorecards need the tracked memory dir", memoryDir)}
 	}
-	cards := scorecard.Compute(run, results, board)
+	cards := scorecard.Compute(run, results, fam)
 	label := labelOf(run)
 	rows := 0
 	chairs := 0
@@ -1725,11 +1724,16 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	results, friction := ReadJournal(filepath.Join(run.Dir(), "trajectories"))
 
 	// Record-backed reads, in-process (the JS spawned `merge show` views).
-	board, _ := record.BoardState(run)
+	// The family off the record; a run whose record cannot be read audits with fam == nil,
+	// exactly as the nil board did.
+	var fam *record.Family
+	if f, ferr := record.FamilyOf(run); ferr == nil {
+		fam = &f
+	}
 	redRounds, blueBlocks := 0, 0
 	onRecord := []record.LogEntryJSON{}
-	if board != nil {
-		dj := record.DebateJSONOfEvents(board.Events)
+	if fam != nil {
+		dj := record.DebateJSONOfEvents(fam.Events)
 		for _, r := range dj.Rounds {
 			if len(r.Red) > 0 {
 				redRounds++
@@ -1742,7 +1746,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		// second event type appended separately; it is a `nominal` ENTRY on the same list, so a
 		// seat that files one has used the channel exactly as the duty asks and needs no special
 		// collection to be seen doing it.
-		fj := record.LogJSONOf(board.Events)
+		fj := record.LogJSONOf(fam.Events)
 		onRecord = append(onRecord, fj.Log...)
 	}
 
@@ -1768,7 +1772,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	}
 
 	cwd, _ := os.Getwd()
-	sc := WriteScorecards(run, results, filepath.Join(cwd, "feov-memory"), board)
+	sc := WriteScorecards(run, results, filepath.Join(cwd, "feov-memory"), fam)
 	// BOTH LINES WHEN BOTH ARE TRUE. The old form printed the counts OR the reason, so a
 	// partial failure — some chairs written, one unwritable — showed the cheerful line and
 	// swallowed the reason entirely.
@@ -1779,7 +1783,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		lines = append(lines, "scorecards: "+sc.Reason)
 	}
 
-	prec := HarvestPrecedents(run, results, filepath.Join(cwd, "law"), board)
+	prec := HarvestPrecedents(run, results, filepath.Join(cwd, "law"), famEvents(fam))
 	// The divergence has to REACH the report. Computing it and then printing "no rulings this
 	// run" would rebuild the same defect one level up: the miss folded back into the zero.
 	divergence := ""
@@ -1799,7 +1803,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 
 	// THE CLASS HARVEST, beside the precedent one and for the same reason: a run's coinage that
 	// reaches nothing outside the run directory is a run's coinage lost (#515).
-	cls := HarvestClasses(run, filepath.Join(cwd, "law"), board)
+	cls := HarvestClasses(run, filepath.Join(cwd, "law"), famEvents(fam))
 	switch {
 	case cls.Written:
 		lines = append(lines, fmt.Sprintf("class harvest: %d class(es) -> %s (PROPOSED, not staged into any run until adopted)", cls.Count, cls.Path))
@@ -2002,12 +2006,12 @@ type coinedClass struct {
 // FirstGap is the join a reviewer needs and the record already holds: a class exists to
 // discriminate, and the gap it was first minted against is the concrete case that motivated it.
 // Empty means coined and never used, which is itself worth seeing on the proposal.
-func classesFromRecord(board *record.Board) []coinedClass {
-	if board == nil {
+func classesFromRecord(evs []*record.Event) []coinedClass {
+	if evs == nil {
 		return nil
 	}
 	var out []coinedClass
-	for _, e := range board.Events {
+	for _, e := range evs {
 		cn := e.GetClassNew()
 		if cn == nil {
 			continue
@@ -2017,7 +2021,7 @@ func classesFromRecord(board *record.Board) []coinedClass {
 			neighbor: cn.GetNeighbor(), distinguisher: cn.GetDistinguisher(),
 			seatID: e.GetSeatId(),
 		}
-		for _, m := range board.Events {
+		for _, m := range evs {
 			if mint := m.GetMint(); mint != nil && mint.GetClass() == c.slug {
 				c.firstGap = mint.GetGapId()
 				break
@@ -2045,9 +2049,9 @@ func classesFromRecord(board *record.Board) []coinedClass {
 // ONE FILE PER CLASS PER RUN, keyed on both. Two runs coining the same slug with different
 // definitions then land as two files a reviewer sees side by side, rather than one silently
 // overwriting the other — the collision has an arbiter, and the arbiter is a person.
-func HarvestClasses(run record.Run, lawDir string, board *record.Board) HarvestResult {
+func HarvestClasses(run record.Run, lawDir string, evs []*record.Event) HarvestResult {
 	slug := slugOf(run)
-	classes := classesFromRecord(board)
+	classes := classesFromRecord(evs)
 	if len(classes) == 0 {
 		return HarvestResult{Written: false, Count: 0}
 	}
@@ -2088,4 +2092,13 @@ func HarvestClasses(run record.Run, lawDir string, board *record.Board) HarvestR
 		written = append(written, out)
 	}
 	return HarvestResult{Written: true, Count: len(classes), Path: filepath.Join(lawDir, "proposed")}
+}
+
+// famEvents is the stream, or nil for a record that could not be read — the same nil the
+// harvests always treated as "no rulings this run".
+func famEvents(fam *record.Family) []*record.Event {
+	if fam == nil {
+		return nil
+	}
+	return fam.Events
 }

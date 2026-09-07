@@ -661,11 +661,11 @@ func renderView(cmd *cobra.Command, want string) error {
 			return fmt.Errorf("%s show: no chair sits for role %q, so there is no scorecard that is yours — "+
 				"a scorecard grades a side of the debate, and this role is not one", role, role)
 		}
-		var board *record.Board
-		if b, err := record.BoardState(run); err == nil {
-			board = b
+		var fam *record.Family
+		if f, err := record.FamilyOf(run); err == nil {
+			fam = &f
 		}
-		rows := scorecard.Compute(run, scorecard.ReadResults(run), board)[chair]
+		rows := scorecard.Compute(run, scorecard.ReadResults(run), fam)[chair]
 		fmt.Fprint(cmd.OutOrStdout(), scorecard.RenderChair(chair, rows, "this run")+"\n")
 		return nil
 	}

@@ -38,7 +38,7 @@ func TestLinesOfInquiryComeFromTheRecordNotTheEnvelopes(t *testing.T) {
 			"the originality claim is scoped to English sources, so this is out of scope for the question asked"),
 	}}
 	// The envelopes carry NOTHING — exactly the state that produced the false zero.
-	rows := blueRows(record.Run{}, []map[string]any{{"claim_count": float64(10)}}, nil, board)
+	rows := blueRows(record.Run{}, []map[string]any{{"claim_count": float64(10)}}, nil, famOfBoardT(board))
 
 	r := rowByMetric(rows, "lines_of_inquiry")
 	if r == nil {
@@ -68,7 +68,7 @@ func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
 			})
 		}(),
 	}}
-	rows := blueRows(record.Run{}, nil, nil, board)
+	rows := blueRows(record.Run{}, nil, nil, famOfBoardT(board))
 	got := string(rowByMetric(rows, "lines_of_inquiry").Value.(objJSON))
 	if !strings.Contains(got, `"pursued":1`) {
 		t.Errorf("a line that moved declined->pursued is not counted under its CURRENT status: %s", got)

@@ -68,12 +68,12 @@ func appliedVerbatim(evs []*Event, gaps map[string]*Gap) map[string]string {
 //
 // Containment either way, on whitespace-collapsed text: the new finding may quote a fragment
 // of the prescribed sentence or a span that swallows it whole, and both are the same act.
-func EstoppelConflict(b *Board, quote string) (gapID, prescribed string) {
+func EstoppelConflict(f Family, quote string) (gapID, prescribed string) {
 	q := collapse(quote)
 	if len(q) == 0 {
 		return "", ""
 	}
-	for id, fixNew := range appliedVerbatim(b.Events, b.Gaps) {
+	for id, fixNew := range appliedVerbatim(f.Events, GapsByID(f.Gaps)) {
 		p := collapse(fixNew)
 		if len(p) < minEstoppelOverlap && len(q) < minEstoppelOverlap {
 			continue

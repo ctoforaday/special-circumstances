@@ -69,10 +69,10 @@ type recordedProof struct {
 // a reader can refuse. Enumerating the directory instead would make a proof the record never
 // recorded invisible to this audit, and a proof recorded with no artifact on disk look like no
 // proof at all: both of those are exactly the states worth reporting.
-func recordedProofs(b *record.Board) []recordedProof {
+func recordedProofs(evs []*record.Event) []recordedProof {
 	rerun := map[string]bool{}
-	for i := range b.Events {
-		if body, ok := recordpb.Body(b.Events[i]); ok {
+	for i := range evs {
+		if body, ok := recordpb.Body(evs[i]); ok {
 			if r, is := body.(*recordpb.Reproduce); is && r.GetProofSha() != "" {
 				rerun[r.GetProofSha()] = true
 			}
@@ -80,8 +80,8 @@ func recordedProofs(b *record.Board) []recordedProof {
 	}
 	seen := map[string]bool{}
 	var out []recordedProof
-	for i := range b.Events {
-		body, ok := recordpb.Body(b.Events[i])
+	for i := range evs {
+		body, ok := recordpb.Body(evs[i])
 		if !ok {
 			continue
 		}
@@ -111,11 +111,11 @@ func recordedProofs(b *record.Board) []recordedProof {
 // ProofRerunAudit re-runs a bounded sample of the run's recorded proofs and compares each against
 // the output it recorded.
 func ProofRerunAudit(run record.Run, sample int) Audit {
-	board, err := record.BoardState(run)
-	if err != nil || board == nil {
+	fam, err := record.FamilyOf(run)
+	if err != nil {
 		return Audit{Check: "proof-rerun", Verdict: "SKIP", Detail: "the record could not be read, so no proof could be re-run — which is NOT a run whose proofs reproduce"}
 	}
-	proofs := recordedProofs(board)
+	proofs := recordedProofs(fam.Events)
 	if len(proofs) == 0 {
 		return Audit{Check: "proof-rerun", Verdict: "SKIP", Detail: "this run recorded no proofs"}
 	}

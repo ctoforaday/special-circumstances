@@ -82,10 +82,10 @@ func declaredLanes(run record.Run) (n int, declared bool) {
 //
 // Indexes rather than a count, because which lane is missing is the actionable half: "lane 3 never
 // registered" sends a reader to that dispatch, where "2 of 3" sends them to the whole round.
-func registeredLanes(b *record.Board) []int {
+func registeredLanes(evs []*record.Event) []int {
 	seen := map[int]bool{}
-	for i := range b.Events {
-		e := b.Events[i]
+	for i := range evs {
+		e := evs[i]
 		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
 			continue
 		}
@@ -110,12 +110,12 @@ func LaneCoverageAudit(run record.Run) Audit {
 		return Audit{Check: "lane-coverage", Verdict: "SKIP",
 			Detail: "this run declared no lane count in run-config, so there is nothing to hold its lanes to — NOT a run whose lanes were checked"}
 	}
-	board, err := record.BoardState(run)
-	if err != nil || board == nil {
+	fam, err := record.FamilyOf(run)
+	if err != nil {
 		return Audit{Check: "lane-coverage", Verdict: "SKIP",
 			Detail: fmt.Sprintf("run-config declares %d lane(s) and the record could not be read, so none of them could be confirmed — NOT a run whose lanes all registered", want)}
 	}
-	got := registeredLanes(board)
+	got := registeredLanes(fam.Events)
 
 	var missing, extra []string
 	present := map[int]bool{}

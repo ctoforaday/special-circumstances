@@ -273,10 +273,13 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	// mean the tiles have nothing truthful to show, and "unavailable" is what this branch already
 	// exists to render. It is a dashboard — the loud version of the diagnosis belongs to the tool.
 	if _, statErr := os.Stat(run.Records()); statErr == nil {
-		if board, err := record.BoardState(run); err == nil {
-			bj := record.BoardJSONOf(board)
-			fj := record.FindingsJSONOf(board.Events)
-			frj := record.LogJSONOf(board.Events)
+		if fam, err := record.FamilyOf(run); err == nil {
+			bj, bjErr := record.BoardJSONOfRun(run)
+			if bjErr != nil {
+				bj = record.BoardJSONOf(&record.Board{})
+			}
+			fj := record.FindingsJSONOf(fam.Events)
+			frj := record.LogJSONOf(fam.Events)
 			friction.Count = frj.Counts.Total
 			if n := len(frj.Log); n > 0 {
 				last := frj.Log[n-1]
