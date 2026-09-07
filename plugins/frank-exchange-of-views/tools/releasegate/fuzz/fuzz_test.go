@@ -184,6 +184,11 @@ type runner struct {
 	// applyMisses counts, by CAUSE, every time the verbatim-apply branch declined to apply.
 	// Reported beside the verbatim tally so a zero there names its reason instead of implying one.
 	applyMisses map[string]int
+	// estoppelMisses is the same accounting one layer on, for the drive that turns a verbatim
+	// apply INTO an estoppel refusal. `verbatimApplied` proved the precondition and the gate then
+	// reported `estoppels=0` with nothing between the two numbers to say which step lost it —
+	// which is how a red gate could name the guard as gone when the drive had simply declined.
+	estoppelMisses map[string]int
 	// disputeRefusals is why a grade filing was REFUSED, per gap. The scenario oracle reports a
 	// missing dispute event; without this it cannot distinguish a drive that never ran from one
 	// that ran and was told no, and those want opposite fixes.
@@ -204,6 +209,17 @@ type runner struct {
 	// test — rather than exempted. coverage_test.go says why an exemption is the wrong answer
 	// here, and it is right.
 	forceUnverified bool
+	// forceEstoppel drives the ORDERED PAIR the estoppel guard needs — red prescribes concrete
+	// text, blue applies it verbatim, red then mints against that same text — on one dedicated
+	// seed, instead of hoping the sweep draws it.
+	//
+	// Left to the draw it is a chain of coins: the gap must be minted dirApply (2 in 10), must
+	// carry a concrete proposal (40%), blue must reach the apply branch with the span still on
+	// the page, and the estoppel mint must then win a 35% coin. Measured across 13 uncached
+	// sweeps on clean main, that chain failed 6 times — a 46% red on the gate that guards a tag,
+	// which runs it ONCE. More verbatim applications do not help: reds were observed with 6, 8
+	// and 9 of them, so what is missing is not applications but the PAIR.
+	forceEstoppel bool
 	// provedExpectedError fires the --expect-error drive once per run. A proof whose FAILURE is
 	// the result — proving a path is absent, a command missing — is a distinct contract from the
 	// answering proof beside it, and the sweep had never passed the flag that says so.
@@ -341,6 +357,16 @@ func (r *runner) noteApplyMiss(why string) {
 		r.applyMisses = map[string]int{}
 	}
 	r.applyMisses[why]++
+}
+
+// noteEstoppelMiss records WHY the estoppel drive declined, so `estoppels=0` names its reason.
+func (r *runner) noteEstoppelMiss(why string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.estoppelMisses == nil {
+		r.estoppelMisses = map[string]int{}
+	}
+	r.estoppelMisses[why]++
 }
 
 // firstLine keeps a refusal's diagnosis and drops the help cobra staples to it — the tally is a
@@ -644,6 +670,11 @@ func (r *runner) mint(seatID string) string {
 	if r.forceUnverified {
 		directive = dirDisputeLost
 	}
+	// The estoppel run mints only gaps blue will APPLY, because applied_verbatim is the only
+	// state the guard keys on and dirApply is the only branch that sets it.
+	if r.forceEstoppel {
+		directive = dirApply
+	}
 	kind := checkKinds[r.rng.Intn(len(checkKinds))]
 	if directive == dirProve || directive == dirProveDrifts {
 		// The demand and the answer must agree: a gap settled by computing is minted as a
@@ -673,9 +704,19 @@ func (r *runner) mint(seatID string) string {
 	// how a gap names a defect that is not report text at all, which is the anchor #742 added
 	// and #787 shipped — and which no drive reached, so the whole pair read as covered because
 	// `merge mint` itself ran 115 times.
-	if k, ref := r.aboutAnchor(); k != "" && r.coin(25) {
+	//
+	// THE CONCRETE-PROPOSAL ARM BELOW APPENDS ITS OWN --quote, so the choice has to be made ONCE,
+	// here, for the whole call. It was made twice: this block took the about arm on a 25% coin
+	// and the proposal block then appended --quote on a 40% coin, and `merge mint` refused the
+	// pair exactly as it is supposed to — silently, because r.mint discards the error and returns
+	// "". About one mint in ten never reached the board, which thins every gap-dependent drive
+	// downstream of it and is invisible in a passing sweep.
+	// A gap with no concrete proposal has nothing for blue to apply verbatim, so the estoppel run
+	// always prescribes one.
+	proposing := r.forceEstoppel || r.coin(40)
+	if k, ref := r.aboutAnchor(); k != "" && !proposing && r.coin(25) {
 		args = append(args, "--about-kind", k, "--about", ref)
-	} else {
+	} else if !proposing {
 		args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
 	}
 	// COINING IS ITS OWN VERB (`merge class new`), so the fuzz drives it as one. It used to be
@@ -721,7 +762,8 @@ func (r *runner) mint(seatID string) string {
 	// and which DERIVES fix_basis: verified. It swaps the seeded edit-target sentence, exactly
 	// as blue's own edit drive does, so a legal pair exists whichever way the last edit left
 	// the file — and both branches (proposal present / prose only) run across the sweep.
-	if r.coin(40) {
+	if proposing {
+		anchored := false
 		if cur, err := reportproj.RenderFromRecord(r.run()); err == nil {
 			fixOld, fixNew := "rising over time", "climbing sharply"
 			if !strings.Contains(string(cur), fixOld) {
@@ -729,7 +771,12 @@ func (r *runner) mint(seatID string) string {
 			}
 			if strings.Contains(string(cur), fixOld) {
 				args = append(args, "--quote", fixOld, "--new", fixNew)
+				anchored = true
 			}
+		}
+		// The proposal's span was not on the page, so this mint still needs an anchor of its own.
+		if !anchored {
+			args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
 		}
 	}
 	out, err := r.exec(args...)
@@ -768,7 +815,11 @@ func collapseWS(s string) string { return strings.Join(strings.Fields(s), " ") }
 func (r *runner) mintEstopped(seatID string) {
 	gapID, fixNew := r.aVerbatimGap()
 	if gapID == "" {
-		return // nothing has been applied verbatim yet; the precondition genuinely does not hold
+		// The precondition genuinely does not hold: nothing has been applied verbatim YET. Said
+		// out loud, because "the guard is gone" and "the drive never had its input" are the two
+		// readings of estoppels=0 and they want opposite fixes.
+		r.noteEstoppelMiss("nothing applied verbatim yet when the drive fired")
+		return
 	}
 	// THE QUOTE IS THE WHOLE SENTENCE, AND IT HAS TO BE — the guard's skip is an AND:
 	//
@@ -786,6 +837,7 @@ func (r *runner) mintEstopped(seatID string) {
 	// `verbatimApplied` counted the precondition happily for the whole time.
 	cur, rerr := reportproj.RenderFromRecord(r.run())
 	if rerr != nil {
+		r.noteEstoppelMiss("could not render the report to find the applied sentence")
 		return
 	}
 	sentence := ""
@@ -796,7 +848,9 @@ func (r *runner) mintEstopped(seatID string) {
 		}
 	}
 	if sentence == "" {
-		return // the applied text is no longer on the page, or no line around it is long enough
+		r.noteEstoppelMiss("the applied text is no longer on the page, or no line around it reaches " +
+			"the 40-char overlap the guard requires")
+		return
 	}
 	_, err := r.exec("mint", "--seat-id", seatID, "--class", "fuzzcls",
 		"--problem", "fuzz: raising a defect against text I prescribed", "--check-kind", "document",
@@ -1448,7 +1502,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// refusal that never happened. This produces the real one: red mints a fresh gap against
 		// the very text it prescribed and blue applied verbatim, which is red attacking its own
 		// words, and the tool refuses and logs it.
-		r.maybe(35, func() { r.mintEstopped(seatID) })
+		// FORCED ON ONE SEED, drawn on the rest — the shape unverifiedSeed already uses, and for
+		// the reason stated there: one forced run costs one seed's worth of natural variation and
+		// makes the value a fact rather than a coin flip. The random arm stays, so the sweep still
+		// answers the weaker and separate question of whether the pair also arises under random
+		// dispatch.
+		if r.forceEstoppel {
+			r.mintEstopped(seatID)
+		} else {
+			r.maybe(35, func() { r.mintEstopped(seatID) })
+		}
 
 		// RED'S PER-LINE SUPPORT VERDICT USED TO BE DRIVEN HERE, before the round verdict,
 		// because `verdict --as PASS` was refused while any line was unvoted. Both the verb and
@@ -1837,6 +1900,8 @@ type outcome struct {
 	// #267 stage 4: edits that applied red's proposal EXACTLY. Without a counter, the fuzz
 	// could counter-edit every time and the estoppel path would never be reached at all.
 	verbatimApplied int
+	// estoppelMisses is why the estoppel drive declined, carried out for the same reason.
+	estoppelMisses map[string]int
 	// applyMisses is why it did not, by cause — carried out of the run so a ZERO above arrives
 	// with its explanation instead of inviting one.
 	applyMisses map[string]int
@@ -2106,7 +2171,17 @@ func sortedKeys(m map[string]any) []string {
 // makes the value a fact rather than a coin flip (#637).
 const unverifiedSeed = 1
 
-func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool) (res outcome) {
+// estoppelSeed is the one seed whose run is FORCED to produce the estoppel conjunction rather
+// than left to the draw. It is not unverifiedSeed: that run mints only dirDisputeLost gaps so its
+// docket stays contested, and dirApply is the only scenario that applies anything verbatim, so
+// one run cannot serve both.
+//
+// MEASURED on clean main across 13 uncached sweeps, in two worktrees at different times: 6 red,
+// all on `ZERO tool estoppel refusals`, two of them also on `blue edit --accept` never passed.
+// ~46% on a gate that a tag runs ONCE — and a green told you only that the draw went your way.
+const estoppelSeed = 2
+
+func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forceEstoppel bool) (res outcome) {
 	runDir, err := os.MkdirTemp("", "fuzz-run-")
 	if err != nil {
 		// A FULL TMPDIR IS THE LIKELY CAUSE, AND IT HAS TO SAY SO. Discarded, this left runDir
@@ -2139,6 +2214,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	}
 	r := newRunner(bin, runDir, newLockedRand(seed))
 	r.forceUnverified = forceUnverified
+	r.forceEstoppel = forceEstoppel
 
 	// INGEST THE ROUND-0 REPORT (#709). The report is the record projection now: blue-synthesize
 	// freezes the seeded report into the record and the file is deleted, exactly as the engine does
@@ -2154,7 +2230,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// NAMED RETURN + defer, because this function returns from a dozen places — an oracle that
 	// fires early would otherwise drop the run's apply-miss causes on the floor, which is the
 	// same silent loss the causes exist to explain.
-	defer func() { res.applyMisses = r.applyMisses }()
+	defer func() { res.applyMisses, res.estoppelMisses = r.applyMisses, r.estoppelMisses }()
 	result, settledErr := driveDebate(r, wrapped)
 	if settledErr != "" {
 		res.err = settledErr
@@ -3137,12 +3213,13 @@ func TestFuzzDebate(t *testing.T) {
 	verdicts := map[string]int{}
 	roundHist := map[int]int{}
 	dcov := map[string]int{}
-	citeAnchors, cacheFiles := 0, 0 // dialectic-event coverage across all runs (proves the fuzz emits them)
-	editAnswers := 0                // #267: blue_edit events that carried the provenance key
-	verifiedBasis := 0              // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
-	verbatimApplied := 0            // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
-	estoppels := 0                  // the TOOL's own refusals of a mint against text blue applied verbatim
-	applyMisses := map[string]int{} // and why it did not, by cause — a bare 0 above named none of them
+	citeAnchors, cacheFiles := 0, 0    // dialectic-event coverage across all runs (proves the fuzz emits them)
+	editAnswers := 0                   // #267: blue_edit events that carried the provenance key
+	verifiedBasis := 0                 // #267 stage 3: gaps whose fix_basis was EARNED by a validated pair
+	verbatimApplied := 0               // #267 stage 4: edits that applied red's proposal exactly (the estoppel precondition)
+	estoppels := 0                     // the TOOL's own refusals of a mint against text blue applied verbatim
+	applyMisses := map[string]int{}    // and why it did not, by cause — a bare 0 above named none of them
+	estoppelMisses := map[string]int{} // and why the estoppel drive declined, for the same reason
 
 	for i := 0; i < n; i++ {
 		seed := int64(i) + 1
@@ -3151,7 +3228,7 @@ func TestFuzzDebate(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
-			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed)
+			o := runOne(t, wrapped, bin, seed, seed == unverifiedSeed, seed == estoppelSeed)
 			// THE ORACLE RUNS ON EVERY RECORD THE SWEEP PRODUCES. The drives above assert that
 			// each command SUCCEEDED; the oracle asserts that the record those commands built is
 			// one every projection agrees about — the cross-reader class the unit suites cannot
@@ -3188,6 +3265,9 @@ func TestFuzzDebate(t *testing.T) {
 			verifiedBasis += o.verifiedBasis
 			verbatimApplied += o.verbatimApplied
 			estoppels += o.estoppels
+			for why, n := range o.estoppelMisses {
+				estoppelMisses[why] += n
+			}
 			for why, n := range o.applyMisses {
 				applyMisses[why] += n
 			}
@@ -3280,9 +3360,21 @@ func TestFuzzDebate(t *testing.T) {
 		// refusal that writes `log --type estoppel` had no way to happen and the enum value was
 		// reported as undriven — for however long, on a gate that only runs at a tag.
 		if estoppels == 0 {
+			// THE ZERO NAMES ITS REASON. `verbatimApplied` proves the precondition and this proves
+			// the refusal; with nothing between them a red gate could not say whether the guard
+			// had gone or the drive had simply declined, and those want opposite fixes.
+			why := "the drive never declined either — it was not reached"
+			if len(estoppelMisses) > 0 {
+				causes := make([]string, 0, len(estoppelMisses))
+				for c, n := range estoppelMisses {
+					causes = append(causes, fmt.Sprintf("%d× %s", n, c))
+				}
+				sort.Strings(causes)
+				why = "the drive declined: " + strings.Join(causes, "; ")
+			}
 			t.Errorf("fuzz recorded ZERO tool estoppel refusals across %d runs (with %d verbatim applications) — "+
 				"red never minted against text it had prescribed and blue had applied, so merge/mint.go's estoppel guard "+
-				"is unexercised and `log --type estoppel` is unreachable (false green)", completed, verbatimApplied)
+				"is unexercised and `log --type estoppel` is unreachable (false green).\n          %s", completed, verbatimApplied, why)
 		}
 	}
 	if !measured {
