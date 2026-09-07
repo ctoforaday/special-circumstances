@@ -266,8 +266,34 @@ var (
 // "<!--cite:c-…-->" for a citation. Both axes place their immortal anchor by exactly this
 // rule, so a citation and a finding are located, fenced, and spliced identically.
 func InsertAnchor(report []byte, location, marker string) ([]byte, error) {
-	quote := extractQuote(location)
+	// THE WHOLE LOCATION FIRST, AND THE EXTRACTED SPAN ONLY IF IT IS NOT THERE.
+	//
+	// extractQuote prefers the text between the first two double quotes, which is what makes
+	// `§ Foundations: "the scheduler is preemptive"` locatable — a section label followed by its
+	// sentence. Applied unconditionally it also fires on a location that IS the sentence and
+	// merely CONTAINS a quoted phrase, and then the anchor is placed on the phrase somewhere else
+	// in the document:
+	//
+	//	location: Blue wrote that the cost is "climbing sharply" and gave no source for it.
+	//	anchored: The cost is climbing sharply<!--fx:f-1-->.        <- a different paragraph
+	//
+	// Silently, exit 0, on the surface whose whole job is to say WHERE the evidence is (#552,
+	// measured on the 2026-08-23 research-loop-counterparts run: a long exact uniquely-matching
+	// quote landed on an unrelated shorter sentence while a shorter quote from the same target
+	// landed correctly — which is this, from the other side).
+	//
+	// So the choice is not made on the SHAPE of the string. It is made on what the report
+	// actually contains: the literal location is tried first, and the extracted span is a
+	// FALLBACK for the decorated form, which by construction is not in the report literally.
+	// A miss is still ErrMisQuote — the marker never lands on content that is not there.
+	quote := strings.TrimSpace(location)
 	end := locateEnd(string(report), quote)
+	if end < 0 {
+		if q := extractQuote(location); q != quote {
+			quote = q
+			end = locateEnd(string(report), quote)
+		}
+	}
 	if end < 0 {
 		return nil, ErrMisQuote
 	}
