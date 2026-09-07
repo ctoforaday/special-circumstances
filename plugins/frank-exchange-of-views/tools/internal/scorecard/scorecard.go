@@ -418,28 +418,36 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	// as a check that can never fire — a detector that always reads 0 is a plausible zero.
 
 	// lines_of_inquiry (object value, insertion-order byStatus)
+	//
+	// READ FROM THE RECORD, NOT FROM THE ENVELOPES, and that is the whole of this row's history.
+	//
+	// It used to count `inquiries` arrays out of the seat RESULTS. When those did not arrive in
+	// the shape it expected it saw nothing, and rendered "no inquiries recorded — think-around-
+	// problem is back to self-attested" — a sentence that reads as a measured finding about the
+	// run. Measured in research/2026-09-02_quadratic-formula: the record held 35 distinct lines
+	// with 113 pursued-moves while this row said none were recorded, and a seat caught it only
+	// because `show lines-of-inquiry` rendered 23 in the same sitting.
+	//
+	// THE SCORECARD IS HARVESTED INTO feov-memory, so that zero did not stay in the run: it became
+	// a cross-run memory row asserting no alternatives were explored, in a run that explored 35.
+	// A wrong number is worse than a missing one exactly here, because the next run inherits it.
+	//
+	// record.Inquiries replays proposals AND moves, so a line that was declined and later pursued
+	// counts once, under the status it currently holds.
 	var statusOrder []string
 	statusCount := map[string]int{}
 	total := 0
 	var thinLines []string
-	for _, r := range results {
-		avs, ok := r["inquiries"].([]any)
-		if !ok {
-			continue
-		}
-		for _, av := range avs {
-			a, ok := av.(map[string]any)
-			if !ok {
-				continue
-			}
+	if board != nil {
+		for _, q := range record.Inquiries(board) {
 			total++
-			st := str(a["status"])
+			st := q.Status
 			if _, seen := statusCount[st]; !seen {
 				statusOrder = append(statusOrder, st)
 			}
 			statusCount[st]++
-			if st != "pursued" && len(strings.TrimSpace(str(a["reason"]))) < 20 {
-				thinLines = append(thinLines, str(a["line"]))
+			if st != "pursued" && len(strings.TrimSpace(q.Reason)) < 20 {
+				thinLines = append(thinLines, q.Line)
 			}
 		}
 	}
@@ -458,6 +466,11 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic",
 			Value: objJSON(sb.String()),
 			Joint: "reads WITH the report: breadth means nothing if the pursued line was chosen before the others were weighed"})
+	} else if board == nil {
+		// NOT MEASURED IS NOT ZERO. Without a board this row has not been computed, and saying
+		// "no inquiries recorded" would be the same defect one layer up.
+		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic",
+			Note: "NOT MEASURED — the record could not be read, so this is not a statement about the run"})
 	} else {
 		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic",
 			Note: "no inquiries recorded — think-around-problem is back to self-attested for this run"})

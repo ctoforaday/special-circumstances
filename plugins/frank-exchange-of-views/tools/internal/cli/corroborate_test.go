@@ -15,7 +15,7 @@ import (
 func corroborateRun(t *testing.T) string {
 	t.Helper()
 	runDir := recordtest.TmpRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-evidence"); err != nil {
 		t.Fatal(err)
 	}
 	seedBlueReport(t, runDir)
@@ -47,7 +47,7 @@ func assembled(t *testing.T, runDir string) string {
 // as a property ("Red's `lens cite` carries no label and is EXCLUDED").
 func TestASupportingCorroborationRendersAsAFootnote(t *testing.T) {
 	runDir := corroborateRun(t)
-	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--url", "https://example.org/red-found-this", "--title", "A source red found",
 		"--quote", corroborated, "--as", "supports", "--confidence", "high",
 		"--reason", "the source says exactly this at page 4"); err != nil {
@@ -78,7 +78,7 @@ func TestASupportingCorroborationRendersAsAFootnote(t *testing.T) {
 // and the report's own assembly check already treats a live refuted citation as a failure.
 func TestARefutingCorroborationIsNotSplicedAsAFootnote(t *testing.T) {
 	runDir := corroborateRun(t)
-	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--url", "https://example.org/contradicts", "--title", "A source that disagrees",
 		"--quote", corroborated, "--as", "refutes", "--confidence", "high",
 		"--reason", "the source says the opposite at page 9"); err != nil {
@@ -97,7 +97,7 @@ func TestARefutingCorroborationIsNotSplicedAsAFootnote(t *testing.T) {
 // away is refused rather than spliced blind — the same rule blue's own cite is held to.
 func TestACorroborationOfAnAbsentClaimIsRefused(t *testing.T) {
 	runDir := corroborateRun(t)
-	_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--url", "https://example.org/x", "--title", "T",
 		"--quote", "a sentence that is nowhere in the report", "--as", "supports",
 		"--confidence", "high", "--reason", "r")
@@ -140,7 +140,7 @@ func TestAWeakReadingCitesButAnUnreachableOneDoesNot(t *testing.T) {
 	} {
 		t.Run(tc.outcome, func(t *testing.T) {
 			runDir := corroborateRun(t)
-			if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+			if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 				"--url", "https://example.org/"+tc.outcome, "--title", "A source",
 				"--quote", corroborated, "--as", tc.outcome, "--confidence", "medium",
 				"--reason", "what the source says"); err != nil {

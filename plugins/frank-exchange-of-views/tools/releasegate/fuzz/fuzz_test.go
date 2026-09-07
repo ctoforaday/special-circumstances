@@ -1690,7 +1690,30 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 				// which build variant ran it. Passing the flag drives the stated-refusal path and
 				// satisfies the gate that every flag be exercised; the default (on) belongs to a
 				// seat reading one real document, not to a fuzzer.
-				_, _ = r.exec("fetch", "--seat-id", seatID, "--url", sourceURL("/"+seatID), "--ocr=false")
+				// --via live IS DRIVEN; THE OTHER FIVE ARE NOT, AND THAT IS THE HERMETIC LINE.
+				//
+				// `live` takes the ordinary Resolve path against this sweep's own test server, so
+				// naming it explicitly is a real drive of a real branch (the near-miss refusal
+				// above runs, and `live` is checked against Vias() before the equality test picks
+				// the local path). Every other backend — archive, oa, metadata, arxiv, auto —
+				// reaches an EXTERNAL service through Recover, and a sweep that called them would
+				// make 40 runs' worth of network requests to third parties and gain a green that
+				// depended on their uptime. The flag is exercised; the backends are not this
+				// gate's to prove.
+				fetchArgs := []string{"fetch", "--seat-id", seatID, "--url", sourceURL("/" + seatID), "--ocr=false"}
+				if r.coin(40) {
+					fetchArgs = append(fetchArgs, "--via", "live")
+				}
+				_, _ = r.exec(fetchArgs...)
+				// --at DRIVES ITS REFUSAL, which is the only honest way to drive it here: it is
+				// read on the non-live path alone, so a hermetic sweep cannot reach its success
+				// case at all. It used to be a SILENT NO-OP on a live fetch — the date dropped,
+				// today's page returned, success reported — and that is now a refusal, so this
+				// exercises a path a seat will actually hit rather than standing in for one.
+				r.maybe(20, func() {
+					_, _ = r.exec("fetch", "--seat-id", seatID, "--url", sourceURL("/"+seatID),
+						"--ocr=false", "--at", "20190101")
+				})
 				r.extras("lens", seatID, nil)
 			}
 		}
@@ -2112,7 +2135,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// the shape variation these oracles are built on is kept in full and the 76 process spawns a
 	// run paid for it are not; `drive`'s own comment carries the accounting.
 	for role, sid := range map[string]string{
-		"blue": "blue-respond-r1", "lens": "red-lens-r1-L1", "merge": "red-merge-r1", "bench": "judge-r1",
+		"blue": "blue-respond-r1", "lens": "red-lens-r1-evidence", "merge": "red-merge-r1", "bench": "judge-r1",
 	} {
 		for _, v := range viewNamesForFuzz {
 			args := []string{"show", v, "--run", runDir, "--seat-id", sid}
@@ -2143,7 +2166,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		// A SEAT ID PER ROLE, because the tree is scoped to the dispatched identity: without one
 		// the binary builds the OPERATOR surface, where `show` does not exist at all.
 		for _, sid := range map[string]string{
-			"blue": "blue-respond-r1", "lens": "red-lens-r1-L1", "merge": "red-merge-r1", "bench": "judge-r1",
+			"blue": "blue-respond-r1", "lens": "red-lens-r1-evidence", "merge": "red-merge-r1", "bench": "judge-r1",
 		} {
 			for _, extra := range [][]string{nil, {"--window", "0"}} {
 				args := append([]string{"show", "report", "--anchor", a, "--run", runDir, "--seat-id", sid}, extra...)
@@ -3735,7 +3758,7 @@ var readOnlySurfaces = [][]string{
 	// ever driven, so a regression in any other default was invisible. The seat id is what selects
 	// the tree now, so it is what distinguishes these four rather than a role word in front.
 	{"show", "--seat-id", "blue-respond-r1"},
-	{"show", "--seat-id", "red-lens-r1-L1"},
+	{"show", "--seat-id", "red-lens-r1-evidence"},
 	{"show", "--seat-id", "red-merge-r1"},
 	{"show", "--seat-id", "judge-r1"},
 	// The operator renders, over whatever shape the run actually reached.
@@ -3789,7 +3812,7 @@ func sweepReadOnly(bin, runDir string) string {
 func seatFor(role string) string {
 	switch role {
 	case "lens":
-		return "red-lens-r1-L1"
+		return "red-lens-r1-evidence"
 	case "merge":
 		return "red-merge-r1"
 	case "blue":
@@ -3853,7 +3876,7 @@ func fieldStr(t *testing.T, e *record.Event, name string) string {
 // longer part of an invocation; the seat id is what selects the tree it runs in.
 func seatOfRole(role string) string {
 	return map[string]string{
-		"blue": "blue-respond-r1", "lens": "red-lens-r1-L1",
+		"blue": "blue-respond-r1", "lens": "red-lens-r1-evidence",
 		"merge": "red-merge-r1", "bench": "judge-r1",
 	}[role]
 }

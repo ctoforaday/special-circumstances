@@ -19,14 +19,14 @@ import (
 // text to "The sky is green and the grass is on fire", silently.
 func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	for _, id := range []string{"red-lens-r1-L1", "blue-respond-r1"} {
+	for _, id := range []string{"red-lens-r1-evidence", "blue-respond-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatal(err)
 		}
 	}
 	seedBlueReport(t, runDir)
 	const claim = "§2 the finding prose lands in a quoted sentence."
-	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--url", "https://example.org/red", "--title", "T", "--quote", claim,
 		"--as", "supports", "--confidence", "high", "--reason", "read it at the leaf"); err != nil {
 		t.Fatal(err)

@@ -155,7 +155,7 @@ func TestEveryRefusalNamesTheProblemBeforeTheHelp(t *testing.T) {
 		args []string
 		says string
 	}{
-		{"a verb that is another seat's", []string{"mint", "--seat-id", "red-lens-r1-L1"}, `"mint" is not on your surface`},
+		{"a verb that is another seat's", []string{"mint", "--seat-id", "red-lens-r1-evidence"}, `"mint" is not on your surface`},
 		// There is no role level to name, so the old "a role with no verb" case is now a caller
 		// with no identity — the same shape of mistake at the level that still exists.
 		{"a command with no identity", []string{"mint"}, "--seat-id IS REQUIRED HERE"},
@@ -224,7 +224,7 @@ func seatHolding(verb string) string {
 
 func seatFor(role string) string {
 	return map[string]string{
-		"lens": "red-lens-r1-L1", "merge": "red-merge-r1",
+		"lens": "red-lens-r1-evidence", "merge": "red-merge-r1",
 		"blue": "blue-respond-r1", "bench": "judge-r1",
 	}[role]
 }
@@ -287,7 +287,7 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 func seatRunForContracts(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
-	for _, id := range []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
+	for _, id := range []string{"red-lens-r1-evidence", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}

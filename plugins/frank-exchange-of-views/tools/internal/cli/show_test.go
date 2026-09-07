@@ -78,7 +78,7 @@ func TestBareShowGivesEachRoleItsOwnView(t *testing.T) {
 		t.Run(c.role, func(t *testing.T) {
 			seat := map[string]string{
 				"merge": "red-merge-r1", "blue": "blue-respond-r1",
-				"lens": "red-lens-r1-L1", "bench": "judge-r1",
+				"lens": "red-lens-r1-evidence", "bench": "judge-r1",
 			}[c.role]
 			out, err := run(t, "show", "--run", runDir, "--seat-id", seat)
 			if err != nil {

@@ -34,10 +34,10 @@ import (
 // size. The numbers before it: blue-respond 24,356 · red-merge 24,193 · red-lens 13,931 ·
 // judge 11,861.
 var ceilings = map[string]int{
-	"blue-respond-r1": 15200,
-	"red-merge-r1":    13000,
-	"red-lens-r1-L1":  8700,
-	"judge-r2":        7800,
+	"blue-respond-r1":      15200,
+	"red-merge-r1":         13000,
+	"red-lens-r1-evidence": 8700,
+	"judge-r2":             7800,
 }
 
 func TestNoSeatPromptGrowsPastItsCeiling(t *testing.T) {

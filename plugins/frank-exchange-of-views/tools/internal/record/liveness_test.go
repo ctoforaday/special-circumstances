@@ -24,7 +24,7 @@ func runWithCadence(t *testing.T, n int, gap time.Duration, last time.Time) stri
 	for i := 0; i < n; i++ {
 		ts := last.Add(-time.Duration(n-1-i) * gap).UTC().Format(liveStamp)
 		evs = append(evs, recordtest.Stamped(
-			recordtest.At(t, "red-lens-r1-L1", 1, "red-lens-r1-L1:finding:k"+itoaT(i), &recordpb.Finding{
+			recordtest.At(t, "red-lens-r1-evidence", 1, "red-lens-r1-evidence:finding:k"+itoaT(i), &recordpb.Finding{
 				FindingId: proto.String("F" + itoaT(i)),
 				Label:     proto.String("L1-F" + itoaT(i)),
 				Text:      proto.String("a finding"),
@@ -62,7 +62,7 @@ func TestLastActivityReadsTheNewestEventsOwnTimestamp(t *testing.T) {
 	if !a.At.Equal(now) {
 		t.Errorf("newest event at %s, want %s", a.At, now)
 	}
-	if a.Seat != "red-lens-r1-L1" {
+	if a.Seat != "red-lens-r1-evidence" {
 		t.Errorf("seat = %q", a.Seat)
 	}
 	if a.Events != 8 {

@@ -62,7 +62,7 @@ test('null judge aborts cleanly instead of TypeError on judge.resolutions', asyn
 
 // ---- Run-3 docket row 2b + W2i: citation passes rescale every round, on the round's input ----
 
-const lensesByRound = (world, r) => world.calls.filter((c) => c.opts.label.match(new RegExp(`^red-lens-\\d+-r${r} `)))
+const lensesByRound = (world, r) => world.calls.filter((c) => c.opts.label.match(new RegExp(`^red-lens-[a-z-]+-r${r} `)))
 // A CITATION SEAT IS IDENTIFIED BY A PHRASE IN ITS PROMPT, which is a pattern standing in for a
 // schema: reword the clause and every one of these tests reports zero citation seats, which reads
 // exactly like a dispatcher that stopped dispatching them. It broke once already, when the clause
@@ -76,8 +76,8 @@ const lensesByRound = (world, r) => world.calls.filter((c) => c.opts.label.match
 // zero were the same number, and rewording the clause reported as "the sizing rule stopped
 // working". L1-L4 are the citation slices BY ROLE (L5 logic, L6 dark-side), the role is in the
 // label, and it is stable across rounds by construction.
-const lensRole = (c) => Number(c.opts.label.match(/^red-lens-(\d+)-/)[1])
-const citationSeats = (world, r) => lensesByRound(world, r).filter((c) => lensRole(c) <= 4)
+const lensArea = (c) => c.opts.label.match(/^red-lens-([a-z-]+)-r\d+/)[1]
+const citationSeats = (world, r) => lensesByRound(world, r).filter((c) => lensArea(c) === 'evidence')
 // The ledger clause's own presence is asserted separately, on the clause's subject rather than
 // on its first four words.
 const CITATION_CLAUSE = 'THE REPORT DOES NOT NAME ITS SOURCES'
@@ -98,6 +98,53 @@ test('the lens roster does not scale with the corpus — one seat per strategic 
   }
   assert.equal(await count(10), 4, 'evidence + logic + risk + voice')
   assert.equal(await count(200), 4, 'a 20x corpus dispatches the SAME four areas')
+})
+
+// AREAS ARE OPT-IN PER RUN (#771). Seven areas is four dispatch waves against a measured ~2-agent
+// concurrency cap where four is two, so the default stays what has always sat and the rest are
+// asked for. A run that wants an adversary lens says so.
+test('the default roster is the four areas that have always sat', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, ARGS)
+  const roles = world.calls.filter((c) => c.opts.label.startsWith('red-lens'))
+    .map(lensArea)
+  assert.deepEqual(roles, ['evidence', 'logic', 'dark-side', 'voice'], 'and nothing opt-in')
+})
+
+test('an opt-in area is dispatched only when asked for', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, { ...ARGS, lensAreas: ['evidence', 'adversary', 'architecture'] })
+  const roles = world.calls.filter((c) => c.opts.label.startsWith('red-lens'))
+    .map(lensArea)
+  assert.deepEqual(roles, ['evidence', 'adversary', 'architecture'], 'logic and voice not asked for')
+})
+
+// A TYPO'D AREA IS A LENS THAT SILENTLY DOES NOT SIT — a run missing an entire kind of audit,
+// reading exactly like a run that asked for fewer. It is refused at the door, naming both sides.
+test('an unknown area name is refused before any seat is dispatched', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await assert.rejects(
+    () => world.run(script, { ...ARGS, lensAreas: ['evidence', 'adversarial'] }),
+    (e) => /unknown lens area/.test(e.message) && /adversarial/.test(e.message) && /architecture/.test(e.message))
+  assert.equal(world.calls.length, 0, 'nothing was dispatched before the refusal')
+})
+
+// THE RETIRED NUMBERS STAY RETIRED, AND THIS TEST IS WHERE THAT RULE LIVES.
+//
+// Records on disk carry found_by labels under 2, 3 and 4, so an area claiming one makes an
+// existing record say something false about who found what — the rule proto field numbers follow,
+// for the same reason. It is asserted here rather than written into debate.js because a SEAT
+// cannot act on which numbers are retired; only someone adding an area can, and they will meet
+// this test.
+test('no lens is identified by a number', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
+  await world.run(script, { ...ARGS, lensAreas: ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'adversary', 'architecture'] })
+  const roles = world.calls.filter((c) => c.opts.label.startsWith('red-lens'))
+    .map(lensArea)
+  assert.deepEqual(roles, ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'adversary', 'architecture'])
+  for (const c of world.calls.filter((c) => c.opts.label.startsWith('red-lens'))) {
+    assert.ok(!/^red-lens-\d/.test(c.opts.label), `a lens is still identified by number: ${c.opts.label}`)
+  }
 })
 
 test('exactly one evidence seat sits per round, in every round', async () => {
@@ -130,7 +177,7 @@ test('W2i: the consolidated duty binds the evidence seat from round 2, and keeps
   assert.ok(r2.prompt.includes('YOU OWN THE WHOLE EVIDENCE PICTURE'), 'one seat means the cross-corpus defect is reachable')
   assert.ok(r2.prompt.includes('SPOT-CHECK'), 'the duty keeps a spot-check of already-verified pairs')
   assert.ok(r2.prompt.includes('COVERAGE IS AN OBSERVABLE'), 'what went unexamined must be stated, not assumed')
-  const dark = lensesByRound(world, 2).find((c) => c.opts.label.startsWith('red-lens-6-'))
+  const dark = lensesByRound(world, 2).find((c) => c.opts.label.startsWith('red-lens-dark-side-'))
   assert.ok(!dark.prompt.includes('YOUR ROUND'), 'L6 is untouched by the evidence seat\'s duty')
 })
 
@@ -222,7 +269,7 @@ test('every seat prompt carries the log clause (envelope + verb, not a hand-writ
   // THE LENS IS IN THIS LIST NOW. It was the one seat class the clause was never appended to —
   // found 2026-08-13 when the orphan gate reported `lens friction` as named nowhere a seat reads.
   // Four lens seats per round were told to close a channel nobody had told them about.
-  for (const seat of ['blue-synthesize', 'red-merge-r1', 'blue-respond-r1', 'assemble', 'red-lens-1-r1']) {
+  for (const seat of ['blue-synthesize', 'red-merge-r1', 'blue-respond-r1', 'assemble', 'red-lens-evidence-r1']) {
     const c = world.calls.find((c) => c.opts.label.startsWith(seat))
     // WHAT IS LEFT HERE AFTER THE SUBTRACTION. The clause used to carry the duty, the explicit
     // empty form, and the fact that silence is not the empty case — all three of which the
@@ -236,7 +283,7 @@ test('every seat prompt carries the log clause (envelope + verb, not a hand-writ
     // the traversal is measured with. Measured on 2026-09-02_quadratic-formula: the surveys are
     // 64,960 of 142,891 characters of this channel — 45.5% — and a mechanical search of all of
     // them for a single proposed fix returns ZERO. The instrument is also unfalsifiable, and
-    // false where it can be checked: red-lens-r4-L2's survey states it rejected `reproduce` and
+    // false where it can be checked: red-lens-r4-adversary's survey states it rejected `reproduce` and
     // `finding`, while that seat's own events record both. A check that cannot fail, and does not
     // hold where it can be tested, is what the bench docked blue for at R3-5 in that same run.
     // Both seats, asked afterwards, called it duty rather than judgement — one said it wrote to
@@ -256,7 +303,7 @@ test('every seat prompt carries the log clause (envelope + verb, not a hand-writ
     assert.ok(!/SILENCE IS NOT THE EMPTY CASE/.test(c.prompt),
       `${seat} restates the empty-form rule the verb's help states — two copies of one rule is what this pass removed`)
   }
-  const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens-1-r1'))
+  const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens-evidence-r1'))
   // Transcript-forbidden, stated POSITIVELY: the clause used to prohibit writing to debate.md,
   // a file setup no longer creates. The contract it was protecting is who owns the round's
   // narrative — one seat, through one verb — and that is the form a lens can actually act on.
@@ -347,7 +394,7 @@ test('additive is a CLAIMS invariant, not a prose one: compaction is free, remov
 test('citation lens ledger clause includes time and access-date drift triggers, not prose-only (row 10)', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
-  const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens-1-r1'))
+  const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens-evidence-r1'))
   assert.ok(lens.prompt.includes('more than 2 rounds have elapsed'), 'time trigger missing')
   assert.ok(lens.prompt.includes('access date'), 'access-date trigger missing')
 })
@@ -780,7 +827,7 @@ test('moot: a predicate-expired ruling adjudicates the gap out of red verdict sc
 test('MUST-try observable: graded-down citations require an attempt-or-impossibility line (false-paywall class)', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
-  const citation = world.calls.find(c => c.opts.label.startsWith('red-lens-1'))
+  const citation = world.calls.find(c => c.opts.label.startsWith('red-lens-evidence-'))
   // THE OBSERVABLE MOVED TO THE GRADE ITSELF. `unreachable` is a value of the verify verb's --as,
   // and its enum help carries the duty at the point of use: "Say what you tried in --reason; an
   // untried 'unable to corroborate' is an incomplete audit." A seat grading a citation down reads
@@ -1335,9 +1382,9 @@ test('lines of inquiry: every blue seat is told to record lines of inquiry; red 
   // The STEELMAN duty is the point of recording declines: E0.5h measured that the
   // case AGAINST a design attracts no adversary, so it lands on the two lenses
   // that audit arguments rather than sources.
-  assert.ok(/STEELMAN DUTY/.test(p('red-lens-5-r1')), 'the logic lens audits the declines')
-  assert.ok(/STEELMAN DUTY/.test(p('red-lens-6-r1')), 'so does dark-side')
-  assert.ok(!/STEELMAN DUTY/.test(p('red-lens-1-r1')), 'citation slices verify sources, not arguments')
+  assert.ok(/STEELMAN DUTY/.test(p('red-lens-logic-r1')), 'the logic lens audits the declines')
+  assert.ok(/STEELMAN DUTY/.test(p('red-lens-dark-side-r1')), 'so does dark-side')
+  assert.ok(!/STEELMAN DUTY/.test(p('red-lens-evidence-r1')), 'citation slices verify sources, not arguments')
 
   // The exploration space reaches the reader, not just the record.
   // WHERE THEY LAND IS THE ASSEMBLER'S COMPOSITION, not something the assembler is told to do —

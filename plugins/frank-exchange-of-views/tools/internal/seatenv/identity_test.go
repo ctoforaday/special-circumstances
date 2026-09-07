@@ -17,14 +17,14 @@ func bound(seat string) func() (string, error) {
 // it. Obeying the flag reinstates the typo; overriding it silently makes a seat's own argument
 // vanish, which is the failure where a seat spends a round arguing with a value it never chose.
 func TestASeatIDDisagreeingWithTheBoundIdentityIsRefused(t *testing.T) {
-	if _, err := ResolveSeat("red-lens-r1-L5", bound("red-lens-r1-L1"), nil); err == nil {
+	if _, err := ResolveSeat("red-lens-r1-logic", bound("red-lens-r1-evidence"), nil); err == nil {
 		t.Fatal("a --seat-id naming a DIFFERENT seat was accepted; attribution would silently land on the wrong lens")
 	}
 	// Agreement is not a conflict, and the flag alone still works before this agent has registered.
-	if s, err := ResolveSeat("red-lens-r1-L1", bound("red-lens-r1-L1"), nil); err != nil || s.ID != "red-lens-r1-L1" {
+	if s, err := ResolveSeat("red-lens-r1-evidence", bound("red-lens-r1-evidence"), nil); err != nil || s.ID != "red-lens-r1-evidence" {
 		t.Errorf("the same value from both sources must resolve, got %+v %v", s, err)
 	}
-	if s, err := ResolveSeat("red-lens-r1-L1", bound(""), nil); err != nil || s.ID != "red-lens-r1-L1" {
+	if s, err := ResolveSeat("red-lens-r1-evidence", bound(""), nil); err != nil || s.ID != "red-lens-r1-evidence" {
 		t.Errorf("an unregistered agent must still be able to identify itself by flag, got %+v %v", s, err)
 	}
 }
@@ -35,7 +35,7 @@ func TestASeatIDDisagreeingWithTheBoundIdentityIsRefused(t *testing.T) {
 // time against a record that is not there.
 func TestAnUnreadableBindingIsAnErrorRatherThanAnAbsence(t *testing.T) {
 	boom := func() (string, error) { return "", errRead }
-	if _, err := ResolveSeat("red-lens-r1-L1", boom, nil); err == nil {
+	if _, err := ResolveSeat("red-lens-r1-evidence", boom, nil); err == nil {
 		t.Fatal("a record that could not be read resolved as an agent that simply has not registered")
 	}
 }

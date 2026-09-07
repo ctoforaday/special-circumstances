@@ -97,7 +97,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	// carries tokens into the findings and transcript sections, which are composed from the event
 	// log rather than copied — a different code path to the same page, and the reason
 	// StripFindingMarkers runs over the FINAL output rather than over blue's content alone.
-	add("red-lens-r1-L1", &recordpb.Finding{
+	add("red-lens-r1-evidence", &recordpb.Finding{
 		Label: proto.String("L1-F1"), Location: proto.String("§Analysis"),
 		Text: proto.String("the read lock is dropped before evict<!--cite:c-1-->"),
 	})

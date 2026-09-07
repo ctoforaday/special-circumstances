@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/enumhelp"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli/seat"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -45,8 +46,26 @@ func newFinding() *cobra.Command {
 			return nil, fmt.Errorf("lens finding requires --reason: the explanation red re-audits the repair against")
 		}
 		location := seat.Str(cmd, flags.Quote)
-		if strings.TrimSpace(location) == "" {
-			return nil, fmt.Errorf("lens finding requires --quote: the EXACT text you are flagging, quoted from the report and nothing else — it is matched against blue/report.md to place the marker")
+		aboutKind, aboutRef := seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About)
+		about, aboutRefP, aerr := record.ResolveAbout("lens finding", run, aboutKind, aboutRef)
+		aboutSet := about != nil
+		if aerr != nil {
+			return nil, aerr
+		}
+		// EXACTLY ONE ANCHOR. A finding anchored to nothing cannot be found; one anchored to both
+		// a sentence and a section is claiming two subjects and the gap it becomes inherits the
+		// ambiguity.
+		switch {
+		case strings.TrimSpace(location) == "" && !aboutSet:
+			return nil, fmt.Errorf("lens finding needs an anchor: --quote for text that IS in the report, " +
+				"or --about-kind/--about for something that is not.\n\n" +
+				"An ABSENCE has no sentence to quote. Borrowing an innocent one as a handle is what this " +
+				"used to force — a missing line of inquiry pinned to a sentence the finding itself called " +
+				"fine — and a reader of the gap list then lands on good prose. Anchor it to the section it " +
+				"is missing from, the line of inquiry whose reason you are arguing against, or the gap it is about")
+		case strings.TrimSpace(location) != "" && aboutSet:
+			return nil, fmt.Errorf("lens finding takes --quote OR --about, not both: a finding has one subject, " +
+				"and the gap it becomes would inherit the ambiguity")
 		}
 		// Crash-retry idempotency: a prior finding under this --key returns its
 		// label, no second event AND no second marker (BEFORE any write).
@@ -87,18 +106,25 @@ func newFinding() *cobra.Command {
 		// VALIDATE the placement against the current render: NOT FOUND -> reject (a mis-quote),
 		// in-fence -> reject. Nothing is recorded on a refusal. On success the bytes are discarded —
 		// the Finding + Anchor events below are what the report is replayed from.
-		current, err := reportproj.RenderFromRecord(run)
-		if err != nil {
-			return nil, err
-		}
-		if _, aerr := anchortext.InsertAnchor([]byte(current), location, marker); aerr != nil {
-			switch {
-			case errors.Is(aerr, anchortext.ErrMisQuote):
-				return nil, fmt.Errorf("lens finding: --quote was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a finding anchors ONE passage")
-			case errors.Is(aerr, anchortext.ErrInFence):
-				return nil, fmt.Errorf("lens finding: the quote resolves inside a code fence — anchor a prose sentence, not code")
+		//
+		// SKIPPED ENTIRELY FOR AN ABSENCE. There is no placement to validate when the subject is
+		// something the report does NOT contain, and running this anyway is what forced a lens to
+		// borrow a live sentence as a handle: the only way past this check was to name text that
+		// exists, whatever the finding was actually about.
+		if !aboutSet {
+			current, rerr := reportproj.RenderFromRecord(run)
+			if rerr != nil {
+				return nil, rerr
 			}
-			return nil, aerr
+			if _, aerr := anchortext.InsertAnchor([]byte(current), location, marker); aerr != nil {
+				switch {
+				case errors.Is(aerr, anchortext.ErrMisQuote):
+					return nil, fmt.Errorf("lens finding: --quote was not found in report.md.\n\nIt is matched LITERALLY against the report, so it must be the quoted text ALONE. A section heading in front of it (\"Findings: …\", \"## Method — …\") is the common cause and makes it match nothing — measured, four times in one sitting with four different separators. Name the section in --reason instead.\n\nA quote may not cross a blank line: a finding anchors ONE passage")
+				case errors.Is(aerr, anchortext.ErrInFence):
+					return nil, fmt.Errorf("lens finding: the quote resolves inside a code fence — anchor a prose sentence, not code")
+				}
+				return nil, aerr
+			}
 		}
 
 		body := &recordpb.Finding{
@@ -107,6 +133,8 @@ func newFinding() *cobra.Command {
 			FindingKey: proto.String(seat.Str(cmd, flags.Key)),
 			Location:   proto.String(seat.Str(cmd, flags.Quote)),
 			Text:       proto.String(text),
+			AboutKind:  about,
+			AboutRef:   aboutRefP,
 			Severity:   seat.GradeOrNil(&severity),
 			Likelihood: seat.GradeOrNil(&likelihood),
 			Impact:     seat.GradeOrNil(&impact),
@@ -114,11 +142,16 @@ func newFinding() *cobra.Command {
 		if _, err := record.Append(s.Identity(), body); err != nil {
 			return nil, err
 		}
-		// The anchor event is EXPECTED for the immortal-marker detector: "finding
-		// <id> has a marker at <location>". Keyed on the id (idempotent per finding).
-		ap := &recordpb.Anchor{Id: proto.String(findingID), Location: proto.String(location)}
-		if _, err := record.Append(s.Identity(), ap); err != nil {
-			return nil, err
+		// NO MARKER FOR AN ABSENCE, and that is the point rather than an omission. The anchor
+		// event exists so the immortal-marker detector can say "finding <id> has a marker at
+		// <location>"; a finding about something NOT in the report has no location to mark, and
+		// splicing one would put a marker on the innocent prose this change exists to stop
+		// borrowing.
+		if !aboutSet {
+			ap := &recordpb.Anchor{Id: proto.String(findingID), Location: proto.String(location)}
+			if _, err := record.Append(s.Identity(), ap); err != nil {
+				return nil, err
+			}
 		}
 		// The LABEL leads: it is the run-unique identity a gap's found_by names.
 		return findingResult{Label: label, FindingID: findingID}, nil
@@ -129,6 +162,10 @@ func newFinding() *cobra.Command {
 	c.Flags().Var(&likelihood, flags.Likelihood, "how likely the CONSEQUENCE is — never how likely the defect is to BE there, which is what one grade meant before v2 split them")
 	c.Flags().Var(&impact, flags.Impact, "how bad the consequence is if it lands")
 	c.Flags().String(flags.Quote, "", flags.DescQuote+". The finding-marker is placed there")
+	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("finding", "about_kind"),
+		"anchor this finding to something that is NOT report text — use instead of --quote when the defect is an ABSENCE")
+	c.Flags().String(flags.About, "", "the reference --about-kind names: a section heading, an avenue id, or a gap id. "+
+		"It is CHECKED against the record, which a borrowed quote never was")
 	return c
 }
 

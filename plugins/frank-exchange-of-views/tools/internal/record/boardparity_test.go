@@ -19,7 +19,7 @@ func TestBoardJSONFromViewsMatchesTheFold(t *testing.T) {
 	run := mustRun(t, runDir)
 	red := Identity{Run: run, SeatID: "red-merge-r1", Round: 1}
 	blue := Identity{Run: run, SeatID: "blue-respond-r1", Round: 1}
-	lens := Identity{Run: run, SeatID: "red-lens-r1-L1", Round: 1}
+	lens := Identity{Run: run, SeatID: "red-lens-r1-evidence", Round: 1}
 	judge2 := Identity{Run: run, SeatID: "judge-r2", Round: 2}
 	app := func(id Identity, body proto.Message) {
 		t.Helper()

@@ -261,6 +261,17 @@ var EnumFields = map[string][]EnumField{
 		},
 		Why: "the operator triages this channel by FILTERING on the type; an untyped entry hands the reader back the reading this field exists to replace, so the write refuses one",
 	}},
+	// `finding`, and the ABOUT is the anchor a quote could not provide. Measured: a missing line
+	// of inquiry pinned to a sentence the finding called fine, and a missing risk matrix pinned to
+	// a section opening, because a live quote was the only target the verb accepted.
+	"finding": {{
+		Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: []EnumValue{
+			ev("section", "a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there"),
+			ev("inquiry", "a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned"),
+			ev("gap", "a gap already on the docket, by its id — a defect in the record rather than in the report"),
+		},
+		Why: "an absence has no sentence to quote, so it used to borrow an innocent one as a handle and the gap list pointed a reader at good prose. These targets are references the record can CHECK: an avenue id either names a line this run proposed or it does not",
+	}},
 	// `cite`, and the READING is the half a citation could not previously state. A citation says
 	// a source backs a sentence; it never said whether anyone had read the source. That gap was
 	// the load-bearing caveat of a whole run, carried as the prose substring "unreachable from
@@ -308,6 +319,18 @@ var EnumFields = map[string][]EnumField{
 				ev("source", "verifying an external source settles it — the claim stands or falls on what the cited material actually says"),
 			},
 			Why: "the kind says WHAT WOULD SETTLE the acceptance check, and it is the lever the 2026-08-05 smoke measured missing: blue wrote zero programs across the run, not because it ignored the invitation but because NOTHING ASKED — all ten of red's checks were document probes, and R1-1 was literally \"execute the assembly step\". Red could only ever ask whether the report SAYS something. A `computation` check is a demand that cannot be answered in prose",
+		},
+		// THE SAME SET `finding` CARRIES, WORD FOR WORD, because it is the same question asked at
+		// the next step of one act. Mint's help used to send an omission back to a borrowed quote —
+		// "quote the sentence where it SHOULD be" — which is the handle the finding had just been
+		// taught to stop using.
+		{
+			Key: "about_kind", Flag: flags.AboutKind, Optional: true, Values: []EnumValue{
+				ev("section", "a named report section, for something MISSING from it — the anchor a quote cannot give, because the text you object to is not there"),
+				ev("inquiry", "a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned"),
+				ev("gap", "a gap already on the docket, by its id — a defect in the record rather than in the report"),
+			},
+			Why: "a gap about an absence has no sentence to quote either, and the gap list is the surface a reader actually walks: an anchor that points at prose the gap calls fine sends them to the wrong paragraph. These targets are references the record can CHECK",
 		},
 	},
 	"reproduce": {{

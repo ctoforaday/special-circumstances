@@ -129,9 +129,9 @@ func TestReportSeparatesRecordedFromInvoked(t *testing.T) {
 func TestAttemptedFindsTheVerbAfterLeadingFlags(t *testing.T) {
 	sf := surface()
 	p := writeTrajectory(t,
-		`"/s/fxr.exe" --run "." --seat-id red-lens-r1-L1 lens finding --key F1 --reason "r"`,
-		`"/s/fxr.exe" --run "." --seat-id red-lens-r1-L1 lens show --view findings`,
-		`"/s/fxr.exe" --run "." --seat-id red-lens-r1-L1 record lens finding --key F2 --reason "r"`,
+		`"/s/fxr.exe" --run "." --seat-id red-lens-r1-evidence lens finding --key F1 --reason "r"`,
+		`"/s/fxr.exe" --run "." --seat-id red-lens-r1-evidence lens show --view findings`,
+		`"/s/fxr.exe" --run "." --seat-id red-lens-r1-evidence record lens finding --key F2 --reason "r"`,
 	)
 	got, err := Attempted(p, "fxr.exe", sf, "lens")
 	if err != nil {

@@ -64,11 +64,15 @@ func idKinds() []idKind {
 		},
 		{
 			name: "finding",
-			// NOT from flags: FindingLabel's shape is the id a LENS carries (`L2-F1`), while the
-			// minter here is exercised with a seat id, so the two describe different halves of
-			// the same vocabulary. Restated deliberately, which is what an exception looks like.
-			pattern: regexp.MustCompile(`^[A-Za-z0-9]+-F\d+$`),
-			mint:    func(run Run) (string, error) { return NextFindingLabel(run, "red-lens-r1-L1") },
+			// FROM FLAGS, and the exception it used to carry is instructive. This entry restated
+			// the shape as `^[A-Za-z0-9]+-F\d+$`, on the reasoning that FindingLabel described a
+			// lens id and the minter here is driven by a seat id — different halves of one
+			// vocabulary. #791 named a lens for its area and the restatement stopped covering the
+			// vocabulary at all: `dark-side-F1` has a hyphen, and the only reason this test stayed
+			// green is that it minted from `evidence`, the area whose name happens not to. That is
+			// the drift this whole matrix exists to catch, reproduced inside it.
+			pattern: flags.FindingLabel().Shape(),
+			mint:    func(run Run) (string, error) { return NextFindingLabel(run, "red-lens-r1-dark-side") },
 		},
 	}
 }

@@ -38,7 +38,7 @@ func registers(t *testing.T, rows ...[3]string) *record.Board {
 func TestASubstitutedTierIsNamedInTheReport(t *testing.T) {
 	got := conduct(registers(t,
 		[3]string{"blue-lane-1", "claude-opus-4-8", "claude-fable-5"},
-		[3]string{"red-lens-r1-L1", "claude-opus-4-8", "claude-fable-5"},
+		[3]string{"red-lens-r1-evidence", "claude-opus-4-8", "claude-fable-5"},
 		[3]string{"red-merge-r1", "claude-sonnet-5", ""},
 	))
 	for _, want := range []string{"claude-opus-4-8", "claude-fable-5", "SUBSTITUTED", "claude-sonnet-5"} {

@@ -180,6 +180,14 @@ INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('blue', 'the relief b
 INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('both', 'it binds the whole exchange, and every dispatched seat carries it');
 INSERT INTO "enum_ruling_binds" ("value", "means") VALUES ('red', 'it binds the audit seats: the lenses and the merge');
 
+CREATE TABLE "enum_about_kind" (
+  "value" TEXT PRIMARY KEY,
+  "means" TEXT NOT NULL
+) STRICT;
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('gap', 'a gap already on the docket, by its id — a defect in the record rather than in the report');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('inquiry', 'a line of inquiry, by its avenue id: an argument against the REASON it was declined, deferred or abandoned. The steelman duty''s own anchor');
+INSERT INTO "enum_about_kind" ("value", "means") VALUES ('section', 'a named report section, for something MISSING from it — the anchor a quote cannot provide, because the text you are objecting to is not there');
+
 CREATE TABLE "enum_check_kind" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
@@ -383,6 +391,8 @@ CREATE TABLE "mint" (
   "neighbor" TEXT,
   "distinguisher" TEXT,
   "location" TEXT,
+  "about_kind" TEXT,
+  "about_ref" TEXT,
   "problem" TEXT NOT NULL,
   "required_fix" TEXT,
   "fix_new" TEXT,
@@ -395,6 +405,7 @@ CREATE TABLE "mint" (
   "complexity_cost" TEXT,
   "mint_reason" TEXT,
   CHECK ("class_new" IS NULL OR "class_new" IN (0, 1)),
+  FOREIGN KEY ("about_kind") REFERENCES "enum_about_kind"("value"),
   FOREIGN KEY ("check_kind") REFERENCES "enum_check_kind"("value"),
   FOREIGN KEY ("severity") REFERENCES "enum_grade"("value"),
   FOREIGN KEY ("likelihood") REFERENCES "enum_grade"("value"),
@@ -488,9 +499,12 @@ CREATE TABLE "finding" (
   "severity" TEXT,
   "likelihood" TEXT,
   "impact" TEXT,
+  "about_kind" TEXT,
+  "about_ref" TEXT,
   FOREIGN KEY ("severity") REFERENCES "enum_grade"("value"),
   FOREIGN KEY ("likelihood") REFERENCES "enum_grade"("value"),
-  FOREIGN KEY ("impact") REFERENCES "enum_grade"("value")
+  FOREIGN KEY ("impact") REFERENCES "enum_grade"("value"),
+  FOREIGN KEY ("about_kind") REFERENCES "enum_about_kind"("value")
 ) STRICT;
 
 CREATE TABLE "observe" (
@@ -753,6 +767,8 @@ SELECT
   m."gap_id"                                   AS "gap_id",
   m."class"                                    AS "class",
   m."location"                                 AS "location",
+  m."about_kind"                               AS "about_kind",
+  m."about_ref"                                AS "about_ref",
   m."problem"                                  AS "problem",
   m."mint_reason"                              AS "mint_reason",
   m."required_fix"                             AS "required_fix",

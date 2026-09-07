@@ -110,21 +110,21 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	// Findings and their markers: the label allocator, the key lookup, the anchor pair heal.
-	if _, err := Append(Identity{Run: run, SeatID: "red-lens-r1-L1", Round: 1}, &recordpb.Finding{
-		FindingId: proto.String("f-0a0a0a0a"), Label: proto.String("L1-F1"), FindingKey: proto.String("fk-1"),
+	if _, err := Append(Identity{Run: run, SeatID: "red-lens-r1-evidence", Round: 1}, &recordpb.Finding{
+		FindingId: proto.String("f-0a0a0a0a"), Label: proto.String("evidence-F1"), FindingKey: proto.String("fk-1"),
 		Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
-	if label, err := NextFindingLabel(run, "red-lens-r1-L1"); err != nil || label != "L1-F2" {
+	if label, err := NextFindingLabel(run, "red-lens-r1-evidence"); err != nil || label != "evidence-F2" {
 		t.Errorf("NextFindingLabel = (%q, %v)", label, err)
 	}
-	if label, id, err := FindingByKey(run, "red-lens-r1-L1", "fk-1"); err != nil || label != "L1-F1" || id != "f-0a0a0a0a" {
+	if label, id, err := FindingByKey(run, "red-lens-r1-evidence", "fk-1"); err != nil || label != "evidence-F1" || id != "f-0a0a0a0a" {
 		t.Errorf("FindingByKey = (%q, %q, %v)", label, id, err)
 	}
-	if err := requireFindings(run, []string{"L1-F1"}, "mint", "--found-by"); err != nil {
+	if err := requireFindings(run, []string{"evidence-F1"}, "mint", "--found-by"); err != nil {
 		t.Errorf("requireFindings on a recorded label = %v", err)
 	}
-	if err := requireFindings(run, []string{"L1-F1", "L9-F9"}, "mint", "--found-by"); err == nil || !strings.Contains(err.Error(), "L9-F9") {
+	if err := requireFindings(run, []string{"evidence-F1", "L9-F9"}, "mint", "--found-by"); err == nil || !strings.Contains(err.Error(), "L9-F9") {
 		t.Errorf("requireFindings must name the first missing label: %v", err)
 	}
 	if exists, err := AnchorEventExists(run, "f-0a0a0a0a"); err != nil || exists {

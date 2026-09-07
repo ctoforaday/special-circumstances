@@ -80,7 +80,7 @@ type entityProbe struct {
 
 // probeSeats are the seats each act is attempted under. Every role that can touch an entity is
 // here, because an act refused by one seat and allowed by another is allowed.
-var probeSeats = []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"}
+var probeSeats = []string{"red-lens-r1-evidence", "red-merge-r1", "blue-respond-r1", "judge-r1"}
 
 // probeReason is what an ATTEMPTED act says, as distinct from what the SETUP said.
 //

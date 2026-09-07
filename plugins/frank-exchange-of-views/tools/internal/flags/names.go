@@ -182,6 +182,12 @@ const (
 	// never answer.
 	At = "at"
 
+	// About names WHAT a finding is anchored to when the thing it names is not on the page — a
+	// section that is missing something, a line of inquiry whose stated reason you are arguing
+	// against, a gap already on the docket. AboutKind says which.
+	About     = "about"
+	AboutKind = "about-kind"
+
 	// Lineage, in two directions on one relation: what this gap replaces, and what replaces
 	// it. Symmetric words, because the reader has to hold both at once.
 	Supersedes   = "supersedes"
@@ -275,7 +281,7 @@ func All() []string {
 		As, None, Ended, Confidence,
 		Severity, Likelihood, Impact, Complexity, Proposed, Dimension,
 		Class, Definition, Neighbor, Distinguisher,
-		Problem, Fix, Check, CheckKind, Type, SourceText, Via, At, Hypothesis, Script, Cites, ExpectError,
+		Problem, Fix, Check, CheckKind, Type, SourceText, Via, At, About, AboutKind, Hypothesis, Script, Cites, ExpectError,
 		Supersedes, SupersededBy, FoundBy, CarriedFrom,
 		VerifiedBy, VerifiedWith, VerifiedAgainst, Anchor,
 		Principle, Tension, ReviewFlag, Relief, Binds,

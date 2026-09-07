@@ -242,7 +242,7 @@ harness's own paraphrase.
 | blocked | blue-respond-r1 | 8 | 28 | 0/2 | 2/16 | 1 | 1 |
 | boundary | judge-r2 | 8 | 24 | 0/1 | 1/21 | **2** | 2 |
 | docket | blue-respond-r1 | 8 | 28 | 1/5 | 2/24 | 1 | 2 |
-| lens-audit | red-lens-r1-L1 | 7 | 21 | 3/6 | 3/17 | 1 | 1 |
+| lens-audit | red-lens-r1-evidence | 7 | 21 | 3/6 | 3/17 | 1 | 1 |
 | sitting | judge-r2 | 6 | 24 | 2/6 | 4/16 | 1 | 0 |
 | sources | blue-respond-r1 | 9 | 28 | 2/4 | 1/24 | 1 | 4 |
 

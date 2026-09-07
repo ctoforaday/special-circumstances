@@ -39,7 +39,7 @@ func TestTheHookInjectsAnIdentityThatRegisterRecords(t *testing.T) {
 	}
 	applyExports(t, payload)
 
-	if _, err := run(t, "register", "--seat-id", "red-lens-r1-L1"); err != nil {
+	if _, err := run(t, "register", "--seat-id", "red-lens-r1-evidence"); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_REGISTER).GetRegister().GetAgentId()
@@ -59,7 +59,7 @@ func TestNoHookMeansNoAgentField(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.AgentVar, "")
 
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-evidence"); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	ev := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_REGISTER)
@@ -71,7 +71,7 @@ func TestNoHookMeansNoAgentField(t *testing.T) {
 	}
 	// And the register itself must still work. A seat whose harness has no hook is not a seat
 	// that cannot record.
-	if ev.GetSeatId() != "red-lens-r1-L1" {
+	if ev.GetSeatId() != "red-lens-r1-evidence" {
 		t.Errorf("register did not record the seat: %+v", ev)
 	}
 }
@@ -96,7 +96,7 @@ func TestAMainSessionCallGetsNoIdentity(t *testing.T) {
 // for — which agent held this seat.
 func TestConcurrentSeatsRecordDistinctAgents(t *testing.T) {
 	runDir := seatRun(t)
-	seats := map[string]string{"red-lens-r1-L1": "agent_aaa", "red-lens-r1-L2": "agent_bbb"}
+	seats := map[string]string{"red-lens-r1-evidence": "agent_aaa", "red-lens-r1-adversary": "agent_bbb"}
 
 	for seat, agent := range seats {
 		t.Setenv(seatenv.AgentVar, agent)
@@ -105,7 +105,7 @@ func TestConcurrentSeatsRecordDistinctAgents(t *testing.T) {
 		}
 	}
 	// THE LATEST REGISTER PER SEAT, which is what the binding IS. seatRun already registered
-	// red-lens-r1-L1 with no agent, and this loop asserted over EVERY register event — so it
+	// red-lens-r1-evidence with no agent, and this loop asserted over EVERY register event — so it
 	// failed on the fixture's own earlier sitting rather than on the binding under test.
 	//
 	// Taking the last one is not a way around that: it is the rule agentbinding.go states. A
@@ -161,7 +161,7 @@ func TestAnUnregisteredAgentIsRefused(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.AgentVar, "agent_never_registered")
 
-	_, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	_, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--reason", "acting without an identity", "--type", "defect")
 	if err == nil {
 		t.Fatal("an agent with no binding on the record filed an event anyway — the seat id was taken on trust, which is the thing this replaces")
@@ -181,7 +181,7 @@ func TestRegisterIsTheOneVerbThatMayRunUnbound(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.AgentVar, "agent_bootstrapping")
 
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-evidence"); err != nil {
 		t.Fatalf("register was refused for want of the binding it exists to write — the mechanism cannot start: %v", err)
 	}
 	// And now the SAME agent may act, with no --seat-id at all. That is the whole point: the id
@@ -189,7 +189,7 @@ func TestRegisterIsTheOneVerbThatMayRunUnbound(t *testing.T) {
 	if _, err := run(t, "log", "--run", runDir, "--reason", "the tool has no path for X", "--type", "defect"); err != nil {
 		t.Fatalf("a registered agent still could not act without retyping its seat id: %v", err)
 	}
-	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG).GetSeatId(); got != "red-lens-r1-L1" {
+	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_LOG).GetSeatId(); got != "red-lens-r1-evidence" {
 		t.Errorf("the event was filed under %q; the binding did not carry the identity", got)
 	}
 }
@@ -201,7 +201,7 @@ func TestWithoutAHandleTheFlagStillWorks(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.AgentVar, "")
 
-	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--reason", "no hook in this environment", "--type", "defect"); err != nil {
 		t.Fatalf("an unhooked caller was held to a binding it has no way to create: %v", err)
 	}
@@ -212,14 +212,14 @@ func TestWithoutAHandleTheFlagStillWorks(t *testing.T) {
 func TestAFlagContradictingTheBindingIsRefused(t *testing.T) {
 	runDir := seatRun(t)
 	t.Setenv(seatenv.AgentVar, "agent_lens_one")
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-evidence"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-L2", "--reason", "x", "--type", "defect")
+	_, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-adversary", "--reason", "x", "--type", "defect")
 	if err == nil {
 		t.Fatal("an event was filed under a seat this agent did not register as; every found_by and estoppel downstream reads that attribution")
 	}
-	for _, want := range []string{"red-lens-r1-L1", "red-lens-r1-L2"} {
+	for _, want := range []string{"red-lens-r1-evidence", "red-lens-r1-adversary"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must name BOTH ids so the seat can see which is which; missing %q in %v", want, err)
 		}

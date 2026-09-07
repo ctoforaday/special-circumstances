@@ -26,14 +26,14 @@ import (
 func TestFindingRetryFinishesTheHalfAppendedPair(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# Findings\n\nThe sky is blue and the grass is green<!--fx:f-0badf00d-->.\n")
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-evidence"); err != nil {
 		t.Fatal(err)
 	}
-	recordtest.Seed(t, runDir, recordtest.At(t, "red-lens-r1-L1", 1, "red-lens-r1-L1:finding:L1-F1", &recordpb.Finding{
+	recordtest.Seed(t, runDir, recordtest.At(t, "red-lens-r1-evidence", 1, "red-lens-r1-evidence:finding:L1-F1", &recordpb.Finding{
 		Label: proto.String("L1-F1"), FindingId: proto.String("f-0badf00d"), FindingKey: proto.String("K1"),
 		Location: proto.String("The sky is blue and the grass is green."), Text: proto.String("an unfounded leap"),
 	}))
-	out, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	out, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--quote", "The sky is blue and the grass is green.",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium",
 		"--key", "K1", "--reason", "an unfounded leap")

@@ -185,7 +185,7 @@ catches the sitting where the seat writes no such sentence and files no friction
 notice it was standing at a wall.
 
 Unresolved: the probe reports `finding×8` for a sitting that filed four findings. The seat was
-dispatched twice (`multi-nonce seat red-lens-r1-L1: 2 dispatches`) and both dispatches recorded them.
+dispatched twice (`multi-nonce seat red-lens-r1-evidence: 2 dispatches`) and both dispatches recorded them.
 Distinct-verb counts are unaffected; per-verb multiplicities in every report are inflated wherever a
 seat was dispatched more than once.
 

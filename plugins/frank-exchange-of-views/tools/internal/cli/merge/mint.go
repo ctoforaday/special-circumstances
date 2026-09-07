@@ -99,21 +99,36 @@ func newMint() *cobra.Command {
 		// A location a reader cannot find is not a location. It is refused now, by the same
 		// rule the lens has always been held to.
 		//
-		// AN OMISSION STILL HAS A PLACE. A gap about something MISSING has no span of its own
-		// — so quote the sentence where it should be, which is exactly what a lens finding
-		// about an omission already does. The refusal says so, because a seat that reads
-		// "not found in report.md" and has an omission on its hands would otherwise conclude
-		// the verb cannot express what it is holding.
-		if loc := seat.Str(cmd, flags.Quote); strings.TrimSpace(loc) != "" {
+		// AN OMISSION STILL HAS A PLACE, AND IT IS NO LONGER A BORROWED SENTENCE. This used to
+		// read "for a gap about something MISSING, quote the sentence where it SHOULD be;
+		// that is how a lens finding anchors an omission" — and it was true when it was
+		// written. `lens finding` stopped anchoring that way (#742): an absence names the
+		// section it is missing from, the inquiry whose reason it argues against, or the gap
+		// it is about, and the record CHECKS the reference. Leaving the instruction here
+		// would have made a seat spell one act two ways across the two verbs of one act, and
+		// the gap minted from such a finding would re-acquire the handle the finding shed.
+		about, aboutRefP, aerr := record.ResolveAbout("merge mint", run, seat.Str(cmd, flags.AboutKind), seat.Str(cmd, flags.About))
+		if aerr != nil {
+			return nil, aerr
+		}
+		loc := seat.Str(cmd, flags.Quote)
+		// ONE SUBJECT. An anchor is OPTIONAL on a gap — that is this verb's pre-existing shape and
+		// is not changed here — but a gap that claims both is claiming two.
+		if strings.TrimSpace(loc) != "" && about != nil {
+			return nil, fmt.Errorf("merge mint takes --quote OR --about, not both: a gap has one subject")
+		}
+		if strings.TrimSpace(loc) != "" {
 			report, err := reportproj.RenderFromRecord(run)
 			if err != nil {
 				return nil, err
 			}
 			if _, _, lerr := bluedoc.LocateUnique("merge mint --quote", report, loc); lerr != nil {
-				return nil, fmt.Errorf("%w\n\nQuote the exact sentence the defect lives at, from blue/report.md and nothing else — a section heading plus a sentence will not match. For a gap about something MISSING, quote the sentence where it SHOULD be; that is how a lens finding anchors an omission", lerr)
+				return nil, fmt.Errorf("%w\n\nQuote the exact sentence the defect lives at, from blue/report.md and nothing else — a section heading plus a sentence will not match. For a gap about something that is NOT in the report, do not borrow a nearby sentence: name it with --about-kind/--about, the same pair `lens finding` takes", lerr)
 			}
 		}
-		p.Location = proto.String(seat.Str(cmd, flags.Quote))
+		p.Location = proto.String(loc)
+		p.AboutKind = about
+		p.AboutRef = aboutRefP
 		p.Problem = proto.String(problem)
 		p.RequiredFix = proto.String(seat.Str(cmd, flags.Fix))
 		// THE CONCRETE PROPOSAL, AND WHY fix_basis IS DERIVED (#267 stage 3).
@@ -224,7 +239,11 @@ func newMint() *cobra.Command {
 	// as "merge class new": a phrase from the prose offered to a seat as the thing to type. The
 	// command is named without them, and the placeholder is the shape actually wanted.
 	c.Flags().String(flags.Class, "", "the gap's `slug` — what KIND of defect this is. A slug the registry has; coin a missing one first with the class-new verb")
-	c.Flags().String(flags.Quote, "", flags.DescQuote+". For a gap about something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an omission")
+	c.Flags().String(flags.Quote, "", flags.DescQuote)
+	enumhelp.Flag(c, flags.AboutKind, record.MustEnum("mint", "about_kind"),
+		"anchor this gap to something that is NOT report text — use instead of --quote when the defect is an ABSENCE. The same pair the lens finding verb takes")
+	c.Flags().String(flags.About, "", "the reference --about-kind names: a section heading, an avenue id, or a gap id. "+
+		"It is CHECKED against the record, which a borrowed quote never was")
 	c.Flags().String(flags.Problem, "", "what is wrong (or pass it via --reason)")
 	c.Flags().String(flags.Fix, "", "the required fix, as prose — what must become true. This is the substantive channel: research it, enumerate it, qualify it")
 	c.Flags().String(flags.New, "", "OPTIONAL concrete proposal, TEXTUAL DEFECTS ONLY: the exact text --quote should become. Bounded — a replacement more than 120 characters longer than the span is refused as AUTHORING, because a substantive addition is blue's to write and you say so in --fix. Its presence is what DERIVES fix_basis: verified")

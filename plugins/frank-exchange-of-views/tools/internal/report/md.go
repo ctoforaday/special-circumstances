@@ -19,6 +19,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
 var (
@@ -44,9 +46,15 @@ var (
 	reAutolink  = regexp.MustCompile(`(^|[\s(])(https?://[^\s<>()\[\]]+)`)
 	reAnchorTag = regexp.MustCompile(`(?i)^<a\s+id="([^"]+)"`)
 	// idToken matches the identifiers the record mints and every document quotes: gaps
-	// (R4-3), motions (M2), proofs (P1) and lens findings (L2-F1). They are the joins the
+	// (R4-3), motions (M2), proofs (P1) and lens findings (adversary-F1). They are the joins the
 	// single-file report made a reader scroll for.
-	idToken = regexp.MustCompile(`\b(R\d+-\d+|M\d+|P\d+|L\d+-F\d+)\b`)
+	//
+	// The finding half is READ FROM internal/flags rather than restated. It was restated, as
+	// `L\d+-F\d+`, and #791 renamed lens findings after their area without touching it — so every
+	// finding in the report silently stopped linking to the docket entry that answers it. An id
+	// that matches nothing renders exactly like an id nobody else mentioned, which is why the
+	// break survived a green suite. TestALensFindingsAreaLabelLinksToItsDefinition holds it.
+	idToken = regexp.MustCompile(`\b(R\d+-\d+|M\d+|P\d+|` + flags.FindingLabelAlt() + `)\b`)
 )
 
 // anchors is the map from a record id to the document and element that DEFINES it, filled as
