@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/anchortext"
+
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
@@ -91,7 +93,17 @@ type GapJSON struct {
 	// unset, so a gap anchored by quote reads exactly as it did.
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
-	Problem   string `json:"problem"`
+	// LocationStale says the quoted location is NO LONGER IN THE REPORT — blue rewrote the
+	// sentence the gap was minted against, by the sanctioned path (`blue edit` permits rewriting
+	// an anchored sentence as transit). The stored prose was correct when written and is checked
+	// only at mint, so without this the board shows text a reader cannot find and nothing marks
+	// it as historical (#453).
+	//
+	// A POINTER, three-state: nil means the question does not apply or could not be asked — a gap
+	// anchored with --about carries no report text, and a report that will not render is not
+	// evidence that a location is gone.
+	LocationStale *bool  `json:"location_stale,omitempty"`
+	Problem       string `json:"problem"`
 	// MintReason is red's ARGUMENT for the gap, distinct from what is wrong with the text.
 	// A bench adjudicating what a required_fix may demand asked for exactly this and could not
 	// find it; mint was accepting --reason and discarding it. See merge/mint.go.
@@ -263,8 +275,10 @@ func closureBody(g *Gap) proto.Message {
 
 // BoardJSONBytes renders the board as indented JSON. Indented because a seat reads this in
 // a terminal transcript and a single 40KB line is unreadable to the thing consuming it.
+// It passes no report text, so every location reads "not asked". The callers that can render one
+// use BoardJSONBytesFor directly.
 func BoardJSONBytes(run Run) ([]byte, error) {
-	return BoardJSONBytesFor(run, "", "")
+	return BoardJSONBytesFor(run, "", "", "")
 }
 
 // BoardJSONBytesFor is the board.
@@ -279,11 +293,16 @@ func BoardJSONBytes(run Run) ([]byte, error) {
 // reads, it can no longer tell whether the other says something different. There is one work list,
 // it is what bare `show` returns for every role, and it is the command a seat is told to run. The
 // board is the gaps; the work is the work.
-func BoardJSONBytesFor(run Run, role, seatID string) ([]byte, error) {
+// reportText is the report AS IT IS NOW, supplied by the caller because rendering lives in
+// reportproj and reportproj imports this package. Pass "" where it cannot be rendered: every
+// location then reads "not asked" rather than "still there", which is the distinction #453 is
+// about.
+func BoardJSONBytesFor(run Run, role, seatID, reportText string) ([]byte, error) {
 	bj, err := BoardJSONOfRun(run)
 	if err != nil {
 		return nil, err
 	}
+	MarkStaleLocations(&bj, reportText)
 	out, err := json.MarshalIndent(bj, "", "  ")
 	if err != nil {
 		return nil, err
@@ -1239,4 +1258,42 @@ func DebateJSONBytes(run Run) ([]byte, error) {
 		return nil, err
 	}
 	return append(out, '\n'), nil
+}
+
+// staleLocation answers whether a gap's quoted location is still in the report.
+//
+// THE THREE STATES ARE KEPT APART, which is the whole point: true is "the sentence is gone", false
+// is "it is still there", and nil is "not asked" — a gap with no location (one anchored by
+// --about), or a report that would not render. Collapsing nil into false would tell a reader the
+// board had checked when nothing looked, which is the shape this field exists to remove.
+//
+// It matches the same way the mint-time check does — through the invisible annotation layer, so a
+// marker spliced into the sentence since the mint does not read as a rewrite. That is the
+// difference between "blue edited this" and "somebody cited it", and a gap flagged for the second
+// would teach seats to ignore the flag.
+func StaleLocation(reportText, location string) *bool {
+	if reportText == "" || strings.TrimSpace(location) == "" {
+		return nil
+	}
+	start, _ := anchortext.LocateSpanScoped(reportText, location, anchortext.CrossParagraphs)
+	stale := start < 0
+	return &stale
+}
+
+// MarkStaleLocations fills LocationStale for every gap on a board, given the report as it is now.
+//
+// IT TAKES THE TEXT RATHER THAN RENDERING IT, and that is forced rather than chosen: rendering is
+// reportproj's, reportproj imports this package, and a package cannot import its own importer.
+// That cycle is a large part of why the board never followed the live path in the first place —
+// the projection that knows the current text and the projection that shows the stale copy are on
+// opposite sides of it.
+func MarkStaleLocations(b *BoardJSON, reportText string) {
+	if b == nil {
+		return
+	}
+	for _, set := range [][]GapJSON{b.Open, b.Closed} {
+		for i := range set {
+			set[i].LocationStale = StaleLocation(reportText, set[i].Location)
+		}
+	}
 }

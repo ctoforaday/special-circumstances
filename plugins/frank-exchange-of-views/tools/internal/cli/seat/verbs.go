@@ -15,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/report"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/scorecard"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatenv"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/view"
@@ -583,7 +584,12 @@ func renderView(cmd *cobra.Command, want string) error {
 		}
 		// The role and seat are passed so the board CAN carry the sitting; whether it does is
 		// the duty arm's decision, and unset means the board is exactly what it always was.
-		b, err := record.BoardJSONBytesFor(run, role, Of(cmd).SeatID)
+		// THE REPORT AS IT IS NOW, so a location blue has since rewritten is marked rather than
+		// presented as current (#453). A render failure is passed through as "" — every location
+		// then reads "not asked", because an unreadable report is not evidence that a sentence
+		// is gone.
+		reportNow, _ := reportproj.RenderFromRecord(run)
+		b, err := record.BoardJSONBytesFor(run, role, Of(cmd).SeatID, reportNow)
 		if err != nil {
 			return err
 		}
