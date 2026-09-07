@@ -23,9 +23,9 @@ import (
 // for that run — so every later call was refused "this agent has not registered" whatever shape
 // it took. That message was returned 92 times across the session and was false every time.
 func TestASeatWhoseIdentityNeverArrivedIsToldWhatToDo(t *testing.T) {
-	h := registerResult{SeatID: "red-lens-r1-L1", IdentityAbsent: true}.Human()
+	h := registerResult{SeatID: "red-lens-r1-evidence", IdentityAbsent: true}.Human()
 	for _, want := range []string{
-		"registered red-lens-r1-L1",
+		"registered red-lens-r1-evidence",
 		"YOUR IDENTITY DID NOT REACH THE TOOL",
 		"PASS --seat-id ON EVERY CALL",
 		"REGISTERING AGAIN WILL NOT FIX IT",
@@ -67,7 +67,7 @@ func TestAnArrivedIdentitySaysNothing(t *testing.T) {
 // say whether the hook declined, was never invoked, or found no marker — three states and one
 // silence. The seat is the first party that can see the pair, and the only one still running.
 func TestASeatSeesThatTheHookIsMissingFromTheWholeRun(t *testing.T) {
-	h := registerResult{SeatID: "red-lens-r1-L1", IdentityAbsent: true, RunVia: "inferred", HookAbsent: true}.Human()
+	h := registerResult{SeatID: "red-lens-r1-evidence", IdentityAbsent: true, RunVia: "inferred", HookAbsent: true}.Human()
 	for _, want := range []string{
 		"YOUR IDENTITY DID NOT REACH THE TOOL", // the seat's own consequence still comes first
 		"THE ENGINE'S HOOK IS NOT REACHING THIS RUN",
@@ -110,7 +110,7 @@ func TestUnderAWrapperTheHookAbsenceIsStatedWithoutAlarm(t *testing.T) {
 // identical on the identity alone, and telling it the whole run is broken would be a false
 // diagnosis handed to the one party positioned to report it.
 func TestAMissingIdentityAloneDoesNotAccuseTheHook(t *testing.T) {
-	h := registerResult{SeatID: "red-lens-r1-L1", IdentityAbsent: true, RunVia: "flag"}.Human()
+	h := registerResult{SeatID: "red-lens-r1-evidence", IdentityAbsent: true, RunVia: "flag"}.Human()
 	if strings.Contains(h, "NOT ONLY YOUR IDENTITY") {
 		t.Errorf("a seat that typed --run is told the hook is absent:\n%s", h)
 	}

@@ -60,7 +60,7 @@ Flags:
 // exactly the state in which a seat guesses `--sha256` and is refused.
 func TestTheRootListingIsNotHavingReadTheHelp(t *testing.T) {
 	p := traj(t,
-		use("a", `"/tmp/x/feov-record" --seat-id red-lens-r1-L1 --help`), res("a", rootHelp, false),
+		use("a", `"/tmp/x/feov-record" --seat-id red-lens-r1-evidence --help`), res("a", rootHelp, false),
 		use("b", `"/tmp/x/feov-record" fetch --url http://x --sha256 deadbeef`), res("b", "unknown flag: --sha256", true),
 	)
 	s, err := ReadSurvey(p, "feov-record", nil)
@@ -205,7 +205,7 @@ func joinWords(w []string) string {
 func TestQuotedProseCannotNominateAVerb(t *testing.T) {
 	for _, tc := range []struct{ cmd, want string }{
 		{`/tmp/x/feov-record finding --quote "the corpus holds 340" --reason "close the gap"`, "finding"},
-		{`/tmp/x/feov-record --run . --seat-id red-lens-r1-L1 lens finding --key F1`, "finding"},
+		{`/tmp/x/feov-record --run . --seat-id red-lens-r1-evidence lens finding --key F1`, "finding"},
 		{`/tmp/x/feov-record motion petition file --class integrity --relief "strike the requirement"`, "motion petition file"},
 		{`/tmp/x/feov-record friction --none --reason "reached for verify, found it"`, "friction"},
 	} {

@@ -7,7 +7,7 @@ import "testing"
 // "refused" case below SUCCEEDED.
 func TestSeatRoleBinding(t *testing.T) {
 	allowed := map[string][]string{
-		"lens":  {"red-lens-r1-L1", "red-lens-r12-L6"},
+		"lens":  {"red-lens-r1-evidence", "red-lens-r12-dark-side"},
 		"merge": {"red-merge-r1", "red-merge-r12"},
 		"blue":  {"blue-lane-1", "blue-respond-r3", "blue-synthesize", "frontier"},
 		"bench": {"judge-r1", "judge-petition", "judge-terminal", "assemble"},

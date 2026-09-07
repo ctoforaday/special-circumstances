@@ -65,10 +65,10 @@ func TestEventStampsResolveSubMillisecondEvents(t *testing.T) {
 // And the whole path, end to end: an appended event carries a stamp at all.
 func TestAppendedEventCarriesAStamp(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: RoundIn(mustRun(t, runDir))("red-lens-r1-L1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: RoundIn(mustRun(t, runDir))("red-lens-r1-evidence")}, ""); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: RoundIn(mustRun(t, runDir))("red-lens-r1-L1")}, &recordpb.Observe{Label: proto.String("L1-O1")})
+	ev, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: RoundIn(mustRun(t, runDir))("red-lens-r1-evidence")}, &recordpb.Observe{Label: proto.String("L1-O1")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 			Now = c.now
 
 			runDir := recordtest.TmpRun(t)
-			id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-L1", Round: RoundIn(mustRun(t, runDir))("red-lens-r1-L1")}
+			id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: RoundIn(mustRun(t, runDir))("red-lens-r1-evidence")}
 			if _, _, err := RegisterSeat(id, ""); err != nil {
 				t.Fatal(err)
 			}

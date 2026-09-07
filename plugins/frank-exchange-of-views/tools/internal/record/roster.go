@@ -19,7 +19,7 @@ import (
 // THIS IS THE `roleSeats` COMMENT, PROMOTED FROM PROSE TO A PATTERN. That comment has always
 // carried the real vocabulary —
 //
-//	lens   red-lens-r<N>-L<M>
+//	lens   red-lens-r<N>-<area>
 //	merge  red-merge-r<N>
 //	blue   blue-lane-<N>, blue-respond-r<N>, blue-synthesize, frontier
 //	bench  judge-r<N>, judge-petition-<petitioner>, judge-terminal, assemble
@@ -54,7 +54,7 @@ type seatShape struct {
 }
 
 var seatShapes = []seatShape{
-	{"lens", regexp.MustCompile(`^red-lens-r\d+-L\d+$`), "red-lens", "red-lens-r1-L1"},
+	{"lens", regexp.MustCompile(`^red-lens-r\d+-[a-z]+(?:-[a-z]+)*$`), "red-lens", "red-lens-r1-evidence"},
 	{"merge", regexp.MustCompile(`^red-merge-r\d+$`), "red-merge", "red-merge-r1"},
 	{"blue", regexp.MustCompile(`^blue-lane-\d+$`), "blue-lane", "blue-lane-1"},
 	{"blue", regexp.MustCompile(`^blue-respond-r\d+$`), "blue-respond", "blue-respond-r1"},
@@ -92,6 +92,31 @@ func TierClassOfSeat(seatID string) string {
 // Bound to the head debate.js actually composes by TestThePetitionPrefixMatchesTheOneDebateComposes:
 // Go CUTS this prefix where the engine COMPOSES it, so a rename over there refuses every petition
 // seat over here, in a message about an id the engine had just dispatched.
+// LensAreas are the strategic areas a lens seat can be dispatched for — one seat each, and the
+// name IS the identity: a finding filed by the adversary lens is labelled `adversary-F1`, and
+// `found_by` reads back as what found it rather than as a number needing a lookup table.
+//
+// MEMBERSHIP, NOT JUST SHAPE. The pattern above bounds a lens id to a hyphenated word, which
+// would admit `red-lens-r1-evidence-oops`. This list is what makes the id refusable: an area the
+// engine does not dispatch is not an area. TestTheRosterMatchesWhatTheEngineActuallyDispatches
+// holds it against debate.js's own RED_AREAS, so adding an area there and not here fails.
+var LensAreas = []string{"evidence", "logic", "dark-side", "voice", "computation", "adversary", "architecture"}
+
+// lensAreaRe lifts the area off a lens seat id. It is a SECOND read of the shape the seat pattern
+// already matched, and deliberately so: the pattern answers "is this a lens id", this answers
+// "which area", and collapsing them would make the shape table carry seven alternatives that
+// skeletonOfPattern could not compare against debate.js.
+var lensAreaRe = regexp.MustCompile(`^red-lens-r\d+-(.+)$`)
+
+func isLensArea(s string) bool {
+	for _, a := range LensAreas {
+		if a == s {
+			return true
+		}
+	}
+	return false
+}
+
 const petitionPrefix = "judge-petition-"
 
 // dispatchableSeatID reports whether an id is one the engine's naming scheme can produce.
@@ -102,9 +127,15 @@ func dispatchableSeatID(seatID string) bool {
 		return !strings.HasPrefix(petitioner, petitionPrefix) && dispatchableSeatID(petitioner)
 	}
 	for _, s := range seatShapes {
-		if s.re.MatchString(seatID) {
-			return true
+		if !s.re.MatchString(seatID) {
+			continue
 		}
+		// A lens id's tail is an AREA, and the shape alone cannot say whether it is one.
+		if s.role == "lens" {
+			m := lensAreaRe.FindStringSubmatch(seatID)
+			return m != nil && isLensArea(m[1])
+		}
+		return true
 	}
 	return false
 }

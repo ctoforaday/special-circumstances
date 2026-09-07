@@ -128,14 +128,14 @@ func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 // red/candidates/*.md files — label (tool-assigned), role from the seat id, grades, text.
 func TestFindingsViewProjectsLensFindings(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--key", "F1", "--quote", "§1", "--reason", "first", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L5"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-logic"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L5",
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-logic",
 		"--key", "F1", "--quote", "§2", "--reason", "second", "--severity", "high", "--likelihood", "high", "--impact", "high"); err != nil {
 		t.Fatal(err)
 	}
@@ -157,8 +157,8 @@ func TestFindingsViewProjectsLensFindings(t *testing.T) {
 	for _, f := range fv.Findings {
 		got[f.Label] = f.Role
 	}
-	if got["L1-F1"] != "L1" || got["L5-F1"] != "L5" {
-		t.Errorf("findings view mislabels/misroutes: %v — the tool assigns L{role}-F{N} and the role comes from the seat id", got)
+	if got["evidence-F1"] != "evidence" || got["logic-F1"] != "logic" {
+		t.Errorf("findings view mislabels/misroutes: %v — the tool assigns <area>-F{N} and the area comes from the seat id", got)
 	}
 }
 
@@ -199,7 +199,7 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 	corroborate := func(claim, url, title string) error {
 		// --independent by construction: these are sources red went and found, not citations blue
 		// authored, so there is no anchor to name.
-		_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+		_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 			"--quote", claim, "--url", url, "--title", title,
 			"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
 			"--access-date", "2026-07-24")

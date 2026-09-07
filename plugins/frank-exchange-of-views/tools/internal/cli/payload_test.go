@@ -31,7 +31,7 @@ const hostile = "quotes \"like this\", $vars, 'apostrophes', `backticks`\nand a 
 func TestPayloadArrivesIntactThroughStdin(t *testing.T) {
 	runDir := seatRun(t)
 	out, err := runStdin(t, hostile, "log", "--run", runDir,
-		"--seat-id", "red-lens-r1-L1", "--type", "defect", "--reason-file", "-")
+		"--seat-id", "red-lens-r1-evidence", "--type", "defect", "--reason-file", "-")
 	if err != nil {
 		t.Fatalf("--reason-file - : %v (%s)", err, out)
 	}
@@ -181,7 +181,7 @@ func runStdin(t *testing.T, stdin string, args ...string) (string, error) {
 func TestReasonFileReadsStdinThroughTheDashConvention(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := runStdin(t, hostile, "log", "--run", runDir,
-		"--seat-id", "red-lens-r1-L1", "--type", "defect", "--reason-file", "-"); err != nil {
+		"--seat-id", "red-lens-r1-evidence", "--type", "defect", "--reason-file", "-"); err != nil {
 		t.Fatalf("--reason-file -: %v", err)
 	}
 	ev := lastBody(t, runDir, &recordpb.Log{})

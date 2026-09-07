@@ -9,12 +9,17 @@ import (
 
 func TestRoleOf(t *testing.T) {
 	cases := map[string]string{
-		"red-lens-r3-L2":  "L2",
-		"red-lens-r1-L1":  "L1",
-		"red-lens-r10-L6": "L6",
-		"red-merge-r1":    "", // no lens role
-		"blue-lane-1":     "",
-		"judge-r2":        "",
+		// A live seat id carries its AREA, which is the identity a finding label is built from.
+		"red-lens-r3-adversary":  "adversary",
+		"red-lens-r1-evidence":   "evidence",
+		"red-lens-r10-dark-side": "dark-side",
+		// ARCHIVED RECORDS CARRY THE NUMERIC FORM and must keep rendering — a record is permanent.
+		// The two shapes cannot collide, which is why the rename burns nothing.
+		"red-lens-r1-L1": "L1",
+		"red-lens-r3-L2": "L2",
+		"red-merge-r1":   "", // no lens role
+		"blue-lane-1":    "",
+		"judge-r2":       "",
 	}
 	for seat, want := range cases {
 		if got := RoleOf(seat); got != want {
@@ -28,24 +33,24 @@ func TestRoleOf(t *testing.T) {
 func TestNextFindingLabel(t *testing.T) {
 	runDir := newRun(t)
 
-	// First finding for L2 → L2-F1.
-	if got, err := NextFindingLabel(mustRun(t, runDir), "red-lens-r1-L2"); err != nil || got != "L2-F1" {
-		t.Fatalf("first L2 label = %q, %v; want L2-F1", got, err)
+	// First finding for the adversary area → adversary-F1.
+	if got, err := NextFindingLabel(mustRun(t, runDir), "red-lens-r1-adversary"); err != nil || got != "adversary-F1" {
+		t.Fatalf("first adversary label = %q, %v; want adversary-F1", got, err)
 	}
-	mustFinding(t, runDir, "red-lens-r1-L2", "L2-F1")
+	mustFinding(t, runDir, "red-lens-r1-adversary", "adversary-F1")
 
-	// Second L2, same round → L2-F2. A DIFFERENT role is independent → L5-F1.
-	if got, _ := NextFindingLabel(mustRun(t, runDir), "red-lens-r1-L2"); got != "L2-F2" {
-		t.Errorf("second L2 label = %q, want L2-F2", got)
+	// Second adversary finding, same round → adversary-F2. A DIFFERENT area is independent → logic-F1.
+	if got, _ := NextFindingLabel(mustRun(t, runDir), "red-lens-r1-adversary"); got != "adversary-F2" {
+		t.Errorf("second adversary label = %q, want adversary-F2", got)
 	}
-	if got, _ := NextFindingLabel(mustRun(t, runDir), "red-lens-r1-L5"); got != "L5-F1" {
-		t.Errorf("first L5 label = %q, want L5-F1 (roles are independent)", got)
+	if got, _ := NextFindingLabel(mustRun(t, runDir), "red-lens-r1-logic"); got != "logic-F1" {
+		t.Errorf("first L5 label = %q, want logic-F1 (roles are independent)", got)
 	}
-	mustFinding(t, runDir, "red-lens-r1-L2", "L2-F2")
+	mustFinding(t, runDir, "red-lens-r1-adversary", "adversary-F2")
 
 	// A LATER round continues L2's run-wide sequence, not a fresh per-round count.
-	if got, _ := NextFindingLabel(mustRun(t, runDir), "red-lens-r2-L2"); got != "L2-F3" {
-		t.Errorf("round-2 L2 label = %q, want L2-F3 (sequence spans rounds)", got)
+	if got, _ := NextFindingLabel(mustRun(t, runDir), "red-lens-r2-adversary"); got != "adversary-F3" {
+		t.Errorf("round-2 adversary label = %q, want adversary-F3 (sequence spans rounds)", got)
 	}
 
 	// A seat with no lens role cannot be attributed → error, never a silent label.
@@ -58,7 +63,7 @@ func TestNextFindingLabel(t *testing.T) {
 // second event — the mint-parity idempotency.
 func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
 	runDir := newRun(t)
-	seat := "red-lens-r1-L1"
+	seat := "red-lens-r1-evidence"
 
 	// No prior finding under this key.
 	if got, err := existingFindingByKey(mustRun(t, runDir), seat, "F1"); err != nil || got != "" {
@@ -77,7 +82,7 @@ func TestExistingFindingByKeyIsIdempotent(t *testing.T) {
 	if got, _ := existingFindingByKey(mustRun(t, runDir), seat, "F2"); got != "" {
 		t.Errorf("unrelated key matched: %q", got)
 	}
-	if got, _ := existingFindingByKey(mustRun(t, runDir), "red-lens-r1-L2", "F1"); got != "" {
+	if got, _ := existingFindingByKey(mustRun(t, runDir), "red-lens-r1-adversary", "F1"); got != "" {
 		t.Errorf("another seat's key matched: %q", got)
 	}
 }

@@ -70,10 +70,10 @@ Global Flags:
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ finding --run {RUN} --seat-id red-lens-r1-L5 --key F1 --severity medium --likelihood high --impact medium --quote ## S2 --reason unfounded leap
+$ finding --run {RUN} --seat-id red-lens-r1-logic --key F1 --severity medium --likelihood high --impact medium --quote ## S2 --reason unfounded leap
 exit 0
 stdout:
-finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FINDING001)
+finding recorded: logic-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
@@ -81,8 +81,8 @@ finding recorded: L5-F1 — the run-unique label a gap's found_by names (id FIND
 {"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond-r2:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"blue-respond-r2","ts":3,"type":"EVENT_TYPE_REGISTER"}
 {"key":"blue-respond-r2:revision","revision":{"text":"first pass"},"round":2,"seat_id":"blue-respond-r2","ts":4,"type":"EVENT_TYPE_REVISION"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"L5-F1","likelihood":"GRADE_HIGH","location":"## S2","severity":"GRADE_MEDIUM","text":"unfounded leap"},"key":"red-lens-r1-L5:finding:L5-F1","round":1,"seat_id":"red-lens-r1-L5","ts":5,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-L5:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-L5","ts":6,"type":"EVENT_TYPE_ANCHOR"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_MEDIUM","label":"logic-F1","likelihood":"GRADE_HIGH","location":"## S2","severity":"GRADE_MEDIUM","text":"unfounded leap"},"key":"red-lens-r1-logic:finding:logic-F1","round":1,"seat_id":"red-lens-r1-logic","ts":5,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-logic:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-logic","ts":6,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
 -- debate

@@ -36,7 +36,7 @@ import (
 func TestTheTwoLogsAreOnDifferentSurfaces(t *testing.T) {
 	// The seat's own write verb takes --reason, on the seat's tree.
 	runDir := seatRun(t)
-	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--reason", "the tool has no path for X", "--type", "defect"); err != nil {
 		t.Fatalf("a seat's own friction write was refused: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestTheTwoLogsAreOnDifferentSurfaces(t *testing.T) {
 	}
 	// And the operator's READ is not on that tree at all — it is not a verb a seat can reach,
 	// so there is nothing for a seat to land on by accident.
-	lens := NewRootFor("red-lens-r1-L1")
+	lens := NewRootFor("red-lens-r1-evidence")
 	c, _, err := lens.Find([]string{"log"})
 	if err != nil {
 		t.Fatalf("the lens has no friction verb: %v", err)

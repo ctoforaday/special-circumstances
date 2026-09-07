@@ -558,13 +558,13 @@ const JUDGE_ENVELOPE = {
 // L<area>-F<n> and every cross-round lens-economics read joins on them.
 //
 const RED_AREAS = [
-  { n: 1, key: 'evidence', lens: 'leaf-node citation verification (follow every reference; grade corroboration confidence per statement)' },
-  { n: 5, key: 'logic', lens: 'logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance)' },
-  { n: 6, key: 'dark-side', lens: 'dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots)' },
-  { n: 7, key: 'voice', lens: 'report voice (the report is addressed to a reader of its SUBJECT, and this lens reads it as one: every sentence that instead narrates the run that made it — its rounds, its lanes, its own draft history, the machinery that checked it, or the limits of the container it ran in. SEPARATION, NEVER DELETION: a limit on the CONCLUSION stays and is re-voiced, a fact about the RUN moves to the operator channel. DISCLOSURE IS NOT DISCHARGE — a sentence that admits it is narrating the run is still narrating the run)' },
-  { n: 8, key: 'computation', lens: 'computation (RE-DERIVE what the report asserts: recompute every figure, re-run every script, and check that the arithmetic closes at the scale the claim is made for. A number nobody reproduced is an assertion, and across six recorded runs no seat ever wrote a program to settle one)' },
-  { n: 9, key: 'adversary', lens: 'adversary (what would someone with INTENT do: trust boundaries, what a component assumes about its caller, capability leaks, and the gap between what is enforced and what is merely stated. Distinct from dark-side, which asks what FAILS — this asks what someone MAKES fail)' },
-  { n: 10, key: 'architecture', lens: 'architecture (coupling, boundaries, and what the design costs at ten times the size: where an invariant sits versus where it is enforced, which part is load-bearing, and what a proposal makes harder to change later)' },
+  { key: 'evidence', lens: 'leaf-node citation verification (follow every reference; grade corroboration confidence per statement)' },
+  { key: 'logic', lens: 'logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance)' },
+  { key: 'dark-side', lens: 'dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots)' },
+  { key: 'voice', lens: 'report voice (the report is addressed to a reader of its SUBJECT, and this lens reads it as one: every sentence that instead narrates the run that made it — its rounds, its lanes, its own draft history, the machinery that checked it, or the limits of the container it ran in. SEPARATION, NEVER DELETION: a limit on the CONCLUSION stays and is re-voiced, a fact about the RUN moves to the operator channel. DISCLOSURE IS NOT DISCHARGE — a sentence that admits it is narrating the run is still narrating the run)' },
+  { key: 'computation', lens: 'computation (RE-DERIVE what the report asserts: recompute every figure, re-run every script, and check that the arithmetic closes at the scale the claim is made for. A number nobody reproduced is an assertion, and across six recorded runs no seat ever wrote a program to settle one)' },
+  { key: 'adversary', lens: 'adversary (what would someone with INTENT do: trust boundaries, what a component assumes about its caller, capability leaks, and the gap between what is enforced and what is merely stated. Distinct from dark-side, which asks what FAILS — this asks what someone MAKES fail)' },
+  { key: 'architecture', lens: 'architecture (coupling, boundaries, and what the design costs at ten times the size: where an invariant sits versus where it is enforced, which part is load-bearing, and what a proposal makes harder to change later)' },
 ]
 
 // The areas a run dispatches. Default is the four that have always sat; the rest are opt-in per
@@ -882,16 +882,16 @@ while (!halted && round < maxRounds) {
     if (!selectedAreas.includes(a.key)) continue
     const extra = a.key === 'evidence' ? `.${ledgerClause}${consolidatedClause}`
       : (a.key === 'logic' || a.key === 'dark-side') ? steelmanClause : ''
-    lensPasses.push({ role: a.n, lens: a.lens + extra })
+    lensPasses.push({ area: a.key, lens: a.lens + extra })
   }
 
   // The round-start heartbeat. It counts AREAS now rather than instances, which is the whole
   // change in one line: the number is a property of the roster, not of the corpus size.
   log(`round ${round}: dispatching ${lensPasses.length} red lenses (one per strategic area)`)
 
-  await parallel(lensPasses.map(({ role, lens }) => () => agent(
-    `Red audit, round ${round}, lens: ${lens}. RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows${round > 1 ? `. For a navigation HINT use the record of what blue actually edited and the gap each edit answers — never a hand-written file, and never in place of the full re-read above` : ''}. ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in ${runDir}/blue/report.md is REJECTED. Your lens number ${role} is your ROLE and it is stable across rounds — L1-L4 citation slices, L5 logic/completeness, L6 dark-side/risk, L7 report voice — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R${round}-N gap ids are the merge's. Only red-merge writes the round's RED narrative. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).${reliefFor('red')}${speedClause}${frictionClause(`red-lens-r${round}-L${role}`, 'lens')}${recordClause(`red-lens-r${round}-L${role}`)} Return a 3-line synopsis.`,
-    { ...bulk, label: `red-lens-${role}-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-auditor' })))
+  await parallel(lensPasses.map(({ area, lens }) => () => agent(
+    `Red audit, round ${round}, lens: ${lens}. RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows${round > 1 ? `. For a navigation HINT use the record of what blue actually edited and the gap each edit answers — never a hand-written file, and never in place of the full re-read above` : ''}. ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in ${runDir}/blue/report.md is REJECTED. Your area ${area} is your ROLE and it is stable across rounds — it names what you audit, and every finding you file is credited to it — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R${round}-N gap ids are the merge's. Only red-merge writes the round's RED narrative. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).${reliefFor('red')}${speedClause}${frictionClause(`red-lens-r${round}-${area}`, 'lens')}${recordClause(`red-lens-r${round}-${area}`)} Return a 3-line synopsis.`,
+    { ...bulk, label: `red-lens-${area}-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-auditor' })))
 
   redEnv = await agent(
     `Red merge, round ${round}. You are the board's only writer, and the seat that decides whether this report has been verified. The lenses brought findings; nothing is on the board until you put it there.

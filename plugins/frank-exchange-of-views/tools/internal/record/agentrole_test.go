@@ -93,7 +93,7 @@ func TestTheAttestationRefusesASeatFromTheWrongFamily(t *testing.T) {
 // failing it is because red-merge got its own configuration — at which point the table narrows and
 // this test states the new truth.
 func TestRedAuditorSeatsBothLensAndMerge(t *testing.T) {
-	for _, seat := range []string{"red-lens-r1-L1", "red-merge-r1"} {
+	for _, seat := range []string{"red-lens-r1-evidence", "red-merge-r1"} {
 		if err := CheckAttestedRole("frank-exchange-of-views:red-auditor", seat); err != nil {
 			t.Errorf("red-auditor cannot seat %s, but debate.js dispatches it: %v", seat, err)
 		}

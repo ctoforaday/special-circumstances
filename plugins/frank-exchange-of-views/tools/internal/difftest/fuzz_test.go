@@ -137,7 +137,7 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 		case "merge":
 			return pick(rng, []string{"red-merge-r1", "red-merge-r2"})
 		case "lens":
-			return pick(rng, []string{"red-lens-r1-L1", "red-lens-r1-L5", "red-lens-r2-L6"})
+			return pick(rng, []string{"red-lens-r1-evidence", "red-lens-r1-logic", "red-lens-r2-dark-side"})
 		case "blue":
 			return pick(rng, []string{"blue-respond-r1", "blue-synthesize"})
 		default:

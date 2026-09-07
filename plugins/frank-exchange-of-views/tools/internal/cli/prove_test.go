@@ -106,7 +106,7 @@ func TestRedReproducesAProof(t *testing.T) {
 
 	// --as and --reason are REQUIRED (#343): re-running measures DETERMINISM, and a script that
 	// prints "7 is prime" reproduces forever. The soundness verdict is red's, from reading it.
-	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-r1-L1", "--id", sha,
+	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-r1-evidence", "--id", sha,
 		"--as", "sound", "--reason", "trial division to sqrt(n); it computes primality rather than asserting it")
 	if err != nil {
 		t.Fatalf("reproduce: %v", err)

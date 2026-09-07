@@ -329,7 +329,7 @@ func screenRun(t *testing.T, outcome recordpb.SourceOutcome, url string) string 
 	}
 	seed("blue-r1",
 		&recordpb.Cite{Label: proto.String("c-1"), Url: proto.String(url), Title: proto.String("A Source")})
-	seed("red-lens-r1-L1",
+	seed("red-lens-r1-evidence",
 		&recordpb.Verify{
 			Anchor:     proto.String("c-1"),
 			Claim:      proto.String("a claim"),
@@ -860,7 +860,7 @@ func writeRunForLiveness(t *testing.T, n int, gap time.Duration, last time.Time,
 			}), ts))
 			continue
 		}
-		evs = append(evs, recordtest.Stamped(recordtest.At(t, "red-lens-r1-L1", 1, fmt.Sprintf("red-lens-r1-L1:finding:k%d", i), &recordpb.Finding{
+		evs = append(evs, recordtest.Stamped(recordtest.At(t, "red-lens-r1-evidence", 1, fmt.Sprintf("red-lens-r1-evidence:finding:k%d", i), &recordpb.Finding{
 			FindingId: proto.String(fmt.Sprintf("F%d", i)),
 			Label:     proto.String(fmt.Sprintf("L1-F%d", i)),
 			Text:      proto.String("a finding"),
@@ -933,8 +933,8 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		t.Fatal("ArchiveRecord wrote an archive for a run with no shards")
 	}
 
-	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-r1-L1-aaaaaaaa.jsonl"),
-		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-r1-L1","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-r1-evidence-aaaaaaaa.jsonl"),
+		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-r1-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(run, "proofs", "abc", "script.py"), []byte("print(7)\n"), 0o644); err != nil {
@@ -972,7 +972,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		}
 		names[h.Name] = true
 	}
-	for _, want := range []string{"records/events-red-lens-r1-L1-aaaaaaaa.jsonl", "proofs/abc/script.py"} {
+	for _, want := range []string{"records/events-red-lens-r1-evidence-aaaaaaaa.jsonl", "proofs/abc/script.py"} {
 		if !names[want] {
 			t.Errorf("archive is missing %q — it holds %v", want, names)
 		}

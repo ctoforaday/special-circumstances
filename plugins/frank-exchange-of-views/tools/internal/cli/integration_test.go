@@ -37,7 +37,7 @@ func seatRunReport(t *testing.T, body string) string {
 	t.Helper()
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
-	for _, id := range []string{"red-lens-r1-L1", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
+	for _, id := range []string{"red-lens-r1-evidence", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}
@@ -191,7 +191,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 // were invisible to the others, every cross-seat duty in the protocol would be unverifiable.
 func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--key", "F1", "--quote", "§2", "--reason", "a finding",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
@@ -207,7 +207,7 @@ func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 	for _, e := range events(t, runDir) {
 		seats[e.GetSeatId()] = true
 	}
-	for _, want := range []string{"red-lens-r1-L1", "red-merge-r1"} {
+	for _, want := range []string{"red-lens-r1-evidence", "red-merge-r1"} {
 		if !seats[want] {
 			t.Errorf("%s wrote nothing readable into the shared record (saw %v)", want, seats)
 		}

@@ -56,13 +56,13 @@ func TestBackfillAuditWarnsOnAClosingBurst(t *testing.T) {
 	base := 10 * time.Minute
 	offs := []time.Duration{base, base + 100*time.Millisecond, base + 200*time.Millisecond,
 		base + 300*time.Millisecond, base + 400*time.Millisecond, base + 500*time.Millisecond}
-	bfSeat(t, dir, "red-lens-r1-L1", t0, offs)
+	bfSeat(t, dir, "red-lens-r1-evidence", t0, offs)
 
 	a := BackfillAudit(runtest.Open(t, dir))
 	if a.Verdict != "WARN" {
 		t.Fatalf("verdict = %q, want WARN\n%s", a.Verdict, a.Detail)
 	}
-	if !strings.Contains(a.Detail, "red-lens-r1-L1") {
+	if !strings.Contains(a.Detail, "red-lens-r1-evidence") {
 		t.Errorf("detail does not name the seat:\n%s", a.Detail)
 	}
 	if !strings.Contains(a.Detail, "narration") {
@@ -77,7 +77,7 @@ func TestBackfillAuditPassesWhenRecordingIsSpreadAcrossTheSitting(t *testing.T) 
 	t0 := bfT0(t)
 	offs := []time.Duration{1 * time.Minute, 3 * time.Minute, 5 * time.Minute,
 		7 * time.Minute, 9 * time.Minute, 10 * time.Minute}
-	bfSeat(t, dir, "red-lens-r1-L1", t0, offs)
+	bfSeat(t, dir, "red-lens-r1-evidence", t0, offs)
 
 	a := BackfillAudit(runtest.Open(t, dir))
 	if a.Verdict != "PASS" {
@@ -94,7 +94,7 @@ func TestBackfillAuditDoesNotJudgeASeatBelowTheEventFloor(t *testing.T) {
 	dir := t.TempDir()
 	t0 := bfT0(t)
 	offs := []time.Duration{10 * time.Minute, 10*time.Minute + time.Millisecond, 10*time.Minute + 2*time.Millisecond}
-	bfSeat(t, dir, "red-lens-r1-L1", t0, offs)
+	bfSeat(t, dir, "red-lens-r1-evidence", t0, offs)
 
 	a := BackfillAudit(runtest.Open(t, dir))
 	if a.Verdict != "PASS" {
@@ -113,7 +113,7 @@ func TestBackfillAuditDoesNotJudgeASeatBelowTheEventFloor(t *testing.T) {
 func TestBackfillAuditReportsUnparseableStampsRatherThanDroppingThem(t *testing.T) {
 	dir := t.TempDir()
 	t0 := bfT0(t)
-	bfSeat(t, dir, "red-lens-r1-L1", t0, []time.Duration{time.Minute, 2 * time.Minute})
+	bfSeat(t, dir, "red-lens-r1-evidence", t0, []time.Duration{time.Minute, 2 * time.Minute})
 
 	// `ts` is TEXT, so an unparseable stamp is still storable — which is the point: the DATABASE
 	// cannot reject prose that is not a timestamp, so the audit still has to notice rather than
@@ -139,7 +139,7 @@ func TestBackfillAuditSkipsASeatWithNoRegister(t *testing.T) {
 	var evs []*recordpb.Event
 	for i := 0; i < 6; i++ {
 		evs = append(evs, recordtest.Stamped(
-			recordtest.At(t, "red-lens-r1-L1", 1, "red-lens-r1-L1:finding:F"+string(rune('1'+i)), &recordpb.Finding{}),
+			recordtest.At(t, "red-lens-r1-evidence", 1, "red-lens-r1-evidence:finding:F"+string(rune('1'+i)), &recordpb.Finding{}),
 			t0.Add(10*time.Minute+time.Duration(i)*time.Millisecond).Format(bfStamp)))
 	}
 	recordtest.Seed(t, dir, evs...)

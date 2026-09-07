@@ -263,7 +263,7 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 // so the honest question is whether it was ever credited in a gap's found_by.
 func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 	runDir := newRun(t)
-	s := "red-lens-r1-L1"
+	s := "red-lens-r1-evidence"
 	m := "red-merge-r1"
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, s, 1, s+":finding:L1-F1", &recordpb.Finding{Label: proto.String("L1-F1"), Text: proto.String("credited")}),

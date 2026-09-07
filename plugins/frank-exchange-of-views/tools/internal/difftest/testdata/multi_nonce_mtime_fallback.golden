@@ -1,7 +1,7 @@
-$ register --run {RUN} --seat-id red-lens-r1-L1
+$ register --run {RUN} --seat-id red-lens-r1-evidence
 exit 0
 stdout:
-registered red-lens-r1-L1
+registered red-lens-r1-evidence
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
@@ -9,15 +9,15 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ finding --run {RUN} --seat-id red-lens-r1-L1 --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason older shard
+$ finding --run {RUN} --seat-id red-lens-r1-evidence --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason older shard
 exit 0
 stdout:
-finding recorded: L1-F1 — the run-unique label a gap's found_by names (id FINDING001)
+finding recorded: evidence-F1 — the run-unique label a gap's found_by names (id FINDING001)
 
-$ register --run {RUN} --seat-id red-lens-r1-L1
+$ register --run {RUN} --seat-id red-lens-r1-evidence
 exit 0
 stdout:
-registered red-lens-r1-L1 (dispatch 2 — a previous dispatch of this seat is on the record)
+registered red-lens-r1-evidence (dispatch 2 — a previous dispatch of this seat is on the record)
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
@@ -25,7 +25,7 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ lens finding --run {RUN} --seat-id red-lens-r1-L1 --key F2 --severity low --likelihood low --impact low --quote ## S2 --reason newer shard
+$ lens finding --run {RUN} --seat-id red-lens-r1-evidence --key F2 --severity low --likelihood low --impact low --quote ## S2 --reason newer shard
 exit 2
 stderr:
 feov-record: no command named "lens" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.
@@ -70,10 +70,10 @@ Use "feov-record [command] --help" for more information about a command.
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"red-lens-r1-L1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-lens-r1-L1","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_LOW","label":"L1-F1","likelihood":"GRADE_LOW","location":"## S2","severity":"GRADE_LOW","text":"older shard"},"key":"red-lens-r1-L1:finding:L1-F1","round":1,"seat_id":"red-lens-r1-L1","ts":3,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-L1:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-L1","ts":4,"type":"EVENT_TYPE_ANCHOR"}
-{"key":"red-lens-r1-L1:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-lens-r1-L1","ts":5,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-r1-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-lens-r1-evidence","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_LOW","label":"evidence-F1","likelihood":"GRADE_LOW","location":"## S2","severity":"GRADE_LOW","text":"older shard"},"key":"red-lens-r1-evidence:finding:evidence-F1","round":1,"seat_id":"red-lens-r1-evidence","ts":3,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-evidence:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-evidence","ts":4,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-lens-r1-evidence:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-lens-r1-evidence","ts":5,"type":"EVENT_TYPE_REGISTER"}
 
 ═══ RENDERS ═══
 -- debate

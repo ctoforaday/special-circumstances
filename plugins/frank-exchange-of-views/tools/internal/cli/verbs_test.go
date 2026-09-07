@@ -65,7 +65,7 @@ func seedReferents(t *testing.T, runDir string) {
 	// nothing in the run, and the lens's presence used to come from a seeded `observe` — retired
 	// with #327. `friction` is the lens verb with no referents of its own, so it seeds presence
 	// without seeding state any case then has to work around.
-	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-L1",
+	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
 		"--reason", "seeded so the lens seat has sat", "--type", "defect"); err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +93,7 @@ func TestVerbPayloads(t *testing.T) {
 	}{
 		{
 			name: "lens corroborate records the access date under its payload name",
-			path: []string{"corroborate"}, seatID: "red-lens-r1-L1",
+			path: []string{"corroborate"}, seatID: "red-lens-r1-evidence",
 			// THE QUOTE IS A REAL SPAN of the seeded report. A supporting corroboration splices a
 			// citation anchor at the claim, so the claim must be in the live document — the same
 			// rule blue's cite is held to. `"the claim"` was a placeholder and is now refused.
@@ -113,7 +113,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "lens corroborate without an access date leaves the key absent",
-			path: []string{"corroborate"}, seatID: "red-lens-r1-L1",
+			path: []string{"corroborate"}, seatID: "red-lens-r1-evidence",
 			args: []string{"--quote", "c", "--url", "https://example.test/b", "--title", "Example B",
 				"--as", "weak", "--confidence", "low", "--reason", "it gestures at it"},
 			typ:    recordpb.EventType_EVENT_TYPE_VERIFY,

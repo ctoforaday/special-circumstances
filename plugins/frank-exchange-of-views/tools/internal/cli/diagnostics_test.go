@@ -57,7 +57,7 @@ func TestTheDenominatorIsWhatTheSeatsTreeActuallyOffers(t *testing.T) {
 // that had been shown everything as having seen nothing.
 func TestASurfaceThatArrivesThroughARefusalStillCounts(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-L1"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-evidence"); err != nil {
 		t.Fatal(err)
 	}
 	trajectoryFor(t, runDir, "Exit code 2\nfeov-record: \"position\" is not on your surface.\n\n"+
@@ -67,7 +67,7 @@ func TestASurfaceThatArrivesThroughARefusalStillCounts(t *testing.T) {
 		"  verify      adjudicate ONE citation\n"+
 		"\n")
 
-	out, err := run(t, "show", "diagnostics", "--seat-id", "operator", "--run", runDir, "--sitting", "red-lens-r1-L1")
+	out, err := run(t, "show", "diagnostics", "--seat-id", "operator", "--run", runDir, "--sitting", "red-lens-r1-evidence")
 	if err != nil {
 		t.Fatalf("show diagnostics: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestASurfaceThatArrivesThroughARefusalStillCounts(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatalf("the projection did not emit JSON a reader can join on: %v\n%s", err, out)
 	}
-	if len(got.Seats) != 1 || got.Seats[0].SeatID != "red-lens-r1-L1" {
+	if len(got.Seats) != 1 || got.Seats[0].SeatID != "red-lens-r1-evidence" {
 		t.Fatalf("want exactly the named sitting, got %+v", got.Seats)
 	}
 	if got.Seats[0].HelpBlocks != 1 {
@@ -94,7 +94,7 @@ func TestASurfaceThatArrivesThroughARefusalStillCounts(t *testing.T) {
 // remove it.
 func TestWithoutASittingItRefusesRatherThanCreditingSeatsThatNeverSat(t *testing.T) {
 	runDir := seatRun(t)
-	for _, s := range []string{"red-lens-r1-L1", "red-merge-r1"} {
+	for _, s := range []string{"red-lens-r1-evidence", "red-merge-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", s); err != nil {
 			t.Fatal(err)
 		}
@@ -105,7 +105,7 @@ func TestWithoutASittingItRefusesRatherThanCreditingSeatsThatNeverSat(t *testing
 	if err == nil {
 		t.Fatal("it reported every registered seat; the ones that never sat get an exposure of zero they were never given the chance to earn")
 	}
-	for _, want := range []string{"red-lens-r1-L1", "red-merge-r1", "--sitting"} {
+	for _, want := range []string{"red-lens-r1-evidence", "red-merge-r1", "--sitting"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must name what it will not guess between; missing %q in %v", want, err)
 		}

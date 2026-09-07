@@ -164,7 +164,7 @@ func TestProofRerunSamplesTheUnauditedFirstAndSaysHowManyItRan(t *testing.T) {
 	}
 	seedProofEvents(t, run, rs...)
 	// One of them has been re-run by a seat already; it must be sampled LAST.
-	recordtest.Seed(t, run, recordtest.At(t, "red-lens-r1-L1", 1, "red-lens-r1-L1:reproduce:#1",
+	recordtest.Seed(t, run, recordtest.At(t, "red-lens-r1-evidence", 1, "red-lens-r1-evidence:reproduce:#1",
 		&recordpb.Reproduce{ProofSha: proto.String(rs[0].SHA), Reproduced: proto.Bool(true)}))
 
 	got := ProofRerunAudit(runtest.Open(t, run), 2)
