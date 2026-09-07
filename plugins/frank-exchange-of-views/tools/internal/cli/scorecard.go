@@ -55,12 +55,27 @@ func newScorecard() *cobra.Command {
 			if !cards[chair] {
 				return feov.Errorf(feov.Validation, "usage: %s scorecard --run <dir> --chair blue|red|bench", InvokedAs())
 			}
-			// A run with no readable record leaves fam nil — the record-derived rows then
-			// read "needs the tool", exactly as the JS did when the view spawn failed.
+			// AN EMPTY RECORD AND AN UNREADABLE ONE ARE NOT THE SAME RUN, and this discarded the
+			// error that told them apart. The comment here read "a run with no readable record
+			// leaves fam nil — the record-derived rows then read 'needs the tool', exactly as
+			// the JS did when the view spawn failed", and it was faithful to the JS and wrong:
+			// every row then renders `_not computed_ — no findings on the record yet`, over a
+			// record holding forty of them, and the command exits 0. Measured against
+			// run-archive/2026-09-02_quadratic-formula, which this binary cannot read at all.
+			//
+			// That is the plausible zero every other read verb on this surface already refuses —
+			// and it is worse here, because a scorecard is HARVESTED into feov-memory (#743), so
+			// the empty answer outlives the run that could not produce it.
+			//
+			// An empty run stays legal: openRunForRead returns a nil handle for a run that has
+			// recorded nothing and the projections read it as zero events with no error, so an
+			// error from FamilyOf is a read FAILURE and nothing else.
 			var fam *record.Family
-			if f, err := record.FamilyOf(run); err == nil {
-				fam = &f
+			f, ferr := record.FamilyOf(run)
+			if ferr != nil {
+				return ferr
 			}
+			fam = &f
 			rows := scorecard.Compute(run, scorecard.ReadResults(run), fam)[chair]
 			fmt.Fprint(cmd.OutOrStdout(), scorecard.RenderChair(chair, rows, "this run")+"\n")
 			return nil
