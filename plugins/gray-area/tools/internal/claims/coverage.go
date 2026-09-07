@@ -216,7 +216,29 @@ type SeatCensus struct {
 	// lets a reader tell the two apart, and 0 here is what makes UNNAMED mean what it
 	// says. See appendRow in gray-area-capture for the writer-side half.
 	Unreadable int `json:"unreadable"`
+
+	// Builds counts EVERY parseable row in the manifest by the build that wrote it,
+	// keyed by `capture_build` with pre-schema-5 rows under BuildUnrecorded.
+	//
+	// IT COUNTS ALL KINDS, WHICH IS THE WHOLE POINT — the other fields here deliberately
+	// narrow to seats, and a build census that narrowed the same way would answer a
+	// question nobody asked. The question this exists for is about the manifest's
+	// PRODUCERS: how many binaries wrote this file, and did the population change under
+	// them. That was asked on 2026-09-06 about the seat/turn-end split itself, so a
+	// tally scoped to one side of that split could not have answered it.
+	//
+	// More than one key here means the manifest is a MIXED RECORD. Nothing is wrong with
+	// that — a hook binary is rebuilt often and rows outlive builds — but a count drawn
+	// across it describes a population that changed producers midway, and saying so is
+	// the difference between a census and a number.
+	Builds map[string]int `json:"builds,omitempty"`
 }
+
+// BuildUnrecorded is the Builds key for rows written before capture_build existed. A named
+// key rather than "": a reader tabulating the map would otherwise print a blank row, and the
+// state it stands for — nobody recorded this — is exactly the one that must not read as absent
+// data. See the field's comment in gray-area-capture's manifestRow.
+const BuildUnrecorded = "(not recorded, pre-schema-5)"
 
 // Seats reads the census out of a manifest, counting every row that describes a real
 // SEAT and returning the seats it names once each.
@@ -248,16 +270,27 @@ func Seats(manifest []byte) SeatCensus {
 			continue
 		}
 		var r struct {
-			Schema    int    `json:"schema"`
-			Kind      string `json:"kind"`
-			AgentID   string `json:"agent_id"`
-			AgentType string `json:"agent_type"`
-			Resolved  bool   `json:"resolved"`
+			Schema       int    `json:"schema"`
+			Kind         string `json:"kind"`
+			AgentID      string `json:"agent_id"`
+			AgentType    string `json:"agent_type"`
+			Resolved     bool   `json:"resolved"`
+			CaptureBuild string `json:"capture_build"`
 		}
 		if json.Unmarshal([]byte(line), &r) != nil {
 			c.Unreadable++
 			continue
 		}
+		// TALLIED BEFORE THE KIND FILTER, so the build census spans the whole manifest
+		// while everything below it narrows to seats. See the Builds field.
+		build := r.CaptureBuild
+		if build == "" {
+			build = BuildUnrecorded
+		}
+		if c.Builds == nil {
+			c.Builds = map[string]int{}
+		}
+		c.Builds[build]++
 		switch r.Kind {
 		case "seat":
 		case "turn-end", "session":

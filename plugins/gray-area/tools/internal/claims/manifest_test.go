@@ -172,3 +172,43 @@ func TestFixturePathsAgreeWithHowTheCodeComposesThem(t *testing.T) {
 		t.Errorf("fixture path %q carries a hardcoded separator", name)
 	}
 }
+
+// THE EMPTY BUILD GETS WORDS. A row from a pre-schema-5 hook binary has no capture_build,
+// and rendering that as a blank beside "written by build" reads as a build whose name went
+// missing rather than as a row that never recorded one — the two states the field was added
+// to separate. Both directions are asserted because only one of them is ever exercised by a
+// fresh install, so the other is the one that rots.
+func TestWriterProvenanceSeparatesNoBuildFromABuild(t *testing.T) {
+	if got := (SessionRow{CaptureBuild: "abc1234"}).WriterProvenance(); !strings.Contains(got, "abc1234") {
+		t.Errorf("WriterProvenance() = %q, does not name the build", got)
+	}
+	got := SessionRow{}.WriterProvenance()
+	if got == "" || strings.Contains(got, "written by build ") {
+		t.Errorf("WriterProvenance() with no build = %q; an unrecorded writer must be stated, "+
+			"never rendered as a build with an empty name", got)
+	}
+	if !strings.Contains(got, "not recorded") {
+		t.Errorf("WriterProvenance() with no build = %q, want it to say the build was not recorded", got)
+	}
+}
+
+// The projection must carry the field through, or the render above has nothing to render:
+// ResolveSession is the only path by which a row reaches the verbs that cite it.
+func TestResolvedSessionCarriesTheWritersBuild(t *testing.T) {
+	dir := filepath.Join("p", ".claude", "gray-area")
+	path := filepath.Join(dir, "trajectories-S9.jsonl")
+	trace := filepath.Join("t", "s9.jsonl")
+	row := `{"schema":5,"kind":"session","captured_at":"2026-09-07T09:00:00Z","session_id":"S9",` +
+		`"transcript_path":"` + strings.ReplaceAll(trace, `\`, `\\`) + `","resolved":true,"capture_build":"dd44556"}`
+
+	got, err := ResolveSession(dir,
+		func(string) ([]string, error) { return []string{path}, nil },
+		func(string) ([]byte, error) { return []byte(row), nil },
+		func(string) error { return nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.CaptureBuild != "dd44556" {
+		t.Errorf("CaptureBuild = %q, want dd44556 — the row named its writer and the projection dropped it", got.CaptureBuild)
+	}
+}

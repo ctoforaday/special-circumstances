@@ -72,7 +72,13 @@ import (
 // 4 changes what `kind` MEANS (#189), which is the reason it is a bump and not an edit. Rows
 // 1-3 called every SubagentStop a seat. Schema 4 does not, and a reader counting seats across
 // the boundary would otherwise mix a population of 19 with a population of 165. See kindTurnEnd.
-const schema = 4
+//
+// 5 adds capture_build, and this number is the reason it is a bump rather than a quiet field
+// (2026-09-07). `schema` says what CONTRACT a row was written to; it has never said which
+// BINARY wrote it, and those came apart the moment more than one build was installed at once.
+// Leaving the field to appear inside schema 4 would make one number describe two row shapes —
+// the same defect one level up, in the field whose whole job is to tell shapes apart.
+const schema = 5
 
 // The closed set of row kinds. `kind` is the first field any reader filters on, so what it
 // MEANS is load-bearing, and until schema 4 it was wrong for 88% of the rows in this
@@ -172,6 +178,33 @@ type hookInput struct {
 // harness payloads a reader will have alongside them.
 type manifestRow struct {
 	Schema int `json:"schema"`
+	// CaptureBuild is the commit this hook binary was built from — who WROTE the row, as
+	// against Schema's what CONTRACT it was written to.
+	//
+	// # A row that cannot name its writer cannot settle an argument about its writer
+	//
+	// Measured 2026-09-06: three gray-area-capture binaries were installed at once, distinct
+	// sha256s, built across nine days, and every row all three wrote was byte-indistinguishable
+	// in provenance. Two sessions then reached OPPOSITE conclusions from those rows about when
+	// the kind classification changed — one from a 39-manifest census, one from a single
+	// project directory — and neither could be settled from the artifact, because the artifact
+	// recorded the contract and not the producer. Both conclusions were wrong. The census was
+	// read out of 1 of 28 project directories and reported as a total; the counter-explanation
+	// blamed a merge that turns out to touch no classification code at all. Two capable readers
+	// argued to a standstill over rows that could have answered in a field.
+	//
+	// Schema could not have told them apart: all three binaries wrote schema 4. `-version`
+	// already reported this exact string from `debug.ReadBuildInfo`, so the fact was inside
+	// every one of those binaries at the moment it wrote a row it did not put the fact on.
+	//
+	// # It is never empty, which is what makes its ABSENCE mean one thing
+	//
+	// Revision() answers `unknown` for a binary built outside a git tree rather than "", so
+	// a row written by a schema-5 binary always carries a value. A row with no `capture_build`
+	// key is therefore a row from a pre-5 binary and nothing else — the honest miss and the
+	// honest zero are different bytes (see [[facts-are-fields]] clause 3). NOT omitempty, for
+	// exactly that reason: `unknown` is an answer and must be written as one.
+	CaptureBuild string `json:"capture_build"`
 	// Kind separates the rows a manifest can hold — see kindSeat, kindTurnEnd, kindSession.
 	// A consumer asking "where is this session's transcript" must not be answered with a
 	// seat's, and a consumer counting seats must not be handed the turn ends.
@@ -271,6 +304,7 @@ type statFunc func(string) (int64, error)
 func buildRow(in hookInput, raw []byte, declaredEvent string, now time.Time, stat statFunc) manifestRow {
 	r := manifestRow{
 		Schema:              schema,
+		CaptureBuild:        buildid.Revision(),
 		Kind:                kindSeat,
 		CapturedAt:          now.UTC().Format(time.RFC3339),
 		SessionID:           in.SessionID,
@@ -427,6 +461,7 @@ func healTornTail(f *os.File, stderr io.Writer) {
 func buildSessionRow(in hookInput, now time.Time, stat statFunc) manifestRow {
 	r := manifestRow{
 		Schema:            schema,
+		CaptureBuild:      buildid.Revision(),
 		Kind:              kindSession,
 		CapturedAt:        now.UTC().Format(time.RFC3339),
 		SessionID:         in.SessionID,

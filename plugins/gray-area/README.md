@@ -40,6 +40,8 @@ Lists every tool invocation as `file:line uuid seat tool target` — so a reader
 
 **And *why* it was unresolvable is a field, not prose.** Every unresolved row carries a `capture_category` from a closed set, because two very different conditions used to produce byte-identical rows: an event that named no seat at all, and a seat that should have a transcript and does not. The second is worth an alarm — one transcript in sixteen arrived *after* its stat, so that race is real. `capture_error` still says it in English for a human reading one row; `capture_category` says it in a word a counter can add up.
 
+**And every row names the binary that wrote it.** `schema` says what *contract* a row was written to; `capture_build` says which *build* wrote it, and the two came apart the moment more than one hook binary was installed at once. Three were, on the same machine, all writing the same schema — and two readers then drew opposite conclusions about when the row population changed, from rows that recorded the contract and not the producer. Both were wrong, and the manifest could not settle it. `coverage` now says so up front when one manifest has several writers, because a count drawn across that boundary describes a population that changed producers midway.
+
 ## Seat coverage: `coverage`
 
 ```

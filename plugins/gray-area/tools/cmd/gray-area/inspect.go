@@ -36,8 +36,8 @@ func resolveTrace(arg string, stdout, stderr io.Writer, projectDir string) (stri
 			resolved.Manifest, resolved.Line, resolved.CaptureError)
 		return "", false
 	}
-	fmt.Fprintf(stdout, "resolved this session's trajectory from %s:%d (session %s, captured %s)\n  -> %s\n\n",
-		resolved.Manifest, resolved.Line, short(resolved.SessionID), resolved.CapturedAt, resolved.TranscriptPath)
+	fmt.Fprintf(stdout, "resolved this session's trajectory from %s:%d (session %s, captured %s, %s)\n  -> %s\n\n",
+		resolved.Manifest, resolved.Line, short(resolved.SessionID), resolved.CapturedAt, resolved.WriterProvenance(), resolved.TranscriptPath)
 	return resolved.TranscriptPath, true
 }
 
@@ -364,6 +364,22 @@ func reportCoverage(stdout io.Writer, census claims.SeatCensus, c claims.Coverag
 	// it then shows up as UNNAMED, which reads as a hook that never fired.
 	if census.Unreadable > 0 {
 		fmt.Fprintf(stdout, "%d line(s) in this manifest are not JSON — the signature of an append cut short. Any seat row lost with them appears below as UNNAMED, which is a DIFFERENT fault from a hook that never fired\n", census.Unreadable)
+	}
+	// SAID BEFORE THE COUNTS, like the torn-tail line above and for the same reason: it
+	// qualifies every number that follows. A manifest written by more than one build is a
+	// population that changed producers midway, and a reader comparing its two halves is
+	// owed that before comparing them, not after.
+	if len(census.Builds) > 1 {
+		builds := make([]string, 0, len(census.Builds))
+		for b := range census.Builds {
+			builds = append(builds, b)
+		}
+		sort.Strings(builds)
+		fmt.Fprintf(stdout, "this manifest was written by %d different hook builds — any comparison across it spans a change of producer:\n", len(builds))
+		for _, b := range builds {
+			fmt.Fprintf(stdout, "  %-28s %d row(s)\n", b, census.Builds[b])
+		}
+		fmt.Fprintln(stdout)
 	}
 	if !c.Measured {
 		// NOT a zero. The two states this separates produce the same empty lists.
