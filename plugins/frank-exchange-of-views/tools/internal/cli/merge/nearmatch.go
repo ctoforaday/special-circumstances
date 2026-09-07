@@ -32,11 +32,11 @@ func newNearMatch() *cobra.Command {
 			return nil, err
 		}
 		cand := strings.TrimSpace(seat.Str(cmd, flags.Problem))
-		b, err := record.BoardState(run)
+		fam, err := record.FamilyOf(run)
 		if err != nil {
 			return nil, err
 		}
-		matches := record.NearMatch(b, cand, seat.Str(cmd, flags.Quote), nearMatchTopN)
+		matches := record.NearMatch(fam, cand, seat.Str(cmd, flags.Quote), nearMatchTopN)
 		return nearMatchResult{Matches: matches}, nil
 	})
 	// THE SAME TWO WORDS `mint` TAKES. This verb screens what that one would file, and it spelled

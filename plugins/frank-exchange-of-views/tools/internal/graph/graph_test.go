@@ -41,7 +41,7 @@ func TestGapHoleHeuristic(t *testing.T) {
 			}),
 		},
 	}
-	m := gapFlowMermaid(b)
+	m := gapFlowMermaid(record.FamilyOfBoard(b))
 
 	// A merge close with a closure_class is closed, NOT a hole.
 	if lineClass(m, "g_MERGE_CLOSED") != "closed" {
@@ -81,7 +81,7 @@ func TestSeatFlowTalliesEvents(t *testing.T) {
 			recordtest.Event(t, "red-merge-r1", 1, &recordpb.Mint{}),
 		},
 	}
-	m := seatFlowMermaid(b)
+	m := seatFlowMermaid(record.FamilyOfBoard(b))
 	if !strings.Contains(m, "mint×2") || !strings.Contains(m, "red-merge-r1") {
 		t.Errorf("seat flow should tally events per seat:\n%s", m)
 	}
@@ -108,8 +108,8 @@ func TestRuledGradeMotionIsNotAHole(t *testing.T) {
 			}),
 		},
 	}
-	if got := lineClass(gapFlowMermaid(b), "g_ANSWERED"); got != "open" {
-		t.Errorf("a ruled grade motion must not be a hole, got %q:\n%s", got, gapFlowMermaid(b))
+	if got := lineClass(gapFlowMermaid(record.FamilyOfBoard(b)), "g_ANSWERED"); got != "open" {
+		t.Errorf("a ruled grade motion must not be a hole, got %q:\n%s", got, gapFlowMermaid(record.FamilyOfBoard(b)))
 	}
 }
 
@@ -162,7 +162,7 @@ func TestAnUnruledDocketMotionIsAHoleAndARuledOneIsNot(t *testing.T) {
 	}
 	b.Events = append(docket("UNHEARD", "M1", false), docket("HEARD", "M2", true)...)
 
-	out := gapFlowMermaid(b)
+	out := gapFlowMermaid(record.FamilyOfBoard(b))
 	if got := lineClass(out, "g_UNHEARD"); got != "hole" {
 		t.Errorf("a gap put before the bench and never ruled is not flagged, got %q:\n%s", got, out)
 	}

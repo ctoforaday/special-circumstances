@@ -163,8 +163,11 @@ func sliceStr(s string, n int) string {
 // scorecardSection renders THIS run's scorecards, computed IN-PROCESS from the record via the
 // shared scorecard library — never by re-parsing a rendered markdown file. "" when nothing computes.
 func scorecardSection(run record.Run) string {
-	board, _ := record.BoardState(run)
-	cards := scorecard.Compute(run, scorecard.ReadResults(run), board)
+	var fam *record.Family
+	if f, err := record.FamilyOf(run); err == nil {
+		fam = &f
+	}
+	cards := scorecard.Compute(run, scorecard.ReadResults(run), fam)
 	chairs := make([]string, 0, len(cards))
 	for c := range cards {
 		chairs = append(chairs, c)

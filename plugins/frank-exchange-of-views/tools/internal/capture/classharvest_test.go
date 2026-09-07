@@ -39,7 +39,7 @@ func TestAProposalCarriesTheThreeFieldsAndTheCaseThatMotivatedIt(t *testing.T) {
 			"self-attestation", "did a tool act run and miss, or did none run at all"),
 		mintEvent(t, "R2-1", "silent-no-match-probe"),
 	}}
-	r := HarvestClasses(runtest.New(t, "/runs/2026-08-22_example"), law, board)
+	r := HarvestClasses(runtest.New(t, "/runs/2026-08-22_example"), law, board.Events)
 	if !r.Written || r.Count != 1 {
 		t.Fatalf("written=%v count=%d, want true and 1", r.Written, r.Count)
 	}
@@ -66,7 +66,7 @@ func TestAProposalCarriesTheThreeFieldsAndTheCaseThatMotivatedIt(t *testing.T) {
 // line reading "no classes coined this run" must come from having looked.
 func TestARunThatCoinedNothingWritesNothingAndSaysSo(t *testing.T) {
 	law := t.TempDir()
-	r := HarvestClasses(runtest.New(t, "/runs/quiet"), law, &record.Board{Events: []*record.Event{mintEvent(t, "R1-1", "false-universal")}})
+	r := HarvestClasses(runtest.New(t, "/runs/quiet"), law, []*record.Event{mintEvent(t, "R1-1", "false-universal")})
 	if r.Written || r.Count != 0 || r.Reason != "" {
 		t.Errorf("written=%v count=%d reason=%q, want false, 0, empty", r.Written, r.Count, r.Reason)
 	}
@@ -85,8 +85,8 @@ func TestTwoRunsCoiningOneSlugLandSideBySide(t *testing.T) {
 	law := t.TempDir()
 	one := &record.Board{Events: []*record.Event{classEvent(t, "red-merge-r1", "drift", "the first reading", "false-universal", "A")}}
 	two := &record.Board{Events: []*record.Event{classEvent(t, "red-merge-r1", "drift", "a DIFFERENT reading", "false-universal", "B")}}
-	HarvestClasses(runtest.New(t, "/runs/run-alpha"), law, one)
-	HarvestClasses(runtest.New(t, "/runs/run-beta"), law, two)
+	HarvestClasses(runtest.New(t, "/runs/run-alpha"), law, one.Events)
+	HarvestClasses(runtest.New(t, "/runs/run-beta"), law, two.Events)
 	ms, _ := filepath.Glob(filepath.Join(law, "proposed", "class-drift--*.md"))
 	if len(ms) != 2 {
 		t.Fatalf("got %d proposal(s) for one slug across two runs, want 2: %v", len(ms), ms)
@@ -105,9 +105,9 @@ func TestTwoRunsCoiningOneSlugLandSideBySide(t *testing.T) {
 // a fact about the class — nobody has worked a case with it yet — and a reviewer weighs it.
 func TestAClassCoinedAndNeverMintedAgainstSaysSo(t *testing.T) {
 	law := t.TempDir()
-	HarvestClasses(runtest.New(t, "/runs/x"), law, &record.Board{Events: []*record.Event{
+	HarvestClasses(runtest.New(t, "/runs/x"), law, []*record.Event{
 		classEvent(t, "red-merge-r1", "unused", "d", "n", "x"),
-	}})
+	})
 	b, err := os.ReadFile(filepath.Join(law, "proposed", "class-unused--x.md"))
 	if err != nil {
 		t.Fatal(err)

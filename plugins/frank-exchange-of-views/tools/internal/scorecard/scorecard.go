@@ -146,9 +146,10 @@ func ReadResults(run record.Run) []map[string]any {
 // with two call sites. The "pure kernel over the board JSON (JS computeAnchoredClosures)" this
 // comment used to claim was vestigial: no .js or .mjs in the tree defines that function, so no
 // parity constraint survived to protect.
-func ComputeAnchoredClosures(board *record.Board) (anchored, total int) {
-	for _, id := range board.GapOrder {
-		g := board.Gaps[id]
+func ComputeAnchoredClosures(fam *record.Family) (anchored, total int) {
+	for _, g := range fam.Gaps {
+		id := g.ID
+		_ = id
 		if g == nil || !g.HasClosed || g.Closure == nil {
 			continue // open, or disposed of by the bench rather than repaired
 		}
@@ -166,11 +167,11 @@ func ComputeAnchoredClosures(board *record.Board) (anchored, total int) {
 	return anchored, total
 }
 
-func anchoredClosures(board *record.Board) (anchored, total int, ok bool) {
-	if board == nil {
+func anchoredClosures(fam *record.Family) (anchored, total int, ok bool) {
+	if fam == nil {
 		return 0, 0, false // no board → JS null → "needs the tool"
 	}
-	a, t := ComputeAnchoredClosures(board)
+	a, t := ComputeAnchoredClosures(fam)
 	return a, t, true
 }
 
@@ -192,21 +193,21 @@ func ComputeDirectionUptake(dj record.DebateJSON) (leadSections, blueCitesLead i
 	return leadSections, blueCitesLead
 }
 
-func directionUptake(board *record.Board) (leadSections, blueCitesLead int, ok bool) {
-	if board == nil {
+func directionUptake(fam *record.Family) (leadSections, blueCitesLead int, ok bool) {
+	if fam == nil {
 		return 0, 0, false
 	}
-	l, b := ComputeDirectionUptake(record.DebateJSONOfEvents(board.Events))
+	l, b := ComputeDirectionUptake(record.DebateJSONOfEvents(fam.Events))
 	return l, b, true
 }
 
 var lNum = regexp.MustCompile(`^L(\d+)`)
 
-func citationYieldByRole(board *record.Board) (objJSON, bool) {
-	if board == nil {
+func citationYieldByRole(fam *record.Family) (objJSON, bool) {
+	if fam == nil {
 		return "", false
 	}
-	return BucketFindingsByRole(record.FindingsJSONOf(board.Events).Findings)
+	return BucketFindingsByRole(record.FindingsJSONOf(fam.Events).Findings)
 }
 
 // BucketFindingsByRole buckets findings per round by lens role-kind (citation L1-4, logic L5,
@@ -291,7 +292,7 @@ func BucketFindingsByRole(findings []record.FindingJSON) (objJSON, bool) {
 
 // ---- row builders ----
 
-func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.TelemetryLine, board *record.Board) []Row {
+func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.TelemetryLine, fam *record.Family) []Row {
 	var rows []Row
 
 	// repair_regression_ratio
@@ -327,8 +328,8 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	// is the whole reason the migration existed.
 	manifested, repaired := 0, 0
 	manifestedGaps := map[string]bool{}
-	if board != nil {
-		for _, e := range board.Events {
+	if fam != nil {
+		for _, e := range fam.Events {
 			// COUNTED BY EVENT TYPE, not by a readable body. `manifested` is the value this row
 			// falls back to when no denominator exists, so an event of this type whose body did
 			// not decode must still be counted — a short count would read as a low one, which is
@@ -386,8 +387,8 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	// retirement as an unrecorded loss — blind in both directions. A claim leaves the report
 	// ONLY through the retire verb, which is on the record.
 	retires := 0
-	if board != nil {
-		for _, e := range board.Events {
+	if fam != nil {
+		for _, e := range fam.Events {
 			if e.GetType() == recordpb.EventType_EVENT_TYPE_RETIRE {
 				retires++
 			}
@@ -438,8 +439,8 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	statusCount := map[string]int{}
 	total := 0
 	var thinLines []string
-	if board != nil {
-		for _, q := range record.Inquiries(board) {
+	if fam != nil {
+		for _, q := range record.InquiriesOf(fam.Events) {
 			total++
 			st := q.Status
 			if _, seen := statusCount[st]; !seen {
@@ -466,7 +467,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic",
 			Value: objJSON(sb.String()),
 			Joint: "reads WITH the report: breadth means nothing if the pursued line was chosen before the others were weighed"})
-	} else if board == nil {
+	} else if fam == nil {
 		// NOT MEASURED IS NOT ZERO. Without a board this row has not been computed, and saying
 		// "no inquiries recorded" would be the same defect one layer up.
 		rows = append(rows, Row{Clause: "Alternatives explored", Metric: "lines_of_inquiry", Cls: "diagnostic",
@@ -499,11 +500,11 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	return rows
 }
 
-func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.TelemetryLine, board *record.Board) []Row {
+func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.TelemetryLine, fam *record.Family) []Row {
 	var rows []Row
 
 	// anchored_closures_pct
-	anchored, total, ok := anchoredClosures(board)
+	anchored, total, ok := anchoredClosures(fam)
 	if ok && total > 0 {
 		rows = append(rows, Row{Clause: "Attestation-format invariant", Metric: "anchored_closures_pct", Cls: "benchmark",
 			Value: int(math.Round(float64(anchored) / float64(total) * 100)),
@@ -563,7 +564,7 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 	}
 
 	// citation_yield_by_round (object value)
-	if yield, ok := citationYieldByRole(board); ok {
+	if yield, ok := citationYieldByRole(fam); ok {
 		rows = append(rows, Row{Clause: "Lens economics (W2i assumption)", Metric: "citation_yield_by_round", Cls: "diagnostic",
 			Value: yield,
 			Joint: "RETUNE TRIGGER: compare PER_SEAT yield across rounds, never the raw count — W2i dispatches fewer citation lenses later, so a raw comparison scores the cut as the collapse that justified it. If per-seat citation yield holds while another role collapses, the cap is aimed at the wrong lens"})
@@ -577,7 +578,7 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 	return rows
 }
 
-func benchRows(results []map[string]any, board *record.Board) []Row {
+func benchRows(results []map[string]any, fam *record.Family) []Row {
 	var rows []Row
 	var rulings []map[string]any
 	for _, r := range results {
@@ -606,7 +607,7 @@ func benchRows(results []map[string]any, board *record.Board) []Row {
 	}
 
 	// blue_sections_citing_direction (string value)
-	leadSections, blueCitesLead, ok := directionUptake(board)
+	leadSections, blueCitesLead, ok := directionUptake(fam)
 	if ok && leadSections > 0 {
 		rows = append(rows, Row{Clause: "Direction-uptake (headline)", Metric: "blue_sections_citing_direction", Cls: "benchmark",
 			Value: strconv.Itoa(blueCitesLead) + "/" + strconv.Itoa(leadSections),
@@ -664,13 +665,13 @@ func benchRows(results []map[string]any, board *record.Board) []Row {
 	return rows
 }
 
-// Compute assembles all three chairs. board may be nil (BoardState failed → record rows read
+// Compute assembles all three chairs. fam may be nil (the record could not be read → record rows
 // "needs the tool"); telemetry is read from runDir; results are the journal envelopes.
-func Compute(run record.Run, results []map[string]any, board *record.Board) map[string][]Row {
+func Compute(run record.Run, results []map[string]any, fam *record.Family) map[string][]Row {
 	telemetry := ReadTelemetry(run)
 	return map[string][]Row{
-		"blue":  blueRows(run, results, telemetry, board),
-		"red":   redRows(run, results, telemetry, board),
-		"bench": benchRows(results, board),
+		"blue":  blueRows(run, results, telemetry, fam),
+		"red":   redRows(run, results, telemetry, fam),
+		"bench": benchRows(results, fam),
 	}
 }

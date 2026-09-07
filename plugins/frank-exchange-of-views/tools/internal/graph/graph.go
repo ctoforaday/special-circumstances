@@ -30,7 +30,7 @@ type perGap struct {
 // the answer holds only the ask's id. record.Motions performs that join, so counting rulings off
 // the raw stream would bucket every one of them under the empty key and report zero rulings
 // forever, which is the shape of the defect this counter was ported to escape.
-func tallyByGap(b *record.Board) map[string]*perGap {
+func tallyByGap(f record.Family) map[string]*perGap {
 	m := map[string]*perGap{}
 	get := func(id string) *perGap {
 		if id == "" {
@@ -41,7 +41,7 @@ func tallyByGap(b *record.Board) map[string]*perGap {
 		}
 		return m[id]
 	}
-	for _, e := range b.Events {
+	for _, e := range f.Events {
 		// THE BODY IS THE TYPE. A closing carries its OWN gap_id field, so the id is read off
 		// the message that holds it rather than off a key that might sit on anything — and an
 		// event with no body has no gap to attribute, which is not the same fact as an event
@@ -75,7 +75,7 @@ func tallyByGap(b *record.Board) map[string]*perGap {
 	//
 	// ONLY THE SUBJECTS THAT NAME A GAP. A petition and an inquiry carry no gap id, and `get("")`
 	// would mint a phantom node keyed on the empty string.
-	for _, m := range record.Motions(b) {
+	for _, m := range record.MotionsOf(f.Events) {
 		switch m.Subject {
 		case "grade", "docket":
 			if m.GapID == "" {
@@ -95,13 +95,13 @@ func tallyByGap(b *record.Board) map[string]*perGap {
 
 // Mermaid returns a markdown document with two fenced mermaid diagrams: the run's seat-by-round
 // flow, and the gap lifecycle. Markdown so it renders as-is in an artifact, a PR, or a phone.
-func Mermaid(b *record.Board) string {
+func Mermaid(f record.Family) string {
 	var out strings.Builder
 	out.WriteString("# Run graph — actual behaviour from the record\n\n")
 	out.WriteString("## Seat flow by round\n\n```mermaid\n")
-	out.WriteString(seatFlowMermaid(b))
+	out.WriteString(seatFlowMermaid(f))
 	out.WriteString("```\n\n## Gap lifecycle\n\n```mermaid\n")
-	out.WriteString(gapFlowMermaid(b))
+	out.WriteString(gapFlowMermaid(f))
 	out.WriteString("```\n")
 	return out.String()
 }
@@ -109,7 +109,7 @@ func Mermaid(b *record.Board) string {
 // seatFlowMermaid groups seats into round subgraphs, each seat labelled with its event tally —
 // so a round where a seat emitted nothing it should have (an empty debate, a skipped ruling)
 // shows as a thin node.
-func seatFlowMermaid(b *record.Board) string {
+func seatFlowMermaid(f record.Family) string {
 	type seat struct {
 		id     string
 		tally  map[string]int
@@ -117,7 +117,7 @@ func seatFlowMermaid(b *record.Board) string {
 	}
 	byRound := map[int]map[string]*seat{}
 	var rounds []int
-	for _, e := range b.Events {
+	for _, e := range f.Events {
 		round, seatID := int(e.GetRound()), e.GetSeatId()
 		if byRound[round] == nil {
 			byRound[round] = map[string]*seat{}
@@ -179,19 +179,19 @@ func tallyLabel(t map[string]int) string {
 // gapFlowMermaid renders each gap as a node coloured by terminal state, annotated with its
 // dialectic tally, plus supersedes edges. A gap CLOSED with no closing and no disposition, or a
 // gap with a dispute but zero dispute-responds, is a hole the annotation makes visible.
-func gapFlowMermaid(b *record.Board) string {
-	tally := tallyByGap(b)
+func gapFlowMermaid(f record.Family) string {
+	tally := tallyByGap(f)
 	var out strings.Builder
 	out.WriteString("flowchart LR\n")
 	out.WriteString("  classDef open fill:#f7e0de,stroke:#c0453f,color:#161c26\n")
 	out.WriteString("  classDef closed fill:#dcefe4,stroke:#2f855a,color:#161c26\n")
 	out.WriteString("  classDef hole fill:#f6ead0,stroke:#b7791f,color:#161c26,stroke-width:2px\n")
-	if len(b.GapOrder) == 0 {
+	if len(f.Gaps) == 0 {
 		out.WriteString("  none[\"(no gaps minted)\"]\n")
 		return out.String()
 	}
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
+	for _, g := range f.Gaps {
+		id := g.ID
 		if g == nil {
 			continue
 		}
@@ -223,8 +223,8 @@ func gapFlowMermaid(b *record.Board) string {
 		out.WriteString(fmt.Sprintf("  %s[\"%s\"]:::%s\n", nodeID("g", id), label, class))
 	}
 	// supersedes edges — a gap's lineage.
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
+	for _, g := range f.Gaps {
+		id := g.ID
 		if g == nil || g.Mint == nil {
 			continue
 		}
@@ -244,12 +244,12 @@ func sep(reason string) string {
 
 // Dot renders the gap lifecycle as a graphviz digraph — the escape hatch for a run dense enough
 // that mermaid's layout struggles. Same gaps, states, and lineage; graphviz does the layout.
-func Dot(b *record.Board) string {
-	tally := tallyByGap(b)
+func Dot(f record.Family) string {
+	tally := tallyByGap(f)
 	var out strings.Builder
 	out.WriteString("digraph run {\n  rankdir=LR;\n  node [shape=box, style=\"rounded,filled\", fontname=\"monospace\"];\n")
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
+	for _, g := range f.Gaps {
+		id := g.ID
 		if g == nil {
 			continue
 		}
@@ -271,8 +271,8 @@ func Dot(b *record.Board) string {
 		}
 		out.WriteString(fmt.Sprintf("  %q [label=%q, fillcolor=%q];\n", id, fmt.Sprintf("%s\\n%s\\nclose%d mot%d/%d disp%d", id, state, pg.closings, pg.motionsFiled, pg.motionsRuled, pg.dispositions), fill))
 	}
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
+	for _, g := range f.Gaps {
+		id := g.ID
 		if g == nil || g.Mint == nil {
 			continue
 		}

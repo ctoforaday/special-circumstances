@@ -499,7 +499,7 @@ func TestHarvestPrecedents(t *testing.T) {
 		}),
 	}}
 
-	r := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(repo, "law"), board)
+	r := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(repo, "law"), board.Events)
 	if r.Count != 4 {
 		t.Fatalf("want 4 rulings harvested (2 docket dispositions, 1 petition, 1 declaration), got %d", r.Count)
 	}
@@ -548,7 +548,7 @@ func TestHarvestPrecedents(t *testing.T) {
 	}
 
 	// No law/ dir → not written, reason names law.
-	noLaw := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(repo, "absent"), board)
+	noLaw := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(repo, "absent"), board.Events)
 	if noLaw.Written || !strings.Contains(noLaw.Reason, "law") {
 		t.Errorf("absent law dir: want not-written with law reason, got %+v", noLaw)
 	}
@@ -564,7 +564,7 @@ func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
 		{"rulings": []any{map[string]any{"petitioner": "blue", "ruling": "denied", "reason": "no"}}},
 	}
 
-	r := HarvestPrecedents(runtest.New(t, runDir), claimed, filepath.Join(t.TempDir(), "law"), &record.Board{})
+	r := HarvestPrecedents(runtest.New(t, runDir), claimed, filepath.Join(t.TempDir(), "law"), nil)
 	if r.Written || r.Count != 0 {
 		t.Fatalf("the record holds nothing, so nothing is promoted: %+v", r)
 	}
@@ -576,7 +576,7 @@ func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
 	}
 
 	// The honest quiet run: no record rulings AND no envelope claims. Silent, as it should be.
-	quiet := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(t.TempDir(), "law"), &record.Board{})
+	quiet := HarvestPrecedents(runtest.New(t, runDir), nil, filepath.Join(t.TempDir(), "law"), nil)
 	if quiet.Reason != "" || quiet.EnvelopeClaimed != 0 {
 		t.Errorf("a genuinely quiet run must not be reported as a divergence: %+v", quiet)
 	}

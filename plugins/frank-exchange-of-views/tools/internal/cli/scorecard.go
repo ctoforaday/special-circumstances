@@ -55,13 +55,13 @@ func newScorecard() *cobra.Command {
 			if !cards[chair] {
 				return feov.Errorf(feov.Validation, "usage: %s scorecard --run <dir> --chair blue|red|bench", InvokedAs())
 			}
-			// A run with no record yet (BoardState errors) leaves board nil — the record-derived
-			// rows then read "needs the tool", exactly as the JS did when the view spawn failed.
-			var board *record.Board
-			if b, err := record.BoardState(run); err == nil {
-				board = b
+			// A run with no readable record leaves fam nil — the record-derived rows then
+			// read "needs the tool", exactly as the JS did when the view spawn failed.
+			var fam *record.Family
+			if f, err := record.FamilyOf(run); err == nil {
+				fam = &f
 			}
-			rows := scorecard.Compute(run, scorecard.ReadResults(run), board)[chair]
+			rows := scorecard.Compute(run, scorecard.ReadResults(run), fam)[chair]
 			fmt.Fprint(cmd.OutOrStdout(), scorecard.RenderChair(chair, rows, "this run")+"\n")
 			return nil
 		},

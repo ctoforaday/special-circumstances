@@ -189,8 +189,8 @@ func newMint() *cobra.Command {
 		// prescriptions" a per-run number on the record, which is the measurement of the
 		// pathology the guard prevents. Same discipline as `blue cite`'s unreachable-source
 		// rejection — the tool records the block, never the seat's memory of it.
-		if board, berr := record.BoardState(run); berr == nil {
-			if prior, prescribed := record.EstoppelConflict(board, seat.Str(cmd, flags.Quote)); prior != "" &&
+		if fam, berr := record.FamilyOf(run); berr == nil {
+			if prior, prescribed := record.EstoppelConflict(fam, seat.Str(cmd, flags.Quote)); prior != "" &&
 				!contains(supersedes.Value(), prior) {
 				msg := fmt.Sprintf("merge mint: estoppel — this gap's location is text YOU prescribed for %s and blue applied verbatim. The prescription is red's; raise it as an amendment to %s (argue it there, or mint with --supersedes %s so the lineage is explicit) rather than as a fresh gap against your own words. Prescribed text: %q",
 					prior, prior, prior, prescribed)

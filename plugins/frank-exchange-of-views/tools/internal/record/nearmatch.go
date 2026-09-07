@@ -69,14 +69,13 @@ func round2(f float64) float64 { return math.Round(f*100) / 100 }
 // gap on the board and returns the top-N by descending score, id-ascending on ties. Both
 // OPEN and CLOSED gaps are scored — a reopen most often matches a closed gap. A gap with no
 // overlap at all is omitted (score 0 is not a match).
-func NearMatch(b *Board, candidate, location string, topN int) []NearMatchJSON {
+func NearMatch(f Family, candidate, location string, topN int) []NearMatchJSON {
 	candTokens := tokenize(candidate + " " + location)
 	locTokens := tokenize(location)
 
 	out := []NearMatchJSON{}
-	for _, id := range b.GapOrder {
-		g, ok := b.Gaps[id]
-		if !ok || g.Mint == nil {
+	for _, g := range f.Gaps {
+		if g == nil || g.Mint == nil {
 			continue
 		}
 		gapLoc := g.Mint.GetLocation()

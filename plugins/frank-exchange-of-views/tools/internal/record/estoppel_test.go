@@ -1,6 +1,7 @@
 package record
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -13,6 +14,10 @@ import (
 func board(t *testing.T, gapFix map[string]string, evs []*Event) *Board {
 	t.Helper()
 	b := &Board{Gaps: map[string]*Gap{}}
+	for id := range gapFix {
+		b.GapOrder = append(b.GapOrder, id)
+	}
+	sort.Strings(b.GapOrder)
 	for id, fixNew := range gapFix {
 		m := &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), FixBasis: proto.String("proposed")}
 		if fixNew != "" {
@@ -51,7 +56,7 @@ func edit(t *testing.T, gapID string, verbatim bool) *Event {
 func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
 	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", true)})
 
-	id, got := EstoppelConflict(b, "Five verification approaches agree, all sharing one definition of primality.")
+	id, got := EstoppelConflict(FamilyOfBoard(b), "Five verification approaches agree, all sharing one definition of primality.")
 	if id != "R1-1" {
 		t.Fatalf("EstoppelConflict = %q, want R1-1 — red re-raising its own prescribed text went undetected", id)
 	}
@@ -63,7 +68,7 @@ func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
 // A fragment of the prescribed sentence is the same act as quoting the whole of it.
 func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
 	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", true)})
-	if id, _ := EstoppelConflict(b, "agree, all sharing one definition of primality"); id != "R1-1" {
+	if id, _ := EstoppelConflict(FamilyOfBoard(b), "agree, all sharing one definition of primality"); id != "R1-1" {
 		t.Errorf("a quoted FRAGMENT of red's own prescription escaped the guard (got %q)", id)
 	}
 }
@@ -72,7 +77,7 @@ func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
 // blue's authorship and red audits it normally — that is the right to disagree staying real.
 func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", false)})
-	if id, _ := EstoppelConflict(b, prescribed); id != "" {
+	if id, _ := EstoppelConflict(FamilyOfBoard(b), prescribed); id != "" {
 		t.Errorf("red was estopped from auditing text BLUE authored (gap %q) — a counter-edit is not red's prescription", id)
 	}
 }
@@ -81,7 +86,7 @@ func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 // shield over the report.
 func TestNoEstoppelForUnrelatedText(t *testing.T) {
 	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", true)})
-	if id, _ := EstoppelConflict(b, "An entirely different sentence about sieve performance and its costs."); id != "" {
+	if id, _ := EstoppelConflict(FamilyOfBoard(b), "An entirely different sentence about sieve performance and its costs."); id != "" {
 		t.Errorf("an unrelated finding was estopped by gap %q — the guard is over-broad", id)
 	}
 }
@@ -90,7 +95,7 @@ func TestNoEstoppelForUnrelatedText(t *testing.T) {
 // real finding is worse than missing an estoppel, so the guard declines to fire here.
 func TestShortPrescriptionsDoNotEstop(t *testing.T) {
 	b := board(t, map[string]string{"R1-1": "7 is prime."}, []*Event{edit(t, "R1-1", true)})
-	if id, _ := EstoppelConflict(b, "7 is prime."); id != "" {
+	if id, _ := EstoppelConflict(FamilyOfBoard(b), "7 is prime."); id != "" {
 		t.Errorf("a %d-character prescription estopped a finding (gap %q); the floor is %d",
 			len("7 is prime."), id, minEstoppelOverlap)
 	}

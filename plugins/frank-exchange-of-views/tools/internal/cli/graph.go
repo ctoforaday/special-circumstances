@@ -37,15 +37,15 @@ func newGraph() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			board, err := record.BoardState(run)
+			fam, err := record.FamilyOf(run)
 			if err != nil {
 				return fmt.Errorf("graph: %w", err)
 			}
 			switch format {
 			case "", "mermaid":
-				fmt.Fprint(cmd.OutOrStdout(), graph.Mermaid(board))
+				fmt.Fprint(cmd.OutOrStdout(), graph.Mermaid(fam))
 			case "dot":
-				fmt.Fprint(cmd.OutOrStdout(), graph.Dot(board))
+				fmt.Fprint(cmd.OutOrStdout(), graph.Dot(fam))
 			default:
 				return feov.Errorf(feov.Validation, "graph: unknown --format %q (mermaid | dot)", format)
 			}
