@@ -90,7 +90,7 @@ func main() {
 //
 // A matcher whose patterns stop matching reports zero findings, which is byte-identical to a
 // clean diff. That is the exact defect class this gate polices, so it is checked here rather
-// than assumed — the same argument `mutate -selftest` makes one directory over.
+// than assumed: a gate that cannot fail is not a gate, and nothing else in CI would say so.
 func runSelftest() error {
 	const bad = `+++ b/plugins/x/agents/seat.md
 +the ` + "`blue confidence`" + ` verb is RETIRED (0.54.0), so hold it as a discipline.

@@ -15,9 +15,17 @@ sweep rather than anticipated:
   opens with a pointer to the other, and the historical half **keeps the original
   section numbers** so a citation of `§17` still names §17. Only the path moves.
 
+- **Abandoned** — the design was built and then REMOVED, so there is a tree it
+  described and no tree it describes. `mutation-audit.md` is the standing
+  example: `scripts/mutate` and its release gate were deleted outright, and the
+  plan is kept for its measurements and its reasoning rather than for anything
+  runnable. Distinct from superseded, where nothing was ever built, and from
+  shipped, where the thing is still there.
+
 An earlier version of this file said "shipped" alone. That was false about its
-own second inhabitant within a day, and silent about the third shape entirely —
-which the first sweep produced six of.
+own second inhabitant within a day, silent about the third shape entirely —
+which the first sweep produced six of — and had no word for the fourth until a
+tool was deleted rather than replaced.
 
 **They describe the tree as it was, not as it is.** A historical plan naming a
 heading, a verb or a file that has since been renamed is not stale — it is

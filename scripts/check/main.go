@@ -272,7 +272,7 @@ func runGate(root string, g gate, base string) result {
 }
 
 // toolFlags returns a tool gate's own flags — everything in args after `run` and the package
-// path (e.g. mutate's `-selftest`).
+// path (e.g. protogen's `-check`).
 func toolFlags(g gate) []string {
 	if len(g.args) > 2 {
 		return g.args[2:]

@@ -51,7 +51,7 @@ var (
 // toolID is the identity of a tool invocation, and the distinction it draws is the one this
 // comparison turns on.
 //
-// A MODE flag is part of the identity: `mutate -selftest` and `mutate` are different gates
+// A MODE flag is part of the identity: `protogen -check` and `protogen` are different gates
 // asking different questions, and losing one while keeping the other is exactly the drift
 // being guarded. A PARAMETER is not: `-base origin/main` names the ref to compare against,
 // its value differs per invocation, and the table already carries that fact in the
@@ -92,7 +92,7 @@ func tableTools() map[string]bool {
 }
 
 // EVERY tool CI runs must be declared here. This is the direction that actually bit: CI grew
-// mjsparity, mutate -selftest and decisions, and the hand-kept list never learned about them.
+// mjsparity and decisions, and the hand-kept list never learned about them.
 func TestEveryToolCIRunsIsDeclared(t *testing.T) {
 	ci, table := ciTools(workflow(t)), tableTools()
 	// The release job shells `gh`, not `go run ./x`, so nothing from it lands in ci.
@@ -169,10 +169,10 @@ func TestRaceScopesMatchTheWorkflow(t *testing.T) {
 		t.Errorf("raceScope for feov = %v, want exactly %s./cmd/feov-record — any other claim here "+
 			"would report concurrency coverage the workflow does not run", scope, depsScopePrefix)
 	}
-	// scripts GAINED a -race leg when its concurrency became real: golden/interrupt.go
-	// guards signal state with a mutex, and mutate arms a file for its interrupt handler to
-	// restore. The unsynchronised version of that second one shipped and was found by
-	// reading, because this was the one module the detector never ran over.
+	// scripts GAINED a -race leg when its concurrency became real: golden/interrupt.go guards
+	// signal state with a mutex against its interrupt handler, which puts a file back. The
+	// unsynchronised version of that shipped and was found by reading, because this was the one
+	// module the detector never ran over.
 	//
 	// Scoped to the job's own block: `-race ./...` appears in several jobs, so a bare
 	// Contains over the whole workflow would pass on somebody else's leg — which is the

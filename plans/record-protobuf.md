@@ -390,8 +390,7 @@ TOOLS=$REPO/plugins/frank-exchange-of-views/tools
 (cd "$TOOLS" && go test ./internal/difftest/... -run Golden)   # the 24 byte-compared fixtures
 (cd "$TOOLS" && go test ./internal/fuzz/...)                   # debate.js vs the real binary, via goja
 (cd "$REPO/plugins/frank-exchange-of-views/tests/simulator" && node --test)  # .mjs — unreachable from go test
-(cd "$REPO/scripts" && GOTOOLCHAIN=go1.25.0 go test ./...)     # versionguard, golden, mutate
-(cd "$REPO/scripts" && GOTOOLCHAIN=go1.25.0 go run ./mutate)   # on-demand; PR3 and PR4
+(cd "$REPO/scripts" && GOTOOLCHAIN=go1.25.0 go test ./...)     # versionguard, golden
 ```
 
 `GOTOOLCHAIN=go1.25.0` on the `scripts` module is not decoration: its `go.mod` asks for a

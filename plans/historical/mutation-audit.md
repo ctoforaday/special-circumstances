@@ -1,9 +1,23 @@
 # The mutation audit — what it can measure, what it costs, and what it has swept
 
-> STATUS 2026-09-05: in progress. The instrument is fixed and the first target is settled
-> (`citationid.go`, 100% killed). Unswept: `record/refs.go`, the `internal/cli` citation files, and
-> the `-confirm` wide stage. Split out of `plans/historical/red-citations.md` §V.7, which was filed
-> as historical while this half was still being implemented from.
+> STATUS 2026-09-07: **ABANDONED — the instrument is gone.** `scripts/mutate` is deleted and the
+> release gate with it; nothing below is runnable. Filed here because the measurements are real and
+> the reasoning is worth reading, not because any of it is live.
+>
+> **Why.** gblock's call, and gremlins — the mature Go mutation tool — settles the methodology
+> question this plan never asked. It has no survivor allowlist, no explanation file, and its
+> thresholds default to `0`, unenforced: it reports LIVED/KILLED and a score, and **green tests are
+> the whole of the survivor acceptance process.** This plan invented an obligation the state of the
+> art does not have — a written `why` per survivor, refused at the read if empty — and then made it
+> a *release gate*, so v2.0.0 could not ship until three modules' backlogs had been argued through
+> in prose. The cost was certain and recurring; the yield was two secret patterns found once.
+>
+> The one durable finding is kept in `CLAUDE.md`: coverage cannot see whether a test would NOTICE,
+> and `internal/secrets` reported 100% of statements while two of its eight patterns could be
+> deleted with the suite green. That is a caution about reading coverage, not a programme.
+>
+> Split out of `plans/historical/red-citations.md` §V.7, which was filed as historical while this
+> half was still being implemented from.
 
 ## I. Summary & goals
 

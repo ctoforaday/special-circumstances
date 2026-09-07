@@ -11,7 +11,6 @@
 // always wins — toward the shorter list:
 //
 //	mjsparity          in CI, absent from the loop
-//	mutate -selftest   in CI, absent from the loop
 //	decisions          in CI, absent from the loop
 //	node --test suites in CI, absent from the loop
 //	go vet   × 4       in CI, absent from the loop
@@ -153,9 +152,9 @@ var raceScope = map[string][]string{
 	"plugins/gray-area/tools":               {"./..."},
 	// scripts WAS the one module with no -race leg, absent on purpose while it was
 	// straight-line tooling. It stopped being that: golden/interrupt.go guards signal state
-	// with a mutex and mutate arms a file for an interrupt handler to put back — and the
-	// second of those shipped an unsynchronised read of the path/bytes pair, so an interrupt
-	// could pair one file's path with another file's contents and write it over real source.
+	// with a mutex against an interrupt handler that puts a file back, and an unsynchronised
+	// read of the path/bytes pair shipped — so an interrupt could pair one file's path with
+	// another file's contents and write it over real source.
 	// It was found by reading, not by CI, because CI could not look. `./...` rather than a
 	// package list: a hand-kept list of "the concurrent ones" is the next thing to go stale,
 	// and this module's suite is seconds.
@@ -208,14 +207,6 @@ var tools = []gate{
 		why: "a stale golden is an unrecorded behaviour change"},
 	{id: "mjsparity", kind: kindTool, dir: "scripts", args: []string{"run", "./mjsparity"}, ciJob: "debate-sim",
 		why: "node --test exits 0 on a path that does not exist"},
-	{id: "mutate-selftest", kind: kindTool, dir: "scripts", args: []string{"run", "./mutate", "-selftest"}, ciJob: "debate-sim",
-		why: "a mutation sweep that cannot mutate flatters the suite"},
-	// Declared and SKIPPED, like the release gates it runs beside: the sweep takes minutes
-	// to hours and only a tag decides which module it judges. Running it here would sweep
-	// the default module on every check invocation for a verdict nothing local consumes.
-	{id: "mutate-gate", kind: kindTool, dir: "scripts", args: []string{"run", "./mutate", "-gate"}, ciJob: "release",
-		skip: "only meaningful on a tag; the release job sweeps the tagged plugin's module",
-		why:  "a release must prove every mutation survivor was JUDGED, not merely counted"},
 	{id: "validatejson", kind: kindTool, dir: "scripts", args: []string{"run", "./validatejson"}, ciJob: "debate-sim",
 		why: "manifests break silently"},
 	{id: "frontmatter", kind: kindTool, dir: "scripts", args: []string{"run", "./frontmatter"}, ciJob: "debate-sim",
