@@ -209,12 +209,12 @@ type Choices struct {
 
 // Read replays a run and reports one seat's choices.
 func Read(sf Surface, run record.Run, seatID string) (*Choices, error) {
-	b, err := record.BoardState(run)
+	m, err := record.MergedEvents(run)
 	if err != nil {
 		return nil, err
 	}
 	c := &Choices{SeatID: seatID, Used: map[string]int{}}
-	for _, e := range b.Events {
+	for _, e := range m.Events {
 		if e.GetSeatId() != seatID {
 			continue
 		}
