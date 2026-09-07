@@ -1295,6 +1295,14 @@ jobs:
       - name: The enumerated mjs suites match the tree (node --test exits 0 on a missing path)
         run: go run ./mjsparity
         working-directory: scripts
+      # THE LAW PIPE HAS A READER NOW. capture harvests every ruling into law/proposed/ and
+      # nothing read it back: 76 holdings across 10 runs with an EMPTY affirmed corpus, and no
+      # surface that would have said so. This reports the queue (never fails on it — a long queue
+      # is a review nobody has done) and REFUSES a holding promoted into precedents.md still
+      # carrying the `<reviewer: …>` placeholders the harvest deliberately does not invent.
+      - name: The law queue is visible, and nothing was promoted unreviewed
+        run: go run ./lawqueue
+        working-directory: scripts
       - name: Validate all tracked JSON (manifests break silently)
         run: go run ./validatejson
         working-directory: scripts
