@@ -1113,17 +1113,17 @@ func jsStringify(v any) string {
 // how strong the adversary arguing each side actually was; a weaker model silently standing in is
 // the worse of the two failures, not the softer one. So a substitution FAILS in either direction.
 //
-// And it no longer has to be inferred from a price at all. `register` records served_model on the
-// record — measured from the seat's own trajectory, where the harness DECLARES a swap by naming
+// And it no longer has to be inferred from a price at all. `register` records each seat's AGENT ID,
+// which names its trajectory, and the trajectory is where the harness DECLARES a swap by naming
 // both ends — so a declared substitution is a fact this reads rather than a tier it deduces. The
-// transcript pass stays for what the record cannot cover: runs recorded before the field existed,
+// transcript pass stays for what the record cannot cover: runs whose trajectories are gone,
 // and seats that never registered.
 func recordTierFindings(run record.Run, model, judgmentModel string) (findings []string, measured, total int) {
 	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return nil, 0, 0
 	}
-	for _, sm := range record.SeatModels(fam) {
+	for _, sm := range record.SeatModels(run, fam) {
 		if sm.Class == "" {
 			continue
 		}

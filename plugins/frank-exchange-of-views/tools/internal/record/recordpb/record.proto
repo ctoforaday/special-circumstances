@@ -1544,13 +1544,18 @@ message Register {
   // ABSENT IS NOT "the configured one". A seat whose trajectory could not be found or read
   // carries neither field, and that stays legible as NOT MEASURED — the distinction the whole
   // defect turned on.
-  optional string served_model = 4;
-
-  // requested_model is present ONLY when the harness DECLARED a substitution — the trajectory
-  // opens with a `fallback` block naming both ends. So this is a fact somebody else wrote, not a
-  // mismatch inferred by comparing served_model to run-config, and its absence means nothing said
-  // a substitution happened rather than that none did.
-  optional string requested_model = 5;
+  // THE TRAJECTORY IS THE STATEMENT OF RECORD, so the serving model is READ from it and not
+  // copied here. `register` is the seat's FIRST act, and a fresh trajectory's opening records are
+  // all `user` turns — the model appears on the first ASSISTANT turn, which by definition has not
+  // happened. Measured over a whole run: 45 registers, 43 carrying an agent id, ZERO carrying a
+  // served model. Not bad luck; the moment.
+  //
+  // What the record keeps is `agent_id`, which names the trajectory. Every reader resolves the
+  // model from it when asked, so the answer is taken when it exists rather than stored when it
+  // cannot. NOT MEASURED stays a distinct answer from "it matched what was configured" — it is
+  // now an absent trajectory rather than an absent field.
+  reserved 4, 5;
+  reserved "served_model", "requested_model";
 
   // run_via says which path supplied the run directory. A run whose seats all resolve by
   // INFERENCE is a run the PreToolUse hook is not reaching, and nothing else records that.

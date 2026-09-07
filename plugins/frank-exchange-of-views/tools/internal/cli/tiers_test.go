@@ -28,12 +28,12 @@ func tierFixture(t *testing.T) (string, record.Family) {
 	}
 	recordtest.Seed(t, run,
 		recordtest.At(t, "blue-lane-1", 1, "blue-lane-1:register:#1", &recordpb.Register{
-			ToolVersion:    proto.String("test"),
-			ServedModel:    proto.String("claude-opus-4-8"),
-			RequestedModel: proto.String("claude-fable-5"),
+			ToolVersion: proto.String("test"),
+			AgentId:     proto.String(recordtest.ServedBy(t, "aaaa1111", "claude-opus-4-8", "claude-fable-5")),
 		}),
 		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:register:#1", &recordpb.Register{
-			ToolVersion: proto.String("test"), ServedModel: proto.String("claude-sonnet-5"),
+			ToolVersion: proto.String("test"),
+			AgentId:     proto.String(recordtest.ServedBy(t, "bbbb2222", "claude-sonnet-5", "")),
 		}),
 		recordtest.At(t, "judge-r1", 1, "judge-r1:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),

@@ -17,8 +17,8 @@ import (
 // premise. The claim was not careless: it was the only model fact available to a seat, which
 // reads the run's CONFIGURATION and cannot see what replied to it.
 //
-// register now measures the serving model at each seat's own first turn (record.SeatModels reads
-// it back). This is the surface that puts it in front of the human the report is for.
+// record.SeatModels resolves it from each seat's trajectory, named by the agent id `register`
+// recorded. This is the surface that puts it in front of the human the report is for.
 //
 // IT IS TOOL-OWNED, and that is the whole point. Blue is already forbidden from authoring
 // tool-owned sections, so the one fact a seat provably cannot know about itself is composed from
@@ -27,8 +27,8 @@ import (
 //
 // AND NOT MEASURED IS ITS OWN ROW. A run where nothing looked must not render as a run that
 // matched its configuration; that collapse is how $379 of spend went to a tier that never ran.
-func conduct(fam record.Family) string {
-	seats := record.SeatModels(fam)
+func conduct(run record.Run, fam record.Family) string {
+	seats := record.SeatModels(run, fam)
 	if len(seats) == 0 {
 		return ""
 	}

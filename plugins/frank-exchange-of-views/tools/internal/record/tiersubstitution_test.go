@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/modeltier"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/servedmodel"
 )
 
@@ -29,18 +30,32 @@ func runWithTiers(t *testing.T, cfg string) string {
 	return run
 }
 
+// configuredFor is the class -> configured-model join SeatModels makes, so these tests drive
+// TierSubstitution with the same input the read path builds.
+func configuredFor(t *testing.T, run string, seatID string) string {
+	t.Helper()
+	model, judgment := modeltier.Config(run)
+	if TierClassOfSeat(seatID) == "judgment" {
+		return judgment
+	}
+	if TierClassOfSeat(seatID) == "" {
+		return ""
+	}
+	return model
+}
+
 const fableSonnet = `{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`
 
 func TestTheGateStopsTheRunTheRetrospectiveMeasured(t *testing.T) {
 	run := runWithTiers(t, fableSonnet)
-	err := tierGate(mustRun(t, run), "blue-lane-1", servedmodel.Observation{
+	got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "blue-lane-1"), servedmodel.Observation{
 		Served: "claude-opus-4-8", Requested: "claude-fable-5", Declared: true})
-	if err == nil {
-		t.Fatal("a bulk seat answered by opus against a configured fable must refuse")
+	if got == "" {
+		t.Fatal("a bulk seat answered by opus against a configured fable must be reported")
 	}
-	for _, want := range []string{"blue-lane-1", "bulk", "claude-fable-5", "claude-opus-4-8", "STOP AND REPORT THIS", "served_model"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("the refusal must name %q; got:\n%s", want, err)
+	for _, want := range []string{"claude-fable-5", "claude-opus-4-8", "declared the substitution"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("the report must name %q; got:\n%s", want, got)
 		}
 	}
 }
@@ -48,11 +63,11 @@ func TestTheGateStopsTheRunTheRetrospectiveMeasured(t *testing.T) {
 // The judgment tier was served as configured in that same run, and must not be swept up with it.
 func TestASeatAnsweredByItsConfiguredTierPasses(t *testing.T) {
 	run := runWithTiers(t, fableSonnet)
-	if err := tierGate(mustRun(t, run), "red-merge-r1", servedmodel.Observation{Served: "claude-sonnet-5"}); err != nil {
-		t.Fatalf("judgment seat on its configured sonnet: %v", err)
+	if got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "red-merge-r1"), servedmodel.Observation{Served: "claude-sonnet-5"}); got != "" {
+		t.Fatalf("judgment seat on its configured sonnet: %s", got)
 	}
-	if err := tierGate(mustRun(t, run), "blue-lane-2", servedmodel.Observation{Served: "claude-fable-5"}); err != nil {
-		t.Fatalf("bulk seat on its configured fable: %v", err)
+	if got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "blue-lane-2"), servedmodel.Observation{Served: "claude-fable-5"}); got != "" {
+		t.Fatalf("bulk seat on its configured fable: %s", got)
 	}
 }
 
@@ -60,8 +75,8 @@ func TestASeatAnsweredByItsConfiguredTierPasses(t *testing.T) {
 // declaration is evidence about the swap rather than the swap itself.
 func TestAnUndeclaredMismatchAlsoRefuses(t *testing.T) {
 	run := runWithTiers(t, fableSonnet)
-	if err := tierGate(mustRun(t, run), "judge-r1", servedmodel.Observation{Served: "claude-haiku-4-5"}); err == nil {
-		t.Fatal("a judgment seat answered by haiku against a configured sonnet must refuse")
+	if got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "judge-r1"), servedmodel.Observation{Served: "claude-haiku-4-5"}); got == "" {
+		t.Fatal("a judgment seat answered by haiku against a configured sonnet must be reported")
 	}
 }
 
@@ -70,16 +85,16 @@ func TestAnUndeclaredMismatchAlsoRefuses(t *testing.T) {
 // the exact substitution of a miss for a clean board this whole change is about.
 func TestAnUnmeasuredSeatIsNotJudged(t *testing.T) {
 	run := runWithTiers(t, fableSonnet)
-	if err := tierGate(mustRun(t, run), "blue-lane-1", servedmodel.Observation{}); err != nil {
-		t.Fatalf("nothing measured, nothing to judge: %v", err)
+	if got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "blue-lane-1"), servedmodel.Observation{}); got != "" {
+		t.Fatalf("nothing measured, nothing to judge: %s", got)
 	}
 }
 
 // A run that declared no tier for a class cannot hold a seat to one.
 func TestARunWithNoDeclaredTierDoesNotRefuse(t *testing.T) {
 	run := runWithTiers(t, `{}`)
-	if err := tierGate(mustRun(t, run), "blue-lane-1", servedmodel.Observation{Served: "claude-opus-4-8"}); err != nil {
-		t.Fatalf("no configured tier: %v", err)
+	if got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "blue-lane-1"), servedmodel.Observation{Served: "claude-opus-4-8"}); got != "" {
+		t.Fatalf("no configured tier: %s", got)
 	}
 }
 
@@ -89,8 +104,8 @@ func TestSeatsThatRideNoTierAreNotGated(t *testing.T) {
 	if got := TierClassOfSeat(OperatorRole); got != "" {
 		t.Fatalf("the operator has no tier class, got %q", got)
 	}
-	if err := tierGate(mustRun(t, run), OperatorRole, servedmodel.Observation{Served: "claude-haiku-4-5"}); err != nil {
-		t.Fatalf("operator: %v", err)
+	if got := TierSubstitution(mustRun(t, run), configuredFor(t, run, OperatorRole), servedmodel.Observation{Served: "claude-haiku-4-5"}); got != "" {
+		t.Fatalf("operator: %s", got)
 	}
 }
 
@@ -98,9 +113,10 @@ func TestSeatsThatRideNoTierAreNotGated(t *testing.T) {
 // the seat is the party whose adversary strength is in question.
 func TestTheOperatorsStandingConsentLetsTheRunProceed(t *testing.T) {
 	run := runWithTiers(t, `{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5","allowModelSubstitution":true}`)
-	if err := tierGate(mustRun(t, run), "blue-lane-1", servedmodel.Observation{
-		Served: "claude-opus-4-8", Requested: "claude-fable-5", Declared: true}); err != nil {
-		t.Fatalf("consented substitution must proceed: %v", err)
+	got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "blue-lane-1"), servedmodel.Observation{
+		Served: "claude-opus-4-8", Requested: "claude-fable-5", Declared: true})
+	if !strings.Contains(got, "ALLOWED BY THIS RUN'S CONFIG") {
+		t.Fatalf("a consented substitution must say so rather than read as an unconsented one: %q", got)
 	}
 }
 
