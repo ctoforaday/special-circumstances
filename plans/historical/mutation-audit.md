@@ -1,9 +1,36 @@
-# The mutation audit — what it can measure, what it costs, and what it has swept
+# The mutation audit — what it measured, what it cost, and why it was retired
 
-> STATUS 2026-09-05: in progress. The instrument is fixed and the first target is settled
-> (`citationid.go`, 100% killed). Unswept: `record/refs.go`, the `internal/cli` citation files, and
-> the `-confirm` wide stage. Split out of `plans/historical/red-citations.md` §V.7, which was filed
-> as historical while this half was still being implemented from.
+> STATUS 2026-09-06: RETIRED, and the tool with it. Operator call, after the sweep was asked
+> to justify its cost against the rest of this repository's gates and could not. §0 is the
+> evidence; the rest is the record of what was built, kept because the *questions* it asked
+> are still the right ones — see CLAUDE.md's coverage clause, which now asks them by hand.
+
+## 0. Why it was retired (2026-09-06)
+
+**It never found a defect here.** Two full sweeps on the day of the decision:
+`prosthetic-conscience/tools` — 66 survivors, 88% killed; `gray-area/tools` — 70 survivors,
+75% killed. Against that, this repository's other gates each named something specific to change,
+repeatedly, in the same session: a roster citing a test that did not exist, a golden flipping
+exit 0 to exit 2, three archaeology refusals, four plan-audit FAILs.
+
+**A survivor was not the fact it read as.** A mutant is tried against its OWN package, so a
+survivor means *survived its own package*. The worst-looking survivor in the
+prosthetic-conscience sweep — `hookunit.go:71`, the flag deciding whether the secrets gate
+scans an unparseable payload, i.e. the #211 bypass on the gate agent-guardrails is about — is
+KILLED, by a test one package over. Fifteen of the sixteen packages holding survivors there
+have importers, so most of that list was the same artifact. `-confirm` buys the true answer at
+~8 minutes each: ~9 hours for the smallest module.
+
+**It could not reach its own motivating defect.** Six operator flips cannot delete a table row,
+and `internal/secrets` at 100% coverage with two of eight patterns deletable IS a deletion
+finding. A deletion operator was written on the last day and immediately produced the one real
+result of the exercise — ten unasserted fields of `gray-area`'s capture manifest row, filed as
+#797. That finding is the argument for asking the question, not for owning an instrument that
+asks it about 562 mutants at a time.
+
+**What replaces it: nothing automated, deliberately.** The coverage clause in CLAUDE.md asks
+the same question by hand, aimed at the code where a silently-wrong answer is the risk. A
+targeted deletion takes a minute and answers about the thing you were already worried about.
 
 ## I. Summary & goals
 
@@ -26,6 +53,49 @@ proves the tool can still mutate and observe at all.
 - **The sweep runs in a sandbox copy.** It never writes to the tree you are using — which also
   means anything you measure by watching the working tree is measuring nothing.
 - **Progress is stderr, the report is stdout**, so piping the report to a file keeps it a document.
+
+### II.5 The operator set, and what it could not reach (2026-09-06)
+
+Six flips — `&&`/`||`, `==`/`!=`, `>=`→`>`, `<=`→`<` — plus DELETION of one row of a composite
+literal.
+
+**The deletion operator exists because the tool could not rediscover its own motivating defect.**
+`internal/secrets` at 100% of statements with two of eight patterns deletable is a *deletion*
+finding, and nothing in the six flips removes a table row. Added 2026-09-06; the widening moves
+the denominator, so survivor counts before and after that date are not comparable.
+
+It paid on its first run. Sweeping `gray-area/tools`: 13 deletion survivors, 10 of them fields of
+`buildRow` — the capture manifest row — including `SessionID`, `TranscriptPath`, `CapturedAt`,
+`PromptID`, `StopHookActive` and `Effort`. Each can be dropped with the suite green, which means
+nothing asserts the manifest carries it, which means it can silently stop being written and the
+row will still read as a complete capture.
+
+The candidate test is a masked line ending in a comma with balanced delimiters. It is over-eager
+by design: a multi-line call's arguments qualify and mostly fail to compile, which the sweep
+already discards. Import blocks are tracked by the scanner rather than inferred from the mask —
+`"fmt",` and a row of a string-pattern table mask to the same bare comma, so no rule over the mask
+can separate the two.
+
+**Generated files are never swept.** Recognised by the `// Code generated ... DO NOT EDIT.` line,
+which is the only marker the tools here share — `record.pb.go`, `schema_gen.go` and
+`classes_gen.go` have no common suffix. A test written to pin protoc's output pins protoc, and
+`record.pb.go` alone holds 731 operator sites in the largest and slowest module.
+
+### II.6 Why a release cannot gate on this (measured 2026-09-06)
+
+A mutant is tried against its OWN package. So a survivor means *survived its own package*, never
+*survived the module*, and `-confirm` buys the wider answer at ~8 minutes each.
+
+Measured over `prosthetic-conscience/tools`: 66 survivors. The worst-looking by a distance is
+`hookunit.go:71` — the flag deciding whether the secrets gate scans an unparseable payload, i.e.
+the #211 bypass on the one gate agent-guardrails is about. It is KILLED, by
+`TestMalformedPayloadIsScannedNotWavedThrough` in `internal/secretsgate`, one package over.
+Fifteen of the sixteen packages holding survivors there have importers, so most of the list is
+the same artifact.
+
+A release asked to explain that list in writing would file explanations that are not true — an
+allowlist wearing a schema, which is the failure the explaining was supposed to prevent. Buying
+a true list costs ~9 hours for the smallest of the three modules.
 
 ## III. The cost model, measured rather than assumed
 
