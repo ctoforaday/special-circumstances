@@ -23,11 +23,27 @@ Identity becomes `(agent_type, round-from-record, agent_id)`:
 | **round** | `RoundOf`'s `-r(\d+)` over the typed id | **`CurrentRoundOf(record)`** |
 | which dispatch | `agent_id`, injected | unchanged |
 
-### Why this is a RELEASE boundary and not ordinary work
+### Why this is a RELEASE boundary — and what that depends on
 
-Identity is written into **every event**. Changing who authors `seat_id` after the tag means a
-v2 record and a v2.1 record disagree about the provenance of the same field — on the artifact
-`CLAUDE.md` says every audit re-reads. The epoch is the place to move it.
+The derivation is pre-tag because gblock ruled it. What makes that boundary **load-bearing
+rather than arbitrary is III.3's ruling**, and the two have to be read together.
+
+Identity is written into every event. With no provenance field, nothing on a row says whether
+its `seat_id` was typed or derived — so a v2 record and a v2.1 record would differ on the
+authorship of the same field and say nothing about it, on the artifact `CLAUDE.md` says every
+audit re-reads. That is the silent-disagreement case, and the epoch is where it belongs.
+
+**Stated plainly because it is a real trade and it cuts the other way too:** had III.3 gone the
+other way and stamped `ATTESTED`/`DECLARED`, records COULD have disagreed about authorship and
+said so in the row — which would have made this change safe at any boundary, tag or no tag. The
+field that would make it safe is the same field that would make the boundary unnecessary. The
+enum was chosen instead because it buys a REFUSAL the field does not, and the price of that
+choice is exactly this: the change becomes a one-way door, and the door is the tag. Anyone
+re-reading this plan and finding the boundary argument convenient should know it was bought.
+
+(Raised by a peer session reviewing the rationale, 2026-09-07, against the version of this plan
+that still recommended the field. The tension was real and it is resolved by naming the trade,
+not by dropping the argument.)
 
 ### What this is NOT
 
@@ -156,6 +172,7 @@ two names cannot collide. Nothing is renumbered and no record is migrated.
 | **A re-dispatch inside one round** makes `(agent_type, round)` ambiguous. | `agent_id` disambiguates and the join already exists (`SeatOfAgent`). The proto comment at `record.proto:448` records the prior collision and its fix. |
 | **Twelve agent files drift from `RED_AREAS`.** | III.1's three-way bind test. A carrier added without its area fails; an area added without its carrier fails. |
 | **The consumer's agent list grows** from 4 feov entries to ~13. | Real and unmitigated. Named here so it is a decision rather than a discovery. |
+| **The untyped population may be large.** III.3's fallback is the path taken whenever `agent_type` is absent, and if that is most acts the enum check is doing nearly all the work while the derivation does nearly none. | Measure it on the first run rather than assume. A neighbouring surface in this repo — gray-area's `SubagentStop` rows — found `agent_type` absent on 146 of 165, its single most common state, and took four investigations to stop reading that absence as a defect (peer session, 2026-09-07). **The base rate does not transfer**: that is a harness hook payload, not feov's own attestation path, and the populations are not comparable. What transfers is the shape of the mistake to avoid — treating absence as an anomaly rather than as a value the system will spend most of its time in. |
 | **The simulator dispatches by `agentType`** and its goldens name seats. | 96 tests are the gate; they must be regenerated deliberately, and a diff that changes a seat id is the thing to read closely rather than accept. |
 
 ## V. Verification Plan
