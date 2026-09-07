@@ -61,6 +61,12 @@ type fetchSummary struct {
 	// source is unreadable when in fact automatic reading was switched off — or this
 	// binary was built without the engine, which OCRReason states in as many words.
 	OCRReason string `json:"ocr_reason,omitempty"`
+	// NotRenderable says the bytes are an unrendered app skeleton rather than a document. It is
+	// printed EVEN WHEN text was extracted, because a shell usually yields a little text — the
+	// nav, a cookie banner — and a seat that saw `text_extracted: true` and stopped there would
+	// verify a citation against the furniture.
+	NotRenderable       *bool  `json:"not_renderable,omitempty"`
+	NotRenderableReason string `json:"not_renderable_reason,omitempty"`
 	// TablePages counts pages whose ruled grid the engine detected — their reconstruction
 	// stats live on the reading record. Present only when nonzero, so a prose-only reading
 	// renders without it.
@@ -116,8 +122,9 @@ func summarize(run record.Run, e fetchcache.Entry, bodyLen int, hit bool) fetchS
 		TextExtracted:  e.TextExtracted,
 		TextSha256:     e.TextSha,
 		TextReason:     e.TextReason,
-		Extractor:      e.Extractor,
-		OCRDerived:     e.OCRDerived,
+		NotRenderable:  e.NotRenderable, NotRenderableReason: e.NotRenderableReason,
+		Extractor:  e.Extractor,
+		OCRDerived: e.OCRDerived,
 	}
 	// THE PATH IS NAMED ONLY WHEN THE FILE IS THERE. A text_path pointing at a file that was
 	// never written is worse than no field at all: a seat would Read it, get a not-found, and
@@ -211,6 +218,14 @@ func (s fetchSummary) render() string {
 		line("text_extracted", "false")
 		line("text_reason", s.TextReason)
 		line("extractor", s.Extractor)
+	}
+	// OUTSIDE THE SWITCH, DELIBERATELY. A skeleton normally DOES extract a little text — the
+	// navigation, a cookie banner — so this arrives on the `text_extracted: true` arm, which is
+	// the arm a seat reads as success. Printed there or not at all, the flag would be absent in
+	// exactly the case it exists for.
+	if s.NotRenderable != nil && *s.NotRenderable {
+		line("not_renderable", "true")
+		line("not_renderable_reason", s.NotRenderableReason)
 	}
 	// THE REASON IS PRINTED WHETHER OR NOT THERE IS TEXT. Where a reading succeeded it is
 	// empty and this line does not appear; where it did not — switched off, over the render
