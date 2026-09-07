@@ -3,6 +3,8 @@ package cli
 import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sort"
@@ -180,6 +182,13 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		}
 	}
 
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		fmt.Fprint(w, "the pinned source\n\nthe sentence this claim rests on\n")
+	}))
+	defer srv.Close()
+	srcURL := srv.URL + "/"
+
 	for i, claim := range b.Claims {
 		// A CITE THAT DOES NOT LAND MAKES A HOLLOW BOARD, so this is fatal.
 		//
@@ -192,10 +201,13 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		// of this suite exists to remove.
 		//
 		// The url is a real, reachable one because `cite` FETCHES and caches: an unreachable
-		// source is refused and logged as friction, which is correct behaviour and useless here.
+		// source is refused and logged as friction, which is correct behaviour and useless
+		// here. It is served on LOOPBACK for the same reason seatprobe.Build serves its own
+		// (see serveSource there): a fixture that depends on a third party being up is a
+		// fixture that goes red for reasons about the internet.
 		if _, err := run(t, "cite", "--run", runDir, "--seat-id", "blue-respond-r1",
 			"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
-			"--title", "the pinned source", "--url", "https://example.com/",
+			"--title", "the pinned source", "--url", srcURL,
 			"--reason", "the source this claim rests on"); err != nil {
 			t.Fatalf("cite %d (%q) did not land: %v\n\nThe board declares this claim and its expectations are about acting on it. Building without it would produce a board whose demands cannot be met, and a report that blames the seat for the fixture.", i+1, claim, err)
 		}
