@@ -151,7 +151,11 @@ type runner struct {
 	// verbatimGaps: gap id -> the fix_new text blue applied verbatim from red's own mint. The
 	// estoppel drive reads it to build a --quote that red's OWN prescription must refuse.
 	verbatimGaps map[string]string
-	classMade    bool
+	// inquiryIDs: the tool-assigned avenue ids this run has proposed. `--about-kind inquiry`
+	// CHECKS its reference against the record, so a drive needs a real one — a composed "Q1"
+	// would drive the refusal and never the success.
+	inquiryIDs []string
+	classMade  bool
 	// #277: the gap ids minted with --check-kind computation. Such a gap CANNOT be closed
 	// until a proof answers it, so closeGap satisfies it first — otherwise the fuzzer
 	// accumulates unclosable gaps and every open-gap-scaled drive grows with them (measured:
@@ -258,6 +262,47 @@ func (c *cmd) on(pct int, flag, val string) *cmd {
 	return c
 }
 func (c *cmd) run() (string, error) { return c.r.exec(c.args...) }
+
+// noteInquiry remembers a tool-assigned avenue id so the --about drive can name a real one.
+func (r *runner) noteInquiry(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.inquiryIDs = append(r.inquiryIDs, id)
+}
+
+// aboutAnchor picks one --about-kind/--about pair, or ("","") when nothing on the record can be
+// named yet. It is the anchor for a defect that is NOT report text (#787, #742).
+//
+// EVERY REFERENCE IS REAL, and for two of the three kinds it has to be: ResolveAbout checks an
+// inquiry ref against the lines this run proposed and a gap ref against the board, so a composed
+// id would drive the refusal forever and the success path would read as covered. `section` is
+// deliberately unchecked by the tool — blue may rename a heading mid-run, and refusing on a stale
+// one would refuse the finding rather than the staleness — so the seeded heading is honest there.
+func (r *runner) aboutAnchor() (kind, ref string) {
+	r.mu.Lock()
+	inq := append([]string{}, r.inquiryIDs...)
+	r.mu.Unlock()
+	kinds := []string{"section"}
+	if len(inq) > 0 {
+		kinds = append(kinds, "inquiry")
+	}
+	gaps := r.openGaps()
+	if len(gaps) > 0 {
+		kinds = append(kinds, "gap")
+	}
+	switch pick(r.rng, kinds) {
+	case "inquiry":
+		return "inquiry", inq[r.rng.Intn(len(inq))]
+	case "gap":
+		return "gap", gaps[r.rng.Intn(len(gaps))]
+	default:
+		// The seeded report's own heading. Unchecked by the tool, so it stays honest even after
+		// blue's edits move the prose underneath it.
+		return "section", "§ fuzz"
+	}
+}
+
+// noteInquiry and aboutAnchor sit beside noteVerbatimGap
 
 // noteVerbatimGap remembers a gap whose prescribed text blue has just applied VERBATIM, and the
 // text itself. That pair is the estoppel precondition: red minting a fresh gap whose --quote
@@ -618,8 +663,16 @@ func (r *runner) mint(seatID string) string {
 		// which is correct behaviour (red must quote text that is actually there) and useless as
 		// a fixture. The anchor sentence is stable, and the invisible anchor layer spliced into
 		// it is ignored by the match.
-		"--quote", "A § fuzz sentence to anchor findings.",
 		"--reason", "fuzz: the argument for raising this"}
+	// ONE SUBJECT: --quote OR --about, and merge mint refuses both together. The about arm is
+	// how a gap names a defect that is not report text at all, which is the anchor #742 added
+	// and #787 shipped — and which no drive reached, so the whole pair read as covered because
+	// `merge mint` itself ran 115 times.
+	if k, ref := r.aboutAnchor(); k != "" && r.coin(25) {
+		args = append(args, "--about-kind", k, "--about", ref)
+	} else {
+		args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
+	}
 	// COINING IS ITS OWN VERB (`merge class new`), so the fuzz drives it as one. It used to be
 	// four flags on the first mint, which meant the coining path ran exactly once per run and
 	// only ever in company with a mint.
@@ -1079,6 +1132,7 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// the set minus its default.
 		if err == nil {
 			if id := inquiryIDOf(out); id != "" {
+				r.noteInquiry(id)
 				r.do("line-of-inquiry move", seatID).set("--id", id).set("--as", st).
 					set("--reason", "fuzz: what changed this line's fate").run()
 			}
@@ -1677,8 +1731,21 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 						"--quote", claim, "--reason", "fuzz: the source says otherwise")
 				}
 				// --key from a small space so a repeated dispatch exercises retry idempotency.
-				_, _ = r.exec("finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
-					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--quote", "§ fuzz", "--reason", "fuzz finding")
+				//
+				// EXACTLY ONE ANCHOR, AND SOMETIMES IT IS THE OTHER ONE. `lens finding` refuses a
+				// finding carrying both --quote and --about ("claiming two subjects"), so this
+				// SWAPS rather than adds. The about arm is the anchor an ABSENCE gets: a section
+				// missing something, an inquiry whose stated reason is being argued against, a
+				// gap already on the docket — none of which has a sentence to quote, and all of
+				// which used to borrow an innocent one (#742).
+				findArgs := []string{"finding", "--seat-id", seatID, "--key", fmt.Sprintf("F%d", 1+r.rng.Intn(2)),
+					"--severity", r.g(), "--likelihood", r.g(), "--impact", r.g(), "--reason", "fuzz finding"}
+				if k, ref := r.aboutAnchor(); k != "" && r.coin(30) {
+					findArgs = append(findArgs, "--about-kind", k, "--about", ref)
+				} else {
+					findArgs = append(findArgs, "--quote", "§ fuzz")
+				}
+				_, _ = r.exec(findArgs...)
 				// Red verifies a cited source by reading the CACHED bytes (#256): the same
 				// `fetch` any seat uses. Driving it here is what makes the cache path — miss,
 				// store, hit — real in the fuzz rather than unit-tested only.
@@ -3337,14 +3404,19 @@ func buildBinary(t *testing.T) string {
 // someReportAnchor returns one anchor id this run actually put in the report, or "" before any
 // finding has been recorded. Read from the RECORD (the `finding` event's label) rather than by
 // scanning report.md for a token, so the oracle is not testing the reader with the reader.
+// It reads the ANCHOR events, not the findings. Sourcing it from findings assumed every finding
+// splices a marker, which stopped being true when a finding could anchor to a section, an inquiry
+// or a gap (#742/#787): those name something that is not report text, so there is nothing to mark
+// and `show report --anchor` on one correctly finds no window. Asking the anchor events instead
+// asks the question this function's name already claimed to ask.
 func someReportAnchor(run record.Run) string {
 	b, err := record.BoardState(run)
 	if err != nil {
 		return ""
 	}
 	for _, e := range b.Events {
-		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && f.GetFindingId() != "" {
-			return f.GetFindingId()
+		if a, ok := recordpb.BodyAs[*recordpb.Anchor](e); ok && a.GetId() != "" {
+			return a.GetId()
 		}
 	}
 	return ""
