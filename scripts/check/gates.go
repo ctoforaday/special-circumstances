@@ -207,6 +207,8 @@ var tools = []gate{
 		why: "a stale golden is an unrecorded behaviour change"},
 	{id: "mjsparity", kind: kindTool, dir: "scripts", args: []string{"run", "./mjsparity"}, ciJob: "debate-sim",
 		why: "node --test exits 0 on a path that does not exist"},
+	{id: "lawqueue", kind: kindTool, dir: "scripts", args: []string{"run", "./lawqueue"}, ciJob: "debate-sim",
+		why: "a holding promoted with its reviewer placeholders still in it is a holding nobody read, sitting in the corpus other rulings are decided against"},
 	{id: "validatejson", kind: kindTool, dir: "scripts", args: []string{"run", "./validatejson"}, ciJob: "debate-sim",
 		why: "manifests break silently"},
 	{id: "frontmatter", kind: kindTool, dir: "scripts", args: []string{"run", "./frontmatter"}, ciJob: "debate-sim",
