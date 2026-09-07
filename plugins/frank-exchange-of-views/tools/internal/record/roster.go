@@ -7,6 +7,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatclass"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/feov"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/flags"
 )
 
 // THE ROSTER: the seat ids the engine can actually produce.
@@ -92,15 +93,16 @@ func TierClassOfSeat(seatID string) string {
 // Bound to the head debate.js actually composes by TestThePetitionPrefixMatchesTheOneDebateComposes:
 // Go CUTS this prefix where the engine COMPOSES it, so a rename over there refuses every petition
 // seat over here, in a message about an id the engine had just dispatched.
+
 // LensAreas are the strategic areas a lens seat can be dispatched for — one seat each, and the
-// name IS the identity: a finding filed by the adversary lens is labelled `adversary-F1`, and
-// `found_by` reads back as what found it rather than as a number needing a lookup table.
+// name IS the identity (#791). ALIASED from internal/flags, which declares it: internal/record
+// imports that package, so a second copy here is the one thing this arrangement exists to stop.
 //
 // MEMBERSHIP, NOT JUST SHAPE. The pattern above bounds a lens id to a hyphenated word, which
 // would admit `red-lens-r1-evidence-oops`. This list is what makes the id refusable: an area the
-// engine does not dispatch is not an area. TestTheRosterMatchesWhatTheEngineActuallyDispatches
-// holds it against debate.js's own RED_AREAS, so adding an area there and not here fails.
-var LensAreas = []string{"evidence", "logic", "dark-side", "voice", "computation", "adversary", "architecture"}
+// engine does not dispatch is not an area. TestTheLensAreasMatchWhatTheEngineDeclares holds it
+// against debate.js's own RED_AREAS, so adding an area there and not here fails.
+var LensAreas = flags.LensAreas
 
 // lensAreaRe lifts the area off a lens seat id. It is a SECOND read of the shape the seat pattern
 // already matched, and deliberately so: the pattern answers "is this a lens id", this answers

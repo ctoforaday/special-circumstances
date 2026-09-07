@@ -43,8 +43,10 @@ var gapIDShape = regexp.MustCompile(`^R\d+-\d+$`)
 // prefix carries the class, which is why a bare hex string is not one.
 var anchorShape = regexp.MustCompile(`^[fcp]-[0-9a-f]+$`)
 
-// findingLabelShape is L<lens>-F<n>, the run-unique label the tool assigns a lens finding.
-var findingLabelShape = regexp.MustCompile(`^L\d+-F\d+$`)
+// findingLabelShape is <area>-F<n>, the run-unique label the tool assigns a lens finding, built
+// from LensAreas so the vocabulary has one declaration. It still admits the pre-#791 `L<n>-F<n>`,
+// because a label minted in August is read for as long as its run is.
+var findingLabelShape = regexp.MustCompile(`^` + FindingLabelAlt() + `$`)
 
 // motionIDShape is M<n>.
 var motionIDShape = regexp.MustCompile(`^M\d+$`)
@@ -159,10 +161,10 @@ func InquiryID() *ShapedValue {
 		hint: "a line-of-inquiry id looks like Q1 and is ASSIGNED when you propose the line; `show lines-of-inquiry` lists every one with its fate"}
 }
 
-// FindingLabel refuses anything that is not L<lens>-F<n>.
+// FindingLabel refuses anything that is not <area>-F<n> (or the archived L<n>-F<n>).
 func FindingLabel() *ShapedValue {
 	return &ShapedValue{kind: "finding-label", re: findingLabelShape,
-		hint: "a finding label looks like L1-F2 (the lens, then its finding number) and is ASSIGNED by `lens finding`; `show findings` lists them"}
+		hint: "a finding label looks like adversary-F2 (the lens's area, then its finding number) and is ASSIGNED by `lens finding`; `show findings` lists them"}
 }
 
 // MotionID refuses anything that is not M<n>.

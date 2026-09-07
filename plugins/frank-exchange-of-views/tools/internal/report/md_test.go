@@ -143,3 +143,28 @@ func TestCitationsAreNumberedByFirstUse(t *testing.T) {
 		t.Errorf("References not reordered to citation order (zulu at %d, alpha at %d):\n%s", zi, ai, got)
 	}
 }
+
+// A LENS FINDING'S LABEL IS AN ID, AND SINCE #791 IT IS NAMED FOR ITS AREA.
+//
+// idToken matched `L\d+-F\d+` — a shape no lens has minted since the areas landed. The miss is
+// silent in exactly the way that matters: an unlinked id looks the same as an id nobody else
+// mentioned, so the report renders clean while every finding's join to the docket is gone. Both
+// halves are asserted because they fail separately — `define` must register the anchor, and
+// `linkText` must find it — and the hyphenated area is used deliberately: `dark-side-F1` is the
+// case a `[A-Za-z0-9]+` restatement of this shape still gets wrong.
+func TestALensFindingsAreaLabelLinksToItsDefinition(t *testing.T) {
+	for _, label := range []string{"evidence-F1", "dark-side-F2"} {
+		t.Run(label, func(t *testing.T) {
+			anchor := anchors{}
+			mdToHTML("### "+label+" — what the lens found\n\nsomething\n", FileDocket, anchor)
+			report := mdToHTML("Blue answered "+label+" in the same round.\n", FileReport, anchor)
+
+			if anchor[label] == "" {
+				t.Fatalf("%s defined no anchor — the report will not link it anywhere: %v", label, anchor)
+			}
+			if got := linkIDs(report, anchor, FileReport); !strings.Contains(got, `data-doc="docket.md"`) {
+				t.Errorf("%s was not linked across documents:\n%s", label, got)
+			}
+		})
+	}
+}
