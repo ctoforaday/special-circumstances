@@ -9,14 +9,45 @@ import (
 )
 
 // The scheme allowlist is checked BEFORE any network call, so these cases need no server.
+//
+// IT ASSERTS OUR REFUSAL, NOT ANY REFUSAL, and the difference is the whole test. The
+// first version matched an error merely CONTAINING "scheme" — and net/http's own
+// transport says `unsupported protocol scheme "file"`, so the standard library's
+// accident satisfied the assertion and this barrier could be deleted with the suite
+// green (measured: disabling the allowlist left this test passing). Two things are
+// pinned now: the message is the one this package writes, and no RoundTrip happens at
+// all, which is what "checked before any network call" means.
 func TestHTTPFetcherRefusesNonWebSchemes(t *testing.T) {
-	f := NewHTTPFetcher()
+	var attempted []string
+	f := &httpFetcher{
+		client: &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			attempted = append(attempted, r.URL.String())
+			return nil, fmt.Errorf("no request should have been made")
+		})},
+		maxBytes: maxFetchBytes,
+	}
 	for _, u := range []string{"file:///etc/passwd", "ftp://host/x", "gopher://h", "data:text/plain,hi"} {
-		if _, err := f.Fetch(u); err == nil || !strings.Contains(err.Error(), "scheme") {
-			t.Errorf("Fetch(%q) = %v, want a scheme-refusal error", u, err)
+		_, err := f.Fetch(u)
+		if err == nil {
+			t.Errorf("Fetch(%q) was allowed", u)
+			continue
+		}
+		for _, want := range []string{"refused scheme", "only http and https"} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("Fetch(%q) = %v, want THIS package's refusal naming %q", u, err, want)
+			}
 		}
 	}
+	if len(attempted) > 0 {
+		t.Errorf("the allowlist let %v reach the transport; it must refuse before any network call", attempted)
+	}
 }
+
+// roundTripFunc adapts a function to http.RoundTripper so a test can prove a request was
+// never made.
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 // A body larger than the cap is DETECTED (errors), never silently truncated into a
 // citation. httptest is in-process loopback — CI-safe, no external network.

@@ -19,7 +19,16 @@ import (
 // Update is set by UPDATE_GOLDENS=1: an update run rewrites every golden it touches, a normal
 // run compares. Same env var the difftest harness and the mjs golden loop read, so ONE command
 // regenerates every golden in the tree.
-var Update = os.Getenv("UPDATE_GOLDENS") == "1"
+var Update = updateFrom(os.Getenv("UPDATE_GOLDENS"))
+
+// updateFrom is the gate as a pure function of the environment, and it is a separate
+// function SO THAT IT CAN BE TESTED. This one predicate decides whether the suite checks
+// its expectations or rewrites them, and its failure mode is the invisible one: inverted,
+// every run regenerates every golden it touches and passes green, so no run anywhere —
+// here or in CI — can report it. A gate whose breakage is indistinguishable from health
+// has to be pinned directly. Exact match, deliberately: "0", "true" and "yes" are not
+// requests to rewrite the tree.
+func updateFrom(env string) bool { return env == "1" }
 
 // Assert compares got against testdata/<name>.golden. On UPDATE it writes the file and returns;
 // otherwise a mismatch is a test failure naming the regenerate command. The artifact must be
