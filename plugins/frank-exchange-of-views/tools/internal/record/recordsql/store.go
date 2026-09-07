@@ -73,9 +73,18 @@ func dsnFor(path string) string {
 		p = "/" + p
 	}
 	u := url.URL{
-		Scheme:   "file",
-		Path:     p,
-		RawQuery: "_txlock=immediate&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)",
+		Scheme: "file",
+		Path:   p,
+		// BUSY_TIMEOUT COMES FIRST, AND THE ORDER IS THE POINT. Pragmas apply left to right, and
+		// converting a fresh database to WAL takes an EXCLUSIVE lock — so with the timeout set
+		// after it, the conversion is the one operation that runs with no timeout in force. A
+		// second opener arriving in that window got SQLITE_BUSY immediately instead of waiting:
+		// measured on the Windows CI leg, TestConcurrentOpenOnFreshDatabase failing in 0.04s with
+		// "database is locked" (#801), where a live 5-second timeout would have waited and then
+		// succeeded. The production shape is the fuzz's concurrent lanes (#630), several seat
+		// processes creating the schema at once on round 0; `setup` creating the database in
+		// advance is the accident that hides it the rest of the time.
+		RawQuery: "_txlock=immediate&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)",
 	}
 	return u.String()
 }
