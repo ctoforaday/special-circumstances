@@ -16,6 +16,7 @@ package recordtest
 import (
 	"errors"
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nonet"
 	"os"
 	"path/filepath"
 	"strings"
@@ -169,6 +170,9 @@ func TmpRun(t *testing.T) string {
 //
 // It runs AFTER m.Run, which is the only point where every test's cleanup has fired.
 func Main(m *testing.M) {
+	// Off the public internet, the same guard testbuild.Main installs — the two entry points
+	// between them cover every package in this module that shares a TestMain.
+	nonet.OnlyLoopback()
 	code := m.Run()
 	if err := CheckOrphanedHandles(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

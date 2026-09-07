@@ -44,6 +44,7 @@ package testbuild
 
 import (
 	"fmt"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/nonet"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -83,6 +84,10 @@ import (
 // and the one it dropped would be the one whose absence is silent. The hook is a func rather than
 // an import so testbuild stays ignorant of the record layer.
 func Main(m *testing.M, after ...func() error) {
+	// THE SUITE IS OFF THE PUBLIC INTERNET, for the same reason HOME is sandboxed just below:
+	// a test that reaches something outside this process reports someone else's problem as its
+	// own. See internal/nonet for the measured case.
+	nonet.OnlyLoopback()
 	restore, err := sandboxHome()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "testbuild:", err)
