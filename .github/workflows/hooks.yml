@@ -996,8 +996,8 @@ jobs:
         working-directory: scripts
 
   scripts:
-    # The repo's dev tooling, now Go: rule-sweep, golden, the four CI guards and the
-    # mutation sweep. Its own module at scripts/, deliberately NOT under a plugin's
+    # The repo's dev tooling, now Go: rule-sweep, golden and the four CI guards. Its own
+    # module at scripts/, deliberately NOT under a plugin's
     # tools/cmd — sc-doctor discovers hook binaries with ReadDir(<plugin>/tools/cmd) and
     # would report every dev tool as an unbuilt binary that `--fix` then tries to fetch
     # from a release.
@@ -1054,10 +1054,10 @@ jobs:
           go-version: "1.25"
       - run: go test ./...
       # THE MODULE'S CONCURRENCY IS REAL NOW, so the detector gets a look. golden/interrupt.go
-      # guards signal state with a mutex, and mutate arms a file for its interrupt handler to
-      # restore — where an unsynchronised path/bytes pair could hand one file another file's
-      # contents. That shipped, and was found by reading rather than by CI, because scripts was
-      # the one module with no -race leg. The suite is seconds; the detector is cheap here.
+      # guards signal state with a mutex against its interrupt handler, where an unsynchronised
+      # path/bytes pair could hand one file another file's contents. That shipped, and was found
+      # by reading rather than by CI, because scripts was the one module with no -race leg. The
+      # suite is seconds; the detector is cheap here.
       - run: go test -race ./...
 
   qlty:
@@ -1252,7 +1252,7 @@ jobs:
           # finished first and its little build cache became everyone's. Each job now
           # keys on what IT builds, so each save is the cache its restore expects.
           # SCRIPTS, NOT FEOV, because that is what this job actually builds. Its Go work is
-          # `go run ./mjsparity`, `./mutate`, `./validatejson`, `./frontmatter`, `./decisions`
+          # `go run ./mjsparity`, `./validatejson`, `./frontmatter`, `./decisions`
           # and `./pluginparity` — every one of them a scripts-module tool. It declared the
           # feov module, which it never builds, and the key did exactly as it was told: this
           # job saved an 18 MB cache under the feov key at 08:00:28 and feov-record (ubuntu),
@@ -1294,13 +1294,6 @@ jobs:
       # two of the four suites named here had been deleted and CI was green.
       - name: The enumerated mjs suites match the tree (node --test exits 0 on a missing path)
         run: go run ./mjsparity
-        working-directory: scripts
-      # The SWEEP is not run in CI — it is minutes long and its residue is judgement.
-      # Its self-test is, for the reason rule-sweep carries one: a mutation tool that
-      # stops generating mutants reports `0 survived` and reads as a clean bill of health.
-      # Seconds here; the alternative is trusting a number nothing checks.
-      - name: The mutation sweep can still mutate and observe (a silent one flatters)
-        run: go run ./mutate -selftest
         working-directory: scripts
       - name: Validate all tracked JSON (manifests break silently)
         run: go run ./validatejson
@@ -1497,20 +1490,6 @@ jobs:
       - name: The tag and the manifest agree
         run: go run ./versionguard -tag "${GITHUB_REF_NAME}"
         working-directory: scripts
-      # THE MUTATION GATE, AT THE ONE BOUNDARY WHERE THE SWEEP IS A GATE (ruled 2026-09-03).
-      # Day to day it stays an on-demand audit with no threshold — a gated score invites
-      # killing equivalent mutants with contorted tests. What a RELEASE must prove is that
-      # the EXPLAINING happened: every survivor in the tagged plugin's module is either
-      # killed by a test or judged in writing in its mutation-survivors.json, and no
-      # judgement outlives the survivor it explained. Records are born at each plugin's
-      # first gated release, not grandfathered: a record whose entries nobody judged is an
-      # allowlist wearing a schema. Expect that first release to fail here, once, with the
-      # full backlog printed — that is the decision working, not the gate broken.
-      - name: Every mutation survivor in the released module is explained
-        run: go run ./mutate -gate -module "$PLUGIN_DIR"
-        working-directory: scripts
-        env:
-          PLUGIN_DIR: ${{ steps.plugin.outputs.dir }}
       # THE FUZZ SWEEPS, AT THE BOUNDARY WHERE THE BINARY SHIPS (ruled 2026-09-04). Pull
       # requests run only releasegate/fuzz's cheap guards; the binary-driving sweeps run
       # here, at full depth, before anything is published — and on the nightly, so a

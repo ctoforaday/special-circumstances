@@ -1,6 +1,6 @@
 # Red's evidence reaches the reader
 
-> STATUS 2026-09-02: shipped — historical record (carriers verified in-tree: `Verify.Label` in recordpb, `CitationLabelsOf`, `ExistingCorroborationLabel`, `LocateUniqueReplacing`, the PASS refusal over unanswered contradictions at `record/refs.go:414`; the §V.7 sweep is settled for these carriers (citationid 100% killed); the ongoing programme lives in plans/mutation-audit.md)
+> STATUS 2026-09-02: shipped — historical record (carriers verified in-tree: `Verify.Label` in recordpb, `CitationLabelsOf`, `ExistingCorroborationLabel`, `LocateUniqueReplacing`, the PASS refusal over unanswered contradictions at `record/refs.go:414`; the §V.7 sweep is settled for these carriers (citationid 100% killed); the §V.7 programme it spun off was abandoned 2026-09-07 with the instrument — plans/historical/mutation-audit.md)
 
 ## I. Summary & goals
 
@@ -158,7 +158,7 @@ All paths absolute; `export PATH=$PATH:/usr/local/go/bin`; `GOTOOLCHAIN=go1.25.0
 6. `cd tests/simulator && node --test` → 93+ pass, 0 fail.
 7. The mutate sweep owed from the parent plan is **SETTLED for this plan's carriers**:
    `internal/record/citationid.go` is 32 mutants, 31 behavioural, 100% killed (2026-09-05).
-   **The live half moved to [`plans/mutation-audit.md`](../mutation-audit.md)** — what remains
+   **The live half moved to [`mutation-audit.md`](mutation-audit.md), and was abandoned with `scripts/mutate` on 2026-09-07** — what remains
    unswept (`refs.go`, the `internal/cli` citation files, the `-confirm` stage), the measured cost
    model, and how to read a survivor count. This file was filed as historical while that half was
    still being implemented from; the record of what this plan delivered stays here, the programme
