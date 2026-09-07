@@ -36,7 +36,7 @@ var laneRe = regexp.MustCompile(`^blue-lane-\d+$`)
 //
 // AND THE REGEX IS NO LONGER A GUESS. It was, and the comment here said so for good reason: `-r(\d+)`
 // over an arbitrary string is a hope about shape. As of the roster gate, a REGISTERED seat id has
-// been refused unless it matches one of the engine's own patterns — `red-lens-r\d+-L\d+`,
+// been refused unless it matches one of the engine's own patterns — `red-lens-r\d+-<area>`,
 // `red-merge-r\d+`, `judge-r\d+` — so the segment this reads is one the tool has already validated
 // rather than one it is hoping to find. What changed was not this regex; it is what stands behind it.
 //

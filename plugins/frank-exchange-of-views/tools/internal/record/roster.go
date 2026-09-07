@@ -13,7 +13,7 @@ import (
 // THE ROSTER: the seat ids the engine can actually produce.
 //
 // `RequireDispatchedSeat` checks a PREFIX, so `red-lens-` admits `red-lens-banana` and
-// `red-lens-r99-L99-oops`. That was the whole guard on a seat id's legitimacy, and it is the half
+// `red-lens-r99-anything-at-all`. That was the whole guard on a seat id's legitimacy, and it is the half
 // of identity the binding could not close: register is the one call that takes a seat's word for
 // who it is, so what it accepts had better be an id a dispatch could have created.
 //
@@ -37,8 +37,10 @@ import (
 // do not carry a seat id's shape at all.
 //
 // WHAT THIS DOES NOT DO, stated because a gate that seems to prove more than it does is worse than
-// none. It bounds the SHAPE, never the membership: `red-lens-r99-L4` is well formed and no run will
-// ever dispatch it. Bounding the round against the run's declared maxRounds was considered and
+// none. It bounds the ROUND's shape and never its value: `red-lens-r99-evidence` is well formed and
+// no run will ever dispatch it. (The AREA is bounded — see LensAreas below, which is membership, not
+// shape; that half arrived with #791 and covers lens seats only.) Bounding the round against the
+// run's declared maxRounds was considered and
 // REJECTED — a resume legitimately reduces that ceiling (the standing stop-and-resume practice), so
 // the bound would refuse seats from the run's own earlier rounds. The shape is what can be checked
 // without a second copy of the engine's dispatch logic living over here and drifting.
