@@ -67,7 +67,7 @@ func TestOnlyTheTerminalBenchStatementIsPromoted(t *testing.T) {
 		recordtest.Event(t, "", 0, &recordpb.Certify{Statement: proto.String("the FIRST ask, later revised")}),
 		recordtest.Event(t, "", 0, &recordpb.Certify{Statement: proto.String("the TERMINAL ask")}),
 	}
-	o := orientation(&record.Board{}, evs, "")
+	o := orientation(record.FamilyOfBoard(&record.Board{}), evs, "")
 	if !strings.Contains(o, "the TERMINAL ask") {
 		t.Errorf("the bench's terminal statement must be promoted:\n%s", o)
 	}
@@ -90,7 +90,7 @@ func TestTheNoOpenGapsLineDoesNotContradictTheBenchsAsk(t *testing.T) {
 	evs := []*record.Event{
 		recordtest.Event(t, "", 0, &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
 	}
-	o := orientation(&record.Board{}, evs, "")
+	o := orientation(record.FamilyOfBoard(&record.Board{}), evs, "")
 	if strings.Contains(o, "nothing outstanding to re-examine") {
 		t.Errorf("the report tells the reader to re-examine something and that there is nothing to re-examine:\n%s", o)
 	}
@@ -98,7 +98,7 @@ func TestTheNoOpenGapsLineDoesNotContradictTheBenchsAsk(t *testing.T) {
 		t.Errorf("a clean board with a standing ask must say which is which:\n%s", o)
 	}
 	// With no ask at all the original line is exactly right, and is kept.
-	if q := orientation(&record.Board{}, nil, ""); !strings.Contains(q, "nothing outstanding to re-examine") {
+	if q := orientation(record.FamilyOfBoard(&record.Board{}), nil, ""); !strings.Contains(q, "nothing outstanding to re-examine") {
 		t.Errorf("a clean board with no ask should say so plainly:\n%s", q)
 	}
 }
@@ -157,7 +157,7 @@ func TestFactBoxIsComposedFromTheRecord(t *testing.T) {
 			"R2-1": {ID: "R2-1", Open: false, Round: 2, ClosedRound: 3},
 		},
 	}
-	box := factBox(board, nil)
+	box := factBox(record.FamilyOfBoard(board), nil)
 	for _, want := range []string{"**Verdict** | _(none recorded)_", "**Rounds** | 3", "**Gaps** | 1 open · 1 closed"} {
 		if !strings.Contains(box, want) {
 			t.Errorf("fact box missing %q:\n%s", want, box)

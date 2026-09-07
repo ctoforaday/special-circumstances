@@ -22,13 +22,9 @@ import (
 // board, no gaps, or a single round, whose "trajectory" is one dot pretending to be a line.
 // Absence is fine: the chart is a reading aid, and the same numbers stay in the table below
 // it and in the record itself.
-func boardChart(board *record.Board) string {
-	if board == nil {
-		return ""
-	}
+func boardChart(fam record.Family) string {
 	last := 0
-	for _, id := range board.GapOrder {
-		g := board.Gaps[id]
+	for _, g := range fam.Gaps {
 		if g == nil {
 			continue
 		}
@@ -39,13 +35,12 @@ func boardChart(board *record.Board) string {
 			last = g.ClosedRound
 		}
 	}
-	if last < 2 || len(board.GapOrder) == 0 {
+	if last < 2 || len(fam.Gaps) == 0 {
 		return ""
 	}
 	minted := make([]int, last+1) // cumulative, index = round
 	closed := make([]int, last+1)
-	for _, id := range board.GapOrder {
-		g := board.Gaps[id]
+	for _, g := range fam.Gaps {
 		if g == nil {
 			continue
 		}

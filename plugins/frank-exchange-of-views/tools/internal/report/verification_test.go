@@ -24,7 +24,7 @@ func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 			"R1-1": {ID: "R1-1", Open: false, Closure: &recordpb.Close{ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED)}},
 		},
 	}
-	got := recordVerification(b)
+	got := recordVerification(record.FamilyOfBoard(b))
 	// THE HEADING IS CHECKED AS A WHOLE LINE, not as a prefix (#447). `HasPrefix` was satisfied
 	// by "## Record verification (injected)" — so a rename of the section a human actually reads
 	// passed here, and passed the golden suite too, because no golden covered the assembled
@@ -59,7 +59,7 @@ func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
 	}
-	got := recordVerification(b)
+	got := recordVerification(record.FamilyOfBoard(b))
 	if !strings.Contains(got, "**FAIL**") {
 		t.Errorf("a PASS over an open gap must render as FAIL:\n%s", got)
 	}
@@ -86,7 +86,7 @@ func TestRecordVerificationDistinguishesNotApplicableFromHeld(t *testing.T) {
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
 	}
-	got := recordVerification(b)
+	got := recordVerification(record.FamilyOfBoard(b))
 	if !strings.Contains(got, "**n/a**") {
 		t.Errorf("an inapplicable invariant must be marked n/a, not ok:\n%s", got)
 	}

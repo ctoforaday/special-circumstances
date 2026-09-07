@@ -77,15 +77,15 @@ func result(name, okDetail, badDetail string, violations []string) Check {
 }
 
 // Run executes every invariant against the replayed board, in a stable order.
-func Run(b *record.Board) []Check {
+func Run(f record.Family) []Check {
 	return []Check{
-		gapsDisposed(b),
-		foundByResolves(b),
-		dialecticRefsResolve(b),
-		supersedesResolve(b),
-		passClosesAllGaps(b),
-		registerBeforeAppend(b),
-		archiveSpotCheckFloor(b),
+		gapsDisposed(f),
+		foundByResolves(f),
+		dialecticRefsResolve(f),
+		supersedesResolve(f),
+		passClosesAllGaps(f),
+		registerBeforeAppend(f),
+		archiveSpotCheckFloor(f),
 	}
 }
 
@@ -100,8 +100,8 @@ func Run(b *record.Board) []Check {
 // Two teeth, both against replayed state no seat can author: a round that entered with a
 // non-empty archive and recorded no sample, and a round that CLAIMED an empty archive the board
 // says was not empty. The second is the direct heir of the run-5 degeneracy.
-func archiveSpotCheckFloor(b *record.Board) Check {
-	_, debt, falseEmpty := record.SpotCheckAudit(b)
+func archiveSpotCheckFloor(f record.Family) Check {
+	_, debt, falseEmpty := record.SpotCheckAudit(f)
 	var violations []string
 	for _, round := range debt {
 		violations = append(violations, fmt.Sprintf("round %d: the merge sat with archived closures available and recorded no spot-check", round))
@@ -146,10 +146,10 @@ func Failed(checks []Check) []Check {
 // (closed / not_a_defect / defect_accepted — see replay.go benchClosesGap). Either is a
 // decision; a closed gap with NEITHER is a torn closure — closed by the replay with no reason
 // on the record.
-func gapsDisposed(b *record.Board) Check {
+func gapsDisposed(f record.Family) Check {
 	var bad []string
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
+	for _, g := range f.Gaps {
+		id := g.ID
 		if g == nil || g.Open {
 			continue
 		}
@@ -170,9 +170,9 @@ func gapsDisposed(b *record.Board) Check {
 // foundByResolves: every gap's found_by credit names a finding or observation that actually
 // exists on the record. Enforced at write time; verified here against the replayed set in case
 // a shard was hand-edited or lost.
-func foundByResolves(b *record.Board) Check {
+func foundByResolves(f record.Family) Check {
 	labels := map[string]bool{}
-	for _, e := range b.Events {
+	for _, e := range f.Events {
 		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok {
 			if l := f.GetLabel(); l != "" {
 				labels[l] = true
@@ -180,8 +180,8 @@ func foundByResolves(b *record.Board) Check {
 		}
 	}
 	var bad []string
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
+	for _, g := range f.Gaps {
+		id := g.ID
 		if g == nil || g.Mint == nil {
 			continue
 		}
@@ -199,14 +199,14 @@ func foundByResolves(b *record.Board) Check {
 // dialecticRefsResolve: every act that argues ABOUT a gap (a closing, or a motion filed about
 // it) names a gap that exists. A dialectic event pointing at a phantom gap is a thread
 // with no anchor — it renders under nothing and audits nothing.
-func dialecticRefsResolve(b *record.Board) Check {
+func dialecticRefsResolve(f record.Family) Check {
 	var bad []string
-	for _, e := range b.Events {
+	for _, e := range f.Events {
 		gid, isDialectic := dialecticGapID(e)
 		if !isDialectic {
 			continue
 		}
-		if gid != "" && b.Gaps[gid] == nil {
+		if gid != "" && f.Gap(gid) == nil {
 			bad = append(bad, fmt.Sprintf("%s/%s→%s", e.GetSeatId(), recordpb.Word(e.GetType()), gid))
 		}
 	}
@@ -248,15 +248,15 @@ func dialecticGapID(e *record.Event) (string, bool) {
 
 // supersedesResolve: a successor gap's lineage names ancestors that exist — the chain the
 // docket detector follows must not dead-end at a phantom.
-func supersedesResolve(b *record.Board) Check {
+func supersedesResolve(f record.Family) Check {
 	var bad []string
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
+	for _, g := range f.Gaps {
+		id := g.ID
 		if g == nil || g.Mint == nil {
 			continue
 		}
 		for _, anc := range g.Mint.GetSupersedes() {
-			if b.Gaps[anc] == nil {
+			if f.Gap(anc) == nil {
 				bad = append(bad, fmt.Sprintf("%s⊃%s", id, anc))
 			}
 		}
@@ -300,9 +300,9 @@ const (
 
 // passClosesAllGaps: the #67 gate, verified after the fact. A PASS verdict with an open gap is
 // a contradiction — the record says the run resolved everything, and it did not.
-func passClosesAllGaps(b *record.Board) Check {
+func passClosesAllGaps(f record.Family) Check {
 	var verdict recordpb.Verdict
-	for _, e := range b.Events {
+	for _, e := range f.Events {
 		if e.GetType() != passVerdictType {
 			continue
 		}
@@ -318,8 +318,10 @@ func passClosesAllGaps(b *record.Board) Check {
 		return notApplicable("pass-closes-all-gaps", fmt.Sprintf("the verdict is %s, so there is no PASS to contradict", nonEmpty(verdictWord(verdict), "unrecorded")))
 	}
 	var open []string
-	for _, id := range b.GapOrder {
-		if g := b.Gaps[id]; g != nil && g.Open {
+	for _, g := range f.Gaps {
+		id := g.ID
+		_ = id
+		if g != nil && g.Open {
 			open = append(open, id)
 		}
 	}
@@ -330,10 +332,10 @@ func passClosesAllGaps(b *record.Board) Check {
 
 // registerBeforeAppend: a seat's FIRST event must be its register — an event from a seat that
 // never registered is an identity the record cannot vouch for.
-func registerBeforeAppend(b *record.Board) Check {
+func registerBeforeAppend(f record.Family) Check {
 	seen := map[string]bool{}
 	var bad []string
-	for _, e := range b.Events {
+	for _, e := range f.Events {
 		if seen[e.GetSeatId()] {
 			continue
 		}
@@ -409,9 +411,9 @@ type Stats struct {
 }
 
 // Compute tallies the record. Read-only, one replay.
-func Compute(b *record.Board) Stats {
+func Compute(f record.Family) Stats {
 	s := Stats{Events: map[string]int{}}
-	for _, e := range b.Events {
+	for _, e := range f.Events {
 		// The tally is keyed on the event type's SCHEMA SPELLING, so `motion-rule` reads
 		// `motion_rule` here and in `feov verify`'s event line. The type is an enum value now
 		// and recordpb.Word is the one place its word is derived.
@@ -425,8 +427,10 @@ func Compute(b *record.Board) Stats {
 	}
 
 	minted := map[string]bool{}
-	for _, id := range b.GapOrder {
-		if g := b.Gaps[id]; g != nil && g.Mint != nil {
+	for _, g := range f.Gaps {
+		id := g.ID
+		_ = id
+		if g != nil && g.Mint != nil {
 			for _, l := range g.Mint.GetFoundBy() {
 				minted[l] = true
 			}
@@ -434,7 +438,7 @@ func Compute(b *record.Board) Stats {
 	}
 	findingLabels := map[string]bool{}
 	withClosing, withDispute, withDisposition := map[string]bool{}, map[string]bool{}, map[string]bool{}
-	for _, e := range b.Events {
+	for _, e := range f.Events {
 		// COUNTED ON THE TYPE, NOT THE BODY. A verify event with an unreadable body is still a
 		// verification red performed; gating this on the body would let a decode gap silently
 		// shrink red's audit volume. Red's verifications only — blue's authored cites are not
@@ -476,7 +480,7 @@ func Compute(b *record.Board) Stats {
 	// THE DISPOSITION STAT NEEDS THE JOIN, so it cannot be gathered in the loop above. A ruling
 	// carries only the ask's id; the gap rides the FILING. record.Motions is the one place that
 	// pairing is computed, and reading it a second way here is how counters come to disagree.
-	for _, m := range record.Motions(b) {
+	for _, m := range record.MotionsOf(f.Events) {
 		if m == nil || m.Subject != "docket" || !m.Ruled() {
 			continue
 		}
@@ -493,8 +497,7 @@ func Compute(b *record.Board) Stats {
 			s.FindingsUnminted++
 		}
 	}
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
+	for _, g := range f.Gaps {
 		if g == nil {
 			continue
 		}

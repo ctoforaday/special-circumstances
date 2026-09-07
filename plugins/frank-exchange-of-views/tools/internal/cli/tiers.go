@@ -113,7 +113,7 @@ type TierReport struct {
 func tierReport(run record.Run, b *record.Board) TierReport {
 	bulk, judgment := modeltier.Config(run.Dir())
 	rep := TierReport{RunDir: run.Dir(), ConfiguredBulk: bulk, ConfiguredJudge: judgment}
-	for _, sm := range record.SeatModels(b) {
+	for _, sm := range record.SeatModels(record.FamilyOfBoard(b)) {
 		if sm.Class == "" {
 			continue // the operator and anything off the roster ride no tier
 		}

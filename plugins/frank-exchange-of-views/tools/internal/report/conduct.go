@@ -27,8 +27,8 @@ import (
 //
 // AND NOT MEASURED IS ITS OWN ROW. A run where nothing looked must not render as a run that
 // matched its configuration; that collapse is how $379 of spend went to a tier that never ran.
-func conduct(board *record.Board) string {
-	seats := record.SeatModels(board)
+func conduct(fam record.Family) string {
+	seats := record.SeatModels(fam)
 	if len(seats) == 0 {
 		return ""
 	}

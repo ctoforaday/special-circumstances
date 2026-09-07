@@ -1124,7 +1124,7 @@ func recordTierFindings(run record.Run, model, judgmentModel string) (findings [
 	if err != nil || board == nil {
 		return nil, 0, 0
 	}
-	for _, sm := range record.SeatModels(board) {
+	for _, sm := range record.SeatModels(record.FamilyOfBoard(board)) {
 		if sm.Class == "" {
 			continue
 		}

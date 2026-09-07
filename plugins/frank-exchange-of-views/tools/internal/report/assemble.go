@@ -108,17 +108,17 @@ func Assemble(run record.Run) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	board, err := record.BoardState(run)
+	fam, err := record.FamilyOf(run)
 	if err != nil {
 		return "", fmt.Errorf("assemble: board: %w", err)
 	}
 	title := Title(run)
 
 	// The site is rendered BEFORE the index, because the index links it only if it is there.
-	if err := os.WriteFile(filepath.Join(run.Dir(), "report.html"), []byte(RenderSite(title, docs, board)), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(run.Dir(), "report.html"), []byte(RenderSite(title, docs, fam)), 0o644); err != nil {
 		return "", fmt.Errorf("assemble: write report.html: %w", err)
 	}
-	return Write(run, title, docs, indexDoc(run, title, docs, board, board.Events))
+	return Write(run, title, docs, indexDoc(run, title, docs, fam, fam.Events))
 }
 
 // blueEmbed returns the parts of blue/report.md NOT already composed elsewhere. Blue's lifted
@@ -429,14 +429,13 @@ func basisNote(basis string) string {
 // PROMOTES the bench's already-evented voice (certify/halt), which otherwise sits buried in
 // the debate's Bench-disposition line. When the bench never certified/halted (as in a
 // ceiling-terminated run), only the ranked gaps show; nothing is invented to fill the space.
-func orientation(board *record.Board, evs []*record.Event, gloss string) string {
+func orientation(fam record.Family, evs []*record.Event, gloss string) string {
 	type ranked struct {
 		g    *record.Gap
 		rank int
 	}
 	var open []ranked
-	for _, id := range board.GapOrder {
-		g := board.Gaps[id]
+	for _, g := range fam.Gaps {
 		if g == nil || !g.Open {
 			continue
 		}
@@ -628,9 +627,9 @@ func rejected(status string) bool { return !accepted(status) && !deferred(status
 // red ruled out-of-scope or too-thin — the fact that it did so against that ruling. Red's ruling
 // is an argument, not a command, so blue may pursue anyway; the disagreement is the substance,
 // and until now the report showed the line with no trace that anyone had contested it.
-func inquiries(board *record.Board, heading string, want func(string) bool) string {
+func inquiries(fam record.Family, heading string, want func(string) bool) string {
 	var rows []string
-	for _, a := range record.Inquiries(board) {
+	for _, a := range record.InquiriesOf(fam.Events) {
 		if !want(a.Status) {
 			continue
 		}
@@ -765,17 +764,16 @@ func provenance(m *recordpb.Mint, findings map[string]*recordpb.Finding) string 
 // the gaps, blue attests its repairs below, and the bench disposes of what reaches it. Naming it
 // for one attributes the other two's output to that one — and here that is not cosmetic, because
 // the correctness manifest it carries is an accusation.
-func boardSection(board *record.Board) string {
+func boardSection(fam record.Family) string {
 	// Label -> the finding it names, so a gap can quote the evidence it was minted from.
 	findings := map[string]*recordpb.Finding{}
-	for _, e := range board.Events {
+	for _, e := range fam.Events {
 		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && f.GetLabel() != "" {
 			findings[f.GetLabel()] = f
 		}
 	}
 	var open, closed []string
-	for _, id := range board.GapOrder {
-		g := board.Gaps[id]
+	for _, g := range fam.Gaps {
 		if g == nil {
 			continue
 		}
@@ -863,13 +861,13 @@ func boardSection(board *record.Board) string {
 	// result confirmed). A finding is "minted" when its label appears in some gap's found_by
 	// credit chain; the rest are dropped on the floor by every report before this one. Surfaced
 	// here, subordinate to the gaps, so red's voice is not silently lost (#77).
-	if un := unmintedFindings(board); un != "" {
+	if un := unmintedFindings(fam); un != "" {
 		fmt.Fprintf(&b, "\n\n%s", un)
 	}
-	if sc := archiveSpotChecks(board); sc != "" {
+	if sc := archiveSpotChecks(fam); sc != "" {
 		fmt.Fprintf(&b, "\n\n%s", sc)
 	}
-	if cm := correctnessManifest(board); cm != "" {
+	if cm := correctnessManifest(fam); cm != "" {
 		fmt.Fprintf(&b, "\n\n%s", cm)
 	}
 	return b.String()
@@ -885,14 +883,14 @@ func boardSection(board *record.Board) string {
 // made it are different things, and only this section shows which one a closure was.
 //
 // A repaired gap with NO row is named rather than omitted. An absent receipt is the finding.
-func correctnessManifest(board *record.Board) string {
+func correctnessManifest(fam record.Family) string {
 	type row struct {
 		gapID, text, seat string
 		round             int
 	}
 	var rows []row
 	manifested := map[string]bool{}
-	for _, e := range board.Events {
+	for _, e := range fam.Events {
 		mr, ok := recordpb.BodyAs[*recordpb.ManifestRow](e)
 		if !ok {
 			continue
@@ -921,8 +919,8 @@ func correctnessManifest(board *record.Board) string {
 	// is the same shape as the defect being fixed. g.Closure is the `close` body and nothing
 	// clears it, so its absence is the honest question: did any party ever close this by repair?
 	var unmanifested []string
-	for _, id := range board.GapOrder {
-		g := board.Gaps[id]
+	for _, g := range fam.Gaps {
+		id := g.ID
 		if g != nil && g.HasClosed && g.Closure != nil && !manifested[id] {
 			unmanifested = append(unmanifested, id)
 		}
@@ -951,8 +949,8 @@ func correctnessManifest(board *record.Board) string {
 // never told — the receipt sat on the record with no consumer at all. The DEBT is rendered beside
 // the discharges rather than left to the exit code, because a reader deciding how much to trust
 // the closure index needs to know which rounds checked it and which did not.
-func archiveSpotChecks(board *record.Board) string {
-	checks, debt, falseEmpty := record.SpotCheckAudit(board)
+func archiveSpotChecks(fam record.Family) string {
+	checks, debt, falseEmpty := record.SpotCheckAudit(fam)
 	if len(checks) == 0 && len(debt) == 0 {
 		return ""
 	}
@@ -1058,9 +1056,9 @@ func regradeHistory(g *record.Gap) string {
 
 // unmintedFindings renders the lens findings whose label is credited by NO gap's found_by, or
 // "" if every finding earned a gap. Ordered by the event log so the section is deterministic.
-func unmintedFindings(board *record.Board) string {
+func unmintedFindings(fam record.Family) string {
 	minted := map[string]bool{}
-	for _, g := range board.Gaps {
+	for _, g := range fam.Gaps {
 		if g == nil || g.Mint == nil {
 			continue
 		}
@@ -1069,7 +1067,7 @@ func unmintedFindings(board *record.Board) string {
 		}
 	}
 	var rows []string
-	for _, e := range board.Events {
+	for _, e := range fam.Events {
 		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
 		if !ok {
 			continue
@@ -1124,7 +1122,7 @@ func unmintedFindings(board *record.Board) string {
 // debate takes the BOARD as well as the events, because a petition's ruling cannot be attributed
 // to its filing from an event alone: motion-rule carries motion_id, never the filer or subject of
 // the ask. record.Motions performs that join.
-func debate(board *record.Board, evs []*record.Event) string {
+func debate(fam record.Family, evs []*record.Event) string {
 	var order []int
 	byRound := map[int][]*record.Event{}
 	for _, e := range evs {
@@ -1139,7 +1137,7 @@ func debate(board *record.Board, evs []*record.Event) string {
 	// motion's FILING, so the join is computed once here — record.Motions is the one place it
 	// lives, and recovering it a second way is how two renderers come to disagree.
 	docketGapOf := map[string]string{}
-	for _, m := range record.Motions(board) {
+	for _, m := range record.MotionsOf(fam.Events) {
 		if m != nil && m.Subject == "docket" {
 			docketGapOf[m.ID] = m.GapID
 		}
@@ -1279,7 +1277,7 @@ func debate(board *record.Board, evs []*record.Event) string {
 	// no id, so pairing two filings by one seat in one round would have been a guess. A motion
 	// has an id; record.Motions joins the ask to its answer, so this is now an exact count of
 	// petitions that were never ruled rather than a difference between two tallies.
-	for _, m := range record.Motions(board) {
+	for _, m := range record.MotionsOf(fam.Events) {
 		if m.Subject != "petition" {
 			continue
 		}
@@ -1432,8 +1430,8 @@ func collapseBlanks(s string) string {
 // THREE STATES (#411). A check that did not apply is not a check that held. Printing both the
 // same way is exactly how pass-closes-all-gaps sat inapplicable on every run ever recorded
 // while reading as a considered judgement, so `n/a` is its own mark and carries its reason.
-func recordVerification(board *record.Board) string {
-	checks := verify.Run(board)
+func recordVerification(fam record.Family) string {
+	checks := verify.Run(fam)
 	if len(checks) == 0 {
 		// Not reachable today, and said out loud rather than rendered as a clean board: an
 		// empty check set and a sound record must never be the same output.

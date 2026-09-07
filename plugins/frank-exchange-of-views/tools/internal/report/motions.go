@@ -21,8 +21,8 @@ import (
 // events, so an archived record would not render NOTHING and look exactly like a run that had no
 // disputes and no petitions. That compatibility layer is gone — see the note above record.Motions
 // for why its premise did not hold and what it costs if that judgement was wrong.
-func motions(board *record.Board) string {
-	ms := record.Motions(board)
+func motions(fam record.Family) string {
+	ms := record.MotionsOf(fam.Events)
 	if len(ms) == 0 {
 		return ""
 	}
