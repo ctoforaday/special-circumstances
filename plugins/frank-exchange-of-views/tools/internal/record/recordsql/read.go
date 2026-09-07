@@ -3,6 +3,7 @@ package recordsql
 import (
 	"database/sql"
 	"fmt"
+	"sort"
 	"strings"
 
 	"google.golang.org/protobuf/proto"
@@ -46,9 +47,31 @@ func Events(db *sql.DB) ([]*recordpb.Event, error) {
 // projection that renders one family of acts and has no business hauling the rest of the record
 // through the loader to get them. The words are the schema's own spellings (recordpb.Word); a
 // word the vocabulary does not hold simply matches nothing, exactly as it would in the stream.
+//
+// THAT LAST SENTENCE IS TRUE OF THE ARGUMENT AND WAS ASSUMED OF THE DATABASE, and the two are not
+// the same claim. `WHERE type IN (…)` matches nothing when the caller asks for a word no event
+// carries — the honest zero — AND when the DATABASE spells its events with words this schema does
+// not declare. Measured on run-archive/2026-09-02_quadratic-formula, whose 35 `friction` events
+// this schema now calls something else:
+//
+//	recordsql.Events(db)                 -> 0, `event 8 has type "friction", which the schema does not declare`
+//	recordsql.EventsOfTypes(db, "log")   -> 0, nil
+//
+// The full replay already refuses, at the row (see eventsWhere below). The narrowed read never
+// reaches the row: SQL filtered it out first, and the projection rendered `{"log": [], "counts":
+// {"total": 0}}` with exit 0 over a run holding 35 of them — a clean board, on the artifact
+// CLAUDE.md says every audit re-reads.
+//
+// So the vocabulary is checked before the narrowing, and this is not a version negotiation: there
+// is no epoch to compare and nothing here knows what the words used to be. It asks the one question
+// the data can answer on its own — does this record spell its events in words this schema declares
+// — and the schema's own enum is the whole authority.
 func EventsOfTypes(db *sql.DB, words ...string) ([]*recordpb.Event, error) {
 	if len(words) == 0 {
 		return nil, nil
+	}
+	if err := refuseUndeclaredTypes(db); err != nil {
+		return nil, err
 	}
 	marks := strings.TrimSuffix(strings.Repeat("?, ", len(words)), ", ")
 	args := make([]any, len(words))
@@ -102,6 +125,46 @@ func eventsWhere(db *sql.DB, where string, args ...any) ([]*recordpb.Event, erro
 		return nil, err
 	}
 	return out, nil
+}
+
+// refuseUndeclaredTypes fails a record that spells its events in words this schema does not
+// declare, naming them.
+//
+// IT IS ONE INDEXED SCAN AND IT IS ON THE NARROWED PATH ONLY. `events.type` is indexed and the
+// distinct set is a few dozen rows, so the cost is a covering-index walk per narrowed read; the
+// full replay does not pay it because eventsWhere already refuses the row itself, one event at a
+// time, and reaching that row is precisely what narrowing prevents.
+//
+// The error says what is there, not what it should have been. There is no former-name table here
+// and there will not be one: a reader who needs those events needs the binary that wrote them.
+func refuseUndeclaredTypes(db *sql.DB) error {
+	rows, err := db.Query(`SELECT DISTINCT type FROM events`)
+	if err != nil {
+		return fmt.Errorf("recordsql: reading the record's event types: %w", err)
+	}
+	defer rows.Close()
+	var undeclared []string
+	for rows.Next() {
+		var word string
+		if err := rows.Scan(&word); err != nil {
+			return err
+		}
+		if _, ok := eventTypeOf(word); !ok {
+			undeclared = append(undeclared, word)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(undeclared) == 0 {
+		return nil
+	}
+	sort.Strings(undeclared)
+	return fmt.Errorf("recordsql: this record holds event types the schema does not declare (%s), so a "+
+		"narrowed read of it cannot be trusted: the rows are there and SQL filters them out before "+
+		"anything looks at them, which returns an empty projection and exit 0 — the same bytes as a "+
+		"record that holds nothing. Read it with the binary that wrote it",
+		strings.Join(undeclared, ", "))
 }
 
 func eventTypeOf(word string) (recordpb.EventType, bool) {
