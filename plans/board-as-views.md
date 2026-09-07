@@ -153,3 +153,16 @@ Per wave, in order, each written into the wave PR:
 
 Re-arms: any edit under `internal/record`, `internal/view`, `internal/report`,
 `internal/capture`, `internal/dashboard`, or `ViewsDDL` re-runs 1–4 for the touched wave.
+
+## Status (2026-09-07) — the arc is complete
+
+Waves 1-3 landed 2026-09-06 (#719/#727/#758/#760/#772); waves 4-7 landed 2026-09-07 in one
+push before the v2.0.0 tag: wave 4 report+verifiers on record.Family (#802), wave 5+6
+operators' consumers and merge text logic (#803), wave 6.5 fuzz re-point with the
+kill-one-mutant proof — an inverted gap-view `open` failed 5 of 6 sweep runs on the
+gaps-disposed invariant (#804), and wave 7 the deletion. BoardState and the Board struct are
+GONE: Gap survives as the family's per-gap shape, the consistency oracle holds FamilyOf to
+its raw walk in the fold's place, and the fixture shape lives on only as test-local boardT
+builders. The §IV survivors hold as written. Every wave shipped byte-identical on the
+harness (16-24 KB across up to twenty rendered surfaces per gate) with the full module suite
+green.

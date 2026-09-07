@@ -7,8 +7,10 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
-func chartBoard(gaps ...*record.Gap) *record.Board {
-	b := &record.Board{Gaps: map[string]*record.Gap{}}
+func chartBoardFam(gaps ...*record.Gap) record.Family { return chartBoard(gaps...).fam() }
+
+func chartBoard(gaps ...*record.Gap) *boardT {
+	b := &boardT{Gaps: map[string]*record.Gap{}}
 	for _, g := range gaps {
 		b.GapOrder = append(b.GapOrder, g.ID)
 		b.Gaps[g.ID] = g
@@ -20,12 +22,12 @@ func chartBoard(gaps ...*record.Gap) *record.Board {
 // round, with the open board as their difference. The numbers ship twice — direct labels on
 // the line ends and a table under the figure — because a picture is never the only copy.
 func TestBoardChartCumulativeSeries(t *testing.T) {
-	got := boardChart(record.FamilyOfBoard(chartBoard(
+	got := boardChart(chartBoardFam(
 		&record.Gap{ID: "R1-1", Round: 1, HasClosed: true, ClosedRound: 2},
 		&record.Gap{ID: "R1-2", Round: 1, HasClosed: true, ClosedRound: 3},
 		&record.Gap{ID: "R2-1", Round: 2, HasClosed: true, ClosedRound: 2},
 		&record.Gap{ID: "R3-1", Round: 3, Open: true},
-	)))
+	))
 	for _, want := range []string{
 		`<figure class="chart">`,
 		`role="img"`,
@@ -48,13 +50,13 @@ func TestBoardChartCumulativeSeries(t *testing.T) {
 // Nothing worth drawing yields NOTHING — not an empty axes frame that reads like a broken
 // chart. No board, no gaps, or a single round all decline the same way.
 func TestBoardChartDeclinesThinBoards(t *testing.T) {
-	if got := boardChart(record.FamilyOfBoard(nil)); got != "" {
+	if got := boardChart(record.NewFamily(nil, nil)); got != "" {
 		t.Errorf("nil board drew a chart:\n%s", got)
 	}
-	if got := boardChart(record.FamilyOfBoard(chartBoard())); got != "" {
+	if got := boardChart(chartBoardFam()); got != "" {
 		t.Errorf("gapless board drew a chart:\n%s", got)
 	}
-	if got := boardChart(record.FamilyOfBoard(chartBoard(&record.Gap{ID: "R1-1", Round: 1, Open: true}))); got != "" {
+	if got := boardChart(chartBoardFam(&record.Gap{ID: "R1-1", Round: 1, Open: true})); got != "" {
 		t.Errorf("a single-round board drew a one-dot trajectory:\n%s", got)
 	}
 }
@@ -70,7 +72,7 @@ func TestBoardChartOpensTheRunDocument(t *testing.T) {
 		{File: FileReport, Nav: "Report", Blurb: "the research", Body: "## Read this first\n\nfine\n"},
 		{File: FileRun, Nav: "Run", Blurb: "the machinery", Body: "## Friction\n\nnone\n"},
 	}
-	html := RenderSite("# T", docs, record.FamilyOfBoard(board))
+	html := RenderSite("# T", docs, board.fam())
 	if !strings.Contains(html, "<h2>The board, by round</h2>") || !strings.Contains(html, `<figure class="chart">`) {
 		t.Errorf("the run document did not open with the board chart")
 	}

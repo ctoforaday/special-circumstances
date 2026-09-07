@@ -12,9 +12,9 @@ import (
 
 // registers builds a board of register events, one per (seat, served, requested) triple. An empty
 // requested means the harness declared no swap; an empty served means NOTHING MEASURED.
-func registers(t *testing.T, rows ...[3]string) *record.Board {
+func registers(t *testing.T, rows ...[3]string) record.Family {
 	t.Helper()
-	b := &record.Board{}
+	var evs []*record.Event
 	for _, r := range rows {
 		reg := &recordpb.Register{}
 		if r[1] != "" {
@@ -23,9 +23,9 @@ func registers(t *testing.T, rows ...[3]string) *record.Board {
 		if r[2] != "" {
 			reg.RequestedModel = proto.String(r[2])
 		}
-		b.Events = append(b.Events, recordtest.Event(t, r[0], 1, reg))
+		evs = append(evs, recordtest.Event(t, r[0], 1, reg))
 	}
-	return b
+	return record.NewFamily(nil, evs)
 }
 
 // THE SUBSTITUTION HAS TO REACH THE READER, because the reader is the only party who can act on
@@ -36,7 +36,7 @@ func registers(t *testing.T, rows ...[3]string) *record.Board {
 // while every one of its 44 bulk seats had been answered by claude-opus-4-8. The claim was not
 // careless — configuration is the only model fact a seat can see.
 func TestASubstitutedTierIsNamedInTheReport(t *testing.T) {
-	got := conduct(record.FamilyOfBoard(registers(t,
+	got := conduct((registers(t,
 		[3]string{"blue-lane-1", "claude-opus-4-8", "claude-fable-5"},
 		[3]string{"red-lens-r1-evidence", "claude-opus-4-8", "claude-fable-5"},
 		[3]string{"red-merge-r1", "claude-sonnet-5", ""},
@@ -59,7 +59,7 @@ func TestASubstitutedTierIsNamedInTheReport(t *testing.T) {
 // requested names. It answered 0 for every real substitution, so the section rendered a clean run
 // on precisely the input it exists to convict, and every assertion about the healthy case passed.
 func TestTheSubstitutionIsFoundBySERVEDModelNotByCoincidence(t *testing.T) {
-	got := conduct(record.FamilyOfBoard(registers(t, [3]string{"blue-lane-1", "served-x", "asked-y"})))
+	got := conduct((registers(t, [3]string{"blue-lane-1", "served-x", "asked-y"})))
 	if !strings.Contains(got, "SUBSTITUTED") {
 		t.Fatalf("a seat whose served and requested models share no substring was reported as un-substituted — "+
 			"the join is on the wrong key:\n%s", got)
@@ -73,7 +73,7 @@ func TestTheSubstitutionIsFoundBySERVEDModelNotByCoincidence(t *testing.T) {
 // of them says so — and a report that silently omits the seats nobody looked at reads as a run
 // whose every seat was checked.
 func TestSeatsWithNoMeasurementAreReportedAsNotMeasured(t *testing.T) {
-	got := conduct(record.FamilyOfBoard(registers(t,
+	got := conduct((registers(t,
 		[3]string{"blue-lane-1", "claude-opus-4-8", ""},
 		[3]string{"blue-lane-2", "", ""},
 	)))
@@ -89,7 +89,7 @@ func TestSeatsWithNoMeasurementAreReportedAsNotMeasured(t *testing.T) {
 // first and a warning second: a reader who cannot see the models on a healthy run has no baseline
 // against which the substituted one means anything.
 func TestAnUnsubstitutedRunStillNamesWhatAnswered(t *testing.T) {
-	got := conduct(record.FamilyOfBoard(registers(t,
+	got := conduct((registers(t,
 		[3]string{"blue-lane-1", "claude-fable-5", ""},
 		[3]string{"red-merge-r1", "claude-sonnet-5", ""},
 	)))
@@ -107,7 +107,7 @@ func TestAnUnsubstitutedRunStillNamesWhatAnswered(t *testing.T) {
 // fixtures and partial runs; a heading with no rows under it is a claim that the question was
 // asked and came back blank, which is not what happened.
 func TestNoRegistersRendersNoSection(t *testing.T) {
-	if got := conduct(record.FamilyOfBoard(&record.Board{})); got != "" {
+	if got := conduct((record.NewFamily(nil, nil))); got != "" {
 		t.Errorf("a board with no register events rendered a section:\n%s", got)
 	}
 }

@@ -385,7 +385,7 @@ func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	g := board.Gaps["R1-1"]
+	g := board.Gap("R1-1")
 	if g.Severity != recordpb.Grade_GRADE_CERTAIN {
 		t.Errorf("board severity = %v, want certain", g.Severity)
 	}

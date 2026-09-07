@@ -14,7 +14,7 @@ import (
 // fail a lineage gap on the grounds that "the record is authoritative and already checked there".
 // This is what makes that sentence true in the register it meant.
 func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
-	b := &record.Board{
+	b := &boardT{
 		Events: []*record.Event{
 			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
 			recordtest.Event(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
@@ -24,7 +24,7 @@ func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 			"R1-1": {ID: "R1-1", Open: false, Closure: &recordpb.Close{ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED)}},
 		},
 	}
-	got := recordVerification(record.FamilyOfBoard(b))
+	got := recordVerification(b.fam())
 	// THE HEADING IS CHECKED AS A WHOLE LINE, not as a prefix (#447). `HasPrefix` was satisfied
 	// by "## Record verification (injected)" — so a rename of the section a human actually reads
 	// passed here, and passed the golden suite too, because no golden covered the assembled
@@ -51,7 +51,7 @@ func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 // A VIOLATION MUST READ AS ONE. The section is not a gate, so the only thing standing between a
 // contradictory record and a reader who believes it is this text.
 func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
-	b := &record.Board{
+	b := &boardT{
 		Events: []*record.Event{
 			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
 			recordtest.Event(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
@@ -59,7 +59,7 @@ func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
 	}
-	got := recordVerification(record.FamilyOfBoard(b))
+	got := recordVerification(b.fam())
 	if !strings.Contains(got, "**FAIL**") {
 		t.Errorf("a PASS over an open gap must render as FAIL:\n%s", got)
 	}
@@ -78,7 +78,7 @@ func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 // checked nothing. Rendering it as a pass is exactly how pass-closes-all-gaps stayed invisible
 // for its whole life, and a report is read by someone who cannot inspect the code.
 func TestRecordVerificationDistinguishesNotApplicableFromHeld(t *testing.T) {
-	b := &record.Board{
+	b := &boardT{
 		Events: []*record.Event{
 			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
 			recordtest.Event(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
@@ -86,7 +86,7 @@ func TestRecordVerificationDistinguishesNotApplicableFromHeld(t *testing.T) {
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
 	}
-	got := recordVerification(record.FamilyOfBoard(b))
+	got := recordVerification(b.fam())
 	if !strings.Contains(got, "**n/a**") {
 		t.Errorf("an inapplicable invariant must be marked n/a, not ok:\n%s", got)
 	}

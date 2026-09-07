@@ -33,7 +33,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 	}
 
 	evidence := func() record.EvidenceJSON {
-		b, err := record.BoardState(runtest.Open(t, runDir))
+		b, err := record.FamilyOf(runtest.Open(t, runDir))
 		if err != nil {
 			t.Fatal(err)
 		}

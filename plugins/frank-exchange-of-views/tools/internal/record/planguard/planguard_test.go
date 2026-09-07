@@ -51,7 +51,7 @@ func seedAndSweep(t *testing.T) *planguard.Recorder {
 
 	// The read surface, driven through the guarded driver. Every entry point added here widens
 	// what the guard can see; none of them is asserted on individually.
-	_, _ = record.BoardState(run)
+	_, _ = record.FamilyOf(run)
 	_, _, _ = record.BoardCounts(run)
 	_, _ = record.CitationLabels(run)
 	_, _ = record.CitedSources(run)

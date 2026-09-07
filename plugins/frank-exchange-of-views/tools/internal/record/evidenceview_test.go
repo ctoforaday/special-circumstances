@@ -11,11 +11,9 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 )
 
-// evidenceBoard builds a board from raw events, the way the other view tests do — the projection
+// evidenceBoard builds the event stream, the way the other view tests do — the projection
 // is a pure function of the event list, so the test states the events and nothing else.
-func evidenceBoard(events ...*Event) *Board {
-	return &Board{Events: events}
-}
+func evidenceBoard(events ...*Event) []*Event { return events }
 
 // evidenceEvent takes a typed BODY. It used to take alternating key/value pairs, which meant a
 // fixture could state a key the verb does not write and the projection would simply never see it —
@@ -36,7 +34,7 @@ func TestEvidence_CitationAnchorResolvesToItsSource(t *testing.T) {
 		Location: proto.String("Seven is prime."), AccessDate: proto.String("2026-08-12"),
 	}))
 
-	got := EvidenceJSONOf(b.Events)
+	got := EvidenceJSONOf(b)
 	if len(got.Sources) != 1 {
 		t.Fatalf("Sources = %d, want 1", len(got.Sources))
 	}
@@ -59,7 +57,7 @@ func TestEvidence_RedLensCiteIsNotASource(t *testing.T) {
 		evidenceEvent(t, 1, "lens-r1", &recordpb.Cite{Text: proto.String("checked something")}),            // no label: red's
 		evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{Label: proto.String("c-1"), Url: proto.String("u")}), // blue's
 	)
-	got := EvidenceJSONOf(b.Events)
+	got := EvidenceJSONOf(b)
 	if len(got.Sources) != 1 || got.Sources[0].Anchor != "c-1" {
 		t.Fatalf("Sources = %+v, want only the labelled blue cite", got.Sources)
 	}
@@ -76,7 +74,7 @@ func TestEvidence_ProofCarriesAnchorAndTheShaReproduceTakes(t *testing.T) {
 		Exit: proto.Int32(0),
 	}))
 
-	got := EvidenceJSONOf(b.Events)
+	got := EvidenceJSONOf(b)
 	if len(got.Proofs) != 1 {
 		t.Fatalf("Proofs = %d, want 1", len(got.Proofs))
 	}
@@ -99,7 +97,7 @@ func TestEvidence_UnverifiedProofSaysSoInTheJSON(t *testing.T) {
 	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Proof{
 		ProofId: proto.String("p-1"), ProofSha: proto.String("s1"),
 	}))
-	out, err := json.Marshal(EvidenceJSONOf(b.Events))
+	out, err := json.Marshal(EvidenceJSONOf(b))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +118,7 @@ func TestEvidence_ReproduceJoinsItsProofAndKeepsTheAxesApart(t *testing.T) {
 			Note:      proto.String("it prints its conclusion"),
 		}),
 	)
-	got := EvidenceJSONOf(b.Events)
+	got := EvidenceJSONOf(b)
 	v := got.Proofs[0].Verified
 	if v == nil {
 		t.Fatal("Verified = nil — the proof_sha join did not happen")
@@ -149,7 +147,7 @@ func TestEvidence_VerificationAttachesToItsCitation(t *testing.T) {
 			Text:       proto.String("the abstract says it"),
 		}),
 	)
-	got := EvidenceJSONOf(b.Events)
+	got := EvidenceJSONOf(b)
 	if len(got.Sources) != 1 || len(got.Sources[0].Verified) != 1 {
 		t.Fatalf("Sources = %+v, want the citation carrying its one verification", got.Sources)
 	}
@@ -173,7 +171,7 @@ func TestEvidence_IndependentChecksStandApart(t *testing.T) {
 			Text:    proto.String("chapter 2"),
 		}),
 	)
-	got := EvidenceJSONOf(b.Events)
+	got := EvidenceJSONOf(b)
 	if len(got.Independent) != 1 {
 		t.Fatalf("Independent = %+v, want red's anchorless check", got.Independent)
 	}
@@ -186,7 +184,7 @@ func TestEvidence_IndependentChecksStandApart(t *testing.T) {
 // is what red reads to decide where its next pass goes.
 func TestEvidence_UncheckedSourceSaysSoInTheJSON(t *testing.T) {
 	b := evidenceBoard(evidenceEvent(t, 1, "blue-r1", &recordpb.Cite{Label: proto.String("c-1"), Url: proto.String("u")}))
-	out, err := json.Marshal(EvidenceJSONOf(b.Events))
+	out, err := json.Marshal(EvidenceJSONOf(b))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,7 +207,7 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 				Outcome: outcome.Enum(), Text: proto.String("read it"),
 			}),
 		)
-		got := EvidenceJSONOf(b.Events)
+		got := EvidenceJSONOf(b)
 		if got.Counts.SourcesRefuted != 1 {
 			t.Errorf("outcome %q: SourcesRefuted = %d, want 1 — a source red found against must be countable",
 				recordpb.Word(outcome), got.Counts.SourcesRefuted)
@@ -226,7 +224,7 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 			Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_WEAK), Text: proto.String("thin"),
 		}),
 	)
-	if got := EvidenceJSONOf(b.Events); got.Counts.SourcesRefuted != 0 {
+	if got := EvidenceJSONOf(b); got.Counts.SourcesRefuted != 0 {
 		t.Errorf("`weak` counted as refuted — thin support is not contradiction, and conflating them turns a grading nuance into an assembly failure")
 	}
 }
@@ -234,7 +232,7 @@ func TestEvidence_RefutedCitationsAreCounted(t *testing.T) {
 // EMPTY IS EMPTY ARRAYS, NOT NULLS. A seat reading `"sources": null` has to know that means the
 // same as `[]`; the arrays are initialised so a fresh run answers in the shape a full one does.
 func TestEvidence_EmptyRunRendersArraysNotNulls(t *testing.T) {
-	out, err := json.Marshal(EvidenceJSONOf(evidenceBoard().Events))
+	out, err := json.Marshal(EvidenceJSONOf(evidenceBoard()))
 	if err != nil {
 		t.Fatal(err)
 	}

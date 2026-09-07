@@ -35,11 +35,11 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 		t.Fatalf("appeal: %v", err)
 	}
 
-	b, err := record.BoardState(runtest.Open(t, runDir))
+	b, err := record.FamilyOf(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	ms := record.Motions(b)
+	ms := record.MotionsOf(b.Events)
 	if len(ms) != 1 {
 		t.Fatalf("one exchange, one motion; got %d", len(ms))
 	}

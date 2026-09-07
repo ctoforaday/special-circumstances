@@ -115,16 +115,16 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 }
 
 func TestInquiriesSplitByFate(t *testing.T) {
-	board := &record.Board{Events: []*record.Event{
+	board := record.NewFamily(nil, []*record.Event{
 		recordtest.Event(t, "blue-r1", 1, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("profile the hot path"), Method: proto.String("bench")}),
 		recordtest.Event(t, "blue-r1", 1, &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite in Rust"), Reason: proto.String("cost exceeds benefit")}),
 		recordtest.Event(t, "red-lens-r1", 1, &recordpb.Avenue{AvenueId: proto.String("Q3"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("third-party audit"), Reason: proto.String("out of scope")}),
-	}}
-	exp := inquiries(record.FamilyOfBoard(board), "Research areas", accepted)
+	})
+	exp := inquiries(board, "Research areas", accepted)
 	if !strings.Contains(exp, "profile the hot path") || strings.Contains(exp, "rewrite in Rust") {
 		t.Errorf("research areas must carry ONLY pursued and proposed inquiries:\n%s", exp)
 	}
-	alt := inquiries(record.FamilyOfBoard(board), "Alternatives considered", rejected)
+	alt := inquiries(board, "Alternatives considered", rejected)
 	if !strings.Contains(alt, "rewrite in Rust") || !strings.Contains(alt, "cost exceeds benefit") {
 		t.Errorf("a rejected line of inquiry is an alternative considered, its reason the counter:\n%s", alt)
 	}
@@ -135,7 +135,7 @@ func TestInquiriesSplitByFate(t *testing.T) {
 		t.Errorf("a pursued line of inquiry must not appear under alternatives:\n%s", alt)
 	}
 	// No inquiries of a fate → flagged, not blank.
-	if none := inquiries(record.FamilyOfBoard(&record.Board{}), "Research areas", accepted); !strings.Contains(none, "none on the record") {
+	if none := inquiries((record.NewFamily(nil, nil)), "Research areas", accepted); !strings.Contains(none, "none on the record") {
 		t.Errorf("empty fate should say so: %q", none)
 	}
 }
@@ -189,15 +189,15 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 				"by accident", status)
 			continue
 		}
-		board := &record.Board{Events: []*record.Event{
+		board := record.NewFamily(nil, []*record.Event{
 			recordtest.Event(t, "blue-r1", 1, &recordpb.Avenue{
 				AvenueId: proto.String("Q1"), Status: st.Enum(), Line: proto.String("the only line"),
 			}),
-		}}
+		})
 		in := map[string]bool{
-			"research":     strings.Contains(inquiries(record.FamilyOfBoard(board), "Research areas", accepted), "the only line"),
-			"future":       strings.Contains(inquiries(record.FamilyOfBoard(board), "Future research directions", deferred), "the only line"),
-			"alternatives": strings.Contains(inquiries(record.FamilyOfBoard(board), "Alternatives considered", rejected), "the only line"),
+			"research":     strings.Contains(inquiries(board, "Research areas", accepted), "the only line"),
+			"future":       strings.Contains(inquiries(board, "Future research directions", deferred), "the only line"),
+			"alternatives": strings.Contains(inquiries(board, "Alternatives considered", rejected), "the only line"),
 		}
 		var got []string
 		for name, present := range in {
@@ -220,12 +220,12 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 // A MOVED LINE OF INQUIRY IS ONE LINE. Reading raw events rendered a line pursued at r0 and abandoned
 // at r2 under BOTH headings — as an expansion and as an alternative to itself.
 func TestAMovedInquiryIsRenderedOnce(t *testing.T) {
-	board := &record.Board{Events: []*record.Event{
+	board := record.NewFamily(nil, []*record.Event{
 		recordtest.Event(t, "blue-r0", 0, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("rewrite the parser")}),
 		recordtest.Event(t, "blue-r2", 2, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite the parser"), Reason: proto.String("the grammar moved under it")}),
-	}}
-	exp := inquiries(record.FamilyOfBoard(board), "Research areas", accepted)
-	alt := inquiries(record.FamilyOfBoard(board), "Alternatives considered", rejected)
+	})
+	exp := inquiries(board, "Research areas", accepted)
+	alt := inquiries(board, "Alternatives considered", rejected)
 	if strings.Contains(exp, "rewrite the parser") {
 		t.Errorf("a line of inquiry ABANDONED at r2 is not an expansion — its latest status decides:\n%s", exp)
 	}
@@ -242,7 +242,7 @@ func TestAMovedInquiryIsRenderedOnce(t *testing.T) {
 // RED'S RULING AND BLUE'S DEFIANCE OF IT ARE THE SUBSTANCE. Blue pursuing a line red ruled
 // out-of-scope looked identical to blue pursuing one red endorsed.
 func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
-	board := &record.Board{Events: []*record.Event{
+	board := record.NewFamily(nil, []*record.Event{
 		recordtest.Event(t, "blue-r0", 0, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("survey the adjacent literature")}),
 		// The LIVE vocabulary: red rules a direction through `motion inquiry rule`, whose motion_id
 		// IS the line's own id — the proposal is the filing, so there is no second identity. The
@@ -262,8 +262,8 @@ func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION),
 			Reason:   proto.String("the adjacent literature is what the question turns on"),
 		}),
-	}}
-	exp := inquiries(record.FamilyOfBoard(board), "Research areas", accepted)
+	})
+	exp := inquiries(board, "Research areas", accepted)
 	// `out_of_scope`, WITH THE UNDERSCORE. An older comment in inquiry.go claims the hyphen is the
 	// live spelling and the underscore "a word no surface recognizes"; the vocabulary says
 	// otherwise — DirectionRuling spells it with an underscore and InquiryRulings agrees, so the
@@ -314,7 +314,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		recordtest.Event(t, "judge-terminal", 0, &recordpb.Halt{Opinion: proto.String("safety gate tripped")}),
 		recordtest.Event(t, "judge-terminal", 0, &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
 	}
-	d := debate(record.FamilyOfBoard(&record.Board{Events: evs}), evs)
+	d := debate((record.NewFamily(nil, evs)), evs)
 	for _, want := range []string{
 		"### Round 1", "### RED — NO VERDICT RECORDED THIS ROUND\ngap A stands", "### BLUE\ngap A repaired",
 		"R1-1: carried",
@@ -329,7 +329,7 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 			t.Errorf("debate transcript missing %q:\n%s", want, d)
 		}
 	}
-	if empty := debate(record.FamilyOfBoard(&record.Board{}), nil); !strings.Contains(empty, "no debate on the record") {
+	if empty := debate((record.NewFamily(nil, nil)), nil); !strings.Contains(empty, "no debate on the record") {
 		t.Errorf("empty debate should say so: %q", empty)
 	}
 }
@@ -419,7 +419,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 	// the detector counted zero filings and could not fire — the warning it exists to raise was
 	// unreachable while this test went on passing.
 	filed := []*record.Event{recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Basis: proto.String("the demand would bury a hazard")})}
-	d := debate(record.FamilyOfBoard(&record.Board{Events: filed}), filed)
+	d := debate((record.NewFamily(nil, filed)), filed)
 	if !strings.Contains(d, "1 petition(s) received no ruling") {
 		t.Errorf("a petition with no ruling must be reported, not silently absent:\n%s", d)
 	}
@@ -434,7 +434,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 		Opinion:  proto.String("the hazard is graded, not buried"),
 		Ruling:   &recordpb.MotionRule_Petition{Petition: recordpb.PetitionRuling_PETITION_RULING_DENIED},
 	}))
-	if d := debate(record.FamilyOfBoard(&record.Board{Events: answered}), answered); strings.Contains(d, "received no ruling") {
+	if d := debate((record.NewFamily(nil, answered)), answered); strings.Contains(d, "received no ruling") {
 		t.Errorf("an answered petition must not be reported as unanswered:\n%s", d)
 	}
 }
@@ -494,7 +494,7 @@ func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 }
 
 func TestOrientationRanksAndPromotesBench(t *testing.T) {
-	board := &record.Board{
+	board := &boardT{
 		GapOrder: []string{"R1-1", "R1-2", "R1-3"},
 		Gaps: map[string]*record.Gap{
 			"R1-1": {ID: "R1-1", Open: true, Severity: recordpb.Grade_GRADE_LOW, Impact: recordpb.Grade_GRADE_LOW, Likelihood: recordpb.Grade_GRADE_LOW,
@@ -508,7 +508,7 @@ func TestOrientationRanksAndPromotesBench(t *testing.T) {
 	evs := []*record.Event{
 		recordtest.Event(t, "", 0, &recordpb.Certify{Statement: proto.String("re-examine the cost model before shipping")}),
 	}
-	o := orientation(record.FamilyOfBoard(board), evs, "")
+	o := orientation(board.fam(), evs, "")
 	// The bench's certify is promoted to the top.
 	if !strings.Contains(o, "re-examine the cost model before shipping") {
 		t.Errorf("orientation must promote the bench's certify statement:\n%s", o)
@@ -524,14 +524,14 @@ func TestOrientationRanksAndPromotesBench(t *testing.T) {
 		t.Errorf("a closed gap must not appear in Read this first:\n%s", o)
 	}
 	// Empty board says so, invents nothing.
-	empty := orientation(record.FamilyOfBoard(&record.Board{}), nil, "")
+	empty := orientation((record.NewFamily(nil, nil)), nil, "")
 	if !strings.Contains(empty, "no open gaps remain") {
 		t.Errorf("an empty board should say nothing is outstanding:\n%s", empty)
 	}
 }
 
 func TestUnmintedFindingsSurfaced(t *testing.T) {
-	board := &record.Board{
+	board := &boardT{
 		GapOrder: []string{"R1-1"},
 		Gaps: map[string]*record.Gap{
 			"R1-1": {ID: "R1-1", Mint: &recordpb.Mint{FoundBy: []string{"L5-F1", "L6-F2"}}},
@@ -542,7 +542,7 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 			recordtest.Event(t, "red-lens-r1-logic", 0, &recordpb.Finding{Label: proto.String("L5-F3"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
 		},
 	}
-	got := boardSection(record.FamilyOfBoard(board))
+	got := boardSection(board.fam())
 	if !strings.Contains(got, "Lens findings credited by no gap (1)") {
 		t.Errorf("exactly one un-minted finding should be surfaced:\n%s", got)
 	}
@@ -579,7 +579,7 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 // It is the wrong half to drop: `problem` is the merge's RESTATEMENT, and a reader can only see
 // a restatement drift from its evidence with both in front of them.
 func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
-	board := &record.Board{
+	board := &boardT{
 		GapOrder: []string{"R1-1"},
 		Gaps: map[string]*record.Gap{
 			// OPEN here; the CLOSED case is covered below. Scoping provenance to open gaps was
@@ -599,7 +599,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 			}),
 		},
 	}
-	got := boardSection(record.FamilyOfBoard(board))
+	got := boardSection(board.fam())
 	if !strings.Contains(got, "what red actually observed at the leaf") {
 		t.Errorf("the minted finding's own words are absent — the gap cites L5-F1 and nothing defines it:\n%s", got)
 	}
@@ -619,7 +619,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 
 	// AND A CLOSED GAP CARRIES IT TOO. The closure says how the gap was settled; it does not
 	// restate what was observed, and an audit of a closure needs both.
-	closedBoard := &record.Board{
+	closedBoard := &boardT{
 		GapOrder: []string{"R1-1"},
 		Gaps: map[string]*record.Gap{
 			"R1-1": {ID: "R1-1", Open: false, Mint: &recordpb.Mint{
@@ -629,7 +629,7 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 		},
 		Events: board.Events,
 	}
-	if got := boardSection(record.FamilyOfBoard(closedBoard)); !strings.Contains(got, "what red actually observed at the leaf") {
+	if got := boardSection(closedBoard.fam()); !strings.Contains(got, "what red actually observed at the leaf") {
 		t.Errorf("a CLOSED gap dropped the evidence it was minted from, and nothing else renders it:\n%s", got)
 	}
 }
@@ -700,7 +700,7 @@ func TestRevisionHistoryFromEvents(t *testing.T) {
 // including its author". Bench-disposed gaps were in that set, and blue never repaired them —
 // the report accused one party of skipping an audit another party never owed it.
 func TestTheBenchsOwnClosuresAreNotBluesUnauditedRepairs(t *testing.T) {
-	board := &record.Board{
+	board := &boardT{
 		GapOrder: []string{"R1-1", "R1-2"},
 		Gaps: map[string]*record.Gap{
 			// Blue repaired this one and filed no receipt: a real missing manifest row.
@@ -709,7 +709,7 @@ func TestTheBenchsOwnClosuresAreNotBluesUnauditedRepairs(t *testing.T) {
 			"R1-2": {ID: "R1-2", HasClosed: true, BenchClosure: &recordpb.DocketRuling{}, ClosedByBench: true},
 		},
 	}
-	got := correctnessManifest(record.FamilyOfBoard(board))
+	got := correctnessManifest(board.fam())
 	if !strings.Contains(got, "R1-1") {
 		t.Errorf("blue's own unaudited repair left the list:\n%s", got)
 	}
@@ -730,7 +730,7 @@ func TestABlueRepairTheBenchLaterRuledOnIsStillCharged(t *testing.T) {
 	g.BenchClosure = &recordpb.DocketRuling{}
 	g.ClosedByBench = true
 
-	got := correctnessManifest(record.FamilyOfBoard(&record.Board{GapOrder: []string{"R1-1"}, Gaps: map[string]*record.Gap{"R1-1": g}}))
+	got := correctnessManifest((&boardT{GapOrder: []string{"R1-1"}, Gaps: map[string]*record.Gap{"R1-1": g}}).fam())
 	if !strings.Contains(got, "R1-1") {
 		t.Errorf("a missing receipt disappeared because the bench later ruled on the gap:\n%s", got)
 	}

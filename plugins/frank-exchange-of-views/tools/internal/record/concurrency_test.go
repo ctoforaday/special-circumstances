@@ -59,7 +59,7 @@ func TestConcurrentSeatsRace(t *testing.T) {
 				}
 				// A concurrent READER (the replay every projection now runs on demand)
 				// racing the appenders: no write may be lost to a racing read.
-				if _, err := BoardState(mustRun(t, runDir)); err != nil {
+				if _, err := FamilyOf(mustRun(t, runDir)); err != nil {
 					errs <- err
 				}
 			}

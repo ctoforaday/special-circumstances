@@ -71,8 +71,17 @@ func benchGap() *record.Gap {
 	return &record.Gap{HasClosed: true, BenchClosure: &recordpb.DocketRuling{}, ClosedByBench: true}
 }
 
-func boardOf(gaps map[string]*record.Gap, order ...string) *record.Board {
-	return &record.Board{Gaps: gaps, GapOrder: order}
+func boardOf(gaps map[string]*record.Gap, order ...string) *record.Family {
+	var ordered []*record.Gap
+	for _, id := range order {
+		g := gaps[id]
+		if g != nil && g.ID == "" {
+			g.ID = id
+		}
+		ordered = append(ordered, g)
+	}
+	f := record.NewFamily(ordered, nil)
+	return &f
 }
 
 func TestComputeAnchoredClosures(t *testing.T) {
@@ -86,7 +95,7 @@ func TestComputeAnchoredClosures(t *testing.T) {
 		"G4": closedGap(&recordpb.Close{}),                               // NOT
 		"G5": {Open: true},                                               // open — not counted at all
 	}
-	a, total := ComputeAnchoredClosures(famOfBoardT(boardOf(gaps, "G1", "G2", "G3", "G4", "G5")))
+	a, total := ComputeAnchoredClosures((boardOf(gaps, "G1", "G2", "G3", "G4", "G5")))
 	if a != 2 || total != 4 {
 		t.Errorf("ComputeAnchoredClosures = %d/%d, want 2/4", a, total)
 	}
@@ -97,7 +106,7 @@ func TestComputeAnchoredClosures(t *testing.T) {
 // made `target 100` unreachable on any run where the bench closed anything.
 func TestBenchDispositionsLeaveBothCounts(t *testing.T) {
 	full := &recordpb.Close{AnchorSeat: proto.String("L1"), AnchorTool: proto.String("grep"), AnchorTarget: proto.String("x")}
-	a, total := ComputeAnchoredClosures(famOfBoardT(boardOf(map[string]*record.Gap{
+	a, total := ComputeAnchoredClosures((boardOf(map[string]*record.Gap{
 		"G1": closedGap(full),
 		"G2": benchGap(),
 	}, "G1", "G2")))
@@ -116,7 +125,7 @@ func TestABlueCloseTheBenchLaterRuledOnStaysCounted(t *testing.T) {
 	g.BenchClosure = &recordpb.DocketRuling{}
 	g.ClosedByBench = true // the LAST closer was the bench; the closure is still blue's
 
-	a, total := ComputeAnchoredClosures(famOfBoardT(boardOf(map[string]*record.Gap{"G1": g}, "G1")))
+	a, total := ComputeAnchoredClosures((boardOf(map[string]*record.Gap{"G1": g}, "G1")))
 	if a != 1 || total != 1 {
 		t.Errorf("blue's anchored close was dropped because the bench later ruled on it: got %d/%d, want 1/1", a, total)
 	}
@@ -125,11 +134,11 @@ func TestABlueCloseTheBenchLaterRuledOnStaysCounted(t *testing.T) {
 // THE ELSE BRANCH HAS TO BE TRUE OF BOTH EMPTY BOARDS. An all-bench board and a board with no
 // closures at all now reach the same note, and "no closed gaps this run" was false of the first.
 func TestTheEmptyDenominatorNoteIsTrueOfBothWaysToGetOne(t *testing.T) {
-	for name, board := range map[string]*record.Board{
+	for name, board := range map[string]*record.Family{
 		"all bench":      boardOf(map[string]*record.Gap{"G1": benchGap()}, "G1"),
 		"nothing closed": boardOf(map[string]*record.Gap{"G1": {Open: true}}, "G1"),
 	} {
-		row := rowByMetric(redRows(record.Run{}, nil, nil, famOfBoardT(board)), "anchored_closures_pct")
+		row := rowByMetric(redRows(record.Run{}, nil, nil, board), "anchored_closures_pct")
 		if row == nil {
 			t.Fatalf("%s: no anchored_closures_pct row", name)
 		}
@@ -162,8 +171,8 @@ func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
 		{"claim_count": float64(10)},
 		{"claim_count": float64(7)},
 	}
-	board := &record.Board{Events: []*record.Event{recordtest.Event(t, "", 0, &recordpb.Retire{})}} // one recorded retirement
-	r := rowByMetric(blueRows(record.Run{}, results, nil, famOfBoardT(board)), "unrecorded_claim_loss")
+	board := famOfEventsT([]*record.Event{recordtest.Event(t, "", 0, &recordpb.Retire{})}) // one recorded retirement
+	r := rowByMetric(blueRows(record.Run{}, results, nil, board), "unrecorded_claim_loss")
 	if r == nil || r.Value == nil {
 		t.Fatalf("row not computed: %+v", r)
 	}

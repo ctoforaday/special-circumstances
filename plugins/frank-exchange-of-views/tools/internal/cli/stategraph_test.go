@@ -368,11 +368,11 @@ func gapOf(t *testing.T, runDir, id string) *record.Gap {
 	if err != nil {
 		t.Fatalf("opening the run: %v", err)
 	}
-	b, err := record.BoardState(rn)
+	b, err := record.FamilyOf(rn)
 	if err != nil {
 		t.Fatalf("reading the board: %v", err)
 	}
-	return b.Gaps[id]
+	return b.Gap(id)
 }
 
 // ---- the motion ----
@@ -453,11 +453,11 @@ func motionOf(t *testing.T, runDir, id string) *record.Motion {
 	if err != nil {
 		t.Fatalf("opening the run: %v", err)
 	}
-	b, err := record.BoardState(rn)
+	b, err := record.FamilyOf(rn)
 	if err != nil {
 		t.Fatalf("reading the board: %v", err)
 	}
-	for _, m := range record.Motions(b) {
+	for _, m := range record.MotionsOf(b.Events) {
 		if m.ID == id {
 			return m
 		}
@@ -600,11 +600,11 @@ func inquiryOf(t *testing.T, runDir, id string) *record.Inquiry {
 	if err != nil {
 		t.Fatalf("opening the run: %v", err)
 	}
-	b, err := record.BoardState(rn)
+	b, err := record.FamilyOf(rn)
 	if err != nil {
 		t.Fatalf("reading the board: %v", err)
 	}
-	for _, q := range record.Inquiries(b) {
+	for _, q := range record.InquiriesOf(b.Events) {
 		if q.ID == id {
 			return q
 		}

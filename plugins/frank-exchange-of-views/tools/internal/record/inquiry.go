@@ -110,9 +110,6 @@ type Inquiry struct {
 	// InquiryReviewDue's business, not this struct's.
 }
 
-// Inquiries replays the line of inquiry events into current state, in proposal order.
-func Inquiries(b *Board) []*Inquiry { return InquiriesOf(b.Events) }
-
 // InquiriesOf is Inquiries over the events themselves, for the run-shaped readers.
 func InquiriesOf(evs []*Event) []*Inquiry {
 	byID := map[string]*Inquiry{}
@@ -272,13 +269,6 @@ func RequireInquiryRef(run Run, id string) error {
 	return fmt.Errorf("record: --id names line of inquiry %s, which no line of inquiry event proposed — a dangling reference is accepted here and dropped at replay", id)
 }
 
-// CurrentRound is the highest round any event on this board reached.
-//
-// There was no shared accessor for it, which is part of why the predicate below drifted: a
-// round-aware check had nothing to be aware WITH, so two callers wrote a status-only test and
-// described it in prose as though it looked at the round.
-func CurrentRound(b *Board) int { return CurrentRoundOf(b.Events) }
-
 // CurrentRoundOf is CurrentRound over the events themselves.
 func CurrentRoundOf(evs []*Event) int {
 	max := 0
@@ -308,49 +298,6 @@ func CurrentRoundOf(evs []*Event) int {
 	}
 	return max
 }
-
-// StaleInquiries returns the inquiries that owe blue a decision THIS ROUND — the single predicate
-// behind the revisit duty, the affordance, and the projection's stale notice.
-//
-// # It was written twice, both copies status-only, both described as round-aware
-//
-// This function and `availableOf`'s blue case each carried `Status == "proposed" || Status ==
-// "pursued"` and nothing else. The affordance's text says a line of inquiry "has no fate THIS ROUND";
-// this one's said "a line of inquiry still open LATE IN A RUN" and "nothing ever asked blue to choose
-// again once the round-0 plan was written". Neither read a round. `Inquiry.Round` was populated
-// on every event and consulted nowhere.
-//
-// So a line of inquiry blue moved to `pursued` this round, with a --reason saying what it learned, and
-// one nobody had touched since round 0 produced the IDENTICAL line. The diligent case and the
-// neglected case were the same bytes — and the fix is one predicate rather than two corrected
-// copies, because two copies is how this got here.
-//
-// # `pursued` is not an unresolved state, and treating it as one inverted the intent
-//
-// The enum defines `pursued` as "you are following it, OR YOU FOLLOWED IT; say what you learned
-// in --reason". It is where a line that paid off comes to rest. Firing on it unconditionally
-// meant recording exactly the right thing never cleared the duty, and the only statuses that
-// did — `declined`, `abandoned`, `deferred` — all mean STOP. The channel could express giving
-// up and could not express carrying on, which is the reverse of what it exists for.
-//
-// # The rule, and the round check applies to ONE status rather than to all of them
-//
-//	proposed    ALWAYS owes a move. The enum defines it as "put forward and not yet resolved —
-//	            the default, AND THE STATE THAT OWES A MOVE". No round condition: a topic nobody
-//	            has decided is undecided whenever you ask. A first draft of this fix also
-//	            round-gated `proposed`, which made a line of inquiry proposed and abandoned within a
-//	            single round invisible for that round — caught by
-//	            TestOpenInquiriesAreSurfacedAsOwingADecision, which was right and this was wrong.
-//	proposed    is therefore surfaced from the moment it exists. It is an AFFORDANCE and blocks
-//	            nothing, so surfacing early costs a line and buys the reminder.
-//	pursued     owes a move only when it has not moved THIS round. This is where the round check
-//	            belongs and the only place it ever did: re-recording `pursued` with what you
-//	            learned is a reaffirmation, and it settles the line for the round.
-//	declined,
-//	abandoned,
-//	deferred    settled, never surfaced. `deferred` is a DECISION ("worth taking, and not by THIS
-//	            run"), not an omission.
-func StaleInquiries(b *Board) []*Inquiry { return StaleInquiriesOf(b.Events) }
 
 // StaleInquiriesOf is StaleInquiries over the events themselves.
 func StaleInquiriesOf(evs []*Event) []*Inquiry {
@@ -388,45 +335,6 @@ func InquiryRuling(run Run, inquiryID string) string {
 	}
 	return strings.ReplaceAll(word.String, "_", "-")
 }
-
-// InquiryReviewDue reports whether this round still owes a read of the report against the lines
-// of inquiry the record carries.
-//
-// # ONE QUESTION PER ROUND, NOT ONE PER LINE, and the correction is the whole change
-//
-// This was `UnvotedInquiries`, which returned the LINES red had not yet cast a per-line verdict
-// on — `supported` / `weakened` / `unsupported` / `absent`, later `carried` / `hollow` / `cut`.
-// Every one of those vocabularies made PRESENCE the question, and presence is not a question. The
-// lines reach the report on the WORKLIST, generated from `Inquiries` above, so blue cannot cut
-// them: a line is on the page because the record says it is. `absent` and `cut` named a state no
-// writer could produce, and the other values were grades on a continuum wearing a closed set's
-// clothes.
-//
-// What is genuinely open is whether blue's BODY delivered the research a line claims — thin
-// treatment, a hypothesis never tested, a method never run. That is a defect in the report, so it
-// is an ORDINARY GAP: mint it, and it gets the id, the grade, the blue duty and the PASS gate
-// every other gap already has. A second vocabulary for the same fact is the aliasing this package
-// exists to remove, which is why nothing replaces `UnsupportedInquiries` — the work list it fed
-// is the gap board.
-//
-// # The discharge is modelled on `friction --none`
-//
-// Silence cannot clear a duty. An absent review reads identically whether the report was read and
-// found sound or nobody looked at it, so "nothing to say" must still be SAID: one
-// EVENT_TYPE_INQUIRY_REVIEW, this round, carrying what the read found. validate requires its
-// reason for the reason `friction --none` requires one.
-//
-// # Board-wide, and per ROUND
-//
-// Any seat's review answers it — the read is one pass over one document, and the per-line gate
-// counted a vote from any seat the same way. Per round because the report is regenerated every
-// round: a review recorded before this round's edits answers a question about a document that no
-// longer exists.
-//
-// A board with NO lines of inquiry owes nothing. There is no account of research on the page to
-// read, and the per-line gate was likewise silent on an empty set — so this is behaviour held,
-// not a hole opened.
-func InquiryReviewDue(b *Board) bool { return InquiryReviewDueOf(b.Events) }
 
 // InquiryReviewDueOf is InquiryReviewDue over the events themselves.
 func InquiryReviewDueOf(evs []*Event) bool {

@@ -1,7 +1,6 @@
 package record
 
 import (
-	"encoding/json"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -14,7 +13,7 @@ import (
 // (attribution follows the LAST closing event while the embedded body prefers the red close), a
 // non-closing docket ruling that must close nothing, regrade overlays, credited and uncredited
 // findings, and the verify/cite count split. This test retires with the fold shape in wave 7.
-func TestBoardJSONFromViewsMatchesTheFold(t *testing.T) {
+func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
 	red := Identity{Run: run, SeatID: "red-merge-r1", Round: 1}
@@ -95,23 +94,49 @@ func TestBoardJSONFromViewsMatchesTheFold(t *testing.T) {
 	app(blue, &recordpb.Cite{Label: proto.String("c-1"), Url: proto.String("https://example.org"),
 		Title: proto.String("t"), CiteKey: proto.String("k1")})
 
-	b, err := BoardState(run)
+	bj, err := BoardJSONOfRun(run)
 	if err != nil {
 		t.Fatal(err)
 	}
-	fold, err := json.MarshalIndent(BoardJSONOf(b), "", "  ")
-	if err != nil {
-		t.Fatal(err)
+	byID := map[string]GapJSON{}
+	for _, g := range append(append([]GapJSON{}, bj.Open...), bj.Closed...) {
+		byID[g.ID] = g
 	}
-	views, err := BoardJSONOfRun(run)
-	if err != nil {
-		t.Fatal(err)
+	// R1-3: closed by red (r1), then ruled by the bench (r2). Attribution follows the bench;
+	// the embedded body stays red's close (its prose proves which body rendered).
+	g3 := byID["R1-3"]
+	if g3.Open || !g3.ClosedByBench || g3.ClosedRound != 2 {
+		t.Errorf("R1-3 attribution = open=%v bench=%v round=%d, want closed/bench/2", g3.Open, g3.ClosedByBench, g3.ClosedRound)
 	}
-	got, err := json.MarshalIndent(views, "", "  ")
-	if err != nil {
-		t.Fatal(err)
+	if g3.Closure == nil || g3.Closure["prose"] != "verified at the leaf" {
+		t.Errorf("R1-3 embedded closure = %v, want red's close body (closureBody's precedence)", g3.Closure)
 	}
-	if string(fold) != string(got) {
-		t.Errorf("the run-shaped board diverged from the fold:\n--- fold ---\n%s\n--- views ---\n%s", fold, got)
+	if len(g3.Regrades) != 1 {
+		t.Errorf("R1-3 regrades = %v, want the one recorded regrade embedded", g3.Regrades)
+	}
+	if g3.Impact != "high" {
+		t.Errorf("R1-3 impact = %v, want the regrade overlay", g3.Impact)
+	}
+	// R1-2: a carried docket ruling closes nothing.
+	if g2 := byID["R1-2"]; !g2.Open {
+		t.Error("a carried ruling closed R1-2 — the vocabulary's own facet says it must not")
+	}
+	// R1-1 (computation, unproved) and R1-2 (carried) stay open; R1-3 closed by both arms.
+	if bj.Counts.Open != 2 || bj.Counts.Closed != 1 || bj.Counts.ClosedByBench != 1 {
+		t.Errorf("counts = %+v", bj.Counts)
+	}
+	if bj.Counts.Citations != 1 || bj.Counts.CitationsAuthored != 1 {
+		t.Errorf("citation split = %d/%d, want 1/1", bj.Counts.Citations, bj.Counts.CitationsAuthored)
+	}
+	credited, uncredited := 0, 0
+	for _, o := range bj.Observations {
+		if o.Credited {
+			credited++
+		} else {
+			uncredited++
+		}
+	}
+	if credited != 1 || uncredited != 1 || bj.Counts.UncreditedFindings != 1 {
+		t.Errorf("credit split = %d/%d (counter %d), want 1/1/1", credited, uncredited, bj.Counts.UncreditedFindings)
 	}
 }

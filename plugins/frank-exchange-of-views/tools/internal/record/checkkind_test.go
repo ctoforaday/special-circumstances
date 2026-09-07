@@ -46,13 +46,8 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	b, err := BoardState(mustRun(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	got := map[string]string{}
-	for _, g := range BoardJSONOf(b).Open {
+	for _, g := range mustBoardJSONT(t, mustRun(t, runDir)).Open {
 		got[g.ID] = g.CheckKind
 	}
 	if got["R1-1"] != "computation" || got["R1-2"] != "document" {
@@ -76,7 +71,7 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
-	b, err := BoardState(mustRun(t, runDir))
+	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +83,7 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.Log{Text: proto.String("read the board and my verb list; every refusal was my own error"), Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
 		t.Fatal(err)
 	}
-	b, _ = BoardState(mustRun(t, runDir))
+	b, _ = FamilyOf(mustRun(t, runDir))
 	j = LogJSONOf(b.Events)
 	// The counts must now DIFFER from the silent run. Same total, different meaning — which is
 	// the whole point: zero-with-an-attestation is a statement someone can be wrong about,
@@ -163,12 +158,8 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	// THE BOARD AND THE GATE MUST NOT DISAGREE about what is owed. They share one join and one
 	// constant precisely so a seat cannot be told it owes nothing by the read and be refused by
 	// the write — three bare "computation" literals used to make that possible.
-	b, err := BoardState(mustRun(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
 	fromBoard := map[string]bool{}
-	for _, g := range BoardJSONOf(b).Open {
+	for _, g := range mustBoardJSONT(t, mustRun(t, runDir)).Open {
 		if g.AwaitingProof {
 			fromBoard[g.ID] = true
 		}

@@ -44,11 +44,11 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := BoardState(mustRun(t, dir))
+	b, err := FamilyOf(mustRun(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if InquiryReviewDue(b) {
+	if InquiryReviewDueOf(b.Events) {
 		t.Fatal("the round-1 review does not satisfy the round-1 duty")
 	}
 
@@ -56,14 +56,14 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "judge-r2", Round: 2}, ""); err != nil {
 		t.Fatal(err)
 	}
-	b, err = BoardState(mustRun(t, dir))
+	b, err = FamilyOf(mustRun(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := CurrentRound(b); got != 1 {
+	if got := CurrentRoundOf(b.Events); got != 1 {
 		t.Fatalf("a bare register advanced CurrentRound to %d — a seat that has written nothing must not move the board's idea of now", got)
 	}
-	if InquiryReviewDue(b) {
+	if InquiryReviewDueOf(b.Events) {
 		t.Error("a bare register from judge-r2 made the round-1 merge's review stale.\n\n" +
 			"The merge can never satisfy this — it acts at its own round and the gate has moved past it — " +
 			"so the round's duty is refused forever while the verb keeps reporting success.")
@@ -78,14 +78,14 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	b, err = BoardState(mustRun(t, dir))
+	b, err = FamilyOf(mustRun(t, dir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := CurrentRound(b); got != 2 {
+	if got := CurrentRoundOf(b.Events); got != 2 {
 		t.Fatalf("real work in round 2 did not advance CurrentRound: got %d", got)
 	}
-	if !InquiryReviewDue(b) {
+	if !InquiryReviewDueOf(b.Events) {
 		t.Error("round 2 owes its own review and the round-1 one answered for it — the round check is gone, not fixed")
 	}
 }

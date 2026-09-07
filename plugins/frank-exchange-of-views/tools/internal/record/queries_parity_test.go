@@ -77,15 +77,15 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	run := mustRun(t, runDir)
-	b, err := BoardState(run)
+	b, err := FamilyOf(run)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// BoardCounts vs the fold's own tally.
+	// BoardCounts vs the family's own tally.
 	wantOpen, wantClosed := 0, 0
-	for _, id := range b.GapOrder {
-		if b.Gaps[id].Open {
+	for _, g := range b.Gaps {
+		if g.Open {
 			wantOpen++
 		} else {
 			wantClosed++
@@ -96,11 +96,11 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("BoardCounts = (%d, %d, %v), fold says (%d, %d)", open, closed, err, wantOpen, wantClosed)
 	}
 
-	// gapState against the board.
-	for id, g := range b.Gaps {
-		got, err := gapState(run, id)
+	// gapState against the family.
+	for _, g := range b.Gaps {
+		got, err := gapState(run, g.ID)
 		if err != nil || got != !g.Open {
-			t.Errorf("gapState(%s) = (%v, %v), board says closed=%v", id, got, err, !g.Open)
+			t.Errorf("gapState(%s) = (%v, %v), family says closed=%v", g.ID, got, err, !g.Open)
 		}
 	}
 	if got, err := gapState(run, "R9-99"); got || err != nil {

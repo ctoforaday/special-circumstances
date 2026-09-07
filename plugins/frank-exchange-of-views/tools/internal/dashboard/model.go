@@ -276,7 +276,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		if fam, err := record.FamilyOf(run); err == nil {
 			bj, bjErr := record.BoardJSONOfRun(run)
 			if bjErr != nil {
-				bj = record.BoardJSONOf(&record.Board{})
+				bj = record.BoardJSON{Open: []record.GapJSON{}, Closed: []record.GapJSON{}, Anomalies: []string{}}
 			}
 			fj := record.FindingsJSONOf(fam.Events)
 			frj := record.LogJSONOf(fam.Events)

@@ -16,7 +16,7 @@ import (
 
 // The 2026-08-23 shape, in miniature: a bulk seat answered by something nobody asked for, a
 // judgment seat answered as configured, and a seat nothing measured.
-func tierFixture(t *testing.T) (string, *record.Board) {
+func tierFixture(t *testing.T) (string, record.Family) {
 	t.Helper()
 	run := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(run, "inputs"), 0o755); err != nil {
@@ -39,7 +39,7 @@ func tierFixture(t *testing.T) (string, *record.Board) {
 			ToolVersion: proto.String("test"),
 		}),
 	)
-	b, err := record.BoardState(runtest.Open(t, run))
+	b, err := record.FamilyOf(runtest.Open(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func tierFixture(t *testing.T) (string, *record.Board) {
 
 func TestTiersJoinsTheRequestAgainstTheService(t *testing.T) {
 	run, b := tierFixture(t)
-	r := tierReport(runtest.Open(t, run), record.FamilyOfBoard(b))
+	r := tierReport(runtest.Open(t, run), b)
 	if r.TierBound != 3 || r.Measured != 2 || r.Substituted != 1 {
 		t.Fatalf("bound/measured/substituted = %d/%d/%d, want 3/2/1", r.TierBound, r.Measured, r.Substituted)
 	}
@@ -71,7 +71,7 @@ func TestTiersJoinsTheRequestAgainstTheService(t *testing.T) {
 
 func TestTiersRendersNotMeasuredRatherThanABlank(t *testing.T) {
 	run, b := tierFixture(t)
-	md := renderTiers(tierReport(runtest.Open(t, run), record.FamilyOfBoard(b)))
+	md := renderTiers(tierReport(runtest.Open(t, run), b))
 	for _, want := range []string{"NOT MEASURED", "substitution declared by the harness", "served measured on 2 of 3"} {
 		if !strings.Contains(md, want) {
 			t.Errorf("the rendering must carry %q; got:\n%s", want, md)
@@ -92,11 +92,11 @@ func TestTiersSaysWhenNothingLookedAtAll(t *testing.T) {
 	}
 	recordtest.Seed(t, run, recordtest.At(t, "blue-lane-1", 1, "blue-lane-1:register:#1",
 		&recordpb.Register{ToolVersion: proto.String("test")}))
-	b, err := record.BoardState(runtest.Open(t, run))
+	b, err := record.FamilyOf(runtest.Open(t, run))
 	if err != nil {
 		t.Fatal(err)
 	}
-	md := renderTiers(tierReport(runtest.Open(t, run), record.FamilyOfBoard(b)))
+	md := renderTiers(tierReport(runtest.Open(t, run), b))
 	if !strings.Contains(md, "NOTHING LOOKED") {
 		t.Errorf("a run where nothing was measured must say so as a run, not only per row; got:\n%s", md)
 	}

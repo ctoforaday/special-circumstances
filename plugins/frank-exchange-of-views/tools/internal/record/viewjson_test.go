@@ -40,7 +40,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 		// section is carried by its position, which is what this test reads.
 	})
 	// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and it takes two events: the FILING
-	// carries the gap (that is the join the Lead rows read through Motions(b)) and the RULING
+	// carries the gap (that is the join the Lead rows read through MotionsOf(b.Events)) and the RULING
 	// carries the disposition and the bench's prose. Seeding only the ruling would leave the
 	// Lead row naming no gap, which is exactly the silent-empty this split exists to remove.
 	writeShard(t, runDir, []*Event{
@@ -69,12 +69,11 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	})
 	// A blue seat that recorded nothing in round 2 is simply absent from the record — there is no
 	// empty shard file to write, which is what the call here used to produce.
-
-	b, err := BoardState(mustRun(t, runDir))
+	m, err := MergedEvents(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	dj := DebateJSONOfEvents(b.Events)
+	dj := DebateJSONOfEvents(m.Events)
 
 	if len(dj.Rounds) != 2 {
 		t.Fatalf("want 2 rounds, got %d: %+v", len(dj.Rounds), dj.Rounds)
@@ -279,11 +278,7 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 			FoundBy:         []string{"L1-F1"},
 		}),
 	})
-	b, err := BoardState(mustRun(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	bj := BoardJSONOf(b)
+	bj := mustBoardJSONT(t, mustRun(t, runDir))
 	if bj.Counts.UncreditedFindings != 1 {
 		t.Errorf("exactly one finding is credited by no gap; got %d uncredited", bj.Counts.UncreditedFindings)
 	}
@@ -321,11 +316,7 @@ func TestRedsArgumentReachesTheBoard(t *testing.T) {
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
 	})
-	b, err := BoardState(mustRun(t, runDir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	j := BoardJSONOf(b)
+	j := mustBoardJSONT(t, mustRun(t, runDir))
 	if len(j.Open) != 1 {
 		t.Fatalf("%d open gaps, want 1 — an empty board would pass the assertion below", len(j.Open))
 	}

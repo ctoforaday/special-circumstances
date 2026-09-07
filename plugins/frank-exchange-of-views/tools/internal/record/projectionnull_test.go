@@ -23,10 +23,9 @@ func TestNoProjectionListMarshalsAsNull(t *testing.T) {
 		"closed_index": true, "outstanding": true, "available": true,
 		"motions": true, "proofs": true, "citations": true, "violations": true,
 	}
-	b := &Board{}
 	for name, v := range map[string]any{
-		"BoardJSON": BoardJSONOf(b),
-		"WorkJSON":  workJSONOfGaps(workStatesOfBoardT(b)),
+		"BoardJSON": mustBoardJSONT(t, mustRun(t, newRun(t))),
+		"WorkJSON":  workJSONOfGaps(nil),
 	} {
 		raw, err := json.Marshal(v)
 		if err != nil {

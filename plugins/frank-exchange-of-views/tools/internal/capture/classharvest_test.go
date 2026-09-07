@@ -34,11 +34,11 @@ func mintEvent(t *testing.T, gapID, class string) *record.Event {
 // concrete case that motivated it.
 func TestAProposalCarriesTheThreeFieldsAndTheCaseThatMotivatedIt(t *testing.T) {
 	law := t.TempDir()
-	board := &record.Board{Events: []*record.Event{
+	board := record.NewFamily(nil, []*record.Event{
 		classEvent(t, "red-merge-r2", "silent-no-match-probe", "a probe whose miss reads as a clean result",
 			"self-attestation", "did a tool act run and miss, or did none run at all"),
 		mintEvent(t, "R2-1", "silent-no-match-probe"),
-	}}
+	})
 	r := HarvestClasses(runtest.New(t, "/runs/2026-08-22_example"), law, board.Events)
 	if !r.Written || r.Count != 1 {
 		t.Fatalf("written=%v count=%d, want true and 1", r.Written, r.Count)
@@ -83,8 +83,8 @@ func TestARunThatCoinedNothingWritesNothingAndSaysSo(t *testing.T) {
 // first PROPOSAL, which is the same defect one step earlier. A reviewer has to see both.
 func TestTwoRunsCoiningOneSlugLandSideBySide(t *testing.T) {
 	law := t.TempDir()
-	one := &record.Board{Events: []*record.Event{classEvent(t, "red-merge-r1", "drift", "the first reading", "false-universal", "A")}}
-	two := &record.Board{Events: []*record.Event{classEvent(t, "red-merge-r1", "drift", "a DIFFERENT reading", "false-universal", "B")}}
+	one := record.NewFamily(nil, []*record.Event{classEvent(t, "red-merge-r1", "drift", "the first reading", "false-universal", "A")})
+	two := record.NewFamily(nil, []*record.Event{classEvent(t, "red-merge-r1", "drift", "a DIFFERENT reading", "false-universal", "B")})
 	HarvestClasses(runtest.New(t, "/runs/run-alpha"), law, one.Events)
 	HarvestClasses(runtest.New(t, "/runs/run-beta"), law, two.Events)
 	ms, _ := filepath.Glob(filepath.Join(law, "proposed", "class-drift--*.md"))
