@@ -254,3 +254,54 @@ func TestReconcileCollapsesADuplicateNamedID(t *testing.T) {
 		t.Errorf("Missing = %v, want each absent seat named exactly once", c.Missing)
 	}
 }
+
+// THE BUILD CENSUS SPANS EVERY KIND, and that is the whole reason it exists.
+//
+// Everything else Seats counts narrows to seat rows on purpose. A build tally that narrowed
+// the same way would have been useless for the question actually asked on 2026-09-06, which
+// was about the seat/turn-end split itself: a count scoped to one side of a disputed split
+// cannot arbitrate the split. So the tally happens before the kind filter, and session rows
+// and turn ends are in it.
+func TestBuildCensusCountsEveryKindAndNamesTheUnrecorded(t *testing.T) {
+	m := strings.Join([]string{
+		`{"schema":5,"kind":"seat","agent_id":"a","agent_type":"Explore","resolved":true,"capture_build":"aaa1111"}`,
+		`{"schema":5,"kind":"turn-end","agent_id":"b","capture_build":"aaa1111"}`,
+		`{"schema":5,"kind":"session","session_id":"s","capture_build":"bbb2222"}`,
+		// A pre-5 binary wrote this one: no key at all.
+		`{"schema":4,"kind":"seat","agent_id":"c","agent_type":"claude","resolved":true}`,
+		`torn tail, not json`,
+	}, "\n")
+
+	got := Seats([]byte(m)).Builds
+	want := map[string]int{"aaa1111": 2, "bbb2222": 1, BuildUnrecorded: 1}
+	if len(got) != len(want) {
+		t.Fatalf("Builds = %v, want %v", got, want)
+	}
+	for b, n := range want {
+		if got[b] != n {
+			t.Errorf("Builds[%q] = %d, want %d (full: %v)", b, got[b], n, got)
+		}
+	}
+	// The turn-end and session rows are counted here while being excluded everywhere
+	// else, so a tally that quietly inherited the seat filter would read 1 and 0.
+	if got["aaa1111"] != 2 {
+		t.Errorf("the turn-end row was dropped from the build tally — the census inherited the seat filter")
+	}
+	if got["bbb2222"] != 1 {
+		t.Errorf("the session row was dropped from the build tally — the census inherited the seat filter")
+	}
+	// An unparseable line has no build to attribute and must not become one.
+	if _, bad := got[""]; bad {
+		t.Errorf(`Builds carries an empty key: a row with no build must be counted under a NAMED key, not a blank one: %v`, got)
+	}
+}
+
+// A single-build manifest reports one key, not an absent map. The caller decides whether to
+// warn about mixed producers by counting keys, so "one build" and "no rows" must not both
+// arrive as len 0.
+func TestBuildCensusReportsASingleBuildRatherThanNothing(t *testing.T) {
+	got := Seats([]byte(`{"schema":5,"kind":"seat","agent_id":"a","agent_type":"x","resolved":true,"capture_build":"ccc3333"}`)).Builds
+	if len(got) != 1 || got["ccc3333"] != 1 {
+		t.Errorf("Builds = %v, want one key ccc3333:1", got)
+	}
+}

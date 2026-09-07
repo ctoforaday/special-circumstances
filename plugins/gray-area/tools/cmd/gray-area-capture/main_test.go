@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/ctoforaday/special-circumstances/plugins/gray-area/tools/internal/buildid"
 )
 
 var noon = time.Date(2026, 7, 28, 13, 0, 0, 0, time.UTC)
@@ -425,5 +427,61 @@ func TestSchemaAnnouncesTheKindChange(t *testing.T) {
 	if schema < 4 {
 		t.Errorf("schema = %d; `kind` changed meaning, and a reader with no version cannot "+
 			"tell a schema-3 seat row from a schema-4 one", schema)
+	}
+}
+
+// EVERY ROW NAMES THE BINARY THAT WROTE IT, whatever its kind.
+//
+// The absence of this field cost 2026-09-06 a whole argument: three capture binaries were
+// installed at once, all writing schema 4, and two sessions read opposite conclusions out of
+// rows that recorded the contract but not the producer. Both were wrong and the manifest could
+// not say so. `-version` had the answer inside every one of those binaries already.
+//
+// The assertion is on the SERIALISED row rather than the struct, because the failure being
+// guarded is a missing JSON key — a reader greps the file, not the type.
+func TestEveryRowNamesTheBuildThatWroteIt(t *testing.T) {
+	var in hookInput
+	if err := json.Unmarshal([]byte(`{"session_id":"s1","agent_id":"a1","agent_type":"red-auditor",
+	  "transcript_path":"/t/sess.jsonl","agent_transcript_path":"/t/agent-a1.jsonl"}`), &in); err != nil {
+		t.Fatal(err)
+	}
+	rows := map[string]manifestRow{
+		"seat":    buildRow(in, nil, "SubagentStop", noon, okStat(10)),
+		"session": buildSessionRow(in, noon, okStat(10)),
+	}
+	for kind, r := range rows {
+		var back map[string]any
+		out, err := json.Marshal(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(out, &back); err != nil {
+			t.Fatal(err)
+		}
+		got, present := back["capture_build"]
+		if !present {
+			t.Errorf("%s row carries no capture_build key — a reader cannot tell which binary wrote it: %s", kind, out)
+			continue
+		}
+		// NOT omitempty, so an unstamped build must serialise its `unknown` rather than
+		// vanish. An empty string here would put a schema-5 row and a pre-5 row into the
+		// same bytes, which is the state the field exists to separate.
+		if got == "" {
+			t.Errorf("%s row's capture_build is empty; a schema-5 row is then indistinguishable "+
+				"from a row written before the field existed", kind)
+		}
+		if got != buildid.Revision() {
+			t.Errorf("%s row's capture_build = %v, want the running binary's revision %q", kind, got, buildid.Revision())
+		}
+	}
+}
+
+// The bump is what makes the field's absence mean one thing. Without it, `schema: 4` would
+// describe both a row that names its writer and a row that cannot — one number covering two
+// shapes, in the field whose only job is to tell shapes apart.
+func TestSchemaAnnouncesTheBuildField(t *testing.T) {
+	if schema < 5 {
+		t.Errorf("schema = %d; capture_build was added, so a reader gating on the version "+
+			"cannot tell a row that omits it from one written before it existed", schema)
 	}
 }

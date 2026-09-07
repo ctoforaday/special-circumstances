@@ -19,6 +19,12 @@ type SessionRow struct {
 	Resolved       bool   `json:"resolved"`
 	CaptureError   string `json:"capture_error,omitempty"`
 
+	// CaptureBuild is the commit the hook binary that wrote this row was built from,
+	// present from schema 5 on. Empty means the row predates the field — see
+	// WriterProvenance, which is the only place that emptiness is put into words, so
+	// that "no build recorded" can never be printed as though it were a build.
+	CaptureBuild string `json:"capture_build,omitempty"`
+
 	// Where this row was read from, so "the tool picked a transcript for you" is a
 	// claim the reader can check like any other.
 	Manifest string `json:"manifest"`
@@ -123,6 +129,21 @@ func ResolveSession(dir string, glob func(string) ([]string, error), open func(s
 		return SessionRow{}, fmt.Errorf("claims: manifests exist under %s but none carries a session row — only subagent rows were written, which means gray-area's SessionStart hook is not wired (SubagentStop alone never records the MAIN session's transcript)", dir)
 	}
 	return best, nil
+}
+
+// WriterProvenance is the phrase naming the binary that wrote this row, for the lines a
+// human reads. It exists so the two verbs that cite a resolved row cannot drift apart in
+// how they describe a row that has no build on it.
+//
+// THE EMPTY CASE GETS WORDS, NOT A BLANK. A row from a pre-schema-5 hook binary carries no
+// `capture_build`, and printing that as an empty string beside "built from" would read as a
+// build whose name went missing rather than as a row that never recorded one. Those are the
+// two states this field was added to separate, so the render must separate them too.
+func (r SessionRow) WriterProvenance() string {
+	if r.CaptureBuild == "" {
+		return "writer build not recorded (row predates schema 5)"
+	}
+	return "written by build " + r.CaptureBuild
 }
 
 // ManifestDir is where this plugin's own manifests live, relative to a project.

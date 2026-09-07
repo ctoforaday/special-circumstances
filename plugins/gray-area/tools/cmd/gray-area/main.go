@@ -355,8 +355,8 @@ func checkpoint(notePath, tracePath string, stdout, stderr io.Writer, open func(
 		}
 		tracePath = resolved.TranscriptPath
 		// The pick is a claim like any other, so it is cited.
-		fmt.Fprintf(stdout, "resolved this session's trajectory from %s:%d (session %s, captured %s)\n  -> %s\n",
-			resolved.Manifest, resolved.Line, short(resolved.SessionID), resolved.CapturedAt, tracePath)
+		fmt.Fprintf(stdout, "resolved this session's trajectory from %s:%d (session %s, captured %s, %s)\n  -> %s\n",
+			resolved.Manifest, resolved.Line, short(resolved.SessionID), resolved.CapturedAt, resolved.WriterProvenance(), tracePath)
 		if resolved.Recovered {
 			// Not a warning — a correction, and worth stating because the row still
 			// says otherwise. A reader who greps the manifest will see resolved:false

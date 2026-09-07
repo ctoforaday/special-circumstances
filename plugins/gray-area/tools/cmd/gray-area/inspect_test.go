@@ -252,3 +252,52 @@ func TestCoverageSaysHowManyLinesDidNotParse(t *testing.T) {
 		t.Errorf("torn lines were skipped in silence:\n%s", out.String())
 	}
 }
+
+// A MIXED-PRODUCER MANIFEST SAYS SO BEFORE IT SAYS ANY NUMBER.
+//
+// Stated above the counts for the same reason the torn-tail line is: it qualifies everything
+// below it. A reader comparing the early half of a manifest against the late half is comparing
+// across a change of binary, and on 2026-09-06 two sessions did exactly that and drew opposite
+// conclusions from rows that could not report it.
+func TestCoverageWarnsWhenOneManifestHasSeveralWriters(t *testing.T) {
+	census := claims.SeatCensus{
+		IDs:  []string{"a"},
+		Rows: 1,
+		Builds: map[string]int{
+			"aaa1111":              12,
+			"bbb2222":              7,
+			claims.BuildUnrecorded: 3,
+		},
+	}
+	c := claims.Reconcile("/p/sess.jsonl", census.IDs,
+		func(string) ([]os.DirEntry, error) { return []os.DirEntry{}, nil })
+	var out strings.Builder
+	reportCoverage(&out, census, c)
+	got := out.String()
+
+	if !strings.Contains(got, "written by 3 different hook builds") {
+		t.Errorf("a manifest with three writers did not say so:\n%s", got)
+	}
+	for _, want := range []string{"aaa1111", "bbb2222", claims.BuildUnrecorded} {
+		if !strings.Contains(got, want) {
+			t.Errorf("build %q is missing from the breakdown:\n%s", want, got)
+		}
+	}
+	// BEFORE the counts it qualifies, not after them.
+	if strings.Index(got, "different hook builds") > strings.Index(got, "distinct seat(s) named by") {
+		t.Errorf("the mixed-writer warning is printed below the numbers it qualifies:\n%s", got)
+	}
+}
+
+// One writer is the ordinary case and must stay quiet: a warning that fires on every healthy
+// manifest is one a reader learns to skip, and this one has to be legible on the day it matters.
+func TestCoverageIsSilentWhenOneBuildWroteEverything(t *testing.T) {
+	census := claims.SeatCensus{IDs: []string{"a"}, Rows: 1, Builds: map[string]int{"aaa1111": 4}}
+	c := claims.Reconcile("/p/sess.jsonl", census.IDs,
+		func(string) ([]os.DirEntry, error) { return []os.DirEntry{}, nil })
+	var out strings.Builder
+	reportCoverage(&out, census, c)
+	if strings.Contains(out.String(), "different hook builds") {
+		t.Errorf("a single-writer manifest was flagged as mixed:\n%s", out.String())
+	}
+}
