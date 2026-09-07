@@ -1,15 +1,14 @@
 package record
 
 import (
-	"google.golang.org/protobuf/reflect/protoreflect"
-
 	"fmt"
 	"sort"
 	"strings"
 
-	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
-
 	"github.com/thediveo/enumflag/v2"
+	"google.golang.org/protobuf/reflect/protoreflect"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
 // A VALUE CARRIES ITS OWN MEANING, OR THE SET IS A LIST OF NOUNS.
@@ -52,10 +51,31 @@ type EnumValue struct {
 	// gloss of the name: "repaired" means nothing to a reader who does not already know, and
 	// "the repair was verified at the leaf" means everything.
 	Means string
+	// ToolOnly says the RECORD can carry this word but a SEAT may not file it — the tool writes
+	// it about its own act. It is not a second opinion: it is read off the value's
+	// `seat_may_file` facet at table build, so the schema is still the source (#782).
+	//
+	// It lives on the value rather than being filtered at each call site because both readers
+	// need the same answer: the generated help must omit the word, and the gate that checks the
+	// help against the declared set must expect it omitted. Filtered at one site only, the two
+	// disagree and the gate reads a principled narrowing as a hand-restated set.
+	ToolOnly bool
 }
 
 // ev is shorthand for a described value, so the tables stay readable.
 func ev(name, means string) EnumValue { return EnumValue{Name: name, Means: means} }
+
+// SeatFilable drops the words only the tool writes. It is what a seat's surface is built from —
+// the help it reads and the refusal that names the alternatives — so the two cannot disagree.
+func SeatFilable(vs []EnumValue) []EnumValue {
+	out := make([]EnumValue, 0, len(vs))
+	for _, v := range vs {
+		if !v.ToolOnly {
+			out = append(out, v)
+		}
+	}
+	return out
+}
 
 // Names is the bare list, for the checks and messages that only need the words.
 func Names(vs []EnumValue) []string {
@@ -205,4 +225,42 @@ func evsOf(ed protoreflect.EnumDescriptor) []EnumValue {
 		out = append(out, ev(recordpb.Spelling(v), means))
 	}
 	return out
+}
+
+// facetedEnums maps a declared set to the schema enum that carries its facets, so a fact
+// annotated on a proto value reaches the Go table that builds the help.
+//
+// ONE ENTRY TODAY, and the map rather than a special case because the next tool-written word
+// will be in some other vocabulary and the shape should already be there. A set absent from
+// here simply carries no facets — it is not an error, because most vocabularies have none.
+var facetedEnums = map[[2]string]protoreflect.EnumDescriptor{
+	{"log", "type"}: recordpb.LogType(0).Descriptor(),
+}
+
+// init stamps the facets onto the declared sets. DERIVED, NEVER TYPED: marking `estoppel`
+// tool-only by hand in the table beside a `(seat_may_file) = false` on the value would be two
+// copies of one fact, which is the defect this whole change removes rather than relocates.
+//
+// It PANICS on a set whose word the schema cannot resolve, for the reason MustEnum panics: this
+// runs at package init, so a table that has drifted from its enum fails at startup rather than
+// at the moment a seat reads the help and is told a word its write path refuses.
+func init() {
+	for key, ed := range facetedEnums {
+		field, ok := enum(key[0], key[1])
+		if !ok {
+			panic("record: facetedEnums names " + key[0] + "." + key[1] + ", which declares no set")
+		}
+		for i := range field.Values {
+			vd, ok := recordpb.BySpelling(ed, field.Values[i].Name)
+			if !ok {
+				panic("record: " + key[0] + "." + key[1] + " offers " + field.Values[i].Name +
+					", which " + string(ed.FullName()) + " cannot resolve")
+			}
+			may, declared, err := recordpb.Facet(vd, "seat_may_file")
+			if err != nil {
+				panic("record: " + err.Error())
+			}
+			field.Values[i].ToolOnly = declared && !may
+		}
+	}
 }

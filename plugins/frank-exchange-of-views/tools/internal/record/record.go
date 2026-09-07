@@ -924,6 +924,29 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 		if b.GetText() == "" {
 			return fmt.Errorf("record: a log entry requires --reason. A clean sitting is logged in the POSITIVE — the nominal type, with a sentence saying so — because an empty discharge cannot be told from a skipped one")
 		}
+		// A TOOL-ONLY WORD MUST CARRY THE TOOL AS ITS SOURCE (#782).
+		//
+		// This is the invariant, and it is here rather than in the CLI because the CLI's own
+		// enum set now excludes `estoppel` — so a check up there could never fire and would be
+		// a guard that reads as one without being one. Stated over (type, source) it holds for
+		// EVERY writer: the tool's estoppel write passes, and anything claiming a tool-written
+		// word under a seat's name is refused whatever path built it.
+		//
+		// `seat_may_file` is read off the schema, so a second tool-written word added later is
+		// covered by annotating the value — and the schema already refuses a facet declared on
+		// some of an enum's values and not others, so it cannot be added without an answer.
+		if lt := b.GetType(); lt != recordpb.LogType_LOG_TYPE_UNSPECIFIED {
+			may, declared, ferr := recordpb.SeatMayFile(lt)
+			if ferr != nil {
+				return ferr
+			}
+			if declared && !may && b.GetSource() != recordpb.LogSource_LOG_SOURCE_TOOL {
+				return fmt.Errorf("record: a `%s` log entry is the TOOL's own record of what it "+
+					"refused, so it cannot be filed under a seat's name — an entry claiming one "+
+					"would be a refusal that never happened, and the operator triage channel "+
+					"filters on this type", recordpb.Word(lt))
+			}
+		}
 	case *recordpb.Position:
 		if b.GetText() == "" {
 			return fmt.Errorf("record: %s requires --reason (an empty %s is a duty discharged by nothing, and it counts as discharged)", "position", "position")

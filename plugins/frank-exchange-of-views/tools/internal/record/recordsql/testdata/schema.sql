@@ -242,13 +242,14 @@ INSERT INTO "enum_avenue_status" ("value", "means") VALUES ('pursued', 'you took
 
 CREATE TABLE "enum_log_type" (
   "value" TEXT PRIMARY KEY,
-  "means" TEXT NOT NULL
+  "means" TEXT NOT NULL,
+  "seat_may_file" INTEGER NOT NULL CHECK ("seat_may_file" IN (0, 1))
 ) STRICT;
-INSERT INTO "enum_log_type" ("value", "means") VALUES ('defect', 'something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on');
-INSERT INTO "enum_log_type" ("value", "means") VALUES ('estoppel', 'the TOOL refused a mint because the defect lives in text blue applied verbatim from red''s own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit');
-INSERT INTO "enum_log_type" ("value", "means") VALUES ('friction', 'the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect');
-INSERT INTO "enum_log_type" ("value", "means") VALUES ('nominal', 'the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used');
-INSERT INTO "enum_log_type" ("value", "means") VALUES ('request', 'a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair');
+INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('defect', 'something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on', 1);
+INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('estoppel', 'the TOOL refused a mint because the defect lives in text blue applied verbatim from red''s own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit', 0);
+INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('friction', 'the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect', 1);
+INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('nominal', 'the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used', 1);
+INSERT INTO "enum_log_type" ("value", "means", "seat_may_file") VALUES ('request', 'a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair', 1);
 
 CREATE TABLE "enum_log_source" (
   "value" TEXT PRIMARY KEY,

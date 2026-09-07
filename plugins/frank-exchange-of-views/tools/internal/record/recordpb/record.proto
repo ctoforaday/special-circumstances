@@ -87,6 +87,22 @@ extend google.protobuf.EnumValueOptions {
   // seat into a role refusal and there was no verdict it could legally give.
   optional string ruled_by = 50004;
 
+  // seat_may_file IS WHETHER A SEAT MAY PUT THIS WORD ON THE RECORD, and it is on the value for
+  // the same reason `closes` and `ruled_by` are: a word cannot be added to the vocabulary without
+  // answering it, and the schema refuses a facet declared on some values and not others.
+  //
+  // The case that forced it: `log --type estoppel` MEANS "the tool refused a mint against text
+  // the other side prescribed", and its own `means` says "Recorded by the tool, not filed by the
+  // seat". The seat verb accepted it anyway and stamped source=SEAT, so a seat could record a
+  // refusal that never happened — and the generated help OFFERED the word alongside the four a
+  // seat should use, which is what made it likely rather than hypothetical (#782).
+  //
+  // NOT "who writes it", WHICH IS THE WRONG QUESTION. `defect` is written by seats AND by the
+  // tool when it fails internally (its `means` says so), so a writer name would have to pick one
+  // and would be wrong about the other. What the surface needs to know is narrower and answerable
+  // for every word: may a SEAT file this. `source` still records who actually did.
+  optional bool seat_may_file = 50006;
+
   // mass IS WHAT A GRADE WEIGHS, and it is on the value because the weight is a property of the
   // word rather than of whoever is multiplying it.
   //
@@ -1181,11 +1197,11 @@ enum LogSource {
 // message would have reverted that fix silently.
 enum LogType {
   LOG_TYPE_UNSPECIFIED = 0;
-  LOG_TYPE_NOMINAL = 1 [(means) = "the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used"];
-  LOG_TYPE_DEFECT = 2 [(means) = "something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on"];
-  LOG_TYPE_REQUEST = 3 [(means) = "a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair"];
-  LOG_TYPE_FRICTION = 4 [(means) = "the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect"];
-  LOG_TYPE_ESTOPPEL = 5 [(means) = "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit"];
+  LOG_TYPE_NOMINAL = 1 [(seat_may_file) = true, (means) = "the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used"];
+  LOG_TYPE_DEFECT = 2 [(seat_may_file) = true, (means) = "something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on"];
+  LOG_TYPE_REQUEST = 3 [(seat_may_file) = true, (means) = "a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair"];
+  LOG_TYPE_FRICTION = 4 [(seat_may_file) = true, (means) = "the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect"];
+  LOG_TYPE_ESTOPPEL = 5 [(seat_may_file) = false, (means) = "the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit"];
 }
 
 // Log is the channel addressed to the OPERATOR WHO CAN RETOOL THE SEAT — not to the debate. It

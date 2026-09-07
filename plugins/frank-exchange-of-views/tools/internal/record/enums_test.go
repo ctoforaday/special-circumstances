@@ -7,6 +7,7 @@ import (
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
@@ -165,7 +166,7 @@ func TestBothClosureSetsShareOneVocabulary(t *testing.T) {
 			}
 		}
 		if !found {
-			t.Errorf("red may close with %q but the bench cannot rule it — one outcome, two vocabularies again", v)
+			t.Errorf("red may close with %q but the bench cannot rule it — one outcome, two vocabularies again", v.Name)
 		}
 	}
 	// `carried` is the ONE word that defers instead of closing, and only the bench has it.
@@ -326,5 +327,97 @@ func TestArtifactStateSeparatesTheDisputeFromTheDefect(t *testing.T) {
 		if got, _ := ArtifactStateOf(name); got == ArtifactUnknown {
 			t.Errorf("closure class %q has no artifact meaning — decide it here, not at the read", name)
 		}
+	}
+}
+
+// A TOOL-WRITTEN LOG TYPE IS NOT ON THE SEAT'S SURFACE, AND CANNOT BE FILED UNDER A SEAT'S NAME.
+//
+// `estoppel` MEANS "the tool refused a mint against text the other side prescribed" — its own
+// `means` says "Recorded by the tool, not filed by the seat". The seat verb accepted it anyway
+// and stamped source=SEAT, so a seat could record a refusal that never happened; and the generated
+// help OFFERED the word beside the four a seat should use, which is what made it likely rather
+// than hypothetical (#782). A reader keying on `type` alone — which is what the operator triage
+// channel is documented to do — could not tell the two apart.
+//
+// THREE ARMS, because the fix has three surfaces and any one of them alone leaves the hole open:
+// the schema must carry the fact, the seat's word list must not offer it, and the write path must
+// refuse it under a seat's name while still admitting the tool's own.
+func TestAToolWrittenLogTypeIsOffTheSeatSurface(t *testing.T) {
+	// 1. THE SCHEMA CARRIES IT, and every value answers. A facet declared on some values and not
+	// others is refused at schema build, so this also pins that nobody added a word without an
+	// answer — the exact way `grade_adjusted` once acquired a closing meaning nobody chose.
+	vals := recordpb.LogType(0).Descriptor().Values()
+	for i := 0; i < vals.Len(); i++ {
+		lt := recordpb.LogType(vals.Get(i).Number())
+		if lt == recordpb.LogType_LOG_TYPE_UNSPECIFIED {
+			continue
+		}
+		may, declared, err := recordpb.SeatMayFile(lt)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !declared {
+			t.Errorf("log type %q does not say whether a seat may file it — defaulting that would "+
+				"answer on behalf of whoever added the word", recordpb.Word(lt))
+		}
+		if want := recordpb.Word(lt) != "estoppel"; may != want {
+			t.Errorf("log type %q: seat_may_file = %v, want %v", recordpb.Word(lt), may, want)
+		}
+	}
+
+	// 2. THE SEAT'S WORD LIST OMITS IT — and still carries the four, which is the anti-vacuity
+	// half: a list that narrowed to nothing would satisfy the omission check and break the verb.
+	words := SeatLogTypeWords()
+	for _, w := range []string{"nominal", "defect", "request", "friction"} {
+		if !slices.Contains(words, w) {
+			t.Errorf("a seat may file %q and the surface does not offer it: %v", w, words)
+		}
+	}
+	if slices.Contains(words, "estoppel") {
+		t.Errorf("the seat surface offers `estoppel`, which only the tool writes: %v", words)
+	}
+	// The narrowed EnumField the help is built from agrees with the word list.
+	var help []string
+	for _, v := range SeatLogTypeEnum().Values {
+		help = append(help, v.Name)
+	}
+	if !slices.Equal(help, words) {
+		t.Errorf("the help's enum set and the refusal's word list disagree: help=%v words=%v", help, words)
+	}
+	// And the FULL vocabulary still carries estoppel — this narrows the seat's surface, not the
+	// record's. The vocabulary table and every reader still know the word.
+	if !slices.Contains(LogTypeWords(), "estoppel") {
+		t.Error("narrowing the seat surface removed `estoppel` from the record's vocabulary — the " +
+			"tool still writes it and every reader still has to resolve it")
+	}
+}
+
+// AND THE WRITE PATH HOLDS THE INVARIANT FOR EVERY WRITER, which is where it belongs: the CLI's
+// own enum set already refuses the word at flag parse, so a check there could never fire.
+func TestAToolOnlyLogTypeIsRefusedUnderASeatsName(t *testing.T) {
+	run := mustRun(t, newRun(t))
+	id := Identity{Run: run, SeatID: "red-merge-r1", Round: 1}
+	est := recordpb.LogType_LOG_TYPE_ESTOPPEL
+	seat, tool := recordpb.LogSource_LOG_SOURCE_SEAT, recordpb.LogSource_LOG_SOURCE_TOOL
+
+	if _, err := Append(id, &recordpb.Log{
+		Text: proto.String("a refusal that never happened"), Type: &est, Source: &seat,
+	}); err == nil {
+		t.Error("a seat filed an `estoppel` entry — it can now claim the tool refused a mint it never refused")
+	}
+	// THE TOOL'S OWN WRITE STILL PASSES. Without this the fix could be a blanket ban on the word,
+	// which would delete the estoppel guard's only record rather than protect it.
+	if _, err := Append(id, &recordpb.Log{
+		Text: proto.String("merge mint: estoppel — this quotes text you prescribed"),
+		Type: &est, Source: &tool, EstoppedBy: proto.String("R1-1"),
+	}); err != nil {
+		t.Errorf("the TOOL's own estoppel record was refused: %v", err)
+	}
+	// A seat-filable word under a seat's name is untouched.
+	nom := recordpb.LogType_LOG_TYPE_NOMINAL
+	if _, err := Append(id, &recordpb.Log{
+		Text: proto.String("nothing blocked me"), Type: &nom, Source: &seat,
+	}); err != nil {
+		t.Errorf("an ordinary seat log was refused: %v", err)
 	}
 }

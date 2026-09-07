@@ -226,6 +226,11 @@ func (r *runner) maybe(pct int, fn func()) {
 	}
 }
 
+// applyTurn alternates the two verbatim-apply arms ACROSS THE WHOLE SWEEP. Package-level and
+// atomic because runs execute in parallel goroutines and each reaches the apply branch only
+// about once — a per-run counter never reaches its second turn. See its use for the measurement.
+var applyTurn atomic.Int64
+
 // inquiryIDOf pulls the tool-assigned line-of-inquiry id out of a propose result.
 func inquiryIDOf(out string) string {
 	m := inquiryIDPat.FindStringSubmatch(out)
@@ -3670,8 +3675,24 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 					// Both arms stay. They are different write paths: `--accept` is refused when
 					// red prescribed no concrete text, and the explicit arm is what a seat uses
 					// when it is applying something red did NOT prescribe verbatim.
+					// ALTERNATING, NOT A COIN — and the difference is a gate that flakes.
+					//
+					// This was `r.coin(50)` on a branch that is itself rare: the apply path needs
+					// a dirApply scenario, a gap carrying a concrete proposal, and the proposed
+					// span still in the report. Measured across sweeps it reaches here 8-13 times
+					// in 40 runs, so a 50% coin on top has a real chance of never choosing one
+					// arm — and it did, reporting `blue edit --accept` as never passed on an
+					// honest sweep. That is the surfaceQuorum problem one layer down: the gate
+					// asserts full coverage, so a low-frequency drive must not be probabilistic.
+					//
+					// ACROSS THE SWEEP, NOT WITHIN A RUN — and the first attempt got that wrong.
+					// A per-runner counter alternates nothing when the branch fires about once
+					// per run: every run took turn 1 and chose the same arm, so `--accept` was
+					// still never passed. The coverage gate is a property of the SWEEP, so the
+					// thing that guarantees both arms has to be too.
+					useAccept := applyTurn.Add(1)%2 == 0
 					edit := r.do("edit", seatID).set("--answers", id)
-					if r.coin(50) {
+					if useAccept {
 						edit = edit.bare("--accept").
 							set("--reason", "fuzz: accepting red's prescribed fix on "+id+" exactly as recorded")
 					} else {

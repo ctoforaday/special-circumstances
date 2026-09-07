@@ -112,8 +112,13 @@ func Log() *cobra.Command {
 		}
 		lt, known := record.LogTypeOf(word)
 		if !known || lt == recordpb.LogType_LOG_TYPE_UNSPECIFIED {
-			return nil, fmt.Errorf("record: %q is not a log type this record can carry (%s)", word, strings.Join(record.LogTypeWords(), " | "))
+			return nil, fmt.Errorf("record: %q is not a log type this record can carry (%s)", word, strings.Join(record.SeatLogTypeWords(), " | "))
 		}
+		// NO SEAT-SIDE FACET CHECK HERE, and its absence is the design. The --type flag's own
+		// enum set is SeatLogTypeEnum, so a tool-only word is refused at flag parse with the
+		// four a seat may file listed; a second check in this closure could never fire. The
+		// invariant that holds for every writer — a tool-only word carries source=TOOL — lives
+		// at the record's write path, where the tool's own estoppel write passes it too.
 		src := recordpb.LogSource_LOG_SOURCE_SEAT
 		if _, err := record.Append(s.Identity(), &recordpb.Log{
 			Text:   proto.String(text),
@@ -124,7 +129,10 @@ func Log() *cobra.Command {
 		}
 		return Msg{Message: "log entry recorded: " + recordpb.Word(lt)}, nil
 	}))
-	enumhelp.Flag(c, flags.Type, record.MustEnum("log", "type"),
+	// THE HELP OFFERS WHAT THE WRITE PATH ACCEPTS, and it used to offer one word more. A surface
+	// that lists a value its own verb refuses is lying about its contract, and this is the page a
+	// seat reads to choose.
+	enumhelp.Flag(c, flags.Type, record.SeatLogTypeEnum(),
 		"REQUIRED — what this entry asserts. `nominal` is the clean sitting said in the positive; "+
 			"`friction` is an impediment you are NOTING and which may be neither actionable nor advisable to change")
 	return c

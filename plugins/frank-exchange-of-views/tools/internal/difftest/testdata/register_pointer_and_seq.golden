@@ -62,7 +62,6 @@ Enumerated values:
     defect    something is broken: it did the wrong thing, or failed where it should have worked
     request   a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong
     friction  the work was impeded and you are NOTING it; NOT necessarily actionable and not necessarily advisable to change, which is why it has its own word rather than posing as a defect
-    estoppel  the TOOL refused a mint against text the other side prescribed — recorded by the tool, not filed by a seat
 
 Global Flags:
       --json               emit a structured JSON result (and structured errors) instead of human text

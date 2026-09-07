@@ -5972,6 +5972,14 @@ var file_record_proto_extTypes = []protoimpl.ExtensionInfo{
 	},
 	{
 		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
+		ExtensionType: (*bool)(nil),
+		Field:         50006,
+		Name:          "feov.record.v1.seat_may_file",
+		Tag:           "varint,50006,opt,name=seat_may_file",
+		Filename:      "record.proto",
+	},
+	{
+		ExtendedType:  (*descriptorpb.EnumValueOptions)(nil),
 		ExtensionType: (*float64)(nil),
 		Field:         50005,
 		Name:          "feov.record.v1.mass",
@@ -6024,6 +6032,23 @@ var (
 	//
 	// optional string ruled_by = 50004;
 	E_RuledBy = &file_record_proto_extTypes[3]
+	// seat_may_file IS WHETHER A SEAT MAY PUT THIS WORD ON THE RECORD, and it is on the value for
+	// the same reason `closes` and `ruled_by` are: a word cannot be added to the vocabulary without
+	// answering it, and the schema refuses a facet declared on some values and not others.
+	//
+	// The case that forced it: `log --type estoppel` MEANS "the tool refused a mint against text
+	// the other side prescribed", and its own `means` says "Recorded by the tool, not filed by the
+	// seat". The seat verb accepted it anyway and stamped source=SEAT, so a seat could record a
+	// refusal that never happened — and the generated help OFFERED the word alongside the four a
+	// seat should use, which is what made it likely rather than hypothetical (#782).
+	//
+	// NOT "who writes it", WHICH IS THE WRONG QUESTION. `defect` is written by seats AND by the
+	// tool when it fails internally (its `means` says so), so a writer name would have to pick one
+	// and would be wrong about the other. What the surface needs to know is narrower and answerable
+	// for every word: may a SEAT file this. `source` still records who actually did.
+	//
+	// optional bool seat_may_file = 50006;
+	E_SeatMayFile = &file_record_proto_extTypes[4]
 	// mass IS WHAT A GRADE WEIGHS, and it is on the value because the weight is a property of the
 	// word rather than of whoever is multiplying it.
 	//
@@ -6042,13 +6067,13 @@ var (
 	// weight, not an absent one, which is exactly why the column is NOT NULL.
 	//
 	// optional double mass = 50005;
-	E_Mass = &file_record_proto_extTypes[4]
+	E_Mass = &file_record_proto_extTypes[5]
 )
 
 // Extension fields to descriptorpb.MessageOptions.
 var (
 	// repeated feov.record.v1.SqlCheck check = 50002;
-	E_Check = &file_record_proto_extTypes[5]
+	E_Check = &file_record_proto_extTypes[6]
 )
 
 var File_record_proto protoreflect.FileDescriptor
@@ -6792,14 +6817,14 @@ const file_record_proto_rawDesc = "" +
 	"\tLogSource\x12\x1a\n" +
 	"\x16LOG_SOURCE_UNSPECIFIED\x10\x00\x12@\n" +
 	"\x0fLOG_SOURCE_SEAT\x10\x01\x1a+\x8a\xb5\x18'a seat filed this about its own sitting\x12S\n" +
-	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\x87\t\n" +
+	"\x0fLOG_SOURCE_TOOL\x10\x02\x1a>\x8a\xb5\x18:the tool emitted this itself, rather than a seat filing it*\x9b\t\n" +
 	"\aLogType\x12\x18\n" +
-	"\x14LOG_TYPE_UNSPECIFIED\x10\x00\x12\xc3\x01\n" +
-	"\x10LOG_TYPE_NOMINAL\x10\x01\x1a\xac\x01\x8a\xb5\x18\xa7\x01the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used\x12\xeb\x01\n" +
-	"\x0fLOG_TYPE_DEFECT\x10\x02\x1a\xd5\x01\x8a\xb5\x18\xd0\x01something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on\x12\xcb\x01\n" +
-	"\x10LOG_TYPE_REQUEST\x10\x03\x1a\xb4\x01\x8a\xb5\x18\xaf\x01a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair\x12\xd7\x01\n" +
-	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\xbf\x01\x8a\xb5\x18\xba\x01the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect\x12\x85\x02\n" +
-	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xed\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit*\x96\x03\n" +
+	"\x14LOG_TYPE_UNSPECIFIED\x10\x00\x12\xc7\x01\n" +
+	"\x10LOG_TYPE_NOMINAL\x10\x01\x1a\xb0\x01\x8a\xb5\x18\xa7\x01the surface met the work — the sitting is clean, said in the positive. An entry exists, so an attested-clean sitting stays distinguishable from a channel nobody used\xb0\xb5\x18\x01\x12\xef\x01\n" +
+	"\x0fLOG_TYPE_DEFECT\x10\x02\x1a\xd9\x01\x8a\xb5\x18\xd0\x01something is broken: it did the wrong thing, or failed where it should have worked. A tool that fails INTERNALLY records this too, as (TOOL, DEFECT) — an error nobody learns about is one nothing improves on\xb0\xb5\x18\x01\x12\xcf\x01\n" +
+	"\x10LOG_TYPE_REQUEST\x10\x03\x1a\xb8\x01\x8a\xb5\x18\xaf\x01a capability that does not exist — the act you wanted was on no surface, so there was nothing to get wrong. Distinct from a defect because the fix is to build, not to repair\xb0\xb5\x18\x01\x12\xdb\x01\n" +
+	"\x11LOG_TYPE_FRICTION\x10\x04\x1a\xc3\x01\x8a\xb5\x18\xba\x01the work was impeded and you are noting it; NOT necessarily actionable and not necessarily advisable to change. The honest home for an entry that would otherwise have to pose as a defect\xb0\xb5\x18\x01\x12\x89\x02\n" +
+	"\x11LOG_TYPE_ESTOPPEL\x10\x05\x1a\xf1\x01\x8a\xb5\x18\xe8\x01the TOOL refused a mint because the defect lives in text blue applied verbatim from red's own --fix-new. Recorded by the tool, not filed by the seat: argue it on the original gap, or mint with --supersedes so the lineage is explicit\xb0\xb5\x18\x00*\x96\x03\n" +
 	"\x0eGradeDimension\x12\x1f\n" +
 	"\x1bGRADE_DIMENSION_UNSPECIFIED\x10\x00\x12;\n" +
 	"\x18GRADE_DIMENSION_SEVERITY\x10\x01\x1a\x1d\x8a\xb5\x18\x19how bad it is if it bites\x12\x86\x01\n" +
@@ -6820,7 +6845,8 @@ const file_record_proto_rawDesc = "" +
 	"\x03sql\x12\x1d.google.protobuf.FieldOptions\x18І\x03 \x01(\v2\x13.feov.record.v1.SqlR\x03sql\x88\x01\x01:<\n" +
 	"\x05means\x12!.google.protobuf.EnumValueOptions\x18ц\x03 \x01(\tR\x05means\x88\x01\x01:>\n" +
 	"\x06closes\x12!.google.protobuf.EnumValueOptions\x18ӆ\x03 \x01(\bR\x06closes\x88\x01\x01:A\n" +
-	"\bruled_by\x12!.google.protobuf.EnumValueOptions\x18Ԇ\x03 \x01(\tR\aruledBy\x88\x01\x01::\n" +
+	"\bruled_by\x12!.google.protobuf.EnumValueOptions\x18Ԇ\x03 \x01(\tR\aruledBy\x88\x01\x01:J\n" +
+	"\rseat_may_file\x12!.google.protobuf.EnumValueOptions\x18ֆ\x03 \x01(\bR\vseatMayFile\x88\x01\x01::\n" +
 	"\x04mass\x12!.google.protobuf.EnumValueOptions\x18Ն\x03 \x01(\x01R\x04mass\x88\x01\x01:Q\n" +
 	"\x05check\x12\x1f.google.protobuf.MessageOptions\x18҆\x03 \x03(\v2\x18.feov.record.v1.SqlCheckR\x05checkBlZjgithub.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpbb\x06proto3"
 
@@ -6997,14 +7023,15 @@ var file_record_proto_depIdxs = []int32{
 	69, // 82: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions
 	69, // 83: feov.record.v1.closes:extendee -> google.protobuf.EnumValueOptions
 	69, // 84: feov.record.v1.ruled_by:extendee -> google.protobuf.EnumValueOptions
-	69, // 85: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
-	70, // 86: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
-	22, // 87: feov.record.v1.sql:type_name -> feov.record.v1.Sql
-	21, // 88: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
-	89, // [89:89] is the sub-list for method output_type
-	89, // [89:89] is the sub-list for method input_type
-	87, // [87:89] is the sub-list for extension type_name
-	81, // [81:87] is the sub-list for extension extendee
+	69, // 85: feov.record.v1.seat_may_file:extendee -> google.protobuf.EnumValueOptions
+	69, // 86: feov.record.v1.mass:extendee -> google.protobuf.EnumValueOptions
+	70, // 87: feov.record.v1.check:extendee -> google.protobuf.MessageOptions
+	22, // 88: feov.record.v1.sql:type_name -> feov.record.v1.Sql
+	21, // 89: feov.record.v1.check:type_name -> feov.record.v1.SqlCheck
+	90, // [90:90] is the sub-list for method output_type
+	90, // [90:90] is the sub-list for method input_type
+	88, // [88:90] is the sub-list for extension type_name
+	81, // [81:88] is the sub-list for extension extendee
 	0,  // [0:81] is the sub-list for field type_name
 }
 
@@ -7110,7 +7137,7 @@ func file_record_proto_init() {
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_record_proto_rawDesc), len(file_record_proto_rawDesc)),
 			NumEnums:      21,
 			NumMessages:   47,
-			NumExtensions: 6,
+			NumExtensions: 7,
 			NumServices:   0,
 		},
 		GoTypes:           file_record_proto_goTypes,

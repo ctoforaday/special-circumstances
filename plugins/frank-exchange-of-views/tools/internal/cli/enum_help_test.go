@@ -222,10 +222,25 @@ func TestEverySetShapedFlagIsEitherDeclaredOrExempt(t *testing.T) {
 			// each get their own line WITH A MEANING carries the set better and matched
 			// nothing. Requiring the values themselves is what was always meant, and it holds
 			// for both renderings.
+			// THE SEAT'S SET, NOT THE RECORD'S. A word the record can carry but a seat may not
+			// FILE is absent from this help on purpose — `log --type estoppel` is the tool's own
+			// record of a mint it refused (#782) — and requiring it here would demand the surface
+			// offer a value its own write path rejects, which is the lie this test exists to
+			// catch, inverted. ToolOnly is derived from the schema facet, so this is still the
+			// declared set asking itself a question rather than a second list.
 			var absent []string
-			for _, v := range record.Names(e.Values) {
+			for _, v := range record.Names(record.SeatFilable(e.Values)) {
 				if !strings.Contains(usage, v) {
 					absent = append(absent, v)
+				}
+			}
+			// AND THE OTHER DIRECTION, which is the half that keeps the narrowing honest: a
+			// tool-only word must NOT appear. Without this, dropping the facet would put the
+			// word back in the help and nothing here would notice.
+			for _, v := range e.Values {
+				if v.ToolOnly && strings.Contains(usage, v.Name) {
+					t.Errorf("%s help offers %q, which only the TOOL writes — a seat reading this "+
+						"page is being shown a word its own write path refuses", site, v.Name)
 				}
 			}
 			if len(absent) > 0 {

@@ -29,8 +29,9 @@ import (
 // registry, the partly-annotated refusal, and the column-name rule, and differ only in the Go type
 // a reader gets back.
 var facets = map[string]protoreflect.ExtensionType{
-	"closes": E_Closes,
-	"mass":   E_Mass,
+	"closes":        E_Closes,
+	"mass":          E_Mass,
+	"seat_may_file": E_SeatMayFile,
 }
 
 // numericFacets are the facets whose values are numbers rather than flags. The schema generator
