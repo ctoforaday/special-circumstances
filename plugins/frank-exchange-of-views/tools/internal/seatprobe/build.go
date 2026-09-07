@@ -2,6 +2,9 @@ package seatprobe
 
 import (
 	"fmt"
+	"io"
+	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -228,17 +231,49 @@ func Build(run record.Run, b Board, exec Exec) error {
 		}
 	}
 
-	for i, claim := range b.Claims {
+	if len(b.Claims) > 0 {
 		// A REACHABLE url, because `cite` FETCHES and caches. An unreachable one is refused and
 		// logged as friction, which is correct behaviour and useless here.
-		if _, err := exec("cite", "--run", run.Dir(), "--seat-id", "blue-respond-r1",
-			"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
-			"--title", "the pinned source", "--url", "https://example.com/",
-			"--reason", "the source this claim rests on"); err != nil {
-			return fmt.Errorf("cite %d (%q): %w — the board declares this claim and its expectations are about acting on it; building without it would produce a board whose demands cannot be met", i+1, claim, err)
+		//
+		// SO THE BOARD SERVES ITS OWN SOURCE. This was https://example.com/, which made every
+		// probe run — and the CI gate that builds these boards — depend on a third party being
+		// up AND reachable from wherever the run happens. Both halves failed: the nightly went
+		// red twice on `context deadline exceeded` against it (2026-09-05, 2026-09-06), and
+		// this repository already documents an egress proxy answering 403 for hosts outside
+		// its allowlist, which degrades a probe run the same way while looking like a seat
+		// fault. `cite` needs the url to be real; nothing needs it to be somebody else's.
+		src, stop, serr := serveSource()
+		if serr != nil {
+			return fmt.Errorf("serving the source the claims cite: %w", serr)
+		}
+		defer stop()
+
+		for i, claim := range b.Claims {
+			if _, err := exec("cite", "--run", run.Dir(), "--seat-id", "blue-respond-r1",
+				"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
+				"--title", "the pinned source", "--url", src,
+				"--reason", "the source this claim rests on"); err != nil {
+				return fmt.Errorf("cite %d (%q): %w — the board declares this claim and its expectations are about acting on it; building without it would produce a board whose demands cannot be met", i+1, claim, err)
+			}
 		}
 	}
 	return nil
+}
+
+// serveSource publishes the one document the cite steps fetch, on loopback, for as long as
+// the build runs. The fetch is real — the cache entry it leaves is what the built board's
+// later verbs read — and it reaches nothing outside this machine.
+func serveSource() (url string, stop func(), err error) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return "", nil, err
+	}
+	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = io.WriteString(w, "the pinned source\n\nthe sentence this claim rests on\n")
+	})}
+	go func() { _ = srv.Serve(ln) }()
+	return "http://" + ln.Addr().String() + "/", func() { _ = srv.Close() }, nil
 }
 
 // rulingReason is the ruler's argument, and it refuses to invent one.
