@@ -19,6 +19,59 @@
 > Split out of `plans/historical/red-citations.md` §V.7, which was filed as historical while this
 > half was still being implemented from.
 
+## 0. The last measurements, and the one finding that outlived the tool
+
+Recorded because they were paid for and because §I onwards describes an instrument whose numbers
+they qualify. Two full sweeps were run on 2026-09-06, the day before the decision:
+
+| module | mutants | survivors | killed | defects found |
+|---|---|---|---|---|
+| `prosthetic-conscience/tools` | 562 behavioural | 66 | 88% | 0 |
+| `gray-area/tools` | 285 behavioural | 70 | 75% | 1 (below) |
+
+### A survivor did not mean what this plan reads it as meaning
+
+§III's cost model and §IV's guidance on reading a survivor count both assume a survivor is a
+mutant no test kills. **It is not.** A mutant was tried against its OWN package, so a survivor
+meant *survived its own package* — and `-confirm`, the wide stage that answers the real question,
+cost ~8 minutes each.
+
+The demonstration is the worst-looking survivor of the prosthetic-conscience sweep:
+`internal/hookunit/hookunit.go:71`, `c.Parsed = json.Unmarshal(raw, &in) == nil`. Its only reader
+is `internal/secretsgate`'s fail-closed switch, so inverting it stops an unparseable payload being
+scanned — the #211 bypass, on the one gate `agent-guardrails` exists for. Read off the survivor
+list it is the most alarming result in either sweep. It is **killed**, by
+`TestMalformedPayloadIsScannedNotWavedThrough`, one package over.
+
+Fifteen of the sixteen packages holding survivors in that module have importers, so most of that
+list is the same artifact. Buying a true list would have cost ~9 hours for the smallest of the
+three modules — and the release gate reconciled against the un-confirmed one, so the explanations
+it demanded would mostly have been false. That is the allowlist-wearing-a-schema failure the
+explaining was introduced to prevent, reproduced inside the mechanism meant to prevent it.
+
+**This is a defect in THIS instrument, not in mutation testing.** gremlins selects tests from
+coverage profiles rather than by package and does not have it; the argument above says our numbers
+were untrustworthy, not that the technique is. The case against continuing is the one in the
+status block — cost, and an acceptance obligation the state of the art does not have.
+
+### The operator set could not reach the defect that justified the tool
+
+`internal/secrets` at 100% of statements with two of eight patterns deletable is a **deletion**
+finding, and the operator set was six flips — `&&`/`||`, `==`/`!=`, `>=`→`>`, `<=`→`<`. Nothing in
+it removes a row from a table. For its whole life the tool could not rediscover its own motivating
+case.
+
+A deletion operator for one row of a composite literal was written on the last day, and produced
+the only real finding of the exercise on its first run: **ten fields of `gray-area`'s capture
+manifest row can be deleted with the suite green** — `SessionID`, `TranscriptPath`, `CapturedAt`,
+`PromptID`, `StopHookActive`, `Effort` among them. Tracked as
+[#797](https://github.com/ctoforaday/special-circumstances/issues/797); one round-trip assertion
+closes the whole list.
+
+That is the shape worth keeping by hand. This repository is largely built from tables — pattern
+tables, rule tables, seat rosters, dispatch tables — and a row nothing misses is a row nothing
+depends on.
+
 ## I. Summary & goals
 
 Coverage says a line RAN. It cannot say a test would have NOTICED had the line been wrong —
