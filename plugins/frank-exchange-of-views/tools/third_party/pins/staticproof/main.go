@@ -84,7 +84,7 @@ func checkPE(path string, f *pe.File) {
 	}
 	var bad []string
 	for lib := range libs {
-		if lib != "kernel32.dll" && !strings.HasPrefix(lib, "api-ms-win-crt-") {
+		if !peLibAllowed(lib) {
 			bad = append(bad, lib)
 		}
 	}
@@ -94,19 +94,35 @@ func checkPE(path string, f *pe.File) {
 	fmt.Printf("%s: PE, imports only KERNEL32 + UCRT api-sets (%d libraries)\n", path, len(libs))
 }
 
+// peLibAllowed and machOLibAllowed are the two ALLOWLISTS, lifted out of their readers so
+// they can be tested without a binary to read. They are the whole contract this tool
+// enforces over every published artifact, and both fail silently in the dangerous
+// direction: inverted, a forbidden import PASSES and the release ships a binary that
+// needs libraries the target may not have. Nothing else in this program can notice that,
+// because a green run and an unchecked run print the same line.
+func peLibAllowed(lib string) bool {
+	return lib == "kernel32.dll" || strings.HasPrefix(lib, "api-ms-win-crt-")
+}
+
+// The Mach-O side is an exact set: darwin cannot be fully static (no static libSystem),
+// so the contract is "nothing beyond what every Mac provides" — libSystem plus the two
+// the Go runtime links for resolver and CoreFoundation symbols.
+var machOAllowed = map[string]bool{
+	"/usr/lib/libSystem.B.dylib": true,
+	"/usr/lib/libresolv.9.dylib": true,
+	"/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation": true,
+}
+
+func machOLibAllowed(lib string) bool { return machOAllowed[lib] }
+
 func checkMachO(path string, f *macho.File) {
-	allowed := map[string]bool{
-		"/usr/lib/libSystem.B.dylib": true,
-		"/usr/lib/libresolv.9.dylib": true,
-		"/System/Library/Frameworks/CoreFoundation.framework/Versions/A/CoreFoundation": true,
-	}
 	libs, err := f.ImportedLibraries()
 	if err != nil {
 		fail("%s: reading Mach-O load commands: %v", path, err)
 	}
 	var bad []string
 	for _, lib := range libs {
-		if !allowed[lib] {
+		if !machOLibAllowed(lib) {
 			bad = append(bad, lib)
 		}
 	}
