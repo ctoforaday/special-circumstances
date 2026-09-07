@@ -506,11 +506,11 @@ func (r *runner) g() string { return grades[r.rng.Intn(len(grades))] }
 // currentGrade reads the gap's grade at one axis, in the words a seat types. Empty when the board
 // cannot be read or the axis is unknown — the caller treats that as "no constraint".
 func (r *runner) currentGrade(gapID, dim string) string {
-	b, err := record.BoardState(r.run())
+	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return ""
 	}
-	g := b.Gaps[gapID]
+	g := b.Gap(gapID)
 	if g == nil {
 		return ""
 	}
@@ -554,8 +554,8 @@ var verifyConfidence = []string{"high", "medium", "low"}
 func (r *runner) someCitation() string {
 	// A SEAT ID, because `show` only exists inside a seat's tree. Any seat reads the same
 	// projection; the lens is the one that acts on citations.
-	b := r.board()
-	if b == nil {
+	b, ok := r.board()
+	if !ok {
 		return ""
 	}
 	sources := record.EvidenceJSONOf(b.Events).Sources
@@ -789,21 +789,18 @@ func (r *runner) someFinding() string {
 // EvidenceJSONOf and FindingsJSONOf are the exact functions the CLI marshals, so the lists below
 // hold the same elements in the same order the parsed stdout did — and these feed rng.Intn, where
 // a reordering would silently move every downstream draw.
-func (r *runner) board() *record.Board {
-	b, err := record.BoardState(r.runHandle)
-	if err != nil {
-		return nil
-	}
-	return b
+func (r *runner) board() (record.Family, bool) {
+	b, err := record.FamilyOf(r.runHandle)
+	return b, err == nil
 }
 
 func (r *runner) openGaps() []string {
-	b := r.board()
-	if b == nil {
+	bj, err := record.BoardJSONOfRun(r.runHandle)
+	if err != nil {
 		return nil
 	}
 	var ids []string
-	for _, g := range record.BoardJSONOf(b).Open {
+	for _, g := range bj.Open {
 		ids = append(ids, g.ID)
 	}
 	return ids
@@ -2296,7 +2293,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// IGNORE is the sharpest: if --answers stopped recording provenance, an ignored gap and a
 	// repaired one would look identical — and that join is what #267's whole measurement axis
 	// is built on.
-	if board, err := record.BoardState(runtest.Open(t, runDir)); err == nil {
+	if board, err := record.FamilyOf(runtest.Open(t, runDir)); err == nil {
 		answered, disputed, proved := map[string]bool{}, map[string]bool{}, map[string]bool{}
 		// THE SWITCH IS ON THE BODY, not on a type string beside it. Each arm reaches straight for
 		// a field, so binding the message and the type in one step removes the pair that could
@@ -2322,8 +2319,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 				}
 			}
 		}
-		for _, id := range board.GapOrder {
-			g := board.Gaps[id]
+		for _, g := range board.Gaps {
+			id := g.ID
 			// Only gaps a responder was SHOWN can be judged: one minted in the terminal round
 			// never reaches blue, so its scenario was never dispatched.
 			if g == nil || g.Mint == nil || !r.presented[id] {
@@ -2384,7 +2381,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// count silently (measured on a real run; see #344). It is `motion direction appeal` now: its
 	// own event, with its own reason, filed against the ruling and independent of what the line's
 	// status does next.
-	if board, err := record.BoardState(runtest.Open(t, runDir)); err == nil {
+	if board, err := record.FamilyOf(runtest.Open(t, runDir)); err == nil {
 		contests := map[string]string{}
 		// THE PRE-#344 ARM IS GONE. It read a `line-of-inquiry` event carrying `contests_ruling`,
 		// kept because "a stored record carries it and the oracle runs against replayed records as
@@ -2396,7 +2393,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 				contests[a.GetMotionId()] = "appealed"
 			}
 		}
-		for _, a := range record.Inquiries(board) {
+		for _, a := range record.InquiriesOf(board.Events) {
 			ruling := record.InquiryRuling(runtest.Open(t, runDir), a.ID)
 			if ruling == "" || a.Status == "proposed" {
 				continue // never ruled, or blue has not answered yet
@@ -2429,7 +2426,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// `asserted` retire means either the fake regressed to phantom retirements or the
 	// edit-tracking that evidences them broke. A phantom retire cancels real claim loss in the
 	// scorecard's additive-integrity detector, so it must not pass unnoticed here either.
-	if board, err := record.BoardState(runtest.Open(t, runDir)); err == nil {
+	if board, err := record.FamilyOf(runtest.Open(t, runDir)); err == nil {
 		for _, e := range board.Events {
 			r, ok := recordpb.BodyAs[*recordpb.Retire](e)
 			if ok && r.GetRemovalBasis() != record.RemovalVerified {
@@ -2456,7 +2453,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	//
 	// An asserted verdict with `ended: deadlock` is the sanctioned case and passes. An asserted
 	// verdict WITHOUT one still means the derivation stopped working, and still fails here.
-	if board, err := record.BoardState(runtest.Open(t, runDir)); err == nil {
+	if board, err := record.FamilyOf(runtest.Open(t, runDir)); err == nil {
 		for _, e := range board.Events {
 			o, ok := recordpb.BodyAs[*recordpb.Outcome](e)
 			if !ok {
@@ -2496,10 +2493,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// board with open gaps and nothing anywhere would notice. The assembler is now told the
 	// verdict the way a real seat is (debate.js states it in the prompt), which makes the
 	// agreement between outcome and board checkable for the first time.
-	if board, err := record.BoardState(runtest.Open(t, runDir)); err == nil {
+	if board, err := record.FamilyOf(runtest.Open(t, runDir)); err == nil {
 		openCount := 0
-		for _, id := range board.GapOrder {
-			if g := board.Gaps[id]; g != nil && g.Open {
+		for _, gOrd := range board.Gaps {
+			id := gOrd.ID
+			if g := board.Gap(id); g != nil && g.Open {
 				openCount++
 			}
 		}
@@ -2526,10 +2524,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 		// So the check is only sound over gaps RED closed. A non-passing verdict whose board
 		// was cleaned entirely by the bench is correct; one whose board red itself emptied is
 		// the contradiction worth catching.
-		if recorded != "" && recorded != "VERIFIED" && recorded != "HALTED" && openCount == 0 && len(board.GapOrder) > 0 {
+		if recorded != "" && recorded != "VERIFIED" && recorded != "HALTED" && openCount == 0 && len(board.Gaps) > 0 {
 			benchClosed := 0
-			for _, id := range board.GapOrder {
-				if g := board.Gaps[id]; g != nil && g.ClosedByBench {
+			for _, gOrd := range board.Gaps {
+				id := gOrd.ID
+				if g := board.Gap(id); g != nil && g.ClosedByBench {
 					benchClosed++
 				}
 			}
@@ -2544,7 +2543,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified bool)
 	// class (prose written under one key, read under another) is invisible to verify but caught
 	// here, on every run.
 	// One replay of the record serves both remaining oracles (prose + coverage tally).
-	board, berr := record.BoardState(runtest.Open(t, runDir))
+	board, berr := record.FamilyOf(runtest.Open(t, runDir))
 	if berr != nil {
 		res.err = "board: " + berr.Error()
 		return res
@@ -2737,7 +2736,7 @@ func TestFuzzHaltPath(t *testing.T) {
 	if h, _ := result["halted"].(bool); !h {
 		t.Fatal("forceHalt run did not end halted — the judicial-halt terminal path is unexercised")
 	}
-	board, err := record.BoardState(runtest.Open(t, runDir))
+	board, err := record.FamilyOf(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatalf("board: %v", err)
 	}
@@ -2756,7 +2755,7 @@ func TestFuzzHaltPath(t *testing.T) {
 }
 
 // tallyDialectic counts the events that prove the fuzz exercised the paths it claims to.
-func tallyDialectic(board *record.Board) map[string]int {
+func tallyDialectic(board record.Family) map[string]int {
 	want := map[string]bool{}
 	for _, v := range verbsWithEvents {
 		want[v] = true
@@ -2882,7 +2881,7 @@ var basisFields = []struct{ evType, key, value, want string }{
 	{"proof", "proof_basis", "observed", "observed"},
 }
 
-func basisRenders(t *testing.T, board *record.Board, runDir string) string {
+func basisRenders(t *testing.T, board record.Family, runDir string) string {
 	rpt, err := assembledSet(runDir)
 	if err != nil {
 		return err.Error()
@@ -2918,8 +2917,8 @@ func basisRenders(t *testing.T, board *record.Board, runDir string) string {
 	return ""
 }
 
-func gapIsOpen(board *record.Board, id string) bool {
-	g := board.Gaps[id]
+func gapIsOpen(board record.Family, id string) bool {
+	g := board.Gap(id)
 	return g != nil && g.Open
 }
 
@@ -2945,7 +2944,7 @@ func assembledSet(runDir string) (string, error) {
 	return b.String(), nil
 }
 
-func proseRenders(t *testing.T, board *record.Board, runDir string) string {
+func proseRenders(t *testing.T, board record.Family, runDir string) string {
 	rpt, err := assembledSet(runDir)
 	if err != nil {
 		return err.Error()
@@ -3338,7 +3337,7 @@ func buildBinary(t *testing.T) string {
 // finding has been recorded. Read from the RECORD (the `finding` event's label) rather than by
 // scanning report.md for a token, so the oracle is not testing the reader with the reader.
 func someReportAnchor(run record.Run) string {
-	b, err := record.BoardState(run)
+	b, err := record.FamilyOf(run)
 	if err != nil {
 		return ""
 	}
@@ -3351,7 +3350,7 @@ func someReportAnchor(run record.Run) string {
 }
 
 func mintedGapIDs(run record.Run) []string {
-	b, err := record.BoardState(run)
+	b, err := record.FamilyOf(run)
 	if err != nil {
 		return nil
 	}
@@ -3378,7 +3377,7 @@ func mintedGapIDs(run record.Run) []string {
 // recentlyEditedOut returns text a recorded edit removed and which is absent from the report
 // now — a claim whose retirement the record can evidence.
 func (r *runner) recentlyEditedOut() string {
-	b, err := record.BoardState(r.run())
+	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return ""
 	}
@@ -3442,11 +3441,11 @@ func rulingFor(line string) string {
 
 // ruleOpenInquiries has red rule every line of inquiry that has no ruling yet, from the line it carries.
 func (r *runner) ruleOpenInquiries(seatID string) {
-	b, err := record.BoardState(r.run())
+	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return
 	}
-	for _, a := range record.Inquiries(b) {
+	for _, a := range record.InquiriesOf(b.Events) {
 		if rulingFor(a.Line) == "" || directionRuling(b, r.run(), a.ID) != "" {
 			continue
 		}
@@ -3461,11 +3460,11 @@ func (r *runner) ruleOpenInquiries(seatID string) {
 // motion-ruled line of inquiry would read as unruled and be ruled again each round — the drive would
 // have looked correct and measured nothing, because a second ruling on a settled line is not a
 // path the run takes.
-func directionRuling(b *record.Board, run record.Run, inquiryID string) string {
+func directionRuling(b record.Family, run record.Run, inquiryID string) string {
 	if v := record.InquiryRuling(run, inquiryID); v != "" {
 		return v
 	}
-	for _, m := range record.Motions(b) {
+	for _, m := range record.MotionsOf(b.Events) {
 		if m.Subject == "inquiry" && m.Fields["inquiry_id"] == inquiryID && m.Ruled() {
 			return m.Ruling
 		}
@@ -3476,11 +3475,11 @@ func directionRuling(b *record.Board, run record.Run, inquiryID string) string {
 // answerInquiryRulings is blue's move after red has ruled: comply, or CONTEST by pursuing
 // anyway with an argument. Which one is decided by the line, not by a coin.
 func (r *runner) answerInquiryRulings(seatID string) {
-	b, err := record.BoardState(r.run())
+	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return
 	}
-	for _, a := range record.Inquiries(b) {
+	for _, a := range record.InquiriesOf(b.Events) {
 		ruling := directionRuling(b, r.run(), a.ID)
 		if ruling == "" || a.Status != "proposed" {
 			continue
@@ -3512,7 +3511,7 @@ func (r *runner) answerInquiryRulings(seatID string) {
 }
 
 func (r *runner) reproveOpenProofs(seatID string) {
-	b, err := record.BoardState(r.run())
+	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return
 	}
@@ -3551,11 +3550,11 @@ func (r *runner) reproveOpenProofs(seatID string) {
 }
 
 func (r *runner) scenarioOf(gapID string) string {
-	b, err := record.BoardState(r.run())
+	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return ""
 	}
-	g := b.Gaps[gapID]
+	g := b.Gap(gapID)
 	if g == nil || g.Mint == nil {
 		return ""
 	}
@@ -3703,11 +3702,11 @@ func (r *runner) counterEdit(seatID, gapID string) {
 
 // proposalFor returns the concrete pair for ONE gap, when it carries one.
 func (r *runner) proposalFor(gapID string) (string, string, string) {
-	b, err := record.BoardState(r.run())
+	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return "", "", ""
 	}
-	g := b.Gaps[gapID]
+	g := b.Gap(gapID)
 	if g == nil || g.Mint == nil || g.Mint.GetFixBasis() != "verified" {
 		return "", "", ""
 	}
@@ -3717,7 +3716,7 @@ func (r *runner) proposalFor(gapID string) (string, string, string) {
 }
 
 func (r *runner) someProposal() (string, string, string) {
-	b, err := record.BoardState(r.run())
+	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return "", "", ""
 	}
@@ -3957,7 +3956,7 @@ func TestFuzzUnverifiedPath(t *testing.T) {
 	// sitting, so an empty board AFTER the run is ordinary. Measured, it failed 12 of 12 while
 	// the verdict itself was right every time, which makes it an assertion about the wrong
 	// moment rather than a defect it caught.
-	board, err := record.BoardState(runtest.Open(t, runDir))
+	board, err := record.FamilyOf(runtest.Open(t, runDir))
 	if err != nil {
 		t.Fatalf("board: %v", err)
 	}

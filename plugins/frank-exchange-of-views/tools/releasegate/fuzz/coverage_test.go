@@ -129,13 +129,13 @@ func (r *runner) closedGapIDs() []string { return r.closedInARoundBefore(0) }
 // carry` ran twice across 60 runs and was refused both times. A verb whose every invocation is
 // refused reports as DRIVEN in the tally, which is how the carry's own bug stayed invisible.
 func (r *runner) closedInARoundBefore(round int) []string {
-	b, err := record.BoardState(r.run())
+	b, err := record.FamilyOf(r.run())
 	if err != nil {
 		return nil
 	}
 	var out []string
-	for _, id := range b.GapOrder {
-		g := b.Gaps[id]
+	for _, g := range b.Gaps {
+		id := g.ID
 		if g == nil || g.Open {
 			continue
 		}
