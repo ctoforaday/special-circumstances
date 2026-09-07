@@ -126,3 +126,31 @@ func LogTypeOf(word string) (recordpb.LogType, bool) {
 func CheckKindOf(word string) (recordpb.CheckKind, bool) {
 	return enumOf[recordpb.CheckKind](recordpb.CheckKind(0).Descriptor(), word)
 }
+
+// SeatLogTypeWords are the log types a SEAT may file, in schema order — the set `log --type`
+// accepts, which is not the whole vocabulary. `estoppel` is the tool's own word and is excluded
+// by its `seat_may_file` facet rather than by a list here (#782).
+//
+// It PANICS on an unannotated value, matching rulerFor's reasoning: this feeds a refusal message
+// and a help page, both built at command construction, so a vocabulary that stopped answering the
+// question fails at startup for every seat rather than at the moment one tries to file.
+func SeatLogTypeWords() []string {
+	ts, err := recordpb.SeatFilableLogTypes()
+	if err != nil {
+		panic("record: " + err.Error())
+	}
+	out := make([]string, 0, len(ts))
+	for _, t := range ts {
+		out = append(out, recordpb.Word(t))
+	}
+	return out
+}
+
+// SeatLogTypeEnum is the `log --type` set narrowed to what a seat may file, so the generated help
+// and the write path cannot disagree about the surface. The narrowing reads EnumValue.ToolOnly,
+// which init derives from the schema facet — there is no second list.
+func SeatLogTypeEnum() EnumField {
+	e := MustEnum("log", "type")
+	e.Values = SeatFilable(e.Values)
+	return e
+}

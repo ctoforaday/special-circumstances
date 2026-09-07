@@ -3,6 +3,7 @@ package consistency
 import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"google.golang.org/protobuf/proto"
@@ -253,4 +254,76 @@ func TestMarkdownInjectionInProblemText(t *testing.T) {
 	)
 	check(t, dir)
 	_ = filepath.Join // keep the import while scenarios grow
+}
+
+// THE ANCHOR-RECORD RULE STILL FIRES, AND IT NO LONGER FIRES ON AN HONEST RECORD.
+//
+// The rule catches a real crash window: `lens finding` appends the finding and its anchor event
+// as a PAIR after splicing the marker, so a finding with no anchor event means the process died
+// between the two appends and an idempotent retry never looked.
+//
+// That reasoning held while EVERY finding named a quoted sentence. A finding may now anchor to a
+// section, a line of inquiry or a gap (#742, shipped #787) — things that are not report text, so
+// there is no marker to splice and no anchor event to pair with. The rule reported every one of
+// those as the crash it was written to detect, on a record that was entirely correct. Nothing
+// caught it because no drive passed --about; the release sweep found it the moment one did.
+//
+// BOTH ARMS IN ONE TEST, because the fix is a narrowing and a narrowing is only safe if the
+// original catch survives it. Delete the about-kind condition in the walk and the first arm
+// fails; widen it back to every finding and the second does.
+func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
+	finding := func(id string, about *recordpb.AboutKind, ref string) *recordpb.Event {
+		f := &recordpb.Finding{
+			FindingId: proto.String(id), Label: proto.String("L1-" + id),
+			Text:     proto.String("fuzz finding"),
+			Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
+		}
+		if about != nil {
+			f.AboutKind, f.AboutRef = about, proto.String(ref)
+		} else {
+			f.Location = proto.String("a quoted sentence")
+		}
+		return recordtest.At(t, "red-lens-r1-L1", 1, "red-lens-r1-L1:finding:"+id, f)
+	}
+
+	t.Run("a quote-anchored finding with no anchor event is still the crash window", func(t *testing.T) {
+		dir := recordtest.TmpRun(t)
+		recordtest.Seed(t, dir, finding("f-11111111", nil, ""))
+		violations, err := Check(runtest.Open(t, dir))
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, v := range violations {
+			if strings.Contains(v, "anchor-record") && strings.Contains(v, "f-11111111") {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("the half-appended pair went unreported — the rule has been narrowed into "+
+				"silence and the crash it exists for is now invisible. violations: %v", violations)
+		}
+	})
+
+	t.Run("an about-anchored finding has no marker to pair with and is not a violation", func(t *testing.T) {
+		for _, k := range []recordpb.AboutKind{
+			recordpb.AboutKind_ABOUT_KIND_SECTION,
+			recordpb.AboutKind_ABOUT_KIND_INQUIRY,
+			recordpb.AboutKind_ABOUT_KIND_GAP,
+		} {
+			dir := recordtest.TmpRun(t)
+			recordtest.Seed(t, dir, finding("f-22222222", &k, "R1-1"))
+			violations, err := Check(runtest.Open(t, dir))
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, v := range violations {
+				if strings.Contains(v, "anchor-record") {
+					t.Errorf("--about-kind %s: an absence has no sentence to mark, so it emits no "+
+						"anchor event — and the oracle called an honest record broken: %s",
+						recordpb.Word(k), v)
+				}
+			}
+		}
+	})
 }

@@ -199,7 +199,14 @@ func walk(events []*record.Event) *groundTruth {
 				gt.findingLabels[l] = true
 			}
 			if id := m.GetFindingId(); id != "" {
-				gt.findingIDs[id] = true
+				// A FINDING ANCHORED TO SOMETHING THAT IS NOT REPORT TEXT SPLICES NO MARKER, so
+				// it emits no anchor event and must not be required to have one. `--about-kind
+				// section|inquiry|gap` (#742, shipped #787) is the anchor an ABSENCE gets — there
+				// is no sentence to mark — and before this the rule below reported every one of
+				// them as the crash window it was written to detect.
+				if m.GetAboutKind() == recordpb.AboutKind_ABOUT_KIND_UNSPECIFIED {
+					gt.findingIDs[id] = true
+				}
 			}
 		case *recordpb.Anchor:
 			if id := m.GetId(); id != "" {
@@ -447,6 +454,11 @@ func Check(run record.Run) ([]string, error) {
 	// The finding and its anchor event are appended as a PAIR after the splice; a finding with no
 	// anchor event is the crash window between the two appends, sealed by an idempotent retry
 	// that never looked. Report-independent, so it runs even when report.md is gone.
+	//
+	// QUOTE-ANCHORED FINDINGS ONLY, and the set above is what enforces that. This rule was
+	// written when every finding named a sentence, so "no anchor event" could only mean the
+	// crash. An about-anchored finding legitimately has none, and this reported each one as a
+	// violation on a perfectly honest record — invisible because no drive passed --about.
 	for id := range gt.findingIDs {
 		if !gt.anchorEvIDs[id] {
 			add("anchor-record", "finding %s has no anchor event — the immortal-marker detector never learned its marker exists", id)

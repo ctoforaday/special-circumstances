@@ -168,3 +168,48 @@ func RulerOf(v protoreflect.EnumValueDescriptor) (string, error) {
 func SubjectRuler(s MotionSubject) (string, error) {
 	return RulerOf(s.Descriptor().Values().ByNumber(s.Number()))
 }
+
+// SeatMayFile reports whether a SEAT may put this log type on the record, and whether the value
+// answered the question at all.
+//
+// The undeclared case is returned rather than defaulted, for the reason `Facet` returns it: a
+// default here is an answer given on behalf of whoever added the value without one, and this
+// facet exists because exactly that happened — `estoppel` means "the tool refused a mint" and the
+// seat verb accepted it anyway, stamping source=SEAT on a refusal that never occurred (#782).
+//
+// The schema build already refuses a facet declared on some of an enum's values and not others,
+// so in practice `declared` is false only for a vocabulary that declares it nowhere.
+func SeatMayFile(t LogType) (may bool, declared bool, err error) {
+	return Facet(t.Descriptor().Values().ByNumber(t.Number()), "seat_may_file")
+}
+
+// SeatFilableLogTypes are the words a seat may actually pass to `log --type`, in schema order.
+//
+// The generated help reads THIS rather than the whole vocabulary. Offering a seat a word the
+// write path will refuse is the surface lying about its own contract, and it is how `estoppel`
+// came to sit in the help beside the four words a seat should use.
+func SeatFilableLogTypes() ([]LogType, error) {
+	vals := LogType(0).Descriptor().Values()
+	var out []LogType
+	for i := 0; i < vals.Len(); i++ {
+		t := LogType(vals.Get(i).Number())
+		if t == LogType_LOG_TYPE_UNSPECIFIED {
+			continue
+		}
+		may, declared, err := SeatMayFile(t)
+		if err != nil {
+			return nil, err
+		}
+		// AN UNDECLARED VALUE IS NOT SILENTLY OFFERED. A word that never answered the question
+		// would otherwise be handed to a seat by default, which is the shape this facet removes.
+		if !declared {
+			return nil, fmt.Errorf("recordpb: log type %s does not say whether a seat may file it — "+
+				"put `(seat_may_file) = true|false` on the value; defaulting it would answer on "+
+				"behalf of whoever added the word", Word(t))
+		}
+		if may {
+			out = append(out, t)
+		}
+	}
+	return out, nil
+}
