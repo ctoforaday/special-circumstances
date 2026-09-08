@@ -78,7 +78,7 @@ func mintGap(t *testing.T, runDir, key, class string) string {
 
 // gapID pulls the tool-assigned id out of a mint's output.
 func gapID(out string) string {
-	return regexp.MustCompile(`R\d+-\d+`).FindString(out)
+	return regexp.MustCompile(`G\d+`).FindString(out)
 }
 
 // readProjection returns a markdown projection computed on read from the record via the

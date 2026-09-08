@@ -12,19 +12,19 @@ TWO CONSEQUENCES:
 $ mint --run {RUN} --seat-id red-chair --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
 exit 0
 stdout:
-minted R1-1
+minted G1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ mint --run {RUN} --seat-id red-chair --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
 exit 0
 stdout:
-minted R1-1 (idempotent retry — existing id returned)
+minted G1 (idempotent retry — existing id returned)
 
 $ mint --run {RUN} --seat-id red-chair --key L6-F1 --class scope-creep --check-kind document --check y --severity low --likelihood low --impact low --problem a different key mints
 exit 0
 stdout:
-minted R1-2
+minted G2
   acceptance check RECORDED as: y
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
@@ -32,8 +32,8 @@ minted R1-2
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"L5-F3","problem":"minted once","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair:mint:R1-2","mint":{"acceptance_check":"y","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"L6-F1","problem":"a different key mints","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"L5-F3","problem":"minted once","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:mint:G2","mint":{"acceptance_check":"y","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"L6-F1","problem":"a different key mints","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
 -- debate
@@ -68,8 +68,8 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 2 open gap(s) remain, most severe first — full statements in [the board](docket.md).
 
-1. **[medium]** minted once (R1-1) — 
-2. **[low]** a different key mints (R1-2) — 
+1. **[medium]** minted once (G1) — 
+2. **[low]** a different key mints (G2) — 
 
 ## TL;DR
 

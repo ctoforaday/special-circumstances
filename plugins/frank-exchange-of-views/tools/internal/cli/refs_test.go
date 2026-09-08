@@ -32,29 +32,29 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 		// ruling names the MOTION, so the dangling-gap case this row has always pinned is now
 		// `motion docket file --id`, and the dangling-motion case is the row below it.
 		{"motion docket file --id", "no mint event created", []string{"motion", "docket", "file", "--seat-id", "judge",
-			"--id", "R9-9", "--reason", "escalating a gap nobody minted"}},
+			"--id", "G99", "--reason", "escalating a gap nobody minted"}},
 		{"motion docket rule --id", "which no filing created", []string{"motion", "docket", "rule", "--seat-id", "judge",
 			"--id", "M9", "--as", "carried", "--principle", "p", "--tension", "t",
 			"--review-flag", "no", "--settled", "the proposition this ruling bars", "--final"}},
 		{"motion grade file --id", "no mint event created", []string{"motion", "grade", "file", "--seat-id", "blue-respond",
-			"--id", "R9-9", "--dimension", "severity", "--proposed", "low", "--reason", "b"}},
+			"--id", "G99", "--dimension", "severity", "--proposed", "low", "--reason", "b"}},
 		{"motion grade rule --id", "which no filing created", []string{"motion", "grade", "rule", "--seat-id", "red-chair",
 			"--id", "M9", "--as", "accepted", "--reason", "b"}},
 		{"regrade --id", "no mint event created", []string{"regrade", "--seat-id", "red-chair",
-			"--id", "R9-9", "--severity", "low", "--reason", "b"}},
+			"--id", "G99", "--severity", "low", "--reason", "b"}},
 		{"closing --id", "no mint event created", []string{"closing", "--seat-id", "red-chair",
-			"--id", "R9-9", "--reason", "t"}},
+			"--id", "G99", "--reason", "t"}},
 		{"manifest-row --id", "no mint event created", []string{"manifest-row", "--seat-id", "blue-respond",
-			"--id", "R9-9", "--reason", "r"}},
+			"--id", "G99", "--reason", "r"}},
 		{"close --successor", "no mint event created", []string{"close", "--seat-id", "red-chair",
 			"--id", real, "--as", "repaired", "--verified-by", "L1", "--verified-with", "t",
-			"--verified-against", "x", "--superseded-by", "R9-9"}},
+			"--verified-against", "x", "--superseded-by", "G99"}},
 		{"mint --found-by", "no lens recorded", []string{"mint", "--seat-id", "red-chair",
 			"--key", "k2", "--class", "reference-integrity", "--problem", "p",
 			"--fix", "f", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium",
 			"--impact", "medium", "--complexity", "low", "--found-by", "L9-F9"}},
 		{"spot-check --ids", "no mint event created", []string{"spot-check", "--seat-id", "red-chair",
-			"--ids", "R9-9"}},
+			"--ids", "G99"}},
 		// The petitioner is no longer a field the ruler RESTATES, so there is no seat reference
 		// left to dangle — the ruling names the motion and the motion carries its own filer.
 		// What can still dangle is the motion id, which is what this now checks.
@@ -183,7 +183,7 @@ func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
 //
 //	7 are STRUCTURALLY REQUIRED — the protocol mints the successor, then closes the
 //	  ancestor naming it, so the ancestor MUST still be open at mint time.
-//	2 are a DEFECT — R3-1 superseded R2-1 and R2-5 and closed neither, so all three
+//	2 are a DEFECT — G3 superseded G1 and G2 and closed neither, so all three
 //	  finished open. The run reported 9 open gaps; 7 were distinct.
 //
 // So the rule is not about mint-time state, which would refuse all 9. It is a completion

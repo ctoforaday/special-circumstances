@@ -889,7 +889,7 @@ SELECT
   --
   -- carried is 76 of 77 bench rulings in the measured base rate, and it ANSWERS its motion: the
   -- gap comes back by being docketed again next round. Without this the merge seat was told only
-  -- "gap R1-1 is open — PASS is refused while it is", which is true of a gap nobody has ever put
+  -- "gap G1 is open — PASS is refused while it is", which is true of a gap nobody has ever put
   -- before the bench and of one the bench has considered twice and deliberately deferred. Same
   -- sentence, two very different situations, and the seat cannot act differently on them.
   --

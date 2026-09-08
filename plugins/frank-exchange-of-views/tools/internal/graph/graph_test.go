@@ -12,7 +12,7 @@ import (
 
 // A hole is a genuine defect: an unanswered dispute, or a torn closure (closed with no reason).
 // A merge close that carries its closure_class is NOT a hole even with no opinion — the false
-// positive this test pins down (R1-7 in the 2026-07-22 run flagged amber until this was fixed).
+// positive this test pins down (G1 in the 2026-07-22 run flagged amber until this was fixed).
 func TestGapHoleHeuristic(t *testing.T) {
 	b := &boardT{
 		GapOrder: []string{"MERGE_CLOSED", "TORN", "UNANSWERED", "OPEN"},

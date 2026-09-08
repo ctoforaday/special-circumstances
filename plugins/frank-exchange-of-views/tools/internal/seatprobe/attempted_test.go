@@ -60,7 +60,7 @@ func TestAttemptedSeesWhatTheRecordCannot(t *testing.T) {
 func TestAttemptedTakesTheLongestVerbNotTheFirstToken(t *testing.T) {
 	sf := surface()
 	p := writeTrajectory(t,
-		`"/x/fxr.exe" motion grade file --id R1-1 --dimension severity --proposed low --reason "r"`,
+		`"/x/fxr.exe" motion grade file --id G1 --dimension severity --proposed low --reason "r"`,
 	)
 	got, err := Attempted(p, "fxr.exe", sf, "blue")
 	if err != nil {

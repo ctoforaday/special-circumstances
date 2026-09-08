@@ -443,12 +443,12 @@ func requirePassClosesAllGaps(run Run) error {
 // answers while `--answers` is empty (validate, case "blue_edit").
 //
 // It matches against the BOARD, never against a pattern. A regex for "gap-id-shaped" would
-// have to guess the shape (R1-5, R1-11 today) and would fire on any prose that happens to
+// have to guess the shape (G5, G11 today) and would fire on any prose that happens to
 // look like one — a version number, a section reference, a matrix cell. Membership in the
 // set of ids some mint actually created is exact, needs no shape at all, and costs the same
 // read requireGap already does.
 //
-// Tokens break on anything outside [A-Za-z0-9-], so "R1-5: Quantify…" yields "R1-5" with
+// Tokens break on anything outside [A-Za-z0-9-], so "G5: Quantify…" yields "G5" with
 // its trailing colon shed, and a longer id is never matched by a shorter one's prefix.
 func gapNamedIn(run Run, prose string) (string, error) {
 	if strings.TrimSpace(prose) == "" {

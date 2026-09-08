@@ -39,8 +39,8 @@ func seedAndSweep(t *testing.T) *planguard.Recorder {
 	defer recordsql.UseDriver(name)()
 
 	dir := recordtest.TmpRun(t)
-	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", 1, "red-chair:mint:R1-1", &recordpb.Mint{
-		GapId: proto.String("R1-1"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", 1, "red-chair:mint:G1", &recordpb.Mint{
+		GapId: proto.String("G1"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 		AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -185,8 +185,8 @@ func TestAFilteredQueryWithoutAnIndexIsCaughtAndAnIndexedOneIsNot(t *testing.T) 
 	defer recordsql.UseDriver(name)()
 
 	dir := recordtest.TmpRun(t)
-	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", 1, "red-chair:mint:R1-1", &recordpb.Mint{
-		GapId: proto.String("R1-1"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", 1, "red-chair:mint:G1", &recordpb.Mint{
+		GapId: proto.String("G1"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 		AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),

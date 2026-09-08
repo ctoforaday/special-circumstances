@@ -93,7 +93,7 @@ TWO CONSEQUENCES:
 $ mint --run {RUN} --seat-id red-chair --class citation-drift --check-kind document --check refetch and diff --severity high --likelihood high --impact high --complexity medium --quote ## S2 --found-by evidence-F1,logic-F1 --problem the cited source does not say this
 exit 0
 stdout:
-minted R1-1
+minted G1
   acceptance check RECORDED as: refetch and diff
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
@@ -117,7 +117,7 @@ verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 {"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_HIGH","label":"logic-F1","likelihood":"GRADE_HIGH","location":"## S4","severity":"GRADE_HIGH","text":"a leap of faith"},"key":"red-lens-logic:finding:logic-F1","round":0,"seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
 {"anchor":{"id":"FINDING001","location":"## S4"},"key":"red-lens-logic:anchor:FINDING001","round":0,"seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair","ts":8,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:mint:R1-1","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["evidence-F1","logic-F1"],"gap_id":"R1-1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"## S2","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:mint:G1","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["evidence-F1","logic-F1"],"gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"## S2","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:position:#1","position":{"text":"round one: FAIL"},"round":1,"seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_POSITION"}
 {"key":"red-chair:verdict:#1","round":1,"seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 
@@ -160,7 +160,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 1 open gap(s) remain, most severe first — full statements in [the board](docket.md).
 
-1. **[high]** the cited source does not say this (R1-1) — 
+1. **[high]** the cited source does not say this (G1) — 
 
 ## TL;DR
 

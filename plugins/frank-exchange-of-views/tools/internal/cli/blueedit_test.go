@@ -242,11 +242,11 @@ func TestBlueEditRefusesAnUnknownGap(t *testing.T) {
 
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
-		"--answers", "R9-99", "--reason", "why")
+		"--answers", "G99", "--reason", "why")
 	if err == nil {
 		t.Fatal("an edit answering a gap no mint created was accepted")
 	}
-	if !strings.Contains(err.Error(), "R9-99") {
+	if !strings.Contains(err.Error(), "G99") {
 		t.Errorf("the refusal must name the dangling id: %v", err)
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
@@ -289,7 +289,7 @@ func TestBlueEditAllowsProseThatNamesNoRealGap(t *testing.T) {
 
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
-		"--reason", "tightened per R9-99 and section 3-2 of the style note"); err != nil {
+		"--reason", "tightened per G99 and section 3-2 of the style note"); err != nil {
 		t.Fatalf("prose naming no real gap was refused: %v", err)
 	}
 	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT) != 1 {

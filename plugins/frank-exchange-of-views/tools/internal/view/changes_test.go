@@ -17,8 +17,8 @@ import (
 func seedChanges(t *testing.T, runDir string) {
 	t.Helper()
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, "red-chair", 1, "red-chair:mint:R1-1", &recordpb.Mint{
-			GapId:           proto.String("R1-1"),
+		recordtest.At(t, "red-chair", 1, "red-chair:mint:G1", &recordpb.Mint{
+			GapId:           proto.String("G1"),
 			Class:           proto.String("overclaim"),
 			Problem:         proto.String("independence is overclaimed"),
 			RequiredFix:     proto.String("acknowledge the shared definition"),
@@ -30,13 +30,13 @@ func seedChanges(t *testing.T, runDir string) {
 	})
 	writeShard(t, runDir, []*record.Event{
 		recordtest.At(t, "blue-respond", 1, "blue-respond:blue_edit:e1", &recordpb.BlueEdit{
-			Answers: proto.String("R1-1"),
+			Answers: proto.String("G1"),
 			Old:     proto.String("five independent approaches"),
 			New:     proto.String("five approaches"),
 			Text:    proto.String("drop the independence claim"),
 		}),
 		recordtest.At(t, "blue-respond", 1, "blue-respond:blue_edit:e2", &recordpb.BlueEdit{
-			Answers: proto.String("R1-1"),
+			Answers: proto.String("G1"),
 			Old:     proto.String("They agree."),
 			New:     proto.String("They agree, sharing one definition of primality."),
 			Text:    proto.String("name the shared definition"),
@@ -59,7 +59,7 @@ func TestChangesListsEveryEditAndSaysWhichAnswerNoGap(t *testing.T) {
 	out := md(t, runDir, "changes")
 	for _, want := range []string{
 		"drop the independence claim", "name the shared definition", "punctuation repair",
-		"answers **R1-1**", "no gap", "3 recorded edit(s)",
+		"answers **G1**", "no gap", "3 recorded edit(s)",
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("unscoped changes is missing %q:\n%s", want, out)
@@ -73,7 +73,7 @@ func TestChangesScopedPutsRequiredFixBesideTheEdits(t *testing.T) {
 	runDir := t.TempDir()
 	seedChanges(t, runDir)
 
-	b, err := Markdown(runtest.Open(t, runDir), "changes", "R1-1")
+	b, err := Markdown(runtest.Open(t, runDir), "changes", "G1")
 	if err != nil {
 		t.Fatalf("scoped changes: %v", err)
 	}
@@ -101,8 +101,8 @@ func TestChangesScopedPutsRequiredFixBesideTheEdits(t *testing.T) {
 func TestChangesScopedSaysNoneRatherThanRenderingEmpty(t *testing.T) {
 	runDir := t.TempDir()
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, "red-chair", 1, "red-chair:mint:R1-1", &recordpb.Mint{
-			GapId:           proto.String("R1-1"),
+		recordtest.At(t, "red-chair", 1, "red-chair:mint:G1", &recordpb.Mint{
+			GapId:           proto.String("G1"),
 			Class:           proto.String("x"),
 			Problem:         proto.String("p"),
 			RequiredFix:     proto.String("f"),
@@ -113,7 +113,7 @@ func TestChangesScopedSaysNoneRatherThanRenderingEmpty(t *testing.T) {
 		}),
 	})
 
-	b, err := Markdown(runtest.Open(t, runDir), "changes", "R1-1")
+	b, err := Markdown(runtest.Open(t, runDir), "changes", "G1")
 	if err != nil {
 		t.Fatalf("scoped changes: %v", err)
 	}
@@ -132,9 +132,9 @@ func TestChangesScopedRefusesAnUnknownGap(t *testing.T) {
 	runDir := t.TempDir()
 	seedChanges(t, runDir)
 
-	if _, err := Markdown(runtest.Open(t, runDir), "changes", "R9-99"); err == nil {
+	if _, err := Markdown(runtest.Open(t, runDir), "changes", "G99"); err == nil {
 		t.Fatal("a view scoped to a gap nobody minted rendered a comparison anyway")
-	} else if !strings.Contains(err.Error(), "R9-99") {
+	} else if !strings.Contains(err.Error(), "G99") {
 		t.Errorf("the refusal must name the id: %v", err)
 	}
 }

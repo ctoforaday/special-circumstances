@@ -172,7 +172,7 @@ func TestPagesOpenedForCommandsNeverRunAreTheSurveySignal(t *testing.T) {
 func TestQuotedPathsContinuationsAndProseAreNotVerbs(t *testing.T) {
 	for _, tc := range []struct{ cmd, want string }{
 		{`"/tmp/x/feov-record" --seat-id s finding --quote "a"`, "finding"},
-		{"/tmp/x/feov-record edit \\\n  --key R1-1", "edit"},
+		{"/tmp/x/feov-record edit \\\n  --key G1", "edit"},
 		{`/tmp/x/feov-record position --reason $(cat <<EOF
 Red identified a real gap: the report's load-bearing input cannot be inspected.
 EOF

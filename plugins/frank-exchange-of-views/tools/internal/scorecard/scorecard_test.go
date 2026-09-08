@@ -153,7 +153,7 @@ func TestTheEmptyDenominatorNoteIsTrueOfBothWaysToGetOne(t *testing.T) {
 
 func TestComputeDirectionUptake(t *testing.T) {
 	dj := record.DebateJSON{Rounds: []record.DebateRoundJSON{
-		{Lead: []record.DebateOpinionJSON{{GapID: "R1-1"}}, Blue: []string{"acted on the judge direction as carried"}},
+		{Lead: []record.DebateOpinionJSON{{GapID: "G1"}}, Blue: []string{"acted on the judge direction as carried"}},
 		{Lead: nil, Blue: []string{"unrelated repair notes"}},
 	}}
 	lead, blue := ComputeDirectionUptake(dj)

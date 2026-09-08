@@ -290,7 +290,7 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 // foreign key, so an absent flag lands as ” and reads as an answer.
 func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
 	runDir := seatRun(t)
-	// The gap has to exist: `close --id` is a reference the record checks, and R1-1 is what the
+	// The gap has to exist: `close --id` is a reference the record checks, and G1 is what the
 	// first mint of the round is assigned.
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--class", "x", "--check-kind", "document", "--check", "c",
@@ -298,7 +298,7 @@ func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
 		t.Fatalf("merge mint: %v", err)
 	}
 	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
-		"--id", "R1-1", "--as", "repaired",
+		"--id", "G1", "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
 		"--reason", "the repair was verified at the leaf"); err != nil {
 		t.Fatalf("merge close: %v", err)

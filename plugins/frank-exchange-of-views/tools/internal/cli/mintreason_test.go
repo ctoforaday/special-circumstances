@@ -13,7 +13,7 @@ import (
 // RED'S ARGUMENT FOR A GAP MUST REACH THE SEATS THAT ANSWER AND WEIGH IT.
 //
 // `mint` took --reason and threw it away whenever --problem was also given, which is every ordinary
-// mint. The write still answered "minted R1-4", and --reason's own help promises "the substance the
+// mint. The write still answered "minted G1", and --reason's own help promises "the substance the
 // report renders and the other side answers" — a promise this verb did not keep.
 //
 // MEASURED 2026-08-16 BY ASKING THE BENCH rather than by watching one. Dispatched to a petition

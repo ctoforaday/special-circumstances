@@ -577,7 +577,7 @@ func (r *runner) register(role, seatID string) {
 // `medium-high`: two of five values refused at every site that generates a grade, which is
 // `--proposed` on a grade dispute and both axes of a regrade. Measured — `merge regrade=8(7
 // refused)`, `motion grade file=7(2 refused)`, and a scenario oracle three layers away reporting
-// `R1-1 has no dispute event` for a contest whose drive was fine.
+// `G1 has no dispute event` for a contest whose drive was fine.
 //
 // Sixth instance this session of one value spelled two ways across a boundary with one side
 // moved, and the third of them inside this fuzz. The others: the hyphenated direction rulings,
@@ -2339,7 +2339,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		}
 	}
 	// AN ANCHOR NOBODY MINTED IS REFUSED, NOT READ EMPTY — the read-side twin of `show changes
-	// --id R9-99`. An empty window says "the report has nothing here", which is a different
+	// --id G1`. An empty window says "the report has nothing here", which is a different
 	// fact from "that anchor is not in this report".
 	if out, err := drive(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir, "--seat-id", "blue-respond"); err == nil {
 		res.err = "show report --anchor f-ffffffff SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
@@ -2427,8 +2427,8 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 			res.err = "show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
 		}
-		if out, err := drive(bin, "show", "changes", "--id", "R9-99", "--run", runDir, "--seat-id", "red-chair"); err == nil {
-			res.err = "show changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
+		if out, err := drive(bin, "show", "changes", "--id", "G1", "--run", runDir, "--seat-id", "red-chair"); err == nil {
+			res.err = "show changes --id G1 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
 			return res
 		}
 	}
@@ -3828,7 +3828,7 @@ func (r *runner) blueRespondTo(seatID string, open []string) {
 			out, err := r.exec("--json", "motion", "grade", "file", "--seat-id", seatID, "--id", id,
 				"--dimension", dim, "--proposed", proposed, "--reason", "fuzz: contesting the grade on "+id)
 			// THE REFUSAL IS KEPT, because the oracle downstream reports its ABSENCE and cannot
-			// say why. `scenario DISPUTE: R1-1 has no dispute event` is what a discarded error
+			// say why. `scenario DISPUTE: G1 has no dispute event` is what a discarded error
 			// looks like from the far end — a coverage report about a drive that ran fine, which
 			// is the same shape as the hyphenated ruling words that made `motion inquiry appeal`
 			// read as unreached. 2 of 7 filings were refused across 60 runs and nothing said so.

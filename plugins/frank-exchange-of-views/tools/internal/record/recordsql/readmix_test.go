@@ -34,7 +34,7 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 		}
 	}
 	originals := []proto.Message{
-		mint("R1-1", "R0-4", "R0-9"),
+		mint("G3", "G1", "G2"),
 		&recordpb.Position{Text: proto.String("red speaks")},
 		// A grade motion: the oneof arm WITH scalar columns, referencing the mint above.
 		&recordpb.Motion{
@@ -42,12 +42,12 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 			Basis:    proto.String("severity is understated"),
 			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-				GapId:     proto.String("R1-1"),
+				GapId:     proto.String("G3"),
 				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY.Enum(),
 				Proposed:  recordpb.Grade_GRADE_HIGH.Enum(),
 			}},
 		},
-		mint("R1-2"),
+		mint("G4"),
 		// A petition: the oneof arm whose row holds NO scalar values — the arm must still come
 		// back SET, because "filed a petition" and "filed nothing" are different acts.
 		&recordpb.Motion{
@@ -144,7 +144,7 @@ func BenchmarkEvents(b *testing.B) {
 				CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 				Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 				Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
-				Supersedes:      []string{"R0-1", "R0-2"},
+				Supersedes:      []string{"G1", "G2"},
 			},
 			&recordpb.Position{Text: proto.String("a position")},
 			&recordpb.Motion{

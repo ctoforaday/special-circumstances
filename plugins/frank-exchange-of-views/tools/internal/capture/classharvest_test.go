@@ -37,7 +37,7 @@ func TestAProposalCarriesTheThreeFieldsAndTheCaseThatMotivatedIt(t *testing.T) {
 	board := record.NewFamily(nil, []*record.Event{
 		classEvent(t, "red-chair", "silent-no-match-probe", "a probe whose miss reads as a clean result",
 			"self-attestation", "did a tool act run and miss, or did none run at all"),
-		mintEvent(t, "R2-1", "silent-no-match-probe"),
+		mintEvent(t, "G1", "silent-no-match-probe"),
 	})
 	r := HarvestClasses(runtest.New(t, "/runs/2026-08-22_example"), law, board.Events)
 	if !r.Written || r.Count != 1 {
@@ -54,7 +54,7 @@ func TestAProposalCarriesTheThreeFieldsAndTheCaseThatMotivatedIt(t *testing.T) {
 		"a probe whose miss reads as a clean result",
 		"`self-attestation`",
 		"did a tool act run and miss",
-		"**first used on**: R2-1",
+		"**first used on**: G1",
 	} {
 		if !strings.Contains(string(b), want) {
 			t.Errorf("the proposal does not carry %q:\n%s", want, b)
@@ -66,7 +66,7 @@ func TestAProposalCarriesTheThreeFieldsAndTheCaseThatMotivatedIt(t *testing.T) {
 // line reading "no classes coined this run" must come from having looked.
 func TestARunThatCoinedNothingWritesNothingAndSaysSo(t *testing.T) {
 	law := t.TempDir()
-	r := HarvestClasses(runtest.New(t, "/runs/quiet"), law, []*record.Event{mintEvent(t, "R1-1", "false-universal")})
+	r := HarvestClasses(runtest.New(t, "/runs/quiet"), law, []*record.Event{mintEvent(t, "G1", "false-universal")})
 	if r.Written || r.Count != 0 || r.Reason != "" {
 		t.Errorf("written=%v count=%d reason=%q, want false, 0, empty", r.Written, r.Count, r.Reason)
 	}

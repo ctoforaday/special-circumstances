@@ -21,7 +21,7 @@ import (
 // # Shape here, existence at the write path — and the line is not arbitrary
 //
 // A pflag.Value sees ONE STRING. It does not know the run directory, so it cannot ask whether
-// gap R3-7 exists, whether c-1a2b names a citation, or whether a quoted sentence appears in the
+// gap G7 exists, whether c-1a2b names a citation, or whether a quoted sentence appears in the
 // report. Those are RECORD questions and they belong in record.validate, which is the single
 // write path every caller goes through.
 //
@@ -36,8 +36,8 @@ import (
 // checked against the record — because a shape check that looked like a reference check would be
 // the more dangerous half-measure.
 
-// gapIDShape is R<round>-<n>, the id `MintGapID` assigns.
-var gapIDShape = regexp.MustCompile(`^R\d+-\d+$`)
+// gapIDShape is G<n>, the id `MintGapID` assigns — run-global, no round in it.
+var gapIDShape = regexp.MustCompile(`^G\d+$`)
 
 // anchorShape is the tool-inserted anchor id: f- a finding, c- a source, p- a computation. The
 // prefix carries the class, which is why a bare hex string is not one.
@@ -121,10 +121,10 @@ func (v *ShapedValue) Set(s string) error {
 
 func (v *ShapedValue) Type() string { return v.kind }
 
-// GapID refuses anything that is not R<round>-<n>.
+// GapID refuses anything that is not G<n>.
 func GapID() *ShapedValue {
 	return &ShapedValue{kind: "gap-id", re: gapIDShape,
-		hint: "a gap id looks like R2-3 (round, then the number the mint returned); `show board` and `show work list` list them"}
+		hint: "a gap id looks like G7 (the number the mint returned); `show board` and `show work list` list them"}
 }
 
 // AnchorID refuses anything that is not a tool-inserted anchor id of any class.

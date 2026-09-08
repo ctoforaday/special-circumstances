@@ -192,7 +192,7 @@ Global Flags:
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ mint --run {RUN} --seat-id red-chair --class scope-creep --check-kind document --check run it --supersedes R9-9 --problem dangling lineage
+$ mint --run {RUN} --seat-id red-chair --class scope-creep --check-kind document --check run it --supersedes G1 --problem dangling lineage
 exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
@@ -256,7 +256,7 @@ Global Flags:
 $ mint --run {RUN} --seat-id red-chair --class scope-creep --check-kind document --check grep the sites --severity high --likelihood high --impact medium --complexity low --problem a real one
 exit 0
 stdout:
-minted R1-1
+minted G1
   acceptance check RECORDED as: grep the sites
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
@@ -264,7 +264,7 @@ minted R1-1
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:mint:R1-1","mint":{"acceptance_check":"grep the sites","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"complexity_cost":"GRADE_LOW","fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"a real one","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:mint:G1","mint":{"acceptance_check":"grep the sites","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"complexity_cost":"GRADE_LOW","fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"a real one","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
 -- debate
@@ -299,7 +299,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 1 open gap(s) remain, most severe first — full statements in [the board](docket.md).
 
-1. **[high]** a real one (R1-1) — 
+1. **[high]** a real one (G1) — 
 
 ## TL;DR
 

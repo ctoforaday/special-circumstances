@@ -409,7 +409,7 @@ func TestAToolOnlyLogTypeIsRefusedUnderASeatsName(t *testing.T) {
 	// which would delete the estoppel guard's only record rather than protect it.
 	if _, err := Append(id, &recordpb.Log{
 		Text: proto.String("merge mint: estoppel — this quotes text you prescribed"),
-		Type: &est, Source: &tool, EstoppedBy: proto.String("R1-1"),
+		Type: &est, Source: &tool, EstoppedBy: proto.String("G1"),
 	}); err != nil {
 		t.Errorf("the TOOL's own estoppel record was refused: %v", err)
 	}

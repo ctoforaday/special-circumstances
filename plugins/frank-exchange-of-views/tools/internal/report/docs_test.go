@@ -151,10 +151,10 @@ func TestStaleDocumentsAreRemovedOnReassembly(t *testing.T) {
 // The fact box answers "what is this run" off the RECORD — never off the prose it sits above.
 func TestFactBoxIsComposedFromTheRecord(t *testing.T) {
 	board := &boardT{
-		GapOrder: []string{"R1-1", "R2-1"},
+		GapOrder: []string{"G1", "G2"},
 		Gaps: map[string]*record.Gap{
-			"R1-1": {ID: "R1-1", Open: true},
-			"R2-1": {ID: "R2-1", Open: false, Round: 2, ClosedRound: 3},
+			"G1": {ID: "G1", Open: true},
+			"G2": {ID: "G2", Open: false, Round: 2, ClosedRound: 3},
 		},
 	}
 	box := factBox(board.fam(), nil)

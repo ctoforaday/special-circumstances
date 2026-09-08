@@ -41,10 +41,10 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	// Mints: the id allocator counts THIS round's mints; the key lookup returns the first match.
-	if id, err := MintGapID(run); err != nil || id != "R1-1" {
+	if id, err := MintGapID(run); err != nil || id != "G1" {
 		t.Errorf("MintGapID on an unminted round = (%q, %v)", id, err)
 	}
-	for _, gid := range []string{"R1-1", "R1-2"} {
+	for _, gid := range []string{"G1", "G2"} {
 		if _, err := Append(red, &recordpb.Mint{
 			GapId:           proto.String(gid),
 			MintKey:         proto.String("k-" + gid),
@@ -59,39 +59,40 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if id, err := MintGapID(run); err != nil || id != "R1-3" {
-		t.Errorf("MintGapID = (%q, %v), want R1-3 after two mints", id, err)
+	if id, err := MintGapID(run); err != nil || id != "G3" {
+		t.Errorf("MintGapID = (%q, %v), want G3 after two mints", id, err)
 	}
-	if id, err := ExistingMintByKey(run, "red-chair", "k-R1-2"); err != nil || id != "R1-2" {
+	if id, err := ExistingMintByKey(run, "red-chair", "k-G2"); err != nil || id != "G2" {
 		t.Errorf("ExistingMintByKey = (%q, %v)", id, err)
 	}
-	if id, err := ExistingMintByKey(run, "blue-respond", "k-R1-2"); err != nil || id != "" {
+	if id, err := ExistingMintByKey(run, "blue-respond", "k-G2"); err != nil || id != "" {
 		t.Errorf("ExistingMintByKey must scope to the seat: got (%q, %v)", id, err)
 	}
-	if ids, err := allGapIDs(run); err != nil || len(ids) != 2 || !ids["R1-1"] || !ids["R1-2"] {
+	if ids, err := allGapIDs(run); err != nil || len(ids) != 2 || !ids["G1"] || !ids["G2"] {
 		t.Errorf("allGapIDs = (%v, %v)", ids, err)
 	}
 
 	// A close, then the prior-closure question a --carried-from claim is checked against.
-	if _, err := Append(red, &recordpb.Close{GapId: proto.String("R1-1"),
+	if _, err := Append(red, &recordpb.Close{GapId: proto.String("G1"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		AnchorSeat:   proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"),
 		Prose: proto.String("verified at the leaf")}); err != nil {
 		t.Fatal(err)
 	}
-	if rounds, err := priorClosureRounds(run, "R1-1"); err != nil || len(rounds) != 1 || rounds[0] != 1 {
+	if rounds, err := priorClosureRounds(run, "G1"); err != nil || len(rounds) != 1 || rounds[0] != 1 {
 		t.Errorf("priorClosureRounds = (%v, %v)", rounds, err)
 	}
-	if rounds, err := priorClosureRounds(run, "R1-2"); err != nil || rounds != nil {
+	if rounds, err := priorClosureRounds(run, "G2"); err != nil || rounds != nil {
 		t.Errorf("priorClosureRounds on a never-closed gap = (%v, %v)", rounds, err)
 	}
 
-	// A new EPOCH restarts the counter — the chair sitting again is what opens it.
+	// A new EPOCH does NOT restart the counter — ids are run-global, so the chair sitting again
+	// changes nothing about the next id.
 	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if id, err := MintGapID(run); err != nil || id != "R2-1" {
-		t.Errorf("MintGapID counts per ROUND: got (%q, %v)", id, err)
+	if id, err := MintGapID(run); err != nil || id != "G3" {
+		t.Errorf("MintGapID counts over the RUN: got (%q, %v)", id, err)
 	}
 
 	// A proposal counts toward the next inquiry id; a MOVE of the same line must not.

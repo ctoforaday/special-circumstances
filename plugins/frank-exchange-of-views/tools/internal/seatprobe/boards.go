@@ -347,7 +347,7 @@ Reversibility under load was not tested.
 			},
 		},
 		Motions: []Motion{{
-			Subject: "grade", Filer: "blue-respond", GapID: "R1-2",
+			Subject: "grade", Filer: "blue-respond", GapID: "G2",
 			Dimension: "likelihood", Proposed: "low",
 			Basis: "the untested case is disclosed in the report's own Limits section, so the consequence is bounded by a reader who has been told",
 			Ruled: "rejected",
@@ -508,7 +508,7 @@ Figures were read from the deployed configuration at the pinned revision.
 			{Line: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
 		Motions: []Motion{{
-			Subject: "grade", Filer: "blue-respond", GapID: "R1-1",
+			Subject: "grade", Filer: "blue-respond", GapID: "G1",
 			Dimension: "severity", Proposed: "medium",
 			Basis: "the defect is presentational: both figures are correct and only their framing conflates them, so `certain` severity prices a rewrite as though it were a data error",
 		}},
@@ -609,7 +609,7 @@ No material downside was identified.
 			// seat fail an expectation it had no way to meet — which is the defect
 			// TestEveryExpectationIsReachableOnItsBoard exists to catch, and which the `needs`
 			// map enforces for this verb.
-			Subject: "docket", Filer: "red-chair", GapID: "R1-1",
+			Subject: "docket", Filer: "red-chair", GapID: "G1",
 			Basis: "red re-raised this gap and blue's answer did not move it; it is the bench's to settle, not mine to close",
 		}},
 		Expect: []Expectation{

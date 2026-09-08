@@ -64,7 +64,7 @@ func newMint() *cobra.Command {
 		// It was discarded. `--reason` fell back to `--problem` only when problem was empty,
 		// so the ordinary mint — which supplies both — recorded the problem and threw the
 		// reasoning away, while `--reason`'s own help promises "the substance the report
-		// renders and the other side answers". The write returned "minted R1-4" either way.
+		// renders and the other side answers". The write returned "minted G4" either way.
 		//
 		// MEASURED 2026-08-16 BY ASKING THE BENCH. Dispatched to a petition sitting about what
 		// a required_fix may demand, it reported first among its missing things: "Red's closing
@@ -259,7 +259,7 @@ func newMint() *cobra.Command {
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right
 	// to: a requirement with no flag behind it is invisible to a seat unless something says the
 	// tool meets it.
-	seat.Supplies(c, "gap_id", "the tool assigns it (MintGapID), sequentially per round — a seat that chose its own would collide with another seat's")
+	seat.Supplies(c, "gap_id", "the tool assigns it (MintGapID), sequentially over the run — a seat that chose its own would collide with another seat's")
 	return c
 }
 

@@ -31,7 +31,7 @@ func recordWithRounds(t *testing.T, n int) string {
 		// Every field the record REQUIRES, because it now refuses a mint that omits one. The
 		// fixture used to name four; the other three were absent and nothing said so.
 		evs = append(evs, recordtest.At(t, seat, r, seat+":mint:R"+itoa(r)+"-1", &recordpb.Mint{
-			GapId:           proto.String("R" + itoa(r) + "-1"),
+			GapId:           proto.String("G" + itoa(r)),
 			Class:           proto.String("scope-creep"),
 			Problem:         proto.String("p"),
 			AcceptanceCheck: proto.String("the check runs"),
@@ -435,8 +435,8 @@ func TestHarvestPrecedents(t *testing.T) {
 		recordtest.Event(t, "red-chair", 2, &recordpb.Motion{
 			MotionId: proto.String("M3"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
-			Basis:    proto.String("red cannot settle R2-3"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R2-3")}},
+			Basis:    proto.String("red cannot settle G2"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G2")}},
 		}),
 		recordtest.Event(t, "judge", 2, &recordpb.MotionRule{
 			MotionId: proto.String("M3"),
@@ -469,8 +469,8 @@ func TestHarvestPrecedents(t *testing.T) {
 		recordtest.Event(t, "red-chair", 1, &recordpb.Motion{
 			MotionId: proto.String("M5"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
-			Basis:    proto.String("put R1-9 to the bench"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-9")}},
+			Basis:    proto.String("put G1 to the bench"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 		}),
 		recordtest.Event(t, "judge", 1, &recordpb.MotionRule{
 			MotionId: proto.String("M5"),
@@ -531,7 +531,7 @@ func TestHarvestPrecedents(t *testing.T) {
 	if !strings.Contains(body, "facts: <reviewer: fill from the cited record") {
 		t.Errorf("the harvest never invents facts")
 	}
-	if !strings.Contains(body, "source: 2026-07-18_law-test, R2-3") {
+	if !strings.Contains(body, "source: 2026-07-18_law-test, G2") {
 		t.Errorf("holdings carry their source anchors")
 	}
 	if !strings.Contains(body, "TRAILING_ACTIONABLE_TAIL") {
@@ -560,7 +560,7 @@ func TestHarvestPrecedents(t *testing.T) {
 func TestHarvestNamesTheEnvelopeDivergence(t *testing.T) {
 	runDir := filepath.Join(t.TempDir(), "2026-08-15_divergence")
 	claimed := []map[string]any{
-		{"resolutions": []any{map[string]any{"gap_id": "R1-1", "resolution": "repaired", "reason": "fixed"}}},
+		{"resolutions": []any{map[string]any{"gap_id": "G1", "resolution": "repaired", "reason": "fixed"}}},
 		{"rulings": []any{map[string]any{"petitioner": "blue", "ruling": "denied", "reason": "no"}}},
 	}
 

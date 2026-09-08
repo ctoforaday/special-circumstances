@@ -25,14 +25,14 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 		recordtest.At(t, merge, 1, merge+":position", &recordpb.Position{Text: proto.String("red r1")}),
 		// The gap must exist before anything speaks about it: `closing.gap_id` and the bench's
 		// opinion are both foreign keys onto the mint.
-		recordtest.At(t, merge, 1, merge+":mint:R1-1", &recordpb.Mint{
-			GapId: proto.String("R1-1"), Class: proto.String("overclaim"), Problem: proto.String("p"),
+		recordtest.At(t, merge, 1, merge+":mint:G1", &recordpb.Mint{
+			GapId: proto.String("G1"), Class: proto.String("overclaim"), Problem: proto.String("p"),
 			AcceptanceCheck: proto.String("the check runs"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
-		recordtest.At(t, merge, 1, merge+":closing:R1-1", &recordpb.Closing{GapId: proto.String("R1-1"), Text: proto.String("red closes r1")}),
+		recordtest.At(t, merge, 1, merge+":closing:G1", &recordpb.Closing{GapId: proto.String("G1"), Text: proto.String("red closes r1")}),
 	})
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, blue, 1, blue+":position", &recordpb.Position{Text: proto.String("blue r1")}),
@@ -47,7 +47,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 		recordtest.At(t, merge, 1, merge+":motion:M1", &recordpb.Motion{
 			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Basis:  proto.String("red cannot settle this one"),
-			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}},
+			Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 		}),
 		recordtest.At(t, judge, 1, judge+":motion-rule:M1", &recordpb.MotionRule{
 			MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
@@ -91,7 +91,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	if len(r1.Lead) != 1 || r1.Lead[0].Disposition != "repaired" || r1.Lead[0].Principle != "correctness first" {
 		t.Errorf("round 1 Lead = %+v, want one closed opinion", r1.Lead)
 	}
-	if len(r1.RedClosings) != 1 || r1.RedClosings[0].GapID != "R1-1" || r1.RedClosings[0].Text != "red closes r1" {
+	if len(r1.RedClosings) != 1 || r1.RedClosings[0].GapID != "G1" || r1.RedClosings[0].Text != "red closes r1" {
 		t.Errorf("round 1 RedClosings = %+v", r1.RedClosings)
 	}
 	// The red-only round: Red present, Blue an empty (non-nil) array.
@@ -144,8 +144,8 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	m := "red-chair"
 	longProblem := strings.Repeat("word ", 60) // ~300 chars, well over the 140-rune synopsis budget
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{
-			GapId: proto.String("R1-1"), Class: proto.String("correctness"),
+		recordtest.At(t, m, 1, m+":mint:G1", &recordpb.Mint{
+			GapId: proto.String("G1"), Class: proto.String("correctness"),
 			Problem: proto.String(longProblem), Location: proto.String("§open"),
 			RequiredFix: proto.String("SECRET_FIX_PROSE"), AcceptanceCheck: proto.String("SECRET_CHECK_PROSE"),
 			CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -154,16 +154,16 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			FoundBy:    []string{"L1-F1"},
 		}),
-		recordtest.At(t, m, 1, m+":mint:R1-2", &recordpb.Mint{
-			GapId: proto.String("R1-2"), Class: proto.String("citation"),
+		recordtest.At(t, m, 1, m+":mint:G2", &recordpb.Mint{
+			GapId: proto.String("G2"), Class: proto.String("citation"),
 			Problem: proto.String("a closed problem"), Location: proto.String("§closed"),
 			RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("chk"),
 			CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:     recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
-		recordtest.At(t, m, 1, m+":close:R1-2", &recordpb.Close{Prose: proto.String("verified at the leaf"),
-			GapId: proto.String("R1-2"),
+		recordtest.At(t, m, 1, m+":close:G2", &recordpb.Close{Prose: proto.String("verified at the leaf"),
+			GapId: proto.String("G2"),
 			// `class: "resolved"` before the schema — a key `merge close` never wrote (it writes
 			// closure_class) carrying a word the enum never had. Untyped, it replayed as a closure
 			// with NO class: a torn closure, which is the state this test is not about.
@@ -176,11 +176,11 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(w.Open) != 1 || w.Open[0].ID != "R1-1" {
-		t.Fatalf("work list Open = %+v, want the single open gap R1-1", w.Open)
+	if len(w.Open) != 1 || w.Open[0].ID != "G1" {
+		t.Fatalf("work list Open = %+v, want the single open gap G1", w.Open)
 	}
-	if len(w.ClosedIndex) != 1 || w.ClosedIndex[0].ID != "R1-2" {
-		t.Fatalf("work list ClosedIndex = %+v, want the single closed gap R1-2", w.ClosedIndex)
+	if len(w.ClosedIndex) != 1 || w.ClosedIndex[0].ID != "G2" {
+		t.Fatalf("work list ClosedIndex = %+v, want the single closed gap G2", w.ClosedIndex)
 	}
 	if w.Counts.Open != 1 || w.Counts.Closed != 1 {
 		t.Errorf("counts = %+v, want open 1 closed 1", w.Counts)
@@ -220,14 +220,14 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	runDir := newRun(t)
 	m := "red-chair"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{
-			GapId: proto.String("R1-1"), Class: proto.String("overclaim"),
+		recordtest.At(t, m, 1, m+":mint:G2", &recordpb.Mint{
+			GapId: proto.String("G2"), Class: proto.String("overclaim"),
 			Problem: proto.String("an open problem"), Location: proto.String("§1"),
 			AcceptanceCheck: proto.String("run the check"),
 			CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
-			Supersedes:      []string{"R0-9"},
+			Supersedes:      []string{"G1"},
 			// found_by is the OTHER promoted list, and the assertion below reads both. The earlier
 			// conversion dropped it, so the test asserted against a gap that credited nobody.
 			FoundBy: []string{"L1-F1", "L5-F3"},
@@ -240,7 +240,7 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	s := string(b)
 	// The lineage + leaf-check fields are promoted to the top level (their only home now).
 	// Tokens, not a compact substring — BoardJSONBytes pretty-prints.
-	for _, want := range []string{`"found_by"`, `"L1-F1"`, `"L5-F3"`, `"supersedes"`, `"R0-9"`} {
+	for _, want := range []string{`"found_by"`, `"L1-F1"`, `"L5-F3"`, `"supersedes"`, `"G1"`} {
 		if !strings.Contains(s, want) {
 			t.Errorf("board gap is missing top-level %s:\n%s", want, s)
 		}
@@ -306,8 +306,8 @@ func TestRedsArgumentReachesTheBoard(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	seat := "red-chair"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seat, 1, seat+":mint:R1-1", &recordpb.Mint{
-			GapId: proto.String("R1-1"), Class: proto.String("overclaim"),
+		recordtest.At(t, seat, 1, seat+":mint:G1", &recordpb.Mint{
+			GapId: proto.String("G1"), Class: proto.String("overclaim"),
 			Problem:         proto.String("the section claims independence"),
 			MintReason:      proto.String("all five approaches share one definition of primality"),
 			AcceptanceCheck: proto.String("the section no longer claims independence"),

@@ -47,7 +47,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	// A gap whose problem text carries a marker token (as a real finding's quoted
 	// location/reason would), plus a terminal outcome so assembly composes fully.
 	mint := &recordpb.Mint{
-		GapId:           proto.String("R1-1"),
+		GapId:           proto.String("G1"),
 		Problem:         proto.String("the sentence flagged here <!--fx:f-leak12--> is wrong"),
 		Location:        proto.String("§1"),
 		RequiredFix:     proto.String("fix it"),

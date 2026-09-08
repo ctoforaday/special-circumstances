@@ -103,7 +103,7 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 	t.Run("an unknown enum value is refused", func(t *testing.T) {
 		id := seed(t)
 		_, err := db.Exec(`INSERT INTO mint (event_id, gap_id, class, problem, acceptance_check, check_kind, likelihood, impact)
-			VALUES (?, 'R9-1', 'c', 'p', 'a', 'guesswork', 'medium', 'medium')`, id)
+			VALUES (?, 'G1', 'c', 'p', 'a', 'guesswork', 'medium', 'medium')`, id)
 		if err == nil {
 			t.Fatal("`guesswork` was accepted as a check kind — an unrecognised value lands in no bucket and the gap reads as checked by nothing")
 		}
@@ -114,7 +114,7 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 		// gap_id is supplied: it is required too now, and a fixture omitting BOTH tests whichever
 		// constraint SQLite reports first, which is not the one this case is about.
 		_, err := db.Exec(`INSERT INTO mint (event_id, gap_id, class, acceptance_check, check_kind, likelihood, impact)
-			VALUES (?, 'R9-2', 'c', 'a', 'document', 'medium', 'medium')`, id)
+			VALUES (?, 'G2', 'c', 'a', 'document', 'medium', 'medium')`, id)
 		if err == nil || !strings.Contains(err.Error(), "problem") {
 			t.Fatalf("a mint with no problem was accepted (%v) — required.go says the verb may not omit it, and the two must not disagree", err)
 		}
@@ -210,17 +210,17 @@ func TestAnEnumColumnStillRefusesAnUnknownWord(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	mintGap(t, "R1-1")
-	mintGap(t, "R1-2")
+	mintGap(t, "G1")
+	mintGap(t, "G2")
 
 	id := mk(t, "close")
-	if _, err := db.Exec(`INSERT INTO close (event_id, gap_id, closure_class, prose) VALUES (?, 'R1-1', 'evidence-rebutted', 'x')`, id); err == nil {
+	if _, err := db.Exec(`INSERT INTO close (event_id, gap_id, closure_class, prose) VALUES (?, 'G1', 'evidence-rebutted', 'x')`, id); err == nil {
 		t.Fatal("`evidence-rebutted` was accepted as a closure class — it is not one, and a graph fixture " +
 			"asserted against it for months while the counters read zero")
 	}
 
 	id = mk(t, "close")
-	if _, err := db.Exec(`INSERT INTO close (event_id, gap_id, closure_class, prose) VALUES (?, 'R1-2', 'defect_accepted', 'x')`, id); err != nil {
+	if _, err := db.Exec(`INSERT INTO close (event_id, gap_id, closure_class, prose) VALUES (?, 'G2', 'defect_accepted', 'x')`, id); err != nil {
 		t.Fatalf("a real closure class was refused: %v — the vocabulary table is a wall rather than a gate", err)
 	}
 }

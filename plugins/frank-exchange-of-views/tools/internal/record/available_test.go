@@ -22,7 +22,7 @@ import (
 // `complete` reads the blocking items alone.
 func TestAnAffordanceIsListedAndDoesNotBlock(t *testing.T) {
 	b := NewFamily(nil, []*Event{
-		recordtest.Event(t, "blue-respond", 1, &recordpb.BlueEdit{Answers: proto.String("R1-2")}),
+		recordtest.Event(t, "blue-respond", 1, &recordpb.BlueEdit{Answers: proto.String("G1")}),
 		// Both duties a blue seat owes on an empty board, discharged, so nothing blocks.
 		recordtest.Event(t, "blue-respond", 1, &recordpb.Log{}),
 		recordtest.Event(t, "blue-respond", 1, &recordpb.Revision{}),
@@ -65,15 +65,15 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 
 	t.Run("manifest row missing after an edit", func(t *testing.T) {
 		b := NewFamily(nil, []*Event{
-			recordtest.Event(t, "blue-respond", 0, &recordpb.BlueEdit{Answers: proto.String("R1-2")}),
+			recordtest.Event(t, "blue-respond", 0, &recordpb.BlueEdit{Answers: proto.String("G2")}),
 		})
 		got := availableOf(b.Events, workStatesOfFamilyT(b), "blue", "blue-respond")
-		if !mentions(got, "gap R1-2 was answered by an edit and carries no manifest row") {
-			t.Fatalf("an edit answering R1-2 with no manifest row afforded nothing: %v", hows(got))
+		if !mentions(got, "gap G2 was answered by an edit and carries no manifest row") {
+			t.Fatalf("an edit answering G2 with no manifest row afforded nothing: %v", hows(got))
 		}
 		// And it stops once the receipt exists, or the line is a nag rather than a fact.
-		b.Events = append(b.Events, recordtest.Event(t, "blue-respond", 0, &recordpb.ManifestRow{GapId: proto.String("R1-2")}))
-		if got := availableOf(b.Events, workStatesOfFamilyT(b), "blue", "blue-respond"); mentions(got, "gap R1-2 was answered by an edit and carries no manifest row") {
+		b.Events = append(b.Events, recordtest.Event(t, "blue-respond", 0, &recordpb.ManifestRow{GapId: proto.String("G2")}))
+		if got := availableOf(b.Events, workStatesOfFamilyT(b), "blue", "blue-respond"); mentions(got, "gap G2 was answered by an edit and carries no manifest row") {
 			t.Errorf("the manifest affordance survived its own discharge: %v", hows(got))
 		}
 	})
@@ -87,7 +87,7 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 			recordtest.Event(t, "blue-respond", 0, &recordpb.Motion{
 				MotionId: proto.String("M1"),
 				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
-				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("R1-1")}},
+				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}},
 			}),
 			recordtest.Event(t, "red-chair", 0, &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
@@ -96,11 +96,11 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 			}),
 		})
 		got := availableOf(b.Events, workStatesOfFamilyT(b), "merge", "red-chair")
-		if !mentions(got, "gap R1-1 had a grade motion ACCEPTED and no regrade") {
+		if !mentions(got, "gap G1 had a grade motion ACCEPTED and no regrade") {
 			t.Fatalf("an accepted grade motion with no regrade afforded nothing: %v", hows(got))
 		}
-		b.Events = append(b.Events, recordtest.Event(t, "red-chair", 0, &recordpb.Regrade{GapId: proto.String("R1-1")}))
-		if got := availableOf(b.Events, workStatesOfFamilyT(b), "merge", "red-chair"); mentions(got, "gap R1-1 had a grade motion ACCEPTED and no regrade") {
+		b.Events = append(b.Events, recordtest.Event(t, "red-chair", 0, &recordpb.Regrade{GapId: proto.String("G1")}))
+		if got := availableOf(b.Events, workStatesOfFamilyT(b), "merge", "red-chair"); mentions(got, "gap G1 had a grade motion ACCEPTED and no regrade") {
 			t.Errorf("the regrade affordance survived the regrade: %v", hows(got))
 		}
 	})
@@ -116,7 +116,7 @@ func TestEveryAffordanceDerivationFiresOnItsState(t *testing.T) {
 			recordtest.Event(t, "blue-respond", 0, &recordpb.Motion{
 				MotionId: proto.String("M1"),
 				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
-				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("R1-1")}},
+				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}},
 			}),
 			recordtest.Event(t, "red-chair", 0, &recordpb.MotionRule{
 				MotionId: proto.String("M1"),

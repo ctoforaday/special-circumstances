@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// THE SMOKE'S R1-2, DONE PROPERLY. Red asked blue to test the protocol on a false claim
-// ("is 9 prime"). Blue answered in prose asserting the test had happened, and R2-2 refused
+// THE SMOKE'S G1, DONE PROPERLY. Red asked blue to test the protocol on a false claim
+// ("is 9 prime"). Blue answered in prose asserting the test had happened, and G2 refused
 // it for showing no evidence. These drive the verb that makes the assertion unnecessary.
 
 func proveSeat(t *testing.T, runDir, body string) string {

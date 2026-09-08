@@ -34,7 +34,7 @@ func TestCommandWordsReadsTheShapesSeatsActuallyWrite(t *testing.T) {
 		},
 		{
 			name:    "plain invocation still reads",
-			command: `"/tmp/x/feov-record" --seat-id red-chair mint --id R1-1`,
+			command: `"/tmp/x/feov-record" --seat-id red-chair mint --id G1`,
 			want:    []string{"mint"},
 		},
 		{

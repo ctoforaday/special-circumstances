@@ -23,10 +23,10 @@ func chartBoard(gaps ...*record.Gap) *boardT {
 // the line ends and a table under the figure — because a picture is never the only copy.
 func TestBoardChartCumulativeSeries(t *testing.T) {
 	got := boardChart(chartBoardFam(
-		&record.Gap{ID: "R1-1", Round: 1, HasClosed: true, ClosedRound: 2},
-		&record.Gap{ID: "R1-2", Round: 1, HasClosed: true, ClosedRound: 3},
-		&record.Gap{ID: "R2-1", Round: 2, HasClosed: true, ClosedRound: 2},
-		&record.Gap{ID: "R3-1", Round: 3, Open: true},
+		&record.Gap{ID: "G1", Round: 1, HasClosed: true, ClosedRound: 2},
+		&record.Gap{ID: "G2", Round: 1, HasClosed: true, ClosedRound: 3},
+		&record.Gap{ID: "G3", Round: 2, HasClosed: true, ClosedRound: 2},
+		&record.Gap{ID: "G4", Round: 3, Open: true},
 	))
 	for _, want := range []string{
 		`<figure class="chart">`,
@@ -56,7 +56,7 @@ func TestBoardChartDeclinesThinBoards(t *testing.T) {
 	if got := boardChart(chartBoardFam()); got != "" {
 		t.Errorf("gapless board drew a chart:\n%s", got)
 	}
-	if got := boardChart(chartBoardFam(&record.Gap{ID: "R1-1", Round: 1, Open: true})); got != "" {
+	if got := boardChart(chartBoardFam(&record.Gap{ID: "G1", Round: 1, Open: true})); got != "" {
 		t.Errorf("a single-round board drew a one-dot trajectory:\n%s", got)
 	}
 }
@@ -65,8 +65,8 @@ func TestBoardChartDeclinesThinBoards(t *testing.T) {
 // tier draws what the markdown tier keeps as text.
 func TestBoardChartOpensTheRunDocument(t *testing.T) {
 	board := chartBoard(
-		&record.Gap{ID: "R1-1", Round: 1, HasClosed: true, ClosedRound: 2},
-		&record.Gap{ID: "R2-1", Round: 2, Open: true},
+		&record.Gap{ID: "G1", Round: 1, HasClosed: true, ClosedRound: 2},
+		&record.Gap{ID: "G2", Round: 2, Open: true},
 	)
 	docs := []Doc{
 		{File: FileReport, Nav: "Report", Blurb: "the research", Body: "## Read this first\n\nfine\n"},

@@ -278,7 +278,7 @@ func supersedesResolve(f record.Family) Check {
 // like a considered judgement — "verdict is VERIFIED — gate not applicable".
 //
 // Severity, stated honestly rather than inflated: the LIVE gate works. record.Append refuses
-// `merge verdict --as PASS` while any gap is open ("1 gap(s) still OPEN: R1-1"), so the
+// `merge verdict --as PASS` while any gap is open ("1 gap(s) still OPEN: G1"), so the
 // contradiction cannot arise through the tool. What was lost is the after-the-fact half — the
 // one that exists for a record assembled some OTHER way: a hand-edited shard, a legacy run, or
 // a live gate that itself regressed. That is precisely the case a verifier is for, and it was

@@ -59,11 +59,11 @@ var referenceChecks = []struct {
 	// needsRegistry stages a class registry first: the class check is advisory without one.
 	needsRegistry bool
 }{
-	{verb: []string{"close"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"close"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
-	{verb: []string{"close"}, flag: "--superseded-by", against: "the board", bogus: "R9-9",
-		extra: []string{"--id", "R1-1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
-	{verb: []string{"mint"}, flag: "--supersedes", against: "the board", bogus: "R9-9",
+	{verb: []string{"close"}, flag: "--superseded-by", against: "the board", bogus: "G2",
+		extra: []string{"--id", "G1", "--as", "repaired_with_regression", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "r"}},
+	{verb: []string{"mint"}, flag: "--supersedes", against: "the board", bogus: "G2",
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
 	{verb: []string{"mint"}, flag: "--found-by", against: "the findings on the record", bogus: "L9-F9",
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
@@ -76,32 +76,32 @@ var referenceChecks = []struct {
 	// THE ONE THIS TABLE WAS WRITTEN FOR.
 	{verb: []string{"mint"}, flag: "--quote", against: "blue/report.md", bogus: "a sentence that is nowhere in the report",
 		extra: []string{"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "low", "--impact", "low", "--problem", "p"}},
-	{verb: []string{"regrade"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"regrade"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--severity", "high", "--reason", "r"}},
-	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--reason", "r"}},
-	{verb: []string{"spot-check"}, flag: "--ids", against: "the closure archive", bogus: "R9-9",
+	{verb: []string{"spot-check"}, flag: "--ids", against: "the closure archive", bogus: "G2",
 		extra: []string{"--reason", "n"}},
 	// Red's per-round support verdict joins on the LINE's own id, so a dangling one would record a
 	// vote about a line nobody proposed — and the merge's PASS gate counts votes, so it would
 	// discharge a duty for a line that does not exist.
 	{verb: []string{"inquiry-support"}, flag: "--id", against: "the lines of inquiry on the record", bogus: "Q9",
 		extra: []string{"--as", "supported", "--reason", "r"}},
-	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"closing"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--reason", "r"}},
-	{verb: []string{"manifest-row"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"manifest-row"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--reason", "checked"}},
-	{verb: []string{"edit"}, flag: "--answers", against: "the board", bogus: "R9-9",
+	{verb: []string{"edit"}, flag: "--answers", against: "the board", bogus: "G2",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--new", "the parser accepts an empty body on this line.", "--reason", "r"}},
 	{verb: []string{"line-of-inquiry", "move"}, flag: "--id", against: "the inquiries on the record", bogus: "Q9",
 		extra: []string{"--as", "abandoned", "--reason", "r"}},
-	{verb: []string{"opinion"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"opinion"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--as", "carried", "--principle", "p", "--tension", "t", "--review-flag", "false", "--settled", "the proposition this ruling bars", "--final", "--reason", "r"}},
-	{verb: []string{"motion", "grade", "file"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"motion", "grade", "file"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--dimension", "severity", "--proposed", "low", "--reason", "r"}},
 	// FOUND BY TestEveryCheckedFlagIsInTheTable. All three carry a check and none was driven —
 	// exactly the hole the derived gate exists to close, caught the first time it ran.
-	{verb: []string{"prove"}, flag: "--answers", against: "the board", bogus: "R9-9",
+	{verb: []string{"prove"}, flag: "--answers", against: "the board", bogus: "G2",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--script", "p.py", "--reason", "r"}},
 	{verb: []string{"prove"}, flag: "--cites", against: "the citations on the record", bogus: "c-deadbeef",
 		extra: []string{"--quote", "the parser accepts an empty body in this line.", "--script", "p.py", "--reason", "r"}},
@@ -110,10 +110,10 @@ var referenceChecks = []struct {
 	// `merge carry` is `close`'s sibling, not a mode of it, so it carries its own copy of the two
 	// gap references and needs its own fixture — which is the whole point of deriving this gate
 	// from the tree rather than trusting the table to have kept up.
-	{verb: []string{"carry"}, flag: "--id", against: "the board", bogus: "R9-9",
+	{verb: []string{"carry"}, flag: "--id", against: "the board", bogus: "G2",
 		extra: []string{"--carried-from", "1", "--reason", "r"}},
-	{verb: []string{"carry"}, flag: "--superseded-by", against: "the board", bogus: "R9-9",
-		extra: []string{"--id", "R1-1", "--carried-from", "1", "--reason", "r"}},
+	{verb: []string{"carry"}, flag: "--superseded-by", against: "the board", bogus: "G2",
+		extra: []string{"--id", "G1", "--carried-from", "1", "--reason", "r"}},
 }
 
 // stageClassRegistry writes a registry into the run's RESOLVED record directory.

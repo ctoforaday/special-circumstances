@@ -30,8 +30,8 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 		id   string
 		kind recordpb.CheckKind
 	}{
-		{"R1-1", recordpb.CheckKind_CHECK_KIND_COMPUTATION},
-		{"R1-2", recordpb.CheckKind_CHECK_KIND_DOCUMENT},
+		{"G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION},
+		{"G2", recordpb.CheckKind_CHECK_KIND_DOCUMENT},
 	} {
 		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{
 			GapId:           proto.String(c.id),
@@ -50,7 +50,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	for _, g := range mustBoardJSONT(t, mustRun(t, runDir)).Open {
 		got[g.ID] = g.CheckKind
 	}
-	if got["R1-1"] != "computation" || got["R1-2"] != "document" {
+	if got["G1"] != "computation" || got["G2"] != "document" {
 		t.Errorf("board view check_kind = %v — a seat cannot know which gaps demand a program", got)
 	}
 
@@ -60,7 +60,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	for _, g := range mustWorkJSONT(t, mustRun(t, runDir)).Open {
 		got[g.ID] = g.CheckKind
 	}
-	if got["R1-1"] != "computation" || got["R1-2"] != "document" {
+	if got["G1"] != "computation" || got["G2"] != "document" {
 		t.Errorf("work check_kind = %v — the read a seat plans from cannot say which gaps prose will not close", got)
 	}
 }
@@ -127,17 +127,17 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	mint("R1-1", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
-	mint("R1-2", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
-	mint("R1-3", recordpb.CheckKind_CHECK_KIND_DOCUMENT)
+	mint("G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
+	mint("G2", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
+	mint("G3", recordpb.CheckKind_CHECK_KIND_DOCUMENT)
 
 	owed := GapsAwaitingProof(mustRun(t, runDir))
-	if len(owed) != 2 || owed[0] != "R1-1" || owed[1] != "R1-2" {
+	if len(owed) != 2 || owed[0] != "G1" || owed[1] != "G2" {
 		t.Fatalf("owed = %v, want the two computation gaps in board order", owed)
 	}
 	// A document gap is never a proof debt — over-reporting would train seats to ignore it.
 	for _, id := range owed {
-		if id == "R1-3" {
+		if id == "G3" {
 			t.Error("a document-kind gap was reported as awaiting a computation")
 		}
 	}
@@ -146,13 +146,13 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	// discharged nothing and the debt could not move. `answers` is the whole join this test is
 	// about: a proof that names no gap is a script that ran for no stated reason.
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Proof{
-		Answers: proto.String("R1-1"),
+		Answers: proto.String("G1"),
 		Script:  proto.String("s.py"),
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if owed := GapsAwaitingProof(mustRun(t, runDir)); len(owed) != 1 || owed[0] != "R1-2" {
-		t.Fatalf("after proving R1-1, owed = %v, want [R1-2]", owed)
+	if owed := GapsAwaitingProof(mustRun(t, runDir)); len(owed) != 1 || owed[0] != "G2" {
+		t.Fatalf("after proving G1, owed = %v, want [G2]", owed)
 	}
 
 	// THE BOARD AND THE GATE MUST NOT DISAGREE about what is owed. They share one join and one
@@ -164,8 +164,8 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 			fromBoard[g.ID] = true
 		}
 	}
-	if len(fromBoard) != 1 || !fromBoard["R1-2"] {
-		t.Fatalf("board says %v awaits proof, the debt query says [R1-2]", fromBoard)
+	if len(fromBoard) != 1 || !fromBoard["G2"] {
+		t.Fatalf("board says %v awaits proof, the debt query says [G2]", fromBoard)
 	}
 	for _, g := range mustWorkJSONT(t, mustRun(t, runDir)).Open {
 		if g.AwaitingProof != fromBoard[g.ID] {
@@ -175,7 +175,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 
 	// A CLOSED gap owes nothing, whatever its kind: the debt is what blue can still act on.
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Close{
-		GapId:        proto.String("R1-2"),
+		GapId:        proto.String("G2"),
 		AnchorSeat:   proto.String("L1"),
 		AnchorTool:   proto.String("Read"),
 		AnchorTarget: proto.String("x"),

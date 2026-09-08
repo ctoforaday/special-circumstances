@@ -262,11 +262,11 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 		case strings.HasPrefix(joined, "motion") && !strings.HasSuffix(joined, "file"):
 			return "M1"
 		case joined == "lens reproduce":
-			// A PROOF SHA, not a gap id. Passing R1-1 made the proof lookup fail first and
+			// A PROOF SHA, not a gap id. Passing G1 made the proof lookup fail first and
 			// the gate reported --as as unnamed when the refusal was about a missing proof.
 			return proofSHA
 		}
-		return "R1-1"
+		return "G1"
 	}
 	if vals := strings.Split(f.Value.Type(), "|"); len(vals) > 1 {
 		return vals[0]
@@ -313,7 +313,7 @@ func seatRunForContracts(t *testing.T) string {
 		t.Fatalf("seed line of inquiry: %v", err)
 	}
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "R1-1", "--dimension", "severity", "--proposed", "low",
+		"--id", "G1", "--dimension", "severity", "--proposed", "low",
 		"--reason", "the motion a probe's --id names"); err != nil {
 		t.Fatalf("seed motion: %v", err)
 	}

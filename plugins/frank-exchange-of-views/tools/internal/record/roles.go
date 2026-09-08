@@ -12,7 +12,7 @@ import (
 // seat could not run `feov-record lens mint` — the lens namespace has no mint
 // verb — but nothing stopped it running `feov-record merge mint --seat-id
 // red-lens-evidence`, and it minted a board gap. Verified before this file existed;
-// the tool said "minted R1-1".
+// the tool said "minted G1".
 //
 // That mattered more than a missing guard usually does, because the verb set
 // being the role boundary is the engine's PREMISE, not a convenience: blue is

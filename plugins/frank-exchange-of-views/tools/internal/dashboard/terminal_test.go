@@ -32,8 +32,8 @@ func runWithStubbedReportButNoOutcome(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte("# report.md — a topic\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", 1, "red-chair:mint:R1-1", &recordpb.Mint{
-		GapId:           proto.String("R1-1"),
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", 1, "red-chair:mint:G1", &recordpb.Mint{
+		GapId:           proto.String("G1"),
 		Problem:         proto.String("p"),
 		RequiredFix:     proto.String("f"),
 		AcceptanceCheck: proto.String("the check runs"),

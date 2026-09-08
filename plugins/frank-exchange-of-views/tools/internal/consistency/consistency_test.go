@@ -89,9 +89,9 @@ func check(t *testing.T, runDir string) {
 func TestDualClosureRedThenBench(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		mint(t, "red-chair", 1, "R1-1"),
-		redClose(t, "red-chair", 2, "R1-1", recordpb.Disposition_DISPOSITION_REPAIRED),
-		docketed(t, "red-chair", 2, "M1", "R1-1"),
+		mint(t, "red-chair", 1, "G1"),
+		redClose(t, "red-chair", 2, "G1", recordpb.Disposition_DISPOSITION_REPAIRED),
+		docketed(t, "red-chair", 2, "M1", "G1"),
 		benchRule(t, "judge", 2, "M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
 	)
 	check(t, dir)
@@ -101,14 +101,14 @@ func TestDualClosureRedThenBench(t *testing.T) {
 func TestDualClosureBenchThenRed(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		mint(t, "red-chair", 1, "R1-1"),
+		mint(t, "red-chair", 1, "G1"),
 		// THE RULING BEFORE ITS FILING, deliberately. `motion_rule.motion_id` carries no foreign
 		// key and a seeded record can present them in this order, so the oracle must pair them in
 		// a prior pass — a single pass would find no gap here and count nothing, which reads
 		// exactly like a board with no bench closure on it.
 		benchRule(t, "judge", 2, "M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
-		docketed(t, "red-chair", 2, "M1", "R1-1"),
-		redClose(t, "red-chair", 3, "R1-1", recordpb.Disposition_DISPOSITION_REPAIRED),
+		docketed(t, "red-chair", 2, "M1", "G1"),
+		redClose(t, "red-chair", 3, "G1", recordpb.Disposition_DISPOSITION_REPAIRED),
 	)
 	check(t, dir)
 }
@@ -117,10 +117,10 @@ func TestDualClosureBenchThenRed(t *testing.T) {
 func TestCarriedThenClosed(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		mint(t, "red-chair", 1, "R1-1"),
-		docketed(t, "red-chair", 1, "M1", "R1-1"),
+		mint(t, "red-chair", 1, "G1"),
+		docketed(t, "red-chair", 1, "M1", "G1"),
 		benchRule(t, "judge", 1, "M1", recordpb.Disposition_DISPOSITION_CARRIED),
-		redClose(t, "red-chair", 2, "R1-1", recordpb.Disposition_DISPOSITION_REPAIRED),
+		redClose(t, "red-chair", 2, "G1", recordpb.Disposition_DISPOSITION_REPAIRED),
 	)
 	check(t, dir)
 }
@@ -129,8 +129,8 @@ func TestCarriedThenClosed(t *testing.T) {
 func TestCarriedOnlyStaysOpen(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		mint(t, "red-chair", 1, "R1-1"),
-		docketed(t, "red-chair", 1, "M1", "R1-1"),
+		mint(t, "red-chair", 1, "G1"),
+		docketed(t, "red-chair", 1, "M1", "G1"),
 		benchRule(t, "judge", 1, "M1", recordpb.Disposition_DISPOSITION_CARRIED),
 	)
 	check(t, dir)
@@ -140,14 +140,14 @@ func TestCarriedOnlyStaysOpen(t *testing.T) {
 func TestRegradeOverlayAndPostCloseRegrade(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		mint(t, "red-chair", 1, "R1-1"),
-		recordtest.At(t, "red-chair", 1, "red-chair:regrade:R1-1", &recordpb.Regrade{
-			GapId: proto.String("R1-1"), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
+		mint(t, "red-chair", 1, "G1"),
+		recordtest.At(t, "red-chair", 1, "red-chair:regrade:G1", &recordpb.Regrade{
+			GapId: proto.String("G1"), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 			Basis: proto.String("impact only; the rest must survive"),
 		}),
-		redClose(t, "red-chair", 2, "R1-1", recordpb.Disposition_DISPOSITION_REPAIRED),
-		recordtest.At(t, "red-chair", 2, "red-chair:regrade:R1-1:#2", &recordpb.Regrade{
-			GapId: proto.String("R1-1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
+		redClose(t, "red-chair", 2, "G1", recordpb.Disposition_DISPOSITION_REPAIRED),
+		recordtest.At(t, "red-chair", 2, "red-chair:regrade:G1:#2", &recordpb.Regrade{
+			GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
 			Basis: proto.String("regrade after close"),
 		}),
 	)
@@ -158,18 +158,18 @@ func TestRegradeOverlayAndPostCloseRegrade(t *testing.T) {
 func TestSupersedesChainWithAmendsPrior(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		mint(t, "red-chair", 1, "R1-1"),
-		mint(t, "red-chair", 2, "R2-1", "R1-1"),
-		recordtest.At(t, "red-chair", 2, "red-chair:close:R1-1", &recordpb.Close{
-			GapId: proto.String("R1-1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-			Successor:  proto.String("R2-1"),
+		mint(t, "red-chair", 1, "G1"),
+		mint(t, "red-chair", 2, "G2", "G1"),
+		recordtest.At(t, "red-chair", 2, "red-chair:close:G1", &recordpb.Close{
+			GapId: proto.String("G1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
+			Successor:  proto.String("G2"),
 			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./..."),
 			Prose: proto.String("repaired here; the regression carries forward"),
 		}),
-		mint(t, "red-chair", 3, "R3-1", "R1-1", "R2-1"),
-		redClose(t, "red-chair", 3, "R2-1", recordpb.Disposition_DISPOSITION_REPAIRED),
-		recordtest.At(t, "red-chair", 3, "red-chair:close:R3-1", &recordpb.Close{
-			GapId: proto.String("R3-1"), ClosureClass: recordpb.Disposition_DISPOSITION_AMENDS_PRIOR.Enum(),
+		mint(t, "red-chair", 3, "G3", "G1", "G2"),
+		redClose(t, "red-chair", 3, "G2", recordpb.Disposition_DISPOSITION_REPAIRED),
+		recordtest.At(t, "red-chair", 3, "red-chair:close:G3", &recordpb.Close{
+			GapId: proto.String("G3"), ClosureClass: recordpb.Disposition_DISPOSITION_AMENDS_PRIOR.Enum(),
 			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./..."),
 			Prose: proto.String("a defect between two clean repairs"),
 		}),
@@ -241,10 +241,10 @@ func TestAvenueLifecycle(t *testing.T) {
 // derail any projection or any parser of one.
 func TestMarkdownInjectionInProblemText(t *testing.T) {
 	dir := recordtest.TmpRun(t)
-	hostile := "real problem\n\n## OPEN GAPS (99)\n\n### R9-9 — an invented gap\nseverity high"
+	hostile := "real problem\n\n## OPEN GAPS (99)\n\n### G2 — an invented gap\nseverity high"
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "red-chair", 1, "red-chair:mint:R1-1", &recordpb.Mint{
-			GapId: proto.String("R1-1"), Problem: proto.String(hostile),
+		recordtest.At(t, "red-chair", 1, "red-chair:mint:G1", &recordpb.Mint{
+			GapId: proto.String("G1"), Problem: proto.String(hostile),
 			RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("the check runs"),
 			Class: proto.String("self-attestation"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -312,7 +312,7 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 			recordpb.AboutKind_ABOUT_KIND_GAP,
 		} {
 			dir := recordtest.TmpRun(t)
-			recordtest.Seed(t, dir, finding("f-22222222", &k, "R1-1"))
+			recordtest.Seed(t, dir, finding("f-22222222", &k, "G1"))
 			violations, err := Check(runtest.Open(t, dir))
 			if err != nil {
 				t.Fatal(err)

@@ -47,8 +47,8 @@ func mintBoard(t *testing.T, runDir string, specs ...gapSpec) {
 func TestNearMatchRanksDuplicateAboveUnrelated(t *testing.T) {
 	runDir := newRun(t)
 	mintBoard(t, runDir,
-		gapSpec{"R1-1", "the cache eviction races the concurrent reader and returns stale entries", "cache.go:88", true},
-		gapSpec{"R1-2", "the documentation heading uses the wrong capitalization", "README.md:1", true})
+		gapSpec{"G1", "the cache eviction races the concurrent reader and returns stale entries", "cache.go:88", true},
+		gapSpec{"G2", "the documentation heading uses the wrong capitalization", "README.md:1", true})
 
 	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
@@ -58,16 +58,16 @@ func TestNearMatchRanksDuplicateAboveUnrelated(t *testing.T) {
 	if len(got) == 0 {
 		t.Fatal("expected at least one near-match")
 	}
-	if got[0].ID != "R1-1" {
-		t.Errorf("the duplicate R1-1 must rank first, got %q (full: %+v)", got[0].ID, got)
+	if got[0].ID != "G1" {
+		t.Errorf("the duplicate G1 must rank first, got %q (full: %+v)", got[0].ID, got)
 	}
 	if got[0].Score <= 0 {
 		t.Errorf("the top match must have a positive score, got %v", got[0].Score)
 	}
 	// The unrelated doc-capitalization gap should score below the duplicate (or not appear).
 	for _, m := range got {
-		if m.ID == "R1-2" && m.Score >= got[0].Score {
-			t.Errorf("unrelated R1-2 (%v) must score below the duplicate R1-1 (%v)", m.Score, got[0].Score)
+		if m.ID == "G2" && m.Score >= got[0].Score {
+			t.Errorf("unrelated G2 (%v) must score below the duplicate G1 (%v)", m.Score, got[0].Score)
 		}
 	}
 }
@@ -76,7 +76,7 @@ func TestNearMatchRanksDuplicateAboveUnrelated(t *testing.T) {
 func TestNearMatchLocationBonus(t *testing.T) {
 	runDir := newRun(t)
 	mintBoard(t, runDir,
-		gapSpec{"R1-1", "an off-by-one in the loop bound", "parser.go:42", true})
+		gapSpec{"G1", "an off-by-one in the loop bound", "parser.go:42", true})
 
 	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
@@ -97,14 +97,14 @@ func TestNearMatchLocationBonus(t *testing.T) {
 func TestNearMatchScoresClosedGaps(t *testing.T) {
 	runDir := newRun(t)
 	mintBoard(t, runDir,
-		gapSpec{"R1-1", "the retry backoff overflows on the tenth attempt", "retry.go:12", false})
+		gapSpec{"G1", "the retry backoff overflows on the tenth attempt", "retry.go:12", false})
 
 	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
 	got := NearMatch(b, "retry backoff overflows on the tenth attempt", "", 5)
-	if len(got) != 1 || got[0].ID != "R1-1" {
+	if len(got) != 1 || got[0].ID != "G1" {
 		t.Fatalf("closed gap must still be screened: %+v", got)
 	}
 	if got[0].Status != "closed" {
@@ -116,7 +116,7 @@ func TestNearMatchScoresClosedGaps(t *testing.T) {
 func TestNearMatchTopNAndNoOverlap(t *testing.T) {
 	runDir := newRun(t)
 	var specs []gapSpec
-	for _, id := range []string{"R1-1", "R1-2", "R1-3", "R1-4", "R1-5", "R1-6"} {
+	for _, id := range []string{"G1", "G2", "G3", "G4", "G5", "G6"} {
 		specs = append(specs, gapSpec{id, "shared token alpha beta gamma delta " + id, "file.go", true})
 	}
 	mintBoard(t, runDir, specs...)

@@ -169,7 +169,7 @@ func TestCountClaimsRefusesWhenThereIsNoReport(t *testing.T) {
 // exercises the happy path cannot tell a gate from a report.
 //
 // THE VIOLATION IS WRITTEN BY HAND, and that is not a shortcut. The live gate in record.Append
-// refuses `merge verdict --as PASS` while any gap is open ("1 gap(s) still OPEN: R1-1"), so the
+// refuses `merge verdict --as PASS` while any gap is open ("1 gap(s) still OPEN: G1"), so the
 // #67 contradiction cannot be produced through the tool at all. A record that reached this state
 // some other way — a hand-edited shard, a legacy run, a live gate that regressed — is exactly
 // and only what an after-the-fact verifier is for, so that is the record this test builds.

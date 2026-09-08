@@ -31,7 +31,7 @@ func TestSpanBoundaryOK(t *testing.T) {
 		// of one line survived for the same reason — the endpoints `0 9 a z A Z` and `_` were
 		// never exercised, so the class could be wrong at its edges and every test still passed.
 		//
-		// It is not a hypothetical shape here: gap ids (`R1-1`), years and schema field names
+		// It is not a hypothetical shape here: gap ids (`G1`), years and schema field names
 		// (`closure_class`) are exactly the tokens a span lands in the middle of.
 		{"splits a number", "value 2026 here", 6, 9, false},
 		{"splits at the digit 0", "value 20 here", 6, 7, false},

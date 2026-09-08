@@ -12,14 +12,14 @@ TWO CONSEQUENCES:
 $ mint --run {RUN} --seat-id red-chair --class a --check-kind document --check x --severity low --likelihood low --impact low --problem r1 first
 exit 0
 stdout:
-minted R1-1
+minted G1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 $ mint --run {RUN} --seat-id red-chair --class a --check-kind document --check x --severity low --likelihood low --impact low --problem r1 second
 exit 0
 stdout:
-minted R1-2
+minted G2
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
@@ -37,14 +37,14 @@ TWO CONSEQUENCES:
 $ mint --run {RUN} --seat-id red-chair --class a --check-kind document --check x --severity low --likelihood low --impact low --problem r2 first
 exit 0
 stdout:
-minted R2-1
+minted G3
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
-$ spot-check --run {RUN} --seat-id red-chair --ids R1-1, R1-2 --reason both re-read
+$ spot-check --run {RUN} --seat-id red-chair --ids G1, G2 --reason both re-read
 exit 2
 stderr:
-feov-record: merge: record: spot-check --ids names gap R1-1, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it
+feov-record: merge: record: spot-check --ids names gap G1, which is still OPEN — the spot-check samples ARCHIVED closures, and re-verifying something that was never closed discharges the duty without doing it
 
 $ register --run {RUN} --seat-id blue-respond
 exit 0
@@ -57,7 +57,7 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ motion grade file --run {RUN} --seat-id blue-respond --id R1-1 --dimension likelihood --proposed high --reason the second failure is not required
+$ motion grade file --run {RUN} --seat-id blue-respond --id G1 --dimension likelihood --proposed high --reason the second failure is not required
 exit 0
 stdout:
 motion M1 filed (grade)
@@ -71,12 +71,12 @@ motion M1 ruled rejected
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 first","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair:mint:R1-2","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"R1-2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 second","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 first","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:mint:G2","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 second","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
 {"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:mint:R2-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"R2-1","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r2 first","required_fix":"","severity":"GRADE_LOW"},"round":2,"seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:mint:G3","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"G3","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r2 first","required_fix":"","severity":"GRADE_LOW"},"round":2,"seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_MINT"}
 {"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_REGISTER"}
-{"key":"blue-respond:motion:#1","motion":{"basis":"the second failure is not required","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"R1-1","proposed":"GRADE_HIGH"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":2,"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_MOTION"}
+{"key":"blue-respond:motion:#1","motion":{"basis":"the second failure is not required","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"G1","proposed":"GRADE_HIGH"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":2,"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_MOTION"}
 {"key":"red-chair:motion_rule:#1","motion_rule":{"grade":"GRADE_RULING_REJECTED","motion_id":"M1","opinion":"the consequence stands","subject":"MOTION_SUBJECT_GRADE"},"round":2,"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_MOTION_RULE"}
 
 ═══ RENDERS ═══
@@ -113,9 +113,9 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 3 open gap(s) remain, most severe first — full statements in [the board](docket.md).
 
-1. **[low]** r1 first (R1-1) — 
-2. **[low]** r1 second (R1-2) — 
-3. **[low]** r2 first (R2-1) — 
+1. **[low]** r1 first (G1) — 
+2. **[low]** r1 second (G2) — 
+3. **[low]** r2 first (G3) — 
 
 ## TL;DR
 

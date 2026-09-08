@@ -77,8 +77,8 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 	blueFriction := mark("blue.friction")
 
 	gaps := []any{
-		map[string]any{"id": "R1-1", "severity": "major", "likelihood": "medium", "impact": "medium", "complexity_cost": "low", "supersedes": []any{}},
-		map[string]any{"id": "R1-2", "severity": "minor", "likelihood": "low", "impact": "low", "complexity_cost": "low", "supersedes": []any{}},
+		map[string]any{"id": "G1", "severity": "major", "likelihood": "medium", "impact": "medium", "complexity_cost": "low", "supersedes": []any{}},
+		map[string]any{"id": "G2", "severity": "minor", "likelihood": "low", "impact": "low", "complexity_cost": "low", "supersedes": []any{}},
 	}
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
@@ -86,7 +86,7 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 			"gaps": []any{}, "petitions": []any{}, "log": []any{}, "rulings": []any{},
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
 			"resolutions": []any{}, "grade_disputes": []any{}, "holdings": []any{},
-			"manifest": []any{"R1-1", "R1-2"}, "claim_count": 3,
+			"manifest": []any{"G1", "G2"}, "claim_count": 3,
 			"saturation_reached": false, "round_record_appended": true, "open_gaps": []any{},
 		}
 		switch {
@@ -99,7 +99,7 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 		case strings.HasPrefix(seatID, "judge"):
 			e["holdings"] = []any{holding}
 			e["resolutions"] = []any{map[string]any{
-				"gap_id": "R1-1", "resolution": "not_a_defect",
+				"gap_id": "G1", "resolution": "not_a_defect",
 				"settled": settled, "reopens_on": reopens, "rationale": rationale,
 			}}
 		}

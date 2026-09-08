@@ -36,7 +36,7 @@ func seatBash(t *testing.T, command string) Input {
 // rather than the inline `VAR=x cmd` form: an inline prefix binds to `cd` and never crosses
 // the `&&`, so the seat's actual invocation would have run without it.
 func TestTheExportCrossesTheAndAndSeparator(t *testing.T) {
-	cmd := `cd C:/Users/gb/Projects/special-circumstances && "/c/bin/feov-record" blue manifest-row --id R1-3 --row "figures recomputed"`
+	cmd := `cd C:/Users/gb/Projects/special-circumstances && "/c/bin/feov-record" blue manifest-row --id G1 --row "figures recomputed"`
 	out, payload := PreOutcome(bash(t, cmd), liveRun)
 	if out != OutcomeRewrite {
 		t.Fatalf("outcome %v, want rewrite", out)
@@ -84,10 +84,10 @@ func TestAMentionIsPrefixedAndNeverModified(t *testing.T) {
 func TestInvocationPositionsAreRewritten(t *testing.T) {
 	for _, cmd := range []string{
 		`feov-record blue position --reason x`,
-		`"/c/bin/feov-record" merge mint --id R1-1`,
+		`"/c/bin/feov-record" merge mint --id G1`,
 		`/usr/local/bin/feov-record verify`,
 		`true; feov-record lens finding --key F1`,
-		`false || feov-record bench opinion --id R1-1`,
+		`false || feov-record bench opinion --id G1`,
 		"cd /tmp\nfeov-record blue register",
 	} {
 		if out, _ := PreOutcome(bash(t, cmd), liveRun); out != OutcomeRewrite {
@@ -189,7 +189,7 @@ func TestTheHeredocFormTheToolTeachesKeepsItsIdentity(t *testing.T) {
 		// the measured one, leading newline and all
 		"\n/scratch/runbin/feov-record position \\\n  --reason-file - <<'EOF'\nRed raised five gaps.\nEOF",
 		// the same shape a merge seat used, four times
-		"cat > /tmp/p.txt << 'EOF'\nprose\nEOF\n/scratch/feov-record merge close --id R1-1 --reason-file /tmp/p.txt",
+		"cat > /tmp/p.txt << 'EOF'\nprose\nEOF\n/scratch/feov-record merge close --id G1 --reason-file /tmp/p.txt",
 		// `<<-` and an unquoted delimiter
 		"feov-record blue edit --reason-file - <<-END\n\ttext\n\tEND",
 	} {

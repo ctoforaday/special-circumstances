@@ -102,7 +102,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		Text: proto.String("the read lock is dropped before evict<!--cite:c-1-->"),
 	})
 	add("red-chair", &recordpb.Mint{
-		GapId: proto.String("R1-1"), Problem: proto.String("eviction races the reader<!--fx:f-L1-F1-->"),
+		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader<!--fx:f-L1-F1-->"),
 		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		AcceptanceCheck: proto.String("race the eviction under -race"),
@@ -110,7 +110,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
 	add("blue-respond", &recordpb.Position{
-		Text: proto.String("the interleaving is model-checked<!--proof:p-1--> and R1-1 does not stand"),
+		Text: proto.String("the interleaving is model-checked<!--proof:p-1--> and G1 does not stand"),
 	})
 	add("judge-terminal", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),

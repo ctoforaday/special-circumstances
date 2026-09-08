@@ -17,36 +17,36 @@ position recorded
 $ mint --run {RUN} --seat-id red-chair --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
 exit 0
 stdout:
-minted R1-1
+minted G1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
-$ closing --run {RUN} --seat-id red-chair --id R1-1 --reason red's closing
+$ closing --run {RUN} --seat-id red-chair --id G1 --reason red's closing
 exit 0
 stdout:
-closing filed for R1-1
+closing filed for G1
 
 $ position --run {RUN} --seat-id blue-respond --reason-file {RUN}/blue.md
 exit 0
 stdout:
 position recorded
 
-$ closing --run {RUN} --seat-id blue-respond --id R1-1 --reason blue's closing
+$ closing --run {RUN} --seat-id blue-respond --id G1 --reason blue's closing
 exit 0
 stdout:
-closing filed for R1-1
+closing filed for G1
 
 $ revision --run {RUN} --seat-id blue-respond --reason repairs landed
 exit 0
 stdout:
 revision recorded — the round is on the record
 
-$ manifest-row --run {RUN} --seat-id blue-respond --id R1-1 --reason figures recomputed; check run: pass
+$ manifest-row --run {RUN} --seat-id blue-respond --id G1 --reason figures recomputed; check run: pass
 exit 0
 stdout:
-manifest row recorded for R1-1
+manifest row recorded for G1
 
-$ motion grade file --run {RUN} --seat-id blue-respond --id R1-1 --dimension likelihood --proposed low --reason the harm needs two failures
+$ motion grade file --run {RUN} --seat-id blue-respond --id G1 --dimension likelihood --proposed low --reason the harm needs two failures
 exit 0
 stdout:
 motion M1 filed (grade)
@@ -111,7 +111,7 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ motion docket file --run {RUN} --seat-id red-chair --id R1-1 --reason contested, and not red's to close
+$ motion docket file --run {RUN} --seat-id red-chair --id G1 --reason contested, and not red's to close
 exit 0
 stdout:
 motion M2 filed (docket)
@@ -131,15 +131,15 @@ certification recorded
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:position:#1","position":{"text":"red's round position"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_POSITION"}
-{"key":"red-chair:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
-{"closing":{"gap_id":"R1-1","text":"red's closing"},"key":"red-chair:closing:R1-1","round":1,"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_CLOSING"}
+{"key":"red-chair:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
+{"closing":{"gap_id":"G1","text":"red's closing"},"key":"red-chair:closing:G1","round":1,"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_CLOSING"}
 {"key":"blue-respond:position:#0","position":{"text":"blue's round position"},"round":1,"seat_id":"blue-respond","ts":6,"type":"EVENT_TYPE_POSITION"}
-{"closing":{"gap_id":"R1-1","text":"blue's closing"},"key":"blue-respond:closing:R1-1","round":1,"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_CLOSING"}
+{"closing":{"gap_id":"G1","text":"blue's closing"},"key":"blue-respond:closing:G1","round":1,"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_CLOSING"}
 {"key":"blue-respond:revision:#0","revision":{"text":"repairs landed"},"round":1,"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_REVISION"}
-{"key":"blue-respond:manifest_row:R1-1","manifest_row":{"gap_id":"R1-1","row":"figures recomputed; check run: pass"},"round":1,"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
-{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"R1-1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":1,"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MOTION"}
+{"key":"blue-respond:manifest_row:G1","manifest_row":{"gap_id":"G1","row":"figures recomputed; check run: pass"},"round":1,"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"G1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":1,"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MOTION"}
 {"key":"judge:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"judge","ts":11,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"R1-1"},"motion_id":"M2","subject":"MOTION_SUBJECT_DOCKET"},"round":1,"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_MOTION"}
+{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"G1"},"motion_id":"M2","subject":"MOTION_SUBJECT_DOCKET"},"round":1,"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_MOTION"}
 {"key":"judge:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_CARRIED","final":true,"principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"M2","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"round":1,"seat_id":"judge","ts":13,"type":"EVENT_TYPE_MOTION_RULE"}
 {"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","round":1,"seat_id":"judge","ts":14,"type":"EVENT_TYPE_CERTIFY"}
 
@@ -152,17 +152,17 @@ certification recorded
 ### RED
 red's round position
 
-### RED CLOSING (round 1) — R1-1
+### RED CLOSING (round 1) — G1
 red's closing
 
 ### BLUE
 blue's round position
 
-### BLUE CLOSING (round 1) — R1-1
+### BLUE CLOSING (round 1) — G1
 blue's closing
 
 ### LEAD
-- R1-1: carried — principle: correctness over economy; tension: thoroughness vs cost; review: the figure was never recomputed
+- G1: carried — principle: correctness over economy; tension: thoroughness vs cost; review: the figure was never recomputed
 the rationale body
 
 -- lines-of-inquiry
@@ -196,7 +196,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 1 open gap(s) remain, most severe first — full statements in [the board](docket.md).
 
-1. **[medium]** docketed (R1-1) — 
+1. **[medium]** docketed (G1) — 
 
 ## TL;DR
 

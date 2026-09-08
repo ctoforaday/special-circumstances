@@ -42,7 +42,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	blue := Identity{Run: run, SeatID: "blue-respond"}
 
 	if _, err := Append(red, &recordpb.Mint{
-		GapId:           proto.String("R1-1"),
+		GapId:           proto.String("G1"),
 		Class:           proto.String("self-attestation"),
 		Problem:         proto.String("p"),
 		RequiredFix:     proto.String("f"),
@@ -62,7 +62,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Basis:    proto.String("severity is understated"),
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-			GapId:     proto.String("R1-1"),
+			GapId:     proto.String("G1"),
 			Dimension: recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY.Enum(),
 			Proposed:  recordtest.P(recordpb.Grade_GRADE_HIGH),
 		}},

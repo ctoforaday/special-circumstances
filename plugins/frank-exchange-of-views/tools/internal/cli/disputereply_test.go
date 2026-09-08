@@ -26,7 +26,7 @@ import (
 // TWO MOTIONS ON THE SAME GAP AND THE SAME DIMENSION ARE STILL DISTINCT.
 //
 // This is the case the old pair key could not represent at all, and it is why the id exists. Blue
-// contests R1-1's severity, is refused, and contests it again on new grounds; the two filings are
+// contests G1's severity, is refused, and contests it again on new grounds; the two filings are
 // separate motions with separate ids, and a ruling on one leaves the other open.
 func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
 	runDir := newRun(t)
@@ -35,7 +35,7 @@ func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
 
 	for _, why := range []string{"the harm needs two failures", "and the second failure is gated upstream"} {
 		if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-			"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", why); err != nil {
+			"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", why); err != nil {
 			t.Fatalf("file refused: %v", err)
 		}
 	}
@@ -63,7 +63,7 @@ func TestARulingOnAnUnfiledMotionIsRefused(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nA claim.\n")
 	mintGap(t, runDir, "G1", "overclaim")
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "s"); err != nil {
+		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "s"); err != nil {
 		t.Fatalf("file refused: %v", err)
 	}
 
@@ -88,7 +88,7 @@ func TestAnAppealAgainstNoRulingIsRefused(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nA claim.\n")
 	mintGap(t, runDir, "G1", "overclaim")
 	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
-		"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "s"); err != nil {
+		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "s"); err != nil {
 		t.Fatalf("file refused: %v", err)
 	}
 

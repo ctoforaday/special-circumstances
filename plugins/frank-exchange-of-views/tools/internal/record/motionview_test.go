@@ -21,7 +21,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_COMPUTATION), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_COMPUTATION), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
 	basis := "the defect is presentational, so `certain` severity prices a rewrite as a data error"
@@ -30,7 +30,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Basis:    proto.String(basis),
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-			GapId:     proto.String("R1-1"),
+			GapId:     proto.String("G1"),
 			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY),
 			Proposed:  recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}},
@@ -58,7 +58,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	if j.Counts.Outstanding != 1 {
 		t.Errorf("outstanding = %d, want 1 — this is the count that blocks a PASS", j.Counts.Outstanding)
 	}
-	if m.Fields["gap_id"] != "R1-1" || m.Fields["dimension"] != "severity" || m.Fields["proposed"] != "medium" {
+	if m.Fields["gap_id"] != "G1" || m.Fields["dimension"] != "severity" || m.Fields["proposed"] != "medium" {
 		t.Errorf("subject-specific fields lost: %v", m.Fields)
 	}
 
@@ -94,7 +94,7 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
@@ -102,7 +102,7 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Basis:    proto.String("b"),
 		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-			GapId:     proto.String("R1-1"),
+			GapId:     proto.String("G1"),
 			Dimension: recordtest.P(recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY),
 			Proposed:  recordtest.P(recordpb.Grade_GRADE_LOW),
 		}},
@@ -112,7 +112,7 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	// The board must be otherwise CLEAN, or the open-gap arm answers first and the motion arm
 	// — the one under test — is never reached.
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Close{
-		GapId:        proto.String("R1-1"),
+		GapId:        proto.String("G1"),
 		AnchorSeat:   proto.String("L1"),
 		AnchorTool:   proto.String("Read"),
 		AnchorTarget: proto.String("blue/report.md"),

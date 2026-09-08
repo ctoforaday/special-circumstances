@@ -122,7 +122,7 @@ func TestAGenuineCarryIsStillAccepted(t *testing.T) {
 func TestMintRequiresTheGradesThatMultiplyIntoMass(t *testing.T) {
 	base := func() *recordpb.Mint {
 		return &recordpb.Mint{
-			GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("c"),
+			GapId: proto.String("G1"), AcceptanceCheck: proto.String("c"),
 			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Class:     proto.String("scope-creep"), Problem: proto.String("p"),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),

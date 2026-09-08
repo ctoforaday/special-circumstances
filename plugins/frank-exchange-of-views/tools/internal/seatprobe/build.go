@@ -127,7 +127,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		// already filed — so a bench board without them hands the seat a docket it cannot rule on
 		// the way it is told to. Measured 2026-08-20 by the seat: the boundary bench filed friction
 		// naming the null closings, ruled on artifact state instead, and asked for a human check.
-		gapID := fmt.Sprintf("R1-%d", i+1)
+		gapID := fmt.Sprintf("G%d", i+1)
 		for _, c := range []struct{ seat, text string }{
 			{"red-chair", g.RedClosing}, {"blue-respond", g.BlueClosing},
 		} {

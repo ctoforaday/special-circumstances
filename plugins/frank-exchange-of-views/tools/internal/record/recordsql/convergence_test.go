@@ -57,10 +57,10 @@ func TestConvergenceVsVerdictIsComputedFromTheRecord(t *testing.T) {
 			// scenario, which is what the first draft of this fixture got wrong: the view
 			// declined it correctly and the test was the thing at fault.
 			recordtest.Seed(t, dir,
-				recordtest.At(t, "red-chair", 1, "red-chair:mint:R1-1",
-					mint("R1-1", tc.sev, recordpb.Grade_GRADE_LOW, recordpb.Grade_GRADE_LOW)),
-				recordtest.At(t, "red-chair", 2, "red-chair:mint:R2-1",
-					mint("R2-1", tc.sev, recordpb.Grade_GRADE_LOW, recordpb.Grade_GRADE_LOW, "R1-1")),
+				recordtest.At(t, "red-chair", 1, "red-chair:mint:G1",
+					mint("G1", tc.sev, recordpb.Grade_GRADE_LOW, recordpb.Grade_GRADE_LOW)),
+				recordtest.At(t, "red-chair", 2, "red-chair:mint:G2",
+					mint("G2", tc.sev, recordpb.Grade_GRADE_LOW, recordpb.Grade_GRADE_LOW, "G1")),
 				recordtest.At(t, "red-chair", 2, "red-chair:verdict",
 					&recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 			)
