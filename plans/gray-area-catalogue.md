@@ -102,6 +102,12 @@ across the 13 sessions where gray-area's manifest recorded a `prompt_id` and the
 survives: **434 of 434 hook-recorded values appear in that same session's transcript, 0 missing.**
 The join is on a real key.
 
+**One leg of that remains untested and is named rather than assumed.** Every one of those 434 rows
+is a `SubagentStop` — gray-area has never bound `Stop`, so *that a `Stop` payload's `prompt_id`
+names the turn which just ENDED, rather than the next one, is not established here.* If it named
+the next turn the provisional would be filed against the wrong key. §V.17 asserts it at fire time,
+alongside the lag measurement, because both need the hook to exist first.
+
 **Supersession is by id, and an earlier draft's claim that it could not be was a fourth unmeasured
 negative.** That draft said transcript assistant records "carry `uuid`, `requestId` and
 `parentUuid` and **no `prompt_id`**", and built a byte-positional rule on it. True of an assistant
@@ -111,21 +117,39 @@ modified transcripts: `promptId` is carried by **`user`** records (8,664 of them
 ancestor that has it.** Zero unresolved. So the transcript side yields the same key the payload
 carries, and the positional rule is withdrawn.
 
-The rule, stated as a total function rather than a heuristic:
+The rule. **An earlier draft called this "a total function" and it was not** — three measured
+facts break the simple version, and each is stated here because each removed an option:
 
-- **A provisional is written at every `Stop`**, unconditionally — cheap, and it needs no guess
-  about whether the transcript has caught up.
-- **On every ingest**, each assistant text is resolved to its `promptId` through `parentUuid` and
-  written as a `word` row with `source='transcript'`. **Any provisional for that
-  `(session, prompt_id)` is then deleted.**
-- The key is the identity, so the two failure modes a positional rule had cannot arise: turn N's
-  provisional can only ever be matched by turn N's own text, so **two outstanding provisionals
-  cannot be consumed by one record** (different `prompt_id`s), and **a no-lag turn** simply has its
-  provisional deleted by the transcript row ingested at the same `Stop`. No ordering, no
-  one-to-one bookkeeping, no content matching.
-- The 0-of-15,675 unresolved case still gets a rule: an assistant record whose ancestry yields no
-  `promptId` is ingested with `prompt_id` NULL and supersedes nothing — its turn's provisional
-  stands, which over-keeps rather than loses.
+- **69.4% of turns carry MORE than one assistant text block** under a single `promptId` (492 of
+  709 measured, up to 138). So "delete the provisional when any text for that key arrives" loses
+  the final text on the majority case: the documented lag shape is *earlier blocks flushed, final
+  block not yet*, so that ingest writes texts 1..k, deletes the provisional, and the tail is never
+  stored. **That is loss, not over-keeping**, and it reopens the hole (a) exists to close.
+- **Subagent transcripts share the parent's `sessionId`** — 60 of 60 measured, 263 on this box —
+  and the parent's `promptId`. So `(session, prompt_id)` is not unique per agent, and a subagent's
+  text would delete the parent turn's provisional.
+- **51 of 672 `SubagentStop` rows carry no `prompt_id` at all**, including a schema-5 row whose
+  recorded `payload_keys` simply lacks it. The key can be absent on the payload side.
+
+So the rule is:
+
+1. **Key is `(session, agent_id, prompt_id)`** — the agent dimension is required, not optional,
+   because sessionId and promptId are both shared with subagents. `agent_id` is `""` for the main
+   agent, which is itself a distinct key.
+2. **A provisional is written at every `Stop` that carries a `prompt_id`.** When the payload has
+   none, **no provisional is written and the omission is recorded** as `provisional_skipped` with
+   the reason — never keyed on `""`, which would collide every such turn onto one row.
+3. **A provisional is NOT deleted on first sight of a sibling text.** It is retained until its
+   turn is known closed — a later `prompt_id` ingested for that same `(session, agent_id)`, or
+   `SessionEnd`. At close: if the provisional's text is already among the ingested texts for that
+   key, delete it; otherwise **promote it to a real `word` row**, because it is a final block that
+   never reached the transcript.
+4. That comparison is an **exact string equality** against `last_assistant_message`, scoped to one
+   turn's blocks. An earlier draft claimed "no content matching anywhere" as a virtue; that claim
+   is withdrawn rather than defended — there is no id for an individual text block, and equality on
+   one field within one turn is a bounded check, not fuzzy matching.
+5. A transcript record whose ancestry yields no `promptId` (0 of 15,751 measured) is ingested with
+   a NULL key and supersedes nothing.
 
 **(b)** gray-area binds **`SessionEnd`** (new;
 prosthetic-conscience binds it, gray-area does not) for one final sweep after the last `Stop` —
@@ -553,7 +577,7 @@ raw SQL is a complete concept without it.
 | R6 | **A malicious or clumsy query wedges the box.** | medium × medium × closed | §V.9 — writes refused; cross join cancelled at a deadline; `ATTACH` and `writable_schema` refused on the pinned connection |
 | R7 | **Liveness reports a dead agent as live** via pid reuse. | low × high × closed | §V.10 — a stale `procStart` must resolve to `ended`, asserted with a fabricated mismatch |
 | R8 | **First dependency in a zero-dependency plugin.** Irreversible in practice. | certain × low | named as a decision at §III's `go.mod` bullet (pin, cgo rejection, 1+9 requires), not absorbed |
-| R11 | **The transcript lags the `Stop` hook and a session's final turn is never ingested.** Documented by the vendor, **not measured on this box** — it cannot be, until a `Stop` hook exists here; the one inference attempted was confounded and is recorded in §II so it is not repeated. | likely × medium × closed two ways | §V.3 extended to **per-session `word` counts** against the transcript, which act counts cannot see; §V.17 measures the lag at fire time once the hook exists |
+| R11 | **The transcript lags the `Stop` hook and a session's final turn is never ingested.** Documented by the vendor, **not measured on this box** — it cannot be, until a `Stop` hook exists here; the one inference attempted was confounded and is recorded in §II so it is not repeated. | likely × medium × **one closure plus a best-effort narrowing** — (a) is sufficient alone; (b) `SessionEnd` did not fire in 2 of 2 runs ending with live background work | §V.3 extended to **per-session `word` counts** against the transcript, which act counts cannot see; §V.17 measures the lag at fire time once the hook exists |
 | R10 | **Promoting ripgrep to `required` BLOCKS consumers** who lack the binary. The mechanism is `toolchain.MergeStrictest` + `doctor.verdict` — a missing `required` tool returns BLOCKED — **not** a manifest key: `_tier_comment` is documentation on the entry, and an earlier draft cited it as though it were the enforcement. Deliberate: from the moment `find` ships, a missing `rg` returns zero hits indistinguishable from an honest zero, and a wrong answer is worse than a blocked install. | certain × medium × accepted | §V.14 — asserts the verb and the tier move in the same change, so neither can ship alone |
 | R9 | **The board reads as complete when reasoning capture was off.** | medium × medium × mitigated | §V.11 — a session with zero non-empty thoughts is distinguishable from one never asked |
 
@@ -647,12 +671,15 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     the `find` verb and `requirements.json`'s `required` tier move together (R10), so neither can
     ship without the other.
 15. **[FIXTURE]** `go test -run 'TestBackfillIsIdempotent|TestBackfillVerbDispatches|TestProvisionalWordIsSupersededOnce' ./internal/catalogue/` —
-    the third is a **multi-turn** fixture, because a single lagged turn cannot exercise the rule:
-    three turns where turn 1 lags, turn 2 lags before turn 1 catches up (**two outstanding
-    provisionals at once**), and turn 3 does not lag at all. Asserts exactly one `word` row per
-    assistant text, each `source='transcript'`, every provisional deleted, and — the case a
-    positional rule got wrong — **turn 2's text does not supersede turn 1's provisional**. Plus one
-    record whose ancestry yields no `promptId`, asserting its turn's provisional survives. §V.3
+    the third is a **multi-turn, multi-block** fixture, because a one-text-per-turn fixture cannot
+    exercise the rule at all — 69.4% of real turns have more than one block. It carries: a lagged
+    turn with **three text blocks of which only the tail is missing** (asserts the provisional is
+    NOT deleted by its siblings and IS promoted at turn close — the loss case); two turns lagging
+    at once (asserts no cross-turn consumption); a no-lag turn (asserts the provisional is deleted,
+    not promoted, leaving no duplicate); a **subagent** record sharing the parent's `sessionId` and
+    `promptId` (asserts it does not touch the parent's provisional); a `Stop` payload with **no
+    `prompt_id`** (asserts `provisional_skipped`, not a `""` key); and a record with unresolvable
+    ancestry. §V.3
     cannot see any of this: it counts a live corpus where a +1 is invisible. Also —
     a second `backfill` over the same corpus leaves act counts unchanged (the `(session, seq)`
     idempotence §III asserts and nothing previously checked), and the verb reaches its handler.
@@ -662,8 +689,10 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     change pins scans at 0. A non-zero result means the pinned patch release has accumulated CVEs
     and needs bumping — the maintenance this approach trades for not suppressing anything.
 17. **[LOCAL]** `go test -run TestStopLagMeasured ./cmd/gray-area-capture/` — with the `Stop`
-    hook bound, at fire time record transcript size and whether the payload's
-    `last_assistant_message` is already present in the transcript tail, across a real session.
+    hook bound, at fire time record transcript size, whether the payload's
+    `last_assistant_message` is already present in the transcript tail, **and whether the payload's
+    `prompt_id` resolves to the turn that just ended rather than the next one** — the untested leg
+    of the identity claim in §II. Across a real session.
     **Expected: a number, reported either way** — "0 of N turns lagged" is a result; an absent
     measurement is not. This is the check the plan could not run before the hook existed.
 18. **[LOCAL] End-to-end, observed.** Against the real corpus: `gray-area agents` names this session and
