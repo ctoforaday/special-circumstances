@@ -96,7 +96,7 @@ skepticism, gate ownership and protocol, and it already delegates via
 
 ### III.1 One agent configuration per seat
 
-Seven lens areas, red-merge, four blue lanes, and the existing synthesizer and bench. The
+Seven lens areas, the chair (III.4), four blue lanes, and the existing synthesizer and bench. The
 shared 68 lines do **not** get copied twelve times: they move into the `research-protocol`
 skill (or a sibling), and each agent file becomes frontmatter plus its own lens paragraph —
 which is what the `skills:` key is for and what `red-auditor.md` already half does.
@@ -153,12 +153,21 @@ is not a weaker fact than a derived one — it is the same fact, checked at the 
 authored there. An `ATTESTED`/`DECLARED` field remains a cheap addition if a run ever needs to
 answer "how much of this was attested", and is deliberately not built now.
 
-### III.4 `red-merge` is renamed `chair` — decided by gblock 2026-09-07
+### III.4 `red-merge` is renamed `red-chair` — decided by gblock 2026-09-07
 
-The seat that merges the round and owns the board is the CHAIR. The rename lands here rather
-than separately because it moves the same carriers this plan is already moving: the seat id
-(`red-merge-r\d+`), the role in `agentrole.go`, `event.role`'s value, the roster, the agent
-configuration III.1 gives it, the engine's prompts and their goldens.
+The seat that merges the round and owns the board is the CHAIR. Seat id `red-chair-r<n>`, role
+`chair`, agent configuration `frank-exchange-of-views:red-chair`.
+
+**The party prefix is kept and is not decoration.** `red-` is what the roster's grammar and
+`RequireDispatchedSeat`'s prefix check are built on, it is what puts this seat beside
+`red-lens-r<n>-<area>` in every projection that groups by party, and a bare `chair` would read
+as a seat belonging to no side — which is the opposite of what this seat is. It merges RED's
+round and speaks for it.
+
+The rename lands here rather than separately because it moves the same carriers this plan is
+already moving: the seat id (`red-merge-r\d+`), the role in `agentrole.go`, `event.role`'s
+value, the roster, the agent configuration III.1 gives it, the engine's prompts and their
+goldens.
 
 **Archived runs are not rewritten.** The reader takes both, exactly as the lens rename did in
 #791: a `red-merge-r1` seat id and `role: merge` in an August run stay readable forever, and the
