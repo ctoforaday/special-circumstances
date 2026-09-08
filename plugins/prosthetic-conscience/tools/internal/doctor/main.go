@@ -650,6 +650,10 @@ func run(args []string, stdout io.Writer, envRoot string, executable func() (str
 	obligations := toolchain.MergeStrictest(suite...)
 
 	warnings := danceWarnings(root)
+	// Configuration the BOX carries, not the cache: gray-area capturing trajectories with
+	// reasoning switched off is a degraded capture that reads as a complete one. See
+	// captureWarnings for why this check lives in the doctor rather than in gray-area.
+	warnings = append(warnings, boxWarnings()...)
 	for _, w := range warnings {
 		fmt.Fprintln(stdout, w)
 	}
