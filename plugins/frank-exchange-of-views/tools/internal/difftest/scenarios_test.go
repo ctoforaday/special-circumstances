@@ -33,13 +33,14 @@ func scenarios() []scenario {
 			name: "mint_validation", // oracle: acceptance_check required; dangling supersedes; unknown grade
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "scope-creep", "--problem", "no check given"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--check-kind", "document", "--check", "run it", "--problem", "no class given"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "scope-creep", "--check-kind", "document", "--check", "run it",
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--problem", "no check given"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--check-kind", "document", "--check", "run it", "--problem", "no class given"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "run it",
 					"--severity", "catastrophic", "--problem", "bad grade"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "scope-creep", "--check-kind", "document", "--check", "run it",
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "run it",
 					"--supersedes", "G1", "--problem", "dangling lineage"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "scope-creep", "--check-kind", "document", "--check", "grep the sites",
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "grep the sites",
 					"--severity", "high", "--likelihood", "high", "--impact", "medium", "--complexity", "low", "--problem", "a real one"),
 			},
 		},
@@ -48,11 +49,12 @@ func scenarios() []scenario {
 			seed: map[string]string{"records/class-registry.json": registry},
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "invented-class", "--check-kind", "document", "--check", "x", "--problem", "p"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "attestation-inflation", "--check-kind", "document", "--check", "x", "--problem", "p"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "attestation-inflation", "--check-kind", "document", "--check", "x", "--problem", "p"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "attestation-inflation", "--check-kind", "document", "--check", "compare anchors", "--severity", "medium", "--likelihood", "medium", "--impact", "high", "--problem", "inflation"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "attestation-inflation",
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "invented-class", "--check-kind", "document", "--check", "x", "--problem", "p"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "attestation-inflation", "--check-kind", "document", "--check", "x", "--problem", "p"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "attestation-inflation", "--check-kind", "document", "--check", "x", "--problem", "p"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "attestation-inflation", "--check-kind", "document", "--check", "compare anchors", "--severity", "medium", "--likelihood", "medium", "--impact", "high", "--problem", "inflation"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "attestation-inflation",
 					"--check-kind", "document", "--check", "same class again", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "extension accepted"),
 			},
 		},
@@ -60,14 +62,15 @@ func scenarios() []scenario {
 			name: "close_validation_and_archive", // oracle: anchor OR carried-from; regression demands successor
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "citation-drift", "--check-kind", "document", "--check", "refetch",
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "citation-drift", "--check-kind", "document", "--check", "refetch",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "medium", "--problem", "source moved"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G2", "--verified-by", "L1",
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1"),
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G2", "--verified-by", "L1",
 					"--verified-with", "git show", "--verified-against", "7bc501e:x"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1", "--as", "repaired_with_regression",
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired_with_regression",
 					"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:x"),
-				base("close", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1", "--as", "repaired",
+				base("close", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--as", "repaired",
 					"--verified-by", "L1", "--verified-with", "WebFetch", "--verified-against", "https://example.invalid/spec#s3",
 					"--reason", "refetched; the source now resolves and supports the claim"),
 			},
@@ -76,7 +79,8 @@ func scenarios() []scenario {
 			name: "carried_from_renders_as_carried", // oracle: E0.5a inflation becomes unphraseable
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "scope-creep", "--check-kind", "document", "--check", "reread",
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "reread",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "carried case"),
 				base("carry", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1", "--carried-from", "1"),
 			},
@@ -85,10 +89,11 @@ func scenarios() []scenario {
 			name: "multi_nonce_terminal_event_wins", // oracle: the 8/50 duplicate-dispatch anomaly
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "scope-creep", "--check-kind", "document", "--check", "a",
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "a",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "from the stale dispatch"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"), // re-dispatch rotates the nonce
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "scope-creep", "--check-kind", "document", "--check", "b",
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "b",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--problem", "from the live dispatch"),
 				base("verdict", "--run", "{RUN}", "--seat-id", "red-chair", "--as", "FAIL"),
 			},
@@ -124,12 +129,13 @@ func scenarios() []scenario {
 			name: "regrade_history_is_recoverable", // oracle: E0.5b unauditability case
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "scope-creep", "--check-kind", "document", "--check", "a",
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "a",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "high", "--problem", "graded high at mint"),
-				base("regrade", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1", "--severity", "medium"),
-				base("regrade", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1", "--severity", "medium",
+				base("regrade", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--severity", "medium"),
+				base("regrade", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--severity", "medium",
 					"--likelihood", "low", "--reason", "blue narrowed the scope; consequence shrank"),
-				base("regrade", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1", "--impact", "low",
+				base("regrade", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--id", "G1", "--impact", "low",
 					"--reason", "second movement, same id"),
 			},
 		},
@@ -137,11 +143,12 @@ func scenarios() []scenario {
 			name: "mint_idempotency_on_crash_retry", // oracle: --key returns the EXISTING id
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--key", "L5-F3", "--class", "scope-creep",
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "L5-F3", "--class", "scope-creep",
 					"--check-kind", "document", "--check", "x", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "minted once"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--key", "L5-F3", "--class", "scope-creep",
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "L5-F3", "--class", "scope-creep",
 					"--check-kind", "document", "--check", "x", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "minted once"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--key", "L6-F1", "--class", "scope-creep",
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--key", "L6-F1", "--class", "scope-creep",
 					"--check-kind", "document", "--check", "y", "--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "a different key mints"),
 			},
 		},
@@ -150,8 +157,9 @@ func scenarios() []scenario {
 			seed: map[string]string{"prose.md": hostile},
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason-file", "{RUN}/prose.md"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "scope-creep", "--check-kind", "document", "--check", "x",
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "x",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--reason-file", "{RUN}/prose.md"),
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "F1",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--quote", "## S2", "--reason-file", "{RUN}/prose.md"),
@@ -162,8 +170,9 @@ func scenarios() []scenario {
 			seed: map[string]string{"red.md": "red's round position\n", "blue.md": "blue's round position\n"},
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason-file", "{RUN}/red.md"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "scope-creep", "--check-kind", "document", "--check", "x",
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep", "--check-kind", "document", "--check", "x",
 					"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "docketed"),
 				base("closing", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1", "--reason", "red's closing"),
 				base("position", "--run", "{RUN}", "--seat-id", "blue-respond", "--reason-file", "{RUN}/blue.md"),
@@ -212,7 +221,8 @@ func scenarios() []scenario {
 			// scenario is named for.
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "scope-creep",
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "scope-creep",
 					"--check-kind", "document", "--check", "x", "--severity", "medium",
 					"--likelihood", "medium", "--impact", "medium", "--problem", "docketed"),
 				base("motion", "docket", "file", "--run", "{RUN}", "--seat-id", "red-chair", "--id", "G1",
@@ -240,21 +250,22 @@ func scenarios() []scenario {
 		{
 			name: "missing_required_flags", // oracle: --run and --seat-id are refused, not defaulted
 			cmds: []cmd{
-				base("mint", "--seat-id", "red-chair"),
+				base("mint", "--seat-id", "red-lens-evidence"),
 				base("mint", "--run", "{RUN}"),
 				base("merge", "not-a-verb", "--run", "{RUN}", "--seat-id", "red-chair"),
 			},
 		},
 		{
-			name: "sequential_ids_across_rounds", // oracle: gap ids restart per round, motion ids do not
+			name: "sequential_ids_across_rounds", // oracle: gap ids are run-global, and so are motion ids
 			cmds: []cmd{
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "a", "--check-kind", "document", "--check", "x",
+				base("register", "--run", "{RUN}", "--seat-id", "red-lens-evidence"),
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "a", "--check-kind", "document", "--check", "x",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "r1 first"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "a", "--check-kind", "document", "--check", "x",
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "a", "--check-kind", "document", "--check", "x",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "r1 second"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "a", "--check-kind", "document", "--check", "x",
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "a", "--check-kind", "document", "--check", "x",
 					"--severity", "low", "--likelihood", "low", "--impact", "low", "--problem", "r2 first"),
 				base("spot-check", "--run", "{RUN}", "--seat-id", "red-chair", "--ids", "G1, G2", "--reason", "both re-read"),
 				base("register", "--run", "{RUN}", "--seat-id", "blue-respond"),
@@ -276,7 +287,7 @@ func scenarios() []scenario {
 				base("finding", "--run", "{RUN}", "--seat-id", "red-lens-logic", "--key", "F1",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--quote", "## S4", "--reason", "a leap of faith"),
 				base("register", "--run", "{RUN}", "--seat-id", "red-chair"),
-				base("mint", "--run", "{RUN}", "--seat-id", "red-chair", "--class", "citation-drift", "--check-kind", "document", "--check", "refetch and diff",
+				base("mint", "--run", "{RUN}", "--seat-id", "red-lens-evidence", "--class", "citation-drift", "--check-kind", "document", "--check", "refetch and diff",
 					"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "medium",
 					"--quote", "## S2", "--found-by", "evidence-F1,logic-F1", "--problem", "the cited source does not say this"),
 				base("position", "--run", "{RUN}", "--seat-id", "red-chair", "--reason", "round one: FAIL"),

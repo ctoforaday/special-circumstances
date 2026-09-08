@@ -40,16 +40,16 @@ func TestEveryCrossReferenceIsCheckedAtWriteTime(t *testing.T) {
 			"--id", "G99", "--dimension", "severity", "--proposed", "low", "--reason", "b"}},
 		{"motion grade rule --id", "which no filing created", []string{"motion", "grade", "rule", "--seat-id", "red-chair",
 			"--id", "M9", "--as", "accepted", "--reason", "b"}},
-		{"regrade --id", "no mint event created", []string{"regrade", "--seat-id", "red-chair",
+		{"regrade --id", "no mint event created", []string{"regrade", "--seat-id", lensSeat,
 			"--id", "G99", "--severity", "low", "--reason", "b"}},
 		{"closing --id", "no mint event created", []string{"closing", "--seat-id", "red-chair",
 			"--id", "G99", "--reason", "t"}},
 		{"manifest-row --id", "no mint event created", []string{"manifest-row", "--seat-id", "blue-respond",
 			"--id", "G99", "--reason", "r"}},
-		{"close --successor", "no mint event created", []string{"close", "--seat-id", "red-chair",
+		{"close --successor", "no mint event created", []string{"close", "--seat-id", lensSeat,
 			"--id", real, "--as", "repaired", "--verified-by", "L1", "--verified-with", "t",
 			"--verified-against", "x", "--superseded-by", "G99"}},
-		{"mint --found-by", "no lens recorded", []string{"mint", "--seat-id", "red-chair",
+		{"mint --found-by", "no lens recorded", []string{"mint", "--seat-id", lensSeat,
 			"--key", "k2", "--class", "reference-integrity", "--problem", "p",
 			"--fix", "f", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium",
 			"--impact", "medium", "--complexity", "low", "--found-by", "L9-F9"}},
@@ -92,7 +92,7 @@ func TestValidReferencesStillResolve(t *testing.T) {
 	for _, c := range [][]string{
 		{"motion", "docket", "rule", "--seat-id", "judge", "--id", m, "--as", "carried",
 			"--principle", "p", "--tension", "t", "--review-flag", "no", "--settled", "the proposition this ruling bars", "--final", "--reason", "the ruling"},
-		{"close", "--seat-id", "red-chair", "--id", first, "--as", "repaired",
+		{"close", "--seat-id", lensSeat, "--id", first, "--as", "repaired",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x", "--superseded-by", second, "--reason", "verified"},
 	} {
 		// cmdPath lifts the verb PATH out — a subject tree is three words deep where a bare
@@ -116,7 +116,7 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 	runDir := seatRun(t)
 	open := mintGap(t, runDir, "stays-open", "state-checks")
 	closed := mintGap(t, runDir, "gets-closed", "state-checks")
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", closed, "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test",
 		"--verified-against", "./x", "--reason", "closed"); err != nil {
 		t.Fatal(err)
@@ -127,10 +127,10 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 		args        []string
 	}{
 		{"close a gap twice", "double-counts closure history", []string{"close",
-			"--seat-id", "red-chair", "--id", closed, "--as", "repaired",
+			"--seat-id", lensSeat, "--id", closed, "--as", "repaired",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x"}},
 		{"regrade a closed gap", "changes a number nobody reads", []string{"regrade",
-			"--seat-id", "red-chair", "--id", closed, "--severity", "low", "--reason", "b"}},
+			"--seat-id", lensSeat, "--id", closed, "--severity", "low", "--reason", "b"}},
 		{"file a grade motion on a closed gap", "disposition has already been made", []string{"motion", "grade", "file",
 			"--seat-id", "blue-respond", "--id", closed, "--dimension", "severity",
 			"--proposed", "low", "--reason", "b"}},
@@ -139,7 +139,7 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 		{"spot-check an OPEN gap", "still OPEN", []string{"spot-check",
 			"--seat-id", "red-chair", "--ids", open}},
 		{"carry residue into a closed gap", "already finished", []string{"close",
-			"--seat-id", "red-chair", "--id", open, "--as", "repaired",
+			"--seat-id", lensSeat, "--id", open, "--as", "repaired",
 			"--verified-by", "L1", "--verified-with", "t", "--verified-against", "x",
 			"--superseded-by", closed}},
 	} {
@@ -167,7 +167,7 @@ func TestActsAreRefusedOnTheWrongState(t *testing.T) {
 func TestSupersedingAnOpenGapIsNormal(t *testing.T) {
 	runDir := seatRun(t)
 	ancestor := mintGap(t, runDir, "the-ancestor", "state-checks")
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "the-successor", "--class", "state-checks",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
@@ -193,7 +193,7 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 	ancestor := mintGap(t, runDir, "the-ancestor", "lineage-completion")
 
 	// THE LEGAL 7: mint a successor while the ancestor is still open.
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	out, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "the-successor", "--class", "lineage-completion",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low",
@@ -215,14 +215,14 @@ func TestVerdictRefusesWhileASupersededGapIsStillOpen(t *testing.T) {
 	}
 
 	// KEEPING THE PROMISE clears it.
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", ancestor, "--as", "repaired", "--superseded-by", successor,
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
 		"--reason", "replaced by its successor"); err != nil {
 		t.Fatal(err)
 	}
 	// The successor is now the live gap; PASS still requires it closed (the all-gaps guard).
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", successor, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./y",
 		"--reason", "successor resolved"); err != nil {

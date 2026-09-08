@@ -152,6 +152,17 @@ type runner struct {
 	// stamp on the next write, kept here so the driver can name a prior epoch to --carried-from
 	// without reading it back out of a seat id, which no longer carries one.
 	chairRegisters int
+	// minter: gap id -> the LENS seat whose mint created it. THE ORIGINATOR CLOSES (roundless
+	// §III.B.3): the record refuses a `close` (without --carried-from) or a `regrade` on a gap
+	// from any seat but the one whose mint created it, so every close and regrade this driver
+	// issues has to be issued as that lens. The chair mints nothing now; its acts on a gap are
+	// `carry`, `spot-check`, `closing`, `verdict` and `dispatch`.
+	minter map[string]string
+	// lensMints: lens seat -> mints that LANDED, for choosing the next minter. A lens's mints are
+	// bounded by the run's mintBudget (default 5), so the driver spreads them over the lenses
+	// debate.js dispatches rather than raising the budget: least-loaded first, which keeps every
+	// lens under the bound until the run has minted 5 × len(fuzzLensSeats) gaps.
+	lensMints map[string]int
 	// verbatimGaps: gap id -> the fix_new text blue applied verbatim from red's own mint. The
 	// estoppel drive reads it to build a --quote that red's OWN prescription must refuse.
 	verbatimGaps map[string]string
@@ -383,9 +394,9 @@ func firstLine(s string) string {
 }
 
 // dialectic emits the round's transcript onto the record the way Stage 1 seats do — a position
-// narrative and a closing per open gap — plus, at random, a regrade, a lineage-carrying
-// close-with-regression, and (blue) a grade dispute / (merge) its answer. Unique prose per act
-// so the report oracle can prove each one actually rendered.
+// narrative and a closing per open gap — plus, at random, a regrade issued by the gap's minting
+// lens, a lineage-carrying close-with-regression, and (blue) a grade dispute / (merge) its answer.
+// Unique prose per act so the report oracle can prove each one actually rendered.
 func (r *runner) dialectic(role, seatID string, open []string) {
 	_, _ = r.exec("position", "--seat-id", seatID, "--reason", "narrative from "+seatID)
 	for _, id := range open {
@@ -398,7 +409,10 @@ func (r *runner) dialectic(role, seatID string, open []string) {
 		dim := pick(r.rng, regradeDims) // move any grade axis, not only likelihood
 		// EVERY AXIS, not three of four. `--complexity` was never passed because disputeDims fed
 		// this and the fourth axis was spelled by its payload key rather than by its flag.
-		_, _ = r.exec("regrade", "--seat-id", seatID, "--id", id, "--reason", "regrade-basis-for-"+id,
+		// AS THE ORIGINATOR. `regrade` is a lens verb and the record refuses it from any seat but
+		// the one whose mint created the gap (roundless §III.B.3); the chair's sitting engages that
+		// lens, which is what issuing the regrade as r.minterOf(id) models here.
+		_, _ = r.exec("regrade", "--seat-id", r.minterOf(id), "--id", id, "--reason", "regrade-basis-for-"+id,
 			"--"+dim, r.g(), "--complexity", r.g())
 	}
 }
@@ -573,6 +587,57 @@ func (r *runner) register(role, seatID string) {
 	close(done)
 }
 
+// fuzzLensSeats are the lens seats this driver mints from — debate.js's DEFAULT_AREAS, which are
+// the lenses the engine actually dispatches in a fuzz run (the other three areas are opt-in per
+// run). Four lenses × mintBudget 5 is the run's ceiling on gaps, 20, and the sweep sits well under
+// it; a run that reached it would see `mint` refused with the budget text, which noteExec tallies.
+var fuzzLensSeats = []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side", "red-lens-voice"}
+
+// lens picks the lens seat to mint the next gap — the least-loaded of fuzzLensSeats, registered.
+// The chair does not mint (roundless §III.B.3); where this driver used to hand the chair's seat
+// id to mint, it hands this. Deterministic given the load, so the budget is spent evenly rather
+// than left to a draw that could refuse a mint on one lens while four others sit idle.
+func (r *runner) lens() string {
+	r.mu.Lock()
+	best := fuzzLensSeats[0]
+	for _, s := range fuzzLensSeats[1:] {
+		if r.lensMints[s] < r.lensMints[best] {
+			best = s
+		}
+	}
+	r.mu.Unlock()
+	r.register("lens", best)
+	return best
+}
+
+// minterOf is the seat that may close or regrade gapID: the lens whose mint created it. Every gap
+// this driver puts on the board goes through r.mint, which records the minter, so a miss here is
+// a gap the driver did not mint — it falls back to the first lens and the record's originator
+// refusal says so in the tally rather than the driver guessing silently.
+func (r *runner) minterOf(gapID string) string {
+	r.mu.Lock()
+	m, ok := r.minter[gapID]
+	r.mu.Unlock()
+	if !ok {
+		m = fuzzLensSeats[0]
+	}
+	r.register("lens", m)
+	return m
+}
+
+// noteMint records that seatID's mint of gapID landed — the originator, and the load the next
+// lens() pick reads.
+func (r *runner) noteMint(seatID, gapID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.minter == nil {
+		r.minter = map[string]string{}
+		r.lensMints = map[string]int{}
+	}
+	r.minter[gapID] = seatID
+	r.lensMints[seatID]++
+}
+
 // UNDERSCORES, because that is what the grade enum spells. This was `low-medium` and
 // `medium-high`: two of five values refused at every site that generates a grade, which is
 // `--proposed` on a grade dispute and both axes of a regrade. Measured — `merge regrade=8(7
@@ -648,8 +713,10 @@ func (r *runner) someCitation() string {
 	return sources[r.rng.Intn(len(sources))].Anchor
 }
 
-// mint records a gap and returns the tool-assigned id (R<round>-N). The first mint of a run
-// introduces the class; the rest reuse it.
+// mint records a gap as LENS seatID and returns the tool-assigned id (G<n>). The first mint of a
+// run introduces the class; the rest reuse it. seatID is a lens (r.lens() picks one): the chair
+// has no mint verb (roundless §III.B.3), and the record remembers the minter as the one seat that
+// may later close or regrade the gap, which is why every landed mint is noted on r.minter.
 func (r *runner) mint(seatID string) string {
 	// #277: the KIND is randomised, not pinned. Pinning it to `document` would leave the
 	// computation branch — a gap that CANNOT be closed without a proof answering it — driven by
@@ -707,14 +774,14 @@ func (r *runner) mint(seatID string) string {
 		// a fixture. The anchor sentence is stable, and the invisible anchor layer spliced into
 		// it is ignored by the match.
 		"--reason", "fuzz: the argument for raising this"}
-	// ONE SUBJECT: --quote OR --about, and merge mint refuses both together. The about arm is
+	// ONE SUBJECT: --quote OR --about, and `lens mint` refuses both together. The about arm is
 	// how a gap names a defect that is not report text at all, which is the anchor #742 added
 	// and #787 shipped — and which no drive reached, so the whole pair read as covered because
-	// `merge mint` itself ran 115 times.
+	// the mint verb itself (then `merge mint`) ran 115 times.
 	//
 	// THE CONCRETE-PROPOSAL ARM BELOW APPENDS ITS OWN --quote, so the choice has to be made ONCE,
 	// here, for the whole call. It was made twice: this block took the about arm on a 25% coin
-	// and the proposal block then appended --quote on a 40% coin, and `merge mint` refused the
+	// and the proposal block then appended --quote on a 40% coin, and the mint refused the
 	// pair exactly as it is supposed to — silently, because r.mint discards the error and returns
 	// "". About one mint in ten never reached the board, which thins every gap-dependent drive
 	// downstream of it and is invisible in a passing sweep.
@@ -726,7 +793,7 @@ func (r *runner) mint(seatID string) string {
 	} else if !proposing {
 		args = append(args, "--quote", "A § fuzz sentence to anchor findings.")
 	}
-	// COINING IS ITS OWN VERB (`merge class new`), so the fuzz drives it as one. It used to be
+	// COINING IS ITS OWN VERB (`lens class new`), so the fuzz drives it as one. It used to be
 	// four flags on the first mint, which meant the coining path ran exactly once per run and
 	// only ever in company with a mint.
 	if !r.classMade {
@@ -798,6 +865,9 @@ func (r *runner) mint(seatID string) string {
 	if json.Unmarshal([]byte(strings.TrimSpace(out)), &env) != nil {
 		return ""
 	}
+	if env.Result.GapID != "" {
+		r.noteMint(seatID, env.Result.GapID)
+	}
 	if kind == "computation" && env.Result.GapID != "" {
 		if r.computationGaps == nil {
 			r.computationGaps = map[string]bool{}
@@ -811,9 +881,11 @@ func (r *runner) mint(seatID string) string {
 // whitespace-collapsed text, so a length taken any other way would pick a different sentence.
 func collapseWS(s string) string { return strings.Join(strings.Fields(s), " ") }
 
-// mintEstopped mints a gap whose --quote is text blue applied VERBATIM from red's own --fix-new,
-// with no --supersedes naming the gap that prescribed it. That is exactly the shape merge/mint.go
-// refuses, and the refusal is what writes the tool's `log --type estoppel` entry.
+// mintEstopped mints, as LENS seatID, a gap whose --quote is text blue applied VERBATIM from red's
+// own --fix-new, with no --supersedes naming the gap that prescribed it. That is exactly the shape
+// lens/mint.go refuses, and the refusal is what writes the tool's `log --type estoppel` entry. The
+// guard keys on the TEXT, not the seat (record.EstoppelConflict), so any lens's mint against the
+// prescription is refused, not only the prescribing lens's.
 //
 // IT EXPECTS TO FAIL, and the failure is the drive. `exec` records the refusal through noteExec
 // either way, so a run where the guard STOPPED firing shows up as estoppels=0 with the applies
@@ -925,7 +997,15 @@ func (r *runner) openGaps() []string {
 	return ids
 }
 
-func (r *runner) closeGap(seatID, id string, allowReg bool) {
+// closeGap closes gap id. chairID is the CHAIR's seat, and it does exactly one thing here: the
+// `carry` that restates a prior round's closure. The close itself, the regression close and the
+// amends_prior close are issued as the gap's ORIGINATOR — the lens whose mint created it — because
+// the record refuses a close from anyone else (roundless §III.B.3, requireOriginator); the chair
+// dispatching that lens is what this driver models by looking the minter up. A successor minted
+// here is the next lens's (r.lens()), not necessarily the closer's: the budget is per lens, and a
+// regression close on a spent lens would otherwise silently lose its successor and fall through.
+func (r *runner) closeGap(chairID, id string, allowReg bool) {
+	closer := r.minterOf(id)
 	// A COMPUTATION CHECK IS SATISFIED BEFORE IT IS CLOSED, deterministically.
 	//
 	// The guard refuses a closure with no proof answering the gap, so leaving it to chance
@@ -936,7 +1016,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	if r.computationGaps[id] {
 		// A SEAT REGISTERS BEFORE IT APPENDS, AND THIS ONE DID NOT (#664).
 		//
-		// closeGap is driven from the RED-MERGE branch, and it proves as `blue-respond` —
+		// closeGap is driven from the CHAIR's branch, and it proves as `blue-respond` —
 		// `blue prove` RECORDS a `prove` event, so that is an append. In round 1 red-chair
 		// runs BEFORE blue-respond ever registers, so a computation gap that becomes
 		// closable in round 1 appends as a seat the record has never seen, and `verify` refuses
@@ -979,15 +1059,17 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// (record.go requires --successor for repaired_with_regression). Only allowed on the first close
 	// pass, so the successors it spawns are plain-closed on a later pass and the loop terminates.
 	if allowReg && r.coin(35) {
-		if succ := r.mint(seatID); succ != "" {
-			if _, err := r.exec("close", "--seat-id", seatID, "--id", id, "--as", "repaired_with_regression",
-				"--superseded-by", succ, "--reason", "fuzz regression close", "--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
+		if succ := r.mint(r.lens()); succ != "" {
+			if _, err := r.exec("close", "--seat-id", closer, "--id", id, "--as", "repaired_with_regression",
+				"--superseded-by", succ, "--reason", "fuzz regression close", "--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
 				return
 			}
 		}
 	}
 	// A CARRY restates last round's verification rather than asserting a fresh act, so it is its
-	// own verb and takes --carried-from instead of the verification triple.
+	// own verb and takes --carried-from instead of the verification triple. IT IS THE CHAIR'S —
+	// the one closure verb left in the merge tree, and exempt from the originator check because
+	// it restates a closure the archive already holds rather than making one.
 	//
 	// AND IT CARRIES A GAP THE RECORD ALREADY CLOSED. Driving it against `id` — the gap this call
 	// is closing for the FIRST time — was refused every time, because a carry of a gap with no
@@ -1007,7 +1089,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	r.mu.Unlock()
 	if prior := r.closedInARoundBefore(round); len(prior) > 0 {
 		carried := prior[r.rng.Intn(len(prior))]
-		carry := []string{"carry", "--seat-id", seatID, "--id", carried,
+		carry := []string{"carry", "--seat-id", chairID, "--id", carried,
 			"--carried-from", strconv.Itoa(round - 1), "--as", "repaired"}
 		// THE EXEMPTION ITSELF, half the time. A carry restates a closure an earlier round already
 		// argued, so it owes no fresh argument — and nothing drove the no-reason form, which is
@@ -1020,7 +1102,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 		// the same reason the regression close mints one: it must be a real, still-open gap, and
 		// the record refuses a dead-end forwarding address.
 		if r.coin(50) {
-			if succ := r.mint(seatID); succ != "" {
+			if succ := r.mint(r.lens()); succ != "" {
 				carry = append(carry, "--superseded-by", succ)
 			}
 		}
@@ -1036,15 +1118,15 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// 20% ON TOP OF "a prior closure exists" left `close --as amends_prior` never driven across
 	// 60 runs. The precondition is already the rare part.
 	if prior := r.closedGapIDs(); len(prior) > 0 {
-		if _, err := r.exec("close", "--seat-id", seatID, "--id", id, "--as", "amends_prior",
+		if _, err := r.exec("close", "--seat-id", closer, "--id", id, "--as", "amends_prior",
 			"--supersedes", prior[r.rng.Intn(len(prior))], "--reason", "fuzz: found between two clean repairs",
-			"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
+			"--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec"); err == nil {
 			return
 		}
 	}
 	as := pick(r.rng, []string{"repaired", "not_a_defect", "defect_accepted", "defect_owed_elsewhere"})
-	_, _ = r.exec("close", "--seat-id", seatID, "--id", id, "--as", as, "--reason", "fuzz close as "+as,
-		"--verified-by", seatID, "--verified-with", "fuzz", "--verified-against", "rec")
+	_, _ = r.exec("close", "--seat-id", closer, "--id", id, "--as", as, "--reason", "fuzz close as "+as,
+		"--verified-by", closer, "--verified-with", "fuzz", "--verified-against", "rec")
 }
 
 // checkKinds draws uniformly: closeGap satisfies a computation gap before closing it, so the
@@ -1265,11 +1347,9 @@ func (r *runner) extras(role, seatID string, open []string) {
 		// both halves while joining them nowhere. The line of inquiry's own --line now carries its
 		// intended fate, exactly as a gap's --fix carries its scenario.
 		r.ruleOpenInquiries(seatID)
-		// near-match is the screen red runs BEFORE minting, to catch a reopen. Read-only, so it
-		// left no event and no gate saw it — while the merge prompt calls it every round.
-		r.maybe(40, func() {
-			r.readOnly("near-match", seatID, "--problem", "fuzz candidate problem text for screening", "--quote", "§ fuzz")
-		})
+		// `near-match` is NOT driven here any more: it is a lens verb now, the screen a lens runs
+		// BEFORE minting (roundless §III.B.3), so it sits beside the mint it precedes — see the
+		// fresh-mint loop in envelopeFor's chair branch.
 	case "blue":
 		r.maybe(45, func() { inquiry("blue") })
 		// APPEAL WHAT HAS ALREADY BEEN RULED — a round later than the filing, which is when an
@@ -1497,12 +1577,22 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// nothing ever raised, which the coverage gate caught immediately.
 		// 0 is legal at round 1: red auditing and raising NOTHING is a real shape, and it is the
 		// only way a run reaches PASS in a single round.
+		// AS A LENS, EACH TIME. The chair has no mint verb (roundless §III.B.3): its sitting
+		// engages lenses, and a lens puts the gap on the board under its own seat id, which the
+		// record keeps as the gap's originator. r.lens() is the least-loaded dispatched lens, so
+		// the per-lens mintBudget is spent evenly. The screen comes first, as the lens prompt has
+		// it: `near-match` is read-only, so it left no event and no gate saw it while the prompt
+		// called for it before every mint.
 		fresh := r.rng.Intn(4)
 		if !strings.HasSuffix(seatID, "-r1") {
 			fresh = r.rng.Intn(2) // later rounds may raise nothing
 		}
 		for range fresh {
-			r.mint(seatID)
+			lens := r.lens()
+			r.maybe(40, func() {
+				r.readOnly("near-match", lens, "--problem", "fuzz candidate problem text for screening", "--quote", "§ fuzz")
+			})
+			r.mint(lens)
 		}
 		// THE ESTOPPEL GUARD, DRIVEN WHERE IT IS ACTUALLY PRODUCED.
 		//
@@ -1510,16 +1600,16 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// "never driven" on it could not be answered by a `log` call — that would have recorded a
 		// refusal that never happened. This produces the real one: red mints a fresh gap against
 		// the very text it prescribed and blue applied verbatim, which is red attacking its own
-		// words, and the tool refuses and logs it.
+		// words, and the tool refuses and logs it. The mint is a lens's, like every mint.
 		// FORCED ON ONE SEED, drawn on the rest — the shape unverifiedSeed already uses, and for
 		// the reason stated there: one forced run costs one seed's worth of natural variation and
 		// makes the value a fact rather than a coin flip. The random arm stays, so the sweep still
 		// answers the weaker and separate question of whether the pair also arises under random
 		// dispatch.
 		if r.forceEstoppel {
-			r.mintEstopped(seatID)
+			r.mintEstopped(r.lens())
 		} else {
-			r.maybe(35, func() { r.mintEstopped(seatID) })
+			r.maybe(35, func() { r.mintEstopped(r.lens()) })
 		}
 
 		// RED'S PER-LINE SUPPORT VERDICT USED TO BE DRIVEN HERE, before the round verdict,
@@ -1556,7 +1646,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			// way the protocol allows, and the gap it mints is also what keeps the board
 			// non-empty for the deadlock exit the bench declares later.
 			if r.forceUnverified {
-				if id := r.mint(seatID); id != "" {
+				if id := r.mint(r.lens()); id != "" {
 					_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
 					return map[string]any{"verdict": "FAIL",
 						"gaps":              []any{map[string]any{"id": id, "supersedes": arr()}},
@@ -3392,7 +3482,7 @@ func TestFuzzDebate(t *testing.T) {
 				why = "the drive declined: " + strings.Join(causes, "; ")
 			}
 			t.Errorf("fuzz recorded ZERO tool estoppel refusals across %d runs (with %d verbatim applications) — "+
-				"red never minted against text it had prescribed and blue had applied, so merge/mint.go's estoppel guard "+
+				"red never minted against text it had prescribed and blue had applied, so lens/mint.go's estoppel guard "+
 				"is unexercised and `log --type estoppel` is unreachable (false green).\n          %s", completed, verbatimApplied, why)
 		}
 	}
@@ -3567,7 +3657,7 @@ func mintedGapIDs(run record.Run) []string {
 
 // reproveOpenProofs re-runs the proof answering each open PROVE gap and records whether it
 // held. This is the lens's audit — the one that does not end in believing bytes somebody else
-// chose — and merge closes on its result rather than on its own say-so.
+// chose — and the gap's minting lens closes on its result rather than on its own say-so.
 
 // recentlyEditedOut returns text a recorded edit removed and which is absent from the report
 // now — a claim whose retirement the record can evidence.

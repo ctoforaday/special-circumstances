@@ -391,3 +391,37 @@ func TestAMaterialFreshMintBlocksTheConvergenceRefusal(t *testing.T) {
 		t.Fatalf("a FAIL with a fresh material mint this epoch was refused: %v", err)
 	}
 }
+
+// A gap belongs to the lens that minted it: only that lens regrades or closes it. The chair may
+// still carry a closure the archive holds; the bench disposes through its ruling.
+func TestOnlyTheMintingLensMayRegradeOrCloseItsGap(t *testing.T) {
+	run := newStage(t).cast(evLens, "red-lens-logic", "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").register(evLens).register("red-lens-logic").mint(evLens, "G1", "high").seed()
+	closeG1 := func() *recordpb.Close {
+		return &recordpb.Close{GapId: proto.String("G1"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("fixed")}
+	}
+	regrade := &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Basis: proto.String("b")}
+	for _, other := range []string{"red-chair", "red-lens-logic"} {
+		if _, err := Append(Identity{Run: run, SeatID: other}, regrade); err == nil || !strings.Contains(err.Error(), "minted by "+evLens) {
+			t.Errorf("%s regraded another lens's gap: %v", other, err)
+		}
+		if _, err := Append(Identity{Run: run, SeatID: other}, closeG1()); err == nil || !strings.Contains(err.Error(), "originator") {
+			t.Errorf("%s closed another lens's gap: %v", other, err)
+		}
+	}
+	if _, err := Append(Identity{Run: run, SeatID: evLens}, regrade); err != nil {
+		t.Fatalf("the originator's regrade was refused: %v", err)
+	}
+	if _, err := Append(Identity{Run: run, SeatID: evLens}, closeG1()); err != nil {
+		t.Fatalf("the originator's close was refused: %v", err)
+	}
+	// The chair may carry the closure the archive now holds.
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(Identity{Run: run, SeatID: "red-chair"}, &recordpb.Close{GapId: proto.String("G1"),
+		ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), CarriedFrom: proto.String("1"), Prose: proto.String("as before")}); err != nil {
+		t.Fatalf("the chair's carry of an archived closure was refused: %v", err)
+	}
+}

@@ -85,15 +85,16 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 	})
 
 	// One valid gap first, so close/regrade refusals are about the refusal under
-	// test rather than about an empty board.
-	capture(command(bin, "mint", "--run", runDir, "--seat-id", "red-chair",
+	// test rather than about an empty board. The LENS mints it (roundless §III.B.3), so the
+	// lens's later close and regrade rows are the originator's and refuse on the field under test.
+	capture(command(bin, "register", "--run", runDir, "--seat-id", "red-lens-evidence"))
+	capture(command(bin, "mint", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
 		"--impact", "low", "--problem", "a valid gap"))
 	// And one real finding, so a case that references it refuses on the MISSING
 	// DISPOSITION rather than an unknown observation. It did the latter for as long as
 	// this case has existed: the case was named for a refusal it never reached, and the
 	// golden recorded the wrong message without anything noticing.
-	capture(command(bin, "register", "--run", runDir, "--seat-id", "red-lens-evidence"))
 	capture(command(bin, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--key", "F1", "--severity", "low", "--likelihood", "low", "--impact", "low",
 		"--quote", "somewhere", "--reason", "a valid finding"))
@@ -124,13 +125,13 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		// silently rather than refused.
 		{"verdict in the wrong case", []string{"verdict", "--as", "pass"}},
 		{"verdict outside the set", []string{"verdict", "--as", "banana"}},
-		{"outcome in the wrong case", []string{"outcome", "--as", "ceiling"}},
+		{"outcome in the wrong case", []string{"outcome", "--seat-id", "judge", "--as", "ceiling"}},
 		// These two pinned "no verb `petition-rule` exists" and "no verb `dispute` exists" — the
 		// generic unknown-verb refusal — while claiming to pin a value outside a closed set. The
 		// verbs were retired by the motion collapse and the entries were never moved, so the
 		// catalogue froze the wrong refusal and this test went on passing. That is the exact
 		// failure the catalogue exists to catch, in the catalogue itself.
-		{"petition ruling outside the set", []string{"motion", "petition", "rule", "--id", "M1", "--as", "halt", "--reason", "r"}},
+		{"petition ruling outside the set", []string{"motion", "petition", "rule", "--seat-id", "judge", "--id", "M1", "--as", "halt", "--reason", "r"}},
 		{"closure class near-miss", []string{"close", "--id", "G1", "--as", "closed-with-regression", "--verified-by", "L1", "--verified-with", "Read", "--verified-against", "t", "--reason", "r"}},
 		// The class sweep found five more set-shaped flags past --as. Each is here for
 		// the same reason as the rest of this catalogue: the refusal is the seat's
@@ -148,9 +149,11 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 		{"blue confidence outside the set", []string{"blue", "confidence", "--quote", "c", "--confidence", "banana"}},
 		{"petition class outside the set", []string{"blue", "petition", "--class", "banana", "--relief", "x", "--reason", "r"}},
 		{"invalid seat id", []string{"mint", "--seat-id", "not a seat id", "--class", "scope-creep", "--check-kind", "document", "--check", "x", "--problem", "p"}},
-		{"verb outside the lens role", []string{"mint", "--class", "scope-creep"}},
-		{"verb outside the blue role", []string{"close", "--id", "G1"}},
-		{"verb outside the bench role", []string{"mint", "--class", "scope-creep"}},
+		// mint is the LENS's verb now (roundless §III.B.3); the verdict is the chair's and is what a
+		// lens cannot reach. blue and the bench still cannot mint or close.
+		{"verb outside the lens role", []string{"verdict", "--seat-id", "red-lens-evidence", "--as", "FAIL"}},
+		{"verb outside the blue role", []string{"close", "--seat-id", "blue-respond", "--id", "G1"}},
+		{"verb outside the bench role", []string{"mint", "--seat-id", "judge", "--class", "scope-creep"}},
 		{"unknown verb", []string{"merge", "frobnicate"}},
 		{"unknown role", []string{"nonsuch", "mint"}},
 	}
@@ -180,13 +183,18 @@ func hasFlag(argv []string, flag string) bool {
 	return false
 }
 
-func defaultSeat(role string) string {
-	switch role {
-	case "lens":
+// defaultSeat is the seat a catalogue row runs as when it names none: the OWNER of its first word.
+// It used to be "the merge unless a role word says otherwise", which froze wrong-seat refusals into
+// rows that meant to pin a field or a closed set — `verify` ran as the chair and the catalogue
+// recorded "not on your surface" under "verification of nothing". A row that means the wrong seat
+// names it.
+func defaultSeat(first string) string {
+	switch first {
+	case "lens", "mint", "close", "regrade", "near-match", "class", "finding", "verify", "corroborate", "reproduce":
 		return "red-lens-evidence"
 	case "blue":
 		return "blue-respond"
-	case "bench":
+	case "bench", "outcome", "certify", "declare", "halt":
 		return "judge"
 	default:
 		return "red-chair"

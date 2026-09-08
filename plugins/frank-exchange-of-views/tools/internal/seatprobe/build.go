@@ -50,6 +50,10 @@ var Seats = []struct{ Role, ID string }{
 }
 
 // Build materialises a board into runDir.
+// stagingLenses are the lens seats the builder mints a board through, in rotation. Four, like the
+// default cast, so a board of up to twenty gaps stays within each lens's default budget of five.
+var stagingLenses = []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side", "red-lens-voice"}
+
 func Build(run record.Run, b Board, exec Exec) error {
 	if err := os.MkdirAll(filepath.Join(run.Dir(), "blue"), 0o755); err != nil {
 		return err
@@ -112,8 +116,17 @@ func Build(run record.Run, b Board, exec Exec) error {
 		return fmt.Errorf("stage the class registry: %w", err)
 	}
 
+	// LENSES MINT (plans/roundless.md §III.B.3). The staged gaps are minted by lens seats — rotated
+	// over the default areas so no lens spends more than its budget on a large board — and each
+	// gap is closed by the lens that minted it, because the originator closes.
+	for _, lensSeat := range stagingLenses {
+		if _, err := exec("register", "--run", run.Dir(), "--seat-id", lensSeat); err != nil {
+			return fmt.Errorf("register %s: %w", lensSeat, err)
+		}
+	}
 	for i, g := range b.Gaps {
-		if _, err := exec("mint", "--run", run.Dir(), "--seat-id", "red-chair",
+		minter := stagingLenses[i%len(stagingLenses)]
+		if _, err := exec("mint", "--run", run.Dir(), "--seat-id", minter,
 			"--key", g.Key, "--class", g.Class,
 			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
@@ -144,7 +157,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		}
 		// A CLOSED gap so the archive is not empty: `spot-check` against an empty one has nothing
 		// to sample, so a board that wants the duty exercised has to give it something.
-		if _, err := exec("close", "--run", run.Dir(), "--seat-id", "red-chair",
+		if _, err := exec("close", "--run", run.Dir(), "--seat-id", minter,
 			"--id", gapID, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
 			return fmt.Errorf("close %s: %w", gapID, err)

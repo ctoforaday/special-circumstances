@@ -137,7 +137,7 @@ func TestAnUnknownCommandIsNamedBeforeAnyFlagOnIt(t *testing.T) {
 		// say WHERE the verb lives — and `show` is exactly the name that must not be denied, since
 		// it exists on all four roles. TestABareSeatVerbIsToldWhereItLives holds that half; this
 		// one holds the ORDERING (command before flag), which is a different property.
-		// `mint` is the merge seat's, and this caller is blue: the refusal names the seat that
+		// `mint` is the lens seat's, and this caller is blue: the refusal names the seat that
 		// holds it, and it does so BEFORE complaining about --run.
 		{"real flags on a command that is not this seat's", []string{"feov-record", "mint", "--run", "/x", "board"}, `"mint" is not on your surface`},
 		{"no flags at all", []string{"feov-record", "mint"}, `"mint" is not on your surface`},
@@ -223,7 +223,7 @@ func TestABareSeatVerbIsToldWhereItLives(t *testing.T) {
 
 	for _, tc := range []struct{ name, wantSeat string }{
 		{"inquiry-support", "merge"},
-		{"close", "merge"},
+		{"close", "lens"},
 		{"reproduce", "lens"},
 		{"halt", "bench"},
 	} {

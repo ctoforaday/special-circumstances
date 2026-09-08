@@ -67,7 +67,7 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 	closedByRed := mintGap(t, runDir, "red-closes", "json-vs-markdown")
 	closedByBench := mintGap(t, runDir, "bench-closes", "json-vs-markdown")
 
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", closedByRed, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason", "the check passes"); err != nil {
@@ -100,7 +100,7 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "anchored", "anchor-as-fields")
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 		"--id", id, "--as", "repaired",
 		"--verified-by", "L4", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
 		"--reason", "re-read the cited source"); err != nil {

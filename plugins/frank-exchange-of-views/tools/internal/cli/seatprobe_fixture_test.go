@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatprobe"
 )
@@ -84,20 +87,22 @@ func TestWriteSeatProbeFixture(t *testing.T) {
 // board teaches nothing about the possible one.
 func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Join(runDir, "blue"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	// INGESTED, not written as a file (#709): a mint's --quote is matched against the report the
+	// record holds, and a file at blue/report.md is a report nothing can read.
+	writeReport(t, runDir, b.Report)
 	for _, id := range []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}
 	}
+	// THE BOARD DECLARES ITS CLASS VOCABULARY, as seatprobe.Build does: the class check is strict,
+	// and this fixture does not go through run-setup, which is what stages the registry on a real run.
+	if err := record.StageForRun(runtest.Open(t, runDir), seatprobe.BoardClasses...); err != nil {
+		t.Fatalf("stage the class registry: %v", err)
+	}
 
 	for i, g := range b.Gaps {
-		args := []string{"mint", "--run", runDir, "--seat-id", "red-chair",
+		args := []string{"mint", "--run", runDir, "--seat-id", lensSeat,
 			"--key", g.Key, "--class", g.Class,
 			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
@@ -112,8 +117,8 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		}
 		// A CLOSED gap so the archive is not empty. spot-check against an empty archive has
 		// nothing to sample, so a board that wants the duty exercised has to give it something.
-		id := fmt.Sprintf("R1-%d", i+1)
-		if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+		id := fmt.Sprintf("G%d", i+1)
+		if _, err := run(t, "close", "--run", runDir, "--seat-id", lensSeat,
 			"--id", id, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
 			t.Fatalf("close %s: %v", id, err)

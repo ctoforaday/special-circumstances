@@ -9,7 +9,18 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ mint --run {RUN} --seat-id red-chair --class invented-class --check-kind document --check x --problem p
+$ register --run {RUN} --seat-id red-lens-evidence
+exit 0
+stdout:
+registered red-lens-evidence
+
+YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
+
+TWO CONSEQUENCES:
+  PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
+  REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
+
+$ mint --run {RUN} --seat-id red-lens-evidence --class invented-class --check-kind document --check x --problem p
 exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
@@ -70,7 +81,7 @@ Global Flags:
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ mint --run {RUN} --seat-id red-chair --class attestation-inflation --check-kind document --check x --problem p
+$ mint --run {RUN} --seat-id red-lens-evidence --class attestation-inflation --check-kind document --check x --problem p
 exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
@@ -131,7 +142,7 @@ Global Flags:
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ mint --run {RUN} --seat-id red-chair --class attestation-inflation --check-kind document --check x --problem p
+$ mint --run {RUN} --seat-id red-lens-evidence --class attestation-inflation --check-kind document --check x --problem p
 exit 2
 stderr:
 feov-record: required flag(s) "impact", "likelihood" not set
@@ -192,20 +203,21 @@ Global Flags:
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ mint --run {RUN} --seat-id red-chair --class attestation-inflation --check-kind document --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
+$ mint --run {RUN} --seat-id red-lens-evidence --class attestation-inflation --check-kind document --check compare anchors --severity medium --likelihood medium --impact high --problem inflation
 exit 2
 stderr:
-feov-record: merge: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `merge class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
+feov-record: lens: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `merge class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
 
-$ mint --run {RUN} --seat-id red-chair --class attestation-inflation --check-kind document --check same class again --severity low --likelihood low --impact low --problem extension accepted
+$ mint --run {RUN} --seat-id red-lens-evidence --class attestation-inflation --check-kind document --check same class again --severity low --likelihood low --impact low --problem extension accepted
 exit 2
 stderr:
-feov-record: merge: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `merge class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
+feov-record: lens: record: unknown class attestation-inflation — use a registry slug (e.g. propagation-incomplete, citation-drift, scope-creep, ...) or coin this one first with `merge class new --class attestation-inflation --definition ... --neighbor ... --distinguisher ...`
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_REGISTER"}
 
 ═══ RENDERS ═══
 -- debate
@@ -234,6 +246,7 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 | tier | what answered | seats |
 |---|---|---|
+| bulk | _NOT MEASURED — nothing observed what replied_ | 1 of 1 |
 | judgment | _NOT MEASURED — nothing observed what replied_ | 2 of 2 |
 
 ## Read this first

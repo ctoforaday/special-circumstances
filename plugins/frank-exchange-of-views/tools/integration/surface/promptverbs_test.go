@@ -40,7 +40,7 @@ import (
 // verbs as unnamed when 15 were named in exactly that form. A gate that silently covers less
 // than it claims is the defect this suite keeps finding, so the boundary now admits both.
 // A SEAT VERB IS NOT ALWAYS ONE WORD. The verbs that carried two contracts were split into
-// subgroups — `blue line-of-inquiry propose`, `merge class new` — so a pattern taking exactly one
+// subgroups — `blue line-of-inquiry propose`, `lens class new` — so a pattern taking exactly one
 // word after the role reads `blue line-of-inquiry propose` as the GROUP `blue line-of-inquiry`,
 // which is not an invocable path. The forward gate then reports a verb the prompt names correctly
 // as missing, and the inverse gate reports both real verbs as named nowhere. Two words are
@@ -99,7 +99,7 @@ var promptMotion = regexp.MustCompile(
 
 // AND A COMMAND NAMED WITHOUT ITS ROLE IS STILL A COMMAND.
 //
-// promptVerb requires the role — `feov-record blue show board`, `} merge mint`. That shape is what
+// promptVerb requires the role — `feov-record blue show board`, `} lens mint`. That shape is what
 // a prompt writes when it hands a seat something to TYPE, so the gate was built around it, and the
 // motion matcher above was added when the same hole showed up for `motion grade file`. The note
 // there says seven live commands sat outside the question the gate exists to ask. This is the

@@ -776,6 +776,11 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 			}
 		}
 	case *recordpb.Close:
+		if b.CarriedFrom == nil {
+			if err := requireOriginator(run, b.GetGapId(), seatID, "close"); err != nil {
+				return err
+			}
+		}
 		ids, err := allGapIDs(run)
 		if err != nil {
 			return err
@@ -945,6 +950,9 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 			return fmt.Errorf("record: a finding must carry a label — the tool assigns L{role}-F{N}; an unlabelled finding can never be credited in a gap's found_by and its work is lost")
 		}
 	case *recordpb.Regrade:
+		if err := requireOriginator(run, b.GetGapId(), seatID, "regrade"); err != nil {
+			return err
+		}
 		if err := requireGap(run, b.GetGapId(), "regrade", "--id"); err != nil {
 			return err
 		}
@@ -1384,4 +1392,27 @@ func requireMintWithinBudget(run Run, seatID string) error {
 			"The budget is where a trifle's cost lands: with %d mints for a report, none of them is spent on a nitpick. "+
 			"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",
 		seatID, n, p.MintBudget)
+}
+
+// requireOriginator is "the originator closes" (plans/roundless.md §III.B.3): a gap belongs to the
+// lens that minted it for its whole life, so its regrade and its close are that lens's acts and
+// nobody else's — the chair dispatches the lens when the gap needs acting on, and the bench
+// disposes of a docketed gap through its ruling, not through a close. A carry is exempt at the
+// call site: it restates a closure the archive already holds and is the chair's account.
+//
+// Migration is not exempt and needs no exemption: an archived run's closes were the merge's on
+// the merge's own mints, and both translate to the chair.
+func requireOriginator(run Run, gapID, seatID, verb string) error {
+	if gapID == "" {
+		return nil // the missing-id refusal is the verb's own
+	}
+	var mintedBy string
+	found, err := queryRow(run, []any{&mintedBy}, `SELECT COALESCE("minted_by", '') FROM "gap" WHERE "gap_id" = ?`, gapID)
+	if err != nil || !found || mintedBy == "" || mintedBy == seatID {
+		return err // an unknown gap is requireGap's refusal, not this one's
+	}
+	return feov.Errorf(feov.Validation,
+		"record: %s refused — %s was minted by %s, and the originator %ss its own gap; %s cannot. "+
+			"If the gap needs acting on, the chair's `dispatch next` engages its lens; if it needs the bench, it is docketed at impasse",
+		verb, gapID, mintedBy, verb, seatID)
 }

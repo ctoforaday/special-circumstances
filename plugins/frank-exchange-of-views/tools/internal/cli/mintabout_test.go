@@ -9,7 +9,7 @@ import (
 
 // A GAP ABOUT AN ABSENCE ANCHORS THE WAY THE FINDING DID, with the same two flags.
 //
-// `merge mint` is the next step of the act `lens finding` begins, and its help used to send an
+// `lens mint` is the next step of the act `lens finding` begins, and its help used to send an
 // omission back to the handle the finding had just been taught to stop using: "for a gap about
 // something MISSING, quote the sentence where it SHOULD be — that is how a lens finding anchors an
 // omission". Once that stopped being how a finding anchors an omission, the sentence was a
@@ -17,7 +17,8 @@ import (
 func TestAGapAboutAnAbsenceNeedsNoBorrowedQuote(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	registerLensOnce(t, runDir)
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G1", "--class", "scope-creep", "--about-kind", "section", "--about", "Risk matrix",
 		"--problem", "the template names a graded risk matrix and the report has no such section",
 		"--check-kind", "document", "--check", "the report carries a graded risk matrix",
@@ -38,7 +39,8 @@ func TestAGapAboutAnAbsenceNeedsNoBorrowedQuote(t *testing.T) {
 func TestAGapCannotClaimBothAnchors(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	registerLensOnce(t, runDir)
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G2", "--class", "scope-creep",
 		"--quote", "Seven is prime.", "--about-kind", "section", "--about", "Risk matrix",
 		"--problem", "p", "--check-kind", "document", "--check", "c",
@@ -56,7 +58,8 @@ func TestAGapCannotClaimBothAnchors(t *testing.T) {
 func TestAGapsAboutReferenceIsCheckedAgainstTheRecord(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	registerLensOnce(t, runDir)
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", lensSeat,
 		"--key", "G3", "--class", "scope-creep", "--about-kind", "inquiry", "--about", "Q99",
 		"--problem", "p", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low")
@@ -82,7 +85,7 @@ func TestAFindingAndAGapAnchorToTheSameThings(t *testing.T) {
 	}
 	f, g := strings.Join(words(finding), ","), strings.Join(words(gap), ",")
 	if f != g {
-		t.Errorf("`lens finding` and `merge mint` no longer anchor to the same things:\n  finding: %s\n  mint:    %s", f, g)
+		t.Errorf("`lens finding` and `lens mint` no longer anchor to the same things:\n  finding: %s\n  mint:    %s", f, g)
 	}
 	if finding.Flag != gap.Flag {
 		t.Errorf("one anchor, two flag names: finding uses %q and mint uses %q", finding.Flag, gap.Flag)

@@ -1,9 +1,11 @@
 // Package lens is the red lens seat's contract.
 //
-// A lens surfaces findings, notes observations, and verifies citations. It has
-// no mint verb and no close verb, and that absence IS the role boundary: the
-// merge disposes what a lens surfaces, so a lens structurally cannot put
-// anything on the board itself.
+// A lens audits the report against its area and puts what it finds on the board itself: it
+// records findings, verifies citations, screens the board with near-match, and MINTS its own gaps
+// against its own budget. A gap belongs to the lens that minted it for its whole life — regrade
+// and close are the originator's acts, refused at the record for any other seat
+// (plans/roundless.md §III.B.3). The chair dispatches the lens when its gap needs acting on; the
+// bench disposes of a docketed gap through its ruling.
 package lens
 
 import (
@@ -18,6 +20,11 @@ const role = "lens"
 func Verbs() []*cobra.Command {
 	return seat.RoleVerbs(role,
 		seat.Register(),
+		newMint(),
+		newClass(),
+		newClose(),
+		newRegrade(),
+		newNearMatch(),
 		newFinding(),
 		newVerify(),
 		newCorroborate(),

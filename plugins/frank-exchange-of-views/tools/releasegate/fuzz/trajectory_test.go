@@ -111,7 +111,7 @@ func note(args []string, err error, out []byte, inProcess bool) {
 	}
 }
 
-// commandPathOf resolves an argv to the command path it invoked: "merge mint", "verify".
+// commandPathOf resolves an argv to the command path it invoked: "lens mint", "verify".
 // Flags end the path, so `graph --format dot` is "graph" and `blue show --view x` is
 // "blue show".
 // execFlags: command path -> the flag names ever passed to it.
@@ -174,7 +174,7 @@ func commandPathOf(args []string) string {
 	for _, a := range args {
 		if strings.HasPrefix(a, "-") {
 			if len(toks) == 0 {
-				continue // `--json merge mint …` is a real mint; skip leading globals
+				continue // `--json lens mint …` is a real mint; skip leading globals
 			}
 			break
 		}

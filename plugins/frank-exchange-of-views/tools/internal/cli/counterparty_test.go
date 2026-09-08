@@ -44,12 +44,12 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	// attributed to the party that performs them — and it is not what this test is about.
 	quiet := newRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	for _, id := range []string{"red-chair", "blue-respond"} {
+	for _, id := range []string{"red-chair", lensSeat, "blue-respond"} {
 		if _, err := run(t, "register", "--run", quiet, "--seat-id", id); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := run(t, "mint", "--run", quiet, "--seat-id", "red-chair",
+	if _, err := run(t, "mint", "--run", quiet, "--seat-id", lensSeat,
 		"--key", "g1", "--class", "metric-conflation", "--problem", "two figures disagree",
 		"--fix", "reconcile them", "--check", "no section contradicts another", "--check-kind", "document",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",

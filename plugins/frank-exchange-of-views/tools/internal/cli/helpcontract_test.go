@@ -33,7 +33,7 @@ import (
 
 // requiredInHelp matches the MARKER CONVENTION, not the word.
 //
-// The first draft matched `required` case-insensitively anywhere in the usage, and `merge mint
+// The first draft matched `required` case-insensitively anywhere in the usage, and `lens mint
 // --fix` reads "the required fix, as prose" — where "required" is part of the FIELD NAME
 // (required_fix) and claims nothing about the flag. A gate that fires on prose trains its reader
 // to skim, so this matches only what markRequired actually writes.
@@ -155,7 +155,7 @@ func TestEveryRefusalNamesTheProblemBeforeTheHelp(t *testing.T) {
 		args []string
 		says string
 	}{
-		{"a verb that is another seat's", []string{"mint", "--seat-id", "red-lens-evidence"}, `"mint" is not on your surface`},
+		{"a verb that is another seat's", []string{"mint", "--seat-id", "red-chair"}, `"mint" is not on your surface`},
 		// There is no role level to name, so the old "a role with no verb" case is now a caller
 		// with no identity — the same shape of mistake at the level that still exists.
 		{"a command with no identity", []string{"mint"}, "--seat-id IS REQUIRED HERE"},
@@ -300,7 +300,7 @@ func seatRunForContracts(t *testing.T) string {
 	}
 	// REAL REFERENTS, so an --id in a probe names something. Without these the reference checks
 	// fire before the flag-specific ones and this gate measures the wrong refusal.
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--key", "contract-seed", "--class", "self-attestation",
 		"--problem", "p", "--fix", "f",
 		"--check", "c", "--check-kind", "document",
@@ -366,7 +366,7 @@ var (
 // accepts, teaches a set that does not exist.
 func TestEverySetRestatedInASummaryMatchesTheRealOne(t *testing.T) {
 	// THE SET IS RESOLVED PER COMMAND, NOT PER FLAG NAME. `--as` carries a different vocabulary
-	// on every verb that uses it — closure classes on `merge close`, dispositions on `bench
+	// on every verb that uses it — closure classes on `lens close`, dispositions on `bench
 	// opinion`, soundness on `lens reproduce` — which is the whole reason record.EnumFields is
 	// keyed by event type. A map from flag name to values holds whichever verb was registered
 	// last, and the first draft of this test compared `bench opinion --as carried|closed`
