@@ -960,6 +960,24 @@ type FindingJSON struct {
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
 	Text      string `json:"text"`
+	// MintedAs is the gap ids whose `found_by` credits this finding — the join the record
+	// already holds, read from the side that could not reach it.
+	//
+	// It is the same defect `Anchor` above was: a join key living where nothing can reach it
+	// rather than where it was written. `found_by` answers "which findings became this gap"
+	// from the gap; nothing answered "did this finding become anything" from the finding, so a
+	// finding that produced no gap looked exactly like one that did until a reader cross-indexed
+	// sixteen gap rows by hand.
+	//
+	// Measured on 2026-08-23_research-loop-counterparts (#747): 20 findings, 16 gaps, and three
+	// findings — L2-F1, L6-F8, L6-F11 — that no gap credits. One of them alleged a fabricated
+	// verbatim quote in the very text the merge closed a gap on in that same sitting. Nothing on
+	// the docket said so, because the docket is gap-shaped and this fact is finding-shaped.
+	//
+	// EMPTY IS THE FINDING, NOT AN ABSENCE, so it is not omitempty: `[]` means read and not
+	// minted, which is precisely the state that used to be invisible. A missing key would put it
+	// back where it was.
+	MintedAs []string `json:"minted_as"`
 }
 
 // FindingsJSON is the seat-facing findings view: every lens finding on the record, in
@@ -980,6 +998,16 @@ type FindingsJSON struct {
 // run path (FindingsJSONBytes) fetches exactly the finding family.
 func FindingsJSONOf(evs []*Event) FindingsJSON {
 	out := FindingsJSON{Findings: []FindingJSON{}}
+	// WHICH GAPS CREDIT WHICH FINDING, indexed once. A mint's found_by is the record's own
+	// statement that a finding became a gap; read here so the finding side can state it too.
+	mintedBy := map[string][]string{}
+	for _, e := range evs {
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
+			for _, label := range m.GetFoundBy() {
+				mintedBy[label] = append(mintedBy[label], m.GetGapId())
+			}
+		}
+	}
 	for _, e := range evs {
 		// TYPE-SWITCHED ON THE BODY, not on `type`: this loop reaches straight for the finding's
 		// fields, and a body read that way cannot go stale against the enum.
@@ -1000,6 +1028,13 @@ func FindingsJSONOf(evs []*Event) FindingsJSON {
 			AboutRef:  f.GetAboutRef(),
 			Text:      f.GetText(),
 		}
+		// THE JOIN, FROM THE STREAM RATHER THAN A BOARD. mintedBy is built from the mint bodies
+		// in the same event slice, so this view still reads one family of acts plus one — it does
+		// not acquire the full fold the board-shaped signature was removed to avoid.
+		fj.MintedAs = mintedBy[f.GetLabel()]
+		if fj.MintedAs == nil {
+			fj.MintedAs = []string{}
+		}
 		// PRESENCE, NOT TRUTHINESS — and the POINTER is passed, not GetSeverity().
 		//
 		// Finding's grades are `optional`, so a lens that graded nothing leaves them nil and
@@ -1018,7 +1053,10 @@ func FindingsJSONOf(evs []*Event) FindingsJSON {
 // FindingsJSONBytes renders the findings view as indented JSON (a seat reads it in a
 // terminal transcript).
 func FindingsJSONBytes(run Run) ([]byte, error) {
-	evs, err := EventsOf(run, recordpb.EventType_EVENT_TYPE_FINDING)
+	// MINT COMES TOO, and it is not optional: without it mintedBy is empty and EVERY finding
+	// reports minted_as [] — "nothing was minted from any finding", in the same bytes the view
+	// uses for a finding genuinely dropped. The typed read is the thing that makes the join real.
+	evs, err := EventsOf(run, findingsViewEventTypes()...)
 	if err != nil {
 		return nil, err
 	}
@@ -1027,6 +1065,17 @@ func FindingsJSONBytes(run Run) ([]byte, error) {
 		return nil, err
 	}
 	return append(out, '\n'), nil
+}
+
+// findingsViewEventTypes is what the findings view has to read, named rather than inlined so a
+// test can assert it. MINT is not optional company for FINDING here: minted_as is computed from
+// the mint bodies in the same slice, so a stream without them reports every finding as credited
+// by nothing — the same bytes the view uses for a finding genuinely dropped.
+func findingsViewEventTypes() []recordpb.EventType {
+	return []recordpb.EventType{
+		recordpb.EventType_EVENT_TYPE_FINDING,
+		recordpb.EventType_EVENT_TYPE_MINT,
+	}
 }
 
 // LogJSON is the operator-facing log view: every log event on the record, in event order —
