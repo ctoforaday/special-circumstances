@@ -31,10 +31,10 @@ func store(t *testing.T) *sql.DB {
 func event(t *testing.T, ord int32, typ recordpb.EventType, body proto.Message) *recordpb.Event {
 	t.Helper()
 	ev := &recordpb.Event{
-		SeatId: proto.String("red-merge-r1"),
+		SeatId: proto.String("red-chair-r1"),
 		Round:  proto.Int32(1),
 		Ts:     proto.String("2026-01-01T00:00:00Z"),
-		Key:    proto.String(fmt.Sprintf("red-merge-r1:act:#%d", ord)),
+		Key:    proto.String(fmt.Sprintf("red-chair-r1:act:#%d", ord)),
 	}
 	got, err := recordpb.SetBody(ev, body)
 	if err != nil {
@@ -253,7 +253,7 @@ func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 // the ordering hazard. Here `id` is assigned at insert, so read order is record order.
 func TestEventsReadBackInRecordOrder(t *testing.T) {
 	db := store(t)
-	for i, seat := range []string{"blue-respond-r1", "red-merge-r1", "judge-r1"} {
+	for i, seat := range []string{"blue-respond-r1", "red-chair-r1", "judge-r1"} {
 		ev := event(t, int32(i), recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{
 			Text: proto.String(seat + " speaks"),
 		})
@@ -273,7 +273,7 @@ func TestEventsReadBackInRecordOrder(t *testing.T) {
 	for _, e := range evs {
 		order = append(order, e.GetSeatId())
 	}
-	want := []string{"blue-respond-r1", "red-merge-r1", "judge-r1"}
+	want := []string{"blue-respond-r1", "red-chair-r1", "judge-r1"}
 	for i := range want {
 		if i >= len(order) || order[i] != want[i] {
 			t.Fatalf("read order = %v, want %v — identical timestamps must not decide the sequence", order, want)

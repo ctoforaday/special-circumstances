@@ -40,7 +40,7 @@ func TestBlueIsToldWhatTheBenchRuledAndWhatItObliges(t *testing.T) {
 			"open_gaps": []any{},
 		}
 		switch {
-		case strings.HasPrefix(seatID, "red-merge"):
+		case strings.HasPrefix(seatID, "red-chair"):
 			// The SAME ids every round, so round 2 reads them as re-raised and dockets them.
 			e["gaps"] = gaps
 		case strings.HasPrefix(seatID, "judge"):

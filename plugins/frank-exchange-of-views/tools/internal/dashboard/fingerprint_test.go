@@ -19,7 +19,7 @@ func seedRun(t *testing.T) string {
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	recordtest.Seed(t, dir, recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-1", &recordpb.Mint{
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:mint:R1-1", &recordpb.Mint{
 		GapId:           proto.String("R1-1"),
 		Problem:         proto.String("p"),
 		RequiredFix:     proto.String("f"),
@@ -63,7 +63,7 @@ func TestFingerprintSeesAWriteAndIgnoresOurOwnRead(t *testing.T) {
 	}
 
 	// A WRITE must move it, or the dashboard silently stops updating.
-	recordtest.Seed(t, dir, recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-2", &recordpb.Mint{
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:mint:R1-2", &recordpb.Mint{
 		GapId:           proto.String("R1-2"),
 		Problem:         proto.String("p2"),
 		RequiredFix:     proto.String("f2"),

@@ -129,7 +129,7 @@ func projectCompletion(seats []Seat, nowMs float64) Eta {
 	}
 
 	round := struct{ lo, hi float64 }{}
-	for _, c := range []string{"red-lens", "red-merge", "blue-respond"} {
+	for _, c := range []string{"red-lens", "red-chair", "red-merge", "blue-respond"} {
 		if sp := spanOf(c); sp.ok {
 			round.lo += sp.lo
 			round.hi += sp.hi

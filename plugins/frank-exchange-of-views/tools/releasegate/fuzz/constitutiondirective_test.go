@@ -1,7 +1,6 @@
 package fuzz
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -47,10 +46,14 @@ func TestEveryConstitutionCarriesTheSurfaceDiscoveryDuty(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, p := range paths {
-		b, err := os.ReadFile(p)
+		// The EFFECTIVE constitution — agent file plus the skills it declares. See
+		// repotree.ConstitutionText: the shared red duties live in a skill now, and a gate
+		// reading only the file reports them missing from seats that are handed them.
+		text0, err := repotree.ConstitutionText(p)
 		if err != nil {
 			t.Fatal(err)
 		}
+		b := []byte(text0)
 		for _, w := range want {
 			if !strings.Contains(string(b), w) {
 				t.Errorf("%s is missing the surface-discovery duty (%q).\n\n"+
@@ -69,10 +72,14 @@ func TestTheDutyDoesNotSmuggleAVerbListBackIn(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, p := range paths {
-		b, err := os.ReadFile(p)
+		// The EFFECTIVE constitution — agent file plus the skills it declares. See
+		// repotree.ConstitutionText: the shared red duties live in a skill now, and a gate
+		// reading only the file reports them missing from seats that are handed them.
+		text0, err := repotree.ConstitutionText(p)
 		if err != nil {
 			t.Fatal(err)
 		}
+		b := []byte(text0)
 		text := string(b)
 		i := strings.Index(text, "Your surface comes from")
 		if i < 0 {
@@ -138,10 +145,14 @@ func TestEveryConstitutionStatesTheLogDutyAndNoneRestatesTheVerb(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, p := range paths {
-		b, err := os.ReadFile(p)
+		// The EFFECTIVE constitution — agent file plus the skills it declares. See
+		// repotree.ConstitutionText: the shared red duties live in a skill now, and a gate
+		// reading only the file reports them missing from seats that are handed them.
+		text0, err := repotree.ConstitutionText(p)
 		if err != nil {
 			t.Fatal(err)
 		}
+		b := []byte(text0)
 		text := normalizeWS(string(b))
 		for _, w := range want {
 			if !strings.Contains(text, normalizeWS(w)) {

@@ -16,10 +16,10 @@ import (
 // section, so the two readings of one replay are proven not to drift.
 func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 	runDir := newRun(t)
-	merge := "red-merge-r1"
+	merge := "red-chair-r1"
 	blue := "blue-lane-1"
 	judge := "judge-r1"
-	merge2 := "red-merge-r2"
+	merge2 := "red-chair-r2"
 
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, merge, 1, merge+":position", &recordpb.Position{Text: proto.String("red r1")}),
@@ -124,7 +124,7 @@ func TestDebateJSONMirrorsRenderSections(t *testing.T) {
 func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:position", &recordpb.Position{Text: proto.String("red")}),
+		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:position", &recordpb.Position{Text: proto.String("red")}),
 	})
 	out, err := DebateJSONBytes(mustRun(t, runDir))
 	if err != nil {
@@ -141,7 +141,7 @@ func TestDebateJSONBytesIsValidJSON(t *testing.T) {
 // {id, location, class} index. This is the once-per-turn read the full board is not.
 func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 	runDir := newRun(t)
-	m := "red-merge-r1"
+	m := "red-chair-r1"
 	longProblem := strings.Repeat("word ", 60) // ~300 chars, well over the 140-rune synopsis budget
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{
@@ -218,7 +218,7 @@ func TestWorkIsOpenOnlyLeanAndClosedIndexHasNoProse(t *testing.T) {
 // now first-class and the nested object is gone — one copy, and nothing a reader needs is buried.
 func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 	runDir := newRun(t)
-	m := "red-merge-r1"
+	m := "red-chair-r1"
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, m, 1, m+":mint:R1-1", &recordpb.Mint{
 			GapId: proto.String("R1-1"), Class: proto.String("overclaim"),
@@ -263,7 +263,7 @@ func TestBoardJSONFlattensMintWithoutDuplicating(t *testing.T) {
 func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 	runDir := newRun(t)
 	s := "red-lens-r1-evidence"
-	m := "red-merge-r1"
+	m := "red-chair-r1"
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, s, 1, s+":finding:L1-F1", &recordpb.Finding{Label: proto.String("L1-F1"), Text: proto.String("credited")}),
 		recordtest.At(t, s, 1, s+":finding:L1-F2", &recordpb.Finding{Label: proto.String("L1-F2"), Text: proto.String("never credited")}),
@@ -304,7 +304,7 @@ func TestUncreditedFindingsCountsFindingsNoGapCredits(t *testing.T) {
 // rendering as a fact about the debate.
 func TestRedsArgumentReachesTheBoard(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	seat := "red-merge-r1"
+	seat := "red-chair-r1"
 	writeShard(t, runDir, []*Event{
 		recordtest.At(t, seat, 1, seat+":mint:R1-1", &recordpb.Mint{
 			GapId: proto.String("R1-1"), Class: proto.String("overclaim"),

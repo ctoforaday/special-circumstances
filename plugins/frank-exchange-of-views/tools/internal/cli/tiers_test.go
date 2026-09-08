@@ -31,7 +31,7 @@ func tierFixture(t *testing.T) (string, record.Family) {
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "aaaa1111", "claude-opus-4-8", "claude-fable-5")),
 		}),
-		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:register:#1", &recordpb.Register{
+		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "bbbb2222", "claude-sonnet-5", "")),
 		}),
@@ -59,7 +59,7 @@ func TestTiersJoinsTheRequestAgainstTheService(t *testing.T) {
 	if s := by["blue-lane-1"]; s.Matches || !s.Declared || s.Served != "claude-opus-4-8" || s.Configured != "claude-fable-5" {
 		t.Errorf("the substituted bulk seat: %+v", s)
 	}
-	if s := by["red-merge-r1"]; !s.Matches || s.Declared {
+	if s := by["red-chair-r1"]; !s.Matches || s.Declared {
 		t.Errorf("the judgment seat was answered as configured: %+v", s)
 	}
 	// THE ONE THAT MATTERS. An unmeasured seat must not count as a match and must not count as a

@@ -42,7 +42,7 @@ func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
 
 	// Rule only M1. Under the old pair key this ruling would have matched BOTH filings — same
 	// gap, same dimension — and the record would have shown one answer to two questions.
-	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-merge-r2",
+	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair-r2",
 		"--id", "M1", "--as", "rejected", "--reason", "the grade stands"); err != nil {
 		t.Fatalf("a properly addressed ruling was refused: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestARulingOnAnUnfiledMotionIsRefused(t *testing.T) {
 		t.Fatalf("file refused: %v", err)
 	}
 
-	_, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-merge-r2",
+	_, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair-r2",
 		"--id", "M7", "--as", "accepted", "--reason", "sure")
 	if err == nil {
 		t.Fatal("red ruled a motion blue never filed — a reply with no question, joining to nothing")

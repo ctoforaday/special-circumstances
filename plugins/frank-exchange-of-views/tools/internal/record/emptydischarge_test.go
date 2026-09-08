@@ -97,7 +97,7 @@ func TestAReceiptMustNameItsGapAndSayWhatItChecked(t *testing.T) {
 // own test, and its --none --reason exists for the same distinction. Pinned so a later sweep of
 // this class does not "fix" it by mistake.
 func TestSpotCheckBareStaysAccepted(t *testing.T) {
-	if err := validate(mustRun(t, recordtest.TmpRun(t)), "red-merge-r1", recordpb.EventType_EVENT_TYPE_SPOT_CHECK, &recordpb.SpotCheck{}); err != nil {
+	if err := validate(mustRun(t, recordtest.TmpRun(t)), "red-chair-r1", recordpb.EventType_EVENT_TYPE_SPOT_CHECK, &recordpb.SpotCheck{}); err != nil {
 		t.Errorf("a bare spot-check was refused, but an honestly-empty round is a discharge: %v", err)
 	}
 }

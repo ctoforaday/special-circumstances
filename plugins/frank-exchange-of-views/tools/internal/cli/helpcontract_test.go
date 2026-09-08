@@ -224,7 +224,7 @@ func seatHolding(verb string) string {
 
 func seatFor(role string) string {
 	return map[string]string{
-		"lens": "red-lens-r1-evidence", "merge": "red-merge-r1",
+		"lens": "red-lens-r1-evidence", "merge": "red-chair-r1",
 		"blue": "blue-respond-r1", "bench": "judge-r1",
 	}[role]
 }
@@ -287,7 +287,7 @@ func placeholderFor(c *cobra.Command, f *pflag.Flag, path []string) string {
 func seatRunForContracts(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
-	for _, id := range []string{"red-lens-r1-evidence", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
+	for _, id := range []string{"red-lens-r1-evidence", "red-chair-r1", "blue-respond-r1", "judge-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}
@@ -300,7 +300,7 @@ func seatRunForContracts(t *testing.T) string {
 	}
 	// REAL REFERENTS, so an --id in a probe names something. Without these the reference checks
 	// fire before the flag-specific ones and this gate measures the wrong refusal.
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--key", "contract-seed", "--class", "self-attestation",
 		"--problem", "p", "--fix", "f",
 		"--check", "c", "--check-kind", "document",

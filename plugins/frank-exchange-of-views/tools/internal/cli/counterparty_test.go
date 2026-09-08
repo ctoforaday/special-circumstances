@@ -23,7 +23,7 @@ import (
 func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	read := func(t *testing.T, runDir string) record.CounterpartyJSON {
 		t.Helper()
-		out, err := run(t, "show", "work", "--run", runDir, "--seat-id", "red-merge-r1")
+		out, err := run(t, "show", "work", "--run", runDir, "--seat-id", "red-chair-r1")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -44,12 +44,12 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	// attributed to the party that performs them — and it is not what this test is about.
 	quiet := newRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	for _, id := range []string{"red-merge-r1", "blue-respond-r1"} {
+	for _, id := range []string{"red-chair-r1", "blue-respond-r1"} {
 		if _, err := run(t, "register", "--run", quiet, "--seat-id", id); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := run(t, "mint", "--run", quiet, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", quiet, "--seat-id", "red-chair-r1",
 		"--key", "g1", "--class", "metric-conflation", "--problem", "two figures disagree",
 		"--fix", "reconcile them", "--check", "no section contradicts another", "--check-kind", "document",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",

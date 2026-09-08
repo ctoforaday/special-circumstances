@@ -39,7 +39,7 @@ func seedAndSweep(t *testing.T) *planguard.Recorder {
 	defer recordsql.UseDriver(name)()
 
 	dir := recordtest.TmpRun(t)
-	recordtest.Seed(t, dir, recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-1", &recordpb.Mint{
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:mint:R1-1", &recordpb.Mint{
 		GapId: proto.String("R1-1"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 		AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -185,7 +185,7 @@ func TestAFilteredQueryWithoutAnIndexIsCaughtAndAnIndexedOneIsNot(t *testing.T) 
 	defer recordsql.UseDriver(name)()
 
 	dir := recordtest.TmpRun(t)
-	recordtest.Seed(t, dir, recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-1", &recordpb.Mint{
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:mint:R1-1", &recordpb.Mint{
 		GapId: proto.String("R1-1"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 		AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),

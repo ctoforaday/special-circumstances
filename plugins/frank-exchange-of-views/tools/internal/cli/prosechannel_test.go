@@ -55,11 +55,11 @@ func TestBothProseChannelsProduceTheSameRecord(t *testing.T) {
 		{blueSeat, []string{"revision"}},
 		{blueSeat, []string{"log", "--type", "defect"}},
 		// A SEAT THE STAGED BOARD HAS NOT ALREADY USED. The docket board records a `position` for
-		// red-merge-r1, and a position is a once-per-sitting act the record REFUSES to repeat
+		// red-chair-r1, and a position is a once-per-sitting act the record REFUSES to repeat
 		// rather than dedup — so this case was failing on the fixture's own write, not on the
 		// prose channel it is testing.
-		{"red-merge-r2", []string{"position"}},
-		{"red-merge-r1", []string{"log", "--type", "defect"}},
+		{"red-chair-r2", []string{"position"}},
+		{"red-chair-r1", []string{"log", "--type", "defect"}},
 		{"judge-r2", []string{"certify"}},
 		{"judge-r2", []string{"declare"}},
 	}

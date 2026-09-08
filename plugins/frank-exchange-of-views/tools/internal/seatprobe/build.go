@@ -44,7 +44,7 @@ func ProbeAgentID(seatID string) string { return "probe-" + seatID }
 // unregistered seat is refused before any board state exists.
 var Seats = []struct{ Role, ID string }{
 	{"lens", "red-lens-r1-evidence"},
-	{"merge", "red-merge-r1"},
+	{"merge", "red-chair-r1"},
 	{"blue", "blue-respond-r1"},
 	{"bench", "judge-r2"},
 }
@@ -113,7 +113,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 	}
 
 	for i, g := range b.Gaps {
-		if _, err := exec("mint", "--run", run.Dir(), "--seat-id", "red-merge-r1",
+		if _, err := exec("mint", "--run", run.Dir(), "--seat-id", "red-chair-r1",
 			"--key", g.Key, "--class", g.Class,
 			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
@@ -129,7 +129,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		// naming the null closings, ruled on artifact state instead, and asked for a human check.
 		gapID := fmt.Sprintf("R1-%d", i+1)
 		for _, c := range []struct{ seat, text string }{
-			{"red-merge-r1", g.RedClosing}, {"blue-respond-r1", g.BlueClosing},
+			{"red-chair-r1", g.RedClosing}, {"blue-respond-r1", g.BlueClosing},
 		} {
 			if c.text == "" {
 				continue
@@ -144,7 +144,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		}
 		// A CLOSED gap so the archive is not empty: `spot-check` against an empty one has nothing
 		// to sample, so a board that wants the duty exercised has to give it something.
-		if _, err := exec("close", "--run", run.Dir(), "--seat-id", "red-merge-r1",
+		if _, err := exec("close", "--run", run.Dir(), "--seat-id", "red-chair-r1",
 			"--id", gapID, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
 			return fmt.Errorf("close %s: %w", gapID, err)
@@ -154,7 +154,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 	// RED'S ROUND-1 NARRATIVE, so the transcript blue is sent to read exists. Filed AFTER the gaps
 	// it accounts for and BEFORE anything that answers it, which is the order a real round has.
 	if b.RedNarrative != "" {
-		if _, err := exec("position", "--run", run.Dir(), "--seat-id", "red-merge-r1",
+		if _, err := exec("position", "--run", run.Dir(), "--seat-id", "red-chair-r1",
 			"--reason", b.RedNarrative); err != nil {
 			return fmt.Errorf("red narrative: %w", err)
 		}
@@ -183,7 +183,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 			return fmt.Errorf("line of inquiry %d: the tool did not report a minted id in %q — the ruling "+
 				"below needs the id the RECORD assigned, and guessing one is how this broke before", i+1, out)
 		}
-		if _, err := exec("motion", "inquiry", "rule", "--run", run.Dir(), "--seat-id", "red-merge-r1",
+		if _, err := exec("motion", "inquiry", "rule", "--run", run.Dir(), "--seat-id", "red-chair-r1",
 			"--id", id, "--as", a.Ruled,
 			"--reason", rulingReason(a.RuledWhy, a.Ruled)); err != nil {
 			return fmt.Errorf("rule %s: %w", id, err)
@@ -207,7 +207,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		if m.Ruled == "" {
 			continue
 		}
-		ruler := map[string]string{"grade": "red-merge-r1", "petition": "judge-r2", "docket": "judge-r2"}[m.Subject]
+		ruler := map[string]string{"grade": "red-chair-r1", "petition": "judge-r2", "docket": "judge-r2"}[m.Subject]
 		if _, err := exec("motion", m.Subject, "rule", "--run", run.Dir(), "--seat-id", ruler,
 			"--id", fmt.Sprintf("M%d", i+1), "--as", m.Ruled,
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {

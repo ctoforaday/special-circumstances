@@ -53,7 +53,7 @@ func TestEveryMotionSubjectNamesItsRuler(t *testing.T) {
 // this message or not at all.
 func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	for _, sid := range []string{"blue-respond-r1", "red-merge-r1"} {
+	for _, sid := range []string{"blue-respond-r1", "red-chair-r1"} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid, Round: RoundIn(mustRun(t, runDir))(sid)}, ""); err != nil {
 			t.Fatal(err)
 		}
@@ -99,7 +99,7 @@ func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 // that resolved the divergence by dropping the item would pass the first alone.
 func TestTheSittingViewNamesTheGavelAndStillBlocks(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	for _, sid := range []string{"blue-respond-r1", "red-merge-r1"} {
+	for _, sid := range []string{"blue-respond-r1", "red-chair-r1"} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid, Round: RoundIn(mustRun(t, runDir))(sid)}, ""); err != nil {
 			t.Fatal(err)
 		}
@@ -115,7 +115,7 @@ func TestTheSittingViewNamesTheGavelAndStillBlocks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := sittingOfRunT(t, mustRun(t, runDir), "merge", "red-merge-r1")
+	s := sittingOfRunT(t, mustRun(t, runDir), "merge", "red-chair-r1")
 
 	var line string
 	for _, o := range s.Open {

@@ -101,7 +101,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		Label: proto.String("L1-F1"), Location: proto.String("§Analysis"),
 		Text: proto.String("the read lock is dropped before evict<!--cite:c-1-->"),
 	})
-	add("red-merge-r1", &recordpb.Mint{
+	add("red-chair-r1", &recordpb.Mint{
 		GapId: proto.String("R1-1"), Problem: proto.String("eviction races the reader<!--fx:f-L1-F1-->"),
 		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),

@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -142,4 +143,64 @@ func ToolSources() ([]string, error) {
 // already and each caller held its own route to it.
 func DebateJS() (string, error) {
 	return Plugin("skills", "research-protocol", "scripts", "debate.js")
+}
+
+// ConstitutionText is what a seat ACTUALLY RECEIVES: its agent file, plus the body of every
+// frank-exchange-of-views skill that file declares.
+//
+// IT EXISTS BECAUSE A CONSTITUTION STOPPED BEING ONE FILE. When each red seat got its own
+// configuration, the duties every red seat holds moved into the `adversarial-audit` skill and each
+// agent file kept only what is true of that seat alone. A gate reading the agent file by itself
+// then reports a seat stripped of the surface-discovery duty and the operator channel — which is
+// false: the seat is handed both, through the skill it declares.
+//
+// The alternative was to restate the shared duties in eleven files, which is the fork every one of
+// these gates exists to prevent, one level up.
+//
+// ONLY THIS PLUGIN'S SKILLS ARE RESOLVED. A `prosthetic-conscience:` skill is another plugin's
+// text and is not this repository's to assert about here; those are covered by that plugin's own
+// gates.
+func ConstitutionText(agentPath string) (string, error) {
+	b, err := os.ReadFile(agentPath)
+	if err != nil {
+		return "", err
+	}
+	out := string(b)
+	for _, name := range declaredFEOVSkills(out) {
+		p, err := Plugin("skills", name, "SKILL.md")
+		if err != nil {
+			return "", err
+		}
+		sb, err := os.ReadFile(p)
+		if err != nil {
+			return "", fmt.Errorf("%s declares skill %q and %s is unreadable: %w", agentPath, name, p, err)
+		}
+		out += "\n" + string(sb)
+	}
+	return out, nil
+}
+
+var feovSkillRe = regexp.MustCompile(`frank-exchange-of-views:([a-z0-9-]+)`)
+
+// declaredFEOVSkills reads the skills: line of an agent's frontmatter. It scans only the
+// frontmatter, so a skill NAMED in the body's prose is not mistaken for one the seat is handed.
+func declaredFEOVSkills(doc string) []string {
+	_, rest, ok := strings.Cut(doc, "---\n")
+	if !ok {
+		return nil
+	}
+	front, _, ok := strings.Cut(rest, "\n---")
+	if !ok {
+		return nil
+	}
+	var out []string
+	for _, line := range strings.Split(front, "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(line), "skills:") {
+			continue
+		}
+		for _, m := range feovSkillRe.FindAllStringSubmatch(line, -1) {
+			out = append(out, m[1])
+		}
+	}
+	return out
 }

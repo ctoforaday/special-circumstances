@@ -16,7 +16,7 @@ import (
 func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
-	red := Identity{Run: run, SeatID: "red-merge-r1", Round: 1}
+	red := Identity{Run: run, SeatID: "red-chair-r1", Round: 1}
 	blue := Identity{Run: run, SeatID: "blue-respond-r1", Round: 1}
 	lens := Identity{Run: run, SeatID: "red-lens-r1-evidence", Round: 1}
 	judge2 := Identity{Run: run, SeatID: "judge-r2", Round: 2}

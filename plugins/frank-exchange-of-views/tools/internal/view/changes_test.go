@@ -17,7 +17,7 @@ import (
 func seedChanges(t *testing.T, runDir string) {
 	t.Helper()
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-1", &recordpb.Mint{
+		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:mint:R1-1", &recordpb.Mint{
 			GapId:           proto.String("R1-1"),
 			Class:           proto.String("overclaim"),
 			Problem:         proto.String("independence is overclaimed"),
@@ -101,7 +101,7 @@ func TestChangesScopedPutsRequiredFixBesideTheEdits(t *testing.T) {
 func TestChangesScopedSaysNoneRatherThanRenderingEmpty(t *testing.T) {
 	runDir := t.TempDir()
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-1", &recordpb.Mint{
+		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:mint:R1-1", &recordpb.Mint{
 			GapId:           proto.String("R1-1"),
 			Class:           proto.String("x"),
 			Problem:         proto.String("p"),

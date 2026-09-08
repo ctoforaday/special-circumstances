@@ -2,6 +2,7 @@ package record
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -186,7 +187,13 @@ func TestThePetitionPrefixMatchesTheOneDebateComposes(t *testing.T) {
 }
 
 // areaKey captures each strategic area debate.js declares.
-var areaKey = regexp.MustCompile(`\{ key: '([a-z]+(?:-[a-z]+)*)', lens:`)
+// areaKey reads the RED_AREAS array out of debate.js. It matches the whole declaration and then
+// the quoted names inside it, rather than one name at a time anywhere in the file: `'evidence'`
+// appears in several other places over there, and a pattern loose enough to catch them would
+// report areas the engine never dispatches — which fails this bind in the direction that reads
+// like a defect in the roster.
+var areaBlock = regexp.MustCompile(`(?s)const RED_AREAS = \[(.*?)\]`)
+var areaKey = regexp.MustCompile(`'([a-z]+(?:-[a-z]+)*)'`)
 
 // THE AREA LIST IS ONE FACT WITH TWO AUTHORS, so it is bound rather than trusted.
 //
@@ -200,7 +207,12 @@ func TestTheLensAreasMatchWhatTheEngineDeclares(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot read debate.js — the dispatch this list binds against: %v", err)
 	}
-	ms := areaKey.FindAllStringSubmatch(string(src), -1)
+	block := areaBlock.FindSubmatch(src)
+	if block == nil {
+		t.Fatal("no `const RED_AREAS = [...]` in debate.js — this bind reads the engine's own list, " +
+			"and finding nothing must fail loudly rather than agree with an empty roster")
+	}
+	ms := areaKey.FindAllStringSubmatch(string(block[1]), -1)
 	if len(ms) < 4 {
 		t.Fatalf("found %d areas in debate.js, expected at least the four that always sit — this bind "+
 			"is reading the wrong thing and would pass on a near-empty set", len(ms))
@@ -217,6 +229,30 @@ func TestTheLensAreasMatchWhatTheEngineDeclares(t *testing.T) {
 		if !declared[a] {
 			t.Errorf("record.LensAreas lists %q and debate.js declares no such area — the roster admits an "+
 				"id no run can produce", a)
+		}
+	}
+
+	// THE THIRD CARRIER. An area's standing instructions are its agent configuration, and
+	// `agent_type` is what attests the area — so an area with no file is a seat dispatched under a
+	// configuration that does not exist, and a file with no area is a configuration nothing
+	// dispatches. Neither shows up in the two-way check above.
+	dir := filepath.Join(filepath.Dir(filepath.Dir(debateSource)), "..", "..", "agents")
+	for _, a := range LensAreas {
+		p := filepath.Join(dir, "red-lens-"+a+".md")
+		if _, err := os.Stat(p); err != nil {
+			t.Errorf("area %q has no agent configuration at %s — the engine dispatches "+
+				"agentType frank-exchange-of-views:red-lens-%s, which would resolve to nothing", a, p, a)
+		}
+	}
+	files, err := filepath.Glob(filepath.Join(dir, "red-lens-*.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range files {
+		a := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(f), "red-lens-"), ".md")
+		if !isLensArea(a) {
+			t.Errorf("%s is a lens configuration for area %q, which record.LensAreas does not list — "+
+				"every seat of that area is refused at register", f, a)
 		}
 	}
 }

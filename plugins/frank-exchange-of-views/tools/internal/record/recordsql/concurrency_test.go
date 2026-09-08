@@ -69,7 +69,7 @@ func TestConcurrentSeatsDoNotLoseEvents(t *testing.T) {
 			defer wg.Done()
 			cmd := exec.Command(os.Args[0], "-test.run=^TestConcurrentSeatsDoNotLoseEvents$")
 			cmd.Env = append(os.Environ(),
-				concChildEnv+"=red-merge-r"+strconv.Itoa(s+1),
+				concChildEnv+"=red-chair-r"+strconv.Itoa(s+1),
 				"RECORDSQL_CONCURRENCY_DB="+path)
 			if out, err := cmd.CombinedOutput(); err != nil {
 				fails <- string(out)

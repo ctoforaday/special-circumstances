@@ -15,29 +15,30 @@ import (
 // membership half, and it is the first fact in this system about a seat that the seat did not
 // supply: `agent_type` comes off the PreToolUse payload, and a seat cannot state it or withhold it.
 //
-// A SET PER TYPE, NOT A ROLE PER TYPE, because the mapping genuinely is not one-to-one and
-// pretending otherwise would put a lie in a table. debate.js dispatches BOTH the lenses (:845) and
-// the merge (:871) as `frank-exchange-of-views:red-auditor`, so an attestation of red-auditor
-// admits either and can refuse neither. That is a real limit on what this can catch and it is
-// written here rather than discovered later:
+// A SET PER TYPE IS NO LONGER NEEDED FOR RED, AND THAT IS THE POINT OF THE SPLIT. This table
+// carried `red-auditor -> {lens, merge}` and said so as a real limit: debate.js dispatched both
+// the lenses and the merge as one configuration, so an attestation of red-auditor admitted either
+// and could refuse neither. Every red seat now has its OWN configuration, so `agent_type` names
+// WHICH lens — not merely that it is one — and the ambiguous row is gone.
 //
-//	red-auditor       lens, merge     <- the one ambiguous row
-//	blue-researcher   blue
-//	blue-synthesizer  blue
-//	lead-judge        bench
-//
-// It narrows to exact if red-merge is ever given its own agent configuration: red-auditor's set
-// loses `merge` and a red-merge row appears. Nothing else changes, which is why the shape is a set
-// today rather than a scalar with a special case bolted on later.
+// The sets remain sets because blue's are genuinely one-to-many and because a scalar here would
+// have to be widened back the first time any configuration seats two roles.
 //
 // KEYED ON THE FULL PREFIXED STRING, exactly as the harness delivers it and as
 // hookgate.AuthorAgentType already spells it. A bare-keyed table would map every real seat to
 // unattested, which is the silent pass this exists to remove.
 var agentTypeRoles = map[string][]string{
-	"frank-exchange-of-views:red-auditor":      {"lens", "merge"},
-	"frank-exchange-of-views:blue-researcher":  {"blue"},
-	"frank-exchange-of-views:blue-synthesizer": {"blue"},
-	"frank-exchange-of-views:lead-judge":       {"bench"},
+	"frank-exchange-of-views:red-lens-evidence":     {"lens"},
+	"frank-exchange-of-views:red-lens-logic":        {"lens"},
+	"frank-exchange-of-views:red-lens-dark-side":    {"lens"},
+	"frank-exchange-of-views:red-lens-voice":        {"lens"},
+	"frank-exchange-of-views:red-lens-computation":  {"lens"},
+	"frank-exchange-of-views:red-lens-adversary":    {"lens"},
+	"frank-exchange-of-views:red-lens-architecture": {"lens"},
+	"frank-exchange-of-views:red-chair":             {"merge"},
+	"frank-exchange-of-views:blue-researcher":       {"blue"},
+	"frank-exchange-of-views:blue-synthesizer":      {"blue"},
+	"frank-exchange-of-views:lead-judge":            {"bench"},
 }
 
 // CheckAttestedRole refuses a seat id whose role the attested agent configuration cannot hold.

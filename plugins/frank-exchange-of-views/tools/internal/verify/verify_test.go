@@ -78,7 +78,7 @@ func TestDialecticRefsResolve(t *testing.T) {
 			// A DOCKET MOTION IS THE DIALECTIC ACT THAT NAMES A GAP, not the ruling. A ruling
 			// carries only the ask's id, so there is no gap on it to dangle — the reference this
 			// check can still test is the FILING's, and that is what is seeded here.
-			recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{
+			recordtest.Event(t, "red-chair-r1", 1, &recordpb.Motion{
 				MotionId: proto.String("M1"),
 				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Basis:    proto.String("put it to the bench"),
@@ -109,7 +109,7 @@ func TestPassClosesAllGaps(t *testing.T) {
 	openUnderPass := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
-		Events:   []*record.Event{recordtest.Event(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})},
+		Events:   []*record.Event{recordtest.Event(t, "red-chair-r1", 1, &recordpb.RoundVerdict{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})},
 	}
 	if c := find(t, Run(openUnderPass.fam()), "pass-closes-all-gaps"); c.OK {
 		t.Error("PASS with an open gap must fail the #67 gate")
@@ -118,7 +118,7 @@ func TestPassClosesAllGaps(t *testing.T) {
 	failed := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
-		Events:   []*record.Event{recordtest.Event(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()})},
+		Events:   []*record.Event{recordtest.Event(t, "red-chair-r1", 1, &recordpb.RoundVerdict{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()})},
 	}
 	if c := find(t, Run(failed.fam()), "pass-closes-all-gaps"); !c.OK {
 		t.Error("a FAIL verdict must not trip the PASS gate")
@@ -163,7 +163,7 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 			// BOTH HALVES, because gaps_with_disposition is a JOIN: the gap rides the filing and
 			// the disposition rides the ruling. Seeded with only the ruling the count is 0, which
 			// is the same number an honest run with no bench sitting produces.
-			recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{
+			recordtest.Event(t, "red-chair-r1", 1, &recordpb.Motion{
 				MotionId: proto.String("M1"),
 				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Basis:    proto.String("put G2 to the bench"),
@@ -286,8 +286,8 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 	// pass or fail for a reason that has nothing to do with the third state.
 	b := &boardT{
 		Events: []*record.Event{
-			recordtest.Event(t, "red-merge-r1", 0, &recordpb.Register{}),
-			recordtest.Event(t, "red-merge-r1", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
+			recordtest.Event(t, "red-chair-r1", 0, &recordpb.Register{}),
+			recordtest.Event(t, "red-chair-r1", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 		},
 		GapOrder: []string{"R1-1"},
 		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},

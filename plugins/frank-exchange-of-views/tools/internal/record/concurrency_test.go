@@ -119,17 +119,17 @@ func TestAbandonedLockFileDoesNotBlock(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(runDir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	// An empty lock file for the per-seat pointer lock an append acquires, as a crashed
 	// holder would leave behind. Under flock the file carries no lock, so the next
 	// append acquires immediately rather than serving the full bounded wait.
-	if err := os.WriteFile(filepath.Join(runDir, "records", ".lock-ptr-red-merge-r1"), nil, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(runDir, "records", ".lock-ptr-red-chair-r1"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	start := time.Now()
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("over an abandoned lock")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("over an abandoned lock")}); err != nil {
 		t.Fatalf("append over an abandoned lock file: %v", err)
 	}
 	if elapsed := time.Since(start); elapsed > lockWait {

@@ -172,8 +172,8 @@ func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 
 func TestRegisterSeatAcceptsTheEngineAssignedShapes(t *testing.T) {
 	for _, id := range []string{
-		"red-lens-r1-evidence", "red-merge-r12", "blue-lane-3", "blue-respond-r2", "blue-synthesize",
-		"frontier", "judge-r1", "judge-terminal", "judge-petition-red-merge-r1", "assemble", "operator",
+		"red-lens-r1-evidence", "red-chair-r12", "blue-lane-3", "blue-respond-r2", "blue-synthesize",
+		"frontier", "judge-r1", "judge-terminal", "judge-petition-red-chair-r1", "assemble", "operator",
 	} {
 		runDir := newRun(t)
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: id, Round: RoundIn(mustRun(t, runDir))(id)}, ""); err != nil {
@@ -335,7 +335,7 @@ func TestConcurrentWriteAtomicNeverPublishesAPartialFile(t *testing.T) {
 func TestReleaseHeldLocksIsSafeWhenNothingIsHeld(t *testing.T) {
 	releaseHeldLocks()
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	releaseHeldLocks()

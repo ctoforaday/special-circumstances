@@ -45,9 +45,15 @@ const OperatorRole = "operator"
 var roleSeats = map[string][]string{
 	OperatorRole: {OperatorRole},
 	"lens":       {"red-lens-"},
-	"merge":      {"red-merge-"},
-	"blue":       {"blue-", "frontier"},
-	"bench":      {"judge-", "assemble"},
+	// BOTH NAMES, AND THE ROLE KEEPS THE OLD ONE. The seat is `red-chair-r<n>` as of the
+	// derived-identity change; `red-merge-r<n>` is what every archived run holds and is read
+	// forever. The ROLE stays `merge` deliberately: `chair` is already this package's word for a
+	// SIDE of the debate — ChairOf maps a role to red/blue/bench and the operator command takes
+	// a `--chair` flag over that vocabulary — so a role named `chair` would sit in a chair, and
+	// the two meanings would be told apart only by which map you happened to be reading.
+	"merge": {"red-chair-", "red-merge-"},
+	"blue":  {"blue-", "frontier"},
+	"bench": {"judge-", "assemble"},
 }
 
 // chairOfRole maps a seat's ROLE to the CHAIR whose scorecard measures it.

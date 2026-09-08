@@ -27,7 +27,7 @@ func recordWithRounds(t *testing.T, n int) string {
 	dir := t.TempDir()
 	var evs []*recordpb.Event
 	for r := 1; r <= n; r++ {
-		seat := "red-merge-r" + itoa(r)
+		seat := "red-chair-r" + itoa(r)
 		// Every field the record REQUIRES, because it now refuses a mint that omits one. The
 		// fixture used to name four; the other three were absent and nothing said so.
 		evs = append(evs, recordtest.At(t, seat, r, seat+":mint:R"+itoa(r)+"-1", &recordpb.Mint{
@@ -79,7 +79,7 @@ func fixtureRun(t *testing.T, ledgerLines, archiveBlocks int) string {
 	write(t, filepath.Join(dir, "red", "archive.md"), ab.String())
 	write(t, filepath.Join(dir, "blue", "CHANGELOG.md"), "## Round 1\nedits\n## Round 2\nedits\n")
 	write(t, filepath.Join(dir, "trajectories", "journal.jsonl"),
-		`{"type":"result","result":{"ledger_closure_lines":`+itoa(ledgerLines)+`,"archive_blocks":`+itoa(archiveBlocks)+`,"log":["red-merge-r1: needed a PDF extractor for X"]}}`+"\n")
+		`{"type":"result","result":{"ledger_closure_lines":`+itoa(ledgerLines)+`,"archive_blocks":`+itoa(archiveBlocks)+`,"log":["red-chair-r1: needed a PDF extractor for X"]}}`+"\n")
 	return dir
 }
 
@@ -178,13 +178,13 @@ func TestASeatThatParaphrasesItselfStillReconciles(t *testing.T) {
 // AND THE REAL GAP STILL FAILS: a seat that reported friction to the harness and never opened the
 // channel on the record.
 func TestASeatThatToldOnlyTheHarnessIsAFinding(t *testing.T) {
-	run := frictionRun(t, "red-merge-r1", "a78f5dfdc4aa2ea54", "")
+	run := frictionRun(t, "red-chair-r1", "a78f5dfdc4aa2ea54", "")
 	env := []EnvelopeLog{{AgentID: "a78f5dfdc4aa2ea54", Text: "needed a PDF extractor for X"}}
 	got := LogAudit(runtest.Open(t, run), env, recordFriction(t, run))
 	if got.Verdict != "FAIL" {
 		t.Fatalf("friction the record never got: want FAIL, got %s (%s)", got.Verdict, got.Detail)
 	}
-	for _, want := range []string{"red-merge-r1", "needed a PDF extractor"} {
+	for _, want := range []string{"red-chair-r1", "needed a PDF extractor"} {
 		if !strings.Contains(got.Detail, want) {
 			t.Errorf("the finding must name %q: %s", want, got.Detail)
 		}
@@ -432,7 +432,7 @@ func TestHarvestPrecedents(t *testing.T) {
 		// gap rides the FILING — the harvest joins them through record.Motions to learn which
 		// gap a disposition settled — so a fixture with only the ruling would anchor every
 		// harvested holding to the empty string and still report a full count.
-		recordtest.Event(t, "red-merge-r2", 2, &recordpb.Motion{
+		recordtest.Event(t, "red-chair-r2", 2, &recordpb.Motion{
 			MotionId: proto.String("M3"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Basis:    proto.String("red cannot settle R2-3"),
@@ -466,7 +466,7 @@ func TestHarvestPrecedents(t *testing.T) {
 		}),
 		// THE RULER'S ARGUMENT IS `MotionRule.opinion` NOW — the prose channel every subject's
 		// ruling carries — which is what the no-truncation assertion below reads.
-		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Motion{
+		recordtest.Event(t, "red-chair-r1", 1, &recordpb.Motion{
 			MotionId: proto.String("M5"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Basis:    proto.String("put R1-9 to the bench"),
@@ -491,7 +491,7 @@ func TestHarvestPrecedents(t *testing.T) {
 		}),
 		// A grade ruling is deliberately NOT harvested: promoting it without the ask it
 		// answered would strip its scope. If this ever starts appearing, it was a decision.
-		recordtest.Event(t, "red-merge-r1", 1, &recordpb.MotionRule{
+		recordtest.Event(t, "red-chair-r1", 1, &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 			Opinion:  proto.String("disclosure does not lower likelihood"),
@@ -761,7 +761,7 @@ func TestStrayRecordsAuditFindsShardsOutsideAnyRun(t *testing.T) {
 	// The run being captured.
 	runDir := filepath.Join(repo, "research", "the-run")
 	write(t, filepath.Join(runDir, "inputs", "run-config.json"), `{"topic":"t"}`)
-	write(t, filepath.Join(runDir, "records", "events-red-merge-r1-aaaaaaaa.jsonl"), "{}\n")
+	write(t, filepath.Join(runDir, "records", "events-red-chair-r1-aaaaaaaa.jsonl"), "{}\n")
 
 	if got := StrayRecordsAudit(repo, runDir); got.Verdict != "PASS" {
 		t.Fatalf("a clean repo reported %s: %s", got.Verdict, got.Detail)
@@ -1174,7 +1174,7 @@ func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "aaaa1111", "claude-opus-4-8", "claude-fable-5")),
 		}),
-		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:register:#1", &recordpb.Register{
+		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "bbbb2222", "claude-sonnet-5", "")),
 		}),
@@ -1189,7 +1189,7 @@ func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
 		}
 	}
 	// The judgment seat was served as configured and must not be swept up with it.
-	if strings.Contains(got.Detail, "red-merge-r1") {
+	if strings.Contains(got.Detail, "red-chair-r1") {
 		t.Errorf("a seat answered by its configured tier is not a finding; got:\n%s", got.Detail)
 	}
 }

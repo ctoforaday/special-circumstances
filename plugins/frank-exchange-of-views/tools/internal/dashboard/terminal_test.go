@@ -32,7 +32,7 @@ func runWithStubbedReportButNoOutcome(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte("# report.md — a topic\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	recordtest.Seed(t, dir, recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:mint:R1-1", &recordpb.Mint{
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:mint:R1-1", &recordpb.Mint{
 		GapId:           proto.String("R1-1"),
 		Problem:         proto.String("p"),
 		RequiredFix:     proto.String("f"),

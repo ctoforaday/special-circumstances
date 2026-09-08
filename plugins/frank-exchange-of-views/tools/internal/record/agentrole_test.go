@@ -8,7 +8,18 @@ import (
 )
 
 // agentTypeDispatch captures every agentType debate.js dispatches under.
-var agentTypeDispatch = regexp.MustCompile(`agentType:\s*'([^']+)'`)
+var agentTypeDispatch = regexp.MustCompile("agentType:\\s*['`]([^'`]+)['`]")
+
+// lensAreaHole is the one interpolated agent type the engine composes: every lens area is
+// dispatched under its own configuration, so the dispatch site reads
+// `frank-exchange-of-views:red-lens-${area}` rather than seven literals.
+//
+// IT IS EXPANDED, NOT SKIPPED. Skipping an argument this cannot read is how a bind goes quiet:
+// the interpolated site would stop being checked in EITHER direction, and the table could grow a
+// row for an area nothing dispatches without failing here. Expanding it over LensAreas — which
+// TestTheLensAreasMatchWhatTheEngineDeclares independently binds to debate.js's own list — keeps
+// both directions honest.
+const lensAreaHole = "${area}"
 
 // EVERY TYPE THE ENGINE DISPATCHES IS IN THE TABLE, because a missing row is SILENT.
 //
@@ -33,8 +44,17 @@ func TestEveryDispatchedAgentTypeIsAttestable(t *testing.T) {
 	}
 
 	seen := map[string]bool{}
+	expanded := make([]string, 0, len(ms)+len(LensAreas))
 	for _, m := range ms {
-		at := m[1]
+		if strings.Contains(m[1], lensAreaHole) {
+			for _, a := range LensAreas {
+				expanded = append(expanded, strings.ReplaceAll(m[1], lensAreaHole, a))
+			}
+			continue
+		}
+		expanded = append(expanded, m[1])
+	}
+	for _, at := range expanded {
 		seen[at] = true
 		if _, known := agentTypeRoles[at]; !known {
 			t.Errorf("debate.js dispatches agent type %q and agentTypeRoles has no row for it, so every "+
@@ -77,11 +97,11 @@ func TestEveryAttestedRoleIsARealRole(t *testing.T) {
 }
 
 func TestTheAttestationRefusesASeatFromTheWrongFamily(t *testing.T) {
-	err := CheckAttestedRole("frank-exchange-of-views:lead-judge", "red-merge-r1")
+	err := CheckAttestedRole("frank-exchange-of-views:lead-judge", "red-chair-r1")
 	if err == nil {
-		t.Fatal("a lead-judge agent registered as red-merge-r1 and nothing refused it")
+		t.Fatal("a lead-judge agent registered as red-chair-r1 and nothing refused it")
 	}
-	for _, want := range []string{"red-merge-r1", "merge", "lead-judge", "bench seats"} {
+	for _, want := range []string{"red-chair-r1", "merge", "lead-judge", "bench seats"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal does not name %q — it must name both sides for the seat to act on it:\n%s", want, err)
 		}
@@ -93,7 +113,7 @@ func TestTheAttestationRefusesASeatFromTheWrongFamily(t *testing.T) {
 // failing it is because red-merge got its own configuration — at which point the table narrows and
 // this test states the new truth.
 func TestRedAuditorSeatsBothLensAndMerge(t *testing.T) {
-	for _, seat := range []string{"red-lens-r1-evidence", "red-merge-r1"} {
+	for _, seat := range []string{"red-lens-r1-evidence", "red-chair-r1"} {
 		if err := CheckAttestedRole("frank-exchange-of-views:red-auditor", seat); err != nil {
 			t.Errorf("red-auditor cannot seat %s, but debate.js dispatches it: %v", seat, err)
 		}
@@ -103,10 +123,10 @@ func TestRedAuditorSeatsBothLensAndMerge(t *testing.T) {
 // UNATTESTED AND UNKNOWN BOTH PASS, and both are load-bearing: an operator at a shell has no hook,
 // and a build that has not learned a new type must not refuse every seat of that kind.
 func TestUnattestedAndUnknownTypesArePermitted(t *testing.T) {
-	if err := CheckAttestedRole("", "red-merge-r1"); err != nil {
+	if err := CheckAttestedRole("", "red-chair-r1"); err != nil {
 		t.Errorf("an unattested caller was refused, which demands a mechanism its environment lacks: %v", err)
 	}
-	if err := CheckAttestedRole("frank-exchange-of-views:some-future-seat", "red-merge-r1"); err != nil {
+	if err := CheckAttestedRole("frank-exchange-of-views:some-future-seat", "red-chair-r1"); err != nil {
 		t.Errorf("an unknown agent type was refused, which would break every run adding one: %v", err)
 	}
 }

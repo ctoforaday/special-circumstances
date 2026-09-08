@@ -1,7 +1,7 @@
-$ register --run {RUN} --seat-id red-merge-r1
+$ register --run {RUN} --seat-id red-chair-r1
 exit 0
 stdout:
-registered red-merge-r1
+registered red-chair-r1
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
@@ -9,14 +9,14 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ mint --run {RUN} --seat-id red-merge-r1 --class citation-drift --check-kind document --check refetch --severity high --likelihood high --impact high --complexity medium --problem source moved
+$ mint --run {RUN} --seat-id red-chair-r1 --class citation-drift --check-kind document --check refetch --severity high --likelihood high --impact high --complexity medium --problem source moved
 exit 0
 stdout:
 minted R1-1
   acceptance check RECORDED as: refetch
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
-$ close --run {RUN} --seat-id red-merge-r1 --id R1-1
+$ close --run {RUN} --seat-id red-chair-r1 --id R1-1
 exit 2
 stderr:
 feov-record: required flag(s) "verified-by" not set
@@ -61,7 +61,7 @@ Global Flags:
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ close --run {RUN} --seat-id red-merge-r1 --id R9-9 --verified-by L1 --verified-with git show --verified-against 7bc501e:x
+$ close --run {RUN} --seat-id red-chair-r1 --id R9-9 --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
 stderr:
 feov-record: at least one of the flags in the group [reason reason-file] is required
@@ -106,7 +106,7 @@ Global Flags:
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as repaired_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
+$ close --run {RUN} --seat-id red-chair-r1 --id R1-1 --as repaired_with_regression --verified-by L1 --verified-with git show --verified-against 7bc501e:x
 exit 2
 stderr:
 feov-record: at least one of the flags in the group [reason reason-file] is required
@@ -151,7 +151,7 @@ Global Flags:
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ close --run {RUN} --seat-id red-merge-r1 --id R1-1 --as repaired --verified-by L1 --verified-with WebFetch --verified-against https://example.invalid/spec#s3 --reason refetched; the source now resolves and supports the claim
+$ close --run {RUN} --seat-id red-chair-r1 --id R1-1 --as repaired --verified-by L1 --verified-with WebFetch --verified-against https://example.invalid/spec#s3 --reason refetched; the source now resolves and supports the claim
 exit 0
 stdout:
 closed R1-1 (repaired)
@@ -159,9 +159,9 @@ closed R1-1 (repaired)
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"red-merge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-merge-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-merge-r1:mint:R1-1","mint":{"acceptance_check":"refetch","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"source moved","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-merge-r1","ts":3,"type":"EVENT_TYPE_MINT"}
-{"close":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"DISPOSITION_REPAIRED","gap_id":"R1-1","prose":"refetched; the source now resolves and supports the claim"},"key":"red-merge-r1:close:R1-1","round":1,"seat_id":"red-merge-r1","ts":4,"type":"EVENT_TYPE_CLOSE"}
+{"key":"red-chair-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair-r1:mint:R1-1","mint":{"acceptance_check":"refetch","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"source moved","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-chair-r1","ts":3,"type":"EVENT_TYPE_MINT"}
+{"close":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"DISPOSITION_REPAIRED","gap_id":"R1-1","prose":"refetched; the source now resolves and supports the claim"},"key":"red-chair-r1:close:R1-1","round":1,"seat_id":"red-chair-r1","ts":4,"type":"EVENT_TYPE_CLOSE"}
 
 ═══ RENDERS ═══
 -- debate

@@ -135,7 +135,7 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 	seat := func(role string) string {
 		switch role {
 		case "merge":
-			return pick(rng, []string{"red-merge-r1", "red-merge-r2"})
+			return pick(rng, []string{"red-chair-r1", "red-chair-r2"})
 		case "lens":
 			return pick(rng, []string{"red-lens-r1-evidence", "red-lens-r1-logic", "red-lens-r2-dark-side"})
 		case "blue":

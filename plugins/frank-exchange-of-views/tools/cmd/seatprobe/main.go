@@ -268,9 +268,11 @@ func namingTreatment(role, constDir string, sf seatprobe.Surface) string {
 func agentFor(role string) string {
 	switch role {
 	case "lens":
-		return "red-auditor"
+		// Any lens: the seven areas share every duty this probe measures, and they share it
+		// through the adversarial-audit skill rather than by each restating it.
+		return "red-lens-evidence"
 	case "merge":
-		return "red-auditor"
+		return "red-chair"
 	case "blue":
 		return "blue-researcher"
 	case "bench":
@@ -638,8 +640,8 @@ func constitutionFor(role, dir string) (string, error) {
 		}
 	}
 	name := map[string]string{
-		"lens":  "red-auditor.md",
-		"merge": "red-auditor.md",
+		"lens":  "red-lens-evidence.md",
+		"merge": "red-chair.md",
 		"blue":  "blue-researcher.md",
 		"bench": "lead-judge.md",
 	}[role]

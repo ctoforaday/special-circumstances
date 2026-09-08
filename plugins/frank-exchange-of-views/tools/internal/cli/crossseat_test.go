@@ -91,11 +91,11 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
 		t.Fatalf("motion grade file: %v", err)
 	}
-	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--id", "M1", "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("motion grade rule: %v", err)
 	}
-	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--id", id, "--severity", "low",
 		"--reason", "blue's dispute is accepted — the caller validates, so the blast radius is one call"); err != nil {
 		t.Fatalf("red regrade: %v", err)
@@ -116,7 +116,7 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	runDir := seatRun(t)
 
-	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--class", "safety",
 		"--reason", "continuing would require asserting a consent gate exists where it does not",
 		"--relief", "halt and escalate to a human before the next round"); err != nil {
@@ -147,7 +147,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 		t.Errorf("the ruling names motion %q, want M1 — a ruling that does not name its filing cannot be matched to it", got)
 	}
 	// The FILER is on the envelope, not the body — the body is what the seat said.
-	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_MOTION).GetSeatId(); got != "red-merge-r1" {
+	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_MOTION).GetSeatId(); got != "red-chair-r1" {
 		t.Errorf("the motion was filed by %q, want the merge seat — the filer is on the filing, never restated on the answer", got)
 	}
 }
@@ -157,7 +157,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 // is the friction-channel defect Gray Area exists to catch — so the refutation gets a test.
 func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--none", "--reason", "the archive was empty at round start; there was nothing to sample"); err != nil {
 		t.Fatalf("an empty-archive spot-check must be recordable — red reported this was impossible and it was not: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 	}
 
 	// And the duty cannot be discharged by asserting emptiness with no reason.
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--none"); err == nil {
 		t.Error("--none without --reason was accepted; an unexplained empty round is indistinguishable from a skipped one")
 	}
@@ -232,7 +232,7 @@ func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 	first := mintGap(t, runDir, "partial-repair", "residue-carrying")
 	next := mintGap(t, runDir, "the-residue", "residue-carrying")
 
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--id", first, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/parser",
 		"--superseded-by", next,
@@ -270,7 +270,7 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 	// `motion docket rule --as` now; the property is the same and so is the word that must
 	// be refused.
 	id := mintGap(t, runDir, "not-haltable", "halt-is-its-own-verb")
-	m := docketFile(t, runDir, "red-merge-r1", id, "put before the bench")
+	m := docketFile(t, runDir, "red-chair-r1", id, "put before the bench")
 	args := benchRuleArgs(m, "halt", "p")
 	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge-r1"}, args[3:]...)
 	if _, err := run(t, args...); err == nil {
@@ -292,12 +292,12 @@ func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
 	runDir := seatRun(t)
 	// The gap has to exist: `close --id` is a reference the record checks, and R1-1 is what the
 	// first mint of the round is assigned.
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatalf("merge mint: %v", err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--id", "R1-1", "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
 		"--reason", "the repair was verified at the leaf"); err != nil {

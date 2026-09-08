@@ -86,7 +86,7 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 
 	// One valid gap first, so close/regrade refusals are about the refusal under
 	// test rather than about an empty board.
-	capture(command(bin, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	capture(command(bin, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
 		"--impact", "low", "--problem", "a valid gap"))
 	// And one real finding, so a case that references it refuses on the MISSING
@@ -189,7 +189,7 @@ func defaultSeat(role string) string {
 	case "bench":
 		return "judge-r1"
 	default:
-		return "red-merge-r1"
+		return "red-chair-r1"
 	}
 }
 

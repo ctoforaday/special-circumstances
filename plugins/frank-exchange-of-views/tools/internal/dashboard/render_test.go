@@ -48,7 +48,7 @@ func baseModel(t *testing.T, runDir string) Model {
 	return Model{
 		Run: runtest.Open(t, runDir), Telemetry: tel, Latest: tel[len(tel)-1],
 		Cost: 12.34, APIRounds: 20, Agents: 5,
-		Friction:   Friction{Count: 2, Last: "red-merge-r1: needed a PDF extractor"},
+		Friction:   Friction{Count: 2, Last: "red-chair-r1: needed a PDF extractor"},
 		Shards:     Shards{LedgerExists: true, OpenRows: 2, OpenBySeverity: map[string]int{"high": 1, "medium": 1}, Findings: 9, Citations: 4, ClosureIndexRows: 3, ArchiveRecords: 3},
 		BlueClaims: ip(15),
 		Steps:      []Step{{"frontier", "done"}, {"blue lanes", "done"}, {"synthesis", "live"}, {"round 1", "todo"}, {"assembly", "todo"}},
@@ -89,8 +89,8 @@ func TestRenderHTMLTerminal(t *testing.T) {
 	m.Eta = Eta{State: "complete"}
 	m.Seats = []Seat{
 		{Label: "frontier", Seat: "frontier", Done: true, Result: `{"verdict":"PASS","claim_count":15,"gaps":[]}`},
-		{Label: "red-merge-r1", Seat: "red-merge", Round: 1, Done: true, Result: `{"verdict":"FAIL","gaps":[1,2],"resolutions":[1]}`},
-		{Label: "red-merge-r1", Seat: "red-merge", Round: 1, Done: false, StartedMs: fp(1000)}, // superseded (a done one shares the label)
+		{Label: "red-chair-r1", Seat: "red-merge", Round: 1, Done: true, Result: `{"verdict":"FAIL","gaps":[1,2],"resolutions":[1]}`},
+		{Label: "red-chair-r1", Seat: "red-merge", Round: 1, Done: false, StartedMs: fp(1000)}, // superseded (a done one shares the label)
 		{Label: "judge-r1", Seat: "judge", Round: 1, Done: false, StartedMs: fp(1000)},         // did not finish
 	}
 	m.CostRows = []CostRow{{Round: 1, Seat: "red-lens", Tier: "haiku", Agents: 6, Cost: 0.42}}

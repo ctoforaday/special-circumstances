@@ -54,7 +54,9 @@ func TestTheProbeDispatchesTheProductionAgent(t *testing.T) {
 // dispatch a seat under another seat's constitution and report it as that role.
 func TestEveryRoleMapsToItsProductionAgent(t *testing.T) {
 	want := map[string]string{
-		"lens": "red-auditor", "merge": "red-auditor",
+		// Any ONE lens area stands for the seven: they share every duty this probe measures, and
+		// they share it through the adversarial-audit skill rather than by restating it sevenfold.
+		"lens": "red-lens-evidence", "merge": "red-chair",
 		"blue": "blue-researcher", "bench": "lead-judge",
 	}
 	src := dispatchSource(t)
@@ -83,7 +85,7 @@ func TestEveryRoleMapsToItsProductionAgent(t *testing.T) {
 // something: if a constitution stops declaring WebSearch, `corroborate` becomes unperformable again
 // and no run would say so.
 func TestTheAuditingConstitutionsDeclareTheToolsTheirVerbsNeed(t *testing.T) {
-	for _, agent := range []string{"red-auditor", "blue-researcher"} {
+	for _, agent := range []string{"red-lens-evidence", "red-chair", "blue-researcher"} {
 		cp, cerr := repotree.Plugin("agents", agent+".md")
 		if cerr != nil {
 			t.Fatal(cerr)
