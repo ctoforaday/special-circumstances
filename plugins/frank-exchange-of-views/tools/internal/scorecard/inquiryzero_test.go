@@ -63,7 +63,7 @@ func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
 		avenue(t, "Q1", "the Medium essay", recordpb.AvenueStatus_AVENUE_STATUS_DECLINED, "no access channel exists for it"),
 		func() *record.Event {
 			st := recordpb.AvenueStatus_AVENUE_STATUS_PURSUED
-			return recordtest.Event(t, "blue-respond-r3", 3, &recordpb.Avenue{
+			return recordtest.Event(t, "blue-respond", 3, &recordpb.Avenue{
 				AvenueId: proto.String("Q1"), Status: &st, SupersedesStatus: proto.String("declined"),
 			})
 		}(),

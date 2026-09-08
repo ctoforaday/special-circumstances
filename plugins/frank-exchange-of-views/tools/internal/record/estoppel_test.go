@@ -52,7 +52,7 @@ func edit(t *testing.T, gapID string, verbatim bool) *Event {
 		// one that claimed it and was false are different facts, and estoppel turns on the claim.
 		be.AppliedVerbatim = proto.Bool(true)
 	}
-	return recordtest.Event(t, "blue-respond-r1", 1, be)
+	return recordtest.Event(t, "blue-respond", 1, be)
 }
 
 // The core rule: a finding located in text red prescribed and blue applied VERBATIM names
@@ -116,7 +116,7 @@ func TestDeclineStatsSeparatesAppliedFromDeclinedFromUnanswered(t *testing.T) {
 		edit(t, "R1-1", true),
 		edit(t, "R1-2", false),
 		// R1-3 offered and never answered.
-		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.BlueEdit{Answers: proto.String("R1-4")}),
+		recordtest.Event(t, "blue-respond", 1, &recordpb.BlueEdit{Answers: proto.String("R1-4")}),
 	})
 
 	offered, applied, declined := DeclineStatsOf(b.Events, GapsByID(b.Gaps))
@@ -139,7 +139,7 @@ func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 	// THE TEXT IS THE SUBJECT — this test is about a counter that survives the refusal being
 	// REWORDED — and the earlier conversion dropped it, leaving two identical empty frictions.
 	fr := func(text string) *Event {
-		return recordtest.Event(t, "red-chair-r2", 2, &recordpb.Log{
+		return recordtest.Event(t, "red-chair", 2, &recordpb.Log{
 			Text:   proto.String(text),
 			Type:   recordtest.P(recordpb.LogType_LOG_TYPE_ESTOPPEL),
 			Source: recordtest.P(recordpb.LogSource_LOG_SOURCE_TOOL),
@@ -160,7 +160,7 @@ func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 // position matcher exists to avoid.
 func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
 	b := board(t, nil, []*Event{
-		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Log{}),
+		recordtest.Event(t, "blue-respond", 2, &recordpb.Log{}),
 	})
 	if got := EstoppelRejectionsOf(b.Events); got != 0 {
 		t.Errorf("EstoppelRejections = %d, want 0 — a seat QUOTING the refusal did not cause one", got)
@@ -171,7 +171,7 @@ func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
 // fire" rather than "the detector is broken".
 func TestNoRejectionsCountsZero(t *testing.T) {
 	b := board(t, nil, []*Event{
-		recordtest.Event(t, "red-chair-r1", 1, &recordpb.Log{Text: proto.String("the fetch cache refused an unreachable url"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
+		recordtest.Event(t, "red-chair", 1, &recordpb.Log{Text: proto.String("the fetch cache refused an unreachable url"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 	})
 	if got := EstoppelRejectionsOf(b.Events); got != 0 {
 		t.Errorf("EstoppelRejections = %d, want 0", got)

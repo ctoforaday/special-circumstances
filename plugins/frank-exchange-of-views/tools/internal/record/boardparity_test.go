@@ -16,10 +16,10 @@ import (
 func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
-	red := Identity{Run: run, SeatID: "red-chair-r1", Round: 1}
-	blue := Identity{Run: run, SeatID: "blue-respond-r1", Round: 1}
-	lens := Identity{Run: run, SeatID: "red-lens-r1-evidence", Round: 1}
-	judge2 := Identity{Run: run, SeatID: "judge-r2", Round: 2}
+	red := Identity{Run: run, SeatID: "red-chair"}
+	blue := Identity{Run: run, SeatID: "blue-respond"}
+	lens := Identity{Run: run, SeatID: "red-lens-evidence"}
+	judge2 := Identity{Run: run, SeatID: "judge"}
 	app := func(id Identity, body proto.Message) {
 		t.Helper()
 		if _, err := Append(id, body); err != nil {
@@ -41,6 +41,10 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 			extra(m)
 		}
 		app(red, m)
+	}
+	// The chair sits: its mints, regrade and close below are epoch 1.
+	if _, _, err := RegisterSeat(red, ""); err != nil {
+		t.Fatal(err)
 	}
 	mint("R1-1", func(m *recordpb.Mint) {
 		m.FoundBy = []string{"L1-F1"}
@@ -71,6 +75,11 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Basis:   proto.String("red cannot settle " + gapID),
 			Filing:  &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
+		// The chair sits again before the bench rules, so the ruling — and the closure attributed to
+		// it — lands in epoch 2, which is what "ruled by the bench in round 2" now means.
+		if _, _, err := RegisterSeat(red, ""); err != nil {
+			t.Fatal(err)
+		}
 		app(judge2, &recordpb.MotionRule{MotionId: proto.String(motionID),
 			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion: proto.String("ra"),

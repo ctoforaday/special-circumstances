@@ -28,7 +28,8 @@ func seedReferents(t *testing.T, runDir string) {
 	// broken rather than as the fixture being a placeholder.
 	seedBlueReport(t, runDir)
 	for i := 0; i < 2; i++ {
-		if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+		registerChairOnce(t, runDir)
+		if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 			"--key", fmt.Sprintf("seed-%d", i), "--class", "x", "--check-kind", "document", "--check", "c",
 			"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 			t.Fatal(err)
@@ -41,22 +42,23 @@ func seedReferents(t *testing.T, runDir string) {
 	// M1 and M2: the motions the ruling cases answer. A rule names the motion it answers, so
 	// the filing has to exist before the ruling can be tested at all — which is the join the
 	// collapse exists to make, and the reason these are seeded rather than assumed.
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", "R1-1", "--dimension", "severity", "--proposed", "low",
 		"--reason", "the seeded grade motion this fixture answers"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--class", "safety", "--relief", "the relief sought",
 		"--reason", "the seeded petition this fixture answers"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	registerChairOnce(t, runDir)
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", "seed-archived", "--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "R1-3", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test",
 		"--verified-against", "./x", "--reason", "closed so the archive is not empty"); err != nil {
 		t.Fatal(err)
@@ -65,7 +67,7 @@ func seedReferents(t *testing.T, runDir string) {
 	// nothing in the run, and the lens's presence used to come from a seeded `observe` — retired
 	// with #327. `friction` is the lens verb with no referents of its own, so it seeds presence
 	// without seeding state any case then has to work around.
-	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
+	if _, err := run(t, "log", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--reason", "seeded so the lens seat has sat", "--type", "defect"); err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +95,7 @@ func TestVerbPayloads(t *testing.T) {
 	}{
 		{
 			name: "lens corroborate records the access date under its payload name",
-			path: []string{"corroborate"}, seatID: "red-lens-r1-evidence",
+			path: []string{"corroborate"}, seatID: "red-lens-evidence",
 			// THE QUOTE IS A REAL SPAN of the seeded report. A supporting corroboration splices a
 			// citation anchor at the claim, so the claim must be in the live document — the same
 			// rule blue's cite is held to. `"the claim"` was a placeholder and is now refused.
@@ -113,7 +115,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "lens corroborate without an access date leaves the key absent",
-			path: []string{"corroborate"}, seatID: "red-lens-r1-evidence",
+			path: []string{"corroborate"}, seatID: "red-lens-evidence",
 			args: []string{"--quote", "c", "--url", "https://example.test/b", "--title", "Example B",
 				"--as", "weak", "--confidence", "low", "--reason", "it gestures at it"},
 			typ:    recordpb.EventType_EVENT_TYPE_VERIFY,
@@ -123,7 +125,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "motion grade rule records the merge's answer",
-			path: []string{"motion", "grade", "rule"}, seatID: "red-chair-r1",
+			path: []string{"motion", "grade", "rule"}, seatID: "red-chair",
 			args: []string{"--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 			// THE RULING IS A ONEOF ARM, not a `ruling` field: `grade` carries GradeRuling,
@@ -173,7 +175,7 @@ func TestVerbPayloads(t *testing.T) {
 		},
 		{
 			name: "motion petition rule records the ruling and its opinion",
-			path: []string{"motion", "petition", "rule"}, seatID: "judge-petition-red-chair-r1",
+			path: []string{"motion", "petition", "rule"}, seatID: "judge-petition-red-chair",
 			args: []string{"--id", "M2", "--as", "granted", "--reason", "the written opinion"},
 			typ:  recordpb.EventType_EVENT_TYPE_MOTION_RULE,
 			want: map[string]string{"motion_id": "M2", "subject": "petition",
@@ -263,7 +265,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 	t.Run("with ids", func(t *testing.T) {
 		runDir := newRun(t)
 		seedReferents(t, runDir)
-		out, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair-r1",
+		out, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 			"--ids", "R1-3", "--reason", "it still holds")
 		if err != nil {
 			t.Fatal(err)
@@ -302,7 +304,7 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 		}
 		// 2. Checked nothing, explicitly: --none, with the reason that distinguishes it from a
 		// skipped duty.
-		if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair-r1",
+		if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 			"--none", "--reason", "the archive was empty at round start"); err != nil {
 			t.Fatal(err)
 		}
@@ -330,11 +332,11 @@ func TestSpotCheckIdsAreAlwaysAnArray(t *testing.T) {
 func TestSpotCheckIsASingleton(t *testing.T) {
 	runDir := newRun(t)
 	seedReferents(t, runDir)
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair-r1", "--ids", "R1-3",
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair", "--ids", "R1-3",
 		"--reason", "re-read the closure record"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair-r1", "--ids", "R1-3",
+	_, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair", "--ids", "R1-3",
 		"--reason", "re-read it again")
 	if err == nil {
 		t.Fatal("a second spot-check was accepted — the round's duty would have two discharges")
@@ -356,7 +358,8 @@ func TestSpotCheckIsASingleton(t *testing.T) {
 // regrade moves only the grades it carries, and refuses without its basis.
 func TestRegradeMovesOnlyThePassedGrades(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-chair-r1"
+	seatID := "red-chair"
+	registerChairOnce(t, runDir)
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
@@ -410,7 +413,7 @@ func TestProseVerbsAcceptAFile(t *testing.T) {
 		{"bench", "halt", "judge-terminal", "opinion", recordpb.EventType_EVENT_TYPE_HALT, nil},
 		{"bench", "certify", "assemble", "statement", recordpb.EventType_EVENT_TYPE_CERTIFY, nil},
 		{"blue", "revision", "blue-lane-1", "text", recordpb.EventType_EVENT_TYPE_REVISION, nil},
-		{"merge", "closing", "red-chair-r1", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "R1-1"}},
+		{"merge", "closing", "red-chair", "text", recordpb.EventType_EVENT_TYPE_CLOSING, []string{"--id", "R1-1"}},
 		{"blue", "manifest-row", "blue-lane-1", "row", recordpb.EventType_EVENT_TYPE_MANIFEST_ROW, []string{"--id", "R1-1"}},
 	}
 	body := "a multi-line payload\nwith unicode — ✓ 日本語\nand <angle> & entities\n"

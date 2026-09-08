@@ -135,13 +135,13 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 	seat := func(role string) string {
 		switch role {
 		case "merge":
-			return pick(rng, []string{"red-chair-r1", "red-chair-r2"})
+			return pick(rng, []string{"red-chair", "red-chair"})
 		case "lens":
-			return pick(rng, []string{"red-lens-r1-evidence", "red-lens-r1-logic", "red-lens-r2-dark-side"})
+			return pick(rng, []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side"})
 		case "blue":
-			return pick(rng, []string{"blue-respond-r1", "blue-synthesize"})
+			return pick(rng, []string{"blue-respond", "blue-synthesize"})
 		default:
-			return "judge-r1"
+			return "judge"
 		}
 	}
 	for len(out) < n {

@@ -31,7 +31,7 @@ func insertHelper(t *testing.T, text, location, marker string) string {
 // have produced, markers in record order.
 func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	for _, s := range []string{"blue-synthesize", "blue-respond-r1", "red-lens-r1-evidence"} {
+	for _, s := range []string{"blue-synthesize", "blue-respond", "red-lens-evidence"} {
 		if _, _, err := record.RegisterSeat(ident(t, runDir, s), ""); err != nil {
 			t.Fatalf("register %s: %v", s, err)
 		}
@@ -44,23 +44,23 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 	const citeID, proofID, findID = "c-cafef00d", "p-12345678", "f-deadbeef"
 	// cite anchors the first sentence, proof the first too (two markers, one sentence), finding
 	// the second. Recorded in this order; replay must honour it.
-	if _, err := record.Append(ident(t, runDir, "blue-respond-r1"), &recordpb.Cite{
+	if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Cite{
 		Label: proto.String(citeID), Location: proto.String("The estimate is stable across the range"),
 	}); err != nil {
 		t.Fatalf("append cite: %v", err)
 	}
-	if _, err := record.Append(ident(t, runDir, "blue-respond-r1"), &recordpb.Proof{
+	if _, err := record.Append(ident(t, runDir, "blue-respond"), &recordpb.Proof{
 		ProofId: proto.String(proofID), Location: proto.String("The estimate is stable across the range"),
 	}); err != nil {
 		t.Fatalf("append proof: %v", err)
 	}
 	// A finding records BOTH events; only the Anchor carries the marker geometry.
-	if _, err := record.Append(ident(t, runDir, "red-lens-r1-evidence"), &recordpb.Finding{
+	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Finding{
 		Label: proto.String("L1-F1"), FindingId: proto.String(findID), Location: proto.String("Demand grows steadily over the period"),
 	}); err != nil {
 		t.Fatalf("append finding: %v", err)
 	}
-	if _, err := record.Append(ident(t, runDir, "red-lens-r1-evidence"), &recordpb.Anchor{
+	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Anchor{
 		Id: proto.String(findID), Location: proto.String("Demand grows steadily over the period"),
 	}); err != nil {
 		t.Fatalf("append anchor: %v", err)
@@ -90,7 +90,7 @@ func TestRenderFromRecordReplaysMarkerInsertions(t *testing.T) {
 // replaying the Finding too would double it. This guards the deliberate skip of Finding in replay.
 func TestRenderFromRecordDoesNotInsertFromFindingAlone(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	for _, s := range []string{"blue-synthesize", "red-lens-r1-evidence"} {
+	for _, s := range []string{"blue-synthesize", "red-lens-evidence"} {
 		if _, _, err := record.RegisterSeat(ident(t, runDir, s), ""); err != nil {
 			t.Fatalf("register %s: %v", s, err)
 		}
@@ -99,7 +99,7 @@ func TestRenderFromRecordDoesNotInsertFromFindingAlone(t *testing.T) {
 	if _, err := record.Append(ident(t, runDir, "blue-synthesize"), &recordpb.BaseIngest{Text: proto.String(base)}); err != nil {
 		t.Fatalf("append base: %v", err)
 	}
-	if _, err := record.Append(ident(t, runDir, "red-lens-r1-evidence"), &recordpb.Finding{
+	if _, err := record.Append(ident(t, runDir, "red-lens-evidence"), &recordpb.Finding{
 		Label: proto.String("L1-F1"), FindingId: proto.String("f-deadbeef"), Location: proto.String("Demand grows steadily over the period"),
 	}); err != nil {
 		t.Fatalf("append finding: %v", err)

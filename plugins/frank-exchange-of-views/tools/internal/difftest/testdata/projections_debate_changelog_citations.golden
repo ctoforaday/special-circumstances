@@ -1,7 +1,7 @@
-$ register --run {RUN} --seat-id red-chair-r1
+$ register --run {RUN} --seat-id red-chair
 exit 0
 stdout:
-registered red-chair-r1
+registered red-chair
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
@@ -9,49 +9,49 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ position --run {RUN} --seat-id red-chair-r1 --reason-file {RUN}/red.md
+$ position --run {RUN} --seat-id red-chair --reason-file {RUN}/red.md
 exit 0
 stdout:
 position recorded
 
-$ mint --run {RUN} --seat-id red-chair-r1 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
+$ mint --run {RUN} --seat-id red-chair --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem docketed
 exit 0
 stdout:
 minted R1-1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
-$ closing --run {RUN} --seat-id red-chair-r1 --id R1-1 --reason red's closing
+$ closing --run {RUN} --seat-id red-chair --id R1-1 --reason red's closing
 exit 0
 stdout:
 closing filed for R1-1
 
-$ position --run {RUN} --seat-id blue-respond-r1 --reason-file {RUN}/blue.md
+$ position --run {RUN} --seat-id blue-respond --reason-file {RUN}/blue.md
 exit 0
 stdout:
 position recorded
 
-$ closing --run {RUN} --seat-id blue-respond-r1 --id R1-1 --reason blue's closing
+$ closing --run {RUN} --seat-id blue-respond --id R1-1 --reason blue's closing
 exit 0
 stdout:
 closing filed for R1-1
 
-$ revision --run {RUN} --seat-id blue-respond-r1 --reason repairs landed
+$ revision --run {RUN} --seat-id blue-respond --reason repairs landed
 exit 0
 stdout:
 revision recorded — the round is on the record
 
-$ manifest-row --run {RUN} --seat-id blue-respond-r1 --id R1-1 --reason figures recomputed; check run: pass
+$ manifest-row --run {RUN} --seat-id blue-respond --id R1-1 --reason figures recomputed; check run: pass
 exit 0
 stdout:
 manifest row recorded for R1-1
 
-$ motion grade file --run {RUN} --seat-id blue-respond-r1 --id R1-1 --dimension likelihood --proposed low --reason the harm needs two failures
+$ motion grade file --run {RUN} --seat-id blue-respond --id R1-1 --dimension likelihood --proposed low --reason the harm needs two failures
 exit 0
 stdout:
 motion M1 filed (grade)
 
-$ verify --run {RUN} --seat-id red-lens-r1-evidence --quote throughput doubled --title https://example.invalid/paper --trust high --access-date 2026-07-18
+$ verify --run {RUN} --seat-id red-lens-evidence --quote throughput doubled --title https://example.invalid/paper --trust high --access-date 2026-07-18
 exit 2
 stderr:
 feov-record: unknown flag: --title
@@ -100,10 +100,10 @@ Global Flags:
       --schema             print the event-schema epoch this binary writes, and exit
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
 
-$ register --run {RUN} --seat-id judge-r1
+$ register --run {RUN} --seat-id judge
 exit 0
 stdout:
-registered judge-r1
+registered judge
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
@@ -111,17 +111,17 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ motion docket file --run {RUN} --seat-id red-chair-r1 --id R1-1 --reason contested, and not red's to close
+$ motion docket file --run {RUN} --seat-id red-chair --id R1-1 --reason contested, and not red's to close
 exit 0
 stdout:
 motion M2 filed (docket)
 
-$ motion docket rule --run {RUN} --seat-id judge-r1 --id M2 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --final --reason the rationale body
+$ motion docket rule --run {RUN} --seat-id judge --id M2 --as carried --principle correctness over economy --tension thoroughness vs cost --review-flag the figure was never recomputed --settled the proposition this ruling bars --final --reason the rationale body
 exit 0
 stdout:
 motion M2 ruled carried
 
-$ certify --run {RUN} --seat-id judge-r1 --reason what a human should re-examine
+$ certify --run {RUN} --seat-id judge --reason what a human should re-examine
 exit 0
 stdout:
 certification recorded
@@ -129,19 +129,19 @@ certification recorded
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"red-chair-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair-r1:position","position":{"text":"red's round position"},"round":1,"seat_id":"red-chair-r1","ts":3,"type":"EVENT_TYPE_POSITION"}
-{"key":"red-chair-r1:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-chair-r1","ts":4,"type":"EVENT_TYPE_MINT"}
-{"closing":{"gap_id":"R1-1","text":"red's closing"},"key":"red-chair-r1:closing:R1-1","round":1,"seat_id":"red-chair-r1","ts":5,"type":"EVENT_TYPE_CLOSING"}
-{"key":"blue-respond-r1:position","position":{"text":"blue's round position"},"round":1,"seat_id":"blue-respond-r1","ts":6,"type":"EVENT_TYPE_POSITION"}
-{"closing":{"gap_id":"R1-1","text":"blue's closing"},"key":"blue-respond-r1:closing:R1-1","round":1,"seat_id":"blue-respond-r1","ts":7,"type":"EVENT_TYPE_CLOSING"}
-{"key":"blue-respond-r1:revision","revision":{"text":"repairs landed"},"round":1,"seat_id":"blue-respond-r1","ts":8,"type":"EVENT_TYPE_REVISION"}
-{"key":"blue-respond-r1:manifest_row:R1-1","manifest_row":{"gap_id":"R1-1","row":"figures recomputed; check run: pass"},"round":1,"seat_id":"blue-respond-r1","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
-{"key":"blue-respond-r1:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"R1-1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":1,"seat_id":"blue-respond-r1","ts":10,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"judge-r1","ts":11,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair-r1:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"R1-1"},"motion_id":"M2","subject":"MOTION_SUBJECT_DOCKET"},"round":1,"seat_id":"red-chair-r1","ts":12,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge-r1:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_CARRIED","final":true,"principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"M2","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"round":1,"seat_id":"judge-r1","ts":13,"type":"EVENT_TYPE_MOTION_RULE"}
-{"certify":{"statement":"what a human should re-examine"},"key":"judge-r1:certify:#1","round":1,"seat_id":"judge-r1","ts":14,"type":"EVENT_TYPE_CERTIFY"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:position:#1","position":{"text":"red's round position"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-chair:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
+{"closing":{"gap_id":"R1-1","text":"red's closing"},"key":"red-chair:closing:R1-1","round":1,"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_CLOSING"}
+{"key":"blue-respond:position:#0","position":{"text":"blue's round position"},"round":1,"seat_id":"blue-respond","ts":6,"type":"EVENT_TYPE_POSITION"}
+{"closing":{"gap_id":"R1-1","text":"blue's closing"},"key":"blue-respond:closing:R1-1","round":1,"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_CLOSING"}
+{"key":"blue-respond:revision:#0","revision":{"text":"repairs landed"},"round":1,"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_REVISION"}
+{"key":"blue-respond:manifest_row:R1-1","manifest_row":{"gap_id":"R1-1","row":"figures recomputed; check run: pass"},"round":1,"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"R1-1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":1,"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"judge","ts":11,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"R1-1"},"motion_id":"M2","subject":"MOTION_SUBJECT_DOCKET"},"round":1,"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_CARRIED","final":true,"principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"M2","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"round":1,"seat_id":"judge","ts":13,"type":"EVENT_TYPE_MOTION_RULE"}
+{"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","round":1,"seat_id":"judge","ts":14,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══
 -- debate

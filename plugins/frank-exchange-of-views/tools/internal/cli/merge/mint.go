@@ -41,14 +41,13 @@ func newMint() *cobra.Command {
 		if prior != "" {
 			return mintResult{GapID: prior, Idempotent: true}, nil
 		}
-		// The round comes from the seat's CONTEXT, not from re-reading its id.
-		// Both answer the same today (Of passes record.RoundOf as the inference),
-		// but a gap id is the run's primary public identifier — it is printed in
-		// the report and referenced by --supersedes, --id and found_by — so it
-		// must be minted from the FACT the dispatcher supplies, not from a guess
-		// about a string's shape. The moment FEOV_ROUND is injected these diverge,
-		// and this call site would have kept the guess (#348).
-		gapID, err := record.MintGapID(run, s.Round)
+		// The gap id's round is the EPOCH — the count of chair registers on the record — read by
+		// MintGapID from the record itself. It used to be handed in from the seat's context, and
+		// before that recovered from the seat id by regex (#348): a gap id is the run's primary
+		// public identifier, printed in the report and referenced by --supersedes, --id and
+		// found_by, so it is minted from a fact the record holds, never from the shape of a string
+		// a seat typed. plans/roundless.md §III.A.3 takes the round out of the id entirely.
+		gapID, err := record.MintGapID(run)
 		if err != nil {
 			return nil, err
 		}

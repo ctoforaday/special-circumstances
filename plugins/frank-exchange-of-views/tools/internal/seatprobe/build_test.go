@@ -19,7 +19,7 @@ import (
 // see it, because the probe had already registered it — an instrument that satisfies the guard it
 // measures reports an untested guard and a compliant seat identically.
 func TestBuildDoesNotBindTheSeatsItStages(t *testing.T) {
-	t.Setenv("FEOV_AGENT_ID", "probe-red-chair-r1")
+	t.Setenv("FEOV_AGENT_ID", "probe-red-chair")
 	var registers []string
 	seen := map[string]string{}
 	exec := func(args ...string) (string, error) {
@@ -41,7 +41,7 @@ func TestBuildDoesNotBindTheSeatsItStages(t *testing.T) {
 	// one deliberately: the build must not overwrite it with a seat-derived handle, because that
 	// is the shape that bound each seat to the identity it was about to be dispatched under.
 	for cmd, handle := range seen {
-		if handle != "probe-red-chair-r1" {
+		if handle != "probe-red-chair" {
 			t.Errorf("the build changed the agent handle for %q (saw %q) — it is binding the seats it stages", cmd, handle)
 		}
 	}

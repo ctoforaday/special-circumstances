@@ -119,7 +119,6 @@ type Context struct {
 	// Round is the seat's round as a FACT — injected by the dispatcher, not recovered from the
 	// seat id (#348). -1 means unknown, which is NOT round 0: round 0 is synthesis, and
 	// conflating the two is what produced the phantom-archive bug in #327.
-	Round int
 	// RunVia says which of the three paths supplied the run — the hook's injection, the seat's
 	// own --run, or the tool's inference from the marker. `register` records it, because a run
 	// whose seats all resolve by INFERENCE is a run the hook is not reaching, and nothing else
@@ -183,7 +182,7 @@ func (c Context) Identity() record.Identity {
 	// The zero Run when this context was REFUSED. Append asserts Valid() and refuses rather
 	// than writing, so a caller that skipped Run() still cannot record into an unresolved run —
 	// which is what the old `RunDir: ""` did, into the working directory.
-	return record.Identity{Run: c.handle(), SeatID: c.SeatID, Round: c.Round}
+	return record.Identity{Run: c.handle(), SeatID: c.SeatID}
 }
 
 // Of reads the seat context from the inherited persistent flags, inferring the run
@@ -254,17 +253,16 @@ func Of(cmd *cobra.Command) Context {
 	}
 	runDir = resolved
 	// Identity resolves the same way (#348): injected wins, a disagreeing flag is refused by
-	// Begin, and the ROUND arrives as a field rather than being read back out of the id.
+	// Begin. There is no round here: the record computes the epoch at each write.
 	seatID, _ := cmd.Flags().GetString(flags.SeatID)
-	round := -1
 	// NewRun, not OpenRun: Of() must hand back a Context even for a run that is not on disk —
 	// these two are best-effort reads whose errors are already discarded, and the existence
 	// check belongs at Run(), where a verb actually acts on the run.
 	run, _ := record.NewRun(runDir)
-	if id, rerr := seatenv.ResolveSeat(seatID, BoundSeat(run), record.RoundIn(run)); rerr == nil {
-		seatID, round = id.ID, id.Round
+	if id, rerr := seatenv.ResolveSeat(seatID, BoundSeat(run)); rerr == nil {
+		seatID = id.ID
 	}
-	return Context{runDir: runDir, SeatID: seatID, Round: round, Role: roleOf(cmd), RunVia: via}
+	return Context{runDir: runDir, SeatID: seatID, Role: roleOf(cmd), RunVia: via}
 }
 
 // roleOf answers WHICH SEAT is running this command, from the identity the engine injected.
@@ -510,13 +508,13 @@ func Begin(cmd *cobra.Command) (Context, error) {
 		return Of(cmd), err
 	}
 	// AND THE IDENTITY DISAGREEMENT, which Of's own comment said was refused here and which
-	// nothing refused anywhere. Measured: with FEOV_SEAT=blue-respond-r1 injected, a call
-	// passing --seat-id blue-respond-r9 was ACCEPTED and filed under r9 — a seat no dispatch
+	// nothing refused anywhere. Measured: with FEOV_SEAT=blue-respond injected, a call
+	// passing --seat-id blue-respond was ACCEPTED and filed under r9 — a seat no dispatch
 	// ever created, carrying its own register event and its own shard. Attribution is the one
 	// fact a seat must not be able to get wrong; every found_by, estoppel and parity check
 	// reads it, and this is the guarantee #348 shipped a message for and no code behind.
 	seatFlag, _ := cmd.Flags().GetString(flags.SeatID)
-	if _, err := seatenv.ResolveSeat(seatFlag, BoundSeat(Of(cmd).handle()), record.RoundIn(Of(cmd).handle())); err != nil {
+	if _, err := seatenv.ResolveSeat(seatFlag, BoundSeat(Of(cmd).handle())); err != nil {
 		return Of(cmd), err
 	}
 	s := Of(cmd)

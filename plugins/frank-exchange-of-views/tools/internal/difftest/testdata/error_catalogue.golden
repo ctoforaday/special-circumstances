@@ -632,7 +632,7 @@ Global Flags:
 
 ── docket rule without the gavel
 exit 2
-feov-record: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair-r1 (merge). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
+feov-record: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair (merge). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
 
 ── verdict in the wrong case
 exit 2
@@ -756,7 +756,7 @@ Use "feov-record [command] --help" for more information about a command.
 
 ── petition ruling outside the set
 exit 2
-feov-record: a petition motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair-r1 (merge). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
+feov-record: a petition motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair (merge). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
 
 ── closure class near-miss
 exit 2

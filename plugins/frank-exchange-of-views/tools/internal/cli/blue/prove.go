@@ -59,7 +59,7 @@ func newProve() *cobra.Command {
 		// path, answering "already recorded as <sha>" and recording NOTHING. A seat that believed
 		// the message shipped a report claiming a proof it does not hold, and a resumed dispatch
 		// cannot see which keys its earlier self used. Measured in
-		// research/2026-09-02_quadratic-formula (blue-respond-r1, --key P1).
+		// research/2026-09-02_quadratic-formula (blue-respond, --key P1).
 		//
 		// The script's own sha settles it, and costs a file read rather than an execution.
 		if prior, err := record.ExistingProofByKey(run, s.SeatID, seat.Str(cmd, flags.Key)); err != nil {

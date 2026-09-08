@@ -54,9 +54,9 @@ func benchRuleArgs(motionID, as, principle string) []string {
 // benchDisposes is the whole act: file, then rule, from the seat that holds the gavel.
 func benchDisposes(t *testing.T, runDir, gapID, as, principle string) {
 	t.Helper()
-	id := docketFile(t, runDir, "red-chair-r1", gapID, "contested, and not mine to close")
+	id := docketFile(t, runDir, "red-chair", gapID, "contested, and not mine to close")
 	args := append([]string{}, benchRuleArgs(id, as, principle)...)
-	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge-r1"}, args[3:]...)
+	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)
 	if _, err := run(t, args...); err != nil {
 		t.Fatalf("motion docket rule %s on %s: %v", as, gapID, err)
 	}

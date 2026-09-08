@@ -12,10 +12,10 @@ import (
 // THE MEASURED FAILURE. Every event's `Round` was computed by running a regex over the seat id
 // at the append path:
 //
-//	Seq: len(events), TS: nextStamp(runDir), SeatID: seatID, Nonce: nonce, Round: RoundOf(seatID),
+//	Seq: len(events), TS: nextStamp(runDir), SeatID: seatID, Nonce: nonce, Round: <regex over seatID>,
 //
 // That is the hottest recovered-from-a-string fact in the tool, and it has already failed:
-// `judge-terminal` carries no round, so RoundOf returned 0, so a bench closure at run END looked
+// `judge-terminal` carries no round, so the regex returned 0, so a bench closure at run END looked
 // like a closure BEFORE ROUND 1. It put a phantom entry in the archive and made the W1.8
 // spot-check floor demand samples from rounds whose seats had done nothing wrong. It surfaced at
 // 1 seed in 60 during #327, entirely by luck; a live run would have failed verify while naming
@@ -97,14 +97,7 @@ func AgentType() string { return strings.TrimSpace(os.Getenv(TypeVar)) }
 // Seat is a seat's identity as FACTS rather than as a string other code takes apart.
 type Seat struct {
 	ID string
-	// Round is -1 when nothing supplied one. NOT 0: round 0 is synthesis, a real round in which
-	// real events happen, and conflating "no round" with "the first round" is precisely the
-	// phantom-archive bug. A caller that needs a number must decide what unknown means.
-	Round int
 }
-
-// HasRound reports whether the round is known at all.
-func (s Seat) HasRound() bool { return s.Round >= 0 }
 
 // ResolveSeat returns the seat's identity for a verb.
 //
@@ -113,11 +106,7 @@ func (s Seat) HasRound() bool { return s.Round >= 0 }
 // overridden. Attribution is the one fact a seat must not be able to get wrong: an event filed
 // under the wrong seat is credited to the wrong party, and every found_by, estoppel and parity
 // check reads it.
-//
-// inferRound is the legacy path (RoundOf over the id), passed in so this package does not depend
-// on record. It is used only when nothing was injected, which is every pre-#348 caller and the
-// tests.
-func ResolveSeat(flagSeatID string, bound func() (string, error), inferRound func(string) int) (Seat, error) {
+func ResolveSeat(flagSeatID string, bound func() (string, error)) (Seat, error) {
 	// THE BOUND SEAT IS THE ONE THIS AGENT REGISTERED AS, read from the record. It replaces
 	// os.Getenv(SeatVar), which was never anything: FEOV_SEAT had readers and no writer, so the
 	// "injected wins" branch below could not fire in any real run, and every seat was in fact
@@ -148,22 +137,18 @@ func ResolveSeat(flagSeatID string, bound func() (string, error), inferRound fun
 		id = flagSeatID
 	}
 	if id == "" {
-		return Seat{Round: -1}, nil
+		return Seat{}, nil
 	}
 
 	// THE ROUND IS DERIVED, AND THAT STOPPED BEING A GUESS. FEOV_ROUND used to be read here
 	// first, as "a FACT the dispatcher knows" — and the dispatcher never knew it: nothing in
 	// production ever set the variable, so the branch was scenery and the derivation below was
 	// always the only path.
-	//
-	// It is now sound rather than merely sole. record.RoundOf reads the round out of a seat id
-	// whose SHAPE the roster gate refuses at register unless it is one the engine produces, and
-	// it answers NOT-KNOWN for the ids that genuinely carry no round instead of answering 0 —
-	// which was the phantom-archive defect (#327/#396).
-	if inferRound == nil {
-		return Seat{ID: id, Round: -1}, nil
-	}
-	return Seat{ID: id, Round: inferRound(id)}, nil
+	// THE ROUND IS NOT RESOLVED HERE, or anywhere a seat can reach. It used to be read out of the
+	// id by a regex and returned beside it; the id no longer carries one, and the epoch is
+	// computed by the record at each write (record.epochAt). A seat's identity is its id, bound at
+	// register and read back — nothing else.
+	return Seat{ID: id}, nil
 }
 
 // Dispatched is the seat id this process is running as, for callers that need it BEFORE flags are

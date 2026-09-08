@@ -24,7 +24,7 @@ func runWithMintAtR1AndCloseAtR2(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:mint:R1-1", &recordpb.Mint{
+		recordtest.At(t, "red-chair", 1, "red-chair:mint:R1-1", &recordpb.Mint{
 			GapId:           proto.String("R1-1"),
 			Problem:         proto.String("p"),
 			RequiredFix:     proto.String("f"),
@@ -35,10 +35,10 @@ func runWithMintAtR1AndCloseAtR2(t *testing.T) string {
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
-		recordtest.At(t, "red-chair-r2", 2, "red-chair-r2:close:R1-1", &recordpb.Close{
+		recordtest.At(t, "red-chair", 2, "red-chair:close:R1-1", &recordpb.Close{
 			GapId:        proto.String("R1-1"),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
-			AnchorSeat:   proto.String("red-chair-r2"),
+			AnchorSeat:   proto.String("red-chair"),
 			AnchorTool:   proto.String("go test"),
 			AnchorTarget: proto.String("./..."),
 			Prose:        proto.String("verified at the leaf"),

@@ -11,7 +11,7 @@ import (
 // Without this the role boundary was a naming convention, not a boundary. A lens
 // seat could not run `feov-record lens mint` — the lens namespace has no mint
 // verb — but nothing stopped it running `feov-record merge mint --seat-id
-// red-lens-r1-evidence`, and it minted a board gap. Verified before this file existed;
+// red-lens-evidence`, and it minted a board gap. Verified before this file existed;
 // the tool said "minted R1-1".
 //
 // That mattered more than a missing guard usually does, because the verb set
@@ -51,9 +51,9 @@ var roleSeats = map[string][]string{
 	// SIDE of the debate — ChairOf maps a role to red/blue/bench and the operator command takes
 	// a `--chair` flag over that vocabulary — so a role named `chair` would sit in a chair, and
 	// the two meanings would be told apart only by which map you happened to be reading.
-	"merge": {"red-chair-", "red-merge-"},
+	"merge": {"red-chair", "red-merge-"},
 	"blue":  {"blue-", "frontier"},
-	"bench": {"judge-", "assemble"},
+	"bench": {"judge", "assemble"},
 }
 
 // chairOfRole maps a seat's ROLE to the CHAIR whose scorecard measures it.
@@ -100,7 +100,7 @@ func roleOfSeat(seatID string) string {
 // PartyOf answers "which party wrote this" from the EVENT, not from its seat id (#348).
 //
 // NOT named RoleOf: that name is taken by the LENS-INDEX reader (findinglabel.go), which
-// extracts "L2" from "red-lens-r3-adversary" and is the concurrency namespace this change must not
+// extracts "L2" from "red-lens-adversary" and is the concurrency namespace this change must not
 // touch — collapsing it once made 39 of 60 disposals ambiguous. Two different things were about
 // to share one name, which is the collision this whole exercise exists to prevent.
 //
@@ -189,8 +189,12 @@ func CheckSeatRole(role, seatID string) error {
 // and the surface walk. Derived from roleSeats so a new role or a renamed prefix cannot leave a
 // hand-written sample pointing at a namespace that no longer exists.
 func SampleSeatOf(role string) string {
-	if p := roleSeats[role]; len(p) > 0 {
-		return p[0] + "r1"
+	// From the roster's own example column, not prefix+"r1": a seat id carries no round, so the
+	// composition no longer produces an id any dispatch creates.
+	for _, s := range seatShapes {
+		if s.role == role {
+			return s.sample
+		}
 	}
 	return ""
 }

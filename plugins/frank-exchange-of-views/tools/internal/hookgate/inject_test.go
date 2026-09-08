@@ -175,7 +175,7 @@ func TestNonBashToolsAreUntouched(t *testing.T) {
 
 // THE COMMAND THAT COST RUN 2 ITS BIBLIOGRAPHY.
 //
-// blue-respond-r1 ran this at tool call 53 of 61. The hook bailed on the heredoc, no
+// blue-respond ran this at tool call 53 of 61. The hook bailed on the heredoc, no
 // FEOV_AGENT_ID reached the tool, and the tool answered "this agent has not registered" — which
 // was false; it had registered fifty calls earlier. The seat believed the refusal, re-registered,
 // rotated its shard nonce, and replay kept the newer shard: 26 events orphaned, including the ten
@@ -233,7 +233,7 @@ func TestAnAliasedBinaryStillCarriesTheIdentity(t *testing.T) {
 	}
 }
 
-// judge-r2's command, verbatim in shape: the invocation sits inside $( ), which the old matcher
+// judge's command, verbatim in shape: the invocation sits inside $( ), which the old matcher
 // did not count as command position — one of the three shapes that cost a seat its identity
 // before the matcher was removed outright. Kept as a regression fixture: these are real commands
 // from real runs, and they must keep carrying the run and the identity.

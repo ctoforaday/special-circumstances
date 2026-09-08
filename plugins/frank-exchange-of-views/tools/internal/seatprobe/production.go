@@ -35,7 +35,7 @@ import (
 //	GAPS REPEAT    red returns the SAME gap ids every round, so round 2 sees them as re-raised.
 //	               That is what fills the contested docket — and the docket is the ONLY thing
 //	               that seats a judge at all. Round 1 cannot have one (nothing persists yet, and
-//	               no dispute is pending), which is why no board may name `judge-r1`.
+//	               no dispute is pending), which is why no board may name `judge`.
 func backendFor(b Board) debatejs.Backend {
 	gaps := make([]any, 0, len(b.Gaps))
 	manifest := make([]any, 0, len(b.Gaps))

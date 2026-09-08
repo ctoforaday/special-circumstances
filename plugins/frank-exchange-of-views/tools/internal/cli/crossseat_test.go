@@ -86,16 +86,16 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "grade-moves", "dispute-to-regrade")
 
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", id, "--dimension", "severity", "--proposed", "low",
 		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
 		t.Fatalf("motion grade file: %v", err)
 	}
-	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "M1", "--as", "accepted", "--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("motion grade rule: %v", err)
 	}
-	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "regrade", "--run", runDir, "--seat-id", "red-chair",
 		"--id", id, "--severity", "low",
 		"--reason", "blue's dispute is accepted — the caller validates, so the blast radius is one call"); err != nil {
 		t.Fatalf("red regrade: %v", err)
@@ -116,13 +116,13 @@ func TestAcceptedDisputeIsFollowedByAGradeThatActuallyMoves(t *testing.T) {
 func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 	runDir := seatRun(t)
 
-	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-chair",
 		"--class", "safety",
 		"--reason", "continuing would require asserting a consent gate exists where it does not",
 		"--relief", "halt and escalate to a human before the next round"); err != nil {
 		t.Fatalf("motion petition file: %v", err)
 	}
-	if _, err := run(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "judge-r1",
+	if _, err := run(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "judge",
 		"--id", "M1", "--as", "granted",
 		"--reason", "the relief binds the coming seats"); err != nil {
 		t.Fatalf("motion petition rule: %v", err)
@@ -147,7 +147,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 		t.Errorf("the ruling names motion %q, want M1 — a ruling that does not name its filing cannot be matched to it", got)
 	}
 	// The FILER is on the envelope, not the body — the body is what the seat said.
-	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_MOTION).GetSeatId(); got != "red-chair-r1" {
+	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_MOTION).GetSeatId(); got != "red-chair" {
 		t.Errorf("the motion was filed by %q, want the merge seat — the filer is on the filing, never restated on the answer", got)
 	}
 }
@@ -157,7 +157,7 @@ func TestPetitionCrossesFromMergeToBenchAndItsReliefIsRecorded(t *testing.T) {
 // is the friction-channel defect Gray Area exists to catch — so the refutation gets a test.
 func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 		"--none", "--reason", "the archive was empty at round start; there was nothing to sample"); err != nil {
 		t.Fatalf("an empty-archive spot-check must be recordable — red reported this was impossible and it was not: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 	}
 
 	// And the duty cannot be discharged by asserting emptiness with no reason.
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair",
 		"--none"); err == nil {
 		t.Error("--none without --reason was accepted; an unexplained empty round is indistinguishable from a skipped one")
 	}
@@ -180,7 +180,7 @@ func TestSpotCheckCanRecordAnHonestlyEmptyArchive(t *testing.T) {
 // successor breaks the accounting that detects claims vanishing quietly.
 func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "retire", "--run", runDir, "--seat-id", "blue-respond",
 		"--quote", "the API returns 200 on a malformed body",
 		"--reason", "refuted at the leaf — it returns 400, verified against the handler",
 		"--new", "the API returns 400 on a malformed body"); err != nil {
@@ -199,12 +199,12 @@ func TestRetiredClaimCarriesItsReasonAndSuccessor(t *testing.T) {
 // board would silently under-count findings in exactly the runs that worked hardest.
 func TestConcurrentLensShardsBothReachTheMerge(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-adversary"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-adversary"); err != nil {
 		t.Fatalf("register L2: %v", err)
 	}
 	for _, l := range []struct{ seat, label string }{
-		{"red-lens-r1-evidence", "L1-F1"},  // local --key F1 → tool assigns L1-F1 (role-prefixed)
-		{"red-lens-r1-adversary", "L2-F1"}, // and L2-F1
+		{"red-lens-evidence", "L1-F1"},  // local --key F1 → tool assigns L1-F1 (role-prefixed)
+		{"red-lens-adversary", "L2-F1"}, // and L2-F1
 	} {
 		if _, err := run(t, "finding", "--run", runDir, "--seat-id", l.seat,
 			"--key", "F1", "--quote", "§1", "--reason", "a finding",
@@ -232,7 +232,7 @@ func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 	first := mintGap(t, runDir, "partial-repair", "residue-carrying")
 	next := mintGap(t, runDir, "the-residue", "residue-carrying")
 
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
 		"--id", first, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/parser",
 		"--superseded-by", next,
@@ -257,12 +257,12 @@ func TestClosureWithSuccessorNamesWhereTheResidueWent(t *testing.T) {
 // seat that reads it.
 func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "halt", "--run", runDir, "--seat-id", "judge-r1",
+	if _, err := run(t, "halt", "--run", runDir, "--seat-id", "judge",
 		"--reason", "continuing would compromise the consent gate"); err != nil {
 		t.Fatalf("bench halt: %v", err)
 	}
-	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_HALT).GetSeatId(); got != "judge-r1" {
-		t.Errorf("the halt is attributed to %q, want judge-r1 — an unattributed halt cannot be reviewed", got)
+	if got := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_HALT).GetSeatId(); got != "judge" {
+		t.Errorf("the halt is attributed to %q, want judge — an unattributed halt cannot be reviewed", got)
 	}
 
 	// A halt must NOT be reachable as a disposition on a ruling: that is the typo path
@@ -270,9 +270,9 @@ func TestBenchHaltIsItsOwnActAndIsVisibleInTheRecord(t *testing.T) {
 	// `motion docket rule --as` now; the property is the same and so is the word that must
 	// be refused.
 	id := mintGap(t, runDir, "not-haltable", "halt-is-its-own-verb")
-	m := docketFile(t, runDir, "red-chair-r1", id, "put before the bench")
+	m := docketFile(t, runDir, "red-chair", id, "put before the bench")
 	args := benchRuleArgs(m, "halt", "p")
-	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge-r1"}, args[3:]...)
+	args = append([]string{args[0], args[1], args[2], "--run", runDir, "--seat-id", "judge"}, args[3:]...)
 	if _, err := run(t, args...); err == nil {
 		t.Error("`motion docket rule --as halt` was accepted; ending the run must not be reachable by a mistyped disposition")
 	}
@@ -292,12 +292,12 @@ func TestAnAbsentFlagIsNotWrittenAsEmpty(t *testing.T) {
 	runDir := seatRun(t)
 	// The gap has to exist: `close --id` is a reference the record checks, and R1-1 is what the
 	// first mint of the round is assigned.
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatalf("merge mint: %v", err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "R1-1", "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
 		"--reason", "the repair was verified at the leaf"); err != nil {

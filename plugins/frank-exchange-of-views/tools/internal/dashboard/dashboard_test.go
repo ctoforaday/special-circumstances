@@ -7,10 +7,10 @@ func fmin(min float64) *float64 { v := min * 60000; return &v }
 // Ports run-dashboard.test.mjs's four projectCompletion cases 1:1.
 func TestProjectCompletionRangesOverSpans(t *testing.T) {
 	seats := []Seat{
-		{Seat: "red-merge", Label: "red-chair-r1", Done: true, StartedMs: fmin(0), EndedMs: fmin(11)},
-		{Seat: "red-merge", Label: "red-chair-r2", Done: true, StartedMs: fmin(20), EndedMs: fmin(37)},
+		{Seat: "red-merge", Label: "red-chair", Done: true, StartedMs: fmin(0), EndedMs: fmin(11)},
+		{Seat: "red-merge", Label: "red-chair", Done: true, StartedMs: fmin(20), EndedMs: fmin(37)},
 		{Seat: "blue-synthesize", Label: "blue-synthesize", Done: true, StartedMs: fmin(40), EndedMs: fmin(58)},
-		{Seat: "red-merge", Label: "red-chair-r3", Done: false, StartedMs: fmin(95)},
+		{Seat: "red-merge", Label: "red-chair", Done: false, StartedMs: fmin(95)},
 	}
 	p := projectCompletion(seats, *fmin(100))
 	if p.LowMin != 24 {
@@ -30,8 +30,8 @@ func TestProjectCompletionRangesOverSpans(t *testing.T) {
 func TestProjectCompletionPerRoundCost(t *testing.T) {
 	seats := []Seat{
 		{Seat: "red-lens", Label: "red-lens-r1", Done: true, StartedMs: fmin(0), EndedMs: fmin(4)},
-		{Seat: "red-merge", Label: "red-chair-r1", Done: true, StartedMs: fmin(4), EndedMs: fmin(15)},
-		{Seat: "blue-respond", Label: "blue-respond-r1", Done: true, StartedMs: fmin(15), EndedMs: fmin(20)},
+		{Seat: "red-merge", Label: "red-chair", Done: true, StartedMs: fmin(4), EndedMs: fmin(15)},
+		{Seat: "blue-respond", Label: "blue-respond", Done: true, StartedMs: fmin(15), EndedMs: fmin(20)},
 	}
 	p := projectCompletion(seats, *fmin(20))
 	if p.PerRoundLowMin != 20 || p.PerRoundHighMin != 20 {

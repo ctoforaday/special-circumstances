@@ -31,11 +31,11 @@ func tierFixture(t *testing.T) (string, record.Family) {
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "aaaa1111", "claude-opus-4-8", "claude-fable-5")),
 		}),
-		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:register:#1", &recordpb.Register{
+		recordtest.At(t, "red-chair", 1, "red-chair:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "bbbb2222", "claude-sonnet-5", "")),
 		}),
-		recordtest.At(t, "judge-r1", 1, "judge-r1:register:#1", &recordpb.Register{
+		recordtest.At(t, "judge", 1, "judge:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 		}),
 	)
@@ -59,12 +59,12 @@ func TestTiersJoinsTheRequestAgainstTheService(t *testing.T) {
 	if s := by["blue-lane-1"]; s.Matches || !s.Declared || s.Served != "claude-opus-4-8" || s.Configured != "claude-fable-5" {
 		t.Errorf("the substituted bulk seat: %+v", s)
 	}
-	if s := by["red-chair-r1"]; !s.Matches || s.Declared {
+	if s := by["red-chair"]; !s.Matches || s.Declared {
 		t.Errorf("the judgment seat was answered as configured: %+v", s)
 	}
 	// THE ONE THAT MATTERS. An unmeasured seat must not count as a match and must not count as a
 	// substitution — it is the third state, and folding it into either is the defect.
-	if s := by["judge-r1"]; s.Measured || s.Matches || s.Served != "" {
+	if s := by["judge"]; s.Measured || s.Matches || s.Served != "" {
 		t.Errorf("an unmeasured seat is neither a match nor a substitution: %+v", s)
 	}
 }

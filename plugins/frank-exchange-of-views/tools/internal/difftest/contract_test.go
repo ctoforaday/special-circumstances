@@ -86,15 +86,15 @@ func TestGoldenErrorCatalogue(t *testing.T) {
 
 	// One valid gap first, so close/regrade refusals are about the refusal under
 	// test rather than about an empty board.
-	capture(command(bin, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	capture(command(bin, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--class", "scope-creep", "--check-kind", "document", "--check", "x", "--severity", "low", "--likelihood", "low",
 		"--impact", "low", "--problem", "a valid gap"))
 	// And one real finding, so a case that references it refuses on the MISSING
 	// DISPOSITION rather than an unknown observation. It did the latter for as long as
 	// this case has existed: the case was named for a refusal it never reached, and the
 	// golden recorded the wrong message without anything noticing.
-	capture(command(bin, "register", "--run", runDir, "--seat-id", "red-lens-r1-evidence"))
-	capture(command(bin, "finding", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
+	capture(command(bin, "register", "--run", runDir, "--seat-id", "red-lens-evidence"))
+	capture(command(bin, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--key", "F1", "--severity", "low", "--likelihood", "low", "--impact", "low",
 		"--quote", "somewhere", "--reason", "a valid finding"))
 
@@ -183,13 +183,13 @@ func hasFlag(argv []string, flag string) bool {
 func defaultSeat(role string) string {
 	switch role {
 	case "lens":
-		return "red-lens-r1-evidence"
+		return "red-lens-evidence"
 	case "blue":
-		return "blue-respond-r1"
+		return "blue-respond"
 	case "bench":
-		return "judge-r1"
+		return "judge"
 	default:
-		return "red-chair-r1"
+		return "red-chair"
 	}
 }
 

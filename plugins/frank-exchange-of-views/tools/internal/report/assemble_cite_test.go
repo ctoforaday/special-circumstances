@@ -86,12 +86,12 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize", Round: record.RoundIn(runtest.Open(t, runDir))("blue-synthesize")}, ""); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}, ""); err != nil {
 		t.Fatal(err)
 	}
 	// The report is the record projection (#709): ingest the body so AssembleAll can render it. The
 	// markers are already in `blue`, so the cite event below replays as a no-op (skip-if-present).
-	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize", Round: record.RoundIn(runtest.Open(t, runDir))("blue-synthesize")}, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synthesize"}, &recordpb.BaseIngest{Text: proto.String(blue)}); err != nil {
 		t.Fatal(err)
 	}
 	cite := &recordpb.Cite{
@@ -101,7 +101,7 @@ func TestAssembleStripsFindingsAndResolvesCitations(t *testing.T) {
 		Title:      proto.String("Coherence Proof"),
 		AccessDate: proto.String("2026-08-03"),
 	}
-	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synth-r0", Round: record.RoundIn(runtest.Open(t, runDir))("blue-synth-r0")}, cite); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "blue-synth-r0"}, cite); err != nil {
 		t.Fatal(err)
 	}
 

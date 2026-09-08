@@ -65,7 +65,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/reportproj"
 )
 
-// Capture only seat-id characters — NOT the trailing "." in "SEAT_ID: red-chair-r1." — or the
+// Capture only seat-id characters — NOT the trailing "." in "SEAT_ID: red-chair." — or the
 // malformed id makes every tool call fail silently and the fuzz degrades to trivial PASS runs.
 var seatRe = regexp.MustCompile(`SEAT_ID:\s*([A-Za-z0-9-]+)`)
 
@@ -148,6 +148,10 @@ type runner struct {
 	runHandle  record.Run
 	rng        *lockedRand
 	registered map[string]bool
+	// chairRegisters is how many times red-chair has registered — the EPOCH the record will
+	// stamp on the next write, kept here so the driver can name a prior epoch to --carried-from
+	// without reading it back out of a seat id, which no longer carries one.
+	chairRegisters int
 	// verbatimGaps: gap id -> the fix_new text blue applied verbatim from red's own mint. The
 	// estoppel drive reads it to build a --quote that red's OWN prescription must refuse.
 	verbatimGaps map[string]string
@@ -558,6 +562,9 @@ func (r *runner) register(role, seatID string) {
 	}
 	r.registering[seatID] = done
 	r.registered[seatID] = true
+	if seatID == "red-chair" {
+		r.chairRegisters++
+	}
 	r.mu.Unlock()
 	// OUTSIDE THE LOCK, deliberately: this is the invocation three concurrent lanes make against
 	// a run directory whose database may not exist yet, and holding the lock across it would
@@ -929,9 +936,9 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	if r.computationGaps[id] {
 		// A SEAT REGISTERS BEFORE IT APPENDS, AND THIS ONE DID NOT (#664).
 		//
-		// closeGap is driven from the RED-MERGE branch, and it proves as `blue-respond-r1` —
-		// `blue prove` RECORDS a `prove` event, so that is an append. In round 1 red-chair-r1
-		// runs BEFORE blue-respond-r1 ever registers, so a computation gap that becomes
+		// closeGap is driven from the RED-MERGE branch, and it proves as `blue-respond` —
+		// `blue prove` RECORDS a `prove` event, so that is an append. In round 1 red-chair
+		// runs BEFORE blue-respond ever registers, so a computation gap that becomes
 		// closable in round 1 appends as a seat the record has never seen, and `verify` refuses
 		// the run with `register-before-append`.
 		//
@@ -942,10 +949,10 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 		//
 		// register() is idempotent and waits for the register to land, so this is a no-op on
 		// every later round and the ordering it needs on the first.
-		r.register("blue", "blue-respond-r1")
+		r.register("blue", "blue-respond")
 		name := "fuzz-answer-" + id + ".js"
 		if err := os.WriteFile(filepath.Join(r.runDir, name), []byte("console.log('answers "+id+"');"), 0o644); err == nil {
-			_, _ = r.exec("prove", "--seat-id", "blue-respond-r1", "--quote", "§ fuzz",
+			_, _ = r.exec("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz",
 				"--script", name, "--answers", id, "--reason", "fuzz: settling the computation check")
 		}
 		// A PROOF WHOSE FAILURE IS THE RESULT, once per run. `prove` refuses a script that exits
@@ -962,7 +969,7 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 			absent := "fuzz-absent-" + id + ".js"
 			body := "console.error('no such path: the thing this proof shows is missing'); process.exit(3);"
 			if err := os.WriteFile(filepath.Join(r.runDir, absent), []byte(body), 0o644); err == nil {
-				_, _ = r.exec("prove", "--seat-id", "blue-respond-r1", "--quote", "§ fuzz",
+				_, _ = r.exec("prove", "--seat-id", "blue-respond", "--quote", "§ fuzz",
 					"--script", absent, "--expect-error",
 					"--reason", "fuzz: the absence IS the result, recorded as such")
 			}
@@ -995,7 +1002,9 @@ func (r *runner) closeGap(seatID, id string, allowReg bool) {
 	// A PRIOR ROUND'S CLOSURE, which is the only thing a carry can restate. `--carried-from`
 	// names the round, and a close keys on gap_id, so carrying a gap closed in THIS sitting is a
 	// duplicate the record refuses.
-	round, _ := record.RoundOf(seatID)
+	r.mu.Lock()
+	round := r.chairRegisters
+	r.mu.Unlock()
 	if prior := r.closedInARoundBefore(round); len(prior) > 0 {
 		carried := prior[r.rng.Intn(len(prior))]
 		carry := []string{"carry", "--seat-id", seatID, "--id", carried,
@@ -2280,7 +2289,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// the shape variation these oracles are built on is kept in full and the 76 process spawns a
 	// run paid for it are not; `drive`'s own comment carries the accounting.
 	for role, sid := range map[string]string{
-		"blue": "blue-respond-r1", "lens": "red-lens-r1-evidence", "merge": "red-chair-r1", "bench": "judge-r1",
+		"blue": "blue-respond", "lens": "red-lens-evidence", "merge": "red-chair", "bench": "judge",
 	} {
 		for _, v := range viewNamesForFuzz {
 			args := []string{"show", v, "--run", runDir, "--seat-id", sid}
@@ -2311,7 +2320,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		// A SEAT ID PER ROLE, because the tree is scoped to the dispatched identity: without one
 		// the binary builds the OPERATOR surface, where `show` does not exist at all.
 		for _, sid := range map[string]string{
-			"blue": "blue-respond-r1", "lens": "red-lens-r1-evidence", "merge": "red-chair-r1", "bench": "judge-r1",
+			"blue": "blue-respond", "lens": "red-lens-evidence", "merge": "red-chair", "bench": "judge",
 		} {
 			for _, extra := range [][]string{nil, {"--window", "0"}} {
 				args := append([]string{"show", "report", "--anchor", a, "--run", runDir, "--seat-id", sid}, extra...)
@@ -2332,7 +2341,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// AN ANCHOR NOBODY MINTED IS REFUSED, NOT READ EMPTY — the read-side twin of `show changes
 	// --id R9-99`. An empty window says "the report has nothing here", which is a different
 	// fact from "that anchor is not in this report".
-	if out, err := drive(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir, "--seat-id", "blue-respond-r1"); err == nil {
+	if out, err := drive(bin, "show", "report", "--anchor", "f-ffffffff", "--run", runDir, "--seat-id", "blue-respond"); err == nil {
 		res.err = "show report --anchor f-ffffffff SUCCEEDED on an anchor nobody minted — a window over nothing:\n" + truncate(string(out))
 		return res
 	}
@@ -2350,7 +2359,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// `friction` left the SEAT menu (0.57.0) — it is the operator's read. The verb stays on
 	// every role; only the view moved.
 	for _, v := range []string{"findings"} {
-		out, err := drive(bin, "show", v, "--run", runDir, "--seat-id", "red-chair-r1")
+		out, err := drive(bin, "show", v, "--run", runDir, "--seat-id", "red-chair")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show " + v + " did not return valid JSON:\n" + truncate(string(out))
@@ -2358,7 +2367,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		}
 	}
 	{
-		out, err := drive(bin, "show", "debate", "--json", "--run", runDir, "--seat-id", "red-chair-r1")
+		out, err := drive(bin, "show", "debate", "--json", "--run", runDir, "--seat-id", "red-chair")
 		var parsed any
 		if err != nil || json.Unmarshal([]byte(strings.TrimSpace(string(out))), &parsed) != nil {
 			res.err = "show debate --json did not return valid JSON:\n" + truncate(string(out))
@@ -2404,7 +2413,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		if jsonByName[v] {
 			continue // JSON by name — driven by their own oracles, not the markdown path
 		}
-		if out, err := drive(bin, "show", v, "--run", runDir, "--seat-id", "red-chair-r1"); err != nil {
+		if out, err := drive(bin, "show", v, "--run", runDir, "--seat-id", "red-chair"); err != nil {
 			res.err = "show " + v + " (projection) failed:\n" + truncate(string(out))
 			return res
 		}
@@ -2414,11 +2423,11 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	// render above proves nothing about it. A gap the board does not know must be REFUSED, not
 	// rendered empty — the read-side twin of requireGap.
 	if ids := mintedGapIDs(stageRun); len(ids) > 0 {
-		if out, err := drive(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", "red-chair-r1"); err != nil {
+		if out, err := drive(bin, "show", "changes", "--id", ids[0], "--run", runDir, "--seat-id", "red-chair"); err != nil {
 			res.err = "show changes --id " + ids[0] + " failed:\n" + truncate(string(out))
 			return res
 		}
-		if out, err := drive(bin, "show", "changes", "--id", "R9-99", "--run", runDir, "--seat-id", "red-chair-r1"); err == nil {
+		if out, err := drive(bin, "show", "changes", "--id", "R9-99", "--run", runDir, "--seat-id", "red-chair"); err == nil {
 			res.err = "show changes --id R9-99 SUCCEEDED on a gap nobody minted — a view that invents a comparison:\n" + truncate(string(out))
 			return res
 		}
@@ -3948,10 +3957,10 @@ var readOnlySurfaces = [][]string{
 	// Every SEAT's `show` with no view, which resolves that seat's DEFAULT. Only the merge's was
 	// ever driven, so a regression in any other default was invisible. The seat id is what selects
 	// the tree now, so it is what distinguishes these four rather than a role word in front.
-	{"show", "--seat-id", "blue-respond-r1"},
-	{"show", "--seat-id", "red-lens-r1-evidence"},
-	{"show", "--seat-id", "red-chair-r1"},
-	{"show", "--seat-id", "judge-r1"},
+	{"show", "--seat-id", "blue-respond"},
+	{"show", "--seat-id", "red-lens-evidence"},
+	{"show", "--seat-id", "red-chair"},
+	{"show", "--seat-id", "judge"},
 	// The operator renders, over whatever shape the run actually reached.
 	{"graph", "--format", "mermaid"},
 	{"graph", "--format", "dot"},
@@ -4003,13 +4012,13 @@ func sweepReadOnly(bin, runDir string) string {
 func seatFor(role string) string {
 	switch role {
 	case "lens":
-		return "red-lens-r1-evidence"
+		return "red-lens-evidence"
 	case "merge":
-		return "red-chair-r1"
+		return "red-chair"
 	case "blue":
-		return "blue-respond-r1"
+		return "blue-respond"
 	default:
-		return "judge-r1"
+		return "judge"
 	}
 }
 
@@ -4067,8 +4076,8 @@ func fieldStr(t *testing.T, e *record.Event, name string) string {
 // longer part of an invocation; the seat id is what selects the tree it runs in.
 func seatOfRole(role string) string {
 	return map[string]string{
-		"blue": "blue-respond-r1", "lens": "red-lens-r1-evidence",
-		"merge": "red-chair-r1", "bench": "judge-r1",
+		"blue": "blue-respond", "lens": "red-lens-evidence",
+		"merge": "red-chair", "bench": "judge",
 	}[role]
 }
 
@@ -4261,25 +4270,13 @@ func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
 // would silently stop exercising both verbs, which is the failure this whole helper was rewritten
 // to stop reporting as coverage.
 func (r *runner) mergeFilerFor(judgeSeatID string) string {
+	// Roundless there is one chair, and either it has registered or it has not. The old body
+	// matched the judge's round out of its id and looked for the chair of the same round; neither
+	// id carries a round now.
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if n := regexp.MustCompile(`^judge-r(\d+)$`).FindStringSubmatch(judgeSeatID); n != nil {
-		if id := "red-chair-r" + n[1]; r.registered[id] {
-			return id
-		}
-	}
-	best, bestN := "", -1
-	for id := range r.registered {
-		m := regexp.MustCompile(`^red-chair-r(\d+)$`).FindStringSubmatch(id)
-		if m == nil {
-			continue
-		}
-		if n, _ := strconv.Atoi(m[1]); n > bestN {
-			best, bestN = id, n
-		}
-	}
-	if best != "" {
-		return best
+	if r.registered["red-chair"] {
+		return "red-chair"
 	}
 	return judgeSeatID
 }
@@ -4300,7 +4297,7 @@ func (r *runner) benchDisposes(seatID, gapID, disposition string, extra ...strin
 	// release-gate coverage of both docket verbs was 53 runs of the forum putting a question to
 	// itself and then answering it — the flow seatprobe's own board declares nonsensical
 	// ("the gavel problem in miniature"). The seat->verb graph said so in plain text and read as
-	// coverage: `motion docket file <- judge-r2, judge-r3, judge-r4, judge-terminal`.
+	// coverage: `motion docket file <- judge, judge, judge, judge-terminal`.
 	//
 	// What that hid: gavel-scoping `file` the way `rule` is scoped would take the escalation route
 	// away from red and blue — the whole capability — and this gate would have stayed green,

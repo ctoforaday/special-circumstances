@@ -504,8 +504,8 @@ test('the operator channel aggregates from every seat with attribution', async (
     blueRespond: [blueEnv({ log: ['rate-limited on WebFetch'] })],
   }))
   const out = await world.run(script, ARGS)
-  assert.ok(out.friction.includes('red-chair-r1: no PDF extraction'))
-  assert.ok(out.friction.includes('blue-respond-r1: rate-limited on WebFetch'))
+  assert.ok(out.friction.includes('red-chair: no PDF extraction'))
+  assert.ok(out.friction.includes('blue-respond: rate-limited on WebFetch'))
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
   assert.ok(assemble.prompt.includes('no PDF extraction'), 'assembly receives the collated friction')
 })
@@ -889,7 +889,7 @@ test('W1.7/#249: blue-respond without the attestation is RE-PROMPTED, then conti
     blueRespond: [blueEnv({ round_record_appended: false })], // the retry re-serves the same false envelope
   }))
   const out = await world.run(script, ARGS) // MUST NOT throw — that is the whole fix
-  assert.ok(world.calls.some((c) => c.opts.label.startsWith('blue-respond-r1-round-record')), 'the seat was re-prompted for its round record')
+  assert.ok(world.calls.some((c) => c.opts.label.startsWith('blue-respond-round-record')), 'the seat was re-prompted for its round record')
   assert.ok(out.friction.some((f) => /round-parity.*UNRESOLVED/.test(f)), 'the unresolved parity gap is logged as friction')
 })
 
@@ -1519,8 +1519,12 @@ test('W2c: each petition sitting gets its own seat id, derived from the petition
     assert.ok(c.prompt.includes(`SEAT_ID: ${id}`), `the record contract must carry the same id: ${id}`)
   }
   assert.ok(ids.some((i) => i === 'judge-petition-blue-synthesize'), `the pre-round sitting names its filer: ${JSON.stringify(ids)}`)
-  assert.ok(ids.some((i) => /^judge-petition-(red-chair|blue-respond)-r1$/.test(i)),
-    `an in-round sitting carries the round in a position RoundOf reads: ${JSON.stringify(ids)}`)
+  // No round in the id, by design (plans/roundless.md §III.A.1): the petitioner names the seat, and
+  // WHICH of that seat's petitions this was is the sitting ordinal the record computes — not a
+  // suffix the engine composes and a regex recovers.
+  assert.ok(ids.some((i) => /^judge-petition-(red-chair|blue-respond)$/.test(i)),
+    `an in-round sitting names its petitioner and nothing else: ${JSON.stringify(ids)}`)
+  assert.ok(!ids.some((i) => /-r\d+$/.test(i)), `no petition id carries a round: ${JSON.stringify(ids)}`)
 })
 
 // #361: THE DECLARE VERB REACHES THE SEATS THAT RULE.

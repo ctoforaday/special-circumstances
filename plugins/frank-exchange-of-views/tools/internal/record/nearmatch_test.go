@@ -19,7 +19,7 @@ type gapSpec struct {
 // same seat would each restart seq at 0 and not compose — the board is built by one writer.
 func mintBoard(t *testing.T, runDir string, specs ...gapSpec) {
 	t.Helper()
-	const seat, nonce = "red-chair-r1", "aaaaaaaa"
+	const seat, nonce = "red-chair", "aaaaaaaa"
 	var evs []*Event
 	seq := 0
 	for _, s := range specs {

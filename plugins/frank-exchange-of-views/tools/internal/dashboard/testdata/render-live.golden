@@ -79,7 +79,7 @@ td, th { font-variant-numeric: tabular-nums; }
 <tr><td>grade migration on multi-round chains</td><td>down 1 · up 0 · flat 0 <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>
 </table>
 <h2>Friction — logged pain points</h2>
-<p>2 friction events on the record · latest: <span class="muted">red-chair-r1: needed a PDF extractor</span></p>
+<p>2 friction events on the record · latest: <span class="muted">red-chair: needed a PDF extractor</span></p>
 <h2>Seats live now</h2>
 <p class="muted">liveness not assessed by this caller</p><table><tr><td class="liveseat">2× red-lens-r1</td><td class="muted">running 3 min</td></tr></table>
 <h2>Recent completions</h2>

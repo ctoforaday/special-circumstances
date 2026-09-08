@@ -34,7 +34,7 @@ func TestGapHoleHeuristic(t *testing.T) {
 			// motion collapse retired the type; the counters then read zero for every run and the
 			// hole detector could not fire at all, while this test went on passing against a
 			// vocabulary nothing wrote.
-			recordtest.Event(t, "red-chair-r1", 1, &recordpb.Motion{
+			recordtest.Event(t, "red-chair", 1, &recordpb.Motion{
 				MotionId: proto.String("M1"),
 				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("UNANSWERED")}},
@@ -76,13 +76,13 @@ func lineClass(mermaid, node string) string {
 func TestSeatFlowTalliesEvents(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
-			recordtest.Event(t, "red-chair-r1", 1, &recordpb.Register{}),
-			recordtest.Event(t, "red-chair-r1", 1, &recordpb.Mint{}),
-			recordtest.Event(t, "red-chair-r1", 1, &recordpb.Mint{}),
+			recordtest.Event(t, "red-chair", 1, &recordpb.Register{}),
+			recordtest.Event(t, "red-chair", 1, &recordpb.Mint{}),
+			recordtest.Event(t, "red-chair", 1, &recordpb.Mint{}),
 		},
 	}
 	m := seatFlowMermaid(b.fam())
-	if !strings.Contains(m, "mint×2") || !strings.Contains(m, "red-chair-r1") {
+	if !strings.Contains(m, "mint×2") || !strings.Contains(m, "red-chair") {
 		t.Errorf("seat flow should tally events per seat:\n%s", m)
 	}
 }
@@ -94,14 +94,14 @@ func TestRuledGradeMotionIsNotAHole(t *testing.T) {
 		GapOrder: []string{"ANSWERED"},
 		Gaps:     map[string]*record.Gap{"ANSWERED": {ID: "ANSWERED", Open: true, Mint: mint()}},
 		Events: []*record.Event{
-			recordtest.Event(t, "blue-respond-r1", 1, &recordpb.Motion{
+			recordtest.Event(t, "blue-respond", 1, &recordpb.Motion{
 				MotionId: proto.String("M1"),
 				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 				Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("ANSWERED")}},
 			}),
 			// THE RULING IS THE ONEOF ARM. `accepted` can only reach the grade arm, so a fixture
 			// cannot pair a grade motion with a petition's verdict the way two loose strings could.
-			recordtest.Event(t, "red-chair-r1", 1, &recordpb.MotionRule{
+			recordtest.Event(t, "red-chair", 1, &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
 				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 				Ruling:   &recordpb.MotionRule_Grade{Grade: recordpb.GradeRuling_GRADE_RULING_ACCEPTED},
@@ -131,13 +131,13 @@ func mint() *recordpb.Mint {
 // detector that flags everything is not a detector.
 func TestAnUnruledDocketMotionIsAHoleAndARuledOneIsNot(t *testing.T) {
 	docket := func(gapID, motionID string, ruled bool) []*record.Event {
-		evs := []*record.Event{recordtest.Event(t, "red-chair-r1", 1, &recordpb.Motion{
+		evs := []*record.Event{recordtest.Event(t, "red-chair", 1, &recordpb.Motion{
 			MotionId: proto.String(motionID),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}},
 		})}
 		if ruled {
-			evs = append(evs, recordtest.Event(t, "judge-r1", 1, &recordpb.MotionRule{
+			evs = append(evs, recordtest.Event(t, "judge", 1, &recordpb.MotionRule{
 				MotionId: proto.String(motionID),
 				Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 				Opinion:  proto.String("heard"),

@@ -19,29 +19,29 @@ import (
 func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
-	red := Identity{Run: run, SeatID: "red-chair-r1", Round: 1}
-	blue := Identity{Run: run, SeatID: "blue-respond-r1", Round: 1}
+	red := Identity{Run: run, SeatID: "red-chair"}
+	blue := Identity{Run: run, SeatID: "blue-respond"}
 
 	// Two registers under one agent id: the binding is the most recent claim.
 	t.Setenv(seatenv.AgentVar, "agent-007")
-	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair-r1", Round: 1}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "blue-respond-r1", Round: 1}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "blue-respond"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if seat, found, err := SeatOfAgent(run, "agent-007"); err != nil || !found || seat != "blue-respond-r1" {
+	if seat, found, err := SeatOfAgent(run, "agent-007"); err != nil || !found || seat != "blue-respond" {
 		t.Errorf("SeatOfAgent = (%q, %v, %v), want the LATEST register to win", seat, found, err)
 	}
 	if _, found, err := SeatOfAgent(run, "agent-999"); err != nil || found {
 		t.Errorf("SeatOfAgent on an unknown agent = (found=%v, %v)", found, err)
 	}
-	if seats, err := RegisteredSeats(run); err != nil || strings.Join(seats, ",") != "red-chair-r1,blue-respond-r1" {
+	if seats, err := RegisteredSeats(run); err != nil || strings.Join(seats, ",") != "red-chair,blue-respond" {
 		t.Errorf("RegisteredSeats = (%v, %v), want event order", seats, err)
 	}
 
 	// Mints: the id allocator counts THIS round's mints; the key lookup returns the first match.
-	if id, err := MintGapID(run, 1); err != nil || id != "R1-1" {
+	if id, err := MintGapID(run); err != nil || id != "R1-1" {
 		t.Errorf("MintGapID on an unminted round = (%q, %v)", id, err)
 	}
 	for _, gid := range []string{"R1-1", "R1-2"} {
@@ -59,16 +59,13 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if id, err := MintGapID(run, 1); err != nil || id != "R1-3" {
+	if id, err := MintGapID(run); err != nil || id != "R1-3" {
 		t.Errorf("MintGapID = (%q, %v), want R1-3 after two mints", id, err)
 	}
-	if id, err := MintGapID(run, 2); err != nil || id != "R2-1" {
-		t.Errorf("MintGapID counts per ROUND: got (%q, %v)", id, err)
-	}
-	if id, err := ExistingMintByKey(run, "red-chair-r1", "k-R1-2"); err != nil || id != "R1-2" {
+	if id, err := ExistingMintByKey(run, "red-chair", "k-R1-2"); err != nil || id != "R1-2" {
 		t.Errorf("ExistingMintByKey = (%q, %v)", id, err)
 	}
-	if id, err := ExistingMintByKey(run, "blue-respond-r1", "k-R1-2"); err != nil || id != "" {
+	if id, err := ExistingMintByKey(run, "blue-respond", "k-R1-2"); err != nil || id != "" {
 		t.Errorf("ExistingMintByKey must scope to the seat: got (%q, %v)", id, err)
 	}
 	if ids, err := allGapIDs(run); err != nil || len(ids) != 2 || !ids["R1-1"] || !ids["R1-2"] {
@@ -87,6 +84,14 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 	if rounds, err := priorClosureRounds(run, "R1-2"); err != nil || rounds != nil {
 		t.Errorf("priorClosureRounds on a never-closed gap = (%v, %v)", rounds, err)
+	}
+
+	// A new EPOCH restarts the counter — the chair sitting again is what opens it.
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	if id, err := MintGapID(run); err != nil || id != "R2-1" {
+		t.Errorf("MintGapID counts per ROUND: got (%q, %v)", id, err)
 	}
 
 	// A proposal counts toward the next inquiry id; a MOVE of the same line must not.
@@ -110,15 +115,15 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	// Findings and their markers: the label allocator, the key lookup, the anchor pair heal.
-	if _, err := Append(Identity{Run: run, SeatID: "red-lens-r1-evidence", Round: 1}, &recordpb.Finding{
+	if _, err := Append(Identity{Run: run, SeatID: "red-lens-evidence"}, &recordpb.Finding{
 		FindingId: proto.String("f-0a0a0a0a"), Label: proto.String("evidence-F1"), FindingKey: proto.String("fk-1"),
 		Location: proto.String("L"), Text: proto.String("t"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
-	if label, err := NextFindingLabel(run, "red-lens-r1-evidence"); err != nil || label != "evidence-F2" {
+	if label, err := NextFindingLabel(run, "red-lens-evidence"); err != nil || label != "evidence-F2" {
 		t.Errorf("NextFindingLabel = (%q, %v)", label, err)
 	}
-	if label, id, err := FindingByKey(run, "red-lens-r1-evidence", "fk-1"); err != nil || label != "evidence-F1" || id != "f-0a0a0a0a" {
+	if label, id, err := FindingByKey(run, "red-lens-evidence", "fk-1"); err != nil || label != "evidence-F1" || id != "f-0a0a0a0a" {
 		t.Errorf("FindingByKey = (%q, %q, %v)", label, id, err)
 	}
 	if err := requireFindings(run, []string{"evidence-F1"}, "mint", "--found-by"); err != nil {
@@ -131,10 +136,10 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("AnchorEventExists = (%v, %v) — no anchor event was appended for this finding", exists, err)
 	}
 
-	if err := requireSeat(run, "red-chair-r1", "rule", "--by"); err != nil {
+	if err := requireSeat(run, "red-chair", "rule", "--by"); err != nil {
 		t.Errorf("requireSeat on a seated seat = %v", err)
 	}
-	if err := requireSeat(run, "judge-r9", "rule", "--by"); err == nil {
+	if err := requireSeat(run, "judge", "rule", "--by"); err == nil {
 		t.Error("requireSeat accepted a seat that never recorded anything")
 	}
 

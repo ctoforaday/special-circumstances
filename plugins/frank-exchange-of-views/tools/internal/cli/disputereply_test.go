@@ -34,7 +34,7 @@ func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
 	mintGap(t, runDir, "G1", "overclaim")
 
 	for _, why := range []string{"the harm needs two failures", "and the second failure is gated upstream"} {
-		if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
+		if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 			"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", why); err != nil {
 			t.Fatalf("file refused: %v", err)
 		}
@@ -42,7 +42,7 @@ func TestTwoMotionsOnOneGradeAreTellableApart(t *testing.T) {
 
 	// Rule only M1. Under the old pair key this ruling would have matched BOTH filings — same
 	// gap, same dimension — and the record would have shown one answer to two questions.
-	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair-r2",
+	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "M1", "--as", "rejected", "--reason", "the grade stands"); err != nil {
 		t.Fatalf("a properly addressed ruling was refused: %v", err)
 	}
@@ -62,12 +62,12 @@ func TestARulingOnAnUnfiledMotionIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nA claim.\n")
 	mintGap(t, runDir, "G1", "overclaim")
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "s"); err != nil {
 		t.Fatalf("file refused: %v", err)
 	}
 
-	_, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair-r2",
+	_, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "M7", "--as", "accepted", "--reason", "sure")
 	if err == nil {
 		t.Fatal("red ruled a motion blue never filed — a reply with no question, joining to nothing")
@@ -87,12 +87,12 @@ func TestAnAppealAgainstNoRulingIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nA claim.\n")
 	mintGap(t, runDir, "G1", "overclaim")
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "s"); err != nil {
 		t.Fatalf("file refused: %v", err)
 	}
 
-	_, err := run(t, "motion", "grade", "appeal", "--run", runDir, "--seat-id", "blue-respond-r1",
+	_, err := run(t, "motion", "grade", "appeal", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", "M1", "--reason", "pressing it to the bench")
 	if err == nil {
 		t.Fatal("an appeal was recorded against a motion nobody had ruled — there is nothing to press against")

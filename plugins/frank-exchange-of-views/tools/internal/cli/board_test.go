@@ -67,7 +67,7 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 	closedByRed := mintGap(t, runDir, "red-closes", "json-vs-markdown")
 	closedByBench := mintGap(t, runDir, "bench-closes", "json-vs-markdown")
 
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
 		"--id", closedByRed, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason", "the check passes"); err != nil {
@@ -75,7 +75,7 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 	}
 	benchDisposes(t, runDir, closedByBench, "repaired", "the repair discharges the defect")
 
-	b := board(t, runDir, "red-chair-r1")
+	b := board(t, runDir, "red-chair")
 	if got := ids(b.Open); len(got) != 1 || got[0] != open1 {
 		t.Errorf("JSON board open = %v, want [%s]", got, open1)
 	}
@@ -100,14 +100,14 @@ func TestBoardJSONAndMarkdownLedgerAgreeOnWhatIsOpen(t *testing.T) {
 func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "anchored", "anchor-as-fields")
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
 		"--id", id, "--as", "repaired",
 		"--verified-by", "L4", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
 		"--reason", "re-read the cited source"); err != nil {
 		t.Fatalf("close: %v", err)
 	}
 
-	b := board(t, runDir, "red-chair-r1")
+	b := board(t, runDir, "red-chair")
 	if len(b.Closed) != 1 {
 		t.Fatalf("closed = %v, want one gap", ids(b.Closed))
 	}
@@ -128,18 +128,18 @@ func TestBoardJSONCarriesTheClosureAnchorAsFields(t *testing.T) {
 // red/candidates/*.md files — label (tool-assigned), role from the seat id, grades, text.
 func TestFindingsViewProjectsLensFindings(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--key", "F1", "--quote", "§1", "--reason", "first", "--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-r1-logic"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-lens-logic"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-logic",
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-logic",
 		"--key", "F1", "--quote", "§2", "--reason", "second", "--severity", "high", "--likelihood", "high", "--impact", "high"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair-r1", "findings")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "findings")
 	if err != nil {
 		t.Fatalf("show findings: %v", err)
 	}
@@ -199,7 +199,7 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 	corroborate := func(claim, url, title string) error {
 		// --independent by construction: these are sources red went and found, not citations blue
 		// authored, so there is no anchor to name.
-		_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
+		_, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
 			"--quote", claim, "--url", url, "--title", title,
 			"--as", "supports", "--confidence", "high", "--reason", "read at the leaf",
 			"--access-date", "2026-07-24")
@@ -225,7 +225,7 @@ func TestBoardCountsCiteEvents(t *testing.T) {
 
 	// THREE, NOT FOUR: three distinct (source, claim) corroborations, and the retry above added
 	// nothing. This counted 2 when a source could bear on only one claim.
-	if b := board(t, runDir, "red-chair-r1"); b.Counts.Citations != 3 {
+	if b := board(t, runDir, "red-chair"); b.Counts.Citations != 3 {
 		t.Errorf("counts.citations = %d, want 3 (three distinct source/claim readings, the retry adding none) — the board is the source for citations_checked", b.Counts.Citations)
 	}
 }

@@ -20,7 +20,7 @@ func TestCommandWordsReadsTheShapesSeatsActuallyWrite(t *testing.T) {
 		},
 		{
 			// Flags carried in a variable. `$S` is neither a dash-flag nor a verb token, and the
-			// loop broke on it: red-chair-r1 made thirty recognised calls and one was classified.
+			// loop broke on it: red-chair made thirty recognised calls and one was classified.
 			//
 			// THE ASSIGNMENT IS PART OF THE FIXTURE ON PURPOSE. My first draft of this case wrote
 			// the invocation alone — `"$B" $S show work` — and it failed, correctly: with no
@@ -29,12 +29,12 @@ func TestCommandWordsReadsTheShapesSeatsActuallyWrite(t *testing.T) {
 			// ToolUnrecognised's to report, not this function's. Every occurrence in the corpus
 			// carries the assignment on the same line, which is why the alias is readable.
 			name:    "flags expanded from a variable",
-			command: `B="/tmp/x/feov-record"; S="--seat-id red-chair-r1"; "$B" $S show work 2>&1 | python3 -c "import json"`,
+			command: `B="/tmp/x/feov-record"; S="--seat-id red-chair"; "$B" $S show work 2>&1 | python3 -c "import json"`,
 			want:    []string{"show", "work"},
 		},
 		{
 			name:    "plain invocation still reads",
-			command: `"/tmp/x/feov-record" --seat-id red-chair-r1 mint --id R1-1`,
+			command: `"/tmp/x/feov-record" --seat-id red-chair mint --id R1-1`,
 			want:    []string{"mint"},
 		},
 		{

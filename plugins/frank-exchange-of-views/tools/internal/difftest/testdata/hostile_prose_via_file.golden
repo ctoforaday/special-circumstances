@@ -1,7 +1,7 @@
-$ register --run {RUN} --seat-id red-chair-r1
+$ register --run {RUN} --seat-id red-chair
 exit 0
 stdout:
-registered red-chair-r1
+registered red-chair
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
@@ -9,19 +9,19 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ position --run {RUN} --seat-id red-chair-r1 --reason-file {RUN}/prose.md
+$ position --run {RUN} --seat-id red-chair --reason-file {RUN}/prose.md
 exit 0
 stdout:
 position recorded
 
-$ mint --run {RUN} --seat-id red-chair-r1 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --reason-file {RUN}/prose.md
+$ mint --run {RUN} --seat-id red-chair --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --reason-file {RUN}/prose.md
 exit 0
 stdout:
 minted R1-1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
-$ finding --run {RUN} --seat-id red-lens-r1-logic --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason-file {RUN}/prose.md
+$ finding --run {RUN} --seat-id red-lens-logic --key F1 --severity low --likelihood low --impact low --quote ## S2 --reason-file {RUN}/prose.md
 exit 0
 stdout:
 finding recorded: logic-F1 — the run-unique label a gap's found_by names (id FINDING001)
@@ -29,11 +29,11 @@ finding recorded: logic-F1 — the run-unique label a gap's found_by names (id F
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"red-chair-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair-r1:position","position":{"text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"round":1,"seat_id":"red-chair-r1","ts":3,"type":"EVENT_TYPE_POSITION"}
-{"key":"red-chair-r1:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-chair-r1","ts":4,"type":"EVENT_TYPE_MINT"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_LOW","label":"logic-F1","likelihood":"GRADE_LOW","location":"## S2","severity":"GRADE_LOW","text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"key":"red-lens-r1-logic:finding:logic-F1","round":1,"seat_id":"red-lens-r1-logic","ts":5,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-r1-logic:anchor:FINDING001","round":1,"seat_id":"red-lens-r1-logic","ts":6,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:position:#1","position":{"text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-chair:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_LOW","label":"logic-F1","likelihood":"GRADE_LOW","location":"## S2","severity":"GRADE_LOW","text":"quotes \" ' `backtick` $(subshell) ${var}\nnewline\ttab\nangle \u003cbrackets\u003e \u0026 ampersand\nunicode — em-dash · ✓ 日本語\nbackslash \\ and \\n literal"},"key":"red-lens-logic:finding:logic-F1","round":1,"seat_id":"red-lens-logic","ts":5,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-logic:anchor:FINDING001","round":1,"seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_ANCHOR"}
 
 ═══ RENDERS ═══
 -- debate

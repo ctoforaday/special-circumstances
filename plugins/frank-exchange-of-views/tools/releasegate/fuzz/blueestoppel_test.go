@@ -69,17 +69,17 @@ func TestBlueIsToldWhatTheBenchRuledAndWhatItObliges(t *testing.T) {
 
 	// THE NEGATIVE CONTROL FIRST. Before any bench has sat there is nothing to tell blue, and a
 	// clause that renders unconditionally would make the positive assertion below meaningless.
-	r1, err := debatejs.For(ds, "blue-respond-r1")
+	r1, err := debatejs.For(ds, "blue-respond")
 	if err != nil {
-		t.Fatalf("no blue-respond-r1 dispatch: %v", err)
+		t.Fatalf("no blue-respond dispatch: %v", err)
 	}
 	if strings.Contains(r1.Prompt, "GAPS THE BENCH HAS RULED") {
-		t.Error("blue-respond-r1 carries the rulings clause with no ruling yet — the clause is unconditional, so the round-3 assertion proves nothing")
+		t.Error("blue-respond carries the rulings clause with no ruling yet — the clause is unconditional, so the round-3 assertion proves nothing")
 	}
 
-	r3, err := debatejs.For(ds, "blue-respond-r3")
+	r3, err := debatejs.Last(ds, "blue-respond") // the sitting after the bench sat, not the first
 	if err != nil {
-		t.Fatalf("no blue-respond-r3 dispatch — the run did not reach a round after the bench sat: %v", err)
+		t.Fatalf("no blue-respond dispatch — the run did not reach a round after the bench sat: %v", err)
 	}
 	for _, want := range []string{
 		"GAPS THE BENCH HAS RULED",
@@ -92,7 +92,7 @@ func TestBlueIsToldWhatTheBenchRuledAndWhatItObliges(t *testing.T) {
 		settled,
 	} {
 		if !strings.Contains(r3.Prompt, want) {
-			t.Errorf("blue-respond-r3 does not carry %q — blue receives the ruling as a bare subtraction and cannot tell a win from an erasure", want)
+			t.Errorf("blue-respond does not carry %q — blue receives the ruling as a bare subtraction and cannot tell a win from an erasure", want)
 		}
 	}
 }

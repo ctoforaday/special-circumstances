@@ -410,7 +410,16 @@ func priorClosureRounds(run Run, gapID string) ([]int, error) {
 
 // MintGapID assigns ids tool-side, sequentially per round — the collision class
 // that made four different "R5-1"s in one round simply cannot occur.
-func MintGapID(run Run, round int) (string, error) {
+func MintGapID(run Run) (string, error) {
+	// The round is the EPOCH — the count of chair registers so far — read from the record rather
+	// than handed in by a seat whose id no longer carries one. plans/roundless.md §III.A.3 takes
+	// the round out of the id entirely (G<n>); until then the shape stays and its number means
+	// the epoch.
+	var round int
+	if _, err := queryRow(run, []any{&round},
+		`SELECT count(*) FROM "events" WHERE "type" = 'register' AND "seat_id" = 'red-chair'`); err != nil {
+		return "", err
+	}
 	var n int
 	if _, err := queryRow(run, []any{&n},
 		`SELECT count(*) FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."round" = ?`,

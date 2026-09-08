@@ -692,18 +692,14 @@ const reliefFor = (party) => {
 }
 let halted = false
 let haltOpinion = null
-// ONE SEAT ID NAMES ONE SITTING.
+// A PETITION SITTING IS NAMED FOR ITS PETITIONER.
 //
-// A seat id is what every act is attributed to, so two sittings sharing one leaves the record
-// unable to say which occasion an act belongs to.
-//
-// Deriving the id from the PETITIONER makes it unique by construction rather than by a counter
-// someone has to remember to increment — the filer already identifies the occasion, because each
-// of `blue-synthesize`, `red-chair-rN` and `blue-respond-rN` petitions at most once.
-//
-// It also fixes the round stamp for free. `RoundOf` matches the FIRST `-r<N>` in the id, so
-// `judge-petition-red-chair-r1` reads as round 1 instead of the round 0 a bench sitting takes
-// carry, and `judge-petition-blue-synthesize` has no round because it genuinely precedes round 1.
+// A seat id is what every act is attributed to. Deriving it from the PETITIONER — `judge-petition-`
+// plus the filer's own seat id — means the bench sitting that hears blue-synthesize's petition and
+// the one that hears red-chair's are different seats, without a counter anyone has to remember to
+// increment. When the same petitioner petitions again, the id is the same and WHICH occasion this
+// was is the sitting ordinal the record computes from the registers (plans/roundless.md §III.A.0)
+// — the same answer every other seat gets, and nothing a regex has to recover from the name.
 const petitionSeatID = (who) => `judge-petition-${who}`
 
 async function hearPetitions(env, who) {
@@ -889,7 +885,7 @@ while (!halted && round < maxRounds) {
   log(`round ${round}: dispatching ${lensPasses.length} red lenses (one per strategic area)`)
 
   await parallel(lensPasses.map(({ area, extra }) => () => agent(
-    `Red audit, round ${round}.${extra} RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows${round > 1 ? `. For a navigation HINT use the record of what blue actually edited and the gap each edit answers — never a hand-written file, and never in place of the full re-read above` : ''}. ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in ${runDir}/blue/report.md is REJECTED. The labels on your findings are the tool's to assign, and the stable R${round}-N gap ids are the chair's. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).${reliefFor('red')}${speedClause}${frictionClause(`red-lens-r${round}-${area}`, 'lens')}${recordClause(`red-lens-r${round}-${area}`)} Return a 3-line synopsis.`,
+    `Red audit, round ${round}.${extra} RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows${round > 1 ? `. For a navigation HINT use the record of what blue actually edited and the gap each edit answers — never a hand-written file, and never in place of the full re-read above` : ''}. ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in ${runDir}/blue/report.md is REJECTED. The labels on your findings are the tool's to assign, and the stable R${round}-N gap ids are the chair's. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).${reliefFor('red')}${speedClause}${frictionClause(`red-lens-${area}`, 'lens')}${recordClause(`red-lens-${area}`)} Return a 3-line synopsis.`,
     // ONE CONFIGURATION PER AREA, and this is the line that makes identity derivable: agent_type
     // now carries WHICH lens, not merely that it is a lens, so a seat's area is a fact the harness
     // attests rather than a substring of a name the seat typed.
@@ -918,10 +914,10 @@ LINEAGE IS NEVER DROPPED. A gap keeps its id across rounds; a successor names it
 
 THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. PASS only when every remaining unadjudicated gap is repaired, not_a_defect, or defect_accepted. Your recorded verdict is the ONE fact distinguishing "red passed" from "the bench closed the last gaps at the terminal sitting" — without it the run cannot say, from its own record, that it was ever verified.${adjudicated.length ? ` GAPS THE BENCH HAS ALREADY RULED, WITH THEIR FATES AND WHAT EACH ONE SETTLED — excluded from your verdict, and the exclusion is ESTOPPEL, not amnesia: ${JSON.stringify(adjudicated.map(x => ({ gap_id: x.gap_id, resolution: x.resolution, settled: x.settled, reopens_on: x.reopens_on, final: x.final })))}. THE BARRED PROPOSITION IS NARROWER THAN THE GAP: what you may no longer assert is that sentence, not everything the finding contained. You were previously handed these as bare ids, so the bar was enforced by making them invisible — you could not tell a ruling you should respect from one you had simply lost track of, and you could not tell relitigating from a legitimate successor. The ruling STANDS and you do not re-raise it. If you hold genuinely new evidence the bench did not have, that is a lineage successor: mint it under a new id naming the ruled gap in supersedes, and say what the ruling did not account for. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, rather than inferring it from the word. A fate you never read is one you cannot honour or contest.` : ''}${gradeAdjustments.length ? ` GRADE ADJUSTMENTS RULED BY THE JUDGE last round — apply each, and list the delta in your round narrative: ${JSON.stringify(gradeAdjustments)}.` : ''}${pendingDisputes.length ? ` BLUE'S GRADE DISPUTES from last round (ROUTING REFS — blue's evidence is on the record, not here: read each dispute's argument before answering): ${JSON.stringify(pendingDisputes)}. You MUST answer EVERY one; an unaddressed dispute is treated as rejected and auto-docketed to the judge. Answer on the MOTION's own id, because blue may contest more than one grade on the same gap and an answer naming only the gap cannot be matched to the one it refuses. ACCEPTING A DISPUTE DOES NOT MOVE THE GRADE — SAYING SO IS NOT DOING IT: move it, on the axis that moved, with what changed your mind. A grade that moves with no recorded reason reads as though blue's dispute was answered by silence. AND list each in the envelope's dispute_responses as a ROUTING REF ONLY (gap_id, dimension, response — no prose: the rationale is on the record) so the docket routes it, and list each accepted delta (gap id, dimension, old -> new) in your round narrative, where blue, the judge and the operator watch for it.` : ''}
 
-YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is docket-bound — one you RE-RAISE from a prior round, a successor you mint, a dispute you REJECT — argue it in ~120 words: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far. The judge rules after blue responds, and overstatement the record does not support counts against you.${petitionClause(`red-chair-r${round}`)}${reliefFor('red')}${frictionClause(`red-chair-r${round}`, 'chair')}${speedClause}${recordClause(`red-chair-r${round}`)} Return the red envelope.`,
+YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is docket-bound — one you RE-RAISE from a prior round, a successor you mint, a dispute you REJECT — argue it in ~120 words: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far. The judge rules after blue responds, and overstatement the record does not support counts against you.${petitionClause(`red-chair`)}${reliefFor('red')}${frictionClause(`red-chair`, 'chair')}${speedClause}${recordClause(`red-chair`)} Return the red envelope.`,
     { ...judgment, label: `red-chair-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-chair', schema: RED_ENVELOPE })
 
-  takeFriction(`red-chair-r${round}`, redEnv)
+  takeFriction(`red-chair`, redEnv)
   if (!redEnv) throw new Error(`red-chair round ${round} returned null (agent failed) — aborting cleanly`)
   log(`round ${round}: red ${redEnv.verdict} — ${redEnv.gaps.length} gaps open, mass ${redEnv.gaps.reduce((s, g) => s + gapMass(g), 0).toFixed(1)}, ${redEnv.citations_checked} citations checked`)
   // Degenerate-shape guard (retrospective §3 row 20, decided R4-2: throw, never soft-convert):
@@ -982,7 +978,7 @@ YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is do
   for (const c of redEnv.closures || []) {
     if (c.class === 'repaired_with_regression' && !redEnv.gaps.some(g => (g.supersedes || []).includes(c.id))) {
       const msg = `red-chair round ${round}: closed ${c.id} WITH REGRESSION and no successor in the ENVELOPE names it in supersedes. The envelope is a lossy summary, so this does not kill the run — but NOTHING downstream checks it either (#415), so if the record's lineage is genuinely absent it will not be caught: read the board.`
-      friction.push(`red-chair-r${round}: ${msg}`)
+      friction.push(`red-chair (epoch ${round}): ${msg}`)
       log(msg)
     }
   }
@@ -1020,7 +1016,7 @@ YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is do
     }
   }
 
-  if (await hearPetitions(redEnv, `red-chair-r${round}`)) break
+  if (await hearPetitions(redEnv, `red-chair`)) break
 
   // Grade-dispute processing (run-4 §3.3): every pending dispute gets red's answer or the
   // docket. Explicit rejection is HELD one round (dockets only on blue's re-dispute);
@@ -1135,11 +1131,11 @@ ANSWER EVERY OPEN GAP ADDITIVELY in ${runDir}/blue/report.md — expand and repa
 
 DISPUTE RED'S GRADING WHERE YOU DISAGREE WITH IT — on the axis, with the grade you say it should be, and with your evidence. If red rejects it and you still disagree, press it to the bench. List each in the envelope's grade_disputes as a ROUTING REF ONLY (gap_id, dimension, proposed — no prose: the evidence lives on the record, not a second copy in the envelope) so the docket routes it — max ${DISPUTE_CAP} per round, and overflow is batch-docketed to the judge as one item${heldDisputes.size ? `; disputes red REJECTED last round (re-dispute any of these to send it to the judge): ${JSON.stringify([...heldDisputes.values()])}` : ''}. Where a fix demands a probe, discharge a DOCUMENT-PROBE now against shipped artifacts, or for a LIVE-PROBE needing built artifacts name it as a deferred acceptance test with its pass condition — never call a file read a live probe.
 
-AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide, the repair's own boundary case asked, compositions noted where edits share text, sibling sweep done or the enumeration declared open, the gap's acceptance check RUN with its result, new claims tagged verified-at-leaf/derived/asserted. Compress what you checked and what it showed into each receipt, and list just those gap IDS in the envelope's manifest array as a routing ref. An unmanifested repair is unaudited by your own standard; the script rejects an EMPTY manifest array on a round with open gaps. Recompute claim_count with the tool after your edits land and relay the integer into the envelope; never hand-count it. ROUND RECORD (W1.7): round_record_appended = TRUE only after BOTH your round narrative AND your round-${round} revision exist. RECORD THE ROUND. On false the script re-prompts you once and, failing that, logs friction and continues — the run is not discarded, but the parity gap is scored against you at capture; a revision is not on the record until the transcript carries it (the round-2 desync misled a lens and blinded the judge, run 5).${patternDutyClause(openGaps)}${inquiryClause}${petitionClause(`blue-respond-r${round}`)}${frictionClause(`blue-respond-r${round}`, 'blue')}${speedClause}${recordClause(`blue-respond-r${round}`)} Return the blue envelope.`,
+AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the full standard): figures recomputed, universals enumerated, consistency sites swept report-wide, the repair's own boundary case asked, compositions noted where edits share text, sibling sweep done or the enumeration declared open, the gap's acceptance check RUN with its result, new claims tagged verified-at-leaf/derived/asserted. Compress what you checked and what it showed into each receipt, and list just those gap IDS in the envelope's manifest array as a routing ref. An unmanifested repair is unaudited by your own standard; the script rejects an EMPTY manifest array on a round with open gaps. Recompute claim_count with the tool after your edits land and relay the integer into the envelope; never hand-count it. ROUND RECORD (W1.7): round_record_appended = TRUE only after BOTH your round narrative AND your round-${round} revision exist. RECORD THE ROUND. On false the script re-prompts you once and, failing that, logs friction and continues — the run is not discarded, but the parity gap is scored against you at capture; a revision is not on the record until the transcript carries it (the round-2 desync misled a lens and blinded the judge, run 5).${patternDutyClause(openGaps)}${inquiryClause}${petitionClause(`blue-respond`)}${frictionClause(`blue-respond`, 'blue')}${speedClause}${recordClause(`blue-respond`)} Return the blue envelope.`,
     { ...bulk, label: `blue-respond-r${round} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:blue-researcher', schema: BLUE_ENVELOPE })
-  takeFriction(`blue-respond-r${round}`, blueEnv)
+  takeFriction(`blue-respond`, blueEnv)
   if (!blueEnv) throw new Error(`blue response round ${round} returned null (agent failed) — aborting cleanly`)
-  await ensureRoundRecord(blueEnv, `blue-respond-r${round}`, `your round-${round} position event (it renders as the "### BLUE" section) AND your round-${round} revision event`,
+  await ensureRoundRecord(blueEnv, `blue-respond`, `your round-${round} position event (it renders as the "### BLUE" section) AND your round-${round} revision event`,
     { ...bulk, agentType: 'frank-exchange-of-views:blue-researcher' })
   if (openGaps.length > 0 && (!Array.isArray(blueEnv.manifest) || blueEnv.manifest.length === 0)) {
     throw new Error(`manifest (W2b): blue-respond round ${round} repaired ${openGaps.length} gap(s) with an EMPTY correctness manifest — an unmanifested repair is unaudited by blue's own standard`)
@@ -1154,7 +1150,7 @@ AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the 
     if (uncovered.length) log(`round ${round}: manifest coverage ${covered.size}/${openGaps.length} — unmanifested: ${uncovered.join(', ')} (scored at capture)`)
   }
   log(`round ${round}: blue responded — ${openGaps.length} gaps addressed, corpus at ${blueEnv.claim_count} claims${(blueEnv.grade_disputes || []).length ? `, ${(blueEnv.grade_disputes || []).length} grade dispute(s) raised` : ''}`)
-  if (await hearPetitions(blueEnv, `blue-respond-r${round}`)) break
+  if (await hearPetitions(blueEnv, `blue-respond`)) break
 
   // Adjudication sits LAST in the round (closing-arguments redesign, 2026-07-17): the judge
   // never rules on material blue has not answered — which structurally dissolves the
@@ -1167,7 +1163,7 @@ AUDIT YOUR OWN REPAIRS, ONE RECEIPT PER GAP (W2b; your constitution carries the 
 
 YOUR RULING BASIS IS CONFINED TO THREE THINGS: the two sides' closings, the full transcript, and the final state of the artifacts — the board and ${runDir}/blue/report.md as they now stand. Weigh each closing as that side's best case, and a claim in a closing that the record does not support counts AGAINST the side that made it. For every ruling on a gap with a lineage chain, READ THE NAMED ANCESTORS' RECORDS first and NAME what you read in your rationale.${lawClause}${declareClause}
 
-Every docketed gap gets a written ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring, and what would reopen it. Only you know either; the verb's help says what each is for. A bare fate teaches the next round nothing. Two fates are worth naming because they route work OUT of the debate rather than ending it: a gap you CARRY stays live and owes blue a stated research direction, and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the lead — leaves red's verdict pool and ships as a NAMED infrastructure debt, recorded and never dropped. deadlock is true only if no gap is carried AND ${hasNew ? 'false (new gaps were raised this round)' : 'no new gaps were raised this round (none were)'}. AND DEADLOCK IS A FACT ABOUT THE PARTIES, NOT ABOUT YOUR OWN PRODUCTIVITY: if disposing this docket leaves NOTHING open they did not deadlock, they converged in your hands, and red — who owns PASS/FAIL — has not yet passed an empty docket. Are the parties stuck, or did you just finish the work? Say deadlock only for the first.${frictionClause(`judge-r${round}`, 'bench')}${speedClause}${recordClause(`judge-r${round}`)} Return the judge envelope.`,
+Every docketed gap gets a written ruling: its fate, the principle you applied, the values in tension, whether a human should look at it, your reasoning, and TWO THINGS THE FATE CANNOT SAY — the proposition you are barring, and what would reopen it. Only you know either; the verb's help says what each is for. A bare fate teaches the next round nothing. Two fates are worth naming because they route work OUT of the debate rather than ending it: a gap you CARRY stays live and owes blue a stated research direction, and a valid finding whose FIX is owned outside the debate — run tooling, the harness, the lead — leaves red's verdict pool and ships as a NAMED infrastructure debt, recorded and never dropped. deadlock is true only if no gap is carried AND ${hasNew ? 'false (new gaps were raised this round)' : 'no new gaps were raised this round (none were)'}. AND DEADLOCK IS A FACT ABOUT THE PARTIES, NOT ABOUT YOUR OWN PRODUCTIVITY: if disposing this docket leaves NOTHING open they did not deadlock, they converged in your hands, and red — who owns PASS/FAIL — has not yet passed an empty docket. Are the parties stuck, or did you just finish the work? Say deadlock only for the first.${frictionClause(`judge`, 'bench')}${speedClause}${recordClause(`judge`)} Return the judge envelope.`,
       { ...judgment, label: `judge-r${round} · ${slug}`, phase: 'Debate', agentType: 'frank-exchange-of-views:lead-judge', schema: JUDGE_ENVELOPE })
     if (!judge) throw new Error(`judge round ${round} returned null (agent failed) — aborting cleanly`)
     for (const h of judge.holdings || []) holdingsInEffect.push(h)
@@ -1180,7 +1176,7 @@ Every docketed gap gets a written ruling: its fate, the principle you applied, t
       }
       if (r.resolution === 'grade_adjusted') gradeAdjustments.push({ gap_id: r.gap_id, rationale: r.rationale })
     }
-    takeFriction(`judge-r${round}`, judge)
+    takeFriction(`judge`, judge)
 
     // DEADLOCK AND A CLEARED BOARD ARE DIFFERENT STATES, and they shared a stamp.
     //

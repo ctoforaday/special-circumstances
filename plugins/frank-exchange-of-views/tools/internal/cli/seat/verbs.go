@@ -368,7 +368,7 @@ func Show() *cobra.Command {
 		// it teach a VERB, a FLAG, a REFUSAL, or a RENDERING? This teaches how to consume a
 		// rendering, so it belongs where the seat reads while choosing. The first draft of this
 		// repair put it in debate.js's recordClause and was refused twice over — once for naming
-		// a command invocation in a prompt, once for pushing judge-r2 past its ceiling. Both
+		// a command invocation in a prompt, once for pushing judge past its ceiling. Both
 		// refusals were right, and this is where they pointed.
 		Long: "read a projection of the record — the tool is the read path, and the .md files are for human verification. Bare, it answers with YOUR PENDING WORK.\n\n" +
 			"A PROJECTION IS JSON ON STDOUT — PIPE IT, DO NOT SPOOL IT. `jq` is a REQUIRED tool of this suite, so it is here; a projection " +

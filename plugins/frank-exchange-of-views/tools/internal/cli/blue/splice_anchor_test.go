@@ -131,7 +131,7 @@ func TestSkipRunAgreesWithTheProtectionSweep(t *testing.T) {
 // Reproducing an anchor was MANDATORY when it sat inside the replaced span and REFUSED when it sat
 // just outside, and the seat could not see which — the trimmed trailing punctuation moves the
 // boundary under a quote that appeared to contain the anchor. Each refusal instructed the seat to
-// do what the other forbids. blue-respond-r2 in 2026-08-22_record-store-authority met this and
+// do what the other forbids. blue-respond in 2026-08-22_record-store-authority met this and
 // concluded the removal was impossible, arguing risk-acceptance on R1-1 instead.
 //
 // THE CIRCLE IS BROKEN FROM THE OTHER END HERE. main answered it by making the adjacent case

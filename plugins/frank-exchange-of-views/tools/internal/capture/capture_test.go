@@ -79,7 +79,7 @@ func fixtureRun(t *testing.T, ledgerLines, archiveBlocks int) string {
 	write(t, filepath.Join(dir, "red", "archive.md"), ab.String())
 	write(t, filepath.Join(dir, "blue", "CHANGELOG.md"), "## Round 1\nedits\n## Round 2\nedits\n")
 	write(t, filepath.Join(dir, "trajectories", "journal.jsonl"),
-		`{"type":"result","result":{"ledger_closure_lines":`+itoa(ledgerLines)+`,"archive_blocks":`+itoa(archiveBlocks)+`,"log":["red-chair-r1: needed a PDF extractor for X"]}}`+"\n")
+		`{"type":"result","result":{"ledger_closure_lines":`+itoa(ledgerLines)+`,"archive_blocks":`+itoa(archiveBlocks)+`,"log":["red-chair: needed a PDF extractor for X"]}}`+"\n")
 	return dir
 }
 
@@ -178,13 +178,13 @@ func TestASeatThatParaphrasesItselfStillReconciles(t *testing.T) {
 // AND THE REAL GAP STILL FAILS: a seat that reported friction to the harness and never opened the
 // channel on the record.
 func TestASeatThatToldOnlyTheHarnessIsAFinding(t *testing.T) {
-	run := frictionRun(t, "red-chair-r1", "a78f5dfdc4aa2ea54", "")
+	run := frictionRun(t, "red-chair", "a78f5dfdc4aa2ea54", "")
 	env := []EnvelopeLog{{AgentID: "a78f5dfdc4aa2ea54", Text: "needed a PDF extractor for X"}}
 	got := LogAudit(runtest.Open(t, run), env, recordFriction(t, run))
 	if got.Verdict != "FAIL" {
 		t.Fatalf("friction the record never got: want FAIL, got %s (%s)", got.Verdict, got.Detail)
 	}
-	for _, want := range []string{"red-chair-r1", "needed a PDF extractor"} {
+	for _, want := range []string{"red-chair", "needed a PDF extractor"} {
 		if !strings.Contains(got.Detail, want) {
 			t.Errorf("the finding must name %q: %s", want, got.Detail)
 		}
@@ -193,7 +193,7 @@ func TestASeatThatToldOnlyTheHarnessIsAFinding(t *testing.T) {
 
 // `friction-none` is the attested empty case — a seat closing the channel honestly has used it.
 func TestTheAttestedEmptyCaseCountsAsOpeningTheChannel(t *testing.T) {
-	run := frictionRun(t, "judge-r2", "a7e42caf6c06aec62", "friction-none")
+	run := frictionRun(t, "judge", "a7e42caf6c06aec62", "friction-none")
 	env := []EnvelopeLog{{AgentID: "a7e42caf6c06aec62", Text: "No capability gaps encountered."}}
 	if got := LogAudit(runtest.Open(t, run), env, recordFriction(t, run)); got.Verdict != "PASS" {
 		t.Errorf("a filed friction-none IS the channel being used; got %s: %s", got.Verdict, got.Detail)
@@ -204,7 +204,7 @@ func TestTheAttestedEmptyCaseCountsAsOpeningTheChannel(t *testing.T) {
 // register event, deliberately — so the entry cannot be attributed, and an audit that cannot see
 // something must say so rather than accuse.
 func TestAnUnjoinableEntryIsReportedRatherThanBlamed(t *testing.T) {
-	run := frictionRun(t, "blue-respond-r2", "", "")
+	run := frictionRun(t, "blue-respond", "", "")
 	env := []EnvelopeLog{{AgentID: "", Text: "Friction channel closed: no capability gaps."}}
 	got := LogAudit(runtest.Open(t, run), env, recordFriction(t, run))
 	if got.Verdict == "FAIL" {
@@ -329,7 +329,7 @@ func screenRun(t *testing.T, outcome recordpb.SourceOutcome, url string) string 
 	}
 	seed("blue-r1",
 		&recordpb.Cite{Label: proto.String("c-1"), Url: proto.String(url), Title: proto.String("A Source")})
-	seed("red-lens-r1-evidence",
+	seed("red-lens-evidence",
 		&recordpb.Verify{
 			Anchor:     proto.String("c-1"),
 			Claim:      proto.String("a claim"),
@@ -432,13 +432,13 @@ func TestHarvestPrecedents(t *testing.T) {
 		// gap rides the FILING — the harvest joins them through record.Motions to learn which
 		// gap a disposition settled — so a fixture with only the ruling would anchor every
 		// harvested holding to the empty string and still report a full count.
-		recordtest.Event(t, "red-chair-r2", 2, &recordpb.Motion{
+		recordtest.Event(t, "red-chair", 2, &recordpb.Motion{
 			MotionId: proto.String("M3"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Basis:    proto.String("red cannot settle R2-3"),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R2-3")}},
 		}),
-		recordtest.Event(t, "judge-r2", 2, &recordpb.MotionRule{
+		recordtest.Event(t, "judge", 2, &recordpb.MotionRule{
 			MotionId: proto.String("M3"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Opinion:  proto.String("the cost of the repair exceeds the exposure"),
@@ -452,13 +452,13 @@ func TestHarvestPrecedents(t *testing.T) {
 		}),
 		// The petition's FILER is on the motion event, not on the ruling — the ruling names
 		// only the motion. Harvesting the petitioner means joining the two.
-		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Motion{
+		recordtest.Event(t, "blue-respond", 2, &recordpb.Motion{
 			MotionId: proto.String("M4"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
 			Basis:    proto.String("the demand buries a hazard"),
 			Filing:   &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}},
 		}),
-		recordtest.Event(t, "judge-r2", 2, &recordpb.MotionRule{
+		recordtest.Event(t, "judge", 2, &recordpb.MotionRule{
 			MotionId: proto.String("M4"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
 			Opinion:  proto.String("scope narrowed to shipped artifacts"),
@@ -466,13 +466,13 @@ func TestHarvestPrecedents(t *testing.T) {
 		}),
 		// THE RULER'S ARGUMENT IS `MotionRule.opinion` NOW — the prose channel every subject's
 		// ruling carries — which is what the no-truncation assertion below reads.
-		recordtest.Event(t, "red-chair-r1", 1, &recordpb.Motion{
+		recordtest.Event(t, "red-chair", 1, &recordpb.Motion{
 			MotionId: proto.String("M5"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Basis:    proto.String("put R1-9 to the bench"),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-9")}},
 		}),
-		recordtest.Event(t, "judge-r1", 1, &recordpb.MotionRule{
+		recordtest.Event(t, "judge", 1, &recordpb.MotionRule{
 			MotionId: proto.String("M5"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Opinion:  proto.String(longRationale),
@@ -486,12 +486,12 @@ func TestHarvestPrecedents(t *testing.T) {
 		}),
 		// #361's verb. It moves no gap and has no envelope field, so it was unreachable by
 		// construction — the one verb whose whole purpose is stating a holding.
-		recordtest.Event(t, "judge-r2", 2, &recordpb.Declare{
+		recordtest.Event(t, "judge", 2, &recordpb.Declare{
 			Holding: proto.String("verified means an act of looking"),
 		}),
 		// A grade ruling is deliberately NOT harvested: promoting it without the ask it
 		// answered would strip its scope. If this ever starts appearing, it was a decision.
-		recordtest.Event(t, "red-chair-r1", 1, &recordpb.MotionRule{
+		recordtest.Event(t, "red-chair", 1, &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 			Opinion:  proto.String("disclosure does not lower likelihood"),
@@ -537,7 +537,7 @@ func TestHarvestPrecedents(t *testing.T) {
 	if !strings.Contains(body, "TRAILING_ACTIONABLE_TAIL") {
 		t.Errorf("full rationale preserved — no truncation")
 	}
-	if !strings.Contains(body, "petition by blue-respond-r2") {
+	if !strings.Contains(body, "petition by blue-respond") {
 		t.Errorf("the petitioner is joined from the motion event, not left blank:\n%s", body)
 	}
 	if !strings.Contains(body, "verified means an act of looking") {
@@ -761,7 +761,7 @@ func TestStrayRecordsAuditFindsShardsOutsideAnyRun(t *testing.T) {
 	// The run being captured.
 	runDir := filepath.Join(repo, "research", "the-run")
 	write(t, filepath.Join(runDir, "inputs", "run-config.json"), `{"topic":"t"}`)
-	write(t, filepath.Join(runDir, "records", "events-red-chair-r1-aaaaaaaa.jsonl"), "{}\n")
+	write(t, filepath.Join(runDir, "records", "events-red-chair-aaaaaaaa.jsonl"), "{}\n")
 
 	if got := StrayRecordsAudit(repo, runDir); got.Verdict != "PASS" {
 		t.Fatalf("a clean repo reported %s: %s", got.Verdict, got.Detail)
@@ -860,7 +860,7 @@ func writeRunForLiveness(t *testing.T, n int, gap time.Duration, last time.Time,
 			}), ts))
 			continue
 		}
-		evs = append(evs, recordtest.Stamped(recordtest.At(t, "red-lens-r1-evidence", 1, fmt.Sprintf("red-lens-r1-evidence:finding:k%d", i), &recordpb.Finding{
+		evs = append(evs, recordtest.Stamped(recordtest.At(t, "red-lens-evidence", 1, fmt.Sprintf("red-lens-evidence:finding:k%d", i), &recordpb.Finding{
 			FindingId: proto.String(fmt.Sprintf("F%d", i)),
 			Label:     proto.String(fmt.Sprintf("L1-F%d", i)),
 			Text:      proto.String("a finding"),
@@ -933,8 +933,8 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		t.Fatal("ArchiveRecord wrote an archive for a run with no shards")
 	}
 
-	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-r1-evidence-aaaaaaaa.jsonl"),
-		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-r1-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(recs, "events-red-lens-evidence-aaaaaaaa.jsonl"),
+		[]byte(`{"seq":0,"ts":"2026-08-22T12:00:00.000000000Z","seatId":"red-lens-evidence","nonce":"aaaaaaaa","round":1,"role":"lens","type":"finding","key":"k","payload":{}}`+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(run, "proofs", "abc", "script.py"), []byte("print(7)\n"), 0o644); err != nil {
@@ -972,7 +972,7 @@ func TestArchiveRecordKeepsTheShardsAndRefusesAnEmptyRun(t *testing.T) {
 		}
 		names[h.Name] = true
 	}
-	for _, want := range []string{"records/events-red-lens-r1-evidence-aaaaaaaa.jsonl", "proofs/abc/script.py"} {
+	for _, want := range []string{"records/events-red-lens-evidence-aaaaaaaa.jsonl", "proofs/abc/script.py"} {
 		if !names[want] {
 			t.Errorf("archive is missing %q — it holds %v", want, names)
 		}
@@ -1174,7 +1174,7 @@ func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "aaaa1111", "claude-opus-4-8", "claude-fable-5")),
 		}),
-		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:register:#1", &recordpb.Register{
+		recordtest.At(t, "red-chair", 1, "red-chair:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "bbbb2222", "claude-sonnet-5", "")),
 		}),
@@ -1189,7 +1189,7 @@ func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
 		}
 	}
 	// The judgment seat was served as configured and must not be swept up with it.
-	if strings.Contains(got.Detail, "red-chair-r1") {
+	if strings.Contains(got.Detail, "red-chair") {
 		t.Errorf("a seat answered by its configured tier is not a finding; got:\n%s", got.Detail)
 	}
 }

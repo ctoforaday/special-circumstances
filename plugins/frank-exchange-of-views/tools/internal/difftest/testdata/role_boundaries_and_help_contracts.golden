@@ -1,4 +1,4 @@
-$ mint --run {RUN} --seat-id red-lens-r1-evidence --class x
+$ mint --run {RUN} --seat-id red-lens-evidence --class x
 exit 2
 stderr:
 feov-record: "mint" is not on your surface — it is the merge seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
@@ -40,7 +40,7 @@ Flags:
 
 Use "feov-record [command] --help" for more information about a command.
 
-$ mint --run {RUN} --seat-id blue-respond-r1 --class x
+$ mint --run {RUN} --seat-id blue-respond --class x
 exit 2
 stderr:
 feov-record: "mint" is not on your surface — it is the merge seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
@@ -89,7 +89,7 @@ Flags:
 
 Use "feov-record [command] --help" for more information about a command.
 
-$ close --run {RUN} --seat-id blue-respond-r1 --id R1-1
+$ close --run {RUN} --seat-id blue-respond --id R1-1
 exit 2
 stderr:
 feov-record: "close" is not on your surface — it is the merge seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.
@@ -138,7 +138,7 @@ Flags:
 
 Use "feov-record [command] --help" for more information about a command.
 
-$ mint --run {RUN} --seat-id judge-r1 --class x
+$ mint --run {RUN} --seat-id judge --class x
 exit 2
 stderr:
 feov-record: "mint" is not on your surface — it is the merge seat's verb. That is a wrong-SEAT error, not a missing capability, so do not work around it: if the act is yours to perform, you are dispatched as the wrong seat, and if it is not, the seat that holds it is named here. The commands below are everything you can run.

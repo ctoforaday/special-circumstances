@@ -2,7 +2,6 @@ package recordsql
 
 import (
 	"database/sql"
-	"fmt"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -113,7 +112,7 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 		ev := event(t, int32(2+i), recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 			MotionId: proto.String("M-1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 			Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Grade{Grade: r}})
-		ev.SeatId = proto.String(fmt.Sprintf("judge-r%d", i+1))
+		ev.SeatId = proto.String("judge") // one bench, ruling twice — the second must not overturn the first
 		if _, err := Insert(db, ev); err != nil {
 			t.Fatal(err)
 		}
@@ -130,7 +129,7 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 		Scan(&ruling, &by); err != nil {
 		t.Fatal(err)
 	}
-	if ruling != "rejected" || by != "judge-r1" {
+	if ruling != "rejected" || by != "judge" {
 		t.Errorf("(ruling, ruled_by) = (%q, %q), want the FIRST ruling — the second does not overturn it", ruling, by)
 	}
 	// And motion_state, which reads this view, carries ONE row too.

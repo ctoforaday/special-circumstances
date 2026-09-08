@@ -17,14 +17,14 @@ func bound(seat string) func() (string, error) {
 // it. Obeying the flag reinstates the typo; overriding it silently makes a seat's own argument
 // vanish, which is the failure where a seat spends a round arguing with a value it never chose.
 func TestASeatIDDisagreeingWithTheBoundIdentityIsRefused(t *testing.T) {
-	if _, err := ResolveSeat("red-lens-r1-logic", bound("red-lens-r1-evidence"), nil); err == nil {
+	if _, err := ResolveSeat("red-lens-logic", bound("red-lens-evidence")); err == nil {
 		t.Fatal("a --seat-id naming a DIFFERENT seat was accepted; attribution would silently land on the wrong lens")
 	}
 	// Agreement is not a conflict, and the flag alone still works before this agent has registered.
-	if s, err := ResolveSeat("red-lens-r1-evidence", bound("red-lens-r1-evidence"), nil); err != nil || s.ID != "red-lens-r1-evidence" {
+	if s, err := ResolveSeat("red-lens-evidence", bound("red-lens-evidence")); err != nil || s.ID != "red-lens-evidence" {
 		t.Errorf("the same value from both sources must resolve, got %+v %v", s, err)
 	}
-	if s, err := ResolveSeat("red-lens-r1-evidence", bound(""), nil); err != nil || s.ID != "red-lens-r1-evidence" {
+	if s, err := ResolveSeat("red-lens-evidence", bound("")); err != nil || s.ID != "red-lens-evidence" {
 		t.Errorf("an unregistered agent must still be able to identify itself by flag, got %+v %v", s, err)
 	}
 }
@@ -35,7 +35,7 @@ func TestASeatIDDisagreeingWithTheBoundIdentityIsRefused(t *testing.T) {
 // time against a record that is not there.
 func TestAnUnreadableBindingIsAnErrorRatherThanAnAbsence(t *testing.T) {
 	boom := func() (string, error) { return "", errRead }
-	if _, err := ResolveSeat("red-lens-r1-evidence", boom, nil); err == nil {
+	if _, err := ResolveSeat("red-lens-evidence", boom); err == nil {
 		t.Fatal("a record that could not be read resolved as an agent that simply has not registered")
 	}
 }
@@ -46,50 +46,7 @@ func (readErr) Error() string { return "the record could not be read" }
 
 var errRead = readErr{}
 
-// UNKNOWN IS NOT ROUND ZERO. Round 0 is synthesis — a real round with real events — so a caller
-// that cannot know the round must not be handed 0.
-//
-// This is the phantom-archive bug in miniature (#327): `judge-terminal` carries no round, the
-// regex returned 0, and a bench closure at run END looked like a closure BEFORE round 1. It made
-// the W1.8 spot-check floor demand samples from rounds whose seats had done nothing wrong.
-func TestAnUnknownRoundIsNotZero(t *testing.T) {
-	s, err := ResolveSeat("judge-terminal", nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s.HasRound() {
-		t.Errorf("a seat with no injected round and no inference must report UNKNOWN, got round %d", s.Round)
-	}
-	if s.Round == 0 {
-		t.Error("unknown must not be spelled 0 — round 0 is synthesis, and conflating them is the phantom-archive bug")
-	}
-}
-
-// THE ROUND COMES FROM THE INFERENCE, and there is no longer a second source to prefer over it.
-//
-// Two tests lived here: one that the injected round won over the id's shape, and one that a
-// malformed injected round was refused. Both exercised FEOV_ROUND, which nothing in this
-// repository ever set — so they proved a precedence rule between a real source and an empty one.
-// The variable is gone; what replaces them is record.RoundOf's own contract test, which checks the
-// thing that actually decides a round now, including the not-known case that answering 0 hid.
-func TestTheRoundComesFromTheResolverItIsGiven(t *testing.T) {
-	s, err := ResolveSeat("", bound("judge-terminal"), func(string) int { return 4 })
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s.Round != 4 {
-		t.Errorf("round = %d, want 4 — the resolver is the source", s.Round)
-	}
-}
-
-// AND WITH NO RESOLVER, UNKNOWN — not 0. Round 0 is synthesis, a real round in which real events
-// happen, so a caller that cannot know must not be handed it.
-func TestNoResolverMeansUnknownRatherThanZero(t *testing.T) {
-	s, err := ResolveSeat("judge-terminal", nil, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s.HasRound() {
-		t.Errorf("round = %d, want unknown", s.Round)
-	}
-}
+// (A Seat no longer carries a round at all, so "unknown is not zero" has nothing left to guard
+// here. The phantom-archive bug it named, #327 — a terminal seat's closure filed as round 0 —
+// cannot recur: the record stamps the EPOCH at the write, which is always defined and is 0 only
+// before any chair has sat. See record.epochAt and TestATerminalSeatIsStampedWithTheEpochItActsIn.)

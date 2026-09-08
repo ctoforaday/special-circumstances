@@ -83,7 +83,7 @@ func Write(runDir string, phase Phase, agentID, agentType, transcriptPath string
 	}
 	// Round -1 is UNKNOWN and is NOT round 0: a hook fires outside any seat's round, and
 	// conflating the two is the phantom-archive defect this field exists to prevent.
-	if _, err := record.Append(record.Identity{Run: run, SeatID: HookSeat, Round: -1}, body); err != nil {
+	if _, err := record.Append(record.Identity{Run: run, SeatID: HookSeat}, body); err != nil {
 		return err
 	}
 	return ingestTurns(run, phase, transcriptPath)

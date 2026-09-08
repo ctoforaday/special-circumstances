@@ -1,7 +1,7 @@
-$ register --run {RUN} --seat-id red-chair-r3
+$ register --run {RUN} --seat-id red-chair
 exit 0
 stdout:
-registered red-chair-r3
+registered red-chair
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
@@ -9,31 +9,31 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ mint --run {RUN} --seat-id red-chair-r3 --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
+$ mint --run {RUN} --seat-id red-chair --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
 exit 0
 stdout:
-minted R3-1
+minted R1-1
   acceptance check RECORDED as: x
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
-$ mint --run {RUN} --seat-id red-chair-r3 --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
+$ mint --run {RUN} --seat-id red-chair --key L5-F3 --class scope-creep --check-kind document --check x --severity medium --likelihood medium --impact medium --problem minted once
 exit 0
 stdout:
-minted R3-1 (idempotent retry — existing id returned)
+minted R1-1 (idempotent retry — existing id returned)
 
-$ mint --run {RUN} --seat-id red-chair-r3 --key L6-F1 --class scope-creep --check-kind document --check y --severity low --likelihood low --impact low --problem a different key mints
+$ mint --run {RUN} --seat-id red-chair --key L6-F1 --class scope-creep --check-kind document --check y --severity low --likelihood low --impact low --problem a different key mints
 exit 0
 stdout:
-minted R3-2
+minted R1-2
   acceptance check RECORDED as: y
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
 ═══ EVENTS ═══
 {"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"red-chair-r3:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":3,"seat_id":"red-chair-r3","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair-r3:mint:R3-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R3-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"L5-F3","problem":"minted once","required_fix":"","severity":"GRADE_MEDIUM"},"round":3,"seat_id":"red-chair-r3","ts":3,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair-r3:mint:R3-2","mint":{"acceptance_check":"y","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R3-2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"L6-F1","problem":"a different key mints","required_fix":"","severity":"GRADE_LOW"},"round":3,"seat_id":"red-chair-r3","ts":4,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:mint:R1-1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"L5-F3","problem":"minted once","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:mint:R1-2","mint":{"acceptance_check":"y","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"L6-F1","problem":"a different key mints","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
 
 ═══ RENDERS ═══
 -- debate
@@ -68,8 +68,8 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 2 open gap(s) remain, most severe first — full statements in [the board](docket.md).
 
-1. **[medium]** minted once (R3-1) — 
-2. **[low]** a different key mints (R3-2) — 
+1. **[medium]** minted once (R1-1) — 
+2. **[low]** a different key mints (R1-2) — 
 
 ## TL;DR
 

@@ -90,14 +90,14 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte(b.Report), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, id := range []string{"red-lens-r1-evidence", "red-chair-r1", "blue-respond-r1", "judge-r1"} {
+	for _, id := range []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}
 	}
 
 	for i, g := range b.Gaps {
-		args := []string{"mint", "--run", runDir, "--seat-id", "red-chair-r1",
+		args := []string{"mint", "--run", runDir, "--seat-id", "red-chair",
 			"--key", g.Key, "--class", g.Class,
 			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
@@ -113,7 +113,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		// A CLOSED gap so the archive is not empty. spot-check against an empty archive has
 		// nothing to sample, so a board that wants the duty exercised has to give it something.
 		id := fmt.Sprintf("R1-%d", i+1)
-		if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r1",
+		if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
 			"--id", id, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
 			t.Fatalf("close %s: %v", id, err)
@@ -121,7 +121,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 	}
 
 	for i, a := range b.Inquiries {
-		if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
+		if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
 			"--reason", a.Line, "--hypothesis", a.Hypothesis); err != nil {
 			t.Fatalf("line of inquiry %d: %v", i, err)
 		}
@@ -129,7 +129,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 			continue
 		}
 		id := fmt.Sprintf("A%d", i+1)
-		if _, err := run(t, "motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-chair-r1",
+		if _, err := run(t, "motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-chair",
 			"--id", id, "--as", a.Ruled,
 			"--reason", "ruled "+a.Ruled+" on the line as it was proposed"); err != nil {
 			t.Fatalf("rule %s: %v", id, err)
@@ -155,7 +155,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		if m.Ruled == "" {
 			continue
 		}
-		ruler := map[string]string{"grade": "red-chair-r1", "petition": "judge-r1"}[m.Subject]
+		ruler := map[string]string{"grade": "red-chair", "petition": "judge"}[m.Subject]
 		if _, err := run(t, "motion", m.Subject, "rule", "--run", runDir, "--seat-id", ruler,
 			"--id", fmt.Sprintf("M%d", i+1), "--as", m.Ruled,
 			"--reason", "ruled "+m.Ruled+" on the filing as it stands"); err != nil {
@@ -171,7 +171,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		if err := os.WriteFile(script, []byte(pr.Script+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		args := []string{"prove", "--run", runDir, "--seat-id", "blue-respond-r1",
+		args := []string{"prove", "--run", runDir, "--seat-id", "blue-respond",
 			"--quote", pr.Location, "--script", script,
 			"--reason", "the computation behind this sentence"}
 		if pr.Answers != "" {
@@ -205,7 +205,7 @@ func buildBoard(t *testing.T, runDir string, b seatprobe.Board) {
 		// here. It is served on LOOPBACK for the same reason seatprobe.Build serves its own
 		// (see serveSource there): a fixture that depends on a third party being up is a
 		// fixture that goes red for reasons about the internet.
-		if _, err := run(t, "cite", "--run", runDir, "--seat-id", "blue-respond-r1",
+		if _, err := run(t, "cite", "--run", runDir, "--seat-id", "blue-respond",
 			"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
 			"--title", "the pinned source", "--url", srcURL,
 			"--reason", "the source this claim rests on"); err != nil {

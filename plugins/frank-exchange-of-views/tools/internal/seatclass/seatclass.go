@@ -61,10 +61,10 @@ func ClassifySeat(head string) Classification {
 	}
 	for _, u := range unrounded {
 		if strings.Contains(head, u.needle) {
-			return Classification{Seat: u.seat, Round: 0}
+			return Classification{Seat: u.seat}
 		}
 	}
-	return Classification{Seat: "other", Round: 0}
+	return Classification{Seat: "other"}
 }
 
 // KnownSeats is every seat this table can name (rounded + unrounded + "other") — so a test

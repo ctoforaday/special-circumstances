@@ -175,7 +175,7 @@ func TestCountClaimsRefusesWhenThereIsNoReport(t *testing.T) {
 // and only what an after-the-fact verifier is for, so that is the record this test builds.
 func TestVerifyExitsNonZeroWhenAnInvariantFails(t *testing.T) {
 	runDir := seatRunReport(t, "# H\n\nFive independent verification approaches agree.\n")
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", "G1", "--class", "overclaim",
 		"--quote", "Five independent verification approaches agree.",
 		"--problem", "the defect", "--fix", "drop the independence claim",
@@ -192,7 +192,7 @@ func TestVerifyExitsNonZeroWhenAnInvariantFails(t *testing.T) {
 	// DISPLACED the real one and the board came back with "gaps: 0 total" — the fixture deleting
 	// the gap it existed to contradict. None of that is a hazard now. There is one record, nothing
 	// is displaced, and seeding is an insert.
-	recordtest.Seed(t, runDir, recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:verdict",
+	recordtest.Seed(t, runDir, recordtest.At(t, "red-chair", 1, "red-chair:verdict",
 		&recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}))
 
 	out, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--seat-id", "operator")

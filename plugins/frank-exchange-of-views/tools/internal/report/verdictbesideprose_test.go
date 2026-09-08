@@ -21,10 +21,10 @@ import (
 // the reader see both.
 func TestTheRecordedVerdictRendersBesideRedsProse(t *testing.T) {
 	evs := []*record.Event{
-		recordtest.Event(t, "red-chair-r5", 5, &recordpb.RoundVerdict{
+		recordtest.Event(t, "red-chair", 5, &recordpb.RoundVerdict{
 			Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL),
 		}),
-		recordtest.Event(t, "red-chair-r5", 5, &recordpb.Position{
+		recordtest.Event(t, "red-chair", 5, &recordpb.Position{
 			Text: proto.String("Nothing on the board is open. My verdict is PASS."),
 		}),
 	}
@@ -44,7 +44,7 @@ func TestTheRecordedVerdictRendersBesideRedsProse(t *testing.T) {
 // which is exactly the ceiling case that produced this defect.
 func TestARoundWithNoRecordedVerdictSaysSo(t *testing.T) {
 	evs := []*record.Event{
-		recordtest.Event(t, "red-chair-r1", 1, &recordpb.Position{Text: proto.String("gap A stands")}),
+		recordtest.Event(t, "red-chair", 1, &recordpb.Position{Text: proto.String("gap A stands")}),
 	}
 	got := debate((record.NewFamily(nil, evs)), evs)
 	if !strings.Contains(got, "NO VERDICT RECORDED") {

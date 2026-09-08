@@ -16,8 +16,8 @@ import (
 //
 // `ts` is not a field a human reads; it is the key replay sorts by, and when two events
 // share it the sort falls through to (SeatID, Seq) — ordering by SEAT NAME, which is the
-// exact defect that silently dropped the bench's closures ("judge-r2" sorting before
-// "red-chair-r1", so every ruling replayed before the mint it referenced).
+// exact defect that silently dropped the bench's closures ("judge" sorting before
+// "red-chair", so every ruling replayed before the mint it referenced).
 //
 // The stamp was millisecond-precision, so any two events inside one tick tied and fell
 // back to that broken order.
@@ -65,10 +65,10 @@ func TestEventStampsResolveSubMillisecondEvents(t *testing.T) {
 // And the whole path, end to end: an appended event carries a stamp at all.
 func TestAppendedEventCarriesAStamp(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: RoundIn(mustRun(t, runDir))("red-lens-r1-evidence")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	ev, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: RoundIn(mustRun(t, runDir))("red-lens-r1-evidence")}, &recordpb.Observe{Label: proto.String("L1-O1")})
+	ev, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}, &recordpb.Observe{Label: proto.String("L1-O1")})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 			Now = c.now
 
 			runDir := recordtest.TmpRun(t)
-			id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: RoundIn(mustRun(t, runDir))("red-lens-r1-evidence")}
+			id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
 			if _, _, err := RegisterSeat(id, ""); err != nil {
 				t.Fatal(err)
 			}
@@ -150,82 +150,38 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 	}
 }
 
-// #396: THE ROUND IS CARRIED TO THE WRITE, NOT RECOVERED AT IT.
+// THE ROUND IS DERIVED AT THE WRITE, FROM THE RECORD — the inverse of what this test used to guard.
 //
-// `Append` used to stamp `Round: RoundIn(mustRun(t, runDir))(seatID)` — a regex over the seat id, 0 on a miss —
-// while the caller had already resolved the round as a field and `Begin` had already refused an
-// unresolvable seat. The fact was in hand and thrown away one frame later.
-//
-// This is the regression guard for that seam: if the write ever goes back to deriving, the
-// carried round stops arriving and this fails. `judge-terminal` is the right probe because it
-// carries no `-r<N>` at all, so the two answers are distinguishable — the name cannot answer,
-// and anything that shows up in the event must therefore have come from the caller.
-func TestAppendStampsTheRoundItIsGiven(t *testing.T) {
+// #396 made the caller carry the round to Append because Append had been recovering it from the seat
+// id by regex. Both were wrong in the same way: the fact came from a NAME. Now the write computes
+// the epoch from the chair registers already on the record (epochAt), the seat id carries nothing,
+// and there is no round for a caller to hand in. `judge-terminal` is still the right probe: its
+// name never carried a round, so whatever the event shows can only have come from the record.
+func TestAppendDerivesTheEpochFromTheRecord(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, known := RoundOf("judge-terminal"); known {
-		t.Fatal("fixture assumption: judge-terminal's NAME cannot answer which round it is in")
+	for range 2 {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "red-chair"}, ""); err != nil {
+			t.Fatal(err)
+		}
 	}
-
-	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge-terminal", Round: 7}, &recordpb.Log{Text: proto.String("a capability gap"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "judge-terminal"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge-terminal"}, &recordpb.Observe{Text: proto.String("x")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ev.GetRound() != 7 {
-		t.Errorf("the event must carry the round it was GIVEN, not the one its id looks like: got %d, want 7", ev.GetRound())
-	}
-	// And every other event this seat wrote carries it too — both write sites take the seam. Read
-	// from the record rather than from a named shard file: there is no filename to compose, which
-	// is one fewer place for the test to encode where the events live.
-	m, err := MergedEvents(mustRun(t, dir))
-	if err != nil {
-		t.Fatal(err)
-	}
-	seen := 0
-	for _, e := range m.Events {
-		if e.GetSeatId() != "judge-terminal" {
-			continue
-		}
-		seen++
-		if e.GetRound() != 7 {
-			t.Errorf("%s event stamped round %d, want 7 — RegisterSeat must take the same seam as Append",
-				recordpb.Word(e.GetType()), e.GetRound())
-		}
-	}
-	if seen == 0 {
-		t.Fatal("the seat wrote nothing — an empty traversal passes the assertion above on every event")
-	}
-	// Party is NOT taken from the caller: it stays derived from the seat id, because the
-	// caller's Role answers which command group is running, not who is writing.
-	if ev.GetRole() != "bench" {
-		t.Errorf("the party is the seat's, derived from its id: got %q, want bench", ev.GetRole())
+	if got := int(ev.GetRound()); got != 2 {
+		t.Errorf("round = %d, want 2 — two chair registers precede this write, and nothing else could have said so", got)
 	}
 }
 
-// -1 IS A REAL VALUE ON THIS SEAM and it means unknown, which is not round 0. Nothing produces
-// it today: every verb reached through `Begin` has a resolved round, and the three `motion`
-// verbs — which deliberately skip `Begin` (see cli/motion/verbs.go) — still resolve one whenever
-// a seat id is present. It becomes reachable only when an injected identity CONFLICTS with a
-// typed --seat-id, and nothing sets FEOV_SEAT yet (#290).
-//
-// Pinned so the behaviour is a decision rather than a discovery: an unknown round is written as
-// unknown. It is NOT quietly converted to 0, which is synthesis and a real round — the
-// conflation that produced the phantom archive in #327.
-func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
-	dir := recordtest.TmpRun(t)
-	if err := os.MkdirAll(filepath.Join(dir, "records"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	ev, err := Append(Identity{Run: mustRun(t, dir), SeatID: "judge-terminal", Round: -1}, &recordpb.Log{Text: proto.String("a capability gap"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ev.GetRound() != -1 {
-		t.Errorf("unknown must stay unknown on the record: got %d, want -1", ev.GetRound())
-	}
-}
+// (TestAnUnknownRoundIsWrittenAsUnknownNotAsZero is gone: the record has no unknown round any more.
+// The round is the epoch, defined on every write; before any chair sits it is 0, and
+// TestAnEmptyRunIsEpochZeroNotUnknown holds that.)
 
 // A RE-DISPATCHED SEAT CAN STILL RECORD, and this is the regression test for the bug that killed
 // it outright.
@@ -241,8 +197,8 @@ func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
 // the SEAT, which makes its keys monotonic across dispatches.
 func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	seat := "red-chair-r1"
-	id := Identity{Run: mustRun(t, runDir), SeatID: seat, Round: RoundIn(mustRun(t, runDir))(seat)}
+	seat := "red-chair"
+	id := Identity{Run: mustRun(t, runDir), SeatID: seat}
 
 	for dispatch := 1; dispatch <= 2; dispatch++ {
 		n, _, err := RegisterSeat(id, "")
@@ -288,8 +244,8 @@ func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 // nothing, which is why isDuplicateKey exists.
 func TestARepeatedSingletonActIsRefusedInTheSeatsOwnTerms(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	seat := "red-chair-r1"
-	id := Identity{Run: mustRun(t, runDir), SeatID: seat, Round: RoundIn(mustRun(t, runDir))(seat)}
+	seat := "red-chair"
+	id := Identity{Run: mustRun(t, runDir), SeatID: seat}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)
 	}

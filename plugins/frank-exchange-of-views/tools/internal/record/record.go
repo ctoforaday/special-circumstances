@@ -118,7 +118,9 @@ func isGrade(s string) bool { return flags.IsGrade(s) }
 // absent grade contributes zero rather than erroring.
 func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS[impact] }
 
-// RoundOf, RoundIn and lastRoundOn live in round.go now.
+// THE ROUND IS NOT A FACT A SEAT SUPPLIES. It used to be read out of the seat id by regex at
+// register and stamped on every event forever (round.go, deleted). It is now the EPOCH at the
+// moment of the write — see epochAt — and a seat id carries no round at all.
 //
 // What stood here returned a bare int and read FEOV_ROUND first — an injected branch nothing in
 // the repository ever set, so in production the regex was not a fallback but the only path, and
@@ -153,7 +155,7 @@ type Event = recordpb.Event
 // ROLE IS DELIBERATELY NOT A FIELD HERE. See the note on Event.Role: the role stamped on an event
 // is the PARTY, derived from the seat id, and seat.Context.Role answers a different question —
 // which command group the verb is mounted under. They disagree: `motion grade file` run by
-// `blue-respond-r1` is party `blue` and command-group `grade`. Passing the wrong one would
+// `blue-respond` is party `blue` and command-group `grade`. Passing the wrong one would
 // silently re-label who wrote every motion event.
 type Identity struct {
 	// Run, not a path. RunDir was a string, and the empty string reached Append as a legitimate
@@ -166,9 +168,6 @@ type Identity struct {
 	// struct literal that skipped the constructor.
 	Run    Run
 	SeatID string
-	// Round is the seat's round as resolved by its caller. -1 means unknown, which is NOT round
-	// 0 — round 0 is synthesis, and conflating them produced the phantom-archive bug in #327.
-	Round int
 }
 
 // RegisterSeat is every seat's FIRST record action. Duplicate dispatches are
@@ -268,7 +267,7 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// because it carried the nonce — two registers for one seat are a legitimate re-dispatch and
 	// must not dedup into one. With the ordinal scoped to the seat, `red-merge-r1:register:#2` is
 	// what the general rule already produces, so the exception is gone rather than restated.
-	if err := insertNumbered(db, ev, seatID, id.Round, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister()); err != nil {
+	if err := insertNumbered(db, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister()); err != nil {
 		return 0, "", err
 	}
 	if err := db.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
@@ -310,6 +309,33 @@ func allowSubstitution(run Run) bool {
 // envelope stamps the fields EVERY event carries whatever its body, in ONE place — so a second
 // write path cannot come to exist that forgets one.
 //
+// epochAt is the round the event being written belongs to — and "round" now MEANS the epoch: the
+// count of red-chair register events on the record at or before this row (plans/roundless.md
+// §III.A.0). This row itself counts if it is the chair registering, which is what makes the chair's
+// register the first row of its own epoch rather than the last of the previous one.
+//
+// COMPUTED IN THE WRITE'S OWN TRANSACTION, from rows already committed, so two seats writing
+// concurrently in one epoch cannot disagree about which epoch they are in — the count is the same
+// for both until a chair register commits, and _txlock=immediate serialises the writes. Before the
+// first chair register it is 0: the base phase (frontier, lanes, synthesis), a real answer rather
+// than a missing one.
+//
+// WHAT THIS REPLACES. The round was recovered from the seat id by regex (`-r(\d+)`) at register
+// and stamped from there, so `red-lens-evidence` in a three-round run stamped 99 with no error
+// state, and the id had to carry a fact the record already knew. The events_w view answers the same
+// question for a reader; this is the same count made at the write so the column and the window
+// agree by construction, until the column itself is retired (§III.A.2).
+func epochAt(tx *sql.Tx, seatID string, typ recordpb.EventType) (int, error) {
+	var n int
+	if err := tx.QueryRow(`SELECT count(*) FROM "events" WHERE "type" = 'register' AND "seat_id" = 'red-chair'`).Scan(&n); err != nil {
+		return 0, fmt.Errorf("record: counting chair registers for the epoch: %w", err)
+	}
+	if typ == recordpb.EventType_EVENT_TYPE_REGISTER && seatID == "red-chair" {
+		n++
+	}
+	return n, nil
+}
+
 // SCHEMA_VERSION IS NOT AMONG THEM ANY MORE. It was stamped here on every event and read by
 // nothing — the line reader that once gated on it went with the shard lines. What actually
 // refuses a binary that cannot read a record is the event-schema epoch, compared once at setup,
@@ -324,8 +350,15 @@ func envelope(ev *Event, ts, seatID string, round int, key string) {
 	ev.Key = proto.String(key)
 }
 
-// singleton verbs key on seat+verb; multi-instance verbs on their stable labels; the rest on a
-// per-seat ordinal.
+// singleton verbs key on seat+verb+SITTING; multi-instance verbs on their stable labels; the rest on
+// a per-seat ordinal.
+//
+// SINGLETON MEANS ONCE PER SITTING, AND THE KEY NOW SAYS SO. A seat id used to name one sitting —
+// `red-chair-r2` could record one position, and the key `red-chair-r2:position` held that. Roundless
+// there is one chair sitting many times (plans/roundless.md §III.A.1), so `red-chair:position` would
+// have made a position once per RUN — and the refusal that fires on the collision says "this
+// sitting", which the key then did not mean. The sitting ordinal is the count of this seat's
+// registers on the record, the same count events_w exposes, taken inside the writing transaction.
 //
 // REGISTER IS NOT ONE, and it never really was. It sat here and then had its key overridden in
 // RegisterSeat to carry the nonce, precisely because two registers for one seat are a legitimate
@@ -391,7 +424,12 @@ func requireGradeMotionAsksForAChange(run Run, g *recordpb.GradeMotion) error {
 func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Message) (string, error) {
 	slug := recordpb.Word(typ)
 	if singleton[typ] {
-		return seatID + ":" + slug, nil
+		var sitting int
+		if err := tx.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
+			seatID).Scan(&sitting); err != nil {
+			return "", fmt.Errorf("record: counting %s's sittings for a once-per-sitting key: %w", seatID, err)
+		}
+		return fmt.Sprintf("%s:%s:#%d", seatID, slug, sitting), nil
 	}
 	if v := keyLabel(body); v != "" {
 		return seatID + ":" + slug + ":" + v, nil
@@ -443,7 +481,7 @@ var Now = func() time.Time { return time.Now().UTC() }
 //
 // When two events share a stamp the sort falls through to (SeatID, Seq) — and ordering by
 // seat name is the exact defect that silently dropped the bench's closures, because
-// "judge-r2" sorts before "red-merge-r1" and every ruling replayed before the mint it
+// "judge" sorts before "red-merge-r1" and every ruling replayed before the mint it
 // referenced. A millisecond clock reintroduces that defect for any two events inside the
 // same tick, which under a fast seat or a test is most of them. The test harness had been
 // papering over it by ranking positions instead of instants; the ties were real.
@@ -512,7 +550,7 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	}
 	// SEQ AND THE INSERT ARE ONE TRANSACTION. The shard version read the file, counted the lines
 	// and appended — two steps with a gap, held together only by one seat owning one file.
-	return ev, insertNumbered(db, ev, seatID, id.Round, typ, body)
+	return ev, insertNumbered(db, ev, seatID, typ, body)
 }
 
 // insertNumbered stamps the envelope and writes the event in ONE transaction.
@@ -527,13 +565,17 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 // A read followed by a write in one transaction is exactly the deferred-BEGIN upgrade SQLite
 // refuses to apply busy_timeout to, which is why the DSN takes the write lock at BEGIN. Measured
 // before that: 8 concurrent seat processes lost about half their acts to SQLITE_BUSY.
-func insertNumbered(db *sql.DB, ev *Event, seatID string, round int, typ recordpb.EventType, body proto.Message) error {
+func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType, body proto.Message) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 	key, err := deriveKey(tx, seatID, typ, body)
+	if err != nil {
+		return err
+	}
+	round, err := epochAt(tx, seatID, typ)
 	if err != nil {
 		return err
 	}

@@ -86,7 +86,12 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 		}
 		record.Now = func() time.Time { return ts }
 		for _, body := range bodies {
-			ev, err := record.Append(record.Identity{Run: dst, SeatID: old.SeatID, Round: int(old.Round)}, body)
+			// NO ROUND IS CARRIED. The old row's round was recovered from its seat id by regex at
+			// the time; the re-driven write computes the EPOCH from the chair registers already
+			// replayed (record.epochAt), which is the same fact from the record rather than from
+			// the name — plans/roundless.md §III.A.2. A migrated record's round therefore means
+			// what a fresh record's does.
+			ev, err := record.Append(record.Identity{Run: dst, SeatID: old.SeatID}, body)
 			if err != nil {
 				res.Refusals = append(res.Refusals, Refusal{OldID: old.ID, Word: old.Word, Err: err.Error()})
 				continue

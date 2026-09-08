@@ -22,7 +22,7 @@ func TestLegacyShardsAreRefusedRatherThanReadAsEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 	// The shape a pre-database run leaves behind: one JSONL shard per seat.
-	for _, name := range []string{"events-blue-synthesize-864c76fd.jsonl", "events-red-chair-r1-2f0a.jsonl"} {
+	for _, name := range []string{"events-blue-synthesize-864c76fd.jsonl", "events-red-chair-2f0a.jsonl"} {
 		if err := os.WriteFile(filepath.Join(records, name), []byte(`{"seq":1,"type":"register"}`+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}

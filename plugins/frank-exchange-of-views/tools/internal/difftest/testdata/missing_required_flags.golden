@@ -1,4 +1,4 @@
-$ mint --seat-id red-chair-r1
+$ mint --seat-id red-chair
 exit 2
 stderr:
 feov-record: required flag(s) "check", "check-kind", "class", "impact", "likelihood" not set
@@ -82,7 +82,7 @@ Flags:
       --seat-id register   your seat id, as the dispatch prompt states it (SEAT_ID). You pass it ONCE, at register, which binds it to you on the record; after that every call resolves it for you and typing it is optional. It SELECTS this surface — the verbs listed are the ones your seat may run — and a value disagreeing with what you registered as is refused rather than obeyed
   -v, --version            version for feov-record
 
-$ merge not-a-verb --run {RUN} --seat-id red-chair-r1
+$ merge not-a-verb --run {RUN} --seat-id red-chair
 exit 2
 stderr:
 feov-record: no command named "merge" exists. The commands below are the whole surface, and each one's own `--help` carries its verbs.

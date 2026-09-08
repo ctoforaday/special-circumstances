@@ -12,7 +12,7 @@ import (
 // the same program arriving twice, the other a DIFFERENT program under a key an earlier dispatch
 // already burned. The second used to take the retry path — "already recorded as <sha>", recording
 // nothing — so a seat that believed the message shipped a report claiming a proof it does not
-// hold. Measured in research/2026-09-02_quadratic-formula, blue-respond-r1, --key P1.
+// hold. Measured in research/2026-09-02_quadratic-formula, blue-respond, --key P1.
 func TestScriptShaDistinguishesARetryFromACollision(t *testing.T) {
 	run := t.TempDir()
 	dir := filepath.Join(run, "blue", "candidates")

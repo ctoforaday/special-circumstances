@@ -6,7 +6,7 @@
 // and NEVER FIRES on the real path, because the prompt hands the seat an absolute `--run` at
 // every call site and an explicit flag always wins.
 //
-// Worse than absence is a WRONG value. In the 2026-08-05 smoke `blue-respond-r1` typed
+// Worse than absence is a WRONG value. In the 2026-08-05 smoke `blue-respond` typed
 // `special circumstances` — a space where the path has a hyphen — and the tool answered
 // "names gap R1-2, which no mint event created". The seat believed the tool, filed friction
 // blaming a dangling-reference rule, and abandoned the manifest receipts for R1-3…R1-7. One

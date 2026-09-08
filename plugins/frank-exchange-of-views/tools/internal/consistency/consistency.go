@@ -465,16 +465,9 @@ func Check(run record.Run) ([]string, error) {
 		}
 	}
 
-	// ---- round attribution ----
-	for _, e := range m.Events {
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
-			continue
-		}
-		if want, known := record.RoundOf(e.GetSeatId()); known && int(e.GetRound()) != want {
-			add("round-attribution", "%s event by %s stamped round %d; the seat id says round %d",
-				recordpb.Word(e.GetType()), e.GetSeatId(), e.GetRound(), want)
-		}
-	}
+	// (The round-attribution cross-check that lived here — "the seat id says round N, the event
+	// says M" — is gone with the round in the id, #676. There is no second opinion left to
+	// disagree: the epoch is computed at the write from the record itself.)
 
 	sort.Strings(v)
 	return v, nil

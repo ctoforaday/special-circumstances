@@ -19,7 +19,7 @@ import (
 // succeeded, and found the projection still demanding it. It retried ten to twelve times —
 // different wording, different formatting, inline and from a file — then filed friction reporting
 // that the tool returned success and nothing persisted. The events had persisted perfectly:
-// CurrentRound was 2, and the only round-2 event on that board was `judge-r2` calling `register`.
+// CurrentRound was 2, and the only round-2 event on that board was `judge` calling `register`.
 //
 // RETARGETED, NOT INHERITED. This arrived aimed at `UnvotedInquiriesAt`, the per-line support vote
 // — a mechanism retired here in favour of ONE `inquiry-review` per round (see
@@ -29,7 +29,11 @@ import (
 // is the point — deleting it with its old carrier would have dropped a guard over a live defect.
 func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	dir := newRun(t)
-	blue := Identity{Run: mustRun(t, dir), SeatID: "blue-respond-r1", Round: 1}
+	// The chair sits first so the acts below land in epoch 1 — the round this fixture's path names.
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "red-chair"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	blue := Identity{Run: mustRun(t, dir), SeatID: "blue-respond"}
 	if _, err := Append(blue, &recordpb.Avenue{
 		AvenueId: proto.String("Q1"),
 		Status:   recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
@@ -37,7 +41,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	merge := Identity{Run: mustRun(t, dir), SeatID: "red-chair-r1", Round: 1}
+	merge := Identity{Run: mustRun(t, dir), SeatID: "red-chair"}
 	if _, err := Append(merge, &recordpb.InquiryReview{
 		Reason: proto.String("read the lines against the report as it now stands"),
 	}); err != nil {
@@ -53,7 +57,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	}
 
 	// Now a LATER seat registers, and does nothing else.
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "judge-r2", Round: 2}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "judge"}, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err = FamilyOf(mustRun(t, dir))
@@ -64,14 +68,18 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 		t.Fatalf("a bare register advanced CurrentRound to %d — a seat that has written nothing must not move the board's idea of now", got)
 	}
 	if InquiryReviewDueOf(b.Events) {
-		t.Error("a bare register from judge-r2 made the round-1 merge's review stale.\n\n" +
+		t.Error("a bare register from judge made the round-1 merge's review stale.\n\n" +
 			"The merge can never satisfy this — it acts at its own round and the gate has moved past it — " +
 			"so the round's duty is refused forever while the verb keeps reporting success.")
 	}
 
 	// AND THE DUTY STILL BINDS. A round-2 seat doing real work advances the round, and the
 	// round-1 review no longer answers for it — or this removed the check rather than repairing it.
-	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "blue-respond-r2", Round: 2}, &recordpb.Avenue{
+	// The chair sits again: what follows is epoch 2, the "round 2" this fixture means.
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, dir), SeatID: "red-chair"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(Identity{Run: mustRun(t, dir), SeatID: "blue-respond"}, &recordpb.Avenue{
 		AvenueId: proto.String("Q2"),
 		Status:   recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
 		Line:     proto.String("another"),

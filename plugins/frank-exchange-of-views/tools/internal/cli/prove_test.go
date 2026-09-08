@@ -15,7 +15,7 @@ import (
 func proveSeat(t *testing.T, runDir, body string) string {
 	t.Helper()
 	writeReport(t, runDir, body)
-	const seat = "blue-respond-r1"
+	const seat = "blue-respond"
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", seat); err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestRedReproducesAProof(t *testing.T) {
 
 	// --as and --reason are REQUIRED (#343): re-running measures DETERMINISM, and a script that
 	// prints "7 is prime" reproduces forever. The soundness verdict is red's, from reading it.
-	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-r1-evidence", "--id", sha,
+	out, err := run(t, "reproduce", "--run", runDir, "--seat-id", "red-lens-evidence", "--id", sha,
 		"--as", "sound", "--reason", "trial division to sqrt(n); it computes primality rather than asserting it")
 	if err != nil {
 		t.Fatalf("reproduce: %v", err)

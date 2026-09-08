@@ -66,7 +66,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	add := func(seatID string, body proto.Message) {
 		t.Helper()
 		run := runtest.Open(t, runDir)
-		id := record.Identity{Run: run, SeatID: seatID, Round: record.RoundIn(run)(seatID)}
+		id := record.Identity{Run: run, SeatID: seatID}
 		if !seen[seatID] {
 			if _, _, err := record.RegisterSeat(id, ""); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)
@@ -97,11 +97,11 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 	// carries tokens into the findings and transcript sections, which are composed from the event
 	// log rather than copied — a different code path to the same page, and the reason
 	// StripFindingMarkers runs over the FINAL output rather than over blue's content alone.
-	add("red-lens-r1-evidence", &recordpb.Finding{
+	add("red-lens-evidence", &recordpb.Finding{
 		Label: proto.String("L1-F1"), Location: proto.String("§Analysis"),
 		Text: proto.String("the read lock is dropped before evict<!--cite:c-1-->"),
 	})
-	add("red-chair-r1", &recordpb.Mint{
+	add("red-chair", &recordpb.Mint{
 		GapId: proto.String("R1-1"), Problem: proto.String("eviction races the reader<!--fx:f-L1-F1-->"),
 		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
@@ -109,7 +109,7 @@ func TestNoDocumentInTheSetShipsARawAnchor(t *testing.T) {
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
-	add("blue-respond-r1", &recordpb.Position{
+	add("blue-respond", &recordpb.Position{
 		Text: proto.String("the interleaving is model-checked<!--proof:p-1--> and R1-1 does not stand"),
 	})
 	add("judge-terminal", &recordpb.Outcome{

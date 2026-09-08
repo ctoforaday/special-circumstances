@@ -91,7 +91,7 @@ func skeletonOfPattern(p string) (string, bool) {
 //	                 cannot start at all — and the refusal names the seat, so it reads as the
 //	                 seat's fault rather than as a roster that never learned about it.
 //	over-admission   a shape outlives the dispatch that justified it and goes on admitting ids
-//	                 no run can produce. Already paid for once in a sibling surface: `judge-r1`
+//	                 no run can produce. Already paid for once in a sibling surface: `judge`
 //	                 sat on two seat-probe boards for the probe's whole life, valid by the
 //	                 roster and never seated by the orchestrator
 //	                 (seatprobe/fidelity_test.go).
@@ -198,7 +198,7 @@ var areaKey = regexp.MustCompile(`'([a-z]+(?:-[a-z]+)*)'`)
 // THE AREA LIST IS ONE FACT WITH TWO AUTHORS, so it is bound rather than trusted.
 //
 // LensAreas is what makes a lens seat id REFUSABLE — the shape pattern admits any hyphenated
-// word, and membership is what says `red-lens-r1-evidence-oops` is not a seat. debate.js is what
+// word, and membership is what says `red-lens-evidence-oops` is not a seat. debate.js is what
 // actually dispatches. If an area is added there and not here, every seat of the new kind is
 // refused at `register`, its first act, in a message naming the seat rather than the omission.
 // If it is added here and not there, the roster admits an id no run can produce.

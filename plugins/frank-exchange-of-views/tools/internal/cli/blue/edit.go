@@ -248,7 +248,7 @@ func validateEdit(report, old, new string) (string, error) {
 // doubledTerminator names a punctuation run the edit would CREATE and the report did not have.
 //
 // MEASURED, and it is the shape this check exists for. In research/2026-09-02_quadratic-formula
-// (blue-respond-r2) red minted a punctuation repair with a `verified` fix basis, blue applied the
+// (blue-respond) red minted a punctuation repair with a `verified` fix basis, blue applied the
 // text verbatim, and the site went from a doubled terminator `."."` to a TRIPLED one `."."."`.
 // The same happened to two of blue's own edits in that sitting. All three were invisible until
 // blue re-ran red's acceptance check against the shipped document — the verb exited 0 every time.

@@ -283,7 +283,7 @@ func CurrentRoundOf(evs []*Event) int {
 		// It retried ten to twelve times — different wording, different formatting, inline and
 		// from a file — then filed friction reporting that the tool returned success and nothing
 		// persisted. The events had persisted perfectly: CurrentRound was 2, and the only round-2
-		// event on that board was `judge-r2` calling `register`.
+		// event on that board was `judge` calling `register`.
 		//
 		// The seat's own summary is the argument for this line: "A seat can't trust its own
 		// actions. I can't tell if the tool accepted my command or silently failed."

@@ -38,8 +38,8 @@ func inquiryRulingFold(run Run, inquiryID string) string {
 func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
-	red := Identity{Run: run, SeatID: "red-chair-r1", Round: 1}
-	blue := Identity{Run: run, SeatID: "blue-respond-r1", Round: 1}
+	red := Identity{Run: run, SeatID: "red-chair"}
+	blue := Identity{Run: run, SeatID: "blue-respond"}
 
 	if _, err := Append(red, &recordpb.Mint{
 		GapId:           proto.String("R1-1"),
@@ -101,7 +101,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 	// Ruled: the second-ruling refusal quotes the FIRST ruling's word and ruler.
 	err := RequireUnruledMotion(run, "M1")
-	if err == nil || !strings.Contains(err.Error(), `ruled "rejected" by red-chair-r1`) {
+	if err == nil || !strings.Contains(err.Error(), `ruled "rejected" by red-chair`) {
 		t.Errorf("RequireUnruledMotion after a ruling = %v, want the first ruling quoted", err)
 	}
 	if err := RequireRuledMotion(run, recordpb.MotionSubject_MOTION_SUBJECT_GRADE, "M1"); err != nil {
@@ -119,7 +119,7 @@ func TestMotionQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Fatal(err)
 	}
 	err = RequireUnappealedMotion(run, "M1")
-	if err == nil || !strings.Contains(err.Error(), "blue-respond-r1") ||
+	if err == nil || !strings.Contains(err.Error(), "blue-respond") ||
 		!strings.Contains(err.Error(), "the ruling reads past the argument") {
 		t.Errorf("RequireUnappealedMotion after an appeal = %v, want the appeal quoted", err)
 	}

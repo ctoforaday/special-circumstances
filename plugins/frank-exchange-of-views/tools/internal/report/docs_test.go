@@ -153,7 +153,7 @@ func TestFactBoxIsComposedFromTheRecord(t *testing.T) {
 	board := &boardT{
 		GapOrder: []string{"R1-1", "R2-1"},
 		Gaps: map[string]*record.Gap{
-			"R1-1": {ID: "R1-1", Open: true, Round: 1},
+			"R1-1": {ID: "R1-1", Open: true},
 			"R2-1": {ID: "R2-1", Open: false, Round: 2, ClosedRound: 3},
 		},
 	}

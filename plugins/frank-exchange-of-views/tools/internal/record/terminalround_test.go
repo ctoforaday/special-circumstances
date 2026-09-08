@@ -3,54 +3,97 @@ package record
 import (
 	"testing"
 
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+	"google.golang.org/protobuf/proto"
 )
 
-// #327/#396, END TO END: a bench act at run END is recorded AFTER the rounds, not before them.
+// THE ROUND A WRITE STAMPS IS THE EPOCH — the count of red-chair registers on the record at the
+// moment of the write — and a seat's NAME has nothing to do with it (plans/roundless.md §III.A.0).
 //
-// `judge-terminal` carries no `-r<N>`, the derivation answered 0, and 0 is synthesis — so the
-// terminal closure sorted and rendered as though it had happened before round 1 ever ran. It put
-// a phantom entry in the archive and made the W1.8 spot-check floor demand samples from rounds
-// whose seats had done nothing wrong. It was found at 1 seed in 60, by luck.
-//
-// The round for a terminal seat is a FACT ON THE RECORD rather than something it has to be told:
-// it acts after the last round, and every round's seats have already stamped theirs.
-func TestATerminalSeatIsRecordedAfterTheRoundsRatherThanBeforeThem(t *testing.T) {
+// These three tests replace the ones that asked the round-inference what a name meant: a terminal seat used to
+// be special-cased to "the last round on the record", synthesis seats to 0, and an empty run to
+// -1 "unknown". Under the epoch none of those is a rule — they are all the same count, and the
+// count is always defined. An empty record has no chair register, so the epoch is 0, and 0 is the
+// honest answer: no dispatch cycle has opened. There is no -1 any more because there is nothing
+// unknown; the record is the source.
+func TestATerminalSeatIsStampedWithTheEpochItActsIn(t *testing.T) {
 	runDir := newRun(t)
-	for _, s := range []string{"red-chair-r1", "red-chair-r2", "red-chair-r3"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s, Round: RoundIn(mustRun(t, runDir))(s)}, ""); err != nil {
+	for range 3 {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-
-	got := RoundIn(mustRun(t, runDir))("judge-terminal")
-	if got == 0 {
-		t.Fatal("the terminal sitting is recorded at round 0 — synthesis — so every reader orders the run's LAST act before its first")
-	}
-	if got != 3 {
-		t.Errorf("terminal round = %d, want 3: it acts after the last round on the record", got)
-	}
-}
-
-// AND SYNTHESIS IS STILL ROUND 0, by rule rather than by accident. These seats are dispatched
-// before the round loop, so 0 is exact — and the fix must not turn a correct 0 into an unknown.
-func TestSynthesisSeatsAreRoundZeroByRule(t *testing.T) {
-	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r4", Round: 4}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	for _, s := range []string{"frontier", "blue-synthesize", "blue-lane-2"} {
-		if got := RoundIn(mustRun(t, runDir))(s); got != 0 {
-			t.Errorf("%s resolved to round %d; it runs in synthesis, which IS round 0 — and the record showing 4 must not drag it there", s, got)
-		}
+	ev, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal"}, &recordpb.Observe{Text: proto.String("closing")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := int(ev.GetRound()); got != 3 {
+		t.Errorf("terminal act stamped round %d, want 3 — the chair has registered three times, so this is epoch 3", got)
 	}
 }
 
-// AN EMPTY RUN CANNOT ANSWER, and says so. Falling back to 0 here would rebuild the exact
-// conflation this removes, one layer up: "no rounds have happened" would again be spelled the
-// same as "this happened in synthesis".
-func TestATerminalSeatOnAnEmptyRunIsUnknownRatherThanZero(t *testing.T) {
-	if got := RoundIn(mustRun(t, recordtest.TmpRun(t)))("judge-terminal"); got != -1 {
-		t.Errorf("terminal round on an empty run = %d, want -1 (unknown); 0 would claim it happened in synthesis", got)
+func TestSynthesisSeatsAreEpochZeroBecauseNoChairHasSat(t *testing.T) {
+	runDir := newRun(t)
+	for _, s := range []string{"frontier", "blue-synthesize", "blue-lane-2"} {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, ""); err != nil {
+			t.Fatal(err)
+		}
+		ev, err := Append(Identity{Run: mustRun(t, runDir), SeatID: s}, &recordpb.Observe{Text: proto.String("x")})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := int(ev.GetRound()); got != 0 {
+			t.Errorf("%s stamped round %d before any chair register; want 0 — the base phase is epoch 0", s, got)
+		}
 	}
+	// And the chair's own first register opens epoch 1 — the register row is the first of its epoch.
+	_, ev, err := registerReturningEvent(t, runDir, "red-chair")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := int(ev.GetRound()); got != 1 {
+		t.Errorf("the chair's first register stamped round %d, want 1 — it opens its own epoch", got)
+	}
+}
+
+func TestAnEmptyRunIsEpochZeroNotUnknown(t *testing.T) {
+	runDir := recordtest.TmpRun(t)
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal"}, ""); err != nil {
+		t.Fatal(err)
+	}
+	ev, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal"}, &recordpb.Observe{Text: proto.String("x")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := int(ev.GetRound()); got != 0 {
+		t.Errorf("round on a run with no chair = %d, want 0: there is no unknown, the count is simply zero", got)
+	}
+}
+
+// registerReturningEvent registers and hands back the register event itself, which RegisterSeat's
+// signature does not — it returns the seq and nonce — so the test can read what the register row
+// was stamped with.
+func registerReturningEvent(t *testing.T, runDir, seatID string) (int, *recordpb.Event, error) {
+	t.Helper()
+	run := mustRun(t, runDir)
+	seq, _, err := RegisterSeat(Identity{Run: run, SeatID: seatID}, "")
+	if err != nil {
+		return 0, nil, err
+	}
+	m, err := MergedEvents(run)
+	if err != nil {
+		return 0, nil, err
+	}
+	for i := len(m.Events) - 1; i >= 0; i-- {
+		e := m.Events[i]
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && e.GetSeatId() == seatID {
+			return seq, e, nil
+		}
+	}
+	t.Fatalf("no register event for %s after RegisterSeat", seatID)
+	return 0, nil, nil
 }
