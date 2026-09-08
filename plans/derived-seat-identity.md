@@ -96,7 +96,7 @@ skepticism, gate ownership and protocol, and it already delegates via
 
 ### III.1 One agent configuration per seat
 
-Seven lens areas, the chair (III.4), four blue lanes, and the existing synthesizer and bench. The
+Seven lens areas and the chair (III.4). NOT blue's lanes — see the correction below. The
 shared 68 lines do **not** get copied twelve times: they move into the `research-protocol`
 skill (or a sibling), and each agent file becomes frontmatter plus its own lens paragraph —
 which is what the `skills:` key is for and what `red-auditor.md` already half does.
@@ -109,8 +109,40 @@ you must not edit. What is machine-checked is the SET:
 
 `agentrole.go`'s sets collapse to scalars and the ambiguous row disappears.
 
-**This is load-bearing, not tidiness.** Without it, blue's four lanes share one configuration
-inside a single round and the derivation cannot distinguish them.
+**This is load-bearing for RED, and blue's lanes are NOT part of it** — corrected 2026-09-08,
+after the red half landed and reading the dispatch showed the original claim here was wrong.
+
+This section said blue's lanes had to split too, "or the derivation cannot distinguish them".
+They cannot split, and they do not need to.
+
+**They cannot: a lane index is an OPEN count, where a lens area is a CLOSED set.** `lanes`
+is a run parameter — default 3, floor 3, no ceiling — and the method is
+`LANE_METHODS[i % LANE_METHODS.length]`, which wraps. A static configuration per lane index
+would have to exist for every count a run might ask for, so `blue-lane-7` in a seven-lane run
+would dispatch under a configuration nobody wrote. Seven areas are seven areas; N lanes are
+however many the operator asked for.
+
+**They do not need to, because the RECORD carries what `agent_type` cannot.** The run's lane
+count is a run parameter, so the admissible lane ids for THIS run are enumerable at setup —
+which is exactly III.3's enum, and it refuses `blue-lane-7` in a three-lane run for having no
+such lane. That refusal does not exist today at any strictness.
+
+So the two halves of the cast reach the same guarantee by different routes, and the plan should
+have said so from the start:
+
+| | identity from | refused by |
+|---|---|---|
+| red lens, chair | `agent_type` — attested, closed set | the attestation table |
+| blue lane | DECLARED — open count | the run's own lane count (III.3) |
+| round | the record, always | `CurrentRoundOf` |
+
+A declared value that must be a member of the run's own enum is not a weaker fact than an
+attested one; it is the same fact checked at the door. That was III.3's argument for the
+unattested case and it turns out to be blue's permanent case rather than a fallback.
+
+**What this does NOT excuse.** `LANE_METHODS[i % len]` still recovers a lane's METHOD from its
+index — the same fork #791 healed for lenses, flagged in that PR's sibling sweep and left for
+#497. It is untouched here and it is not fixed by any of the above.
 
 **HOW THE SHARED BODY IS DELIVERED: a declared skill, not `@include` and not generation.**
 Decided 2026-09-08 after gblock raised both alternatives; the reasoning is recorded because the
