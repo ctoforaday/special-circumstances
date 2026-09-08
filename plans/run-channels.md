@@ -93,14 +93,29 @@ the report's biggest caveat — is a source unread, or merely unreachable from h
 
 **Success criteria**, measured by re-running the channel and report censuses in §V against a *new* run:
 
-| Measure | Baseline (2026-09-02) | Target |
-|---|---|---|
-| operator-channel chars | 142,891 | **≤ 75,000** — the arithmetic, not an aspiration: PR-1 removes bucket B (68,169); A+C+D = 74,722 remain |
-| headed "verbs I read and did not use" sections | 64,960 (45.5%) | **0** |
-| entries with an explicit type + source | 0 of 35 | **all** |
-| report: process-voice tells (`this run/round/report`, `the debate`) | 161 | ≤ 5, provenance footer only |
-| report: inline lane-attribution tags | 24 | 0 |
-| report: inlined access limits | 13 | 0 — re-voiced as limits on the conclusion |
+| Measure | Baseline (2026-09-02) | Target | Scores on a smoke? |
+|---|---|---|---|
+| operator-channel chars **per entry** | 4,083 (142,891 / 35) | **≤ 2,143** — the same arithmetic as a rate: PR-1 removes bucket B, leaving A+C+D = 74,722 over the same 35 entries | yes |
+| headed "verbs I read and did not use" sections | 64,960 chars (45.5%) | **0** | yes |
+| entries with an explicit type + source | 0 of 35 | **all** | yes |
+| report: process-voice tells (`this run/round/report`, `the debate`) | 161 | **0 outside the provenance footer** | yes |
+| report: inline lane-attribution tags | 24 | 0 | yes |
+| report: inlined access limits | 13 | 0 — re-voiced as limits on the conclusion | yes |
+
+**EVERY TARGET SCORES ON A RUN OF ANY SIZE, and getting there took one correction and one
+deletion.** The channel measure was a CEILING — 142,891 → ≤75,000 — and a ceiling is passed by a
+small run for being small, which is a smaller denominator rather than evidence. It is the same
+arithmetic per entry, so it now scores honestly at any length. The voice measure read "≤ 5,
+provenance footer only", and the ≤5 was doing nothing the second clause did not already do: what
+the target actually means is NONE outside the footer, which is a zero and needs no size to test.
+The other four were already zeros or proportions.
+
+**WHY NOT RATES AGAINST THE REPORT'S LENGTH, which is the obvious alternative.** The baseline
+report is unrecoverable. That run predates report-as-record (#709), so its report was a FILE, and
+`run-archive/2026-09-02_quadratic-formula.tar.gz` carries only `proofs/` and `records/` — checked:
+the archived database has `blue_edit` but no `base_ingest`. The 161/24/13 counts survive because
+they were written down; the denominator they would need does not exist and cannot be reconstructed.
+A rate quoted against a number nobody can recompute is the shape this plan is about.
 
 **Two things are deliberately NOT targeted, and saying so is the point.** Bucket D (narration,
 4.3%) and the ~13% duplicate re-reports have no change proposed against them: D is small enough
@@ -600,8 +615,11 @@ All commands are rooted at the repository root; `P=plugins/frank-exchange-of-vie
    archived baseline, whose table is still `friction` — that is the point, not a
    loophole):
    `select e.seat_id, e.round, l.type, l.source, length(l.text) from log l join events e on e.id=l.event_id`.
-   Report total chars (target ≤75,000), headed-survey chars (target 0), type/source coverage
-   (target 100%), and — untargeted but measured — bucket-D share and the duplicate rate.
+   Report chars PER ENTRY (target ≤2,143 — the ceiling divided by the baseline's 35 entries, so a
+   short run cannot pass it by being short), headed-survey chars (target 0), type/source coverage
+   (target 100%), and — untargeted but measured — bucket-D share and the duplicate rate. Report the
+   total too: it is the number the §I row was written in and a reader will look for it, but it is
+   not what the target is scored on.
 2. **Archived-run refusal.** Point the new binary at
    `run-archive/2026-09-02_quadratic-formula.tar.gz`'s `records/record.db` and confirm a **loud
    error**, never an empty projection. This is the check that would have caught the defect the
@@ -614,7 +632,13 @@ All commands are rooted at the repository root; `P=plugins/frank-exchange-of-vie
      `feov-record log --run <archived>` exits **2**, where it previously printed
      `{"log": [], "counts": {"total": 0, "attested": 0}}` and exited 0.
 3. **Report census.** Re-run the five #710 greps that produced 161 / 24 / 13 / 9 / 2 on the
-   2026-09-02 report against the new run's `report.md`, and confirm every surviving access limit
+   2026-09-02 report against the new run's `report.md`. **Scored as ZEROES, not as reductions** —
+   process-voice tells outside the provenance footer, inline lane tags, and inlined access limits
+   are each targeted at none, so any occurrence fails at any run length and the baseline counts are
+   context rather than a denominator. That is deliberate: the baseline REPORT is unrecoverable (the
+   run predates report-as-record, and the archive carries only `proofs/` and `records/` — its
+   database has `blue_edit` and no `base_ingest`), so a rate against its length could never be
+   recomputed by anyone checking this. Also confirm every surviving access limit
    reads as a limit on the conclusion rather than an inlined hostname or status code.
 
 **Auditor gate:** `/plan-audit` on this plan; then per-PR on each PR's own scope.
