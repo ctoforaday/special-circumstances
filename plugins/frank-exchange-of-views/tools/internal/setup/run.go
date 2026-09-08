@@ -295,7 +295,8 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	rc := runConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution}
+	rc := runConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
+		Hooks: hookProvenanceAt(homeDir(), "frank-exchange-of-views")}
 	if b, err := marshalJSON(rc); err == nil {
 		os.WriteFile(filepath.Join(run.Dir(), "inputs", "run-config.json"), b, 0o644)
 	}
@@ -442,6 +443,14 @@ type runConfig struct {
 	JudgmentModel string  `json:"judgmentModel"`
 	MaxRounds     *string `json:"maxRounds"`
 	Lanes         *string `json:"lanes"`
+	// Hooks is what was INSTALLED on the hook side when this run was set up (#751). The record
+	// binary is baked from the working tree and the hooks come from the version-gated install
+	// cache, so the two can be days apart — and a run whose hooks were stale is otherwise
+	// byte-identical on the record to one whose hooks were current.
+	//
+	// It says what was installed, never what RAN: a cache entry on disk does not prove the
+	// harness invoked it. The liveness half is #555's.
+	Hooks HookProvenance `json:"hooks"`
 	// EventSchema is the event-shape EPOCH this run's events were written under.
 	//
 	// A run directory is created by `setup` and does not outlive the schema that made it — but
