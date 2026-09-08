@@ -112,7 +112,7 @@ alongside the lag measurement, because both need the hook to exist first.
 negative.** That draft said transcript assistant records "carry `uuid`, `requestId` and
 `parentUuid` and **no `prompt_id`**", and built a byte-positional rule on it. True of an assistant
 record read alone; false of the transcript as a graph. Re-measured over the 40 most recently
-modified transcripts: `promptId` is carried by **`user`** records (8,664 of them), and
+modified transcripts: `promptId` is carried by **`user`** records — 8,837 in that 40-file sample, **26,934 across the whole corpus** — and
 **46,043 of 46,046 assistant records — 99.9935% — reach one by walking `parentUuid` to the nearest
 ancestor that has it**, measured over the whole corpus (414 files). The 3 that do not are handled by
 rule 6; an earlier draft said "15,675 of 15,675, 100.000%" from a 40-file sample that happened to
@@ -133,9 +133,15 @@ facts break the simple version, and each is stated here because each removed an 
 - **The payload key can be absent — but the rate an earlier draft gave was mostly my own test
   noise.** It said "51 of 672 `SubagentStop` rows carry no `prompt_id`". Of those 51, **50 arrive in
   two consecutive seconds with `session_id` empty as well, every one written by a `+dirty` build** —
-  synthetic payloads from this plan's own experiments, not a vendor shape. The genuine population is
-  **1 of 674**. The design response is unchanged, because one is enough to need a rule; only the
-  claimed frequency was wrong.
+  synthetic payloads from this plan's own experiments, not a vendor shape. Sharper still, on the
+  auditor's own scoping: **all 51 come from two scratch manifests** under `~/scratch/`, and of **583
+  rows from real manifests, 0 lack `prompt_id`**. So the rate is not evidence of anything about the
+  payload.
+
+  **The rule therefore rests on the vendor's documentation, not on this rate:** `prompt_id` is
+  *"absent until the first user input"*. That is a stated shape rather than a local frequency, and it
+  is enough to need the rule — which is why the rule is unchanged while the number that appeared to
+  justify it is withdrawn.
 
   Worth recording as a side-effect: the only reason those 50 are separable from real data is
   `capture_build` (#818). Without it they would be 50 indistinguishable rows inflating a rate by
@@ -160,8 +166,19 @@ So the rule is:
    turn is known closed, by any of **four** triggers: a later `prompt_id` ingested for that same
    `(session, agent_id)`; `SessionEnd`; or — the one that cannot be missed — **the session no
    longer being live**, per the `~/.claude/sessions/<pid>.json` check §II already specifies for
-   liveness; and a **fourth, age** — the day-rollover sweep promotes any provisional older than the
-   window's granularity, so nothing stays outstanding indefinitely even if a session file lingers.
+   liveness; and a **fourth, age — any provisional older than 24 hours**.
+
+   **Closure is a database WRITE, so triggers 3 and 4 need a writer named, and an earlier draft's
+   "no hook has to fire for it to resolve" was false.** The query path is read-only by design
+   (§V.9 asserts writes are refused there), so nothing resolves without some hook running. Both are
+   performed by **`gray-area-capture` at `SessionStart`**, in the same sweep that already ages the
+   window: it promotes or deletes any provisional whose session is no longer live, and any older
+   than 24 hours regardless. The true property is narrower than the draft claimed and still enough:
+   **no hook of the *originating* session has to fire** — the next `SessionStart` on the box
+   resolves it, and on a machine running agents that is the next session to start. "Older than the
+   window's granularity" was also residue of the day-partitioned store §II rejects; 24 hours is a
+   value, not a granularity.
+
    The third and fourth exist because the first two both fail on the same case: a session whose
    **last** turn is the lagged one and which ends with live background work, where `SessionEnd` was
    measured firing 0 of 2 times. Liveness is *observed* rather than delivered, so no hook has to
@@ -172,14 +189,22 @@ So the rule is:
    turn's blocks. An earlier draft claimed "no content matching anywhere" as a virtue; that claim
    is withdrawn rather than defended — there is no id for an individual text block.
 
-   **The comparison is by COUNT, not existence — an earlier draft got the quantifier wrong and it
-   lost data.** Measured: 4 of ~1,000 multi-block turns contain two identical text blocks, and 1 has
-   a final block identical to an earlier one. Existence-testing those is exactly wrong: blocks
-   `[X, X]` with only the tail lagged match the surviving `X`, delete the provisional, and lose the
-   tail — the round-12 loss narrowed rather than removed. So the rule compares **multiset
-   multiplicity**: the provisional is satisfied only when the number of ingested blocks equal to it
-   is at least the number that turn should hold. Membership was the wrong quantifier for a duplicate
-   population that measurably exists.
+   **Equality alone cannot decide it, and a "multiset multiplicity" rule an earlier draft proposed
+   was not executable.** That draft required "the number of blocks that turn should hold" — a
+   quantity with no source. Measured: **every assistant record carries exactly one text block**
+   (6,993 records, max 1), so a turn's blocks arrive one record at a time and its true total is
+   unknowable until the last one lands; the payload carries one string and no count. Both readings
+   failed — one needed data that does not exist, the other collapsed back to the existence test that
+   loses the `[X, X]` tail.
+
+   **What decides it is the byte offset, which the id was never able to supply.** The provisional
+   records `offset_at_fire` — the transcript size when its `Stop` ran — and is satisfied only by a
+   block equal to `last_assistant_message` ingested **from beyond that offset**. On `[X, X]` with
+   the tail lagged, the surviving `X` sits *before* the offset, so it does not satisfy and the
+   provisional is promoted; if the tail later lands, it does. An earlier revision discarded
+   `offset_at_fire` on moving to id keying, and that is what forced the multiset invention: the id
+   says *which turn*, and only the offset says *which block*. Both are needed and both are
+   available.
 
    **What is NOT measurable here: whether `last_assistant_message` is byte-identical to the
    transcript's text block** or normalised (whitespace, trailing newline). Nothing on this box
@@ -736,9 +761,11 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     not promoted, leaving no duplicate); a **subagent** record sharing the parent's `sessionId` and
     `promptId` (asserts it does not touch the parent's provisional); a `Stop` payload with **no
     `prompt_id`** (asserts `provisional_skipped`, not a `""` key); a turn whose blocks are
-    `[X, X]` with the tail lagged (asserts the **multiset** rule keeps the provisional where an
-    existence test would have deleted it); a **final** lagged turn with no `SessionEnd` (asserts the
-    provisional is readable while outstanding and promoted by the liveness or age closer); and a
+    `[X, X]` with the tail lagged (asserts the **offset** rule keeps the provisional, because the
+    surviving `X` precedes `offset_at_fire`, where both an existence test and a multiset test fail);
+    a **final** lagged turn with no `SessionEnd` (asserts the provisional is readable while
+    outstanding, and that the **next `SessionStart` sweep** promotes it — naming the closer that
+    fires, since the fixture controls which); and a
     record with unresolvable ancestry (asserts single-outstanding attribution, and
     `attribution='ambiguous'` when not). §V.3
     cannot see any of this: it counts a live corpus where a +1 is invisible. Also —
