@@ -112,6 +112,33 @@ you must not edit. What is machine-checked is the SET:
 **This is load-bearing, not tidiness.** Without it, blue's four lanes share one configuration
 inside a single round and the derivation cannot distinguish them.
 
+**HOW THE SHARED BODY IS DELIVERED: a declared skill, not `@include` and not generation.**
+Decided 2026-09-08 after gblock raised both alternatives; the reasoning is recorded because the
+generation case is good and someone will make it again.
+
+- **`@include` is not evidenced.** No agent or skill file in this repository uses one. `@` imports
+  are a CLAUDE.md feature and CLAUDE.md is where all of them live. Eleven shipped prompts is the
+  wrong place to find out whether the agent loader resolves them.
+- **`skills:` preloading is VERIFIED, live.** The Phase-1 harness spike had the `probe` agent quote
+  `critical-stance` verbatim out of its `skills:` frontmatter (`plans/claude-port-plan.md` §1). The
+  mechanism is known to reach a subagent, which is the only property that matters here.
+- **Generation buys two things the skill does not**, and both were weighed. (1) DETERMINISTIC
+  ASSEMBLY ORDER, which is what makes a shared prompt PREFIX identical across eleven seats and
+  therefore cacheable. The skill leaves ordering to the loader. This was not chosen on an
+  unmeasured guess: the last caching idea measured in this codebase (#624, forking warm seats)
+  came in at 1.9-3.4%, below the 3.6% that got #619 rejected, and building a generator plus a
+  staleness gate for an unmeasured fraction is the wrong trade until someone measures it. (2) A
+  SELF-CONTAINED SHIPPED FILE — a consumer opening `red-lens-voice.md` sees the voice duties and
+  not the constitution behind them. That is a real readability cost and it is the strongest
+  argument against what was chosen.
+- **What provenance the skill does give**: one source, and `repotree.ConstitutionText` — a function
+  that answers "what does this seat actually receive", which is now what the constitution gates
+  read rather than the file on its own.
+
+**What would flip this**: a measured caching gain from a shared prefix, or evidence that consumers
+read these files directly. Either makes a generator worth its gate, and the per-seat bodies would
+stay hand-written under it — the generator would assemble, never author.
+
 **They cannot be hidden from the consumer's agent picker, and that was checked rather than
 assumed.** Agent frontmatter in this repository uses five keys — `name`, `description`, `tools`,
 `skills`, `memory` — and no plugin here declares anything that marks an agent internal. No such
