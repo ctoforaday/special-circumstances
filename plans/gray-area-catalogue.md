@@ -140,14 +140,32 @@ So the rule is:
    none, **no provisional is written and the omission is recorded** as `provisional_skipped` with
    the reason — never keyed on `""`, which would collide every such turn onto one row.
 3. **A provisional is NOT deleted on first sight of a sibling text.** It is retained until its
-   turn is known closed — a later `prompt_id` ingested for that same `(session, agent_id)`, or
-   `SessionEnd`. At close: if the provisional's text is already among the ingested texts for that
+   turn is known closed, by any of **three** triggers: a later `prompt_id` ingested for that same
+   `(session, agent_id)`; `SessionEnd`; or — the one that cannot be missed — **the session no
+   longer being live**, per the `~/.claude/sessions/<pid>.json` check §II already specifies for
+   liveness. The third exists because the first two both fail on the same case: a session whose
+   **last** turn is the lagged one and which ends with live background work, where `SessionEnd` was
+   measured firing 0 of 2 times. Liveness is *observed* rather than delivered, so no hook has to
+   fire for it to resolve. At close: if the provisional's text is already among the ingested texts for that
    key, delete it; otherwise **promote it to a real `word` row**, because it is a final block that
    never reached the transcript.
 4. That comparison is an **exact string equality** against `last_assistant_message`, scoped to one
    turn's blocks. An earlier draft claimed "no content matching anywhere" as a virtue; that claim
-   is withdrawn rather than defended — there is no id for an individual text block, and equality on
-   one field within one turn is a bounded check, not fuzzy matching.
+   is withdrawn rather than defended — there is no id for an individual text block.
+
+   **Equality is used as a MEMBERSHIP test, not an identification, and that is what makes duplicate
+   blocks harmless.** Measured: 4 of 496 multi-block turns (0.81%) contain two identical text
+   blocks. In those the match cannot say *which* block it found — and does not need to: the only
+   question is whether the provisional's text is present at all, and the answer is the same either
+   way, as is the action.
+
+   **What is NOT measurable here: whether `last_assistant_message` is byte-identical to the
+   transcript's text block** or normalised (whitespace, trailing newline). Nothing on this box
+   records that field — `plugins/gray-area/README.md:37` refuses it deliberately — so there is no
+   sample to compare, and no amount of reading transcripts produces one. If it is normalised, exact
+   equality reports "absent" and the rule **promotes a duplicate** rather than losing data: it
+   over-keeps, which is the safe direction, and §V.17 measures it at fire time and decides whether
+   a normalising comparison is needed.
 5. A transcript record whose ancestry yields no `promptId` (0 of 15,751 measured) is ingested with
    a NULL key and supersedes nothing.
 
