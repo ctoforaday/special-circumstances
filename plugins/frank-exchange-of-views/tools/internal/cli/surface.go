@@ -50,6 +50,15 @@ func CommandFlags() map[string][]string {
 	for path, c := range commandsByPath() {
 		var fs []string
 		c.Flags().VisitAll(func(f *pflag.Flag) { fs = append(fs, f.Name) })
+		// LOCAL FLAGS ONLY, DELIBERATELY — and the next person to "fix" this should read on.
+		//
+		// `Flags()` reports what this command declares; InheritedFlags() holds the root's
+		// persistent set ([json run schema seat-id], measured). Adding them here is the obvious
+		// change and it is wrong: a persistent flag is inherited onto EVERY path, so the release
+		// gate's per-path coverage assertion then demands 98 separate drives of `--schema` and 40
+		// of `--id` — one behaviour, counted once per command that inherits it.
+		//
+		// The persistent set is real surface and IS checked, once, by PersistentFlagNames below.
 		out[path] = fs
 	}
 	return out
@@ -260,3 +269,39 @@ func dispatchedSeatFor(role string) string { return record.SampleSeatOf(role) }
 // Exported for the same reason CommandPaths is: a gate that asks "can a seat discover this" has to
 // ask the tree, and a second tree built for testing answers about itself.
 func NewRootForTest() *cobra.Command { return newRoot() }
+
+// PersistentFlagNames is the surface's persistent flags — the ones inherited onto every command
+// rather than declared on one.
+//
+// They were invisible. CommandFlags reports `Flags()`, which is local-only, so the release gate's
+// flag-coverage assertion has been computing "every flag on the surface was exercised" over a set
+// that never contained `--json`, `--run`, `--schema` or `--seat-id`. A category absent from the
+// denominator cannot be reported undriven however long it goes undriven — which is the shape that
+// gate exists to catch, occurring in its own inputs.
+//
+// `--schema` is what it hid: setup shells it to compare the binary's event epoch against the
+// plugin manifest (the guard that refuses a run whose binary and plugin disagree about the record
+// shape), and no test anywhere drove it.
+//
+// ONE CONTRACT, CHECKED ONCE. A persistent flag behaves identically on every command that
+// inherits it, so "exercised somewhere" is the honest question; per-path would demand a drive per
+// inheriting command and measure repetition rather than coverage.
+func PersistentFlagNames() []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(fs *pflag.FlagSet) {
+		fs.VisitAll(func(f *pflag.Flag) {
+			if !seen[f.Name] {
+				seen[f.Name] = true
+				out = append(out, f.Name)
+			}
+		})
+	}
+	// The same four roles CommandPaths walks, and through the same dispatchedSeatFor: the tree
+	// is per-role, and a walker that forgets that measures the operator's surface only (#654).
+	for _, role := range []string{"lens", "merge", "blue", "bench"} {
+		add(NewRootFor(dispatchedSeatFor(role)).PersistentFlags())
+	}
+	sort.Strings(out)
+	return out
+}
