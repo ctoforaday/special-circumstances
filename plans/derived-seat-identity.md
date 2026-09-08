@@ -186,8 +186,8 @@ Both attempts failed the same way: they tried to preserve a global clock while r
 it was recovered from. **The clock itself is the defect** (#753), so it goes — and with it the
 `-r<N>` in every seat id, which is what this plan wanted.
 
-`plans/roundless.md` §III.A is the pre-tag half (ids, `event.round`, gap ids, the views) and is
-what unblocks this plan's goal. Its §III.B is the scheduling half and is post-tag.
+`plans/roundless.md` owns all of it — ids, `event.round`, gap ids, the views, and the dispatch that
+replaces the round loop — and gblock ruled it lands whole before the tag.
 
 ### III.3 The declared path is REFUSABLE [NEW] — ruled by gblock 2026-09-07
 
