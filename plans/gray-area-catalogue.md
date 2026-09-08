@@ -122,8 +122,9 @@ carries, and the positional rule is withdrawn.
 The rule. **An earlier draft called this "a total function" and it was not** — three measured
 facts break the simple version, and each is stated here because each removed an option:
 
-- **69.4% of turns carry MORE than one assistant text block** under a single `promptId` (492 of
-  709 measured, up to 138). So "delete the provisional when any text for that key arrives" loses
+- **66.2% of turns carry MORE than one assistant text block** under a single `promptId` — 1,091 of
+  1,648, whole corpus (416 files), up to 138. An earlier draft gave 492 of 709 from a 40-file sample
+  with no scope named, the class round fourteen failed on. So "delete the provisional when any text for that key arrives" loses
   the final text on the majority case: the documented lag shape is *earlier blocks flushed, final
   block not yet*, so that ingest writes texts 1..k, deletes the provisional, and the tail is never
   stored. **That is loss, not over-keeping**, and it reopens the hole (a) exists to close.
@@ -181,44 +182,52 @@ So the rule is:
 
    The third and fourth exist because the first two both fail on the same case: a session whose
    **last** turn is the lagged one and which ends with live background work, where `SessionEnd` was
-   measured firing 0 of 2 times. Liveness is *observed* rather than delivered, so no hook has to
-   fire for it to resolve. At close: if the provisional's text is already among the ingested texts for that
+   measured firing 0 of 2 times. (Liveness is *observed* rather than delivered, which is why it
+   resolves without the originating session's cooperation — but a hook must still run the write, as
+   stated above.) At close: if the provisional's text is already among the ingested texts for that
    key, delete it; otherwise **promote it to a real `word` row**, because it is a final block that
    never reached the transcript.
 5. That comparison is an **exact string equality** against `last_assistant_message`, scoped to one
    turn's blocks. An earlier draft claimed "no content matching anywhere" as a virtue; that claim
    is withdrawn rather than defended — there is no id for an individual text block.
 
-   **Equality alone cannot decide it, and a "multiset multiplicity" rule an earlier draft proposed
-   was not executable.** That draft required "the number of blocks that turn should hold" — a
-   quantity with no source. Measured: **every assistant record carries exactly one text block**
-   (6,993 records, max 1), so a turn's blocks arrive one record at a time and its true total is
-   unknowable until the last one lands; the payload carries one string and no count. Both readings
-   failed — one needed data that does not exist, the other collapsed back to the existence test that
-   loses the `[X, X]` tail.
+   **THE DECISION MOVES TO FIRE TIME, because at close it is undecidable.** Two earlier drafts tried
+   to decide it afterwards and each broke a different case, exhaustively:
 
-   **What decides it is the byte offset, which the id was never able to supply.** The provisional
-   records `offset_at_fire` — the transcript size when its `Stop` ran — and is satisfied only by a
-   block equal to `last_assistant_message` ingested **from beyond that offset**. On `[X, X]` with
-   the tail lagged, the surviving `X` sits *before* the offset, so it does not satisfy and the
-   provisional is promoted; if the tail later lands, it does. An earlier revision discarded
-   `offset_at_fire` on moving to id keying, and that is what forced the multiset invention: the id
-   says *which turn*, and only the offset says *which block*. Both are needed and both are
-   available.
+   - *multiset multiplicity* needed "the blocks that turn should hold" — a quantity with **no
+     source**: no assistant record carries more than one text block (measured: 39,206 carry zero,
+     7,004 exactly one, none more), so a turn's blocks arrive one record at a time and its total is
+     unknowable until the last one lands.
+   - *offset ≥ `offset_at_fire`* fixed `[X, X]` and broke the majority path: on a turn that did not
+     lag, the final block is already in the file at `Stop` time and is ingested at a position
+     *before* the offset, so it never satisfies and **every non-lagged turn promotes a duplicate**.
 
-   **What is NOT measurable here: whether `last_assistant_message` is byte-identical to the
-   transcript's text block** or normalised (whitespace, trailing newline). Nothing on this box
-   records that field — `plugins/gray-area/README.md:37` refuses it deliberately — so there is no
-   sample to compare, and no amount of reading transcripts produces one. If it is normalised, exact
-   equality reports "absent" and the rule **promotes a duplicate** rather than losing data: it
-   over-keeps, which is the safe direction, and §V.17 measures it at fire time and decides whether
-   a normalising comparison is needed.
+   The discriminator is a **future** event — whether another identical block arrives — and no
+   recorded position can encode it. But the hook does not need the future: **at the moment `Stop`
+   fires it holds the payload's `last_assistant_message` and the transcript as it then stands,
+   simultaneously.** So:
+
+   **At fire, compare `last_assistant_message` to the last text block present in the transcript for
+   that `(session, agent_id, prompt_id)`.** Equal ⇒ the text has landed and **no provisional is
+   written**. Unequal or absent ⇒ write the provisional, satisfied later by any ingested block equal
+   to it for that key. The id alone suffices; `offset_at_fire` is **not** needed for supersession
+   and remains only for incremental ingest (§V.8).
+
+   **The residue, measured rather than argued away.** The rule is wrong exactly when a turn's final
+   block **verbatim repeats an earlier block in the same turn** *and* lags: at fire the transcript
+   shows `X`, the payload says `X`, so it concludes the text landed and the true tail is lost. Whole
+   corpus, 416 files, 1,648 turns carrying text: **2 turns have that shape — 0.12%**; 7 (0.42%)
+   contain any duplicate pair at all, and only the lagged subset of the 2 loses anything. The trade
+   is 0.12% under-write against the offset rule's ~100% duplication and the multiset rule's
+   non-executability, and is chosen on those numbers.
+
 6. **A transcript record whose ancestry yields no `promptId` is ingested with a NULL key** — and an
    earlier draft stopped there, which double-stores: a NULL-keyed block can never be counted "for
    that key", so its turn's provisional is always promoted and the final text is stored **twice**.
    So a NULL-keyed block is attributed to the **open provisional for its `(session, agent_id)`**
-   when exactly one is outstanding, and counts toward that turn's multiset; with zero or several
-   outstanding it stays NULL-keyed, its turn's provisional is promoted, and the row is marked
+   when exactly one is outstanding, and is then eligible to satisfy that provisional by the fire-time
+   comparison above; with zero or several outstanding it stays NULL-keyed, its turn's provisional is
+   promoted, and the row is marked
    `attribution='ambiguous'` so the duplicate reads as deliberate.
 
    **The rate, corrected — an earlier draft claimed "100.000%, zero unresolved" from too narrow a
@@ -226,6 +235,14 @@ So the rule is:
    99.9935%.** Two are record 0 of a resumed/forked file whose `parentUuid` points outside it; one is
    a subagent record with no `parentUuid` at all. The 40-file scan that produced "zero" contained
    none of them — narrow evidence, universal claim.
+
+**Provisionals are written at `SubagentStop` as well as `Stop`.** The vendor caveat names both —
+*"Hooks that need the final assistant text of the current turn should use `last_assistant_message`
+on Stop and SubagentStop"* — gray-area already binds `SubagentStop`, and 263 subagent transcripts
+exist on this box. A subagent's final text has no other closure: there is no later `SubagentStop`
+for that agent, so byte-offset ingest can never recover it. Rule 1's `agent_id` dimension already
+keys it correctly. An earlier draft answered a README sentence specifically about the
+**`SubagentStop`** payload with a `Stop`-only mechanism.
 
 **(b)** gray-area binds **`SessionEnd`** (new;
 prosthetic-conscience binds it, gray-area does not) for one final sweep after the last `Stop` —
@@ -760,9 +777,11 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     at once (asserts no cross-turn consumption); a no-lag turn (asserts the provisional is deleted,
     not promoted, leaving no duplicate); a **subagent** record sharing the parent's `sessionId` and
     `promptId` (asserts it does not touch the parent's provisional); a `Stop` payload with **no
-    `prompt_id`** (asserts `provisional_skipped`, not a `""` key); a turn whose blocks are
-    `[X, X]` with the tail lagged (asserts the **offset** rule keeps the provisional, because the
-    surviving `X` precedes `offset_at_fire`, where both an existence test and a multiset test fail);
+    `prompt_id`** (asserts `provisional_skipped`, not a `""` key); a **no-lag** turn (asserts **no provisional is written at all**, because the
+    fire-time comparison finds the text already present — the case an offset rule duplicated on
+    nearly every turn); a turn whose blocks are `[X, X]` with the tail lagged (asserts the
+    **measured residue**: the fire-time rule under-writes here, so the fixture pins the known-wrong
+    outcome rather than a fiction, at 0.12% of turns);
     a **final** lagged turn with no `SessionEnd` (asserts the provisional is readable while
     outstanding, and that the **next `SessionStart` sweep** promotes it — naming the closer that
     fires, since the fixture controls which); and a
