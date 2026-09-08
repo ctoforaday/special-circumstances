@@ -92,17 +92,46 @@ cannot be measured from anything on this box: gray-area has never bound `Stop`, 
 infer it from `SubagentStop` rows produced "24 of 41 sessions" with deltas up to 46 hours — which
 is sessions *continuing* after their last subagent, not a transcript trailing a hook. That number
 is recorded here so nobody re-derives it as lag. The design therefore assumes the lag is real and
-closes the final-turn hole two ways: **(a)** `Stop` ingests `last_assistant_message` from its own
-payload as a **provisional** `word` row — `source='payload'`, keyed `(session, prompt_id)` from the
-payload, and stamped with `offset_at_fire`, the transcript byte offset at the moment the hook ran.
-It cannot be keyed by id across sources: transcript assistant records carry `uuid`, `requestId` and
-`parentUuid` and **no `prompt_id`** (verified). So supersession is **positional**: when a later
-ingest advances that session's offset past `offset_at_fire`, the first transcript-sourced assistant
-text found beyond it replaces the provisional row (same `(session, seq)` slot, `source='transcript'`),
-and the provisional is deleted. If no such text ever lands — the session died — the provisional
-stands. No content matching anywhere; both sides are addressed by a position each source has; **(b)** gray-area binds **`SessionEnd`**
-(new; prosthetic-conscience binds it, gray-area does not) for one final sweep after the last
-`Stop`. §V.17 measures the lag once a `Stop` hook exists, and decides whether either half is
+closes the final-turn hole two ways: **(a)** `Stop` ingests `last_assistant_message` from its own payload as a **provisional** `word`
+row keyed `(session, prompt_id)`, where `prompt_id` comes from the payload.
+
+**Supersession is by id, and an earlier draft's claim that it could not be was a fourth unmeasured
+negative.** That draft said transcript assistant records "carry `uuid`, `requestId` and
+`parentUuid` and **no `prompt_id`**", and built a byte-positional rule on it. True of an assistant
+record read alone; false of the transcript as a graph. Re-measured over the 40 most recently
+modified transcripts: `promptId` is carried by **`user`** records (8,664 of them), and
+**15,675 of 15,675 assistant records — 100.000% — reach one by walking `parentUuid` to the nearest
+ancestor that has it.** Zero unresolved. So the transcript side yields the same key the payload
+carries, and the positional rule is withdrawn.
+
+The rule, stated as a total function rather than a heuristic:
+
+- **A provisional is written at every `Stop`**, unconditionally — cheap, and it needs no guess
+  about whether the transcript has caught up.
+- **On every ingest**, each assistant text is resolved to its `promptId` through `parentUuid` and
+  written as a `word` row with `source='transcript'`. **Any provisional for that
+  `(session, prompt_id)` is then deleted.**
+- The key is the identity, so the two failure modes a positional rule had cannot arise: turn N's
+  provisional can only ever be matched by turn N's own text, so **two outstanding provisionals
+  cannot be consumed by one record** (different `prompt_id`s), and **a no-lag turn** simply has its
+  provisional deleted by the transcript row ingested at the same `Stop`. No ordering, no
+  one-to-one bookkeeping, no content matching.
+- The 0-of-15,675 unresolved case still gets a rule: an assistant record whose ancestry yields no
+  `promptId` is ingested with `prompt_id` NULL and supersedes nothing — its turn's provisional
+  stands, which over-keeps rather than loses.
+
+**(b)** gray-area binds **`SessionEnd`** (new;
+prosthetic-conscience binds it, gray-area does not) for one final sweep after the last `Stop` —
+**best-effort, and this repo has already measured why.** `plans/hook-surface-spike.md:1066`:
+*"`SessionEnd` did not fire in either run that ended with live background work"* — 14 of 15
+sessions overall, **0 of 2** with background tasks still live. A session ending with a `Monitor` or
+a backgrounded command outstanding is exactly the shape this one has had all day, so (b) cannot be
+the primary closure and is not treated as one: **(a) alone is sufficient**, because the provisional
+is written at the `Stop` that precedes the end rather than at the end. (b) narrows the residue —
+a turn whose `Stop` never fired at all — and an earlier draft presented it as a co-equal closure
+without citing the measurement sitting in this repository.
+
+§V.17 measures the lag once a `Stop` hook exists, and decides whether either half is
 redundant.
 
 **A retention claim in an earlier draft of this section was WRONG, and it is withdrawn.** It said
@@ -384,9 +413,10 @@ stays green. This was checked because two new directories would have turned it r
   `event` field says `SubagentStop` and already omits `SessionStart`; it becomes accurate and
   gains `Stop` and `SessionEnd`. **And
   ripgrep is promoted `recommended` → `required`**, because §II commits to promoting it "in the
-  change that ships `find`" and this is that change. That promotion has a consumer cost graded in
-  §IV as R10: `required` returns **BLOCKED**, so a consumer without the binary cannot install until
-  they add it.
+  change that ships `find`" and this is that change. On `main` today it is `recommended` (#843,
+  merged); an earlier version of this branch carried `required` already, from a superseded commit
+  that has been dropped — so the delta is real and is this change's to make. The consumer cost is
+  graded as R10.
 - [MODIFY] `plugins/gray-area/README.md` — the miner's new surface, the store, the month window.
 - [MODIFY] **`README.md`** (repo root) — its verb table at `README.md:116`, **and `README.md:120`**,
   which says *"the manifest is an index of where trajectories are, never a copy of their
@@ -517,7 +547,7 @@ raw SQL is a complete concept without it.
 | R7 | **Liveness reports a dead agent as live** via pid reuse. | low × high × closed | §V.10 — a stale `procStart` must resolve to `ended`, asserted with a fabricated mismatch |
 | R8 | **First dependency in a zero-dependency plugin.** Irreversible in practice. | certain × low | named as a decision at §III's `go.mod` bullet (pin, cgo rejection, 1+9 requires), not absorbed |
 | R11 | **The transcript lags the `Stop` hook and a session's final turn is never ingested.** Documented by the vendor, **not measured on this box** — it cannot be, until a `Stop` hook exists here; the one inference attempted was confounded and is recorded in §II so it is not repeated. | likely × medium × closed two ways | §V.3 extended to **per-session `word` counts** against the transcript, which act counts cannot see; §V.17 measures the lag at fire time once the hook exists |
-| R10 | **Promoting ripgrep to `required` BLOCKS consumers** who lack the binary, per its own `_tier_comment`. Deliberate: from the moment `find` ships, a missing `rg` returns zero hits indistinguishable from an honest zero, and a wrong answer is worse than a blocked install. | certain × medium × accepted | §V.14 — asserts the verb and the tier move in the same change, so neither can ship alone |
+| R10 | **Promoting ripgrep to `required` BLOCKS consumers** who lack the binary. The mechanism is `toolchain.MergeStrictest` + `doctor.verdict` — a missing `required` tool returns BLOCKED — **not** a manifest key: `_tier_comment` is documentation on the entry, and an earlier draft cited it as though it were the enforcement. Deliberate: from the moment `find` ships, a missing `rg` returns zero hits indistinguishable from an honest zero, and a wrong answer is worse than a blocked install. | certain × medium × accepted | §V.14 — asserts the verb and the tier move in the same change, so neither can ship alone |
 | R9 | **The board reads as complete when reasoning capture was off.** | medium × medium × mitigated | §V.11 — a session with zero non-empty thoughts is distinguishable from one never asked |
 
 ---
@@ -610,11 +640,13 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     the `find` verb and `requirements.json`'s `required` tier move together (R10), so neither can
     ship without the other.
 15. **[FIXTURE]** `go test -run 'TestBackfillIsIdempotent|TestBackfillVerbDispatches|TestProvisionalWordIsSupersededOnce' ./internal/catalogue/` —
-    the third: a `Stop` carrying `last_assistant_message` against a transcript that has not caught
-    up yields one provisional `word` row; a subsequent ingest after the transcript lands yields
-    **exactly one** `word` row for that turn, `source='transcript'` — never two. This is the
-    double-count R11's design would produce if the positional rule were wrong, and §V.3 cannot see
-    a +1 on the live corpus. Also —
+    the third is a **multi-turn** fixture, because a single lagged turn cannot exercise the rule:
+    three turns where turn 1 lags, turn 2 lags before turn 1 catches up (**two outstanding
+    provisionals at once**), and turn 3 does not lag at all. Asserts exactly one `word` row per
+    assistant text, each `source='transcript'`, every provisional deleted, and — the case a
+    positional rule got wrong — **turn 2's text does not supersede turn 1's provisional**. Plus one
+    record whose ancestry yields no `promptId`, asserting its turn's provisional survives. §V.3
+    cannot see any of this: it counts a live corpus where a +1 is invisible. Also —
     a second `backfill` over the same corpus leaves act counts unchanged (the `(session, seq)`
     idempotence §III asserts and nothing previously checked), and the verb reaches its handler.
 16. **[PROCESS]** `qlty check --no-progress --no-fix --filter=osv-scanner
