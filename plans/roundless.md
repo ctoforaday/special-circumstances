@@ -156,16 +156,58 @@ believes what a seat's envelope says is ready. The dispatch chair computes readi
 board with the tool, so what gets dispatched stops being the acting seat's own word — the same
 move `claim_count` already made when two honest merges differed 2×.
 
-#### B.2 Per-item exchange counts and limits replace `maxRounds`
+#### B.2 IMPASSE replaces `maxRounds` — the limit before the bench, and before giving up
 
-A gap's exchange count is **countable from the record** — the number of challenge/response acts
-on that gap — rather than stored. Its limit is a bound on that count, and "argued N times without
-movement" becomes a property of the gap rather than of the run.
+The global clock is irrelevant once dispatch is work-driven, but the thing it was really bounding
+is not: **how long may a dispute go on before someone else decides it, and before we stop.**
+Two limits, and only one of them is new.
 
-This is what makes the clock unnecessary: cheap gaps close in one exchange, contested ones get
-more, and neither is paced by a global tick. #753's measurement is the argument: blue's edits per
-round ran 11 → 9 → 7 → 3 while its span stayed flat at 12–14 minutes, and one gap class was argued
-across all four rounds while others closed in one.
+**IMPASSE — the limit before the bench.** A gap is at impasse when it has been argued N times with
+**no movement**. Movement is a fact on the record, not a judgement:
+
+| movement | event |
+|---|---|
+| the grade moved | `regrade` |
+| the text moved | `blue_edit` touching the gap's anchor |
+| the lineage moved | a successor minted with `supersedes` |
+| it is over | `close` |
+
+An exchange with none of those is unproductive, and N consecutive unproductive exchanges send the
+gap to the bench's docket. **Countable from the record; never stored** — which is what makes it
+refusable rather than a seat's claim about itself.
+
+**This is a generalisation, not an invention, and the narrow version is already in the tree.**
+`debate.js:1077` reads:
+
+> *Carried persistence: a standing carried ruling absorbs re-raises until red's grade moves or a
+> successor descends — otherwise the judge re-rules the same question at ~$10-13 a sitting and
+> each sitting is a fresh drift chance.*
+
+That is the impasse rule, already cost-justified, applied to exactly one case (a carried ruling),
+tested on exactly one kind of movement (grade equality), computed in JavaScript from an envelope
+the seat composed, and paced by rounds. B.2 keeps the rule and removes all four restrictions.
+
+It also replaces the docket trigger. Today a gap is docketed for being RE-RAISED (`debate.js:1071`)
+— a raw count of two challenges with no test of whether anything moved, which is why the carried
+exception had to be bolted on beside it. At impasse, one rule does both jobs.
+
+**DEADLOCK — the limit before giving up — already exists and does not move.** It is the judge's
+boolean on the bench envelope (`debate.js:511-513`), and the run's stated end condition is
+*"revision rounds until red-PASS or judged deadlock"* (`debate.js:8`). The vocabulary divides
+cleanly and neither term is being redefined:
+
+| | scope | who decides | means |
+|---|---|---|---|
+| **impasse** | one gap | the record, counted | the parties have stopped moving; the bench takes it |
+| **deadlock** | the run | the judge | the bench cannot resolve it either; stop |
+
+`impasse` is a free name — checked across the Go tree, the engine, the agents and the skills
+before choosing it, because `chair` was not (`ChairOf` already means a SIDE of the debate) and
+that collision was caught by reading rather than by any test.
+
+**What terminates the run**, with the clock gone: no gap is open below its impasse limit, and
+every gap at impasse has had its bench sitting. `maxRounds` is retired only after this is measured
+to terminate (§VI) — two bounds briefly coexist rather than trading a proven one for a new one.
 
 #### B.3 The chair engages the seats in an open dispute
 
@@ -232,9 +274,26 @@ node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs \
 ```
 
 **The driveable check.** §III.B's claim is that work-driven dispatch does less work for the same
-verdict. The measurement is a run's total sittings and wall-clock against the round-based
-baseline in #753's table (lens phase = sum ÷ ~1.6, blue edits 11 → 9 → 7 → 3). A roundless run
-that dispatches the same number of seats has not paid for itself.
+verdict. The measurement is a run's total sittings and wall-clock against the round-based baseline
+in #753's table (lens phase = sum ÷ ~1.6, blue edits 11 → 9 → 7 → 3). A roundless run that
+dispatches the same number of seats has not paid for itself.
+
+**SIZE THE RUN BEFORE IT STARTS, AND SAY WHICH TARGETS ARE RATES.** This run carries three
+verdicts — #792's B4, this plan's cost comparison, and `derived-seat-identity.md` §V.1's cache
+measurement — and that is exactly why its size is a correctness question rather than a convenience
+one. **A small run passes a ceiling by being small and produces a favourable cost comparison from
+the same smallness**, and the two would read as independent corroboration while being one
+artifact. (Raised by a peer session, 2026-09-08, against their own earlier caveat that B4's
+`≤75,000` log-char target and its `161/24/13/9/2` report census were both taken on a FULL run.)
+
+So, before the run rather than after:
+
+- fix the topic and the corpus size against the #753 baseline run, so the cost comparison has a
+  denominator it shares;
+- restate every ceiling target as a RATE (per 1,000 words of report prose, per sitting) or record
+  it explicitly as **not measured** — a ceiling passed by a short run is not evidence;
+- state which of the three verdicts a given number serves, because one artifact answering three
+  questions must not be read as three artifacts agreeing.
 
 ## VI. Deliberately not in this plan
 
