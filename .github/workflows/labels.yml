@@ -59,7 +59,17 @@ jobs:
             }
 
             if (!marked) {
-              await github.rest.issues.addLabel({ ...common, labels: [MARKER] });
+              // `addLabels`, PLURAL. It was `addLabel`, which is not a function on Octokit —
+              // the singular exists only for REMOVAL (removeLabel takes `name`), and this call
+              // was already passing the plural method's `labels: [...]`, so the parameters were
+              // right and the method name was not.
+              //
+              // IT INVERTED BOTH HALVES OF THIS FILE'S DESIGN. The marker never landed once —
+              // `state:unlabelled` has never existed on any issue in this repo — so the queryable
+              // output the header calls "the output, not a comment" was never produced. And the
+              // throw painted a red X on every unlabelled issue, which is exactly what the note
+              // below says must not happen, for exactly the reason it gives.
+              await github.rest.issues.addLabels({ ...common, labels: [MARKER] });
             }
             // A NOTICE, NOT A FAILURE. Failing the job would paint a red X on an issue that
             // is merely untriaged, training everyone to ignore the signal — and it would
