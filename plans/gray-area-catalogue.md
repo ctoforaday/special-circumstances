@@ -246,14 +246,33 @@ So the rule is:
    is 0.12% under-write against the offset rule's ~100% duplication and the multiset rule's
    non-executability, and is chosen on those numbers.
 
-6. **A transcript record whose ancestry yields no `promptId` is ingested with a NULL key** — and an
+6. **The state this introduces is bound to the schema, and the promotion transition is stated** —
+   an earlier draft invented `provisional_skipped` and `attribution` with no table and no column,
+   and never said what promotion does to the flag, which left rules 3–5 undecidable:
+
+   - The `word` view's column set — the published contract §V.6 pins — carries **`source`**
+     (`'payload'` | `'transcript'`), **`provisional`** (1 = outstanding, 0 = settled) and
+     **`attribution`** (`NULL` | `'unverified'` | `'ambiguous'`).
+   - **At promotion `provisional` flips 1 → 0 while `source` stays `'payload'`.** That pair is what
+     identifies a permanent row with no transcript counterpart, which §V.3's arithmetic needs.
+   - **A promoted row stays replaceable**, which is the dedup the flag transition would otherwise
+     lose: if a transcript-sourced block equal to it later arrives for the same key — a `backfill`
+     re-read, say — it **replaces** the row (`source` → `'transcript'`, `attribution` → `NULL`)
+     rather than inserting beside it. Without this the row becomes unsatisfiable and the same text
+     double-stores.
+   - **Skips get a carrier**: `provisional_skip(session, agent_id, prompt_id, reason, at)`, `reason`
+     from a closed set — `no-prompt-id`, `no-last-assistant-message`. **When both are absent the
+     reason is `no-prompt-id`**, checked first, since without a key nothing could be written at all.
+
+7. **A transcript record whose ancestry yields no `promptId` is ingested with a NULL key** — and an
    earlier draft stopped there, which double-stores: a NULL-keyed block can never be counted "for
    that key", so its turn's provisional is always promoted and the final text is stored **twice**.
    So a NULL-keyed block is attributed to the **open provisional for its `(session, agent_id)`**
    when exactly one is outstanding, and is then eligible to satisfy that provisional by the fire-time
-   comparison above; with zero or several outstanding it stays NULL-keyed, its turn's provisional is
-   promoted, and the row is marked
-   `attribution='ambiguous'` so the duplicate reads as deliberate.
+   comparison above. With **several** outstanding it stays NULL-keyed, those provisionals are
+   promoted, and the rows are marked `attribution='ambiguous'` so the duplicate reads as deliberate.
+   With **zero** outstanding there is nothing to promote and the block is simply stored NULL-keyed —
+   an earlier draft's "its turn's provisional is promoted" was a no-op in that case.
 
    **The rate, corrected — an earlier draft claimed "100.000%, zero unresolved" from too narrow a
    sample.** Over the **whole** corpus (414 files, 46,046 assistant records): **3 unresolved,
@@ -558,7 +577,10 @@ stays green. This was checked because two new directories would have turned it r
 - [MODIFY] `cmd/gray-area/main.go`, `inspect.go` — five verbs (`agents`, `session`, `touched`, `find`, `backfill`) plus `sql`. The existing six are
   untouched.
 - [MODIFY] `plugins/gray-area/hooks/hooks.json` — two new bindings, `Stop` and `SessionEnd`.
-- [MODIFY] `plugins/gray-area/requirements.json` — two changes. The `gray-area-capture` entry's
+- [MODIFY] `plugins/gray-area/requirements.json` — **three** changes, the third a carrier an earlier
+  draft missed: `:8`'s `_tier_comment` reads *"RECOMMENDED, AND DELIBERATELY AHEAD OF ITS CONSUMER …
+  PROMOTE TO `required` in the same change that ships the verb"*. Flipping `tier` without rewriting
+  that leaves a carrier instructing the change this plan is making. The other two: The `gray-area-capture` entry's
   `event` field says `SubagentStop` and already omits `SessionStart`; it becomes accurate and
   gains `Stop` and `SessionEnd`. **And
   ripgrep is promoted `recommended` → `required`**, because §II commits to promoting it "in the
@@ -701,7 +723,7 @@ raw SQL is a complete concept without it.
 | R6 | **A malicious or clumsy query wedges the box.** | medium × medium × closed | §V.9 — writes refused; cross join cancelled at a deadline; `ATTACH` and `writable_schema` refused on the pinned connection |
 | R7 | **Liveness reports a dead agent as live** via pid reuse. | low × high × closed | §V.10 — a stale `procStart` must resolve to `ended`, asserted with a fabricated mismatch |
 | R8 | **First dependency in a zero-dependency plugin**, and its consumer-side install cost — `scripts/bootstrap-plugins.sh:83-99` builds hook binaries **on the consumer's machine**, and its own comment names dependency download as the part most likely to overrun the ~5 minute budget. Measured cold against an empty module cache: **3.7 s download + 23.0 s build, 348 MB cache.** Inside the budget, stated rather than assumed. | certain × low × **low to mitigate** — one-time and measured; nothing to do unless that budget tightens | named as a decision at §III's `go.mod` bullet (pin, cgo rejection, 1+9 requires), not absorbed |
-| R11 | **The transcript lags the `Stop` hook and a session's final turn is never ingested.** Documented by the vendor, **not measured on this box** — it cannot be, until a `Stop` hook exists here; the one inference attempted was confounded and is recorded in §II so it is not repeated. | likely × medium × **one closure plus a best-effort narrowing, with two measured residues** — (a) covers the lagged final turn except: the 0.12% duplicate-tail under-write (rule 5), and the **4.1% of fires carrying no `last_assistant_message`, where (a) has no source at all**. "Sufficient alone" is claimed against those two rates, not absolutely; (b) `SessionEnd` did not fire in 2 of 2 runs ending with live background work | §V.3 extended to **per-session `word` counts** against the transcript, which act counts cannot see; §V.17 measures the lag at fire time once the hook exists |
+| R11 | **The transcript lags the `Stop` hook and a session's final turn is never ingested.** Documented by the vendor, **not measured on this box** — it cannot be, until a `Stop` hook exists here; the one inference attempted was confounded and is recorded in §II so it is not repeated. | likely × medium × **one closure plus a best-effort narrowing, with two measured residues** — (a) covers the lagged final turn except: the 0.12% duplicate-tail under-write (rule 5), and the **4.1% of fires carrying no `last_assistant_message`, where (a) has no source at all**. "Sufficient alone" is claimed against those two rates, not absolutely; (b) `SessionEnd` did not fire in 2 of 2 runs ending with live background work | §V.3's `catalogue = transcript + promoted` arithmetic, whose second addend IS the R11 population, plus §V.17 at fire time. An earlier draft named §V.3 while §V.3 excluded exactly those rows |
 | R10 | **Promoting ripgrep to `required` BLOCKS consumers** who lack the binary. The mechanism is `toolchain.MergeStrictest` + `doctor.verdict` — a missing `required` tool returns BLOCKED — **not** a manifest key: `_tier_comment` is documentation on the entry, and an earlier draft cited it as though it were the enforcement. Deliberate: from the moment `find` ships, a missing `rg` returns zero hits indistinguishable from an honest zero, and a wrong answer is worse than a blocked install. | certain × medium × accepted | §V.14 — asserts the verb and the tier move in the same change, so neither can ship alone |
 | R9 | **The board reads as complete when reasoning capture was off.** | medium × medium × mitigated | §V.11 — a session with zero non-empty thoughts is distinguishable from one never asked |
 
@@ -754,12 +776,19 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
 3. **[LOCAL]** `go test -run TestProjectionMatchesIndependentCount ./internal/catalogue/` — reads
    **the hook-populated catalogue** (not a fresh projection) and compares against a transcript-derived
    count taken by a different code path: session counts, per-session **act** counts, and per-session
-   **`word`** counts. **`provisional=1` rows are excluded from the equality and asserted separately**,
-   because a promoted provisional has no transcript counterpart by construction — including it would
-   make catalogue words = transcript words + 1 and fail the check on the designed path, while
-   comparing two transcript-derived counts would make a turn that never reached the transcript
-   invisible to both sides. An earlier draft said only "project the live corpus", which reads as the
-   second of those. Words are compared because a final turn lost to transcript lag
+   **`word`** counts. The arithmetic is **stated, not gestured at** — an earlier
+   draft said promoted rows have no transcript counterpart "by construction", which §II refutes:
+   byte-offset ingest *does* recover a lagged turn on the next `Stop`, so only a **final** lagged
+   turn's text never reaches the file. So:
+
+       catalogue words  ==  transcript words  +  count(source='payload' AND provisional=0)
+
+   and each addend is asserted rather than only the total: every `source='payload' AND
+   provisional=0` row has its text asserted **absent** from the transcript for its key — that is
+   what makes it a genuine residue rather than a duplicate — and `provisional=1` rows are counted
+   and reported as **outstanding** rather than silently dropped. An earlier draft excluded them and
+   called that "asserted separately" while naming no assertion, which is not executable, and could
+   not see R11 either way since the excluded rows are exactly where R11's evidence lives. Words are compared because a final turn lost to transcript lag
    (R11) changes the word count and leaves the act count untouched.
 4. **[FIXTURE]** `go test -run TestCorruptLineIsUnparsedNotZero ./internal/catalogue/`
 5. **[FIXTURE]** for the model, **[LOCAL]** for the ratio: `go test -run 'TestAbsentIsErrorIsSuccess|TestBashAlwaysStatesTheFlag' ./internal/catalogue/` —
@@ -814,7 +843,7 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     `sessionId` and `promptId` (asserts it does not touch the parent's provisional, and that
     `SubagentStop` writes its own); a `Stop` payload with **no `prompt_id`** (asserts
     `provisional_skipped`, not a `""` key); a payload with **no `last_assistant_message`** (asserts
-    `provisional_skipped` with the second reason, 4.0% of real rows); a **zero-text turn whose payload DOES carry text** (asserts the
+    `provisional_skipped` with reason `no-last-assistant-message`, 4.1% of real rows); a **zero-text turn whose payload DOES carry text** (asserts the
     provisional is promoted and marked `attribution='unverified'`, 5.4% of turns — not "no row",
     which an earlier draft asserted from a wrongly-keyed 1.6%);
     a **final** lagged turn with no `SessionEnd` (asserts the provisional is readable while
