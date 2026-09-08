@@ -3,9 +3,11 @@
 > STATUS 2026-09-08: **required pre-v2.0.0** (gblock). Blocks the three `--v2.0.0` tags and #785.
 > Board: #792. §III.1 and §III.4 are SHIPPED (#831); §III.2 and §III.3 are the remaining work.
 >
-> Rewritten 2026-09-08 after `/plan-audit` returned FAIL on 15 gaps and gblock redirected the
-> round half at #753. The audit is credited in place; §III.2 changed MECHANISM AND TARGET as a
-> result, and got smaller.
+> Rewritten 2026-09-08 after two `/plan-audit` FAILs. **The ROUND is no longer in this plan** —
+> gblock ruled it roundless and it moved to `plans/roundless.md`, which owns #753 entire. This
+> plan owns the ATTESTED half of identity: what `agent_type` carries and what the cast refuses.
+> The two audits are credited in place; both found real defects and the second killed a mechanism
+> this plan had already committed to.
 
 ## I. Summary & Goals
 
@@ -21,18 +23,20 @@ typed" — §III.3 keeps a typed id on the unattested path, deliberately and ref
 |---|---|---|
 | role | `agent_type`, attested (#674) | unchanged |
 | area | a substring of the typed id | `agent_type` — one configuration per seat (SHIPPED #831) |
-| **round** | `RoundOf`'s `-r(\d+)` over the typed id | **removed from identity entirely** (§III.2) |
-| which sitting | — | the count of this seat's register events at or before the row |
+| **round** | `RoundOf`'s `-r(\d+)` over the typed id | **removed from the record entirely** — `plans/roundless.md` |
 | which dispatch | `agent_id`, injected | unchanged |
 
 ### Success criteria, stated as checks rather than adjectives
 
-1. `grep -rnw RoundOf --include='*.go' plugins/ scripts/ | grep -v CurrentRoundOf` returns **0**.
-2. No seat id the engine dispatches matches `-r\d+`. The roster's shapes carry no `\d` except
-   `blue-lane-<N>`, whose index is a lane and not a clock.
-3. `register` refuses `red-lens-evidence` for a run whose cast does not include it, and refuses a
+1. `register` refuses `red-lens-evidence` for a run whose cast does not include it, and refuses a
    `--seat-id` disagreeing with the record's binding for that `agent_id`. Both have a named test.
-4. An archived run written before this change replays with identical projections.
+2. `agent_type` alone answers WHICH red seat is acting, for every red seat the engine dispatches
+   — held by `TestEveryDispatchedAgentTypeIsAttestable` and `TestTheLensAreasMatchWhatTheEngine
+   Declares` in all directions.
+3. An archived run written before this change replays with identical projections.
+
+(The round's criteria — `RoundOf` gone, no dispatched id matching `-r\d+` — belong to
+`plans/roundless.md` and are stated there.)
 
 ### Why the round goes rather than gets derived — the audit's finding, and #753's
 
@@ -164,36 +168,26 @@ area is a CLOSED set — `lanes` is a run parameter with an overridable floor an
 operator might ask for. They do not need one: §III.3's enum bounds them from the run's own
 parameter. Red is ATTESTED; blue's lanes are DECLARED-and-refused.
 
-### III.2 The round leaves identity [MODIFY/DELETE]
+### III.2 The round — MOVED to `plans/roundless.md`
 
-**Seat ids drop `-r<N>`.** `red-lens-r3-evidence` → `red-lens-evidence`; `red-chair-r2` →
-`red-chair`; `blue-respond-r1` → `blue-respond`; `judge-r2` → `judge`. `blue-lane-<N>` keeps its
-number: that index is a lane, not a clock.
+This section specified deriving the round at register. It is deleted rather than revised, and the
+route there is worth keeping because it cost two audits:
 
-**One seat id, many sittings, and the record already supports it.** `events.key` scopes the
-idempotency ordinal per seat precisely so a re-dispatched seat does not collide with its own
-earlier acts (`record.proto:444-450`, with the measured `UNIQUE constraint failed` that forced it).
+1. The first draft named `CurrentRoundOf`. `/plan-audit` found it is `max(round)` over NON-register
+   events and skips `EVENT_TYPE_REGISTER` deliberately (`inquiry.go:273`), so every seat would have
+   derived N-1 on every round, and siblings inside one `parallel()` would have derived different
+   values. Off by one AND racy.
+2. The second draft replaced it with a per-seat SITTING ORDINAL — the count of that seat's register
+   events at or before the row. `/plan-audit` found `event.round` is compared ACROSS SEATS in
+   shipped SQL (`schema.sql:828` chair-round against bench-round; `:1001-1004` a board-mass axis),
+   so a per-seat ordinal cannot carry it.
 
-**`event.round` keeps its name and changes its source** to the sitting ordinal: the count of that
-seat's register events at or before the row. Register-INCLUSIVE by construction, per-seat so no
-sibling can race it, defined on an empty record (first register ⇒ 1), and needing no new event
-type. For a round-orchestrated engine, sitting N of `red-lens-evidence` IS round N, so projections
-keep working — and when #753 lands the field keeps meaning "which sitting" with no further change.
-That is the reason to prefer it to a round-open event.
+Both attempts failed the same way: they tried to preserve a global clock while removing the string
+it was recovered from. **The clock itself is the defect** (#753), so it goes — and with it the
+`-r<N>` in every seat id, which is what this plan wanted.
 
-**Deleted with the regex**: `RoundOf`, `synthesisSeats`, `terminalSeats`, `laneRe`, and
-`consistency.go:473`'s cross-check — which closes #676, because there is no longer a name to
-disagree with the field.
-
-**Petition sittings** (`judge-petition-<petitioner>`) are why `RoundOf` needed a special case:
-`debate.js:704` records that it *"matches the FIRST `-r<N>` in the id, so
-`judge-petition-red-chair-r1` reads as round 1 instead of the round 0 a bench sitting takes"*.
-Roundless, the petitioner's id carries no round, the prefix carries none, and the special case is
-deleted rather than reimplemented.
-
-**Archived runs.** Readers accept both shapes, exactly as #791 and #831 did: `red-lens-r3-evidence`
-and `red-chair-r1` still parse, resolve to their roles and project. `eventSchema` moves 3 → 4 so a
-reader can tell the vocabularies apart on the record rather than by inspection.
+`plans/roundless.md` §III.A is the pre-tag half (ids, `event.round`, gap ids, the views) and is
+what unblocks this plan's goal. Its §III.B is the scheduling half and is post-tag.
 
 ### III.3 The declared path is REFUSABLE [NEW] — ruled by gblock 2026-09-07
 
