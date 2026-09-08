@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	_ "modernc.org/sqlite" // the module's own driver; opened directly, never through recordsql.Open
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
 // dbSiblings is the FILE SET a SQLite record is. The database alone is not the record: the
@@ -110,12 +112,28 @@ func (s *SQLiteSource) Events() ([]OldEvent, error) {
 	if err != nil {
 		return nil, err
 	}
+	// A body table is named for its MESSAGE, not its word — the `verdict` word's body lives
+	// in `round_verdict` (message RoundVerdict). Where the word survives, the current schema
+	// is the authority on that spelling; a retired word's table is its own name, and a
+	// renamed message under a kept word would surface below as a row-bearing table nobody
+	// can place — loud, not folded.
+	byTable := map[string]string{}
+	for w := range words {
+		byTable[tableForWord(w)] = w
+	}
 	for _, t := range tables {
-		if err := s.classify(t, words, byID); err != nil {
+		if err := s.classify(t, byTable, byID); err != nil {
 			return nil, err
 		}
 	}
 	return evs, nil
+}
+
+func tableForWord(word string) string {
+	if fd := bodyFieldFor(word); fd != nil {
+		return recordsql.TableName(fd.Message())
+	}
+	return word
 }
 
 // vocabulary is the OLD record's own event-type set: the enum_event_type table where the
@@ -183,17 +201,17 @@ func (s *SQLiteSource) tables() ([]string, error) {
 // classify routes one table's rows to the events they belong to. The longest word that
 // prefixes the name wins, so `motion_rule_docket` is an arm of the WORD `motion_rule`, not
 // of `motion` — the same both-directions care the legacy shard regex documents.
-func (s *SQLiteSource) classify(t string, words map[string]bool, byID map[int64]*OldEvent) error {
+func (s *SQLiteSource) classify(t string, byTable map[string]string, byID map[int64]*OldEvent) error {
 	switch {
 	case t == "events" || t == "seat_turn" || strings.HasPrefix(t, "sqlite_") || strings.HasPrefix(t, "enum_"):
 		return nil
-	case words[t]:
-		return s.readBody(t, byID)
+	case byTable[t] != "":
+		return s.readBody(t, byID, byTable[t])
 	}
-	owner, field := "", ""
-	for w := range words {
-		if strings.HasPrefix(t, w+"_") && len(w) > len(owner) {
-			owner, field = w, t[len(w)+1:]
+	owner, ownerTable, field := "", "", ""
+	for bt, w := range byTable {
+		if strings.HasPrefix(t, bt+"_") && len(bt) > len(ownerTable) {
+			owner, ownerTable, field = w, bt, t[len(bt)+1:]
 		}
 	}
 	if owner == "" {
@@ -248,11 +266,14 @@ func (s *SQLiteSource) columns(t string) ([]string, error) {
 	return out, rows.Err()
 }
 
-func (s *SQLiteSource) readBody(t string, byID map[int64]*OldEvent) error {
+func (s *SQLiteSource) readBody(t string, byID map[int64]*OldEvent, word string) error {
 	return s.eachRow(t, func(id int64, fields map[string]any) error {
 		ev, ok := byID[id]
 		if !ok {
 			return fmt.Errorf("migrate: %q row for event %d, which the envelope does not hold", t, id)
+		}
+		if ev.Word != word {
+			return fmt.Errorf("migrate: %q row for event %d, whose word is %q not %q", t, id, ev.Word, word)
 		}
 		ev.Fields = fields
 		return nil
