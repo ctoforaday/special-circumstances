@@ -136,7 +136,9 @@ func eventsWhere(db *sql.DB, where string, args ...any) ([]*recordpb.Event, erro
 // time, and reaching that row is precisely what narrowing prevents.
 //
 // The error says what is there, not what it should have been. There is no former-name table here
-// and there will not be one: a reader who needs those events needs the binary that wrote them.
+// and there will not be one: a reader who needs those events needs the binary that wrote them —
+// or the migration, which is that knowledge quarantined in one package (internal/record/migrate)
+// instead of a negotiation in every reader.
 func refuseUndeclaredTypes(db *sql.DB) error {
 	rows, err := db.Query(`SELECT DISTINCT type FROM events`)
 	if err != nil {
@@ -163,7 +165,9 @@ func refuseUndeclaredTypes(db *sql.DB) error {
 	return fmt.Errorf("recordsql: this record holds event types the schema does not declare (%s), so a "+
 		"narrowed read of it cannot be trusted: the rows are there and SQL filters them out before "+
 		"anything looks at them, which returns an empty projection and exit 0 — the same bytes as a "+
-		"record that holds nothing. Read it with the binary that wrote it",
+		"record that holds nothing. Read it with the binary that wrote it, or replay it through this "+
+		"one: `--seat-id operator migrate --from <runDir> --to <freshDir>` re-drives every event "+
+		"through the current write path and says what it translated",
 		strings.Join(undeclared, ", "))
 }
 

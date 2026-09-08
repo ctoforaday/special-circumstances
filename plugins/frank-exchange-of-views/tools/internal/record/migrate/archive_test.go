@@ -2,6 +2,7 @@ package migrate_test
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"io"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
+	"google.golang.org/protobuf/proto"
 )
 
 // THE ARCHIVE IS THE FIXTURE (plan §V.4). The 2026-09-02 run is the one SQLite-era record
@@ -87,6 +89,29 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	for _, c := range checks {
 		if !c.OK {
 			t.Errorf("verify [%s] fails on the migrated record: %s", c.Name, c.Detail)
+		}
+	}
+
+	// DETERMINISM (plan §V.6): the same source migrates to the same record. The events
+	// comparison is the contract — byte-identical databases are SQLite's business.
+	toDir2 := recordtest.TmpRun(t)
+	res2, merr2 := migrate.Migrate(runDir, toDir2, migrate.Entries(), migrate.Options{})
+	if merr2 != nil || res2.SourceHash != res.SourceHash {
+		t.Fatalf("second migration: %v (hash %q vs %q)", merr2, res2.SourceHash, res.SourceHash)
+	}
+	again, err := record.FamilyOf(runtest.Open(t, toDir2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(again.Events) != len(fam.Events) {
+		t.Fatalf("two migrations, two sizes: %d vs %d", len(again.Events), len(fam.Events))
+	}
+	mo := proto.MarshalOptions{Deterministic: true}
+	for i := range fam.Events {
+		a, aerr := mo.Marshal(fam.Events[i])
+		b, berr := mo.Marshal(again.Events[i])
+		if aerr != nil || berr != nil || !bytes.Equal(a, b) {
+			t.Fatalf("event %d differs between two migrations of one source", i)
 		}
 	}
 }

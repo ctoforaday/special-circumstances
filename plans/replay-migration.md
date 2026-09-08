@@ -270,3 +270,33 @@ Written before implementation; each check names what re-arms it.
 Ground truth to hold leg 1 against: the 2026-09-02 mining pass (verified board math, 35
 friction events, JSTOR-hash findings) — the migrated record must tell the same story in the
 new vocabulary.
+
+## Status (2026-09-08) — leg 1 built; three deviations, each with its reason
+
+Leg 1 is implemented and the 2026-09-02 archive replays 813 → 830 with ZERO refusals;
+verify is green over the migrated record and two migrations of one source are
+event-identical (§V.6). Deviations from the plan as audited, decided during the build:
+
+1. **Registers replay through `Append`, not `RegisterSeat`** (contra §II.6). RegisterSeat
+   stamps ENGINE-OBSERVED facts from its own environment — tool_version, agent_type,
+   run_via — and the migrator's environment is not the run's. The old register body already
+   carries what was observed then; replaying it verbatim is the only honest answer.
+   Dispatch numbering survives via the key ordinal, which Append re-derives.
+2. **Synthesized motion ids are `M-mig-<old event id>`, not `MintMotionID`.** The mint
+   counts only what is already replayed, and the first archive drive collided a
+   synthesized M6 with the old run's own M6 five events later. Old event ids are unique by
+   construction and the spelling is disjoint from the native `M%d` family — the id says
+   what the basis text says: this exchange was synthesized.
+3. **The channel copy is load-bearing, not hygiene.** Validation consults the run's own
+   staged inputs (the gap-class registry lives beside the record), and a mint replayed
+   without it refused — cascading into 249 refusals for one missing file. `Migrate` copies
+   everything except the database file set BEFORE replaying.
+
+Two lessons the archive taught that the plan did not predict: body tables are named for
+their MESSAGE, not their word (the `verdict` word's body lives in `round_verdict`), so the
+classifier maps words to table spellings through the current schema where the word
+survives; and the expected DocketRuling exactly-one refusal round never happened — all 17
+opinions carried a well-formed reopens_on/final split.
+
+Remaining: §III.7 (JSONL shard adapter, leg 2, separate PR — the store.go legacy-shards
+refusal clause lands with it) and the #811 cross-link.
