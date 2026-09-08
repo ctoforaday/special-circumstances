@@ -209,6 +209,61 @@ that collision was caught by reading rather than by any test.
 every gap at impasse has had its bench sitting. `maxRounds` is retired only after this is measured
 to terminate (§VI) — two bounds briefly coexist rather than trading a proven one for a new one.
 
+#### B.2.1 TRIVIALITY MUST NOT HOLD THE REPORT OPEN — and the test already exists
+
+Impasse bounds how long ONE gap is argued. It does nothing about the other exhaustion mode
+(gblock, 2026-09-08): **red trailing off into nitpicks forever.** Every new trifle is a fresh gap,
+so no impasse counter ever fires, and the report never closes.
+
+**The test for it is already in the record, and nothing refuses on it.** `schema.sql:988-991`:
+
+```sql
+(rv."verdict" = 'fail'
+   AND COALESCE(b."mass", 0.0) < 35.0
+   AND COALESCE(b."max_severity_mass", 0.0) <= 2.0
+   AND COALESCE(f."fresh_mints", 0) = 0)         AS "divergent"
+```
+
+Red said FAIL, while the board's total mass was low, nothing on it was above **material**, and no
+fresh gap was minted. That is the failure mode, stated in SQL, computed every round, surfaced
+through `convergence_vs_verdict` and `record.ConvergenceVsVerdict` — **and read only by a human in
+a report.** It refuses nothing. `policy-without-mechanism`, in the one place the run decides
+whether it is finished.
+
+Note `max_severity_mass <= 2.0`: `2.0` is `GRADE_MEDIUM`'s mass, and the enum's own word for
+`GRADE_MEDIUM` is **"material"**, against `GRADE_TRIVIAL` = *"cosmetic; nothing downstream changes
+if it is wrong"* (`record.proto:264-268`). The line gblock is asking for is already drawn, in the
+schema, in the enum's own vocabulary.
+
+**So the change is to make the existing measurement REFUSE**, in two parts:
+
+1. **A gap below material is recorded but does not hold the gate.** Red's duty is unchanged —
+   *everything real gets raised and stays raised* — and a trivial finding is still a finding on
+   the record. It simply cannot be the reason a report is not certified. This is the enum being
+   read for the decision it already describes.
+2. **A FAIL on a convergent board is refused.** When `divergent` holds, red must raise something
+   material or PASS. This is the same shape as the `verdict --as PASS` refusal that already exists
+   while a motion is pending: a verdict the board contradicts is not accepted.
+
+**Two things this must not become**, both already argued in red's own constitution:
+
+- **Not a soft-pass.** *"An unearned FAIL is red losing, exactly as an unearned PASS is."* The
+  refusal fires only when the board itself says nothing material is open — it never overrides a
+  live material gap.
+- **Not an incentive to inflate.** The obvious game is grading nitpicks material. Grade movement
+  is already on the record as `regrade` events, red's constitution already makes grade stability a
+  measured property, and `ACCEPTED_DELTA_DOCKET_THRESHOLD` (`debate.js:276`) already batch-dockets
+  cumulative grade deltas for bench review. Inflation is visible; §V measures it across the gate
+  run rather than assuming it will not happen.
+
+**The `35.0` is a bare constant and must not survive the move.** `2.0` is derivable from the enum;
+`35.0` is a magic number in a view with nothing saying where it came from. Roundless it is
+restated relative to the board (a fraction of peak mass) or given a written derivation, because a
+threshold that decides whether a run may end has to be one a reader can check.
+
+**Roundless, `divergent` becomes per-sitting** rather than per-round, on the event axis §III.A.2
+defines — the same rewrite the other round-keyed views take.
+
 #### B.3 The chair engages the seats in an open dispute
 
 Dispatch is per dispute, not per phase: the chair (or the judge, for a docketed dispute) engages
