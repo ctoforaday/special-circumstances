@@ -25,7 +25,7 @@ import (
 // from a run that asked for two.
 //
 // Found by the sibling sweep the rule-sweep gate forced on the served-model work (#589/#603): of
-// every field run-config carries, `maxRounds`, `eventSchema`, `runDir` and the two model tiers are
+// every field run-config carries, `k`, `kMax`, `mintBudget`, `eventSchema`, `runDir` and the two model tiers are
 // each reconciled against something the run actually did. `lanes` was the one that was not.
 //
 // # Why a shortfall WARNS and an excess FAILS

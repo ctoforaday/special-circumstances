@@ -75,7 +75,6 @@ type Config struct {
 	RunDir        string
 	BinDir        string
 	Lanes         int
-	MaxRounds     int
 	Model         string
 	JudgmentModel string
 	Backend       Backend
@@ -98,19 +97,17 @@ type Outcome struct {
 	// Verdict is the terminal stamp: HALTED, VERIFIED, CEILING or UNVERIFIED. debate.js
 	// composes it from halted / red's verdict / the ceiling arm.
 	Verdict string
-	// Rounds is the loop counter at exit, not maxRounds.
-	Rounds int
+	// Epochs is the number of chair sittings at exit — the loop counter (plans/roundless.md §III.B.1).
+	Epochs int
 	// Deadlocked and Halted are the two non-ceiling terminators; both can be false at a
 	// VERIFIED or CEILING exit.
-	Deadlocked bool
-	Halted     bool
+	Halted bool
 	// BenchClearedBoard is what became of a board the bench cleared to zero on a deadlock
 	// ruling: "" (it never did), "relief_granted" (red was given a further round to verdict
 	// against the empty docket), or "ceiling_owed_red_a_sitting" (it cleared on the last round,
 	// so there was no round to grant). A boolean here would answer two questions with one
 	// false — never cleared, and cleared with nothing left to grant — and those are different
 	// terminal facts: the second owes red a sitting.
-	BenchClearedBoard string
 	// GapsOutstanding is the board's open count as debate.js reports it — the assemble
 	// seat's open_gaps where that seat returned an integer, red's docket length otherwise.
 	// It is the field the historic UNVERIFIED-with-nothing-open defect was visible in.
@@ -244,8 +241,7 @@ func drive(scriptPath string, cfg Config) (driven, error) {
 			vm.Set("args", map[string]any{
 				"topic": cfg.Topic, "runDir": cfg.RunDir, "binDir": cfg.BinDir,
 				"lanes": cfg.Lanes, "laneFloorOverride": "seatprobe",
-				"maxRounds": cfg.MaxRounds,
-				"model":     cfg.Model, "judgmentModel": cfg.JudgmentModel,
+				"model": cfg.Model, "judgmentModel": cfg.JudgmentModel,
 			})
 			if _, err := vm.RunString(preamble); err != nil {
 				settledErr = "preamble: " + err.Error()
@@ -341,12 +337,10 @@ func readResult(vm *goja.Runtime) (*Outcome, string) {
 		return nil, "the debate settled to an object with no verdict — the return shape moved and this reader did not"
 	}
 	return &Outcome{
-		Verdict:           verdict,
-		Rounds:            asInt(m["rounds"]),
-		Deadlocked:        asBool(m["deadlocked"]),
-		Halted:            asBool(m["halted"]),
-		BenchClearedBoard: asString(m["bench_cleared_board"]),
-		GapsOutstanding:   asInt(m["gaps_outstanding"]),
+		Verdict:         verdict,
+		Epochs:          asInt(m["epochs"]),
+		Halted:          asBool(m["halted"]),
+		GapsOutstanding: asInt(m["gaps_outstanding"]),
 	}, ""
 }
 

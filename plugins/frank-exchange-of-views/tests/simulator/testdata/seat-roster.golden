@@ -3,16 +3,15 @@ blue-lane-1
 blue-lane-2
 blue-lane-3
 blue-synthesize
-red-lens-evidence-r1
-red-lens-logic-r1
-red-lens-dark-side-r1
-red-lens-voice-r1
-red-chair-r1
-blue-respond-r1
-red-lens-evidence-r2
-red-lens-logic-r2
-red-lens-dark-side-r2
-red-lens-voice-r2
-red-chair-r2
+red-chair #1
+red-lens-evidence #1
+red-lens-logic #1
+red-lens-dark-side #1
+blue-respond #1
+judge #1
+red-chair #2
+red-lens-evidence #2
+red-lens-logic #2
+red-chair #3
 judge-terminal
 assemble

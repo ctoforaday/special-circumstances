@@ -105,13 +105,16 @@ through the tool's edit path, each change an event the report is replayed from. 
 raw-written or bypassed, which is the point: the report a seat reads and the report the record holds
 are the same bytes, by construction.
 
-**Termination is judged, and the standing practice is stop-and-resume**: `maxRounds` is a cost
-ceiling, never the terminator of record. Red owns PASS/FAIL — *is it defensible*. **The bench
+**Termination is the record's, and the standing practice is stop-and-resume**: there is no round
+ceiling. The chair's `dispatch next` says who sits; the run ends when nobody is ready — PASS
+permitted (VERIFIED), or every open material gap at its limit, ruled by the bench and carried
+(CEILING). The bounds are the run's terms, recorded at setup: the exchanges a gap gets before
+impasse (k-max) and the gaps a lens may mint (mint-budget) (plans/roundless.md §III.B.2). Red owns PASS/FAIL — *is it defensible*. **The bench
 owns the stopping judgment** — *is it close enough*, the one call that weighs remaining defect
 against remaining cost, and the only terminal value (economy) that otherwise has no organ. It
 reads the telemetry projection — the series, never a snapshot — and files a reasoned,
 cost-stated opinion; the operator acts on it,
-stopping a run past its value and resuming with a reduced `maxRounds` for the honest UNVERIFIED
+stopping a run past its value and resuming for the honest UNVERIFIED
 assembly — cache replay makes the stop ~$0 (measured). **Stopping is not passing**: the verdict
 stays UNVERIFIED with the open count stated. Automatic severity-floor termination was evaluated
 and REJECTED (run-4 report §1): it automates the one call that belongs to judgment. NEVER

@@ -38,7 +38,7 @@ import (
 //
 // WHAT THIS DOES NOT DO, stated because a gate that seems to prove more than it does is worse than
 // none. It bounds the SHAPE, never the membership: `red-lens-L4` is well formed and no run will
-// ever dispatch it. Bounding the round against the run's declared maxRounds was considered and
+// ever dispatch it. Bounding the sitting against a declared ceiling was considered and
 // REJECTED — a resume legitimately reduces that ceiling (the standing stop-and-resume practice), so
 // the bound would refuse seats from the run's own earlier rounds. The shape is what can be checked
 // without a second copy of the engine's dispatch logic living over here and drifting.

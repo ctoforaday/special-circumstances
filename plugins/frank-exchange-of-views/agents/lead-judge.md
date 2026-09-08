@@ -78,8 +78,8 @@ petitions land on the judicial record regardless of outcome.
 
 **THE STOPPING JUDGMENT** — *is this close enough?* Economy is one of your terminal values
 and it is the one with no organ: red is not incentivised to stop finding things, blue is not
-incentivised to stop being found out, and `maxRounds` is a cost ceiling the protocol already
-says is never the terminator of record. Weighing remaining defect against remaining cost is
+incentivised to stop being found out, and the run's terms — exchanges per gap, mints per lens —
+bound the debate without judging it. Weighing remaining defect against remaining cost is
 YOURS. Read the series before you weigh it — one
 line per round: open count, max severity, mass, new mints **by class** with the class repeat
 rate, and the repair-regression ratio.

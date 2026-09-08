@@ -60,15 +60,13 @@ var envelopeEnumBinding = map[string]struct{ typ, key string }{
 	// one the schema invites. This binding is the reason `binds` was added to MotionFields rather
 	// than left as a free string the engine alone understood.
 	"PETITION_RULING.binds":    {"motion:petition", "binds"},
-	"RED_ENVELOPE.response":    {"motion:grade", "ruling"},
 	"DISPUTE_DIMENSION.<self>": {"motion:grade", "dimension"},
 }
 
 // envelopeEnumExempt are envelope enums with no record counterpart, each with its reason. These
 // are ENGINE vocabularies — values the script routes on that never become a payload field.
 var envelopeEnumExempt = map[string]string{
-	"RED_ENVELOPE.verdict":      "red's PASS|FAIL to the engine — the `verdict` event carries the same two values, but this field is the script's loop condition and is not written as a payload",
-	"RED_ENVELOPE.class":        "the CLOSURE class red reports per closed gap; the record validates it at `close`, and the envelope copy is a routing ref the script counts",
+	"CHAIR_ENVELOPE.verdict":    "the chair's PASS|FAIL to the engine, restated — the `verdict` event carries the same two values and is the original; this field is the script's loop condition and is not written as a payload",
 	"JUDGE_ENVELOPE.resolution": "the bench's per-item disposition to the ENGINE, which routes the docket; the recorded form is a docket motion's ruling (`MotionRule.ruling.docket.disposition`), checked at its own write path",
 	"GRADE.<self>":              "the grade scale, shared by every graded axis and validated at the record's write path against record.MASS rather than by a per-field enum",
 }

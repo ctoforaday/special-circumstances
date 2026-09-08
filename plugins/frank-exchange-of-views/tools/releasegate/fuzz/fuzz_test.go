@@ -158,6 +158,8 @@ type runner struct {
 	// issues has to be issued as that lens. The chair mints nothing now; its acts on a gap are
 	// `carry`, `spot-check`, `closing`, `verdict` and `dispatch`.
 	minter map[string]string
+	// planThisSitting is the plan `dispatch next` printed at the start of the chair sitting in progress.
+	planThisSitting map[string]any
 	// lensMints: lens seat -> mints that LANDED, for choosing the next minter. A lens's mints are
 	// bounded by the run's mintBudget (default 5), so the driver spreads them over the lenses
 	// debate.js dispatches rather than raising the budget: least-loaded first, which keeps every
@@ -538,6 +540,44 @@ func (r *runner) rulePetitions(seatID string) map[string]any {
 // "exit status 2"; the refusal itself was in the output the error did not mention. Six defects
 // this session were a discarded refusal, and the cost was always the distance between the
 // refusal and the symptom. Attaching it here shortens that distance for every call site at once.
+// dispatchNext is the chair's first act (plans/roundless.md §III.B.1): the record computes who is
+// ready and RECORDS it; the driver relays the verb's JSON into the chair's envelope exactly as a
+// live chair does. A refusal is the run's — reported, never papered over with a plan of the
+// driver's own.
+func (r *runner) dispatchNext(seatID string) map[string]any {
+	out, err := r.exec("--json", "dispatch", "next", "--seat-id", seatID)
+	if err != nil {
+		r.noteEstoppelMiss("dispatch next refused: " + err.Error())
+		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch refused: " + err.Error()}}
+	}
+	var env struct {
+		OK     bool           `json:"ok"`
+		Result map[string]any `json:"result"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil || !env.OK || env.Result == nil {
+		return map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{"dispatch envelope unreadable"}}
+	}
+	if env.Result["parties"] == nil {
+		env.Result["parties"] = []any{}
+	}
+	return env.Result
+}
+
+// chairEnvelope is what the chair returns: the plan it relayed, the verdict it recorded this
+// sitting (if any), and its petitions. Gaps, closures and dispute responses are the record's.
+func (r *runner) chairEnvelope(seatID, verdict string, responses []map[string]any) map[string]any {
+	_ = responses // grade motions are ruled on the record; the envelope no longer restates them
+	plan := r.planThisSitting
+	if plan == nil {
+		plan = map[string]any{"head": 0, "parties": []any{}, "docket": []any{}, "pass_permitted": false, "ceiling": false, "why": []any{}}
+	}
+	e := map[string]any{"plan": plan, "unruled_motions": 0, "petitions": r.maybePetition("merge", seatID), "log": arr()}
+	if verdict != "" {
+		e["verdict"] = verdict
+	}
+	return e
+}
+
 func (r *runner) exec(args ...string) (string, error) {
 	cmd := exec.Command(r.bin, append(args, "--run", r.runDir)...)
 	out, err := cmd.CombinedOutput()
@@ -1527,10 +1567,11 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 	case strings.HasPrefix(seatID, "blue-synthesize"):
 		r.register("blue", seatID)
 		r.extras("blue", seatID, nil)
-		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": r.maybePetition("blue", seatID), "log": arr()}
+		return map[string]any{"sitting_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "petitions": r.maybePetition("blue", seatID), "log": arr()}
 
 	case strings.HasPrefix(seatID, "red-chair"):
 		r.register("merge", seatID)
+		r.planThisSitting = r.dispatchNext(seatID)
 		// RED NOW EVALUATES THE REPAIR AGAINST WHAT IT ASKED FOR.
 		//
 		// It used to coin PASS at 40%, mint 1-3 fresh gaps unconditionally, and close every
@@ -1584,8 +1625,8 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		// it: `near-match` is read-only, so it left no event and no gate saw it while the prompt
 		// called for it before every mint.
 		fresh := r.rng.Intn(4)
-		if !strings.HasSuffix(seatID, "-r1") {
-			fresh = r.rng.Intn(2) // later rounds may raise nothing
+		if r.chairRegisters > 1 {
+			fresh = r.rng.Intn(2) // later sittings may raise nothing
 		}
 		for range fresh {
 			lens := r.lens()
@@ -1648,33 +1689,23 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			if r.forceUnverified {
 				if id := r.mint(r.lens()); id != "" {
 					_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
-					return map[string]any{"verdict": "FAIL",
-						"gaps":              []any{map[string]any{"id": id, "supersedes": arr()}},
-						"closures":          arr(),
-						"dispute_responses": responses,
-						"petitions":         r.maybePetition("merge", seatID), "log": arr()}
+					return r.chairEnvelope(seatID, "FAIL", responses)
 				}
 			}
 			if _, err := r.exec("verdict", "--seat-id", seatID, "--as", "PASS"); err == nil {
-				return map[string]any{"verdict": "PASS", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "log": arr()}
+				return r.chairEnvelope(seatID, "PASS", responses)
 			}
-			// Refused over something that is not a gap. Record the verdict the tool WILL take, so
-			// the record and the harness agree about how this round ended.
 			_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
-			return map[string]any{"verdict": "FAIL", "gaps": arr(), "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "log": arr()}
+			return r.chairEnvelope(seatID, "FAIL", responses)
 		}
 
-		// Something is unrepaired, so the round FAILs.
+		// Something is unrepaired, so the sitting FAILs. The open gaps are the record's to list.
 		r.dialectic("merge", seatID, open)
-		var gaps []any
-		for _, id := range open {
-			gaps = append(gaps, map[string]any{"id": id, "supersedes": arr()})
-		}
 		// The merge's terminal act on a FAIL too: the checkpoint is what protects the event log
 		// from a stray git operation mid-round, and it was only ever driven on a PASS — so the
 		// `FAIL` half of a two-value enum had never been recorded by anything.
 		_, _ = r.exec("verdict", "--seat-id", seatID, "--as", "FAIL")
-		return map[string]any{"verdict": "FAIL", "gaps": gaps, "closures": arr(), "dispute_responses": responses, "petitions": r.maybePetition("merge", seatID), "log": arr()}
+		return r.chairEnvelope(seatID, "FAIL", responses)
 
 	case strings.HasPrefix(seatID, "blue-respond"):
 		r.register("blue", seatID)
@@ -1702,7 +1733,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 		for _, id := range open {
 			manifest = append(manifest, id)
 		}
-		return map[string]any{"round_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": disputes, "petitions": r.maybePetition("blue", seatID), "log": arr()}
+		return map[string]any{"sitting_record_appended": true, "claim_count": r.rng.Intn(40) + 10, "manifest": manifest, "grade_disputes": disputes, "petitions": r.maybePetition("blue", seatID), "log": arr()}
 
 	case strings.HasPrefix(seatID, "judge-petition"):
 		r.register("bench", seatID)
@@ -1823,7 +1854,7 @@ func (r *runner) envelopeFor(seatID, prompt string) map[string]any {
 			oargs = append(oargs, "--ended", "deadlock")
 		}
 		_, _ = r.exec(oargs...)
-		_, _ = r.exec("assemble", "--seat-id", "assemble-r1")
+		_, _ = r.exec("assemble", "--seat-id", "assemble")
 		open := len(r.openGaps())
 		return map[string]any{"synopsis": "fuzz", "open_gaps": open, "log": arr()}
 
@@ -2311,6 +2342,12 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 	if err := record.StageForRun(stageRun, fuzzClasses...); err != nil {
 		return outcome{seed: seed, runDir: runDir, err: "stage the class registry: " + err.Error()}
 	}
+	// THE CAST, as setup writes it (plans/roundless.md §III.B.1): the default four areas — the
+	// lenses this driver mints through — the chair, one lane, the bookends. Every register and
+	// every `dispatch next` is checked against it.
+	if _, err := record.Append(record.Identity{Run: stageRun, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: record.CastFor(nil, 1)}); err != nil {
+		return outcome{seed: seed, runDir: runDir, err: "write the cast: " + err.Error()}
+	}
 	r := newRunner(bin, runDir, newLockedRand(seed))
 	r.forceUnverified = forceUnverified
 	r.forceEstoppel = forceEstoppel
@@ -2341,7 +2378,7 @@ func runOne(t *testing.T, wrapped, bin string, seed int64, forceUnverified, forc
 		return res
 	}
 	res.verdict = verdict
-	if n, ok := result["rounds"].(int64); ok {
+	if n, ok := result["epochs"].(int64); ok {
 		res.rounds = int(n)
 	}
 	// Oracle #111 (map-free): both tiers were configured haiku, so every dispatched seat must have
@@ -2948,11 +2985,8 @@ var coverExempt = map[string]bool{
 	"sitting_open":  true,
 	"sitting_close": true,
 	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
-	// the random sweep can produce it. `dispatch` IS a verb, the chair's, and is exempt only until
-	// debate.js runs the dispatch loop (roundless B-iii) — the round loop the fuzz drives today
-	// never asks the record who sits. Named so the exemption is a line to remove, not a silence.
-	"cast":     true,
-	"dispatch": true,
+	// the random sweep can produce it. `dispatch` is driven: the chair's first act every sitting.
+	"cast": true,
 }
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a
@@ -4302,7 +4336,7 @@ func TestReadVerdictRefusesAResultThatCarriesNoVerdict(t *testing.T) {
 		},
 		{
 			name:    "a result carrying other keys but no verdict",
-			result:  map[string]any{"rounds": int64(3), "runDir": "/tmp/x"},
+			result:  map[string]any{"epochs": int64(3), "runDir": "/tmp/x"},
 			wantErr: "no verdict",
 		},
 		{
@@ -4336,7 +4370,7 @@ func TestReadVerdictRefusesAResultThatCarriesNoVerdict(t *testing.T) {
 // outside, from the bug it replaced.
 func TestReadVerdictAcceptsEveryVerdictDebateJSComputes(t *testing.T) {
 	for _, want := range []string{"HALTED", "VERIFIED", "CEILING", "UNVERIFIED"} {
-		got, err := readVerdict(map[string]any{"verdict": want, "rounds": int64(1)})
+		got, err := readVerdict(map[string]any{"verdict": want, "epochs": int64(1)})
 		if err != nil {
 			t.Errorf("readVerdict rejected %q, which debate.js line 1166 can produce: %v", want, err)
 		}
@@ -4349,14 +4383,14 @@ func TestReadVerdictAcceptsEveryVerdictDebateJSComputes(t *testing.T) {
 // The keys are named in the failure, and named STABLY — two failures of one shape must produce
 // one message, or a reader cannot tell a recurring defect from a family of them.
 func TestSortedKeysIsStableAcrossMapIterationOrder(t *testing.T) {
-	m := map[string]any{"runDir": "", "verdict": "", "rounds": 0, "lanes": 0, "deadlocked": false}
+	m := map[string]any{"runDir": "", "verdict": "", "epochs": 0, "lanes": 0}
 	first := fmt.Sprint(sortedKeys(m))
 	for i := 0; i < 50; i++ {
 		if got := fmt.Sprint(sortedKeys(m)); got != first {
 			t.Fatalf("sortedKeys is order-dependent: %s vs %s", got, first)
 		}
 	}
-	if first != "[deadlocked lanes rounds runDir verdict]" {
+	if first != "[epochs lanes runDir verdict]" {
 		t.Errorf("sortedKeys = %s, want sorted order", first)
 	}
 }

@@ -23,7 +23,7 @@ func newDashboard() *cobra.Command {
 	var watch bool
 	var now int64
 	var serve int
-	var model, judgmentModel, maxRounds, lanes string
+	var model, judgmentModel, lanes string
 	c := &cobra.Command{
 		Use:           "dashboard <runDir> <transcriptDir>",
 		Short:         "render a run's live dashboard.html (operator; board/cost/seats/judiciary/scorecards)",
@@ -45,7 +45,7 @@ func newDashboard() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			cfg := dashboard.Config{Model: model, JudgmentModel: judgmentModel, MaxRounds: maxRounds, Lanes: lanes}
+			cfg := dashboard.Config{Model: model, JudgmentModel: judgmentModel, Lanes: lanes}
 			clock := func() float64 {
 				if now != 0 {
 					return float64(now)
@@ -127,7 +127,6 @@ func newDashboard() *cobra.Command {
 	c.Flags().Int64Var(&now, flags.Now, 0, "inject the clock in unix-ms (default: real time) — for deterministic tests")
 	c.Flags().StringVar(&model, flags.Model, "", "bulk-tier model, for the run-config header (else read from inputs/run-config.json)")
 	c.Flags().StringVar(&judgmentModel, flags.JudgmentModel, "", "judgment-tier model, for the run-config header")
-	c.Flags().StringVar(&maxRounds, flags.MaxRounds, "", "round ceiling, for the progress bar segmentation")
 	c.Flags().StringVar(&lanes, flags.Lanes, "", "blue lane count, for the run-config header")
 	return c
 }

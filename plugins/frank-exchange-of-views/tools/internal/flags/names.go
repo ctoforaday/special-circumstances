@@ -236,7 +236,6 @@ const (
 	Model         = "model"
 	JudgmentModel = "judgment-model"
 	Cite          = "cite"
-	MaxRounds     = "max-rounds"
 	Lanes         = "lanes"
 	// The run's terms (plans/roundless.md §III.B.2, §III.B.2.2).
 	K                   = "k"
@@ -300,7 +299,7 @@ func All() []string {
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final,
 		Method, AccessDate,
-		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, K, KMax, MintBudget, ConvergenceFraction, LensArea, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
+		Topic, Model, JudgmentModel, Cite, Lanes, K, KMax, MintBudget, ConvergenceFraction, LensArea, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
 		Chair, Watch, Now, Serve,
 		MigrateFrom, MigrateTo, AcceptLoss,
 		Sha, DPI, Force, OCR,
