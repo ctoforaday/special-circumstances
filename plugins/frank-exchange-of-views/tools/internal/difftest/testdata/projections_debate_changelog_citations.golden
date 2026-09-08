@@ -127,38 +127,38 @@ stdout:
 certification recorded
 
 ═══ EVENTS ═══
-{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:position:#1","position":{"text":"red's round position"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_POSITION"}
-{"key":"red-chair:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"round":1,"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
-{"closing":{"gap_id":"G1","text":"red's closing"},"key":"red-chair:closing:G1","round":1,"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_CLOSING"}
-{"key":"blue-respond:position:#0","position":{"text":"blue's round position"},"round":1,"seat_id":"blue-respond","ts":6,"type":"EVENT_TYPE_POSITION"}
-{"closing":{"gap_id":"G1","text":"blue's closing"},"key":"blue-respond:closing:G1","round":1,"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_CLOSING"}
-{"key":"blue-respond:revision:#0","revision":{"text":"repairs landed"},"round":1,"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_REVISION"}
-{"key":"blue-respond:manifest_row:G1","manifest_row":{"gap_id":"G1","row":"figures recomputed; check run: pass"},"round":1,"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
-{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"G1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":1,"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"judge","ts":11,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"G1"},"motion_id":"M2","subject":"MOTION_SUBJECT_DOCKET"},"round":1,"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_CARRIED","final":true,"principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"M2","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"round":1,"seat_id":"judge","ts":13,"type":"EVENT_TYPE_MOTION_RULE"}
-{"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","round":1,"seat_id":"judge","ts":14,"type":"EVENT_TYPE_CERTIFY"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:position:#1","position":{"text":"red's round position"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-chair:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
+{"closing":{"gap_id":"G1","text":"red's closing"},"key":"red-chair:closing:G1","seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_CLOSING"}
+{"key":"blue-respond:position:#0","position":{"text":"blue's round position"},"seat_id":"blue-respond","ts":6,"type":"EVENT_TYPE_POSITION"}
+{"closing":{"gap_id":"G1","text":"blue's closing"},"key":"blue-respond:closing:G1","seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_CLOSING"}
+{"key":"blue-respond:revision:#0","revision":{"text":"repairs landed"},"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_REVISION"}
+{"key":"blue-respond:manifest_row:G1","manifest_row":{"gap_id":"G1","row":"figures recomputed; check run: pass"},"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"G1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":11,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"G1"},"motion_id":"M2","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge:motion_rule:#1","motion_rule":{"docket":{"disposition":"DISPOSITION_CARRIED","final":true,"principle":"correctness over economy","review_flag":"the figure was never recomputed","settled":"the proposition this ruling bars","tension":"thoroughness vs cost"},"motion_id":"M2","opinion":"the rationale body","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"judge","ts":13,"type":"EVENT_TYPE_MOTION_RULE"}
+{"certify":{"statement":"what a human should re-examine"},"key":"judge:certify:#1","seat_id":"judge","ts":14,"type":"EVENT_TYPE_CERTIFY"}
 
 ═══ RENDERS ═══
 -- debate
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
 
-## Round 1
+## Epoch 1
 
 ### RED
 red's round position
 
-### RED CLOSING (round 1) — G1
+### RED CLOSING (epoch 1) — G1
 red's closing
 
 ### BLUE
 blue's round position
 
-### BLUE CLOSING (round 1) — G1
+### BLUE CLOSING (epoch 1) — G1
 blue's closing
 
 ### LEAD
@@ -168,7 +168,7 @@ the rationale body
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
-_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

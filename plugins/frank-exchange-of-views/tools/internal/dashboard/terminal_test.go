@@ -32,7 +32,7 @@ func runWithStubbedReportButNoOutcome(t *testing.T) string {
 	if err := os.WriteFile(filepath.Join(dir, "report.md"), []byte("# report.md — a topic\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", 1, "red-chair:mint:G1", &recordpb.Mint{
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
 		GapId:           proto.String("G1"),
 		Problem:         proto.String("p"),
 		RequiredFix:     proto.String("f"),
@@ -75,7 +75,7 @@ func TestTheLiveRunPageDoesNotAnnounceCompletion(t *testing.T) {
 // The other direction: a recorded outcome IS terminal, and the verdict travels from the record.
 func TestARecordedOutcomeIsTerminal(t *testing.T) {
 	dir := runWithStubbedReportButNoOutcome(t)
-	recordtest.Seed(t, dir, recordtest.At(t, "judge-terminal", 1, "judge-terminal:outcome:#1", &recordpb.Outcome{
+	recordtest.Seed(t, dir, recordtest.At(t, "judge-terminal", "judge-terminal:outcome:#1", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 		Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
 	}))

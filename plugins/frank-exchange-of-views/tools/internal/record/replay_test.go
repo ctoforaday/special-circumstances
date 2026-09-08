@@ -182,11 +182,12 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-chair"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seatID, 1, seatID+":mint:G1", &recordpb.Mint{GapId: proto.String("G1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
-		recordtest.At(t, seatID, 1, seatID+":mint:G2", &recordpb.Mint{GapId: proto.String("G2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p2"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, seatID, seatID+":register:#1", &recordpb.Register{}),
+		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{GapId: proto.String("G1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{GapId: proto.String("G2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p2"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		// A regrade moves ONLY the keys it carries.
-		recordtest.At(t, seatID, 1, seatID+":regrade:G1", &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), Basis: proto.String("new evidence")}),
-		recordtest.At(t, seatID, 1, seatID+":close:G2", &recordpb.Close{GapId: proto.String("G2"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")}),
+		recordtest.At(t, seatID, seatID+":regrade:G1", &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), Basis: proto.String("new evidence")}),
+		recordtest.At(t, seatID, seatID+":close:G2", &recordpb.Close{GapId: proto.String("G2"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")}),
 		// A REGRADE AND A CLOSE OF AN UNKNOWN GAP USED TO BE SEEDED HERE, and the assertion was
 		// that the replay IGNORED them rather than failing. Both are foreign keys onto the mint
 		// now, so neither row can be written — the state is unrepresentable, and the replay's arm
@@ -215,7 +216,7 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 		t.Errorf("regrade history not kept: %d entries", len(g1.Regrades))
 	}
 	g2 := b.Gap("G2")
-	if g2.Open || !g2.HasClosed || g2.ClosedRound != 1 {
+	if g2.Open || !g2.HasClosed || g2.ClosedEpoch != 1 {
 		t.Errorf("G2 closure not replayed: %+v", g2)
 	}
 	// Absence is renderable: a gap minted without --cx keeps nil, not "".
@@ -240,8 +241,8 @@ func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 	runDir := newRun(t)
 	lens := "red-lens-evidence"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, lens, 1, lens+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("first")}),
-		recordtest.At(t, lens, 1, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("second")}),
+		recordtest.At(t, lens, lens+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("first")}),
+		recordtest.At(t, lens, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("second")}),
 	})
 	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
@@ -495,7 +496,7 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-chair"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seatID, 1, seatID+":mint:G1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1")}),
+		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1")}),
 	})
 	base := func(supersedes ...string) *recordpb.Mint {
 		return &recordpb.Mint{
@@ -531,8 +532,8 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 	// repaired_with_regression names. A successor is a reference like any other and is
 	// now checked, so a fixture that names one has to create it.
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seatID, 1, seatID+":mint:G1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1")}),
-		recordtest.At(t, seatID, 2, seatID+":mint:G2", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2")}),
+		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1")}),
+		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2")}),
 	})
 	anchored := func() *recordpb.Close {
 		return &recordpb.Close{
@@ -731,7 +732,7 @@ func TestValidateClassRegistry(t *testing.T) {
 		writeRegistry(t, runDir, registry)
 		seatID := "red-chair"
 		writeShard(t, runDir, []*Event{
-			recordtest.At(t, seatID, 1, seatID+":class-new:x", &recordpb.ClassNew{Slug: proto.String("run-local-class")}),
+			recordtest.At(t, seatID, seatID+":class-new:x", &recordpb.ClassNew{Slug: proto.String("run-local-class")}),
 		})
 		if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("run-local-class")})); err != nil {
 			t.Errorf("a class minted in this run was refused: %v", err)
@@ -1210,13 +1211,13 @@ func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 	runDir := newRun(t)
 	// zulu proposes FIRST in wall-clock; alpha moves it SECOND. Alphabetically alpha < zulu.
 	writeShard(t, runDir, []*Event{
-		recordtest.Stamped(recordtest.At(t, "zulu", 1, "zulu:line-of-inquiry:#1", &recordpb.Avenue{
+		recordtest.Stamped(recordtest.At(t, "zulu", "zulu:line-of-inquiry:#1", &recordpb.Avenue{
 			AvenueId: proto.String("Q1"),
 			Status:   recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
 			Line:     proto.String("opened"),
 			Reason:   proto.String("opened"),
 		}), "2026-08-22T10:00:00.000000000Z"),
-		recordtest.Stamped(recordtest.At(t, "alpha", 1, "alpha:line-of-inquiry:#1", &recordpb.Avenue{
+		recordtest.Stamped(recordtest.At(t, "alpha", "alpha:line-of-inquiry:#1", &recordpb.Avenue{
 			AvenueId:         proto.String("Q1"),
 			Status:           recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED.Enum(),
 			SupersedesStatus: proto.String("proposed"),

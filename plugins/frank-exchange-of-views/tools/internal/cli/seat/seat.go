@@ -116,9 +116,10 @@ type Context struct {
 	runDir string
 	SeatID string
 	Role   string
-	// Round is the seat's round as a FACT — injected by the dispatcher, not recovered from the
-	// seat id (#348). -1 means unknown, which is NOT round 0: round 0 is synthesis, and
-	// conflating the two is what produced the phantom-archive bug in #327.
+	// There is no round here. The epoch (chair sittings) and the sitting ordinal are windows the
+	// record computes over the events at read time (record.Clock, events_w); a seat never carries
+	// or stamps either. The round was once injected by the dispatcher and before that recovered
+	// from the seat id by regex (#348).
 	// RunVia says which of the three paths supplied the run — the hook's injection, the seat's
 	// own --run, or the tool's inference from the marker. `register` records it, because a run
 	// whose seats all resolve by INFERENCE is a run the hook is not reaching, and nothing else
@@ -172,9 +173,9 @@ func (c Context) handle() record.Run {
 	return r
 }
 
-// Identity is what a record write needs to know about who is writing: the run, the seat, and the
-// ROUND AS A FACT rather than a regex over the id. Every `record.Append` goes through this, so
-// when the dispatcher starts injecting a round (#290) it lands in one place instead of 32.
+// Identity is what a record write needs to know about who is writing: the run and the seat.
+// Every `record.Append` goes through this, so anything the envelope must carry lands in one
+// place instead of 32. No clock rides on it: the record derives epoch and sitting on read.
 //
 // Role is not carried. See record.Event.Role: the party on an event is derived from the seat id,
 // and this Context's Role answers a different question — which command group the verb sits under.

@@ -15,7 +15,7 @@ func siteFixture(t *testing.T) (string, record.Family) {
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
 		Events: []*record.Event{
-			recordtest.Event(t, "", 0, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING)}),
+			recordtest.Event(t, "", &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING)}),
 		},
 	}
 	docs := []Doc{

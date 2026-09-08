@@ -16,12 +16,20 @@ func itoa(n int) string { return strconv.Itoa(n) }
 // EndedMs are *float64 so "not finite" (JS null) is distinct from a real 0 timestamp —
 // projectCompletion's Number.isFinite guard depends on that distinction.
 type Seat struct {
-	AgentID   string
-	Done      bool
-	Result    any
-	Label     string
-	Seat      string
-	Round     int // 0 == no round (JS falsy round)
+	AgentID string
+	Done    bool
+	Result  any
+	Label   string
+	Seat    string
+	// Epoch and Sitting are the record's two windows at this agent's register (plans/roundless.md
+	// §III.A.0), read off the register event the journal's agentId joins to — NOT parsed out of the
+	// transcript head. Epoch is the chair's register count at that moment (the dispatch cycle the
+	// sitting belongs to); Sitting is this seat's own register count (the ordinal the label
+	// carries). Both are 0 when the record never bound the agent — a run whose hook did not fire,
+	// or no record yet — and 0 is also the honest epoch of a bookend seat that sat before the
+	// chair ever did.
+	Epoch     int
+	Sitting   int
 	StartedMs *float64
 	EndedMs   *float64
 }
@@ -31,8 +39,8 @@ type Eta struct {
 	State           string
 	LowMin          int
 	HighMin         int
-	PerRoundLowMin  int
-	PerRoundHighMin int
+	PerEpochLowMin  int
+	PerEpochHighMin int
 	Basis           string
 	Unmeasured      []string
 }
@@ -128,11 +136,12 @@ func projectCompletion(seats []Seat, nowMs float64) Eta {
 		}
 	}
 
-	round := struct{ lo, hi float64 }{}
+	// One more epoch costs one more pass of the debate seats: lenses, chair, blue's response.
+	epoch := struct{ lo, hi float64 }{}
 	for _, c := range []string{"red-lens", "red-chair", "red-merge", "blue-respond"} {
 		if sp := spanOf(c); sp.ok {
-			round.lo += sp.lo
-			round.hi += sp.hi
+			epoch.lo += sp.lo
+			epoch.hi += sp.hi
 		}
 	}
 
@@ -144,8 +153,8 @@ func projectCompletion(seats []Seat, nowMs float64) Eta {
 		State:           state,
 		LowMin:          int(math.Round(lo)),
 		HighMin:         int(math.Round(hi)),
-		PerRoundLowMin:  int(math.Round(round.lo)),
-		PerRoundHighMin: int(math.Round(round.hi)),
+		PerEpochLowMin:  int(math.Round(epoch.lo)),
+		PerEpochHighMin: int(math.Round(epoch.hi)),
 		Basis:           itoa(len(done)) + " completed seat(s) in this run",
 		Unmeasured:      missing,
 	}

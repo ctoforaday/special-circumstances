@@ -14,7 +14,7 @@ import (
 // happen, and silence there reads identically to a run that never asked.
 func TestAnUnruledMotionIsReported(t *testing.T) {
 	b := record.NewFamily(nil, []*record.Event{
-		recordtest.Event(t, "blue-respond", 1, &recordpb.Motion{
+		recordtest.Event(t, "blue-respond", &recordpb.Motion{
 			MotionId: proto.String("M1"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 			Basis:    proto.String("the demand would bury a hazard"),

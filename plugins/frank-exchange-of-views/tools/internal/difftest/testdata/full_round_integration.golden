@@ -108,24 +108,24 @@ stdout:
 verdict FAIL (1 open, 0 closed) and checkpointed to {MIRROR}
 
 ═══ EVENTS ═══
-{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"red-lens-evidence","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_HIGH","label":"evidence-F1","likelihood":"GRADE_MEDIUM","location":"## S2","severity":"GRADE_MEDIUM","text":"citation does not support"},"key":"red-lens-evidence:finding:evidence-F1","round":0,"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-evidence:anchor:FINDING001","round":0,"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_ANCHOR"}
-{"key":"red-lens-logic:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"red-lens-logic","ts":5,"type":"EVENT_TYPE_REGISTER"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_HIGH","label":"logic-F1","likelihood":"GRADE_HIGH","location":"## S4","severity":"GRADE_HIGH","text":"a leap of faith"},"key":"red-lens-logic:finding:logic-F1","round":0,"seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S4"},"key":"red-lens-logic:anchor:FINDING001","round":0,"seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
-{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair","ts":8,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:mint:G1","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["evidence-F1","logic-F1"],"gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"## S2","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair:position:#1","position":{"text":"round one: FAIL"},"round":1,"seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_POSITION"}
-{"key":"red-chair:verdict:#1","round":1,"seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_HIGH","label":"evidence-F1","likelihood":"GRADE_MEDIUM","location":"## S2","severity":"GRADE_MEDIUM","text":"citation does not support"},"key":"red-lens-evidence:finding:evidence-F1","seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-evidence:anchor:FINDING001","seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-lens-logic:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-logic","ts":5,"type":"EVENT_TYPE_REGISTER"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_HIGH","label":"logic-F1","likelihood":"GRADE_HIGH","location":"## S4","severity":"GRADE_HIGH","text":"a leap of faith"},"key":"red-lens-logic:finding:logic-F1","seat_id":"red-lens-logic","ts":6,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S4"},"key":"red-lens-logic:anchor:FINDING001","seat_id":"red-lens-logic","ts":7,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":8,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:mint:G1","mint":{"acceptance_check":"refetch and diff","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","found_by":["evidence-F1","logic-F1"],"gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"## S2","mint_key":"","problem":"the cited source does not say this","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:position:#1","position":{"text":"round one: FAIL"},"seat_id":"red-chair","ts":10,"type":"EVENT_TYPE_POSITION"}
+{"key":"red-chair:verdict:#1","seat_id":"red-chair","ts":11,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 
 ═══ RENDERS ═══
 -- debate
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
 
-## Round 1
+## Epoch 1
 
 ### RED
 round one: FAIL
@@ -133,7 +133,7 @@ round one: FAIL
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
-_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

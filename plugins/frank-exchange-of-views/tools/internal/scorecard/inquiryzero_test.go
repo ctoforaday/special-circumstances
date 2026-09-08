@@ -13,7 +13,7 @@ import (
 
 func avenue(t *testing.T, id, line string, st recordpb.AvenueStatus, reason string) *record.Event {
 	t.Helper()
-	return recordtest.Event(t, "blue-synthesize", 0, &recordpb.Avenue{
+	return recordtest.Event(t, "blue-synthesize", &recordpb.Avenue{
 		AvenueId: proto.String(id), Line: proto.String(line),
 		Status: &st, Reason: proto.String(reason),
 	})
@@ -63,7 +63,7 @@ func TestALineThatMovedIsCountedOnceUnderItsCurrentStatus(t *testing.T) {
 		avenue(t, "Q1", "the Medium essay", recordpb.AvenueStatus_AVENUE_STATUS_DECLINED, "no access channel exists for it"),
 		func() *record.Event {
 			st := recordpb.AvenueStatus_AVENUE_STATUS_PURSUED
-			return recordtest.Event(t, "blue-respond", 3, &recordpb.Avenue{
+			return recordtest.Event(t, "blue-respond", &recordpb.Avenue{
 				AvenueId: proto.String("Q1"), Status: &st, SupersedesStatus: proto.String("declined"),
 			})
 		}(),

@@ -68,12 +68,12 @@ Flags:
 Use "feov-record [command] --help" for more information about a command.
 
 ═══ EVENTS ═══
-{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"red-lens-evidence","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_LOW","label":"evidence-F1","likelihood":"GRADE_LOW","location":"## S2","severity":"GRADE_LOW","text":"older shard"},"key":"red-lens-evidence:finding:evidence-F1","round":0,"seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_FINDING"}
-{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-evidence:anchor:FINDING001","round":0,"seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_ANCHOR"}
-{"key":"red-lens-evidence:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-lens-evidence:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"finding":{"finding_id":"FINDING001","finding_key":"F1","impact":"GRADE_LOW","label":"evidence-F1","likelihood":"GRADE_LOW","location":"## S2","severity":"GRADE_LOW","text":"older shard"},"key":"red-lens-evidence:finding:evidence-F1","seat_id":"red-lens-evidence","ts":3,"type":"EVENT_TYPE_FINDING"}
+{"anchor":{"id":"FINDING001","location":"## S2"},"key":"red-lens-evidence:anchor:FINDING001","seat_id":"red-lens-evidence","ts":4,"type":"EVENT_TYPE_ANCHOR"}
+{"key":"red-lens-evidence:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-lens-evidence","ts":5,"type":"EVENT_TYPE_REGISTER"}
 
 ═══ RENDERS ═══
 -- debate
@@ -82,7 +82,7 @@ Use "feov-record [command] --help" for more information about a command.
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
-_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

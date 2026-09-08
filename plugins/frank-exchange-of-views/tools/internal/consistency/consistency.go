@@ -43,12 +43,15 @@ import (
 // mint's grades overlaid by every regrade in order. Any reader that answers differently is
 // answering a different question, and the divergence is what the oracle reports.
 type gtGap struct {
-	mintRound      int
-	open           bool
-	everClosed     bool
-	lastCloser     string // "red" (a close event) or "bench" (a closing opinion)
-	lastClass      string // the word carried by the LAST closing event; "" if it carried none
-	lastCloseRound int
+	open       bool
+	everClosed bool
+	lastCloser string // "red" (a close event) or "bench" (a closing opinion)
+	lastClass  string // the word carried by the LAST closing event; "" if it carried none
+	// lastCloseEpoch is the epoch of the last closing event — red-chair registers at or before
+	// it, COUNTED IN THIS WALK rather than taken from record.Clock. The oracle is a second
+	// opinion on the board's ClosedEpoch, and a second opinion that shares the first's counter
+	// is one opinion written twice (plans/roundless.md §III.A.0 is the definition both follow).
+	lastCloseEpoch int
 	sev, lik, imp  recordpb.Grade
 	cx             recordpb.Grade
 	supersedes     []string
@@ -108,7 +111,11 @@ func walk(events []*record.Event) *groundTruth {
 		}
 	}
 
+	epoch := 0 // the walk's own chair-register count; advanced before any continue
 	for _, e := range events {
+		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && e.GetSeatId() == "red-chair" {
+			epoch++
+		}
 		body, ok := recordpb.Body(e)
 		if !ok {
 			continue
@@ -120,8 +127,8 @@ func walk(events []*record.Event) *groundTruth {
 				gt.order = append(gt.order, id)
 			}
 			gt.gaps[id] = &gtGap{
-				mintRound: int(e.GetRound()), open: true,
-				sev: m.GetSeverity(), lik: m.GetLikelihood(), imp: m.GetImpact(), cx: m.GetComplexityCost(),
+				open: true,
+				sev:  m.GetSeverity(), lik: m.GetLikelihood(), imp: m.GetImpact(), cx: m.GetComplexityCost(),
 				supersedes: append([]string{}, m.GetSupersedes()...),
 			}
 		case *recordpb.Regrade:
@@ -149,7 +156,7 @@ func walk(events []*record.Event) *groundTruth {
 			g.open, g.everClosed = false, true
 			g.lastCloser = "red"
 			g.lastClass = recordpb.Word(m.GetClosureClass())
-			g.lastCloseRound = int(e.GetRound())
+			g.lastCloseEpoch = epoch
 		case *recordpb.MotionRule:
 			// THIS ORACLE KEEPS ITS OWN FOLD, DELIBERATELY. Everywhere else in this change the
 			// SQL views became canonical and the Go readers were pointed at them — but a
@@ -192,7 +199,7 @@ func walk(events []*record.Event) *groundTruth {
 			g.open, g.everClosed = false, true
 			g.lastCloser = "bench"
 			g.lastClass = w
-			g.lastCloseRound = int(e.GetRound())
+			g.lastCloseEpoch = epoch
 		case *recordpb.Finding:
 			gt.observations++
 			if l := m.GetLabel(); l != "" {
@@ -273,12 +280,12 @@ func Check(run record.Run) ([]string, error) {
 		if rg.HasClosed != g.everClosed {
 			add("replay-agreement", "gap %s: raw walk everClosed=%v, board HasClosed=%v", id, g.everClosed, rg.HasClosed)
 		}
-		if g.everClosed && rg.ClosedRound != g.lastCloseRound {
-			add("replay-agreement", "gap %s: last closing event is round %d, board ClosedRound=%d", id, g.lastCloseRound, rg.ClosedRound)
+		if g.everClosed && rg.ClosedEpoch != g.lastCloseEpoch {
+			add("replay-agreement", "gap %s: last closing event is in epoch %d, board ClosedEpoch=%d", id, g.lastCloseEpoch, rg.ClosedEpoch)
 		}
 		if g.everClosed && rg.ClosedByBench != (g.lastCloser == "bench") {
-			add("closer-attribution", "gap %s: last closing event was %s's (round %d), board ClosedByBench=%v",
-				id, g.lastCloser, g.lastCloseRound, rg.ClosedByBench)
+			add("closer-attribution", "gap %s: last closing event was %s's (epoch %d), board ClosedByBench=%v",
+				id, g.lastCloser, g.lastCloseEpoch, rg.ClosedByBench)
 		}
 		if rg.Severity != g.sev || rg.Likelihood != g.lik || rg.Impact != g.imp || rg.ComplexityCost != g.cx {
 			add("replay-agreement", "gap %s: grades diverge — walk (%s,%s,%s,%s) board (%s,%s,%s,%s)", id,
@@ -421,7 +428,7 @@ func Check(run record.Run) ([]string, error) {
 	} else if len(rows) > 0 {
 		last := rows[len(rows)-1]
 		if last.OpenCount != nil && int(last.GetOpenCount()) != openGT {
-			add("telemetry", "final round open_count=%d, raw walk says %d", last.GetOpenCount(), openGT)
+			add("telemetry", "final epoch open_count=%d, raw walk says %d", last.GetOpenCount(), openGT)
 		}
 	}
 

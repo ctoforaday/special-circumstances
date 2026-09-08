@@ -10,12 +10,12 @@ import "strings"
 // real read paths, every scan the record performs today falls into one of these, and not one is
 // an index defect:
 //
-//	SELECT id, seat_id, round, ts, type, key FROM events ORDER BY id   -- the full replay
+//	SELECT id, seat_id, ts, type, key FROM events ORDER BY id   -- the full replay
 //	SELECT "event_id", "gap_id", … FROM "mint"                        -- a bulk detail read
 //	SELECT (SELECT count(*) FROM "verify"), (SELECT count(*) FROM "cite")
 //	SELECT "verdict" FROM "outcome" ORDER BY "event_id" DESC LIMIT 1
 //	SCAN mint_supersedes USING INDEX sqlite_autoindex_mint_supersedes_1
-//	SCAN events USING COVERING INDEX events_round
+//	SCAN events USING COVERING INDEX events_type
 //
 // Two distinctions fall out of that list, and both are read off the plan or the statement rather
 // than kept in a list here:
@@ -45,8 +45,8 @@ import "strings"
 // hand rather than a slot waiting to be filled.
 //
 // There is a SECOND limit, and it is the one worth knowing before trusting this: dropping an
-// index that only ever served an UNCONSTRAINED read is invisible here. `SELECT DISTINCT "round"
-// FROM "events" ORDER BY "round"` walks events_round as a covering index today; delete that index
+// index that only ever served an UNCONSTRAINED read is invisible here. `SELECT DISTINCT "type"
+// FROM "events"` walks events_type as a covering index today; delete that index
 // and the plan becomes a bare `SCAN events`, with no WHERE to make it a defect, and this stays
 // green while the query got slower. Catching that needs a different instrument — a recorded
 // baseline of each statement's plan, failing when a plan gets WORSE — which is a plan-golden, not

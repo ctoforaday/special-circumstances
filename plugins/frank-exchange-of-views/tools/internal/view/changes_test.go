@@ -17,7 +17,7 @@ import (
 func seedChanges(t *testing.T, runDir string) {
 	t.Helper()
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, "red-chair", 1, "red-chair:mint:G1", &recordpb.Mint{
+		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
 			GapId:           proto.String("G1"),
 			Class:           proto.String("overclaim"),
 			Problem:         proto.String("independence is overclaimed"),
@@ -28,14 +28,17 @@ func seedChanges(t *testing.T, runDir string) {
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
 	})
+	// Blue sits before it edits: the sitting ordinal the headings carry is COUNTED from this
+	// register, never read off the edit.
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, "blue-respond", 1, "blue-respond:blue_edit:e1", &recordpb.BlueEdit{
+		recordtest.At(t, "blue-respond", "blue-respond:register:1", &recordpb.Register{}),
+		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e1", &recordpb.BlueEdit{
 			Answers: proto.String("G1"),
 			Old:     proto.String("five independent approaches"),
 			New:     proto.String("five approaches"),
 			Text:    proto.String("drop the independence claim"),
 		}),
-		recordtest.At(t, "blue-respond", 1, "blue-respond:blue_edit:e2", &recordpb.BlueEdit{
+		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e2", &recordpb.BlueEdit{
 			Answers: proto.String("G1"),
 			Old:     proto.String("They agree."),
 			New:     proto.String("They agree, sharing one definition of primality."),
@@ -43,7 +46,7 @@ func seedChanges(t *testing.T, runDir string) {
 		}),
 		// The unattributed edit: blue's own work, answering no gap. Six of the smoke's 26 edits
 		// were this shape, which is why `answers` being ABSENT has to stay expressible.
-		recordtest.At(t, "blue-respond", 1, "blue-respond:blue_edit:e3", &recordpb.BlueEdit{
+		recordtest.At(t, "blue-respond", "blue-respond:blue_edit:e3", &recordpb.BlueEdit{
 			Old:  proto.String("cost ,"),
 			New:  proto.String("cost,"),
 			Text: proto.String("punctuation repair"),
@@ -60,6 +63,7 @@ func TestChangesListsEveryEditAndSaysWhichAnswerNoGap(t *testing.T) {
 	for _, want := range []string{
 		"drop the independence claim", "name the shared definition", "punctuation repair",
 		"answers **G1**", "no gap", "3 recorded edit(s)",
+		"## `blue-respond` #1", // grouped by the sitting that made them, not a round
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("unscoped changes is missing %q:\n%s", want, out)
@@ -85,6 +89,7 @@ func TestChangesScopedPutsRequiredFixBesideTheEdits(t *testing.T) {
 		"- five independent approaches",             // blue's actual old span
 		"+ five approaches",                         // and its replacement
 		"Edits blue recorded against it (2)",        // both, and only both
+		"### 1. `blue-respond` #1 ·",                // the seat and its sitting, no round
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("scoped changes is missing %q:\n%s", want, out)
@@ -101,7 +106,7 @@ func TestChangesScopedPutsRequiredFixBesideTheEdits(t *testing.T) {
 func TestChangesScopedSaysNoneRatherThanRenderingEmpty(t *testing.T) {
 	runDir := t.TempDir()
 	writeShard(t, runDir, []*record.Event{
-		recordtest.At(t, "red-chair", 1, "red-chair:mint:G1", &recordpb.Mint{
+		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
 			GapId:           proto.String("G1"),
 			Class:           proto.String("x"),
 			Problem:         proto.String("p"),
@@ -139,7 +144,7 @@ func TestChangesScopedRefusesAnUnknownGap(t *testing.T) {
 	}
 }
 
-// An empty stack is a FINDING on a run past round 0, not blank formatting.
+// An empty stack is a FINDING on a run past epoch 0, not blank formatting.
 func TestChangesSaysWhyItIsEmpty(t *testing.T) {
 	out := md(t, t.TempDir(), "changes")
 	if !strings.Contains(out, "itself a finding") {

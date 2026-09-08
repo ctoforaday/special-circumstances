@@ -126,7 +126,7 @@ func Counts(run record.Run) (open, closed int, err error) {
 	return record.BoardCounts(run)
 }
 
-// Telemetry returns the per-round board-telemetry series, computed from the record — the single
+// Telemetry returns the per-epoch board-telemetry series, computed from the record — the single
 // source that replaced the materialized board-telemetry.jsonl.
 //
 // IT HANDS BACK THE TYPED MESSAGE, and that is the whole point of this function's history. It used
@@ -148,7 +148,7 @@ func Telemetry(run record.Run) ([]*recordpb.TelemetryLine, error) {
 }
 
 // TelemetryJSONL returns the board-telemetry series as the raw JSONL wire bytes
-// (one line per round, trailing newline when non-empty) — the byte-exact form the
+// (one line per epoch, trailing newline when non-empty) — the byte-exact form the
 // old materialized telemetry file held, for callers that need the wire shape rather than
 // decoded rows.
 func TelemetryJSONL(run record.Run) ([]byte, error) {
@@ -179,7 +179,7 @@ func TelemetryJSONL(run record.Run) ([]byte, error) {
 	for _, row := range rows {
 		enc, err := json.Marshal(telemetryWire(row))
 		if err != nil {
-			return nil, fmt.Errorf("view: encoding telemetry round %d: %w", row.GetRound(), err)
+			return nil, fmt.Errorf("view: encoding telemetry epoch %d: %w", row.GetEpoch(), err)
 		}
 		lines = append(lines, string(enc))
 	}
@@ -398,7 +398,7 @@ func archiveMD(in Input) []byte {
 		}
 		anchor := fmt.Sprintf("%s | %s | %s", undefStr(anchorSeat), undefStr(anchorTool), undefStr(anchorTarget))
 		if carriedFrom != nil {
-			anchor = "CARRIED from round " + undefStr(carriedFrom)
+			anchor = "CARRIED from " + undefStr(carriedFrom)
 		}
 		successor := ""
 		if s := g.Closure.GetSuccessor(); s != "" {
@@ -413,7 +413,8 @@ func archiveMD(in Input) []byte {
 // telemetryLines computes the board-telemetry series as JSONL lines (the compute
 // that was inline in render.go), the shared source Telemetry decodes.
 func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
-	// THE SERIES IS DENSE OVER THE RUN'S ROUNDS, and it was keyed on MINT rounds alone.
+	// THE SERIES IS DENSE OVER THE RUN'S EPOCHS (chair sittings, plans/roundless.md §III.A.0),
+	// and it was keyed on MINT rounds alone.
 	//
 	// MEASURED 2026-08-22 on research/2026-08-22_is-7-prime. All five gaps were minted at round 1
 	// and THREE OF THEM CLOSED AT ROUND 2 — "zero new gaps were raised in R2", which is what
@@ -425,55 +426,58 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 	// It cost more than a chart. TelemetryAudit asks whether the series covers every RED round, so
 	// a converged round made capture FAIL — the gate firing on the healthy outcome, which is the
 	// expensive direction because it teaches a reader to discount the audit. And
-	// scorecard.go's repair_regression_ratio reports "no telemetry rounds with closures", which is
+	// scorecard.go's repair_regression_ratio reported "no telemetry rounds with closures", which is
 	// this defect wearing the name of a metric.
 	//
-	// Dense rather than mint-∪-close, because a round where red sat and the board did NOT move is
+	// Dense rather than mint-∪-close, because an epoch where red sat and the board did NOT move is
 	// itself the convergence signal: a zero row says "nothing moved", a missing row says nothing
 	// at all. Dense also makes the audit's premise true by construction rather than by luck.
-	seenRound := map[int]bool{}
-	for r := 1; r <= record.CurrentRoundOf(in.Events); r++ {
-		seenRound[r] = true
+	//
+	// The epoch is COUNTED from the record (red-chair registers at or before each row), never
+	// read off an event: Gap.Epoch/ClosedEpoch and CurrentEpochOf are the same count.
+	seenEpoch := map[int]bool{}
+	for r := 1; r <= record.CurrentEpochOf(in.Events); r++ {
+		seenEpoch[r] = true
 	}
-	// Defensive: a gap minted or closed outside the event round span still gets its row.
+	// Defensive: a gap minted or closed outside the event epoch span still gets its row.
 	byID := record.GapsByID(in.Gaps)
 	for _, g := range in.Gaps {
-		seenRound[g.Round] = true
+		seenEpoch[g.Epoch] = true
 		if g.HasClosed {
-			seenRound[g.ClosedRound] = true
+			seenEpoch[g.ClosedEpoch] = true
 		}
 	}
-	var rounds []int
-	for r := range seenRound {
+	var epochs []int
+	for r := range seenEpoch {
 		if r > 0 {
-			rounds = append(rounds, r)
+			epochs = append(epochs, r)
 		}
 	}
-	sort.Ints(rounds)
+	sort.Ints(epochs)
 
 	var telemetry []*recordpb.TelemetryLine
-	prevClasses := map[string]bool{} // the previous round's mint classes — the repeat-rate basis
-	for _, r := range rounds {
+	prevClasses := map[string]bool{} // the previous epoch's mint classes — the repeat-rate basis
+	for _, r := range epochs {
 		var openAtR, minted, closedAtR, lineage []*record.Gap
 		realizedOpen := 0
 		for _, g := range in.Gaps {
-			closedRound := 99 // mirrors `g.closedRound ?? 99`
+			closedEpoch := 99 // mirrors `g.closedRound ?? 99`
 			if g.HasClosed {
-				closedRound = g.ClosedRound
+				closedEpoch = g.ClosedEpoch
 			}
-			if g.Round <= r && (g.Open || closedRound > r) {
+			if g.Epoch <= r && (g.Open || closedEpoch > r) {
 				openAtR = append(openAtR, g)
 				if record.GradeStr(g.Likelihood) == "realized" {
 					realizedOpen++
 				}
 			}
-			if g.Round == r {
+			if g.Epoch == r {
 				minted = append(minted, g)
 				if len(g.Mint.GetSupersedes()) > 0 {
 					lineage = append(lineage, g)
 				}
 			}
-			if g.HasClosed && g.ClosedRound == r {
+			if g.HasClosed && g.ClosedEpoch == r {
 				closedAtR = append(closedAtR, g)
 			}
 		}
@@ -493,7 +497,7 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 			}
 		}
 		// ORDER IS OWNED HERE, which is the schema's stated reason for `repeated` over a map:
-		// first appearance among this round's mints, so the series is deterministic without
+		// first appearance among this epoch's mints, so the series is deterministic without
 		// trusting any encoder's map ordering.
 		bySevCount := map[recordpb.Grade]int32{}
 		var bySevOrder []recordpb.Grade
@@ -510,7 +514,7 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 		// THE CLASS DISTRIBUTION — "did the findings change CHARACTER" made computable.
 		//
 		// The severity profile answers "how bad", and a run can hold severity flat for
-		// rounds while the KIND of thing being found moves from "this is wrong about the
+		// epochs while the KIND of thing being found moves from "this is wrong about the
 		// world" to "this document disagrees with itself". That phase change is the bench's
 		// stopping signal (#284): findings continuing is normal; findings turning into
 		// internal-consistency complaints means the rest is cheaper to shake out in
@@ -524,7 +528,7 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 			}
 			byClass[k]++
 		}
-		// Repeat rate against the PREVIOUS round's classes: high means the run is
+		// Repeat rate against the PREVIOUS epoch's classes: high means the run is
 		// circling the same kind of defect, which is signal 1 without reading the prose.
 		repeated := 0
 		for _, g := range minted {
@@ -564,7 +568,7 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 			ratio = proto.Float64(round2(float64(len(lineage)) / float64(len(closedAtR))))
 		}
 		line := &recordpb.TelemetryLine{
-			Round:          proto.Int32(int32(r)),
+			Epoch:          proto.Int32(int32(r)),
 			MappingVersion: proto.String(record.MassMappingVersion),
 			OpenCount:      proto.Int32(int32(len(openAtR))),
 			MaxSeverity:    maxSeverity,
@@ -592,18 +596,23 @@ func telemetryRows(in Input) ([]*recordpb.TelemetryLine, error) {
 	return telemetry, nil
 }
 
-// debateMD — the round-by-round transcript. Trailing newline (render.go parity).
+// debateMD — the epoch-by-epoch transcript. Trailing newline (render.go parity).
+//
+// The bucket is the EPOCH (red-chair registers at or before the event), counted here with the
+// Clock rather than read off the envelope — the record carries no round column. The twin in
+// record/viewjson.go (DebateJSONOf) buckets the same way, one `## Epoch N` per chair sitting.
 func debateMD(in Input) []byte {
-	var roundOrder []int
-	byRound := map[int][]*record.Event{}
+	var epochOrder []int
+	byEpoch := map[int][]*record.Event{}
+	var clk record.Clock
 	for _, e := range in.Events {
-		r := int(e.GetRound())
-		if _, seen := byRound[r]; !seen {
-			roundOrder = append(roundOrder, r)
+		r := clk.Advance(e).Epoch
+		if _, seen := byEpoch[r]; !seen {
+			epochOrder = append(epochOrder, r)
 		}
-		byRound[r] = append(byRound[r], e)
+		byEpoch[r] = append(byEpoch[r], e)
 	}
-	sort.Ints(roundOrder)
+	sort.Ints(epochOrder)
 
 	// ONE PAIRING, READ MANY TIMES. The gap a bench disposition settles rides the docket motion's
 	// FILING, never its ruling, so this indexes the gap by motion id once and the LEAD lines
@@ -612,8 +621,8 @@ func debateMD(in Input) []byte {
 	docketGapOf := record.DocketGapByMotion(in.Events)
 
 	debateParts := []string{"# debate.md — RENDERED PROJECTION (source of truth: records/ event log)"}
-	for _, r := range roundOrder {
-		re := byRound[r]
+	for _, r := range epochOrder {
+		re := byEpoch[r]
 		// Party from the stamped field, not the id's prefix — see the twin in
 		// record/viewjson.go. These two renderers derive from one replay and must
 		// not drift, so they answer "which party" the same way.
@@ -630,7 +639,7 @@ func debateMD(in Input) []byte {
 		// messages (Position.text, Closing.text — required.go declares Closing.text as --reason).
 		// Neither message has a `reason`. The twin in record/viewjson.go reads them the same way,
 		// which is the point of the note above.
-		parts := []string{fmt.Sprintf("\n## Round %d", r)}
+		parts := []string{fmt.Sprintf("\n## Epoch %d", r)}
 		for _, e := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "merge") {
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
 				parts = append(parts, "### RED\n"+p.GetText())
@@ -638,7 +647,7 @@ func debateMD(in Input) []byte {
 		}
 		for _, e := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "merge") {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
-				parts = append(parts, fmt.Sprintf("### RED CLOSING (round %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
+				parts = append(parts, fmt.Sprintf("### RED CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
 			}
 		}
 		for _, e := range sec(recordpb.EventType_EVENT_TYPE_POSITION, "blue") {
@@ -648,7 +657,7 @@ func debateMD(in Input) []byte {
 		}
 		for _, e := range sec(recordpb.EventType_EVENT_TYPE_CLOSING, "blue") {
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
-				parts = append(parts, fmt.Sprintf("### BLUE CLOSING (round %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
+				parts = append(parts, fmt.Sprintf("### BLUE CLOSING (epoch %d) — %s\n%s", r, c.GetGapId(), c.GetText()))
 			}
 		}
 		// THE BENCH'S WHOLE OUTPUT, not only the part that moves a gap.
@@ -656,7 +665,7 @@ func debateMD(in Input) []byte {
 		// This built ### LEAD from the bench's gap dispositions ALONE, so two of its three acts
 		// were invisible on the surface a seat reads to catch up (#360, #361):
 		//
-		//   - a PETITION RULING, including granted relief meant to bind the next round. Measured:
+		//   - a PETITION RULING, including granted relief meant to bind the next epoch. Measured:
 		//     a bench granted a petition in part, issued operative relief, and recorded in its own
 		//     friction that it had "issued a direction to red knowing it has no carrier".
 		//   - a DECLARATION, which has no gap to name by construction and so could never have
@@ -708,7 +717,7 @@ func debateMD(in Input) []byte {
 				// carried only motion_id, subject, ruling, opinion and binds since the verb
 				// existed, so `Str("relief")` was empty on every ruling ever recorded and this
 				// paragraph's own header — "including granted relief meant to bind the next
-				// round" — described output the code could not produce. Rendering it needs a JOIN
+				// epoch" — described output the code could not produce. Rendering it needs a JOIN
 				// to the motion by id, which record.Motions already resolves; that is new
 				// behaviour, not a conversion, so it is REPORTED rather than done here.
 				binds := ""
@@ -739,7 +748,7 @@ func inquiryMD(in Input) []byte {
 	inquiry := []string{"# Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)", ""}
 	avs := record.InquiriesOf(in.Events)
 	if len(avs) == 0 {
-		inquiry = append(inquiry, "_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration",
+		inquiry = append(inquiry, "_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration",
 			"either did not happen or was not written down, and a report with no roads-not-taken is",
 			"indistinguishable from one that never looked._", "")
 		return []byte(strings.Join(inquiry, "\n"))
@@ -775,22 +784,22 @@ func inquiryMD(in Input) []byte {
 				inquiry = append(inquiry, "  - path: "+strings.Join(a.History, " -> "))
 			}
 			if a.Ruling != "" {
-				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (r%d): %s", a.Ruling, a.RuledRound, a.RulingWhy))
+				inquiry = append(inquiry, fmt.Sprintf("  - RED RULED **%s** (epoch %d): %s", a.Ruling, a.RuledEpoch, a.RulingWhy))
 			}
 		}
 		inquiry = append(inquiry, "")
 	}
 	// The revisit duty, made visible: a line of inquiry still open late in a run is one nobody has
 	// decided. The measured failure was not bad choosing, it was that nothing ever asked
-	// blue to choose again after round 0.
+	// blue to choose again after epoch 0.
 	if stale := record.StaleInquiriesOf(in.Events); len(stale) > 0 {
 		ids := make([]string, len(stale))
 		for i, a := range stale {
 			ids[i] = a.ID
 		}
 		inquiry = append(inquiry, fmt.Sprintf("## Awaiting a decision (%d)", len(stale)), "",
-			"_Unsettled and not moved this round: "+strings.Join(ids, ", ")+". Each owes a move or a",
-			"REAFFIRMATION — re-recording `pursued` with what you learned settles it for this round just",
+			"_Unsettled and not moved this epoch: "+strings.Join(ids, ", ")+". Each owes a move or a",
+			"REAFFIRMATION — re-recording `pursued` with what you learned settles it for this epoch just",
 			"as a fate does; a line of inquiry declared once and never revisited records an intention, not a",
 			"choice. `declined`, `abandoned` and `deferred` are settled and never appear here._", "")
 	}
@@ -801,8 +810,8 @@ func inquiryMD(in Input) []byte {
 //
 // One struct per nested object, in the field order the line has always had. Pointers WITHOUT
 // omitempty are deliberate: a nil renders as `null`, which is what this wire says for "not
-// measured this round" — max_severity with nothing graded, class_repeat_rate with nothing minted,
-// ratio with nothing closed. Omitting the key instead would make an unmeasured round and a round
+// measured this epoch" — max_severity with nothing graded, class_repeat_rate with nothing minted,
+// ratio with nothing closed. Omitting the key instead would make an unmeasured epoch and an epoch
 // that never reported the field indistinguishable to a reader.
 
 // TelemetryLineShape is the zero value of ONE telemetry line, exported so the projection's
@@ -810,13 +819,13 @@ func inquiryMD(in Input) []byte {
 // prose describing it (#684 F7). The type stays unexported: what leaves this package is a
 // SHAPE to reflect over, not a struct another package may construct.
 //
-// `show telemetry` is JSONL — one of these per round, not a document — so the tree describes
+// `show telemetry` is JSONL — one of these per epoch, not a document — so the tree describes
 // the LINE. A reader that parses the whole stdout as one object gets nothing, which is the
 // same plausible-zero the JSON-by-name warning was written for.
 func TelemetryLineShape() any { return telemetryLineJSON{} }
 
 type telemetryLineJSON struct {
-	Round            *int32         `json:"round"`
+	Epoch            *int32         `json:"epoch"`
 	MappingVersion   *string        `json:"mapping_version"`
 	OpenCount        *int32         `json:"open_count"`
 	MaxSeverity      *string        `json:"max_severity"`
@@ -873,7 +882,7 @@ func (so severityObject) MarshalJSON() ([]byte, error) {
 // severity prints the `undefined` sentinel here, never a bare blank.
 func telemetryWire(t *recordpb.TelemetryLine) telemetryLineJSON {
 	w := telemetryLineJSON{
-		Round:          t.Round,
+		Epoch:          t.Epoch,
 		MappingVersion: t.MappingVersion,
 		OpenCount:      t.OpenCount,
 		Mass:           t.Mass,

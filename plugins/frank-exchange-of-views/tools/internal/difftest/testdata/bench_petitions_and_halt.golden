@@ -36,19 +36,19 @@ stdout:
 JUDICIAL HALT recorded — capture relays this verbatim
 
 ═══ EVENTS ═══
-{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:motion:#1","motion":{"basis":"the design erodes a consent gate","motion_id":"M1","petition":{"class":"PETITION_CLASS_SAFETY"},"relief":"halt and escalate","subject":"MOTION_SUBJECT_PETITION"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MOTION"}
-{"key":"judge-petition-red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"judge-petition-red-chair","ts":4,"type":"EVENT_TYPE_REGISTER"}
-{"key":"judge-petition-red-chair:motion_rule:#1","motion_rule":{"binds":"RULING_BINDS_BOTH","motion_id":"M1","opinion":"the relief binds the coming seats","petition":"PETITION_RULING_GRANTED","subject":"MOTION_SUBJECT_PETITION"},"round":1,"seat_id":"judge-petition-red-chair","ts":5,"type":"EVENT_TYPE_MOTION_RULE"}
-{"halt":{"opinion":"continuing would compromise the consent gate"},"key":"judge-petition-red-chair:halt:#1","round":1,"seat_id":"judge-petition-red-chair","ts":6,"type":"EVENT_TYPE_HALT"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:motion:#1","motion":{"basis":"the design erodes a consent gate","motion_id":"M1","petition":{"class":"PETITION_CLASS_SAFETY"},"relief":"halt and escalate","subject":"MOTION_SUBJECT_PETITION"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MOTION"}
+{"key":"judge-petition-red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"judge-petition-red-chair","ts":4,"type":"EVENT_TYPE_REGISTER"}
+{"key":"judge-petition-red-chair:motion_rule:#1","motion_rule":{"binds":"RULING_BINDS_BOTH","motion_id":"M1","opinion":"the relief binds the coming seats","petition":"PETITION_RULING_GRANTED","subject":"MOTION_SUBJECT_PETITION"},"seat_id":"judge-petition-red-chair","ts":5,"type":"EVENT_TYPE_MOTION_RULE"}
+{"halt":{"opinion":"continuing would compromise the consent gate"},"key":"judge-petition-red-chair:halt:#1","seat_id":"judge-petition-red-chair","ts":6,"type":"EVENT_TYPE_HALT"}
 
 ═══ RENDERS ═══
 -- debate
 # debate.md — RENDERED PROJECTION (source of truth: records/ event log)
 
-## Round 1
+## Epoch 1
 
 ### LEAD
 - **PETITION GRANTED** — binds **both**
@@ -57,7 +57,7 @@ the relief binds the coming seats
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
-_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

@@ -154,7 +154,7 @@ func TestTheReadOrderIsTheWriteOrderWhateverTheClockDoes(t *testing.T) {
 //
 // #396 made the caller carry the round to Append because Append had been recovering it from the seat
 // id by regex. Both were wrong in the same way: the fact came from a NAME. Now the write computes
-// the epoch from the chair registers already on the record (epochAt), the seat id carries nothing,
+// the epoch from the chair registers already on the record (events_w."epoch"), the seat id carries nothing,
 // and there is no round for a caller to hand in. `judge-terminal` is still the right probe: its
 // name never carried a round, so whatever the event shows can only have come from the record.
 func TestAppendDerivesTheEpochFromTheRecord(t *testing.T) {
@@ -174,8 +174,9 @@ func TestAppendDerivesTheEpochFromTheRecord(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := int(ev.GetRound()); got != 2 {
-		t.Errorf("round = %d, want 2 — two chair registers precede this write, and nothing else could have said so", got)
+	_ = ev
+	if got := lastWindow(t, dir).Epoch; got != 2 {
+		t.Errorf("epoch = %d, want 2 — two chair registers precede this write, and nothing else could have said so", got)
 	}
 }
 

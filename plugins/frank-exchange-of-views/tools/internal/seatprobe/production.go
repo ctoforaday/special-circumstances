@@ -32,19 +32,20 @@ import (
 // board, stated in the shape debate.js branches on. Two branches matter and are deliberate:
 //
 //	VERDICT FAIL   a PASS ends the run before red's merge dispatches anyone else.
-//	GAPS REPEAT    red returns the SAME gap ids every round, so round 2 sees them as re-raised.
-//	               That is what fills the contested docket — and the docket is the ONLY thing
-//	               that seats a judge at all. Round 1 cannot have one (nothing persists yet, and
-//	               no dispute is pending), which is why no board may name `judge`.
+//	GAPS REPEAT    red returns the SAME gap ids every epoch, so the second epoch sees them as
+//	               re-raised. That is what fills the contested docket — and the docket is the
+//	               ONLY thing that seats a judge at all. The first epoch cannot have one (nothing
+//	               persists yet, and no dispute is pending), which is why no board may name `judge`.
 func backendFor(b Board) debatejs.Backend {
 	gaps := make([]any, 0, len(b.Gaps))
 	manifest := make([]any, 0, len(b.Gaps))
 	for i, g := range b.Gaps {
-		// THE ID IS THE RECORD'S. `mint` assigns R<round>-<n> in board order, which is what the
-		// staged board carries — so the JSON debate.js threads into blue's prompt names the same
-		// gaps the seat will find under `show board`. A separate id space here would put the seat
-		// in front of a docket that does not exist.
-		id := fmt.Sprintf("R1-%d", i+1)
+		// THE ID IS THE RECORD'S. `mint` assigns G<n> in board order (record.MintGapID, one
+		// run-global sequence), which is what the staged board carries (build.go) — so the JSON
+		// debate.js threads into blue's prompt names the same gaps the seat will find under `show
+		// board`. A separate id space here would put the seat in front of a docket that does not
+		// exist.
+		id := fmt.Sprintf("G%d", i+1)
 		// REFS ONLY, BECAUSE THAT IS THE SCHEMA. RED_ENVELOPE's gap items declare exactly
 		// id/severity/likelihood/impact/complexity_cost/supersedes and debate.js says why in its
 		// own comment: the prose — location, problem, required_fix, acceptance_check — is written

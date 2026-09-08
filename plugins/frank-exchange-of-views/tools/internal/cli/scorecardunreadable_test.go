@@ -50,8 +50,8 @@ func TestAScorecardRefusesARecordItCannotRead(t *testing.T) {
 	if _, err := db.Exec(`PRAGMA foreign_keys = OFF`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","round","ts","type","key")
-	                      VALUES ('red-lens-L5', 1, '2026-09-02T00:00:00Z', 'friction', 'former-epoch')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","ts","type","key")
+	                      VALUES ('red-lens-L5', '2026-09-02T00:00:00Z', 'friction', 'former-epoch')`); err != nil {
 		t.Fatal(err)
 	}
 

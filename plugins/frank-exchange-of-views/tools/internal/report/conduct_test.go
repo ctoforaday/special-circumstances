@@ -23,7 +23,7 @@ func registers(t *testing.T, rows ...[3]string) record.Family {
 		if r[1] != "" {
 			reg.AgentId = proto.String(recordtest.ServedBy(t, fmt.Sprintf("agent%04d", i), r[1], r[2]))
 		}
-		evs = append(evs, recordtest.Event(t, r[0], 1, reg))
+		evs = append(evs, recordtest.Event(t, r[0], reg))
 	}
 	return record.NewFamily(nil, evs)
 }

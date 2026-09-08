@@ -148,7 +148,7 @@ func AssembleAll(run record.Run) ([]Doc, error) {
 		{File: FileDocket, Nav: "Board", Title: "the board",
 			Blurb: "the board all three parties wrote: every gap red minted and how each was closed, blue's correctness manifest for the repairs it made, and red's archive spot-checks", Body: docket.String()},
 		{File: FileDebate, Nav: "Debate", Title: "the debate",
-			Blurb: "the adversarial record round by round — red's audits, blue's answers, the closings, and the bench's terminal disposition", Body: deb.String()},
+			Blurb: "the adversarial record epoch by epoch — red's audits, blue's answers, the closings, and the bench's terminal disposition", Body: deb.String()},
 		{File: FileJudgments, Nav: "Judgments", Title: "judgments",
 			Blurb: "every contested question and how it was answered: grade disputes, petitions, and the bench's opinions", Body: jud.String()},
 		{File: FileEvidence, Nav: "Evidence", Title: "evidence",
@@ -294,7 +294,9 @@ func indexDoc(run record.Run, title string, set []Doc, fam record.Family, evs []
 // field off the record — nothing here is derived from the prose it sits above.
 func factBox(fam record.Family, evs []*record.Event) string {
 	open, closed := 0, 0
-	rounds := 0
+	// EPOCHS: how many times the chair sat. Counted by the Clock over the events, and floored by
+	// the epochs the gaps were minted and closed in, for a caller holding a board and no log.
+	epochs := 0
 	for _, g := range fam.Gaps {
 		if g == nil {
 			continue
@@ -304,16 +306,17 @@ func factBox(fam record.Family, evs []*record.Event) string {
 		} else {
 			closed++
 		}
-		if g.Round > rounds {
-			rounds = g.Round
+		if g.Epoch > epochs {
+			epochs = g.Epoch
 		}
-		if g.ClosedRound > rounds {
-			rounds = g.ClosedRound
+		if g.ClosedEpoch > epochs {
+			epochs = g.ClosedEpoch
 		}
 	}
+	var clk record.Clock
 	for _, e := range evs {
-		if int(e.GetRound()) > rounds {
-			rounds = int(e.GetRound())
+		if w := clk.Advance(e); w.Epoch > epochs {
+			epochs = w.Epoch
 		}
 	}
 	verdict := "_(none recorded)_"
@@ -323,7 +326,7 @@ func factBox(fam record.Family, evs []*record.Event) string {
 	var b strings.Builder
 	b.WriteString("| | |\n|---|---|\n")
 	fmt.Fprintf(&b, "| **Verdict** | %s |\n", verdict)
-	fmt.Fprintf(&b, "| **Rounds** | %d |\n", rounds)
+	fmt.Fprintf(&b, "| **Epochs** | %d |\n", epochs)
 	fmt.Fprintf(&b, "| **Gaps** | %d open · %d closed |\n", open, closed)
 	return b.String()
 }

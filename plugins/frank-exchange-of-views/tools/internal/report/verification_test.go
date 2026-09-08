@@ -16,8 +16,8 @@ import (
 func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
-			recordtest.Event(t, "red-chair", 0, &recordpb.Register{}),
-			recordtest.Event(t, "red-chair", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
+			recordtest.Event(t, "red-chair", &recordpb.Register{}),
+			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
 		},
 		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
@@ -53,8 +53,8 @@ func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
-			recordtest.Event(t, "red-chair", 0, &recordpb.Register{}),
-			recordtest.Event(t, "red-chair", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
+			recordtest.Event(t, "red-chair", &recordpb.Register{}),
+			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
 		},
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
@@ -80,8 +80,8 @@ func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 func TestRecordVerificationDistinguishesNotApplicableFromHeld(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
-			recordtest.Event(t, "red-chair", 0, &recordpb.Register{}),
-			recordtest.Event(t, "red-chair", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
+			recordtest.Event(t, "red-chair", &recordpb.Register{}),
+			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 		},
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},

@@ -28,11 +28,11 @@ const bfStamp = "2006-01-02T15:04:05.000000000Z"
 func bfSeat(t *testing.T, dir, seat string, t0 time.Time, offsets []time.Duration) {
 	t.Helper()
 	evs := []*recordpb.Event{
-		recordtest.Stamped(recordtest.At(t, seat, 1, seat+":register", &recordpb.Register{}), t0.Format(bfStamp)),
+		recordtest.Stamped(recordtest.At(t, seat, seat+":register", &recordpb.Register{}), t0.Format(bfStamp)),
 	}
 	for i, off := range offsets {
 		evs = append(evs, recordtest.Stamped(
-			recordtest.At(t, seat, 1, seat+":finding:F"+string(rune('1'+i)), &recordpb.Finding{Text: proto.String("r")}),
+			recordtest.At(t, seat, seat+":finding:F"+string(rune('1'+i)), &recordpb.Finding{Text: proto.String("r")}),
 			t0.Add(off).Format(bfStamp)))
 	}
 	recordtest.Seed(t, dir, evs...)
@@ -119,7 +119,7 @@ func TestBackfillAuditReportsUnparseableStampsRatherThanDroppingThem(t *testing.
 	// cannot reject prose that is not a timestamp, so the audit still has to notice rather than
 	// fold the miss into its zero.
 	recordtest.Seed(t, dir, recordtest.Stamped(
-		recordtest.At(t, "red-chair", 1, "red-chair:finding:F1", &recordpb.Finding{}),
+		recordtest.At(t, "red-chair", "red-chair:finding:F1", &recordpb.Finding{}),
 		"not-a-timestamp"))
 
 	a := BackfillAudit(runtest.Open(t, dir))
@@ -139,7 +139,7 @@ func TestBackfillAuditSkipsASeatWithNoRegister(t *testing.T) {
 	var evs []*recordpb.Event
 	for i := 0; i < 6; i++ {
 		evs = append(evs, recordtest.Stamped(
-			recordtest.At(t, "red-lens-evidence", 1, "red-lens-evidence:finding:F"+string(rune('1'+i)), &recordpb.Finding{}),
+			recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:F"+string(rune('1'+i)), &recordpb.Finding{}),
 			t0.Add(10*time.Minute+time.Duration(i)*time.Millisecond).Format(bfStamp)))
 	}
 	recordtest.Seed(t, dir, evs...)

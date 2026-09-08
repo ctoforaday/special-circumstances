@@ -5,8 +5,8 @@ package report
 // dark scheme comes free because every color is a CSS variable the page already defines.
 //
 // ONE chart, deliberately: the board trajectory. It is the picture behind the verdict —
-// cumulative gaps minted against cumulative gaps closed, round by round. Converging lines
-// are a run that finished its argument; a standing vertical gap at the last round is the
+// cumulative gaps minted against cumulative gaps closed, epoch by epoch. Converging lines
+// are a run that finished its argument; a standing vertical gap at the last epoch is the
 // open board a CEILING verdict talks about. The chart colors are their own pair (validated
 // for contrast and color-vision separation on both surfaces), NOT the status palette:
 // minted gaps are red's work, not a warning.
@@ -19,7 +19,9 @@ import (
 )
 
 // boardChart renders the trajectory figure, or "" when there is nothing worth drawing — no
-// board, no gaps, or a single round, whose "trajectory" is one dot pretending to be a line.
+// board, no gaps, or fewer than two chair sittings, whose "trajectory" is one dot pretending to
+// be a line. The x-axis is the EPOCH (plans/roundless.md §III.A.0) — a count of the chair's
+// registers, never a number a seat stamped.
 // Absence is fine: the chart is a reading aid, and the same numbers stay in the table below
 // it and in the record itself.
 func boardChart(fam record.Family) string {
@@ -28,27 +30,28 @@ func boardChart(fam record.Family) string {
 		if g == nil {
 			continue
 		}
-		if g.Round > last {
-			last = g.Round
+		if g.Epoch > last {
+			last = g.Epoch
 		}
-		if g.HasClosed && g.ClosedRound > last {
-			last = g.ClosedRound
+		if g.HasClosed && g.ClosedEpoch > last {
+			last = g.ClosedEpoch
 		}
 	}
+	// Fewer than two chair sittings is not a series.
 	if last < 2 || len(fam.Gaps) == 0 {
 		return ""
 	}
-	minted := make([]int, last+1) // cumulative, index = round
+	minted := make([]int, last+1) // cumulative, index = epoch
 	closed := make([]int, last+1)
 	for _, g := range fam.Gaps {
 		if g == nil {
 			continue
 		}
-		if g.Round >= 1 && g.Round <= last {
-			minted[g.Round]++
+		if g.Epoch >= 1 && g.Epoch <= last {
+			minted[g.Epoch]++
 		}
-		if g.HasClosed && g.ClosedRound >= 1 && g.ClosedRound <= last {
-			closed[g.ClosedRound]++
+		if g.HasClosed && g.ClosedEpoch >= 1 && g.ClosedEpoch <= last {
+			closed[g.ClosedEpoch]++
 		}
 	}
 	for r := 2; r <= last; r++ {
@@ -74,7 +77,7 @@ func boardChart(fam record.Family) string {
 	var b strings.Builder
 	b.WriteString(`<figure class="chart">` + "\n")
 	b.WriteString(`<p class="chart-legend"><span><span class="chip chip-minted"></span>minted</span> <span><span class="chip chip-closed"></span>closed</span></p>` + "\n")
-	fmt.Fprintf(&b, `<svg viewBox="0 0 %g %g" role="img" aria-label="Board trajectory: cumulative gaps minted and closed, by round">`+"\n", w, h)
+	fmt.Fprintf(&b, `<svg viewBox="0 0 %g %g" role="img" aria-label="Board trajectory: cumulative gaps minted and closed, by epoch">`+"\n", w, h)
 
 	// Recessive horizontal grid on integer ticks; the axis is the quietest thing here.
 	step := (ymax + 3) / 4
@@ -91,7 +94,7 @@ func boardChart(fam record.Family) string {
 	}
 	for r := 1; r <= last; r++ {
 		if (r-1)%labelEvery == 0 || r == last {
-			fmt.Fprintf(&b, `<text class="tick" x="%.1f" y="%g" text-anchor="middle">r%d</text>`+"\n", x(r), h-10, r)
+			fmt.Fprintf(&b, `<text class="tick" x="%.1f" y="%g" text-anchor="middle">%d</text>`+"\n", x(r), h-10, r)
 		}
 	}
 
@@ -121,7 +124,7 @@ func boardChart(fam record.Family) string {
 	fmt.Fprintf(&b, `<text class="endlabel" x="%.1f" y="%.1f">minted %d</text>`+"\n", w-mRight+10, ym, minted[last])
 	fmt.Fprintf(&b, `<text class="endlabel" x="%.1f" y="%.1f">closed %d</text>`+"\n", w-mRight+10, yc, closed[last])
 
-	// The hover layer: one column per round — crosshair plus a value card, pure CSS+SVG.
+	// The hover layer: one column per epoch — crosshair plus a value card, pure CSS+SVG.
 	colW := plotW / float64(last-1)
 	for r := 1; r <= last; r++ {
 		cx := x(r)
@@ -135,7 +138,7 @@ func boardChart(fam record.Family) string {
 			cx-colW/2, mTop, colW, plotH)
 		fmt.Fprintf(&b, `<line class="xhair" x1="%.1f" y1="%g" x2="%.1f" y2="%g"/>`+"\n", cx, mTop, cx, mTop+plotH)
 		fmt.Fprintf(&b, `<g class="tip"><rect x="%.1f" y="%g" width="130" height="58" rx="4"/>`+"\n", tipX, mTop+8)
-		fmt.Fprintf(&b, `<text x="%.1f" y="%g" class="tip-t">round %d</text>`+"\n", tipX+10, mTop+26, r)
+		fmt.Fprintf(&b, `<text x="%.1f" y="%g" class="tip-t">epoch %d</text>`+"\n", tipX+10, mTop+26, r)
 		fmt.Fprintf(&b, `<text x="%.1f" y="%g">minted %d · closed %d</text>`+"\n", tipX+10, mTop+42, minted[r], closed[r])
 		fmt.Fprintf(&b, `<text x="%.1f" y="%g">open %d</text>`+"\n", tipX+10, mTop+58, open)
 		b.WriteString(`</g></g>` + "\n")
@@ -146,9 +149,9 @@ func boardChart(fam record.Family) string {
 
 	// The table view of the same numbers — the chart is a rendering, never the only copy.
 	b.WriteString(`<details class="chart-data"><summary>the numbers</summary><div class="tblwrap"><table>` +
-		`<thead><tr><th>round</th><th>minted</th><th>closed</th><th>open</th></tr></thead><tbody>` + "\n")
+		`<thead><tr><th>epoch</th><th>minted</th><th>closed</th><th>open</th></tr></thead><tbody>` + "\n")
 	for r := 1; r <= last; r++ {
-		fmt.Fprintf(&b, "<tr><td>r%d</td><td>%d</td><td>%d</td><td>%d</td></tr>\n", r, minted[r], closed[r], minted[r]-closed[r])
+		fmt.Fprintf(&b, "<tr><td>%d</td><td>%d</td><td>%d</td><td>%d</td></tr>\n", r, minted[r], closed[r], minted[r]-closed[r])
 	}
 	b.WriteString("</tbody></table></div></details>\n</figure>\n")
 	return b.String()

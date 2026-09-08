@@ -27,20 +27,20 @@ func TestProjectCompletionRangesOverSpans(t *testing.T) {
 	}
 }
 
-func TestProjectCompletionPerRoundCost(t *testing.T) {
+func TestProjectCompletionPerEpochCost(t *testing.T) {
 	seats := []Seat{
-		{Seat: "red-lens", Label: "red-lens-r1", Done: true, StartedMs: fmin(0), EndedMs: fmin(4)},
+		{Seat: "red-lens", Label: "red-lens-evidence #1", Done: true, StartedMs: fmin(0), EndedMs: fmin(4)},
 		{Seat: "red-merge", Label: "red-chair", Done: true, StartedMs: fmin(4), EndedMs: fmin(15)},
 		{Seat: "blue-respond", Label: "blue-respond", Done: true, StartedMs: fmin(15), EndedMs: fmin(20)},
 	}
 	p := projectCompletion(seats, *fmin(20))
-	if p.PerRoundLowMin != 20 || p.PerRoundHighMin != 20 {
-		t.Errorf("perRound = %d–%d, want 20–20", p.PerRoundLowMin, p.PerRoundHighMin)
+	if p.PerEpochLowMin != 20 || p.PerEpochHighMin != 20 {
+		t.Errorf("perEpoch = %d–%d, want 20–20", p.PerEpochLowMin, p.PerEpochHighMin)
 	}
 }
 
 func TestProjectCompletionNamesUnmeasured(t *testing.T) {
-	p := projectCompletion([]Seat{{Seat: "red-lens", Label: "red-lens-r1", Done: false, StartedMs: fmin(0)}}, *fmin(1))
+	p := projectCompletion([]Seat{{Seat: "red-lens", Label: "red-lens-evidence #1", Done: false, StartedMs: fmin(0)}}, *fmin(1))
 	has := func(x string) bool {
 		for _, u := range p.Unmeasured {
 			if u == x {
@@ -49,7 +49,7 @@ func TestProjectCompletionNamesUnmeasured(t *testing.T) {
 		}
 		return false
 	}
-	if !has("red-lens-r1") {
+	if !has("red-lens-evidence #1") {
 		t.Error("a live seat with no completed sibling must be named unmeasured")
 	}
 	if !has("assembly") {

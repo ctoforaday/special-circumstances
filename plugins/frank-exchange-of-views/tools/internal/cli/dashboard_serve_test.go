@@ -163,7 +163,7 @@ func TestRunHasEndedTakesEitherSignal(t *testing.T) {
 
 	// THE CASE THIS EXISTS FOR: the bench recorded the run's outcome and the marker is STILL
 	// there, because nothing ran capture. The record is the truthful signal.
-	recordtest.Seed(t, runDir, recordtest.At(t, "judge-terminal", 1, "judge-terminal:outcome:1",
+	recordtest.Seed(t, runDir, recordtest.At(t, "judge-terminal", "judge-terminal:outcome:1",
 		&recordpb.Outcome{
 			Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_UNVERIFIED),
 			Prose:   proto.String("the run ended without the question being answered"),

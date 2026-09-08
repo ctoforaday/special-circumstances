@@ -61,7 +61,7 @@ func TestFoundByResolves(t *testing.T) {
 			"G2": {ID: "G2", Mint: &recordpb.Mint{FoundBy: []string{"GHOST"}}},
 		},
 		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-evidence", 1, &recordpb.Finding{Label: proto.String("L1-F1")}),
+			recordtest.Event(t, "red-lens-evidence", &recordpb.Finding{Label: proto.String("L1-F1")}),
 		},
 	}
 	c := find(t, Run(b.fam()), "found-by-resolves")
@@ -78,13 +78,13 @@ func TestDialecticRefsResolve(t *testing.T) {
 			// A DOCKET MOTION IS THE DIALECTIC ACT THAT NAMES A GAP, not the ruling. A ruling
 			// carries only the ask's id, so there is no gap on it to dangle — the reference this
 			// check can still test is the FILING's, and that is what is seeded here.
-			recordtest.Event(t, "red-chair", 1, &recordpb.Motion{
+			recordtest.Event(t, "red-chair", &recordpb.Motion{
 				MotionId: proto.String("M1"),
 				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Basis:    proto.String("put it to the bench"),
 				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 			}),
-			recordtest.Event(t, "blue-r1", 1, &recordpb.Closing{GapId: proto.String("PHANTOM")}),
+			recordtest.Event(t, "blue-r1", &recordpb.Closing{GapId: proto.String("PHANTOM")}),
 		},
 	}
 	c := find(t, Run(b.fam()), "dialectic-refs-resolve")
@@ -109,7 +109,7 @@ func TestPassClosesAllGaps(t *testing.T) {
 	openUnderPass := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
-		Events:   []*record.Event{recordtest.Event(t, "red-chair", 1, &recordpb.RoundVerdict{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})},
+		Events:   []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_PASS.Enum()})},
 	}
 	if c := find(t, Run(openUnderPass.fam()), "pass-closes-all-gaps"); c.OK {
 		t.Error("PASS with an open gap must fail the #67 gate")
@@ -118,7 +118,7 @@ func TestPassClosesAllGaps(t *testing.T) {
 	failed := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
-		Events:   []*record.Event{recordtest.Event(t, "red-chair", 1, &recordpb.RoundVerdict{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()})},
+		Events:   []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordpb.Verdict_VERDICT_FAIL.Enum()})},
 	}
 	if c := find(t, Run(failed.fam()), "pass-closes-all-gaps"); !c.OK {
 		t.Error("a FAIL verdict must not trip the PASS gate")
@@ -129,7 +129,7 @@ func TestPassClosesAllGaps(t *testing.T) {
 	ceiling := &boardT{
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
-		Events:   []*record.Event{recordtest.Event(t, "judge", 1, &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("the ceiling was reached")})},
+		Events:   []*record.Event{recordtest.Event(t, "judge", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("the ceiling was reached")})},
 	}
 	if c := find(t, Run(ceiling.fam()), "pass-closes-all-gaps"); !c.OK {
 		t.Error("a CEILING outcome must not trip the PASS gate")
@@ -139,9 +139,9 @@ func TestPassClosesAllGaps(t *testing.T) {
 func TestRegisterBeforeAppend(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
-			recordtest.Event(t, "blue-r1", 0, &recordpb.Register{}),
-			recordtest.Event(t, "blue-r1", 0, &recordpb.Position{}),
-			recordtest.Event(t, "red-lens-logic", 0, &recordpb.Finding{}), // never registered
+			recordtest.Event(t, "blue-r1", &recordpb.Register{}),
+			recordtest.Event(t, "blue-r1", &recordpb.Position{}),
+			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{}), // never registered
 		},
 	}
 	c := find(t, Run(b.fam()), "register-before-append")
@@ -158,18 +158,18 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 			"G2": {ID: "G2", Open: false, BenchClosure: &recordpb.DocketRuling{Disposition: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
 		},
 		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-logic", 1, &recordpb.Finding{Label: proto.String("L5-F1")}), // minted
-			recordtest.Event(t, "red-lens-logic", 1, &recordpb.Finding{Label: proto.String("L5-F2")}), // un-minted
+			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Label: proto.String("L5-F1")}), // minted
+			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Label: proto.String("L5-F2")}), // un-minted
 			// BOTH HALVES, because gaps_with_disposition is a JOIN: the gap rides the filing and
 			// the disposition rides the ruling. Seeded with only the ruling the count is 0, which
 			// is the same number an honest run with no bench sitting produces.
-			recordtest.Event(t, "red-chair", 1, &recordpb.Motion{
+			recordtest.Event(t, "red-chair", &recordpb.Motion{
 				MotionId: proto.String("M1"),
 				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Basis:    proto.String("put G2 to the bench"),
 				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G2")}},
 			}),
-			recordtest.Event(t, "judge", 1, &recordpb.MotionRule{
+			recordtest.Event(t, "judge", &recordpb.MotionRule{
 				MotionId: proto.String("M1"),
 				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Opinion:  proto.String("the repair holds"),
@@ -180,9 +180,9 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 					Settled: proto.String(""), Final: proto.Bool(true),
 				}},
 			}),
-			recordtest.Event(t, "red-lens-logic", 1, &recordpb.Verify{Claim: proto.String("c1"), Anchor: proto.String("r1")}),
-			recordtest.Event(t, "red-lens-logic", 1, &recordpb.Verify{Claim: proto.String("c2"), Anchor: proto.String("r2")}),
-			recordtest.Event(t, "judge", 1, &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("the ceiling was reached")}),
+			recordtest.Event(t, "red-lens-logic", &recordpb.Verify{Claim: proto.String("c1"), Anchor: proto.String("r1")}),
+			recordtest.Event(t, "red-lens-logic", &recordpb.Verify{Claim: proto.String("c2"), Anchor: proto.String("r2")}),
+			recordtest.Event(t, "judge", &recordpb.Outcome{Verdict: recordpb.RunOutcome_RUN_OUTCOME_CEILING.Enum(), Prose: proto.String("the ceiling was reached")}),
 		},
 	}
 	s := Compute(b.fam())
@@ -219,7 +219,7 @@ func TestComputeStatsReproducesCoverage(t *testing.T) {
 // and it is what a test of it has to construct.
 func TestPassClosesAllGapsFiresOnAPassWithAnOpenGap(t *testing.T) {
 	b := &boardT{
-		Events:   []*record.Event{recordtest.Event(t, "", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
+		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
 	}
@@ -234,7 +234,7 @@ func TestPassClosesAllGapsFiresOnAPassWithAnOpenGap(t *testing.T) {
 
 func TestPassClosesAllGapsPassesWhenPassClosedEverything(t *testing.T) {
 	b := &boardT{
-		Events:   []*record.Event{recordtest.Event(t, "", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
+		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: false}},
 	}
@@ -247,8 +247,8 @@ func TestPassClosesAllGapsPassesWhenPassClosedEverything(t *testing.T) {
 // latter is what made the check dead. Both must leave it inapplicable rather than firing.
 func TestPassClosesAllGapsIsNotApplicableWithoutAPassVerdict(t *testing.T) {
 	for _, ev := range []*record.Event{
-		recordtest.Event(t, "", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
-		recordtest.Event(t, "", 0, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_VERIFIED)}),
+		recordtest.Event(t, "", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
+		recordtest.Event(t, "", &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_VERIFIED)}),
 	} {
 		b := &boardT{
 			Events:   []*record.Event{ev},
@@ -286,8 +286,8 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 	// pass or fail for a reason that has nothing to do with the third state.
 	b := &boardT{
 		Events: []*record.Event{
-			recordtest.Event(t, "red-chair", 0, &recordpb.Register{}),
-			recordtest.Event(t, "red-chair", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
+			recordtest.Event(t, "red-chair", &recordpb.Register{}),
+			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 		},
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
@@ -319,7 +319,7 @@ func TestAnInapplicableCheckIsMarkedNAAndIsNotAFailure(t *testing.T) {
 // decoration.
 func TestAHeldCheckIsNotMarkedNA(t *testing.T) {
 	b := &boardT{
-		Events:   []*record.Event{recordtest.Event(t, "", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
+		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
 			"G1": {ID: "G1", Open: false, Closure: &recordpb.Close{ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum()}},
@@ -337,7 +337,7 @@ func TestAHeldCheckIsNotMarkedNA(t *testing.T) {
 // A violated check reports FAIL, and is neither n/a nor ok.
 func TestAViolatedCheckReportsFail(t *testing.T) {
 	b := &boardT{
-		Events:   []*record.Event{recordtest.Event(t, "", 0, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
+		Events:   []*record.Event{recordtest.Event(t, "", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})},
 		GapOrder: []string{"G1"},
 		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
 	}

@@ -15,7 +15,7 @@ func fp(f float64) *float64 { return &f }
 func ip(n int) *int         { return &n }
 func i32p(n int32) *int32   { return &n }
 
-// telemetry fixture: two rounds, with new_mint.by_severity.
+// telemetry fixture: two epochs, with new_mint.by_severity.
 //
 // `accepted_deltas` is GONE from this fixture and that is the point rather than an omission. The
 // map version supplied it, so these tests exercised a field PRODUCTION NEVER WRITES — the schema
@@ -26,10 +26,10 @@ func telFixture() []*recordpb.TelemetryLine {
 	f64 := func(f float64) *float64 { return &f }
 	hi, med := recordpb.Grade_GRADE_HIGH, recordpb.Grade_GRADE_MEDIUM
 	return []*recordpb.TelemetryLine{
-		{Round: i32(1), Mass: f64(4), OpenCount: i32(3), MaxSeverity: &hi,
+		{Epoch: i32(1), Mass: f64(4), OpenCount: i32(3), MaxSeverity: &hi,
 			NewMint: &recordpb.NewMint{Count: i32(3), BySeverity: []*recordpb.SeverityTally{
 				{Grade: &hi, Count: i32(2)}, {Grade: &med, Count: i32(1)}}}},
-		{Round: i32(2), Mass: f64(6), OpenCount: i32(2), MaxSeverity: &hi,
+		{Epoch: i32(2), Mass: f64(6), OpenCount: i32(2), MaxSeverity: &hi,
 			NewMint: &recordpb.NewMint{Count: i32(1), BySeverity: []*recordpb.SeverityTally{
 				{Grade: &med, Count: i32(1)}}}},
 	}
@@ -37,7 +37,7 @@ func telFixture() []*recordpb.TelemetryLine {
 
 func judFixture() Judiciary {
 	j := Judiciary{JudgeSittings: 1, Rulings: map[string]int{"carried": 2, "repaired": 1},
-		ChainSpans: map[int]int{1: 2, 2: 1}, Chains: 3, MigDown: 1, MigUp: 0, MigFlat: 0, LatestVerdict: "FAIL", VerdictRound: 2}
+		ChainSpans: map[int]int{1: 2, 2: 1}, Chains: 3, MigDown: 1, MigUp: 0, MigFlat: 0, LatestVerdict: "FAIL", VerdictEpoch: 2}
 	j.Disputes.Raised, j.Disputes.Accepted, j.Disputes.Rejected = 2, 1, 1
 	return j
 }
@@ -51,10 +51,10 @@ func baseModel(t *testing.T, runDir string) Model {
 		Friction:   Friction{Count: 2, Last: "red-chair: needed a PDF extractor"},
 		Shards:     Shards{LedgerExists: true, OpenRows: 2, OpenBySeverity: map[string]int{"high": 1, "medium": 1}, Findings: 9, Citations: 4, ClosureIndexRows: 3, ArchiveRecords: 3},
 		BlueClaims: ip(15),
-		Steps:      []Step{{"frontier", "done"}, {"blue lanes", "done"}, {"synthesis", "live"}, {"round 1", "todo"}, {"assembly", "todo"}},
+		Steps:      []Step{{"frontier", "done"}, {"blue lanes", "done"}, {"synthesis", "live"}, {"epoch 1", "todo"}, {"assembly", "todo"}},
 		Rates: []Rate{
-			{Round: i32p(1), Opened: 3, Closed: 0, Open: i32p(3), CloseRate: 0},
-			{Round: i32p(2), Opened: 1, Closed: 2, Open: i32p(2), CloseRate: 50},
+			{Epoch: i32p(1), Opened: 3, Closed: 0, Open: i32p(3), CloseRate: 0},
+			{Epoch: i32p(2), Opened: 1, Closed: 2, Open: i32p(2), CloseRate: 50},
 		},
 		Judiciary: judFixture(),
 		Config:    Config{Topic: "does the widget converge", Model: "sonnet", JudgmentModel: "opus", MaxRounds: "8", Lanes: "3"},
@@ -89,11 +89,11 @@ func TestRenderHTMLTerminal(t *testing.T) {
 	m.Eta = Eta{State: "complete"}
 	m.Seats = []Seat{
 		{Label: "frontier", Seat: "frontier", Done: true, Result: `{"verdict":"PASS","claim_count":15,"gaps":[]}`},
-		{Label: "red-chair", Seat: "red-merge", Round: 1, Done: true, Result: `{"verdict":"FAIL","gaps":[1,2],"resolutions":[1]}`},
-		{Label: "red-chair", Seat: "red-merge", Round: 1, Done: false, StartedMs: fp(1000)}, // superseded (a done one shares the label)
-		{Label: "judge", Seat: "judge", Round: 1, Done: false, StartedMs: fp(1000)},         // did not finish
+		{Label: "red-chair #1", Seat: "red-merge", Epoch: 1, Sitting: 1, Done: true, Result: `{"verdict":"FAIL","gaps":[1,2],"resolutions":[1]}`},
+		{Label: "red-chair #1", Seat: "red-merge", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)}, // superseded (a done one shares the label)
+		{Label: "judge #1", Seat: "judge", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)},         // did not finish
 	}
-	m.CostRows = []CostRow{{Round: 1, Seat: "red-lens", Tier: "haiku", Agents: 6, Cost: 0.42}}
+	m.CostRows = []CostRow{{Epoch: 1, Seat: "red-lens", Tier: "haiku", Agents: 6, Cost: 0.42}}
 	h := RenderHTML(m)
 
 	if strings.Contains(h, "projected remaining") {
@@ -109,12 +109,12 @@ func TestRenderHTMLLive(t *testing.T) {
 	runDir := fixtureRunDir(t)
 	m := baseModel(t, runDir)
 	m.Terminal = false
-	m.Eta = Eta{State: "running", LowMin: 5, HighMin: 12, PerRoundLowMin: 8, PerRoundHighMin: 15, Basis: "3 completed seat(s) in this run", Unmeasured: []string{"assembly"}}
+	m.Eta = Eta{State: "running", LowMin: 5, HighMin: 12, PerEpochLowMin: 8, PerEpochHighMin: 15, Basis: "3 completed seat(s) in this run", Unmeasured: []string{"assembly"}}
 	// generated == the clock; oldest live seat started 3 min before → "running 3 min".
 	nowMs := etaNow(m)
 	m.Seats = []Seat{
-		{Label: "red-lens-r1", Seat: "red-lens", Round: 1, Done: false, StartedMs: fp(nowMs - 3*60000)},
-		{Label: "red-lens-r1", Seat: "red-lens", Round: 1, Done: false, StartedMs: fp(nowMs - 2*60000)}, // duplicate → 2×
+		{Label: "red-lens-evidence #1", Seat: "red-lens", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(nowMs - 3*60000)},
+		{Label: "red-lens-evidence #1", Seat: "red-lens", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(nowMs - 2*60000)}, // duplicate → 2×
 	}
 	h := RenderHTML(m)
 

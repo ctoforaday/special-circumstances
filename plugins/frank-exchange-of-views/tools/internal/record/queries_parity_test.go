@@ -168,8 +168,8 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("MintCheckKind on an unknown gap = (%v, %v), want the unspecified zero", kind, err)
 	}
 
-	if n := RoundsWithRevision(run); n != 1 {
-		t.Errorf("RoundsWithRevision = %d, want 1", n)
+	if n := EpochsWithRevision(run); n != 1 {
+		t.Errorf("EpochsWithRevision = %d, want 1", n)
 	}
 
 	// The bench records the outcome; RecordedOutcome is that act and TerminalVerdict serves it.
@@ -213,7 +213,7 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	if kind, err := MintCheckKind(run, "G1"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
 		t.Errorf("MintCheckKind = (%v, %v)", kind, err)
 	}
-	if n := RoundsWithRevision(run); n != 0 {
-		t.Errorf("RoundsWithRevision = %d", n)
+	if n := EpochsWithRevision(run); n != 0 {
+		t.Errorf("EpochsWithRevision = %d", n)
 	}
 }

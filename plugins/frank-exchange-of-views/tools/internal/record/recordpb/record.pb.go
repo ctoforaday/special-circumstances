@@ -1617,22 +1617,6 @@ type Event struct {
 	// hoped for from the hardware, because a wall clock can step backwards under NTP.
 	Ts     *string `protobuf:"bytes,2,opt,name=ts,proto3,oneof" json:"ts,omitempty"`
 	SeatId *string `protobuf:"bytes,3,opt,name=seat_id,json=seatId,proto3,oneof" json:"seat_id,omitempty"`
-	// `nonce` IS GONE, AND KILLING IT FIXED A BUG RATHER THAN TIDYING ONE.
-	//
-	// It named a SITTING — one dispatch of a seat — and it existed because the shard file was
-	// `events-<seat>-<nonce>.jsonl`. A re-dispatch rotated it, so a crash retry wrote into a fresh
-	// file and replay picked a winner between them.
-	//
-	// With one table there is no second file and no winner selection, and the nonce became actively
-	// harmful: the idempotency ordinal was counted PER SITTING while `events.key` carries a GLOBAL
-	// unique index, so a re-dispatched seat restarted at `#1` and collided with its own earlier
-	// acts. Measured through the binary — register, record, re-register, record: `UNIQUE constraint
-	// failed: events.key`. A re-dispatched seat could not record at all.
-	//
-	// The ordinal is scoped to the seat now, so its keys are monotonic across dispatches and the
-	// collision is unrepresentable. "Which dispatch was this" is still answerable — it is the count
-	// of that seat's register events at or before the row, which is what capture.go already does.
-	Round *int32 `protobuf:"varint,5,opt,name=round,proto3,oneof" json:"round,omitempty"`
 	// role is the seat's ROLE as a field. Readers used to recover it with
 	// strings.HasPrefix(seat_id, "red-merge") — including the branch deciding whether a position
 	// renders as RED or BLUE — so a seat id that failed to match its expected prefix rendered as
@@ -1724,13 +1708,6 @@ func (x *Event) GetSeatId() string {
 	return ""
 }
 
-func (x *Event) GetRound() int32 {
-	if x != nil && x.Round != nil {
-		return *x.Round
-	}
-	return 0
-}
-
 func (x *Event) GetRole() string {
 	if x != nil && x.Role != nil {
 		return *x.Role
@@ -1768,7 +1745,7 @@ func (x *Event) GetRegister() *Register {
 	return nil
 }
 
-func (x *Event) GetVerdict() *RoundVerdict {
+func (x *Event) GetVerdict() *Gate {
 	if x != nil {
 		if x, ok := x.Body.(*Event_Verdict); ok {
 			return x.Verdict
@@ -2065,7 +2042,7 @@ type Event_Register struct {
 }
 
 type Event_Verdict struct {
-	Verdict *RoundVerdict `protobuf:"bytes,21,opt,name=verdict,proto3,oneof"`
+	Verdict *Gate `protobuf:"bytes,21,opt,name=verdict,proto3,oneof"`
 }
 
 type Event_Outcome struct {
@@ -2258,14 +2235,14 @@ func (*Event_SittingOpen) isEvent_Body() {}
 
 func (*Event_SittingClose) isEvent_Body() {}
 
-// TelemetryLine is the per-round projection, NOT a shard event.
+// TelemetryLine is the per-epoch projection, NOT a shard event.
 //
 // It is written by view.Telemetry and re-decoded by the dashboard, cost and scorecard as raw
 // JSON keys. It gets a message for the same reason events do: it was a nested *Payload of
 // *Payloads, and its consumers bind its keys as strings.
 type TelemetryLine struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	Round          *int32                 `protobuf:"varint,1,opt,name=round,proto3,oneof" json:"round,omitempty"`
+	Epoch          *int32                 `protobuf:"varint,1,opt,name=epoch,proto3,oneof" json:"epoch,omitempty"`
 	MappingVersion *string                `protobuf:"bytes,2,opt,name=mapping_version,json=mappingVersion,proto3,oneof" json:"mapping_version,omitempty"`
 	OpenCount      *int32                 `protobuf:"varint,3,opt,name=open_count,json=openCount,proto3,oneof" json:"open_count,omitempty"`
 	// max_severity is a Grade, but it is rendered `undefined` — the nine-character word, not
@@ -2311,9 +2288,9 @@ func (*TelemetryLine) Descriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *TelemetryLine) GetRound() int32 {
-	if x != nil && x.Round != nil {
-		return *x.Round
+func (x *TelemetryLine) GetEpoch() int32 {
+	if x != nil && x.Epoch != nil {
+		return *x.Epoch
 	}
 	return 0
 }
@@ -5584,7 +5561,11 @@ func (x *SittingClose) GetAgentType() string {
 	return ""
 }
 
-// RoundVerdict carries red's terminal gate on a round.
+// Gate carries red's terminal gate on the open board: PASS or FAIL as of this sitting.
+//
+// IT WAS `RoundVerdict`. The round left the record (plans/roundless.md §III.A.2) and a name that
+// carried it would have been the last live surface saying the debate is paced in rounds; the
+// table follows the message, so `round_verdict` is `gate` — named from the message it records.
 //
 // IT WAS `Verdict_`, with a trailing underscore, because `Verdict` is the enum and protoc-gen-go
 // would collide the two Go identifiers. That is a real constraint and it was solved in the wrong
@@ -5592,30 +5573,29 @@ func (x *SittingClose) GetAgentType() string {
 // then travelled all the way into the record as a table called `verdict_` — a Go artifact sitting
 // in the schema a human reads to understand the debate.
 //
-// `RoundVerdict` says what it is. The collision is gone because the name is different, not because
-// it was decorated, and the wire is unaffected either way: field numbers carry the format, names do
-// not.
-type RoundVerdict struct {
+// `Gate` says what it is. The collision is gone because the name is different, not because it was
+// decorated, and the wire is unaffected either way: field numbers carry the format, names do not.
+type Gate struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Verdict       *Verdict               `protobuf:"varint,1,opt,name=verdict,proto3,enum=feov.record.v1.Verdict,oneof" json:"verdict,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *RoundVerdict) Reset() {
-	*x = RoundVerdict{}
+func (x *Gate) Reset() {
+	*x = Gate{}
 	mi := &file_record_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *RoundVerdict) String() string {
+func (x *Gate) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RoundVerdict) ProtoMessage() {}
+func (*Gate) ProtoMessage() {}
 
-func (x *RoundVerdict) ProtoReflect() protoreflect.Message {
+func (x *Gate) ProtoReflect() protoreflect.Message {
 	mi := &file_record_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -5627,12 +5607,12 @@ func (x *RoundVerdict) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RoundVerdict.ProtoReflect.Descriptor instead.
-func (*RoundVerdict) Descriptor() ([]byte, []int) {
+// Deprecated: Use Gate.ProtoReflect.Descriptor instead.
+func (*Gate) Descriptor() ([]byte, []int) {
 	return file_record_proto_rawDescGZIP(), []int{40}
 }
 
-func (x *RoundVerdict) GetVerdict() Verdict {
+func (x *Gate) GetVerdict() Verdict {
 	if x != nil && x.Verdict != nil {
 		return *x.Verdict
 	}
@@ -6073,16 +6053,15 @@ const file_record_proto_rawDesc = "" +
 	"\a_subsetB\x06\n" +
 	"\x04_whyB\r\n" +
 	"\v_referencesB\t\n" +
-	"\a_unique\"\xba\x10\n" +
+	"\a_unique\"\x9a\x10\n" +
 	"\x05Event\x12\x13\n" +
 	"\x02ts\x18\x02 \x01(\tH\x01R\x02ts\x88\x01\x01\x12\x1c\n" +
-	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x12\x19\n" +
-	"\x05round\x18\x05 \x01(\x05H\x03R\x05round\x88\x01\x01\x12\x17\n" +
-	"\x04role\x18\x06 \x01(\tH\x04R\x04role\x88\x01\x01\x122\n" +
-	"\x04type\x18\a \x01(\x0e2\x19.feov.record.v1.EventTypeH\x05R\x04type\x88\x01\x01\x12\x15\n" +
-	"\x03key\x18\b \x01(\tH\x06R\x03key\x88\x01\x01\x126\n" +
-	"\bregister\x18\x14 \x01(\v2\x18.feov.record.v1.RegisterH\x00R\bregister\x128\n" +
-	"\averdict\x18\x15 \x01(\v2\x1c.feov.record.v1.RoundVerdictH\x00R\averdict\x123\n" +
+	"\aseat_id\x18\x03 \x01(\tH\x02R\x06seatId\x88\x01\x01\x12\x17\n" +
+	"\x04role\x18\x06 \x01(\tH\x03R\x04role\x88\x01\x01\x122\n" +
+	"\x04type\x18\a \x01(\x0e2\x19.feov.record.v1.EventTypeH\x04R\x04type\x88\x01\x01\x12\x15\n" +
+	"\x03key\x18\b \x01(\tH\x05R\x03key\x88\x01\x01\x126\n" +
+	"\bregister\x18\x14 \x01(\v2\x18.feov.record.v1.RegisterH\x00R\bregister\x120\n" +
+	"\averdict\x18\x15 \x01(\v2\x14.feov.record.v1.GateH\x00R\averdict\x123\n" +
 	"\aoutcome\x18\x16 \x01(\v2\x17.feov.record.v1.OutcomeH\x00R\aoutcome\x126\n" +
 	"\bposition\x18\x17 \x01(\v2\x18.feov.record.v1.PositionH\x00R\bposition\x12*\n" +
 	"\x04halt\x18\x18 \x01(\v2\x14.feov.record.v1.HaltH\x00R\x04halt\x123\n" +
@@ -6120,14 +6099,13 @@ const file_record_proto_rawDesc = "" +
 	"\x04bodyB\x05\n" +
 	"\x03_tsB\n" +
 	"\n" +
-	"\b_seat_idB\b\n" +
-	"\x06_roundB\a\n" +
+	"\b_seat_idB\a\n" +
 	"\x05_roleB\a\n" +
 	"\x05_typeB\x06\n" +
-	"\x04_keyJ\x04\b\t\x10\n" +
-	"J\x04\b7\x10QJ\x04\b$\x10%R\x0eschema_versionR\aopinion\"\xf0\x04\n" +
+	"\x04_keyJ\x04\b\x05\x10\x06J\x04\b\t\x10\n" +
+	"J\x04\b7\x10QJ\x04\b$\x10%R\x05roundR\x0eschema_versionR\aopinion\"\xf0\x04\n" +
 	"\rTelemetryLine\x12\x19\n" +
-	"\x05round\x18\x01 \x01(\x05H\x00R\x05round\x88\x01\x01\x12,\n" +
+	"\x05epoch\x18\x01 \x01(\x05H\x00R\x05epoch\x88\x01\x01\x12,\n" +
 	"\x0fmapping_version\x18\x02 \x01(\tH\x01R\x0emappingVersion\x88\x01\x01\x12\"\n" +
 	"\n" +
 	"open_count\x18\x03 \x01(\x05H\x02R\topenCount\x88\x01\x01\x12=\n" +
@@ -6138,7 +6116,7 @@ const file_record_proto_rawDesc = "" +
 	"\x11repair_regression\x18\b \x01(\v2 .feov.record.v1.RepairRegressionH\aR\x10repairRegression\x88\x01\x01\x12@\n" +
 	"\vedge_deltas\x18\t \x01(\v2\x1a.feov.record.v1.EdgeDeltasH\bR\n" +
 	"edgeDeltas\x88\x01\x01B\b\n" +
-	"\x06_roundB\x12\n" +
+	"\x06_epochB\x12\n" +
 	"\x10_mapping_versionB\r\n" +
 	"\v_open_countB\x0f\n" +
 	"\r_max_severityB\v\n" +
@@ -6620,8 +6598,8 @@ const file_record_proto_rawDesc = "" +
 	"\n" +
 	"agent_type\x18\x02 \x01(\tH\x01R\tagentType\x88\x01\x01B\v\n" +
 	"\t_agent_idB\r\n" +
-	"\v_agent_type\"R\n" +
-	"\fRoundVerdict\x126\n" +
+	"\v_agent_type\"J\n" +
+	"\x04Gate\x126\n" +
 	"\averdict\x18\x01 \x01(\x0e2\x17.feov.record.v1.VerdictH\x00R\averdict\x88\x01\x01B\n" +
 	"\n" +
 	"\b_verdict\"\xc6\x05\n" +
@@ -6892,7 +6870,7 @@ var file_record_proto_goTypes = []any{
 	(*Register)(nil),                      // 58: feov.record.v1.Register
 	(*SittingOpen)(nil),                   // 59: feov.record.v1.SittingOpen
 	(*SittingClose)(nil),                  // 60: feov.record.v1.SittingClose
-	(*RoundVerdict)(nil),                  // 61: feov.record.v1.RoundVerdict
+	(*Gate)(nil),                          // 61: feov.record.v1.Gate
 	(*Outcome)(nil),                       // 62: feov.record.v1.Outcome
 	(*Position)(nil),                      // 63: feov.record.v1.Position
 	(*Halt)(nil),                          // 64: feov.record.v1.Halt
@@ -6906,7 +6884,7 @@ var file_record_proto_goTypes = []any{
 var file_record_proto_depIdxs = []int32{
 	0,  // 0: feov.record.v1.Event.type:type_name -> feov.record.v1.EventType
 	58, // 1: feov.record.v1.Event.register:type_name -> feov.record.v1.Register
-	61, // 2: feov.record.v1.Event.verdict:type_name -> feov.record.v1.RoundVerdict
+	61, // 2: feov.record.v1.Event.verdict:type_name -> feov.record.v1.Gate
 	62, // 3: feov.record.v1.Event.outcome:type_name -> feov.record.v1.Outcome
 	63, // 4: feov.record.v1.Event.position:type_name -> feov.record.v1.Position
 	64, // 5: feov.record.v1.Event.halt:type_name -> feov.record.v1.Halt
@@ -6983,7 +6961,7 @@ var file_record_proto_depIdxs = []int32{
 	54, // 76: feov.record.v1.MotionRule.docket:type_name -> feov.record.v1.DocketRuling
 	20, // 77: feov.record.v1.MotionRule.binds:type_name -> feov.record.v1.RulingBinds
 	10, // 78: feov.record.v1.MotionAppeal.subject:type_name -> feov.record.v1.MotionSubject
-	2,  // 79: feov.record.v1.RoundVerdict.verdict:type_name -> feov.record.v1.Verdict
+	2,  // 79: feov.record.v1.Gate.verdict:type_name -> feov.record.v1.Verdict
 	3,  // 80: feov.record.v1.Outcome.verdict:type_name -> feov.record.v1.RunOutcome
 	68, // 81: feov.record.v1.sql:extendee -> google.protobuf.FieldOptions
 	69, // 82: feov.record.v1.means:extendee -> google.protobuf.EnumValueOptions

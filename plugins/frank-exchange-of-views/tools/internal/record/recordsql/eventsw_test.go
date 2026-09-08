@@ -21,11 +21,11 @@ func TestTheSittingOrdinalIsRegisterInclusiveAndPerSeat(t *testing.T) {
 	reg := &recordpb.Register{}
 	obs := &recordpb.Observe{Text: recordtest.P("x")}
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "red-lens-evidence", 1, "red-lens-evidence:register:#1", reg),
-		recordtest.At(t, "red-lens-evidence", 1, "red-lens-evidence:observe:#1", obs),
-		recordtest.At(t, "red-lens-logic", 1, "red-lens-logic:register:#1", reg),
-		recordtest.At(t, "red-lens-evidence", 2, "red-lens-evidence:register:#2", reg),
-		recordtest.At(t, "red-lens-evidence", 2, "red-lens-evidence:observe:#2", obs),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:register:#1", reg),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:observe:#1", obs),
+		recordtest.At(t, "red-lens-logic", "red-lens-logic:register:#1", reg),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:register:#2", reg),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:observe:#2", obs),
 	)
 	db, err := recordsql.Open(runtest.Open(t, dir).Dir() + "/records/record.db")
 	if err != nil {
@@ -80,13 +80,13 @@ func TestTheEpochCountsChairRegistersForEveryRow(t *testing.T) {
 	reg := &recordpb.Register{}
 	obs := &recordpb.Observe{Text: recordtest.P("x")}
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "blue-lane-1", 0, "blue-lane-1:register:#1", reg),
-		recordtest.At(t, "blue-lane-1", 0, "blue-lane-1:observe:#1", obs),
-		recordtest.At(t, "red-chair", 1, "red-chair:register:#1", reg),
-		recordtest.At(t, "red-lens-evidence", 1, "red-lens-evidence:register:#1", reg),
-		recordtest.At(t, "red-lens-evidence", 1, "red-lens-evidence:observe:#1", obs),
-		recordtest.At(t, "red-chair", 2, "red-chair:register:#2", reg),
-		recordtest.At(t, "judge", 2, "judge:register:#1", reg),
+		recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1", reg),
+		recordtest.At(t, "blue-lane-1", "blue-lane-1:observe:#1", obs),
+		recordtest.At(t, "red-chair", "red-chair:register:#1", reg),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:register:#1", reg),
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:observe:#1", obs),
+		recordtest.At(t, "red-chair", "red-chair:register:#2", reg),
+		recordtest.At(t, "judge", "judge:register:#1", reg),
 	)
 	db, err := recordsql.Open(runtest.Open(t, dir).Dir() + "/records/record.db")
 	if err != nil {

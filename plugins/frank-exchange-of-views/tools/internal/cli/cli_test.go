@@ -491,13 +491,13 @@ func TestRegisterThenFindingWritesTheRecord(t *testing.T) {
 	if got := ev.GetText(); got != "the finding prose" {
 		t.Errorf("text = %q", got)
 	}
-	// Round and key live on the ENVELOPE, not on the body — the body is what the seat said, the
-	// envelope is what the record stamped.
+	// The key lives on the ENVELOPE, not on the body — the body is what the seat said, the
+	// envelope is what the record stamped. The epoch is on neither: it is a window the record
+	// computes over the events (a lens registered and no chair has, so 0). The seat id used to
+	// carry a round; it carries nothing now, and no event stamps one.
 	env := lastOfType(t, runDir, recordpb.EventType_EVENT_TYPE_FINDING)
-	// The round is the epoch, computed by the record: a lens registered and no chair has, so 0.
-	// The seat id used to carry it; it carries nothing now.
-	if env.GetRound() != 0 {
-		t.Errorf("round = %d, want 0 — no chair has registered in this run", env.GetRound())
+	if got := record.CurrentEpochOf(events(t, runDir)); got != 0 {
+		t.Errorf("epoch = %d, want 0 — no chair has registered in this run", got)
 	}
 	if env.GetKey() != seatID+":finding:evidence-F1" {
 		t.Errorf("key = %q", env.GetKey())
@@ -1416,7 +1416,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 		t.Errorf("the mirror does not hold the record: %v", entries)
 	}
 	// The verdict itself is on the record.
-	if got := lastBody(t, runDir, &recordpb.RoundVerdict{}).GetVerdict(); got != recordpb.Verdict_VERDICT_PASS {
+	if got := lastBody(t, runDir, &recordpb.Gate{}).GetVerdict(); got != recordpb.Verdict_VERDICT_PASS {
 		t.Errorf("verdict payload = %q", got)
 	}
 }
@@ -1532,7 +1532,7 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 // red-chair could record the discharge only as prose in the ledger — which a later
 // audit has to take on trust. An unrecordable discharge is indistinguishable from a
 // skipped duty, which is precisely what the event stream exists to prevent.
-func TestSpotCheckRecordsAnHonestlyEmptyRound(t *testing.T) {
+func TestSpotCheckRecordsAnHonestlyEmptySitting(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {

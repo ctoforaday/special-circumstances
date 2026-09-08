@@ -79,11 +79,11 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Prose: proto.String("verified at the leaf")}); err != nil {
 		t.Fatal(err)
 	}
-	if rounds, err := priorClosureRounds(run, "G1"); err != nil || len(rounds) != 1 || rounds[0] != 1 {
-		t.Errorf("priorClosureRounds = (%v, %v)", rounds, err)
+	if rounds, err := priorClosureEpochs(run, "G1"); err != nil || len(rounds) != 1 || rounds[0] != 1 {
+		t.Errorf("priorClosureEpochs = (%v, %v)", rounds, err)
 	}
-	if rounds, err := priorClosureRounds(run, "G2"); err != nil || rounds != nil {
-		t.Errorf("priorClosureRounds on a never-closed gap = (%v, %v)", rounds, err)
+	if rounds, err := priorClosureEpochs(run, "G2"); err != nil || rounds != nil {
+		t.Errorf("priorClosureEpochs on a never-closed gap = (%v, %v)", rounds, err)
 	}
 
 	// A new EPOCH does NOT restart the counter — ids are run-global, so the chair sitting again

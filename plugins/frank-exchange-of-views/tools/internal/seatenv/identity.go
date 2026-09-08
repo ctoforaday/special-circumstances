@@ -146,7 +146,7 @@ func ResolveSeat(flagSeatID string, bound func() (string, error)) (Seat, error) 
 	// always the only path.
 	// THE ROUND IS NOT RESOLVED HERE, or anywhere a seat can reach. It used to be read out of the
 	// id by a regex and returned beside it; the id no longer carries one, and the epoch is
-	// computed by the record at each write (record.epochAt). A seat's identity is its id, bound at
+	// derived by the record at each read (events_w."epoch"). A seat's identity is its id, bound at
 	// register and read back — nothing else.
 	return Seat{ID: id}, nil
 }

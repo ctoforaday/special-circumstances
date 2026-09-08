@@ -20,7 +20,7 @@ import (
 
 // mint: put a gap on the board.
 //
-// The id is TOOL-assigned, sequential per round. Letting seats choose produced
+// The id is TOOL-assigned, one run-global sequence (G<n>). Letting seats choose produced
 // four different "R5-1"s in one round of run 3, and the collision class dies here
 // rather than being policed downstream.
 func newMint() *cobra.Command {
@@ -41,12 +41,12 @@ func newMint() *cobra.Command {
 		if prior != "" {
 			return mintResult{GapID: prior, Idempotent: true}, nil
 		}
-		// The gap id's round is the EPOCH — the count of chair registers on the record — read by
-		// MintGapID from the record itself. It used to be handed in from the seat's context, and
-		// before that recovered from the seat id by regex (#348): a gap id is the run's primary
-		// public identifier, printed in the report and referenced by --supersedes, --id and
-		// found_by, so it is minted from a fact the record holds, never from the shape of a string
-		// a seat typed. plans/roundless.md §III.A.3 takes the round out of the id entirely.
+		// The gap id is G<n>, the position in the run's mint order, read by MintGapID from the
+		// record itself. It used to carry a round: handed in from the seat's context, and before
+		// that recovered from the seat id by regex (#348). A gap id is the run's primary public
+		// identifier, printed in the report and referenced by --supersedes, --id and found_by, so
+		// it is minted from a fact the record holds, never from the shape of a string a seat
+		// typed — and plans/roundless.md §III.A.3 took the clock out of it entirely.
 		gapID, err := record.MintGapID(run)
 		if err != nil {
 			return nil, err

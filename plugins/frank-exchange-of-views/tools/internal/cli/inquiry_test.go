@@ -65,7 +65,7 @@ func TestInquiryStatusMovesAndKeepsItsSubstance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Q1", "survey primality libraries", "implementations disagree", "the hypothesis is dead", "r1 proposed -> r1 abandoned"} {
+	for _, want := range []string{"Q1", "survey primality libraries", "implementations disagree", "the hypothesis is dead", "e1 proposed -> e1 abandoned"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the projection lost %q — the PATH is the evidence of choosing:\n%s", want, out)
 		}

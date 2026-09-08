@@ -31,7 +31,7 @@ func runWith(t *testing.T, maxRounds string, evs []*Event) string {
 // derived from the body — rather than from a word passed alongside it that could disagree.
 func vev(t *testing.T, seat string, round int, body proto.Message) *Event {
 	t.Helper()
-	ev := recordtest.Event(t, seat, round, body)
+	ev := recordtest.Event(t, seat, body)
 	// One chair, several epochs: the key carries the round so two verdicts by red-chair are two rows.
 	ev.Key = proto.String(seat + ":" + recordpb.Word(ev.GetType()) + ":" + strconv.Itoa(round))
 	return ev
@@ -39,7 +39,7 @@ func vev(t *testing.T, seat string, round int, body proto.Message) *Event {
 
 // A PASS on the record is VERIFIED, without anyone saying so.
 func TestVerifiedIsDerivedFromThePassEvent(t *testing.T) {
-	dir := runWith(t, "3", []*Event{vev(t, "red-chair", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})})
+	dir := runWith(t, "3", []*Event{vev(t, "red-chair", 1, &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})})
 	got, why, ok := DeriveVerdict(mustRun(t, dir))
 	if !ok || got != "VERIFIED" {
 		t.Errorf("got %q (ok=%v) — want VERIFIED: %s", got, ok, why)
@@ -50,7 +50,9 @@ func TestVerifiedIsDerivedFromThePassEvent(t *testing.T) {
 // against the bound setup wrote, so nobody has to be told.
 func TestCeilingIsDerivedFromTheRoundsAndTheConfiguredBound(t *testing.T) {
 	dir := runWith(t, "2", []*Event{
+		recordtest.At(t, "red-chair", "red-chair:register:#1", &recordpb.Register{}),
 		vev(t, "red-chair", 1, &recordpb.Position{Text: proto.String("x")}),
+		recordtest.At(t, "red-chair", "red-chair:register:#2", &recordpb.Register{}),
 		vev(t, "red-chair", 2, &recordpb.Position{Text: proto.String("y")}),
 	})
 	got, why, ok := DeriveVerdict(mustRun(t, dir))
@@ -63,7 +65,7 @@ func TestCeilingIsDerivedFromTheRoundsAndTheConfiguredBound(t *testing.T) {
 // passing, however clean the board looked when it stopped.
 func TestHaltOutranksAPass(t *testing.T) {
 	dir := runWith(t, "3", []*Event{
-		vev(t, "red-chair", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
+		vev(t, "red-chair", 1, &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
 		vev(t, "judge", 1, &recordpb.Halt{Opinion: proto.String("consent gate")}),
 	})
 	got, _, ok := DeriveVerdict(mustRun(t, dir))

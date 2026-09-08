@@ -4,27 +4,26 @@ import "testing"
 
 func TestClassifySeat(t *testing.T) {
 	cases := []struct {
-		head  string
-		seat  string
-		round int
+		head string
+		seat string
 	}{
-		{"Red audit, round 7, lens: x", "red-lens", 7},
-		{"Red merge, round 11.", "red-merge", 11},
-		{"Blue response, round 2.", "blue-respond", 2},
-		{"Adjudication, round 3.", "judge", 3},
-		{"Blue synthesis", "blue-synthesize", 0},
-		{"Blue lane 2", "blue-lane", 0},
-		{"…formulate frontier hypotheses", "frontier", 0},
-		{"Final assembly", "assemble", 0},
-		{"Terminal dispute disposition on G1", "judge-terminal", 0},
-		{`Petition sitting, topic "x"`, "judge-petition", 0},
-		{"unrecognized", "other", 0},
+		{"Red audit, round 7, lens: x", "red-lens"},
+		{"Red merge, round 11.", "red-merge"},
+		{"Blue response, round 2.", "blue-respond"},
+		{"Adjudication, round 3.", "judge"},
+		{"Blue synthesis", "blue-synthesize"},
+		{"Blue lane 2", "blue-lane"},
+		{"…formulate frontier hypotheses", "frontier"},
+		{"Final assembly", "assemble"},
+		{"Terminal dispute disposition on G1", "judge-terminal"},
+		{`Petition sitting, topic "x"`, "judge-petition"},
+		{"unrecognized", "other"},
 		// A round-bearing prompt that mentions a round-0 marker is still its own seat.
-		{"Red merge, round 4. Prior: Blue synthesis", "red-merge", 4},
+		{"Red merge, round 4. Prior: Blue synthesis", "red-merge"},
 	}
 	for _, c := range cases {
-		if got := ClassifySeat(c.head); got.Seat != c.seat || got.Round != c.round {
-			t.Errorf("ClassifySeat(%q) = %+v, want {%s %d}", c.head, got, c.seat, c.round)
+		if got := ClassifySeat(c.head); got.Seat != c.seat {
+			t.Errorf("ClassifySeat(%q) = %+v, want {%s}", c.head, got, c.seat)
 		}
 	}
 }

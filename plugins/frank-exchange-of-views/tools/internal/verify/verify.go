@@ -97,22 +97,25 @@ func Run(f record.Family) []Check {
 // carried a receipt that NOTHING READ, so the fix for a self-attestation defect was a better
 // place to write the self-attestation.
 //
-// Two teeth, both against replayed state no seat can author: a round that entered with a
-// non-empty archive and recorded no sample, and a round that CLAIMED an empty archive the board
+// Two teeth, both against replayed state no seat can author: an epoch that entered with a
+// non-empty archive and recorded no sample, and an epoch that CLAIMED an empty archive the board
 // says was not empty. The second is the direct heir of the run-5 degeneracy.
+//
+// The bucket is the EPOCH (chair sittings, counted by the audit's Clock); the discharging seat
+// is named with its own sitting ordinal, `seat #N`.
 func archiveSpotCheckFloor(f record.Family) Check {
 	_, debt, falseEmpty := record.SpotCheckAudit(f)
 	var violations []string
-	for _, round := range debt {
-		violations = append(violations, fmt.Sprintf("round %d: the merge sat with archived closures available and recorded no spot-check", round))
+	for _, epoch := range debt {
+		violations = append(violations, fmt.Sprintf("epoch %d: the merge sat with archived closures available and recorded no spot-check", epoch))
 	}
 	for _, sc := range falseEmpty {
-		violations = append(violations, fmt.Sprintf("round %d (%s): discharged with --none (%q) while the board shows %d archived closure(s) at round start",
-			sc.Round, sc.SeatID, sc.NoneReason, sc.Archived))
+		violations = append(violations, fmt.Sprintf("epoch %d (%s #%d): discharged with --none (%q) while the board shows %d archived closure(s) at epoch start",
+			sc.Epoch, sc.SeatID, sc.Sitting, sc.NoneReason, sc.Archived))
 	}
 	return result("archive-spot-check-floor",
-		"every round that entered with a non-empty archive sampled it",
-		"the archive spot-check floor was not met — a closure index is only as good as the last time anyone looked, and these rounds did not look",
+		"every epoch that entered with a non-empty archive sampled it",
+		"the archive spot-check floor was not met — a closure index is only as good as the last time anyone looked, and these epochs did not look",
 		violations)
 }
 
@@ -311,7 +314,7 @@ func passClosesAllGaps(f record.Family) Check {
 		// the answer to "". BodyAs returns the typed nil for both "no body" and "wrong body",
 		// and GetVerdict on it is the UNSPECIFIED zero — the same reset, without inventing a
 		// PASS out of an event that never said so.
-		v, _ := recordpb.BodyAs[*recordpb.RoundVerdict](e)
+		v, _ := recordpb.BodyAs[*recordpb.Gate](e)
 		verdict = v.GetVerdict()
 	}
 	if verdict != passVerdictWord {

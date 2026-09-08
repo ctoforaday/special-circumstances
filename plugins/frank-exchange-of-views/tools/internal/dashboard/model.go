@@ -47,11 +47,11 @@ type Shards struct {
 type Step struct{ Name, State string }
 
 type Rate struct {
-	// Round and Open are POINTERS because the schema makes them optional: a row that carries no
-	// round is a different thing from round 0, and the dashboard prints "—" for the first and a
+	// Epoch and Open are POINTERS because the schema makes them optional: a row that carries no
+	// epoch is a different thing from epoch 0, and the dashboard prints "—" for the first and a
 	// number for the second. They were `any` holding a json.Number or a nil map entry, which
 	// collapsed those two cases into whatever anyStr made of them.
-	Round     *int32
+	Epoch     *int32
 	Opened    int
 	Closed    int
 	Open      *int32
@@ -68,12 +68,14 @@ type Judiciary struct {
 	MigUp         int
 	MigFlat       int
 	LatestVerdict string
-	VerdictRound  int
+	// VerdictEpoch is which chair sitting delivered LatestVerdict — counted off the journal's
+	// verdict envelopes, one per chair sitting, so it is the epoch (plans/roundless.md §III.A.0).
+	VerdictEpoch int
 }
 
-// CostRow is one seat-round-tier cost bucket for the dashboard's per-seat-round breakdown.
+// CostRow is one seat-epoch-tier cost bucket for the dashboard's per-seat-epoch breakdown.
 type CostRow struct {
-	Round  int
+	Epoch  int
 	Seat   string
 	Tier   string
 	Agents int
@@ -159,7 +161,26 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 	telemetry, _ := view.Telemetry(run)
 	journal := jsonl(filepath.Join(transcriptDir, "journal.jsonl"))
 
-	// Lifecycle by agentId; identity by transcript-head classification; times from the file.
+	// THE RECORD, READ ONCE, ahead of the seats and the cost that both join to it. Unavailable ⟺
+	// no record yet: no records/ dir means nothing to read, which must render "unavailable", NOT a
+	// misleading all-zero board. Resolution failure lands in the same arm, and here that is RIGHT:
+	// both mean the tiles have nothing truthful to show. It is a dashboard — the loud version of
+	// the diagnosis belongs to the tool.
+	var fam record.Family
+	haveRecord := false
+	if _, statErr := os.Stat(run.Records()); statErr == nil {
+		if f, err := record.FamilyOf(run); err == nil {
+			fam, haveRecord = f, true
+		}
+	}
+	// agentId → (seat, epoch, sitting), off the register events. The label used to be the seat
+	// class plus a round PARSED OUT OF THE TRANSCRIPT HEAD; the record already holds the binding
+	// as a field on `register` and counts both windows off the stream, so the head no longer says
+	// which sitting this is — only which CLASS of seat, which is seatclass's job and stays so.
+	bindings := cost.SeatBindingsOf(fam.Events)
+
+	// Lifecycle by agentId; class by transcript-head classification; identity (which seat, which
+	// sitting) from the record; times from the file.
 	type raw struct {
 		done   bool
 		result any
@@ -203,11 +224,14 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 			}
 		}
 		c := seatclass.ClassifySeat(head)
+		// `seat #sitting` where the record bound the agent; the bare class where it did not — an
+		// unbound agent has no sitting to number, and a number invented for it would read as one.
 		label := c.Seat
-		if c.Round != 0 {
-			label = c.Seat + "-r" + itoa(c.Round)
+		b, bound := bindings[id]
+		if bound {
+			label = b.SeatID + " #" + itoa(b.Sitting)
 		}
-		seats = append(seats, Seat{AgentID: id, Done: s.done, Result: s.result, Label: label, Seat: c.Seat, Round: c.Round, StartedMs: startedMs, EndedMs: endedMs})
+		seats = append(seats, Seat{AgentID: id, Done: s.done, Result: s.result, Label: label, Seat: c.Seat, Epoch: b.Epoch, Sitting: b.Sitting, StartedMs: startedMs, EndedMs: endedMs})
 	}
 
 	// Cost from transcripts.
@@ -225,7 +249,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		// ONE PASS, AND ONE DEFINITION OF THE COST.
 		//
 		// This read and fully JSON-parsed every transcript TWICE per render: once here for the
-		// headline total, and again below for the per-seat-round breakdown. The files are
+		// headline total, and again below for the per-seat-epoch breakdown. The files are
 		// append-only and grow through the run, so both halves got more expensive together
 		// (#684 F15).
 		//
@@ -245,6 +269,7 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 				continue
 			}
 			row := cost.ScanTranscript(string(b))
+			row.Epoch = bindings[cost.AgentIDOfTranscript(f)].Epoch
 			crows = append(crows, row)
 			apiRounds += row.Turns
 			costTotal += row.Cost
@@ -257,46 +282,39 @@ func BuildModel(run record.Run, transcriptDir string, cfg Config, nowMs float64)
 		sort.Strings(keys)
 		for _, k := range keys {
 			parts := strings.SplitN(k, "|", 3)
-			rnd, _ := strconv.Atoi(parts[0])
-			costRows = append(costRows, CostRow{Round: rnd, Seat: parts[1], Tier: parts[2], Agents: agg[k].N, Cost: agg[k].Cost})
+			epoch, _ := strconv.Atoi(parts[0])
+			costRows = append(costRows, CostRow{Epoch: epoch, Seat: parts[1], Tier: parts[2], Agents: agg[k].N, Cost: agg[k].Cost})
 		}
 	}
 
-	// Record views in-process (BoardState); unavailable ⟺ no record yet. The JS gated the
-	// board tiles on config.bin (the operator passing the tool path); the Go binary IS the
-	// tool, so it gates on the record's EXISTENCE — no records/ dir ⟺ nothing to read, which
-	// must render "unavailable", NOT a misleading all-zero board (BoardState returns an empty
-	// board, not an error, when the dir is absent).
+	// Record views in-process, off the family read above. The JS gated the board tiles on
+	// config.bin (the operator passing the tool path); the Go binary IS the tool, so it gates on
+	// the record's EXISTENCE.
 	friction := Friction{Count: -1}
 	shards := Shards{OpenBySeverity: map[string]int{}, Findings: -1, Citations: -1}
-	// Resolution failure lands in the same arm as "no record yet", and here that is RIGHT: both
-	// mean the tiles have nothing truthful to show, and "unavailable" is what this branch already
-	// exists to render. It is a dashboard — the loud version of the diagnosis belongs to the tool.
-	if _, statErr := os.Stat(run.Records()); statErr == nil {
-		if fam, err := record.FamilyOf(run); err == nil {
-			bj, bjErr := record.BoardJSONOfRun(run)
-			if bjErr != nil {
-				bj = record.BoardJSON{Open: []record.GapJSON{}, Closed: []record.GapJSON{}, Anomalies: []string{}}
+	if haveRecord {
+		bj, bjErr := record.BoardJSONOfRun(run)
+		if bjErr != nil {
+			bj = record.BoardJSON{Open: []record.GapJSON{}, Closed: []record.GapJSON{}, Anomalies: []string{}}
+		}
+		fj := record.FindingsJSONOf(fam.Events)
+		frj := record.LogJSONOf(fam.Events)
+		friction.Count = frj.Counts.Total
+		if n := len(frj.Log); n > 0 {
+			last := frj.Log[n-1]
+			friction.Last = last.SeatID + ": " + last.Text
+		}
+		obs := map[string]int{}
+		for _, g := range bj.Open {
+			s := strings.TrimSpace(strings.ToLower(anyStr(g.Severity)))
+			if s != "" {
+				obs[s]++
 			}
-			fj := record.FindingsJSONOf(fam.Events)
-			frj := record.LogJSONOf(fam.Events)
-			friction.Count = frj.Counts.Total
-			if n := len(frj.Log); n > 0 {
-				last := frj.Log[n-1]
-				friction.Last = last.SeatID + ": " + last.Text
-			}
-			obs := map[string]int{}
-			for _, g := range bj.Open {
-				s := strings.TrimSpace(strings.ToLower(anyStr(g.Severity)))
-				if s != "" {
-					obs[s]++
-				}
-			}
-			shards = Shards{
-				LedgerExists: true, OpenRows: bj.Counts.Open, OpenBySeverity: obs,
-				Findings: fj.Counts.Total, Citations: bj.Counts.Citations,
-				ClosureIndexRows: bj.Counts.Closed, ArchiveRecords: len(bj.Closed),
-			}
+		}
+		shards = Shards{
+			LedgerExists: true, OpenRows: bj.Counts.Open, OpenBySeverity: obs,
+			Findings: fj.Counts.Total, Citations: bj.Counts.Citations,
+			ClosureIndexRows: bj.Counts.Closed, ArchiveRecords: len(bj.Closed),
 		}
 	}
 
@@ -396,8 +414,8 @@ func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 // finding it written down.
 //
 // The honest answer when the record cannot say is that the record cannot say, and the renderer
-// already says it well: an empty terminal verdict falls through to the round verdict off the
-// record and is RELABELLED from "final verdict" to "latest verdict (rN)". The operator sees a
+// already says it well: an empty terminal verdict falls through to the chair's latest gate off the
+// record and is RELABELLED from "final verdict" to "latest verdict (epoch N)". The operator sees a
 // different claim rather than the same claim from a worse source.
 // TerminalVerdict is readTerminalVerdict for callers outside this package: has the bench recorded
 // this run's outcome? Exported for the dashboard SERVER, whose lifetime was keyed only to the
@@ -428,7 +446,7 @@ func buildJudiciary(journal []map[string]any) Judiciary {
 		first, last         int
 		firstMass, lastMass float64
 	}
-	gapRounds := map[string]*ge{}
+	gapEpochs := map[string]*ge{}
 	var gapOrder []string
 	parent := map[string]string{}
 	var find func(string) string
@@ -474,15 +492,15 @@ func buildJudiciary(journal []map[string]any) Judiciary {
 		if v, ok := r["verdict"].(string); ok && hasGaps {
 			redSeen++
 			j.LatestVerdict = v
-			j.VerdictRound = redSeen
+			j.VerdictEpoch = redSeen
 			for _, gx := range gaps {
 				g, _ := gx.(map[string]any)
 				id, _ := g["id"].(string)
 				gm := record.GapMass(anyStr(g["likelihood"]), anyStr(g["impact"]))
-				e := gapRounds[id]
+				e := gapEpochs[id]
 				if e == nil {
 					e = &ge{first: redSeen, firstMass: gm}
-					gapRounds[id] = e
+					gapEpochs[id] = e
 					gapOrder = append(gapOrder, id)
 				}
 				e.last = redSeen
@@ -504,7 +522,7 @@ func buildJudiciary(journal []map[string]any) Judiciary {
 	}
 	chains := map[string]*chain{}
 	for _, id := range gapOrder {
-		e := gapRounds[id]
+		e := gapEpochs[id]
 		root := find(id)
 		c := chains[root]
 		if c == nil {
@@ -547,17 +565,21 @@ func buildSteps(seats []Seat, maxRoundsStr string) []Step {
 			maxRounds = n
 		}
 	}
-	seen := func(seat string, round int) bool {
+	// A step is one EPOCH — one dispatch cycle of the chair — so a seat belongs to step r when the
+	// record put its register in epoch r. Under the round loop a seat's r-th sitting and epoch r
+	// were the same number; under dispatch a lens may sit in epoch 5 for the third time, and the
+	// segment it lights up is the fifth. epoch 0 means "any", for the bookends outside the cycle.
+	seen := func(seat string, epoch int) bool {
 		for _, s := range seats {
-			if s.Seat == seat && (round == 0 || s.Round == round) {
+			if s.Seat == seat && (epoch == 0 || s.Epoch == epoch) {
 				return true
 			}
 		}
 		return false
 	}
-	doneSeat := func(seat string, round int) bool {
+	doneSeat := func(seat string, epoch int) bool {
 		for _, s := range seats {
-			if s.Seat == seat && (round == 0 || s.Round == round) && s.Done {
+			if s.Seat == seat && (epoch == 0 || s.Epoch == epoch) && s.Done {
 				return true
 			}
 		}
@@ -590,9 +612,9 @@ func buildSteps(seats []Seat, maxRoundsStr string) []Step {
 		{"synthesis", state(doneSeat("blue-synthesize", 0), seen("blue-synthesize", 0))},
 	}
 	for r := 1; r <= maxRounds; r++ {
-		roundDone := doneSeat("blue-respond", r)
+		epochDone := doneSeat("blue-respond", r)
 		anySeen := seen("red-lens", r) || seen("red-chair", r) || seen("red-merge", r) || seen("blue-respond", r) || seen("judge", r)
-		steps = append(steps, Step{"round " + itoa(r), state(roundDone, anySeen)})
+		steps = append(steps, Step{"epoch " + itoa(r), state(epochDone, anySeen)})
 	}
 	steps = append(steps, Step{"assembly", state(doneSeat("assemble", 0), seen("assemble", 0))})
 	return steps
@@ -612,7 +634,7 @@ func buildRates(telemetry []*recordpb.TelemetryLine) []Rate {
 		if minted+prevOpen > 0 {
 			closeRate = int(round(100 * closed / (prevOpen + minted)))
 		}
-		rates = append(rates, Rate{Round: t.Round, Opened: int(minted), Closed: int(closed), Open: t.OpenCount, CloseRate: closeRate})
+		rates = append(rates, Rate{Epoch: t.Epoch, Opened: int(minted), Closed: int(closed), Open: t.OpenCount, CloseRate: closeRate})
 	}
 	return rates
 }

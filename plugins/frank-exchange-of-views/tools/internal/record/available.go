@@ -67,7 +67,7 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		// which is where a followed line comes to REST — so a seat that did the right thing
 		// was told to abandon or defer it. Both are fixed at the single predicate now.
 		for _, a := range StaleInquiriesOf(evs) {
-			add(fmt.Sprintf("line of inquiry %s is at %q and has not moved since round %d — a line declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Round))
+			add(fmt.Sprintf("line of inquiry %s is at %q and has not moved since epoch %d — a line declared once and never revisited records an intention rather than a choice", a.ID, a.Status, a.Epoch))
 		}
 		// A repair with no receipt is one nobody audited, including its author.
 		for _, id := range gapsEditedWithoutManifest(evs, seatID) {

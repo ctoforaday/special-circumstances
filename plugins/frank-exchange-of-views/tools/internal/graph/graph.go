@@ -93,12 +93,12 @@ func tallyByGap(f record.Family) map[string]*perGap {
 	return m
 }
 
-// Mermaid returns a markdown document with two fenced mermaid diagrams: the run's seat-by-round
+// Mermaid returns a markdown document with two fenced mermaid diagrams: the run's seat-by-epoch
 // flow, and the gap lifecycle. Markdown so it renders as-is in an artifact, a PR, or a phone.
 func Mermaid(f record.Family) string {
 	var out strings.Builder
 	out.WriteString("# Run graph — actual behaviour from the record\n\n")
-	out.WriteString("## Seat flow by round\n\n```mermaid\n")
+	out.WriteString("## Seat flow by epoch\n\n```mermaid\n")
 	out.WriteString(seatFlowMermaid(f))
 	out.WriteString("```\n\n## Gap lifecycle\n\n```mermaid\n")
 	out.WriteString(gapFlowMermaid(f))
@@ -106,27 +106,29 @@ func Mermaid(f record.Family) string {
 	return out.String()
 }
 
-// seatFlowMermaid groups seats into round subgraphs, each seat labelled with its event tally —
-// so a round where a seat emitted nothing it should have (an empty debate, a skipped ruling)
-// shows as a thin node.
+// seatFlowMermaid groups seats into epoch subgraphs (one per chair sitting, counted with the
+// Clock — the record carries no round column), each seat labelled with its event tally — so an
+// epoch where a seat emitted nothing it should have (an empty debate, a skipped ruling) shows as
+// a thin node.
 func seatFlowMermaid(f record.Family) string {
 	type seat struct {
 		id     string
 		tally  map[string]int
 		nEvent int
 	}
-	byRound := map[int]map[string]*seat{}
-	var rounds []int
+	byEpoch := map[int]map[string]*seat{}
+	var epochs []int
+	var clk record.Clock
 	for _, e := range f.Events {
-		round, seatID := int(e.GetRound()), e.GetSeatId()
-		if byRound[round] == nil {
-			byRound[round] = map[string]*seat{}
-			rounds = append(rounds, round)
+		epoch, seatID := clk.Advance(e).Epoch, e.GetSeatId()
+		if byEpoch[epoch] == nil {
+			byEpoch[epoch] = map[string]*seat{}
+			epochs = append(epochs, epoch)
 		}
-		s := byRound[round][seatID]
+		s := byEpoch[epoch][seatID]
 		if s == nil {
 			s = &seat{id: seatID, tally: map[string]int{}}
-			byRound[round][seatID] = s
+			byEpoch[epoch][seatID] = s
 		}
 		// The tally is keyed on the event type's SCHEMA SPELLING (`motion_rule`, not
 		// `motion-rule`): the type is an enum value now, and recordpb.Word is the one place
@@ -135,25 +137,25 @@ func seatFlowMermaid(f record.Family) string {
 		s.tally[recordpb.Word(e.GetType())]++
 		s.nEvent++
 	}
-	sort.Ints(rounds)
+	sort.Ints(epochs)
 
 	var b2 strings.Builder
 	b2.WriteString("flowchart TD\n")
-	for _, r := range rounds {
-		b2.WriteString(fmt.Sprintf("  subgraph rnd%d[\"round %d\"]\n    direction TB\n", r, r))
+	for _, r := range epochs {
+		b2.WriteString(fmt.Sprintf("  subgraph ep%d[\"epoch %d\"]\n    direction TB\n", r, r))
 		var ids []string
-		for id := range byRound[r] {
+		for id := range byEpoch[r] {
 			ids = append(ids, id)
 		}
 		sort.Strings(ids)
 		for _, id := range ids {
-			s := byRound[r][id]
-			b2.WriteString(fmt.Sprintf("    %s[\"%s<br/>%s\"]\n", nodeID("s", fmt.Sprintf("r%d_%s", r, id)), id, tallyLabel(s.tally)))
+			s := byEpoch[r][id]
+			b2.WriteString(fmt.Sprintf("    %s[\"%s<br/>%s\"]\n", nodeID("s", fmt.Sprintf("e%d_%s", r, id)), id, tallyLabel(s.tally)))
 		}
 		b2.WriteString("  end\n")
 	}
-	for i := 1; i < len(rounds); i++ {
-		b2.WriteString(fmt.Sprintf("  rnd%d --> rnd%d\n", rounds[i-1], rounds[i]))
+	for i := 1; i < len(epochs); i++ {
+		b2.WriteString(fmt.Sprintf("  ep%d --> ep%d\n", epochs[i-1], epochs[i]))
 	}
 	return b2.String()
 }

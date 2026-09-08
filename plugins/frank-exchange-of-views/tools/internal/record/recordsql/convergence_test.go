@@ -56,30 +56,34 @@ func TestConvergenceVsVerdictIsComputedFromTheRecord(t *testing.T) {
 			// medium — and red still says FAIL. A fresh mint in the same round is not that
 			// scenario, which is what the first draft of this fixture got wrong: the view
 			// declined it correctly and the test was the thing at fault.
+			// G1 is fresh work in epoch 1; the chair sits again and epoch 2 holds only the
+			// lineage mint and the gate — "no fresh mints" is a fact about the gate's epoch.
 			recordtest.Seed(t, dir,
-				recordtest.At(t, "red-chair", 1, "red-chair:mint:G1",
+				recordtest.At(t, "red-chair", "red-chair:register:#1", &recordpb.Register{}),
+				recordtest.At(t, "red-chair", "red-chair:mint:G1",
 					mint("G1", tc.sev, recordpb.Grade_GRADE_LOW, recordpb.Grade_GRADE_LOW)),
-				recordtest.At(t, "red-chair", 2, "red-chair:mint:G2",
+				recordtest.At(t, "red-chair", "red-chair:register:#2", &recordpb.Register{}),
+				recordtest.At(t, "red-chair", "red-chair:mint:G2",
 					mint("G2", tc.sev, recordpb.Grade_GRADE_LOW, recordpb.Grade_GRADE_LOW, "G1")),
-				recordtest.At(t, "red-chair", 2, "red-chair:verdict",
-					&recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
+				recordtest.At(t, "red-chair", "red-chair:verdict",
+					&recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 			)
 			db, err := recordsql.Open(runtest.Open(t, dir).Dir() + "/records/record.db")
 			if err != nil {
 				t.Fatal(err)
 			}
-			var round int
+			var epoch int
 			var verdict string
 			var mass, maxSev float64
 			var fresh int
 			var divergent bool
-			row := db.QueryRow(`SELECT "round","verdict","mass","max_severity_mass","fresh_mints","divergent" FROM "convergence_vs_verdict"`)
-			if err := row.Scan(&round, &verdict, &mass, &maxSev, &fresh, &divergent); err != nil {
+			row := db.QueryRow(`SELECT "epoch","verdict","mass","max_severity_mass","fresh_mints","divergent" FROM "convergence_vs_verdict"`)
+			if err := row.Scan(&epoch, &verdict, &mass, &maxSev, &fresh, &divergent); err != nil {
 				t.Fatalf("the view answered nothing — a detector that returns no rows is the zero it exists to stop: %v", err)
 			}
 			if divergent != tc.want {
-				t.Errorf("divergent = %v, want %v (%s)\nround %d verdict %q mass %.1f max-sev-mass %.1f fresh %d",
-					divergent, tc.want, tc.explain, round, verdict, mass, maxSev, fresh)
+				t.Errorf("divergent = %v, want %v (%s)\nepoch %d verdict %q mass %.1f max-sev-mass %.1f fresh %d",
+					divergent, tc.want, tc.explain, epoch, verdict, mass, maxSev, fresh)
 			}
 			// The inputs must be REAL, not defaulted: a view that returns zeros for everything
 			// would satisfy a boolean assertion while measuring nothing.

@@ -201,12 +201,26 @@ func (s *SQLiteSource) tables() ([]string, error) {
 // classify routes one table's rows to the events they belong to. The longest word that
 // prefixes the name wins, so `motion_rule_docket` is an arm of the WORD `motion_rule`, not
 // of `motion` — the same both-directions care the legacy shard regex documents.
+// renamedBodyTables maps a body table an ARCHIVED record may carry to the word it recorded, for
+// the messages renamed since. `round_verdict` was message RoundVerdict; the round left the record
+// (plans/roundless.md §III.A.2) and the message is Gate, so a live record's table is `gate` and
+// tableForWord already says so — this is only the old spelling, read at migration and nowhere else.
+var renamedBodyTables = map[string]string{
+	"round_verdict": "verdict",
+}
+
 func (s *SQLiteSource) classify(t string, byTable map[string]string, byID map[int64]*OldEvent) error {
 	switch {
 	case t == "events" || t == "seat_turn" || strings.HasPrefix(t, "sqlite_") || strings.HasPrefix(t, "enum_"):
 		return nil
 	case byTable[t] != "":
 		return s.readBody(t, byID, byTable[t])
+	case renamedBodyTables[t] != "":
+		// A RENAMED MESSAGE UNDER A KEPT WORD — the case the comment above calls "loud, not
+		// folded". Loud is right for a rename nobody wrote down; this one is written down here,
+		// which is the difference between a table nobody can place and one the migration places
+		// on purpose. The old table's columns are read into the CURRENT message for the word.
+		return s.readBody(t, byID, renamedBodyTables[t])
 	}
 	owner, ownerTable, field := "", "", ""
 	for bt, w := range byTable {

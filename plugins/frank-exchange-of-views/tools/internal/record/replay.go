@@ -126,9 +126,9 @@ func MergedEvents(run Run) (Merged, error) {
 // caller supplies its own word.
 type Gap struct {
 	ID          string
-	Round       int
+	Epoch       int
 	Open        bool
-	ClosedRound int
+	ClosedEpoch int
 	HasClosed   bool
 	Mint        *recordpb.Mint
 	// Closure and BenchClosure are the CLOSING EVENT'S BODY, and they are two fields because a
@@ -383,7 +383,7 @@ func allGapIDs(run Run) (map[string]bool, error) {
 // A `--carried-from` closure claims to restate an earlier one, and a claim about the
 // record is checked against the record — the same rule mint applies to `supersedes`,
 // which refuses an ancestor no mint event created.
-func priorClosureRounds(run Run, gapID string) ([]int, error) {
+func priorClosureEpochs(run Run, gapID string) ([]int, error) {
 	db, err := openRunForRead(run)
 	if err != nil {
 		return nil, err
@@ -391,7 +391,7 @@ func priorClosureRounds(run Run, gapID string) ([]int, error) {
 	if db == nil {
 		return nil, nil
 	}
-	rows, err := db.Query(`SELECT e."round" FROM "close" c JOIN "events" e ON e."id" = c."event_id"
+	rows, err := db.Query(`SELECT e."epoch" FROM "close" c JOIN "events_w" e ON e."id" = c."event_id"
 	  WHERE c."gap_id" = ? ORDER BY c."event_id"`, gapID)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for prior closures of %s: %w", gapID, err)

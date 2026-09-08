@@ -20,17 +20,28 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 )
 
-// recordWithRounds writes a minimal run whose board carries one minted gap per round, so the
-// derived telemetry (view.Telemetry, which TelemetryAudit now computes) has one row per round.
-func recordWithRounds(t *testing.T, n int) string {
+// chairRegister opens an epoch: the epoch is the count of red-chair registers at or before an
+// event (record.Clock), so a fixture that means "in epoch N" must seat the chair N times. The
+// seat id used to carry the number (red-chair-r2); it carries nothing now, and a seat that does
+// not register is in epoch 0 whatever it is called.
+func chairRegister(t *testing.T, sitting int) *recordpb.Event {
+	t.Helper()
+	return recordtest.At(t, "red-chair", "red-chair:register:#"+itoa(sitting),
+		&recordpb.Register{ToolVersion: proto.String("test")})
+}
+
+// recordWithEpochs writes a minimal run whose board carries one minted gap per epoch, so the
+// derived telemetry (view.Telemetry, which TelemetryAudit now computes) has one row per epoch.
+func recordWithEpochs(t *testing.T, n int) string {
 	t.Helper()
 	dir := t.TempDir()
 	var evs []*recordpb.Event
 	for r := 1; r <= n; r++ {
-		seat := "red-chair-r" + itoa(r)
+		seat := "red-chair"
+		evs = append(evs, chairRegister(t, r))
 		// Every field the record REQUIRES, because it now refuses a mint that omits one. The
 		// fixture used to name four; the other three were absent and nothing said so.
-		evs = append(evs, recordtest.At(t, seat, r, seat+":mint:R"+itoa(r)+"-1", &recordpb.Mint{
+		evs = append(evs, recordtest.At(t, seat, seat+":mint:G"+itoa(r), &recordpb.Mint{
 			GapId:           proto.String("G" + itoa(r)),
 			Class:           proto.String("scope-creep"),
 			Problem:         proto.String("p"),
@@ -64,7 +75,7 @@ func write(t *testing.T, path, body string) {
 func fixtureRun(t *testing.T, ledgerLines, archiveBlocks int) string {
 	t.Helper()
 	dir := t.TempDir()
-	write(t, filepath.Join(dir, "trajectories", "board-telemetry.jsonl"), `{"round":1,"mass":4}`+"\n"+`{"round":2,"mass":4}`+"\n")
+	write(t, filepath.Join(dir, "trajectories", "board-telemetry.jsonl"), `{"epoch":1,"mass":4}`+"\n"+`{"epoch":2,"mass":4}`+"\n")
 	var lb strings.Builder
 	lb.WriteString("# ledger\n## closure index\n")
 	for i := 0; i < ledgerLines; i++ {
@@ -104,24 +115,24 @@ func itoa(n int) string {
 
 func TestTelemetryAudit(t *testing.T) {
 	// Telemetry is DERIVED from the record now, so the audit checks that the computed series
-	// (one row per round with a minted gap) covers every red round.
-	two := recordWithRounds(t, 2)
+	// (one row per epoch with a minted gap) covers every red epoch.
+	two := recordWithEpochs(t, 2)
 	if got := TelemetryAudit(runtest.Open(t, two), 2).Verdict; got != "PASS" {
-		t.Errorf("2 telemetry rounds cover 2 red rounds: want PASS, got %s", got)
+		t.Errorf("2 telemetry epochs cover 2 red epochs: want PASS, got %s", got)
 	}
-	// One telemetry round, three red rounds on the record → FAIL.
-	one := recordWithRounds(t, 1)
+	// One telemetry epoch, three red epochs on the record → FAIL.
+	one := recordWithEpochs(t, 1)
 	if got := TelemetryAudit(runtest.Open(t, one), 3).Verdict; got != "FAIL" {
-		t.Errorf("1 telemetry round vs 3 red: want FAIL, got %s", got)
+		t.Errorf("1 telemetry epoch vs 3 red: want FAIL, got %s", got)
 	}
-	// No board rounds with red rounds on record → FAIL (the derived series is empty); with
-	// no red rounds → SKIP.
+	// No board epochs with red epochs on record → FAIL (the derived series is empty); with
+	// no red epochs → SKIP.
 	empty := t.TempDir()
 	if got := TelemetryAudit(runtest.Open(t, empty), 2).Verdict; got != "FAIL" {
-		t.Errorf("empty telemetry with red rounds: want FAIL, got %s", got)
+		t.Errorf("empty telemetry with red epochs: want FAIL, got %s", got)
 	}
 	if got := TelemetryAudit(runtest.Open(t, empty), 0).Verdict; got != "SKIP" {
-		t.Errorf("empty telemetry, no red rounds: want SKIP, got %s", got)
+		t.Errorf("empty telemetry, no red epochs: want SKIP, got %s", got)
 	}
 }
 
@@ -137,13 +148,13 @@ func frictionRun(t *testing.T, seat, agentID string, wrote string) string {
 	if agentID != "" {
 		reg.AgentId = proto.String(agentID)
 	}
-	evs := []*recordpb.Event{recordtest.At(t, seat, 1, seat+":register:#1", reg)}
+	evs := []*recordpb.Event{recordtest.At(t, seat, seat+":register:#1", reg)}
 	switch wrote {
 	case "log":
-		evs = append(evs, recordtest.At(t, seat, 1, seat+":friction:#1",
+		evs = append(evs, recordtest.At(t, seat, seat+":friction:#1",
 			&recordpb.Log{Text: proto.String("the seat's own words, recorded"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}))
 	case "friction-none":
-		evs = append(evs, recordtest.At(t, seat, 1, seat+":friction_none:#1",
+		evs = append(evs, recordtest.At(t, seat, seat+":friction_none:#1",
 			&recordpb.Log{Text: proto.String("the seat's own words, recorded"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}))
 	case "":
 	default:
@@ -325,7 +336,7 @@ func screenRun(t *testing.T, outcome recordpb.SourceOutcome, url string) string 
 	// fixture that still wrote the file would leave this run's board EMPTY while every assertion
 	// below carried on passing.
 	seed := func(seat string, body proto.Message) {
-		recordtest.Seed(t, dir, recordtest.Event(t, seat, 1, body))
+		recordtest.Seed(t, dir, recordtest.Event(t, seat, body))
 	}
 	seed("blue-r1",
 		&recordpb.Cite{Label: proto.String("c-1"), Url: proto.String(url), Title: proto.String("A Source")})
@@ -340,17 +351,19 @@ func screenRun(t *testing.T, outcome recordpb.SourceOutcome, url string) string 
 	return dir
 }
 
-// seedRevisions writes N blue round records as EVENTS — the source record-parity now counts.
+// seedRevisions writes one blue revision in each of N epochs as EVENTS — the source
+// record-parity now counts. Each epoch is opened by a chair register; without it every revision
+// would sit in epoch 0 and the audit would count one epoch however many were seeded.
 // It used to count heading matches in blue/CHANGELOG.md, which audits the seat's typing rather
 // than the record; the two disagree (the 2026-08-05 run: a 6,847-byte CHANGELOG and one
 // revision event from one of three eligible seats — see #268).
-func seedRevisions(t *testing.T, runDir string, rounds int) {
+func seedRevisions(t *testing.T, runDir string, epochs int) {
 	t.Helper()
 	var evs []*recordpb.Event
-	for r := 1; r <= rounds; r++ {
-		seat := "blue-respond-r" + itoa(r)
-		evs = append(evs, recordtest.At(t, seat, r, seat+":revision",
-			&recordpb.Revision{Text: proto.String("round " + itoa(r) + " edits")}))
+	for r := 1; r <= epochs; r++ {
+		evs = append(evs, chairRegister(t, r))
+		evs = append(evs, recordtest.At(t, "blue-respond", "blue-respond:revision:#"+itoa(r),
+			&recordpb.Revision{Text: proto.String("epoch " + itoa(r) + " edits")}))
 	}
 	recordtest.Seed(t, runDir, evs...)
 }
@@ -359,29 +372,29 @@ func TestRecordParityAudit(t *testing.T) {
 	dir := fixtureRun(t, 2, 2)
 	seedRevisions(t, dir, 2)
 	if got := RecordParityAudit(runtest.Open(t, dir), 2, 2).Verdict; got != "PASS" {
-		t.Errorf("2 red, 2 blue, 2 recorded round records: want PASS, got %s", got)
+		t.Errorf("2 red, 2 blue, 2 epochs with a revision: want PASS, got %s", got)
 	}
 	got := RecordParityAudit(runtest.Open(t, dir), 3, 1)
 	if got.Verdict != "FAIL" {
-		t.Errorf("3 red, 1 blue is below the redRounds-1 floor: want FAIL, got %s", got.Verdict)
+		t.Errorf("3 red, 1 blue is below the redEpochs-1 floor: want FAIL, got %s", got.Verdict)
 	}
-	if !strings.Contains(got.Detail, "3 red round(s)") {
-		t.Errorf("detail should carry the red-round count: %s", got.Detail)
+	if !strings.Contains(got.Detail, "3 red epoch(s)") {
+		t.Errorf("detail should carry the red-epoch count: %s", got.Detail)
 	}
-	// PASS exit: 2 red, 1 blue (blue never took the final turn), 1 round record → floored PASS.
+	// PASS exit: 2 red, 1 blue (blue never took the final turn), 1 revised epoch → floored PASS.
 	passExit := fixtureRun(t, 2, 2)
 	seedRevisions(t, passExit, 1)
 	if got := RecordParityAudit(runtest.Open(t, passExit), 2, 1).Verdict; got != "PASS" {
-		t.Errorf("a PASS exit is floored to redRounds-1: want PASS, got %s", got)
+		t.Errorf("a PASS exit is floored to redEpochs-1: want PASS, got %s", got)
 	}
-	// THE DEFECT THE OLD SOURCE HID: a hand-written CHANGELOG present, round records absent.
+	// THE DEFECT THE OLD SOURCE HID: a hand-written CHANGELOG present, revision events absent.
 	// Counting the file passed this; counting the record fails it, which is the point.
 	unrecorded := fixtureRun(t, 2, 2)
 	write(t, filepath.Join(unrecorded, "blue", "CHANGELOG.md"), "## Round 1"+"\n"+"edits"+"\n"+"## Round 2"+"\n"+"more"+"\n")
 	if got := RecordParityAudit(runtest.Open(t, unrecorded), 2, 2); got.Verdict != "FAIL" {
 		t.Errorf("a CHANGELOG with no revision events must FAIL, got %s (%s)", got.Verdict, got.Detail)
 	}
-	// No red rounds → SKIP.
+	// No red epochs → SKIP.
 	if got := RecordParityAudit(runtest.Open(t, dir), 0, 0).Verdict; got != "SKIP" {
 		t.Errorf("no red rounds: want SKIP, got %s", got)
 	}
@@ -432,13 +445,13 @@ func TestHarvestPrecedents(t *testing.T) {
 		// gap rides the FILING — the harvest joins them through record.Motions to learn which
 		// gap a disposition settled — so a fixture with only the ruling would anchor every
 		// harvested holding to the empty string and still report a full count.
-		recordtest.Event(t, "red-chair", 2, &recordpb.Motion{
+		recordtest.Event(t, "red-chair", &recordpb.Motion{
 			MotionId: proto.String("M3"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Basis:    proto.String("red cannot settle G2"),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G2")}},
 		}),
-		recordtest.Event(t, "judge", 2, &recordpb.MotionRule{
+		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M3"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Opinion:  proto.String("the cost of the repair exceeds the exposure"),
@@ -452,13 +465,13 @@ func TestHarvestPrecedents(t *testing.T) {
 		}),
 		// The petition's FILER is on the motion event, not on the ruling — the ruling names
 		// only the motion. Harvesting the petitioner means joining the two.
-		recordtest.Event(t, "blue-respond", 2, &recordpb.Motion{
+		recordtest.Event(t, "blue-respond", &recordpb.Motion{
 			MotionId: proto.String("M4"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
 			Basis:    proto.String("the demand buries a hazard"),
 			Filing:   &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{}},
 		}),
-		recordtest.Event(t, "judge", 2, &recordpb.MotionRule{
+		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M4"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_PETITION.Enum(),
 			Opinion:  proto.String("scope narrowed to shipped artifacts"),
@@ -466,13 +479,13 @@ func TestHarvestPrecedents(t *testing.T) {
 		}),
 		// THE RULER'S ARGUMENT IS `MotionRule.opinion` NOW — the prose channel every subject's
 		// ruling carries — which is what the no-truncation assertion below reads.
-		recordtest.Event(t, "red-chair", 1, &recordpb.Motion{
+		recordtest.Event(t, "red-chair", &recordpb.Motion{
 			MotionId: proto.String("M5"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Basis:    proto.String("put G1 to the bench"),
 			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 		}),
-		recordtest.Event(t, "judge", 1, &recordpb.MotionRule{
+		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M5"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Opinion:  proto.String(longRationale),
@@ -486,12 +499,12 @@ func TestHarvestPrecedents(t *testing.T) {
 		}),
 		// #361's verb. It moves no gap and has no envelope field, so it was unreachable by
 		// construction — the one verb whose whole purpose is stating a holding.
-		recordtest.Event(t, "judge", 2, &recordpb.Declare{
+		recordtest.Event(t, "judge", &recordpb.Declare{
 			Holding: proto.String("verified means an act of looking"),
 		}),
 		// A grade ruling is deliberately NOT harvested: promoting it without the ask it
 		// answered would strip its scope. If this ever starts appearing, it was a decision.
-		recordtest.Event(t, "red-chair", 1, &recordpb.MotionRule{
+		recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 			MotionId: proto.String("M1"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 			Opinion:  proto.String("disclosure does not lower likelihood"),
@@ -663,11 +676,11 @@ func TestFoldCarriesEverySectionToItsHome(t *testing.T) {
 	auditMd := filepath.Join(dir, "run-record-audit.md")
 	os.WriteFile(report, []byte("# The run\n\n## Friction\n\nbody.\n"), 0o644)
 	os.WriteFile(costMd, []byte("# Cost audit\n\nMeasured from 3 transcripts in /tmp/x.\n\n"+
-		"## Per seat-round\n\n| round | seat | $ |\n|---|---|---|\n| 1 | red-lens | $0.42 |\n\n"+
+		"## Per seat-epoch\n\n| epoch | seat | $ |\n|---|---|---|\n| 1 | red-lens | $0.42 |\n\n"+
 		"## Per seat (measured)\n\n| seat | turns |\n|---|---|\n| red-lens | 121 |\n\n"+
 		"## Notes\n\n- cache stuff\n\n"+
 		"## Tier check\n\n- all seats ran at their configured tier\n\n"+
-		"## Board telemetry (per round)\n\n| round | open |\n|---|---|\n| 1 | 8 |\n"), 0o644)
+		"## Board telemetry\n\n| epoch | open |\n|---|---|\n| 1 | 8 |\n"), 0o644)
 	os.WriteFile(auditMd, []byte("# Run record audit\n\n- friction-parity: PASS\n"), 0o644)
 
 	msg := foldCaptureArtifacts(report, costMd, auditMd)
@@ -679,7 +692,7 @@ func TestFoldCarriesEverySectionToItsHome(t *testing.T) {
 	// EVERY SECTION HAS A HOME. The previous fold carried one table of five sections and reported
 	// success; the other four were written, archived and never read by anyone reading the run.
 	for _, want := range []string{
-		"## Cost", "### Per seat-round", "### Per seat (measured)", "### Notes",
+		"## Cost", "### Per seat-epoch", "### Per seat (measured)", "### Notes",
 		"## Tier check", "## Board telemetry", "## Integrity audits",
 		"red-lens | $0.42", "| red-lens | 121 |", "cache stuff",
 		"configured tier", "| 1 | 8 |", "friction-parity: PASS",
@@ -727,7 +740,7 @@ func TestFoldRefusesASectionItHasNoHomeFor(t *testing.T) {
 	report := filepath.Join(dir, "run.md")
 	costMd := filepath.Join(dir, "cost.md")
 	os.WriteFile(report, []byte("# The run\n"), 0o644)
-	os.WriteFile(costMd, []byte("# Cost audit\n\n## Per seat-round\n\nx\n\n## Brand New Section\n\ny\n"), 0o644)
+	os.WriteFile(costMd, []byte("# Cost audit\n\n## Per seat-epoch\n\nx\n\n## Brand New Section\n\ny\n"), 0o644)
 
 	msg := foldCaptureArtifacts(report, costMd, filepath.Join(dir, "absent.md"))
 	if !strings.Contains(msg, "REFUSED") || !strings.Contains(msg, "Brand New Section") {
@@ -854,13 +867,13 @@ func writeRunForLiveness(t *testing.T, n int, gap time.Duration, last time.Time,
 	for i := 0; i < n; i++ {
 		ts := last.Add(-time.Duration(n-1-i) * gap).UTC().Format(stamp)
 		if outcome && i == n-1 {
-			evs = append(evs, recordtest.Stamped(recordtest.At(t, "judge-terminal", 1, "judge-terminal:outcome:#1", &recordpb.Outcome{
+			evs = append(evs, recordtest.Stamped(recordtest.At(t, "judge-terminal", "judge-terminal:outcome:#1", &recordpb.Outcome{
 				Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),
 				Prose:   proto.String("the round ceiling arrived before red could pass the final revision"),
 			}), ts))
 			continue
 		}
-		evs = append(evs, recordtest.Stamped(recordtest.At(t, "red-lens-evidence", 1, fmt.Sprintf("red-lens-evidence:finding:k%d", i), &recordpb.Finding{
+		evs = append(evs, recordtest.Stamped(recordtest.At(t, "red-lens-evidence", fmt.Sprintf("red-lens-evidence:finding:k%d", i), &recordpb.Finding{
 			FindingId: proto.String(fmt.Sprintf("F%d", i)),
 			Label:     proto.String(fmt.Sprintf("L1-F%d", i)),
 			Text:      proto.String("a finding"),
@@ -1170,11 +1183,11 @@ func TestModelTierAuditFailsOnASubstitutionTheRecordDeclares(t *testing.T) {
 	write(t, filepath.Join(run, "inputs", "run-config.json"),
 		`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`)
 	recordtest.Seed(t, run,
-		recordtest.At(t, "blue-lane-1", 1, "blue-lane-1:register:#1", &recordpb.Register{
+		recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "aaaa1111", "claude-opus-4-8", "claude-fable-5")),
 		}),
-		recordtest.At(t, "red-chair", 1, "red-chair:register:#1", &recordpb.Register{
+		recordtest.At(t, "red-chair", "red-chair:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "bbbb2222", "claude-sonnet-5", "")),
 		}),
@@ -1201,7 +1214,7 @@ func TestModelTierAuditSaysWhenTheServedModelWasNeverMeasured(t *testing.T) {
 	write(t, filepath.Join(run, "inputs", "run-config.json"),
 		`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`)
 	recordtest.Seed(t, run,
-		recordtest.At(t, "blue-lane-1", 1, "blue-lane-1:register:#1",
+		recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1",
 			&recordpb.Register{ToolVersion: proto.String("test")}),
 	)
 	got := ModelTierAudit(runtest.Open(t, run), tr, nil)

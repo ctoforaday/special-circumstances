@@ -120,7 +120,7 @@ func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS
 
 // THE ROUND IS NOT A FACT A SEAT SUPPLIES. It used to be read out of the seat id by regex at
 // register and stamped on every event forever (round.go, deleted). It is now the EPOCH at the
-// moment of the write — see epochAt — and a seat id carries no round at all.
+// the record itself — events_w."epoch", derived from the chair's registers — and a seat id carries no round at all.
 //
 // What stood here returned a bare int and read FEOV_ROUND first — an injected branch nothing in
 // the repository ever set, so in production the regex was not a fallback but the only path, and
@@ -309,41 +309,13 @@ func allowSubstitution(run Run) bool {
 // envelope stamps the fields EVERY event carries whatever its body, in ONE place — so a second
 // write path cannot come to exist that forgets one.
 //
-// epochAt is the round the event being written belongs to — and "round" now MEANS the epoch: the
-// count of red-chair register events on the record at or before this row (plans/roundless.md
-// §III.A.0). This row itself counts if it is the chair registering, which is what makes the chair's
-// register the first row of its own epoch rather than the last of the previous one.
-//
-// COMPUTED IN THE WRITE'S OWN TRANSACTION, from rows already committed, so two seats writing
-// concurrently in one epoch cannot disagree about which epoch they are in — the count is the same
-// for both until a chair register commits, and _txlock=immediate serialises the writes. Before the
-// first chair register it is 0: the base phase (frontier, lanes, synthesis), a real answer rather
-// than a missing one.
-//
-// WHAT THIS REPLACES. The round was recovered from the seat id by regex (`-r(\d+)`) at register
-// and stamped from there, so `red-lens-evidence` in a three-round run stamped 99 with no error
-// state, and the id had to carry a fact the record already knew. The events_w view answers the same
-// question for a reader; this is the same count made at the write so the column and the window
-// agree by construction, until the column itself is retired (§III.A.2).
-func epochAt(tx *sql.Tx, seatID string, typ recordpb.EventType) (int, error) {
-	var n int
-	if err := tx.QueryRow(`SELECT count(*) FROM "events" WHERE "type" = 'register' AND "seat_id" = 'red-chair'`).Scan(&n); err != nil {
-		return 0, fmt.Errorf("record: counting chair registers for the epoch: %w", err)
-	}
-	if typ == recordpb.EventType_EVENT_TYPE_REGISTER && seatID == "red-chair" {
-		n++
-	}
-	return n, nil
-}
-
 // SCHEMA_VERSION IS NOT AMONG THEM ANY MORE. It was stamped here on every event and read by
 // nothing — the line reader that once gated on it went with the shard lines. What actually
 // refuses a binary that cannot read a record is the event-schema epoch, compared once at setup,
 // so the per-row copy was a fact restated where no one asked it.
-func envelope(ev *Event, ts, seatID string, round int, key string) {
+func envelope(ev *Event, ts, seatID string, key string) {
 	ev.Ts = proto.String(ts)
 	ev.SeatId = proto.String(seatID)
-	ev.Round = proto.Int32(int32(round))
 	if r := roleOfSeat(seatID); r != "" {
 		ev.Role = proto.String(r)
 	}
@@ -575,11 +547,7 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 	if err != nil {
 		return err
 	}
-	round, err := epochAt(tx, seatID, typ)
-	if err != nil {
-		return err
-	}
-	envelope(ev, Now().UTC().Format(stampLayout), seatID, round, key)
+	envelope(ev, Now().UTC().Format(stampLayout), seatID, key)
 	if _, err := recordsql.InsertTx(tx, ev); err != nil {
 		// A KEY COLLISION IS A SEAT REPEATING A ONCE-PER-SITTING ACT, and the raw constraint text
 		// teaches nothing about that. The shard record met this by DEDUPING — two events with one
@@ -789,7 +757,7 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 		// It is here for the cheaper tier, where an anchor is exactly the work a seat
 		// under pressure would rather skip.
 		if !anchored && b.CarriedFrom != nil {
-			prior, err := priorClosureRounds(run, b.GetGapId())
+			prior, err := priorClosureEpochs(run, b.GetGapId())
 			if err != nil {
 				return err
 			}
@@ -1062,7 +1030,7 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 	// This is the argument for deriving the refusal rather than writing it beside the schema: two
 	// copies, and the unreachable one is the one that drifts, silently, in the direction nobody
 	// reads.
-	case *recordpb.RoundVerdict:
+	case *recordpb.Gate:
 		// The seat's terminal act is where completion duties belong: it is the last
 		// moment the seat is still there to discharge them.
 		if err := requireSupersededAreClosed(run); err != nil {

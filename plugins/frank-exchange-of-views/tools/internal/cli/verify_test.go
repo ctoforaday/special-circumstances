@@ -192,8 +192,8 @@ func TestVerifyExitsNonZeroWhenAnInvariantFails(t *testing.T) {
 	// DISPLACED the real one and the board came back with "gaps: 0 total" — the fixture deleting
 	// the gap it existed to contradict. None of that is a hazard now. There is one record, nothing
 	// is displaced, and seeding is an insert.
-	recordtest.Seed(t, runDir, recordtest.At(t, "red-chair", 1, "red-chair:verdict",
-		&recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}))
+	recordtest.Seed(t, runDir, recordtest.At(t, "red-chair", "red-chair:verdict",
+		&recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}))
 
 	out, err := run(t, "verify", "--seat-id", "operator", "--run", runDir, "--seat-id", "operator")
 	if err == nil {

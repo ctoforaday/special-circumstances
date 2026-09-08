@@ -24,7 +24,7 @@ func runWithCadence(t *testing.T, n int, gap time.Duration, last time.Time) stri
 	for i := 0; i < n; i++ {
 		ts := last.Add(-time.Duration(n-1-i) * gap).UTC().Format(liveStamp)
 		evs = append(evs, recordtest.Stamped(
-			recordtest.At(t, "red-lens-evidence", 1, "red-lens-evidence:finding:k"+itoaT(i), &recordpb.Finding{
+			recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:k"+itoaT(i), &recordpb.Finding{
 				FindingId: proto.String("F" + itoaT(i)),
 				Label:     proto.String("L1-F" + itoaT(i)),
 				Text:      proto.String("a finding"),

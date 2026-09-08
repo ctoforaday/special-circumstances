@@ -36,8 +36,9 @@ import (
 // SpotCheck is one round's discharge of the duty, joined to what the board says was actually
 // available to sample.
 type SpotCheck struct {
-	Round  int
-	SeatID string
+	Epoch   int
+	Sitting int
+	SeatID  string
 	// Sampled are the archived closures the merge says it re-verified.
 	Sampled []string
 	// Prose is what the sample found, or why there was nothing to sample. ONE channel: it was
@@ -64,7 +65,7 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 	}
 	// The archive at the START of round R: every gap closed in a round strictly before R.
 	// Replayed state, not a reported count.
-	// A CLOSURE WITH NO ROUND IS NOT AN EARLY CLOSURE. ClosedRound is derived from the closing
+	// A CLOSURE WITH NO ROUND IS NOT AN EARLY CLOSURE. ClosedEpoch is derived from the closing
 	// seat's ID, and the terminal seats carry no round in their name — `judge-terminal` yields 0.
 	// Round 0 is synthesis, when no gap exists to close, so 0 here means UNKNOWN, not FIRST.
 	//
@@ -77,10 +78,10 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 	// This is the string-derived-fact hazard in miniature (facts-are-fields): the round is
 	// recovered from a seat-id by shape, and the miss returns a plausible number rather than an
 	// error.
-	archivedBefore := func(round int) int {
+	archivedBefore := func(epoch int) int {
 		n := 0
 		for _, g := range f.Gaps {
-			if g != nil && g.HasClosed && g.ClosedRound > 0 && g.ClosedRound < round {
+			if g != nil && g.HasClosed && g.ClosedEpoch > 0 && g.ClosedEpoch < epoch {
 				n++
 			}
 		}
@@ -92,7 +93,9 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 	// round-number keying W1.8 replaced, in a new spelling.
 	mergeSat := map[int]bool{}
 	discharged := map[int]bool{}
+	var clk Clock
 	for _, e := range f.Events {
+		w := clk.Advance(e)
 		// REGISTERING IS NOT SITTING. A seat announces itself before it does anything, and a
 		// round where the merge registered and then the run ended — a ceiling hit, a PASS, a
 		// halt between the two — owed a sample it never had the chance to take. The floor is
@@ -102,7 +105,7 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 		// rare, real, and exactly the kind of gate that would have fired on a live run months
 		// later with nobody able to say why.
 		if PartyOf(e) == "merge" && e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {
-			mergeSat[int(e.GetRound())] = true
+			mergeSat[w.Epoch] = true
 		}
 		// The BODY is the type test. Named `body` because the projection struct this loop fills
 		// is ALSO called SpotCheck — record.SpotCheck is the audit row, recordpb.SpotCheck the
@@ -111,10 +114,10 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 		if !ok {
 			continue
 		}
-		round := int(e.GetRound())
+		round := w.Epoch
 		discharged[round] = true
 		sc := SpotCheck{
-			Round: round, SeatID: e.GetSeatId(),
+			Epoch: round, Sitting: w.Sitting, SeatID: e.GetSeatId(),
 			// ONE PROSE CHANNEL. `notes` and `reason` were two payload keys filled by different
 			// branches of one verb; SpotCheck.reason is the field that replaces BOTH, so a
 			// record written under `notes` maps here and not to nothing.
@@ -149,12 +152,12 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 func (s SpotCheck) Describe() string {
 	switch {
 	case s.None:
-		return fmt.Sprintf("r%d (%s): **nothing to sample** — %s", s.Round, s.SeatID, s.NoneReason)
+		return fmt.Sprintf("#%d (%s): **nothing to sample** — %s", s.Sitting, s.SeatID, s.NoneReason)
 	case len(s.Sampled) == 0:
-		return fmt.Sprintf("r%d (%s): recorded, naming no closures", s.Round, s.SeatID)
+		return fmt.Sprintf("#%d (%s): recorded, naming no closures", s.Sitting, s.SeatID)
 	default:
-		line := fmt.Sprintf("r%d (%s): re-verified %s of %d archived closure(s)",
-			s.Round, s.SeatID, strings.Join(s.Sampled, ", "), s.Archived)
+		line := fmt.Sprintf("#%d (%s): re-verified %s of %d archived closure(s)",
+			s.Sitting, s.SeatID, strings.Join(s.Sampled, ", "), s.Archived)
 		if s.Prose != "" {
 			line += " — " + s.Prose
 		}

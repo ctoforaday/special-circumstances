@@ -33,7 +33,7 @@ func attestRun(t *testing.T, anchorTool, anchorTarget string) string {
 	t.Helper()
 	dir := t.TempDir()
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "red-chair", 1, "red-chair:mint:G1", &recordpb.Mint{
+		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
 			GapId:           proto.String("G1"),
 			Problem:         proto.String("p"),
 			RequiredFix:     proto.String("f"),
@@ -44,7 +44,7 @@ func attestRun(t *testing.T, anchorTool, anchorTarget string) string {
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
-		recordtest.At(t, "red-chair", 2, "red-chair:close:G1", &recordpb.Close{
+		recordtest.At(t, "red-chair", "red-chair:close:G1", &recordpb.Close{
 			GapId:        proto.String("G1"),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			AnchorSeat:   proto.String("red-chair"),

@@ -39,7 +39,7 @@ func seedAndSweep(t *testing.T) *planguard.Recorder {
 	defer recordsql.UseDriver(name)()
 
 	dir := recordtest.TmpRun(t)
-	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", 1, "red-chair:mint:G1", &recordpb.Mint{
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
 		GapId: proto.String("G1"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 		AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -60,9 +60,9 @@ func seedAndSweep(t *testing.T) *planguard.Recorder {
 	_, _ = record.BoardJSONBytes(run)
 	_, _ = record.MotionsJSONBytes(run)
 	_, _ = record.EvidenceJSONBytes(run)
-	_, _ = record.Rounds(run)
+	_, _ = record.Epochs(run)
 	_, _ = record.RegisteredSeats(run)
-	_ = record.RoundsWithRevision(run)
+	_ = record.EpochsWithRevision(run)
 	_ = record.GapsAwaitingProof(run)
 	_ = record.TerminalVerdict(run)
 	_ = record.RecordedOutcome(run)
@@ -138,7 +138,7 @@ func TestDefectsSeparatesMissingIndexesFromDesignCosts(t *testing.T) {
 		{"bulk detail read", `SELECT "event_id", "gap_id" FROM "mint"`, "SCAN mint", false},
 		{"whole-table count", `SELECT (SELECT count(*) FROM "verify")`, "SCAN verify", false},
 		{"last row by rowid", `SELECT "verdict" FROM "outcome" ORDER BY "event_id" DESC LIMIT 1`, "SCAN outcome", false},
-		{"covering index walk", `SELECT DISTINCT "round" FROM "events" ORDER BY "round"`, "SCAN events USING COVERING INDEX events_round", false},
+		{"covering index walk", `SELECT DISTINCT "type" FROM "events" ORDER BY "type"`, "SCAN events USING COVERING INDEX events_type", false},
 		{"autoindex walk", `SELECT "event_id" FROM "mint_supersedes" ORDER BY "event_id"`, "SCAN mint_supersedes USING INDEX sqlite_autoindex_mint_supersedes_1", false},
 
 		{"filtered scan is the defect", `SELECT "gap_id" FROM "mint" WHERE "gap_id" = ?`, "SCAN mint", true},
@@ -185,7 +185,7 @@ func TestAFilteredQueryWithoutAnIndexIsCaughtAndAnIndexedOneIsNot(t *testing.T) 
 	defer recordsql.UseDriver(name)()
 
 	dir := recordtest.TmpRun(t)
-	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", 1, "red-chair:mint:G1", &recordpb.Mint{
+	recordtest.Seed(t, dir, recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
 		GapId: proto.String("G1"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 		AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),

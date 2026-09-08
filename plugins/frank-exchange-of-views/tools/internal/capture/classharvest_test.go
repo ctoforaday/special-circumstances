@@ -16,7 +16,7 @@ import (
 
 func classEvent(t *testing.T, seat, slug, def, neighbor, dist string) *record.Event {
 	t.Helper()
-	return recordtest.Event(t, seat, 1, &recordpb.ClassNew{
+	return recordtest.Event(t, seat, &recordpb.ClassNew{
 		Slug: proto.String(slug), Definition: proto.String(def),
 		Neighbor: proto.String(neighbor), Distinguisher: proto.String(dist),
 	})
@@ -24,7 +24,7 @@ func classEvent(t *testing.T, seat, slug, def, neighbor, dist string) *record.Ev
 
 func mintEvent(t *testing.T, gapID, class string) *record.Event {
 	t.Helper()
-	return recordtest.Event(t, "red-chair", 1, &recordpb.Mint{
+	return recordtest.Event(t, "red-chair", &recordpb.Mint{
 		GapId: proto.String(gapID), Class: proto.String(class),
 	})
 }

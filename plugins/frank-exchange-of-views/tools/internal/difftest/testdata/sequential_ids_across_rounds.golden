@@ -68,16 +68,16 @@ stdout:
 motion M1 ruled rejected
 
 ═══ EVENTS ═══
-{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 first","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair:mint:G2","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 second","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair:mint:G3","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"G3","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r2 first","required_fix":"","severity":"GRADE_LOW"},"round":2,"seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_MINT"}
-{"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":2,"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_REGISTER"}
-{"key":"blue-respond:motion:#1","motion":{"basis":"the second failure is not required","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"G1","proposed":"GRADE_HIGH"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"round":2,"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_MOTION"}
-{"key":"red-chair:motion_rule:#1","motion_rule":{"grade":"GRADE_RULING_REJECTED","motion_id":"M1","opinion":"the consequence stands","subject":"MOTION_SUBJECT_GRADE"},"round":2,"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_MOTION_RULE"}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 first","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:mint:G2","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r1 second","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:mint:G3","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"a","class_new":false,"fix_basis":"proposed","gap_id":"G3","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"r2 first","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_MINT"}
+{"key":"blue-respond:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_REGISTER"}
+{"key":"blue-respond:motion:#1","motion":{"basis":"the second failure is not required","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"G1","proposed":"GRADE_HIGH"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_MOTION"}
+{"key":"red-chair:motion_rule:#1","motion_rule":{"grade":"GRADE_RULING_REJECTED","motion_id":"M1","opinion":"the consequence stands","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"red-chair","ts":9,"type":"EVENT_TYPE_MOTION_RULE"}
 
 ═══ RENDERS ═══
 -- debate
@@ -86,7 +86,7 @@ motion M1 ruled rejected
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
-_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 

@@ -137,21 +137,21 @@ func TestDebateJSONViewAndOneWayContract(t *testing.T) {
 		t.Fatalf("position: %v", err)
 	}
 
-	// debate --json parses and carries the rounds structure.
+	// debate --json parses and carries the epochs structure.
 	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "debate", "--json")
 	if err != nil {
 		t.Fatalf("show debate --json: %v", err)
 	}
 	var dj struct {
-		Rounds []struct {
+		Epochs []struct {
 			Red []string `json:"red"`
-		} `json:"rounds"`
+		} `json:"epochs"`
 	}
 	if e := json.Unmarshal([]byte(out), &dj); e != nil {
 		t.Fatalf("debate --json is not valid JSON (%v):\n%s", e, out)
 	}
 	found := false
-	for _, r := range dj.Rounds {
+	for _, r := range dj.Epochs {
 		for _, red := range r.Red {
 			if strings.Contains(red, "red's round narrative") {
 				found = true

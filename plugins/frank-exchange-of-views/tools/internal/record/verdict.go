@@ -57,13 +57,13 @@ func DeriveVerdict(run Run) (verdict, why string, ok bool) {
 	if err != nil {
 		return "", "the record could not be read: " + err.Error(), false
 	}
-	passed, err := recordHas(run, `SELECT 1 FROM "round_verdict" WHERE "verdict" = ? LIMIT 1`,
+	passed, err := recordHas(run, `SELECT 1 FROM "gate" WHERE "verdict" = ? LIMIT 1`,
 		recordpb.Word(recordpb.Verdict_VERDICT_PASS))
 	if err != nil {
 		return "", "the record could not be read: " + err.Error(), false
 	}
 	var maxRound int
-	if _, err := queryRow(run, []any{&maxRound}, `SELECT COALESCE(max("round"), 0) FROM "events"`); err != nil {
+	if _, err := queryRow(run, []any{&maxRound}, `SELECT COALESCE(max("epoch"), 0) FROM "events_w"`); err != nil {
 		return "", "the record could not be read: " + err.Error(), false
 	}
 	switch {
@@ -73,7 +73,7 @@ func DeriveVerdict(run Run) (verdict, why string, ok bool) {
 		return "VERIFIED", "the merge recorded a PASS verdict", true
 	}
 	if ceiling := configuredMaxRounds(run); ceiling > 0 && maxRound >= ceiling {
-		return "CEILING", "the record reaches round " + strconv.Itoa(maxRound) + " against a ceiling of " + strconv.Itoa(ceiling), true
+		return "CEILING", "the record reaches epoch " + strconv.Itoa(maxRound) + " against a ceiling of " + strconv.Itoa(ceiling), true
 	}
 	// No pass, no halt, and the ceiling not reached: the run ended early, which the engine
 	// only does on a judged deadlock. That judgement is not on the record — the bench's

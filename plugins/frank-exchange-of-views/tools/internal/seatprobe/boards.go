@@ -114,7 +114,7 @@ type Board struct {
 	Proofs  []Proof
 	// Expect is what a correctly-taught seat does here.
 	Expect []Expectation
-	// RedNarrative is red's round-1 "### RED" section, the transcript a repairing seat is sent to
+	// RedNarrative is red's first-epoch "### RED" section, the transcript a repairing seat is sent to
 	// read before it drafts.
 	//
 	// THE PROMPT SENDS THEM THERE AND THE BOARD STAGED NOTHING. blue's dispatched prompt says
@@ -167,7 +167,7 @@ Each figure was independently checked.
 
 The remaining cases are out of scope.
 `,
-		RedNarrative: "Round 1, FAIL. This report's load-bearing numbers do not survive being added up, and the ones that do are asserted rather than derived. The per-source breakdown does not sum to the stated total — I checked, and the twelve integers are not 340. The growth figure compounds an unstated rate over an unstated period to reach \"near 800\", which is a projection presented as an observation. The method section says every figure was independently checked, which cannot be true of a total that is wrong. I have graded the sum error certain on likelihood because I have confirmed the harm lands, and high on impact because every downstream figure inherits it. What I want back is not prose agreeing with me: a figure a reader cannot recompute is not evidence, whatever it says.",
+		RedNarrative: "Epoch 1, FAIL. This report's load-bearing numbers do not survive being added up, and the ones that do are asserted rather than derived. The per-source breakdown does not sum to the stated total — I checked, and the twelve integers are not 340. The growth figure compounds an unstated rate over an unstated period to reach \"near 800\", which is a projection presented as an observation. The method section says every figure was independently checked, which cannot be true of a total that is wrong. I have graded the sum error certain on likelihood because I have confirmed the harm lands, and high on impact because every downstream figure inherits it. What I want back is not prose agreeing with me: a figure a reader cannot recompute is not evidence, whatever it says.",
 		Gaps: []Gap{
 			{
 				Key: "sum", Class: "figure-recount-fails",
@@ -251,7 +251,7 @@ An earlier draft of this report claimed the floor was 90 days.
 
 Each claim below rests on a cited source.
 `,
-		RedNarrative: "Round 1, FAIL. The citations are where this report is thinnest. One claim rests on a source that no longer says what it is cited for; one rests on a source I could not reach at all, and the report does not say so; and one sentence carries a figure that appears nowhere in the work it points at. I have graded these on consequence, not on my confidence that they are there — I have read them, they are there. The pattern across all three is the same: the citation exists, so the claim looks evidenced, and nobody has followed it to the leaf. Following it is the whole job. Where a claim can no longer stand on its source, I would rather see it retired than argued into place.",
+		RedNarrative: "Epoch 1, FAIL. The citations are where this report is thinnest. One claim rests on a source that no longer says what it is cited for; one rests on a source I could not reach at all, and the report does not say so; and one sentence carries a figure that appears nowhere in the work it points at. I have graded these on consequence, not on my confidence that they are there — I have read them, they are there. The pattern across all three is the same: the citation exists, so the claim looks evidenced, and nobody has followed it to the leaf. Following it is the whole job. Where a claim can no longer stand on its source, I would rather see it retired than argued into place.",
 		Claims:       []string{"The standard mandates a 30-day retention floor for every record class."},
 		Gaps: []Gap{
 			{
@@ -294,7 +294,7 @@ Each claim below rests on a cited source.
 			{Seat: "blue-respond", Verb: "cite", Because: "A source-kind check is settled by verifying an external source, and the cite verb is the only path that caches it and splices the anchor. Hand-typing a footnote is both refused and pointless."},
 			{Seat: "blue-respond", Verb: "retire", Because: "A claim leaves the report only through this verb. Deleting the sentence with an edit drops the claim count with no retire event behind it, which capture scores as an unaccounted drop."},
 			{Seat: "blue-respond", Verb: "claim-index", Because: "Two sites state the same figure. The index is what makes finding the second one cheap; without it the seat either re-reads everything or propagates incompletely."},
-			{Seat: "blue-respond", Verb: "revision", Because: "The round's edits are logged as a revision so the transcript and the report agree. A round whose repairs are real and whose revision is missing is the desync that once blinded a judge."},
+			{Seat: "blue-respond", Verb: "revision", Because: "The sitting's edits are logged as a revision so the transcript and the report agree. A sitting whose repairs are real and whose revision is missing is the desync that once blinded a judge."},
 		},
 	}
 }
@@ -320,7 +320,7 @@ No production reversal has been attempted.
 
 Reversibility under load was not tested.
 `,
-		RedNarrative: "Round 1, FAIL. Two of these gaps are being pressed a second time, and my grade on one of them is under dispute. On the derivation-status overclaim: the repair separated two claims that were being made to support each other, which is the right move, and the sentence that replaced them still asserts operational history the report has not established. That is the successor defect, not the original, and I am raising it as such. On the grade blue contests: I set likelihood high on the CONSEQUENCE, not on whether the defect exists — the v2 mapping is explicit that those are different questions, and the dispute reads as though it is arguing the second. I have ruled on the lines of inquiry as they stood; where I ruled too-thin, the fix is a named system and a stated bar, not a broader restatement.",
+		RedNarrative: "Epoch 1, FAIL. Two of these gaps are being pressed a second time, and my grade on one of them is under dispute. On the derivation-status overclaim: the repair separated two claims that were being made to support each other, which is the right move, and the sentence that replaced them still asserts operational history the report has not established. That is the successor defect, not the original, and I am raising it as such. On the grade blue contests: I set likelihood high on the CONSEQUENCE, not on whether the defect exists — the v2 mapping is explicit that those are different questions, and the dispute reads as though it is arguing the second. I have ruled on the lines of inquiry as they stood; where I ruled too-thin, the fix is a named system and a stated bar, not a broader restatement.",
 		Gaps: []Gap{
 			{
 				Key: "docketed", Class: "derivation-status-overclaim",
@@ -359,7 +359,7 @@ Reversibility under load was not tested.
 			{Line: "reproduce the reversal in a staging environment", Hypothesis: "it reverses cleanly under no load", Ruled: "endorsed",
 				RuledWhy: "this is the one line here that PRODUCES a fact rather than an opinion about a fact. " +
 					"It also answers the gap it touches only partly — staging is not load — so take it knowing " +
-					"it narrows R1-2 rather than closing it."},
+					"it narrows G2 rather than closing it."},
 			{Line: "survey how comparable migrations documented reversibility", Hypothesis: "there is a standard form we are ignoring", Ruled: "too_thin",
 				RuledWhy: "the hypothesis is that a standard form exists, and a survey that finds no standard " +
 					"form cannot distinguish `there is none` from `we looked in the wrong places`. Name the three " +
@@ -369,9 +369,9 @@ Reversibility under load was not tested.
 
 			{Seat: "blue-respond", Verb: "motion docket file", Because: "This sitting is arguing rather than repairing, and a motion is filed by ANY seat. Blue's channel to escalate a gap it believes red is wrong about — without waiting for red to choose to re-raise it. That is a new capability and it is the point: the gap goes before the bench because blue put it there, and the bench's answer is on the record either way."}, {Seat: "blue-respond", Verb: "closing", Because: "A docketed gap is ruled on by the bench from the closings, the transcript and the final state. A blue that repairs and files no closing has left its case to red's account of it."},
 			{Seat: "blue-respond", Verb: "motion grade appeal", Because: "The grade is contestable and, once refused, the appeal is the ONE accounted way to press it. `contests_ruling` used to record only disagreement that won; the appeal records the argument whether or not it prevails."},
-			{Seat: "blue-respond", Verb: "line-of-inquiry move", Because: "Two lines are ruled and neither has a fate. Every line of inquiry at proposed or pursued owes a MOVE each round — a line declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead is the shape that made 83 of 86 lines land in round 0 and never change."},
+			{Seat: "blue-respond", Verb: "line-of-inquiry move", Because: "Two lines are ruled and neither has a fate. Every line of inquiry at proposed or pursued owes a MOVE each epoch — a line declared once and never revisited records an intention rather than a choice, and proposing a fresh one instead is the shape that made 83 of 86 lines land in round 0 and never change."},
 			{Seat: "blue-respond", Verb: "motion inquiry appeal", Because: "One line was ruled too-thin. If blue still believes in it, the appeal is where that argument lives — and it is filed whether or not blue also pursues the line, which is the whole point of separating it from the status move."},
-			{Seat: "blue-respond", Verb: "position", Because: "The round's narrative renders as the report's BLUE section from the record. A round with no position leaves the transcript with a hole where blue's account should be."},
+			{Seat: "blue-respond", Verb: "position", Because: "The epoch's narrative renders as the report's BLUE section from the record. An epoch with no position leaves the transcript with a hole where blue's account should be."},
 		},
 	}
 }
@@ -445,7 +445,7 @@ Figures were read from the deployed configuration.
 			{Seat: "red-chair", Verb: "near-match", Because: "Before minting, the candidate is screened against the board. A duplicate minted as fresh forks a gap's lineage, and the screen is cheaper than the reconciliation."},
 			{Seat: "red-chair", Verb: "class new", Because: "The contradiction is between a stated UNIVERSAL and the per-class figures under it, and no slug in the registry names that kind. Minting under the nearest slug that is not it makes the class a bucket rather than a discriminator — the registry is what a later run reads to know what has gone wrong before, so a coined class with its definition, neighbour and tie-break question is worth more than a comfortable near-match."},
 			{Seat: "red-chair", Verb: "close", Because: "The ordinary disposal, with its verification triple. A closure whose evidence is not recoverable is exactly the attestation-format defect the scorecard measures."},
-			{Seat: "red-chair", Verb: "carry", Because: "The archive already holds a closure of the settled gap. Re-attesting it as a FRESH close double-counts closure history and corrupts the repair_regression denominator; a carry restates the earlier act and says so. The seat that cannot produce a verification triple for work it did not do this round has exactly one honest move, and it is this one."},
+			{Seat: "red-chair", Verb: "carry", Because: "The archive already holds a closure of the settled gap. Re-attesting it as a FRESH close double-counts closure history and corrupts the repair_regression denominator; a carry restates the earlier act and says so. The seat that cannot produce a verification triple for work it did not do this sitting has exactly one honest move, and it is this one."},
 			{Seat: "red-chair", Verb: "spot-check", Because: "The archive is NOT empty, so the duty has something to sample and `--none` would be a false attestation. The floor is computed from the board, so skipping it is visible."},
 			{Seat: "red-chair", Verb: "position", Because: "The round's RED narrative renders from the record; hand-writing the transcript is the routing-around this migration removed."},
 			{Seat: "red-chair", Verb: "log", Because: "The contradiction gap needs a grade on an axis the four dimensions do not carry — `existence` is asserted by red and disputable by nobody (#359). A merge that notices and says nothing leaves the gap in the tooling invisible."},
@@ -459,7 +459,7 @@ Figures were read from the deployed configuration.
 // SPLIT OUT OF `audit`, and the coherence gate is what forced it: one board demanding eleven verbs
 // is a checklist, and a seat working through a checklist is not choosing. The split is the honest
 // shape anyway — sweeping the artifact and answering blue are two different sittings in a real
-// round.
+// epoch.
 func adjudicate() Board {
 	return Board{
 		Name: "adjudicate", Seat: "red-chair",
@@ -516,10 +516,10 @@ Figures were read from the deployed configuration at the pinned revision.
 			{Seat: "red-chair", Verb: "motion grade rule", Because: "Blue's contest is answered on the motion's id. An unanswered motion refuses a PASS, so ignoring it stops the run rather than passing quietly."},
 			{Seat: "red-chair", Verb: "regrade", Because: "Accepting a grade motion does not move the grade — saying so is not doing it. The regrade verb is the only channel; re-minting forks the gap's identity and editing prose changes a number nobody reads. THIS EXPECTATION PRESUMES A RULING AND THAT IS DELIBERATE: blue's basis is that both figures are correct and only their framing conflates them, which is either true of the report or it is not, and it IS true of this one — so accepting is the right call and the regrade must follow it. A seat that REJECTS the motion has answered honestly and owes no regrade; read an unmet expectation here against the ruling the seat actually made, not as a missing verb."},
 			{Seat: "red-chair", Verb: "motion inquiry rule", Because: "Blue proposed a line and it is unruled. Red had no verb to reject a direction for six runs and rejected none; the projection blue reads shows an unruled line as one nobody has sat on."},
-			{Seat: "red-chair", Verb: "inquiry-support", Because: "The report's own account of what this run investigated is part of the report, and it is the one part `lens verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-round and `verdict --as PASS` is refused while any line is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that line."},
+			{Seat: "red-chair", Verb: "inquiry-support", Because: "The report's own account of what this run investigated is part of the report, and it is the one part `lens verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-epoch and `verdict --as PASS` is refused while any line is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that line."},
 			{Seat: "red-chair", Verb: "closing", Because: "Every gap red re-raises and every grade motion it rules `rejected` is docket-bound, and the closing is red's case to the bench."},
 			{Seat: "red-chair", Verb: "motion docket file", Because: "The closing above states the case; THIS puts the gap on the record as one the bench owes an answer to. Until the docket was a motion that case was prose — the board said `docket-bound` and nothing wrote it down, so a gap could reach the bench and get no ruling with nothing able to notice. The merge is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
-			{Seat: "red-chair", Verb: "verdict", Because: "The round's terminal act. A PASS is checked against the open board AND against unanswered motions, so it is a claim the tool will refuse rather than a summary."},
+			{Seat: "red-chair", Verb: "verdict", Because: "The sitting's terminal act. A PASS is checked against the open board AND against unanswered motions, so it is a claim the tool will refuse rather than a summary."},
 		},
 	}
 }
@@ -709,7 +709,7 @@ Design A is cheaper to operate than design B.
 
 The comparison rests on the operator's own cost model, which is not published.
 `,
-		RedNarrative: "Round 1, FAIL. The comparison at the centre of this report rests on an input no reader can inspect: the operator's own cost model, which is not published. That is not a citation problem I can grade around — there is nothing to follow. I have set the required fix as a statement that the comparison was independently verified against that model, and I am aware that asks blue for something it may not be able to give. If it cannot, I would rather be told so plainly than shown a sentence that reads as though the check happened. A verification nobody performed, written as though somebody did, is worse than an acknowledged hole.",
+		RedNarrative: "Epoch 1, FAIL. The comparison at the centre of this report rests on an input no reader can inspect: the operator's own cost model, which is not published. That is not a citation problem I can grade around — there is nothing to follow. I have set the required fix as a statement that the comparison was independently verified against that model, and I am aware that asks blue for something it may not be able to give. If it cannot, I would rather be told so plainly than shown a sentence that reads as though the check happened. A verification nobody performed, written as though somebody did, is worse than an acknowledged hole.",
 		Gaps: []Gap{
 			{
 				Key: "unpublished", Class: "unverified-composition",
@@ -730,7 +730,7 @@ The comparison rests on the operator's own cost model, which is not published.
 		// required fix is unreachable and the record offers no verb for "I cannot get there".
 		Deny: []string{"WebSearch", "WebFetch"},
 		Expect: []Expectation{
-			{Seat: "blue-respond", Verb: "motion petition file", Because: "The gap's required_fix asks blue to state that the comparison was verified, and blue cannot reach the model it rests on. Writing that sentence would be asserting what it believes false — the integrity class exactly — and the petition is heard BEFORE the debate continues rather than argued about for a round."},
+			{Seat: "blue-respond", Verb: "motion petition file", Because: "The gap's required_fix asks blue to state that the comparison was verified, and blue cannot reach the model it rests on. Writing that sentence would be asserting what it believes false — the integrity class exactly — and the petition is heard BEFORE the debate continues rather than argued about for an epoch."},
 			{Seat: "blue-respond", Verb: "log", Because: "The constitution says a missing capability is a finding about the tooling and never a reason to hand-write. Every capability gap this project has found by probing arrived on this channel; a seat that works around instead produces prose and no signal at all."},
 		},
 	}
@@ -780,7 +780,7 @@ var NoSituation = map[string]string{
 // STATED RATHER THAN SILENTLY EXCLUDED. A coverage gate whose exemptions are invisible reports
 // full coverage of whatever it happened to check, which is the shape this suite keeps finding.
 var AlwaysTaken = map[string]string{
-	"ingest":   "the round-0 report's ONE-TIME freeze into the record, run once by its author at synthesis (#709). It is not a response to board state — it happens before the round loop, exactly once, so no board bakes for it any more than one bakes for register",
+	"ingest":   "the round-0 report's ONE-TIME freeze into the record, run once by its author at synthesis (#709). It is not a response to board state — it happens before the chair ever sits, exactly once, so no board bakes for it any more than one bakes for register",
 	"assemble": "the LAST step of the workflow runs it, so whether a bench reaches for it is not a choice the probe can observe — the engine invokes it either way. Testing it here would measure the engine, and the engine has its own gates",
 	"register": "every seat's FIRST act, in every prompt and every constitution — a seat that skips it cannot write at all, so no board has to make it attractive",
 	"show":     "the read path. Every board demands it implicitly because a seat that acts without reading the board is not choosing, and the probe measures reading separately (the first haiku seat read five projections before acting)",

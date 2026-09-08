@@ -368,7 +368,7 @@ func verdictGloss(o *recordpb.Outcome) string {
 	var lead string
 	switch o.GetVerdict() {
 	case recordpb.RunOutcome_RUN_OUTCOME_CEILING:
-		lead = "**CEILING-TERMINATED** — the run hit its round ceiling while still converging. This is NOT a judged failure to verify and must not be read as one: gaps remain open, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
+		lead = "**CEILING-TERMINATED** — the run hit its epoch ceiling — the configured limit on chair sittings — while still converging. This is NOT a judged failure to verify and must not be read as one: gaps remain open, the final blue revision was never audited by a red pass, and that re-audit debt travels OUT of the run."
 	case recordpb.RunOutcome_RUN_OUTCOME_HALTED:
 		lead = "**HALTED** — the bench ended this run. The halt opinion is on the record ([the debate](" + FileDebate + "), under Bench disposition) and is relayed to the human verbatim, never smoothed."
 	default:
@@ -376,7 +376,7 @@ func verdictGloss(o *recordpb.Outcome) string {
 	}
 	// EVERY branch carries the basis. The first cut appended it only to the default arm, so
 	// CEILING and HALTED — which returned early — dropped it; the fuzz failed 35 of 60 runs on
-	// exactly that, because a ceiling termination IS derived (rounds against the configured
+	// exactly that, because a ceiling termination IS derived (epochs against the configured
 	// ceiling) and is the most common way a run ends.
 	return strings.TrimSpace(lead + basisNote(o.GetVerdictBasis()) + verdictWhy(o))
 }
@@ -384,7 +384,7 @@ func verdictGloss(o *recordpb.Outcome) string {
 // verdictWhy carries the DERIVATION'S OWN REASONING and, on a deadlock, the bench's.
 //
 // The derivation computed a `why` on every call — "the merge recorded a PASS verdict", "the
-// record reaches round 3 against a ceiling of 3" — and used it only to phrase an error, so the
+// record reaches epoch 3 against a ceiling of 3" — and used it only to phrase an error, so the
 // report could stamp a verdict and never say why it was that one. A judged deadlock is the
 // opposite case and had no account at all: it is the ONE terminal verdict the record cannot
 // derive (#289), so the bench's --reason is the only evidence it will ever have.
@@ -608,7 +608,7 @@ func concise(s string) string {
 // undecided line has none. TestFuzzDebate failed six seeds with `avenue prose absent from report`,
 // and that invariant wins: a seat's recorded reasoning must reach the reader. A second cut gave it
 // a fourth section. Three is the decision — a line blue put forward IS an area this run is
-// researching, and red's per-round support verdict is what stops it sitting there undecided,
+// researching, and red's per-epoch support verdict is what stops it sitting there undecided,
 // rather than a heading that describes the omission.
 //
 // `rejected` stays a COMPLEMENT so a sixth status cannot silently match nothing.
@@ -660,11 +660,12 @@ func inquiries(fam record.Family, heading string, want func(string) bool) string
 		// ORDINARY GAP that renders under The board with an id, a grade and a PASS gate.
 		// record.Inquiry's own header states the same decision from the projection's side.
 		//
-		// What replaced it is ONE per-round `InquiryReview`, read by record.InquiryReviewDue.
+		// What replaced it is ONE per-epoch `InquiryReview`, read by record.InquiryReviewDue.
 		// Whether the report should carry a line saying that read happened — and where — is a
 		// composition decision, not a conversion, so nothing is invented here.
 		if a.Ruling != "" {
-			ruled := fmt.Sprintf("\n  - red ruled **%s** (r%d)", a.Ruling, a.RuledRound)
+			// No sitting beside a party name, so no ordinal: the seat that ruled is not named here.
+			ruled := fmt.Sprintf("\n  - red ruled **%s**", a.Ruling)
 			if a.RulingWhy != "" {
 				ruled += " — " + a.RulingWhy
 			}
@@ -690,7 +691,9 @@ func inquiries(fam record.Family, heading string, want func(string) bool) string
 // it makes the report indistinguishable from one where the claim was never made.
 func withdrawnClaims(evs []*record.Event) string {
 	var rows []string
+	var clk record.Clock
 	for _, e := range evs {
+		w := clk.Advance(e)
 		r, ok := recordpb.BodyAs[*recordpb.Retire](e)
 		if !ok {
 			continue
@@ -699,7 +702,7 @@ func withdrawnClaims(evs []*record.Event) string {
 		if claim == "" {
 			continue
 		}
-		row := fmt.Sprintf("- **%s** — %s (%s, r%d)", concise(claim), r.GetReason(), e.GetSeatId(), e.GetRound())
+		row := fmt.Sprintf("- **%s** — %s (%s #%d)", concise(claim), r.GetReason(), e.GetSeatId(), w.Sitting)
 		if s := r.GetSupersededBy(); s != "" {
 			row += "\n  - superseded by: " + s
 		}
@@ -713,7 +716,7 @@ func withdrawnClaims(evs []*record.Event) string {
 		case record.RemovalVerified:
 			row += "\n  - basis: **verified** — the claim appears in the old span of a recorded edit, so the record shows it leaving."
 		case record.RemovalAsserted:
-			row += "\n  - basis: **asserted** — the claim is absent now, but nothing on the record shows it was ever present. Honest for a round-0 claim written and rewritten in one sitting; indistinguishable, here, from a retirement of something that never existed."
+			row += "\n  - basis: **asserted** — the claim is absent now, but nothing on the record shows it was ever present. Honest for an epoch-0 claim — written before the chair first sat — and rewritten in one sitting; indistinguishable, here, from a retirement of something that never existed."
 		}
 		rows = append(rows, row)
 	}
@@ -886,11 +889,13 @@ func boardSection(fam record.Family) string {
 func correctnessManifest(fam record.Family) string {
 	type row struct {
 		gapID, text, seat string
-		round             int
+		sitting           int
 	}
 	var rows []row
 	manifested := map[string]bool{}
+	var clk record.Clock
 	for _, e := range fam.Events {
+		w := clk.Advance(e)
 		mr, ok := recordpb.BodyAs[*recordpb.ManifestRow](e)
 		if !ok {
 			continue
@@ -901,7 +906,7 @@ func correctnessManifest(fam record.Family) string {
 		}
 		id := mr.GetGapId()
 		manifested[id] = true
-		rows = append(rows, row{id, text, e.GetSeatId(), int(e.GetRound())})
+		rows = append(rows, row{id, text, e.GetSeatId(), w.Sitting})
 	}
 	// Every gap blue actually repaired: one a `close` event settled. A repair with no manifest
 	// row is one nobody audited, including its author.
@@ -932,7 +937,7 @@ func correctnessManifest(fam record.Family) string {
 	fmt.Fprintf(&b, "### Blue's correctness manifest (%d)\n\n", len(rows))
 	b.WriteString("Blue's self-audit of its own repairs — what it checked for each gap and what checking it showed. An unmanifested repair is unchecked by blue's own standard, which is a stronger thing to be able to say than \"we think it was checked\".\n\n")
 	for _, r := range rows {
-		fmt.Fprintf(&b, "- **%s** (%s, r%d): %s\n", r.gapID, r.seat, r.round, r.text)
+		fmt.Fprintf(&b, "- **%s** (%s #%d): %s\n", r.gapID, r.seat, r.sitting, r.text)
 	}
 	if len(unmanifested) > 0 {
 		fmt.Fprintf(&b, "\n**%d repaired gap(s) carry no manifest row (%s).** Those repairs were not audited by the party that made them.\n",
@@ -942,13 +947,13 @@ func correctnessManifest(fam record.Family) string {
 }
 
 // archiveSpotChecks renders red's re-verification of its own closure archive — which closures it
-// re-read each round, what that found, and any round that owed a sample and did not take one.
+// re-read each epoch, what that found, and any epoch that owed a sample and did not take one.
 //
 // The closure index is the report's claim that a gap was dealt with, and it is only as good as
 // the last time anyone looked. Red looked, recorded which closures it re-read, and the reader was
 // never told — the receipt sat on the record with no consumer at all. The DEBT is rendered beside
 // the discharges rather than left to the exit code, because a reader deciding how much to trust
-// the closure index needs to know which rounds checked it and which did not.
+// the closure index needs to know which sittings checked it and which did not.
 func archiveSpotChecks(fam record.Family) string {
 	checks, debt, falseEmpty := record.SpotCheckAudit(fam)
 	if len(checks) == 0 && len(debt) == 0 {
@@ -956,18 +961,18 @@ func archiveSpotChecks(fam record.Family) string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "### Archive spot-checks (%d)\n\n", len(checks))
-	b.WriteString("Red re-reading its own closure record. A closure index is only as good as the last time anyone looked; these are the rounds that looked.\n\n")
+	b.WriteString("Red re-reading its own closure record. A closure index is only as good as the last time anyone looked; these are the sittings that looked.\n\n")
 	for _, sc := range checks {
 		b.WriteString("- " + sc.Describe() + "\n")
 	}
 	for _, sc := range falseEmpty {
-		fmt.Fprintf(&b, "- **r%d claimed there was nothing to sample, and the board shows %d archived closure(s) at that round's start.** The claim does not survive the record.\n", sc.Round, sc.Archived)
+		fmt.Fprintf(&b, "- **#%d (%s) claimed there was nothing to sample, and the board shows %d archived closure(s) at the start of epoch %d.** The claim does not survive the record.\n", sc.Sitting, sc.SeatID, sc.Archived, sc.Epoch)
 	}
 	if len(debt) > 0 {
-		fmt.Fprintf(&b, "\n**%d round(s) entered with a non-empty archive and sampled none of it", len(debt))
+		fmt.Fprintf(&b, "\n**%d epoch(s) entered with a non-empty archive and sampled none of it", len(debt))
 		var rs []string
 		for _, r := range debt {
-			rs = append(rs, fmt.Sprintf("r%d", r))
+			rs = append(rs, fmt.Sprintf("epoch %d", r))
 		}
 		fmt.Fprintf(&b, " (%s).** Those closures went un-re-examined; weigh the closure index accordingly.\n", strings.Join(rs, ", "))
 	}
@@ -1010,7 +1015,7 @@ func fixProposal(mint *recordpb.Mint) string {
 //
 // EVERY movement, on open and closed gaps alike. Rendering a count and the latest basis loses a
 // stated reason twice over: an earlier regrade's basis is overwritten in the display by a later
-// one, and a gap that closes drops its whole history — so a grade argued down over three rounds
+// one, and a gap that closes drops its whole history — so a grade argued down over three epochs
 // and then closed shows the reader no argument at all. A regrade is red revising its own
 // assessment, usually because blue disputed it; the dispute renders, and the reasoning that
 // answered it must too.
@@ -1115,7 +1120,7 @@ func unmintedFindings(fam record.Family) string {
 		len(rows), strings.Join(rows, "\n\n"))
 }
 
-// debate composes the one transcript from the event log: per round, the parties' positions
+// debate composes the one transcript from the event log: per epoch, the parties' positions
 // and closings, the grade disputes and their answers, then the bench's docket dispositions and
 // petition rulings; then the terminal bench disposition (halt / certify). Everything the parties and
 // the bench put on the record, in one place — the seat re-narrated none of it.
@@ -1123,14 +1128,17 @@ func unmintedFindings(fam record.Family) string {
 // to its filing from an event alone: motion-rule carries motion_id, never the filer or subject of
 // the ask. record.Motions performs that join.
 func debate(fam record.Family, evs []*record.Event) string {
+	// BUCKETED BY EPOCH — the chair's sittings, counted by the Clock as the fold goes, never a
+	// number a seat stamped. The chair's own register is the first row of the epoch it opens.
 	var order []int
-	byRound := map[int][]*record.Event{}
+	byEpoch := map[int][]*record.Event{}
+	var clk record.Clock
 	for _, e := range evs {
-		r := int(e.GetRound())
-		if _, seen := byRound[r]; !seen {
-			order = append(order, r)
+		w := clk.Advance(e)
+		if _, seen := byEpoch[w.Epoch]; !seen {
+			order = append(order, w.Epoch)
 		}
-		byRound[r] = append(byRound[r], e)
+		byEpoch[w.Epoch] = append(byEpoch[w.Epoch], e)
 	}
 
 	// ONE PAIRING, READ MANY TIMES. A docket ruling names the gap it settles only through its
@@ -1145,10 +1153,10 @@ func debate(fam record.Family, evs []*record.Event) string {
 
 	var parts []string
 	for _, r := range order {
-		re := byRound[r]
+		re := byEpoch[r]
 		// THE RECORDED VERDICT, RENDERED BESIDE THE PROSE THAT CLAIMS ONE.
 		//
-		// A seat's position is prose, and prose can say "my verdict is PASS" while the round's
+		// A seat's position is prose, and prose can say "my verdict is PASS" while the epoch's
 		// STRUCTURED verdict — the one the board and every audit read — says fail. That is not
 		// hypothetical: in research/2026-09-02_quadratic-formula red's round-5 position says
 		// exactly that, `round_verdict` holds fail for all five rounds, and this document rendered
@@ -1159,7 +1167,7 @@ func debate(fam record.Family, evs []*record.Event) string {
 		// reader sees both and needs no inference.
 		recordedVerdict := ""
 		for _, e := range re {
-			if v, ok := recordpb.BodyAs[*recordpb.RoundVerdict](e); ok {
+			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
 				recordedVerdict = recordpb.Word(v.GetVerdict())
 			}
 		}
@@ -1168,12 +1176,12 @@ func debate(fam record.Family, evs []*record.Event) string {
 		case recordedVerdict != "":
 			redHead = "### RED — recorded verdict: " + strings.ToUpper(recordedVerdict)
 		default:
-			// ABSENCE IS ITS OWN FACT. A round where red spoke and recorded no verdict is not a
-			// round that passed; it is one whose gate never closed, and silence renders the same
+			// ABSENCE IS ITS OWN FACT. An epoch where red spoke and recorded no verdict is not an
+			// epoch that passed; it is one whose gate never closed, and silence renders the same
 			// as either. The ceiling case that produced this defect is exactly that shape.
-			redHead = "### RED — NO VERDICT RECORDED THIS ROUND"
+			redHead = "### RED — NO VERDICT RECORDED THIS EPOCH"
 		}
-		var round []string
+		var epoch []string
 		// THE BODY IS THE TYPE, and the party is still the seat's. `--reason` lands on
 		// Position.text and Closing.text — one prose channel each, declared for Closing in
 		// recordpb/required.go ("the closing argument for this gap").
@@ -1182,18 +1190,18 @@ func debate(fam record.Family, evs []*record.Event) string {
 			if p, ok := recordpb.BodyAs[*recordpb.Position](e); ok {
 				switch party {
 				case "merge":
-					round = append(round, redHead+"\n"+p.GetText())
+					epoch = append(epoch, redHead+"\n"+p.GetText())
 				case "blue":
-					round = append(round, "### BLUE\n"+p.GetText())
+					epoch = append(epoch, "### BLUE\n"+p.GetText())
 				}
 				continue
 			}
 			if c, ok := recordpb.BodyAs[*recordpb.Closing](e); ok {
 				switch party {
 				case "merge":
-					round = append(round, fmt.Sprintf("### RED CLOSING — %s\n%s", c.GetGapId(), c.GetText()))
+					epoch = append(epoch, fmt.Sprintf("### RED CLOSING — %s\n%s", c.GetGapId(), c.GetText()))
 				case "blue":
-					round = append(round, fmt.Sprintf("### BLUE CLOSING — %s\n%s", c.GetGapId(), c.GetText()))
+					epoch = append(epoch, fmt.Sprintf("### BLUE CLOSING — %s\n%s", c.GetGapId(), c.GetText()))
 				}
 			}
 		}
@@ -1208,9 +1216,9 @@ func debate(fam record.Family, evs []*record.Event) string {
 		//
 		// The two are NOT joined into a single row. `petition-rule` carries the petitioner and
 		// the class but no petition id (#312), so pairing two filings by the same seat in one
-		// round would be a guess. They are rendered in the order they happened, which is a fact,
+		// epoch would be a guess. They are rendered in the order they happened, which is a fact,
 		// and the run-level count check below says plainly if a filing went unanswered.
-		// The bench's in-round acts: its rulings on DOCKET motions — the dispositions that
+		// The bench's in-epoch acts: its rulings on DOCKET motions — the dispositions that
 		// settle a gap. A grade or petition ruling answers a different question and does not
 		// belong under LEAD's per-gap list.
 		var lead []string
@@ -1236,14 +1244,14 @@ func debate(fam record.Family, evs []*record.Event) string {
 				mr.GetOpinion()))
 		}
 		if len(lead) > 0 {
-			round = append(round, "### LEAD\n"+strings.Join(lead, "\n"))
+			epoch = append(epoch, "### LEAD\n"+strings.Join(lead, "\n"))
 		}
-		if len(round) > 0 {
-			parts = append(parts, fmt.Sprintf("### Round %d\n\n%s", r, strings.Join(round, "\n\n")))
+		if len(epoch) > 0 {
+			parts = append(parts, fmt.Sprintf("### Epoch %d\n\n%s", r, strings.Join(epoch, "\n\n")))
 		}
 	}
 
-	// Terminal bench disposition: halt and certify are run-level, not a round's.
+	// Terminal bench disposition: halt and certify are run-level, not an epoch's.
 	var disp []string
 	filed, ruled := 0, 0
 	//
@@ -1274,7 +1282,7 @@ func debate(fam record.Family, evs []*record.Event) string {
 	// went unanswered".
 	//
 	// The old note said the pair was COUNTED rather than JOINED because `petition-rule` carried
-	// no id, so pairing two filings by one seat in one round would have been a guess. A motion
+	// no id, so pairing two filings by one seat in one epoch would have been a guess. A motion
 	// has an id; record.Motions joins the ask to its answer, so this is now an exact count of
 	// petitions that were never ruled rather than a difference between two tallies.
 	for _, m := range record.MotionsOf(fam.Events) {
@@ -1354,19 +1362,21 @@ func logSection(evs []*record.Event) string {
 	return strings.TrimRight(out, "\n")
 }
 
-// revisionHistory is blue's per-round revision record folded into the report as
-// bottom-of-document provenance — how the report evolved round by round. Composed from revision
+// revisionHistory is blue's per-epoch revision record folded into the report as
+// bottom-of-document provenance — how the report evolved epoch by epoch. Composed from revision
 // events; a run with no revisions omits it.
 func revisionHistory(evs []*record.Event) string {
 	var rows []string
+	var clk record.Clock
 	for _, e := range evs {
+		w := clk.Advance(e)
 		r, ok := recordpb.BodyAs[*recordpb.Revision](e)
 		if !ok {
 			continue
 		}
 		// Revision's one field is `text`; `--reason` is the flag, as everywhere else.
 		if t := strings.TrimSpace(r.GetText()); t != "" {
-			rows = append(rows, fmt.Sprintf("### Round %d — %s\n\n%s", e.GetRound(), e.GetSeatId(), t))
+			rows = append(rows, fmt.Sprintf("### Epoch %d — %s\n\n%s", w.Epoch, e.GetSeatId(), t))
 		}
 	}
 	if len(rows) == 0 {
@@ -1420,7 +1430,7 @@ func collapseBlanks(s string) string {
 // This follows the precedent one section above rather than inventing one. archiveSpotChecks
 // already renders a verify-class invariant computed by replay, and says why it renders instead
 // of gating: "the DEBT is rendered beside the discharges rather than left to the exit code,
-// because a reader deciding how much to trust the closure index needs to know which rounds
+// because a reader deciding how much to trust the closure index needs to know which sittings
 // checked it and which did not." Same reasoning, applied to the other six.
 //
 // IT IS A SECTION, NOT A GATE. Nothing here changes an exit code. `verify` keeps its non-zero

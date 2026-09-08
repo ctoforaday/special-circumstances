@@ -64,8 +64,8 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := CurrentRoundOf(b.Events); got != 1 {
-		t.Fatalf("a bare register advanced CurrentRound to %d — a seat that has written nothing must not move the board's idea of now", got)
+	if got := CurrentEpochOf(b.Events); got != 1 {
+		t.Fatalf("a bare register advanced CurrentEpoch to %d — a seat that has written nothing must not move the board's idea of now", got)
 	}
 	if InquiryReviewDueOf(b.Events) {
 		t.Error("a bare register from judge made the round-1 merge's review stale.\n\n" +
@@ -90,8 +90,8 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := CurrentRoundOf(b.Events); got != 2 {
-		t.Fatalf("real work in round 2 did not advance CurrentRound: got %d", got)
+	if got := CurrentEpochOf(b.Events); got != 2 {
+		t.Fatalf("real work in epoch 2 did not advance CurrentEpoch: got %d", got)
 	}
 	if !InquiryReviewDueOf(b.Events) {
 		t.Error("round 2 owes its own review and the round-1 one answered for it — the round check is gone, not fixed")

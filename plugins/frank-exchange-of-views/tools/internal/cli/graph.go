@@ -21,7 +21,7 @@ func newGraph() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "graph",
 		Short:         "render a run's actual behaviour (seat flow + gap lifecycle) as mermaid or dot (read-only)",
-		Long:          "graph replays <run>'s record and prints its shape — the seats that ran per round with their event tallies, and each gap's lifecycle coloured by state, with holes (a dispute nobody answered, a silent closure) highlighted. Default output is markdown with mermaid (renders in an artifact, a PR, or a phone); --format dot emits a graphviz digraph for a dense run.",
+		Long:          "graph replays <run>'s record and prints its shape — the seats that ran per epoch (chair sitting) with their event tallies, and each gap's lifecycle coloured by state, with holes (a dispute nobody answered, a silent closure) highlighted. Default output is markdown with mermaid (renders in an artifact, a PR, or a phone); --format dot emits a graphviz digraph for a dense run.",
 		Args:          cobra.NoArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,

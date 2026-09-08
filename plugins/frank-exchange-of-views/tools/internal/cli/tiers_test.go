@@ -27,15 +27,15 @@ func tierFixture(t *testing.T) (string, record.Family) {
 		t.Fatal(err)
 	}
 	recordtest.Seed(t, run,
-		recordtest.At(t, "blue-lane-1", 1, "blue-lane-1:register:#1", &recordpb.Register{
+		recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "aaaa1111", "claude-opus-4-8", "claude-fable-5")),
 		}),
-		recordtest.At(t, "red-chair", 1, "red-chair:register:#1", &recordpb.Register{
+		recordtest.At(t, "red-chair", "red-chair:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 			AgentId:     proto.String(recordtest.ServedBy(t, "bbbb2222", "claude-sonnet-5", "")),
 		}),
-		recordtest.At(t, "judge", 1, "judge:register:#1", &recordpb.Register{
+		recordtest.At(t, "judge", "judge:register:#1", &recordpb.Register{
 			ToolVersion: proto.String("test"),
 		}),
 	)
@@ -90,7 +90,7 @@ func TestTiersSaysWhenNothingLookedAtAll(t *testing.T) {
 		[]byte(`{"model":"claude-fable-5","judgmentModel":"claude-sonnet-5"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	recordtest.Seed(t, run, recordtest.At(t, "blue-lane-1", 1, "blue-lane-1:register:#1",
+	recordtest.Seed(t, run, recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#1",
 		&recordpb.Register{ToolVersion: proto.String("test")}))
 	b, err := record.FamilyOf(runtest.Open(t, run))
 	if err != nil {

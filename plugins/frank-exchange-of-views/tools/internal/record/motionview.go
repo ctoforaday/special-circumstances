@@ -35,7 +35,7 @@ type MotionJSON struct {
 	ID      string `json:"id"`
 	Subject string `json:"subject"`
 	Filer   string `json:"filer"`
-	Round   int    `json:"round"`
+	Epoch   int    `json:"epoch"`
 	// Basis is the ask IN THE FILER'S WORDS. It is why this view exists.
 	Basis  string `json:"basis"`
 	Relief string `json:"relief"`
@@ -46,7 +46,7 @@ type MotionJSON struct {
 	Ruled       bool   `json:"ruled"`
 	Ruling      string `json:"ruling"`
 	RulingBy    string `json:"ruling_by"`
-	RulingRound int    `json:"ruling_round"`
+	RulingEpoch int    `json:"ruling_epoch"`
 	Opinion     string `json:"opinion"`
 
 	Appealed     bool   `json:"appealed"`
@@ -76,10 +76,10 @@ func motionsJSONOf(evs []*Event) MotionsJSON {
 			continue
 		}
 		mj := MotionJSON{
-			ID: m.ID, Subject: m.Subject, Filer: m.Filer, Round: m.Round,
+			ID: m.ID, Subject: m.Subject, Filer: m.Filer, Epoch: m.Epoch,
 			Basis: m.Basis, Relief: m.Relief,
 			Ruled: m.Ruling != "", Ruling: m.Ruling, RulingBy: m.RulingBy,
-			RulingRound: m.RulingRound, Opinion: m.Opinion,
+			RulingEpoch: m.RulingEpoch, Opinion: m.Opinion,
 			Appealed: m.Appealed, AppealReason: m.AppealReason,
 		}
 		if len(m.Fields) > 0 {
@@ -91,8 +91,8 @@ func motionsJSONOf(evs []*Event) MotionsJSON {
 	// but Motions reads the one live vocabulary, so a run holding
 	// both would otherwise present two interleaved sequences as one.
 	sort.SliceStable(out.Motions, func(i, j int) bool {
-		if out.Motions[i].Round != out.Motions[j].Round {
-			return out.Motions[i].Round < out.Motions[j].Round
+		if out.Motions[i].Epoch != out.Motions[j].Epoch {
+			return out.Motions[i].Epoch < out.Motions[j].Epoch
 		}
 		return out.Motions[i].ID < out.Motions[j].ID
 	})
@@ -110,6 +110,7 @@ func motionsJSONOf(evs []*Event) MotionsJSON {
 // event families; nothing else on the record decides a motion's state.
 func MotionsJSONBytes(run Run) ([]byte, error) {
 	evs, err := EventsOf(run,
+		recordpb.EventType_EVENT_TYPE_REGISTER, // for the fold's Clock (see record.Clock)
 		recordpb.EventType_EVENT_TYPE_AVENUE,
 		recordpb.EventType_EVENT_TYPE_MOTION,
 		recordpb.EventType_EVENT_TYPE_MOTION_RULE,

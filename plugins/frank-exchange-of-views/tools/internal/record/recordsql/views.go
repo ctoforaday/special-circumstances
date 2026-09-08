@@ -76,9 +76,10 @@ SELECT
   r."agent_id"   AS "agent_id",
   e."seat_id"    AS "seat_id",
   r."agent_type" AS "agent_type",
-  e."round"      AS "registered_round"
+  e."epoch"      AS "registered_epoch",
+  e."sitting"    AS "sitting"
 FROM "register" r
-JOIN "events" e ON e."id" = r."event_id"
+JOIN "events_w" e ON e."id" = r."event_id"
 WHERE r."agent_id" IS NOT NULL AND r."agent_id" != ''
   AND r."event_id" = (SELECT MAX(r2."event_id") FROM "register" r2 WHERE r2."agent_id" = r."agent_id");
 
@@ -181,14 +182,14 @@ CREATE VIEW "gap_edit" AS
 SELECT
   m."gap_id"                                   AS "gap_id",
   e."id"                                       AS "event_id",
-  e."round"                                    AS "round",
+  e."epoch"                                    AS "epoch",
   e."seat_id"                                  AS "edited_by",
   b."old"                                      AS "old",
   b."new"                                      AS "new"
 FROM "mint" m
 JOIN "events" me ON me."id" = m."event_id"
 JOIN "blue_edit" b
-JOIN "events" e ON e."id" = b."event_id"
+JOIN "events_w" e ON e."id" = b."event_id"
 WHERE e."id" > me."id"
   AND COALESCE(m."location", '') != ''
   AND COALESCE(b."old", '') != ''
@@ -212,15 +213,16 @@ SELECT
   m."likelihood"                               AS "likelihood",
   m."impact"                                   AS "impact",
   m."complexity_cost"                          AS "complexity_cost",
-  e."round"                                    AS "minted_round",
+  e."id"                                       AS "minted_seq",
+  e."epoch"                                    AS "minted_epoch",
   e."seat_id"                                  AS "minted_by",
   c."closure_class"                            AS "closure_class",
   c."successor"                                AS "successor",
-  ce."round"                                   AS "merge_closed_round",
+  ce."id"                                      AS "merge_closed_seq",
   bo."disposition"                             AS "bench_disposition",
   be."seat_id"                                 AS "bench_closed_by",
-  be."round"                                   AS "bench_closed_round",
-  COALESCE(MIN(ce."round", be."round"), ce."round", be."round") AS "closed_round",
+  be."id"                                      AS "bench_closed_seq",
+  COALESCE(MIN(ce."id", be."id"), ce."id", be."id")           AS "closed_seq",
   (c."event_id" IS NULL AND bc."event_id" IS NULL)              AS "open",
   -- THE REPEATED FIELDS, ANSWERED HERE RATHER THAN STORED. A gap's lineage and its credited
   -- findings live in child tables, so "does this gap supersede anything" is a join every reader
@@ -310,7 +312,7 @@ SELECT
   -- writes for itself.
   m."event_id"                                                                        AS "minted_event"
 FROM "mint" m
-JOIN "events" e ON e."id" = m."event_id"
+JOIN "events_w" e ON e."id" = m."event_id"
 -- A gap can be closed more than once — red re-adjudicates across rounds (defect_accepted in
 -- one, repaired in a later one). Take the EARLIEST close, exactly as the bench-close arm below
 -- takes its earliest closing ruling: a plain LEFT JOIN "close" fans out one row per close event,
@@ -361,8 +363,8 @@ LEFT JOIN "events" be ON be."id" = bc."event_id";
 -- only carrier was prose.
 --
 -- It is a QUESTION about the record, which is what this file is for, and every input is already
--- here: the round's verdict, the mass of what is still open, the top severity, and whether any
--- gap minted this round is fresh rather than lineage. So it is authored once, where a reader can
+-- here: the sitting's verdict, the mass of what is still open, the top severity, and whether any
+-- gap minted this epoch is fresh rather than lineage. So it is authored once, where a reader can
 -- see the fold, instead of recomputed in whichever consumer wants it.
 --
 -- MASS IS A JOIN NOW, and that is the change that made this expressible at all. A grade's weight
@@ -375,7 +377,7 @@ LEFT JOIN "events" be ON be."id" = bc."event_id";
 -- zero fresh mints, verdict FAIL.
 CREATE VIEW "convergence_vs_verdict" AS
 SELECT
-  v."round"                                        AS "round",
+  ve."epoch"                                       AS "epoch",
   rv."verdict"                                     AS "verdict",
   COALESCE(b."mass", 0.0)                          AS "mass",
   COALESCE(b."max_severity_mass", 0.0)             AS "max_severity_mass",
@@ -384,32 +386,35 @@ SELECT
      AND COALESCE(b."mass", 0.0) < 35.0
      AND COALESCE(b."max_severity_mass", 0.0) <= 2.0
      AND COALESCE(f."fresh_mints", 0) = 0)         AS "divergent"
-FROM (SELECT DISTINCT "round" FROM "events" WHERE "round" > 0) v
-JOIN "events" ve ON ve."round" = v."round" AND ve."type" = 'verdict'
-JOIN "round_verdict" rv ON rv."event_id" = ve."id"
+FROM "events_w" ve
+JOIN "gate" rv ON rv."event_id" = ve."id"
 LEFT JOIN (
-  -- Open AT that round: minted on or before it, and not closed before it ends.
+  -- Open AT the verdict: minted at or before it in the sequence, and not closed before it. The
+  -- axis is the record's own ("id"), not a round — a closure two rows after the gate did not
+  -- happen before it, however the sittings fell.
   SELECT
-    r."round"                                                  AS "round",
+    v2."id"                                                    AS "verdict_id",
     SUM(COALESCE(gl."mass", 0.0) * COALESCE(gi."mass", 0.0))   AS "mass",
     MAX(COALESCE(gs."mass", 0.0))                              AS "max_severity_mass"
-  FROM (SELECT DISTINCT "round" FROM "events" WHERE "round" > 0) r
+  FROM "events" v2
   JOIN "gap" g
-    ON g."minted_round" <= r."round"
-   AND (g."open" OR g."closed_round" > r."round")
+    ON g."minted_seq" <= v2."id"
+   AND (g."open" OR g."closed_seq" > v2."id")
   LEFT JOIN "enum_grade" gl ON gl."value" = g."likelihood"
   LEFT JOIN "enum_grade" gi ON gi."value" = g."impact"
   LEFT JOIN "enum_grade" gs ON gs."value" = g."severity"
-  GROUP BY r."round"
-) b ON b."round" = v."round"
+  WHERE v2."type" = 'verdict'
+  GROUP BY v2."id"
+) b ON b."verdict_id" = ve."id"
 LEFT JOIN (
-  -- FRESH means minted this round and superseding nothing: a lineage mint is a repair of known
-  -- work, not new discovery, which is the distinction the detector turns on.
-  SELECT "minted_round" AS "round", count(*) AS "fresh_mints"
+  -- FRESH means minted in this epoch and superseding nothing: a lineage mint is a repair of
+  -- known work, not new discovery, which is the distinction the detector turns on.
+  SELECT "minted_epoch" AS "epoch", count(*) AS "fresh_mints"
   FROM "gap"
   WHERE "supersedes_count" = 0
-  GROUP BY "minted_round"
-) f ON f."round" = v."round";
+  GROUP BY "minted_epoch"
+) f ON f."epoch" = ve."epoch"
+WHERE ve."type" = 'verdict';
 
 CREATE VIEW "board_counts" AS
 SELECT
@@ -438,10 +443,10 @@ SELECT
   rd."disposition"                                       AS "docket",
   COALESCE(fr."grade", fr."petition", fr."direction", rd."disposition") AS "ruling",
   fre."seat_id"                                          AS "ruled_by",
-  fre."round"                                            AS "ruled_round",
+  fre."id"                                            AS "ruled_seq",
   fa."reason"                                            AS "appeal_reason",
   fae."seat_id"                                          AS "appealed_by",
-  fae."round"                                            AS "appealed_round"
+  fae."id"                                            AS "appealed_seq"
 FROM (SELECT "motion_id" FROM "motion_rule" UNION SELECT "motion_id" FROM "motion_appeal") ids
 LEFT JOIN "motion_rule" fr ON fr."event_id" =
   (SELECT MIN(x."event_id") FROM "motion_rule" x WHERE x."motion_id" = ids."motion_id")
@@ -461,7 +466,7 @@ SELECT
   m."motion_id"                        AS "motion_id",
   m."subject"                          AS "subject",
   me."seat_id"                         AS "filed_by",
-  me."round"                           AS "filed_round",
+  me."id"                           AS "filed_seq",
   -- THE GAP COMES FROM WHICHEVER FILING ARM CARRIES ONE. A bare read off motion_grade was correct
   -- while grade was the only subject about a gap; docket is the second.
   COALESCE(g."gap_id", gd."gap_id")    AS "gap_id",
@@ -470,7 +475,7 @@ SELECT
   a."direction"                        AS "direction_ruling",
   a."docket"                           AS "docket_ruling",
   a."ruled_by"                         AS "ruled_by",
-  a."ruled_round"                      AS "ruled_round",
+  a."ruled_seq"                        AS "ruled_seq",
   (a."ruled_by" IS NULL)               AS "unruled",
   a."appealed_by"                      AS "appealed_by",
   a."appeal_reason"                    AS "appeal_reason"
@@ -490,13 +495,13 @@ CREATE VIEW "line_of_inquiry" AS
 SELECT
   p."avenue_id"                        AS "avenue_id",
   pe."seat_id"                         AS "proposed_by",
-  pe."round"                           AS "proposed_round",
+  pe."id"                           AS "proposed_seq",
   fp."line"                            AS "line",
   ls."status"                          AS "status",
-  lse."round"                          AS "status_round",
+  lse."id"                          AS "status_seq",
   lr."direction"                       AS "direction_ruling",
   lre."seat_id"                        AS "ruled_by",
-  lre."round"                          AS "ruled_round"
+  lre."id"                          AS "ruled_seq"
 FROM (SELECT "avenue_id", MIN("event_id") AS "pid" FROM "avenue"
         WHERE COALESCE("avenue_id", '') != '' AND "supersedes_status" IS NULL
         GROUP BY "avenue_id") p

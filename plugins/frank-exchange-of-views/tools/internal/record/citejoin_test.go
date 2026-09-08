@@ -24,7 +24,7 @@ import (
 // anonymous source and the join under test could not be exercised.
 func citeEvent(t *testing.T, anchor, claim string) *Event {
 	t.Helper()
-	return recordtest.Event(t, "blue-synthesize", 0, &recordpb.Cite{
+	return recordtest.Event(t, "blue-synthesize", &recordpb.Cite{
 		Label:    proto.String(anchor),
 		Text:     proto.String(claim),
 		Url:      proto.String("https://x"),
@@ -35,7 +35,7 @@ func citeEvent(t *testing.T, anchor, claim string) *Event {
 
 func verifyEvent(t *testing.T, anchor string) *Event {
 	t.Helper()
-	return recordtest.Event(t, "red-lens-evidence", 0, &recordpb.Verify{
+	return recordtest.Event(t, "red-lens-evidence", &recordpb.Verify{
 		Anchor:     proto.String(anchor),
 		Claim:      proto.String("c"),
 		Outcome:    recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),
@@ -66,7 +66,7 @@ func TestAVerifiedCitationStopsBeingAfforded(t *testing.T) {
 // it is a check against a source blue never cited, so it carries no anchor and must not silence a
 // citation nobody looked at.
 func TestAnIndependentVerifyDoesNotDischargeACitation(t *testing.T) {
-	indep := recordtest.Event(t, "red-lens-evidence", 0, &recordpb.Verify{Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)})
+	indep := recordtest.Event(t, "red-lens-evidence", &recordpb.Verify{Outcome: recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS)})
 	b := NewFamily(nil, []*Event{citeEvent(t, "c-a08c9764", "x"), indep})
 	if got := citedClaimsWithoutVerify(b.Events); len(got) != 1 {
 		t.Errorf("an independent verify silenced an uninspected citation: %v", got)

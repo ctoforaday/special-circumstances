@@ -114,8 +114,8 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 	// G3: closed by red (r1), then ruled by the bench (r2). Attribution follows the bench;
 	// the embedded body stays red's close (its prose proves which body rendered).
 	g3 := byID["G3"]
-	if g3.Open || !g3.ClosedByBench || g3.ClosedRound != 2 {
-		t.Errorf("G3 attribution = open=%v bench=%v round=%d, want closed/bench/2", g3.Open, g3.ClosedByBench, g3.ClosedRound)
+	if g3.Open || !g3.ClosedByBench || g3.ClosedEpoch != 2 {
+		t.Errorf("G3 attribution = open=%v bench=%v round=%d, want closed/bench/2", g3.Open, g3.ClosedByBench, g3.ClosedEpoch)
 	}
 	if g3.Closure == nil || g3.Closure["prose"] != "verified at the leaf" {
 		t.Errorf("G3 embedded closure = %v, want red's close body (closureBody's precedence)", g3.Closure)

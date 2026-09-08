@@ -34,16 +34,15 @@ import (
 // costRoutes maps a cost.md section heading to the run.md section it belongs under.
 //
 // THEY ARE NOT ALL "COST". A tier mismatch is a finding about whether the run was provisioned as
-// configured, and board telemetry is the round-by-round trend the stopping judgment reads;
+// configured, and board telemetry is the epoch-by-epoch trend the stopping judgment reads;
 // filing either under a spending heading would put them where nobody looking for them would go.
 // run.md is "how the machinery behaved", and these are three different things the machinery did.
 var costRoutes = map[string]string{
-	"Per seat-round":              "Cost",
-	"Per seat (measured)":         "Cost",
-	"Notes":                       "Cost",
-	"Tier check":                  "Tier check",
-	"Board telemetry (per round)": "Board telemetry",
-	"Board telemetry":             "Board telemetry",
+	"Per seat-epoch":      "Cost",
+	"Per seat (measured)": "Cost",
+	"Notes":               "Cost",
+	"Tier check":          "Tier check",
+	"Board telemetry":     "Board telemetry",
 }
 
 // foldOrder is the reading order of the sections this fold adds to the run document.

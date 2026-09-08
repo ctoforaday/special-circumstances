@@ -275,7 +275,8 @@ type Proof struct {
 // re-running beats re-reading.
 type ProofVerification struct {
 	SeatID     string
-	Round      int
+	Epoch      int
+	Sitting    int
 	Reproduced bool
 	// Sound is red's JUDGEMENT, made by reading the script: does it establish the claim it is
 	// anchored to? Reproducing measures determinism only.
@@ -298,8 +299,10 @@ func RecordedProofs(run Run) ([]Proof, error) {
 	// Red's re-runs, keyed by the proof they checked, so the join happens once here rather
 	// than in every reader.
 	verified := map[string]*ProofVerification{}
+	var clk Clock
 	for i := range m.Events {
 		e := m.Events[i]
+		w := clk.Advance(e)
 		body, ok := recordpb.Body(e)
 		if !ok {
 			continue
@@ -309,7 +312,7 @@ func RecordedProofs(run Run) ([]Proof, error) {
 			continue
 		}
 		verified[r.GetProofSha()] = &ProofVerification{
-			SeatID: e.GetSeatId(), Round: int(e.GetRound()),
+			SeatID: e.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting,
 			// `reproduced` is COMPUTED by the tool and always written; an absent one reads
 			// false, which is what the old bool-assertion default did with a missing or
 			// wrongly-typed key. ProofVerification.Reproduced is a plain bool and cannot

@@ -185,7 +185,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 			t.Errorf("report.md still carries the docket (%q) — the split did not happen", want)
 		}
 	}
-	for _, want := range []string{"## The debate", "### RED — NO VERDICT RECORDED THIS ROUND\ngap G1 stands", "### BLUE\nG1 is repaired", "G1: carried"} {
+	for _, want := range []string{"## The debate", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap G1 stands", "### BLUE\nG1 is repaired", "G1: carried"} {
 		if !strings.Contains(deb, want) {
 			t.Errorf("debate.md missing %q\n---\n%s", want, deb)
 		}

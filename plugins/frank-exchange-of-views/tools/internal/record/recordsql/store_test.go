@@ -32,7 +32,6 @@ func event(t *testing.T, ord int32, typ recordpb.EventType, body proto.Message) 
 	t.Helper()
 	ev := &recordpb.Event{
 		SeatId: proto.String("red-chair"),
-		Round:  proto.Int32(1),
 		Ts:     proto.String("2026-01-01T00:00:00Z"),
 		Key:    proto.String(fmt.Sprintf("red-chair:act:#%d", ord)),
 	}

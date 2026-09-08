@@ -71,8 +71,8 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	if silent.Acts != 0 {
 		t.Errorf("a blue that recorded nothing shows %d act(s); registering is arriving, not acting", silent.Acts)
 	}
-	if active.Acts == 0 || active.ActsThisRound == 0 {
-		t.Errorf("a blue that recorded a position shows acts=%d this_round=%d", active.Acts, active.ActsThisRound)
+	if active.Acts == 0 || active.ActsThisEpoch == 0 {
+		t.Errorf("a blue that recorded a position shows acts=%d this_epoch=%d", active.Acts, active.ActsThisEpoch)
 	}
 	if !strings.Contains(silent.Reading, "NOTHING") {
 		t.Errorf("the silent reading does not say plainly that nothing was recorded: %q", silent.Reading)

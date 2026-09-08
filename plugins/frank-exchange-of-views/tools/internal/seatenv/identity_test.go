@@ -49,4 +49,4 @@ var errRead = readErr{}
 // (A Seat no longer carries a round at all, so "unknown is not zero" has nothing left to guard
 // here. The phantom-archive bug it named, #327 — a terminal seat's closure filed as round 0 —
 // cannot recur: the record stamps the EPOCH at the write, which is always defined and is 0 only
-// before any chair has sat. See record.epochAt and TestATerminalSeatIsStampedWithTheEpochItActsIn.)
+// before any chair has sat. See events_w."epoch" and TestATerminalSeatIsStampedWithTheEpochItActsIn.)

@@ -65,7 +65,6 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 	for i, body := range originals {
 		ev := &recordpb.Event{
 			SeatId: proto.String("red-chair"),
-			Round:  proto.Int32(1),
 			Ts:     proto.String("2026-01-01T00:00:00Z"),
 			Key:    proto.String(fmt.Sprintf("red-chair:act:#%d", i)),
 		}
@@ -114,8 +113,8 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 // a seat that did nothing.
 func TestAnEventRowWithNoBodyRowIsRefused(t *testing.T) {
 	db := store(t)
-	if _, err := db.Exec(`INSERT INTO "events" ("seat_id", "round", "ts", "type", "key")
-		VALUES ('red-chair', 1, '2026-01-01T00:00:00Z', 'mint', 'red-chair:act:#0')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO "events" ("seat_id", "ts", "type", "key")
+		VALUES ('red-chair', '2026-01-01T00:00:00Z', 'mint', 'red-chair:act:#0')`); err != nil {
 		t.Fatal(err)
 	}
 	_, err := Events(db)
@@ -160,7 +159,6 @@ func BenchmarkEvents(b *testing.B) {
 		for j, body := range bodies {
 			ev := &recordpb.Event{
 				SeatId: proto.String("red-chair"),
-				Round:  proto.Int32(1),
 				Ts:     proto.String("2026-01-01T00:00:00Z"),
 				Key:    proto.String(fmt.Sprintf("red-chair:act:#%d", i*len(bodies)+j)),
 			}
