@@ -1,316 +1,301 @@
-# Derived seat identity — the last fact a seat asserts about itself
+# Derived seat identity — the last facts a seat asserts about itself
 
-> STATUS 2026-09-07: proposed, **required pre-v2.0.0** (gblock's ruling). Blocks the three
-> `--v2.0.0` tags and #785. Board: #792.
+> STATUS 2026-09-08: **required pre-v2.0.0** (gblock). Blocks the three `--v2.0.0` tags and #785.
+> Board: #792. §III.1 and §III.4 are SHIPPED (#831) — with #846, the half-state the rename left,
+> corrected under `plans/roundless.md` §III.B.3. §III.3 is the remaining work here; §III.2, the
+> round, moved to roundless entire.
+>
+> Rewritten 2026-09-08 after two `/plan-audit` FAILs. **The ROUND is no longer in this plan** —
+> gblock ruled it roundless and it moved to `plans/roundless.md`, which owns #753 entire. This
+> plan owns the ATTESTED half of identity: what `agent_type` carries and what the cast refuses.
+> The two audits are credited in place; both found real defects and the second killed a mechanism
+> this plan had already committed to.
 
 ## I. Summary & Goals
 
-`roster.go` states the defect against itself: **"register is the one call that takes a seat's
-word for who it is."** Everything after register already derives — `BoundSeat` joins
-`agent_id` to the register event and `ResolveSeat` refuses a `--seat-id` that disagrees with
-it. The self-assertion survives at exactly one call, and every fact downstream inherits from
-it.
+`roster.go` states the defect against itself: **"register is the one call that takes a seat's word
+for who it is."** Everything after register already derives — `BoundSeat` joins `agent_id` to the
+register event and `ResolveSeat` refuses a `--seat-id` that disagrees. The self-assertion survives
+at exactly one call, and every fact after it inherits from there.
 
-**Goal: at `register`, the seat id is COMPUTED from facts the seat cannot supply, and the
-`--seat-id` flag stops being an input to identity.**
+**Goal: no fact about a seat is recovered from the shape of its name.** Not "the seat id is never
+typed" — §III.3 keeps a typed id on the unattested path, deliberately and refusably.
 
-Identity becomes `(agent_type, round-from-record, agent_id)`:
-
-| fact | source today | source after |
+| fact | source before | source after |
 |---|---|---|
 | role | `agent_type`, attested (#674) | unchanged |
-| **area / lane** | a substring of the typed id | **`agent_type`** — one configuration per seat |
-| **round** | `RoundOf`'s `-r(\d+)` over the typed id | **`CurrentRoundOf(record)`** |
+| area | a substring of the typed id | `agent_type` — one configuration per seat (SHIPPED #831) |
+| **round** | `RoundOf`'s `-r(\d+)` over the typed id | **removed from the record entirely** — `plans/roundless.md` |
 | which dispatch | `agent_id`, injected | unchanged |
 
-### Why this is a RELEASE boundary — and what that depends on
+### Success criteria, stated as checks rather than adjectives
 
-The derivation is pre-tag because gblock ruled it. What makes that boundary **load-bearing
-rather than arbitrary is III.3's ruling**, and the two have to be read together.
+1. `register` refuses `red-lens-evidence` for a run whose cast does not include it, and refuses a
+   `--seat-id` disagreeing with the record's binding for that `agent_id`. Both have a named test.
+2. `agent_type` alone answers WHICH red seat is acting, for every red seat the engine dispatches
+   — held by `TestEveryDispatchedAgentTypeIsAttestable` and `TestTheLensAreasMatchWhatTheEngine
+   Declares` in all directions.
+3. An archived run written before this change replays with identical projections.
 
-Identity is written into every event. With no provenance field, nothing on a row says whether
-its `seat_id` was typed or derived — so a v2 record and a v2.1 record would differ on the
-authorship of the same field and say nothing about it, on the artifact `CLAUDE.md` says every
-audit re-reads. That is the silent-disagreement case, and the epoch is where it belongs.
+(The round's criteria — `RoundOf` gone, no dispatched id matching `-r\d+` — belong to
+`plans/roundless.md` and are stated there.)
 
-**Stated plainly because it is a real trade and it cuts the other way too:** had III.3 gone the
-other way and stamped `ATTESTED`/`DECLARED`, records COULD have disagreed about authorship and
-said so in the row — which would have made this change safe at any boundary, tag or no tag. The
-field that would make it safe is the same field that would make the boundary unnecessary. The
-enum was chosen instead because it buys a REFUSAL the field does not, and the price of that
-choice is exactly this: the change becomes a one-way door, and the door is the tag. Anyone
-re-reading this plan and finding the boundary argument convenient should know it was bought.
+### Why the round goes rather than gets derived — the audit's finding, and #753's
 
-(Raised by a peer session reviewing the rationale, 2026-09-07, against the version of this plan
-that still recommended the field. The tension was real and it is resolved by naming the trade,
-not by dropping the argument.)
+The previous draft said the round would come from `CurrentRoundOf(record)`. **It cannot.**
+`CurrentRoundOf` is `max(round)` over NON-register events and skips `EVENT_TYPE_REGISTER`
+deliberately (`internal/record/inquiry.go:273`, with a measured incident in its comment).
+`debate.js:833` increments the round and dispatches the lens `parallel()` at `:891` with no round-N
+event yet on the record — so every seat registering in round N would derive N-1, on every round,
+and siblings inside one phase would derive different values depending on whose first work event
+landed first. Off by one AND racy. (Found by `/plan-audit`, 2026-09-08.)
+
+The fix is not a better clock. **#753 argues the clock should go**, and says exactly this: *"The
+round stops being part of identity. `red-lens-r3-L2` → `red-lens-L2`. `RoundOf`, `roundlessShapes`,
+`terminalSeats`, the `-r\d+` roster grammar, #676's cross-check … all exist to recover 'what round
+is this' from a string. Roundless, the question does not arise."*
+
+This plan takes #753's **identity half** and leaves its scheduling half alone. That is a complete
+concept rather than a truncated one: after it no seat id carries a round, and whether the ENGINE
+orchestrates in rounds is an independent question #753 owns.
+
+### Why it is a release boundary
+
+Identity is written into every event; the vocabulary the tag freezes must be the one v2 records
+speak. The mechanics — migration rather than dual reading, and why `eventSchema` is NOT the
+discriminator — are `plans/roundless.md` §I and §III.A.5; this plan does not restate them.
 
 ### What this is NOT
 
-**Not the deletion of `seat_id`.** It stays the key namespace: `deriveKey` scopes the per-seat
-ordinal to it and every SQL projection groups on it. The column is unchanged; its AUTHOR
-changes. Deleting it is a different and much larger change with no payoff.
-
-**Not persistence.** #748/#749/#624 (a lane that survives rounds and is messaged "start round
-X") would make the round arrive as a message. That is blocked on a harness primitive `agent()`
-does not have — it returns a result, not a handle. This plan needs none of it: the record
-already knows the round.
+- **Not the deletion of `seat_id`.** It stays the key namespace; `deriveKey` scopes the per-seat
+  ordinal to it and every SQL projection groups on it.
+- **Not roundless orchestration.** #753's scheduling half is untouched.
+- `event.round` and `R<round>-N` are `plans/roundless.md`'s; both go there.
 
 ## II. Technical Context
 
-Verified in-tree 2026-09-07 at `1c28e254`, by reading each cited line.
+Re-verified against the `build/blue-lane-configs` tip on 2026-09-08 by opening each cited line.
+The previous draft's §II was audited and four of its claims were stale; every citation below was
+re-read rather than carried forward.
 
-**The register path.** `seat.go:247` `Of()` → `ResolveSeat(seatID, BoundSeat(run),
-record.RoundIn(run))` at `:264`. `BoundSeat` (`:234`) returns nil unless the run is valid AND
-`seatenv.AgentID() != ""`; otherwise `record.SeatOfAgent(run, AgentID())`. `ResolveSeat`
-(`seatenv/identity.go:120`) prefers the bound value, refuses a disagreeing flag with
-`feov.Conflict`, and falls back to the flag when nothing is bound.
+**The register path.** `internal/cli/seat/seat.go:247` `Of()` → `ResolveSeat(seatID,
+BoundSeat(run), record.RoundIn(run))` at `:264`. `BoundSeat` (`:234`) returns nil unless the run is
+valid AND `seatenv.AgentID() != ""`; otherwise `record.SeatOfAgent(run, AgentID())`. `ResolveSeat`
+(`internal/seatenv/identity.go:120`) prefers the bound value and refuses a disagreeing flag with
+`feov.Conflict` at `:138`.
 
 **The round path.** `RoundIn(run)` → `RoundOf(seatID)` → `roundRe = -r(\d+)`
-(`record/round.go:8`). `RoundOf` also answers 0 for `frontier`, `blue-synthesize` and
-`blue-lane-\d+` (dispatched before the round loop), and `RoundIn` derives the round for
-`judge-terminal` and `assemble` **from the record** — `round.go:62` calls that "a derivation
-from FIELDS rather than from a name, which is the distinction this whole exercise is about."
-The pattern already exists; it was applied only where a name could not answer.
+(`internal/record/round.go:8`). `RoundOf` answers 0 for `frontier`, `blue-synthesize` and
+`blue-lane-\d+` (`round.go:23,27`); `RoundIn` derives terminal seats' rounds from the record
+(`round.go:62`) — *"a derivation from FIELDS rather than from a name, which is the distinction this
+whole exercise is about."* The pattern exists; it was applied only where a name could not answer.
 
-Consumers of the regex, complete: `seat.go:264`, `seat.go:519`, and
-`consistency/consistency.go:473` (which is #676's subject — it cross-checks the stamped
-`event.round` against the regex).
+**The sitting ordinal has a documented home and is NOT yet implemented.** `record.proto:451-453`,
+directly above `optional int32 round = 5`: *"The ordinal is scoped to the seat now, so its keys are
+monotonic across dispatches and the collision is unrepresentable. 'Which dispatch was this' is
+still answerable — it is the count of that seat's register events at or before the row, which is
+what capture.go already does."* **The last clause overclaims**: `capture.go:829-835` takes the
+EARLIEST register per seat for span purposes and counts nothing. The events are on the record; the
+counter is new work (§III.2).
 
-**The attestation table.** `record/agentrole.go:35` maps four `agent_type` values to role
-SETS, because the mapping is not one-to-one: `red-auditor` covers lens AND merge;
-`blue-researcher` covers all four lanes. `agentrole.go:22` states this as a real limit and
-predicts the fix: *"It narrows to exact if red-merge is ever given its own agent
-configuration."*
+**The attestation table** is at `internal/record/agentrole.go:30` and holds 11 keys — seven
+`red-lens-<area>`, `red-chair`, two blue, one bench. Its sets did NOT collapse to scalars, and
+`agentrole.go:24-25` says why (*"The sets remain sets because blue's are genuinely one-to-many"*).
 
-**What the engine dispatches** (`debate.js`): `blue-researcher` ×4, `blue-synthesizer` ×2,
-`lead-judge` ×4, `red-auditor` ×2 — four configurations for the whole cast.
-
-**Per-area content today.** `RED_AREAS` lens strings are 102–510 characters each, plus
-conditional clauses composed at dispatch (`ledgerClause` + `consolidatedClause` for evidence,
-`steelmanClause` for logic and dark-side). `agents/red-auditor.md` is 68 lines of shared
-skepticism, gate ownership and protocol, and it already delegates via
-`skills: [research-protocol, critical-stance, terse-communication]`.
+**Lane count** is `lanes = 3` at `debate.js:56`, floored at 3 by `:82` — **and the floor is
+overridable** via `laneFloorOverride`, so the domain is "any positive integer, with a stated reason
+below 3". It reaches Go only as `Lanes *string` in `inputs/run-config.json`
+(`internal/setup/run.go:315`), nil when unset, with the default living in JavaScript.
 
 ## III. Proposed Changes (the spec)
 
-### III.1 One agent configuration per seat
+### Consumer census — commands and their output, not a recollection
 
-Seven lens areas and the chair (III.4). NOT blue's lanes — see the correction below. The
-shared 68 lines do **not** get copied twelve times: they move into the `research-protocol`
-skill (or a sibling), and each agent file becomes frontmatter plus its own lens paragraph —
-which is what the `skills:` key is for and what `red-auditor.md` already half does.
+```
+$ grep -rnw 'RoundOf' --include='*.go' plugins/frank-exchange-of-views/tools | grep -v CurrentRoundOf
+  16 sites. Production: seatenv/identity.go:117,159 · record/round.go:29,46,69 ·
+  cli/merge/mint.go:45 · consistency/consistency.go:473
+  Release gate: releasegate/fuzz/fuzz_test.go:998
+  Tests: record/replay_test.go:121,123,126 · record/record_test.go:168 ·
+  seatenv/identity_test.go:73 · comments at seatenv/identity.go:15,18 and record/record.go:121
 
-**Hand-written content, gated membership.** The files are prompts and prompts are tuned by
-hand per area; generating their bodies would make the one thing worth editing the one thing
-you must not edit. What is machine-checked is the SET:
-`TestTheLensAreasMatchWhatTheEngineDeclares` extends to a third carrier, so
-`agents/*.md` ≡ `RED_AREAS` ≡ `record.LensAreas` in all directions.
+$ grep -rn 'RoundIn(' --include='*.go' plugins/frank-exchange-of-views/tools | grep -v 'func RoundIn'
+  84 sites. Production: cli/seat/seat.go:264,519. The other 82 are tests.
+```
 
-`agentrole.go`'s sets collapse to scalars and the ambiguous row disappears.
+`cli/merge/mint.go:45` is the site the previous draft missed, and its comment is this plan's own
+argument made two months earlier: *"The round comes from the seat's CONTEXT, not from re-reading
+its id … a gap id is the run's primary public identifier … it must be minted from the FACT the
+dispatcher supplies, not from a guess about a string's shape."*
 
-**This is load-bearing for RED, and blue's lanes are NOT part of it** — corrected 2026-09-08,
-after the red half landed and reading the dispatch showed the original claim here was wrong.
+### Tree
 
-This section said blue's lanes had to split too, "or the derivation cannot distinguish them".
-They cannot split, and they do not need to.
+```
+plugins/frank-exchange-of-views/
+  skills/research-protocol/scripts/debate.js   [MODIFY] seat ids lose -r<N>
+  tools/internal/record/round.go               [DELETE] RoundOf, synthesisSeats, terminalSeats, laneRe
+  tools/internal/record/roster.go              [MODIFY] shapes lose \d+ except blue-lane
+  (the cast is EVENT_TYPE_CAST — plans/roundless.md §III.B.1)
+  tools/internal/cli/seat/seat.go              [MODIFY] ResolveSeat loses its inferRound argument
+  tools/internal/consistency/consistency.go    [DELETE] :473 cross-check (closes #676)
+  agents/red-lens-*.md, agents/red-chair.md    [MODIFY] III.4 residue
+```
 
-**They cannot: a lane index is an OPEN count, where a lens area is a CLOSED set.** `lanes`
-is a run parameter — default 3, floor 3, no ceiling — and the method is
-`LANE_METHODS[i % LANE_METHODS.length]`, which wraps. A static configuration per lane index
-would have to exist for every count a run might ask for, so `blue-lane-7` in a seven-lane run
-would dispatch under a configuration nobody wrote. Seven areas are seven areas; N lanes are
-however many the operator asked for.
+### III.1 One agent configuration per red seat — SHIPPED (#831)
 
-**They do not need to, because the RECORD carries what `agent_type` cannot.** The run's lane
-count is a run parameter, so the admissible lane ids for THIS run are enumerable at setup —
-which is exactly III.3's enum, and it refuses `blue-lane-7` in a three-lane run for having no
-such lane. That refusal does not exist today at any strictness.
+Seven lens areas and the chair each have their own; the ~60 shared lines live in the
+`adversarial-audit` skill; `repotree.ConstitutionText` is what the constitution gates read.
+**11 agent files**, of which 7 are area-bound by `TestTheLensAreasMatchWhatTheEngineDeclares`. The
+picker grows from 4 feov entries to 11 — checked rather than assumed: agent frontmatter here uses
+five keys and nothing in-tree marks an agent internal.
 
-So the two halves of the cast reach the same guarantee by different routes, and the plan should
-have said so from the start:
+Delivery is a declared skill rather than `@include` (unevidenced in this repo) or a generated file
+(deterministic assembly order, unmeasured gain). §V.1 schedules the measurement that would
+overturn it.
 
-| | identity from | refused by |
-|---|---|---|
-| red lens, chair | `agent_type` — attested, closed set | the attestation table |
-| blue lane | DECLARED — open count | the run's own lane count (III.3) |
-| round | the record, always | `CurrentRoundOf` |
+**Blue's lanes are NOT part of this and cannot be.** A lane index is an OPEN count where a lens
+area is a CLOSED set — `lanes` is a run parameter with an overridable floor and no ceiling, and
+`LANE_METHODS[i % len]` wraps, so a per-index configuration would have to exist for every count an
+operator might ask for. They do not need one: §III.3's enum bounds them from the run's own
+parameter. Red is ATTESTED; blue's lanes are DECLARED-and-refused.
 
-A declared value that must be a member of the run's own enum is not a weaker fact than an
-attested one; it is the same fact checked at the door. That was III.3's argument for the
-unattested case and it turns out to be blue's permanent case rather than a fallback.
+### III.2 The round — MOVED to `plans/roundless.md`
 
-**What this does NOT excuse.** `LANE_METHODS[i % len]` still recovers a lane's METHOD from its
-index — the same fork #791 healed for lenses, flagged in that PR's sibling sweep and left for
-#497. It is untouched here and it is not fixed by any of the above.
+This section specified deriving the round at register. It is deleted rather than revised, and the
+route there is worth keeping because it cost two audits:
 
-**HOW THE SHARED BODY IS DELIVERED: a declared skill, not `@include` and not generation.**
-Decided 2026-09-08 after gblock raised both alternatives; the reasoning is recorded because the
-generation case is good and someone will make it again.
+1. The first draft named `CurrentRoundOf`. `/plan-audit` found it is `max(round)` over NON-register
+   events and skips `EVENT_TYPE_REGISTER` deliberately (`inquiry.go:273`), so every seat would have
+   derived N-1 on every round, and siblings inside one `parallel()` would have derived different
+   values. Off by one AND racy.
+2. The second draft replaced it with a per-seat SITTING ORDINAL — the count of that seat's register
+   events at or before the row. `/plan-audit` found `event.round` is compared ACROSS SEATS in
+   shipped SQL (`schema.sql:828` chair-round against bench-round; `:1001-1004` a board-mass axis),
+   so a per-seat ordinal cannot carry it.
 
-- **`@include` is not evidenced.** No agent or skill file in this repository uses one. `@` imports
-  are a CLAUDE.md feature and CLAUDE.md is where all of them live. Eleven shipped prompts is the
-  wrong place to find out whether the agent loader resolves them.
-- **`skills:` preloading is VERIFIED, live.** The Phase-1 harness spike had the `probe` agent quote
-  `critical-stance` verbatim out of its `skills:` frontmatter (`plans/claude-port-plan.md` §1). The
-  mechanism is known to reach a subagent, which is the only property that matters here.
-- **Generation buys two things the skill does not**, and both were weighed. (1) DETERMINISTIC
-  ASSEMBLY ORDER, which is what makes a shared prompt PREFIX identical across eleven seats and
-  therefore cacheable. The skill leaves ordering to the loader. This was not chosen on an
-  unmeasured guess: the last caching idea measured in this codebase (#624, forking warm seats)
-  came in at 1.9-3.4%, below the 3.6% that got #619 rejected, and building a generator plus a
-  staleness gate for an unmeasured fraction is the wrong trade until someone measures it. (2) A
-  SELF-CONTAINED SHIPPED FILE — a consumer opening `red-lens-voice.md` sees the voice duties and
-  not the constitution behind them. That is a real readability cost and it is the strongest
-  argument against what was chosen.
-- **What provenance the skill does give**: one source, and `repotree.ConstitutionText` — a function
-  that answers "what does this seat actually receive", which is now what the constitution gates
-  read rather than the file on its own.
+Both attempts failed the same way: they tried to preserve a global clock while removing the string
+it was recovered from. **The clock itself is the defect** (#753), so it goes — and with it the
+`-r<N>` in every seat id, which is what this plan wanted.
 
-**What would flip this**: a measured caching gain from a shared prefix, or evidence that consumers
-read these files directly. Either makes a generator worth its gate, and the per-seat bodies would
-stay hand-written under it — the generator would assemble, never author.
+`plans/roundless.md` owns all of it — ids, `event.round`, gap ids, the views, and the dispatch that
+replaces the round loop — and gblock ruled it lands whole before the tag.
 
-**They cannot be hidden from the consumer's agent picker, and that was checked rather than
-assumed.** Agent frontmatter in this repository uses five keys — `name`, `description`, `tools`,
-`skills`, `memory` — and no plugin here declares anything that marks an agent internal. No such
-affordance is vendored or documented in-tree, so the picker growing from 4 feov entries to ~13
-is the accepted cost (gblock, 2026-09-07, on the stated fallback). If the harness gains one, it
-is a frontmatter line per file and nothing else.
+### III.3 The declared path is REFUSABLE [NEW] — ruled by gblock 2026-09-07
 
-### III.2 Round from the record
+When `agent_type` is absent — an operator at a shell, CI, the Go suite, the simulator —
+`--seat-id` is accepted, and checked against two things it can fail:
 
-`RoundOf` is deleted. `RoundIn` keeps its record-derived branch and becomes the only answer:
-the run's current round for an ordinary seat, the last round for a terminal one, 0 before the
-loop opens. `consistency.go:473`'s cross-check loses its second opinion and closes #676 — there
-is no longer a name to disagree with the field.
+1. **The run's CAST, as a closed list.** Not a shape: `red-lens-evidence` is refused for a run
+   whose cast does not include it. The cast is computed at setup from the selected areas and the
+   lane count and **written to the record** as `EVENT_TYPE_CAST`, once, by `setup` under seat
+   `harness` before any seat registers — specified in `plans/roundless.md` §III.B.1, which the
+   dispatch verb reads too. A record fact, not a Go copy of a JavaScript default. (The previous draft said "the
+   record carries it" while the lane count lived only in a nullable JSON field with its default in
+   `debate.js`. Writing the cast fixes that, and is what #752 asks for.)
+2. **No conflict with the record's binding** for this `agent_id` — `ResolveSeat`'s existing
+   `feov.Conflict` (`identity.go:138`), which today guards every act EXCEPT the one that creates
+   the binding.
 
-### III.3 The declared path is REFUSABLE — decided by gblock 2026-09-07
+**Which seat kinds the enum covers, and which it cannot.** The previous draft claimed "the run's
+admissible seat ids are enumerable" without qualification, and that was false:
 
-`CheckAttestedRole` treats an absent `agent_type` as **not a violation**, deliberately: an
-operator at a shell, CI, the Go tests and the simulator have no attestation, and refusing them
-demands a mechanism their environment does not have. Once identity is DERIVED from
-`agent_type`, absent means no identity at all — so that branch becomes either a hard refusal
-that breaks every non-harness caller, or a fallback.
+| kind | enumerable at setup? |
+|---|---|
+| `red-lens-<area>`, `red-chair`, `blue-respond`, `judge`, `frontier`, `blue-synthesize`, `judge-terminal`, `assemble` | **yes** — fixed by the selected areas |
+| `blue-lane-<N>` | **yes** — bounded by the run's lane count |
+| `judge-petition-<petitioner>` | **derived, not listed** — admissible iff the tail is itself a cast member; `roster.go:122-131` already recurses |
+| `operator` | **no, by construction** — not a party to the debate and has no agent configuration. Stays shape-checked only, stated rather than papered over |
 
-**RULED: fallback, and the fallback is refusable.** `--seat-id` is accepted when nothing is
-attested, and it is checked against two things it can fail:
+**No `maxRounds` bound.** `roster.go:39-43` considered and REJECTED bounding the round, because a
+resume legitimately lowers the ceiling and the bound would refuse seats from the run's own earlier
+rounds. Roundless the question does not arise — there is no round in the id to bound. The rejection
+is answered by deletion rather than overruled.
 
-1. **A closed ENUM, not a shape.** Per-seat configurations (III.1) plus the record's round make
-   the run's admissible seat ids *enumerable* — this is the change that turns the roster from a
-   pattern into a list. `red-lens-r99-evidence` is refused because the run has no round 99, not
-   because `r99` looks wrong. That refusal does not exist today at any strictness: the shape
-   admits it and 99 is stamped into `event.round`.
-2. **No conflict with registration.** A declared value that disagrees with what the record
-   already binds for this `agent_id` is refused — `ResolveSeat`'s existing `feov.Conflict`
-   refusal (`seatenv/identity.go:137`), which today guards every act EXCEPT the one that
-   creates the binding. It now guards that one too.
+### III.4 `red-merge` → `red-chair` — SHIPPED (#831), with residue
 
-This is stronger than stamping provenance and watching it, which was the alternative: a
-DECLARED value that must be a member of the run's own enum and must not contradict the record
-is not a weaker fact than a derived one — it is the same fact, checked at the door instead of
-authored there. An `ATTESTED`/`DECLARED` field remains a cheap addition if a run ever needs to
-answer "how much of this was attested", and is deliberately not built now.
+Seat id `red-chair`, agent type `frank-exchange-of-views:red-chair`, **role stays `merge`**:
+`chair` is already this package's word for a SIDE of the debate (`ChairOf` maps a role to
+red/blue/bench; the operator command takes `--chair` over that vocabulary), so a role named
+`chair` would sit in a chair.
 
-### III.4 `red-merge` is renamed `red-chair` — decided by gblock 2026-09-07
+**Residue the audit found in shipped work, fixed as part of this plan** — the carrier list omitted
+the agent bodies:
 
-The seat that merges the round and owns the board is the CHAIR. Seat id `red-chair-r<n>`, role
-`chair`, agent configuration `frank-exchange-of-views:red-chair`.
-
-**The party prefix is kept and is not decoration.** `red-` is what the roster's grammar and
-`RequireDispatchedSeat`'s prefix check are built on, it is what puts this seat beside
-`red-lens-r<n>-<area>` in every projection that groups by party, and a bare `chair` would read
-as a seat belonging to no side — which is the opposite of what this seat is. It merges RED's
-round and speaks for it.
-
-The rename lands here rather than separately because it moves the same carriers this plan is
-already moving: the seat id (`red-merge-r\d+`), the role in `agentrole.go`, `event.role`'s
-value, the roster, the agent configuration III.1 gives it, the engine's prompts and their
-goldens.
-
-**Archived runs are not rewritten.** The reader takes both, exactly as the lens rename did in
-#791: a `red-merge-r1` seat id and `role: merge` in an August run stay readable forever, and the
-two names cannot collide. Nothing is renumbered and no record is migrated.
+- `agents/red-lens-*.md` still say *"A LENS FINDS; **THE MERGE** SPEAKS FOR THE ROUND"*, and
+  `agents/red-chair.md` says *"AT THE MERGE SEAT"*. Eight shipped prompts instructing seats in the
+  retired vocabulary.
+- `promptCatalogue` at `integration/surface/promptverbs_test.go:601` and its duplicate at
+  `releasegate/fuzz/promptverbs_test.go:601` still pin `"red-auditor.md": 0` — a deleted file — and
+  list none of the eight new configurations, so by that catalogue's own argument each falls to a
+  default instead of a decision.
 
 ## IV. Risk & Mitigation
 
 | risk | mitigation |
 |---|---|
-| **An act lands after its round advances** and is stamped with the new round. Today the name pins it. | The engine `await`s each `parallel()` phase, so a straggler should be impossible — **confirm by execution, not by reading the dispatch code.** This is the failure mode the whole plan exists to remove, so it may not be assumed away. |
-| **A re-dispatch inside one round** makes `(agent_type, round)` ambiguous. | `agent_id` disambiguates and the join already exists (`SeatOfAgent`). The proto comment at `record.proto:448` records the prior collision and its fix. |
-| **Twelve agent files drift from `RED_AREAS`.** | III.1's three-way bind test. A carrier added without its area fails; an area added without its carrier fails. |
-| **The consumer's agent list grows** from 4 feov entries to ~13. | Real and unmitigated. Named here so it is a decision rather than a discovery. |
-| **The untyped population may be large.** III.3's fallback is the path taken whenever `agent_type` is absent, and if that is most acts the enum check is doing nearly all the work while the derivation does nearly none. | Measure it on the first run rather than assume. A neighbouring surface in this repo — gray-area's `SubagentStop` rows — found `agent_type` absent on 146 of 165, its single most common state, and took four investigations to stop reading that absence as a defect (peer session, 2026-09-07). **The base rate does not transfer**: that is a harness hook payload, not feov's own attestation path, and the populations are not comparable. What transfers is the shape of the mistake to avoid — treating absence as an anomaly rather than as a value the system will spend most of its time in. |
-| **The simulator dispatches by `agentType`** and its goldens name seats. | 96 tests are the gate; they must be regenerated deliberately, and a diff that changes a seat id is the thing to read closely rather than accept. |
+| **Two sittings of one seat id are conflated by a reader that assumed uniqueness.** This is the work the old `-r<N>` was really doing. | The sitting ordinal is the discriminator and is on every row. The §III census is the reader list; each is checked. `events.key` already tolerates re-registration by construction — the collision it used to cause is recorded at `record.proto:446-449`. |
+| ~~An act lands after its round advances and is stamped with the new round~~ | **Dissolved, not mitigated.** That mode belonged to a global clock read at register. A per-seat register count cannot be advanced by a sibling and cannot be read before the seat's own register exists. |
+| **Archived runs.** | Migrated, never dual-read — `plans/roundless.md` §III.A.5. |
+| **The cast written at setup drifts from what the engine dispatches** — a new record fact is a new thing to get wrong. | It is written by the same path that computes the dispatch, and §V binds it to `RED_AREAS` and the lane count the way the roster is already bound to the engine. |
+| **The untyped population may be large**, making III.3's declared path the normal one rather than the exception. | Measure on the first run. A neighbouring surface (gray-area's `SubagentStop`) found `agent_type` absent on 146 of 165 rows and took four investigations to stop reading that absence as a defect (peer session, 2026-09-07). The base rate does not transfer — different surface — but the shape of the mistake does. |
 
 ## V. Verification Plan
 
 Each check with what re-arms it.
 
 ```bash
-# The three-way carrier bind. Re-arms: agents/*.md, RED_AREAS, record.LensAreas.
-(cd plugins/frank-exchange-of-views/tools && go test ./internal/record/ -run TestTheLensAreas)
+# 1. The regex is GONE. Word-anchored so it does not match CurrentRoundOf (the previous draft's
+#    gate matched it and could never pass), and scoped to tools/ so it covers releasegate/fuzz —
+#    the one consumer a release most needs caught. Re-arms: any reintroduction.
+! grep -rnw 'RoundOf' --include='*.go' plugins/frank-exchange-of-views/tools | grep -v CurrentRoundOf
 
-# Attestation completeness — every dispatched agent_type is in the table.
-# Re-arms: debate.js's agentType strings, agentrole.go.
-(cd plugins/frank-exchange-of-views/tools && go test ./internal/record/ -run TestEveryDispatchedAgentType)
+# 2. No dispatched seat id carries a round. Re-arms: debate.js, roster.go.
+(cd plugins/frank-exchange-of-views/tools && go test ./internal/record/ -run TestTheRosterMatchesWhatTheEngineActuallyDispatches)
 
-# The regex is GONE, not merely unused. Re-arms: any reintroduction.
-! grep -rn 'roundRe\|RoundOf(' --include='*.go' plugins/frank-exchange-of-views/tools/internal/
+# 3. THE TWO REFUSALS, one named test each — neither exists today, and neither is covered by the
+#    tests that cover III.1. Re-arms: castenum.go, seat.go, roster.go.
+#      TestASeatOutsideTheRunsCastIsRefusedAtRegister
+#      TestADeclaredSeatIdThatContradictsTheBindingIsRefusedAtRegister
+(cd plugins/frank-exchange-of-views/tools && go test ./internal/record/ ./internal/cli/seat/ -run Refused)
 
-# Full suites. Re-arms: any change under tools/ or the engine.
+# 4. Archived runs: roundless §V criterion 4 (migration preserves projections).
+
+# 5. Full suites and gates. Re-arms: anything under tools/, the engine, agents/, skills/.
 (cd plugins/frank-exchange-of-views/tools && go vet ./... && go test ./...)
 node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs \
              plugins/frank-exchange-of-views/tests/simulator/prompts.test.mjs
-
-# Gates. Re-arms: agent-facing surfaces (archaeology), protocol surfaces (rule-sweep),
-# plugin manifests and binary counts (pluginparity).
-(cd scripts && go run ./check)
+(cd scripts && go run ./check && go run ./archaeology && go run ./rulesweep)
 ```
+
+**The driveable check** is roundless §V's gate run; the round-label oracle an earlier draft named
+here no longer exists once dispatch labels lose `-r<n>`.
 
 ### V.1 The shared-prefix measurement (decides III.1's delivery mechanism)
 
-The skill was chosen over a generated file with the caching argument left UNMEASURED. This is the
-measurement, specified before the run so the answer is not "nobody looked".
+A red seat's non-conversation input is ~9.3k tokens: `research-protocol` 3.7k +
+`adversarial-audit` 3.3k + its own configuration 0.4k, all identical across seats, plus a ~1.9k
+dispatch prompt that is per-seat and never shareable. **~7k of ~9.3k is in principle a shared
+prefix**, across ~32 red sittings a run — order 224k tokens.
 
-**The prize, bounded by counting rather than guessing.** A red seat's non-conversation input is
-about 9.3k tokens: `research-protocol` 3.7k + `adversarial-audit` 3.3k + its own configuration
-0.4k, all identical across seats, plus a ~1.9k dispatch prompt that is per-seat and per-round and
-therefore never shareable. So **~7k of ~9.3k is in principle a shared prefix**, and seven areas
-over four rounds plus the chair is ~32 red sittings paying it — order 224k tokens per run.
+It cannot be mined from `run-archive/` (records and proofs only; the newest archived record has no
+`seat_turn` table). `internal/seatturn` parses `cache_read_input_tokens` per turn keyed on
+`agentId`, so a live run answers it with no new instrumentation. Read the first turn of each red
+sitting and compare siblings:
 
-**The question is whether it caches, and only a live run can say.** `internal/seatturn` parses
-`cache_read_input_tokens` and `cache_creation_input_tokens` per turn keyed on `agentId`, so the
-data lands automatically. It cannot be mined from `run-archive/`: that holds records and proofs
-by design, and the newest archived record predates `seat_turn` entirely.
-
-Read the FIRST turn of each red sitting in a round and compare `cache_read` across siblings:
-
-- **~0 on every sibling** — no cross-dispatch prefix caching exists, generation buys nothing on
-  tokens, and the only remaining argument for it is assembly determinism. Decision stands.
-- **~7k from the second sibling onward** — caching already works through the skill, and the
-  ordering the loader picked is fine. Decision stands, now on evidence.
-- **partial or erratic** — ORDER is the lever, which is exactly what a generated file fixes and a
-  `skills:` declaration cannot. Build the generator; the per-seat bodies stay hand-written and it
-  assembles rather than authors.
-
-The third outcome is the one that would overturn a decision recorded in III.1, which is why the
-branch is written down before the run rather than argued after it.
-
-**The check no suite can make**, and the one that decides III.2: a real run, reading whether
-any seat's acts were stamped with a round it did not act in. `event.round` is already on every
-row, so the query is available the moment a run exists — it does not need new instrumentation.
-This is B4's smoke on #792 doing double duty.
+- **~0 across siblings** — no cross-dispatch prefix caching; generation buys nothing on tokens.
+- **~7k from the second sibling on** — caching already works through the skill; ordering is fine.
+- **partial or erratic** — ORDER is the lever, which a generated file fixes and `skills:` cannot.
+  Build the generator; per-seat bodies stay hand-written and it assembles rather than authors.
 
 ## VI. Deliberately not in this plan
 
+- **Roundless ORCHESTRATION** (#753's other half): work-driven dispatch, per-gap exchange counts,
+  the turn-report verb. This plan takes only the identity half, which is complete on its own.
+- **Gap ids.** `R<round>-N` still carries a round. #753 owns it.
 - **Deleting `seat_id`.** §I.
-- **Persistent lanes and round-as-message** (#748, #749, #624). Blocked on a harness primitive;
-  this plan is designed so that arriving later changes nothing here — the round would move from
-  a record read to a message, and neither is a name.
-- **Refusing an unattested seat.** III.3 makes it visible; making it fatal is a later call on
-  evidence this plan produces.
-- **Blue lane METHOD as a second carrier.** `LANE_METHODS[i % len]` recovers a lane's method
-  from its index — the same fork #791 healed for lenses, flagged in that PR's sibling sweep and
-  left for #497. Per-lane configurations make it trivial afterwards; doing it here widens the
-  change without shortening the path to the tag.
+- **Blue lane METHOD as a second carrier.** `LANE_METHODS[i % len]` recovers a lane's method from
+  its index — the fork #791 healed for lenses. Per-lane configurations would have fixed it for free
+  and III.1 establishes they cannot exist, so #497 has to design it. It is the only place left
+  where a seat's meaning is recovered from a number.
+- **Refusing an unattested seat outright.** III.3 makes the declared path refusable; making absence
+  itself fatal is a later call on evidence this plan produces.
