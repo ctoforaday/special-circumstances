@@ -139,6 +139,35 @@ every report, every `--supersedes`, every `found_by`.
 Named here rather than in §III.B because a new seat is a new agent configuration, a new seat id
 and a new attestation row — all vocabulary. Its BEHAVIOUR is §III.B.
 
+#### A.5 Archived runs are MIGRATED, and the dual-shape reader is retired [MODIFY/DELETE]
+
+**Ruled 2026-09-08: no archaeology, and no backwards compatibility outside replay.** Readers speak
+ONE vocabulary. An archived run is re-driven through the current write path by `feov-record
+migrate` (#840), and the old→new mapping lives THERE, once — not in every reader forever:
+
+| old | new | where the fact goes |
+|---|---|---|
+| `red-lens-r3-evidence` | `red-lens-evidence` | the sitting ordinal (third register of that seat) |
+| `red-chair-r2`, `red-merge-r2` | `red-chair` | the sitting ordinal |
+| `blue-respond-r1`, `judge-r2` | `blue-respond`, `judge` | the sitting ordinal |
+| `judge-petition-red-chair-r1` | `judge-petition-red-chair` | the petition's own ordinal |
+| `R3-2` | its run-global id | position in the run's mint sequence |
+| `event.round = 3` | *(dropped)* | the event's own sequence and timestamp |
+| `L2-F1` | `<area>-F1` | the area of the seat that filed it |
+| `role: merge` on a `red-merge-*` seat | `role: merge` | unchanged — the role never moved |
+
+**This reaches back into merged work.** #791 taught `FindingLabelAlt` and `roleRe` to read `L\d+`
+beside area names; #831 taught `roleSeats`, `seatclass`'s rounded table and tier map, and the
+dashboard and seatprobe prefix reads to accept `red-merge` beside `red-chair`. Every one of those
+is a dual-shape reader, and every one is retired once migration covers its case — the archived
+form is migrated at the boundary and the live reader stops knowing it ever existed. They are
+enumerated in the census (§III.C) under **retire-after-migration** rather than left as scenery.
+
+**What this depends on, stated so it is not discovered:** #840 leg 1 (record.db archives —
+`run-archive/2026-09-02_quadratic-formula.tar.gz` is the only one) and leg 2 (the six older JSONL
+archives `store.go:82-92` refuses today). If leg 2 does not land before the tag, those six are
+not readable by v2 at all, and that is a decision to record on #792 rather than a surprise.
+
 ### §III.B — The scheduling (lands second, same tag)
 
 #### B.1 The dispatch chair, and why it is a seat rather than a verb
@@ -295,9 +324,7 @@ roundless ids where it returns `""` today.
 
 | risk | mitigation |
 |---|---|
-| **#840 (`feov-record migrate`) may make the dual-shape reader unnecessary — or may collide with it.** It re-drives an old record through the CURRENT write path. If that works, an archived run does not need readers that accept both vocabularies forever; it is migrated to speak one. That is a strictly better answer than the row below, and it is not this plan's to assume. **Open question for the audit and for #840's author**: does migration cover the id/field/view changes §III.A makes, and is re-driving `run-archive/` acceptable at all given `CLAUDE.md` calls it the only part of a run that outlives it? Until answered, this plan carries the dual-shape reader and does NOT depend on migration. |
-| **The archive becomes unreadable.** §III.A changes ids, a field and the views at once. | Readers take both shapes and archived ids are never rewritten, as #791 and #831 did. §V replays `run-archive/2026-09-02_quadratic-formula.tar.gz` — **the only archive with a `record.db`; the other six hold legacy JSONL shards `store.go:82-92` refuses outright** — and diffs every projection. |
-| **No discriminator on the record says which vocabulary a row speaks.** `eventSchema` cannot do it: it is a setup-time EQUALITY gate stamped only into `inputs/run-config.json`, and archives contain only `records/` and `proofs/`. | A.2 puts the discriminator ON the record where a reader consults it, and §V names the reader. This is the gap that killed the previous plan's boundary argument; it is not repeated. |
+| **Archived runs speak the old vocabulary.** | **MIGRATED, never dual-read** (gblock, 2026-09-08: *no archaeology and no backwards compat outside replay*). #840's `feov-record migrate` re-drives an old record through the CURRENT write path, and that is the one place the old→new mapping lives: `red-lens-r3-evidence` → `red-lens-evidence` at sitting 3, `R3-2` → its run-global id, `event.round` → the event axis. Readers speak ONE vocabulary. This plan DEPENDS on #840 leg 1 (record.db archives) and its mapping is specified in §III.A.5. |
 | **The dispatch chair becomes a single point of failure** — nothing is dispatched if it errs. | It is the round loop's replacement and inherits its failure mode; the loop could also wedge. B.1 states the termination condition (no open disputes under their limits ⇒ the run ends) so a wedged chair is distinguishable from a finished run. |
 | **Work-driven dispatch starves a seat** whose disputes are never selected. | The exchange count is per gap and bounded, so a gap cannot be argued forever; a seat with no open dispute is idle by design, not starved. §V measures per-seat dispatch counts against the old round-based distribution. |
 | **Gap-id change breaks a consumer's saved references.** | Unavoidable, and at the major version for exactly that reason: it happens once, announced, rather than silently later. |
