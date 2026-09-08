@@ -236,6 +236,35 @@ node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs \
 (cd scripts && go run ./check)
 ```
 
+### V.1 The shared-prefix measurement (decides III.1's delivery mechanism)
+
+The skill was chosen over a generated file with the caching argument left UNMEASURED. This is the
+measurement, specified before the run so the answer is not "nobody looked".
+
+**The prize, bounded by counting rather than guessing.** A red seat's non-conversation input is
+about 9.3k tokens: `research-protocol` 3.7k + `adversarial-audit` 3.3k + its own configuration
+0.4k, all identical across seats, plus a ~1.9k dispatch prompt that is per-seat and per-round and
+therefore never shareable. So **~7k of ~9.3k is in principle a shared prefix**, and seven areas
+over four rounds plus the chair is ~32 red sittings paying it — order 224k tokens per run.
+
+**The question is whether it caches, and only a live run can say.** `internal/seatturn` parses
+`cache_read_input_tokens` and `cache_creation_input_tokens` per turn keyed on `agentId`, so the
+data lands automatically. It cannot be mined from `run-archive/`: that holds records and proofs
+by design, and the newest archived record predates `seat_turn` entirely.
+
+Read the FIRST turn of each red sitting in a round and compare `cache_read` across siblings:
+
+- **~0 on every sibling** — no cross-dispatch prefix caching exists, generation buys nothing on
+  tokens, and the only remaining argument for it is assembly determinism. Decision stands.
+- **~7k from the second sibling onward** — caching already works through the skill, and the
+  ordering the loader picked is fine. Decision stands, now on evidence.
+- **partial or erratic** — ORDER is the lever, which is exactly what a generated file fixes and a
+  `skills:` declaration cannot. Build the generator; the per-seat bodies stay hand-written and it
+  assembles rather than authors.
+
+The third outcome is the one that would overturn a decision recorded in III.1, which is why the
+branch is written down before the run rather than argued after it.
+
 **The check no suite can make**, and the one that decides III.2: a real run, reading whether
 any seat's acts were stamped with a round it did not act in. `event.round` is already on every
 row, so the query is available the moment a run exists — it does not need new instrumentation.
