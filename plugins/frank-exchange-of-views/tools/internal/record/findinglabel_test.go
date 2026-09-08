@@ -17,7 +17,7 @@ func TestRoleOf(t *testing.T) {
 		// The two shapes cannot collide, which is why the rename burns nothing.
 		"red-lens-r1-L1": "L1",
 		"red-lens-r3-L2": "L2",
-		"red-merge-r1":   "", // no lens role
+		"red-chair-r1":   "", // no lens role
 		"blue-lane-1":    "",
 		"judge-r2":       "",
 	}
@@ -54,7 +54,7 @@ func TestNextFindingLabel(t *testing.T) {
 	}
 
 	// A seat with no lens role cannot be attributed → error, never a silent label.
-	if _, err := NextFindingLabel(mustRun(t, runDir), "red-merge-r1"); err == nil {
+	if _, err := NextFindingLabel(mustRun(t, runDir), "red-chair-r1"); err == nil {
 		t.Error("a roleless seat id must error, not receive a finding label")
 	}
 }

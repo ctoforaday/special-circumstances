@@ -37,8 +37,8 @@ func closedIn(round int) *Gap { return &Gap{HasClosed: true, ClosedRound: round,
 func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 	// r1 closes a gap; r2 enters with it archived and samples nothing.
 	b := spotBoard(map[string]*Gap{"R1-1": closedIn(1)},
-		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Close{}),
-		recordtest.Event(t, "red-merge-r2", 2, &recordpb.Position{}),
+		recordtest.Event(t, "red-chair-r1", 1, &recordpb.Close{}),
+		recordtest.Event(t, "red-chair-r2", 2, &recordpb.Position{}),
 	)
 	_, debt, _ := SpotCheckAudit(b)
 	if len(debt) != 1 || debt[0] != 2 {
@@ -48,7 +48,7 @@ func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 	// The SAME shape with the closure landing IN round 2 owes nothing: the archive was empty
 	// when round 2 started, which is the whole point of keying on round start.
 	b = spotBoard(map[string]*Gap{"R2-1": closedIn(2)},
-		recordtest.Event(t, "red-merge-r2", 2, &recordpb.Close{}),
+		recordtest.Event(t, "red-chair-r2", 2, &recordpb.Close{}),
 	)
 	if _, debt, _ := SpotCheckAudit(b); len(debt) != 0 {
 		t.Errorf("a closure made DURING the round was not in the archive at its start; no debt is owed: %v", debt)
@@ -57,7 +57,7 @@ func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 	// A round the merge never sat in owes nothing — demanding a sample from an absent seat is
 	// the round-number keying W1.8 replaced, in a new spelling.
 	b = spotBoard(map[string]*Gap{"R1-1": closedIn(1)},
-		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Close{}),
+		recordtest.Event(t, "red-chair-r1", 1, &recordpb.Close{}),
 		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Position{}),
 	)
 	if _, debt, _ := SpotCheckAudit(b); len(debt) != 0 {
@@ -68,8 +68,8 @@ func TestSpotCheckDebtOnlyWhereTheArchiveWasNonEmpty(t *testing.T) {
 // A discharge clears the debt.
 func TestSpotCheckDischargeClearsTheDebt(t *testing.T) {
 	b := spotBoard(map[string]*Gap{"R1-1": closedIn(1)},
-		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Close{}),
-		recordtest.Event(t, "red-merge-r2", 2, &recordpb.SpotCheck{Ids: []string{"R1-1"}, Reason: proto.String("the anchor still resolves")}),
+		recordtest.Event(t, "red-chair-r1", 1, &recordpb.Close{}),
+		recordtest.Event(t, "red-chair-r2", 2, &recordpb.SpotCheck{Ids: []string{"R1-1"}, Reason: proto.String("the anchor still resolves")}),
 	)
 	checks, debt, falseEmpty := SpotCheckAudit(b)
 	if len(debt) != 0 || len(falseEmpty) != 0 {
@@ -88,8 +88,8 @@ func TestSpotCheckDischargeClearsTheDebt(t *testing.T) {
 // being checked against.
 func TestAFalseEmptyClaimIsCaught(t *testing.T) {
 	b := spotBoard(map[string]*Gap{"R1-1": closedIn(1)},
-		recordtest.Event(t, "red-merge-r1", 1, &recordpb.Close{}),
-		recordtest.Event(t, "red-merge-r2", 2, &recordpb.SpotCheck{None: proto.Bool(true), Reason: proto.String("nothing archived")}),
+		recordtest.Event(t, "red-chair-r1", 1, &recordpb.Close{}),
+		recordtest.Event(t, "red-chair-r2", 2, &recordpb.SpotCheck{None: proto.Bool(true), Reason: proto.String("nothing archived")}),
 	)
 	_, debt, falseEmpty := SpotCheckAudit(b)
 	if len(falseEmpty) != 1 {
@@ -106,7 +106,7 @@ func TestAFalseEmptyClaimIsCaught(t *testing.T) {
 
 	// An HONEST --none, against an archive the board agrees was empty, is a discharge.
 	b = spotBoard(map[string]*Gap{},
-		recordtest.Event(t, "red-merge-r1", 1, &recordpb.SpotCheck{None: proto.Bool(true), Reason: proto.String("nothing archived")}),
+		recordtest.Event(t, "red-chair-r1", 1, &recordpb.SpotCheck{None: proto.Bool(true), Reason: proto.String("nothing archived")}),
 	)
 	if _, _, fe := SpotCheckAudit(b); len(fe) != 0 {
 		t.Errorf("an honestly-empty round is a discharge, not a violation: %v", fe)

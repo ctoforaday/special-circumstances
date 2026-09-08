@@ -138,7 +138,7 @@ func TestASupportingCorroborationJoinsTheBibliography(t *testing.T) {
 func TestAContradictionNobodyRaisedBlocksThePass(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	lens := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-r1-evidence", Round: 1}
-	merge := Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: 1}
+	merge := Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: 1}
 	for _, id := range []Identity{lens, merge} {
 		if _, _, err := RegisterSeat(id, ""); err != nil {
 			t.Fatal(err)

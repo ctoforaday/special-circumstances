@@ -37,7 +37,7 @@ func seatRunReport(t *testing.T, body string) string {
 	t.Helper()
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
-	for _, id := range []string{"red-lens-r1-evidence", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
+	for _, id := range []string{"red-lens-r1-evidence", "red-chair-r1", "blue-respond-r1", "judge-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}
@@ -58,7 +58,7 @@ func seatRunReport(t *testing.T, body string) string {
 // exercise it passes its own quote.
 func mintGap(t *testing.T, runDir, key, class string) string {
 	t.Helper()
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--key", key, "--class", class, "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low")
@@ -90,7 +90,7 @@ func readProjection(t *testing.T, runDir, name string) string {
 
 // THE INDICTMENT. A bench closure must be visible to red's board.
 //
-// The 2026-07-18 run's red-merge-r3 reported: "the verdict render reports 9 open, 9
+// The 2026-07-18 run's red-chair-r3 reported: "the verdict render reports 9 open, 9
 // closed against the hand-written board's 3 open / 15 closed. The difference is exactly
 // the six gaps judge-r2 closed." Bench dispositions lived in the judge's event stream and
 // nothing carried them into red's projection, so the board over-reported open gaps by the
@@ -119,7 +119,7 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 	// readers of one artifact disagreeing is the defect class this whole tool exists to
 	// remove; the tests do not get an exemption from it.
 	if gapIsOpen(t, runDir, id) {
-		t.Errorf("gap %s is STILL IN THE OPEN SET after the bench closed it — the defect red-merge-r3 reported, where the board over-reports open gaps by exactly the number of bench closures and diverges further every round", id)
+		t.Errorf("gap %s is STILL IN THE OPEN SET after the bench closed it — the defect red-chair-r3 reported, where the board over-reports open gaps by exactly the number of bench closures and diverges further every round", id)
 	}
 }
 
@@ -134,7 +134,7 @@ func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
 		t.Fatalf("motion grade file: %v", err)
 	}
-	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--id", "M1", "--as", "accepted",
 		"--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("motion grade rule: %v", err)
@@ -166,7 +166,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	if err := os.WriteFile(prose, []byte("re-read the cited source; the digits match the arm the claim names"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--id", id, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
 		"--reason-file", prose); err != nil {
@@ -207,7 +207,7 @@ func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 	for _, e := range events(t, runDir) {
 		seats[e.GetSeatId()] = true
 	}
-	for _, want := range []string{"red-lens-r1-evidence", "red-merge-r1"} {
+	for _, want := range []string{"red-lens-r1-evidence", "red-chair-r1"} {
 		if !seats[want] {
 			t.Errorf("%s wrote nothing readable into the shared record (saw %v)", want, seats)
 		}

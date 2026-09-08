@@ -94,7 +94,7 @@ func TestASurfaceThatArrivesThroughARefusalStillCounts(t *testing.T) {
 // remove it.
 func TestWithoutASittingItRefusesRatherThanCreditingSeatsThatNeverSat(t *testing.T) {
 	runDir := seatRun(t)
-	for _, s := range []string{"red-lens-r1-evidence", "red-merge-r1"} {
+	for _, s := range []string{"red-lens-r1-evidence", "red-chair-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", s); err != nil {
 			t.Fatal(err)
 		}
@@ -105,7 +105,7 @@ func TestWithoutASittingItRefusesRatherThanCreditingSeatsThatNeverSat(t *testing
 	if err == nil {
 		t.Fatal("it reported every registered seat; the ones that never sat get an exposure of zero they were never given the chance to earn")
 	}
-	for _, want := range []string{"red-lens-r1-evidence", "red-merge-r1", "--sitting"} {
+	for _, want := range []string{"red-lens-r1-evidence", "red-chair-r1", "--sitting"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must name what it will not guess between; missing %q in %v", want, err)
 		}

@@ -16,12 +16,12 @@ import (
 // searched six views and three help pages, then ruled `rejected` on an argument it had not read.
 func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	runDir := newRun(t)
-	for _, s := range []string{"blue-respond-r1", "red-merge-r1"} {
+	for _, s := range []string{"blue-respond-r1", "red-chair-r1"} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s, Round: RoundIn(mustRun(t, runDir))(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Mint{GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_COMPUTATION), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, &recordpb.Mint{GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_COMPUTATION), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
 	basis := "the defect is presentational, so `certain` severity prices a rewrite as a data error"
@@ -63,7 +63,7 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 	}
 
 	// And once answered, the answer sits beside the ask rather than replacing it.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.MotionRule{
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 		Opinion:  proto.String("the grades stand"),
@@ -89,12 +89,12 @@ func TestMotionsViewCarriesTheAskNotJustTheAnswer(t *testing.T) {
 // the fabricated ruling in the first place.
 func TestThePassRefusalNamesTheRead(t *testing.T) {
 	runDir := newRun(t)
-	for _, sid := range []string{"blue-respond-r1", "red-merge-r1"} {
+	for _, sid := range []string{"blue-respond-r1", "red-chair-r1"} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid, Round: RoundIn(mustRun(t, runDir))(sid)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Mint{GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, &recordpb.Mint{GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"), Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM)}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.Motion{
@@ -111,7 +111,7 @@ func TestThePassRefusalNamesTheRead(t *testing.T) {
 	}
 	// The board must be otherwise CLEAN, or the open-gap arm answers first and the motion arm
 	// — the one under test — is never reached.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Close{
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, &recordpb.Close{
 		GapId:        proto.String("R1-1"),
 		AnchorSeat:   proto.String("L1"),
 		AnchorTool:   proto.String("Read"),

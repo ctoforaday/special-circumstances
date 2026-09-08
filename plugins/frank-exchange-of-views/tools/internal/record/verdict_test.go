@@ -37,7 +37,7 @@ func vev(t *testing.T, seat string, round int, body proto.Message) *Event {
 
 // A PASS on the record is VERIFIED, without anyone saying so.
 func TestVerifiedIsDerivedFromThePassEvent(t *testing.T) {
-	dir := runWith(t, "3", []*Event{vev(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})})
+	dir := runWith(t, "3", []*Event{vev(t, "red-chair-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)})})
 	got, why, ok := DeriveVerdict(mustRun(t, dir))
 	if !ok || got != "VERIFIED" {
 		t.Errorf("got %q (ok=%v) — want VERIFIED: %s", got, ok, why)
@@ -48,8 +48,8 @@ func TestVerifiedIsDerivedFromThePassEvent(t *testing.T) {
 // against the bound setup wrote, so nobody has to be told.
 func TestCeilingIsDerivedFromTheRoundsAndTheConfiguredBound(t *testing.T) {
 	dir := runWith(t, "2", []*Event{
-		vev(t, "red-merge-r1", 1, &recordpb.Position{Text: proto.String("x")}),
-		vev(t, "red-merge-r2", 2, &recordpb.Position{Text: proto.String("y")}),
+		vev(t, "red-chair-r1", 1, &recordpb.Position{Text: proto.String("x")}),
+		vev(t, "red-chair-r2", 2, &recordpb.Position{Text: proto.String("y")}),
 	})
 	got, why, ok := DeriveVerdict(mustRun(t, dir))
 	if !ok || got != "CEILING" {
@@ -61,7 +61,7 @@ func TestCeilingIsDerivedFromTheRoundsAndTheConfiguredBound(t *testing.T) {
 // passing, however clean the board looked when it stopped.
 func TestHaltOutranksAPass(t *testing.T) {
 	dir := runWith(t, "3", []*Event{
-		vev(t, "red-merge-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
+		vev(t, "red-chair-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
 		vev(t, "judge-r1", 1, &recordpb.Halt{Opinion: proto.String("consent gate")}),
 	})
 	got, _, ok := DeriveVerdict(mustRun(t, dir))
@@ -74,7 +74,7 @@ func TestHaltOutranksAPass(t *testing.T) {
 // ends early with no pass and no halt ended on a judged deadlock — a determination that lives
 // only in the bench's envelope and leaves no independent trace (#289).
 func TestAJudgedDeadlockIsNotDerivable(t *testing.T) {
-	dir := runWith(t, "5", []*Event{vev(t, "red-merge-r1", 1, &recordpb.Position{Text: proto.String("x")})})
+	dir := runWith(t, "5", []*Event{vev(t, "red-chair-r1", 1, &recordpb.Position{Text: proto.String("x")})})
 	got, why, ok := DeriveVerdict(mustRun(t, dir))
 	if ok {
 		t.Errorf("derived %q from a record that cannot decide — the deadlock case must stay honest", got)
@@ -87,7 +87,7 @@ func TestAJudgedDeadlockIsNotDerivable(t *testing.T) {
 // An absent or unparseable ceiling degrades CEILING to underivable rather than inventing a
 // bound — the same posture as InferRunDir's "say nothing rather than guess".
 func TestNoConfiguredCeilingMeansNoCeilingVerdict(t *testing.T) {
-	dir := runWith(t, "", []*Event{vev(t, "red-merge-r9", 9, &recordpb.Position{Text: proto.String("x")})})
+	dir := runWith(t, "", []*Event{vev(t, "red-chair-r9", 9, &recordpb.Position{Text: proto.String("x")})})
 	if _, _, ok := DeriveVerdict(mustRun(t, dir)); ok {
 		t.Error("a ceiling verdict was derived with no configured ceiling")
 	}

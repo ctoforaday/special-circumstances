@@ -67,10 +67,10 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 	}{
 		// NO ROLE SEGMENT: the surface is the seat's, so `regrade` sits at the root of the merge
 		// tree. `motion …` below keeps its path because motion is a real subgroup within it.
-		{"merge regrade", "basis", recordpb.EventType_EVENT_TYPE_REGRADE, []string{"regrade", "--seat-id", "red-merge-r1", "--id", id, "--severity", "low"}},
-		{"motion grade rule", "opinion", recordpb.EventType_EVENT_TYPE_MOTION_RULE, []string{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted"}},
+		{"merge regrade", "basis", recordpb.EventType_EVENT_TYPE_REGRADE, []string{"regrade", "--seat-id", "red-chair-r1", "--id", id, "--severity", "low"}},
+		{"motion grade rule", "opinion", recordpb.EventType_EVENT_TYPE_MOTION_RULE, []string{"motion", "grade", "rule", "--seat-id", "red-chair-r1", "--id", "M1", "--as", "accepted"}},
 		{"motion grade file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
-		{"motion petition file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "petition", "file", "--seat-id", "red-merge-r1", "--class", "safety", "--relief", "halt"}},
+		{"motion petition file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "petition", "file", "--seat-id", "red-chair-r1", "--class", "safety", "--relief", "halt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			// The path is however many leading non-flag words the case supplies.
@@ -115,7 +115,7 @@ func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 	if werr := os.WriteFile(both, []byte("from a file"), 0o644); werr != nil {
 		t.Fatal(werr)
 	}
-	_, err := run(t, "position", "--run", runDir, "--seat-id", "red-merge-r1",
+	_, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--reason", "inline", "--reason-file", both)
 	if err == nil {
 		t.Fatal("passing --reason AND --reason-file was accepted; one of them was silently dropped")
@@ -139,7 +139,7 @@ func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 func TestShortValueVerbsHaveNoPayloadChannel(t *testing.T) {
 	// (verb, a seat that holds it) — the role that used to precede the verb is now the identity
 	// that selects the tree it is found in.
-	for _, c := range [][2]string{{"verdict", "red-merge-r1"}} {
+	for _, c := range [][2]string{{"verdict", "red-chair-r1"}} {
 		if h := help(t, c[0], "--help", "--seat-id", c[1]); strings.Contains(h, "--reason ") {
 			t.Errorf("%s grew a payload channel; its fields are a label and a grade, and --reason would have nothing to fill", c[0])
 		}

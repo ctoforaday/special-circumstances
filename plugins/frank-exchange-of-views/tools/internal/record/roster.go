@@ -56,7 +56,7 @@ type seatShape struct {
 
 var seatShapes = []seatShape{
 	{"lens", regexp.MustCompile(`^red-lens-r\d+-[a-z]+(?:-[a-z]+)*$`), "red-lens", "red-lens-r1-evidence"},
-	{"merge", regexp.MustCompile(`^red-merge-r\d+$`), "red-merge", "red-merge-r1"},
+	{"merge", regexp.MustCompile(`^red-chair-r\d+$`), "red-chair", "red-chair-r1"},
 	{"blue", regexp.MustCompile(`^blue-lane-\d+$`), "blue-lane", "blue-lane-1"},
 	{"blue", regexp.MustCompile(`^blue-respond-r\d+$`), "blue-respond", "blue-respond-r1"},
 	{"blue", regexp.MustCompile(`^blue-synthesize$`), "blue-synthesize", "blue-synthesize"},

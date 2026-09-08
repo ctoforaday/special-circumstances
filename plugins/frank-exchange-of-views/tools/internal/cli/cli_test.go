@@ -251,7 +251,7 @@ func TestEveryVerbRequiresRunAndSeatID(t *testing.T) {
 		// EACH CASE CARRIES THE VERB'S OTHER REQUIRED FLAGS. Cobra refuses a missing required
 		// flag at PARSE, before Begin reaches the run and seat-id checks, so a case that omits
 		// them measures whichever refusal fires first rather than the one it is named for.
-		{"merge mint without --run", []string{"mint", "--seat-id", "red-merge-r1",
+		{"merge mint without --run", []string{"mint", "--seat-id", "red-chair-r1",
 			"--check", "c", "--check-kind", "document", "--impact", "medium", "--likelihood", "medium",
 			"--class", "x", "--problem", "p"}, "merge: --run <runDir> is required"},
 		{"mint with no identity at all", []string{"mint", "--run", "X",
@@ -543,7 +543,7 @@ func TestListFieldsAreAlwaysRenderedEvenWhenEmpty(t *testing.T) {
 	// newRun, not a bare TempDir: a run stages its gap-class vocabulary, and a mint against a run
 	// with no registry is refused rather than waved through.
 	runDir := newRun(t)
-	seatID := "red-merge-r1"
+	seatID := "red-chair-r1"
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
@@ -569,7 +569,7 @@ func TestListFieldsAreAlwaysRenderedEvenWhenEmpty(t *testing.T) {
 // message names the values that would have worked.
 func TestBadGradeIsRefusedAtParseTimeWithATeachingMessage(t *testing.T) {
 	runDir := newRun(t)
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p", "--severity", "catastrophic")
 	if err == nil {
 		t.Fatal("an invalid grade was accepted")
@@ -592,7 +592,7 @@ func TestBadGradeIsRefusedAtParseTimeWithATeachingMessage(t *testing.T) {
 // idempotent rather than double-minting.
 func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-merge-r1"
+	seatID := "red-chair-r1"
 	mint := func(extra ...string) string {
 		t.Helper()
 		args := append([]string{"mint", "--run", runDir, "--seat-id", seatID,
@@ -606,7 +606,7 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 	// THE ID IS THE FIRST LINE; the acceptance check is echoed under it. The echo exists because
 	// a shell can rewrite a --check before the tool sees it, and the mint used to print only the
 	// id — so a corrupted contract was invisible until someone read the board (measured,
-	// red-merge-r3, 2026-09-02_quadratic-formula).
+	// red-chair-r3, 2026-09-02_quadratic-formula).
 	firstLine := func(s string) string { return strings.SplitN(s, "\n", 2)[0] }
 	if got := firstLine(mint()); got != "minted R1-1" {
 		t.Errorf("first mint said %q", got)
@@ -628,10 +628,10 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 		t.Errorf("%d mint events, want 2 — the retry double-minted", mints)
 	}
 	// A different round has its own id namespace.
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r2"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair-r2"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r2",
+	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r2",
 		"--class", "scope-creep", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p")
 	if err != nil {
 		t.Fatal(err)
@@ -646,7 +646,7 @@ func TestMintAssignsSequentialIdsAndIsIdempotentByKey(t *testing.T) {
 // default mode stays byte-identical prose because the template renders the same fields.
 func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-merge-r1"
+	seatID := "red-chair-r1"
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", seatID); err != nil {
 		t.Fatal(err)
 	}
@@ -709,7 +709,7 @@ func TestJSONFlagStructuresResultsAndErrors(t *testing.T) {
 // derived from the registry rather than asserted by a boolean the seat sets.
 func TestClassNewCoinsTheSlugInClass(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-merge-r1"
+	seatID := "red-chair-r1"
 	if _, err := run(t, "class", "new", "--run", runDir, "--seat-id", seatID,
 		"--class", "brand-new", "--definition", "d", "--neighbor", "x", "--distinguisher", "q"); err != nil {
 		t.Fatal(err)
@@ -757,7 +757,7 @@ func TestProseChannelResolution(t *testing.T) {
 		if err := os.WriteFile(f, []byte(body+"\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := run(t, "position", "--run", runDir, "--seat-id", "red-merge-r1", "--reason-file", f); err != nil {
+		if _, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair-r1", "--reason-file", f); err != nil {
 			t.Fatal(err)
 		}
 		if got := lastBody(t, runDir, &recordpb.Position{}).GetText(); got != body {
@@ -777,7 +777,7 @@ func TestProseChannelResolution(t *testing.T) {
 		if err := os.WriteFile(f, []byte("from the file"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		_, err := run(t, "position", "--run", runDir, "--seat-id", "red-merge-r1",
+		_, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair-r1",
 			"--reason-file", f, "--reason", "from the flag")
 		if err == nil {
 			t.Fatal("both spellings were accepted; one payload was silently dropped")
@@ -789,7 +789,7 @@ func TestProseChannelResolution(t *testing.T) {
 
 	t.Run("a missing --file is an error, not an empty payload", func(t *testing.T) {
 		runDir := newRun(t)
-		_, err := run(t, "position", "--run", runDir, "--seat-id", "red-merge-r1",
+		_, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair-r1",
 			"--reason-file", filepath.Join(recordtest.TmpRun(t), "no-such-file.md"))
 		if err == nil {
 			t.Fatal("a missing prose file was silently treated as empty")
@@ -809,7 +809,7 @@ func TestProseChannelResolution(t *testing.T) {
 		// the flag, NOT from a failed read: a seat told "cannot read prose file" when it simply
 		// omitted an argument goes looking for a file it never named.
 		runDir := newRun(t)
-		out, err := run(t, "position", "--run", runDir, "--seat-id", "red-merge-r1")
+		out, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair-r1")
 		if err == nil {
 			t.Fatal("a position with no reason was recorded — an empty position is a duty discharged by nothing")
 		}
@@ -832,7 +832,7 @@ func TestProseChannelResolution(t *testing.T) {
 
 	t.Run("--problem beats the prose channel on mint", func(t *testing.T) {
 		runDir := newRun(t)
-		if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 			"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "from the flag", "--reason", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
@@ -843,7 +843,7 @@ func TestProseChannelResolution(t *testing.T) {
 
 	t.Run("the prose channel fills problem when --problem is absent", func(t *testing.T) {
 		runDir := newRun(t)
-		if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 			"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--reason", "from the prose channel"); err != nil {
 			t.Fatal(err)
 		}
@@ -857,7 +857,7 @@ func TestProseChannelResolution(t *testing.T) {
 // difference between an auditable closure and an assertion.
 func TestCloseRequiresItsAnchor(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-merge-r1"
+	seatID := "red-chair-r1"
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
@@ -914,7 +914,7 @@ func TestCloseRequiresItsAnchor(t *testing.T) {
 
 func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-merge-r1"
+	seatID := "red-chair-r1"
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
@@ -945,7 +945,7 @@ func TestCloseWithRegressionRequiresASuccessor(t *testing.T) {
 // close --file carries the full closure record; a missing one is an error.
 func TestCloseFile(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-merge-r1"
+	seatID := "red-chair-r1"
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
@@ -987,7 +987,7 @@ func TestVerbsThatRefuseWithoutTheirReason(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := newRun(t)
 			seedBlueReport(t, runDir)
-			seatID := "red-merge-r1"
+			seatID := "red-chair-r1"
 			// The referenced gap and observation must EXIST, or the reference check
 			// fires first and this test asserts on the wrong refusal — it is about the
 			// missing REASON, not a missing referent.
@@ -1074,12 +1074,12 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 	// The gap must EXIST: `motion docket file --id` is a reference and is checked at write time,
 	// so without a real gap the FILING below would be refused and this test would never reach the
 	// ruling it is about.
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--key", "k", "--class", "x", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "motion", "docket", "file", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--id", "R1-1", "--reason", "contested, and not mine to close"); err != nil {
 		t.Fatalf("the docket filing was refused, so the ruling has nothing to answer: %v", err)
 	}
@@ -1154,7 +1154,7 @@ func TestBenchDocketRuleRequiresEachUnconditionalField(t *testing.T) {
 func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 	cases := []struct{ role, seatID string }{
 		{"lens", "red-lens-r1-evidence"},
-		{"merge", "red-merge-r1"},
+		{"merge", "red-chair-r1"},
 		{"blue", "blue-lane-1"},
 		{"bench", "judge-r1"},
 	}
@@ -1210,7 +1210,7 @@ func TestSharedVerbsRecordTheSameEventFromEveryRole(t *testing.T) {
 // collide and neither is dedup'd away.
 func TestClosingIsKeyedPerGap(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-merge-r1"
+	seatID := "red-chair-r1"
 	// Both gaps must EXIST: a closing names the gap it argues, and that reference is
 	// checked at write time.
 	for i := 0; i < 2; i++ {
@@ -1246,7 +1246,7 @@ func TestClosingIsKeyedPerGap(t *testing.T) {
 // neither. `events.key` is UNIQUE now, so the second write fails and the seat is told why.
 func TestPositionIsASingletonPerSeat(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-merge-r1"
+	seatID := "red-chair-r1"
 	if _, err := run(t, "position", "--run", runDir, "--seat-id", seatID, "--reason", "first"); err != nil {
 		t.Fatal(err)
 	}
@@ -1276,7 +1276,7 @@ func TestPositionIsASingletonPerSeat(t *testing.T) {
 // the 2026-07-20 rubber-stamp (PASS with 9 open gaps) made structurally impossible. FAIL is
 // always allowed.
 func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
-	seatID := "red-merge-r1"
+	seatID := "red-chair-r1"
 	mint2 := func(runDir string) {
 		for i := 0; i < 2; i++ {
 			if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
@@ -1325,7 +1325,7 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 // it. The set is closed at the write path now (record.EnumFields), and this pins the
 // route the original guard is reached BY, not just the guard.
 func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
-	seatID := "red-merge-r1"
+	seatID := "red-chair-r1"
 	for _, as := range []string{"pass", "Pass", "PASSED", "banana", ""} {
 		t.Run("as="+as, func(t *testing.T) {
 			runDir := newRun(t)
@@ -1356,7 +1356,7 @@ func TestVerdictGateCannotBeSpelledPast(t *testing.T) {
 // verdict is the merge seat's terminal act: it renders and checkpoints.
 func TestVerdictRendersAndCheckpoints(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-merge-r1"
+	seatID := "red-chair-r1"
 	if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
 		"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 		t.Fatal(err)
@@ -1406,7 +1406,7 @@ func TestVerdictRendersAndCheckpoints(t *testing.T) {
 // must be told, not have it silently dropped.
 func TestVerbsRefusePositionalArguments(t *testing.T) {
 	runDir := newRun(t)
-	_, err := run(t, "position", "--run", runDir, "--seat-id", "red-merge-r1", "stray prose")
+	_, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair-r1", "stray prose")
 	if err == nil {
 		t.Fatal("a positional argument was silently dropped")
 	}
@@ -1510,16 +1510,16 @@ func TestExplicitRunDirBeatsTheInferredOne(t *testing.T) {
 
 // The W1.8 spot-check floor keys on the archive's state at round START, so a round
 // entering with zero records has nothing to sample. --ids demanded a list, so this run's
-// red-merge-r1 could record the discharge only as prose in the ledger — which a later
+// red-chair-r1 could record the discharge only as prose in the ledger — which a later
 // audit has to take on trust. An unrecordable discharge is indistinguishable from a
 // skipped duty, which is precisely what the event stream exists to prevent.
 func TestSpotCheckRecordsAnHonestlyEmptyRound(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair-r1"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+	out, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--none", "--reason", "archive empty at round start; floor not applicable")
 	if err != nil {
 		t.Fatalf("an empty archive must be recordable: %v", err)
@@ -1537,13 +1537,13 @@ func TestSpotCheckRecordsAnHonestlyEmptyRound(t *testing.T) {
 func TestSpotCheckRefusesAnEmptyDischargeWithNoReason(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair-r1"); err != nil {
 		t.Fatal(err)
 	}
 	// COBRA REFUSES IT AT PARSE now, because the collapse to one prose channel made --reason
 	// unconditionally required: what a sample found and why there was nothing to sample were
 	// always the same field, and only the branch that wrote it differed.
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1", "--none"); err == nil ||
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair-r1", "--none"); err == nil ||
 		!strings.Contains(err.Error(), "reason") {
 		t.Fatalf("--none with no reason must be refused, got %v", err)
 	}
@@ -1552,10 +1552,10 @@ func TestSpotCheckRefusesAnEmptyDischargeWithNoReason(t *testing.T) {
 func TestSpotCheckRefusesContradictoryFlags(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair-r1"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--none", "--reason", "x", "--ids", "R1-4"); err == nil || !strings.Contains(err.Error(), "none") {
 		t.Fatalf("claiming both nothing-to-sample and a sample must be refused, got %v", err)
 	}
@@ -1568,10 +1568,10 @@ func TestSpotCheckRefusesContradictoryFlags(t *testing.T) {
 func TestBareSpotCheckStillRecordsAnEmptyArray(t *testing.T) {
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair-r1"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "spot-check", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--reason", "nothing was sampled this round"); err != nil {
 		t.Fatalf("the no-sample form must keep working: %v", err)
 	}
@@ -1602,10 +1602,10 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	if err := os.WriteFile(prose, []byte("verified at the leaf; digits match the cited arm"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-merge-r1"); err != nil {
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair-r1"); err != nil {
 		t.Fatal(err)
 	}
-	minted, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	minted, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--class", "some-class",
 		"--problem", "p", "--fix", "f", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low")
@@ -1620,7 +1620,7 @@ func TestCloseAcceptsTheSharedPayloadFlagName(t *testing.T) {
 	// carry as a shortcut past the anchor requirement — which is exactly how a seat under
 	// pressure would use it, and why the carry is now checked against a real earlier
 	// closure rather than accepted on its say-so.
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--id", id, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./internal/x",
 		"--reason-file", prose); err != nil {

@@ -119,7 +119,7 @@ func TestBackfillAuditReportsUnparseableStampsRatherThanDroppingThem(t *testing.
 	// cannot reject prose that is not a timestamp, so the audit still has to notice rather than
 	// fold the miss into its zero.
 	recordtest.Seed(t, dir, recordtest.Stamped(
-		recordtest.At(t, "red-merge-r1", 1, "red-merge-r1:finding:F1", &recordpb.Finding{}),
+		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:finding:F1", &recordpb.Finding{}),
 		"not-a-timestamp"))
 
 	a := BackfillAudit(runtest.Open(t, dir))

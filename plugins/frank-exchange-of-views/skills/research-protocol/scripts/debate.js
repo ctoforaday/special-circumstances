@@ -25,7 +25,7 @@ export const meta = {
 //   re-run completed rounds at full price.
 //   Per-role split (efficiency doctrine: cheapen redundancy and mechanics, never judgment or
 //   the adversary): `model` drives the BULK seats (frontier, blue lanes, red lenses, blue
-//   responses); `judgmentModel` drives the JUDGMENT seats (blue-synthesize, red-merge,
+//   responses); `judgmentModel` drives the JUDGMENT seats (blue-synthesize, red-chair,
 //   lead-judge, assemble). Neither inherits — every run, keeper or dev, names both.
 //   KNOWN TRADEOFF (retrospective §3 row 16b): red LENSES ride the bulk tier — on a cheap-model
 //   dev/smoke run, treat lens-sourced gap grades with a confidence discount. For keeper runs,
@@ -64,7 +64,7 @@ if (!model) {
   throw new Error(`debate: refusing dispatch — model unset. The engine does not guess a tier: pass model (the BULK tier — frontier, blue lanes, red lenses, blue responses), e.g. { model: "sonnet" }.`)
 }
 if (!judgmentModel) {
-  throw new Error(`debate: refusing dispatch — judgmentModel unset. The engine does not inherit the session model: pass judgmentModel (the JUDGMENT tier — blue-synthesize, red-merge, judge, assemble), e.g. { judgmentModel: "sonnet" }.`)
+  throw new Error(`debate: refusing dispatch — judgmentModel unset. The engine does not inherit the session model: pass judgmentModel (the JUDGMENT tier — blue-synthesize, red-chair, judge, assemble), e.g. { judgmentModel: "sonnet" }.`)
 }
 if (!binDir) {
   throw new Error(`debate: refusing dispatch — binDir unset. The engine does not run without the record.
@@ -538,7 +538,7 @@ const JUDGE_ENVELOPE = {
           final: { type: 'boolean' },
           // grade_adjusted (run-4 §3.3): "gap real, grade wrong" — the dispute-resolution
           // value the enum could not previously express. The rationale MUST state the new
-          // grade; the next red-merge applies it and lists the delta.
+          // grade; the next chair applies it and lists the delta.
           // moot: the gap's predicate expired — the claim or artifact it attached to is no
           // longer in the report. Moot adjudicates the gap out.
           // defect_owed_elsewhere (W1.9, run-5 judge-r2 friction): "valid finding, fix
@@ -553,19 +553,16 @@ const JUDGE_ENVELOPE = {
   },
 }
 
-// THE STRATEGIC AREAS (#771). Each is a distinct kind of attack on the report, each gets exactly
-// one seat, and each keeps a STABLE number for the life of the record: `found_by` labels are
-// L<area>-F<n> and every cross-round lens-economics read joins on them.
+// THE STRATEGIC AREAS (#771). Each is a distinct kind of attack on the report and each gets
+// exactly one seat, named for what it audits: `found_by` labels are <area>-F<n> and every
+// cross-round lens-economics read joins on them.
 //
-const RED_AREAS = [
-  { key: 'evidence', lens: 'leaf-node citation verification (follow every reference; grade corroboration confidence per statement)' },
-  { key: 'logic', lens: 'logic and completeness (leaps of faith, missing counterarguments, unexplored alternatives, template compliance)' },
-  { key: 'dark-side', lens: 'dark-side and risk (failure modes, likelihood x impact x complexity grading, security and tradeoff blindspots)' },
-  { key: 'voice', lens: 'report voice (the report is addressed to a reader of its SUBJECT, and this lens reads it as one: every sentence that instead narrates the run that made it — its rounds, its lanes, its own draft history, the machinery that checked it, or the limits of the container it ran in. SEPARATION, NEVER DELETION: a limit on the CONCLUSION stays and is re-voiced, a fact about the RUN moves to the operator channel. DISCLOSURE IS NOT DISCHARGE — a sentence that admits it is narrating the run is still narrating the run)' },
-  { key: 'computation', lens: 'computation (RE-DERIVE what the report asserts: recompute every figure, re-run every script, and check that the arithmetic closes at the scale the claim is made for. A number nobody reproduced is an assertion, and across six recorded runs no seat ever wrote a program to settle one)' },
-  { key: 'adversary', lens: 'adversary (what would someone with INTENT do: trust boundaries, what a component assumes about its caller, capability leaks, and the gap between what is enforced and what is merely stated. Distinct from dark-side, which asks what FAILS — this asks what someone MAKES fail)' },
-  { key: 'architecture', lens: 'architecture (coupling, boundaries, and what the design costs at ten times the size: where an invariant sits versus where it is enforced, which part is load-bearing, and what a proposal makes harder to change later)' },
-]
+// THE LENS TEXT IS NOT HERE ANY MORE. Each area's standing instructions are its agent
+// configuration — `agents/red-lens-<area>.md` — which is where a prompt belongs and where it can
+// be reviewed as one. What stays here is what the ENGINE needs: the key, because it composes the
+// seat id and the dispatch label from it. record.LensAreas and the agent files are held against
+// this list in every direction by TestTheLensAreasMatchWhatTheEngineDeclares.
+const RED_AREAS = ['evidence', 'logic', 'dark-side', 'voice', 'computation', 'adversary', 'architecture']
 
 // The areas a run dispatches. Default is the four that have always sat; the rest are opt-in per
 // run, because every area costs a full dispatch every round against a concurrency cap measured at
@@ -577,10 +574,9 @@ const DEFAULT_AREAS = ['evidence', 'logic', 'dark-side', 'voice']
 // fewer. The refusal names what was asked for and what exists.
 const selectedAreas = (Array.isArray(lensAreas) && lensAreas.length ? lensAreas : DEFAULT_AREAS).map(String)
 {
-  const known = RED_AREAS.map((a) => a.key)
-  const unknown = selectedAreas.filter((k) => !known.includes(k))
+  const unknown = selectedAreas.filter((k) => !RED_AREAS.includes(k))
   if (unknown.length) {
-    throw new Error(`debate: unknown lens area(s) ${JSON.stringify(unknown)} — the areas are ${JSON.stringify(known)}`)
+    throw new Error(`debate: unknown lens area(s) ${JSON.stringify(unknown)} — the areas are ${JSON.stringify(RED_AREAS)}`)
   }
 }
 
@@ -601,7 +597,7 @@ const LANE_METHODS = [
 // Sharded findings (run-4 §4 — RATIFIED, seven conditions; write-guard preflight SATISFIED
 // 2026-07-16: ledger/archive names ALLOWED at a live red-auditor seat while findings.md and
 // report.md controls BLOCKED, so the names are clean and the probe was not vacuous).
-// red-merge mints and closes through feov-record; every downstream reader (blue for open gaps,
+// the chair mints and closes through feov-record; every downstream reader (blue for open gaps,
 // the judge to rule, assembly to copy) ACTIVELY PULLS the board itself —
 // `feov-record show board --run <dir> [--format markdown]`, which computes-and-returns
 // fresh and atomic from the record on read (one reader, no staleness window). No projection is
@@ -703,10 +699,10 @@ let haltOpinion = null
 //
 // Deriving the id from the PETITIONER makes it unique by construction rather than by a counter
 // someone has to remember to increment — the filer already identifies the occasion, because each
-// of `blue-synthesize`, `red-merge-rN` and `blue-respond-rN` petitions at most once.
+// of `blue-synthesize`, `red-chair-rN` and `blue-respond-rN` petitions at most once.
 //
 // It also fixes the round stamp for free. `RoundOf` matches the FIRST `-r<N>` in the id, so
-// `judge-petition-red-merge-r1` reads as round 1 instead of the round 0 a bench sitting takes
+// `judge-petition-red-chair-r1` reads as round 1 instead of the round 0 a bench sitting takes
 // carry, and `judge-petition-blue-synthesize` has no round because it genuinely precedes round 1.
 const petitionSeatID = (who) => `judge-petition-${who}`
 
@@ -878,23 +874,29 @@ while (!halted && round < maxRounds) {
   // Selecting fewer areas for a round therefore changes WHO SITS and nothing about what the
   // seats that do sit are called. record.LensAreas holds the same list on the Go side, bound
   // to this one in both directions by TestTheLensAreasMatchWhatTheEngineDeclares.
-  for (const a of RED_AREAS) {
-    if (!selectedAreas.includes(a.key)) continue
-    const extra = a.key === 'evidence' ? `.${ledgerClause}${consolidatedClause}`
-      : (a.key === 'logic' || a.key === 'dark-side') ? steelmanClause : ''
-    lensPasses.push({ area: a.key, lens: a.lens + extra })
+  for (const area of RED_AREAS) {
+    if (!selectedAreas.includes(area)) continue
+    // ROUND-DEPENDENT ONLY. A seat's standing instructions are its configuration; what is
+    // composed here is what the configuration cannot know — which round this is, and what the
+    // ledger says about re-verification in it.
+    const extra = area === 'evidence' ? `${ledgerClause}${consolidatedClause}`
+      : (area === 'logic' || area === 'dark-side') ? steelmanClause : ''
+    lensPasses.push({ area, extra })
   }
 
   // The round-start heartbeat. It counts AREAS now rather than instances, which is the whole
   // change in one line: the number is a property of the roster, not of the corpus size.
   log(`round ${round}: dispatching ${lensPasses.length} red lenses (one per strategic area)`)
 
-  await parallel(lensPasses.map(({ area, lens }) => () => agent(
-    `Red audit, round ${round}, lens: ${lens}. RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows${round > 1 ? `. For a navigation HINT use the record of what blue actually edited and the gap each edit answers — never a hand-written file, and never in place of the full re-read above` : ''}. ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in ${runDir}/blue/report.md is REJECTED. Your area ${area} is your ROLE and it is stable across rounds — it names what you audit, and every finding you file is credited to it — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R${round}-N gap ids are the merge's. Only red-merge writes the round's RED narrative. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).${reliefFor('red')}${speedClause}${frictionClause(`red-lens-r${round}-${area}`, 'lens')}${recordClause(`red-lens-r${round}-${area}`)} Return a 3-line synopsis.`,
-    { ...bulk, label: `red-lens-${area}-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-auditor' })))
+  await parallel(lensPasses.map(({ area, extra }) => () => agent(
+    `Red audit, round ${round}.${extra} RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows${round > 1 ? `. For a navigation HINT use the record of what blue actually edited and the gap each edit answers — never a hand-written file, and never in place of the full re-read above` : ''}. ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in ${runDir}/blue/report.md is REJECTED. The labels on your findings are the tool's to assign, and the stable R${round}-N gap ids are the chair's. HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g. '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).${reliefFor('red')}${speedClause}${frictionClause(`red-lens-r${round}-${area}`, 'lens')}${recordClause(`red-lens-r${round}-${area}`)} Return a 3-line synopsis.`,
+    // ONE CONFIGURATION PER AREA, and this is the line that makes identity derivable: agent_type
+    // now carries WHICH lens, not merely that it is a lens, so a seat's area is a fact the harness
+    // attests rather than a substring of a name the seat typed.
+    { ...bulk, label: `red-lens-${area}-r${round} · ${slug}`, phase: 'Red', agentType: `frank-exchange-of-views:red-lens-${area}` })))
 
   redEnv = await agent(
-    `Red merge, round ${round}. You are the board's only writer, and the seat that decides whether this report has been verified. The lenses brought findings; nothing is on the board until you put it there.
+    `Red chair, round ${round}. You are the board's only writer, and the seat that decides whether this report has been verified. The lenses brought findings; nothing is on the board until you put it there.
 
 COALESCE — DO NOT TRANSCRIBE. Collapse this round's findings into the DISTINCT PROBLEM-CLASSES they represent. Several findings that are the same defect at different sites are ONE gap. Separate genuine incidents; fold duplicates and near-duplicates together; raise gaps SPARINGLY and deliberately, one considered gap at a time. A merge that raises a gap per finding has not merged — it has transcribed, and it floods the docket with noise. Screen every candidate against the board first: a defect you already closed is a REOPEN, and it arrives carrying that history or it arrives lying.
 
@@ -916,11 +918,11 @@ LINEAGE IS NEVER DROPPED. A gap keeps its id across rounds; a successor names it
 
 THE STOPPING JUDGMENT IS YOURS, AND IT IS NOT CEREMONY. PASS only when every remaining unadjudicated gap is repaired, not_a_defect, or defect_accepted. Your recorded verdict is the ONE fact distinguishing "red passed" from "the bench closed the last gaps at the terminal sitting" — without it the run cannot say, from its own record, that it was ever verified.${adjudicated.length ? ` GAPS THE BENCH HAS ALREADY RULED, WITH THEIR FATES AND WHAT EACH ONE SETTLED — excluded from your verdict, and the exclusion is ESTOPPEL, not amnesia: ${JSON.stringify(adjudicated.map(x => ({ gap_id: x.gap_id, resolution: x.resolution, settled: x.settled, reopens_on: x.reopens_on, final: x.final })))}. THE BARRED PROPOSITION IS NARROWER THAN THE GAP: what you may no longer assert is that sentence, not everything the finding contained. You were previously handed these as bare ids, so the bar was enforced by making them invisible — you could not tell a ruling you should respect from one you had simply lost track of, and you could not tell relitigating from a legitimate successor. The ruling STANDS and you do not re-raise it. If you hold genuinely new evidence the bench did not have, that is a lineage successor: mint it under a new id naming the ruled gap in supersedes, and say what the ruling did not account for. THE REASONING IS ON THE RECORD, NOT IN THIS PROMPT — read the bench's opinion for any fate you are about to rely on or work around, rather than inferring it from the word. A fate you never read is one you cannot honour or contest.` : ''}${gradeAdjustments.length ? ` GRADE ADJUSTMENTS RULED BY THE JUDGE last round — apply each, and list the delta in your round narrative: ${JSON.stringify(gradeAdjustments)}.` : ''}${pendingDisputes.length ? ` BLUE'S GRADE DISPUTES from last round (ROUTING REFS — blue's evidence is on the record, not here: read each dispute's argument before answering): ${JSON.stringify(pendingDisputes)}. You MUST answer EVERY one; an unaddressed dispute is treated as rejected and auto-docketed to the judge. Answer on the MOTION's own id, because blue may contest more than one grade on the same gap and an answer naming only the gap cannot be matched to the one it refuses. ACCEPTING A DISPUTE DOES NOT MOVE THE GRADE — SAYING SO IS NOT DOING IT: move it, on the axis that moved, with what changed your mind. A grade that moves with no recorded reason reads as though blue's dispute was answered by silence. AND list each in the envelope's dispute_responses as a ROUTING REF ONLY (gap_id, dimension, response — no prose: the rationale is on the record) so the docket routes it, and list each accepted delta (gap id, dimension, old -> new) in your round narrative, where blue, the judge and the operator watch for it.` : ''}
 
-YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is docket-bound — one you RE-RAISE from a prior round, a successor you mint, a dispute you REJECT — argue it in ~120 words: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far. The judge rules after blue responds, and overstatement the record does not support counts against you.${petitionClause(`red-merge-r${round}`)}${reliefFor('red')}${frictionClause(`red-merge-r${round}`, 'merge')}${speedClause}${recordClause(`red-merge-r${round}`)} Return the red envelope.`,
-    { ...judgment, label: `red-merge-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-auditor', schema: RED_ENVELOPE })
+YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is docket-bound — one you RE-RAISE from a prior round, a successor you mint, a dispute you REJECT — argue it in ~120 words: your strongest evidence the gap is real and graded correctly, and your answer to blue's best rebuttal so far. The judge rules after blue responds, and overstatement the record does not support counts against you.${petitionClause(`red-chair-r${round}`)}${reliefFor('red')}${frictionClause(`red-chair-r${round}`, 'chair')}${speedClause}${recordClause(`red-chair-r${round}`)} Return the red envelope.`,
+    { ...judgment, label: `red-chair-r${round} · ${slug}`, phase: 'Red', agentType: 'frank-exchange-of-views:red-chair', schema: RED_ENVELOPE })
 
-  takeFriction(`red-merge-r${round}`, redEnv)
-  if (!redEnv) throw new Error(`red-merge round ${round} returned null (agent failed) — aborting cleanly`)
+  takeFriction(`red-chair-r${round}`, redEnv)
+  if (!redEnv) throw new Error(`red-chair round ${round} returned null (agent failed) — aborting cleanly`)
   log(`round ${round}: red ${redEnv.verdict} — ${redEnv.gaps.length} gaps open, mass ${redEnv.gaps.reduce((s, g) => s + gapMass(g), 0).toFixed(1)}, ${redEnv.citations_checked} citations checked`)
   // Degenerate-shape guard (retrospective §3 row 20, decided R4-2: throw, never soft-convert):
   // FAIL with zero gaps is evidence of a broken merge, not a clean report — looping on it
@@ -938,7 +940,7 @@ YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is do
   // what this exempts is the case red itself created, which is the case red cannot resolve.
   const petitioned = Array.isArray(redEnv.petitions) && redEnv.petitions.length > 0
   if (redEnv.verdict === 'FAIL' && redEnv.gaps.length === 0 && !petitioned) {
-    throw new Error(`red-merge round ${round} returned FAIL with an empty gaps array — degenerate merge, refusing to loop silently`)
+    throw new Error(`red-chair round ${round} returned FAIL with an empty gaps array — degenerate merge, refusing to loop silently`)
   }
   if (redEnv.verdict === 'FAIL' && redEnv.gaps.length === 0) {
     log(`round ${round}: red FAILed on a clean board — ${redEnv.petitions.length} petition(s) outstanding for the bench, which is not a defect on the board`)
@@ -979,8 +981,8 @@ YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is do
   // human, not a gate.
   for (const c of redEnv.closures || []) {
     if (c.class === 'repaired_with_regression' && !redEnv.gaps.some(g => (g.supersedes || []).includes(c.id))) {
-      const msg = `red-merge round ${round}: closed ${c.id} WITH REGRESSION and no successor in the ENVELOPE names it in supersedes. The envelope is a lossy summary, so this does not kill the run — but NOTHING downstream checks it either (#415), so if the record's lineage is genuinely absent it will not be caught: read the board.`
-      friction.push(`red-merge-r${round}: ${msg}`)
+      const msg = `red-chair round ${round}: closed ${c.id} WITH REGRESSION and no successor in the ENVELOPE names it in supersedes. The envelope is a lossy summary, so this does not kill the run — but NOTHING downstream checks it either (#415), so if the record's lineage is genuinely absent it will not be caught: read the board.`
+      friction.push(`red-chair-r${round}: ${msg}`)
       log(msg)
     }
   }
@@ -1018,7 +1020,7 @@ YOUR NARRATIVE IS YOUR ARGUMENT and the other side answers it. Where a gap is do
     }
   }
 
-  if (await hearPetitions(redEnv, `red-merge-r${round}`)) break
+  if (await hearPetitions(redEnv, `red-chair-r${round}`)) break
 
   // Grade-dispute processing (run-4 §3.3): every pending dispute gets red's answer or the
   // docket. Explicit rejection is HELD one round (dockets only on blue's re-dispute);

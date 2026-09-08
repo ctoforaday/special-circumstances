@@ -5380,10 +5380,11 @@ type Register struct {
 	// membership", so before this field nothing could tell that a lead-judge agent had registered
 	// as `red-merge-r1`.
 	//
-	// IT NAMES A ROLE AND NOT A SEAT, measured (#290, 2026-08-23): four types cover thirteen seats,
-	// and `frank-exchange-of-views:red-auditor` covers both the lenses and the merge. So it narrows
-	// the claim rather than settling it, and the record says which of the two it was by keeping the
-	// seat id as well.
+	// IT NAMES A CONFIGURATION AND NOT A SITTING. Every red seat now has its own configuration, so
+	// the type says WHICH lens rather than merely that it is one — but a configuration is seated
+	// once per round, so it still cannot say which round this was. The record keeps the seat id for
+	// that. Measured before the split (#290, 2026-08-23), four types covered thirteen seats and
+	// `red-auditor` covered the lenses and the merge together, which it could not tell apart at all.
 	//
 	// ABSENT IS NOT "": a run whose hook never fired carries no attestation on any register event,
 	// and that stays legible as NOT MEASURED rather than as an agent configured as nothing.

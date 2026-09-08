@@ -90,7 +90,7 @@ func TestEveryEnvelopeFieldThatMustTravelReachesAReader(t *testing.T) {
 			"saturation_reached": false, "round_record_appended": true, "open_gaps": []any{},
 		}
 		switch {
-		case strings.HasPrefix(seatID, "red-merge"):
+		case strings.HasPrefix(seatID, "red-chair"):
 			e["gaps"] = gaps
 			e["notes"] = redNotes
 			e["log"] = []any{redFriction}

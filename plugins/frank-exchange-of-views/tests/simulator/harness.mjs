@@ -86,7 +86,7 @@ export function makeResponder({ red = [redEnv()], judge = [judgeEnv()], blueSynt
   const take = (q) => (q.length > 1 ? q.shift() : q[0])
   return (prompt, opts) => {
     const label = opts.label || ''
-    if (label.startsWith('red-merge')) return take(red)
+    if (label.startsWith('red-chair')) return take(red)
     if (label.startsWith('judge-petition')) return take(petition)
     if (label.startsWith('judge')) return take(judge)
     if (label.startsWith('blue-synthesize')) return take(blueSynth)

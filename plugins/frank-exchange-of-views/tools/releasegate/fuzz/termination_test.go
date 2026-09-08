@@ -99,7 +99,7 @@ func (b *board) open() int {
 	return n
 }
 
-// roundOf reads the round stamp out of a seat id (red-merge-r2 -> 2). A seat id with no stamp is
+// roundOf reads the round stamp out of a seat id (red-chair-r2 -> 2). A seat id with no stamp is
 // round 0 — the frontier, the lanes, the synthesis, assemble — and those seats take no move.
 func roundOf(seatID string) int {
 	i := strings.LastIndex(seatID, "-r")
@@ -139,7 +139,7 @@ func runSchedule(t *testing.T, script string, sched []move) (debatejs.Outcome, *
 		r := roundOf(seatID)
 		m := moveFor(r)
 		switch {
-		case strings.HasPrefix(seatID, "red-merge"):
+		case strings.HasPrefix(seatID, "red-chair"):
 			if m.redPass {
 				e["verdict"] = "PASS"
 				return e

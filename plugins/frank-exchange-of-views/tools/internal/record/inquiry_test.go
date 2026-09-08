@@ -37,7 +37,7 @@ func TestARegisterFromALaterSeatDoesNotStaleAnEarlierReview(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	merge := Identity{Run: mustRun(t, dir), SeatID: "red-merge-r1", Round: 1}
+	merge := Identity{Run: mustRun(t, dir), SeatID: "red-chair-r1", Round: 1}
 	if _, err := Append(merge, &recordpb.InquiryReview{
 		Reason: proto.String("read the lines against the report as it now stands"),
 	}); err != nil {

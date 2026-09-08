@@ -141,7 +141,7 @@ func TestGolden(t *testing.T) {
 			var renders strings.Builder
 			for _, v := range []string{"ledger", "archive", "debate", "changelog", "citation-ledger", "lines-of-inquiry"} {
 				// THE SEAT SELECTS THE TREE, so the projection is read the way a merge seat reads
-				// it: `show <v> --seat-id red-merge-r1`. This said `cmd{role: "merge", args:
+				// it: `show <v> --seat-id red-chair-r1`. This said `cmd{role: "merge", args:
 				// {"show", ...}}`, which composes `merge show ledger` — a path that stopped
 				// existing when the surface became seat-scoped, and no --seat-id at all, so the
 				// root exposed no verbs to begin with.
@@ -151,7 +151,7 @@ func TestGolden(t *testing.T) {
 				// lost its RENDERS and REPORT halves, and regenerating would have recorded that as
 				// the new expected output. 2278 deletions against 323 insertions across 20 files,
 				// and every one of them would have been "the goldens moved with the surface".
-				got := normalizeOutput(runGo(bin, runDir, cmd{role: "show", args: []string{v, "--run", runDir, "--seat-id", "red-merge-r1"}}), runDir, m)
+				got := normalizeOutput(runGo(bin, runDir, cmd{role: "show", args: []string{v, "--run", runDir, "--seat-id", "red-chair-r1"}}), runDir, m)
 				if got.code == 0 {
 					fmt.Fprintf(&renders, "-- %s\n%s\n", v, got.stdout)
 				}

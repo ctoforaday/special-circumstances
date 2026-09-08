@@ -39,7 +39,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# Title\n\nClean prose.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, s := range []string{"red-merge-r1", "blue-respond-r1", "judge-terminal"} {
+	for _, s := range []string{"red-chair-r1", "blue-respond-r1", "judge-terminal"} {
 		if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: s, Round: record.RoundIn(runtest.Open(t, runDir))(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
@@ -58,7 +58,7 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 		Likelihood:      recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Impact:          recordtest.P(recordpb.Grade_GRADE_HIGH),
 	}
-	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-merge-r1", Round: record.RoundIn(runtest.Open(t, runDir))("red-merge-r1")}, mint); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-chair-r1", Round: record.RoundIn(runtest.Open(t, runDir))("red-chair-r1")}, mint); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge-terminal", Round: record.RoundIn(runtest.Open(t, runDir))("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), Prose: proto.String("the round ceiling arrived before red could pass the final revision")}); err != nil {

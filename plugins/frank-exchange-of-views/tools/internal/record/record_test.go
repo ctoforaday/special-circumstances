@@ -17,7 +17,7 @@ import (
 // `ts` is not a field a human reads; it is the key replay sorts by, and when two events
 // share it the sort falls through to (SeatID, Seq) — ordering by SEAT NAME, which is the
 // exact defect that silently dropped the bench's closures ("judge-r2" sorting before
-// "red-merge-r1", so every ruling replayed before the mint it referenced).
+// "red-chair-r1", so every ruling replayed before the mint it referenced).
 //
 // The stamp was millisecond-precision, so any two events inside one tick tied and fell
 // back to that broken order.
@@ -241,7 +241,7 @@ func TestAnUnknownRoundIsWrittenAsUnknownNotAsZero(t *testing.T) {
 // the SEAT, which makes its keys monotonic across dispatches.
 func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	seat := "red-merge-r1"
+	seat := "red-chair-r1"
 	id := Identity{Run: mustRun(t, runDir), SeatID: seat, Round: RoundIn(mustRun(t, runDir))(seat)}
 
 	for dispatch := 1; dispatch <= 2; dispatch++ {
@@ -288,7 +288,7 @@ func TestARedispatchedSeatCanStillRecord(t *testing.T) {
 // nothing, which is why isDuplicateKey exists.
 func TestARepeatedSingletonActIsRefusedInTheSeatsOwnTerms(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	seat := "red-merge-r1"
+	seat := "red-chair-r1"
 	id := Identity{Run: mustRun(t, runDir), SeatID: seat, Round: RoundIn(mustRun(t, runDir))(seat)}
 	if _, _, err := RegisterSeat(id, ""); err != nil {
 		t.Fatal(err)

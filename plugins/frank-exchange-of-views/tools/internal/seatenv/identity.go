@@ -64,7 +64,7 @@ const (
 	AgentVar = "FEOV_AGENT_ID"
 
 	// TypeVar carries the harness's own name for the agent CONFIGURATION this seat is running
-	// under — `frank-exchange-of-views:red-auditor` and its four siblings. Like AgentVar it is
+	// under — `frank-exchange-of-views:red-lens-evidence` and its ten siblings. Like AgentVar it is
 	// attested rather than typed: it comes off the PreToolUse payload, and a seat has no way to
 	// state it, misstate it, or leave it out.
 	//

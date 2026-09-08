@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/cli"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 )
 
 // EVERY VERB A SEAT HAS IS DEMANDED BY SOME BOARD.
@@ -157,20 +158,18 @@ func roleOfSeat(seatID string) string {
 	return ""
 }
 
-// seatRolePrefix mirrors the record's seat-role binding closely enough for a test fixture: the
-// authoritative check is record.CheckSeatRole, used by Read.
+// seatRolePrefix asks the RECORD whether this seat may hold this role.
+//
+// IT USED TO MIRROR IT, and the mirror is what this comment used to say: a switch over
+// `red-lens` / `red-merge` / `blue` / `judge`, described as "close enough for a test fixture".
+// It was not. When the merge seat became `red-chair` the copy went on answering "" for it, so
+// every board naming that seat reported a role that is not one of lens/merge/blue/bench and the
+// coverage figures underneath went to zero — a fork in a fixture, failing exactly the way the
+// thing it forked from exists to prevent.
+//
+// record.CheckSeatRole is the authoritative binding and it is one import away.
 func seatRolePrefix(role, seatID string) bool {
-	switch role {
-	case "lens":
-		return strings.HasPrefix(seatID, "red-lens")
-	case "merge":
-		return strings.HasPrefix(seatID, "red-merge")
-	case "blue":
-		return strings.HasPrefix(seatID, "blue")
-	case "bench":
-		return strings.HasPrefix(seatID, "judge")
-	}
-	return false
+	return record.CheckSeatRole(role, seatID) == nil
 }
 
 // surface is the tool's real verb set, read from the cobra tree.

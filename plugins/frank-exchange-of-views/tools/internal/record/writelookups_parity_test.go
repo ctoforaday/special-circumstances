@@ -19,12 +19,12 @@ import (
 func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
-	red := Identity{Run: run, SeatID: "red-merge-r1", Round: 1}
+	red := Identity{Run: run, SeatID: "red-chair-r1", Round: 1}
 	blue := Identity{Run: run, SeatID: "blue-respond-r1", Round: 1}
 
 	// Two registers under one agent id: the binding is the most recent claim.
 	t.Setenv(seatenv.AgentVar, "agent-007")
-	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-merge-r1", Round: 1}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "red-chair-r1", Round: 1}, ""); err != nil {
 		t.Fatal(err)
 	}
 	if _, _, err := RegisterSeat(Identity{Run: run, SeatID: "blue-respond-r1", Round: 1}, ""); err != nil {
@@ -36,7 +36,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if _, found, err := SeatOfAgent(run, "agent-999"); err != nil || found {
 		t.Errorf("SeatOfAgent on an unknown agent = (found=%v, %v)", found, err)
 	}
-	if seats, err := RegisteredSeats(run); err != nil || strings.Join(seats, ",") != "red-merge-r1,blue-respond-r1" {
+	if seats, err := RegisteredSeats(run); err != nil || strings.Join(seats, ",") != "red-chair-r1,blue-respond-r1" {
 		t.Errorf("RegisteredSeats = (%v, %v), want event order", seats, err)
 	}
 
@@ -65,7 +65,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	if id, err := MintGapID(run, 2); err != nil || id != "R2-1" {
 		t.Errorf("MintGapID counts per ROUND: got (%q, %v)", id, err)
 	}
-	if id, err := ExistingMintByKey(run, "red-merge-r1", "k-R1-2"); err != nil || id != "R1-2" {
+	if id, err := ExistingMintByKey(run, "red-chair-r1", "k-R1-2"); err != nil || id != "R1-2" {
 		t.Errorf("ExistingMintByKey = (%q, %v)", id, err)
 	}
 	if id, err := ExistingMintByKey(run, "blue-respond-r1", "k-R1-2"); err != nil || id != "" {
@@ -131,7 +131,7 @@ func TestWriteLookupsAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		t.Errorf("AnchorEventExists = (%v, %v) — no anchor event was appended for this finding", exists, err)
 	}
 
-	if err := requireSeat(run, "red-merge-r1", "rule", "--by"); err != nil {
+	if err := requireSeat(run, "red-chair-r1", "rule", "--by"); err != nil {
 		t.Errorf("requireSeat on a seated seat = %v", err)
 	}
 	if err := requireSeat(run, "judge-r9", "rule", "--by"); err == nil {

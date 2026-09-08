@@ -31,7 +31,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 	}
 
 	const why = "blue may well have done the work; what is missing is the record of it"
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--key", "argued", "--class", "metric-conflation",
 		"--quote", "The access log retains for 45 days.",
 		"--problem", "the figure conflicts with the universal",
@@ -41,7 +41,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := run(t, "show", "board", "--run", runDir, "--seat-id", "red-merge-r1")
+	out, err := run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair-r1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 	// AND IT IS NOT DUPLICATED when the problem arrived THROUGH --reason, which is the documented
 	// alternative form (`--problem "..."|--reason`). Storing it twice would make a reader think red
 	// argued something beyond the problem statement when it did not.
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--key", "viareason", "--class", "metric-conflation",
 		"--quote", "The audit log retains for 30 days.",
 		"--fix", "f", "--check", "c", "--check-kind", "document",
@@ -63,7 +63,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 		"--reason", "the problem arrived through reason"); err != nil {
 		t.Fatal(err)
 	}
-	out, err = run(t, "show", "board", "--run", runDir, "--seat-id", "red-merge-r1")
+	out, err = run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair-r1")
 	if err != nil {
 		t.Fatal(err)
 	}

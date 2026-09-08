@@ -19,7 +19,7 @@ func TestAFindingAboutAnAbsenceNeedsNoBorrowedQuote(t *testing.T) {
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium"); err != nil {
 		t.Fatalf("a finding about a MISSING section was refused: %v", err)
 	}
-	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1", "findings")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair-r1", "findings")
 	if err != nil {
 		t.Fatal(err)
 	}

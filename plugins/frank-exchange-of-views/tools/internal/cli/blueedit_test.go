@@ -349,7 +349,7 @@ func TestMintWithoutAConcreteProposalIsBasisProposed(t *testing.T) {
 func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--key", "G1", "--class", "overclaim",
 		"--quote", "Five independent verification approaches agree.", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims independence",
@@ -371,7 +371,7 @@ func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
 func TestThereIsNoWayToClaimAVerifiedBasis(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSome text.\n")
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--likelihood", "medium", "--impact", "medium", "--fix-basis", "verified")
 	if err == nil {
@@ -393,7 +393,7 @@ func TestThereIsNoWayToClaimAVerifiedBasis(t *testing.T) {
 func TestAProposalAgainstTextThatIsNotThereIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--likelihood", "medium", "--impact", "medium",
 		"--quote", "a sentence the report never contained", "--new", "anything")
@@ -412,7 +412,7 @@ const prescribedText = "Five verification approaches agree, all sharing one defi
 // mintWithProposal mints a gap carrying a concrete proposal and returns its id.
 func mintWithProposal(t *testing.T, runDir, key, fixOld, fixNew string) string {
 	t.Helper()
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--key", key, "--class", "overclaim", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims it",
 		"--likelihood", "medium", "--impact", "medium",
@@ -478,7 +478,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	prior := seedProposalApplied(t, runDir)
 
 	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r2",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r2",
 		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium")
@@ -505,7 +505,7 @@ func TestEstoppelLetsAnAmendmentThroughWhenLineageIsDeclared(t *testing.T) {
 	runDir := newRun(t)
 	prior := seedProposalApplied(t, runDir)
 
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r2",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r2",
 		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "my own fix turned out to contradict §3", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium",
@@ -519,7 +519,7 @@ func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 	runDir := newRun(t)
 	seedProposalApplied(t, runDir)
 
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r2",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r2",
 		// UNRELATED, but PRESENT. Since 0.63.0 a mint's --quote is matched against the report,
 		// so "text the guard should not cover" can no longer mean "text that does not exist".
 		"--key", "G2", "--class", "overclaim", "--quote", "Sieve costs grow with the bound.",

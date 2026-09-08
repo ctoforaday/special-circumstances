@@ -176,7 +176,7 @@ func TestShowViewSurvivesTheRoleLevelGoingAway(t *testing.T) {
 	}{
 		{"scoped: bare show is the work list", "/tmp/feov-record show --run /r", "work", true},
 		{"scoped: named view", "/tmp/feov-record show board --run /r", "board", true},
-		{"scoped: flags first", `/tmp/feov-record --run /r --seat-id red-merge-r1 show findings`, "findings", true},
+		{"scoped: flags first", `/tmp/feov-record --run /r --seat-id red-chair-r1 show findings`, "findings", true},
 		// The old spelling still resolves, so a trajectory from either era reads the same.
 		{"role-prefixed still reads", "/tmp/feov-record merge show board --run /r", "board", true},
 		{"not a show at all", "/tmp/feov-record mint --problem p --run /r", "", false},

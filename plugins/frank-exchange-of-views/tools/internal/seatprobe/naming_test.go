@@ -21,7 +21,7 @@ import (
 // that acquires a name, and a treatment nobody exercises is one nobody would notice breaking.
 func TestTheShippedConstitutionsNameNoVerb(t *testing.T) {
 	sf := NewSurface(cli.CommandPaths())
-	for _, name := range []string{"red-auditor.md", "blue-researcher.md", "blue-synthesizer.md", "lead-judge.md"} {
+	for _, name := range []string{"red-lens-evidence.md", "red-chair.md", "blue-researcher.md", "blue-synthesizer.md", "lead-judge.md"} {
 		t.Run(name, func(t *testing.T) {
 			p, perr := repotree.Plugin("agents", name)
 			if perr != nil {

@@ -179,17 +179,34 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	memHome := func(d string) string {
-		return filepath.Join(d, ".claude", "agent-memory", "frank-exchange-of-views-red-auditor")
+	// RED'S RAW ACCRUAL IS NOW SPREAD ACROSS SEATS, so it is globbed rather than named.
+	//
+	// The harness gives each agent configuration its own memory home, keyed on the agent's name.
+	// While every red seat was `red-auditor` there was one directory and this named it. Since each
+	// area got its own configuration there are eight, and a reader that still named the old one
+	// would find nothing — then report exactly what an agent with no memory yet reports, which is
+	// the plausible zero: red would open the run on the promoted corpus alone and the summary
+	// would say nothing was wrong.
+	//
+	// EVERY red home is unioned because a pattern is red's, not one lens's: the seat that learns
+	// "check for X" is rarely the seat that needs it next, and BuildPatternIndex already merges
+	// sources with the promoted copy winning.
+	memHomes := func(d string) []string {
+		hits, _ := filepath.Glob(filepath.Join(d, ".claude", "agent-memory", "frank-exchange-of-views-red-*"))
+		return hits
 	}
 	promoted := filepath.Join(cfg.Cwd, "feov-memory", "red-gap-patterns")
-	raw := ""
+	var raw []string
 	for _, d := range []string{cfg.ProjectDir, cfg.Cwd} {
 		if d == "" {
 			continue
 		}
-		if h := memHome(d); exists(h) {
-			raw = h
+		for _, h := range memHomes(d) {
+			if exists(h) {
+				raw = append(raw, h)
+			}
+		}
+		if len(raw) > 0 {
 			break
 		}
 	}
@@ -205,7 +222,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 	//
 	// Promoted stays FIRST: BuildPatternIndex dedupes by filename, so the reviewed copy of a
 	// pattern wins over the raw one it was promoted from.
-	memDirs := []string{promoted, raw}
+	memDirs := append([]string{promoted}, raw...)
 	if cfg.MemoryDir != "" {
 		memDirs = append(memDirs, cfg.MemoryDir)
 	}

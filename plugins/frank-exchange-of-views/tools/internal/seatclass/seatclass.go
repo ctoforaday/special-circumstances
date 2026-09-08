@@ -30,6 +30,9 @@ var rounded = []struct {
 	seat string
 }{
 	{regexp.MustCompile(`Red audit, round (\d+)`), "red-lens"},
+	{regexp.MustCompile(`Red chair, round (\d+)`), "red-chair"},
+	// The heading an ARCHIVED transcript carries. A class read is a read of history as often as
+	// of a live run, and the two headings cannot collide.
 	{regexp.MustCompile(`Red merge, round (\d+)`), "red-merge"},
 	{regexp.MustCompile(`Blue response, round (\d+)`), "blue-respond"},
 	{regexp.MustCompile(`Adjudication, round (\d+)`), "judge"},
@@ -86,7 +89,8 @@ var SeatClass = map[string]string{
 	"red-lens":        "bulk",
 	"blue-respond":    "bulk",
 	"blue-synthesize": "judgment",
-	"red-merge":       "judgment",
+	"red-chair":       "judgment",
+	"red-merge":       "judgment", // archived runs
 	"judge":           "judgment",
 	"judge-petition":  "judgment",
 	"judge-terminal":  "judgment",

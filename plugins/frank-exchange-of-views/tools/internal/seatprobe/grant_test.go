@@ -16,7 +16,7 @@ import (
 // a record tool it concluded was broken. That transcript and a transcript of a seat that chose not
 // to read its help score identically.
 func TestEveryDispatchedAgentGrantsTheToolsItsSeatNeeds(t *testing.T) {
-	for _, agent := range []string{"red-auditor", "blue-researcher", "lead-judge"} {
+	for _, agent := range []string{"red-lens-evidence", "red-chair", "blue-researcher", "lead-judge"} {
 		p, err := repotree.Plugin("agents", agent+".md")
 		if err != nil {
 			t.Fatal(err)

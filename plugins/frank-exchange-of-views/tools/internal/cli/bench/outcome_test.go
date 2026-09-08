@@ -101,13 +101,13 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 	// its verdict has a seat to hang on, and it binds a different agent for the same reason a run
 	// does — two seats are two agents.
 	t.Setenv(seatenv.AgentVar, "agent_merge")
-	for _, s := range []string{"red-merge-r1"} {
+	for _, s := range []string{"red-chair-r1"} {
 		if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: s, Round: record.RoundIn(runtest.Open(t, runDir))(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// A PASS on the record makes VERIFIED derivable, with a stated basis.
-	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-merge-r1", Round: record.RoundIn(runtest.Open(t, runDir))("red-merge-r1")}, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-chair-r1", Round: record.RoundIn(runtest.Open(t, runDir))("red-chair-r1")}, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv(seatenv.AgentVar, "agent_bench")

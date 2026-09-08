@@ -31,7 +31,7 @@ type Input struct {
 	AgentID string `json:"agent_id"`
 
 	// AgentType is the harness's name for the agent CONFIGURATION the caller runs under —
-	// `frank-exchange-of-views:red-auditor` and its siblings. A DIFFERENT FACT FROM AgentID and
+	// `frank-exchange-of-views:red-chair` and its siblings. A DIFFERENT FACT FROM AgentID and
 	// it refuses a different thing: the handle says WHICH agent, this says which configuration
 	// it was dispatched as, so `register` can reject a seat id from the wrong family.
 	//

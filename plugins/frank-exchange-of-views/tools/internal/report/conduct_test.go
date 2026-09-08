@@ -39,7 +39,7 @@ func TestASubstitutedTierIsNamedInTheReport(t *testing.T) {
 	got := conduct(record.Run{}, (registers(t,
 		[3]string{"blue-lane-1", "claude-opus-4-8", "claude-fable-5"},
 		[3]string{"red-lens-r1-evidence", "claude-opus-4-8", "claude-fable-5"},
-		[3]string{"red-merge-r1", "claude-sonnet-5", ""},
+		[3]string{"red-chair-r1", "claude-sonnet-5", ""},
 	)))
 	for _, want := range []string{"claude-opus-4-8", "claude-fable-5", "SUBSTITUTED", "claude-sonnet-5"} {
 		if !strings.Contains(got, want) {
@@ -91,7 +91,7 @@ func TestSeatsWithNoMeasurementAreReportedAsNotMeasured(t *testing.T) {
 func TestAnUnsubstitutedRunStillNamesWhatAnswered(t *testing.T) {
 	got := conduct(record.Run{}, (registers(t,
 		[3]string{"blue-lane-1", "claude-fable-5", ""},
-		[3]string{"red-merge-r1", "claude-sonnet-5", ""},
+		[3]string{"red-chair-r1", "claude-sonnet-5", ""},
 	)))
 	if !strings.Contains(got, "claude-fable-5") || !strings.Contains(got, "claude-sonnet-5") {
 		t.Errorf("a clean run does not name its own models:\n%s", got)

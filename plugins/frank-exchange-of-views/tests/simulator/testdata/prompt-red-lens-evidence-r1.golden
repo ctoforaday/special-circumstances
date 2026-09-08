@@ -1,6 +1,6 @@
-prompt sha256: 9f4ef684c98d42b98b5740b8ab289e58da368fd9dce24dbdec859d27e728ed4e
+prompt sha256: ced5f667535bd97a8316d5e3941abdfbde4d675ecce1f747376496f9d9e98203
 
-Red audit, round 1, lens: leaf-node citation verification (follow every reference; grade corroboration confidence per statement).
+Red audit, round 1.
 THE REPORT DOES NOT NAME ITS SOURCES — it carries invisible anchors, and the evidence layer is the only way from one to what it points at.
 Read it FIRST.
 A claim blue backed with a source resolves to the url, title and sha256 of the bytes blue actually read, and THAT is what you re-fetch to audit the same artifact rather than a page that may have drifted since.
@@ -12,11 +12,10 @@ A SOURCE YOU FOUND YOURSELF IS A DIFFERENT ACT — blue never cited it, so there
 VERBATIM READS ONLY — you have no WebFetch, by design: it returns a small model's SUMMARY, not the source.
 Read blue's cached bytes through the tool; for a source YOU discover, pull it verbatim yourself (`curl -sL <url>`, `gh issue view <n> --comments`, `pdftotext`/pandoc) and read it.
 WebSearch is for DISCOVERY — finding the url — never for the read that grades a citation.
-If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read..
+If a source is too large for your context, read it in SECTIONS and name the sections you read: A TRUNCATED READ IS NOT A READ, so state the truncation and never grade a body you could not fully read.
 RE-READ THE FULL LIVING REPORT IN CONTEXT — the whole document, never just a diff; if it exceeds one Read call, read it whole in consecutive windows.
 ANCHOR EVERY FINDING TO A QUOTED SENTENCE, and quote it exactly rather than paraphrasing: a finding whose quote is not found in research/2026-01-01_golden/blue/report.md is REJECTED.
-Your area evidence is your ROLE and it is stable across rounds — it names what you audit, and every finding you file is credited to it — so the record stays comparable run-wide; the labels on your findings are the tool's to assign, and the stable R1-N gap ids are the merge's.
-Only red-merge writes the round's RED narrative.
+The labels on your findings are the tool's to assign, and the stable R1-N gap ids are the chair's.
 HARNESS NOTES: Grep count mode counts LINES, not occurrences — anchor patterns (e.g.
 '^### ') when counting; prefer the Write tool over quoted heredocs for scripts (heredoc backslash mangling is a documented recurrence).
 SPEED: every message you send costs a ~20s round-trip regardless of content — batch INDEPENDENT tool calls into a single message (read several files at once; fire independent fetches together); only serialize calls that truly depend on a prior result.

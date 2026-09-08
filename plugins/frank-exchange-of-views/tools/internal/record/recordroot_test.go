@@ -402,7 +402,7 @@ func TestRegisterRefusesToCreateARunDirectory(t *testing.T) {
 	parent := recordtest.TmpRun(t)
 	missing := filepath.Join(parent, "research", "no-such-run")
 
-	_, _, err := RegisterSeat(Identity{Run: mustRun(t, missing), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, missing))("red-merge-r1")}, "")
+	_, _, err := RegisterSeat(Identity{Run: mustRun(t, missing), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, missing))("red-chair-r1")}, "")
 	if err == nil {
 		t.Fatal("a seat created a run directory from nothing and reported success — the exact failure that produced a second blackboard beside a live run")
 	}
@@ -421,7 +421,7 @@ func TestRegisterRefusesToCreateARunDirectory(t *testing.T) {
 	if err := os.MkdirAll(real, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, real), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, real))("red-merge-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, real), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, real))("red-chair-r1")}, ""); err != nil {
 		t.Errorf("an existing run directory was refused: %v", err)
 	}
 }

@@ -13,7 +13,7 @@ const script = loadDebateScript(new URL('../../skills/research-protocol/scripts/
 // hand-write debate.md, red/citation-ledger.md and blue/CHANGELOG.md — files setup no longer
 // creates and nothing reads, producing a run that recorded nothing with every gate green.
 const ARGS = { topic: 'test topic', runDir: 'research/2026-01-01_test', lanes: 3, model: 'sonnet', judgmentModel: 'sonnet', binDir: '/opt/feov/bin' }
-const isJudgmentSeat = (l) => /^(blue-synthesize|red-merge|judge|assemble)/.test(l)
+const isJudgmentSeat = (l) => /^(blue-synthesize|red-chair|judge|assemble)/.test(l)
 
 // ---- Founding regressions (runs 1-2) ----
 
@@ -30,9 +30,9 @@ test('founding regression 1b: unbound topic/runDir refuses dispatch before any a
   assert.equal(world.calls.length, 0)
 })
 
-test('founding regression 2: null red-merge aborts cleanly, not with a TypeError', async () => {
-  const world = makeWorld((p, o) => (o.label.startsWith('red-merge') ? null : makeResponder()(p, o)))
-  await assert.rejects(world.run(script, ARGS), /red-merge round 1 returned null/)
+test('founding regression 2: null red-chair aborts cleanly, not with a TypeError', async () => {
+  const world = makeWorld((p, o) => (o.label.startsWith('red-chair') ? null : makeResponder()(p, o)))
+  await assert.rejects(world.run(script, ARGS), /red-chair round 1 returned null/)
 })
 
 test('founding regression 2b: null blue synthesis aborts cleanly', async () => {
@@ -269,7 +269,7 @@ test('every seat prompt carries the log clause (envelope + verb, not a hand-writ
   // THE LENS IS IN THIS LIST NOW. It was the one seat class the clause was never appended to —
   // found 2026-08-13 when the orphan gate reported `lens friction` as named nowhere a seat reads.
   // Four lens seats per round were told to close a channel nobody had told them about.
-  for (const seat of ['blue-synthesize', 'red-merge-r1', 'blue-respond-r1', 'assemble', 'red-lens-evidence-r1']) {
+  for (const seat of ['blue-synthesize', 'red-chair-r1', 'blue-respond-r1', 'assemble', 'red-lens-evidence-r1']) {
     const c = world.calls.find((c) => c.opts.label.startsWith(seat))
     // WHAT IS LEFT HERE AFTER THE SUBTRACTION. The clause used to carry the duty, the explicit
     // empty form, and the fact that silence is not the empty case — all three of which the
@@ -304,14 +304,16 @@ test('every seat prompt carries the log clause (envelope + verb, not a hand-writ
       `${seat} restates the empty-form rule the verb's help states — two copies of one rule is what this pass removed`)
   }
   const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens-evidence-r1'))
-  // Transcript-forbidden, stated POSITIVELY: the clause used to prohibit writing to debate.md,
-  // a file setup no longer creates. The contract it was protecting is who owns the round's
-  // narrative — one seat, through one verb — and that is the form a lens can actually act on.
-  assert.ok(/Only red-merge writes the round's RED narrative/.test(lens.prompt),
+  // WHO OWNS THE ROUND'S NARRATIVE IS NOW A STANDING DUTY, NOT A DISPATCH CLAUSE. It moved into
+  // the lens's own configuration when each area got one, so this asserts it where it now lives
+  // rather than being deleted: the duty is unchanged and only its carrier moved, and a test that
+  // followed the prompt instead of the concept would have gone green while the rule vanished.
+  const lensConfig = readFileSync(new URL('../../agents/red-lens-evidence.md', import.meta.url), 'utf8')
+  assert.match(lensConfig, /A LENS FINDS; THE MERGE SPEAKS FOR THE ROUND/,
     'a lens is not a debate party — the round narrative belongs to one seat')
   // The ACT and the fact the LABEL IS THE TOOL'S — same reason as the friction clause above.
-  assert.ok(/ANCHOR EVERY FINDING TO A QUOTED SENTENCE/.test(lens.prompt) && /the labels on your findings are the tool's to assign/.test(lens.prompt),
-    'lens records findings as events with a tool-assigned role-scoped label (L1-F{N})')
+  assert.ok(/ANCHOR EVERY FINDING TO A QUOTED SENTENCE/.test(lens.prompt) && /labels on your findings are the tool's to assign/.test(lens.prompt),
+    "lens records findings as events with a tool-assigned area-scoped label (<area>-F{N})")
 })
 
 // ---- Run-3 docket rows 6/7: lane diversity + floor ----
@@ -441,7 +443,7 @@ test('contested docket: a re-raised gap goes to the judge; adjudicated gaps leav
   assert.equal(judgeCalls.length, 1, 'judge invoked exactly once, only when a gap recurs')
   assert.ok(judgeCalls[0].prompt.includes('"R1-1"'))
   assert.ok(!judgeCalls[0].prompt.includes('"R1-2"'), 'un-recurred gap is not on the docket')
-  const merge3 = world.calls.find((c) => c.opts.label.startsWith('red-merge-r3'))
+  const merge3 = world.calls.find((c) => c.opts.label.startsWith('red-chair-r3'))
   // THE FATE TRAVELS WITH THE ID, and that is the assertion. Red used to be handed bare ids, so
   // the bar was enforced by making the gap invisible — indistinguishable, from red's side, from a
   // gap nobody ever raised. `repaired` and `not_a_defect` and `defect_accepted` estop red from
@@ -466,7 +468,7 @@ test('deadlock: judge deadlock=true ends the debate UNVERIFIED with the deadlock
 test('safety ceiling: fresh unrelated gaps every round never trigger the judge; ceiling stamps the assembly', async () => {
   let n = 0
   const world = makeWorld((p, o) => {
-    if (o.label.startsWith('red-merge')) return redEnv({ gaps: [gap(`R${++n}-1`)] }) // always-new ids, no lineage
+    if (o.label.startsWith('red-chair')) return redEnv({ gaps: [gap(`R${++n}-1`)] }) // always-new ids, no lineage
     return makeResponder()(p, o)
   })
   const out = await world.run(script, { ...ARGS, maxRounds: 2 })
@@ -502,7 +504,7 @@ test('the operator channel aggregates from every seat with attribution', async (
     blueRespond: [blueEnv({ log: ['rate-limited on WebFetch'] })],
   }))
   const out = await world.run(script, ARGS)
-  assert.ok(out.friction.includes('red-merge-r1: no PDF extraction'))
+  assert.ok(out.friction.includes('red-chair-r1: no PDF extraction'))
   assert.ok(out.friction.includes('blue-respond-r1: rate-limited on WebFetch'))
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
   assert.ok(assemble.prompt.includes('no PDF extraction'), 'assembly receives the collated friction')
@@ -510,10 +512,10 @@ test('the operator channel aggregates from every seat with attribution', async (
 
 // ---- Efficiency phase (run-4 ratified levers; plans/efficiency-phase.md PR-A) ----
 
-test('telemetry: red-merge is told the line is TOOL-COMPUTED, not hand-written', async () => {
+test('telemetry: red-chair is told the line is TOOL-COMPUTED, not hand-written', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
-  const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
+  const merge = world.calls.find(c => c.opts.label.startsWith('red-chair'))
   // THE PROMPT NO LONGER MENTIONS TELEMETRY AT ALL, AND THAT IS THE ASSERTION.
   //
   // It used to spend a paragraph naming the per-round fields and insisting the seat not hand-write
@@ -532,7 +534,7 @@ test('telemetry: red-merge is told the line is TOOL-COMPUTED, not hand-written',
 test('the merge reads this round\'s findings from the record view, not a candidate-file cat', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
-  const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
+  const merge = world.calls.find(c => c.opts.label.startsWith('red-chair'))
   // NOT `FIRST ACTION` ANY MORE, and this assertion used to pin that phrase. Reading the findings
   // is the merge's first READ; the tree walk comes before it. Two clauses both claiming the
   // opening move is `co-resident-rules-disagree`, and it was measured: every blue board obeyed the
@@ -558,7 +560,7 @@ test('the board is the tool: merge mints through feov-record, downstream seats p
   }))
   await world.run(script, { ...ARGS, maxRounds: 2 })
   for (const c of world.calls) assert.ok(!c.prompt.includes('red/findings.md'), `findings.md leaked into: ${c.opts.label}`)
-  const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
+  const merge = world.calls.find(c => c.opts.label.startsWith('red-chair'))
   // THE BOARD IS THE TOOL'S, AND THE MERGE IS TOLD SO BY ITS OWN SURFACE: it has mint and close
   // verbs and no markdown to write. What the prompt owes is the DISCIPLINE — coalesce rather than
   // transcribe, one considered gap at a time, screen before minting — which no help page can
@@ -586,7 +588,7 @@ test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 
     red: [redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [], ledger_closure_lines: 1, archive_blocks: 1 }),
           redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [] })],
   }))
-  await assert.doesNotReject(world.run(script, { ...ARGS, maxRounds: 3 }), 'RETIRED: the spot-check floor trusted red-merge self-report; the tool board is authoritative now')
+  await assert.doesNotReject(world.run(script, { ...ARGS, maxRounds: 3 }), 'RETIRED: the spot-check floor trusted red-chair self-report; the tool board is authoritative now')
 })
 
 test('shard counts: closure-index lines != archive blocks is a self-inconsistent self-report and aborts', async () => {
@@ -602,7 +604,7 @@ test('dispute routing: an UNADDRESSED dispute auto-dockets (default-to-docket pu
     blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'R1-1', dimension: 'impact', proposed: 'low', evidence: 'e' }] }), blueEnv()],
   }))
   await world.run(script, { ...ARGS, maxRounds: 2 })
-  const merge2 = world.calls.find(c => c.opts.label.startsWith('red-merge-r2'))
+  const merge2 = world.calls.find(c => c.opts.label.startsWith('red-chair-r2'))
   assert.ok(merge2.prompt.includes("BLUE'S GRADE DISPUTES"), 'red is shown the pending disputes')
   const judge = world.calls.find(c => c.opts.label.startsWith('judge-r2'))
   assert.ok(judge, 'judge dispatched for the unaddressed dispute')
@@ -673,14 +675,14 @@ test('dispute cap: disputes beyond the per-round cap batch-docket as one overflo
   assert.ok(judge2 && judge2.prompt.includes('grade_dispute_over_cap'), 'overflow rides the docket as a batch')
 })
 
-test('grade_adjusted: a judge grade ruling reaches the next red-merge as an instruction to apply', async () => {
+test('grade_adjusted: a judge grade ruling reaches the next red-chair as an instruction to apply', async () => {
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R2-1')] }), redEnv({ verdict: 'PASS' })],
     judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'grade_adjusted', rationale: 'impact is low: evidence X' }] })],
     blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'R1-1', dimension: 'impact', proposed: 'low', evidence: 'e' }] }), blueEnv()],
   }))
   await world.run(script, { ...ARGS, maxRounds: 3 })
-  const merge3 = world.calls.find(c => c.opts.label.startsWith('red-merge-r3'))
+  const merge3 = world.calls.find(c => c.opts.label.startsWith('red-chair-r3'))
   assert.ok(merge3 && merge3.prompt.includes('GRADE ADJUSTMENTS'), 'adjustment applied by the seat that owns the ledger')
 })
 
@@ -695,7 +697,7 @@ test('closing arguments: judge sits AFTER blue, both sides file closings, ruling
   await world.run(script, { ...ARGS, maxRounds: 2 })
   const judge2 = world.calls.find(c => c.opts.label.startsWith('judge-r2'))
   const blue2 = world.calls.find(c => c.opts.label.startsWith('blue-respond-r2'))
-  const merge2 = world.calls.find(c => c.opts.label.startsWith('red-merge-r2'))
+  const merge2 = world.calls.find(c => c.opts.label.startsWith('red-chair-r2'))
   assert.ok(judge2 && blue2, 'both seats ran in round 2')
   assert.ok(judge2.n > blue2.n, 'the judge rules AFTER blue has answered — never on unanswered material')
   // WHICH HEADING THE TRANSCRIPT RENDERS A CLOSING UNDER IS THE TOOL'S BUSINESS, and `closing
@@ -772,7 +774,7 @@ test('lanes=5: the full roster deploys and disconfirming-first holds its redunda
 test('GRADE enum carries compound grades and the pinned mass mapping is total over it (R4-5)', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
-  const merge = world.calls.find(c => c.opts.label.startsWith('red-merge'))
+  const merge = world.calls.find(c => c.opts.label.startsWith('red-chair'))
   const en = merge.opts.schema.properties.gaps.items.properties.likelihood.enum
   // UNDERSCORES. debate.js's GRADE enum has spelled `low_medium` and `medium_high` since the
   // record's grade vocabulary moved; this assertion kept the hyphens, and nothing ran it — the
@@ -794,7 +796,7 @@ test('shard creator: round-1 merge creates both shards; round 2 updates, never r
   // negative is the whole assertion — a prompt that starts telling a seat which artifact to
   // create has reintroduced the hand-written board this migration removed.
   for (const r of [1, 2]) {
-    const m = world.calls.find(c => c.opts.label.startsWith(`red-merge-r${r}`))
+    const m = world.calls.find(c => c.opts.label.startsWith(`red-chair-r${r}`))
     assert.ok(m, `round ${r} merge sat`)
     assert.ok(!/create BOTH|ledger\.md|archive\.md/.test(m.prompt), `round ${r} merge is told to hand-write a board artifact`)
     assert.ok(m.opts.schema.properties.gaps, `round ${r} merge returns the board-derived envelope`)
@@ -816,7 +818,7 @@ test('moot: a predicate-expired ruling adjudicates the gap out of red verdict sc
     judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'moot', rationale: 'predicate expired — the claim it attached to left the report' }] })],
   }))
   const out = await world.run(script, { ...ARGS, maxRounds: 3 })
-  const m3 = world.calls.find(c => c.opts.label.startsWith('red-merge-r3'))
+  const m3 = world.calls.find(c => c.opts.label.startsWith('red-chair-r3'))
   // `moot` is the fate that most needs to travel: the predicate expired, so NOBODY decided the
   // merits. A seat told only that R1-1 is excluded would read a live question as a settled one.
   assert.ok(m3.prompt.includes('{"gap_id":"R1-1","resolution":"moot"}'),
@@ -952,7 +954,7 @@ test('W1.10-W1.12: probe classes, sanctioned Glob/Grep fallback, respond workset
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
-  const merge = world.calls.find((c) => c.opts.label.startsWith('red-merge-r1'))
+  const merge = world.calls.find((c) => c.opts.label.startsWith('red-chair-r1'))
   const respond = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1'))
   const lens = world.calls.find((c) => c.opts.label.startsWith('red-lens'))
   // THE TWO PROBE CLASSES ARE ONE VOCABULARY OR THEY ARE NOTHING: the seat that DEMANDS a probe
@@ -1016,7 +1018,7 @@ test('W2b: telemetry spec and gap records carry the new fields in the merge prom
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
-  const merge = world.calls.find((c) => c.opts.label.startsWith('red-merge-r1'))
+  const merge = world.calls.find((c) => c.opts.label.startsWith('red-chair-r1'))
   // The telemetry field list is the TOOL's (it computes the series; `show telemetry` documents
   // it), and the acceptance check is a REQUIRED flag on the mint whose usage line says what it is
   // for. What survives here is the demand that red's check be falsifiable and pre-agreed, and
@@ -1036,7 +1038,7 @@ test('the record contract arms SEAT_ID and the binary path on every seat', async
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, { ...ARGS, binDir: '/plug/bin' })
-  const seats = ['blue-synthesize', 'red-lens', 'red-merge-r1', 'blue-respond-r1', 'assemble']
+  const seats = ['blue-synthesize', 'red-lens', 'red-chair-r1', 'blue-respond-r1', 'assemble']
   for (const s of seats) {
     const c = world.calls.find((x) => x.opts.label.startsWith(s))
     assert.ok(c.prompt.includes('SEAT_ID:') && c.prompt.includes('/plug/bin/feov-record'), `${s} missing record clause`)
@@ -1059,7 +1061,7 @@ test('the record contract arms SEAT_ID and the binary path on every seat', async
     if (!declared) return false
     return p.includes('--seat-id ' + declared[1] + ' ')
   }
-  for (const s of ['red-lens', 'red-merge-r1', 'blue-respond-r1', 'assemble']) {
+  for (const s of ['red-lens', 'red-chair-r1', 'blue-respond-r1', 'assemble']) {
     assert.ok(bindsItsOwnID(s), `${s} declares a SEAT_ID it does not hand the tool — the id IS the surface`)
   }
 
@@ -1137,7 +1139,7 @@ test('W2c: a HALT ruling ends the run — verdict HALTED, opinion carried verbat
     // `petition-rule`, the record REFUSED the write, and the engine halted off the envelope with
     // no halt event anywhere: the report never said the bench halted.
     petition: [petitionRulingEnv({
-      rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'granted', relief: 'the objection is sound' }],
+      rulings: [{ petitioner: 'red-chair-r1', class: 'safety', ruling: 'granted', relief: 'the objection is sound' }],
       halt: { opinion: 'continuing would compromise safety; the human must decide' },
     })],
   }))
@@ -1159,7 +1161,7 @@ test('W2c: the petition sitting names `bench halt` as the halt channel, not peti
   const world = makeWorld(makeResponder({
     red: [redEnv({ gaps: [gap('R1-1')], petitions: [{ class: 'safety', basis: 'b', relief: 'halt the run' }] })],
     petition: [petitionRulingEnv({
-      rulings: [{ petitioner: 'red-merge-r1', class: 'safety', ruling: 'granted', relief: 'sound' }],
+      rulings: [{ petitioner: 'red-chair-r1', class: 'safety', ruling: 'granted', relief: 'sound' }],
       halt: { opinion: 'the human must decide' },
     })],
   }))
@@ -1214,7 +1216,7 @@ test('W2g: gaps carry existence; merge prompt redefines likelihood as consequenc
     red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
-  const merge = world.calls.find((c) => c.opts.label.startsWith('red-merge-r1'))
+  const merge = world.calls.find((c) => c.opts.label.startsWith('red-chair-r1'))
   // `existence` WAS REMOVED IN 0.65.0 and the prompt kept instructing the seat to carry it for
   // three releases — a carrier still speaking the old model, which read as done because every
   // gate passed. The likelihood semantics that replaced it live on the flag: `--likelihood`'s
@@ -1260,7 +1262,7 @@ test('priors-are-poison: the cross-run scorecard SEED is not injected into any c
   // the `scorecards` arg feeds operator analytics only. A chair reads its OWN in-run
   // scorecard via `feov-record scorecard`, never a predecessor's numbers.
   assert.ok(!promptOf('blue-synthesize').includes('repair_regression_ratio 0.63'), 'blue is not seeded with its prior number')
-  assert.ok(!promptOf('red-merge-r1').includes('anchored_closures_pct 89'), 'the merge is not seeded')
+  assert.ok(!promptOf('red-chair-r1').includes('anchored_closures_pct 89'), 'the merge is not seeded')
   assert.ok(!promptOf('assemble').includes('carried_share 0.98'), 'assembly is not seeded')
   assert.ok(!world.calls.some((c) => /YOUR CHAIR'S SCORECARD/.test(c.prompt)), 'the seed clause is gone entirely')
 })
@@ -1292,7 +1294,7 @@ test('priors-are-poison half-2: the in-run self-read names the ACT, not a comman
   assert.ok(!/the operator command/.test(blue), 'the prompt no longer teaches an operator escape hatch')
   assert.ok(!/through the tool/.test(blue), 'nor the vague "through the tool" that named no verb and no page')
   assert.ok(/the seat you registered as/.test(blue), 'the chair is resolved from the registration, so there is nothing to select')
-  assert.ok(/YOUR IN-RUN SCORECARD/.test(promptOf('red-merge-r1')), 'the merge, a red chair, gets the clause too')
+  assert.ok(/YOUR IN-RUN SCORECARD/.test(promptOf('red-chair-r1')), 'the merge, a red chair, gets the clause too')
   assert.ok(!blue.includes('scorecards.mjs'), 'the clause is binary-only — the node scorecards.mjs fallback is retired')
   assert.ok(!/--bin\b/.test(blue), 'the scorecard self-read takes no --bin')
   assert.ok(!blue.includes('repair_regression_ratio 0.63'), 'the cross-run seed is still not injected')
@@ -1517,7 +1519,7 @@ test('W2c: each petition sitting gets its own seat id, derived from the petition
     assert.ok(c.prompt.includes(`SEAT_ID: ${id}`), `the record contract must carry the same id: ${id}`)
   }
   assert.ok(ids.some((i) => i === 'judge-petition-blue-synthesize'), `the pre-round sitting names its filer: ${JSON.stringify(ids)}`)
-  assert.ok(ids.some((i) => /^judge-petition-(red-merge|blue-respond)-r1$/.test(i)),
+  assert.ok(ids.some((i) => /^judge-petition-(red-chair|blue-respond)-r1$/.test(i)),
     `an in-round sitting carries the round in a position RoundOf reads: ${JSON.stringify(ids)}`)
 })
 

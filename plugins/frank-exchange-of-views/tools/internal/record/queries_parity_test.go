@@ -16,7 +16,7 @@ import (
 // exist at all (whose every answer must be the honest zero, never an error).
 func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
-	red := Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: 1}
+	red := Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: 1}
 	blue := Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: 1}
 	judge := Identity{Run: mustRun(t, runDir), SeatID: "judge-r1", Round: 1}
 

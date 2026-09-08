@@ -112,6 +112,33 @@ you must not edit. What is machine-checked is the SET:
 **This is load-bearing, not tidiness.** Without it, blue's four lanes share one configuration
 inside a single round and the derivation cannot distinguish them.
 
+**HOW THE SHARED BODY IS DELIVERED: a declared skill, not `@include` and not generation.**
+Decided 2026-09-08 after gblock raised both alternatives; the reasoning is recorded because the
+generation case is good and someone will make it again.
+
+- **`@include` is not evidenced.** No agent or skill file in this repository uses one. `@` imports
+  are a CLAUDE.md feature and CLAUDE.md is where all of them live. Eleven shipped prompts is the
+  wrong place to find out whether the agent loader resolves them.
+- **`skills:` preloading is VERIFIED, live.** The Phase-1 harness spike had the `probe` agent quote
+  `critical-stance` verbatim out of its `skills:` frontmatter (`plans/claude-port-plan.md` §1). The
+  mechanism is known to reach a subagent, which is the only property that matters here.
+- **Generation buys two things the skill does not**, and both were weighed. (1) DETERMINISTIC
+  ASSEMBLY ORDER, which is what makes a shared prompt PREFIX identical across eleven seats and
+  therefore cacheable. The skill leaves ordering to the loader. This was not chosen on an
+  unmeasured guess: the last caching idea measured in this codebase (#624, forking warm seats)
+  came in at 1.9-3.4%, below the 3.6% that got #619 rejected, and building a generator plus a
+  staleness gate for an unmeasured fraction is the wrong trade until someone measures it. (2) A
+  SELF-CONTAINED SHIPPED FILE — a consumer opening `red-lens-voice.md` sees the voice duties and
+  not the constitution behind them. That is a real readability cost and it is the strongest
+  argument against what was chosen.
+- **What provenance the skill does give**: one source, and `repotree.ConstitutionText` — a function
+  that answers "what does this seat actually receive", which is now what the constitution gates
+  read rather than the file on its own.
+
+**What would flip this**: a measured caching gain from a shared prefix, or evidence that consumers
+read these files directly. Either makes a generator worth its gate, and the per-seat bodies would
+stay hand-written under it — the generator would assemble, never author.
+
 **They cannot be hidden from the consumer's agent picker, and that was checked rather than
 assumed.** Agent frontmatter in this repository uses five keys — `name`, `description`, `tools`,
 `skills`, `memory` — and no plugin here declares anything that marks an agent internal. No such
@@ -208,6 +235,35 @@ node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs \
 # plugin manifests and binary counts (pluginparity).
 (cd scripts && go run ./check)
 ```
+
+### V.1 The shared-prefix measurement (decides III.1's delivery mechanism)
+
+The skill was chosen over a generated file with the caching argument left UNMEASURED. This is the
+measurement, specified before the run so the answer is not "nobody looked".
+
+**The prize, bounded by counting rather than guessing.** A red seat's non-conversation input is
+about 9.3k tokens: `research-protocol` 3.7k + `adversarial-audit` 3.3k + its own configuration
+0.4k, all identical across seats, plus a ~1.9k dispatch prompt that is per-seat and per-round and
+therefore never shareable. So **~7k of ~9.3k is in principle a shared prefix**, and seven areas
+over four rounds plus the chair is ~32 red sittings paying it — order 224k tokens per run.
+
+**The question is whether it caches, and only a live run can say.** `internal/seatturn` parses
+`cache_read_input_tokens` and `cache_creation_input_tokens` per turn keyed on `agentId`, so the
+data lands automatically. It cannot be mined from `run-archive/`: that holds records and proofs
+by design, and the newest archived record predates `seat_turn` entirely.
+
+Read the FIRST turn of each red sitting in a round and compare `cache_read` across siblings:
+
+- **~0 on every sibling** — no cross-dispatch prefix caching exists, generation buys nothing on
+  tokens, and the only remaining argument for it is assembly determinism. Decision stands.
+- **~7k from the second sibling onward** — caching already works through the skill, and the
+  ordering the loader picked is fine. Decision stands, now on evidence.
+- **partial or erratic** — ORDER is the lever, which is exactly what a generated file fixes and a
+  `skills:` declaration cannot. Build the generator; the per-seat bodies stay hand-written and it
+  assembles rather than authors.
+
+The third outcome is the one that would overturn a decision recorded in III.1, which is why the
+branch is written down before the run rather than argued after it.
 
 **The check no suite can make**, and the one that decides III.2: a real run, reading whether
 any seat's acts were stamped with a round it did not act in. `event.round` is already on every

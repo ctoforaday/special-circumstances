@@ -20,7 +20,7 @@ import (
 // was satisfied. The answer was right, which is why nothing caught it.
 func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, ""); err != nil {
 		t.Fatal(err)
 	}
 	// THE ID AND THE KIND ARE THE SUBJECT OF THIS TEST, and the earlier conversion dropped both
@@ -33,7 +33,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 		{"R1-1", recordpb.CheckKind_CHECK_KIND_COMPUTATION},
 		{"R1-2", recordpb.CheckKind_CHECK_KIND_DOCUMENT},
 	} {
-		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Mint{
+		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, &recordpb.Mint{
 			GapId:           proto.String(c.id),
 			Class:           proto.String("self-attestation"),
 			Problem:         proto.String("p"),
@@ -107,14 +107,14 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 // changes what the sitting produces.
 func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	runDir := newRun(t)
-	for _, s := range []string{"red-merge-r1", "blue-respond-r1"} {
+	for _, s := range []string{"red-chair-r1", "blue-respond-r1"} {
 		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s, Round: RoundIn(mustRun(t, runDir))(s)}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
 	mint := func(id string, kind recordpb.CheckKind) {
 		t.Helper()
-		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Mint{
+		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, &recordpb.Mint{
 			GapId:           proto.String(id),
 			Class:           proto.String("self-attestation"),
 			Problem:         proto.String("p"),
@@ -174,7 +174,7 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	}
 
 	// A CLOSED gap owes nothing, whatever its kind: the debt is what blue can still act on.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-merge-r1", Round: RoundIn(mustRun(t, runDir))("red-merge-r1")}, &recordpb.Close{
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, &recordpb.Close{
 		GapId:        proto.String("R1-2"),
 		AnchorSeat:   proto.String("L1"),
 		AnchorTool:   proto.String("Read"),

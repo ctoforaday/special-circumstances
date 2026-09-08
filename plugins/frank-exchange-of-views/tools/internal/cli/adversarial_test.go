@@ -61,7 +61,7 @@ type adversarialCase struct {
 
 func adversarialCases() []adversarialCase {
 	// The board every motion scenario argues over: one gap, minted by the merge.
-	mint := seatStep{"mint", "--seat-id", "red-merge-r1",
+	mint := seatStep{"mint", "--seat-id", "red-chair-r1",
 		"--key", "k1", "--class", "self-attestation", "--problem", "p",
 		"--fix", "f", "--check", "c", "--check-kind", "document",
 		"--severity", "high", "--likelihood", "high", "--impact", "high", "--complexity", "low",
@@ -79,7 +79,7 @@ func adversarialCases() []adversarialCase {
 		{
 			name:    "a petition cannot be ruled through the grade subgroup",
 			setup:   []seatStep{filePetition},
-			act:     seatStep{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "accepted", "--reason", "ruling a petition as if it were a grade"},
+			act:     seatStep{"motion", "grade", "rule", "--seat-id", "red-chair-r1", "--id", "M1", "--as", "accepted", "--reason", "ruling a petition as if it were a grade"},
 			refused: "was filed as a petition motion and you are ruling it as a grade",
 			guards: "THE ONE THAT WAS ACCEPTED AND REACHED THE REPORT. The subject came from the " +
 				"command tree, so the caller chose the gavel (the merge answering what only the " +
@@ -103,7 +103,7 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:  "a ruling can be appealed",
-			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"}},
+			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-chair-r1", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"}},
 			act:   seatStep{"motion", "grade", "appeal", "--seat-id", "blue-respond-r1", "--id", "M1", "--reason", "pressing it to the bench on new grounds"},
 			guards: "The positive case beside the refusal above: pressing a settled motion is the " +
 				"SUPPORTED move, and a suite that only tested refusals would let it rot.",
@@ -119,7 +119,7 @@ func adversarialCases() []adversarialCase {
 		{
 			name: "a motion cannot be appealed twice",
 			setup: []seatStep{mint, fileGrade,
-				{"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
+				{"motion", "grade", "rule", "--seat-id", "red-chair-r1", "--id", "M1", "--as", "rejected", "--reason", "the evidence does not reach it"},
 				{"motion", "grade", "appeal", "--seat-id", "blue-respond-r1", "--id", "M1", "--reason", "the first argument, which must survive"}},
 			act:     seatStep{"motion", "grade", "appeal", "--seat-id", "blue-respond-r1", "--id", "M1", "--reason", "a second argument that would replace the first"},
 			refused: "already appealed",
@@ -140,8 +140,8 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:    "PASS is refused while a motion is unanswered",
-			setup:   []seatStep{mint, fileGrade, {"close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
-			act:     seatStep{"verdict", "--seat-id", "red-merge-r1", "--as", "PASS"},
+			setup:   []seatStep{mint, fileGrade, {"close", "--seat-id", "red-chair-r1", "--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
+			act:     seatStep{"verdict", "--seat-id", "red-chair-r1", "--as", "PASS"},
 			refused: "filed and never ruled",
 			guards: "A probe walked a run to `verdict PASS` AND `outcome VERIFIED` with a grade " +
 				"motion never ruled. The gate counted open GAPS only. PASS claims nothing is left " +
@@ -149,21 +149,21 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:  "PASS is allowed once every motion is answered",
-			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-merge-r1", "--id", "M1", "--as", "rejected", "--reason", "the grade stands"}, {"close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
-			act:   seatStep{"verdict", "--seat-id", "red-merge-r1", "--as", "PASS"},
+			setup: []seatStep{mint, fileGrade, {"motion", "grade", "rule", "--seat-id", "red-chair-r1", "--id", "M1", "--as", "rejected", "--reason", "the grade stands"}, {"close", "--seat-id", "red-chair-r1", "--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
+			act:   seatStep{"verdict", "--seat-id", "red-chair-r1", "--as", "PASS"},
 			guards: "The gate above must not become unpassable. A check that no legitimate run can " +
 				"satisfy is removed by the first person it blocks.",
 		},
 		{
 			name:    "a direction ruling names a line of inquiry that exists",
-			act:     seatStep{"motion", "inquiry", "rule", "--seat-id", "red-merge-r1", "--id", "Q9", "--as", "endorsed", "--reason", "ruling a line nobody proposed"},
+			act:     seatStep{"motion", "inquiry", "rule", "--seat-id", "red-chair-r1", "--id", "Q9", "--as", "endorsed", "--reason", "ruling a line nobody proposed"},
 			refused: "which no line of inquiry event proposed",
 			guards: "A direction joins on the LINE's own id, so the dangling-reference discipline " +
 				"has to reach a different id space than the other two subjects.",
 		},
 		{
 			name:  "any seat may appeal, not only the filer",
-			setup: []seatStep{propose, {"motion", "inquiry", "rule", "--seat-id", "red-merge-r1", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question"}},
+			setup: []seatStep{propose, {"motion", "inquiry", "rule", "--seat-id", "red-chair-r1", "--id", "Q1", "--as", "out_of_scope", "--reason", "not this question"}},
 			act:   seatStep{"motion", "inquiry", "appeal", "--seat-id", "red-lens-r1-evidence", "--id", "Q1", "--reason", "a lens presses a direction blue proposed"},
 			guards: "STANDING IS OPEN ON PURPOSE and this pins it. A motion belongs to the run, not " +
 				"to its filer — a lens files a safety petition and it is BLUE the granted relief " +
@@ -179,7 +179,7 @@ func adversarialCases() []adversarialCase {
 		},
 		{
 			name:    "a grade motion is refused on a gap already disposed of",
-			setup:   []seatStep{mint, {"close", "--seat-id", "red-merge-r1", "--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
+			setup:   []seatStep{mint, {"close", "--seat-id", "red-chair-r1", "--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x", "--reason", "closed on the merits"}},
 			act:     seatStep{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "contesting a settled grade"},
 			refused: "disposition has already been made",
 			guards:  "The other check lost in the replacement.",
@@ -298,7 +298,7 @@ func TestEveryAdversarialScenarioStatesWhatItGuards(t *testing.T) {
 func adversarialRun(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
-	for _, id := range []string{"red-lens-r1-evidence", "red-merge-r1", "blue-respond-r1", "judge-r1"} {
+	for _, id := range []string{"red-lens-r1-evidence", "red-chair-r1", "blue-respond-r1", "judge-r1"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}

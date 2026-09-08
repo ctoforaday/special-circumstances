@@ -380,7 +380,7 @@ Reversibility under load was not tested.
 // moving.
 func audit() Board {
 	return Board{
-		Name: "audit", Seat: "red-merge-r1",
+		Name: "audit", Seat: "red-chair-r1",
 		Report: `# Are the retention figures consistent? — research report
 
 ## TL;DR
@@ -441,14 +441,14 @@ Figures were read from the deployed configuration.
 			{Line: "re-read the deployed configuration at the pin", Hypothesis: "the 45-day figure is the correct one"},
 		},
 		Expect: []Expectation{
-			{Seat: "red-merge-r1", Verb: "mint", Because: "The control: red's core act, and a board where minting is never right would not be an audit."},
-			{Seat: "red-merge-r1", Verb: "near-match", Because: "Before minting, the candidate is screened against the board. A duplicate minted as fresh forks a gap's lineage, and the screen is cheaper than the reconciliation."},
-			{Seat: "red-merge-r1", Verb: "class new", Because: "The contradiction is between a stated UNIVERSAL and the per-class figures under it, and no slug in the registry names that kind. Minting under the nearest slug that is not it makes the class a bucket rather than a discriminator — the registry is what a later run reads to know what has gone wrong before, so a coined class with its definition, neighbour and tie-break question is worth more than a comfortable near-match."},
-			{Seat: "red-merge-r1", Verb: "close", Because: "The ordinary disposal, with its verification triple. A closure whose evidence is not recoverable is exactly the attestation-format defect the scorecard measures."},
-			{Seat: "red-merge-r1", Verb: "carry", Because: "The archive already holds a closure of the settled gap. Re-attesting it as a FRESH close double-counts closure history and corrupts the repair_regression denominator; a carry restates the earlier act and says so. The seat that cannot produce a verification triple for work it did not do this round has exactly one honest move, and it is this one."},
-			{Seat: "red-merge-r1", Verb: "spot-check", Because: "The archive is NOT empty, so the duty has something to sample and `--none` would be a false attestation. The floor is computed from the board, so skipping it is visible."},
-			{Seat: "red-merge-r1", Verb: "position", Because: "The round's RED narrative renders from the record; hand-writing the transcript is the routing-around this migration removed."},
-			{Seat: "red-merge-r1", Verb: "log", Because: "The contradiction gap needs a grade on an axis the four dimensions do not carry — `existence` is asserted by red and disputable by nobody (#359). A merge that notices and says nothing leaves the gap in the tooling invisible."},
+			{Seat: "red-chair-r1", Verb: "mint", Because: "The control: red's core act, and a board where minting is never right would not be an audit."},
+			{Seat: "red-chair-r1", Verb: "near-match", Because: "Before minting, the candidate is screened against the board. A duplicate minted as fresh forks a gap's lineage, and the screen is cheaper than the reconciliation."},
+			{Seat: "red-chair-r1", Verb: "class new", Because: "The contradiction is between a stated UNIVERSAL and the per-class figures under it, and no slug in the registry names that kind. Minting under the nearest slug that is not it makes the class a bucket rather than a discriminator — the registry is what a later run reads to know what has gone wrong before, so a coined class with its definition, neighbour and tie-break question is worth more than a comfortable near-match."},
+			{Seat: "red-chair-r1", Verb: "close", Because: "The ordinary disposal, with its verification triple. A closure whose evidence is not recoverable is exactly the attestation-format defect the scorecard measures."},
+			{Seat: "red-chair-r1", Verb: "carry", Because: "The archive already holds a closure of the settled gap. Re-attesting it as a FRESH close double-counts closure history and corrupts the repair_regression denominator; a carry restates the earlier act and says so. The seat that cannot produce a verification triple for work it did not do this round has exactly one honest move, and it is this one."},
+			{Seat: "red-chair-r1", Verb: "spot-check", Because: "The archive is NOT empty, so the duty has something to sample and `--none` would be a false attestation. The floor is computed from the board, so skipping it is visible."},
+			{Seat: "red-chair-r1", Verb: "position", Because: "The round's RED narrative renders from the record; hand-writing the transcript is the routing-around this migration removed."},
+			{Seat: "red-chair-r1", Verb: "log", Because: "The contradiction gap needs a grade on an axis the four dimensions do not carry — `existence` is asserted by red and disputable by nobody (#359). A merge that notices and says nothing leaves the gap in the tooling invisible."},
 		},
 	}
 }
@@ -462,7 +462,7 @@ Figures were read from the deployed configuration.
 // round.
 func adjudicate() Board {
 	return Board{
-		Name: "adjudicate", Seat: "red-merge-r1",
+		Name: "adjudicate", Seat: "red-chair-r1",
 		Report: `# Are the retention figures consistent? — research report
 
 ## TL;DR
@@ -513,13 +513,13 @@ Figures were read from the deployed configuration at the pinned revision.
 			Basis: "the defect is presentational: both figures are correct and only their framing conflates them, so `certain` severity prices a rewrite as though it were a data error",
 		}},
 		Expect: []Expectation{
-			{Seat: "red-merge-r1", Verb: "motion grade rule", Because: "Blue's contest is answered on the motion's id. An unanswered motion refuses a PASS, so ignoring it stops the run rather than passing quietly."},
-			{Seat: "red-merge-r1", Verb: "regrade", Because: "Accepting a grade motion does not move the grade — saying so is not doing it. The regrade verb is the only channel; re-minting forks the gap's identity and editing prose changes a number nobody reads. THIS EXPECTATION PRESUMES A RULING AND THAT IS DELIBERATE: blue's basis is that both figures are correct and only their framing conflates them, which is either true of the report or it is not, and it IS true of this one — so accepting is the right call and the regrade must follow it. A seat that REJECTS the motion has answered honestly and owes no regrade; read an unmet expectation here against the ruling the seat actually made, not as a missing verb."},
-			{Seat: "red-merge-r1", Verb: "motion inquiry rule", Because: "Blue proposed a line and it is unruled. Red had no verb to reject a direction for six runs and rejected none; the projection blue reads shows an unruled line as one nobody has sat on."},
-			{Seat: "red-merge-r1", Verb: "inquiry-support", Because: "The report's own account of what this run investigated is part of the report, and it is the one part `lens verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-round and `verdict --as PASS` is refused while any line is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that line."},
-			{Seat: "red-merge-r1", Verb: "closing", Because: "Every gap red re-raises and every grade motion it rules `rejected` is docket-bound, and the closing is red's case to the bench."},
-			{Seat: "red-merge-r1", Verb: "motion docket file", Because: "The closing above states the case; THIS puts the gap on the record as one the bench owes an answer to. Until the docket was a motion that case was prose — the board said `docket-bound` and nothing wrote it down, so a gap could reach the bench and get no ruling with nothing able to notice. The merge is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
-			{Seat: "red-merge-r1", Verb: "verdict", Because: "The round's terminal act. A PASS is checked against the open board AND against unanswered motions, so it is a claim the tool will refuse rather than a summary."},
+			{Seat: "red-chair-r1", Verb: "motion grade rule", Because: "Blue's contest is answered on the motion's id. An unanswered motion refuses a PASS, so ignoring it stops the run rather than passing quietly."},
+			{Seat: "red-chair-r1", Verb: "regrade", Because: "Accepting a grade motion does not move the grade — saying so is not doing it. The regrade verb is the only channel; re-minting forks the gap's identity and editing prose changes a number nobody reads. THIS EXPECTATION PRESUMES A RULING AND THAT IS DELIBERATE: blue's basis is that both figures are correct and only their framing conflates them, which is either true of the report or it is not, and it IS true of this one — so accepting is the right call and the regrade must follow it. A seat that REJECTS the motion has answered honestly and owes no regrade; read an unmet expectation here against the ruling the seat actually made, not as a missing verb."},
+			{Seat: "red-chair-r1", Verb: "motion inquiry rule", Because: "Blue proposed a line and it is unruled. Red had no verb to reject a direction for six runs and rejected none; the projection blue reads shows an unruled line as one nobody has sat on."},
+			{Seat: "red-chair-r1", Verb: "inquiry-support", Because: "The report's own account of what this run investigated is part of the report, and it is the one part `lens verify` cannot reach — assemble GENERATES those rows, so they carry no citation anchor. The vote is per-round and `verdict --as PASS` is refused while any line is unvoted, so skipping it stops the run rather than passing quietly. The bait is answering from the record instead of the document: the grade is a conclusion, and --reason must quote what the report SAYS at that line."},
+			{Seat: "red-chair-r1", Verb: "closing", Because: "Every gap red re-raises and every grade motion it rules `rejected` is docket-bound, and the closing is red's case to the bench."},
+			{Seat: "red-chair-r1", Verb: "motion docket file", Because: "The closing above states the case; THIS puts the gap on the record as one the bench owes an answer to. Until the docket was a motion that case was prose — the board said `docket-bound` and nothing wrote it down, so a gap could reach the bench and get no ruling with nothing able to notice. The merge is the seat that owns what reaches the bench, and an open gap it cannot close itself is exactly the one to file."},
+			{Seat: "red-chair-r1", Verb: "verdict", Because: "The round's terminal act. A PASS is checked against the open board AND against unanswered motions, so it is a claim the tool will refuse rather than a summary."},
 		},
 	}
 }
@@ -609,7 +609,7 @@ No material downside was identified.
 			// seat fail an expectation it had no way to meet — which is the defect
 			// TestEveryExpectationIsReachableOnItsBoard exists to catch, and which the `needs`
 			// map enforces for this verb.
-			Subject: "docket", Filer: "red-merge-r1", GapID: "R1-1",
+			Subject: "docket", Filer: "red-chair-r1", GapID: "R1-1",
 			Basis: "red re-raised this gap and blue's answer did not move it; it is the bench's to settle, not mine to close",
 		}},
 		Expect: []Expectation{

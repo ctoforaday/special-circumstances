@@ -14,7 +14,7 @@ import (
 // about once in two hundred runs and a rate that low is indistinguishable from a flake (#664).
 //
 // closeGap is driven from the RED-MERGE branch and proves as `blue-respond-r1`. `blue prove`
-// RECORDS a `prove` event, so that is an append — and in round 1 red-merge-r1 runs before
+// RECORDS a `prove` event, so that is an append — and in round 1 red-chair-r1 runs before
 // blue-respond-r1 has ever registered. Nothing on that path called register() at all, which is
 // why the #656 waiter did not help: it ordered a seat against ITSELF for callers that went
 // through register, and this caller never did.
@@ -57,13 +57,13 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 
 	// ONLY THE ACTING SEAT. blue-respond-r1 is deliberately left unregistered: the whole point is
 	// that closeGap appends as it, so closeGap is what must register it.
-	r.register("merge", "red-merge-r1")
+	r.register("merge", "red-chair-r1")
 
 	// `mint` draws the gap KIND at random, so take gaps until a computation one appears. Bounded
 	// so a change that stops producing them fails here rather than hanging.
 	var gapID string
 	for i := 0; i < 40 && gapID == ""; i++ {
-		id := r.mint("red-merge-r1")
+		id := r.mint("red-chair-r1")
 		if id != "" && r.computationGaps[id] {
 			gapID = id
 		}
@@ -75,7 +75,7 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 		t.Fatal("blue-respond-r1 is already registered before closeGap ran — the setup no longer reproduces the ordering this pins")
 	}
 
-	r.closeGap("red-merge-r1", gapID, false)
+	r.closeGap("red-chair-r1", gapID, false)
 
 	out, _ := r.exec("verify", "--seat-id", "operator")
 	// THE VERDICT, NOT THE LABEL. `verify` lists every invariant by name whether it passed or

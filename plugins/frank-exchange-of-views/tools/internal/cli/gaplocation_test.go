@@ -19,7 +19,7 @@ func TestAGapsLocationFollowsBluesRewrite(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nThe cost is rising over time.\n\nA second sentence stands still.\n")
 	mint := func(key, quote string) {
 		t.Helper()
-		if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+		if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 			"--key", key, "--class", "scope-creep", "--quote", quote,
 			"--problem", "unsupported", "--check-kind", "document", "--check", "c",
 			"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
@@ -35,7 +35,7 @@ func TestAGapsLocationFollowsBluesRewrite(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r1", "board")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair-r1", "board")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +63,7 @@ func TestAGapsLocationFollowsBluesRewrite(t *testing.T) {
 func TestRedsWorkListShowsWhatBlueChangedUnderTheGap(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nThe cost is rising over time.\n")
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-merge-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
 		"--key", "G1", "--class", "scope-creep", "--quote", "The cost is rising over time.",
 		"--problem", "unsupported", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
@@ -74,7 +74,7 @@ func TestRedsWorkListShowsWhatBlueChangedUnderTheGap(t *testing.T) {
 		"--reason", "reworded"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-merge-r2", "work")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair-r2", "work")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -92,7 +92,7 @@ func TestTheSchemaRefusesWhatTheRecordCannotHold(t *testing.T) {
 	db := open(t)
 	seed := func(t *testing.T) int64 {
 		t.Helper()
-		res, err := db.Exec(`INSERT INTO events (seat_id, round, key, ts, type) VALUES ('red-merge-r1', 1, 'red-merge-r1:mint:#' || ?, '2026-01-01T00:00:00Z', 'mint')`, seq())
+		res, err := db.Exec(`INSERT INTO events (seat_id, round, key, ts, type) VALUES ('red-chair-r1', 1, 'red-chair-r1:mint:#' || ?, '2026-01-01T00:00:00Z', 'mint')`, seq())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -191,7 +191,7 @@ func TestAnEnumColumnStillRefusesAnUnknownWord(t *testing.T) {
 	db := open(t)
 	mk := func(t *testing.T, typ string) int64 {
 		t.Helper()
-		res, err := db.Exec(`INSERT INTO events (seat_id, round, key, ts, type) VALUES ('red-merge-r1', 1, 'red-merge-r1:act:#' || ?, '2026-01-01T00:00:00Z', ?)`, seq(), typ)
+		res, err := db.Exec(`INSERT INTO events (seat_id, round, key, ts, type) VALUES ('red-chair-r1', 1, 'red-chair-r1:act:#' || ?, '2026-01-01T00:00:00Z', ?)`, seq(), typ)
 		if err != nil {
 			t.Fatal(err)
 		}

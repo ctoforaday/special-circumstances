@@ -87,7 +87,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// Red mints a gap; the parties take positions; blue records one pursued line of inquiry (an
 	// expansion) and one abandoned line of inquiry (an alternative considered); the bench opines;
 	// the run's terminal verdict is recorded.
-	add("red-merge-r1", &recordpb.Mint{
+	add("red-chair-r1", &recordpb.Mint{
 		GapId: proto.String("R1-1"), Problem: proto.String("eviction races the reader"),
 		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
@@ -95,7 +95,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
-	add("red-merge-r1", &recordpb.Position{Text: proto.String("gap R1-1 stands until the race is shown impossible")})
+	add("red-chair-r1", &recordpb.Position{Text: proto.String("gap R1-1 stands until the race is shown impossible")})
 	add("blue-respond-r1", &recordpb.Position{Text: proto.String("R1-1 is repaired by ordering the invalidation before the store")})
 	add("blue-respond-r1", &recordpb.Avenue{
 		AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED),
@@ -108,7 +108,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// THE BENCH OPINES IN TWO ACTS, and through the production write path both are refusable:
 	// red DOCKETS the gap it cannot settle, and the bench RULES on that filing. The gap rides
 	// the filing, so the ruling alone would be a disposition of nothing.
-	add("red-merge-r1", &recordpb.Motion{
+	add("red-chair-r1", &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Basis:    proto.String("red cannot settle R1-1 without the model-check"),
@@ -302,7 +302,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 		ProofBasis: proto.String("reproducible"), Script: proto.String("interleave.js"),
 		Text: proto.String("the model check settles the race"),
 	})
-	add("red-merge-r1", &recordpb.Mint{
+	add("red-chair-r1", &recordpb.Mint{
 		GapId: proto.String("R1-1"), Problem: proto.String("eviction races the reader<!--cite:c-2-->"),
 		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
