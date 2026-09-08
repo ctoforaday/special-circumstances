@@ -115,14 +115,15 @@ func TestAProjectTrueSatisfiesASilentUserSetting(t *testing.T) {
 // "summaries are on", and the two states have opposite consequences for what a captured
 // trajectory contains.
 func TestAnUnreadableChainSaysSoRatherThanPassing(t *testing.T) {
-	// gray-area resolves as enabled from a file that then stops being readable: contrived
-	// directly, since the point is the report and not the race that produces it.
-	read := func(p string) ([]byte, error) {
-		if strings.HasSuffix(p, filepath.Join(".claude", "settings.json")) && strings.HasPrefix(p, "/home/u") {
-			return []byte(grayOn), nil
-		}
-		return nil, errors.New("no such file")
-	}
+	// THE FIXTURE PATH IS BUILT THE WAY THE CODE BUILDS IT — fakeFS keys on filepath.Join,
+	// exactly as settingsChain composes. The first draft hand-rolled
+	// `HasPrefix(p, "/home/u") && HasSuffix(p, ".claude/settings.json")` instead, which on
+	// Windows matched nothing: the chain composes `\home\u\.claude\settings.json` and the
+	// prefix test wants forward slashes. Green on Linux, red on the runner — the trap
+	// gray-area's manifest_test.go documents at the top of the file, and the reason to
+	// build fixtures through the same function rather than to loosen the matcher.
+	p, b := userSettings("/home/u", grayOn)
+	read := fakeFS(map[string]string{p: b})
 	// Sanity: with that chain the setting is absent but readable, so the ordinary warning fires.
 	if got := captureWarnings("/home/u", "/proj", read); len(got) != 1 || !strings.Contains(got[0], "THINKING CAPTURE OFF") {
 		t.Fatalf("precondition wrong: %v", got)
