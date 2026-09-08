@@ -667,6 +667,34 @@ CREATE TABLE "sitting_close" (
 
 CREATE INDEX "round_verdict_verdict" ON "round_verdict" ("verdict");
 
+-- THE TWO WINDOWS THAT REPLACE THE ROUND (plans/roundless.md §III.A.0).
+--
+-- "sitting" is the count of THIS ROW'S SEAT's register events at or before the row: which sitting
+-- of that seat this act belongs to. Register-inclusive by construction — the register row is its
+-- own first sitting — and per seat, so no sibling seat's acts can move it. It is what a seat id used
+-- to carry as -r<N>, computed from the record instead of typed by the seat.
+--
+-- "epoch" is GLOBAL: the count of red-chair's register events at or before the row, whoever wrote
+-- the row. It is what the bucket readers were using the round for — which dispatch cycle was this
+-- in — and it is defined for a bench close or a lane's draft because it asks about the chair's
+-- registers, not the row's seat's. Everything before the first chair register is epoch 0, which is
+-- the base phase (frontier, lanes, synthesis) and is a real answer rather than a missing one.
+--
+-- Rows written under seat harness (sitting-open/close, cast) have sitting 0: the harness observes,
+-- it does not sit.
+--
+-- BOTH ARE WINDOWS, NOT STORED, so neither can be stamped wrong by the seat writing the row. A
+-- round used to be inferred from a regex over the seat id at register time and stamped forever; a
+-- reader of this view gets the count the events themselves make, and a re-dispatched seat's third
+-- sitting is 3 because it registered three times, not because something told it to say so.
+CREATE VIEW "events_w" AS
+SELECT e.*,
+  count(*) FILTER (WHERE e."type" = 'register')
+    OVER (PARTITION BY e."seat_id" ORDER BY e."id")                        AS "sitting",
+  count(*) FILTER (WHERE e."type" = 'register' AND e."seat_id" = 'red-chair')
+    OVER (ORDER BY e."id")                                                 AS "epoch"
+FROM "events" e;
+
 -- THE AGENT -> SEAT BINDING, AS SQL, so a telemetry view can name a seat without any reader
 -- re-deriving the rule. It is the same rule record.SeatOfAgent applies in Go and states in prose:
 -- THE LAST REGISTER WINS, because a re-dispatch writes a fresh register event and a resumed seat
