@@ -1,0 +1,43 @@
+package record
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
+)
+
+func writeRunConfig(t *testing.T, runDir, body string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(runDir, "inputs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(runDir, "inputs", "run-config.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The terms are read off the run; absent ones are setup's defaults, a present unusable one is loud.
+func TestRunParamsAreReadFromTheRunConfigWithLoudRefusals(t *testing.T) {
+	runDir := recordtest.TmpRun(t)
+	if p, err := RunParams(mustRun(t, runDir)); err != nil || p != DefaultParams {
+		t.Fatalf("no run-config.json: got (%+v, %v), want the defaults", p, err)
+	}
+	writeRunConfig(t, runDir, `{"lanes":"3","k":3,"kMax":8,"mintBudget":1,"convergenceFraction":0.5}`)
+	p, err := RunParams(mustRun(t, runDir))
+	if err != nil || p != (Params{K: 3, KMax: 8, MintBudget: 1, ConvergenceFraction: 0.5}) {
+		t.Fatalf("recorded terms: got (%+v, %v)", p, err)
+	}
+	writeRunConfig(t, runDir, `{"lanes":"3","k":3}`)
+	if p, err := RunParams(mustRun(t, runDir)); err != nil || p.K != 3 || p.KMax != DefaultParams.KMax {
+		t.Fatalf("a partial file keeps the defaults for what it does not state: (%+v, %v)", p, err)
+	}
+	for _, bad := range []string{`{"k":0}`, `{"kMax":-1}`, `{"mintBudget":0}`, `{"convergenceFraction":1.5}`, `{"convergenceFraction":0}`} {
+		writeRunConfig(t, runDir, bad)
+		if _, err := RunParams(mustRun(t, runDir)); err == nil || !strings.Contains(err.Error(), "run-config.json") {
+			t.Errorf("%s was accepted or refused without naming the file: %v", bad, err)
+		}
+	}
+}

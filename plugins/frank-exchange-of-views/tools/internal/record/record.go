@@ -194,6 +194,15 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// check above admits any well-formed id; this refuses one whose FAMILY the attested agent
 	// configuration cannot seat. Unattested callers — an operator, CI, a hookless run — pass
 	// through unchanged, so this adds a refusal where a fact exists and nothing anywhere else.
+	// THE CAST IS THE ADMISSIBLE LIST (plans/roundless.md §III.B.1). A record with no cast admits
+	// any dispatchable seat — that is the test fixtures' world and a migrated archive's before its
+	// cast is synthesized — but once setup has written one, a seat outside it is refused here, at
+	// the door, rather than discovered later as a party the dispatch verb never named.
+	if member, hasCast, err := InCast(run, seatID); err != nil {
+		return 0, "", err
+	} else if hasCast && !member {
+		return 0, "", fmt.Errorf("record: register refused — %q is not in this run's cast. The cast is the run's admissible seats, written by setup before any seat registered; a seat outside it is one the workflow was never told to dispatch", seatID)
+	}
 	if err := CheckAttestedRole(seatenv.AgentType(), seatID); err != nil {
 		return 0, "", err
 	}
@@ -469,6 +478,14 @@ func keyLabel(body proto.Message) string {
 // into the difftest harness).
 var Now = func() time.Time { return time.Now().UTC() }
 
+// Migrating is set by `feov-record migrate` while it re-drives an archived record through this
+// write path (plans/roundless.md §III.A.5). Every STRUCTURAL refusal stays on — a reference to a
+// gap nobody minted, a second cast, a seat outside the cast — because a migrated record must be a
+// record. The refusals that shape LIVE behaviour are gated off: the convergence refusal on a FAIL
+// and the every-lens-sat refusal on a PASS judge what a seat may do NEXT, and an archived gate is
+// what a seat DID. Refusing it would drop a real event and call the loss a translation.
+var Migrating bool
+
 // stamp formats an event time at NANOSECOND precision.
 //
 // It was milliseconds, justified as "seats act on a scale of seconds, and a fixed width
@@ -658,6 +675,9 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 	case *recordpb.ClassNew:
 		return validateClassNew(run, b)
 	case *recordpb.Mint:
+		if err := requireMintWithinBudget(run, seatID); err != nil {
+			return err
+		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
 		// The 2026-08-05 smoke produced ZERO proofs across a full run. Not because blue
@@ -1061,6 +1081,32 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 	// This is the argument for deriving the refusal rather than writing it beside the schema: two
 	// copies, and the unreachable one is the one that drifts, silently, in the direction nobody
 	// reads.
+	case *recordpb.Cast:
+		if len(b.GetSeatIds()) == 0 {
+			return fmt.Errorf("record: a cast with no seats — setup writes the run's admissible seats, and a run nobody may sit in is not a run")
+		}
+		if existing, err := CastOf(run); err != nil {
+			return err
+		} else if existing != nil {
+			return fmt.Errorf("record: the cast is written ONCE, before any seat registers, and this record already holds one (%d seats) — a second cast would make membership a question of which one a reader picked", len(existing))
+		}
+	case *recordpb.Dispatch:
+		if b.GetPin() <= 0 {
+			return fmt.Errorf("record: a dispatch requires a pin — the events.id of the report head the party audits; the verb computes it, and a dispatch against nothing is a dispatch against a moving target")
+		}
+		member, hasCast, err := InCast(run, b.GetSeatId())
+		if err != nil {
+			return err
+		}
+		if !hasCast {
+			return fmt.Errorf("record: dispatch refused — the record holds no cast, so there is nothing to admit %q against", b.GetSeatId())
+		}
+		if !member {
+			return fmt.Errorf("record: dispatch refused — %q is not in this run's cast. The cast is the run's admissible seats, written by setup; a party outside it would be a seat the workflow invents", b.GetSeatId())
+		}
+		if err := requireGaps(run, b.GetGapIds(), "dispatch", "--seat"); err != nil {
+			return err
+		}
 	case *recordpb.Gate:
 		// The seat's terminal act is where completion duties belong: it is the last
 		// moment the seat is still there to discharge them.
@@ -1070,9 +1116,19 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 		// A PASS is a claim that nothing is left open. Enforce it here, at the one write
 		// path, so no verdict route can record a PASS over an unadjudicated board (the
 		// 2026-07-20 rubber-stamp: PASS with 9 open gaps).
-		if b.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
-			if err := requirePassClosesAllGaps(run); err != nil {
+		if b.GetVerdict() == recordpb.Verdict_VERDICT_FAIL && !Migrating {
+			if err := requireFailIsNotConvergent(run); err != nil {
 				return err
+			}
+		}
+		if b.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
+			if err := requirePassClosesAllMaterialGaps(run); err != nil {
+				return err
+			}
+			if !Migrating {
+				if err := requireEveryCastLensSatAgainstHead(run); err != nil {
+					return err
+				}
 			}
 		}
 	case *recordpb.SpotCheck:
@@ -1298,4 +1354,34 @@ func verbOf(typ recordpb.EventType) string {
 // constraint text instead of confidently mislabelling something else.
 func isDuplicateKey(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed: events.key")
+}
+
+// requireMintWithinBudget is the run-level bound that is not a clock (plans/roundless.md
+// §III.B.2.2): each cast lens may mint at most M gaps in the run, a SUPERSEDING mint included —
+// lineage is a new gap, or the bound gaps <= M x lenses does not hold. A lens whose budget is
+// spent still sits when the head moves: it verifies, records findings, regrades and closes its own
+// gaps. The count is the record's own — this seat's mint events — not a counter the seat carries.
+// Only a lens is bounded: the chair mints nothing now (§III.B.3), and a seed or a migration
+// writing under another seat is not a lens spending a budget.
+func requireMintWithinBudget(run Run, seatID string) error {
+	if roleOfSeat(seatID) != "lens" {
+		return nil
+	}
+	p, err := RunParams(run)
+	if err != nil {
+		return err
+	}
+	var n int
+	if _, err := queryRow(run, []any{&n},
+		`SELECT count(*) FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."seat_id" = ?`, seatID); err != nil {
+		return err
+	}
+	if n < p.MintBudget {
+		return nil
+	}
+	return feov.Errorf(feov.Validation,
+		"record: mint refused — %s has minted %d gap(s), the run's budget per lens (mintBudget in inputs/run-config.json). "+
+			"The budget is where a trifle's cost lands: with %d mints for a report, none of them is spent on a nitpick. "+
+			"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",
+		seatID, n, p.MintBudget)
 }

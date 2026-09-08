@@ -35,7 +35,7 @@ import (
 // just started. Inventing a seat-shaped id here would be a guess written into a permanent record;
 // naming the origin is the honest alternative, and the seat is recovered by joining agent_id to
 // the register event that names it — the join record.SeatOfAgent already does.
-const HookSeat = "harness"
+const HookSeat = record.HarnessSeat
 
 // Phase names which end of the span is being written.
 type Phase string

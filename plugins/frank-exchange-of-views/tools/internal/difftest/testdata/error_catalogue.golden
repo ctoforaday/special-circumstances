@@ -727,6 +727,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
@@ -871,6 +872,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
@@ -919,6 +921,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
@@ -967,6 +970,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
@@ -1015,6 +1019,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
@@ -1345,6 +1350,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
@@ -1393,6 +1399,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed

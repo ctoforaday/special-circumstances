@@ -320,17 +320,18 @@ func passClosesAllGaps(f record.Family) Check {
 	if verdict != passVerdictWord {
 		return notApplicable("pass-closes-all-gaps", fmt.Sprintf("the verdict is %s, so there is no PASS to contradict", nonEmpty(verdictWord(verdict), "unrecorded")))
 	}
+	// MATERIAL gaps hold the gate (plans/roundless.md §III.B.2.1): a PASS over an open gap graded
+	// below medium is legal, and the report lists that gap as open, below material, not certified
+	// against. A PASS over an open MATERIAL gap is the #67 violation.
 	var open []string
 	for _, g := range f.Gaps {
-		id := g.ID
-		_ = id
-		if g != nil && g.Open {
-			open = append(open, id)
+		if g != nil && g.Open && recordpb.GradeMass(g.Severity) >= 2.0 {
+			open = append(open, g.ID)
 		}
 	}
 	return result("pass-closes-all-gaps",
-		"PASS and no gap left open",
-		"the verdict is PASS but gaps are still open (the #67 gate was violated)", open)
+		"PASS and no material gap left open",
+		"the verdict is PASS but material gaps are still open (the #67 gate was violated)", open)
 }
 
 // registerBeforeAppend: a seat's FIRST event must be its register — an event from a seat that
@@ -339,8 +340,8 @@ func registerBeforeAppend(f record.Family) Check {
 	seen := map[string]bool{}
 	var bad []string
 	for _, e := range f.Events {
-		if seen[e.GetSeatId()] {
-			continue
+		if seen[e.GetSeatId()] || e.GetSeatId() == record.HarnessSeat {
+			continue // the harness is not a seat: it writes the cast and the sitting span, and never registers
 		}
 		seen[e.GetSeatId()] = true
 		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {

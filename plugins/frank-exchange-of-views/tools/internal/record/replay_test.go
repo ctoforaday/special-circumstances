@@ -112,7 +112,7 @@ func TestGapMassAndGradeStr(t *testing.T) {
 // collision class that produced four different ids for one gap cannot recur, and the chair
 // sitting again does NOT restart the counter — there is no round left for it to restart in
 // (plans/roundless.md §III.A.3).
-func TestMintGapIDIsSequentialOverTheRun(t *testing.T) {
+func TestGapIdsAreRunGlobalAndNeverRoundShaped(t *testing.T) {
 	runDir := newRun(t)
 	seatID := "red-chair"
 	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, ""); err != nil {

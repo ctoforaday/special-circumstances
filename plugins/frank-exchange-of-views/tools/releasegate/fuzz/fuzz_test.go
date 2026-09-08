@@ -2829,6 +2829,10 @@ var verbsWithEvents = []string{
 	"sitting_open", "sitting_close",
 	// The remaining schema types, named so the census below has a complete list to check against.
 	"closing", "inquiry_review", "register",
+	// The cast and the dispatch (plans/roundless.md §III.B.1). `cast` is written by setup, before
+	// any seat sits; `dispatch` by the chair's `dispatch next`. Exempted below until the workflow
+	// the fuzz drives runs the dispatch loop (roundless B-iii), when `dispatch` joins the sweep.
+	"cast", "dispatch",
 }
 
 // coverExempt names verbs tallied but NOT required in the random-sweep coverage gate.
@@ -2853,6 +2857,12 @@ var coverExempt = map[string]bool{
 	// than dropped, so "the sweep does not cover this" stays a line somebody reads.
 	"sitting_open":  true,
 	"sitting_close": true,
+	// THE CAST IS SETUP'S, NOT A VERB'S: written once before the first seat sits, so no seed of
+	// the random sweep can produce it. `dispatch` IS a verb, the chair's, and is exempt only until
+	// debate.js runs the dispatch loop (roundless B-iii) — the round loop the fuzz drives today
+	// never asks the record who sits. Named so the exemption is a line to remove, not a silence.
+	"cast":     true,
+	"dispatch": true,
 }
 
 // TestFuzzHaltPath drives the JUDICIAL HALT terminal path — kept OUT of the random sweep because a

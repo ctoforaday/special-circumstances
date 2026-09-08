@@ -1296,8 +1296,9 @@ func TestVerdictPASSRefusedOverOpenGaps(t *testing.T) {
 	mint2 := func(runDir string) {
 		for i := 0; i < 2; i++ {
 			registerChairOnce(t, runDir)
+			// MATERIAL gaps: severity medium holds the gate; a trifle would not (roundless §III.B.2.1).
 			if _, err := run(t, "mint", "--run", runDir, "--seat-id", seatID,
-				"--class", "x", "--check-kind", "document", "--check", "c", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
+				"--class", "x", "--check-kind", "document", "--check", "c", "--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--problem", "p"); err != nil {
 				t.Fatal(err)
 			}
 		}

@@ -48,14 +48,33 @@ func TestVerifiedIsDerivedFromThePassEvent(t *testing.T) {
 
 // Reaching the ceiling with no pass is CEILING — computed from the rounds on the record
 // against the bound setup wrote, so nobody has to be told.
-func TestCeilingIsDerivedFromTheRoundsAndTheConfiguredBound(t *testing.T) {
-	dir := runWith(t, "2", []*Event{
-		recordtest.At(t, "red-chair", "red-chair:register:#1", &recordpb.Register{}),
-		vev(t, "red-chair", 1, &recordpb.Position{Text: proto.String("x")}),
-		recordtest.At(t, "red-chair", "red-chair:register:#2", &recordpb.Register{}),
-		vev(t, "red-chair", 2, &recordpb.Position{Text: proto.String("y")}),
-	})
-	got, why, ok := DeriveVerdict(mustRun(t, dir))
+// CEILING is derived from the board: every open material gap at impasse, docketed and ruled
+// carried, with nobody ready — no clock is consulted.
+func TestCeilingIsDerivedFromEveryMaterialGapAtItsLimit(t *testing.T) {
+	st := newStage(t).cast(evLens, "red-chair", "blue-respond", "judge").ingest().
+		register("red-chair").dispatch(2, evLens).register(evLens).mint(evLens, "G1", "high")
+	for i := 0; i < 2; i++ {
+		st.register("red-chair").dispatch(2, evLens, "G1").dispatch(2, "blue-respond", "G1").register(evLens).register("blue-respond")
+	}
+	// At impasse: the chair's verb dockets G1 and the bench sits and rules it carried.
+	st.register("red-chair").
+		add("red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+			Basis: proto.String("at impasse"), Filing: &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}}}).
+		dispatch(2, "judge", "G1").register("judge").
+		add("judge", &recordpb.MotionRule{MotionId: proto.String("M1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
+			Opinion: proto.String("the parties have said what they can"), Ruling: &recordpb.MotionRule_Docket{Docket: &recordpb.DocketRuling{
+				Disposition: recordtest.P(recordpb.Disposition_DISPOSITION_CARRIED), Principle: proto.String("p"), Tension: proto.String("t"),
+				ReviewFlag: proto.String("none"), Settled: proto.String("nothing"), Final: proto.Bool(true)}}}).
+		register("red-chair")
+	run := st.seed()
+	plan, err := PlanDispatch(run)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Parties) != 0 || !plan.Ceiling || plan.PassPermitted {
+		t.Fatalf("plan = %+v, want nobody ready and ceiling", plan)
+	}
+	got, why, ok := DeriveVerdict(run)
 	if !ok || got != "CEILING" {
 		t.Errorf("got %q (ok=%v) — want CEILING: %s", got, ok, why)
 	}
@@ -77,7 +96,7 @@ func TestHaltOutranksAPass(t *testing.T) {
 // THE ONE CASE THE RECORD CANNOT DECIDE, and it must say so rather than guess. A run that
 // ends early with no pass and no halt ended on a judged deadlock — a determination that lives
 // only in the bench's envelope and leaves no independent trace (#289).
-func TestAJudgedDeadlockIsNotDerivable(t *testing.T) {
+func TestARunThatEndedEarlyIsNotDerivable(t *testing.T) {
 	dir := runWith(t, "5", []*Event{vev(t, "red-chair", 1, &recordpb.Position{Text: proto.String("x")})})
 	got, why, ok := DeriveVerdict(mustRun(t, dir))
 	if ok {
@@ -90,9 +109,3 @@ func TestAJudgedDeadlockIsNotDerivable(t *testing.T) {
 
 // An absent or unparseable ceiling degrades CEILING to underivable rather than inventing a
 // bound — the same posture as InferRunDir's "say nothing rather than guess".
-func TestNoConfiguredCeilingMeansNoCeilingVerdict(t *testing.T) {
-	dir := runWith(t, "", []*Event{vev(t, "red-chair", 9, &recordpb.Position{Text: proto.String("x")})})
-	if _, _, ok := DeriveVerdict(mustRun(t, dir)); ok {
-		t.Error("a ceiling verdict was derived with no configured ceiling")
-	}
-}

@@ -1776,6 +1776,7 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		FootnoteIntegrity(run),
 		StrayRecordsAudit(repoRootOf(run), run.Dir()),
 		RecordParityAudit(run, redEpochs, blueBlocks),
+		DispatchParityAudit(run),
 		BackfillAudit(run),
 		AttestationAudit(run, transcriptDir, agentFiles, 5),
 		ModelTierAudit(run, transcriptDir, agentFiles),

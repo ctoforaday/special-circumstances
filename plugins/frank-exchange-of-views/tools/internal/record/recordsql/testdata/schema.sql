@@ -48,12 +48,14 @@ INSERT INTO "enum_event_type" ("value", "means") VALUES ('anchor', 'evidence tie
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('avenue', 'a line of inquiry, from proposed through pursued, declined, deferred or abandoned');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('base_ingest', 'the frozen round-0 report, stored verbatim as the origin the diff-stack replays over');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('blue_edit', 'a change to the living report, recorded as old and new so the edit itself is auditable');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('cast', 'the run''s admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('certify', 'a seat''s signed statement about its own work — what it asserts on the record');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('cite', 'a source brought into the debate, with the hash and access date that make it re-checkable');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('class_new', 'a defect class coined in this run, with its definition and the neighbour it is distinguished from');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('close', 'a merge closing a gap on a verified repair — red''s half of the closing vocabulary');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('closing', 'a seat''s closing statement on a gap: the argument, not the disposition');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('declare', 'the bench stating a holding that later sittings are expected to apply');
+INSERT INTO "enum_event_type" ("value", "means") VALUES ('dispatch', 'the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('finding', 'something red found, graded but not yet minted as a gap');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('halt', 'the bench ending the run on a safety, ethics, consent or integrity boundary');
 INSERT INTO "enum_event_type" ("value", "means") VALUES ('inquiry_review', 'a review of the lines of inquiry themselves, rather than of a finding');
@@ -89,7 +91,7 @@ CREATE TABLE "enum_run_outcome" (
   "value" TEXT PRIMARY KEY,
   "means" TEXT NOT NULL
 ) STRICT;
-INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'the round ceiling was reached with work still open — NOT a judged failure to verify, and the stamp says so');
+INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('ceiling', 'every open material gap reached its limit — at impasse, ruled by the bench and carried — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('halted', 'the bench ended the run on a safety, ethics, consent or integrity boundary');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('unverified', 'the run ended without the question being answered, and no ceiling or halt explains it');
 INSERT INTO "enum_run_outcome" ("value", "means") VALUES ('verified', 'red passed the board and the bench agrees the question was answered');
@@ -663,6 +665,30 @@ CREATE TABLE "sitting_close" (
   "agent_type" TEXT
 ) STRICT;
 
+CREATE TABLE "cast" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id")
+) STRICT;
+
+CREATE TABLE "cast_seat_ids" (
+  "event_id" INTEGER NOT NULL REFERENCES "cast"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
+CREATE TABLE "dispatch" (
+  "event_id" INTEGER PRIMARY KEY REFERENCES "events"("id"),
+  "pin" INTEGER NOT NULL,
+  "seat_id" TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE "dispatch_gap_ids" (
+  "event_id" INTEGER NOT NULL REFERENCES "dispatch"("event_id"),
+  "ord"      INTEGER NOT NULL,
+  "value"    TEXT    NOT NULL,
+  PRIMARY KEY ("event_id", "ord")
+) STRICT;
+
 CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 
 -- THE TWO WINDOWS THAT REPLACE THE ROUND (plans/roundless.md §III.A.0).
@@ -1004,8 +1030,8 @@ LEFT JOIN "events" be ON be."id" = bc."event_id";
 -- off the same table the schema built from the enum. It used to be a hand-written map in two
 -- languages with a regex test holding them level, and SQL could not ask the question at all.
 --
--- The thresholds are the engine's, restated once here: mass < 35, nothing above medium (mass 2),
--- zero fresh mints, verdict FAIL.
+-- The thresholds: mass below a quarter of the run's peak gate mass, nothing at or above medium
+-- (mass 2) on current grades, zero fresh MATERIAL mints, verdict FAIL.
 CREATE VIEW "convergence_vs_verdict" AS
 SELECT
   ve."epoch"                                       AS "epoch",
@@ -1013,9 +1039,12 @@ SELECT
   COALESCE(b."mass", 0.0)                          AS "mass",
   COALESCE(b."max_severity_mass", 0.0)             AS "max_severity_mass",
   COALESCE(f."fresh_mints", 0)                     AS "fresh_mints",
+  -- CORRECTED (plans/roundless.md §III.B.2.1): fresh MATERIAL mints, the top CURRENT severity
+  -- strictly below material, and the mass against this run's PEAK gate mass at setup's default
+  -- fraction — the refusal at the write path reads the run's own fraction (record.Params).
   (rv."verdict" = 'fail'
-     AND COALESCE(b."mass", 0.0) < 35.0
-     AND COALESCE(b."max_severity_mass", 0.0) <= 2.0
+     AND COALESCE(b."mass", 0.0) < 0.25 * MAX(COALESCE(b."mass", 0.0)) OVER ()
+     AND COALESCE(b."max_severity_mass", 0.0) < 2.0
      AND COALESCE(f."fresh_mints", 0) = 0)         AS "divergent"
 FROM "events_w" ve
 JOIN "gate" rv ON rv."event_id" = ve."id"
@@ -1033,17 +1062,17 @@ LEFT JOIN (
    AND (g."open" OR g."closed_seq" > v2."id")
   LEFT JOIN "enum_grade" gl ON gl."value" = g."likelihood"
   LEFT JOIN "enum_grade" gi ON gi."value" = g."impact"
-  LEFT JOIN "enum_grade" gs ON gs."value" = g."severity"
+  LEFT JOIN "enum_grade" gs ON gs."value" = g."current_severity"
   WHERE v2."type" = 'verdict'
   GROUP BY v2."id"
 ) b ON b."verdict_id" = ve."id"
 LEFT JOIN (
-  -- FRESH means minted in this epoch and superseding nothing: a lineage mint is a repair of
-  -- known work, not new discovery, which is the distinction the detector turns on.
-  SELECT "minted_epoch" AS "epoch", count(*) AS "fresh_mints"
-  FROM "gap"
-  WHERE "supersedes_count" = 0
-  GROUP BY "minted_epoch"
+  -- FRESH means minted in this epoch, superseding nothing, and MATERIAL now: a lineage mint is a
+  -- repair of known work, not new discovery, and a trifle is not what holds a report open.
+  SELECT g."minted_epoch" AS "epoch", count(*) AS "fresh_mints"
+  FROM "gap" g LEFT JOIN "enum_grade" gs ON gs."value" = g."current_severity"
+  WHERE g."supersedes_count" = 0 AND COALESCE(gs."mass", 0.0) >= 2.0
+  GROUP BY g."minted_epoch"
 ) f ON f."epoch" = ve."epoch"
 WHERE ve."type" = 'verdict';
 
