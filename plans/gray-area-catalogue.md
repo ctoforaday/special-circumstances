@@ -130,8 +130,17 @@ facts break the simple version, and each is stated here because each removed an 
 - **Subagent transcripts share the parent's `sessionId`** — 60 of 60 measured, 263 on this box —
   and the parent's `promptId`. So `(session, prompt_id)` is not unique per agent, and a subagent's
   text would delete the parent turn's provisional.
-- **51 of 672 `SubagentStop` rows carry no `prompt_id` at all**, including a schema-5 row whose
-  recorded `payload_keys` simply lacks it. The key can be absent on the payload side.
+- **The payload key can be absent — but the rate an earlier draft gave was mostly my own test
+  noise.** It said "51 of 672 `SubagentStop` rows carry no `prompt_id`". Of those 51, **50 arrive in
+  two consecutive seconds with `session_id` empty as well, every one written by a `+dirty` build** —
+  synthetic payloads from this plan's own experiments, not a vendor shape. The genuine population is
+  **1 of 674**. The design response is unchanged, because one is enough to need a rule; only the
+  claimed frequency was wrong.
+
+  Worth recording as a side-effect: the only reason those 50 are separable from real data is
+  `capture_build` (#818). Without it they would be 50 indistinguishable rows inflating a rate by
+  50×, which is the defect that field was added to prevent, catching a case it was not designed
+  for.
 
 So the rule is:
 
