@@ -59,18 +59,11 @@ This plan takes #753's **identity half** and leaves its scheduling half alone. T
 concept rather than a truncated one: after it no seat id carries a round, and whether the ENGINE
 orchestrates in rounds is an independent question #753 owns.
 
-### Why it is a release boundary, and the one honest hole in that argument
+### Why it is a release boundary
 
-The seat id's shape is written into every event. A v2 record whose ids carry `-r<N>` and a v2.1
-record whose ids do not are two vocabularies for one field, with nothing on a row saying which.
-
-**The hole, stated because the audit found it and it is real**: the run record already carries a
-purpose-built epoch for this reader — `eventSchema` (`record/schema_gen.go`, stamped into
-`inputs/run-config.json` at setup, and deliberately NOT a binary version per #597). Bumping it
-lets a reader tell the vocabularies apart with no tag boundary at all. So the plugin tag is not
-the only carrier available, and §III.2 **bumps `eventSchema` as well** — that is what makes an
-archived run readable rather than merely unbroken. The tag remains the boundary because gblock
-ruled the change pre-v2.0.0, and because the binary that reads both vocabularies ships on it.
+Identity is written into every event; the vocabulary the tag freezes must be the one v2 records
+speak. The mechanics — migration rather than dual reading, and why `eventSchema` is NOT the
+discriminator — are `plans/roundless.md` §I and §III.A.5; this plan does not restate them.
 
 ### What this is NOT
 
@@ -142,11 +135,8 @@ plugins/frank-exchange-of-views/
   skills/research-protocol/scripts/debate.js   [MODIFY] seat ids lose -r<N>
   tools/internal/record/round.go               [DELETE] RoundOf, synthesisSeats, terminalSeats, laneRe
   tools/internal/record/roster.go              [MODIFY] shapes lose \d+ except blue-lane
-  tools/internal/record/sittingordinal.go      [NEW]    count of a seat's registers at or before a row
-  tools/internal/record/castenum.go            [NEW]    §III.3's admissible-id enum
-  tools/internal/record/schema_gen.go          [MODIFY] eventSchema 3 -> 4 (generated)
+  (the cast is EVENT_TYPE_CAST — plans/roundless.md §III.B.1)
   tools/internal/cli/seat/seat.go              [MODIFY] ResolveSeat loses its inferRound argument
-  tools/internal/cli/merge/mint.go             [MODIFY] round from context; intent unchanged
   tools/internal/consistency/consistency.go    [DELETE] :473 cross-check (closes #676)
   agents/red-lens-*.md, agents/red-chair.md    [MODIFY] III.4 residue
 ```
@@ -245,7 +235,7 @@ the agent bodies:
 |---|---|
 | **Two sittings of one seat id are conflated by a reader that assumed uniqueness.** This is the work the old `-r<N>` was really doing. | The sitting ordinal is the discriminator and is on every row. The §III census is the reader list; each is checked. `events.key` already tolerates re-registration by construction — the collision it used to cause is recorded at `record.proto:446-449`. |
 | ~~An act lands after its round advances and is stamped with the new round~~ | **Dissolved, not mitigated.** That mode belonged to a global clock read at register. A per-seat register count cannot be advanced by a sibling and cannot be read before the seat's own register exists. |
-| **Archived runs stop projecting.** | Readers take both shapes; `eventSchema` 3 → 4 makes the vocabularies distinguishable on the record. §V replays an archived run and diffs projections. |
+| **Archived runs.** | Migrated, never dual-read — `plans/roundless.md` §III.A.5. |
 | **The cast written at setup drifts from what the engine dispatches** — a new record fact is a new thing to get wrong. | It is written by the same path that computes the dispatch, and §V binds it to `RED_AREAS` and the lane count the way the roster is already bound to the engine. |
 | **The untyped population may be large**, making III.3's declared path the normal one rather than the exception. | Measure on the first run. A neighbouring surface (gray-area's `SubagentStop`) found `agent_type` absent on 146 of 165 rows and took four investigations to stop reading that absence as a defect (peer session, 2026-09-07). The base rate does not transfer — different surface — but the shape of the mistake does. |
 
@@ -268,8 +258,7 @@ Each check with what re-arms it.
 #      TestADeclaredSeatIdThatContradictsTheBindingIsRefusedAtRegister
 (cd plugins/frank-exchange-of-views/tools && go test ./internal/record/ ./internal/cli/seat/ -run Refused)
 
-# 4. Archived runs replay identically. Re-arms: any reader change.
-(cd plugins/frank-exchange-of-views/tools && go test ./internal/record/ -run 'Replay|Archived')
+# 4. Archived runs: roundless §V criterion 4 (migration preserves projections).
 
 # 5. Full suites and gates. Re-arms: anything under tools/, the engine, agents/, skills/.
 (cd plugins/frank-exchange-of-views/tools && go vet ./... && go test ./...)
@@ -278,14 +267,8 @@ node --test plugins/frank-exchange-of-views/tests/simulator/debate.test.mjs \
 (cd scripts && go run ./check && go run ./archaeology && go run ./rulesweep)
 ```
 
-**The driveable check, with its oracle named.** "Was any act stamped with a sitting it did not act
-in" cannot be answered by reading `event.round`, because after §III.2 that field IS the derived
-value — the previous draft proposed comparing it to itself, which answers nothing. The independent
-witness is the **engine's dispatch label**, which carries the round the workflow believed
-(`red-lens-<area>-r<n> · <slug>`) and is recorded in the transcript rather than by the seat. Join
-`seat_turn.agentId` → the register event → the sitting ordinal and compare against the label's
-`r<n>`. A disagreement is the failure mode this plan exists to remove; agreement across a whole run
-is the evidence §IV's first row wants.
+**The driveable check** is roundless §V's gate run; the round-label oracle an earlier draft named
+here no longer exists once dispatch labels lose `-r<n>`.
 
 ### V.1 The shared-prefix measurement (decides III.1's delivery mechanism)
 

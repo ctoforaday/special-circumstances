@@ -6,7 +6,11 @@
 > archived runs are migrated, never dual-read — *no archaeology, no backwards compat outside
 > replay* (gblock, 2026-09-08).
 >
-> Revision 5. Four `/plan-audit` FAILs preceded it. Revision 4 ran the census; this one places the
+> Revision 6. Five `/plan-audit` FAILs preceded it; round 3 classified its twelve gaps as five
+> design and seven tree facts, and this revision closes the five: readiness for the seats that
+> are not parties to a gap, an exchange unit defined over SITTINGS so a silent party cannot stall
+> forever, the verb→role table after the mint move, the PASS refusal made material-aware, and the
+> four-outcome vocabulary. Revision 5. Revision 4 ran the census; this one places the
 > chair in the cycle (gblock, 2026-09-08: **lenses mint; the chair no longer does it for them** —
 > #846 is the shipped half-state that ruling corrects), which is what revision 4's worst gap was.
 
@@ -119,7 +123,15 @@ plugins/frank-exchange-of-views/
   tools/internal/cli/seat/seat.go                    [MODIFY] :186,:265 Identity loses Round
   tools/internal/cli/merge/mint.go                   [MODIFY] :51
   tools/internal/cli/chair/dispatch.go               [NEW]    the turn-report verb, a chair verb (§III.B.1)
-  tools/internal/cli/lens/mint.go                    [NEW]    mint moves to the lens (§III.B.3, #846)
+  tools/internal/cli/lens/{mint,regrade,close,nearmatch,class}.go [MOVE from merge/] originator owns G
+  tools/internal/record/refs.go                      [MODIFY] :315 material-aware; + every-lens-sat-against-head
+  tools/internal/record/recordsql/views.go           [NEW]    events_w with the two windows (§III.A.0)
+  tools/releasegate/fuzz/termination_test.go         [MODIFY] the round-loop termination model → the triple
+  tools/releasegate/fuzz/{fuzz,blueestoppel,delivery}_test.go [MODIFY] RoundOf/MaxRounds sites
+  tools/internal/debatejs/debatejs.go                [MODIFY] :78,101,247 MaxRounds
+  tools/internal/seatprobe/boards.go                 [MODIFY] a lens board demands mint; :763-771 NoSituation
+  tools/internal/record/roles.go                     [MODIFY] SampleSeatOf composes prefix+"r1"
+  tests/simulator/{debate,prompts}.test.mjs          [MODIFY] 117 + 8 round references
   tools/internal/cli/seat/verbs.go                   [MODIFY] :222-223 and ~84 help lines naming rounds
   tools/internal/consistency/consistency.go          [MODIFY] :473 cross-check deleted (#676)
   tools/internal/seatclass/seatclass.go              [MODIFY] :32-38 prompt regexes lose the round
@@ -135,13 +147,25 @@ plugins/frank-exchange-of-views/
 
 ### §III.A.0 Two windows — the sitting ordinal and the epoch — specified once, here
 
-Both plans depend on it and neither specified it. **`events.sitting`** is the count of that seat's
-`register` events at or before the row, computed as a window over `events` and exposed as a
-column of the `events` view — never stamped by a seat. Register-inclusive by construction, per-seat
-so no sibling can move it, 1 on a seat's first register. It applies to EVERY seat kind uniformly,
-petition sittings included — which resolves the contradiction the audit found in A.1: a
-`judge-petition-red-chair` sitting is distinguished from the previous one exactly as `red-chair`'s
-third sitting is from its second, by the ordinal, and nothing is composed back into the name.
+Both plans depend on it and neither specified it. **`events` is a STRICT table**
+(`recordsql/schema.go:42`), not a view, so the windows are a [NEW] view `events_w` that every view
+currently joining `e."round"` joins instead (`gap` :820-828, `gap_edit` :789,
+`convergence_vs_verdict` :983+):
+
+```sql
+CREATE VIEW "events_w" AS
+SELECT e.*,
+  count(*) FILTER (WHERE e2."type" = 'register' AND e2."seat_id" = e."seat_id")
+    OVER (ORDER BY e."id")                                              AS "sitting",
+  count(*) FILTER (WHERE e2."type" = 'register' AND e2."seat_id" = 'red-chair')
+    OVER (ORDER BY e."id")                                              AS "epoch"
+FROM "events" e;
+```
+
+(The exact window form is the implementation's; the two DEFINITIONS are what the plan fixes.)
+**`sitting`** is the count of that seat's `register` events at or before the row — never stamped
+by a seat. It applies to EVERY seat kind uniformly, petition sittings included, which resolves
+the contradiction the audit found in A.1: nothing is composed back into the name.
 `SITTING_OPEN`/`SITTING_CLOSE` rows are written under seat `harness` (`sittingwrite/write.go:38`)
 and carry sitting 0 — the harness's observation, not a seat's act.
 
@@ -212,16 +236,16 @@ write path, and the translation lives in its registry, once:
 | `L2-F1` | `<area>-F1` |
 | `role: merge` | unchanged |
 
-**#840's registry cannot do this as it stands.** `migrate/registry.go:15-32` (on `origin/main`;
-absent here) is per-WORD and stateless — `Translate(old, dst)` sees one body. `R3-2 → G<n>` needs
-the run's mint ORDER, then the new id applied to every later reference: `close.gap_id`,
-`regrade.gap_id`, `closing`, `blue_edit.answers`, `spot_check.ids`, `motion` docket/grade
-`gap_id`, `mint.supersedes`, `manifest_row`. And `replay.go:89` passes `Identity{SeatID, Round}`
-verbatim — the two fields this plan deletes. So `migrate/{replay,source}.go` gain a **stateful
-reference remap**: one pass assigns `G<n>` in mint order and rewrites every reference by table;
-seat ids by the §III.A.1 rule; the sitting recomputed by the window. `Append` does not shape-check
-`mint.gap_id` (`record.go:619`), so the remap is gated by §V criterion 4, not by a refusal that
-does not exist. Posted to #840, 2026-09-08.
+**#840's registry does half of this as it stands.** `migrate/registry.go:15-32` (on
+`origin/main`; absent here) is per-word, but `Translate(old, dst)` receives `dst` *for id
+minting* — so `G<n>` in mint order IS expressible there (round 3 corrected revision 5, which
+overstated). What needs STATE is the reference remap: the new id applied to every later reference
+— `close.gap_id`, `regrade.gap_id`, `closing`, `blue_edit.answers`, `spot_check.ids`, `motion`
+docket/grade `gap_id`, `mint.supersedes`, `manifest_row`. And `replay.go:89` passes
+`Identity{SeatID, Round}` verbatim — the two fields this plan deletes. So `migrate/{replay,source}.go`
+gain a stateful reference remap; seat ids follow the §III.A.1 rule; the sitting is recomputed by
+the window. `Append` does not shape-check `mint.gap_id` (`record.go:619`), so the remap is gated
+by §V criterion 4. Posted to #840, 2026-09-08.
 
 **This reaches back into merged work**: #791's `L\d+` arms in `FindingLabelAlt`/`roleRe`, #831's
 `red-merge` acceptance in `roleSeats`, `seatclass`, the dashboard and seatprobe reads. All are
@@ -229,9 +253,11 @@ dual-shape readers; all retire once migration covers them. The decisive argument
 `store.go:339 ensureSchema` returns early on `hasEvents`, so an archived database keeps its OWN
 views verbatim — a Go reader accepting both shapes could never have reached that layer anyway.
 
-Dependency edge: #840 leg 1 covers the one `record.db` archive; leg 2 the six JSONL archives
-`store.go:82-92` refuses. If leg 2 misses the tag, those six are unreadable by v2 — a decision for
-#792, not a surprise.
+Dependency edge, corrected: **both legs are built** on `origin/main` (`replay-migration.md`,
+status 2026-09-08 — `jsonlsource.go` + `eraentries.go`; all seven archives migrate). The remap
+applies to both sources. Two `store.go` files, distinguished: `internal/record/store.go:82-92` is
+the JSONL refusal; `internal/record/recordsql/store.go:339` is `ensureSchema`'s early return and
+`:451` the insert.
 
 ### §III.B.1 The chair dispatches, through a verb [NEW]
 
@@ -248,6 +274,23 @@ below their limits, their parties, their pins) and records the decision as an ev
 relays the verb's JSON into its envelope, the same move `claim_count` made. The workflow dispatches
 what the record says, and:
 
+- **Readiness is not "open gaps" alone — that made a fresh run terminate into a PASS on an empty
+  board with no lens ever sitting** (round 3's first gap; the rubber-stamp #277/#535 exist to
+  prevent). Readiness has three sources, and the verb reports all three:
+  1. **A lens is ready when the report HEAD is past its last pin.** Head = `events."id"` of the
+     latest `blue_edit` or `base_ingest`; a lens's last pin = the `id` its last dispatch was pinned
+     to (0 if it has never sat). On a fresh run every cast lens has pin 0 < head, so every lens is
+     ready and the board cannot be passed empty. After blue edits, every lens is ready again.
+  2. **A gap party is ready when its gap is open below its limits** (§III.B.2) — the lens that
+     minted it, the blue seat answering, the bench if docketed.
+  3. **The bookends stay workflow-driven, stated:** `frontier`, `blue-lane-N`, `blue-synthesize`
+     run BEFORE the first chair sitting (epoch 0); `judge-terminal` and `assemble` run AFTER the
+     verb returns a termination. The verb governs the debate between synthesis and terminal, not
+     the phases with no board to read. This is why epoch 0 exists and why the `> 0` guards on the
+     round-keyed views drop it harmlessly.
+- **PASS is refused until every cast lens has sat against the current head** — a fourth refusal
+  beside §III.B.2.1's, in `refs.go`, and the direct replacement for the round loop's "every lens
+  sits every round".
 - a seat outside the run's CAST is refused by the verb, not by the workflow. **The cast is on the
   record**: `EVENT_TYPE_CAST` [NEW], written ONCE by `setup` under seat `harness` before any seat
   registers, listing every admissible seat id — the areas selected, `red-chair`, `blue-lane-1..N`
@@ -269,18 +312,25 @@ a finding against text blue has moved, which the chair reconciles rather than th
 
 ### §III.B.2 IMPASSE — the limit before the bench [NEW]
 
-**The exchange unit, defined from the event vocabulary.** An act on gap G by red is a `mint`,
-`regrade`, `close`, `closing` or `spot_check` naming G, or a `mint` whose `supersedes` names G.
-An act on G by blue is a `blue_edit` whose `answers` is G, a `closing` on G, or a `motion` on G.
-(`retire` carries no gap reference — `record.proto:1159-1172` — and is NOT an act on G; a retired
-claim reaches G only through the `blue_edit` that answers it.) **Pairing rule: an exchange is a
-maximal run of red acts on G followed by a maximal run of blue acts on G**, in `events` order — so
-`mint, regrade, regrade, blue_edit` is ONE exchange, and acts on other gaps interleaved between
-them do not split it, because every act names its gap.
+**The exchange unit is defined over SITTINGS, not acts** — round 3 showed an act-based unit is
+unreachable: a blue seat dispatched for G that records nothing on G completes no exchange, so
+`exchanges(G)` stays 0 and `K_max` bounds nothing. The dispatch event (§III.B.1) names the
+parties and the pin, so the record knows which sittings were FOR G:
 
-**Movement in an exchange** = any of: `regrade` on G; `blue_edit` with `answers = G`; a `mint`
-superseding G; `close` on G. All four are direct joins on the gap id — `blue_edit.answers` names
-the gap, so no anchor path is needed and a gap minted without `found_by` is covered.
+- **One exchange on G = a red-party sitting dispatched for G, followed by a blue-party sitting
+  dispatched for G.** A sitting that closes having recorded no act on G is a **null turn** — it
+  still completes the exchange. Silence is a turn taken, and `exchanges(G)` climbs.
+- **Movement is a STATE change, not an act:** the gap's grade changed (`regrade` to a different
+  value); its anchored text changed (`blue_edit` with `answers = G` and `old != new`); its lineage
+  moved (a `mint` superseding G); or it closed. **Null acts** — a turn, not movement: `closing`,
+  `motion`, `spot_check`, a `regrade` to the same grade, a `blue_edit` on G with `old == new`.
+
+All four movement joins are direct on the gap id — `blue_edit.answers` names the gap, so no
+anchor path is needed and a gap minted without `found_by` is covered. For the record, an act on G
+by red is a `mint`, `regrade`, `close`, `closing` or `spot_check` naming G, or a `mint` whose
+`supersedes` names G; by blue a `blue_edit` whose `answers` is G, a `closing` on G, or a `motion`
+on G (`retire` carries no gap reference, `record.proto:1159-1172`, and reaches G only through the
+`blue_edit` that answers it).
 
 **Two counters, both from the record, in `impasse.go`:**
 
@@ -306,11 +356,17 @@ only) — one rule, four restrictions removed.
   ceiling was reached" to "every open gap reached its limit"; the value is kept because it is what
   the outcome IS, and archived CEILING runs mean the same thing under the new gloss.
 - **HALTED** — unchanged.
+- **UNVERIFIED** — the run ended WITHOUT one of the three: chair error, workflow abort, operator
+  stop. `RUN_OUTCOME_UNVERIFIED` (`record.proto:291`) keeps exactly that meaning;
+  `debate.js:1266`'s arm and `bench outcome --ended` (`cli/bench/outcome.go:115`) keep writing
+  it. `ended` names the termination reason — one of the four words.
 
-`feov-record dispatch next` returns empty exactly when one holds, and names which.
-**Deadlock is redefined, not ported**: today it is round-scoped (*"no gap carried AND no new gaps
-this round"*); it becomes the bench's judgement that a docketed gap cannot be resolved, per gap,
-and the run's end is the termination condition above rather than a deadlock verdict.
+**Deadlock is per gap; the run-level branch goes.** The bench's `carried` ruling on a gap at
+impasse IS that gap's deadlock; `verdict.go:79-82`'s #289 branch ("deadlock not on record") is
+deleted with the round-scoped definition it enforced.
+
+`feov-record dispatch next` returns empty exactly when VERIFIED or CEILING holds, and names
+which; HALTED and UNVERIFIED arrive on their own channels as today.
 
 ### §III.B.2.1 Triviality must not hold the report open — the refusal, corrected
 
@@ -325,10 +381,21 @@ view as it stands:
 | joins `gs.value = g.severity` | the MINT grade; a `regrade` cannot move it | joins `current_severity` (`:845`), the fold over `regrade` |
 | `mass < 35.0` | a magic number with no derivation | `mass < 0.25 × peak board mass` for this run; the fraction a run parameter (default 0.25) recorded at setup. A starting point the gate run measures, stated as such |
 
-**Two refusals, in `record.go` beside `requirePassClosesAllGaps` (`:1032`) — where the existing
-`verdict --as PASS` refusal lives, so the three compose in one place:** a FAIL is refused while the corrected predicate holds (red must
-raise something material or PASS); and a gap below material is recorded but does not hold the
-gate. Neither overrides a live material gap — that is what `< 2.0` on `current_severity` buys.
+**Two refusals, and one MODIFIED.** `requirePassClosesAllGaps` (`refs.go:315`, called from
+`record.go:1032`) refuses PASS over ANY open gap — so "below material does not hold the gate" was
+unreachable without changing it. It becomes `requirePassClosesAllMaterialGaps`: refuses while any
+open gap has `current_severity` mass ≥ 2.0. **An open sub-material gap at PASS stays open on the
+board and is listed in the report under "open, below material, not certified against"** — not
+auto-disposed, not `carried`, not `defect_accepted`; red's finding stays visible and the report
+says what it was not certified against. The two new refusals sit beside it: a FAIL is refused
+while the corrected predicate holds (red must raise something material or PASS); and a gap below
+material is recorded but does not hold the gate. Neither overrides a live material gap — that is
+what `< 2.0` on `current_severity` buys.
+
+**The JS twin retires.** `debate.js:1012-1020` computes the same predicate from the envelope
+(`mass < 35 && maxSevMass <= MASS['medium'] && freshMints === 0`) and only logs — it is what acts
+on `divergent` today, and it acts by printing. It goes; the refusal is the record's.
+`convergence.go:34`'s reader and `cost.go:428`'s `convergence_vs_verdict_flags` follow the view.
 
 **Inflation** is the game; `regrade` events are on the record and
 `ACCEPTED_DELTA_DOCKET_THRESHOLD` (`debate.js:276`) already dockets cumulative deltas. §V measures
@@ -343,11 +410,27 @@ runs it and must either supersede the top match or state why it is distinct. Wha
 here was measured (#747): coalesced once in twenty findings, dropped three silently. The lossy step
 is removed, not delegated.
 
+**The originator closes** (gblock, earlier in this workstream: *"originator closes"*). A gap
+belongs to the lens that minted it for its whole life. The verb→role table after the move:
+
+| verb | before | after |
+|---|---|---|
+| `nearmatch`, `class new`, `mint` | merge | **lens** (`cli/lens/`) |
+| `regrade`, `close` on G | merge | **the lens that minted G** (`mint.seat_id`); refused for any other |
+| `finding`, `verify`, `reproduce` | lens | lens |
+| `spot_check`, `verdict`, `closing` (as red) | merge | **chair** |
+| `dispatch next` | — | **chair** [NEW] |
+
+So the red party to every exchange on G is G's own lens, and the chair is party to NONE — which
+is what makes per-dispute dispatch save chair sittings rather than add them. `cli/merge/` loses
+`mint.go`, `regrade.go`, `close.go`, `nearmatch.go`, `class.go` to `cli/lens/`, with the
+ownership check.
+
 **The chair runs the debate.** Its sitting: read the board through the dispatch verb; issue the
 verdict when the board permits one (§III.B.2.1); file closing arguments on docketed gaps;
-spot-check. It mints nothing. `debate.js:899-901`'s *"board's only writer… COALESCE"* prompt and
-`red-chair.md`'s merge duties are rewritten to this; the lens bodies stop saying *"the gap ids are
-the chair's"*.
+spot-check. It mints nothing and closes nothing. `debate.js:899-901`'s *"board's only writer…
+COALESCE"* prompt and `red-chair.md`'s merge duties are rewritten to this; the lens bodies stop
+saying *"the gap ids are the chair's"*.
 
 **Dispatch is per dispute.** The verb engages the seats party to an open gap below its limits —
 the lens that minted it, the blue seat answering, the bench if docketed. Seats with nothing open
@@ -386,7 +469,7 @@ $ grep -rn 'GetRound()' --include='*.go' . | grep -v _test.go      → 45 lines,
   telemetry: view/view.go:182
   generated: record.pb.go:1727,2314
 
-$ grep -n '"round"\|_round"' …/schema.sql                            → 30 lines
+$ grep -n '"round"\|_round"' …/schema.sql                            → 27 lines (+ :269,:668 round_verdict)
   column+index: :5, :16 · table: round_verdict :269,:668 ·
   *_round columns: registered :684, minted :820, merge_closed :824, bench_closed :827,
   closed :828, ruled :1046,:1078,:1104, appealed :1049, filed :1069, proposed :1098,
@@ -434,7 +517,7 @@ set -e
 T=plugins/frank-exchange-of-views/tools
 # 1. The round is gone from identity and the record. Re-arms: any reintroduction.
 test "$(grep -rnw 'RoundOf\|RoundIn' --include='*.go' $T | wc -l)" -eq 0
-test "$(grep -n 'round' $T/internal/record/recordsql/schema.go $T/internal/record/recordsql/views.go | wc -l)" -eq 0
+test "$(grep -n '"round"\|_round\|round_verdict' $T/internal/record/recordsql/schema.go $T/internal/record/recordsql/views.go | wc -l)" -eq 0
 test "$(grep -n 'int32 round' $T/internal/record/recordpb/record.proto | wc -l)" -eq 0
 
 # 2. The named tests EXIST and pass — each anchored, and counted, because `go test -run` exits 0
