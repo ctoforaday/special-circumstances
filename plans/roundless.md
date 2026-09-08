@@ -6,7 +6,11 @@
 > archived runs are migrated, never dual-read — *no archaeology, no backwards compat outside
 > replay* (gblock, 2026-09-08).
 >
-> Revision 8. Seven `/plan-audit` FAILs preceded it; round 5 reopened NO fork — four spec
+> Revision 9. Round 6 found ELEVEN TREE FACTS AND NO FORK — "every gap has a single answer forced
+> by the plan's own rulings; implementation can start with these fixed in-flight." Folded here;
+> **implementation starts on this revision.** Precondition: merge `main` first (`migrate/` is on
+> `origin/main`, 26 commits ahead of this branch's base).
+> Revision 8. Seven FAILs preceded it; round 5 reopened NO fork — four spec
 > sentences forced by rulings already made, seven tree facts, and one self-inflicted wound
 > (revision 7's edit deleted §III.B.2.1's body; restored here from a812e857). **Implementation
 > starts on this revision** unless round 6 finds a new fork.
@@ -135,8 +139,11 @@ plugins/frank-exchange-of-views/
   tools/internal/record/recordsql/schema.go          [MODIFY] + dispatch, dispatch_party, dispatch_party_gap, cast_seat
   tools/internal/setup/run.go                        [MODIFY] :315,:318,:461 writes CAST + K/K_max/M; loses MaxRounds
   tools/internal/cli/setup.go                        [MODIFY] :72 --max-rounds → --mint-budget/--impasse/--impasse-max
-  commands/research.md                               [MODIFY] :3,:6,:20 --max-rounds, --smoke's maxRounds: 2, "every round"
+  commands/research.md                               [MODIFY] :3,:6,:10,:14,:20,:22,:23,:33 — every round/maxRounds line
+  tools/internal/setup/run.go                        [MODIFY] :96-101 the --max-rounds REFUSAL → K/K_max/M DEFAULT (5/2/6, recorded), not required
   README.md                                          [MODIFY] :9
+  tools/internal/sittingwrite/write.go               [MODIFY] :86 Identity{Round: -1} — the field goes
+  tools/releasegate/fuzz/{trajectory,registerbeforeappend}_test.go [MODIFY] seatOfArgs parses -r\d+; red-chair-r1 ids
   tools/internal/seatprobe/{build,attempted}.go      [MODIFY] :46-49 -r ids; :116 mints and :147 closes AS a lens, not the chair; attempted.go:122
   tools/internal/cli/lens/{mint,regrade,close,nearmatch,class}.go [MOVE from merge/] originator owns G
   tools/internal/record/refs.go                      [MODIFY] :315 material-aware; + every-lens-sat-against-head
@@ -212,7 +219,7 @@ Replacement **per reader class** from §III.C:
 | axis | `events."id"` (the run's sequence). `closed_round` → `closed_seq`; `minted_round <= r.round` → `minted_seq <= r.seq`; every `*_round` column → `*_seq`. |
 | bucket by round | **`events.epoch`** (§III.A.0). `chart.go`'s `minted[]` indexes by epoch; `spotcheck.go`'s `mergeSat[]` keys on it; `cost.go:135`'s key is `%02d|seat|tier` with the epoch; `assemble.go:1369` heads sections by it; `changes.go:58` becomes "since this seat's previous sitting" (`events.sitting`). The SQL-in-Go readers the audit found: `verdict.go:66 max("round")` → CEILING derives from impasse (§III.B.2); `queries.go:101 RoundsWithRevision` → epochs with a revision, `capture.go:743` compares against that; `CurrentRoundOf` (`inquiry.go:273,304,344`, `view.go:435`) → `CurrentEpoch`. |
 | identity | the sitting ordinal. `model.go:552,560` look up `(seat, sitting)` **sourced from the record**, not `seatclass.ClassifySeat` of the transcript head: the dashboard joins the sitting's `agent_id` (`SITTING_OPEN`, #735) to the register event that names the seat and reads `events.sitting`. `model.go:207,210` label `seat #sitting`. `mint.go:51` → `MintGapID(run)`, now a LENS verb (§III.B.3). `seatclass.go:34-36`'s archived headings are not migrated and not read: `seatclass` classifies live transcripts; an archived run's classes come from its migrated record. |
-| per-round projection | **per epoch.** `TelemetryLine.round` → `TelemetryLine.epoch`; `convergence_vs_verdict` keys on the epoch whose `verdict` it is; `round_verdict` → `verdict`; board JSON keys `acts_this_round`/`last_round`/`closed_round` (`viewjson.go:614,616,142`) → `acts_this_epoch`/`last_epoch`/`closed_seq`; `gap_edit` view's `round` (`schema.sql:789`) → `epoch`. |
+| per-round projection | **per epoch.** `TelemetryLine.round` → `TelemetryLine.epoch`; `convergence_vs_verdict` keys on the epoch whose `verdict` it is; `round_verdict` → `gate` (tables are named from the message, `RoundVerdict → Gate`; `enum_verdict` exists at `schema.sql:83`), with the joins at `views.go:361`, `verdict.go:54,60`, `viewjson.go:1121,1190`, `record.go:1023`; board JSON keys `acts_this_round`/`last_round`/`closed_round` (`viewjson.go:614,616,142`) → `acts_this_epoch`/`last_epoch`/`closed_seq`; `gap_edit` view's `round` (`schema.sql:789`) → `epoch`. |
 | display | `"r%d"` → `"#%d"` (sitting) where the seat is named beside it; dropped where it is not. |
 
 `chart.go:41`'s `if last < 2 { return "" }` — "a single round is not a series" — becomes "fewer
@@ -303,12 +310,13 @@ what the record says, and:
   board with no lens ever sitting** (round 3's first gap; the rubber-stamp #277/#535 exist to
   prevent). Readiness has three sources, and the verb reports all three:
   1. **A lens is ready when the report HEAD is past its last pin.** Head = `events."id"` of the
-     latest `blue_edit` or `base_ingest`; a lens's last pin = the `id` its last dispatch was pinned
-     to (0 if it has never sat). On a fresh run every cast lens has pin 0 < head, so every lens is
+     latest `blue_edit` or `base_ingest`; a lens's last pin = the `id` of the last dispatch the lens
+     SAT for — its `register` following that dispatch — (0 if it has never sat). A dispatch it
+     never registered for does not move its pin (round 6). On a fresh run every cast lens has pin 0 < head, so every lens is
      ready and the board cannot be passed empty. After blue edits, every lens is ready again.
   2. **A gap's LENS and BLUE parties are ready when the gap is open, below its limits (§III.B.2),
      AND MATERIAL** (`current_severity` mass ≥ 2.0). **The BENCH is ready when a gap is AT
-     impasse, docketed, and unruled** — a separate clause, because a gap reaches the docket exactly
+     impasse and unruled** (the verb dockets it; §III.B.2) — a separate clause, because a gap reaches the docket exactly
      when it reaches its limit, so a rule requiring "below its limits" would never ready the bench
      (round 5). The verb dispatches the bench, like every other debate party. **A sub-material gap
      makes no party ready** (gblock, 2026-09-08): it is on the board, blue may answer it when
@@ -326,9 +334,12 @@ what the record says, and:
   `dispatch_party(event_id, ord, seat_id)`, `dispatch_party_gap(event_id, ord, gap_id)`. The
   per-(seat, gap) rows are what make a null turn computable: a blue sitting dispatched for
   {G1, G2, G3} that acts on G1 is a null turn for G2 and G3. `EVENT_TYPE_CAST` [NEW], body
-  `Cast { repeated string seat_ids }`, table `cast_seat(event_id, ord, seat_id)`. Both under seat
-  `harness` (the `Append` path `sittingwrite/write.go:86` already takes; `requireDispatchableSeat`
-  fires only in `RegisterSeat`, `record.go:191`).
+  `Cast { repeated string seat_ids }`, table `cast_seat(event_id, ord, seat_id)`. `Cast` is written under seat `harness`
+  (the `Append` path `tools/internal/sittingwrite/write.go:86` already takes; `requireDispatchableSeat`
+  fires only in `RegisterSeat`, `record.go:191`). **`Dispatch` is written under `red-chair`, the
+  seat that ran the verb** — not `harness` — because the parity audit's exemption is "the seat
+  that authors D+1", and under `harness` that would never be the chair and the audit would fail
+  every run (round 6).
 - **The run parameters — `K`, `K_max`, `M` (§III.B.2.2), the convergence fraction — live in
   `inputs/run-config.json` beside `lanes`**, which is where `verdict.go:88` already reads run
   configuration. Not on the event stream: they are the run's terms, set once, and that file is
@@ -353,7 +364,9 @@ what the record says, and:
   record**: `EVENT_TYPE_CAST` [NEW], written ONCE by `setup` under seat `harness` before any seat
   registers, listing every admissible seat id — the areas selected, `red-chair`, `blue-lane-1..N`
   for the lane count, `blue-synthesize`, `blue-respond`, `frontier`, `judge`, `judge-terminal`,
-  `assemble`. `register` and this verb read it. This is the table `derived-seat-identity.md`
+  `assemble`, **and `judge-petition-<s>` for every cast seat `s`** (`debate.js:707`,
+  `roster.go:77`) — omitted in revision 8, which would have refused every petition sitting.
+  `register` and this verb read it. This is the table `derived-seat-identity.md`
   §III.3 named and did not specify; it is specified here and that plan points here. #752.
 - an empty list is the termination signal (§III.B.2), not an error;
 - an error from the chair halts the run with the error on the record, exactly as `sitting.halt`
@@ -400,7 +413,14 @@ oscillation cannot reset: a regrade per exchange keeps `stalled` at 0 forever, a
 still climbs. Defaults `K = 2, K_max = 6`, as run parameters beside `lanes`; both recorded at setup
 so the limits are facts on the record, not constants in JavaScript.
 
-At impasse G goes to the bench's docket. This subsumes the current trigger (`debate.js:1071`
+**At impasse the DISPATCH VERB files the docket motion for G** (`motion docket file --id G`,
+`DocketMotion` `record.proto:1315`), under the same authorship as the dispatch event, the moment
+impasse is first computed — so "docketed" collapses into "at impasse" and no seat's discretion sits
+between a stalled gap and the bench. (Round 6: nobody had been named; the lens is not ready at
+impasse and cannot file, and the chair filing would reopen the self-assertion channel §III.B.1
+closes.) The bench readiness clause reads: **at impasse and unruled. One bench sitting per
+docketing**; a bench sitting that rules nothing does not re-ready — that is a workflow error and
+the run ends UNVERIFIED with it on the record. This subsumes the current trigger (`debate.js:1071`
 re-raise count, no movement test) and the carried exception (`:1074-1077`, movement tested on grade
 only) — one rule, four restrictions removed.
 
@@ -611,19 +631,20 @@ $ plans/derived-seat-identity.md:190 still says "§III.B is post-tag" — correc
 
 ## IV. Risk & Mitigation
 
-| risk | mitigation |
-|---|---|
-| A reader still assumes `(seat, round)` is unique. | `events.sitting` is the discriminator on every row; §III.C is the reader list; each is rewritten per its class, not swept by regex. |
-| Archived runs. | Migrated (#840), never dual-read. §V criterion 4 diffs projections across the migration. |
-| The dispatch verb returns work for a seat that no longer exists, or nothing. | Cast membership is refused in the verb; empty is termination, recorded as such; an error halts on the record. The chair cannot lie about readiness because it does not compute it. |
-| Oscillation defeats impasse. | `exchanges(G)` is monotone and bounds it regardless of `stalled(G)`. |
-| The convergence refusal soft-passes. | Strict `< 2.0` on `current_severity`; material fresh mints block. §V drives both arms. |
-| Grade inflation to escape the refusal. | Visible as `regrade` events; docketed by `ACCEPTED_DELTA_DOCKET_THRESHOLD`; measured on the gate run. |
-| The gate run is sized to pass. | §V: topic and corpus fixed against #753's baseline; ceilings restated as rates or recorded not-measured; each number attributed to the verdict it serves. |
+| risk | L × I × C | mitigation |
+|---|---|---|
+| A reader still assumes `(seat, round)` is unique. | med × high × low | `events.sitting` is the discriminator on every row; §III.C is the reader list; each is rewritten per its class, not swept by regex. |
+| Archived runs. | low × high × med | Migrated (#840), never dual-read. §V criterion 4 diffs projections across the migration. |
+| The dispatch verb returns work for a seat that no longer exists, or nothing. | low × med × low | Cast membership is refused in the verb; empty is termination, recorded as such; an error halts on the record. The chair cannot lie about readiness because it does not compute it. |
+| Oscillation defeats impasse. | med × med × low | `exchanges(G)` is monotone and bounds it regardless of `stalled(G)`. |
+| The convergence refusal soft-passes. | low × high × low | Strict `< 2.0` on `current_severity`; material fresh mints block. §V drives both arms. |
+| Grade inflation to escape the refusal. | med × med × med | Visible as `regrade` events; docketed by `ACCEPTED_DELTA_DOCKET_THRESHOLD`; measured on the gate run. |
+| The gate run is sized to pass. | med × high × low | §V: topic and corpus fixed against #753's baseline; ceilings restated as rates or recorded not-measured; each number attributed to the verdict it serves. |
 
 ## V. Verification Plan
 
 ```bash
+# PRECONDITION: this branch is merged with origin/main (internal/record/migrate/ lives there).
 set -e
 T=plugins/frank-exchange-of-views/tools
 # 1. The round is gone from identity and the record. Re-arms: any reintroduction.
@@ -649,7 +670,7 @@ for t in TestAGapsExchangesAndStallsAreCountedFromTheRecord \
          TestASubMaterialGapDoesNotReadyBlue \
          TestAMintPastTheBudgetIsRefused \
          TestDispatchedPartiesAndRegistersAgree; do
-  n=$(cd $T && go test ./internal/record/ ./internal/cli/... ./internal/capture/ -run "^$t\$" -v 2>&1 | grep -c "^--- PASS: $t")
+  n=$(cd $T && go test ./internal/record/... ./internal/cli/... ./internal/capture/ -run "^$t\$" -v 2>&1 | grep -c "^--- PASS: $t")
   test "$n" -eq 1 || { echo "MISSING OR FAILING: $t"; exit 1; }
 done
 
