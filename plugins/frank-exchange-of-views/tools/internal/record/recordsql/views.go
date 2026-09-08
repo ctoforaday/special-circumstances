@@ -128,6 +128,44 @@ SELECT
 FROM "seat_turn_span"
 GROUP BY "agent_id", "bucket";
 
+-- EVERY EDIT THAT TOUCHED A GAP'S SENTENCE, in the order it happened.
+--
+-- A gap's location is prose captured at mint and validated once. blue edit then explicitly
+-- permits rewriting an anchored sentence ("that is transit, not authorship"), and nothing
+-- reconciled the two — so from round 2 the board showed text that is no longer in the document,
+-- by the sanctioned path, and red re-auditing had to GUESS what blue had changed underneath it
+-- (#453).
+--
+-- IT IS A VIEW BECAUSE THE FACTS ARE ALREADY ON THE RECORD. The report is a frozen base plus an
+-- ordered stack of tool-made ops (#709), and blue_edit carries the exact old span and its
+-- replacement. Storing a second copy of "which edits hit this gap" would be the drift this
+-- schema is derived to avoid; the association is a join, and it is authored here where every
+-- reader can see the rule rather than folded differently in each one.
+--
+-- THE OVERLAP TEST IS CONTAINMENT IN EITHER DIRECTION, which is the honest pair: an edit that
+-- rewrites the WHOLE sentence contains the location, and an edit to a fragment INSIDE the
+-- sentence is contained by it. Both moved the text the gap points at; neither is a coincidence
+-- of wording, because both spans are exact quotes the tool matched against the report.
+--
+-- Only edits AFTER the mint count. An edit that ran before the gap existed is part of the text
+-- red minted against, not a change to it.
+CREATE VIEW "gap_edit" AS
+SELECT
+  m."gap_id"                                   AS "gap_id",
+  e."id"                                       AS "event_id",
+  e."round"                                    AS "round",
+  e."seat_id"                                  AS "edited_by",
+  b."old"                                      AS "old",
+  b."new"                                      AS "new"
+FROM "mint" m
+JOIN "events" me ON me."id" = m."event_id"
+JOIN "blue_edit" b
+JOIN "events" e ON e."id" = b."event_id"
+WHERE e."id" > me."id"
+  AND COALESCE(m."location", '') != ''
+  AND COALESCE(b."old", '') != ''
+  AND (instr(b."old", m."location") > 0 OR instr(m."location", b."old") > 0);
+
 CREATE VIEW "gap" AS
 SELECT
   m."gap_id"                                   AS "gap_id",
