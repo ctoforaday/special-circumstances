@@ -770,18 +770,19 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     the `find` verb and `requirements.json`'s `required` tier move together (R10), so neither can
     ship without the other.
 15. **[FIXTURE]** `go test -run 'TestBackfillIsIdempotent|TestBackfillVerbDispatches|TestProvisionalWordIsSupersededOnce' ./internal/catalogue/` —
-    the third is a **multi-turn, multi-block** fixture, because a one-text-per-turn fixture cannot
-    exercise the rule at all — 69.4% of real turns have more than one block. It carries: a lagged
-    turn with **three text blocks of which only the tail is missing** (asserts the provisional is
-    NOT deleted by its siblings and IS promoted at turn close — the loss case); two turns lagging
-    at once (asserts no cross-turn consumption); a no-lag turn (asserts the provisional is deleted,
-    not promoted, leaving no duplicate); a **subagent** record sharing the parent's `sessionId` and
-    `promptId` (asserts it does not touch the parent's provisional); a `Stop` payload with **no
-    `prompt_id`** (asserts `provisional_skipped`, not a `""` key); a **no-lag** turn (asserts **no provisional is written at all**, because the
-    fire-time comparison finds the text already present — the case an offset rule duplicated on
-    nearly every turn); a turn whose blocks are `[X, X]` with the tail lagged (asserts the
-    **measured residue**: the fire-time rule under-writes here, so the fixture pins the known-wrong
-    outcome rather than a fiction, at 0.12% of turns);
+    the third is a **multi-turn, multi-block** fixture, because a one-block-per-turn fixture cannot
+    exercise the rule at all — 66.2% of real turns carry more than one block. Each case names one
+    outcome, an earlier draft having asserted two contradictory ones for the no-lag path. It
+    carries: a **no-lag** turn (asserts **no provisional is written**, the fire-time comparison
+    finding the text already present — the case an offset rule duplicated on nearly every turn); a
+    lagged turn with **three blocks of which only the tail is missing** (asserts a provisional IS
+    written and is satisfied when the tail lands, deleting it); two turns lagging at once (asserts
+    no cross-turn consumption); a turn whose blocks are `[X, X]` with the tail lagged (asserts the
+    **measured residue** — the rule under-writes here, so the fixture pins the known-wrong outcome
+    rather than a fiction, at 0.12% of turns); a **subagent** record sharing the parent's
+    `sessionId` and `promptId` (asserts it does not touch the parent's provisional, and that
+    `SubagentStop` writes its own); a `Stop` payload with **no `prompt_id`** (asserts
+    `provisional_skipped`, not a `""` key);
     a **final** lagged turn with no `SessionEnd` (asserts the provisional is readable while
     outstanding, and that the **next `SessionStart` sweep** promotes it — naming the closer that
     fires, since the fixture controls which); and a
