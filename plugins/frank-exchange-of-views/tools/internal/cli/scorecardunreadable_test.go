@@ -35,7 +35,7 @@ func openRunDB(t *testing.T, runDir string) *sql.DB {
 func TestAScorecardRefusesARecordItCannotRead(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", "G1", "--class", "scope-creep", "--quote", "Seven is prime.",
 		"--problem", "p", "--check-kind", "document", "--check", "c",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
@@ -50,8 +50,8 @@ func TestAScorecardRefusesARecordItCannotRead(t *testing.T) {
 	if _, err := db.Exec(`PRAGMA foreign_keys = OFF`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","round","ts","type","key")
-	                      VALUES ('red-lens-r1-L5', 1, '2026-09-02T00:00:00Z', 'friction', 'former-epoch')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","ts","type","key")
+	                      VALUES ('red-lens-logic', '2026-09-02T00:00:00Z', 'friction', 'former-epoch')`); err != nil {
 		t.Fatal(err)
 	}
 

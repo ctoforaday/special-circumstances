@@ -121,7 +121,7 @@ var (
 	execValues = map[string]map[string]bool{}
 )
 
-// seatOfArgs recovers the acting SEAT ID from an invocation — "blue-respond-r3", not "blue".
+// seatOfArgs recovers the acting SEAT ID from an invocation — "blue-respond", not "blue".
 //
 // roleOfArgs below collapses that to a role, which is what the parity oracles want. The graph
 // wants the seat: "blue ran edit" is true of a lane and of a respond seat four rounds apart, and

@@ -22,7 +22,7 @@ func laneRun(t *testing.T, lanes string, registered ...int) string {
 	var evs []*recordpb.Event
 	for _, n := range registered {
 		seat := "blue-lane-" + strconv.Itoa(n)
-		evs = append(evs, recordtest.At(t, seat, 0, seat+":register:#1",
+		evs = append(evs, recordtest.At(t, seat, seat+":register:#1",
 			&recordpb.Register{ToolVersion: proto.String("test")}))
 	}
 	recordtest.Seed(t, run, evs...)
@@ -62,7 +62,7 @@ func TestLaneCoveragePassesWhenEveryDeclaredLaneTookItsSeat(t *testing.T) {
 	}
 	// A re-dispatched lane writes a second register; that is one lane, not two.
 	run := laneRun(t, "2", 1, 2)
-	recordtest.Seed(t, run, recordtest.At(t, "blue-lane-1", 0, "blue-lane-1:register:#2",
+	recordtest.Seed(t, run, recordtest.At(t, "blue-lane-1", "blue-lane-1:register:#2",
 		&recordpb.Register{ToolVersion: proto.String("test")}))
 	if got := LaneCoverageAudit(runtest.Open(t, run)); got.Verdict != "PASS" {
 		t.Errorf("a re-dispatch is not an extra lane: got %s — %s", got.Verdict, got.Detail)

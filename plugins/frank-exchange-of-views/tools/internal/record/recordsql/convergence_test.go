@@ -43,8 +43,10 @@ func TestConvergenceVsVerdictIsComputedFromTheRecord(t *testing.T) {
 		want    bool
 		explain string
 	}{
-		{"converged board still failing trips it", "medium", true,
-			"low mass, nothing above medium, no fresh mints beyond the lineage one, verdict FAIL"},
+		{"converged board still failing trips it", "low", true,
+			"mass below a quarter of the peak, nothing material on current grades, no fresh material mint this epoch, verdict FAIL"},
+		{"a MEDIUM gap is material and does not", "medium", false,
+			"material is the strict floor — GRADE_MEDIUM open means red still has something real"},
 		{"a serious gap open does not", "high", false,
 			"max severity above medium is exactly what the detector says has NOT converged"},
 	}
@@ -56,30 +58,41 @@ func TestConvergenceVsVerdictIsComputedFromTheRecord(t *testing.T) {
 			// medium — and red still says FAIL. A fresh mint in the same round is not that
 			// scenario, which is what the first draft of this fixture got wrong: the view
 			// declined it correctly and the test was the thing at fault.
+			// Epoch 1: a serious gap (mass 9) and a FAIL — the run's peak. Epoch 2: G1 closes and the
+			// only open gap is G2 at the case's severity, mass 1 — a ninth of the peak. The detector
+			// judges the epoch-2 gate: a trifle is divergent, a MEDIUM gap is material and is not.
+			high := recordpb.Grade_GRADE_HIGH
 			recordtest.Seed(t, dir,
-				recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:mint:R1-1",
-					mint("R1-1", tc.sev, recordpb.Grade_GRADE_LOW, recordpb.Grade_GRADE_LOW)),
-				recordtest.At(t, "red-chair-r2", 2, "red-chair-r2:mint:R2-1",
-					mint("R2-1", tc.sev, recordpb.Grade_GRADE_LOW, recordpb.Grade_GRADE_LOW, "R1-1")),
-				recordtest.At(t, "red-chair-r2", 2, "red-chair-r2:verdict",
-					&recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
+				recordtest.At(t, "red-chair", "red-chair:register:#1", &recordpb.Register{}),
+				recordtest.At(t, "red-chair", "red-chair:mint:G1",
+					mint("G1", "high", high, high)),
+				recordtest.At(t, "red-chair", "red-chair:verdict:#1",
+					&recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
+				recordtest.At(t, "red-chair", "red-chair:register:#2", &recordpb.Register{}),
+				recordtest.At(t, "red-chair", "red-chair:close:G1",
+					&recordpb.Close{GapId: proto.String("G1"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED),
+						AnchorSeat: proto.String("L1"), AnchorTool: proto.String("t"), AnchorTarget: proto.String("x"), Prose: proto.String("fixed")}),
+				recordtest.At(t, "red-chair", "red-chair:mint:G2",
+					mint("G2", tc.sev, recordpb.Grade_GRADE_LOW, recordpb.Grade_GRADE_LOW, "G1")),
+				recordtest.At(t, "red-chair", "red-chair:verdict:#2",
+					&recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 			)
 			db, err := recordsql.Open(runtest.Open(t, dir).Dir() + "/records/record.db")
 			if err != nil {
 				t.Fatal(err)
 			}
-			var round int
+			var epoch int
 			var verdict string
 			var mass, maxSev float64
 			var fresh int
 			var divergent bool
-			row := db.QueryRow(`SELECT "round","verdict","mass","max_severity_mass","fresh_mints","divergent" FROM "convergence_vs_verdict"`)
-			if err := row.Scan(&round, &verdict, &mass, &maxSev, &fresh, &divergent); err != nil {
+			row := db.QueryRow(`SELECT "epoch","verdict","mass","max_severity_mass","fresh_mints","divergent" FROM "convergence_vs_verdict" WHERE "epoch" = 2`)
+			if err := row.Scan(&epoch, &verdict, &mass, &maxSev, &fresh, &divergent); err != nil {
 				t.Fatalf("the view answered nothing — a detector that returns no rows is the zero it exists to stop: %v", err)
 			}
 			if divergent != tc.want {
-				t.Errorf("divergent = %v, want %v (%s)\nround %d verdict %q mass %.1f max-sev-mass %.1f fresh %d",
-					divergent, tc.want, tc.explain, round, verdict, mass, maxSev, fresh)
+				t.Errorf("divergent = %v, want %v (%s)\nepoch %d verdict %q mass %.1f max-sev-mass %.1f fresh %d",
+					divergent, tc.want, tc.explain, epoch, verdict, mass, maxSev, fresh)
 			}
 			// The inputs must be REAL, not defaulted: a view that returns zeros for everything
 			// would satisfy a boolean assertion while measuring nothing.

@@ -9,7 +9,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 )
 
-// inquiry-support: red's per-round verdict that the REPORT still carries a line of inquiry.
+// inquiry-support: red's per-epoch verdict that the REPORT still carries a line of inquiry.
 //
 // # The one claim in the document nothing could check
 //
@@ -23,20 +23,20 @@ import (
 // read as blue neglecting to revisit them. It is equally consistent with nobody ever ASKING, and
 // nothing in the tool asked.
 //
-// # Why it is red's, and why every round
+// # Why it is red's, and why every epoch
 //
 // The check is a read of the artifact — is this line in the report, and does the text still back it
-// as STATED — which is red's discipline, not blue's self-report. And it is per-round because the
-// report changes every round: a verdict cast before this round's edits answers a question about a
-// document that no longer exists. `record.UnvotedInquiries` keys on the round for exactly that
+// as STATED — which is red's discipline, not blue's self-report. And it is per-epoch because the
+// report changes every epoch: a verdict cast before this epoch's edits answers a question about a
+// document that no longer exists. The unvoted-inquiry check keys on the epoch for exactly that
 // reason, and the merge's sitting is not complete while any line is unvoted.
 //
-// # ONE READ PER ROUND, NOT ONE READ PER LINE
+// # ONE READ PER SITTING, NOT ONE READ PER LINE
 //
 // The votes are recorded per line because each line gets its own verdict and its own quote — that
 // is the record's shape and it is right. The READING is not per line: you read the report once this
-// round and answer every line against that one pass, the way anyone checks a document against a
-// list. A dozen lines over four rounds would otherwise be forty-eight full reads of the same
+// sitting and answer every line against that one pass, the way anyone checks a document against a
+// list. A dozen lines over four epochs would otherwise be forty-eight full reads of the same
 // artifact on the most expensive seat in the run, and a duty that costs that much is one seats
 // route around — which is worse than no duty, because the record then says checked.
 //
@@ -86,7 +86,7 @@ func newInquirySupport() *cobra.Command {
 	// the aliasing this schema exists to remove".
 	//
 	// A flag a seat can pass and the record ignores is worse than one that does not exist, so both
-	// go rather than lingering as accepted-and-discarded. One read of the document per round,
+	// go rather than lingering as accepted-and-discarded. One read of the document per sitting,
 	// recorded as prose.
 	return c
 }

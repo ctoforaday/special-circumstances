@@ -93,10 +93,10 @@ async function fullRun(args = ARGS) {
     // would leave the engine's most consequential prompt uncovered.
     blueRespond: [blueEnv({
       claim_count: 210,
-      grade_disputes: [{ gap_id: 'R1-1', dimension: 'likelihood', proposed: 'low', evidence: 'the harm needs two independent failures' }],
+      grade_disputes: [{ gap_id: 'G1', dimension: 'likelihood', proposed: 'low', evidence: 'the harm needs two independent failures' }],
     })],
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'the figure is still unrecomputed' }] })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'carried', rationale: 'the figure is still unrecomputed' }] })],
   }))
   await world.run(script, args)
   return world

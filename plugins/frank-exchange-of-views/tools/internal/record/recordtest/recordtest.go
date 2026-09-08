@@ -33,11 +33,10 @@ import (
 // It takes *testing.T and fails rather than returning an error. A fixture that could not be built
 // is not a test condition — it is a broken test, and returning an error here would let a caller
 // ignore it and assert against an empty event, which passes for the wrong reason.
-func Event(t *testing.T, seatID string, round int, body proto.Message) *recordpb.Event {
+func Event(t *testing.T, seatID string, body proto.Message) *recordpb.Event {
 	t.Helper()
 	ev := &recordpb.Event{
 		SeatId: proto.String(seatID),
-		Round:  proto.Int32(int32(round)),
 	}
 	typ, err := recordpb.SetBody(ev, body)
 	if err != nil {
@@ -49,9 +48,9 @@ func Event(t *testing.T, seatID string, round int, body proto.Message) *recordpb
 
 // At is Event with the shard coordinates a replay-ordering test needs. Most fixtures do not care
 // about seq, nonce or key; the ones that are ABOUT ordering care about nothing else.
-func At(t *testing.T, seatID string, round int, key string, body proto.Message) *recordpb.Event {
+func At(t *testing.T, seatID string, key string, body proto.Message) *recordpb.Event {
 	t.Helper()
-	ev := Event(t, seatID, round, body)
+	ev := Event(t, seatID, body)
 	if key != "" {
 		ev.Key = proto.String(key)
 	}

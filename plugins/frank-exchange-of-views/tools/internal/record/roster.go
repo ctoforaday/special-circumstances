@@ -13,7 +13,7 @@ import (
 // THE ROSTER: the seat ids the engine can actually produce.
 //
 // `RequireDispatchedSeat` checks a PREFIX, so `red-lens-` admits `red-lens-banana` and
-// `red-lens-r99-L99-oops`. That was the whole guard on a seat id's legitimacy, and it is the half
+// `red-lens-L99-oops`. That was the whole guard on a seat id's legitimacy, and it is the half
 // of identity the binding could not close: register is the one call that takes a seat's word for
 // who it is, so what it accepts had better be an id a dispatch could have created.
 //
@@ -21,7 +21,7 @@ import (
 // carried the real vocabulary —
 //
 //	lens   red-lens-r<N>-<area>
-//	merge  red-merge-r<N>
+//	merge  red-chair
 //	blue   blue-lane-<N>, blue-respond-r<N>, blue-synthesize, frontier
 //	bench  judge-r<N>, judge-petition-<petitioner>, judge-terminal, assemble
 //
@@ -37,7 +37,7 @@ import (
 // do not carry a seat id's shape at all.
 //
 // WHAT THIS DOES NOT DO, stated because a gate that seems to prove more than it does is worse than
-// none. It bounds the SHAPE, never the membership: `red-lens-r99-L4` is well formed and no run will
+// none. It bounds the SHAPE, never the membership: `red-lens-L4` is well formed and no run will
 // ever dispatch it. Bounding the round against the run's declared maxRounds was considered and
 // REJECTED — a resume legitimately reduces that ceiling (the standing stop-and-resume practice), so
 // the bound would refuse seats from the run's own earlier rounds. The shape is what can be checked
@@ -55,13 +55,13 @@ type seatShape struct {
 }
 
 var seatShapes = []seatShape{
-	{"lens", regexp.MustCompile(`^red-lens-r\d+-[a-z]+(?:-[a-z]+)*$`), "red-lens", "red-lens-r1-evidence"},
-	{"merge", regexp.MustCompile(`^red-chair-r\d+$`), "red-chair", "red-chair-r1"},
+	{"lens", regexp.MustCompile(`^red-lens-[a-z]+(?:-[a-z]+)*$`), "red-lens", "red-lens-evidence"},
+	{"merge", regexp.MustCompile(`^red-chair$`), "red-chair", "red-chair"},
 	{"blue", regexp.MustCompile(`^blue-lane-\d+$`), "blue-lane", "blue-lane-1"},
-	{"blue", regexp.MustCompile(`^blue-respond-r\d+$`), "blue-respond", "blue-respond-r1"},
+	{"blue", regexp.MustCompile(`^blue-respond$`), "blue-respond", "blue-respond"},
 	{"blue", regexp.MustCompile(`^blue-synthesize$`), "blue-synthesize", "blue-synthesize"},
 	{"blue", regexp.MustCompile(`^frontier$`), "frontier", "frontier"},
-	{"bench", regexp.MustCompile(`^judge-r\d+$`), "judge", "judge-r1"},
+	{"bench", regexp.MustCompile(`^judge$`), "judge", "judge"},
 	{"bench", regexp.MustCompile(`^judge-terminal$`), "judge-terminal", "judge-terminal"},
 	{"bench", regexp.MustCompile(`^assemble$`), "assemble", "assemble"},
 	{OperatorRole, regexp.MustCompile(`^` + OperatorRole + `$`), "", OperatorRole},
@@ -99,7 +99,7 @@ func TierClassOfSeat(seatID string) string {
 // imports that package, so a second copy here is the one thing this arrangement exists to stop.
 //
 // MEMBERSHIP, NOT JUST SHAPE. The pattern above bounds a lens id to a hyphenated word, which
-// would admit `red-lens-r1-evidence-oops`. This list is what makes the id refusable: an area the
+// would admit `red-lens-evidence-oops`. This list is what makes the id refusable: an area the
 // engine does not dispatch is not an area. TestTheLensAreasMatchWhatTheEngineDeclares holds it
 // against debate.js's own RED_AREAS, so adding an area there and not here fails.
 var LensAreas = flags.LensAreas
@@ -108,7 +108,7 @@ var LensAreas = flags.LensAreas
 // already matched, and deliberately so: the pattern answers "is this a lens id", this answers
 // "which area", and collapsing them would make the shape table carry seven alternatives that
 // skeletonOfPattern could not compare against debate.js.
-var lensAreaRe = regexp.MustCompile(`^red-lens-r\d+-(.+)$`)
+var lensAreaRe = regexp.MustCompile(`^red-lens-(.+)$`)
 
 func isLensArea(s string) bool {
 	for _, a := range LensAreas {

@@ -1,7 +1,7 @@
-$ register --run {RUN} --seat-id red-chair-r1
+$ register --run {RUN} --seat-id red-chair
 exit 0
 stdout:
-registered red-chair-r1
+registered red-chair
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
@@ -9,17 +9,17 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ mint --run {RUN} --seat-id red-chair-r1 --class scope-creep --check-kind document --check a --severity low --likelihood low --impact low --problem from the stale dispatch
+$ mint --run {RUN} --seat-id red-chair --class scope-creep --check-kind document --check a --severity low --likelihood low --impact low --problem from the stale dispatch
 exit 0
 stdout:
-minted R1-1
+minted G1
   acceptance check RECORDED as: a
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
-$ register --run {RUN} --seat-id red-chair-r1
+$ register --run {RUN} --seat-id red-chair
 exit 0
 stdout:
-registered red-chair-r1 (dispatch 2 — a previous dispatch of this seat is on the record)
+registered red-chair (dispatch 2 — a previous dispatch of this seat is on the record)
 
 YOUR IDENTITY DID NOT REACH THE TOOL, so nothing on the record binds this agent to this seat. You are registered and your events are recorded; what is missing is the binding that lets a LATER call resolve who you are without being told.
 
@@ -27,26 +27,26 @@ TWO CONSEQUENCES:
   PASS --seat-id ON EVERY CALL. Without it the tool cannot tell which seat is asking and will refuse you.
   REGISTERING AGAIN WILL NOT FIX IT. If a later call says "this agent has not registered", it is THIS, not a lost registration — and a second register cannot supply an agent id the hook never sent. Your work is safe either way; the record is append-only and keeps both sittings.
 
-$ mint --run {RUN} --seat-id red-chair-r1 --class scope-creep --check-kind document --check b --severity high --likelihood high --impact high --problem from the live dispatch
+$ mint --run {RUN} --seat-id red-chair --class scope-creep --check-kind document --check b --severity high --likelihood high --impact high --problem from the live dispatch
 exit 0
 stdout:
-minted R1-2
+minted G2
   acceptance check RECORDED as: b
   (read it back — a shell may have rewritten it before this tool saw it, and no verb amends a check after mint)
 
-$ verdict --run {RUN} --seat-id red-chair-r1 --as FAIL
+$ verdict --run {RUN} --seat-id red-chair --as FAIL
 exit 0
 stdout:
 verdict FAIL (2 open, 0 closed) and checkpointed to {MIRROR}
 
 ═══ EVENTS ═══
-{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":0,"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
-{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","round":0,"seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
-{"key":"red-chair-r1:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair-r1","ts":2,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair-r1:mint:R1-1","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-1","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"from the stale dispatch","required_fix":"","severity":"GRADE_LOW"},"round":1,"seat_id":"red-chair-r1","ts":3,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair-r1:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"round":1,"seat_id":"red-chair-r1","ts":4,"type":"EVENT_TYPE_REGISTER"}
-{"key":"red-chair-r1:mint:R1-2","mint":{"acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"R1-2","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"from the live dispatch","required_fix":"","severity":"GRADE_HIGH"},"round":1,"seat_id":"red-chair-r1","ts":5,"type":"EVENT_TYPE_MINT"}
-{"key":"red-chair-r1:verdict","round":1,"seat_id":"red-chair-r1","ts":6,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
+{"key":"blue-synthesize:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"blue-synthesize","ts":0,"type":"EVENT_TYPE_REGISTER"}
+{"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
+{"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:mint:G1","mint":{"acceptance_check":"a","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_LOW","likelihood":"GRADE_LOW","location":"","mint_key":"","problem":"from the stale dispatch","required_fix":"","severity":"GRADE_LOW"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:register:#2","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_REGISTER"}
+{"key":"red-chair:mint:G2","mint":{"acceptance_check":"b","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"G2","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"from the live dispatch","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_MINT"}
+{"key":"red-chair:verdict:#2","seat_id":"red-chair","ts":6,"type":"EVENT_TYPE_VERDICT","verdict":{"verdict":"VERDICT_FAIL"}}
 
 ═══ RENDERS ═══
 -- debate
@@ -55,7 +55,7 @@ verdict FAIL (2 open, 0 closed) and checkpointed to {MIRROR}
 -- lines-of-inquiry
 # Lines of Inquiry — RENDERED PROJECTION (source of truth: records/ event log)
 
-_No inquiries recorded. On a run past round 0 that is itself a finding: the exploration
+_No inquiries recorded. On a run past epoch 0 that is itself a finding: the exploration
 either did not happen or was not written down, and a report with no roads-not-taken is
 indistinguishable from one that never looked._
 
@@ -81,8 +81,8 @@ _Composed from the record, never from the run's configuration: these are the mod
 
 2 open gap(s) remain, most severe first — full statements in [the board](docket.md).
 
-1. **[high]** from the live dispatch (R1-2) — 
-2. **[low]** from the stale dispatch (R1-1) — 
+1. **[high]** from the live dispatch (G2) — 
+2. **[low]** from the stale dispatch (G1) — 
 
 ## TL;DR
 

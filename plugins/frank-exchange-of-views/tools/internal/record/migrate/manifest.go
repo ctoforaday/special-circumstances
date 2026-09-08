@@ -35,6 +35,9 @@ type Manifest struct {
 	Out         map[string]int    `json:"events_out"`
 	Refusals    []Refusal         `json:"refusals,omitempty"`
 	Accepted    map[string]string `json:"accepted_losses,omitempty"`
+	GapIDs      map[string]string `json:"gap_ids,omitempty"`              // archived gap id -> migrated id (roundless §III.A.5)
+	Labels      map[string]string `json:"labels,omitempty"`               // archived finding label -> migrated label
+	Serialized  map[string]int    `json:"serialized_instances,omitempty"` // instance seat -> events moved after instance 1
 	// Unclassified names empty old tables no decomposition rule could place — noise, but
 	// noise on the record rather than in a log nobody keeps.
 	Unclassified []string `json:"unclassified_tables,omitempty"`
@@ -56,6 +59,9 @@ func NewManifest(sourcePath string, files []SourceFile, unclassified []string, r
 		Out:          res.Out,
 		Refusals:     res.Refusals,
 		Accepted:     res.AcceptedLosses,
+		GapIDs:       res.GapIDs,
+		Labels:       res.Labels,
+		Serialized:   res.Serialized,
 		Unclassified: unclassified,
 	}
 }

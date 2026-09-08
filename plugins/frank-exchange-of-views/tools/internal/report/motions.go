@@ -13,7 +13,7 @@ import (
 // petition FILING unrendered while the line of inquiry RULING was found unrendered in the same sweep,
 // because nothing said they were one mechanism. And #320 had to render filings and rulings SIDE
 // BY SIDE rather than joined, because `petition-rule` carried no id and pairing two filings by
-// one seat in one round would have been a guess. A motion has an id, so an ask and its answer are
+// one seat in one epoch would have been a guess. A motion has an id, so an ask and its answer are
 // one row.
 //
 // It reads through record.Motions, which is now the only vocabulary. This used to go through an
@@ -45,7 +45,7 @@ func motionRow(m *record.Motion, unruled *int) string {
 	if filer == "" {
 		filer = "the record does not say"
 	}
-	fmt.Fprintf(&b, "- **%s** · %s · filed by %s (r%d)", m.ID, motionHead(m), filer, m.Round)
+	fmt.Fprintf(&b, "- **%s** · %s · filed by %s #%d", m.ID, motionHead(m), filer, m.Sitting)
 	if m.Basis != "" {
 		fmt.Fprintf(&b, "\n  - asked: %s", m.Basis)
 	}
@@ -54,7 +54,7 @@ func motionRow(m *record.Motion, unruled *int) string {
 		fmt.Fprintf(&b, "\n  - relief sought: %s", m.Relief)
 	}
 	if m.Ruled() {
-		fmt.Fprintf(&b, "\n  - **ruled %s** by %s (r%d)", m.Ruling, m.RulingBy, m.RulingRound)
+		fmt.Fprintf(&b, "\n  - **ruled %s** by %s #%d", m.Ruling, m.RulingBy, m.RulingSitting)
 		if m.Opinion != "" {
 			fmt.Fprintf(&b, " — %s", m.Opinion)
 		}

@@ -135,7 +135,7 @@ func TestTheProbeComposesNoPromptOfItsOwn(t *testing.T) {
 
 // EVERY BOARD NAMES A SEAT debate.js ACTUALLY DISPATCHES.
 //
-// `judge-r1` was on two boards for the probe's whole life, and production cannot issue it: a judge
+// `judge` was on two boards for the probe's whole life, and production cannot issue it: a judge
 // sits only when the contested docket is non-empty, and round 1 has nothing that persists and no
 // pending dispute. The tool's roster accepts `judge-r\d+`, so nothing refused it — the seat was
 // valid, registered, dispatched and scored, and the orchestrator has never seated it.

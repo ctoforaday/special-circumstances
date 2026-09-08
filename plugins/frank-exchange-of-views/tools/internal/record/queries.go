@@ -95,10 +95,10 @@ func MintCheckKind(run Run, gapID string) (recordpb.CheckKind, error) {
 
 // RoundsWithRevision counts the distinct rounds that filed a round record. Errors fold into 0,
 // as the audit that reads it always treated an unreadable record: zero rounds it can vouch for.
-func RoundsWithRevision(run Run) int {
+func EpochsWithRevision(run Run) int {
 	var n int
 	if _, err := queryRow(run, []any{&n},
-		`SELECT count(DISTINCT "round") FROM "events" WHERE "type" = ?`,
+		`SELECT count(DISTINCT "epoch") FROM "events_w" WHERE "type" = ?`,
 		recordpb.Word(recordpb.EventType_EVENT_TYPE_REVISION)); err != nil {
 		return 0
 	}
@@ -127,7 +127,7 @@ func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, error) {
 // Rounds lists every round the record touched, ascending — the skeleton a per-round
 // projection hangs on, INCLUDING rounds whose only acts are outside that projection's
 // families (a round of nothing but mints still renders as an empty debate round).
-func Rounds(run Run) ([]int, error) {
+func Epochs(run Run) ([]int, error) {
 	db, err := openRunForRead(run)
 	if err != nil {
 		return nil, err
@@ -135,9 +135,9 @@ func Rounds(run Run) ([]int, error) {
 	if db == nil {
 		return nil, nil
 	}
-	rows, err := db.Query(`SELECT DISTINCT "round" FROM "events" ORDER BY "round"`)
+	rows, err := db.Query(`SELECT DISTINCT "epoch" FROM "events_w" ORDER BY "epoch"`)
 	if err != nil {
-		return nil, fmt.Errorf("record: asking the record for its rounds: %w", err)
+		return nil, fmt.Errorf("record: asking the record for its epochs: %w", err)
 	}
 	defer rows.Close()
 	var out []int

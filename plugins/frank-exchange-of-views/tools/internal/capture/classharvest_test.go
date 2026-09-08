@@ -16,7 +16,7 @@ import (
 
 func classEvent(t *testing.T, seat, slug, def, neighbor, dist string) *record.Event {
 	t.Helper()
-	return recordtest.Event(t, seat, 1, &recordpb.ClassNew{
+	return recordtest.Event(t, seat, &recordpb.ClassNew{
 		Slug: proto.String(slug), Definition: proto.String(def),
 		Neighbor: proto.String(neighbor), Distinguisher: proto.String(dist),
 	})
@@ -24,7 +24,7 @@ func classEvent(t *testing.T, seat, slug, def, neighbor, dist string) *record.Ev
 
 func mintEvent(t *testing.T, gapID, class string) *record.Event {
 	t.Helper()
-	return recordtest.Event(t, "red-chair-r1", 1, &recordpb.Mint{
+	return recordtest.Event(t, "red-chair", &recordpb.Mint{
 		GapId: proto.String(gapID), Class: proto.String(class),
 	})
 }
@@ -35,9 +35,9 @@ func mintEvent(t *testing.T, gapID, class string) *record.Event {
 func TestAProposalCarriesTheThreeFieldsAndTheCaseThatMotivatedIt(t *testing.T) {
 	law := t.TempDir()
 	board := record.NewFamily(nil, []*record.Event{
-		classEvent(t, "red-chair-r2", "silent-no-match-probe", "a probe whose miss reads as a clean result",
+		classEvent(t, "red-chair", "silent-no-match-probe", "a probe whose miss reads as a clean result",
 			"self-attestation", "did a tool act run and miss, or did none run at all"),
-		mintEvent(t, "R2-1", "silent-no-match-probe"),
+		mintEvent(t, "G1", "silent-no-match-probe"),
 	})
 	r := HarvestClasses(runtest.New(t, "/runs/2026-08-22_example"), law, board.Events)
 	if !r.Written || r.Count != 1 {
@@ -50,11 +50,11 @@ func TestAProposalCarriesTheThreeFieldsAndTheCaseThatMotivatedIt(t *testing.T) {
 	for _, want := range []string{
 		"`silent-no-match-probe`",
 		"PROPOSED — not in the registry until adopted",
-		"Coined by `red-chair-r2`",
+		"Coined by `red-chair`",
 		"a probe whose miss reads as a clean result",
 		"`self-attestation`",
 		"did a tool act run and miss",
-		"**first used on**: R2-1",
+		"**first used on**: G1",
 	} {
 		if !strings.Contains(string(b), want) {
 			t.Errorf("the proposal does not carry %q:\n%s", want, b)
@@ -66,7 +66,7 @@ func TestAProposalCarriesTheThreeFieldsAndTheCaseThatMotivatedIt(t *testing.T) {
 // line reading "no classes coined this run" must come from having looked.
 func TestARunThatCoinedNothingWritesNothingAndSaysSo(t *testing.T) {
 	law := t.TempDir()
-	r := HarvestClasses(runtest.New(t, "/runs/quiet"), law, []*record.Event{mintEvent(t, "R1-1", "false-universal")})
+	r := HarvestClasses(runtest.New(t, "/runs/quiet"), law, []*record.Event{mintEvent(t, "G1", "false-universal")})
 	if r.Written || r.Count != 0 || r.Reason != "" {
 		t.Errorf("written=%v count=%d reason=%q, want false, 0, empty", r.Written, r.Count, r.Reason)
 	}
@@ -83,8 +83,8 @@ func TestARunThatCoinedNothingWritesNothingAndSaysSo(t *testing.T) {
 // first PROPOSAL, which is the same defect one step earlier. A reviewer has to see both.
 func TestTwoRunsCoiningOneSlugLandSideBySide(t *testing.T) {
 	law := t.TempDir()
-	one := record.NewFamily(nil, []*record.Event{classEvent(t, "red-chair-r1", "drift", "the first reading", "false-universal", "A")})
-	two := record.NewFamily(nil, []*record.Event{classEvent(t, "red-chair-r1", "drift", "a DIFFERENT reading", "false-universal", "B")})
+	one := record.NewFamily(nil, []*record.Event{classEvent(t, "red-chair", "drift", "the first reading", "false-universal", "A")})
+	two := record.NewFamily(nil, []*record.Event{classEvent(t, "red-chair", "drift", "a DIFFERENT reading", "false-universal", "B")})
 	HarvestClasses(runtest.New(t, "/runs/run-alpha"), law, one.Events)
 	HarvestClasses(runtest.New(t, "/runs/run-beta"), law, two.Events)
 	ms, _ := filepath.Glob(filepath.Join(law, "proposed", "class-drift--*.md"))
@@ -106,7 +106,7 @@ func TestTwoRunsCoiningOneSlugLandSideBySide(t *testing.T) {
 func TestAClassCoinedAndNeverMintedAgainstSaysSo(t *testing.T) {
 	law := t.TempDir()
 	HarvestClasses(runtest.New(t, "/runs/x"), law, []*record.Event{
-		classEvent(t, "red-chair-r1", "unused", "d", "n", "x"),
+		classEvent(t, "red-chair", "unused", "d", "n", "x"),
 	})
 	b, err := os.ReadFile(filepath.Join(law, "proposed", "class-unused--x.md"))
 	if err != nil {

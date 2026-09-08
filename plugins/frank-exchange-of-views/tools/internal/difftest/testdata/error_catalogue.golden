@@ -632,7 +632,7 @@ Global Flags:
 
 ── docket rule without the gavel
 exit 2
-feov-record: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair-r1 (merge). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
+feov-record: a docket motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair (merge). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
 
 ── verdict in the wrong case
 exit 2
@@ -727,6 +727,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
@@ -756,7 +757,7 @@ Use "feov-record [command] --help" for more information about a command.
 
 ── petition ruling outside the set
 exit 2
-feov-record: a petition motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair-r1 (merge). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
+feov-record: a petition motion is ruled by the bench seat, so `rule` is not on your surface; you are red-chair (merge). A motion is filed by any seat and ruled by one — that asymmetry is the mechanism, not an obstacle
 
 ── closure class near-miss
 exit 2
@@ -871,6 +872,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
@@ -919,6 +921,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
@@ -967,6 +970,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
@@ -1015,6 +1019,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
@@ -1345,6 +1350,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed
@@ -1393,6 +1399,7 @@ Available Commands:
   closing         your closing argument on one docketed gap, when the bench is about to rule on it
   completion      Generate the autocompletion script for the specified shell
   count-claims    count the FOOTNOTED declarative claims in blue's report (read-only)
+  dispatch        `dispatch next` — read the board and let the record say who sits: the parties, their gaps, the head they audit
   fetch           cached, hash-verified web read (replaces WebFetch); serves both sides the same bytes
   help            Help about any command
   inquiry-support your per-round vote on whether the report still carries a direction blue proposed

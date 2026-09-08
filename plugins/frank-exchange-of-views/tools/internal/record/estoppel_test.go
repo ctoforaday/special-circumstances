@@ -52,17 +52,17 @@ func edit(t *testing.T, gapID string, verbatim bool) *Event {
 		// one that claimed it and was false are different facts, and estoppel turns on the claim.
 		be.AppliedVerbatim = proto.Bool(true)
 	}
-	return recordtest.Event(t, "blue-respond-r1", 1, be)
+	return recordtest.Event(t, "blue-respond", be)
 }
 
 // The core rule: a finding located in text red prescribed and blue applied VERBATIM names
 // the gap that prescribed it.
 func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", true)})
+	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true)})
 
 	id, got := EstoppelConflict(b, "Five verification approaches agree, all sharing one definition of primality.")
-	if id != "R1-1" {
-		t.Fatalf("EstoppelConflict = %q, want R1-1 — red re-raising its own prescribed text went undetected", id)
+	if id != "G1" {
+		t.Fatalf("EstoppelConflict = %q, want G1 — red re-raising its own prescribed text went undetected", id)
 	}
 	if got != prescribed {
 		t.Errorf("the conflict must return the prescribed text so the refusal can quote it, got %q", got)
@@ -71,8 +71,8 @@ func TestEstoppelCatchesRelitigationOfRedsOwnPrescription(t *testing.T) {
 
 // A fragment of the prescribed sentence is the same act as quoting the whole of it.
 func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", true)})
-	if id, _ := EstoppelConflict(b, "agree, all sharing one definition of primality"); id != "R1-1" {
+	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true)})
+	if id, _ := EstoppelConflict(b, "agree, all sharing one definition of primality"); id != "G1" {
 		t.Errorf("a quoted FRAGMENT of red's own prescription escaped the guard (got %q)", id)
 	}
 }
@@ -80,7 +80,7 @@ func TestEstoppelMatchesAFragmentOfThePrescribedText(t *testing.T) {
 // ESTOPPEL ATTACHES TO RED'S OWN WORDS AND NOTHING ELSE. If blue counter-edited, the text is
 // blue's authorship and red audits it normally — that is the right to disagree staying real.
 func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", false)})
+	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", false)})
 	if id, _ := EstoppelConflict(b, prescribed); id != "" {
 		t.Errorf("red was estopped from auditing text BLUE authored (gap %q) — a counter-edit is not red's prescription", id)
 	}
@@ -89,7 +89,7 @@ func TestNoEstoppelWhenBlueCounterEditedInstead(t *testing.T) {
 // Text red never prescribed is auditable, obviously — the guard must not become a general
 // shield over the report.
 func TestNoEstoppelForUnrelatedText(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": prescribed}, []*Event{edit(t, "R1-1", true)})
+	b := board(t, map[string]string{"G1": prescribed}, []*Event{edit(t, "G1", true)})
 	if id, _ := EstoppelConflict(b, "An entirely different sentence about sieve performance and its costs."); id != "" {
 		t.Errorf("an unrelated finding was estopped by gap %q — the guard is over-broad", id)
 	}
@@ -98,7 +98,7 @@ func TestNoEstoppelForUnrelatedText(t *testing.T) {
 // The overlap floor exists so a short prescription cannot shield half the report. Refusing a
 // real finding is worse than missing an estoppel, so the guard declines to fire here.
 func TestShortPrescriptionsDoNotEstop(t *testing.T) {
-	b := board(t, map[string]string{"R1-1": "7 is prime."}, []*Event{edit(t, "R1-1", true)})
+	b := board(t, map[string]string{"G1": "7 is prime."}, []*Event{edit(t, "G1", true)})
 	if id, _ := EstoppelConflict(b, "7 is prime."); id != "" {
 		t.Errorf("a %d-character prescription estopped a finding (gap %q); the floor is %d",
 			len("7 is prime."), id, minEstoppelOverlap)
@@ -108,15 +108,15 @@ func TestShortPrescriptionsDoNotEstop(t *testing.T) {
 // The decline rate is the measurement that falsifies the design if it comes back zero.
 func TestDeclineStatsSeparatesAppliedFromDeclinedFromUnanswered(t *testing.T) {
 	b := board(t, map[string]string{
-		"R1-1": prescribed,          // applied verbatim
-		"R1-2": prescribed + " Two", // blue counter-edited
-		"R1-3": prescribed + " Three",
-		"R1-4": "", // prose only: not an offer, must not be counted
+		"G1": prescribed,          // applied verbatim
+		"G2": prescribed + " Two", // blue counter-edited
+		"G3": prescribed + " Three",
+		"G4": "", // prose only: not an offer, must not be counted
 	}, []*Event{
-		edit(t, "R1-1", true),
-		edit(t, "R1-2", false),
-		// R1-3 offered and never answered.
-		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.BlueEdit{Answers: proto.String("R1-4")}),
+		edit(t, "G1", true),
+		edit(t, "G2", false),
+		// G3 offered and never answered.
+		recordtest.Event(t, "blue-respond", &recordpb.BlueEdit{Answers: proto.String("G4")}),
 	})
 
 	offered, applied, declined := DeclineStatsOf(b.Events, GapsByID(b.Gaps))
@@ -139,7 +139,7 @@ func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 	// THE TEXT IS THE SUBJECT — this test is about a counter that survives the refusal being
 	// REWORDED — and the earlier conversion dropped it, leaving two identical empty frictions.
 	fr := func(text string) *Event {
-		return recordtest.Event(t, "red-chair-r2", 2, &recordpb.Log{
+		return recordtest.Event(t, "red-chair", &recordpb.Log{
 			Text:   proto.String(text),
 			Type:   recordtest.P(recordpb.LogType_LOG_TYPE_ESTOPPEL),
 			Source: recordtest.P(recordpb.LogSource_LOG_SOURCE_TOOL),
@@ -160,7 +160,7 @@ func TestEstoppelCountSurvivesRewordingTheRefusal(t *testing.T) {
 // position matcher exists to avoid.
 func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
 	b := board(t, nil, []*Event{
-		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Log{}),
+		recordtest.Event(t, "blue-respond", &recordpb.Log{}),
 	})
 	if got := EstoppelRejectionsOf(b.Events); got != 0 {
 		t.Errorf("EstoppelRejections = %d, want 0 — a seat QUOTING the refusal did not cause one", got)
@@ -171,7 +171,7 @@ func TestASeatsOwnComplaintIsNotARejection(t *testing.T) {
 // fire" rather than "the detector is broken".
 func TestNoRejectionsCountsZero(t *testing.T) {
 	b := board(t, nil, []*Event{
-		recordtest.Event(t, "red-chair-r1", 1, &recordpb.Log{Text: proto.String("the fetch cache refused an unreachable url"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
+		recordtest.Event(t, "red-chair", &recordpb.Log{Text: proto.String("the fetch cache refused an unreachable url"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 	})
 	if got := EstoppelRejectionsOf(b.Events); got != 0 {
 		t.Errorf("EstoppelRejections = %d, want 0", got)

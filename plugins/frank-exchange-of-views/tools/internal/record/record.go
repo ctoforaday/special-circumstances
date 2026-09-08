@@ -118,7 +118,9 @@ func isGrade(s string) bool { return flags.IsGrade(s) }
 // absent grade contributes zero rather than erroring.
 func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS[impact] }
 
-// RoundOf, RoundIn and lastRoundOn live in round.go now.
+// THE ROUND IS NOT A FACT A SEAT SUPPLIES. It used to be read out of the seat id by regex at
+// register and stamped on every event forever (round.go, deleted). It is now the EPOCH at the
+// the record itself — events_w."epoch", derived from the chair's registers — and a seat id carries no round at all.
 //
 // What stood here returned a bare int and read FEOV_ROUND first — an injected branch nothing in
 // the repository ever set, so in production the regex was not a fallback but the only path, and
@@ -153,7 +155,7 @@ type Event = recordpb.Event
 // ROLE IS DELIBERATELY NOT A FIELD HERE. See the note on Event.Role: the role stamped on an event
 // is the PARTY, derived from the seat id, and seat.Context.Role answers a different question —
 // which command group the verb is mounted under. They disagree: `motion grade file` run by
-// `blue-respond-r1` is party `blue` and command-group `grade`. Passing the wrong one would
+// `blue-respond` is party `blue` and command-group `grade`. Passing the wrong one would
 // silently re-label who wrote every motion event.
 type Identity struct {
 	// Run, not a path. RunDir was a string, and the empty string reached Append as a legitimate
@@ -166,9 +168,6 @@ type Identity struct {
 	// struct literal that skipped the constructor.
 	Run    Run
 	SeatID string
-	// Round is the seat's round as resolved by its caller. -1 means unknown, which is NOT round
-	// 0 — round 0 is synthesis, and conflating them produced the phantom-archive bug in #327.
-	Round int
 }
 
 // RegisterSeat is every seat's FIRST record action. Duplicate dispatches are
@@ -195,6 +194,15 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// check above admits any well-formed id; this refuses one whose FAMILY the attested agent
 	// configuration cannot seat. Unattested callers — an operator, CI, a hookless run — pass
 	// through unchanged, so this adds a refusal where a fact exists and nothing anywhere else.
+	// THE CAST IS THE ADMISSIBLE LIST (plans/roundless.md §III.B.1). A record with no cast admits
+	// any dispatchable seat — that is the test fixtures' world and a migrated archive's before its
+	// cast is synthesized — but once setup has written one, a seat outside it is refused here, at
+	// the door, rather than discovered later as a party the dispatch verb never named.
+	if member, hasCast, err := InCast(run, seatID); err != nil {
+		return 0, "", err
+	} else if hasCast && !member {
+		return 0, "", fmt.Errorf("record: register refused — %q is not in this run's cast. The cast is the run's admissible seats, written by setup before any seat registered; a seat outside it is one the workflow was never told to dispatch", seatID)
+	}
 	if err := CheckAttestedRole(seatenv.AgentType(), seatID); err != nil {
 		return 0, "", err
 	}
@@ -268,7 +276,7 @@ func RegisterSeat(id Identity, runVia string) (dispatch int, where string, err e
 	// because it carried the nonce — two registers for one seat are a legitimate re-dispatch and
 	// must not dedup into one. With the ordinal scoped to the seat, `red-merge-r1:register:#2` is
 	// what the general rule already produces, so the exception is gone rather than restated.
-	if err := insertNumbered(db, ev, seatID, id.Round, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister()); err != nil {
+	if err := insertNumbered(db, ev, seatID, recordpb.EventType_EVENT_TYPE_REGISTER, ev.GetRegister()); err != nil {
 		return 0, "", err
 	}
 	if err := db.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
@@ -314,18 +322,24 @@ func allowSubstitution(run Run) bool {
 // nothing — the line reader that once gated on it went with the shard lines. What actually
 // refuses a binary that cannot read a record is the event-schema epoch, compared once at setup,
 // so the per-row copy was a fact restated where no one asked it.
-func envelope(ev *Event, ts, seatID string, round int, key string) {
+func envelope(ev *Event, ts, seatID string, key string) {
 	ev.Ts = proto.String(ts)
 	ev.SeatId = proto.String(seatID)
-	ev.Round = proto.Int32(int32(round))
 	if r := roleOfSeat(seatID); r != "" {
 		ev.Role = proto.String(r)
 	}
 	ev.Key = proto.String(key)
 }
 
-// singleton verbs key on seat+verb; multi-instance verbs on their stable labels; the rest on a
-// per-seat ordinal.
+// singleton verbs key on seat+verb+SITTING; multi-instance verbs on their stable labels; the rest on
+// a per-seat ordinal.
+//
+// SINGLETON MEANS ONCE PER SITTING, AND THE KEY NOW SAYS SO. A seat id used to name one sitting —
+// `red-chair-r2` could record one position, and the key `red-chair-r2:position` held that. Roundless
+// there is one chair sitting many times (plans/roundless.md §III.A.1), so `red-chair:position` would
+// have made a position once per RUN — and the refusal that fires on the collision says "this
+// sitting", which the key then did not mean. The sitting ordinal is the count of this seat's
+// registers on the record, the same count events_w exposes, taken inside the writing transaction.
 //
 // REGISTER IS NOT ONE, and it never really was. It sat here and then had its key overridden in
 // RegisterSeat to carry the nonce, precisely because two registers for one seat are a legitimate
@@ -337,6 +351,20 @@ var singleton = map[recordpb.EventType]bool{
 	recordpb.EventType_EVENT_TYPE_REVISION:   true,
 	recordpb.EventType_EVENT_TYPE_VERDICT:    true,
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK: true,
+}
+
+// defines is the label-keyed verbs whose label IS the identity the event brings into being — a
+// gap id, a finding label, a citation id, an anchor. Those are run-unique by construction (the
+// tool assigns them: MintGapID, NextFindingLabel, the content hash), so their key stays
+// `seat:verb:label` and a second event with the same label is the SAME act whichever sitting
+// records it. Every other label-keyed verb REFERENCES something that already exists — a verify
+// names a source, a regrade or a manifest row names a gap — and there the label alone would make
+// the act possible once per run; see deriveKey.
+var defines = map[recordpb.EventType]bool{
+	recordpb.EventType_EVENT_TYPE_MINT:    true,
+	recordpb.EventType_EVENT_TYPE_FINDING: true,
+	recordpb.EventType_EVENT_TYPE_CITE:    true,
+	recordpb.EventType_EVENT_TYPE_ANCHOR:  true,
 }
 
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
@@ -390,11 +418,26 @@ func requireGradeMotionAsksForAChange(run Run, g *recordpb.GradeMotion) error {
 // refused rather than silently written twice.
 func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Message) (string, error) {
 	slug := recordpb.Word(typ)
+	var sitting int
+	if err := tx.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
+		seatID).Scan(&sitting); err != nil {
+		return "", fmt.Errorf("record: counting %s's sittings for its key: %w", seatID, err)
+	}
 	if singleton[typ] {
-		return seatID + ":" + slug, nil
+		return fmt.Sprintf("%s:%s:#%d", seatID, slug, sitting), nil
 	}
 	if v := keyLabel(body); v != "" {
-		return seatID + ":" + slug + ":" + v, nil
+		if defines[typ] {
+			return seatID + ":" + slug + ":" + v, nil
+		}
+		// A REFERENCING LABEL KEY CARRIES THE SITTING. It never had to: `red-lens-r2-L1:verify:c-ea33`
+		// was scoped to round 2 by the seat id, so the same lens re-verifying the same citation in
+		// round 3 was a different seat and a different key. Roundless (plans/roundless.md §III.A.1)
+		// it is one seat, and `red-lens-evidence:verify:c-ea33` would have made a citation verifiable
+		// once per RUN — 53 of the quadratic-formula run's re-verifications refused at migration, and
+		// the same refusal waiting for the first live lens that sat twice. Within a sitting the label
+		// still dedups a crash-retry to one event; across sittings a re-verification is a new act.
+		return fmt.Sprintf("%s:%s:#%d:%s", seatID, slug, sitting, v), nil
 	}
 	var prior int
 	// SCOPED TO THE SEAT, NOT TO A SITTING. It was `seat_id AND nonce AND type`, which restarted the
@@ -435,6 +478,14 @@ func keyLabel(body proto.Message) string {
 // into the difftest harness).
 var Now = func() time.Time { return time.Now().UTC() }
 
+// Migrating is set by `feov-record migrate` while it re-drives an archived record through this
+// write path (plans/roundless.md §III.A.5). Every STRUCTURAL refusal stays on — a reference to a
+// gap nobody minted, a second cast, a seat outside the cast — because a migrated record must be a
+// record. The refusals that shape LIVE behaviour are gated off: the convergence refusal on a FAIL
+// and the every-lens-sat refusal on a PASS judge what a seat may do NEXT, and an archived gate is
+// what a seat DID. Refusing it would drop a real event and call the loss a translation.
+var Migrating bool
+
 // stamp formats an event time at NANOSECOND precision.
 //
 // It was milliseconds, justified as "seats act on a scale of seconds, and a fixed width
@@ -443,7 +494,7 @@ var Now = func() time.Time { return time.Now().UTC() }
 //
 // When two events share a stamp the sort falls through to (SeatID, Seq) — and ordering by
 // seat name is the exact defect that silently dropped the bench's closures, because
-// "judge-r2" sorts before "red-merge-r1" and every ruling replayed before the mint it
+// "judge" sorts before "red-merge-r1" and every ruling replayed before the mint it
 // referenced. A millisecond clock reintroduces that defect for any two events inside the
 // same tick, which under a fast seat or a test is most of them. The test harness had been
 // papering over it by ranking positions instead of instants; the ties were real.
@@ -512,7 +563,7 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 	}
 	// SEQ AND THE INSERT ARE ONE TRANSACTION. The shard version read the file, counted the lines
 	// and appended — two steps with a gap, held together only by one seat owning one file.
-	return ev, insertNumbered(db, ev, seatID, id.Round, typ, body)
+	return ev, insertNumbered(db, ev, seatID, typ, body)
 }
 
 // insertNumbered stamps the envelope and writes the event in ONE transaction.
@@ -527,7 +578,7 @@ func Append(id Identity, body proto.Message) (*Event, error) {
 // A read followed by a write in one transaction is exactly the deferred-BEGIN upgrade SQLite
 // refuses to apply busy_timeout to, which is why the DSN takes the write lock at BEGIN. Measured
 // before that: 8 concurrent seat processes lost about half their acts to SQLITE_BUSY.
-func insertNumbered(db *sql.DB, ev *Event, seatID string, round int, typ recordpb.EventType, body proto.Message) error {
+func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType, body proto.Message) error {
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -537,7 +588,7 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, round int, typ recordp
 	if err != nil {
 		return err
 	}
-	envelope(ev, Now().UTC().Format(stampLayout), seatID, round, key)
+	envelope(ev, Now().UTC().Format(stampLayout), seatID, key)
 	if _, err := recordsql.InsertTx(tx, ev); err != nil {
 		// A KEY COLLISION IS A SEAT REPEATING A ONCE-PER-SITTING ACT, and the raw constraint text
 		// teaches nothing about that. The shard record met this by DEDUPING — two events with one
@@ -545,11 +596,18 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, round int, typ recordp
 		// never learned that only one survived. Refusing is the better answer and it has to say
 		// what was refused.
 		if isDuplicateKey(err) {
+			if singleton[typ] {
+				return feov.Errorf(feov.Validation,
+					"record: %s has already recorded a %s this sitting, and it is a once-per-sitting act — "+
+						"the record keeps your first one rather than quietly replacing it. If the first was wrong, "+
+						"say so in the act that supersedes it; the record is append-only and both stay visible",
+					seatID, recordpb.Word(typ))
+			}
 			return feov.Errorf(feov.Validation,
-				"record: %s has already recorded a %s this sitting, and it is a once-per-sitting act — "+
-					"the record keeps your first one rather than quietly replacing it. If the first was wrong, "+
-					"say so in the act that supersedes it; the record is append-only and both stay visible",
-				seatID, recordpb.Word(typ))
+				"record: %s has already recorded a %s on %q this sitting — the record keeps your first one "+
+					"rather than quietly replacing it (a retried write lands on the same key on purpose). If the "+
+					"first was wrong, say so in the act that supersedes it; the record is append-only and both stay visible",
+				seatID, recordpb.Word(typ), keyLabel(body))
 		}
 		return err
 	}
@@ -617,6 +675,9 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 	case *recordpb.ClassNew:
 		return validateClassNew(run, b)
 	case *recordpb.Mint:
+		if err := requireMintWithinBudget(run, seatID); err != nil {
+			return err
+		}
 		// REQUIRED, not optional, and that is the whole remedy (#277).
 		//
 		// The 2026-08-05 smoke produced ZERO proofs across a full run. Not because blue
@@ -747,7 +808,7 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 		// It is here for the cheaper tier, where an anchor is exactly the work a seat
 		// under pressure would rather skip.
 		if !anchored && b.CarriedFrom != nil {
-			prior, err := priorClosureRounds(run, b.GetGapId())
+			prior, err := priorClosureEpochs(run, b.GetGapId())
 			if err != nil {
 				return err
 			}
@@ -1020,7 +1081,33 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 	// This is the argument for deriving the refusal rather than writing it beside the schema: two
 	// copies, and the unreachable one is the one that drifts, silently, in the direction nobody
 	// reads.
-	case *recordpb.RoundVerdict:
+	case *recordpb.Cast:
+		if len(b.GetSeatIds()) == 0 {
+			return fmt.Errorf("record: a cast with no seats — setup writes the run's admissible seats, and a run nobody may sit in is not a run")
+		}
+		if existing, err := CastOf(run); err != nil {
+			return err
+		} else if existing != nil {
+			return fmt.Errorf("record: the cast is written ONCE, before any seat registers, and this record already holds one (%d seats) — a second cast would make membership a question of which one a reader picked", len(existing))
+		}
+	case *recordpb.Dispatch:
+		if b.GetPin() <= 0 {
+			return fmt.Errorf("record: a dispatch requires a pin — the events.id of the report head the party audits; the verb computes it, and a dispatch against nothing is a dispatch against a moving target")
+		}
+		member, hasCast, err := InCast(run, b.GetSeatId())
+		if err != nil {
+			return err
+		}
+		if !hasCast {
+			return fmt.Errorf("record: dispatch refused — the record holds no cast, so there is nothing to admit %q against", b.GetSeatId())
+		}
+		if !member {
+			return fmt.Errorf("record: dispatch refused — %q is not in this run's cast. The cast is the run's admissible seats, written by setup; a party outside it would be a seat the workflow invents", b.GetSeatId())
+		}
+		if err := requireGaps(run, b.GetGapIds(), "dispatch", "--seat"); err != nil {
+			return err
+		}
+	case *recordpb.Gate:
 		// The seat's terminal act is where completion duties belong: it is the last
 		// moment the seat is still there to discharge them.
 		if err := requireSupersededAreClosed(run); err != nil {
@@ -1029,9 +1116,19 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 		// A PASS is a claim that nothing is left open. Enforce it here, at the one write
 		// path, so no verdict route can record a PASS over an unadjudicated board (the
 		// 2026-07-20 rubber-stamp: PASS with 9 open gaps).
-		if b.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
-			if err := requirePassClosesAllGaps(run); err != nil {
+		if b.GetVerdict() == recordpb.Verdict_VERDICT_FAIL && !Migrating {
+			if err := requireFailIsNotConvergent(run); err != nil {
 				return err
+			}
+		}
+		if b.GetVerdict() == recordpb.Verdict_VERDICT_PASS {
+			if err := requirePassClosesAllMaterialGaps(run); err != nil {
+				return err
+			}
+			if !Migrating {
+				if err := requireEveryCastLensSatAgainstHead(run); err != nil {
+					return err
+				}
 			}
 		}
 	case *recordpb.SpotCheck:
@@ -1257,4 +1354,34 @@ func verbOf(typ recordpb.EventType) string {
 // constraint text instead of confidently mislabelling something else.
 func isDuplicateKey(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed: events.key")
+}
+
+// requireMintWithinBudget is the run-level bound that is not a clock (plans/roundless.md
+// §III.B.2.2): each cast lens may mint at most M gaps in the run, a SUPERSEDING mint included —
+// lineage is a new gap, or the bound gaps <= M x lenses does not hold. A lens whose budget is
+// spent still sits when the head moves: it verifies, records findings, regrades and closes its own
+// gaps. The count is the record's own — this seat's mint events — not a counter the seat carries.
+// Only a lens is bounded: the chair mints nothing now (§III.B.3), and a seed or a migration
+// writing under another seat is not a lens spending a budget.
+func requireMintWithinBudget(run Run, seatID string) error {
+	if roleOfSeat(seatID) != "lens" {
+		return nil
+	}
+	p, err := RunParams(run)
+	if err != nil {
+		return err
+	}
+	var n int
+	if _, err := queryRow(run, []any{&n},
+		`SELECT count(*) FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."seat_id" = ?`, seatID); err != nil {
+		return err
+	}
+	if n < p.MintBudget {
+		return nil
+	}
+	return feov.Errorf(feov.Validation,
+		"record: mint refused — %s has minted %d gap(s), the run's budget per lens (mintBudget in inputs/run-config.json). "+
+			"The budget is where a trifle's cost lands: with %d mints for a report, none of them is spent on a nitpick. "+
+			"You can still verify, record findings, and regrade or close the gaps you minted; what you found now goes in a finding, not a gap",
+		seatID, n, p.MintBudget)
 }

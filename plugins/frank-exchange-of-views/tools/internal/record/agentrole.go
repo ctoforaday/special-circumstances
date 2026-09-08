@@ -10,7 +10,7 @@ import (
 // THE ATTESTATION TABLE: which roles an agent configuration is allowed to be seated as.
 //
 // The roster gate (roster.go) bounds the SHAPE of a seat id and says so itself — "it bounds the
-// SHAPE, never the membership". `red-lens-r9-L9` is well formed and no run will dispatch it, and
+// SHAPE, never the membership". `red-lens-L9` is well formed and no run will dispatch it, and
 // nothing could tell that a `lead-judge` agent had registered as `red-merge-r1`. This table is the
 // membership half, and it is the first fact in this system about a seat that the seat did not
 // supply: `agent_type` comes off the PreToolUse payload, and a seat cannot state it or withhold it.

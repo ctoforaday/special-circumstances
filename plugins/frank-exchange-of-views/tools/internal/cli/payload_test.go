@@ -31,7 +31,7 @@ const hostile = "quotes \"like this\", $vars, 'apostrophes', `backticks`\nand a 
 func TestPayloadArrivesIntactThroughStdin(t *testing.T) {
 	runDir := seatRun(t)
 	out, err := runStdin(t, hostile, "log", "--run", runDir,
-		"--seat-id", "red-lens-r1-evidence", "--type", "defect", "--reason-file", "-")
+		"--seat-id", "red-lens-evidence", "--type", "defect", "--reason-file", "-")
 	if err != nil {
 		t.Fatalf("--reason-file - : %v (%s)", err, out)
 	}
@@ -51,7 +51,7 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 	// The STATE each verb needs, not just the referent. A ruling answers a motion, so M1 is
 	// filed for the rule case to answer; the file case contests a DIFFERENT gap.
 	undisputed := mintGap(t, runDir, "undisputed", "payload-channel")
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", id, "--dimension", "severity", "--proposed", "low", "--reason", "b"); err != nil {
 		t.Fatal(err)
 	}
@@ -67,10 +67,10 @@ func TestLongFormFieldsAcceptThePayloadChannel(t *testing.T) {
 	}{
 		// NO ROLE SEGMENT: the surface is the seat's, so `regrade` sits at the root of the merge
 		// tree. `motion …` below keeps its path because motion is a real subgroup within it.
-		{"merge regrade", "basis", recordpb.EventType_EVENT_TYPE_REGRADE, []string{"regrade", "--seat-id", "red-chair-r1", "--id", id, "--severity", "low"}},
-		{"motion grade rule", "opinion", recordpb.EventType_EVENT_TYPE_MOTION_RULE, []string{"motion", "grade", "rule", "--seat-id", "red-chair-r1", "--id", "M1", "--as", "accepted"}},
-		{"motion grade file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "grade", "file", "--seat-id", "blue-respond-r1", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
-		{"motion petition file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "petition", "file", "--seat-id", "red-chair-r1", "--class", "safety", "--relief", "halt"}},
+		{"merge regrade", "basis", recordpb.EventType_EVENT_TYPE_REGRADE, []string{"regrade", "--seat-id", "red-chair", "--id", id, "--severity", "low"}},
+		{"motion grade rule", "opinion", recordpb.EventType_EVENT_TYPE_MOTION_RULE, []string{"motion", "grade", "rule", "--seat-id", "red-chair", "--id", "M1", "--as", "accepted"}},
+		{"motion grade file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "grade", "file", "--seat-id", "blue-respond", "--id", undisputed, "--dimension", "severity", "--proposed", "low"}},
+		{"motion petition file", "basis", recordpb.EventType_EVENT_TYPE_MOTION, []string{"motion", "petition", "file", "--seat-id", "red-chair", "--class", "safety", "--relief", "halt"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			// The path is however many leading non-flag words the case supplies.
@@ -115,7 +115,7 @@ func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 	if werr := os.WriteFile(both, []byte("from a file"), 0o644); werr != nil {
 		t.Fatal(werr)
 	}
-	_, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair-r1",
+	_, err := run(t, "position", "--run", runDir, "--seat-id", "red-chair",
 		"--reason", "inline", "--reason-file", both)
 	if err == nil {
 		t.Fatal("passing --reason AND --reason-file was accepted; one of them was silently dropped")
@@ -139,7 +139,7 @@ func TestBothSpellingsOfOneFieldAreRefused(t *testing.T) {
 func TestShortValueVerbsHaveNoPayloadChannel(t *testing.T) {
 	// (verb, a seat that holds it) — the role that used to precede the verb is now the identity
 	// that selects the tree it is found in.
-	for _, c := range [][2]string{{"verdict", "red-chair-r1"}} {
+	for _, c := range [][2]string{{"verdict", "red-chair"}} {
 		if h := help(t, c[0], "--help", "--seat-id", c[1]); strings.Contains(h, "--reason ") {
 			t.Errorf("%s grew a payload channel; its fields are a label and a grade, and --reason would have nothing to fill", c[0])
 		}
@@ -181,7 +181,7 @@ func runStdin(t *testing.T, stdin string, args ...string) (string, error) {
 func TestReasonFileReadsStdinThroughTheDashConvention(t *testing.T) {
 	runDir := seatRun(t)
 	if _, err := runStdin(t, hostile, "log", "--run", runDir,
-		"--seat-id", "red-lens-r1-evidence", "--type", "defect", "--reason-file", "-"); err != nil {
+		"--seat-id", "red-lens-evidence", "--type", "defect", "--reason-file", "-"); err != nil {
 		t.Fatalf("--reason-file -: %v", err)
 	}
 	ev := lastBody(t, runDir, &recordpb.Log{})

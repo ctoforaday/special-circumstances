@@ -60,7 +60,7 @@ func TestAttemptedSeesWhatTheRecordCannot(t *testing.T) {
 func TestAttemptedTakesTheLongestVerbNotTheFirstToken(t *testing.T) {
 	sf := surface()
 	p := writeTrajectory(t,
-		`"/x/fxr.exe" motion grade file --id R1-1 --dimension severity --proposed low --reason "r"`,
+		`"/x/fxr.exe" motion grade file --id G1 --dimension severity --proposed low --reason "r"`,
 	)
 	got, err := Attempted(p, "fxr.exe", sf, "blue")
 	if err != nil {
@@ -94,11 +94,11 @@ func TestReportSeparatesRecordedFromInvoked(t *testing.T) {
 		seat    string
 		payload proto.Message
 	}{
-		{seat: "blue-respond-r1", payload: &recordpb.Position{Text: proto.String("n")}},
+		{seat: "blue-respond", payload: &recordpb.Position{Text: proto.String("n")}},
 	})
 
-	attempts := map[string]map[string]int{"blue-respond-r1": {"show": 9}}
-	out, err := Report(surface(), runtest.Open(t, runDir), []string{"blue-respond-r1"}, nil, attempts)
+	attempts := map[string]map[string]int{"blue-respond": {"show": 9}}
+	out, err := Report(surface(), runtest.Open(t, runDir), []string{"blue-respond"}, nil, attempts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -113,7 +113,7 @@ func TestReportSeparatesRecordedFromInvoked(t *testing.T) {
 
 	// And with no trajectory the report must SAY it did not measure, rather than presenting a
 	// record-only count as the whole picture — the absent case and the honest zero again.
-	out, err = Report(surface(), runtest.Open(t, runDir), []string{"blue-respond-r1"}, nil, nil)
+	out, err = Report(surface(), runtest.Open(t, runDir), []string{"blue-respond"}, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,9 +129,9 @@ func TestReportSeparatesRecordedFromInvoked(t *testing.T) {
 func TestAttemptedFindsTheVerbAfterLeadingFlags(t *testing.T) {
 	sf := surface()
 	p := writeTrajectory(t,
-		`"/s/fxr.exe" --run "." --seat-id red-lens-r1-evidence lens finding --key F1 --reason "r"`,
-		`"/s/fxr.exe" --run "." --seat-id red-lens-r1-evidence lens show --view findings`,
-		`"/s/fxr.exe" --run "." --seat-id red-lens-r1-evidence record lens finding --key F2 --reason "r"`,
+		`"/s/fxr.exe" --run "." --seat-id red-lens-evidence lens finding --key F1 --reason "r"`,
+		`"/s/fxr.exe" --run "." --seat-id red-lens-evidence lens show --view findings`,
+		`"/s/fxr.exe" --run "." --seat-id red-lens-evidence record lens finding --key F2 --reason "r"`,
 	)
 	got, err := Attempted(p, "fxr.exe", sf, "lens")
 	if err != nil {
@@ -176,7 +176,7 @@ func TestShowViewSurvivesTheRoleLevelGoingAway(t *testing.T) {
 	}{
 		{"scoped: bare show is the work list", "/tmp/feov-record show --run /r", "work", true},
 		{"scoped: named view", "/tmp/feov-record show board --run /r", "board", true},
-		{"scoped: flags first", `/tmp/feov-record --run /r --seat-id red-chair-r1 show findings`, "findings", true},
+		{"scoped: flags first", `/tmp/feov-record --run /r --seat-id red-chair show findings`, "findings", true},
 		// The old spelling still resolves, so a trajectory from either era reads the same.
 		{"role-prefixed still reads", "/tmp/feov-record merge show board --run /r", "board", true},
 		{"not a show at all", "/tmp/feov-record mint --problem p --run /r", "", false},

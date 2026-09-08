@@ -133,7 +133,7 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 				add("gap " + g.ID + " is open — PASS is refused while it is")
 			}
 		}
-		// THE VIEW NAMES THE GAVEL BECAUSE THE REFUSAL DOES. requirePassClosesAllGaps refuses
+		// THE VIEW NAMES THE GAVEL BECAUSE THE REFUSAL DOES. requirePassClosesAllMaterialGaps refuses
 		// PASS over any unruled motion and says who rules each one; this list said only that the
 		// motion stood. A merge seat reading it saw work it appeared to owe, and the item it
 		// could not rule looked the same as the ones it could — which is the wedge the refusal's

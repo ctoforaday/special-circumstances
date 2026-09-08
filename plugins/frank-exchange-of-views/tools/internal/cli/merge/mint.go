@@ -20,7 +20,7 @@ import (
 
 // mint: put a gap on the board.
 //
-// The id is TOOL-assigned, sequential per round. Letting seats choose produced
+// The id is TOOL-assigned, one run-global sequence (G<n>). Letting seats choose produced
 // four different "R5-1"s in one round of run 3, and the collision class dies here
 // rather than being policed downstream.
 func newMint() *cobra.Command {
@@ -41,14 +41,13 @@ func newMint() *cobra.Command {
 		if prior != "" {
 			return mintResult{GapID: prior, Idempotent: true}, nil
 		}
-		// The round comes from the seat's CONTEXT, not from re-reading its id.
-		// Both answer the same today (Of passes record.RoundOf as the inference),
-		// but a gap id is the run's primary public identifier — it is printed in
-		// the report and referenced by --supersedes, --id and found_by — so it
-		// must be minted from the FACT the dispatcher supplies, not from a guess
-		// about a string's shape. The moment FEOV_ROUND is injected these diverge,
-		// and this call site would have kept the guess (#348).
-		gapID, err := record.MintGapID(run, s.Round)
+		// The gap id is G<n>, the position in the run's mint order, read by MintGapID from the
+		// record itself. It used to carry a round: handed in from the seat's context, and before
+		// that recovered from the seat id by regex (#348). A gap id is the run's primary public
+		// identifier, printed in the report and referenced by --supersedes, --id and found_by, so
+		// it is minted from a fact the record holds, never from the shape of a string a seat
+		// typed — and plans/roundless.md §III.A.3 took the clock out of it entirely.
+		gapID, err := record.MintGapID(run)
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +64,7 @@ func newMint() *cobra.Command {
 		// It was discarded. `--reason` fell back to `--problem` only when problem was empty,
 		// so the ordinary mint — which supplies both — recorded the problem and threw the
 		// reasoning away, while `--reason`'s own help promises "the substance the report
-		// renders and the other side answers". The write returned "minted R1-4" either way.
+		// renders and the other side answers". The write returned "minted G4" either way.
 		//
 		// MEASURED 2026-08-16 BY ASKING THE BENCH. Dispatched to a petition sitting about what
 		// a required_fix may demand, it reported first among its missing things: "Red's closing
@@ -260,7 +259,7 @@ func newMint() *cobra.Command {
 	// the contract gate reads "mint declares gap_id required and registers no --id" and is right
 	// to: a requirement with no flag behind it is invisible to a seat unless something says the
 	// tool meets it.
-	seat.Supplies(c, "gap_id", "the tool assigns it (MintGapID), sequentially per round — a seat that chose its own would collide with another seat's")
+	seat.Supplies(c, "gap_id", "the tool assigns it (MintGapID), sequentially over the run — a seat that chose its own would collide with another seat's")
 	return c
 }
 

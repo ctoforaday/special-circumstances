@@ -86,16 +86,25 @@ name = "yamllint"
 # Dependency CVEs. It has already paid for itself — it found golang.org/x/sys and
 # golang.org/x/text CVEs, both bumped in the change that added this config.
 #
-# It also reports the Go STDLIB as vulnerable, keyed off the `go` directive, and that
-# part is unactionable here and permanently non-zero: the directive is a MINIMUM language
-# version, not the toolchain a binary was built with, and any exact version accumulates
-# CVEs discovered after it shipped. The two forms are not equivalent to it —
+# It also reports the Go STDLIB as vulnerable, keyed off the `go` directive: the directive
+# is a MINIMUM language version, not the toolchain a binary was built with, and any exact
+# version accumulates CVEs discovered after it shipped. Three forms, measured 2026-09-08:
 #
-#   go 1.25     open-ended, resolved as the latest 1.25.x   ->  0 findings
-#   go 1.25.0   an exact release with known CVEs            -> 39 findings
+#   go 1.25     open-ended                         ->  0 findings, but ONLY while the module
+#                                                     has no dependencies: once it has one,
+#                                                     `go build` and `go test` refuse until
+#                                                     `go mod tidy` rewrites it to 1.25.0
+#   go 1.25.0   the release tidy writes            -> 46 findings (39 when this was first
+#                                                     written; it grows as CVEs land)
+#   go 1.25.13  a CURRENT patch release            ->  0 findings
 #
-# — so two modules sit on the short form and report clean. frank-exchange-of-views cannot:
-# `go mod tidy` under the 1.25 toolchain rewrites it to `go 1.25.0` and `go test` refuses to
-# run until it does. Those 39 findings on that one go.mod are accepted, not overlooked.
+# So the rule is: a module with no dependencies keeps the short form (gray-area,
+# prosthetic-conscience); a module WITH dependencies pins a current patch release
+# (frank-exchange-of-views, scripts), and bumps it when this scanner starts reporting
+# against it. NOT a suppression — an earlier version of this comment described 39
+# findings on frank-exchange-of-views as "accepted", and a suppression was nearly added on
+# that basis before running the scanner showed the pinned form reports clean. A
+# suppression would have hidden real findings on that file forever to avoid a one-line
+# directive change. When this comment and the scanner disagree, the scanner is right.
 [[plugin]]
 name = "osv-scanner"

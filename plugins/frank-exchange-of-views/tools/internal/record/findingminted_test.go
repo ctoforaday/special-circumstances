@@ -25,13 +25,13 @@ import (
 // reach it rather than where it was written.
 func TestAFindingSaysWhichGapsCreditIt(t *testing.T) {
 	find := func(label string) *Event {
-		return recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Finding{
+		return recordtest.Event(t, "red-lens-r1-L5", &recordpb.Finding{
 			FindingId: proto.String("f-" + label), Label: proto.String(label),
 			Text: proto.String("a finding"), Severity: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		})
 	}
 	mint := func(gap string, foundBy ...string) *Event {
-		return recordtest.Event(t, "red-merge-r1", 1, &recordpb.Mint{
+		return recordtest.Event(t, "red-merge-r1", &recordpb.Mint{
 			GapId: proto.String(gap), Class: proto.String("self-attestation"),
 			Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 			CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), FoundBy: foundBy,
@@ -72,10 +72,10 @@ func TestAFindingSaysWhichGapsCreditIt(t *testing.T) {
 // plausible zero, so it is pinned here rather than trusted: FindingsJSONBytes must fetch MINT
 // alongside FINDING.
 func TestWithoutTheMintEventsEveryFindingReadsAsDropped(t *testing.T) {
-	finding := recordtest.Event(t, "red-lens-r1-L5", 1, &recordpb.Finding{
+	finding := recordtest.Event(t, "red-lens-r1-L5", &recordpb.Finding{
 		FindingId: proto.String("f-1"), Label: proto.String("L5-F1"), Text: proto.String("x"),
 	})
-	minted := recordtest.Event(t, "red-merge-r1", 1, &recordpb.Mint{
+	minted := recordtest.Event(t, "red-merge-r1", &recordpb.Mint{
 		GapId: proto.String("R1-1"), Class: proto.String("self-attestation"),
 		Problem: proto.String("p"), RequiredFix: proto.String("f"), AcceptanceCheck: proto.String("a"),
 		CheckKind: recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(), FoundBy: []string{"L5-F1"},
@@ -93,5 +93,44 @@ func TestWithoutTheMintEventsEveryFindingReadsAsDropped(t *testing.T) {
 	if !slices.Contains(findingsViewEventTypes(), recordpb.EventType_EVENT_TYPE_MINT) {
 		t.Error("FindingsJSONBytes does not fetch MINT, so minted_as is empty for every finding on " +
 			"every run — reporting 'nothing was minted from any finding' in the same bytes as a drop")
+	}
+	// AND REGISTER, WHICH IS THE SAME DEFECT ALREADY LIVE IN THIS FUNCTION. Clock.Advance moves
+	// epoch and sitting on a register event and on nothing else, so a stream without them leaves
+	// every finding at epoch 0.
+	//
+	// Measured on origin/main before this line existed: all 20 findings of
+	// 2026-08-23_research-loop-counterparts — a run spanning four epochs — reported epoch 0. Not
+	// an error, a uniform plausible number. One function, two derived values, both depending on
+	// events the typed read did not ask for; the second was already broken when the first was
+	// added, which is why this asserts the whole list rather than the flag of the day.
+	if !slices.Contains(findingsViewEventTypes(), recordpb.EventType_EVENT_TYPE_REGISTER) {
+		t.Error("FindingsJSONBytes does not fetch REGISTER, so the Clock never advances and every " +
+			"finding reports epoch 0 — a run's whole history flattened to one number that looks real")
+	}
+}
+
+// THE EPOCH IS DERIVED FROM REGISTER EVENTS, and this is what it looks like when they are absent.
+//
+// Paired with the assertion above rather than replacing it: that one pins the typed READ, this one
+// pins the CONSEQUENCE, so a reader who changes the list learns what breaks rather than only that
+// something does.
+func TestWithoutRegisterEventsEveryFindingReadsAsEpochZero(t *testing.T) {
+	reg := func(seat string) *Event {
+		return recordtest.Event(t, seat, &recordpb.Register{ToolVersion: proto.String("test")})
+	}
+	find := func(label string) *Event {
+		return recordtest.Event(t, "red-lens-r1-L5", &recordpb.Finding{
+			FindingId: proto.String("f-" + label), Label: proto.String(label), Text: proto.String("x"),
+		})
+	}
+	// A chair register opens an epoch; the finding after it belongs to that epoch.
+	withReg := FindingsJSONOf([]*Event{reg("red-chair"), find("A"), reg("red-chair"), find("B")}).Findings
+	if len(withReg) != 2 || withReg[0].Epoch == withReg[1].Epoch {
+		t.Fatalf("two chair sittings must put the two findings in different epochs: %+v", withReg)
+	}
+	// The same findings with the registers withheld: both collapse to one number.
+	withoutReg := FindingsJSONOf([]*Event{find("A"), find("B")}).Findings
+	if withoutReg[0].Epoch != 0 || withoutReg[1].Epoch != 0 {
+		t.Fatalf("expected the clock to stay at zero with no registers: %+v", withoutReg)
 	}
 }

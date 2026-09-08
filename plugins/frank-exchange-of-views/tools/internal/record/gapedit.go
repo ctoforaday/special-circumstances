@@ -25,7 +25,7 @@ import (
 
 // GapEdit is one edit that touched a gap's sentence, in the order it happened.
 type GapEdit struct {
-	Round    int    `json:"round"`
+	Epoch    int    `json:"epoch"`
 	EditedBy string `json:"edited_by"`
 	// Old and New are the exact span replaced and what replaced it — the same pair blue typed
 	// and the tool matched against the report, so a reader can see the change rather than be
@@ -43,7 +43,7 @@ func GapEdits(run Run) (map[string][]GapEdit, error) {
 	if err != nil || db == nil {
 		return map[string][]GapEdit{}, err
 	}
-	rows, err := db.Query(`SELECT "gap_id", "round", "edited_by", "old", "new"
+	rows, err := db.Query(`SELECT "gap_id", "epoch", "edited_by", "old", "new"
 	  FROM "gap_edit" ORDER BY "event_id"`)
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func GapEdits(run Run) (map[string][]GapEdit, error) {
 		var id string
 		var ge GapEdit
 		var by, old, new sql.NullString
-		if err := rows.Scan(&id, &ge.Round, &by, &old, &new); err != nil {
+		if err := rows.Scan(&id, &ge.Epoch, &by, &old, &new); err != nil {
 			return nil, err
 		}
 		ge.EditedBy, ge.Old, ge.New = by.String, old.String, new.String

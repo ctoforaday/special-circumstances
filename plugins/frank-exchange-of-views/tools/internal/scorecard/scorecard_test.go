@@ -35,10 +35,10 @@ func TestJsToFixed2Num(t *testing.T) {
 // is the whole byte-identity trap this port had to solve.
 func TestBucketFindingsByRoleKeyOrder(t *testing.T) {
 	findings := []record.FindingJSON{
-		{Role: "L1", Round: 1, SeatID: "a"},
-		{Role: "L1", Round: 1, SeatID: "b"},
-		{Role: "L5", Round: 1, SeatID: "c"},
-		{Role: "L6", Round: 1, SeatID: "c"}, // darkside, 1 seat
+		{Role: "L1", Epoch: 1, SeatID: "a"},
+		{Role: "L1", Epoch: 1, SeatID: "b"},
+		{Role: "L5", Epoch: 1, SeatID: "c"},
+		{Role: "L6", Epoch: 1, SeatID: "c"}, // darkside, 1 seat
 	}
 	got, ok := BucketFindingsByRole(findings)
 	if !ok {
@@ -50,8 +50,8 @@ func TestBucketFindingsByRoleKeyOrder(t *testing.T) {
 	if string(got) != want {
 		t.Errorf("citation_yield JSON:\n got  %s\n want %s", got, want)
 	}
-	// A darkside-less round → per_seat.darkside is null (not 0), matching JS.
-	got2, _ := BucketFindingsByRole([]record.FindingJSON{{Role: "L1", Round: 2, SeatID: "a"}})
+	// A darkside-less epoch → per_seat.darkside is null (not 0), matching JS.
+	got2, _ := BucketFindingsByRole([]record.FindingJSON{{Role: "L1", Epoch: 2, SeatID: "a"}})
 	if !strings.Contains(string(got2), `"per_seat":{"citation":1,"logic":null,"darkside":null}`) {
 		t.Errorf("empty role must be per_seat null, got %s", got2)
 	}
@@ -152,8 +152,8 @@ func TestTheEmptyDenominatorNoteIsTrueOfBothWaysToGetOne(t *testing.T) {
 }
 
 func TestComputeDirectionUptake(t *testing.T) {
-	dj := record.DebateJSON{Rounds: []record.DebateRoundJSON{
-		{Lead: []record.DebateOpinionJSON{{GapID: "R1-1"}}, Blue: []string{"acted on the judge direction as carried"}},
+	dj := record.DebateJSON{Epochs: []record.DebateEpochJSON{
+		{Lead: []record.DebateOpinionJSON{{GapID: "G1"}}, Blue: []string{"acted on the judge direction as carried"}},
 		{Lead: nil, Blue: []string{"unrelated repair notes"}},
 	}}
 	lead, blue := ComputeDirectionUptake(dj)
@@ -171,7 +171,7 @@ func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
 		{"claim_count": float64(10)},
 		{"claim_count": float64(7)},
 	}
-	board := famOfEventsT([]*record.Event{recordtest.Event(t, "", 0, &recordpb.Retire{})}) // one recorded retirement
+	board := famOfEventsT([]*record.Event{recordtest.Event(t, "", &recordpb.Retire{})}) // one recorded retirement
 	r := rowByMetric(blueRows(record.Run{}, results, nil, board), "unrecorded_claim_loss")
 	if r == nil || r.Value == nil {
 		t.Fatalf("row not computed: %+v", r)
@@ -179,7 +179,7 @@ func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
 	if v, _ := r.Value.(int); v != 2 { // drop 3, 1 retire event → max(0, 3-1)=2
 		t.Errorf("unrecorded_claim_loss = %v, want 2 (drop 3 − 1 retire event on the record)", r.Value)
 	}
-	if !strings.Contains(r.Note, "3 claim(s) lost across rounds, 1 retired") {
+	if !strings.Contains(r.Note, "3 claim(s) lost across envelopes, 1 retired") {
 		t.Errorf("note = %q", r.Note)
 	}
 
@@ -194,10 +194,10 @@ func TestUnrecordedClaimLossCountsRetireEventsNotEnvelope(t *testing.T) {
 		t.Errorf("a phantom envelope `retired` field must not count: want lost=3 (drop 3 − 0), got %v", rp.Value)
 	}
 
-	// A single round → the not-computed note.
+	// A single envelope → the not-computed note.
 	r1 := rowByMetric(blueRows(record.Run{}, []map[string]any{{"claim_count": float64(5)}}, nil, nil), "unrecorded_claim_loss")
 	if r1.Value != nil {
-		t.Errorf("single round must not compute: %+v", r1)
+		t.Errorf("single envelope must not compute: %+v", r1)
 	}
 }
 

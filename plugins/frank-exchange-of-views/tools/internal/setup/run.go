@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/runlive"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -25,8 +28,17 @@ type Config struct {
 	Cites         []string
 	MaxRounds     string
 	Lanes         string
-	BinDir        string
-	MemoryDir     string
+	// The run's terms (plans/roundless.md §III.B.2, §III.B.2.2): K, KMax, MintBudget and the
+	// convergence fraction. Zero means "setup's default", which is written out so the file always
+	// states what bound the run.
+	K, KMax, MintBudget int
+	ConvergenceFraction float64
+	// LensAreas are the red lens areas this run dispatches; empty means record.DefaultCastAreas.
+	// They go on the record as the CAST (plans/roundless.md §III.B.1), which register and the
+	// dispatch verb check every seat against.
+	LensAreas []string
+	BinDir    string
+	MemoryDir string
 	// RunID and ScriptPath travel into the run-live marker so a STALE marker names how to
 	// resume rather than only where something once ran. Optional: a launcher that does not
 	// know them leaves them empty, and the marker omits the fields rather than carrying "".
@@ -76,7 +88,7 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "  - --model is unset (the BULK tier: frontier, blue lanes, red lenses, blue responses)")
 		}
 		if cfg.JudgmentModel == "" {
-			fmt.Fprintln(stderr, "  - --judgment-model is unset (the JUDGMENT tier: blue-synthesize, red-merge, judge, assemble)")
+			fmt.Fprintln(stderr, "  - --judgment-model is unset (the JUDGMENT tier: blue-synthesize, red-chair, judge, assemble)")
 		}
 		fmt.Fprintln(stderr, "  the engine does not guess a tier or inherit the session model. Pass both, e.g.")
 		fmt.Fprintln(stderr, "  --model sonnet --judgment-model sonnet   (a smoke run passes --model haiku --judgment-model haiku)")
@@ -261,6 +273,17 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "run-setup: %v\n", err)
 		return 2
 	}
+	// THE CAST IS WRITTEN FIRST, under the harness, before any seat registers: the run's admissible
+	// seats, derived from the areas selected and the lane count. Every register and every dispatch
+	// is checked against it from here on (plans/roundless.md §III.B.1).
+	lanesN, _ := strconv.Atoi(cfg.Lanes)
+	if _, err := record.Append(record.Identity{Run: run, SeatID: record.HarnessSeat},
+		&recordpb.Cast{SeatIds: record.CastFor(cfg.LensAreas, lanesN)}); err != nil {
+		fmt.Fprintf(stderr, "run-setup: could not write the cast: %v\n", err)
+		return 2
+	}
+	// Setup holds no record handle past this write: the seats open their own.
+	_ = recordsql.Close(filepath.Join(run.Dir(), "records", "record.db"))
 
 	skel := BuildSkeleton(run, topic)
 	if mirrorRoot, mErr := record.MirrorRoot(); mErr != nil {
@@ -312,7 +335,21 @@ func Run(cfg Config, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	terms := record.DefaultParams
+	if cfg.K > 0 {
+		terms.K = cfg.K
+	}
+	if cfg.KMax > 0 {
+		terms.KMax = cfg.KMax
+	}
+	if cfg.MintBudget > 0 {
+		terms.MintBudget = cfg.MintBudget
+	}
+	if cfg.ConvergenceFraction > 0 {
+		terms.ConvergenceFraction = cfg.ConvergenceFraction
+	}
 	rc := runConfig{Topic: topic, RunDir: run.Dir(), Model: cfg.Model, JudgmentModel: cfg.JudgmentModel, MaxRounds: ptrOrNil(cfg.MaxRounds), Lanes: ptrOrNil(cfg.Lanes), EventSchema: expect, AllowModelSubstitution: cfg.AllowSubstitution,
+		K: terms.K, KMax: terms.KMax, MintBudget: terms.MintBudget, ConvergenceFraction: terms.ConvergenceFraction,
 		Hooks: hookProvenanceAt(homeDir(), "frank-exchange-of-views")}
 	if b, err := marshalJSON(rc); err == nil {
 		os.WriteFile(filepath.Join(run.Dir(), "inputs", "run-config.json"), b, 0o644)
@@ -460,6 +497,11 @@ type runConfig struct {
 	JudgmentModel string  `json:"judgmentModel"`
 	MaxRounds     *string `json:"maxRounds"`
 	Lanes         *string `json:"lanes"`
+	// The run's terms, always written (record.Params reads them; see that type for what each bounds).
+	K                   int     `json:"k"`
+	KMax                int     `json:"kMax"`
+	MintBudget          int     `json:"mintBudget"`
+	ConvergenceFraction float64 `json:"convergenceFraction"`
 	// Hooks is what was INSTALLED on the hook side when this run was set up (#751). The record
 	// binary is baked from the working tree and the hooks come from the version-gated install
 	// cache, so the two can be days apart — and a run whose hooks were stale is otherwise

@@ -7,8 +7,8 @@ import (
 )
 
 func TestErrorfCarriesCodeAndMessage(t *testing.T) {
-	e := Errorf(NotFound, "no gap %s", "R1-9")
-	if e.Error() != "no gap R1-9" {
+	e := Errorf(NotFound, "no gap %s", "G1")
+	if e.Error() != "no gap G1" {
 		t.Errorf("message = %q", e.Error())
 	}
 	if e.Code != NotFound {
@@ -31,7 +31,7 @@ func TestCodeOfWalksTheChainAndDefaults(t *testing.T) {
 
 func TestWrapKeepsTheCause(t *testing.T) {
 	cause := errors.New("disk gone")
-	w := Wrap(Conflict, cause, "could not close %s", "R1-1")
+	w := Wrap(Conflict, cause, "could not close %s", "G1")
 	if !errors.Is(w, cause) {
 		t.Error("Wrap lost the cause — errors.Is could not find it")
 	}

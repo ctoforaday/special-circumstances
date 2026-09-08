@@ -72,7 +72,7 @@ func f1(f float64) string { return strconv.FormatFloat(f, 'f', 1, 64) }
 // massSvg ports the mass-trend inline SVG.
 func massSvg(telemetry []*recordpb.TelemetryLine) string {
 	if len(telemetry) == 0 {
-		return `<p class="muted">no telemetry yet — red-merge appends the first line at round 1</p>`
+		return `<p class="muted">no telemetry yet — the first line appears once the chair has sat (epoch 1)</p>`
 	}
 	W, H, pad := 560.0, 160.0, 34.0
 	n := len(telemetry)
@@ -100,12 +100,12 @@ func massSvg(telemetry []*recordpb.TelemetryLine) string {
 	}
 	var dots strings.Builder
 	for i, t := range telemetry {
-		dots.WriteString(fmt.Sprintf(`<circle cx="%s" cy="%s" r="4" fill="var(--series-1)"><title>round %s: mass %s, open %s</title></circle>`,
-			f1(xs[i]), f1(ys[i]), esc(intOrDash(t.Round)), esc(floatOrDash(t.Mass)), esc(intOrDash(t.OpenCount))))
-		dots.WriteString(fmt.Sprintf(`<text x="%s" y="%s" text-anchor="middle" class="axis">r%s</text>`, f1(xs[i]), f1(H-10), esc(intOrDash(t.Round))))
+		dots.WriteString(fmt.Sprintf(`<circle cx="%s" cy="%s" r="4" fill="var(--series-1)"><title>epoch %s: mass %s, open %s</title></circle>`,
+			f1(xs[i]), f1(ys[i]), esc(intOrDash(t.Epoch)), esc(floatOrDash(t.Mass)), esc(intOrDash(t.OpenCount))))
+		dots.WriteString(fmt.Sprintf(`<text x="%s" y="%s" text-anchor="middle" class="axis">%s</text>`, f1(xs[i]), f1(H-10), esc(intOrDash(t.Epoch))))
 	}
 	last := telemetry[n-1]
-	return fmt.Sprintf(`<svg viewBox="0 0 %s %s" role="img" aria-label="board mass by round">
+	return fmt.Sprintf(`<svg viewBox="0 0 %s %s" role="img" aria-label="board mass by epoch">
 <polyline points="%s" fill="none" stroke="var(--series-1)" stroke-width="2"/>%s
 <text x="%s" y="%s" text-anchor="end" class="label">%s</text>
 </svg>`, anyStr(W), anyStr(H), strings.Join(pts, " "), dots.String(), f1(xs[n-1]-8), f1(ys[n-1]-10), esc(floatOrDash(last.Mass)))
@@ -261,7 +261,7 @@ func RenderHTML(m Model) string {
 	if m.Config.Model != "" || m.Config.JudgmentModel != "" || m.Config.MaxRounds != "" || m.Config.Lanes != "" {
 		w("<h2>Run configuration</h2>\n<table>\n")
 		w(`<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>` + esc(orDefault(m.Config.Model, "session default")) + "</b></td></tr>\n")
-		w(`<tr><td>judgment seats <span class="muted">synthesis · red-merge · judge · assembly</span></td><td class="nowrap"><b>` + esc(orDefault(m.Config.JudgmentModel, "session default")) + "</b></td></tr>\n")
+		w(`<tr><td>judgment seats <span class="muted">synthesis · red-chair · judge · assembly</span></td><td class="nowrap"><b>` + esc(orDefault(m.Config.JudgmentModel, "session default")) + "</b></td></tr>\n")
 		mr := "—"
 		if m.Config.MaxRounds != "" {
 			mr = esc(m.Config.MaxRounds) + " rounds"
@@ -275,27 +275,27 @@ func RenderHTML(m Model) string {
 	}
 
 	if len(m.CostRows) > 0 {
-		w("\n<h2>Cost by seat-round (est., list-rate — where the spend went)</h2>\n<table>\n")
-		w("<tr><th>round</th><th>seat</th><th>model</th><th>agents</th><th>$</th></tr>\n")
+		w("\n<h2>Cost by seat-epoch (est., list-rate — where the spend went)</h2>\n<table>\n")
+		w("<tr><th>epoch</th><th>seat</th><th>model</th><th>agents</th><th>$</th></tr>\n")
 		for _, r := range m.CostRows {
-			rnd := "—"
-			if r.Round > 0 {
-				rnd = itoa(r.Round)
+			ep := "—"
+			if r.Epoch > 0 {
+				ep = itoa(r.Epoch)
 			}
-			w("<tr><td>" + rnd + "</td><td>" + esc(r.Seat) + "</td><td>" + esc(r.Tier) + `</td><td class="nowrap">` + itoa(r.Agents) + `</td><td class="nowrap">$` + strconv.FormatFloat(r.Cost, 'f', 2, 64) + "</td></tr>\n")
+			w("<tr><td>" + ep + "</td><td>" + esc(r.Seat) + "</td><td>" + esc(r.Tier) + `</td><td class="nowrap">` + itoa(r.Agents) + `</td><td class="nowrap">$` + strconv.FormatFloat(r.Cost, 'f', 2, 64) + "</td></tr>\n")
 		}
 		w("</table>\n")
 	}
 
-	w("\n<h2>Progress (rounds segmented by the ceiling — judged termination may end the run earlier)</h2>\n")
+	w("\n<h2>Progress (epochs segmented by the ceiling — judged termination may end the run earlier)</h2>\n")
 	etaRunning := m.Eta.State == "running" && (m.Eta.LowMin != 0 || m.Eta.HighMin != 0)
 	if etaRunning {
 		unmeasured := ""
 		if len(m.Eta.Unmeasured) > 0 {
 			unmeasured = " No completed precedent yet for: " + esc(strings.Join(m.Eta.Unmeasured, ", ")) + " — discount accordingly."
 		}
-		w(fmt.Sprintf(`<p class="muted">projected <b>%d–%d min</b> remaining for the work now in flight plus assembly, from %s. Each ADDITIONAL round would add roughly %d–%d min: the round ceiling is a launch argument this run never writes down, so the estimate cannot know how many remain.%s</p>`+"\n",
-			m.Eta.LowMin, m.Eta.HighMin, esc(m.Eta.Basis), m.Eta.PerRoundLowMin, m.Eta.PerRoundHighMin, unmeasured))
+		w(fmt.Sprintf(`<p class="muted">projected <b>%d–%d min</b> remaining for the work now in flight plus assembly, from %s. Each ADDITIONAL epoch would add roughly %d–%d min: the ceiling is a launch argument this run never writes down, so the estimate cannot know how many remain.%s</p>`+"\n",
+			m.Eta.LowMin, m.Eta.HighMin, esc(m.Eta.Basis), m.Eta.PerEpochLowMin, m.Eta.PerEpochHighMin, unmeasured))
 	}
 	w(`<div class="bar">`)
 	for _, s := range m.Steps {
@@ -306,7 +306,7 @@ func RenderHTML(m Model) string {
 	for _, s := range m.Steps {
 		lbl := shortName[s.Name]
 		if lbl == "" {
-			lbl = strings.Replace(s.Name, "round ", "r", 1)
+			lbl = strings.TrimPrefix(s.Name, "epoch ")
 		}
 		w(fmt.Sprintf(`<span title="%s">%s</span>`, esc(s.Name), esc(lbl)))
 	}
@@ -332,8 +332,8 @@ func RenderHTML(m Model) string {
 	if verdict == "" {
 		verdict = m.Judiciary.LatestVerdict
 		verdictLabel = "latest verdict"
-		if m.Judiciary.VerdictRound != 0 {
-			verdictLabel += " (r" + itoa(m.Judiciary.VerdictRound) + ")"
+		if m.Judiciary.VerdictEpoch != 0 {
+			verdictLabel += " (epoch " + itoa(m.Judiciary.VerdictEpoch) + ")"
 		}
 	}
 	if verdict == "" {
@@ -354,19 +354,19 @@ func RenderHTML(m Model) string {
 	tile(itoa(doneCount)+"/"+itoa(m.Agents), "seats done")
 	w("</div>\n")
 
-	w("<h2>Board mass by round</h2>\n")
+	w("<h2>Board mass by epoch</h2>\n")
 	w(massSvg(m.Telemetry) + "\n")
 
 	// Open/close rates table.
 	w("<h2>Open / close rates (the convergence signal — is red's discovery decaying?)</h2>\n")
-	w(`<div class="scrollx"><table><tr><th>round</th><th>opened</th><th>closed</th><th>still open</th><th>close rate</th><th>max sev</th><th title="new mints by severity: c certain, h high, mh medium-high, m medium, lm low-medium, l low, t trivial">mints (c/h/mh/m/lm/l/t)</th><th>mass</th></tr>` + "\n")
+	w(`<div class="scrollx"><table><tr><th>epoch</th><th>opened</th><th>closed</th><th>still open</th><th>close rate</th><th>max sev</th><th title="new mints by severity: c certain, h high, mh medium-high, m medium, lm low-medium, l low, t trivial">mints (c/h/mh/m/lm/l/t)</th><th>mass</th></tr>` + "\n")
 	rateRows := make([]string, 0, len(m.Rates))
 	for i, r := range m.Rates {
 		t := m.Telemetry[i]
 		// The `deltas` column read accepted_deltas, a telemetry key nothing writes, so it showed
 		// 0 on every row ever rendered. Removed rather than left looking measured — see cost.go.
 		rateRows = append(rateRows, fmt.Sprintf(`<tr><td>%s</td><td>%d</td><td>%d</td><td>%s</td><td>%d%%</td><td>%s</td><td class="nowrap">%s</td><td>%s</td></tr>`,
-			esc(intOrDash(r.Round)), r.Opened, r.Closed, esc(intOrDash(r.Open)), r.CloseRate, esc(gradeOrDash(t.MaxSeverity)), sevRow(t), esc(floatOrDash(t.Mass))))
+			esc(intOrDash(r.Epoch)), r.Opened, r.Closed, esc(intOrDash(r.Open)), r.CloseRate, esc(gradeOrDash(t.MaxSeverity)), sevRow(t), esc(floatOrDash(t.Mass))))
 	}
 	w(strings.Join(rateRows, "\n") + "\n</table></div>\n")
 
@@ -411,14 +411,14 @@ func RenderHTML(m Model) string {
 		sort.Ints(spanKeys)
 		spanParts := make([]string, 0, len(spanKeys))
 		for _, k := range spanKeys {
-			spanParts = append(spanParts, esc(itoa(m.Judiciary.ChainSpans[k]))+"×"+esc(itoa(k))+"r")
+			spanParts = append(spanParts, esc(itoa(m.Judiciary.ChainSpans[k]))+"×"+esc(itoa(k)))
 		}
 		w("<table>\n")
 		w(fmt.Sprintf(`<tr><td>judge sittings</td><td>%d</td></tr>`+"\n", m.Judiciary.JudgeSittings))
 		w(`<tr><td>rulings by type</td><td>` + rulingsStr + ` <span class="muted">(a carried-dominated bench is routing, not deciding — the closing-arguments ordering predicts this diversifies)</span></td></tr>` + "\n")
 		w(fmt.Sprintf(`<tr><td>grade disputes</td><td>raised %d · accepted %d · rejected %d</td></tr>`+"\n", m.Judiciary.Disputes.Raised, m.Judiciary.Disputes.Accepted, m.Judiciary.Disputes.Rejected))
-		w(fmt.Sprintf(`<tr><td>argument chains (supersedes-aware)</td><td>%d chains · by rounds alive: %s</td></tr>`+"\n", m.Judiciary.Chains, strings.Join(spanParts, " · ")))
-		w(fmt.Sprintf(`<tr><td>grade migration on multi-round chains</td><td>down %d · up %d · flat %d <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>`+"\n", m.Judiciary.MigDown, m.Judiciary.MigUp, m.Judiciary.MigFlat))
+		w(fmt.Sprintf(`<tr><td>argument chains (supersedes-aware)</td><td>%d chains · by epochs alive: %s</td></tr>`+"\n", m.Judiciary.Chains, strings.Join(spanParts, " · ")))
+		w(fmt.Sprintf(`<tr><td>grade migration on multi-epoch chains</td><td>down %d · up %d · flat %d <span class="muted">(first-vs-last mass along the chain — the downgrade process)</span></td></tr>`+"\n", m.Judiciary.MigDown, m.Judiciary.MigUp, m.Judiciary.MigFlat))
 		w("</table>")
 	} else {
 		w(`<p class="muted">no judge sittings yet</p>`)
@@ -568,7 +568,7 @@ func orDefault(s, d string) string {
 // THE DASH IS FOR ABSENCE, and these three say which absence they mean.
 //
 // latestField took a string key against a map, so "the run has no telemetry yet", "this field was
-// never written" and "this field is legitimately unset this round" all arrived as one nil. With the
+// never written" and "this field is legitimately unset this epoch" all arrived as one nil. With the
 // row typed, the first is a nil message and the rest are nil FIELDS, and a key that no producer
 // writes cannot be asked for at all — it is not on the type.
 // latestTile reads one field off the final telemetry row, or "—" when there is no row at all.

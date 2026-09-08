@@ -39,15 +39,15 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(runDir, "blue", "report.md"), []byte("# Title\n\nClean prose.\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	for _, s := range []string{"red-chair-r1", "blue-respond-r1", "judge-terminal"} {
-		if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: s, Round: record.RoundIn(runtest.Open(t, runDir))(s)}, ""); err != nil {
+	for _, s := range []string{"red-chair", "blue-respond", "judge-terminal"} {
+		if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: s}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// A gap whose problem text carries a marker token (as a real finding's quoted
 	// location/reason would), plus a terminal outcome so assembly composes fully.
 	mint := &recordpb.Mint{
-		GapId:           proto.String("R1-1"),
+		GapId:           proto.String("G1"),
 		Problem:         proto.String("the sentence flagged here <!--fx:f-leak12--> is wrong"),
 		Location:        proto.String("§1"),
 		RequiredFix:     proto.String("fix it"),
@@ -58,10 +58,10 @@ func TestAssembleStripsMarkersFromRecordDerivedSections(t *testing.T) {
 		Likelihood:      recordtest.P(recordpb.Grade_GRADE_HIGH),
 		Impact:          recordtest.P(recordpb.Grade_GRADE_HIGH),
 	}
-	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-chair-r1", Round: record.RoundIn(runtest.Open(t, runDir))("red-chair-r1")}, mint); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-chair"}, mint); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge-terminal", Round: record.RoundIn(runtest.Open(t, runDir))("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), Prose: proto.String("the round ceiling arrived before red could pass the final revision")}); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge-terminal"}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING), Prose: proto.String("the round ceiling arrived before red could pass the final revision")}); err != nil {
 		t.Fatal(err)
 	}
 

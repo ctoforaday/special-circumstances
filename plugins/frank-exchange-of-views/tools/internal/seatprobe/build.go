@@ -43,10 +43,10 @@ func ProbeAgentID(seatID string) string { return "probe-" + seatID }
 // Seats are registered on every board: a motion names its filer, a ruling names its ruler, and an
 // unregistered seat is refused before any board state exists.
 var Seats = []struct{ Role, ID string }{
-	{"lens", "red-lens-r1-evidence"},
-	{"merge", "red-chair-r1"},
-	{"blue", "blue-respond-r1"},
-	{"bench", "judge-r2"},
+	{"lens", "red-lens-evidence"},
+	{"merge", "red-chair"},
+	{"blue", "blue-respond"},
+	{"bench", "judge"},
 }
 
 // Build materialises a board into runDir.
@@ -77,7 +77,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 	// with: that hands the seat a binding it did not create, and `register` stops being its first
 	// act because the guard is already satisfied by work the harness did.
 	//
-	// MEASURED, WHICH IS WHY THIS CHANGED. In the 2026-08-20 run one seat in nine — judge-r1 on
+	// MEASURED, WHICH IS WHY THIS CHANGED. In the 2026-08-20 run one seat in nine — judge on
 	// the sitting board — never called `register` at all, made 22 tool calls, and recorded events
 	// anyway. In production its first write would have been refused with "register is your first
 	// act and it has not happened". The probe could not see that, because the probe had already
@@ -113,7 +113,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 	}
 
 	for i, g := range b.Gaps {
-		if _, err := exec("mint", "--run", run.Dir(), "--seat-id", "red-chair-r1",
+		if _, err := exec("mint", "--run", run.Dir(), "--seat-id", "red-chair",
 			"--key", g.Key, "--class", g.Class,
 			"--quote", g.Location, "--problem", g.Problem, "--fix", g.Fix,
 			"--check", g.Check, "--check-kind", g.CheckKind,
@@ -127,9 +127,9 @@ func Build(run record.Run, b Board, exec Exec) error {
 		// already filed — so a bench board without them hands the seat a docket it cannot rule on
 		// the way it is told to. Measured 2026-08-20 by the seat: the boundary bench filed friction
 		// naming the null closings, ruled on artifact state instead, and asked for a human check.
-		gapID := fmt.Sprintf("R1-%d", i+1)
+		gapID := fmt.Sprintf("G%d", i+1)
 		for _, c := range []struct{ seat, text string }{
-			{"red-chair-r1", g.RedClosing}, {"blue-respond-r1", g.BlueClosing},
+			{"red-chair", g.RedClosing}, {"blue-respond", g.BlueClosing},
 		} {
 			if c.text == "" {
 				continue
@@ -144,7 +144,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		}
 		// A CLOSED gap so the archive is not empty: `spot-check` against an empty one has nothing
 		// to sample, so a board that wants the duty exercised has to give it something.
-		if _, err := exec("close", "--run", run.Dir(), "--seat-id", "red-chair-r1",
+		if _, err := exec("close", "--run", run.Dir(), "--seat-id", "red-chair",
 			"--id", gapID, "--as", "repaired", "--verified-by", "L1", "--verified-with", "git show",
 			"--verified-against", "HEAD:config", "--reason", "verified at the leaf against the pinned config"); err != nil {
 			return fmt.Errorf("close %s: %w", gapID, err)
@@ -154,7 +154,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 	// RED'S ROUND-1 NARRATIVE, so the transcript blue is sent to read exists. Filed AFTER the gaps
 	// it accounts for and BEFORE anything that answers it, which is the order a real round has.
 	if b.RedNarrative != "" {
-		if _, err := exec("position", "--run", run.Dir(), "--seat-id", "red-chair-r1",
+		if _, err := exec("position", "--run", run.Dir(), "--seat-id", "red-chair",
 			"--reason", b.RedNarrative); err != nil {
 			return fmt.Errorf("red narrative: %w", err)
 		}
@@ -170,7 +170,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		// reports a failed board as a harness fault rather than as a fixture speaking a retired
 		// model. That is `facts-are-fields` in a fixture — the record MINTS the id and says so on
 		// stdout, and composing it from a loop index is a hope about someone else's counter.
-		out, err := exec("line-of-inquiry", "propose", "--run", run.Dir(), "--seat-id", "blue-respond-r1",
+		out, err := exec("line-of-inquiry", "propose", "--run", run.Dir(), "--seat-id", "blue-respond",
 			"--reason", a.Line, "--hypothesis", a.Hypothesis)
 		if err != nil {
 			return fmt.Errorf("line of inquiry %d: %w", i+1, err)
@@ -183,7 +183,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 			return fmt.Errorf("line of inquiry %d: the tool did not report a minted id in %q — the ruling "+
 				"below needs the id the RECORD assigned, and guessing one is how this broke before", i+1, out)
 		}
-		if _, err := exec("motion", "inquiry", "rule", "--run", run.Dir(), "--seat-id", "red-chair-r1",
+		if _, err := exec("motion", "inquiry", "rule", "--run", run.Dir(), "--seat-id", "red-chair",
 			"--id", id, "--as", a.Ruled,
 			"--reason", rulingReason(a.RuledWhy, a.Ruled)); err != nil {
 			return fmt.Errorf("rule %s: %w", id, err)
@@ -207,7 +207,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		if m.Ruled == "" {
 			continue
 		}
-		ruler := map[string]string{"grade": "red-chair-r1", "petition": "judge-r2", "docket": "judge-r2"}[m.Subject]
+		ruler := map[string]string{"grade": "red-chair", "petition": "judge", "docket": "judge"}[m.Subject]
 		if _, err := exec("motion", m.Subject, "rule", "--run", run.Dir(), "--seat-id", ruler,
 			"--id", fmt.Sprintf("M%d", i+1), "--as", m.Ruled,
 			"--reason", rulingReason(m.RuledWhy, m.Ruled)); err != nil {
@@ -220,7 +220,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		if err := os.WriteFile(script, []byte(pr.Script+"\n"), 0o644); err != nil {
 			return err
 		}
-		args := []string{"prove", "--run", run.Dir(), "--seat-id", "blue-respond-r1",
+		args := []string{"prove", "--run", run.Dir(), "--seat-id", "blue-respond",
 			"--quote", pr.Location, "--script", script,
 			"--reason", "the computation behind this sentence"}
 		if pr.Answers != "" {
@@ -249,7 +249,7 @@ func Build(run record.Run, b Board, exec Exec) error {
 		defer stop()
 
 		for i, claim := range b.Claims {
-			if _, err := exec("cite", "--run", run.Dir(), "--seat-id", "blue-respond-r1",
+			if _, err := exec("cite", "--run", run.Dir(), "--seat-id", "blue-respond",
 				"--key", fmt.Sprintf("C%d", i+1), "--quote", claim,
 				"--title", "the pinned source", "--url", src,
 				"--reason", "the source this claim rests on"); err != nil {

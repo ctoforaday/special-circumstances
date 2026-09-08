@@ -388,6 +388,18 @@ func optStr(o *goja.Object, k string) string {
 // THE MISS IS AN ERROR, NOT A ZERO. A seat id the debate never dispatched is a probe pointed at a
 // seat production does not seat — the exact defect this package was built after. Returning an empty
 // Dispatch would let the probe dispatch a blank prompt and score the answer.
+// Last is For's counterpart for a seat dispatched more than once. Roundless, `blue-respond` is one
+// seat sitting every cycle, so For — the FIRST dispatch — is its round-1 sitting forever; a test
+// asking what the seat was told after the bench sat wants the last one.
+func Last(ds []Dispatch, seatID string) (Dispatch, error) {
+	for i := len(ds) - 1; i >= 0; i-- {
+		if ds[i].SeatID == seatID {
+			return ds[i], nil
+		}
+	}
+	return For(ds, seatID) // the same refusal, naming what WAS dispatched
+}
+
 func For(ds []Dispatch, seatID string) (Dispatch, error) {
 	for _, d := range ds {
 		if d.SeatID == seatID {

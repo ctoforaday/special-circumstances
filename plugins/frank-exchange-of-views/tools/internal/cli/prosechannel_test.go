@@ -55,13 +55,13 @@ func TestBothProseChannelsProduceTheSameRecord(t *testing.T) {
 		{blueSeat, []string{"revision"}},
 		{blueSeat, []string{"log", "--type", "defect"}},
 		// A SEAT THE STAGED BOARD HAS NOT ALREADY USED. The docket board records a `position` for
-		// red-chair-r1, and a position is a once-per-sitting act the record REFUSES to repeat
+		// red-chair, and a position is a once-per-sitting act the record REFUSES to repeat
 		// rather than dedup — so this case was failing on the fixture's own write, not on the
 		// prose channel it is testing.
-		{"red-chair-r2", []string{"position"}},
-		{"red-chair-r1", []string{"log", "--type", "defect"}},
-		{"judge-r2", []string{"certify"}},
-		{"judge-r2", []string{"declare"}},
+		{"red-chair", []string{"position"}},
+		{"red-chair", []string{"log", "--type", "defect"}},
+		{"judge", []string{"certify"}},
+		{"judge", []string{"declare"}},
 	}
 
 	for _, tc := range cases {
@@ -98,6 +98,13 @@ func recordOnce(t *testing.T, seatID string, args []string, prose func(dir strin
 	exec := func(a ...string) (string, error) { return run(t, a...) }
 	if err := seatprobe.Build(runtest.Open(t, runDir), seatprobe.Boards()["docket"], exec); err != nil {
 		t.Fatalf("stage the board: %v", err)
+	}
+	// THE SEAT SITS BEFORE IT ACTS. The staged docket board already seated red-chair and recorded its
+	// position, and a position is once per SITTING — so this register is what makes the act legal:
+	// a new register is a new sitting, which is exactly what a re-dispatched seat does. (It used to
+	// dodge the collision by acting as red-chair-r2, a second seat; there is one chair now.)
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", seatID); err != nil {
+		t.Fatalf("register %s: %v", seatID, err)
 	}
 	full := append(append([]string{}, args...), "--run", runDir, "--seat-id", seatID)
 	full = append(full, prose(recordtest.TmpRun(t))...)

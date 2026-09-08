@@ -21,8 +21,8 @@ import (
 // measurement would take.
 func TestAwaitingDocketIsSetOnlyByALiveCarry(t *testing.T) {
 	run := mustRun(t, newRun(t))
-	red := Identity{Run: run, SeatID: "red-chair-r1", Round: 1}
-	judge := Identity{Run: run, SeatID: "judge-r1", Round: 1}
+	red := Identity{Run: run, SeatID: "red-chair"}
+	judge := Identity{Run: run, SeatID: "judge"}
 	app := func(id Identity, body proto.Message) {
 		t.Helper()
 		if _, err := Append(id, body); err != nil {

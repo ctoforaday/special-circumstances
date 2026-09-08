@@ -13,9 +13,9 @@ import (
 // A SEAT REGISTERS BEFORE IT APPENDS — pinned deterministically, because the sweep only hit this
 // about once in two hundred runs and a rate that low is indistinguishable from a flake (#664).
 //
-// closeGap is driven from the RED-MERGE branch and proves as `blue-respond-r1`. `blue prove`
-// RECORDS a `prove` event, so that is an append — and in round 1 red-chair-r1 runs before
-// blue-respond-r1 has ever registered. Nothing on that path called register() at all, which is
+// closeGap is driven from the RED-MERGE branch and proves as `blue-respond`. `blue prove`
+// RECORDS a `prove` event, so that is an append — and in round 1 red-chair runs before
+// blue-respond has ever registered. Nothing on that path called register() at all, which is
 // why the #656 waiter did not help: it ordered a seat against ITSELF for callers that went
 // through register, and this caller never did.
 //
@@ -49,21 +49,21 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 
 	r := newRunner(bin, runDir, newLockedRand(7))
 	// Ingest the round-0 report so mint's --quote check can render it (#709): blue-synthesize freezes
-	// the base and the file is deleted. blue-respond-r1 stays unregistered — this is a different seat.
+	// the base and the file is deleted. blue-respond stays unregistered — this is a different seat.
 	r.register("blue", "blue-synthesize")
 	if _, err := r.do("ingest", "blue-synthesize").run(); err != nil {
 		t.Fatalf("ingest the round-0 report: %v", err)
 	}
 
-	// ONLY THE ACTING SEAT. blue-respond-r1 is deliberately left unregistered: the whole point is
+	// ONLY THE ACTING SEAT. blue-respond is deliberately left unregistered: the whole point is
 	// that closeGap appends as it, so closeGap is what must register it.
-	r.register("merge", "red-chair-r1")
+	r.register("merge", "red-chair")
 
 	// `mint` draws the gap KIND at random, so take gaps until a computation one appears. Bounded
 	// so a change that stops producing them fails here rather than hanging.
 	var gapID string
 	for i := 0; i < 40 && gapID == ""; i++ {
-		id := r.mint("red-chair-r1")
+		id := r.mint("red-chair")
 		if id != "" && r.computationGaps[id] {
 			gapID = id
 		}
@@ -71,11 +71,11 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	if gapID == "" {
 		t.Fatal("no computation gap after 40 mints — this test cannot exercise the prove path, and passing on that would be a green that measured nothing")
 	}
-	if r.registered["blue-respond-r1"] {
-		t.Fatal("blue-respond-r1 is already registered before closeGap ran — the setup no longer reproduces the ordering this pins")
+	if r.registered["blue-respond"] {
+		t.Fatal("blue-respond is already registered before closeGap ran — the setup no longer reproduces the ordering this pins")
 	}
 
-	r.closeGap("red-chair-r1", gapID, false)
+	r.closeGap("red-chair", gapID, false)
 
 	out, _ := r.exec("verify", "--seat-id", "operator")
 	// THE VERDICT, NOT THE LABEL. `verify` lists every invariant by name whether it passed or
@@ -92,6 +92,6 @@ func TestClosingAComputationGapRegistersTheProvingSeatFirst(t *testing.T) {
 	}
 	if failed {
 		t.Errorf("verify reports register-before-append after closing a computation gap:\n%s\n\n"+
-			"closeGap proves as blue-respond-r1, and `blue prove` records an event, so that seat must be registered before the proof is appended", out)
+			"closeGap proves as blue-respond, and `blue prove` records an event, so that seat must be registered before the proof is appended", out)
 	}
 }

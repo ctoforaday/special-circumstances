@@ -24,7 +24,7 @@ func TestANarrowedReadOverAnUndeclaredTypeIsRefused(t *testing.T) {
 	if _, err := db.Exec(`PRAGMA foreign_keys = OFF`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","round","ts","type","key") VALUES ('s',0,'t','friction','k')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","ts","type","key") VALUES ('s','t','friction','k')`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -49,7 +49,7 @@ func TestANarrowedReadOverAnUndeclaredTypeIsRefused(t *testing.T) {
 // projection depends on and the reason this cannot simply refuse an empty result.
 func TestANarrowedReadForATypeTheRecordDoesNotHoldIsStillZero(t *testing.T) {
 	db := freshRecord(t)
-	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","round","ts","type","key") VALUES ('s',0,'t','position','k')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","ts","type","key") VALUES ('s','t','position','k')`); err != nil {
 		t.Fatal(err)
 	}
 	evs, err := EventsOfTypes(db, "finding")
@@ -65,7 +65,7 @@ func TestANarrowedReadForATypeTheRecordDoesNotHoldIsStillZero(t *testing.T) {
 // vocabulary this binary WRITES must be one it also accepts.
 func TestANarrowedReadOverThisSchemasOwnVocabularyIsNotRefused(t *testing.T) {
 	db := freshRecord(t)
-	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","round","ts","type","key") VALUES ('s',0,'t','position','k')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","ts","type","key") VALUES ('s','t','position','k')`); err != nil {
 		t.Fatal(err)
 	}
 	if err := refuseUndeclaredTypes(db); err != nil {

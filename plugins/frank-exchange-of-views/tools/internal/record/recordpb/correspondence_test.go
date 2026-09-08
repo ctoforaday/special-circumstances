@@ -67,7 +67,7 @@ func TestEveryEventTypeHasABodyAndViceVersa(t *testing.T) {
 	// disposition is a docket MOTION's ruling now (`MotionRule.ruling.docket`), which is an arm of
 	// a body that already existed. One fewer event type, one fewer body, and the pair still
 	// corresponds.
-	const wantBodies = 33
+	const wantBodies = 35
 	if len(bodies) != wantBodies {
 		t.Errorf("the `body` oneof has %d fields, want %d — the event-type census in "+
 			"plans/record-protobuf.md §II.1 and this schema must agree", len(bodies), wantBodies)

@@ -8,7 +8,7 @@ import (
 
 // SPLICE HYGIENE — the punctuation a tool should own, not a debate round.
 //
-// Measured on the 2026-08-04 smoke: of blue-respond-r2's 17 edits, SIX were pure punctuation
+// Measured on the 2026-08-04 smoke: of blue-respond's 17 edits, SIX were pure punctuation
 // repair ("remove double colon", "remove double period", "remove double semicolon", "remove
 // double period and extra period"). None answered a red finding. They were repairing SPLICE
 // DAMAGE from blue's own earlier edits — a --new ending in "." landing against text that already

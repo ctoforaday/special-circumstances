@@ -15,7 +15,7 @@ import (
 // spot-check: re-verify archived closures, and say which.
 //
 // The duty exists because a closure index is only as good as the last time
-// anyone looked. W1.8 keys the floor on the archive's state at round START —
+// anyone looked. W1.8 keys the floor on the archive's state at the SITTING's start —
 // run 5's round-2 merge entered with an empty archive, so the old
 // from-round-2 rule degraded into a seat attesting blocks it was about to write
 // itself.
@@ -48,8 +48,8 @@ func newSpotCheck() *cobra.Command {
 		return spotCheckResult{Sampled: ids.Value()}, nil
 	})
 
-	c.Flags().Var(&ids, flags.IDs, "comma-separated archived closures you re-verified this round")
-	// AN HONESTLY-EMPTY ROUND IS A DISCHARGE, NOT A SKIP.
+	c.Flags().Var(&ids, flags.IDs, "comma-separated archived closures you re-verified this sitting")
+	// AN HONESTLY-EMPTY SITTING IS A DISCHARGE, NOT A SKIP.
 	//
 	// This run's red-merge-r1 reported in friction that spot-check "cannot record an
 	// honestly-empty round" because --ids requires a list. That is NOT what the tool
@@ -60,16 +60,16 @@ func newSpotCheck() *cobra.Command {
 	//
 	// What the seat actually lacked was EXPRESSIVENESS: an empty array records that
 	// nothing was sampled but not WHY, so a later audit cannot tell "the archive was
-	// empty at round start, floor not applicable" from "the seat skipped its duty".
+	// empty at the sitting's start, floor not applicable" from "the seat skipped its duty".
 	// --none --reason says which, and the bare form keeps working.
-	c.Flags().Bool(flags.None, false, "the archive was empty at round start, so there was nothing to sample")
+	c.Flags().Bool(flags.None, false, "the archive was empty when this sitting began, so there was nothing to sample")
 	// COBRA SAYS THIS, not the handler. Both rules were hand-written refusals inside RunE, which
 	// means neither could be read from `--help` and neither fired until after the seat had
 	// composed the whole invocation.
 	c.MarkFlagsMutuallyExclusive(flags.None, flags.IDs)
 	// ONE PROSE CHANNEL, ALWAYS REQUIRED — which is what collapsing --notes into --reason makes
 	// possible. The bare form used to be legal and recorded an empty array with no account of it,
-	// so "the archive was empty at round start" and "the seat skipped its duty" were the same
+	// so "the archive was empty at the sitting's start" and "the seat skipped its duty" were the same
 	// event. Cobra has no one-way "--none needs --reason", and it does not need one: BOTH forms
 	// owe a reason.
 	// REQUIRED, THROUGH EITHER SPELLING, and stated once by the channel itself rather than by a

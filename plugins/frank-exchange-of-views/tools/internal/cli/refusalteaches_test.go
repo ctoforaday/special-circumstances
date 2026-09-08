@@ -47,12 +47,12 @@ func refusals() []struct {
 		name string
 		args []string
 	}{
-		{"a verb refusing on a missing required flag", []string{"line-of-inquiry", "propose", "--seat-id", "blue-respond-r1"}},
-		{"a group invoked with no verb", []string{"line-of-inquiry", "--seat-id", "blue-respond-r1"}},
+		{"a verb refusing on a missing required flag", []string{"line-of-inquiry", "propose", "--seat-id", "blue-respond"}},
+		{"a group invoked with no verb", []string{"line-of-inquiry", "--seat-id", "blue-respond"}},
 		{"a role with no verb", []string{"blue"}},
 		{"an unknown top-level command", []string{"frobnicate"}},
-		{"a motion subject with no such verb", []string{"motion", "petition", "appeal", "--seat-id", "blue-respond-r1"}},
-		{"an unknown view", []string{"show", "nonesuch", "--seat-id", "blue-respond-r1"}},
+		{"a motion subject with no such verb", []string{"motion", "petition", "appeal", "--seat-id", "blue-respond"}},
+		{"an unknown view", []string{"show", "nonesuch", "--seat-id", "blue-respond"}},
 	}
 }
 
@@ -123,7 +123,7 @@ func TestAnUnknownCommandIsNamedBeforeAnyFlagOnIt(t *testing.T) {
 	// A DISPATCHED SEAT, because this is about ORDERING — a command named before a flag on it —
 	// and a caller with no identity is answered about the identity instead, which is a different
 	// property with its own case below.
-	const seatID = "blue-respond-r1"
+	const seatID = "blue-respond"
 	root := NewRootFor(seatID)
 	for _, tc := range []struct {
 		name string

@@ -43,7 +43,7 @@ test('founding regression 2b: null blue synthesis aborts cleanly', async () => {
 test('null blue response aborts cleanly', async () => {
   const world = makeWorld((p, o) => {
     if (o.label.startsWith('blue-respond')) return null
-    return makeResponder({ red: [redEnv({ gaps: [gap('R1-1')] })] })(p, o)
+    return makeResponder({ red: [redEnv({ gaps: [gap('G1')] })] })(p, o)
   })
   await assert.rejects(world.run(script, ARGS), /blue response round 1 returned null/)
 })
@@ -54,7 +54,7 @@ test('null judge aborts cleanly instead of TypeError on judge.resolutions', asyn
   const world = makeWorld((p, o) => {
     if (o.label.startsWith('judge')) return null
     return makeResponder({
-      red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] })],
+      red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G1')] })],
     })(p, o)
   })
   await assert.rejects(world.run(script, ARGS), /judge round 2 returned null/)
@@ -151,10 +151,10 @@ test('exactly one evidence seat sits per round, in every round', async () => {
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ claim_count: 200 })],
     blueRespond: [blueEnv({ claim_count: 400 }), blueEnv({ claim_count: 401 })],
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R2-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G2')] }), redEnv({ verdict: 'PASS' })],
     judge: [
-      judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'owed' }] }),
-      judgeEnv({ resolutions: [{ gap_id: 'R2-1', resolution: 'carried', rationale: 'still owed' }] }),
+      judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'carried', rationale: 'owed' }] }),
+      judgeEnv({ resolutions: [{ gap_id: 'G2', resolution: 'carried', rationale: 'still owed' }] }),
     ],
   }))
   await world.run(script, ARGS)
@@ -167,8 +167,8 @@ test('W2i: the consolidated duty binds the evidence seat from round 2, and keeps
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ claim_count: 200 })],
     blueRespond: [blueEnv({ claim_count: 210 })],
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }] })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'carried', rationale: 'more research owed' }] })],
   }))
   await world.run(script, ARGS)
   for (const c of citationSeats(world, 1)) assert.ok(!c.prompt.includes('YOUR ROUND'), 'round 1 sweeps the corpus, not the delta')
@@ -193,43 +193,43 @@ test('degenerate {FAIL, gaps: []} throws a distinguishing error instead of burni
 test('lineage: a successor gap with supersedes arms the docket even under a fresh id', async () => {
   const world = makeWorld(makeResponder({
     red: [
-      redEnv({ gaps: [gap('R1-1')] }),
+      redEnv({ gaps: [gap('G1')] }),
       redEnv({
-        gaps: [gap('R2-1', { supersedes: ['R1-1'] })],
-        closures: [{ id: 'R1-1', class: 'repaired_with_regression' }],
+        gaps: [gap('G2', { supersedes: ['G1'] })],
+        closures: [{ id: 'G1', class: 'repaired_with_regression' }],
       }),
       redEnv({ verdict: 'PASS' }),
     ],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R2-1', resolution: 'repaired', rationale: 'chain resolved' }] })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'G2', resolution: 'repaired', rationale: 'chain resolved' }] })],
   }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'VERIFIED')
   const judgeCalls = world.calls.filter((c) => c.opts.label.startsWith('judge'))
   assert.equal(judgeCalls.length, 1, 'regression-chain successor must reach the judge')
-  assert.ok(judgeCalls[0].prompt.includes('"R2-1"'))
+  assert.ok(judgeCalls[0].prompt.includes('"G2"'))
 })
 
 // LINEAGE: the guard reads the ENVELOPE, which is a lossy summary of the record — so it reports
-// and continues rather than killing the run. Measured 2026-08-04: red closed R1-1 with regression
-// and correctly minted R2-1 with --supersedes R1-1 ON THE RECORD (the board showed
-// `R2-1 supersedes -> [R1-1]`), then omitted the field from its envelope. The old hard throw
+// and continues rather than killing the run. Measured 2026-08-04: red closed G1 with regression
+// and correctly minted G2 with --supersedes G1 ON THE RECORD (the board showed
+// `G2 supersedes -> [G1]`), then omitted the field from its envelope. The old hard throw
 // discarded a 12-agent, 723k-token run whose lineage was entirely intact. `verify`'s
 // supersedes-resolve checks lineage where the truth lives; this clause only stops the engine
 // trusting the summary over the source.
 test('lineage: an envelope missing supersedes REPORTS and continues — the record is authoritative', async () => {
   const world = makeWorld(makeResponder({
     red: [
-      redEnv({ gaps: [gap('R1-1')] }),
+      redEnv({ gaps: [gap('G1')] }),
       redEnv({
-        gaps: [gap('R2-1')], // fresh id, NO supersedes in the ENVELOPE — the lossy-report shape
-        closures: [{ id: 'R1-1', class: 'repaired_with_regression' }],
+        gaps: [gap('G2')], // fresh id, NO supersedes in the ENVELOPE — the lossy-report shape
+        closures: [{ id: 'G1', class: 'repaired_with_regression' }],
       }),
       redEnv({ verdict: 'PASS' }),
     ],
   }))
   const out = await world.run(script, ARGS) // MUST NOT throw — that is the fix
   assert.ok(
-    out.friction.some((f) => /closed R1-1 WITH REGRESSION and no successor in the ENVELOPE/.test(f)),
+    out.friction.some((f) => /closed G1 WITH REGRESSION and no successor in the ENVELOPE/.test(f)),
     'the reporting gap is logged as friction so it is still visible',
   )
 })
@@ -237,17 +237,17 @@ test('lineage: an envelope missing supersedes REPORTS and continues — the reco
 test('docket window is the whole debate: an id re-raised after skipping a round still arms the judge', async () => {
   const world = makeWorld(makeResponder({
     red: [
-      redEnv({ gaps: [gap('R1-1')] }),
-      redEnv({ gaps: [gap('R2-1')] }),          // R1-1 absent this round; R2-1 is new
-      redEnv({ gaps: [gap('R1-1')] }),          // R1-1 re-raised two rounds later
+      redEnv({ gaps: [gap('G1')] }),
+      redEnv({ gaps: [gap('G2')] }),          // G1 absent this round; G2 is new
+      redEnv({ gaps: [gap('G1')] }),          // G1 re-raised two rounds later
       redEnv({ verdict: 'PASS' }),
     ],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'defect_accepted', rationale: 'tradeoff' }] })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'defect_accepted', rationale: 'tradeoff' }] })],
   }))
   await world.run(script, ARGS)
   const judgeCalls = world.calls.filter((c) => c.opts.label.startsWith('judge'))
   assert.equal(judgeCalls.length, 1, 'skip-a-round re-raise must still reach the judge')
-  assert.ok(judgeCalls[0].prompt.includes('"R1-1"'))
+  assert.ok(judgeCalls[0].prompt.includes('"G1"'))
 })
 
 // ---- Run-3 docket rows 21 + 24: friction everywhere, persisted in prompts ----
@@ -263,7 +263,7 @@ test('blue-synthesize log entries reach the aggregate (row 21)', async () => {
 
 test('every seat prompt carries the log clause (envelope + verb, not a hand-written file); lenses are transcript-forbidden and record findings via the tool', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
   // THE LENS IS IN THIS LIST NOW. It was the one seat class the clause was never appended to —
@@ -285,7 +285,7 @@ test('every seat prompt carries the log clause (envelope + verb, not a hand-writ
     // them for a single proposed fix returns ZERO. The instrument is also unfalsifiable, and
     // false where it can be checked: red-lens-r4-adversary's survey states it rejected `reproduce` and
     // `finding`, while that seat's own events record both. A check that cannot fail, and does not
-    // hold where it can be tested, is what the bench docked blue for at R3-5 in that same run.
+    // hold where it can be tested, is what the bench docked blue for at G2 in that same run.
     // Both seats, asked afterwards, called it duty rather than judgement — one said it wrote to
     // be "visibly compliant with a prompt that pre-accuses the seat", knowing the difference.
     //
@@ -360,7 +360,7 @@ test('blue authors ## Open questions inside the audited report; assembly lifts i
 
 test('blue response reads transcript RED/LEAD sections first and must propagate corrections everywhere (row 22)', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
   const resp = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1'))
@@ -376,7 +376,7 @@ test('blue response reads transcript RED/LEAD sections first and must propagate 
 
 test('additive is a CLAIMS invariant, not a prose one: compaction is free, removal is recorded', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
   const resp = world.calls.find((c) => c.opts.label.startsWith('blue-respond-r1')).prompt
@@ -430,25 +430,25 @@ test('per-role models: bulk seats get `model`, judgment seats get `judgmentModel
 test('contested docket: a re-raised gap goes to the judge; adjudicated gaps leave red verdict scope', async () => {
   const world = makeWorld(makeResponder({
     red: [
-      redEnv({ gaps: [gap('R1-1'), gap('R1-2')] }),         // round 1: two new gaps, no docket
-      redEnv({ gaps: [gap('R1-1')] }),                       // round 2: R1-1 re-raised -> contested
+      redEnv({ gaps: [gap('G1'), gap('G2')] }),         // round 1: two new gaps, no docket
+      redEnv({ gaps: [gap('G1')] }),                       // round 2: G1 re-raised -> contested
       redEnv({ verdict: 'PASS' }),                           // round 3
     ],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'repaired', rationale: 'blue fixed it' }] })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'repaired', rationale: 'blue fixed it' }] })],
   }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'VERIFIED')
   assert.equal(out.rounds, 3)
   const judgeCalls = world.calls.filter((c) => c.opts.label.startsWith('judge'))
   assert.equal(judgeCalls.length, 1, 'judge invoked exactly once, only when a gap recurs')
-  assert.ok(judgeCalls[0].prompt.includes('"R1-1"'))
-  assert.ok(!judgeCalls[0].prompt.includes('"R1-2"'), 'un-recurred gap is not on the docket')
+  assert.ok(judgeCalls[0].prompt.includes('"G1"'))
+  assert.ok(!judgeCalls[0].prompt.includes('"G2"'), 'un-recurred gap is not on the docket')
   const merge3 = world.calls.find((c) => c.opts.label.startsWith('red-chair-r3'))
   // THE FATE TRAVELS WITH THE ID, and that is the assertion. Red used to be handed bare ids, so
   // the bar was enforced by making the gap invisible — indistinguishable, from red's side, from a
   // gap nobody ever raised. `repaired` and `not_a_defect` and `defect_accepted` estop red from
   // completely different propositions, and it cannot honour a bar whose grounds it cannot see.
-  assert.ok(merge3.prompt.includes('{"gap_id":"R1-1","resolution":"repaired"}'),
+  assert.ok(merge3.prompt.includes('{"gap_id":"G1","resolution":"repaired"}'),
     'red must be told the FATE of an adjudicated gap, not merely its id')
   assert.ok(merge3.prompt.includes('ESTOPPEL'),
     'the exclusion must be named as estoppel — red may reopen its OWN closure, but not a bench ruling')
@@ -456,8 +456,8 @@ test('contested docket: a re-raised gap goes to the judge; adjudicated gaps leav
 
 test('deadlock: judge deadlock=true ends the debate UNVERIFIED with the deadlock stamp', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] })],
-    judge: [judgeEnv({ deadlock: true, resolutions: [{ gap_id: 'R1-1', resolution: 'unresolved', rationale: 'stuck' }] })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G1')] })],
+    judge: [judgeEnv({ deadlock: true, resolutions: [{ gap_id: 'G1', resolution: 'unresolved', rationale: 'stuck' }] })],
   }))
   const out = await world.run(script, ARGS)
   assert.equal(out.verdict, 'UNVERIFIED')
@@ -500,12 +500,12 @@ test('the evidence seat carries the ledger clause at any corpus size', async () 
 
 test('the operator channel aggregates from every seat with attribution', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')], log: ['no PDF extraction'] }), redEnv({ verdict: 'PASS', log: [] })],
+    red: [redEnv({ gaps: [gap('G1')], log: ['no PDF extraction'] }), redEnv({ verdict: 'PASS', log: [] })],
     blueRespond: [blueEnv({ log: ['rate-limited on WebFetch'] })],
   }))
   const out = await world.run(script, ARGS)
-  assert.ok(out.friction.includes('red-chair-r1: no PDF extraction'))
-  assert.ok(out.friction.includes('blue-respond-r1: rate-limited on WebFetch'))
+  assert.ok(out.friction.includes('red-chair: no PDF extraction'))
+  assert.ok(out.friction.includes('blue-respond: rate-limited on WebFetch'))
   const assemble = world.calls.find((c) => c.opts.label.startsWith('assemble'))
   assert.ok(assemble.prompt.includes('no PDF extraction'), 'assembly receives the collated friction')
 })
@@ -556,7 +556,7 @@ test('the merge reads this round\'s findings from the record view, not a candida
 
 test('the board is the tool: merge mints through feov-record, downstream seats pull via show, no findings.md', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G1')] })],
   }))
   await world.run(script, { ...ARGS, maxRounds: 2 })
   for (const c of world.calls) assert.ok(!c.prompt.includes('red/findings.md'), `findings.md leaked into: ${c.opts.label}`)
@@ -585,8 +585,8 @@ test('the board is the tool: merge mints through feov-record, downstream seats p
 
 test('spot-check floor: an empty archive_spot_checks from round 2 aborts; round 1 is exempt', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [], ledger_closure_lines: 1, archive_blocks: 1 }),
-          redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [] })],
+    red: [redEnv({ gaps: [gap('G1')], archive_spot_checks: [], ledger_closure_lines: 1, archive_blocks: 1 }),
+          redEnv({ gaps: [gap('G1')], archive_spot_checks: [] })],
   }))
   await assert.doesNotReject(world.run(script, { ...ARGS, maxRounds: 3 }), 'RETIRED: the spot-check floor trusted red-chair self-report; the tool board is authoritative now')
 })
@@ -600,8 +600,8 @@ test('shard counts: closure-index lines != archive blocks is a self-inconsistent
 
 test('dispute routing: an UNADDRESSED dispute auto-dockets (default-to-docket punishes silence)', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R2-1')] })],
-    blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'R1-1', dimension: 'impact', proposed: 'low', evidence: 'e' }] }), blueEnv()],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G2')] })],
+    blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'G1', dimension: 'impact', proposed: 'low', evidence: 'e' }] }), blueEnv()],
   }))
   await world.run(script, { ...ARGS, maxRounds: 2 })
   const merge2 = world.calls.find(c => c.opts.label.startsWith('red-chair-r2'))
@@ -612,11 +612,11 @@ test('dispute routing: an UNADDRESSED dispute auto-dockets (default-to-docket pu
 })
 
 test('dispute routing: an explicit rejection is HELD (no docket) and dockets only on re-dispute', async () => {
-  const d = { gap_id: 'R1-1', dimension: 'impact', proposed: 'low', evidence: 'e' }
+  const d = { gap_id: 'G1', dimension: 'impact', proposed: 'low', evidence: 'e' }
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }),
-          redEnv({ gaps: [gap('R2-1')], dispute_responses: [{ ...d, response: 'rejected', rationale: 'no' }] }),
-          redEnv({ gaps: [gap('R3-1')] })],
+    red: [redEnv({ gaps: [gap('G1')] }),
+          redEnv({ gaps: [gap('G2')], dispute_responses: [{ ...d, response: 'rejected', rationale: 'no' }] }),
+          redEnv({ gaps: [gap('G3')] })],
     blueRespond: [blueEnv({ grade_disputes: [d] }), blueEnv({ grade_disputes: [d] }), blueEnv()],
   }))
   await world.run(script, { ...ARGS, maxRounds: 3 })
@@ -626,10 +626,10 @@ test('dispute routing: an explicit rejection is HELD (no docket) and dockets onl
 })
 
 test('accepted deltas: cumulative magnitude over the threshold batch-dockets for judge review', async () => {
-  const d = { gap_id: 'R1-1', dimension: 'impact', proposed: 'certain', evidence: 'e' }
+  const d = { gap_id: 'G1', dimension: 'impact', proposed: 'certain', evidence: 'e' }
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }),
-          redEnv({ gaps: [gap('R1-1', { impact: 'low' })], dispute_responses: [{ gap_id: 'R1-1', dimension: 'impact', response: 'accepted', rationale: 'ok' }] })],
+    red: [redEnv({ gaps: [gap('G1')] }),
+          redEnv({ gaps: [gap('G1', { impact: 'low' })], dispute_responses: [{ gap_id: 'G1', dimension: 'impact', response: 'accepted', rationale: 'ok' }] })],
     blueRespond: [blueEnv({ grade_disputes: [d] }), blueEnv()],
   }))
   await world.run(script, { ...ARGS, maxRounds: 2 })
@@ -638,10 +638,10 @@ test('accepted deltas: cumulative magnitude over the threshold batch-dockets for
 })
 
 test('carried persistence: a carried gap with unchanged grades never re-dockets; a grade change re-dockets it', async () => {
-  const carriedJudge = judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'owe more research' }] })
+  const carriedJudge = judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'carried', rationale: 'owe more research' }] })
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] }),
-          redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1', { severity: 'high' })] })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G1')] }),
+          redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G1', { severity: 'high' })] })],
     judge: [carriedJudge, carriedJudge],
   }))
   await world.run(script, { ...ARGS, maxRounds: 4 })
@@ -653,8 +653,8 @@ test('carried persistence: a carried gap with unchanged grades never re-dockets;
 
 test('terminal disputes: pending disputes at the ceiling dispatch the terminal judge BEFORE assembly, carried excluded', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] })],
-    blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'R1-1', dimension: 'severity', proposed: 'low', evidence: 'e' }] })],
+    red: [redEnv({ gaps: [gap('G1')] })],
+    blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'G1', dimension: 'severity', proposed: 'low', evidence: 'e' }] })],
   }))
   await world.run(script, { ...ARGS, maxRounds: 1 })
   const terminal = world.calls.find(c => c.opts.label.startsWith('judge-terminal'))
@@ -667,7 +667,7 @@ test('terminal disputes: pending disputes at the ceiling dispatch the terminal j
 test('dispute cap: disputes beyond the per-round cap batch-docket as one overflow item', async () => {
   const many = Array.from({ length: 7 }, (_, i) => ({ gap_id: `R1-${i + 1}`, dimension: 'impact', proposed: 'low', evidence: 'e' }))
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: many.map(d => gap(d.gap_id)) }), redEnv({ gaps: [gap('R2-1')] })],
+    red: [redEnv({ gaps: many.map(d => gap(d.gap_id)) }), redEnv({ gaps: [gap('G1')] })],
     blueRespond: [blueEnv({ grade_disputes: many }), blueEnv()],
   }))
   await world.run(script, { ...ARGS, maxRounds: 2 })
@@ -677,9 +677,9 @@ test('dispute cap: disputes beyond the per-round cap batch-docket as one overflo
 
 test('grade_adjusted: a judge grade ruling reaches the next red-chair as an instruction to apply', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R2-1')] }), redEnv({ verdict: 'PASS' })],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'grade_adjusted', rationale: 'impact is low: evidence X' }] })],
-    blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'R1-1', dimension: 'impact', proposed: 'low', evidence: 'e' }] }), blueEnv()],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G2')] }), redEnv({ verdict: 'PASS' })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'grade_adjusted', rationale: 'impact is low: evidence X' }] })],
+    blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'G1', dimension: 'impact', proposed: 'low', evidence: 'e' }] }), blueEnv()],
   }))
   await world.run(script, { ...ARGS, maxRounds: 3 })
   const merge3 = world.calls.find(c => c.opts.label.startsWith('red-chair-r3'))
@@ -688,10 +688,10 @@ test('grade_adjusted: a judge grade ruling reaches the next red-chair as an inst
 
 test('closing arguments: judge sits AFTER blue, both sides file closings, ruling basis confined', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1'), gap('R1-2')] }),
+    red: [redEnv({ gaps: [gap('G1'), gap('G2')] }),
           redEnv({
-            gaps: [gap('R1-2'), gap('R2-1', { supersedes: ['R1-1'] })],
-            closures: [{ id: 'R1-1', class: 'repaired_with_regression' }],
+            gaps: [gap('G2'), gap('G3', { supersedes: ['G1'] })],
+            closures: [{ id: 'G1', class: 'repaired_with_regression' }],
           })],
   }))
   await world.run(script, { ...ARGS, maxRounds: 2 })
@@ -754,7 +754,7 @@ test('the evidence seat is given no slice to own', async () => {
 // carrier is the `revision` event — which capture already counted, while the prompts demanded
 // the file. Two channels for one fact, and the audit read the one nobody was told to write.
 test('claim_count reaches the round record at synthesis and every blue response', async () => {
-  const world = makeWorld(makeResponder({ red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })] }))
+  const world = makeWorld(makeResponder({ red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   const synth = world.calls.find(c => c.opts.label.startsWith('blue-synthesize')).prompt
   const respond = world.calls.find(c => c.opts.label.startsWith('blue-respond-r1')).prompt
@@ -771,7 +771,7 @@ test('lanes=5: the full roster deploys and disconfirming-first holds its redunda
   assert.ok(prompts[4].includes('adversarial-disconfirming-first, second seat'), 'redundancy floor seat missing')
 })
 
-test('GRADE enum carries compound grades and the pinned mass mapping is total over it (R4-5)', async () => {
+test('GRADE enum carries compound grades and the pinned mass mapping is total over it (G1)', async () => {
   const world = makeWorld(makeResponder({ red: [redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   const merge = world.calls.find(c => c.opts.label.startsWith('red-chair'))
@@ -788,8 +788,8 @@ test('GRADE enum carries compound grades and the pinned mass mapping is total ov
   assert.ok(!/pinned mapping \{/.test(merge.prompt), 'the MASS json no longer bloats the merge prompt (retired with the hand-written telemetry line)')
 })
 
-test('shard creator: round-1 merge creates both shards; round 2 updates, never recreates (R4-6 one-creator)', async () => {
-  const world = makeWorld(makeResponder({ red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })] }))
+test('shard creator: round-1 merge creates both shards; round 2 updates, never recreates (G2 one-creator)', async () => {
+  const world = makeWorld(makeResponder({ red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   // THE SHARD IS GONE, WHICH IS WHY THIS PINS AN ABSENCE. There is no ledger file and no archive
   // file to create, in round 1 or any other: the board is the record, rendered on read. The
@@ -804,7 +804,7 @@ test('shard creator: round-1 merge creates both shards; round 2 updates, never r
 })
 
 test('gap-pattern memory: all three blue seat classes are pointed at the staged inventory (GAP-33)', async () => {
-  const world = makeWorld(makeResponder({ red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })] }))
+  const world = makeWorld(makeResponder({ red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })] }))
   await world.run(script, ARGS)
   for (const seat of ['blue-lane-1', 'blue-synthesize', 'blue-respond-r1']) {
     const c = world.calls.find(x => x.opts.label.startsWith(seat))
@@ -814,14 +814,14 @@ test('gap-pattern memory: all three blue seat classes are pointed at the staged 
 
 test('moot: a predicate-expired ruling adjudicates the gap out of red verdict scope (GAP-35, live in run 4)', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'moot', rationale: 'predicate expired — the claim it attached to left the report' }] })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'moot', rationale: 'predicate expired — the claim it attached to left the report' }] })],
   }))
   const out = await world.run(script, { ...ARGS, maxRounds: 3 })
   const m3 = world.calls.find(c => c.opts.label.startsWith('red-chair-r3'))
   // `moot` is the fate that most needs to travel: the predicate expired, so NOBODY decided the
-  // merits. A seat told only that R1-1 is excluded would read a live question as a settled one.
-  assert.ok(m3.prompt.includes('{"gap_id":"R1-1","resolution":"moot"}'),
+  // merits. A seat told only that G1 is excluded would read a live question as a settled one.
+  assert.ok(m3.prompt.includes('{"gap_id":"G1","resolution":"moot"}'),
     'a moot gap leaves red scope AND says it went moot — the merits were never reached')
   assert.equal(out.verdict, 'VERIFIED')
 })
@@ -842,7 +842,7 @@ test('MUST-try observable: graded-down citations require an attempt-or-impossibi
 
 test('speed doctrine: every seat prompt carries the batching + native-peek clause (run-4 forensics)', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G1')] })],
   }))
   await world.run(script, { ...ARGS, maxRounds: 2 })
   for (const c of world.calls) {
@@ -853,7 +853,7 @@ test('speed doctrine: every seat prompt carries the batching + native-peek claus
 
 test('heartbeats: the panel narrator logs round start, red verdict + mass, docket size, and blue response', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G1')] })],
   }))
   await world.run(script, { ...ARGS, maxRounds: 2 })
   const all = world.logs.join('\n')
@@ -867,7 +867,7 @@ test('heartbeats: the panel narrator logs round start, red verdict + mass, docke
 
 test('W1.6: pinned claim unit reaches synthesis and response prompts', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
   for (const seat of ['blue-synthesize', 'blue-respond-r1']) {
@@ -885,11 +885,11 @@ test('W1.6: pinned claim unit reaches synthesis and response prompts', async () 
 // round record must degrade, never discard.
 test('W1.7/#249: blue-respond without the attestation is RE-PROMPTED, then continues with friction', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
     blueRespond: [blueEnv({ round_record_appended: false })], // the retry re-serves the same false envelope
   }))
   const out = await world.run(script, ARGS) // MUST NOT throw — that is the whole fix
-  assert.ok(world.calls.some((c) => c.opts.label.startsWith('blue-respond-r1-round-record')), 'the seat was re-prompted for its round record')
+  assert.ok(world.calls.some((c) => c.opts.label.startsWith('blue-respond-round-record')), 'the seat was re-prompted for its round record')
   assert.ok(out.friction.some((f) => /round-parity.*UNRESOLVED/.test(f)), 'the unresolved parity gap is logged as friction')
 })
 
@@ -917,7 +917,7 @@ test('W1.7/#249: a seat that attests ON THE RETRY continues with NO friction', a
 
 test('W1.8: empty spot-checks are EXEMPT when the archive entered the round with zero records (round 1 closed nothing)', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')], archive_spot_checks: [], ledger_closure_lines: 0, archive_blocks: 0 }),
+    red: [redEnv({ gaps: [gap('G1')], archive_spot_checks: [], ledger_closure_lines: 0, archive_blocks: 0 }),
           redEnv({ verdict: 'PASS', archive_spot_checks: [], ledger_closure_lines: 0, archive_blocks: 0 })],
   }))
   const result = await world.run(script, { ...ARGS, maxRounds: 3 })
@@ -926,14 +926,14 @@ test('W1.8: empty spot-checks are EXEMPT when the archive entered the round with
 
 test('W1.9: defect_owed_elsewhere leaves red verdict pool and ships as a named infra debt', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }),
-          redEnv({ gaps: [gap('R1-1')] }), // re-raise -> dockets
+    red: [redEnv({ gaps: [gap('G1')] }),
+          redEnv({ gaps: [gap('G1')] }), // re-raise -> dockets
           redEnv({ verdict: 'PASS' })],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'defect_owed_elsewhere', rationale: 'pin validation is setup tooling, owed by the lead' }] })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'defect_owed_elsewhere', rationale: 'pin validation is setup tooling, owed by the lead' }] })],
   }))
   const result = await world.run(script, { ...ARGS, maxRounds: 4 })
   assert.equal(result.infra_debts.length, 1)
-  assert.equal(result.infra_debts[0].gap_id, 'R1-1')
+  assert.equal(result.infra_debts[0].gap_id, 'G1')
   assert.ok(result.infra_debts[0].owed_fix.includes('setup tooling'))
   // THE RESOLUTION SET IS THE SCHEMA'S, AND THE BENCH IS HANDED THE SCHEMA. The prompt used to
   // list all eight fates in prose beside an envelope whose enum already refused anything else —
@@ -951,7 +951,7 @@ test('W1.9: defect_owed_elsewhere leaves red verdict pool and ships as a named i
 
 test('W1.10-W1.12: probe classes, sanctioned Glob/Grep fallback, respond workset batching, large-source rule', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
   const merge = world.calls.find((c) => c.opts.label.startsWith('red-chair-r1'))
@@ -974,7 +974,7 @@ test('W1.10-W1.12: probe classes, sanctioned Glob/Grep fallback, respond workset
 
 test('W2b: empty manifest on a repair round aborts; the harness default satisfies the floor', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] })],
+    red: [redEnv({ gaps: [gap('G1')] })],
     blueRespond: [blueEnv({ manifest: [] })],
   }))
   await assert.rejects(world.run(script, ARGS), /EMPTY correctness manifest/)
@@ -982,17 +982,17 @@ test('W2b: empty manifest on a repair round aborts; the harness default satisfie
 
 test('W2b: manifest coverage gap is LOGGED (scored at capture), never fatal', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1'), gap('R1-2')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1'), gap('G2')] }), redEnv({ verdict: 'PASS' })],
   }))
   const result = await world.run(script, ARGS)
   assert.equal(result.verdict, 'VERIFIED', 'partial coverage does not kill the round')
-  assert.ok(world.logs.some((l) => l.includes('manifest coverage 1/2') && l.includes('R1-2')), 'the uncovered gap is named')
+  assert.ok(world.logs.some((l) => l.includes('manifest coverage 1/2') && l.includes('G2')), 'the uncovered gap is named')
 })
 
 test('W2b: script-side scorecard — repair_regression ratio and edge deltas logged from envelopes', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1', { likelihood: 'high', impact: 'high' })] }),
-          redEnv({ gaps: [gap('R2-1', { supersedes: ['R1-1'], likelihood: 'medium', impact: 'medium' })] }),
+    red: [redEnv({ gaps: [gap('G1', { likelihood: 'high', impact: 'high' })] }),
+          redEnv({ gaps: [gap('G2', { supersedes: ['G1'], likelihood: 'medium', impact: 'medium' })] }),
           redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, { ...ARGS, maxRounds: 4 })
@@ -1004,8 +1004,8 @@ test('W2b: script-side scorecard — repair_regression ratio and edge deltas log
 
 test('W2b: convergence-vs-verdict detector fires on converged fallout-only FAIL, visibility only', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }),
-          redEnv({ gaps: [gap('R2-1', { supersedes: ['R1-1'], severity: 'low', likelihood: 'low', impact: 'low' })] }),
+    red: [redEnv({ gaps: [gap('G1')] }),
+          redEnv({ gaps: [gap('G2', { supersedes: ['G1'], severity: 'low', likelihood: 'low', impact: 'low' })] }),
           redEnv({ verdict: 'PASS' })],
   }))
   const result = await world.run(script, { ...ARGS, maxRounds: 4 })
@@ -1015,7 +1015,7 @@ test('W2b: convergence-vs-verdict detector fires on converged fallout-only FAIL,
 
 test('W2b: telemetry spec and gap records carry the new fields in the merge prompt', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
   const merge = world.calls.find((c) => c.opts.label.startsWith('red-chair-r1'))
@@ -1035,7 +1035,7 @@ test('W2b: telemetry spec and gap records carry the new fields in the merge prom
 // so that mode produced a run recording nothing with every gate green. binDir is required now.
 test('the record contract arms SEAT_ID and the binary path on every seat', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, { ...ARGS, binDir: '/plug/bin' })
   const seats = ['blue-synthesize', 'red-lens', 'red-chair-r1', 'blue-respond-r1', 'assemble']
@@ -1132,7 +1132,7 @@ test('W2c: a petition dispatches a bench sitting BEFORE the next seat; denied ->
 
 test('W2c: a HALT ruling ends the run — verdict HALTED, opinion carried verbatim to assembly and the envelope', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')], petitions: [{ class: 'safety', basis: 'the topic requires publishing an exploit chain', relief: 'halt the run' }] })],
+    red: [redEnv({ gaps: [gap('G1')], petitions: [{ class: 'safety', basis: 'the topic requires publishing an exploit chain', relief: 'halt the run' }] })],
     // #329: a halt is NOT a ruling value. The petition is ruled on its merits, and the halt
     // arrives on its own channel — because it is recorded through `bench halt`, whose opinion
     // reaches the human verbatim. While `halt` sat in the ruling enum, the judge recorded it with
@@ -1159,7 +1159,7 @@ test('W2c: a HALT ruling ends the run — verdict HALTED, opinion carried verbat
 // enum refused `halt`, so the run ended with no halt event and the report never said so.
 test('W2c: the petition sitting names `bench halt` as the halt channel, not petition-rule (#329)', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')], petitions: [{ class: 'safety', basis: 'b', relief: 'halt the run' }] })],
+    red: [redEnv({ gaps: [gap('G1')], petitions: [{ class: 'safety', basis: 'b', relief: 'halt the run' }] })],
     petition: [petitionRulingEnv({
       rulings: [{ petitioner: 'red-chair-r1', class: 'safety', ruling: 'granted', relief: 'sound' }],
       halt: { opinion: 'the human must decide' },
@@ -1187,7 +1187,7 @@ test('W2c: no petitions -> no sitting (zero cost); granted relief binds subseque
   const world = makeWorld(makeResponder({
     blueSynth: [blueEnv({ petitions: [{ class: 'constitutional', basis: 'b', relief: 'narrow the demanded scope' }] })],
     petition: [petitionRulingEnv({ rulings: [{ petitioner: 'blue-synthesize', class: 'constitutional', ruling: 'granted', relief: 'scope narrowed to the shipped artifacts' }] })],
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
   }))
   const result = await world.run(script, ARGS)
   assert.equal(result.verdict, 'VERIFIED')
@@ -1198,7 +1198,7 @@ test('W2c: no petitions -> no sitting (zero cost); granted relief binds subseque
 
 test('W2e: every bench sitting carries the law clause — precedent is argument, the leaf wins, persuasive vs affirmed', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
     blueSynth: [blueEnv({ petitions: [{ class: 'ethical', basis: 'b', relief: 'r' }] })],
   }))
   await world.run(script, { ...ARGS, maxRounds: 4 })
@@ -1213,7 +1213,7 @@ test('W2e: every bench sitting carries the law clause — precedent is argument,
 
 test('W2g: gaps carry existence; merge prompt redefines likelihood as consequence-only', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, ARGS)
   const merge = world.calls.find((c) => c.opts.label.startsWith('red-chair-r1'))
@@ -1325,7 +1325,7 @@ const PATTERNS = {
 test('memory-as-duty: only the patterns matching the REPAIRED gaps class are delivered', async () => {
   const world = makeWorld(makeResponder({
     red: [
-      redEnv({ gaps: [{ ...gap('R1-1'), class: 'false-universal' }] }),
+      redEnv({ gaps: [{ ...gap('G1'), class: 'false-universal' }] }),
       redEnv({ verdict: 'PASS' }),
     ],
   }))
@@ -1342,7 +1342,7 @@ test('memory-as-duty: only the patterns matching the REPAIRED gaps class are del
 test('memory-as-duty: a gap whose class has no patterns adds no clause (no noise, no ritual)', async () => {
   const world = makeWorld(makeResponder({
     red: [
-      redEnv({ gaps: [{ ...gap('R1-1'), class: 'a-class-with-no-memory' }] }),
+      redEnv({ gaps: [{ ...gap('G1'), class: 'a-class-with-no-memory' }] }),
       redEnv({ verdict: 'PASS' }),
     ],
   }))
@@ -1354,7 +1354,7 @@ test('memory-as-duty: a gap whose class has no patterns adds no clause (no noise
 test('memory-as-duty: patterns are deduped across gaps sharing a class', async () => {
   const world = makeWorld(makeResponder({
     red: [
-      redEnv({ gaps: [{ ...gap('R1-1'), class: 'false-universal' }, { ...gap('R1-2'), class: 'false-universal' }] }),
+      redEnv({ gaps: [{ ...gap('G1'), class: 'false-universal' }, { ...gap('G2'), class: 'false-universal' }] }),
       redEnv({ verdict: 'PASS' }),
     ],
   }))
@@ -1367,7 +1367,7 @@ test('memory-as-duty: patterns are deduped across gaps sharing a class', async (
 
 test('lines of inquiry: every blue seat is told to record lines of inquiry; red L5/L6 audit them', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
   }))
   await world.run(script, { ...ARGS, binDir: '/plug/bin' })
   const p = (label) => world.calls.find((c) => c.opts.label.startsWith(label)).prompt
@@ -1411,8 +1411,8 @@ test('lines of inquiry: the duty is instructed, because the verb that discharges
 
 test('integrity inspection arms only with transcriptDir, and binds integrity-not-merits', async () => {
   const armed = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
-    blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'R1-1', dimension: 'impact', proposed: 'low', evidence: 'e' }] })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
+    blueRespond: [blueEnv({ grade_disputes: [{ gap_id: 'G1', dimension: 'impact', proposed: 'low', evidence: 'e' }] })],
   }))
   await armed.run(script, { ...ARGS, transcriptDir: '/sess/wf-123' })
   const bench = armed.calls.find((c) => c.opts.label.startsWith('judge')).prompt
@@ -1437,8 +1437,8 @@ test('CEILING is distinct from UNVERIFIED: a judged deadlock and a PASS keep the
   assert.equal((await passing.run(script, ARGS)).verdict, 'VERIFIED')
 
   const ceiling = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R2-1')] })],
-    judge: [judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'owed' }] })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G2')] })],
+    judge: [judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'carried', rationale: 'owed' }] })],
   }))
   const out = await ceiling.run(script, { ...ARGS, maxRounds: 2 })
   assert.equal(out.verdict, 'CEILING')
@@ -1449,13 +1449,13 @@ test('CEILING is distinct from UNVERIFIED: a judged deadlock and a PASS keep the
 // The docket carries PERSISTING disputes: re-raised, or descending by supersedes. A gap
 // minted fresh this round is not docket-bound by that rule — but both seats file closing
 // arguments by their own reading of the prose contract, and in the 2026-07-18 run red and
-// blue both argued R3-2 to closing while the engine never docketed it. It reached no
+// blue both argued G3 to closing while the engine never docketed it. It reached no
 // ruling and returned to red's verdict pool as though nobody had considered it. The
 // engine cannot pre-compute the docket (it depends on red's own output from the same
 // turn), so nothing may be withheld SILENTLY.
 test('a fresh gap kept off the docket still reaches the bench, with the reason', async () => {
-  const persisting = gap({ id: 'R1-1', severity: 'high' })
-  const fresh = gap({ id: 'R2-9', severity: 'medium' })
+  const persisting = gap({ id: 'G1', severity: 'high' })
+  const fresh = gap({ id: 'G2', severity: 'medium' })
   const world = makeWorld(makeResponder({
     red: [
       redEnv({ verdict: 'FAIL', gaps: [persisting] }),
@@ -1466,7 +1466,7 @@ test('a fresh gap kept off the docket still reaches the bench, with the reason',
   await world.run(script, JSON.stringify({ ...ARGS, maxRounds: 3 }))
   const judgePrompt = world.calls.filter((c) => c.opts.label.startsWith('judge-r')).map((c) => c.prompt).join('\n')
   assert.ok(judgePrompt.includes('WITHHELD FROM THE DOCKET'), 'the bench is told what was withheld')
-  assert.ok(judgePrompt.includes('R2-9'), 'the fresh gap is named rather than silently dropped')
+  assert.ok(judgePrompt.includes('G2'), 'the fresh gap is named rather than silently dropped')
   assert.ok(/minted fresh this round/.test(judgePrompt), 'and the reason it was withheld is given')
   assert.ok(/docket defect, not a decision/.test(judgePrompt), 'the bench may rule on one it judges wrongly withheld')
 })
@@ -1476,7 +1476,7 @@ test('a fresh gap kept off the docket still reaches the bench, with the reason',
 // were false by the time the bench sat — a bench that credited the problem statement
 // instead of re-running the check would have carried two already-discharged gaps.
 test('the bench is told the docket premise may be stale and to re-check the live artifact', async () => {
-  const g = gap({ id: 'R1-1', severity: 'high' })
+  const g = gap({ id: 'G1', severity: 'high' })
   const world = makeWorld(makeResponder({
     red: [redEnv({ verdict: 'FAIL', gaps: [g] }), redEnv({ verdict: 'FAIL', gaps: [g] }), redEnv({ verdict: 'PASS' })],
   }))
@@ -1500,7 +1500,7 @@ test('W2c: each petition sitting gets its own seat id, derived from the petition
     // Three sittings in one run: after synthesis, after the round-1 merge, after the round-1
     // response. Under the old id all three were `judge-petition`.
     blueSynth: [blueEnv({ petitions: petition })],
-    red: [redEnv({ gaps: [gap('R1-1')], petitions: petition }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')], petitions: petition }), redEnv({ verdict: 'PASS' })],
     blueRespond: [blueEnv({ petitions: petition })],
   }))
   await world.run(script, ARGS)
@@ -1519,8 +1519,12 @@ test('W2c: each petition sitting gets its own seat id, derived from the petition
     assert.ok(c.prompt.includes(`SEAT_ID: ${id}`), `the record contract must carry the same id: ${id}`)
   }
   assert.ok(ids.some((i) => i === 'judge-petition-blue-synthesize'), `the pre-round sitting names its filer: ${JSON.stringify(ids)}`)
-  assert.ok(ids.some((i) => /^judge-petition-(red-chair|blue-respond)-r1$/.test(i)),
-    `an in-round sitting carries the round in a position RoundOf reads: ${JSON.stringify(ids)}`)
+  // No round in the id, by design (plans/roundless.md §III.A.1): the petitioner names the seat, and
+  // WHICH of that seat's petitions this was is the sitting ordinal the record computes — not a
+  // suffix the engine composes and a regex recovers.
+  assert.ok(ids.some((i) => /^judge-petition-(red-chair|blue-respond)$/.test(i)),
+    `an in-round sitting names its petitioner and nothing else: ${JSON.stringify(ids)}`)
+  assert.ok(!ids.some((i) => /-r\d+$/.test(i)), `no petition id carries a round: ${JSON.stringify(ids)}`)
 })
 
 // #361: THE DECLARE VERB REACHES THE SEATS THAT RULE.
@@ -1534,7 +1538,7 @@ test('W2c: each petition sitting gets its own seat id, derived from the petition
 // The carrier set is the one every bench-wide duty uses — whatever carries lawClause.
 test('W2e: the declare capability is on the bench surface, and no prompt re-teaches it', async () => {
   const world = makeWorld(makeResponder({
-    red: [redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' })],
+    red: [redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' })],
     blueSynth: [blueEnv({ petitions: [{ class: 'ethical', basis: 'b', relief: 'r' }] })],
   }))
   await world.run(script, { ...ARGS, maxRounds: 4 })
@@ -1595,16 +1599,16 @@ test('W2j: a bench holding binds every seat that follows it, and does not expire
     // docketed) and blue must respond at least once AFTER that for the both-parties claim below
     // to be testable at all.
     red: [
-      redEnv({ gaps: [gap('R1-1')] }), redEnv({ gaps: [gap('R1-1')] }),
-      redEnv({ gaps: [gap('R1-1')] }), redEnv({ verdict: 'PASS' }),
+      redEnv({ gaps: [gap('G1')] }), redEnv({ gaps: [gap('G1')] }),
+      redEnv({ gaps: [gap('G1')] }), redEnv({ verdict: 'PASS' }),
     ],
     judge: [
       judgeEnv({
-        resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'more research owed' }],
+        resolutions: [{ gap_id: 'G1', resolution: 'carried', rationale: 'more research owed' }],
         holdings: ['"new this round" is measured by defect CLASS, not by raw mint count'],
       }),
-      judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'carried', rationale: 'still owed' }] }),
-      judgeEnv({ resolutions: [{ gap_id: 'R1-1', resolution: 'repaired', rationale: 'now fixed' }] }),
+      judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'carried', rationale: 'still owed' }] }),
+      judgeEnv({ resolutions: [{ gap_id: 'G1', resolution: 'repaired', rationale: 'now fixed' }] }),
     ],
   }))
   await world.run(script, ARGS)

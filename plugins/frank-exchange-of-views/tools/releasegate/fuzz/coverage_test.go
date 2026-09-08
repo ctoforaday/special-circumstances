@@ -182,7 +182,7 @@ func (r *runner) closedInARoundBefore(round int) []string {
 		if g == nil || g.Open {
 			continue
 		}
-		if round > 0 && g.ClosedRound >= round {
+		if round > 0 && g.ClosedEpoch >= round {
 			continue
 		}
 		out = append(out, id)

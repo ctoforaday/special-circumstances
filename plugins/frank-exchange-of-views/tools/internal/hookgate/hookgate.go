@@ -70,8 +70,8 @@ const (
 // pattern standing in for a schema — "does this command invoke our tool" recovered from string
 // shape — and its miss was silent: no injection, no error, and a seat's identity simply absent,
 // which is byte-identical to a main-session call. The shape was widened three times, each time
-// after a run had already paid: the heredoc bail cost blue-respond-r1 its bibliography,
-// command substitution cost judge-r2 its identity, and `RB="…/feov-record"; $RB …` — a seat
+// after a run had already paid: the heredoc bail cost blue-respond its bibliography,
+// command substitution cost judge its identity, and `RB="…/feov-record"; $RB …` — a seat
 // aliasing the long path, which the matcher could never see — cost 21 of 65 registers across
 // six runs their agent_id (#510).
 //
@@ -111,7 +111,7 @@ func PreOutcome(in Input, runDir string) (Outcome, string) {
 		// AND THE AGENT'S TYPE, which is a different fact from its handle and refuses a
 		// different thing. agent_id says WHICH agent; agent_type says which CONFIGURATION it
 		// runs under, so `register` can refuse a seat id from the wrong family — a lead-judge
-		// agent claiming `red-merge-r1`. This field has been read here since 0.27.0 for the
+		// agent claiming `red-chair`. This field has been read here since 0.27.0 for the
 		// report lockdown; exporting it changes nothing about how it arrives.
 		{seatenv.TypeVar, in.AgentType},
 	})

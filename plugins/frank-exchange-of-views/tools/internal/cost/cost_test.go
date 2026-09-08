@@ -41,15 +41,20 @@ func usageLine(model string, inp, out, cr, cw int) string {
 func TestScanTranscript(t *testing.T) {
 	// A half-written final line costs the report nothing.
 	txt := strings.Join([]string{
-		`{"message":{"role":"user","content":"Red merge, round 2. FIRST ACTION"}}`,
+		`{"message":{"role":"user","content":"Red chair, round 2. FIRST ACTION"}}`,
 		usageLine("claude-sonnet-5", 1000000, 0, 0, 0),
 		`{"message":{"role":"assistant","content":[]}}`, // no usage: not an API turn
 		``, // blank lines routine
 		`{"message":{"usage":{"input_tokens":999`, // process died here
 	}, "\n")
 	r := ScanTranscript(txt)
-	if r.Seat != "red-merge" || r.Round != 2 || r.Turns != 1 || r.Inp != 1000000 || r.Cost != 2 {
-		t.Errorf("scan = %+v (want red-merge r2, 1 turn, 1M inp, $2 sonnet)", r)
+	if r.Seat != "red-chair" || r.Turns != 1 || r.Inp != 1000000 || r.Cost != 2 {
+		t.Errorf("scan = %+v (want red-chair, 1 turn, 1M inp, $2 sonnet)", r)
+	}
+	// THE HEADING'S "round 2" IS NOT READ. The epoch is a count over the chair's registers on the
+	// record, and a transcript alone cannot know it; the scan leaves it 0 for the record to bind.
+	if r.Epoch != 0 {
+		t.Errorf("epoch = %d from a bare transcript, want 0 — the scan must not scrape it from the prompt head", r.Epoch)
 	}
 	// No usage at all still produces a row; no model → dearest tier.
 	bare := ScanTranscript(`{"message":{"role":"user","content":"Final assembly"}}`)
@@ -69,19 +74,19 @@ func TestScanTranscript(t *testing.T) {
 }
 
 func TestAggregate(t *testing.T) {
-	row := func(seat string, round int, cost float64) Row {
-		return Row{Seat: seat, Round: round, T: "sonnet", Turns: 1, Inp: 1, Cost: cost}
+	row := func(seat string, epoch int, cost float64) Row {
+		return Row{Seat: seat, Epoch: epoch, T: "sonnet", Turns: 1, Inp: 1, Cost: cost}
 	}
 	agg := Aggregate([]Row{row("red-lens", 2, 1), row("red-lens", 2, 2), row("red-lens", 10, 5), row("judge", 2, 3)})
 	if len(agg) != 3 {
-		t.Errorf("buckets = %d, want 3 (same seat+round+tier collapses)", len(agg))
+		t.Errorf("buckets = %d, want 3 (same seat+epoch+tier collapses)", len(agg))
 	}
 	r2 := agg["02|red-lens|sonnet"]
 	if r2.N != 2 || r2.Turns != 2 || r2.Cost != 3 {
 		t.Errorf("bucket = %+v (agents, turns, dollars all sum)", r2)
 	}
 	if !("02|red-lens|sonnet" < "10|red-lens|sonnet") {
-		t.Error("zero-padded key must sort round 2 before round 10")
+		t.Error("zero-padded key must sort epoch 2 before epoch 10")
 	}
 }
 
@@ -99,22 +104,22 @@ func TestCacheShare(t *testing.T) {
 
 func TestTierMismatch(t *testing.T) {
 	// DEARER → FAIL (the fable trap).
-	out := TierMismatch([]Row{{Seat: "red-lens", Round: 1, T: "fable"}}, "haiku", "haiku")
+	out := TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "fable"}}, "haiku", "haiku")
 	if len(out) != 1 || out[0].Verdict != "FAIL" || out[0].Cls != "bulk" || !strings.Contains(out[0].Why, "DEARER") {
 		t.Errorf("dearer = %+v", out)
 	}
 	// CHEAPER → WARN.
-	out = TierMismatch([]Row{{Seat: "red-lens", Round: 1, T: "haiku"}}, "opus", "opus")
+	out = TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "haiku"}}, "opus", "opus")
 	if len(out) != 1 || out[0].Verdict != "WARN" || !strings.Contains(out[0].Why, "CHEAPER") {
 		t.Errorf("cheaper = %+v", out)
 	}
 	// Exactly configured → PASS (no finding).
-	out = TierMismatch([]Row{{Seat: "red-lens", Round: 1, T: "sonnet"}, {Seat: "red-merge", Round: 1, T: "opus"}}, "sonnet", "opus")
+	out = TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "sonnet"}, {Seat: "red-chair", Epoch: 1, T: "opus"}}, "sonnet", "opus")
 	if len(out) != 0 {
 		t.Errorf("pass = %+v", out)
 	}
 	// A class with no configured tier WARNs "not declared".
-	out = TierMismatch([]Row{{Seat: "red-lens", Round: 1, T: "haiku"}}, "", "opus")
+	out = TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "haiku"}}, "", "opus")
 	if len(out) != 1 || out[0].Verdict != "WARN" || !strings.Contains(out[0].Why, "not declared") {
 		t.Errorf("undeclared = %+v", out)
 	}
@@ -128,12 +133,12 @@ func TestTierMismatch(t *testing.T) {
 	// Every seat in SeatClass has a tier, so ClassOf returns "" for exactly one input: the `other`
 	// ClassifySeat reports when no needle matched the prompt head. That is a drift between
 	// debate.js's wording and internal/seatclass, not an exemption.
-	out = TierMismatch([]Row{{Seat: "other", Round: 0, T: "fable"}}, "haiku", "haiku")
+	out = TierMismatch([]Row{{Seat: "other", Epoch: 0, T: "fable"}}, "haiku", "haiku")
 	if len(out) != 1 || out[0].Verdict != "WARN" || !strings.Contains(out[0].Why, "could not be identified") {
 		t.Errorf("unidentifiable = %+v", out)
 	}
 	// A judgment seat is measured against judgmentModel, not model.
-	out = TierMismatch([]Row{{Seat: "red-merge", Round: 2, T: "opus"}}, "opus", "haiku")
+	out = TierMismatch([]Row{{Seat: "red-chair", Epoch: 2, T: "opus"}}, "opus", "haiku")
 	if len(out) != 1 || out[0].Verdict != "FAIL" || out[0].Cls != "judgment" {
 		t.Errorf("judgment = %+v", out)
 	}

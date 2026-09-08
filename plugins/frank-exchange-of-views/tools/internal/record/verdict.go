@@ -1,10 +1,6 @@
 package record
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -49,57 +45,34 @@ const (
 // The order matters: a halt outranks a pass, because a run stopped on safety or integrity
 // grounds did not end by passing however clean the board looked when it stopped.
 func DeriveVerdict(run Run) (verdict, why string, ok bool) {
-	// Three questions, three queries — a halt on the record, a recorded PASS, and how far the
-	// rounds got. The body-less-verdict rule holds by construction now: the PASS lives in the
-	// round_verdict row, and an event with no body row is refused by the loader, not read as
-	// anything.
 	halted, err := recordHas(run, `SELECT 1 FROM "halt" LIMIT 1`)
 	if err != nil {
 		return "", "the record could not be read: " + err.Error(), false
 	}
-	passed, err := recordHas(run, `SELECT 1 FROM "round_verdict" WHERE "verdict" = ? LIMIT 1`,
+	passed, err := recordHas(run, `SELECT 1 FROM "gate" WHERE "verdict" = ? LIMIT 1`,
 		recordpb.Word(recordpb.Verdict_VERDICT_PASS))
 	if err != nil {
-		return "", "the record could not be read: " + err.Error(), false
-	}
-	var maxRound int
-	if _, err := queryRow(run, []any{&maxRound}, `SELECT COALESCE(max("round"), 0) FROM "events"`); err != nil {
 		return "", "the record could not be read: " + err.Error(), false
 	}
 	switch {
 	case halted:
 		return "HALTED", "a halt event is on the record", true
 	case passed:
-		return "VERIFIED", "the merge recorded a PASS verdict", true
+		return "VERIFIED", "the chair recorded a PASS verdict", true
 	}
-	if ceiling := configuredMaxRounds(run); ceiling > 0 && maxRound >= ceiling {
-		return "CEILING", "the record reaches round " + strconv.Itoa(maxRound) + " against a ceiling of " + strconv.Itoa(ceiling), true
+	// CEILING IS A FACT ABOUT THE BOARD, NOT A CLOCK (plans/roundless.md §III.B.2): every open
+	// material gap is at impasse and has had its bench ruling — carried, since it is still open.
+	// The dispatch plan computes exactly that; a record with no cast cannot reach it.
+	if cast, err := CastOf(run); err == nil && cast != nil {
+		plan, err := PlanDispatch(run)
+		if err != nil {
+			return "", "the record could not be read: " + err.Error(), false
+		}
+		if plan.Ceiling {
+			return "CEILING", "every open material gap is at its limit and the bench has ruled on each — nobody is ready and PASS is not permitted", true
+		}
 	}
-	// No pass, no halt, and the ceiling not reached: the run ended early, which the engine
-	// only does on a judged deadlock. That judgement is not on the record — the bench's
-	// determination lives in its envelope and nothing preserves it (#289) — so the tool
-	// cannot confirm or refute the seat here, and says so rather than guessing.
-	return "", "no pass, no halt, and the round ceiling was not reached — the run ended early, which only a judged deadlock does, and that determination is not on the record (#289)", false
-}
-
-// configuredMaxRounds reads the ceiling setup recorded; 0 when it is absent or unparseable,
-// which degrades CEILING to underivable rather than inventing a bound.
-func configuredMaxRounds(run Run) int {
-	b, err := os.ReadFile(filepath.Join(run.Dir(), "inputs", "run-config.json"))
-	if err != nil {
-		return 0
-	}
-	var rc struct {
-		MaxRounds *string `json:"maxRounds"`
-	}
-	if json.Unmarshal(b, &rc) != nil || rc.MaxRounds == nil {
-		return 0
-	}
-	n, err := strconv.Atoi(*rc.MaxRounds)
-	if err != nil {
-		return 0
-	}
-	return n
+	return "", "no pass, no halt, and the board is not at its ceiling — the run ended before a terminal state was reached, and the record says so rather than guessing", false
 }
 
 // RunOutcomeOf is the seat's verdict word to the schema's value, and it lives beside DeriveVerdict

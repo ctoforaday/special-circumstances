@@ -42,7 +42,6 @@ const EnvelopeDDL = `
 CREATE TABLE "events" (
   "id"      INTEGER PRIMARY KEY,
   "seat_id" TEXT    NOT NULL,
-  "round"   INTEGER NOT NULL,
   "ts"      TEXT    NOT NULL,
   "type"    TEXT    NOT NULL REFERENCES "enum_event_type"("value"),
   -- The key is the fact that has to be unique, and the partial index below enforces it globally.
@@ -53,7 +52,6 @@ CREATE TABLE "events" (
 
 CREATE UNIQUE INDEX "events_key" ON "events" ("key") WHERE "key" IS NOT NULL;
 CREATE INDEX "events_type" ON "events" ("type");
-CREATE INDEX "events_round" ON "events" ("round");
 
 CREATE TRIGGER "events_are_append_only_update" BEFORE UPDATE ON "events" BEGIN
   SELECT RAISE(ABORT, 'the record is append-only: an event cannot be edited after it is written');
@@ -124,7 +122,7 @@ CREATE INDEX "seat_turn_agent" ON "seat_turn" ("agent_id");
 // lands here when a guarded read path narrows by the column; it is authored, like ViewsDDL,
 // because which questions get asked is a decision, not a derivation.
 const QueryIndexDDL = `
-CREATE INDEX "round_verdict_verdict" ON "round_verdict" ("verdict");
+CREATE INDEX "gate_verdict" ON "gate" ("verdict");
 `
 
 func Schema() (string, error) {

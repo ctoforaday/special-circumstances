@@ -238,10 +238,16 @@ const (
 	Cite          = "cite"
 	MaxRounds     = "max-rounds"
 	Lanes         = "lanes"
-	BinDir        = "bin-dir"
-	MemoryDir     = "memory-dir"
-	RunID         = "run-id"
-	ScriptPath    = "script-path"
+	// The run's terms (plans/roundless.md §III.B.2, §III.B.2.2).
+	K                   = "k"
+	KMax                = "k-max"
+	MintBudget          = "mint-budget"
+	ConvergenceFraction = "convergence-fraction"
+	LensArea            = "lens-area"
+	BinDir              = "bin-dir"
+	MemoryDir           = "memory-dir"
+	RunID               = "run-id"
+	ScriptPath          = "script-path"
 
 	// The operator `ocr` command: rasterise a document with no text layer so a seat can read
 	// it (#644). --sha names a document ALREADY in the run cache, which is why there is no
@@ -294,7 +300,7 @@ func All() []string {
 		Principle, Tension, ReviewFlag, Relief, Binds,
 		Settled, ReopensOn, Final,
 		Method, AccessDate,
-		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
+		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, K, KMax, MintBudget, ConvergenceFraction, LensArea, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
 		Chair, Watch, Now, Serve,
 		MigrateFrom, MigrateTo, AcceptLoss,
 		Sha, DPI, Force, OCR,

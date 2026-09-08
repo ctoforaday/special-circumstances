@@ -92,7 +92,7 @@ func RenderSite(title string, docs []Doc, fam record.Family) string {
 			// it (GitHub strips inline SVG), so it is drawn HERE, in the reading tier, while
 			// the durable tier keeps the same numbers as text.
 			if c := boardChart(fam); c != "" {
-				body = "<h2>The board, by round</h2>\n" + c + body
+				body = "<h2>The board, by epoch</h2>\n" + c + body
 			}
 		}
 		page.Docs = append(page.Docs, siteDoc{

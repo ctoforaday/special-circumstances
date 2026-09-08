@@ -228,7 +228,7 @@ func TestTwoRunsCannotShareOneRoot(t *testing.T) {
 func TestARunWithEventsInPlaceRefusesToSeparate(t *testing.T) {
 	isolate(t)
 	run := recordtest.TmpRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, run), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, run))("blue-respond-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, run), SeatID: "blue-respond"}, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	t.Setenv(RecordRootEnv, filepath.Join(recordtest.TmpRun(t), "elsewhere"))
@@ -258,10 +258,10 @@ func TestASeparatedRunKeepsNoEventsUnderTheRun(t *testing.T) {
 	run, root := recordtest.TmpRun(t), filepath.Join(recordtest.TmpRun(t), "elsewhere")
 	t.Setenv(RecordRootEnv, root)
 
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, run), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, run))("blue-respond-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, run), SeatID: "blue-respond"}, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, run), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, run))("blue-respond-r1")}, &recordpb.Log{Text: proto.String("the verb I wanted was not there"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, run), SeatID: "blue-respond"}, &recordpb.Log{Text: proto.String("the verb I wanted was not there"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
 		t.Fatalf("append: %v", err)
 	}
 	t.Setenv(RecordRootEnv, "")
@@ -300,7 +300,7 @@ func TestADeletedRootRefusesInsteadOfReadingAsAnEmptyRun(t *testing.T) {
 	isolate(t)
 	run, root := recordtest.TmpRun(t), filepath.Join(recordtest.TmpRun(t), "elsewhere")
 	t.Setenv(RecordRootEnv, root)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, run), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, run))("blue-respond-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, run), SeatID: "blue-respond"}, ""); err != nil {
 		t.Fatalf("register: %v", err)
 	}
 	t.Setenv(RecordRootEnv, "")
@@ -402,7 +402,7 @@ func TestRegisterRefusesToCreateARunDirectory(t *testing.T) {
 	parent := recordtest.TmpRun(t)
 	missing := filepath.Join(parent, "research", "no-such-run")
 
-	_, _, err := RegisterSeat(Identity{Run: mustRun(t, missing), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, missing))("red-chair-r1")}, "")
+	_, _, err := RegisterSeat(Identity{Run: mustRun(t, missing), SeatID: "red-chair"}, "")
 	if err == nil {
 		t.Fatal("a seat created a run directory from nothing and reported success — the exact failure that produced a second blackboard beside a live run")
 	}
@@ -421,7 +421,7 @@ func TestRegisterRefusesToCreateARunDirectory(t *testing.T) {
 	if err := os.MkdirAll(real, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, real), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, real))("red-chair-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, real), SeatID: "red-chair"}, ""); err != nil {
 		t.Errorf("an existing run directory was refused: %v", err)
 	}
 }

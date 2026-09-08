@@ -64,8 +64,8 @@ func TestATitleWithNoBoundaryIsTruncatedVisibly(t *testing.T) {
 // exact shape that makes an assembled document read as two documents pasted together.
 func TestOnlyTheTerminalBenchStatementIsPromoted(t *testing.T) {
 	evs := []*record.Event{
-		recordtest.Event(t, "", 0, &recordpb.Certify{Statement: proto.String("the FIRST ask, later revised")}),
-		recordtest.Event(t, "", 0, &recordpb.Certify{Statement: proto.String("the TERMINAL ask")}),
+		recordtest.Event(t, "", &recordpb.Certify{Statement: proto.String("the FIRST ask, later revised")}),
+		recordtest.Event(t, "", &recordpb.Certify{Statement: proto.String("the TERMINAL ask")}),
 	}
 	o := orientation((record.NewFamily(nil, nil)), evs, "")
 	if !strings.Contains(o, "the TERMINAL ask") {
@@ -88,7 +88,7 @@ func TestOnlyTheTerminalBenchStatementIsPromoted(t *testing.T) {
 // was nothing to re-examine. An empty BOARD is not an empty docket when the bench has spoken.
 func TestTheNoOpenGapsLineDoesNotContradictTheBenchsAsk(t *testing.T) {
 	evs := []*record.Event{
-		recordtest.Event(t, "", 0, &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
+		recordtest.Event(t, "", &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
 	}
 	o := orientation((record.NewFamily(nil, nil)), evs, "")
 	if strings.Contains(o, "nothing outstanding to re-examine") {
@@ -151,16 +151,25 @@ func TestStaleDocumentsAreRemovedOnReassembly(t *testing.T) {
 // The fact box answers "what is this run" off the RECORD — never off the prose it sits above.
 func TestFactBoxIsComposedFromTheRecord(t *testing.T) {
 	board := &boardT{
-		GapOrder: []string{"R1-1", "R2-1"},
+		GapOrder: []string{"G1", "G2"},
 		Gaps: map[string]*record.Gap{
-			"R1-1": {ID: "R1-1", Open: true, Round: 1},
-			"R2-1": {ID: "R2-1", Open: false, Round: 2, ClosedRound: 3},
+			"G1": {ID: "G1", Open: true},
+			"G2": {ID: "G2", Open: false, Epoch: 2, ClosedEpoch: 3},
 		},
 	}
 	box := factBox(board.fam(), nil)
-	for _, want := range []string{"**Verdict** | _(none recorded)_", "**Rounds** | 3", "**Gaps** | 1 open · 1 closed"} {
+	for _, want := range []string{"**Verdict** | _(none recorded)_", "**Epochs** | 3", "**Gaps** | 1 open · 1 closed"} {
 		if !strings.Contains(box, want) {
 			t.Errorf("fact box missing %q:\n%s", want, box)
 		}
+	}
+	// The epoch count is the CHAIR'S REGISTERS, counted over the events when the log is present:
+	// a fourth chair sitting after the last closure is an epoch the gaps alone cannot show.
+	var evs []*record.Event
+	for i := 0; i < 4; i++ {
+		evs = append(evs, recordtest.Event(t, "red-chair", &recordpb.Register{}))
+	}
+	if box := factBox(board.fam(), evs); !strings.Contains(box, "**Epochs** | 4") {
+		t.Errorf("fact box must count the chair's sittings off the events:\n%s", box)
 	}
 }

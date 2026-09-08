@@ -122,7 +122,7 @@ func replay(t *testing.T, bin string, cmds []cmd) replayResult {
 var (
 	fuzzGrades  = []string{"low", "low-medium", "medium", "medium-high", "high", "certain", "realized", "trivial", "bogus"}
 	fuzzClasses = []string{"propagation-incomplete", "citation-drift", "scope-creep"}
-	fuzzIDs     = []string{"R1-1", "R1-2", "R2-1", "R9-9"}
+	fuzzIDs     = []string{"G1", "G2", "G3", "G4"}
 )
 
 func pick[T any](rng *rand.Rand, xs []T) T { return xs[rng.Intn(len(xs))] }
@@ -135,13 +135,13 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 	seat := func(role string) string {
 		switch role {
 		case "merge":
-			return pick(rng, []string{"red-chair-r1", "red-chair-r2"})
+			return pick(rng, []string{"red-chair", "red-chair"})
 		case "lens":
-			return pick(rng, []string{"red-lens-r1-evidence", "red-lens-r1-logic", "red-lens-r2-dark-side"})
+			return pick(rng, []string{"red-lens-evidence", "red-lens-logic", "red-lens-dark-side"})
 		case "blue":
-			return pick(rng, []string{"blue-respond-r1", "blue-synthesize"})
+			return pick(rng, []string{"blue-respond", "blue-synthesize"})
 		default:
-			return "judge-r1"
+			return "judge"
 		}
 	}
 	for len(out) < n {
@@ -195,7 +195,7 @@ func generate(rng *rand.Rand, maxLen int) []cmd {
 					args = append(args, "--as", pick(rng, []string{"minted-as", "folded-into", "declined", "banked"}))
 				}
 			case 6:
-				args = []string{"spot-check", "--run", "{RUN}", "--seat-id", s, "--ids", "R1-1,R1-2", "--reason", "re-read both closures"}
+				args = []string{"spot-check", "--run", "{RUN}", "--seat-id", s, "--ids", "G1,G2", "--reason", "re-read both closures"}
 			}
 		case "lens":
 			switch rng.Intn(4) {

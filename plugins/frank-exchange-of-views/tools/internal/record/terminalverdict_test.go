@@ -25,10 +25,10 @@ import (
 func TestTerminalVerdictPrefersTheRecordOverTheRenderedProse(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal", Round: RoundIn(mustRun(t, runDir))("judge-terminal")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal", Round: RoundIn(mustRun(t, runDir))("judge-terminal")}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED), Prose: proto.String("ended on safety grounds")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "judge-terminal"}, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_HALTED), Prose: proto.String("ended on safety grounds")}); err != nil {
 		t.Fatal(err)
 	}
 	// The rendered artifact says something else. It is the derived carrier; the event is the fact.

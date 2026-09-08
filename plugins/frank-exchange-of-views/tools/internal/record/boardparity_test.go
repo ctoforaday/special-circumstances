@@ -16,10 +16,10 @@ import (
 func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 	runDir := newRun(t)
 	run := mustRun(t, runDir)
-	red := Identity{Run: run, SeatID: "red-chair-r1", Round: 1}
-	blue := Identity{Run: run, SeatID: "blue-respond-r1", Round: 1}
-	lens := Identity{Run: run, SeatID: "red-lens-r1-evidence", Round: 1}
-	judge2 := Identity{Run: run, SeatID: "judge-r2", Round: 2}
+	red := Identity{Run: run, SeatID: "red-chair"}
+	blue := Identity{Run: run, SeatID: "blue-respond"}
+	lens := Identity{Run: run, SeatID: "red-lens-evidence"}
+	judge2 := Identity{Run: run, SeatID: "judge"}
 	app := func(id Identity, body proto.Message) {
 		t.Helper()
 		if _, err := Append(id, body); err != nil {
@@ -42,7 +42,11 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 		}
 		app(red, m)
 	}
-	mint("R1-1", func(m *recordpb.Mint) {
+	// The chair sits: its mints, regrade and close below are epoch 1.
+	if _, _, err := RegisterSeat(red, ""); err != nil {
+		t.Fatal(err)
+	}
+	mint("G1", func(m *recordpb.Mint) {
 		m.FoundBy = []string{"L1-F1"}
 		m.MintReason = proto.String("the argument")
 		m.Location = proto.String("the claimed span")
@@ -50,15 +54,15 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 		m.FixNew = proto.String("the fix")
 		m.CheckKind = recordpb.CheckKind_CHECK_KIND_COMPUTATION.Enum()
 	})
-	mint("R1-2", func(m *recordpb.Mint) { m.Supersedes = []string{"R1-1"} })
-	mint("R1-3", nil)
+	mint("G2", func(m *recordpb.Mint) { m.Supersedes = []string{"G1"} })
+	mint("G3", nil)
 
 	// A regrade the projection must both OVERLAY (grades) and EMBED (the regrades list).
-	app(red, &recordpb.Regrade{GapId: proto.String("R1-3"),
+	app(red, &recordpb.Regrade{GapId: proto.String("G3"),
 		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: proto.String("moved")})
-	// R1-3: closed by red in round 1, then ruled by the bench in round 2 — BOTH arms.
+	// G3: closed by red in round 1, then ruled by the bench in round 2 — BOTH arms.
 	// Attribution must follow the bench (last), the embedded body must stay red's (closureBody).
-	app(red, &recordpb.Close{GapId: proto.String("R1-3"),
+	app(red, &recordpb.Close{GapId: proto.String("G3"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		AnchorSeat:   proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"),
 		Prose: proto.String("verified at the leaf")})
@@ -71,17 +75,22 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Basis:   proto.String("red cannot settle " + gapID),
 			Filing:  &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String(gapID)}}})
+		// The chair sits again before the bench rules, so the ruling — and the closure attributed to
+		// it — lands in epoch 2, which is what "ruled by the bench in round 2" now means.
+		if _, _, err := RegisterSeat(red, ""); err != nil {
+			t.Fatal(err)
+		}
 		app(judge2, &recordpb.MotionRule{MotionId: proto.String(motionID),
 			Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion: proto.String("ra"),
 			Ruling:  &recordpb.MotionRule_Docket{Docket: rule}})
 	}
-	docket("M1", "R1-3", &recordpb.DocketRuling{
+	docket("M1", "G3", &recordpb.DocketRuling{
 		Disposition: recordpb.Disposition_DISPOSITION_NOT_A_DEFECT.Enum(),
 		Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
 		Settled: proto.String("st"), Final: proto.Bool(true)})
 	// A CARRIED ruling on an open gap closes NOTHING — the vocabulary's own facet decides.
-	docket("M2", "R1-2", &recordpb.DocketRuling{
+	docket("M2", "G2", &recordpb.DocketRuling{
 		Disposition: recordpb.Disposition_DISPOSITION_CARRIED.Enum(),
 		Principle:   proto.String("pr"), Tension: proto.String("tn"), ReviewFlag: proto.String("rf"),
 		Settled: proto.String("st"), ReopensOn: proto.String("new evidence")})
@@ -102,26 +111,26 @@ func TestBoardJSONHoldsTheFoldsEdges(t *testing.T) {
 	for _, g := range append(append([]GapJSON{}, bj.Open...), bj.Closed...) {
 		byID[g.ID] = g
 	}
-	// R1-3: closed by red (r1), then ruled by the bench (r2). Attribution follows the bench;
+	// G3: closed by red (r1), then ruled by the bench (r2). Attribution follows the bench;
 	// the embedded body stays red's close (its prose proves which body rendered).
-	g3 := byID["R1-3"]
-	if g3.Open || !g3.ClosedByBench || g3.ClosedRound != 2 {
-		t.Errorf("R1-3 attribution = open=%v bench=%v round=%d, want closed/bench/2", g3.Open, g3.ClosedByBench, g3.ClosedRound)
+	g3 := byID["G3"]
+	if g3.Open || !g3.ClosedByBench || g3.ClosedEpoch != 2 {
+		t.Errorf("G3 attribution = open=%v bench=%v round=%d, want closed/bench/2", g3.Open, g3.ClosedByBench, g3.ClosedEpoch)
 	}
 	if g3.Closure == nil || g3.Closure["prose"] != "verified at the leaf" {
-		t.Errorf("R1-3 embedded closure = %v, want red's close body (closureBody's precedence)", g3.Closure)
+		t.Errorf("G3 embedded closure = %v, want red's close body (closureBody's precedence)", g3.Closure)
 	}
 	if len(g3.Regrades) != 1 {
-		t.Errorf("R1-3 regrades = %v, want the one recorded regrade embedded", g3.Regrades)
+		t.Errorf("G3 regrades = %v, want the one recorded regrade embedded", g3.Regrades)
 	}
 	if g3.Impact != "high" {
-		t.Errorf("R1-3 impact = %v, want the regrade overlay", g3.Impact)
+		t.Errorf("G3 impact = %v, want the regrade overlay", g3.Impact)
 	}
-	// R1-2: a carried docket ruling closes nothing.
-	if g2 := byID["R1-2"]; !g2.Open {
-		t.Error("a carried ruling closed R1-2 — the vocabulary's own facet says it must not")
+	// G2: a carried docket ruling closes nothing.
+	if g2 := byID["G2"]; !g2.Open {
+		t.Error("a carried ruling closed G2 — the vocabulary's own facet says it must not")
 	}
-	// R1-1 (computation, unproved) and R1-2 (carried) stay open; R1-3 closed by both arms.
+	// G1 (computation, unproved) and G2 (carried) stay open; G3 closed by both arms.
 	if bj.Counts.Open != 2 || bj.Counts.Closed != 1 || bj.Counts.ClosedByBench != 1 {
 		t.Errorf("counts = %+v", bj.Counts)
 	}

@@ -16,9 +16,9 @@ import (
 // exist at all (whose every answer must be the honest zero, never an error).
 func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	runDir := newRun(t)
-	red := Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: 1}
-	blue := Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: 1}
-	judge := Identity{Run: mustRun(t, runDir), SeatID: "judge-r1", Round: 1}
+	red := Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}
+	blue := Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}
+	judge := Identity{Run: mustRun(t, runDir), SeatID: "judge"}
 
 	mint := func(id string, kind recordpb.CheckKind, extra func(*recordpb.Mint)) {
 		t.Helper()
@@ -39,26 +39,26 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	mint("R1-1", recordpb.CheckKind_CHECK_KIND_COMPUTATION, func(m *recordpb.Mint) {
+	mint("G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION, func(m *recordpb.Mint) {
 		m.FixBasis = proto.String("verified")
 		m.Location = proto.String("the sky is teal at noon")
 		m.FixNew = proto.String("the sky is blue at noon")
 	})
-	mint("R1-2", recordpb.CheckKind_CHECK_KIND_DOCUMENT, func(m *recordpb.Mint) {
-		m.Supersedes = []string{"R1-1"}
+	mint("G2", recordpb.CheckKind_CHECK_KIND_DOCUMENT, func(m *recordpb.Mint) {
+		m.Supersedes = []string{"G1"}
 	})
-	mint("R1-3", recordpb.CheckKind_CHECK_KIND_COMPUTATION, nil)
+	mint("G3", recordpb.CheckKind_CHECK_KIND_COMPUTATION, nil)
 
-	// The regrade overlay: impact moves MEDIUM -> HIGH on R1-1; every other axis keeps the mint's.
-	if _, err := Append(red, &recordpb.Regrade{GapId: proto.String("R1-1"),
+	// The regrade overlay: impact moves MEDIUM -> HIGH on G1; every other axis keeps the mint's.
+	if _, err := Append(red, &recordpb.Regrade{GapId: proto.String("G1"),
 		Impact: recordtest.P(recordpb.Grade_GRADE_HIGH), Basis: proto.String("new evidence")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(blue, &recordpb.Proof{Answers: proto.String("R1-3"),
+	if _, err := Append(blue, &recordpb.Proof{Answers: proto.String("G3"),
 		Text: proto.String("7 is prime"), Script: proto.String("factor 7"), Exit: proto.Int32(0)}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(red, &recordpb.Close{GapId: proto.String("R1-3"),
+	if _, err := Append(red, &recordpb.Close{GapId: proto.String("G3"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		AnchorSeat:   proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./x"),
 		Prose: proto.String("verified at the leaf")}); err != nil {
@@ -68,7 +68,7 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 		Status: recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(), Line: proto.String("a direction")}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(blue, &recordpb.BlueEdit{Answers: proto.String("R1-2"),
+	if _, err := Append(blue, &recordpb.BlueEdit{Answers: proto.String("G2"),
 		Old: proto.String("we claim the moon is cheese"), New: proto.String("retracted"), Text: proto.String("r")}); err != nil {
 		t.Fatal(err)
 	}
@@ -103,33 +103,33 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 			t.Errorf("gapState(%s) = (%v, %v), family says closed=%v", g.ID, got, err, !g.Open)
 		}
 	}
-	if got, err := gapState(run, "R9-99"); got || err != nil {
+	if got, err := gapState(run, "G4"); got || err != nil {
 		t.Errorf("gapState on an unknown gap = (%v, %v), want (false, nil) — existence is requireGap's question", got, err)
 	}
 
 	// The grade overlay: proposing the CURRENT post-regrade impact must be refused as no change;
 	// proposing a different one must pass. A pre-regrade reading would get both wrong.
-	noChange := &recordpb.GradeMotion{GapId: proto.String("R1-1"),
+	noChange := &recordpb.GradeMotion{GapId: proto.String("G1"),
 		Dimension: recordpb.GradeDimension_GRADE_DIMENSION_IMPACT.Enum(),
 		Proposed:  recordpb.Grade_GRADE_HIGH.Enum()}
 	if err := requireGradeMotionAsksForAChange(run, noChange); err == nil {
 		t.Error("a motion proposing the regraded current grade was not refused — the query missed the regrade overlay")
 	}
-	change := &recordpb.GradeMotion{GapId: proto.String("R1-1"),
+	change := &recordpb.GradeMotion{GapId: proto.String("G1"),
 		Dimension: recordpb.GradeDimension_GRADE_DIMENSION_IMPACT.Enum(),
 		Proposed:  recordpb.Grade_GRADE_LOW.Enum()}
 	if err := requireGradeMotionAsksForAChange(run, change); err != nil {
 		t.Errorf("a motion proposing a different grade was refused: %v", err)
 	}
-	untouched := &recordpb.GradeMotion{GapId: proto.String("R1-1"),
+	untouched := &recordpb.GradeMotion{GapId: proto.String("G1"),
 		Dimension: recordpb.GradeDimension_GRADE_DIMENSION_LIKELIHOOD.Enum(),
 		Proposed:  recordpb.Grade_GRADE_MEDIUM.Enum()}
 	if err := requireGradeMotionAsksForAChange(run, untouched); err == nil {
 		t.Error("a motion proposing the mint's grade on an axis no regrade touched was not refused")
 	}
 
-	// The stranded-ancestor join: R1-1 is superseded by R1-2 and still open.
-	if err := requireSupersededAreClosed(run); err == nil || !strings.Contains(err.Error(), "R1-1 (superseded by R1-2)") {
+	// The stranded-ancestor join: G1 is superseded by G2 and still open.
+	if err := requireSupersededAreClosed(run); err == nil || !strings.Contains(err.Error(), "G1 (superseded by G2)") {
 		t.Errorf("requireSupersededAreClosed = %v, want the stranded pair named", err)
 	}
 
@@ -142,34 +142,34 @@ func TestQueriesAgreeWithTheFoldsTheyReplaced(t *testing.T) {
 	}
 
 	// Estoppel: the byte-exact pair, the proof join, the edit's old span.
-	if ok, err := ProposalAppliedVerbatim(run, "R1-1", "the sky is teal at noon", "the sky is blue at noon"); !ok || err != nil {
+	if ok, err := ProposalAppliedVerbatim(run, "G1", "the sky is teal at noon", "the sky is blue at noon"); !ok || err != nil {
 		t.Errorf("ProposalAppliedVerbatim on the exact pair = (%v, %v)", ok, err)
 	}
-	if ok, _ := ProposalAppliedVerbatim(run, "R1-1", "the sky is teal at noon ", "the sky is blue at noon"); ok {
+	if ok, _ := ProposalAppliedVerbatim(run, "G1", "the sky is teal at noon ", "the sky is blue at noon"); ok {
 		t.Error("ProposalAppliedVerbatim matched a near-application — exactness is the whole point")
 	}
-	if !ProofAnswers(run, "R1-3") || ProofAnswers(run, "R1-1") || ProofAnswers(run, "") {
+	if !ProofAnswers(run, "G3") || ProofAnswers(run, "G1") || ProofAnswers(run, "") {
 		t.Error("ProofAnswers disagrees with the recorded proof join")
 	}
 	if !ClaimAppearsInAnEdit(run, "moon is cheese") || ClaimAppearsInAnEdit(run, "never written") {
 		t.Error("ClaimAppearsInAnEdit disagrees with the recorded old spans")
 	}
 
-	// GapsAwaitingProof: R1-1 is the open computation gap with no proof; R1-3's proof discharges
-	// it and R1-2 is a document check.
-	if got := GapsAwaitingProof(run); len(got) != 1 || got[0] != "R1-1" {
-		t.Errorf("GapsAwaitingProof = %v, want [R1-1]", got)
+	// GapsAwaitingProof: G1 is the open computation gap with no proof; G3's proof discharges
+	// it and G2 is a document check.
+	if got := GapsAwaitingProof(run); len(got) != 1 || got[0] != "G1" {
+		t.Errorf("GapsAwaitingProof = %v, want [G1]", got)
 	}
 
-	if kind, err := MintCheckKind(run, "R1-2"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_DOCUMENT {
-		t.Errorf("MintCheckKind(R1-2) = (%v, %v)", kind, err)
+	if kind, err := MintCheckKind(run, "G2"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_DOCUMENT {
+		t.Errorf("MintCheckKind(G2) = (%v, %v)", kind, err)
 	}
-	if kind, err := MintCheckKind(run, "R9-99"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
+	if kind, err := MintCheckKind(run, "G4"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
 		t.Errorf("MintCheckKind on an unknown gap = (%v, %v), want the unspecified zero", kind, err)
 	}
 
-	if n := RoundsWithRevision(run); n != 1 {
-		t.Errorf("RoundsWithRevision = %d, want 1", n)
+	if n := EpochsWithRevision(run); n != 1 {
+		t.Errorf("EpochsWithRevision = %d, want 1", n)
 	}
 
 	// The bench records the outcome; RecordedOutcome is that act and TerminalVerdict serves it.
@@ -201,7 +201,7 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	if v := RecordedOutcome(run); v != "" {
 		t.Errorf("RecordedOutcome = %q", v)
 	}
-	if closed, err := gapState(run, "R1-1"); closed || err != nil {
+	if closed, err := gapState(run, "G1"); closed || err != nil {
 		t.Errorf("gapState = (%v, %v)", closed, err)
 	}
 	if err := requireSupersededAreClosed(run); err != nil {
@@ -210,10 +210,10 @@ func TestQueriesAnswerTheHonestZeroOverNoRecord(t *testing.T) {
 	if got := GapsAwaitingProof(run); got != nil {
 		t.Errorf("GapsAwaitingProof = %v", got)
 	}
-	if kind, err := MintCheckKind(run, "R1-1"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
+	if kind, err := MintCheckKind(run, "G1"); err != nil || kind != recordpb.CheckKind_CHECK_KIND_UNSPECIFIED {
 		t.Errorf("MintCheckKind = (%v, %v)", kind, err)
 	}
-	if n := RoundsWithRevision(run); n != 0 {
-		t.Errorf("RoundsWithRevision = %d", n)
+	if n := EpochsWithRevision(run); n != 0 {
+		t.Errorf("EpochsWithRevision = %d", n)
 	}
 }

@@ -249,6 +249,8 @@ enum EventType {
   EVENT_TYPE_BASE_INGEST = 33 [(means) = "the frozen round-0 report, stored verbatim as the origin the diff-stack replays over"];
   EVENT_TYPE_SITTING_OPEN = 34 [(means) = "the harness dispatching an agent — one end of a sitting's span, observed by a hook rather than claimed by a seat"];
   EVENT_TYPE_SITTING_CLOSE = 35 [(means) = "the harness's agent returning — the other end of that span"];
+  EVENT_TYPE_CAST = 36 [(means) = "the run's admissible seats, written once by setup before any seat registers — what register and the dispatch verb check a seat id against"];
+  EVENT_TYPE_DISPATCH = 37 [(means) = "the chair engaging one party — a seat and the gaps it is engaged on — pinned to the report head it audits; the parties of one chair sitting are one dispatch"];
 }
 
 // Grade is the canonical grade set. `realized` contributes zero mass by design — it is a grade,
@@ -286,7 +288,7 @@ enum Verdict {
 enum RunOutcome {
   RUN_OUTCOME_UNSPECIFIED = 0;
   RUN_OUTCOME_VERIFIED = 1 [(means) = "red passed the board and the bench agrees the question was answered"];
-  RUN_OUTCOME_CEILING = 2 [(means) = "the round ceiling was reached with work still open — NOT a judged failure to verify, and the stamp says so"];
+  RUN_OUTCOME_CEILING = 2 [(means) = "every open material gap reached its limit — at impasse, ruled by the bench and carried — with nobody ready and PASS not permitted; NOT a judged failure to verify, and the stamp says so"];
   RUN_OUTCOME_HALTED = 3 [(means) = "the bench ended the run on a safety, ethics, consent or integrity boundary"];
   RUN_OUTCOME_UNVERIFIED = 4 [(means) = "the run ended without the question being answered, and no ceiling or halt explains it"];
 }
@@ -450,8 +452,17 @@ message Event {
   //
   // The ordinal is scoped to the seat now, so its keys are monotonic across dispatches and the
   // collision is unrepresentable. "Which dispatch was this" is still answerable — it is the count
-  // of that seat's register events at or before the row, which is what capture.go already does.
-  optional int32 round = 5;
+  // of that seat's register events at or before the row, which is what events_w."sitting" is.
+  //
+  // `round` WAS FIELD 5 AND IS GONE (plans/roundless.md §III.A.2). It was the third stamped
+  // derivation on this envelope, and the last: first recovered from the seat id by regex, then
+  // counted from chair registers in the write's own transaction. Both were a READ-BEFORE-WRITE
+  // to store a number the record could already answer, and the answer is a window function over
+  // this table — events_w."epoch" for the chair-sitting count, events_w."sitting" for the seat's
+  // own — computed when a reader wants it, exactly as seq's removal argued above. The debate no
+  // longer has rounds; the record has a sequence ("id") and two clocks derived from it.
+  reserved 5;
+  reserved "round";
 
   // role is the seat's ROLE as a field. Readers used to recover it with
   // strings.HasPrefix(seat_id, "red-merge") — including the branch deciding whether a position
@@ -472,7 +483,7 @@ message Event {
 
   oneof body {
     Register register = 20;
-    RoundVerdict verdict = 21;
+    Gate verdict = 21;
     Outcome outcome = 22;
     Position position = 23;
     Halt halt = 24;
@@ -504,13 +515,16 @@ message Event {
     BaseIngest base_ingest = 52;
     SittingOpen sitting_open = 53;
     SittingClose sitting_close = 54;
+    Cast cast = 55;
+    Dispatch dispatch = 56;
   }
 
-  // 55-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
+  // 57-80 are reserved for bodies not yet needed. Numbers are permanent, so the block is
   // claimed now rather than negotiated later. 51 was drawn from it for `inquiry_review`, 52 for
-  // `base_ingest` and 53-54 for the sitting span, which is what the reserve is for — the block
-  // shrinks and nothing is renumbered.
-  reserved 55 to 80;
+  // `base_ingest`, 53-54 for the sitting span and 55-56 for the cast and the dispatch
+  // (plans/roundless.md §III.B.1), which is what the reserve is for — the block shrinks and
+  // nothing is renumbered.
+  reserved 57 to 80;
 
   // 36 HELD `Opinion`, and it is reserved for the reason the block above is: the number is
   // permanent even though the message is gone. The bench's disposition is a docket motion's
@@ -523,13 +537,13 @@ message Event {
   reserved "opinion";
 }
 
-// TelemetryLine is the per-round projection, NOT a shard event.
+// TelemetryLine is the per-epoch projection, NOT a shard event.
 //
 // It is written by view.Telemetry and re-decoded by the dashboard, cost and scorecard as raw
 // JSON keys. It gets a message for the same reason events do: it was a nested *Payload of
 // *Payloads, and its consumers bind its keys as strings.
 message TelemetryLine {
-  optional int32 round = 1;
+  optional int32 epoch = 1;
   optional string mapping_version = 2;
   optional int32 open_count = 3;
 
@@ -1624,7 +1638,43 @@ message SittingClose {
   optional string agent_type = 2;
 }
 
-// RoundVerdict carries red's terminal gate on a round.
+// Cast is the run's admissible seats (plans/roundless.md §III.B.1). setup writes it ONCE, under
+// seat `harness`, before any seat registers: the areas selected, red-chair, blue-lane-1..N,
+// blue-synthesize, blue-respond, frontier, judge, judge-terminal, assemble, and judge-petition-<s>
+// for every cast seat s. `register` refuses a seat outside it and so does `dispatch next`. This
+// is the table derived-seat-identity.md §III.3 named and did not specify.
+message Cast {
+  repeated string seat_ids = 1;
+}
+
+// Dispatch is the chair engaging ONE party: the seat, the gaps it is engaged on, and the report
+// head it is to audit (plans/roundless.md §III.B.1). The chair's `dispatch next` writes one of
+// these per ready party in one sitting, so "dispatch D" — the unit the parity audit and the
+// exchange counter reason about — is the set written in one chair sitting, read off events_w.
+//
+// ONE EVENT PER PARTY rather than one event carrying a list of parties, because a body's lists
+// are lists of scalars in this schema (schemagen's list tables) and the per-(seat, gap) row is
+// the fact that makes a null turn computable: a blue sitting engaged on {G1, G2, G3} that acts on
+// G1 took a null turn on G2 and G3. A lens engaged with NO gaps is rule 1's dispatch — the head
+// moved past its pin — and gap_ids is empty, which is "lineage none", not "unknown".
+message Dispatch {
+  optional int64 pin = 1 [(sql) = {
+    required: true
+    why: "the events.id of the report head this party audits — the text it anchors to, reconstructible from the record; a dispatch with no pin is a dispatch against a moving target"
+  }];
+  optional string seat_id = 2 [(sql) = {
+    required: true
+    flag: "seat"
+    why: "the party engaged; refused unless it is in the cast"
+  }];
+  repeated string gap_ids = 3;
+}
+
+// Gate carries red's terminal gate on the open board: PASS or FAIL as of this sitting.
+//
+// IT WAS `RoundVerdict`. The round left the record (plans/roundless.md §III.A.2) and a name that
+// carried it would have been the last live surface saying the debate is paced in rounds; the
+// table follows the message, so `round_verdict` is `gate` — named from the message it records.
 //
 // IT WAS `Verdict_`, with a trailing underscore, because `Verdict` is the enum and protoc-gen-go
 // would collide the two Go identifiers. That is a real constraint and it was solved in the wrong
@@ -1632,10 +1682,9 @@ message SittingClose {
 // then travelled all the way into the record as a table called `verdict_` — a Go artifact sitting
 // in the schema a human reads to understand the debate.
 //
-// `RoundVerdict` says what it is. The collision is gone because the name is different, not because
-// it was decorated, and the wire is unaffected either way: field numbers carry the format, names do
-// not.
-message RoundVerdict {
+// `Gate` says what it is. The collision is gone because the name is different, not because it was
+// decorated, and the wire is unaffected either way: field numbers carry the format, names do not.
+message Gate {
   optional Verdict verdict = 1;
 }
 

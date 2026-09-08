@@ -97,22 +97,25 @@ func Run(f record.Family) []Check {
 // carried a receipt that NOTHING READ, so the fix for a self-attestation defect was a better
 // place to write the self-attestation.
 //
-// Two teeth, both against replayed state no seat can author: a round that entered with a
-// non-empty archive and recorded no sample, and a round that CLAIMED an empty archive the board
+// Two teeth, both against replayed state no seat can author: an epoch that entered with a
+// non-empty archive and recorded no sample, and an epoch that CLAIMED an empty archive the board
 // says was not empty. The second is the direct heir of the run-5 degeneracy.
+//
+// The bucket is the EPOCH (chair sittings, counted by the audit's Clock); the discharging seat
+// is named with its own sitting ordinal, `seat #N`.
 func archiveSpotCheckFloor(f record.Family) Check {
 	_, debt, falseEmpty := record.SpotCheckAudit(f)
 	var violations []string
-	for _, round := range debt {
-		violations = append(violations, fmt.Sprintf("round %d: the merge sat with archived closures available and recorded no spot-check", round))
+	for _, epoch := range debt {
+		violations = append(violations, fmt.Sprintf("epoch %d: the merge sat with archived closures available and recorded no spot-check", epoch))
 	}
 	for _, sc := range falseEmpty {
-		violations = append(violations, fmt.Sprintf("round %d (%s): discharged with --none (%q) while the board shows %d archived closure(s) at round start",
-			sc.Round, sc.SeatID, sc.NoneReason, sc.Archived))
+		violations = append(violations, fmt.Sprintf("epoch %d (%s #%d): discharged with --none (%q) while the board shows %d archived closure(s) at epoch start",
+			sc.Epoch, sc.SeatID, sc.Sitting, sc.NoneReason, sc.Archived))
 	}
 	return result("archive-spot-check-floor",
-		"every round that entered with a non-empty archive sampled it",
-		"the archive spot-check floor was not met — a closure index is only as good as the last time anyone looked, and these rounds did not look",
+		"every epoch that entered with a non-empty archive sampled it",
+		"the archive spot-check floor was not met — a closure index is only as good as the last time anyone looked, and these epochs did not look",
 		violations)
 }
 
@@ -278,7 +281,7 @@ func supersedesResolve(f record.Family) Check {
 // like a considered judgement — "verdict is VERIFIED — gate not applicable".
 //
 // Severity, stated honestly rather than inflated: the LIVE gate works. record.Append refuses
-// `merge verdict --as PASS` while any gap is open ("1 gap(s) still OPEN: R1-1"), so the
+// `merge verdict --as PASS` while any gap is open ("1 gap(s) still OPEN: G1"), so the
 // contradiction cannot arise through the tool. What was lost is the after-the-fact half — the
 // one that exists for a record assembled some OTHER way: a hand-edited shard, a legacy run, or
 // a live gate that itself regressed. That is precisely the case a verifier is for, and it was
@@ -311,23 +314,24 @@ func passClosesAllGaps(f record.Family) Check {
 		// the answer to "". BodyAs returns the typed nil for both "no body" and "wrong body",
 		// and GetVerdict on it is the UNSPECIFIED zero — the same reset, without inventing a
 		// PASS out of an event that never said so.
-		v, _ := recordpb.BodyAs[*recordpb.RoundVerdict](e)
+		v, _ := recordpb.BodyAs[*recordpb.Gate](e)
 		verdict = v.GetVerdict()
 	}
 	if verdict != passVerdictWord {
 		return notApplicable("pass-closes-all-gaps", fmt.Sprintf("the verdict is %s, so there is no PASS to contradict", nonEmpty(verdictWord(verdict), "unrecorded")))
 	}
+	// MATERIAL gaps hold the gate (plans/roundless.md §III.B.2.1): a PASS over an open gap graded
+	// below medium is legal, and the report lists that gap as open, below material, not certified
+	// against. A PASS over an open MATERIAL gap is the #67 violation.
 	var open []string
 	for _, g := range f.Gaps {
-		id := g.ID
-		_ = id
-		if g != nil && g.Open {
-			open = append(open, id)
+		if g != nil && g.Open && recordpb.GradeMass(g.Severity) >= 2.0 {
+			open = append(open, g.ID)
 		}
 	}
 	return result("pass-closes-all-gaps",
-		"PASS and no gap left open",
-		"the verdict is PASS but gaps are still open (the #67 gate was violated)", open)
+		"PASS and no material gap left open",
+		"the verdict is PASS but material gaps are still open (the #67 gate was violated)", open)
 }
 
 // registerBeforeAppend: a seat's FIRST event must be its register — an event from a seat that
@@ -336,8 +340,8 @@ func registerBeforeAppend(f record.Family) Check {
 	seen := map[string]bool{}
 	var bad []string
 	for _, e := range f.Events {
-		if seen[e.GetSeatId()] {
-			continue
+		if seen[e.GetSeatId()] || e.GetSeatId() == record.HarnessSeat {
+			continue // the harness is not a seat: it writes the cast and the sitting span, and never registers
 		}
 		seen[e.GetSeatId()] = true
 		if e.GetType() != recordpb.EventType_EVENT_TYPE_REGISTER {

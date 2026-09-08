@@ -65,7 +65,7 @@ func LocateUnique(verb, report, old string) (int, int, error) {
 // on `merge mint --quote`, which names the sentence a defect LIVES AT and rewrites nothing — so
 // minting a gap about any already-anchored sentence was refused, with a message that spoke of
 // "the text you are replacing". Caught by reading a regenerated golden that had recorded
-// `minted R1-1` turning into `exit 2`, which is what the read-every-diff rule is for.
+// `minted G1` turning into `exit 2`, which is what the read-every-diff rule is for.
 func LocateUniqueReplacing(verb, report, old string) (int, int, error) {
 	start, end, err := LocateUnique(verb, report, old)
 	if err != nil {

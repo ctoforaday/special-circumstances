@@ -13,7 +13,7 @@ import (
 // RED'S ARGUMENT FOR A GAP MUST REACH THE SEATS THAT ANSWER AND WEIGH IT.
 //
 // `mint` took --reason and threw it away whenever --problem was also given, which is every ordinary
-// mint. The write still answered "minted R1-4", and --reason's own help promises "the substance the
+// mint. The write still answered "minted G1", and --reason's own help promises "the substance the
 // report renders and the other side answers" — a promise this verb did not keep.
 //
 // MEASURED 2026-08-16 BY ASKING THE BENCH rather than by watching one. Dispatched to a petition
@@ -31,7 +31,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 	}
 
 	const why = "blue may well have done the work; what is missing is the record of it"
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", "argued", "--class", "metric-conflation",
 		"--quote", "The access log retains for 45 days.",
 		"--problem", "the figure conflicts with the universal",
@@ -41,7 +41,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair-r1")
+	out, err := run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 	// AND IT IS NOT DUPLICATED when the problem arrived THROUGH --reason, which is the documented
 	// alternative form (`--problem "..."|--reason`). Storing it twice would make a reader think red
 	// argued something beyond the problem statement when it did not.
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", "viareason", "--class", "metric-conflation",
 		"--quote", "The audit log retains for 30 days.",
 		"--fix", "f", "--check", "c", "--check-kind", "document",
@@ -63,7 +63,7 @@ func TestAGapCarriesRedsArgumentAndNotOnlyItsProblem(t *testing.T) {
 		"--reason", "the problem arrived through reason"); err != nil {
 		t.Fatal(err)
 	}
-	out, err = run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair-r1")
+	out, err = run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair")
 	if err != nil {
 		t.Fatal(err)
 	}

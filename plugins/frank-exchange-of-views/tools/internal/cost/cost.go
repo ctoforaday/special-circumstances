@@ -2,9 +2,11 @@
 // transcripts, prices them by tier, and renders the run's cost.md — plus the model-tier guard
 // (#111, folded in from model-guard.mjs, collapsing the JS cost⇄model-guard import cycle).
 //
-// It reads TRANSCRIPTS and (optionally) the run's run-config + board-telemetry, never the event
-// record. The JS module stays for now — capture and the dashboard still import its pure
-// exports — so this and cost-audit.mjs must agree; the differential in the port PR pins them.
+// It reads TRANSCRIPTS for the spend and (optionally) the run's run-config and its record: the
+// record supplies each agent's seat binding (which epoch a transcript belongs to — the transcript
+// itself cannot say), the ingested seat turns and the board telemetry. The JS module stays for
+// now — capture and the dashboard still import its pure exports — so this and cost-audit.mjs must
+// agree; the differential in the port PR pins them.
 package cost
 
 import (
@@ -50,9 +52,15 @@ func Tier(m string) string { return modeltier.Of(m) }
 func recognized(m string) bool { return modeltier.Recognized(m) }
 
 // Row is one agent's summed, priced usage.
+//
+// Epoch is the dispatch cycle the agent's sitting belongs to — the chair's register count at the
+// seat's own register (plans/roundless.md §III.A.0) — and it comes from the RECORD, never from
+// the transcript: ScanTranscript leaves it 0 and the caller binds it through SeatBindings. 0 is
+// also what a bookend seat (frontier, lanes, synthesis: before the first chair sitting) and an
+// agent the record never bound both carry, and the report prints it as a dash.
 type Row struct {
 	Seat  string
-	Round int
+	Epoch int
 	T     string
 	Turns int
 	Inp   int
@@ -118,21 +126,72 @@ func ScanTranscript(txt string) Row {
 	t := Tier(model)
 	p := Prices[t]
 	cost := (float64(inp)*p[0] + float64(out)*p[1] + float64(cr)*p[2] + float64(cw)*p[3]) / 1e6
-	return Row{Seat: c.Seat, Round: c.Round, T: t, Turns: turns, Inp: inp, Out: out, Cr: cr, Cw: cw, Cost: cost}
+	return Row{Seat: c.Seat, T: t, Turns: turns, Inp: inp, Out: out, Cr: cr, Cw: cw, Cost: cost}
 }
 
-// Bucket is a seat-round-tier aggregate.
+// SeatBinding is what the record says about one harness agent: the seat its register named, and
+// the two windows that register sat in — the EPOCH (chair registers at or before it) and the
+// SITTING (this seat's own register count, that register included).
+type SeatBinding struct {
+	SeatID  string
+	Epoch   int
+	Sitting int
+}
+
+// SeatBindingsOf folds the record once into agent_id → binding. It is the same join
+// record.SeatOfAgent and the seat_of_agent view perform — THE LAST REGISTER WINS, because a
+// resumed seat arrives under a new agent id claiming a seat already bound — read here off the
+// event slice a caller already holds, with the windows counted by record.Clock rather than
+// stamped by anyone. A register carrying no agent_id (a run whose hook never fired) binds
+// nothing, and that absence stays legible downstream as epoch 0, the dash.
+func SeatBindingsOf(evs []*record.Event) map[string]SeatBinding {
+	out := map[string]SeatBinding{}
+	var clk record.Clock
+	for _, e := range evs {
+		w := clk.Advance(e)
+		reg, ok := recordpb.BodyAs[*recordpb.Register](e)
+		if !ok || reg.GetAgentId() == "" {
+			continue
+		}
+		out[reg.GetAgentId()] = SeatBinding{SeatID: e.GetSeatId(), Epoch: w.Epoch, Sitting: w.Sitting}
+	}
+	return out
+}
+
+// SeatBindings is SeatBindingsOf over the run's record. A run with no record yet binds nothing
+// and is not an error; an unreachable record is.
+func SeatBindings(run record.Run) (map[string]SeatBinding, error) {
+	m, err := record.MergedEvents(run)
+	if err != nil {
+		return nil, err
+	}
+	return SeatBindingsOf(m.Events), nil
+}
+
+// AgentIDOfTranscript is the harness handle a per-agent transcript is filed under: the harness
+// writes `agent-<id>.jsonl`, and the dashboard composes that same name forward from the journal's
+// agentId. This is the inverse of the harness's own layout, not a fact recovered from the record —
+// the record holds the id itself, on the register event, and that is what the name is joined to.
+// A name of another shape yields "", which binds nothing.
+func AgentIDOfTranscript(name string) string {
+	if !strings.HasPrefix(name, "agent-") || !strings.HasSuffix(name, ".jsonl") {
+		return ""
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(name, "agent-"), ".jsonl")
+}
+
+// Bucket is a seat-epoch-tier aggregate.
 type Bucket struct {
 	N, Turns, Inp, Out, Cr, Cw int
 	Cost                       float64
 }
 
-// Aggregate groups rows into seat-round-tier buckets keyed `RR|seat|tier` (round zero-padded so
-// a lexicographic sort orders rounds numerically — round 2 before round 10).
+// Aggregate groups rows into seat-epoch-tier buckets keyed `EE|seat|tier` (epoch zero-padded so
+// a lexicographic sort orders epochs numerically — epoch 2 before epoch 10).
 func Aggregate(rows []Row) map[string]*Bucket {
 	agg := map[string]*Bucket{}
 	for _, r := range rows {
-		k := fmt.Sprintf("%02d|%s|%s", r.Round, r.Seat, r.T)
+		k := fmt.Sprintf("%02d|%s|%s", r.Epoch, r.Seat, r.T)
 		a := agg[k]
 		if a == nil {
 			a = &Bucket{}
@@ -162,7 +221,7 @@ func CacheShare(inp, out, cr, cw int) int {
 // Finding is one tier-guard result.
 type Finding struct {
 	Seat     string
-	Round    int
+	Epoch    int
 	Cls      string
 	Actual   string
 	Expected string
@@ -199,7 +258,7 @@ func TierMismatch(rows []Row, model, judgmentModel string) []Finding {
 			// bucket, never folded away, so a prompt-wording drift is spottable" — and this is
 			// where it was folded away. The precedent is in that same doc: cost-audit once lacked
 			// the terminal-disposition case and misattributed that seat's spend.
-			out = append(out, Finding{Seat: row.Seat, Round: row.Round, Cls: "", Actual: row.T, Expected: "", Verdict: "WARN",
+			out = append(out, Finding{Seat: row.Seat, Epoch: row.Epoch, Cls: "", Actual: row.T, Expected: "", Verdict: "WARN",
 				Why: fmt.Sprintf("a transcript's seat could not be identified from its prompt head, so its tier was NOT checked (it ran on %s, %d turn(s)). ClassifySeat matched no needle, which means debate.js's prompt wording and internal/seatclass have drifted apart — not that this seat is exempt", row.T, row.Turns)})
 			continue
 		}
@@ -209,17 +268,17 @@ func TierMismatch(rows []Row, model, judgmentModel string) []Finding {
 		}
 		actual := row.T
 		if configured == "" {
-			out = append(out, Finding{Seat: row.Seat, Round: row.Round, Cls: cls, Actual: actual, Expected: "", Verdict: "WARN",
+			out = append(out, Finding{Seat: row.Seat, Epoch: row.Epoch, Cls: cls, Actual: actual, Expected: "", Verdict: "WARN",
 				Why: fmt.Sprintf("%s tier not declared in run-config — cannot judge %s", cls, row.Seat)})
 			continue
 		}
 		expected := Tier(configured)
 		switch {
 		case dearer(actual, expected):
-			out = append(out, Finding{Seat: row.Seat, Round: row.Round, Cls: cls, Actual: actual, Expected: expected, Verdict: "FAIL",
+			out = append(out, Finding{Seat: row.Seat, Epoch: row.Epoch, Cls: cls, Actual: actual, Expected: expected, Verdict: "FAIL",
 				Why: fmt.Sprintf("%s ran on %s, DEARER than the configured %s tier %s", row.Seat, actual, cls, expected)})
 		case dearer(expected, actual):
-			out = append(out, Finding{Seat: row.Seat, Round: row.Round, Cls: cls, Actual: actual, Expected: expected, Verdict: "WARN",
+			out = append(out, Finding{Seat: row.Seat, Epoch: row.Epoch, Cls: cls, Actual: actual, Expected: expected, Verdict: "WARN",
 				Why: fmt.Sprintf("%s ran on %s, CHEAPER than the configured %s tier %s — verification may be discounted", row.Seat, actual, cls, expected)})
 		}
 	}
@@ -232,14 +291,14 @@ func TierMismatch(rows []Row, model, judgmentModel string) []Finding {
 // renamed.
 func TierConfig(run record.Run) (model, judgmentModel string) { return modeltier.Config(run.Dir()) }
 
-// DedupTierFindings drops duplicate findings keyed on (seat|round|verdict|actual). TierMismatch
+// DedupTierFindings drops duplicate findings keyed on (seat|epoch|verdict|actual). TierMismatch
 // can emit repeats, and both the cost report and the capture model-tier audit dedup on this same
 // key — kept here so the key format lives once (they used to hand-copy it in two packages).
 func DedupTierFindings(fs []Finding) []Finding {
 	seen := map[string]bool{}
 	var out []Finding
 	for _, f := range fs {
-		k := fmt.Sprintf("%s|%d|%s|%s", f.Seat, f.Round, f.Verdict, f.Actual)
+		k := fmt.Sprintf("%s|%d|%s|%s", f.Seat, f.Epoch, f.Verdict, f.Actual)
 		if !seen[k] {
 			seen[k] = true
 			out = append(out, f)
@@ -266,21 +325,31 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 		}
 	}
 	sort.Strings(files)
+	// THE EPOCH IS THE RECORD'S TO SAY. A transcript knows its spend and, from its prompt head, its
+	// seat; which dispatch cycle it sat in is a count over the chair's registers, which only the
+	// record holds. Without a record every row is epoch 0 and the table shows a dash, which is the
+	// honest answer rather than a number scraped from a heading.
+	var bindings map[string]SeatBinding
+	if run.Dir() != "" {
+		bindings, _ = SeatBindings(run)
+	}
 	var rows []Row
 	for _, f := range files {
 		b, err := os.ReadFile(filepath.Join(transcriptDir, f))
 		if err != nil {
 			return err
 		}
-		rows = append(rows, ScanTranscript(string(b)))
+		row := ScanTranscript(string(b))
+		row.Epoch = bindings[AgentIDOfTranscript(f)].Epoch
+		rows = append(rows, row)
 	}
 
 	p := func(s string) { fmt.Fprintln(out, s) }
 
 	p("# Cost audit\n")
 	p(fmt.Sprintf("Measured from %d per-agent API transcripts in `%s`. List-rate arithmetic; see the price table in cost-audit.mjs.\n", len(rows), transcriptDir))
-	p("## Per seat-round\n")
-	p("| round | seat | model | agents | api-turns | input | output | cache-read | cache-write | $ |")
+	p("## Per seat-epoch\n")
+	p("| epoch | seat | model | agents | api-turns | input | output | cache-read | cache-write | $ |")
 	p("|---|---|---|---|---|---|---|---|---|---|")
 	agg := Aggregate(rows)
 	keys := make([]string, 0, len(agg))
@@ -293,14 +362,14 @@ func Report(transcriptDir string, run record.Run, out io.Writer) error {
 	for _, k := range keys {
 		parts := strings.SplitN(k, "|", 3)
 		a := agg[k]
-		roundDisp := parts[0]
+		epochDisp := parts[0]
 		if n, _ := strconv.Atoi(parts[0]); n == 0 {
-			roundDisp = "—"
+			epochDisp = "—"
 		} else {
-			roundDisp = strconv.Itoa(n)
+			epochDisp = strconv.Itoa(n)
 		}
 		p(fmt.Sprintf("| %s | %s | %s | %d | %d | %s | %s | %s | %s | $%s |",
-			roundDisp, parts[1], parts[2], a.N, a.Turns, mtok(a.Inp), mtok(a.Out), mtok(a.Cr), mtok(a.Cw), strconv.FormatFloat(a.Cost, 'f', 2, 64)))
+			epochDisp, parts[1], parts[2], a.N, a.Turns, mtok(a.Inp), mtok(a.Out), mtok(a.Cr), mtok(a.Cw), strconv.FormatFloat(a.Cost, 'f', 2, 64)))
 		tN += a.N
 		tTurns += a.Turns
 		tInp += a.Inp
@@ -404,19 +473,19 @@ func reportTierCheck(run record.Run, rows []Row, p func(string)) {
 func reportTelemetry(run record.Run, p func(string)) {
 	lines, err := view.Telemetry(run)
 	if err != nil || len(lines) == 0 {
-		p("\n## Board telemetry\n\n(no telemetry rounds on the record — pre-telemetry run, or no gaps minted yet)")
+		p("\n## Board telemetry\n\n(no telemetry epochs on the record — pre-telemetry run, or no gaps minted yet)")
 		return
 	}
-	p("\n## Board telemetry (per round)\n")
+	p("\n## Board telemetry (per epoch)\n")
 	// `accepted deltas` was a column here. It read a telemetry key NOTHING WRITES, so it printed
 	// 0 on every row of every run — a measurement whose miss is indistinguishable from its honest
 	// answer. The engine is unaffected: debate.js computes its own accepted-delta magnitude in
 	// process and dockets on it. Removed rather than left reading as measured.
-	p("| round | open | max severity | new mints | mass | realized_open | mapping |")
+	p("| epoch | open | max severity | new mints | mass | realized_open | mapping |")
 	p("|---|---|---|---|---|---|---|")
 	for _, t := range lines {
 		p(fmt.Sprintf("| %s | %s | %s | %s | %s | %s | %s |",
-			telInt(t.Round), telInt(t.OpenCount), telGrade(t.MaxSeverity),
+			telInt(t.Epoch), telInt(t.OpenCount), telGrade(t.MaxSeverity),
 			newMintCount(t), telFloat(t.Mass), telInt(t.RealizedOpen), telStr(t.MappingVersion)))
 	}
 	p("\nTelemetry is the convenience copy, never the evidence of record — actuation reviews recompute from the git-tracked ledger.")

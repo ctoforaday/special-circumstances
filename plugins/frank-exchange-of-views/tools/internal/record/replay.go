@@ -126,9 +126,9 @@ func MergedEvents(run Run) (Merged, error) {
 // caller supplies its own word.
 type Gap struct {
 	ID          string
-	Round       int
+	Epoch       int
 	Open        bool
-	ClosedRound int
+	ClosedEpoch int
 	HasClosed   bool
 	Mint        *recordpb.Mint
 	// Closure and BenchClosure are the CLOSING EVENT'S BODY, and they are two fields because a
@@ -383,7 +383,7 @@ func allGapIDs(run Run) (map[string]bool, error) {
 // A `--carried-from` closure claims to restate an earlier one, and a claim about the
 // record is checked against the record — the same rule mint applies to `supersedes`,
 // which refuses an ancestor no mint event created.
-func priorClosureRounds(run Run, gapID string) ([]int, error) {
+func priorClosureEpochs(run Run, gapID string) ([]int, error) {
 	db, err := openRunForRead(run)
 	if err != nil {
 		return nil, err
@@ -391,7 +391,7 @@ func priorClosureRounds(run Run, gapID string) ([]int, error) {
 	if db == nil {
 		return nil, nil
 	}
-	rows, err := db.Query(`SELECT e."round" FROM "close" c JOIN "events" e ON e."id" = c."event_id"
+	rows, err := db.Query(`SELECT e."epoch" FROM "close" c JOIN "events_w" e ON e."id" = c."event_id"
 	  WHERE c."gap_id" = ? ORDER BY c."event_id"`, gapID)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for prior closures of %s: %w", gapID, err)
@@ -408,16 +408,19 @@ func priorClosureRounds(run Run, gapID string) ([]int, error) {
 	return out, rows.Err()
 }
 
-// MintGapID assigns ids tool-side, sequentially per round — the collision class
-// that made four different "R5-1"s in one round simply cannot occur.
-func MintGapID(run Run, round int) (string, error) {
+// MintGapID assigns ids tool-side, sequentially over the run — the collision class that once
+// made four different ids for one gap in one round simply cannot occur.
+func MintGapID(run Run) (string, error) {
+	// RUN-GLOBAL. The id used to be R<round>-<n>, a per-round counter, and the round in it was the
+	// last fact a public identifier recovered from a clock (plans/roundless.md §III.A.3). G<n> is
+	// the position in the run's mint order: one counter, one namespace, and `G` is the prefix
+	// letter nothing else mints. The two schemes cannot collide — one has a hyphen, the other
+	// does not — and archived R-ids are translated at migration, never read live.
 	var n int
-	if _, err := queryRow(run, []any{&n},
-		`SELECT count(*) FROM "mint" m JOIN "events" e ON e."id" = m."event_id" WHERE e."round" = ?`,
-		round); err != nil {
+	if _, err := queryRow(run, []any{&n}, `SELECT count(*) FROM "mint"`); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("R%d-%d", round, n+1), nil
+	return fmt.Sprintf("G%d", n+1), nil
 }
 
 // ExistingMintByKey gives crash-retry idempotency: a seat whose message died

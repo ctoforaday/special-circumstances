@@ -53,12 +53,12 @@ func TestEveryMotionSubjectNamesItsRuler(t *testing.T) {
 // this message or not at all.
 func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	for _, sid := range []string{"blue-respond-r1", "red-chair-r1"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid, Round: RoundIn(mustRun(t, runDir))(sid)}, ""); err != nil {
+	for _, sid := range []string{"blue-respond", "red-chair"} {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.Motion{
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 		Basis:    proto.String("the run is proceeding past a safety objection"),
@@ -69,7 +69,7 @@ func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := requirePassClosesAllGaps(mustRun(t, runDir))
+	err := requirePassClosesAllMaterialGaps(mustRun(t, runDir))
 	if err == nil {
 		t.Fatal("PASS was allowed over an unruled petition")
 	}
@@ -99,12 +99,12 @@ func TestThePassRefusalNamesWhoHoldsTheGavel(t *testing.T) {
 // that resolved the divergence by dropping the item would pass the first alone.
 func TestTheSittingViewNamesTheGavelAndStillBlocks(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	for _, sid := range []string{"blue-respond-r1", "red-chair-r1"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid, Round: RoundIn(mustRun(t, runDir))(sid)}, ""); err != nil {
+	for _, sid := range []string{"blue-respond", "red-chair"} {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: sid}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.Motion{
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 		Basis:    proto.String("the run is proceeding past a safety objection"),
@@ -115,7 +115,7 @@ func TestTheSittingViewNamesTheGavelAndStillBlocks(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := sittingOfRunT(t, mustRun(t, runDir), "merge", "red-chair-r1")
+	s := sittingOfRunT(t, mustRun(t, runDir), "merge", "red-chair")
 
 	var line string
 	for _, o := range s.Open {

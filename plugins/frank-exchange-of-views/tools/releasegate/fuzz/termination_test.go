@@ -99,7 +99,7 @@ func (b *board) open() int {
 	return n
 }
 
-// roundOf reads the round stamp out of a seat id (red-chair-r2 -> 2). A seat id with no stamp is
+// roundOf reads the round stamp out of a seat id (red-chair -> 2). A seat id with no stamp is
 // round 0 — the frontier, the lanes, the synthesis, assemble — and those seats take no move.
 func roundOf(seatID string) int {
 	i := strings.LastIndex(seatID, "-r")

@@ -72,7 +72,7 @@ type CountsJSON struct {
 
 type GapJSON struct {
 	ID    string `json:"id"`
-	Round int    `json:"round"`
+	Epoch int    `json:"epoch"`
 	Open  bool   `json:"open"`
 
 	// Grades are `any` because a grade is a free string in the record and a seat may
@@ -139,7 +139,7 @@ type GapJSON struct {
 	FoundBy    []string `json:"found_by"`
 	Supersedes []string `json:"supersedes"`
 
-	ClosedRound   int  `json:"closed_round"`
+	ClosedEpoch   int  `json:"closed_epoch"`
 	ClosedByBench bool `json:"closed_by_bench"`
 	// Closure carries the whole closure payload — anchors included — because a seat
 	// auditing a closure needs the anchor triple, and the markdown flattened it into a
@@ -328,6 +328,7 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 
 	// The acts the projection embeds or attributes, one filtered typed read, grouped per gap.
 	evs, err := EventsOf(run,
+		recordpb.EventType_EVENT_TYPE_REGISTER, // for the fold's Clock (see record.Clock)
 		recordpb.EventType_EVENT_TYPE_CLOSE,
 		recordpb.EventType_EVENT_TYPE_MOTION,
 		recordpb.EventType_EVENT_TYPE_MOTION_RULE,
@@ -369,7 +370,7 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 		return out, err
 	}
 
-	rows, err := db.Query(`SELECT "gap_id", "minted_round", "open",
+	rows, err := db.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost",
 	    "class", "location", "about_kind", "about_ref", "problem", "mint_reason", "required_fix",
 	    "acceptance_check", "check_kind", "awaiting_proof", "fix_basis", "fix_new", "minted_event"
@@ -390,7 +391,7 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 			return out, err
 		}
 		gj := GapJSON{
-			ID: id, Round: round, Open: open,
+			ID: id, Epoch: round, Open: open,
 			FoundBy: strs(foundBy[mintedEvent]), Supersedes: strs(supersedes[mintedEvent]),
 			Regrades: []map[string]any{},
 			Severity: nullWord(sev), Likelihood: nullWord(lik), Impact: nullWord(imp), ComplexityCost: nullWord(cx),
@@ -405,7 +406,7 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 			credited[l] = true
 		}
 		if c := closures[id]; c != nil && c.hasClosed {
-			gj.ClosedRound, gj.ClosedByBench = c.closedRound, c.closedByBench
+			gj.ClosedEpoch, gj.ClosedByBench = c.closedEpoch, c.closedByBench
 			// BOTH CLOSING BODIES REACH THE FIELD, red's preferred — closureBody's rule, applied
 			// to the same pair the fold carried.
 			body := proto.Message(c.lastClose)
@@ -471,7 +472,7 @@ func BoardJSONOfRun(run Run) (BoardJSON, error) {
 type closeState struct {
 	lastClose        *recordpb.Close        // the fold's Closure: last red close
 	lastBenchClosure *recordpb.DocketRuling // the fold's BenchClosure: last CLOSING docket ruling
-	closedRound      int                    // the LAST closing event's round, either arm
+	closedEpoch      int                    // the LAST closing event's epoch, either arm
 	closedByBench    bool                   // ... and whether that last event was the bench's
 	hasClosed        bool
 }
@@ -501,11 +502,13 @@ func closureStatesOf(evs []*Event) (map[string]*closeState, []string) {
 		}
 		return c
 	}
+	var clk Clock
 	for _, e := range evs {
+		w := clk.Advance(e)
 		switch m := mustBody(e).(type) {
 		case *recordpb.Close:
 			c := closing(m.GetGapId())
-			c.lastClose, c.closedRound, c.closedByBench, c.hasClosed = m, int(e.GetRound()), false, true
+			c.lastClose, c.closedEpoch, c.closedByBench, c.hasClosed = m, w.Epoch, false, true
 		case *recordpb.MotionRule:
 			d, isDocket := m.GetRuling().(*recordpb.MotionRule_Docket)
 			if !isDocket {
@@ -524,7 +527,7 @@ func closureStatesOf(evs []*Event) (map[string]*closeState, []string) {
 				continue
 			}
 			c := closing(gapID)
-			c.lastBenchClosure, c.closedRound, c.closedByBench, c.hasClosed = d.Docket, int(e.GetRound()), true, true
+			c.lastBenchClosure, c.closedEpoch, c.closedByBench, c.hasClosed = d.Docket, w.Epoch, true, true
 		}
 	}
 	return closures, unpaired
@@ -608,12 +611,12 @@ type CounterpartyJSON struct {
 	// Role is whose activity this describes: the party this seat is waiting on or disposing of.
 	Role string `json:"role"`
 	// Acts is how many substantive events that party has recorded in the whole run, and
-	// ActsThisRound how many in the round this seat is sitting in. Zero for both is "has not
+	// ActsThisEpoch how many in the round this seat is sitting in. Zero for both is "has not
 	// started"; zero this round with a positive total is "worked earlier, not yet here".
 	Acts          int `json:"acts"`
-	ActsThisRound int `json:"acts_this_round"`
-	// LastRound is the last round that party recorded anything in, or 0 if never.
-	LastRound int `json:"last_round"`
+	ActsThisEpoch int `json:"acts_this_epoch"`
+	// LastEpoch is the last round that party recorded anything in, or 0 if never.
+	LastEpoch int `json:"last_epoch"`
 	// Reading states, in words, which of the situations this is — because a reader that has to
 	// derive it from three integers will derive it differently each time.
 	Reading string `json:"reading"`
@@ -802,7 +805,7 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 // workJSONOfGaps assembles the lean shapes from the gap states — the same rows, the same order,
 // the same synopsis truncation the fold applied.
 // since is the round from which an edit counts as NEW TO THIS READER: the one before the seat's
-// own, so a seat sitting in round 3 sees what happened in round 2 — the round it was not present
+// own, so a seat sitting in epoch 3 sees what happened in epoch 2 — the epoch it was not present
 // for. Zero means "no round known", and then every edit is shown rather than none: a reader whose
 // round could not be determined is better handed the whole history than silently handed none.
 func workJSONOfGaps(gaps []WorkGapState, since int) WorkJSON {
@@ -861,13 +864,15 @@ func WorkJSONOfRun(run Run) (WorkJSON, error) {
 //
 // The pairing is the adversarial one: the merge waits on blue and blue waits on the merge. A lens
 // or the bench is told so plainly rather than being handed a zero it would read as inactivity.
-func counterpartyOf(evs []*Event, role string, round int) CounterpartyJSON {
+func counterpartyOf(evs []*Event, role string, epoch int) CounterpartyJSON {
 	other := map[string]string{"merge": "blue", "blue": "merge"}[role]
 	if other == "" {
 		return CounterpartyJSON{Reading: "this seat waits on no single party — the lens and the bench read the board itself"}
 	}
 	c := CounterpartyJSON{Role: other}
+	var clk Clock
 	for _, e := range evs {
+		w := clk.Advance(e)
 		if PartyOf(e) != other {
 			continue
 		}
@@ -876,31 +881,33 @@ func counterpartyOf(evs []*Event, role string, round int) CounterpartyJSON {
 			continue // arriving is not acting
 		}
 		c.Acts++
-		r := int(e.GetRound())
-		if r > c.LastRound {
-			c.LastRound = r
+		r := w.Epoch
+		if r > c.LastEpoch {
+			c.LastEpoch = r
 		}
-		if r == round {
-			c.ActsThisRound++
+		if r == epoch {
+			c.ActsThisEpoch++
 		}
 	}
 	switch {
 	case c.Acts == 0:
 		c.Reading = other + " has recorded NOTHING in this run — it has not started, which is different from having tried and failed"
-	case c.ActsThisRound > 0:
-		c.Reading = fmt.Sprintf("%s is ACTIVE in this round (%d act(s)) — work may still be landing, so an absence on any one gap is not yet a refusal", other, c.ActsThisRound)
+	case c.ActsThisEpoch > 0:
+		c.Reading = fmt.Sprintf("%s is ACTIVE in this epoch (%d act(s)) — work may still be landing, so an absence on any one gap is not yet a refusal", other, c.ActsThisEpoch)
 	default:
-		c.Reading = fmt.Sprintf("%s worked in round %d and has recorded nothing in this one — it has stopped, or has not yet begun here", other, c.LastRound)
+		c.Reading = fmt.Sprintf("%s worked in epoch %d and has recorded nothing in this one — it has stopped, or has not yet begun here", other, c.LastEpoch)
 	}
 	return c
 }
 
 // roundOfSeatOnBoard is the round this seat is sitting in, taken from its own latest event.
-func roundOfSeatOnBoard(evs []*Event, seatID string) int {
+func epochOfSeatOnBoard(evs []*Event, seatID string) int {
 	r := 0
+	var clk Clock
 	for _, e := range evs {
-		if e.GetSeatId() == seatID && int(e.GetRound()) > r {
-			r = int(e.GetRound())
+		w := clk.Advance(e)
+		if e.GetSeatId() == seatID && w.Epoch > r {
+			r = w.Epoch
 		}
 	}
 	return r
@@ -916,9 +923,9 @@ func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	w := workJSONOfGaps(gaps, roundOfSeatOnBoard(m.Events, seatID)-1)
+	w := workJSONOfGaps(gaps, epochOfSeatOnBoard(m.Events, seatID)-1)
 	w.Sitting = SittingOf(m.Events, gaps, role, seatID)
-	w.Counterparty = counterpartyOf(m.Events, role, roundOfSeatOnBoard(m.Events, seatID))
+	w.Counterparty = counterpartyOf(m.Events, role, epochOfSeatOnBoard(m.Events, seatID))
 	out, err := json.MarshalIndent(w, "", "  ")
 	if err != nil {
 		return nil, err
@@ -945,7 +952,7 @@ type FindingJSON struct {
 	// SUPPLY an anchor id, which is what made the missing lookup observable at all.
 	Anchor     string `json:"anchor"`
 	SeatID     string `json:"seat_id"`
-	Round      int    `json:"round"`
+	Epoch      int    `json:"epoch"`
 	Role       string `json:"role"`
 	Severity   any    `json:"severity"`
 	Likelihood any    `json:"likelihood"`
@@ -1008,7 +1015,9 @@ func FindingsJSONOf(evs []*Event) FindingsJSON {
 			}
 		}
 	}
+	var clk Clock
 	for _, e := range evs {
+		w := clk.Advance(e)
 		// TYPE-SWITCHED ON THE BODY, not on `type`: this loop reaches straight for the finding's
 		// fields, and a body read that way cannot go stale against the enum.
 		f, ok := recordpb.BodyAs[*recordpb.Finding](e)
@@ -1019,7 +1028,7 @@ func FindingsJSONOf(evs []*Event) FindingsJSON {
 			Label:  f.GetLabel(),
 			Anchor: f.GetFindingId(),
 			SeatID: e.GetSeatId(),
-			Round:  int(e.GetRound()),
+			Epoch:  w.Epoch,
 			Role:   RoleOf(e.GetSeatId()),
 			// `reason` WAS THE PAYLOAD KEY; `text` IS THE FIELD. Finding carries one prose
 			// channel and this is it — there is no Finding.reason.
@@ -1075,6 +1084,16 @@ func findingsViewEventTypes() []recordpb.EventType {
 	return []recordpb.EventType{
 		recordpb.EventType_EVENT_TYPE_FINDING,
 		recordpb.EventType_EVENT_TYPE_MINT,
+		// REGISTER, because the CLOCK ONLY ADVANCES ON IT. Clock.Advance changes epoch and
+		// sitting on a register event and on nothing else, so a stream without them leaves the
+		// clock at zero and every finding reports `epoch: 0`.
+		//
+		// MEASURED ON origin/main BEFORE THIS LINE EXISTED: all 20 findings of
+		// 2026-08-23_research-loop-counterparts, a run spanning four epochs, came back epoch 0.
+		// Not an error — a uniform plausible number, which is the same shape as minted_as going
+		// empty without MINT. One function, two derived values, both depending on events the
+		// typed read did not ask for.
+		recordpb.EventType_EVENT_TYPE_REGISTER,
 	}
 }
 
@@ -1100,7 +1119,7 @@ type LogJSON struct {
 
 type LogEntryJSON struct {
 	SeatID string `json:"seat_id"`
-	Round  int    `json:"round"`
+	Epoch  int    `json:"epoch"`
 	Type   string `json:"type"`
 	Source string `json:"source"`
 	Text   string `json:"text"`
@@ -1110,13 +1129,15 @@ type LogEntryJSON struct {
 // Board, for the reason FindingsJSONOf states.
 func LogJSONOf(evs []*Event) LogJSON {
 	out := LogJSON{Log: []LogEntryJSON{}}
+	var clk Clock
 	for _, e := range evs {
+		w := clk.Advance(e)
 		// TYPE IS NOT FILTERED HERE, and that is the behaviour this view already had rather than a
 		// choice made in the conversion: the list carries every type and the reader narrows.
 		// Reported, not changed — filtering here would move Counts.Total.
 		if f, ok := recordpb.BodyAs[*recordpb.Log](e); ok {
 			out.Log = append(out.Log, LogEntryJSON{
-				SeatID: e.GetSeatId(), Round: int(e.GetRound()),
+				SeatID: e.GetSeatId(), Epoch: w.Epoch,
 				Type:   recordpb.Word(f.GetType()),
 				Source: recordpb.Word(f.GetSource()),
 				Text:   f.GetText(),
@@ -1158,14 +1179,14 @@ func LogJSONBytes(run Run) ([]byte, error) {
 // It derives from BoardState like the other JSON views — never from debate.md — so the two
 // renderings of one replay cannot drift.
 type DebateJSON struct {
-	Rounds []DebateRoundJSON `json:"rounds"`
+	Epochs []DebateEpochJSON `json:"epochs"`
 }
 
-// DebateRoundJSON mirrors one `## Round N` block of render.go. Red/Blue/Lead are always
+// DebateEpochJSON mirrors one `## Epoch N` block of render.go. Red/Blue/Lead are always
 // present (possibly empty) arrays — a consumer counts `red.length` for the round's red
 // sitting, and a null would make that count throw. The richer sections omit when empty.
-type DebateRoundJSON struct {
-	Round int `json:"round"`
+type DebateEpochJSON struct {
+	Epoch int `json:"epoch"`
 	// Verdict is the round's RECORDED verdict, and it is here because `red` is PROSE. A position
 	// may say "my verdict is PASS" while round_verdict holds fail — measured in
 	// research/2026-09-02_quadratic-formula, where a reader of the debate projection alone
@@ -1194,34 +1215,30 @@ type DebateOpinionJSON struct {
 }
 
 // DebateJSONOf groups the record's events by round exactly as render.go's debate loop does:
-// position(red-merge)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
+// position(red-chair)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
 // dispute/dispute-respond→Disputes, a docket motion's ruling→Lead. The grouping is
 // the single source these two renderings share; if it moves, both move together.
 // DebateJSONOf projects the debate prose per round. It takes the ROUND SKELETON separately from
-// the events, because the rounds come from the WHOLE record — a round whose only acts are mints
+// the events, because the epochs come from the WHOLE record — an epoch whose only acts are mints
 // still renders, empty, exactly as it always has — while the events it renders are only the
 // position, closing, motion and motion-rule families. A caller holding merged events uses
 // DebateJSONOfEvents.
-func DebateJSONOf(rounds []int, evs []*Event) DebateJSON {
-	out := DebateJSON{Rounds: []DebateRoundJSON{}}
+func DebateJSONOf(epochs []int, evs []*Event) DebateJSON {
+	out := DebateJSON{Epochs: []DebateEpochJSON{}}
 
-	roundOrder := append([]int{}, rounds...)
-	byRound := map[int][]*Event{}
+	epochOrder := append([]int{}, epochs...)
+	byEpoch := map[int][]*Event{}
+	var clk Clock
 	for _, e := range evs {
-		byRound[int(e.GetRound())] = append(byRound[int(e.GetRound())], e)
+		w := clk.Advance(e)
+		byEpoch[w.Epoch] = append(byEpoch[w.Epoch], e)
 	}
-	sort.Ints(roundOrder)
+	sort.Ints(epochOrder)
 
-	// ONE PAIRING, READ MANY TIMES. The gap rides the docket FILING, so the LEAD rows below can
-	// name it without recovering the join per event.
 	docketGapOf := DocketGapByMotion(evs)
 
-	for _, r := range roundOrder {
-		re := byRound[r]
-		// Party comes from PartyOf — the stamped field, never a strings.HasPrefix on the
-		// raw seat id: an id that fails to match its expected prefix renders as the WRONG
-		// PARTY with nothing to notice. `frontier` is one such blue seat; it emits no
-		// position or closing today, and this stays correct if that changes.
+	for _, r := range epochOrder {
+		re := byEpoch[r]
 		sec := func(typ recordpb.EventType, party string) []*Event {
 			var s []*Event
 			for _, e := range re {
@@ -1231,12 +1248,9 @@ func DebateJSONOf(rounds []int, evs []*Event) DebateJSON {
 			}
 			return s
 		}
-		rj := DebateRoundJSON{Round: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{}}
-		for _, e := range evs {
-			if int(e.GetRound()) != r {
-				continue
-			}
-			if v, ok := recordpb.BodyAs[*recordpb.RoundVerdict](e); ok {
+		rj := DebateEpochJSON{Epoch: r, Red: []string{}, Blue: []string{}, Lead: []DebateOpinionJSON{}}
+		for _, e := range re {
+			if v, ok := recordpb.BodyAs[*recordpb.Gate](e); ok {
 				rj.Verdict = recordpb.Word(v.GetVerdict())
 			}
 		}
@@ -1286,7 +1300,7 @@ func DebateJSONOf(rounds []int, evs []*Event) DebateJSON {
 				ReviewFlag: d.Docket.GetReviewFlag(), Rationale: r.GetOpinion(),
 			})
 		}
-		out.Rounds = append(out.Rounds, rj)
+		out.Epochs = append(out.Epochs, rj)
 	}
 	return out
 }
@@ -1295,24 +1309,26 @@ func DebateJSONOf(rounds []int, evs []*Event) DebateJSON {
 // oracle's walk): the round skeleton derives from every event, exactly as the board-shaped
 // signature derived it.
 func DebateJSONOfEvents(evs []*Event) DebateJSON {
-	var rounds []int
+	var epochs []int
 	seen := map[int]bool{}
+	var clk Clock
 	for _, e := range evs {
-		if r := int(e.GetRound()); !seen[r] {
+		if r := clk.Advance(e).Epoch; !seen[r] {
 			seen[r] = true
-			rounds = append(rounds, r)
+			epochs = append(epochs, r)
 		}
 	}
-	return DebateJSONOf(rounds, evs)
+	return DebateJSONOf(epochs, evs)
 }
 
 // DebateJSONBytes renders the structured debate as indented JSON.
 func DebateJSONBytes(run Run) ([]byte, error) {
-	rounds, err := Rounds(run)
+	epochs, err := Epochs(run)
 	if err != nil {
 		return nil, err
 	}
 	evs, err := EventsOf(run,
+		recordpb.EventType_EVENT_TYPE_REGISTER, // for the fold's Clock (see record.Clock)
 		recordpb.EventType_EVENT_TYPE_POSITION,
 		recordpb.EventType_EVENT_TYPE_CLOSING,
 		recordpb.EventType_EVENT_TYPE_MOTION,
@@ -1320,7 +1336,7 @@ func DebateJSONBytes(run Run) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	out, err := json.MarshalIndent(DebateJSONOf(rounds, evs), "", "  ")
+	out, err := json.MarshalIndent(DebateJSONOf(epochs, evs), "", "  ")
 	if err != nil {
 		return nil, err
 	}
@@ -1342,7 +1358,7 @@ func mintedIfMoved(minted string, edits []GapEdit) string {
 
 // editsSince narrows a gap's change history to what the reader has not already seen.
 //
-// A seat sitting in round 3 is shown round 2 onward: the rounds it was not present for. Passing 0
+// A seat sitting in epoch 3 is shown epoch 2 onward: the epochs it was not present for. Passing 0
 // shows everything, which is what a caller with no round context gets — handing back nothing there
 // would be the plausible zero this whole field exists to remove.
 func editsSince(edits []GapEdit, since int) []GapEdit {
@@ -1351,7 +1367,7 @@ func editsSince(edits []GapEdit, since int) []GapEdit {
 	}
 	var out []GapEdit
 	for _, e := range edits {
-		if e.Round >= since {
+		if e.Epoch >= since {
 			out = append(out, e)
 		}
 	}

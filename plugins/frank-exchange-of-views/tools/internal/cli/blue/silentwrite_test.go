@@ -10,7 +10,7 @@ import (
 // A quote's TRAILING punctuation is trimmed before the span is located, so `--old` naming a
 // sentence stops SHORT of its terminator. Replacing that span with text carrying its own
 // terminator leaves the original standing after it. Measured in
-// research/2026-09-02_quadratic-formula (blue-respond-r2): red minted a punctuation repair with a
+// research/2026-09-02_quadratic-formula (blue-respond): red minted a punctuation repair with a
 // `verified` fix basis, blue applied it verbatim, and a doubled terminator became a TRIPLED one.
 // The verb exited 0. It was invisible until the acceptance check was re-run against the document.
 func TestAnEditThatWouldDoubleATerminatorIsRefused(t *testing.T) {

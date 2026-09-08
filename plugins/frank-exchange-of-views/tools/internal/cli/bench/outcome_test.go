@@ -54,7 +54,7 @@ func TestOutcomeRequiresAnAccountOfAJudgedDeadlock(t *testing.T) {
 			// seat from that binding rather than from a flag. So the handle is set BEFORE the
 			// register that writes it — afterwards there would be nothing to bind.
 			t.Setenv(seatenv.AgentVar, "agent_bench")
-			if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge-r1", Round: record.RoundIn(runtest.Open(t, runDir))("judge-r1")}, ""); err != nil {
+			if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge"}, ""); err != nil {
 				t.Fatal(err)
 			}
 			t.Setenv(seatenv.Var, runDir)
@@ -101,17 +101,17 @@ func TestOutcomeRecordsWhyTheVerdictIsWhatItIs(t *testing.T) {
 	// its verdict has a seat to hang on, and it binds a different agent for the same reason a run
 	// does — two seats are two agents.
 	t.Setenv(seatenv.AgentVar, "agent_merge")
-	for _, s := range []string{"red-chair-r1"} {
-		if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: s, Round: record.RoundIn(runtest.Open(t, runDir))(s)}, ""); err != nil {
+	for _, s := range []string{"red-chair"} {
+		if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: s}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
 	// A PASS on the record makes VERIFIED derivable, with a stated basis.
-	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-chair-r1", Round: record.RoundIn(runtest.Open(t, runDir))("red-chair-r1")}, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: "red-chair"}, &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv(seatenv.AgentVar, "agent_bench")
-	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge-r1", Round: record.RoundIn(runtest.Open(t, runDir))("judge-r1")}, ""); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, runDir), SeatID: "judge"}, ""); err != nil {
 		t.Fatal(err)
 	}
 	c := testRoot()

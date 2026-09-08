@@ -68,8 +68,8 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	for _, n := range res.Out {
 		outTotal += n
 	}
-	if outTotal != 830 {
-		t.Fatalf("813 in + 17 synthesized docket motions = 830 out; got %d (%v)", outTotal, res.Out)
+	if outTotal != 831 {
+		t.Fatalf("813 in + 17 synthesized docket motions + the synthesized cast = 831 out; got %d (%v)", outTotal, res.Out)
 	}
 	if res.Out["log"] != 45 || res.Out["motion"] != res.In["motion"]+17 || res.Out["motion_rule"] != res.In["motion_rule"]+17 {
 		t.Errorf("per-word arithmetic: out=%v in=%v", res.Out, res.In)
@@ -82,8 +82,15 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("the migrated record does not read as a record: %v", err)
 	}
-	if len(fam.Events) != 830 {
-		t.Errorf("family holds %d events, want 830", len(fam.Events))
+	if len(fam.Events) != 831 {
+		t.Errorf("family holds %d events, want 831", len(fam.Events))
+	}
+	assertRoundless(t, fam)
+	if len(res.GapIDs) != 26 || res.GapIDs["R1-1"] != "G1" || res.GapIDs["R2-1"] != "G10" {
+		t.Errorf("the manifest's gap-id table: %d entries, R1-1=%q R2-1=%q — want 26, G1, G10 (nine gaps minted in round 1)", len(res.GapIDs), res.GapIDs["R1-1"], res.GapIDs["R2-1"])
+	}
+	if res.Serialized["red-lens-r3-L2"] != 25 {
+		t.Errorf("serialized instances: %v — the round-3 second citation instance has 25 events", res.Serialized)
 	}
 	checks := verify.Run(fam)
 	for _, c := range checks {

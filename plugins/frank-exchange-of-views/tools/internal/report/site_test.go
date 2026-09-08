@@ -12,15 +12,15 @@ import (
 func siteFixture(t *testing.T) (string, record.Family) {
 	t.Helper()
 	board := &boardT{
-		GapOrder: []string{"R1-1"},
-		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
+		GapOrder: []string{"G1"},
+		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
 		Events: []*record.Event{
-			recordtest.Event(t, "", 0, &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING)}),
+			recordtest.Event(t, "", &recordpb.Outcome{Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING)}),
 		},
 	}
 	docs := []Doc{
-		{File: FileReport, Nav: "Report", Blurb: "the research", Body: "## Read this first\n\nR1-1 is still open.\n"},
-		{File: FileDocket, Nav: "Board", Blurb: "the gaps", Body: "### R1-1 — eviction races the reader\n\ncache.go:88\n"},
+		{File: FileReport, Nav: "Report", Blurb: "the research", Body: "## Read this first\n\nG1 is still open.\n"},
+		{File: FileDocket, Nav: "Board", Blurb: "the gaps", Body: "### G1 — eviction races the reader\n\ncache.go:88\n"},
 	}
 	return RenderSite("# Whether the cache is coherent", docs, board.fam()), board.fam()
 }
@@ -89,8 +89,8 @@ func TestTheVerdictBadgeComesOffTheRecord(t *testing.T) {
 // The join the markdown set cannot make: a mention in one document links into another.
 func TestCrossDocumentIdsAreLinkedInTheSite(t *testing.T) {
 	html, _ := siteFixture(t)
-	if !strings.Contains(html, `data-doc="docket.md">R1-1</a>`) {
-		t.Errorf("the report's mention of R1-1 does not link to the docket that defines it:\n%s", html)
+	if !strings.Contains(html, `data-doc="docket.md">G1</a>`) {
+		t.Errorf("the report's mention of G1 does not link to the docket that defines it:\n%s", html)
 	}
 }
 

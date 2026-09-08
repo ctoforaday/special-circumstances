@@ -63,7 +63,7 @@ func TestTheGateStopsTheRunTheRetrospectiveMeasured(t *testing.T) {
 // The judgment tier was served as configured in that same run, and must not be swept up with it.
 func TestASeatAnsweredByItsConfiguredTierPasses(t *testing.T) {
 	run := runWithTiers(t, fableSonnet)
-	if got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "red-chair-r1"), servedmodel.Observation{Served: "claude-sonnet-5"}); got != "" {
+	if got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "red-chair"), servedmodel.Observation{Served: "claude-sonnet-5"}); got != "" {
 		t.Fatalf("judgment seat on its configured sonnet: %s", got)
 	}
 	if got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "blue-lane-2"), servedmodel.Observation{Served: "claude-fable-5"}); got != "" {
@@ -75,7 +75,7 @@ func TestASeatAnsweredByItsConfiguredTierPasses(t *testing.T) {
 // declaration is evidence about the swap rather than the swap itself.
 func TestAnUndeclaredMismatchAlsoRefuses(t *testing.T) {
 	run := runWithTiers(t, fableSonnet)
-	if got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "judge-r1"), servedmodel.Observation{Served: "claude-haiku-4-5"}); got == "" {
+	if got := TierSubstitution(mustRun(t, run), configuredFor(t, run, "judge"), servedmodel.Observation{Served: "claude-haiku-4-5"}); got == "" {
 		t.Fatal("a judgment seat answered by haiku against a configured sonnet must be reported")
 	}
 }
@@ -147,7 +147,7 @@ func TestEverySeatShapeJoinsToATierClass(t *testing.T) {
 	}
 	// The petition sitting is named for the seat that petitioned and is handled apart from the
 	// table; it is a judgment seat like the rest of the bench.
-	if got := TierClassOfSeat("judge-petition-red-chair-r1"); got != "judgment" {
+	if got := TierClassOfSeat("judge-petition-red-chair"); got != "judgment" {
 		t.Errorf("petition sitting: got %q", got)
 	}
 }

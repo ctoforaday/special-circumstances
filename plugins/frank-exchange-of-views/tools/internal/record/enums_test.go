@@ -396,7 +396,7 @@ func TestAToolWrittenLogTypeIsOffTheSeatSurface(t *testing.T) {
 // own enum set already refuses the word at flag parse, so a check there could never fire.
 func TestAToolOnlyLogTypeIsRefusedUnderASeatsName(t *testing.T) {
 	run := mustRun(t, newRun(t))
-	id := Identity{Run: run, SeatID: "red-chair-r1", Round: 1}
+	id := Identity{Run: run, SeatID: "red-chair"}
 	est := recordpb.LogType_LOG_TYPE_ESTOPPEL
 	seat, tool := recordpb.LogSource_LOG_SOURCE_SEAT, recordpb.LogSource_LOG_SOURCE_TOOL
 
@@ -409,7 +409,7 @@ func TestAToolOnlyLogTypeIsRefusedUnderASeatsName(t *testing.T) {
 	// which would delete the estoppel guard's only record rather than protect it.
 	if _, err := Append(id, &recordpb.Log{
 		Text: proto.String("merge mint: estoppel — this quotes text you prescribed"),
-		Type: &est, Source: &tool, EstoppedBy: proto.String("R1-1"),
+		Type: &est, Source: &tool, EstoppedBy: proto.String("G1"),
 	}); err != nil {
 		t.Errorf("the TOOL's own estoppel record was refused: %v", err)
 	}

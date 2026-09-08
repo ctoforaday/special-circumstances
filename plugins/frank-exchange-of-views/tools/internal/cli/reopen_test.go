@@ -19,14 +19,14 @@ import (
 // text to "The sky is green and the grass is on fire", silently.
 func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	for _, id := range []string{"red-lens-r1-evidence", "blue-respond-r1"} {
+	for _, id := range []string{"red-lens-evidence", "blue-respond"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatal(err)
 		}
 	}
 	seedBlueReport(t, runDir)
 	const claim = "§2 the finding prose lands in a quoted sentence."
-	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
+	if _, err := run(t, "corroborate", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--url", "https://example.org/red", "--title", "T", "--quote", claim,
 		"--as", "supports", "--confidence", "high", "--reason", "read it at the leaf"); err != nil {
 		t.Fatal(err)
@@ -45,7 +45,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 
 	// AN EDIT ELSEWHERE does not reopen it. Reopening on every edit is the same as reopening on
 	// none — a reader learns to skip the field.
-	if _, err := run(t, "edit", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", "blue-respond",
 		"--quote", "the parser accepts an empty body in this line.",
 		"--new", "the parser rejects an empty body in this line.", "--reason", "unrelated"); err != nil {
 		t.Fatal(err)
@@ -56,7 +56,7 @@ func TestAnEditThatMovesCitedTextReopensTheCitation(t *testing.T) {
 
 	// THE EDIT THAT MOVES THE CITED SENTENCE reopens it — quoted AS PRINTED, token carried.
 	printed, tok := anchoredLine(t, runDir)
-	if _, err := run(t, "edit", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "edit", "--run", runDir, "--seat-id", "blue-respond",
 		"--quote", printed, "--new", "§2 an entirely different assertion now"+tok+".",
 		"--reason", "rewrote the sentence red corroborated"); err != nil {
 		t.Fatal(err)

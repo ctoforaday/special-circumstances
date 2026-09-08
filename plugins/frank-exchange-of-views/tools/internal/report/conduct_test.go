@@ -23,7 +23,7 @@ func registers(t *testing.T, rows ...[3]string) record.Family {
 		if r[1] != "" {
 			reg.AgentId = proto.String(recordtest.ServedBy(t, fmt.Sprintf("agent%04d", i), r[1], r[2]))
 		}
-		evs = append(evs, recordtest.Event(t, r[0], 1, reg))
+		evs = append(evs, recordtest.Event(t, r[0], reg))
 	}
 	return record.NewFamily(nil, evs)
 }
@@ -38,8 +38,8 @@ func registers(t *testing.T, rows ...[3]string) record.Family {
 func TestASubstitutedTierIsNamedInTheReport(t *testing.T) {
 	got := conduct(record.Run{}, (registers(t,
 		[3]string{"blue-lane-1", "claude-opus-4-8", "claude-fable-5"},
-		[3]string{"red-lens-r1-evidence", "claude-opus-4-8", "claude-fable-5"},
-		[3]string{"red-chair-r1", "claude-sonnet-5", ""},
+		[3]string{"red-lens-evidence", "claude-opus-4-8", "claude-fable-5"},
+		[3]string{"red-chair", "claude-sonnet-5", ""},
 	)))
 	for _, want := range []string{"claude-opus-4-8", "claude-fable-5", "SUBSTITUTED", "claude-sonnet-5"} {
 		if !strings.Contains(got, want) {
@@ -91,7 +91,7 @@ func TestSeatsWithNoMeasurementAreReportedAsNotMeasured(t *testing.T) {
 func TestAnUnsubstitutedRunStillNamesWhatAnswered(t *testing.T) {
 	got := conduct(record.Run{}, (registers(t,
 		[3]string{"blue-lane-1", "claude-fable-5", ""},
-		[3]string{"red-chair-r1", "claude-sonnet-5", ""},
+		[3]string{"red-chair", "claude-sonnet-5", ""},
 	)))
 	if !strings.Contains(got, "claude-fable-5") || !strings.Contains(got, "claude-sonnet-5") {
 		t.Errorf("a clean run does not name its own models:\n%s", got)

@@ -26,8 +26,8 @@ func hasNode(t *testing.T) {
 }
 
 // THE POINT OF THE VERB: a computation settles the question and leaves an artifact. This is
-// the smoke's R1-2 done properly — red asked "test the protocol on a false claim, is 9
-// prime"; blue answered in prose and R2-2 refused it for showing no evidence.
+// the smoke's G1 done properly — red asked "test the protocol on a false claim, is 9
+// prime"; blue answered in prose and G2 refused it for showing no evidence.
 func TestReproducibleProofRunsAndRecordsItself(t *testing.T) {
 	hasNode(t)
 	runDir := t.TempDir()
@@ -122,7 +122,7 @@ func TestAFailingCheckIsARecordedResultNotAnError(t *testing.T) {
 }
 
 // RED'S AUDIT IS RE-EXECUTION. A cited source is re-read and believed; a proof is re-run and
-// compared, which is the stronger check and the one R2-2 wanted.
+// compared, which is the stronger check and the one G1 wanted.
 func TestReproduceReRunsAndAgrees(t *testing.T) {
 	hasNode(t)
 	runDir := t.TempDir()

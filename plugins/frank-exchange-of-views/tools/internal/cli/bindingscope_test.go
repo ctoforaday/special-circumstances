@@ -31,7 +31,7 @@ func TestTheBindingGuardCoversWritesAndNotReads(t *testing.T) {
 
 	// A READ is answerable before registering. The seat has an identity by flag; what it lacks is
 	// a binding, and a read does not need one.
-	if _, err := run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair-r1"); err != nil {
+	if _, err := run(t, "show", "board", "--run", runDir, "--seat-id", "red-chair"); err != nil {
 		t.Errorf("an unregistered seat could not read its own board: %v\n\n"+
 			"Reads are outside the guard on purpose — a seat should be able to look at what it is about to "+
 			"register into, and a first act that fails is a worse teacher than one that answers.", err)
@@ -42,10 +42,10 @@ func TestTheBindingGuardCoversWritesAndNotReads(t *testing.T) {
 		seat string
 		argv []string
 	}{
-		{"red-chair-r1", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "c",
+		{"red-chair", []string{"mint", "--class", "scope-creep", "--check-kind", "document", "--check", "c",
 			"--likelihood", "low", "--impact", "low", "--problem", "p"}},
-		{"red-lens-r1-evidence", []string{"friction", "--reason", "the tool has no path for X"}},
-		{"blue-respond-r1", []string{"revision", "--reason", "round record"}},
+		{"red-lens-evidence", []string{"friction", "--reason", "the tool has no path for X"}},
+		{"blue-respond", []string{"revision", "--reason", "round record"}},
 	} {
 		argv := append(append([]string{}, w.argv...), "--run", runDir, "--seat-id", w.seat)
 		_, err := run(t, argv...)

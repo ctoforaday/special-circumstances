@@ -26,8 +26,8 @@ import (
 func TestBlueIsToldWhatTheBenchRuledAndWhatItObliges(t *testing.T) {
 	const settled = "Blue may not credit write-confinement as the soundness mitigation for cadence."
 	gaps := []any{
-		map[string]any{"id": "R1-1", "severity": "major", "likelihood": "medium", "impact": "medium", "complexity_cost": "low", "supersedes": []any{}},
-		map[string]any{"id": "R1-2", "severity": "minor", "likelihood": "low", "impact": "low", "complexity_cost": "low", "supersedes": []any{}},
+		map[string]any{"id": "G1", "severity": "major", "likelihood": "medium", "impact": "medium", "complexity_cost": "low", "supersedes": []any{}},
+		map[string]any{"id": "G2", "severity": "minor", "likelihood": "low", "impact": "low", "complexity_cost": "low", "supersedes": []any{}},
 	}
 	backend := func(seatID, label, prompt string) debatejs.Envelope {
 		e := debatejs.Envelope{
@@ -35,7 +35,7 @@ func TestBlueIsToldWhatTheBenchRuledAndWhatItObliges(t *testing.T) {
 			"gaps": []any{}, "petitions": []any{}, "friction": []any{}, "rulings": []any{},
 			"closures": []any{}, "dispute_responses": []any{}, "deadlock": false,
 			"resolutions": []any{}, "grade_disputes": []any{},
-			"manifest": []any{"R1-1", "R1-2"}, "claim_count": 3,
+			"manifest": []any{"G1", "G2"}, "claim_count": 3,
 			"saturation_reached": false, "round_record_appended": true,
 			"open_gaps": []any{},
 		}
@@ -46,7 +46,7 @@ func TestBlueIsToldWhatTheBenchRuledAndWhatItObliges(t *testing.T) {
 		case strings.HasPrefix(seatID, "judge"):
 			// One gap ruled in blue's favour; the other left open so the run has work in round 3.
 			e["resolutions"] = []any{map[string]any{
-				"gap_id": "R1-1", "resolution": "not_a_defect",
+				"gap_id": "G1", "resolution": "not_a_defect",
 				"settled": settled, "reopens_on": "", "final": true,
 			}}
 		}
@@ -69,21 +69,21 @@ func TestBlueIsToldWhatTheBenchRuledAndWhatItObliges(t *testing.T) {
 
 	// THE NEGATIVE CONTROL FIRST. Before any bench has sat there is nothing to tell blue, and a
 	// clause that renders unconditionally would make the positive assertion below meaningless.
-	r1, err := debatejs.For(ds, "blue-respond-r1")
+	r1, err := debatejs.For(ds, "blue-respond")
 	if err != nil {
-		t.Fatalf("no blue-respond-r1 dispatch: %v", err)
+		t.Fatalf("no blue-respond dispatch: %v", err)
 	}
 	if strings.Contains(r1.Prompt, "GAPS THE BENCH HAS RULED") {
-		t.Error("blue-respond-r1 carries the rulings clause with no ruling yet — the clause is unconditional, so the round-3 assertion proves nothing")
+		t.Error("blue-respond carries the rulings clause with no ruling yet — the clause is unconditional, so the round-3 assertion proves nothing")
 	}
 
-	r3, err := debatejs.For(ds, "blue-respond-r3")
+	r3, err := debatejs.Last(ds, "blue-respond") // the sitting after the bench sat, not the first
 	if err != nil {
-		t.Fatalf("no blue-respond-r3 dispatch — the run did not reach a round after the bench sat: %v", err)
+		t.Fatalf("no blue-respond dispatch — the run did not reach a round after the bench sat: %v", err)
 	}
 	for _, want := range []string{
 		"GAPS THE BENCH HAS RULED",
-		"R1-1",
+		"G1",
 		"not_a_defect",
 		// The duty derived from the fate: this is the half red never needs.
 		"THE BENCH FOUND NO DEFECT",
@@ -92,7 +92,7 @@ func TestBlueIsToldWhatTheBenchRuledAndWhatItObliges(t *testing.T) {
 		settled,
 	} {
 		if !strings.Contains(r3.Prompt, want) {
-			t.Errorf("blue-respond-r3 does not carry %q — blue receives the ruling as a bare subtraction and cannot tell a win from an erasure", want)
+			t.Errorf("blue-respond does not carry %q — blue receives the ruling as a bare subtraction and cannot tell a win from an erasure", want)
 		}
 	}
 }
