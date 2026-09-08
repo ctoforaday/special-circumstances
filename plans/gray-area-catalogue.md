@@ -209,8 +209,20 @@ So the rule is:
 
    **At fire, compare `last_assistant_message` to the last text block present in the transcript for
    that `(session, agent_id, prompt_id)`.** Equal ⇒ the text has landed and **no provisional is
-   written**. Unequal or absent ⇒ write the provisional, satisfied later by any ingested block equal
-   to it for that key. The id alone suffices; `offset_at_fire` is **not** needed for supersession
+   written**. Unequal, or absent on the transcript side ⇒ write the provisional, satisfied later by
+   any ingested block equal to it for that key.
+
+   **Two inputs can be missing, both measured, both given a rule rather than left to fall through:**
+
+   - **The payload carries no `last_assistant_message` at all — 25 of 625 real rows, 4.0%.** There
+     is nothing to compare and nothing to preserve, so **no provisional is written** and the
+     omission is recorded as `provisional_skipped` with reason `no-last-assistant-message`, the same
+     channel as the absent-`prompt_id` case.
+   - **A turn carries zero text blocks — 20 of 1,238 turns, 1.6%** (pure tool-call turns with no
+     assistant prose). No `word` row is expected for such a turn, and the rule already does the
+     right thing without a special case: if the payload has a message the transcript-side is absent,
+     so a provisional is written and later satisfied; if the payload has none either, the clause
+     above skips it. The id alone suffices; `offset_at_fire` is **not** needed for supersession
    and remains only for incremental ingest (§V.8).
 
    **The residue, measured rather than argued away.** The rule is wrong exactly when a turn's final
@@ -782,7 +794,9 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     rather than a fiction, at 0.12% of turns); a **subagent** record sharing the parent's
     `sessionId` and `promptId` (asserts it does not touch the parent's provisional, and that
     `SubagentStop` writes its own); a `Stop` payload with **no `prompt_id`** (asserts
-    `provisional_skipped`, not a `""` key);
+    `provisional_skipped`, not a `""` key); a payload with **no `last_assistant_message`** (asserts
+    `provisional_skipped` with the second reason, 4.0% of real rows); a **zero-text turn** (asserts
+    no `word` row and no provisional, 1.6% of turns);
     a **final** lagged turn with no `SessionEnd` (asserts the provisional is readable while
     outstanding, and that the **next `SessionStart` sweep** promotes it — naming the closer that
     fires, since the fixture controls which); and a
