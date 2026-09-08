@@ -36,7 +36,9 @@ func TestLegacyShardsAreRefusedRatherThanReadAsEmpty(t *testing.T) {
 	if db != nil {
 		t.Fatalf("refusal must not also hand back a handle, got %v", db)
 	}
-	for _, want := range []string{"FORMER record format", "CANNOT READ", "events-blue-synthesize-864c76fd.jsonl"} {
+	// "operator migrate" is the pointer clause (plans/replay-migration.md §III.6): the
+	// refusal keeps refusing, and stops being a dead end.
+	for _, want := range []string{"FORMER record format", "CANNOT READ", "events-blue-synthesize-864c76fd.jsonl", "operator migrate"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal must name what it found and why; %q missing from:\n%s", want, err)
 		}

@@ -25,15 +25,30 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 	if err := copyChannels(fromDir, toDir); err != nil {
 		return nil, err
 	}
+	// The record's format picks the adapter: a database if one exists, else the era of
+	// per-sitting shards. Both refusable — a directory holding neither is not a run.
+	var src Source
+	var unclassified []string
+	var discarded []DiscardedSitting
 	scratch := filepath.Join(toDir, ".migrate-src")
-	src, err := OpenSQLite(filepath.Join(fromDir, "records"), scratch)
-	if err != nil {
-		return nil, err
+	if _, serr := os.Stat(filepath.Join(fromDir, "records", dbSiblings[0])); serr == nil {
+		sq, err := OpenSQLite(filepath.Join(fromDir, "records"), scratch)
+		if err != nil {
+			return nil, err
+		}
+		src = sq
+		defer func() {
+			sq.Close()
+			os.RemoveAll(scratch)
+		}()
+	} else {
+		js, err := OpenJSONL(filepath.Join(fromDir, "records"))
+		if err != nil {
+			return nil, err
+		}
+		src = js
+		discarded = js.Discarded()
 	}
-	defer func() {
-		src.Close()
-		os.RemoveAll(scratch)
-	}()
 
 	dst, err := record.NewRun(toDir)
 	if err != nil {
@@ -43,7 +58,11 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 	if err != nil {
 		return nil, err
 	}
-	m := NewManifest(fromDir, src.Files(), src.Unclassified(), res)
+	if sq, ok := src.(*SQLiteSource); ok {
+		unclassified = sq.Unclassified()
+	}
+	m := NewManifest(fromDir, src.Files(), unclassified, res)
+	m.Discarded = discarded
 	if err := m.Write(toDir); err != nil {
 		return nil, err
 	}
@@ -55,9 +74,9 @@ func Migrate(fromDir, toDir string, reg Registry, opt Options) (*Manifest, error
 	return m, nil
 }
 
-// copyChannels copies the run directory verbatim, EXCEPT the record's database file set —
-// replay rebuilds that, and a stale copy beside the fresh one would be two records claiming
-// one run.
+// copyChannels copies the run directory verbatim, EXCEPT the record itself — the database
+// file set and the era's event shards. Replay rebuilds the record, and a stale copy beside
+// the fresh one would be two records claiming one run.
 func copyChannels(fromDir, toDir string) error {
 	skip := map[string]bool{}
 	for _, n := range dbSiblings {
@@ -68,6 +87,12 @@ func copyChannels(fromDir, toDir string) error {
 			return err
 		}
 		if skip[path] {
+			return nil
+		}
+		// The era's shards are the old record, and the new record replaces them — copied
+		// beside the fresh database they would be two records claiming one run, the exact
+		// shape the db-file exclusion exists for. The archive keeps the originals.
+		if filepath.Dir(path) == filepath.Join(fromDir, "records") && jsonlShardName.MatchString(d.Name()) {
 			return nil
 		}
 		rel, err := filepath.Rel(fromDir, path)

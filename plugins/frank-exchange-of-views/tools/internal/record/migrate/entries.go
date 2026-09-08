@@ -13,11 +13,15 @@ import (
 // Each entry is the statement of what an old word MEANS in the current model; the tests
 // beside this file state each translation as data (old fields in, new event out).
 func Entries() Registry {
-	return Registry{
+	reg := Registry{
 		"friction":      {Translate: frictionEntry},
 		"friction_none": {Translate: frictionNoneEntry},
 		"opinion":       {Translate: opinionEntry},
 	}
+	for w, e := range eraEntries() {
+		reg[w] = e
+	}
+	return reg
 }
 
 // frictionEntry: the friction channel became the typed log (#755). Old columns
@@ -33,7 +37,7 @@ func frictionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 			return nil, fmt.Errorf("migrate: friction.%s holds %T, not text", col, v)
 		}
 		switch col {
-		case "text":
+		case "text", "reason": // `reason` is the shard era's spelling of the same prose
 			l.Text = proto.String(s)
 		case "estopped_by":
 			l.EstoppedBy = proto.String(s)
@@ -69,7 +73,7 @@ func frictionNoneEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 	}
 	for col, v := range old.Fields {
 		s, ok := v.(string)
-		if !ok || col != "text" {
+		if !ok || (col != "text" && col != "reason") { // `reason` is the shard era's spelling
 			return nil, fmt.Errorf("migrate: old column friction_none.%s has no place on Log — extend the friction_none entry", col)
 		}
 		l.Text = proto.String(s)
@@ -105,7 +109,11 @@ func opinionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 		case "gap_id":
 			docket.GapId = proto.String(v.(string))
 		case "disposition":
-			num, err := enumNumberOf(recordpb.Disposition(0).Descriptor(), v.(string))
+			w := v.(string)
+			if to, ok := dispositionRename[w]; ok { // the a1e8e260 rename, for shard-era opinions
+				w = to
+			}
+			num, err := enumNumberOf(recordpb.Disposition(0).Descriptor(), w)
 			if err != nil {
 				return nil, fmt.Errorf("migrate: opinion.disposition: %w", err)
 			}
@@ -128,13 +136,31 @@ func opinionEntry(old OldEvent, _ record.Run) ([]proto.Message, error) {
 			if n == 1 {
 				ruling.Final = proto.Bool(true)
 			}
-		case "rationale":
+		case "rationale", "reason": // `reason` is the shard era's spelling of the rationale
 			// The old free-prose rationale is the ruling's own words — MotionRule.opinion,
 			// which (the name is the history) is where ruling prose lives now.
 			rule.Opinion = proto.String(v.(string))
 		default:
 			return nil, fmt.Errorf("migrate: old column opinion.%s has no place on the docket pair — extend the opinion entry", col)
 		}
+	}
+	// THE STATED MISS, for rulings that predate a requirement. The earliest opinions carry
+	// neither `settled` nor the reopens_on/final pair — the era had not asked yet. An empty
+	// string would read as "answered: nothing" and a forged `final` would decide what nobody
+	// decided; a value that SAYS it was never recorded is the one honest shape
+	// ([[facts-are-fields]]: make the miss loud, or a stated "not measured"). Filled only
+	// where absent — a ruling that answered keeps its answer.
+	if ruling.Settled == nil {
+		ruling.Settled = proto.String("not stated: this ruling predates the settled requirement (migrated from a bench opinion)")
+	}
+	if ruling.Tension == nil {
+		ruling.Tension = proto.String("not stated: this ruling predates the tension requirement (migrated from a bench opinion)")
+	}
+	if ruling.ReviewFlag == nil {
+		ruling.ReviewFlag = proto.String("not stated: this ruling predates the review-flag requirement (migrated from a bench opinion)")
+	}
+	if ruling.ReopensOn == nil && ruling.Final == nil {
+		ruling.ReopensOn = proto.String("not stated: this ruling predates the reopens-on/final requirement (migrated from a bench opinion)")
 	}
 	// The motion's ask, in the only words the record has for it: the bench took the gap up
 	// on its own motion. Synthesized text says so rather than posing as a filing.

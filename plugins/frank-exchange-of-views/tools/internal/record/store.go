@@ -87,8 +87,10 @@ func openRunForRead(run Run) (*sql.DB, error) {
 				"would make every invariant pass over zero events. Read it with a binary of the "+
 				"event-schema epoch it was written under (runs set up after this landed record it "+
 				"as eventSchema in inputs/run-config.json; older ones predate the field, and this "+
-				"binary writes epoch %d), or re-run the research under this binary; a run "+
-				"directory is created by `setup` and does not outlive the schema that made it",
+				"binary writes epoch %d), or replay it through this one: `--seat-id operator "+
+				"migrate --from <runDir> --to <freshDir>` re-drives every shard event through "+
+				"the current write path and says what it translated; a run "+
+				"directory is created by `setup` and does not outlive the schema that made it — unless migrated",
 				abs, len(shards), filepath.Base(shards[0]), dbName, EventSchema)
 		}
 		return nil, nil

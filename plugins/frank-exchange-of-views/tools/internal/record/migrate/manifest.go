@@ -38,6 +38,9 @@ type Manifest struct {
 	// Unclassified names empty old tables no decomposition rule could place — noise, but
 	// noise on the record rather than in a log nobody keeps.
 	Unclassified []string `json:"unclassified_tables,omitempty"`
+	// Discarded names the shard-era sittings the era's own reader would have dropped
+	// (winner-per-seat), with the count of keys the winner never rewrote — the genuine loss.
+	Discarded []DiscardedSitting `json:"discarded_sittings,omitempty"`
 }
 
 // NewManifest assembles the manifest for one replay.

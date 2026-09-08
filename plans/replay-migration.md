@@ -298,5 +298,43 @@ classifier maps words to table spellings through the current schema where the wo
 survives; and the expected DocketRuling exactly-one refusal round never happened — all 17
 opinions carried a well-formed reopens_on/final split.
 
-Remaining: §III.7 (JSONL shard adapter, leg 2, separate PR — the store.go legacy-shards
-refusal clause lands with it) and the #811 cross-link.
+The #811 cross-link is posted.
+
+## Status (2026-09-08, later) — leg 2 built: the whole archive migrates
+
+The JSONL shard adapter is in (`jsonlsource.go` + `eraentries.go`), and **all seven
+archived runs now migrate with zero refusals** and verify exit 0 — the six shard-era
+tarballs and the SQLite-era one. Era verdicts survive: CEILING×5, UNVERIFIED, one honest
+"verdict unrecorded".
+
+Design decisions the build settled, each from the record's own history:
+
+1. **The old merge rule is reconstructed without its bug.** The era picked a winning
+   sitting per seat by file MTIME (the Linux/Windows split of 2026-08-16); the migration
+   selects by the sitting that started last — a fact of the record, not the copy — and the
+   manifest carries every discarded sitting with its unrewritten-key count. The era dropped
+   them silently; the migration drops them visibly, because that is what the era's own fold
+   meant.
+2. **Era translations come from recorded history, not judgement calls where history
+   exists**: the disposition table is commit a1e8e260's rename verbatim (`closed`→
+   `repaired` …); `inquiry-support`→`inquiry_review` with `inquiry_id`/`as` dropped is
+   commit f516261a's own ruling; `line-of-inquiry`→`avenue` is a wholesale rename
+   (`inquiry_id`→`avenue_id`); the era's universal `reason` column maps onto each body's
+   own prose field (`text`/`prose`/`note`/`statement`/`basis`/`opinion`).
+3. **Enum words resolve by the schema's own same-word class** (`recordpb.SameWord`: case
+   and separators only) — `low-medium`, `FAIL`, `too-thin` are spellings, not renames — and
+   anything wider stays a refusal for an authored map.
+4. **The stated miss, for rulings older than a requirement.** The earliest bench opinions
+   carry no `settled` and neither `reopens_on` nor `final`; an empty string would read as
+   "answered: nothing" and a forged `final` would decide what nobody decided. Those fields
+   fill with "not stated: this ruling predates the … requirement (migrated)" — the
+   facts-are-fields loud-miss shape — only where absent.
+5. **Two eras share `motion`/`motion_rule` and the entries dispatch on SHAPE**: an
+   arm-shaped body is the current decomposition (identity); the flat shard shape is this
+   era's. `proof.output` drops in favour of the content-addressed `proofs/` file the
+   channel copy preserves (`sha256`→`proof_sha` is the tie); the era's shard files are
+   excluded from the channel copy for the same reason the database files are.
+
+The store.go legacy-shards refusal now points at `migrate` (pinned in
+legacyformat_test.go). Remaining: none — the plan is fully delivered once legs 1 (#840)
+and 2 merge.
