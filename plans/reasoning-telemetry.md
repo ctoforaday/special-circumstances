@@ -210,8 +210,18 @@ the operator already drew on PR #3, applied here:
   still deciding the finding.
 
 **Rule to carry into the plugin, unchanged from the operator's framing:** *exploration may
-summarize; adjudication must cite.* Summaries enter Gray Area on the exploration side of that line
-and never cross it.
+summarize; adjudication must cite.*
+
+**And the line is held where the adjudication happens, which is FEOV — not in Gray Area's read
+path** (gblock, 2026-09-08). An earlier draft of this section put the guard in the miner, and that
+was the wrong altitude twice over. Gray Area cannot see what a caller intends to do with a row, so
+a refusal there is a convention wearing a structure's clothes — the exact thing T2 says not to
+build. FEOV's citation ledger already refuses an unanchored closure, and that is a real structure
+at the point where a ruling is actually made. Two enforcement points for one rule is how they drift
+apart.
+
+So Gray Area **mines summaries freely** — recovering an agent's intent is an explicit goal of the
+plugin, not a tolerated side effect — and the evidence chain is FEOV's to defend.
 
 ---
 
@@ -225,7 +235,7 @@ under `plugins/` or `scripts/`.
 | Debate runs (`/research`) | Launch with `--thinking-display summarized` | Seats are subagents; this is the only way their reasoning is retained at all |
 | Interactive development | `"showThinkingSummaries": true` in settings | Same content, interactive path; also enables the ctrl+o transcript view |
 | OpenTelemetry | Enable for cost/latency/topology. **On-box or trusted collector only** | No conversation content was observed in the export, but it publishes operator identity — email, org and account ids (#834). Sending it to a third-party backend is a disclosure decision, not a metrics decision |
-| Adjudication input | Acts and artifacts only | Summaries are excluded from the evidence chain by policy, not by availability |
+| Adjudication input (FEOV) | Acts and artifacts only | Summaries are excluded from the evidence chain **by FEOV's citation ledger**, at the point of ruling — not by withholding them from the miner. Gray Area serves summaries; a summary simply anchors nothing |
 
 **Cost.** Thinking tokens are billed in full whether or not the summary is displayed, so the flag
 does not change what the reasoning costs. It adds the summary tokens themselves, which are a small
@@ -243,7 +253,7 @@ long run, and keep the aggregate-only probing discipline — never pull a corpus
 | # | Risk | Mitigation |
 |---|---|---|
 | T1 | **The flag is version-bound.** It is a documented CLI option, but the resolver around it has moved once already (2.1.71 → 2.1.215). | Probe it at run start, record the client version in the run record, and degrade to acts-only when absent. Never assume a summary exists because a previous run had one. |
-| T2 | **Summaries get treated as evidence** once they are present and readable. This is the real risk; availability creates temptation. | Enforce structurally, not by convention: the mining tool must refuse to return summary text on an adjudication query, the way the citation ledger refuses an unanchored closure. |
+| T2 | **Summaries get treated as evidence** once they are present and readable. This is the real risk; availability creates temptation. | Enforce structurally, not by convention — **in FEOV, at the point of ruling**: the citation ledger refuses an unanchored closure, and a summary anchors nothing. NOT in the mining tool (gblock, 2026-09-08): Gray Area cannot know what a caller will do with a row, so a refusal there would be the convention this row exists to reject. |
 | T3 | **Adaptive thinking may skip thinking entirely** on easy turns — the first measurement here produced zero blocks until the budget was forced. Absence of a summary is not evidence of absence of reasoning. | Record whether thinking was configured and at what budget, so "no summary" is distinguishable from "no thinking". |
 | T4 | **Transcript growth** inflates both storage and any naive read path. | Aggregate-only probes; size checks before retention decisions. |
 | T5 | **Interactive and headless paths diverge** — two different switches, easy to set one and assume both. | `/doctor` reports both, and the run record states which path was used. |
