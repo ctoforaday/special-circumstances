@@ -139,25 +139,36 @@ So the rule is:
 2. **A provisional is written at every `Stop` that carries a `prompt_id`.** When the payload has
    none, **no provisional is written and the omission is recorded** as `provisional_skipped` with
    the reason — never keyed on `""`, which would collide every such turn onto one row.
-3. **A provisional is NOT deleted on first sight of a sibling text.** It is retained until its
+3. **An unclosed provisional IS READABLE, and that is what keeps the hole shut.** It appears in the
+   `word` view with `source='payload'` and `provisional=1`, so a lagged final turn is visible from
+   the moment its `Stop` fires. Closure decides whether that row is deleted or made permanent —
+   never whether it can be read. An earlier draft left this unstated, which is exactly what made
+   "(a) is sufficient alone" look unsupported: it argued the write and not the visibility.
+
+4. **A provisional is NOT deleted on first sight of a sibling text.** It is retained until its
    turn is known closed, by any of **three** triggers: a later `prompt_id` ingested for that same
    `(session, agent_id)`; `SessionEnd`; or — the one that cannot be missed — **the session no
    longer being live**, per the `~/.claude/sessions/<pid>.json` check §II already specifies for
-   liveness. The third exists because the first two both fail on the same case: a session whose
+   liveness; and a **fourth, age** — the day-rollover sweep promotes any provisional older than the
+   window's granularity, so nothing stays outstanding indefinitely even if a session file lingers.
+   The third and fourth exist because the first two both fail on the same case: a session whose
    **last** turn is the lagged one and which ends with live background work, where `SessionEnd` was
    measured firing 0 of 2 times. Liveness is *observed* rather than delivered, so no hook has to
    fire for it to resolve. At close: if the provisional's text is already among the ingested texts for that
    key, delete it; otherwise **promote it to a real `word` row**, because it is a final block that
    never reached the transcript.
-4. That comparison is an **exact string equality** against `last_assistant_message`, scoped to one
+5. That comparison is an **exact string equality** against `last_assistant_message`, scoped to one
    turn's blocks. An earlier draft claimed "no content matching anywhere" as a virtue; that claim
    is withdrawn rather than defended — there is no id for an individual text block.
 
-   **Equality is used as a MEMBERSHIP test, not an identification, and that is what makes duplicate
-   blocks harmless.** Measured: 4 of 496 multi-block turns (0.81%) contain two identical text
-   blocks. In those the match cannot say *which* block it found — and does not need to: the only
-   question is whether the provisional's text is present at all, and the answer is the same either
-   way, as is the action.
+   **The comparison is by COUNT, not existence — an earlier draft got the quantifier wrong and it
+   lost data.** Measured: 4 of ~1,000 multi-block turns contain two identical text blocks, and 1 has
+   a final block identical to an earlier one. Existence-testing those is exactly wrong: blocks
+   `[X, X]` with only the tail lagged match the surviving `X`, delete the provisional, and lose the
+   tail — the round-12 loss narrowed rather than removed. So the rule compares **multiset
+   multiplicity**: the provisional is satisfied only when the number of ingested blocks equal to it
+   is at least the number that turn should hold. Membership was the wrong quantifier for a duplicate
+   population that measurably exists.
 
    **What is NOT measurable here: whether `last_assistant_message` is byte-identical to the
    transcript's text block** or normalised (whitespace, trailing newline). Nothing on this box
@@ -166,8 +177,19 @@ So the rule is:
    equality reports "absent" and the rule **promotes a duplicate** rather than losing data: it
    over-keeps, which is the safe direction, and §V.17 measures it at fire time and decides whether
    a normalising comparison is needed.
-5. A transcript record whose ancestry yields no `promptId` (0 of 15,751 measured) is ingested with
-   a NULL key and supersedes nothing.
+6. **A transcript record whose ancestry yields no `promptId` is ingested with a NULL key** — and an
+   earlier draft stopped there, which double-stores: a NULL-keyed block can never be counted "for
+   that key", so its turn's provisional is always promoted and the final text is stored **twice**.
+   So a NULL-keyed block is attributed to the **open provisional for its `(session, agent_id)`**
+   when exactly one is outstanding, and counts toward that turn's multiset; with zero or several
+   outstanding it stays NULL-keyed, its turn's provisional is promoted, and the row is marked
+   `attribution='ambiguous'` so the duplicate reads as deliberate.
+
+   **The rate, corrected — an earlier draft claimed "100.000%, zero unresolved" from too narrow a
+   sample.** Over the **whole** corpus (414 files, 46,046 assistant records): **3 unresolved,
+   99.9935%.** Two are record 0 of a resumed/forked file whose `parentUuid` points outside it; one is
+   a subagent record with no `parentUuid` at all. The 40-file scan that produced "zero" contained
+   none of them — narrow evidence, universal claim.
 
 **(b)** gray-area binds **`SessionEnd`** (new;
 prosthetic-conscience binds it, gray-area does not) for one final sweep after the last `Stop` —
@@ -514,7 +536,13 @@ stays green. This was checked because two new directories would have turned it r
   module does the same. The cost is that the directive needs bumping as CVEs accumulate against
   whatever patch it names — a maintenance task, not a hidden finding.
 
-  **`.qlty/qlty.toml:88-99` was therefore STALE** — it said feov carried 39 accepted findings when
+  **`.qlty/qlty.toml:101` is a [MODIFY] CARRIER for this change**, which an earlier draft missed by
+  treating that file as already-corrected. Its roster line reads *"a module with no dependencies
+  keeps the short form (gray-area, prosthetic-conscience); a module WITH dependencies pins a current
+  patch release (frank-exchange-of-views, scripts)"* — and this change moves gray-area across that
+  line, making the sentence false about the post-change tree. `f6795bac` (the correction) is already
+  an ancestor of this branch, so moving gray-area into the pinned group is *this* change's job.
+  Separately, **`.qlty/qlty.toml:88-99` was STALE** — it said feov carried 39 accepted findings when
   feov reports clean — and is corrected in a companion change (`claude/qlty-directive-comment`),
   kept separate because it describes every module's directive, not this one's. All four `go.mod`
   files were scanned before rewriting it: 0 findings each.
@@ -594,7 +622,7 @@ raw SQL is a complete concept without it.
 | R5 | **Byte offsets desynchronise** (a transcript truncated rather than appended). | low × medium × cheap | §V.8 — offset record stores size and the sha of the first 4 KiB; a mismatch reprojects from zero |
 | R6 | **A malicious or clumsy query wedges the box.** | medium × medium × closed | §V.9 — writes refused; cross join cancelled at a deadline; `ATTACH` and `writable_schema` refused on the pinned connection |
 | R7 | **Liveness reports a dead agent as live** via pid reuse. | low × high × closed | §V.10 — a stale `procStart` must resolve to `ended`, asserted with a fabricated mismatch |
-| R8 | **First dependency in a zero-dependency plugin.** Irreversible in practice. | certain × low | named as a decision at §III's `go.mod` bullet (pin, cgo rejection, 1+9 requires), not absorbed |
+| R8 | **First dependency in a zero-dependency plugin**, and its consumer-side install cost — `scripts/bootstrap-plugins.sh:83-99` builds hook binaries **on the consumer's machine**, and its own comment names dependency download as the part most likely to overrun the ~5 minute budget. Measured cold against an empty module cache: **3.7 s download + 23.0 s build, 348 MB cache.** Inside the budget, stated rather than assumed. | certain × low × **low to mitigate** — one-time and measured; nothing to do unless that budget tightens | named as a decision at §III's `go.mod` bullet (pin, cgo rejection, 1+9 requires), not absorbed |
 | R11 | **The transcript lags the `Stop` hook and a session's final turn is never ingested.** Documented by the vendor, **not measured on this box** — it cannot be, until a `Stop` hook exists here; the one inference attempted was confounded and is recorded in §II so it is not repeated. | likely × medium × **one closure plus a best-effort narrowing** — (a) is sufficient alone; (b) `SessionEnd` did not fire in 2 of 2 runs ending with live background work | §V.3 extended to **per-session `word` counts** against the transcript, which act counts cannot see; §V.17 measures the lag at fire time once the hook exists |
 | R10 | **Promoting ripgrep to `required` BLOCKS consumers** who lack the binary. The mechanism is `toolchain.MergeStrictest` + `doctor.verdict` — a missing `required` tool returns BLOCKED — **not** a manifest key: `_tier_comment` is documentation on the entry, and an earlier draft cited it as though it were the enforcement. Deliberate: from the moment `find` ships, a missing `rg` returns zero hits indistinguishable from an honest zero, and a wrong answer is worse than a blocked install. | certain × medium × accepted | §V.14 — asserts the verb and the tier move in the same change, so neither can ship alone |
 | R9 | **The board reads as complete when reasoning capture was off.** | medium × medium × mitigated | §V.11 — a session with zero non-empty thoughts is distinguishable from one never asked |
@@ -696,8 +724,12 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     at once (asserts no cross-turn consumption); a no-lag turn (asserts the provisional is deleted,
     not promoted, leaving no duplicate); a **subagent** record sharing the parent's `sessionId` and
     `promptId` (asserts it does not touch the parent's provisional); a `Stop` payload with **no
-    `prompt_id`** (asserts `provisional_skipped`, not a `""` key); and a record with unresolvable
-    ancestry. §V.3
+    `prompt_id`** (asserts `provisional_skipped`, not a `""` key); a turn whose blocks are
+    `[X, X]` with the tail lagged (asserts the **multiset** rule keeps the provisional where an
+    existence test would have deleted it); a **final** lagged turn with no `SessionEnd` (asserts the
+    provisional is readable while outstanding and promoted by the liveness or age closer); and a
+    record with unresolvable ancestry (asserts single-outstanding attribution, and
+    `attribution='ambiguous'` when not). §V.3
     cannot see any of this: it counts a live corpus where a +1 is invisible. Also —
     a second `backfill` over the same corpus leaves act counts unchanged (the `(session, seq)`
     idempotence §III asserts and nothing previously checked), and the verb reaches its handler.
