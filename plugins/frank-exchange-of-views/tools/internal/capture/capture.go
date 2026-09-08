@@ -1691,6 +1691,15 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 		lines = append(lines, line)
 	}
 
+	// A MIGRATED RECORD SAYS SO WHERE RUNS ARE GRADED (plans/replay-migration.md §III.5).
+	// Three states, three different bytes: a native run carries no line at all; a migrated
+	// run names its source and translator; a run whose manifest is present and unreadable
+	// reports THAT, because a run claiming to be a migration that cannot say of what must
+	// not read as native.
+	if line := migrationLine(run.Dir()); line != "" {
+		lines = append(lines, line)
+	}
+
 	// PER-TURN TELEMETRY ONTO THE RECORD, so the questions asked about it become SQL instead of
 	// another transcript scan (#684 F16). Three readers walk these files today for three slices
 	// of one question; the turn goes in once and seat_metrics, the time decomposition and cost
