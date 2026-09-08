@@ -154,7 +154,9 @@ So the rule is:
 1. **Key is `(session, agent_id, prompt_id)`** — the agent dimension is required, not optional,
    because sessionId and promptId are both shared with subagents. `agent_id` is `""` for the main
    agent, which is itself a distinct key.
-2. **A provisional is written at every `Stop` that carries a `prompt_id`.** When the payload has
+2. **Whether a provisional is written is decided by the fire-time comparison in rule 5** — not
+   unconditionally. An earlier draft said "written at every `Stop` that carries a `prompt_id`",
+   a universal rule 5 contradicts. When the payload has
    none, **no provisional is written and the omission is recorded** as `provisional_skipped` with
    the reason — never keyed on `""`, which would collide every such turn onto one row.
 3. **An unclosed provisional IS READABLE, and that is what keeps the hole shut.** It appears in the
@@ -163,7 +165,9 @@ So the rule is:
    never whether it can be read. An earlier draft left this unstated, which is exactly what made
    "(a) is sufficient alone" look unsupported: it argued the write and not the visibility.
 
-4. **A provisional is NOT deleted on first sight of a sibling text.** It is retained until its
+4. **A provisional is deleted the moment it is SATISFIED** (an ingested block equal to it arrives
+   for its key) — not on first sight of any sibling text. If it is never satisfied it is retained
+   until its
    turn is known closed, by any of **four** triggers: a later `prompt_id` ingested for that same
    `(session, agent_id)`; `SessionEnd`; or — the one that cannot be missed — **the session no
    longer being live**, per the `~/.claude/sessions/<pid>.json` check §II already specifies for
@@ -214,15 +218,24 @@ So the rule is:
 
    **Two inputs can be missing, both measured, both given a rule rather than left to fall through:**
 
-   - **The payload carries no `last_assistant_message` at all — 25 of 625 real rows, 4.0%.** There
+   - **The payload carries no `last_assistant_message` at all — 24 of 585 real rows, 4.1%.** There
      is nothing to compare and nothing to preserve, so **no provisional is written** and the
      omission is recorded as `provisional_skipped` with reason `no-last-assistant-message`, the same
-     channel as the absent-`prompt_id` case.
-   - **A turn carries zero text blocks — 20 of 1,238 turns, 1.6%** (pure tool-call turns with no
-     assistant prose). No `word` row is expected for such a turn, and the rule already does the
-     right thing without a special case: if the payload has a message the transcript-side is absent,
-     so a provisional is written and later satisfied; if the payload has none either, the clause
-     above skips it. The id alone suffices; `offset_at_fire` is **not** needed for supersession
+     channel as the absent-`prompt_id` case. Note this is **not** "the turn produced none": for 18
+     of the 24 the seat's own transcript does contain assistant text. So on those fires closure (a)
+     has no source at all, which is stated again at R11 rather than left here.
+   - **The transcript side is empty — 95 of 1,745 turns, 5.4%** (75 subagent, 20 main-agent): a turn
+     with assistant records and no text block. Nothing equal can ever land, so a provisional written
+     here is promoted at close, and **whether that is correct depends on something not yet
+     measured**: if the payload's text belongs to this `prompt_id` the promotion recovers a real
+     final turn; if it belongs to an earlier one, it misattributes. §V.17 measures exactly that leg.
+     Until it has, such a promotion is marked **`attribution='unverified'`** rather than asserted
+     correct — the honest state, and visible to a reader.
+
+     **An earlier draft put this at 1.6% (20 of 1,238) and was wrong** for a reason this plan should
+     have caught: it keyed turns by `promptId` **alone**, which merges a parent turn with its
+     subagents' — the very collision rule 1 exists to prevent. Keyed by `(file, prompt_id)` it is
+     5.4%, and three quarters of the population is subagent turns the wrong key had hidden. The id alone suffices; `offset_at_fire` is **not** needed for supersession
    and remains only for incremental ingest (§V.8).
 
    **The residue, measured rather than argued away.** The rule is wrong exactly when a turn's final
@@ -688,7 +701,7 @@ raw SQL is a complete concept without it.
 | R6 | **A malicious or clumsy query wedges the box.** | medium × medium × closed | §V.9 — writes refused; cross join cancelled at a deadline; `ATTACH` and `writable_schema` refused on the pinned connection |
 | R7 | **Liveness reports a dead agent as live** via pid reuse. | low × high × closed | §V.10 — a stale `procStart` must resolve to `ended`, asserted with a fabricated mismatch |
 | R8 | **First dependency in a zero-dependency plugin**, and its consumer-side install cost — `scripts/bootstrap-plugins.sh:83-99` builds hook binaries **on the consumer's machine**, and its own comment names dependency download as the part most likely to overrun the ~5 minute budget. Measured cold against an empty module cache: **3.7 s download + 23.0 s build, 348 MB cache.** Inside the budget, stated rather than assumed. | certain × low × **low to mitigate** — one-time and measured; nothing to do unless that budget tightens | named as a decision at §III's `go.mod` bullet (pin, cgo rejection, 1+9 requires), not absorbed |
-| R11 | **The transcript lags the `Stop` hook and a session's final turn is never ingested.** Documented by the vendor, **not measured on this box** — it cannot be, until a `Stop` hook exists here; the one inference attempted was confounded and is recorded in §II so it is not repeated. | likely × medium × **one closure plus a best-effort narrowing** — (a) is sufficient alone; (b) `SessionEnd` did not fire in 2 of 2 runs ending with live background work | §V.3 extended to **per-session `word` counts** against the transcript, which act counts cannot see; §V.17 measures the lag at fire time once the hook exists |
+| R11 | **The transcript lags the `Stop` hook and a session's final turn is never ingested.** Documented by the vendor, **not measured on this box** — it cannot be, until a `Stop` hook exists here; the one inference attempted was confounded and is recorded in §II so it is not repeated. | likely × medium × **one closure plus a best-effort narrowing, with two measured residues** — (a) covers the lagged final turn except: the 0.12% duplicate-tail under-write (rule 5), and the **4.1% of fires carrying no `last_assistant_message`, where (a) has no source at all**. "Sufficient alone" is claimed against those two rates, not absolutely; (b) `SessionEnd` did not fire in 2 of 2 runs ending with live background work | §V.3 extended to **per-session `word` counts** against the transcript, which act counts cannot see; §V.17 measures the lag at fire time once the hook exists |
 | R10 | **Promoting ripgrep to `required` BLOCKS consumers** who lack the binary. The mechanism is `toolchain.MergeStrictest` + `doctor.verdict` — a missing `required` tool returns BLOCKED — **not** a manifest key: `_tier_comment` is documentation on the entry, and an earlier draft cited it as though it were the enforcement. Deliberate: from the moment `find` ships, a missing `rg` returns zero hits indistinguishable from an honest zero, and a wrong answer is worse than a blocked install. | certain × medium × accepted | §V.14 — asserts the verb and the tier move in the same change, so neither can ship alone |
 | R9 | **The board reads as complete when reasoning capture was off.** | medium × medium × mitigated | §V.11 — a session with zero non-empty thoughts is distinguishable from one never asked |
 
@@ -738,9 +751,15 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
    day-rollover run that performs the 325 ms sweep; **`SessionEnd` under 500 ms**, a third of the
    1.5 s the vendor shares across every `SessionEnd` hook. Four numbers, because each is a
    different run and an earlier draft asserted a single budget its own measurement refuted.
-3. **[LOCAL]** `go test -run TestProjectionMatchesIndependentCount ./internal/catalogue/` — project the live
-   corpus; session, per-session **act** counts AND per-session **`word`** counts must equal counts
-   taken by a different code path. Words are compared because a final turn lost to transcript lag
+3. **[LOCAL]** `go test -run TestProjectionMatchesIndependentCount ./internal/catalogue/` — reads
+   **the hook-populated catalogue** (not a fresh projection) and compares against a transcript-derived
+   count taken by a different code path: session counts, per-session **act** counts, and per-session
+   **`word`** counts. **`provisional=1` rows are excluded from the equality and asserted separately**,
+   because a promoted provisional has no transcript counterpart by construction — including it would
+   make catalogue words = transcript words + 1 and fail the check on the designed path, while
+   comparing two transcript-derived counts would make a turn that never reached the transcript
+   invisible to both sides. An earlier draft said only "project the live corpus", which reads as the
+   second of those. Words are compared because a final turn lost to transcript lag
    (R11) changes the word count and leaves the act count untouched.
 4. **[FIXTURE]** `go test -run TestCorruptLineIsUnparsedNotZero ./internal/catalogue/`
 5. **[FIXTURE]** for the model, **[LOCAL]** for the ratio: `go test -run 'TestAbsentIsErrorIsSuccess|TestBashAlwaysStatesTheFlag' ./internal/catalogue/` —
@@ -795,8 +814,9 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
     `sessionId` and `promptId` (asserts it does not touch the parent's provisional, and that
     `SubagentStop` writes its own); a `Stop` payload with **no `prompt_id`** (asserts
     `provisional_skipped`, not a `""` key); a payload with **no `last_assistant_message`** (asserts
-    `provisional_skipped` with the second reason, 4.0% of real rows); a **zero-text turn** (asserts
-    no `word` row and no provisional, 1.6% of turns);
+    `provisional_skipped` with the second reason, 4.0% of real rows); a **zero-text turn whose payload DOES carry text** (asserts the
+    provisional is promoted and marked `attribution='unverified'`, 5.4% of turns — not "no row",
+    which an earlier draft asserted from a wrongly-keyed 1.6%);
     a **final** lagged turn with no `SessionEnd` (asserts the provisional is readable while
     outstanding, and that the **next `SessionStart` sweep** promotes it — naming the closer that
     fires, since the fixture controls which); and a
