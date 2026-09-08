@@ -305,110 +305,82 @@ func requireSupersededAreClosed(run Run) error {
 		len(stranded), strings.Join(stranded, ", "))
 }
 
-// requirePassClosesAllGaps refuses a PASS while ANY gap is still open. The protocol is "PASS
+// requirePassClosesAllMaterialGaps refuses a PASS while ANY gap is still open. The protocol is "PASS
 // only when every remaining gap is repaired, not_a_defect, or defect_accepted", and all of
 // those resolutions go through `close` (which sets the gap not-open) — so an open gap at PASS
 // is an unadjudicated one. requireSupersededAreClosed catches only the lineage subset; the
 // 2026-07-20 run recorded PASS with 9 PLAIN open gaps (one HIGH) that no lineage check saw,
 // and the envelope then reported 0 outstanding. This is the complete enforcement, at the
 // write path so no verdict route can bypass it. A FAIL is always allowed.
-func requirePassClosesAllGaps(run Run) error {
-	// The open set off the gap view; the motion and review arms off the typed stream — the
-	// same carriers every projection reads, so the gate and the surfaces cannot disagree.
+// requirePassClosesAllMaterialGaps refuses PASS while any open gap is MATERIAL — current
+// severity at GRADE_MEDIUM or above (plans/roundless.md §III.B.2.1). It was requirePassClosesAllMaterialGaps,
+// refusing over ANY open gap, and that made "below material does not hold the gate" unreachable:
+// a run minting one trifle per sitting could never pass. An open sub-material gap at PASS stays
+// open on the board and the report lists it as open, below material, not certified against — not
+// auto-disposed, not carried, not accepted; red's finding stays visible and the report says what
+// it was not certified against.
+func requirePassClosesAllMaterialGaps(run Run) error {
+	db, err := openRunForRead(run)
+	if err != nil || db == nil {
+		return err
+	}
+	rows, err := db.Query(`SELECT g."gap_id", COALESCE(gs."mass", 0.0) >= ?
+	  FROM "gap" g LEFT JOIN "enum_grade" gs ON gs."value" = g."current_severity"
+	  WHERE g."open" ORDER BY g."minted_event"`, material)
+	if err != nil {
+		return fmt.Errorf("record: asking the record for its open gaps: %w", err)
+	}
+	defer rows.Close()
+	var open, trifles []string
+	for rows.Next() {
+		var id string
+		var isMaterial bool
+		if err := rows.Scan(&id, &isMaterial); err != nil {
+			return err
+		}
+		if isMaterial {
+			open = append(open, id)
+		} else {
+			trifles = append(trifles, id)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	if len(open) != 0 {
+		sort.Strings(open)
+		return fmt.Errorf("record: verdict PASS refused — %d material gap(s) still OPEN: %s. PASS requires every material gap resolved through `close --id <id> --as repaired|defect_accepted|not_a_defect|defect_owed_elsewhere`; close them, or issue `--as FAIL`",
+			len(open), strings.Join(open, ", "))
+	}
+	_ = trifles // below material: on the board, listed by the report, not holding the gate
+
 	m, err := MergedEvents(run)
 	if err != nil {
 		return err
 	}
 	evs := m.Events
-	db, err := openRunForRead(run)
-	if err != nil {
-		return err
-	}
-	var open []string
-	if db != nil {
-		rows, err := db.Query(`SELECT "gap_id" FROM "gap" WHERE "open"`)
-		if err != nil {
-			return fmt.Errorf("record: asking the record for its open gaps: %w", err)
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				return err
-			}
-			open = append(open, id)
-		}
-		if err := rows.Err(); err != nil {
-			return err
-		}
-	}
-	if len(open) != 0 {
-		sort.Strings(open)
-		return fmt.Errorf("record: verdict PASS refused — %d gap(s) still OPEN: %s. PASS requires every gap resolved through `close --id <id> --as repaired|defect_accepted|not_a_defect|defect_owed_elsewhere`; close them, or issue `--as FAIL`",
-			len(open), strings.Join(open, ", "))
-	}
-	// AND EVERY MOTION ANSWERED, which this gate did not check and a probe walked straight
-	// through: a run reached `verdict PASS` and `outcome VERIFIED` with a grade motion filed and
-	// never ruled. PASS is a claim that nothing is left open, and an unanswered ask is exactly
-	// that — the report named it, which is the only reason it was visible at all.
-	//
-	// The gate counts what is on the RECORD, both vocabularies, because a pre-collapse record
-	// replayed under this binary must be judged by the same standard it was written to.
 	var unruled []string
-	// AND WHICH SEAT HOLDS THE GAVEL FOR EACH — see rulerPhrase, which the SITTING VIEW shares so
-	// the two surfaces describing one blockage cannot describe it differently.
-	//
-	// Naming the id alone told a blocked merge seat to
-	// rule motions it structurally cannot: a PETITION is the bench's, requireRuler refuses the
-	// merge outright, and with a clean gap board there was then no verdict the seat could legally
-	// give. The role comes off the MotionSubject enum, which is where the CLI's gavel check reads
-	// it too — the alternative was a second hand-written copy in a package that cannot see the
-	// first. A subject with no ruler annotated is an ERROR, not an unlabelled id: it would mean a
-	// motion that blocks a PASS and nobody has to answer.
-	for _, m := range MotionsOf(evs) {
-		if m.Ruled() {
+	for _, mo := range MotionsOf(evs) {
+		if mo.Ruled() {
 			continue
 		}
-		phrase, err := rulerPhrase(m.Subject)
+		phrase, err := rulerPhrase(mo.Subject)
 		if err != nil {
 			return err
 		}
-		unruled = append(unruled, m.ID+" ("+phrase+")")
+		unruled = append(unruled, mo.ID+" ("+phrase+")")
 	}
 	if len(unruled) != 0 {
 		sort.Strings(unruled)
-		// THE REFUSAL NAMES THE READ. Until `--view motions` existed, this message handed a seat
-		// an id and no way to look it up — and a probed merge seat, blocked here, searched six
-		// views and three help pages, then ruled `rejected` on an argument it had never read.
-		// A blocking message that does not say how to unblock is an invitation to guess.
 		return fmt.Errorf("record: verdict PASS refused — %d motion(s) filed and never ruled: %s. "+
 			"Read what each one asks with `show motions` (its `basis` is the filer's argument, which your ruling answers), "+
 			"then rule it with `motion <subject> rule --id <id> --as <verdict> --reason \"...\"` — IF THE GAVEL NAMED ABOVE IS YOURS. "+
-			"Where it is not, the ruling is not yours to make and not yours to wait for silently: issue `--as FAIL` so the round ends on the record and the seat that holds it can answer. "+
+			"Where it is not, the ruling is not yours to make and not yours to wait for silently: issue `--as FAIL` so the sitting ends on the record and the seat that holds it can answer. "+
 			"A motion is answered before the debate moves on, so a PASS over an unanswered ask claims a settlement that did not happen",
 			len(unruled), strings.Join(unruled, ", "))
 	}
-	// AND THE REPORT'S ACCOUNT OF ITS OWN RESEARCH READ, THIS ROUND.
-	//
-	// The lines of inquiry — "we pursued X", "we deferred Y", "we abandoned Z" — reach the reader
-	// as rows `assemble` GENERATES from the record. They carry no citation anchor, so `lens
-	// verify` cannot reach them and the ordinary adversarial route does not apply. Without this
-	// gate they are the one class of claim in the document that nothing could refuse.
-	//
-	// ONE STATEMENT, NOT ONE PER LINE. Whether the report CARRIES a line is not a question: the
-	// rows are generated from the record, so blue cannot cut them. What the read judges is whether
-	// the BODY delivered the research each line claims — and where it did not, that is an ORDINARY
-	// GAP, already refused above by requirePassClosesAllGaps. This gate therefore asks only that
-	// the read HAPPENED, and it asks it the way `friction --none` does: silence cannot clear a
-	// duty, so "nothing to say" is still said.
-	//
-	// PER ROUND, not once: the report is regenerated every round, so a review recorded before this
-	// round's edits answers a question about a document that no longer exists. That is the whole
-	// content of "red verifies every turn" — a carried-forward review would be a stale read wearing
-	// the shape of a fresh one, which is this repository's recurring defect rather than a fix for
-	// it.
 	if InquiryReviewDueOf(evs) {
-		return fmt.Errorf("record: verdict PASS refused — this round has no line-of-inquiry review. " +
+		return fmt.Errorf("record: verdict PASS refused — this epoch has no line-of-inquiry review. " +
 			"READ THE REPORT ONCE (`show report`), list what the record claims this run investigated with " +
 			"`show lines-of-inquiry`, and answer in one act: `inquiry-review --reason \"<what the report " +
 			"says at those lines>\"`. Where a line's research is thin, missing or unsupported by the text, " +
@@ -417,17 +389,6 @@ func requirePassClosesAllGaps(run Run) error {
 			"one. A PASS claims the report is sound, and its account of what this run investigated is part " +
 			"of the report; record the review, or issue `--as FAIL`")
 	}
-	// AND A CONTRADICTION RED FOUND AND NEVER RAISED.
-	//
-	// A supporting corroboration becomes a footnote and reaches the reader that way. `refutes`
-	// and `absent` are NOT references backing the sentence, so they are deliberately not spliced
-	// — which leaves them landing only in the `evidence` projection, seen by red and nobody else.
-	// A PASS over one claims the report is sound while the record holds red's own reading that a
-	// sentence in it is contradicted or unsupported.
-	//
-	// The remedy is a FINDING, not a gap: a lens structurally cannot mint, and the tool will not
-	// write the finding itself because that would mean inventing its three grades. Red grades its
-	// own finding and the merge decides whether to raise it.
 	if open := unansweredContradictions(evs); len(open) > 0 {
 		sort.Strings(open)
 		return fmt.Errorf("record: verdict PASS refused — red read a source that CONTRADICTS or does not support %d claim(s), and no finding was ever raised about them:\n  %s\n"+
@@ -475,7 +436,7 @@ func gapNamedIn(run Run, prose string) (string, error) {
 // REFUSING or LISTING that motion.
 //
 // ONE PHRASE, TWO SURFACES, BECAUSE THEY DESCRIBE ONE BLOCKAGE. The refusal
-// (requirePassClosesAllGaps) and the sitting view (SittingOf) both tell a seat that a motion is
+// (requirePassClosesAllMaterialGaps) and the sitting view (SittingOf) both tell a seat that a motion is
 // unruled, and only the refusal named who could rule it. A seat reading "motion M1 was filed and
 // never ruled" on its work list and "M1 (petition, ruled by the bench seat)" from the gate is
 // being told two different things about one fact, and sitting.go's own header says what that

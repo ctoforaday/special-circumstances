@@ -3,6 +3,7 @@ package migrate
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
@@ -68,9 +69,27 @@ func Replay(src Source, reg Registry, dst record.Run, opt Options) (*Result, err
 
 	was := record.Now
 	defer func() { record.Now = was }()
+	record.Migrating = true
+	defer func() { record.Migrating = false }()
 
 	evs, res.Serialized = serializeInstances(evs)
 	rm := newRemap()
+	// THE CAST IS SYNTHESIZED FIRST (plans/roundless.md §III.A.5): an archived run had no cast
+	// event, and the live write path checks every register and dispatch against one. Its cast is
+	// the seats that registered, translated — a fact the record already holds, restated as the
+	// list the current schema reads it from.
+	if len(evs) > 0 {
+		// Under the archive's own clock: the cast precedes the first event and is stamped with its
+		// time, so ORDER BY id and the timestamps tell one story.
+		if ts, err := record.ParseStamp(evs[0].TS); err == nil {
+			record.Now = func() time.Time { return ts }
+		}
+	}
+	if wrote, err := writeSynthesizedCast(evs, rm, dst); err != nil {
+		return nil, err
+	} else if wrote {
+		res.Out["cast"]++
+	}
 	for _, old := range evs {
 		res.In[old.Word]++
 		seatID, err := rm.seat(old.SeatID)
@@ -145,4 +164,31 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// writeSynthesizedCast writes the Cast an archived run never had, under the harness, from its
+// register events after seat translation. Petition sittings are admitted by shape and left out.
+func writeSynthesizedCast(evs []OldEvent, rm *remap, dst record.Run) (bool, error) {
+	seen := map[string]bool{}
+	var cast []string
+	for _, old := range evs {
+		if old.Word != "register" {
+			continue
+		}
+		s, err := rm.seat(old.SeatID)
+		if err != nil {
+			continue // the refusal lands on the event itself, in the loop
+		}
+		if strings.HasPrefix(s, "judge-petition-") || seen[s] {
+			continue
+		}
+		seen[s] = true
+		cast = append(cast, s)
+	}
+	if len(cast) == 0 {
+		return false, nil // nothing registered: nothing to admit, and nothing will register
+	}
+	sort.Strings(cast)
+	_, err := record.Append(record.Identity{Run: dst, SeatID: record.HarnessSeat}, &recordpb.Cast{SeatIds: cast})
+	return err == nil, err
 }

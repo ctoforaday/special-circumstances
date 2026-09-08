@@ -68,6 +68,7 @@ replaces the role headings that used to carry the role as prose beside a bare ve
 | `merge class new` | coining a gap class the registry does not have | ~~`mint --class-new`~~ | EXECUTED: it was four flags on `mint` (a boolean whose whole meaning was "I also passed three other flags") writing a second event that had nothing to do with putting a gap on the board |
 | `merge carry` | restating a closure an earlier round already made | ~~`close --carried-from`~~ | EXECUTED: a carry needs no verification triple, is exempt from `--reason` and from the open-gap check, and must name a real prior closure — four branches in `validate` keyed off one flag, so one verb could require nothing |
 | `merge verdict` | the terminal PASS/FAIL act | — | CLEAN. Refused while a gap is open or a motion is unruled — the gate is enforced at the tool, not trusted to the seat |
+| `merge dispatch` | the chair's sitting begins by asking the record who sits: `dispatch next` computes readiness from the board and records one dispatch per party | the chair's envelope — it RELAYS the verb's plan, and capture's dispatch-parity audit checks the relay against the record | CLEAN (roundless §III.B.1): the verb records the truth; a relay that departs from it is a FAIL at capture, not a seat's word |
 | ~~`merge dispute-respond`~~ | COLLAPSED into `motion grade rule` (#344) | — | EXECUTED |
 
 ## Blue

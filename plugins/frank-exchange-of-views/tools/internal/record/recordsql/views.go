@@ -373,8 +373,8 @@ LEFT JOIN "events" be ON be."id" = bc."event_id";
 -- off the same table the schema built from the enum. It used to be a hand-written map in two
 -- languages with a regex test holding them level, and SQL could not ask the question at all.
 --
--- The thresholds are the engine's, restated once here: mass < 35, nothing above medium (mass 2),
--- zero fresh mints, verdict FAIL.
+-- The thresholds: mass below a quarter of the run's peak gate mass, nothing at or above medium
+-- (mass 2) on current grades, zero fresh MATERIAL mints, verdict FAIL.
 CREATE VIEW "convergence_vs_verdict" AS
 SELECT
   ve."epoch"                                       AS "epoch",
@@ -382,9 +382,12 @@ SELECT
   COALESCE(b."mass", 0.0)                          AS "mass",
   COALESCE(b."max_severity_mass", 0.0)             AS "max_severity_mass",
   COALESCE(f."fresh_mints", 0)                     AS "fresh_mints",
+  -- CORRECTED (plans/roundless.md §III.B.2.1): fresh MATERIAL mints, the top CURRENT severity
+  -- strictly below material, and the mass against this run's PEAK gate mass at setup's default
+  -- fraction — the refusal at the write path reads the run's own fraction (record.Params).
   (rv."verdict" = 'fail'
-     AND COALESCE(b."mass", 0.0) < 35.0
-     AND COALESCE(b."max_severity_mass", 0.0) <= 2.0
+     AND COALESCE(b."mass", 0.0) < 0.25 * MAX(COALESCE(b."mass", 0.0)) OVER ()
+     AND COALESCE(b."max_severity_mass", 0.0) < 2.0
      AND COALESCE(f."fresh_mints", 0) = 0)         AS "divergent"
 FROM "events_w" ve
 JOIN "gate" rv ON rv."event_id" = ve."id"
@@ -402,17 +405,17 @@ LEFT JOIN (
    AND (g."open" OR g."closed_seq" > v2."id")
   LEFT JOIN "enum_grade" gl ON gl."value" = g."likelihood"
   LEFT JOIN "enum_grade" gi ON gi."value" = g."impact"
-  LEFT JOIN "enum_grade" gs ON gs."value" = g."severity"
+  LEFT JOIN "enum_grade" gs ON gs."value" = g."current_severity"
   WHERE v2."type" = 'verdict'
   GROUP BY v2."id"
 ) b ON b."verdict_id" = ve."id"
 LEFT JOIN (
-  -- FRESH means minted in this epoch and superseding nothing: a lineage mint is a repair of
-  -- known work, not new discovery, which is the distinction the detector turns on.
-  SELECT "minted_epoch" AS "epoch", count(*) AS "fresh_mints"
-  FROM "gap"
-  WHERE "supersedes_count" = 0
-  GROUP BY "minted_epoch"
+  -- FRESH means minted in this epoch, superseding nothing, and MATERIAL now: a lineage mint is a
+  -- repair of known work, not new discovery, and a trifle is not what holds a report open.
+  SELECT g."minted_epoch" AS "epoch", count(*) AS "fresh_mints"
+  FROM "gap" g LEFT JOIN "enum_grade" gs ON gs."value" = g."current_severity"
+  WHERE g."supersedes_count" = 0 AND COALESCE(gs."mass", 0.0) >= 2.0
+  GROUP BY g."minted_epoch"
 ) f ON f."epoch" = ve."epoch"
 WHERE ve."type" = 'verdict';
 
