@@ -34,11 +34,14 @@ const (
 	ViaOA       = "oa"
 	ViaMetadata = "metadata"
 	ViaArxiv    = "arxiv"
+	ViaEric     = "eric"
 	ViaAuto     = "auto"
 )
 
 // Vias lists the backends a seat may name, in the order the help should present them.
-func Vias() []string { return []string{ViaLive, ViaArchive, ViaOA, ViaMetadata, ViaArxiv, ViaAuto} }
+func Vias() []string {
+	return []string{ViaLive, ViaArchive, ViaOA, ViaMetadata, ViaArxiv, ViaEric, ViaAuto}
+}
 
 // Attempt is one backend's answer: the bytes it got, and what a citation is entitled to say
 // about them. TextRetrieved false means NO TEXT WAS FETCHED — a record that the source exists,
@@ -295,6 +298,9 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 		case ViaMetadata:
 			att, _ := MetadataRecord(f, doi)
 			return att
+		case ViaEric:
+			att, _ := EricRecord(f, rawURL)
+			return att
 		}
 		return nil
 	}
@@ -310,3 +316,125 @@ func Recover(f Fetcher, rawURL, via, at string) *Attempt {
 }
 
 func mustEprint(id string) string { _, _, e := ArxivURLs(id); return e }
+
+// EricRecord answers from ERIC, the US Department of Education's index — the education literature,
+// which none of the other backends covers.
+//
+// # Why it earns a backend rather than being folded into `metadata`
+//
+// Crossref, OpenAlex and Unpaywall are DOI-generic and OA-generic. ERIC is a CORPUS, and it holds
+// things they do not. Measured on the Savage record this file already cites: Crossref returns the
+// title and pages and NO AUTHOR AT ALL; ERIC returns `["Oliver, June", "Savage, John"]` and a
+// descriptive abstract naming the setting ("factoring quadratics in a 10th-grade enrichment
+// class"). A run cited it as a sole-authored article. It is a shared two-page column, and no
+// existing backend could have said so — which changes how much weight a novelty argument can put
+// on it.
+//
+// # What it can and cannot deliver
+//
+// 527,037 of its 2,116,390 records carry authorised full text at files.eric.ed.gov; the rest do
+// not, and ERIC SAYS WHICH — `e_fulltextauth` is a field, so "there is no free copy" is a fact it
+// states rather than a fetch that failed. Where the text exists this returns it; where it does
+// not, this returns the record and says the text was not retrieved, which is the same contract
+// `metadata` keeps.
+//
+// It is deliberately NOT in the `auto` chain. `auto` walks backends that answer for any source;
+// asking a US education index about a physics preprint wastes a request to be told no, and a seat
+// that wants this corpus knows it wants this corpus.
+func EricRecord(f Fetcher, rawURL string) (*Attempt, error) {
+	q := ericQueryOf(rawURL)
+	if q == "" {
+		return nil, nil
+	}
+	resp, err := f.Fetch("https://api.ies.ed.gov/eric/?search=" + url.QueryEscape(q) +
+		"&format=json&rows=1&fields=id,title,author,description,source,publicationdateyear,e_fulltextauth")
+	if err != nil {
+		return nil, nil
+	}
+	var er struct {
+		Response struct {
+			NumFound int `json:"numFound"`
+			Docs     []struct {
+				ID           string   `json:"id"`
+				Title        string   `json:"title"`
+				Author       []string `json:"author"`
+				Description  string   `json:"description"`
+				Source       string   `json:"source"`
+				Year         int      `json:"publicationdateyear"`
+				FullTextAuth int      `json:"e_fulltextauth"`
+			} `json:"docs"`
+		} `json:"response"`
+	}
+	if json.Unmarshal(resp.Body, &er) != nil || er.Response.NumFound == 0 || len(er.Response.Docs) == 0 {
+		return nil, nil
+	}
+	d := er.Response.Docs[0]
+
+	// THE FULL TEXT WHERE ERIC SAYS IT HAS IT. The flag is the record's own answer, so a miss here
+	// is a broken link rather than an absent document — and it is reported as the record, not as a
+	// silent failure to fetch.
+	if d.FullTextAuth == 1 {
+		if pdf, perr := f.Fetch("https://files.eric.ed.gov/fulltext/" + d.ID + ".pdf"); perr == nil && len(pdf.Body) > 0 {
+			return &Attempt{
+				Body: pdf.Body, ContentType: "application/pdf", TextRetrieved: true,
+				Via: fmt.Sprintf("ERIC %s (https://files.eric.ed.gov/fulltext/%s.pdf): %q, %s %d — full text, authorised by ERIC",
+					d.ID, d.ID, d.Title, d.Source, d.Year),
+			}, nil
+		}
+	}
+	who := "no author on the record"
+	if len(d.Author) > 0 {
+		who = strings.Join(d.Author, "; ")
+	}
+	return &Attempt{
+		Body:        resp.Body,
+		ContentType: "application/json",
+		Via: fmt.Sprintf("bibliographic record only (ERIC %s): %q — %s, %s %d. %s "+
+			"ERIC states it holds NO authorised full text for this record, which is a fact about the "+
+			"world and not about this container — THE TEXT WAS NOT RETRIEVED",
+			d.ID, d.Title, who, d.Source, d.Year, strings.TrimSpace(d.Description)),
+	}, nil
+}
+
+// ericQueryOf turns a url into an ERIC search: the accession number where the url carries one,
+// otherwise the title-ish tail of the path.
+//
+// A DOI IS DELIBERATELY NOT USED, and this was measured rather than reasoned. ERIC exposes no DOI
+// field, so a DOI can only go in as free text — and free text matches a DOI CITED INSIDE another
+// record. Asked for 10.5951/MT.82.1.0035 (the Savage column, 1989) it returned "How an
+// Inquiry-Oriented Textbook Shaped a Calculus Instructor's Planning" (2022), whose abstract cites
+// a different 10.5951 DOI, and the backend would have presented that as the source. A confident
+// wrong paper is worse here than no answer: the seat has no way to tell, and the whole point of
+// this surface is to say what a source says.
+//
+// IT RETURNS "" RATHER THAN GUESSING WIDELY, for the same reason. A query built from a bare
+// hostname would match thousands of records and the first would come back as though it were the
+// source.
+func ericQueryOf(rawURL string) string {
+	// url.Parse ACCEPTS ALMOST ANYTHING — "not a url at all" parses as a relative path, and its
+	// words would then be sent as a title query. A fetch target is an absolute URL; anything else
+	// is not a source this can look up.
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Host == "" {
+		return ""
+	}
+	if m := ericIDRe.FindStringSubmatch(rawURL); m != nil {
+		return "id:" + m[1]
+	}
+	if DOIOf(rawURL) != "" {
+		return "" // see above: a DOI can only go in as free text, and free text is not identity
+	}
+	seg := strings.Trim(u.Path, "/")
+	if i := strings.LastIndex(seg, "/"); i >= 0 {
+		seg = seg[i+1:]
+	}
+	seg = strings.TrimSuffix(strings.TrimSuffix(seg, ".html"), ".pdf")
+	seg = strings.NewReplacer("-", " ", "_", " ").Replace(seg)
+	if len(strings.Fields(seg)) < 2 {
+		return "" // one word is not a title; it would match the corpus, not the source
+	}
+	return seg
+}
+
+// ericIDRe recognises an ERIC accession number, the identity this corpus is keyed on.
+var ericIDRe = regexp.MustCompile(`\b(E[JD]\d{6,})\b`)
