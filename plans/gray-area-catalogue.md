@@ -95,6 +95,13 @@ is recorded here so nobody re-derives it as lag. The design therefore assumes th
 closes the final-turn hole two ways: **(a)** `Stop` ingests `last_assistant_message` from its own payload as a **provisional** `word`
 row keyed `(session, prompt_id)`, where `prompt_id` comes from the payload.
 
+**And the two ids are the same namespace — verified, not assumed.** The payload's `prompt_id` and
+the transcript's `promptId` sharing a name is not evidence they share a value ([[facts-are-fields]]
+clause 4: a carrier is a site that speaks the same CONCEPT, not one that shares a STRING). Measured
+across the 13 sessions where gray-area's manifest recorded a `prompt_id` and the transcript
+survives: **434 of 434 hook-recorded values appear in that same session's transcript, 0 missing.**
+The join is on a real key.
+
 **Supersession is by id, and an earlier draft's claim that it could not be was a fourth unmeasured
 negative.** That draft said transcript assistant records "carry `uuid`, `requestId` and
 `parentUuid` and **no `prompt_id`**", and built a byte-positional rule on it. True of an assistant
