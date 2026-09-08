@@ -1,0 +1,89 @@
+---
+# THE NIGHTLY HAS A READER.
+#
+# `hooks` runs on a schedule, and the scheduled leg is the only one that sets
+# FEOV_RELEASE_GATE=1 — so the debate sweeps and their coverage assertions run there and
+# nowhere else until a tag. That leg went RED on 2026-09-05 and again on 2026-09-06, both
+# times reporting undriven flags added by a merged pull request, and nobody acted on either.
+# A release converged over the top of it, and the gap was found by hand during a pre-tag
+# sweep rather than by anything that watches.
+#
+# A scheduled run has no actor, so GitHub emails nobody. That is the whole defect: the gate
+# was never blind, it simply had no reader.
+#
+# # Why a separate workflow rather than a job inside `hooks`
+#
+# A job would need `needs: [...]` naming every job that runs on a schedule — and that list
+# goes stale the moment someone adds one. A job added later, failing nightly, unwatched, is
+# precisely the defect this exists to remove, rebuilt one level up. `workflow_run` fires on
+# the WHOLE run's conclusion, so it covers every job including ones nobody has written yet
+# and there is no list to maintain.
+#
+# # One issue, reopened and commented — never a new one per night
+#
+# A workflow that files a fresh issue every morning is a workflow people mute, and a muted
+# alarm is the state we are already in. It keeps a single issue keyed by a marker in the
+# title, comments on it, and reopens it if it was closed while the nightly is still red.
+name: nightly-alarm
+
+on:
+  workflow_run:
+    workflows: [hooks]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  alarm:
+    # SCHEDULED FAILURES ONLY. A pull-request or push failure already reaches the person who
+    # caused it; a scheduled one reaches nobody, which is the asymmetry this fixes. Firing on
+    # every red would bury the case that has no other reader.
+    if: >-
+      github.event.workflow_run.event == 'schedule' &&
+      github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    permissions:
+      # The narrowest thing that can raise an alarm. Deliberately not `contents: write` —
+      # this job reads nothing from the tree and writes nothing to it.
+      issues: write
+    steps:
+      - name: Open or update the standing nightly issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          MARKER="nightly is red"
+          BODY=$(printf '%s\n' \
+            "The scheduled \`hooks\` run failed on \`${SHA}\`." \
+            "" \
+            "${RUN_URL}" \
+            "" \
+            "The scheduled leg is the ONLY one that sets \`FEOV_RELEASE_GATE=1\`, so the debate" \
+            "sweeps and their flag/enum coverage assertions run there and nowhere else until a" \
+            "tag. A red nightly is therefore the earliest signal that a merged change left the" \
+            "release gate failing — and until this alarm existed it reached nobody, because a" \
+            "scheduled run has no actor to email." \
+            "" \
+            "Two reds in September 2026 (the 5th and the 6th) went unread for two days while a" \
+            "release converged; both were undriven flags a merged PR had added." \
+            "" \
+            "\`gh run view ${RUN_ID} --log-failed\` shows what failed.")
+
+          NUM=$(gh issue list --repo "$REPO" --state all --search "\"$MARKER\" in:title" \
+                  --limit 1 --json number --jq '.[0].number // empty')
+          if [ -z "$NUM" ]; then
+            gh issue create --repo "$REPO" --title "The $MARKER" --body "$BODY"
+            exit 0
+          fi
+          # REOPEN BEFORE COMMENTING. A closed issue with a new comment is a notification
+          # nobody sees on a board they filter by state — the alarm would fire into a drawer.
+          state=$(gh issue view "$NUM" --repo "$REPO" --json state --jq .state)
+          if [ "$state" = "CLOSED" ]; then
+            gh issue reopen "$NUM" --repo "$REPO"
+          fi
+          gh issue comment "$NUM" --repo "$REPO" --body "$BODY"

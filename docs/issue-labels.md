@@ -57,7 +57,9 @@ paragraph, and it is the line that decides whether something is product or scaff
 | | |
 |---|---|
 | `state:triage` | filed, not yet assessed |
+| `state:in-progress` | someone is on it |
 | `state:needs-verify` | **believed fixed or believed true, and not checked.** |
+| `state:unlabelled` | applied and removed by the labels workflow, never by hand — the queryable form of "this issue has no `area:`/`priority:` pair" |
 
 `state:needs-verify` is the one worth using deliberately. It carries two different things and both
 are honest: an issue that looks resolved by later work but was never confirmed (#84, #85, #86 —

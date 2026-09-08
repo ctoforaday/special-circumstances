@@ -1,6 +1,18 @@
 {
-  "_comment": "Single source of truth for gray-area's local tool dependencies. Consumed by the shared toolchain probe, used by /prosthetic-conscience:doctor. Gray Area reads trajectories that the harness already writes; it needs no external tool of its own yet.",
+  "_comment": "Single source of truth for gray-area's local tool dependencies. Consumed by the shared toolchain probe, used by /prosthetic-conscience:doctor. Gray Area reads trajectories that the harness already writes, so it declares only what it must SHELL OUT to: git, and ripgrep for full-text search across those trajectories.",
   "tools": [
+    {
+      "name": "ripgrep",
+      "purpose": "full-text search across every local trajectory. Measured on this repository's own corpus (282 MB, 385 transcripts): 33-54 ms for a whole-corpus search, against an estimated 1-2 GB for an FTS5 index that would also need invalidating on every append and rebuilding whenever the vendor deletes a session. The filesystem is already the index and cannot go stale, so gray-area shells out rather than building one. NOTE for anyone testing this by hand inside Claude Code: `rg` there is a shell FUNCTION the client injects (`exec -a rg $CLAUDE_CODE_EXECPATH`), not a binary — `bash -c 'command -v rg'` fails while an interactive `rg` appears to work, so a hand-run measurement can be taken through a path no Go program can use. toolchain.Probe uses exec.LookPath on the first token and so correctly refuses the function, which is why this entry is needed even on a box where `rg` seems present.",
+      "tier": "recommended",
+      "_tier_comment": "RECOMMENDED, AND DELIBERATELY AHEAD OF ITS CONSUMER. Nothing shells out to rg yet — the search verb is still a draft plan — and `required` returns BLOCKED, which would stop every consumer's install for a capability that does not exist. `recommended` reports DEGRADED instead: a nudge to have the binary before the verb arrives, not a door. PROMOTE TO `required` in the same change that ships the verb, because from that moment its absence stops being an inconvenience and starts returning a zero indistinguishable from a real one — a search that cannot run reports the same 'no matches' as one that ran and found none (facts-are-fields clause 3).",
+      "check_cmd": "rg --version",
+      "install": {
+        "windows": "winget install --id BurntSushi.ripgrep.MSVC -e",
+        "darwin": "brew install ripgrep",
+        "linux": "sudo apt-get install -y ripgrep (or the distro equivalent)"
+      }
+    },
     {
       "name": "git",
       "purpose": "version control; inspections are declared against a tracked tree",
@@ -14,12 +26,12 @@
     }
   ],
   "_hook_binaries": {
-    "_comment": "OUR compiled hooks, not external deps \u2014 one per directory under tools/cmd/. /prosthetic-conscience:doctor --fix fetches the CI-built release asset <name>_{goos}_{goarch}{exe} (SHA256-verified) into bin/, falling back to go build only as a dev convenience. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/<name>.",
+    "_comment": "OUR compiled hooks, not external deps — one per directory under tools/cmd/. /prosthetic-conscience:doctor --fix fetches the CI-built release asset <name>_{goos}_{goarch}{exe} (SHA256-verified) into bin/, falling back to go build only as a dev convenience. hooks.json invokes ${CLAUDE_PLUGIN_ROOT}/bin/<name>.",
     "binaries": [
       {
         "name": "gray-area-capture",
         "event": "SubagentStop",
-        "purpose": "records one manifest row per seat naming that seat's own agent_transcript_path \u2014 an index, never a copy of conversation content; never blocks the subagent"
+        "purpose": "records one manifest row per seat naming that seat's own agent_transcript_path — an index, never a copy of conversation content; never blocks the subagent"
       },
       {
         "name": "gray-area",

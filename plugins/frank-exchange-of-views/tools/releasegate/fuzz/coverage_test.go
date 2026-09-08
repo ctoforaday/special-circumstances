@@ -20,11 +20,22 @@ import (
 // flagExemptions are flags the fuzz deliberately does not pass, each with its reason. Stated
 // rather than omitted: an absence with no reason is indistinguishable from an oversight.
 var flagExemptions = map[string]string{
-	"json":           "driven on the paths whose JSON envelope the harness parses; a global on every verb, and passing it everywhere would change what the oracles read",
-	"help":           "cobra's own",
-	"version":        "cobra's own",
-	"run":            "the harness passes it on every call through r.exec's prefix, before argv reaches the tally",
-	"seat-id":        "same — supplied by r.exec for every seat call",
+	"json":    "driven on the paths whose JSON envelope the harness parses; a global on every verb, and passing it everywhere would change what the oracles read",
+	"help":    "cobra's own",
+	"version": "cobra's own",
+	"run":     "the harness passes it on every call through r.exec's prefix, before argv reaches the tally",
+	"seat-id": "same — supplied by r.exec for every seat call",
+	// NOT A SEAT ACT. `--schema` prints the event epoch and exits before cobra dispatches
+	// anything; setup shells it to compare the binary against the plugin manifest, which is the
+	// guard that refuses a run whose binary and plugin disagree about the record shape. A sweep
+	// of SEAT verbs is the wrong place to drive it.
+	//
+	// IT IS MEASURED, and that is what makes this an exemption rather than the blind spot it was:
+	// TestSchemaFlagPrintsTheEpochSetupCompares in internal/cli asserts the contract setup
+	// depends on. Read that, not this line, to know whether the flag still works. It was driven
+	// NOWHERE until 2026-09-08 — invisible because persistent flags were absent from the
+	// coverage denominator entirely.
+	"schema":         "printed by the root before dispatch and shelled by setup's epoch guard, not by a seat; asserted in internal/cli by TestSchemaFlagPrintsTheEpochSetupCompares",
 	"reason-file":    "the file/stdin twin of --reason; the prose channel is driven through --reason and the file path has its own tests in internal/cli",
 	"bin-dir":        "setup's flag, and setup is exempt from the sweep (it CREATES a run; the harness builds its own)",
 	"memory-dir":     "setup's flag, as above",
@@ -58,6 +69,38 @@ var enumExemptions = map[string]string{
 		"RECORD with source=TOOL. Read that assertion, not this line, to know whether the guard still fires. " +
 		"Note the seat verb currently ACCEPTS `--type estoppel` and stamps source=SEAT (#782); this exemption is about " +
 		"what the sweep should drive, not a claim that the flag refuses it.",
+}
+
+// unreachedPersistentFlags is the same question for the flags inherited onto every command.
+//
+// They were never asked about. CommandFlags reports `Flags()`, which is local-only, so
+// `--json`, `--run`, `--schema` and `--seat-id` were absent from unreachedFlags' denominator —
+// and a category absent from the denominator cannot be reported undriven however long it goes
+// undriven. The exemption map above is the evidence the coverage was INTENDED: it carries
+// reasoned entries for `json`, `run` and `seat-id`, none of which could ever have fired.
+//
+// ONE CONTRACT, CHECKED ONCE. A persistent flag behaves identically on every command that
+// inherits it, so the honest question is "was it exercised anywhere". Per-path would have
+// demanded 98 drives of `--schema` and 40 of `--id` — repetition measured as coverage.
+func unreachedPersistentFlags() []string {
+	execMu.Lock()
+	driven := map[string]bool{}
+	for _, flags := range execFlags {
+		for f := range flags {
+			driven[f] = true
+		}
+	}
+	execMu.Unlock()
+
+	var missing []string
+	for _, f := range cli.PersistentFlagNames() {
+		if driven[f] || flagExemptions[f] != "" {
+			continue
+		}
+		missing = append(missing, "--"+f)
+	}
+	sort.Strings(missing)
+	return missing
 }
 
 func unreachedFlags() []string {

@@ -35,7 +35,9 @@ func TestANarrowedReadOverAnUndeclaredTypeIsRefused(t *testing.T) {
 	}
 	// THE REFUSAL MUST NAME THE WORD IT FOUND. Without it the reader cannot tell an unreadable
 	// record from a misspelled query, which are the two states this exists to separate.
-	for _, want := range []string{"friction", "does not declare", "same bytes"} {
+	// "operator migrate" is the pointer clause (plan §III.6): the refusal names the way
+	// forward, so an old record stops being a dead end without the guard negotiating anything.
+	for _, want := range []string{"friction", "does not declare", "same bytes", "operator migrate"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal is missing %q:\n%v", want, err)
 		}

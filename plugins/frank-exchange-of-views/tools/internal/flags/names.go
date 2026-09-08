@@ -263,6 +263,13 @@ const (
 	Watch = "watch"
 	Now   = "now"
 	Serve = "serve"
+
+	// The operator `migrate` command: replay an old record through this binary's write path.
+	// --from is the old run, --to the fresh sibling it writes, --accept-loss a registry-
+	// documented untranslatable word the operator accepts BY NAME (it lands in the manifest).
+	MigrateFrom = "from"
+	MigrateTo   = "to"
+	AcceptLoss  = "accept-loss"
 )
 
 // All is the declared vocabulary, enumerated.
@@ -289,6 +296,7 @@ func All() []string {
 		Method, AccessDate,
 		Topic, Model, JudgmentModel, Cite, MaxRounds, Lanes, BinDir, MemoryDir, RunID, ScriptPath, AllowSubstitution,
 		Chair, Watch, Now, Serve,
+		MigrateFrom, MigrateTo, AcceptLoss,
 		Sha, DPI, Force, OCR,
 	}
 }

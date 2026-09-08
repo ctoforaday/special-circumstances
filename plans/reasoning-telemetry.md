@@ -108,7 +108,7 @@ emptiness was a default this suite never overrode, not a property of the platfor
 | Channel | Carries acts | Carries reasoning | Verdict |
 |---|---|---|---|
 | Session transcript JSONL | Complete | **Summaries, if the flag is set** | The substrate |
-| OpenTelemetry export | Complete | **Never** — redacted in code | Metrics, not evidence |
+| OpenTelemetry export | Complete | **No content observed** — see the bounds below | Metrics, not evidence; **carries operator identity** (#834) |
 | Repo artifacts (`feov-record` events) | Declared acts | Declared reasoning | Citable; still self-report |
 
 ### Transcript
@@ -137,11 +137,37 @@ claude_code.commit.count       claude_code.pull_request.count
 claude_code.bash.subprocess    claude_code.events           claude_code.tracing
 ```
 
-**Reasoning cannot be reached here, in any configuration.** The redaction is an unconditional map
-over assistant content blocks replacing `thinking` and `redacted_thinking` with `<REDACTED>`,
-applied on both request- and response-body export paths, with no environment variable or verbosity
-level upstream of it. Still true at 2.1.220. `--thinking-display summarized` does **not** open this
-channel — it changes what the transcript keeps, not what the exporter emits.
+**No conversation content of any kind was observed in the export.** The mechanism is a map over
+assistant content blocks replacing `thinking` and `redacted_thinking` with `<REDACTED>`, applied on
+both request- and response-body export paths, with no environment variable or verbosity level
+upstream of it. `--thinking-display summarized` does **not** open this channel — it changes what the
+transcript keeps, not what the exporter emits.
+
+**What is observation and what is still inference (2026-09-08, client 2.1.260).** The sentence above
+originally rested entirely on string extraction from the binary; #126 was filed against exactly that.
+Part of it has since been observed and part has not, and the two must not be read as one:
+
+- **Observed — the `<REDACTED>` substitution firing.** Captured API bodies via
+  `OTEL_LOG_RAW_API_BODIES=file:<dir>` across four runs, three models and both display modes: every
+  response body carried `content[].thinking = "<REDACTED>"`, the client's own sentinel.
+- **Observed — the export carries no conversation content.** A local OTLP collector on loopback
+  received metrics and log payloads (15–19 KB) containing `claude_code.events`,
+  `hook_execution_start`/`_complete`, `hook_registered`, `plugin_loaded` and their attributes.
+  Neither the user prompt nor the assistant's answer appeared, **with `OTEL_LOG_USER_PROMPTS=1`
+  set**. No content blocks of any kind.
+- **NOT observed — the positive-control test #126 asks for.** A run where thinking text is known
+  present *and* the export is captured has not been achieved: headless runs and a pty-driven
+  interactive run all produced empty `thinking` blocks, so none of them could serve as the control.
+  Non-empty thinking demonstrably exists in other sessions on this machine (79 blocks in one, 35 of
+  them at 2.1.260), so the control is constructible; the configuration that produces it has not been
+  reproduced on demand. **Until it is, "never, in any configuration" remains stronger than the
+  evidence** — what is established is that nothing was seen on the paths tested.
+
+**And reasoning was never the only disclosure surface.** The export carries `user.email` in
+plaintext, `organization.id`, `user.account_uuid`, `user.account_id`, `session.id`, OS and host
+attributes, by default. That is observed, and it is filed as **#834**. Any judgement about whether
+this feed is safe to send off-box has to answer for identity regardless of how the reasoning
+question resolves — a clean result on `thinking` would not settle it.
 
 Consequence for Gray Area: OpenTelemetry is the right feed for cost, wall-clock, spawn topology and
 compaction counts, and the wrong feed for anything reasoning-shaped. Do not build a reasoning
@@ -184,8 +210,18 @@ the operator already drew on PR #3, applied here:
   still deciding the finding.
 
 **Rule to carry into the plugin, unchanged from the operator's framing:** *exploration may
-summarize; adjudication must cite.* Summaries enter Gray Area on the exploration side of that line
-and never cross it.
+summarize; adjudication must cite.*
+
+**And the line is held where the adjudication happens, which is FEOV — not in Gray Area's read
+path** (gblock, 2026-09-08). An earlier draft of this section put the guard in the miner, and that
+was the wrong altitude twice over. Gray Area cannot see what a caller intends to do with a row, so
+a refusal there is a convention wearing a structure's clothes — the exact thing T2 says not to
+build. FEOV's citation ledger already refuses an unanchored closure, and that is a real structure
+at the point where a ruling is actually made. Two enforcement points for one rule is how they drift
+apart.
+
+So Gray Area **mines summaries freely** — recovering an agent's intent is an explicit goal of the
+plugin, not a tolerated side effect — and the evidence chain is FEOV's to defend.
 
 ---
 
@@ -198,8 +234,8 @@ under `plugins/` or `scripts/`.
 |---|---|---|
 | Debate runs (`/research`) | Launch with `--thinking-display summarized` | Seats are subagents; this is the only way their reasoning is retained at all |
 | Interactive development | `"showThinkingSummaries": true` in settings | Same content, interactive path; also enables the ctrl+o transcript view |
-| OpenTelemetry | Enable for cost/latency/topology | Reasoning is unreachable here — do not attempt |
-| Adjudication input | Acts and artifacts only | Summaries are excluded from the evidence chain by policy, not by availability |
+| OpenTelemetry | Enable for cost/latency/topology. **On-box or trusted collector only** | No conversation content was observed in the export, but it publishes operator identity — email, org and account ids (#834). Sending it to a third-party backend is a disclosure decision, not a metrics decision |
+| Adjudication input (FEOV) | Acts and artifacts only | Summaries are excluded from the evidence chain **by FEOV's citation ledger**, at the point of ruling — not by withholding them from the miner. Gray Area serves summaries; a summary simply anchors nothing |
 
 **Cost.** Thinking tokens are billed in full whether or not the summary is displayed, so the flag
 does not change what the reasoning costs. It adds the summary tokens themselves, which are a small
@@ -217,7 +253,7 @@ long run, and keep the aggregate-only probing discipline — never pull a corpus
 | # | Risk | Mitigation |
 |---|---|---|
 | T1 | **The flag is version-bound.** It is a documented CLI option, but the resolver around it has moved once already (2.1.71 → 2.1.215). | Probe it at run start, record the client version in the run record, and degrade to acts-only when absent. Never assume a summary exists because a previous run had one. |
-| T2 | **Summaries get treated as evidence** once they are present and readable. This is the real risk; availability creates temptation. | Enforce structurally, not by convention: the mining tool must refuse to return summary text on an adjudication query, the way the citation ledger refuses an unanchored closure. |
+| T2 | **Summaries get treated as evidence** once they are present and readable. This is the real risk; availability creates temptation. | Enforce structurally, not by convention — **in FEOV, at the point of ruling**: the citation ledger refuses an unanchored closure, and a summary anchors nothing. NOT in the mining tool (gblock, 2026-09-08): Gray Area cannot know what a caller will do with a row, so a refusal there would be the convention this row exists to reject. |
 | T3 | **Adaptive thinking may skip thinking entirely** on easy turns — the first measurement here produced zero blocks until the budget was forced. Absence of a summary is not evidence of absence of reasoning. | Record whether thinking was configured and at what budget, so "no summary" is distinguishable from "no thinking". |
 | T4 | **Transcript growth** inflates both storage and any naive read path. | Aggregate-only probes; size checks before retention decisions. |
 | T5 | **Interactive and headless paths diverge** — two different switches, easy to set one and assume both. | `/doctor` reports both, and the run record states which path was used. |
@@ -238,14 +274,24 @@ The commands that prove this document, in order. Re-runnable on any box with the
    → **≥1 block, ≥1 non-empty**.
 4. **Subagent propagation** — fresh scratch directory, prompt that forces an Agent/Task call, flag
    set → non-empty thinking in `<session>/subagents/agent-*.jsonl`.
-5. **OpenTelemetry stays closed** — confirm the unconditional `<REDACTED>` map over `thinking` /
-   `redacted_thinking` is still present in the installed binary.
+5. **OpenTelemetry stays closed** — stand up a collector, capture the export, and confirm no
+   conversation content reaches it. **Re-arms on:** any client upgrade, and any change to the
+   `OTEL_LOG_*` family. Reading the binary does not satisfy this step; that is what #126 is about.
 
-Steps 1–4 were run on 2.1.220 and passed as recorded in §1. Step 5 was verified by string
-extraction, not by standing up a collector — **that is a gap**: the code path was read, the export
-was not observed end-to-end. Close it before any claim that telemetry is safe to ship off-box.
-Filed as **#126**, which carries the full closing procedure including the positive-control step
-that makes an empty export meaningful. Tracked there, not here.
+Steps 1–4 were run on 2.1.220 and passed as recorded in §1.
+
+**Step 5, partially closed 2026-09-08 at client 2.1.260.** The `<REDACTED>` substitution was
+observed firing on the response-body path, and a loopback OTLP collector received payloads carrying
+hook lifecycle events and identity attributes and **no conversation content** — no prompt, no
+answer, no thinking — with `OTEL_LOG_USER_PROMPTS=1` set. What is still open is the positive
+control: a captured export from a session whose thinking text is known to be non-empty. Every run
+attempted (headless across three models and both display modes, plus a pty-driven interactive
+session) produced empty `thinking` blocks, so none of them could distinguish "the export redacted
+it" from "there was nothing there". **An empty export is only evidence when something was there to
+find**, which is the whole reason #126 specifies a control.
+
+Tracked in **#126**, which carries the closing procedure. The identity surface the same measurement
+turned up is **#834**, and it is independent: #126 closing green would not resolve it.
 
 ---
 
