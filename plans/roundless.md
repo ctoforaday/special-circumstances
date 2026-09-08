@@ -4,8 +4,9 @@
 > `plans/derived-seat-identity.md`, which now owns only the ATTESTED half of identity and hands
 > the round here (gblock, 2026-09-08).
 >
-> **§III.A is required pre-v2.0.0** — it changes what a record SAYS. **§III.B is not** — it
-> changes how a run BEHAVES. The split is the whole scoping argument and is made in §I.
+> **ALL OF IT is required pre-v2.0.0, and a real run must exercise it before the tag** (gblock,
+> 2026-09-08). §III.A and §III.B are still stated separately because they fail differently and
+> land in that order — but neither is deferred, and the tag waits on both plus the run.
 
 ## I. Summary & Goals
 
@@ -41,18 +42,25 @@ the expensive way, by proposing it and having `/plan-audit` find these two queri
 ordinal is per-seat; these comparisons are across seats. The axis has to be global, and the event
 sequence already is.
 
-### The pre-tag / post-tag split, and why it is not arbitrary
+### A and B land together, and the run is the gate
 
-**§III.A changes what a record says**: seat ids, `event.round`, gap ids, the views. A v2 record
-and a v2.1 record must not disagree about these, because every audit re-reads the archive. That
-is the tag's business.
+An earlier draft made §III.B post-tag on the argument that it changes only BEHAVIOUR while §III.A
+changes what a record SAYS. gblock overruled it: **the whole change lands and is tested before the
+tag.**
 
-**§III.B changes how a run behaves**: who is dispatched and when. A v2 run and a v2.1 run may
-legitimately behave differently; nothing in the archive becomes unreadable. That is not the tag's
-business.
+The reason that is the better call, stated so it is not re-argued: §III.A alone would ship a
+record vocabulary with no round in it, still produced by a round loop — every seat id roundless
+while `debate.js` counts rounds to decide who sits. That is a half-state that reads as done, and
+it would be the *shipped* state for however long §III.B took. The two halves are one concept and
+the tag is the one boundary that can hold them together.
 
-Scoping down is legitimate; scoping down silently is not — so §III.B is specified here in full
-rather than deferred to a later idea, and §VI lists what it additionally touches.
+They still land in ORDER — A then B — because B's dispatch chair reads a board whose axis A
+defines, and because A's carriers can be swept while the loop still works.
+
+**The run is not a smoke test, it is the gate.** §V's driveable check is a full debate on real
+data, and §III.B has no unit-testable claim worth the name: "does work-driven dispatch reach the
+same verdict for less work" is answerable only by running it. That run also carries #792's B4 and
+`plans/derived-seat-identity.md` §V.1's shared-prefix measurement — one run, three answers.
 
 ## II. Technical Context
 
@@ -84,7 +92,7 @@ the identity work never touched.**
 
 ## III. Proposed Changes (the spec)
 
-### §III.A — The vocabulary (pre-tag)
+### §III.A — The vocabulary (lands first)
 
 #### A.1 Seat ids lose `-r<N>` [MODIFY]
 
@@ -131,7 +139,7 @@ every report, every `--supersedes`, every `found_by`.
 Named here rather than in §III.B because a new seat is a new agent configuration, a new seat id
 and a new attestation row — all vocabulary. Its BEHAVIOUR is §III.B.
 
-### §III.B — The scheduling (post-tag)
+### §III.B — The scheduling (lands second, same tag)
 
 #### B.1 The dispatch chair, and why it is a seat rather than a verb
 
@@ -194,7 +202,8 @@ roundless ids where it returns `""` today.
 | **No discriminator on the record says which vocabulary a row speaks.** `eventSchema` cannot do it: it is a setup-time EQUALITY gate stamped only into `inputs/run-config.json`, and archives contain only `records/` and `proofs/`. | A.2 puts the discriminator ON the record where a reader consults it, and §V names the reader. This is the gap that killed the previous plan's boundary argument; it is not repeated. |
 | **The dispatch chair becomes a single point of failure** — nothing is dispatched if it errs. | It is the round loop's replacement and inherits its failure mode; the loop could also wedge. B.1 states the termination condition (no open disputes under their limits ⇒ the run ends) so a wedged chair is distinguishable from a finished run. |
 | **Work-driven dispatch starves a seat** whose disputes are never selected. | The exchange count is per gap and bounded, so a gap cannot be argued forever; a seat with no open dispute is idle by design, not starved. §V measures per-seat dispatch counts against the old round-based distribution. |
-| **Gap-id change breaks a consumer's saved references.** | Unavoidable and pre-tag for exactly that reason: it happens once, at a major version, rather than silently later. |
+| **Gap-id change breaks a consumer's saved references.** | Unavoidable, and at the major version for exactly that reason: it happens once, announced, rather than silently later. |
+| **A and B land in one tag, so a defect in B cannot be shipped separately from A.** | That is the point — A alone is the half-state. The order (A then B) means A is green and swept before B starts, and §V's run gates both. |
 
 ## V. Verification Plan
 
