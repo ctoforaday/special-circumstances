@@ -13,10 +13,10 @@ func TestRoleOf(t *testing.T) {
 		"red-lens-adversary": "adversary",
 		"red-lens-evidence":  "evidence",
 		"red-lens-dark-side": "dark-side",
-		// ARCHIVED RECORDS CARRY THE NUMERIC FORM and must keep rendering — a record is permanent.
-		// The two shapes cannot collide, which is why the rename burns nothing.
-		"red-lens-L1": "L1",
-		"red-lens-L2": "L2",
+		// THE NUMERIC FORM IS NOT READ LIVE. Records that carry it are migrated to the area form
+		// (migrate/remap.go, plans/roundless.md §III.A.5); a live seat id shaped that way is no lens.
+		"red-lens-L1": "",
+		"red-lens-L2": "",
 		"red-chair":   "", // no lens role
 		"blue-lane-1": "",
 		"judge":       "",

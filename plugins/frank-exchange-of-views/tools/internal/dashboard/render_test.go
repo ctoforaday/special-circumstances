@@ -89,8 +89,8 @@ func TestRenderHTMLTerminal(t *testing.T) {
 	m.Eta = Eta{State: "complete"}
 	m.Seats = []Seat{
 		{Label: "frontier", Seat: "frontier", Done: true, Result: `{"verdict":"PASS","claim_count":15,"gaps":[]}`},
-		{Label: "red-chair #1", Seat: "red-merge", Epoch: 1, Sitting: 1, Done: true, Result: `{"verdict":"FAIL","gaps":[1,2],"resolutions":[1]}`},
-		{Label: "red-chair #1", Seat: "red-merge", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)}, // superseded (a done one shares the label)
+		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: true, Result: `{"verdict":"FAIL","gaps":[1,2],"resolutions":[1]}`},
+		{Label: "red-chair #1", Seat: "red-chair", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)}, // superseded (a done one shares the label)
 		{Label: "judge #1", Seat: "judge", Epoch: 1, Sitting: 1, Done: false, StartedMs: fp(1000)},         // did not finish
 	}
 	m.CostRows = []CostRow{{Epoch: 1, Seat: "red-lens", Tier: "haiku", Agents: 6, Cost: 0.42}}

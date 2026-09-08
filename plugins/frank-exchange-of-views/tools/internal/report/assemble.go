@@ -1208,7 +1208,7 @@ func debate(fam record.Family, evs []*record.Event) string {
 
 		// PETITIONS: the filing AND the ruling, in event order, in one block.
 		//
-		// Rendering the ruling alone — "petition red-merge: granted — <opinion>" — gives the
+		// Rendering the ruling alone — "petition red-chair: granted — <opinion>" — gives the
 		// reader the bench's answer with no question attached. A petition is the one channel a
 		// seat has for an ethical, safety, integrity or constitutional objection; the relief it
 		// sought and the basis it argued are the substance, and the ruling is only meaningful

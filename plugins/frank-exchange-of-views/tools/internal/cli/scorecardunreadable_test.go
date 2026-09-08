@@ -51,7 +51,7 @@ func TestAScorecardRefusesARecordItCannotRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`INSERT INTO "events" ("seat_id","ts","type","key")
-	                      VALUES ('red-lens-L5', '2026-09-02T00:00:00Z', 'friction', 'former-epoch')`); err != nil {
+	                      VALUES ('red-lens-logic', '2026-09-02T00:00:00Z', 'friction', 'former-epoch')`); err != nil {
 		t.Fatal(err)
 	}
 

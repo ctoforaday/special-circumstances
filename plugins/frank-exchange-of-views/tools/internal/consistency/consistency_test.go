@@ -305,7 +305,7 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 		} else {
 			f.Location = proto.String("a quoted sentence")
 		}
-		return recordtest.At(t, "red-lens-L1", "red-lens-L1:finding:"+id, f)
+		return recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:"+id, f)
 	}
 
 	t.Run("a quote-anchored finding with no anchor event is still the crash window", func(t *testing.T) {

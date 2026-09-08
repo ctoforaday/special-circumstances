@@ -344,6 +344,20 @@ var singleton = map[recordpb.EventType]bool{
 	recordpb.EventType_EVENT_TYPE_SPOT_CHECK: true,
 }
 
+// defines is the label-keyed verbs whose label IS the identity the event brings into being — a
+// gap id, a finding label, a citation id, an anchor. Those are run-unique by construction (the
+// tool assigns them: MintGapID, NextFindingLabel, the content hash), so their key stays
+// `seat:verb:label` and a second event with the same label is the SAME act whichever sitting
+// records it. Every other label-keyed verb REFERENCES something that already exists — a verify
+// names a source, a regrade or a manifest row names a gap — and there the label alone would make
+// the act possible once per run; see deriveKey.
+var defines = map[recordpb.EventType]bool{
+	recordpb.EventType_EVENT_TYPE_MINT:    true,
+	recordpb.EventType_EVENT_TYPE_FINDING: true,
+	recordpb.EventType_EVENT_TYPE_CITE:    true,
+	recordpb.EventType_EVENT_TYPE_ANCHOR:  true,
+}
+
 // keyFields IS THE IDEMPOTENCY CONTRACT, in priority order, and it goes stale silently: a field
 // no writer sets any more simply never matches, and the ordinal fallback then records a second
 // event where the first should have been updated in place. `reference` was on this list after the
@@ -395,16 +409,26 @@ func requireGradeMotionAsksForAChange(run Run, g *recordpb.GradeMotion) error {
 // refused rather than silently written twice.
 func deriveKey(tx *sql.Tx, seatID string, typ recordpb.EventType, body proto.Message) (string, error) {
 	slug := recordpb.Word(typ)
+	var sitting int
+	if err := tx.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
+		seatID).Scan(&sitting); err != nil {
+		return "", fmt.Errorf("record: counting %s's sittings for its key: %w", seatID, err)
+	}
 	if singleton[typ] {
-		var sitting int
-		if err := tx.QueryRow(`SELECT count(*) FROM "events" WHERE "seat_id" = ? AND "type" = 'register'`,
-			seatID).Scan(&sitting); err != nil {
-			return "", fmt.Errorf("record: counting %s's sittings for a once-per-sitting key: %w", seatID, err)
-		}
 		return fmt.Sprintf("%s:%s:#%d", seatID, slug, sitting), nil
 	}
 	if v := keyLabel(body); v != "" {
-		return seatID + ":" + slug + ":" + v, nil
+		if defines[typ] {
+			return seatID + ":" + slug + ":" + v, nil
+		}
+		// A REFERENCING LABEL KEY CARRIES THE SITTING. It never had to: `red-lens-r2-L1:verify:c-ea33`
+		// was scoped to round 2 by the seat id, so the same lens re-verifying the same citation in
+		// round 3 was a different seat and a different key. Roundless (plans/roundless.md §III.A.1)
+		// it is one seat, and `red-lens-evidence:verify:c-ea33` would have made a citation verifiable
+		// once per RUN — 53 of the quadratic-formula run's re-verifications refused at migration, and
+		// the same refusal waiting for the first live lens that sat twice. Within a sitting the label
+		// still dedups a crash-retry to one event; across sittings a re-verification is a new act.
+		return fmt.Sprintf("%s:%s:#%d:%s", seatID, slug, sitting, v), nil
 	}
 	var prior int
 	// SCOPED TO THE SEAT, NOT TO A SITTING. It was `seat_id AND nonce AND type`, which restarted the
@@ -555,11 +579,18 @@ func insertNumbered(db *sql.DB, ev *Event, seatID string, typ recordpb.EventType
 		// never learned that only one survived. Refusing is the better answer and it has to say
 		// what was refused.
 		if isDuplicateKey(err) {
+			if singleton[typ] {
+				return feov.Errorf(feov.Validation,
+					"record: %s has already recorded a %s this sitting, and it is a once-per-sitting act — "+
+						"the record keeps your first one rather than quietly replacing it. If the first was wrong, "+
+						"say so in the act that supersedes it; the record is append-only and both stay visible",
+					seatID, recordpb.Word(typ))
+			}
 			return feov.Errorf(feov.Validation,
-				"record: %s has already recorded a %s this sitting, and it is a once-per-sitting act — "+
-					"the record keeps your first one rather than quietly replacing it. If the first was wrong, "+
-					"say so in the act that supersedes it; the record is append-only and both stay visible",
-				seatID, recordpb.Word(typ))
+				"record: %s has already recorded a %s on %q this sitting — the record keeps your first one "+
+					"rather than quietly replacing it (a retried write lands on the same key on purpose). If the "+
+					"first was wrong, say so in the act that supersedes it; the record is append-only and both stay visible",
+				seatID, recordpb.Word(typ), keyLabel(body))
 		}
 		return err
 	}

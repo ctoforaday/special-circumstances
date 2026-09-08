@@ -261,7 +261,7 @@ func RenderHTML(m Model) string {
 	if m.Config.Model != "" || m.Config.JudgmentModel != "" || m.Config.MaxRounds != "" || m.Config.Lanes != "" {
 		w("<h2>Run configuration</h2>\n<table>\n")
 		w(`<tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>` + esc(orDefault(m.Config.Model, "session default")) + "</b></td></tr>\n")
-		w(`<tr><td>judgment seats <span class="muted">synthesis · red-merge · judge · assembly</span></td><td class="nowrap"><b>` + esc(orDefault(m.Config.JudgmentModel, "session default")) + "</b></td></tr>\n")
+		w(`<tr><td>judgment seats <span class="muted">synthesis · red-chair · judge · assembly</span></td><td class="nowrap"><b>` + esc(orDefault(m.Config.JudgmentModel, "session default")) + "</b></td></tr>\n")
 		mr := "—"
 		if m.Config.MaxRounds != "" {
 			mr = esc(m.Config.MaxRounds) + " rounds"

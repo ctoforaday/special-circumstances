@@ -21,7 +21,7 @@ import (
 // carried the real vocabulary —
 //
 //	lens   red-lens-r<N>-<area>
-//	merge  red-merge-r<N>
+//	merge  red-chair
 //	blue   blue-lane-<N>, blue-respond-r<N>, blue-synthesize, frontier
 //	bench  judge-r<N>, judge-petition-<petitioner>, judge-terminal, assemble
 //

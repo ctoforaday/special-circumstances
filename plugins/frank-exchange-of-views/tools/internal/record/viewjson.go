@@ -1156,7 +1156,7 @@ type DebateOpinionJSON struct {
 }
 
 // DebateJSONOf groups the record's events by round exactly as render.go's debate loop does:
-// position(red-merge)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
+// position(red-chair)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
 // dispute/dispute-respond→Disputes, a docket motion's ruling→Lead. The grouping is
 // the single source these two renderings share; if it moves, both move together.
 // DebateJSONOf projects the debate prose per round. It takes the ROUND SKELETON separately from

@@ -32,7 +32,7 @@ td, th { font-variant-numeric: tabular-nums; }
 <h2>Run configuration</h2>
 <table>
 <tr><td>bulk seats <span class="muted">frontier · lanes · red lenses · blue responses</span></td><td class="nowrap"><b>sonnet</b></td></tr>
-<tr><td>judgment seats <span class="muted">synthesis · red-merge · judge · assembly</span></td><td class="nowrap"><b>opus</b></td></tr>
+<tr><td>judgment seats <span class="muted">synthesis · red-chair · judge · assembly</span></td><td class="nowrap"><b>opus</b></td></tr>
 <tr><td>round ceiling <span class="muted">cost bound — the terminator is red-PASS or judged deadlock</span></td><td class="nowrap">8 rounds</td></tr>
 <tr><td>blue lanes <span class="muted">best-of-N candidate drafts</span></td><td class="nowrap">3</td></tr>
 </table>

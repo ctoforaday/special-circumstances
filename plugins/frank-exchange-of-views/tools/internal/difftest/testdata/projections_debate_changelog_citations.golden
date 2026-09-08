@@ -132,11 +132,11 @@ certification recorded
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:position:#1","position":{"text":"red's round position"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_POSITION"}
 {"key":"red-chair:mint:G1","mint":{"acceptance_check":"x","check_kind":"CHECK_KIND_DOCUMENT","class":"scope-creep","class_new":false,"fix_basis":"proposed","gap_id":"G1","impact":"GRADE_MEDIUM","likelihood":"GRADE_MEDIUM","location":"","mint_key":"","problem":"docketed","required_fix":"","severity":"GRADE_MEDIUM"},"seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_MINT"}
-{"closing":{"gap_id":"G1","text":"red's closing"},"key":"red-chair:closing:G1","seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_CLOSING"}
+{"closing":{"gap_id":"G1","text":"red's closing"},"key":"red-chair:closing:#1:G1","seat_id":"red-chair","ts":5,"type":"EVENT_TYPE_CLOSING"}
 {"key":"blue-respond:position:#0","position":{"text":"blue's round position"},"seat_id":"blue-respond","ts":6,"type":"EVENT_TYPE_POSITION"}
-{"closing":{"gap_id":"G1","text":"blue's closing"},"key":"blue-respond:closing:G1","seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_CLOSING"}
+{"closing":{"gap_id":"G1","text":"blue's closing"},"key":"blue-respond:closing:#0:G1","seat_id":"blue-respond","ts":7,"type":"EVENT_TYPE_CLOSING"}
 {"key":"blue-respond:revision:#0","revision":{"text":"repairs landed"},"seat_id":"blue-respond","ts":8,"type":"EVENT_TYPE_REVISION"}
-{"key":"blue-respond:manifest_row:G1","manifest_row":{"gap_id":"G1","row":"figures recomputed; check run: pass"},"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
+{"key":"blue-respond:manifest_row:#0:G1","manifest_row":{"gap_id":"G1","row":"figures recomputed; check run: pass"},"seat_id":"blue-respond","ts":9,"type":"EVENT_TYPE_MANIFEST_ROW"}
 {"key":"blue-respond:motion:#1","motion":{"basis":"the harm needs two failures","grade":{"dimension":"GRADE_DIMENSION_LIKELIHOOD","gap_id":"G1","proposed":"GRADE_LOW"},"motion_id":"M1","subject":"MOTION_SUBJECT_GRADE"},"seat_id":"blue-respond","ts":10,"type":"EVENT_TYPE_MOTION"}
 {"key":"judge:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"judge","ts":11,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:motion:#1","motion":{"basis":"contested, and not red's to close","docket":{"gap_id":"G1"},"motion_id":"M2","subject":"MOTION_SUBJECT_DOCKET"},"seat_id":"red-chair","ts":12,"type":"EVENT_TYPE_MOTION"}

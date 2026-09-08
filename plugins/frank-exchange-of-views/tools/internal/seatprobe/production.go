@@ -77,7 +77,7 @@ func backendFor(b Board) debatejs.Backend {
 			"open_gaps": []any{},
 		}
 		switch {
-		case strings.HasPrefix(seatID, "red-chair"), strings.HasPrefix(seatID, "red-merge"):
+		case strings.HasPrefix(seatID, "red-chair"):
 			e["gaps"] = gaps
 		case strings.HasPrefix(seatID, "blue-respond"):
 			e["grade_disputes"] = disputes

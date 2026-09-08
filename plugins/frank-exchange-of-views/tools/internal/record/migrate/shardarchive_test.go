@@ -1,10 +1,14 @@
 package migrate_test
 
 import (
+	"fmt"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/migrate"
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/verify"
@@ -69,9 +73,44 @@ func assertVerifies(t *testing.T, dst record.Run) {
 	if err != nil {
 		t.Fatalf("the migrated record does not read as a record: %v", err)
 	}
+	assertRoundless(t, fam)
 	for _, c := range verify.Run(fam) {
 		if !c.OK {
 			t.Errorf("verify [%s] fails on the migrated record: %s", c.Name, c.Detail)
+		}
+	}
+}
+
+// assertRoundless is roundless §III.A.5's criterion on a migrated record: it speaks the live
+// vocabulary and nothing else. No seat id carries a round or a lens number, no gap id is R<r>-<n>,
+// no finding label is L<k>-F<n>, and the ids are dense from G1 — a translation that skipped one
+// would read as a gap that never existed.
+func assertRoundless(t *testing.T, fam record.Family) {
+	t.Helper()
+	old := regexp.MustCompile(`-r\d+(-|$)|-L\d+$`)
+	gaps := map[string]bool{}
+	for _, e := range fam.Events {
+		if old.MatchString(e.GetSeatId()) {
+			t.Errorf("seat %q still carries a round or lens number", e.GetSeatId())
+		}
+		if m, ok := recordpb.BodyAs[*recordpb.Mint](e); ok {
+			if !regexp.MustCompile(`^G\d+$`).MatchString(m.GetGapId()) {
+				t.Errorf("mint %q is not a G<n> id", m.GetGapId())
+			}
+			gaps[m.GetGapId()] = true
+			for _, s := range append(append([]string{}, m.GetSupersedes()...), m.GetFoundBy()...) {
+				if strings.HasPrefix(s, "R") && strings.Contains(s, "-") || regexp.MustCompile(`^L\d+-F`).MatchString(s) {
+					t.Errorf("mint %s still references archived id %q", m.GetGapId(), s)
+				}
+			}
+		}
+		if f, ok := recordpb.BodyAs[*recordpb.Finding](e); ok && regexp.MustCompile(`^L\d+-F`).MatchString(f.GetLabel()) {
+			t.Errorf("finding label %q kept its lens number", f.GetLabel())
+		}
+	}
+	for i := 1; i <= len(gaps); i++ {
+		if !gaps[fmt.Sprintf("G%d", i)] {
+			t.Errorf("gap ids are not dense: G%d is missing among %d mints", i, len(gaps))
 		}
 	}
 }

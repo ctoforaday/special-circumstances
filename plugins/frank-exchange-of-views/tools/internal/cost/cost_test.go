@@ -41,15 +41,15 @@ func usageLine(model string, inp, out, cr, cw int) string {
 func TestScanTranscript(t *testing.T) {
 	// A half-written final line costs the report nothing.
 	txt := strings.Join([]string{
-		`{"message":{"role":"user","content":"Red merge, round 2. FIRST ACTION"}}`,
+		`{"message":{"role":"user","content":"Red chair, round 2. FIRST ACTION"}}`,
 		usageLine("claude-sonnet-5", 1000000, 0, 0, 0),
 		`{"message":{"role":"assistant","content":[]}}`, // no usage: not an API turn
 		``, // blank lines routine
 		`{"message":{"usage":{"input_tokens":999`, // process died here
 	}, "\n")
 	r := ScanTranscript(txt)
-	if r.Seat != "red-merge" || r.Turns != 1 || r.Inp != 1000000 || r.Cost != 2 {
-		t.Errorf("scan = %+v (want red-merge, 1 turn, 1M inp, $2 sonnet)", r)
+	if r.Seat != "red-chair" || r.Turns != 1 || r.Inp != 1000000 || r.Cost != 2 {
+		t.Errorf("scan = %+v (want red-chair, 1 turn, 1M inp, $2 sonnet)", r)
 	}
 	// THE HEADING'S "round 2" IS NOT READ. The epoch is a count over the chair's registers on the
 	// record, and a transcript alone cannot know it; the scan leaves it 0 for the record to bind.
@@ -114,7 +114,7 @@ func TestTierMismatch(t *testing.T) {
 		t.Errorf("cheaper = %+v", out)
 	}
 	// Exactly configured → PASS (no finding).
-	out = TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "sonnet"}, {Seat: "red-merge", Epoch: 1, T: "opus"}}, "sonnet", "opus")
+	out = TierMismatch([]Row{{Seat: "red-lens", Epoch: 1, T: "sonnet"}, {Seat: "red-chair", Epoch: 1, T: "opus"}}, "sonnet", "opus")
 	if len(out) != 0 {
 		t.Errorf("pass = %+v", out)
 	}
@@ -138,7 +138,7 @@ func TestTierMismatch(t *testing.T) {
 		t.Errorf("unidentifiable = %+v", out)
 	}
 	// A judgment seat is measured against judgmentModel, not model.
-	out = TierMismatch([]Row{{Seat: "red-merge", Epoch: 2, T: "opus"}}, "opus", "haiku")
+	out = TierMismatch([]Row{{Seat: "red-chair", Epoch: 2, T: "opus"}}, "opus", "haiku")
 	if len(out) != 1 || out[0].Verdict != "FAIL" || out[0].Cls != "judgment" {
 		t.Errorf("judgment = %+v", out)
 	}

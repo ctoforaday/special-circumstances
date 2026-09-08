@@ -26,7 +26,7 @@ import (
 // debate.js's own recordClause dispatch so the two cannot drift silently:
 //
 //	lens   red-lens-r<N>-L<M>
-//	merge  red-merge-r<N>
+//	merge  red-chair
 //	blue   blue-lane-<N>, blue-respond-r<N>, blue-synthesize, frontier
 //	bench  judge-r<N>, judge-petition-<petitioner>, judge-terminal, assemble
 //
@@ -51,7 +51,7 @@ var roleSeats = map[string][]string{
 	// SIDE of the debate — ChairOf maps a role to red/blue/bench and the operator command takes
 	// a `--chair` flag over that vocabulary — so a role named `chair` would sit in a chair, and
 	// the two meanings would be told apart only by which map you happened to be reading.
-	"merge": {"red-chair", "red-merge-"},
+	"merge": {"red-chair"},
 	"blue":  {"blue-", "frontier"},
 	"bench": {"judge", "assemble"},
 }

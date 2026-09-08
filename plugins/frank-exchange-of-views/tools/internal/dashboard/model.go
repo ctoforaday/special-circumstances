@@ -613,7 +613,7 @@ func buildSteps(seats []Seat, maxRoundsStr string) []Step {
 	}
 	for r := 1; r <= maxRounds; r++ {
 		epochDone := doneSeat("blue-respond", r)
-		anySeen := seen("red-lens", r) || seen("red-chair", r) || seen("red-merge", r) || seen("blue-respond", r) || seen("judge", r)
+		anySeen := seen("red-lens", r) || seen("red-chair", r) || seen("blue-respond", r) || seen("judge", r)
 		steps = append(steps, Step{"epoch " + itoa(r), state(epochDone, anySeen)})
 	}
 	steps = append(steps, Step{"assembly", state(doneSeat("assemble", 0), seen("assemble", 0))})

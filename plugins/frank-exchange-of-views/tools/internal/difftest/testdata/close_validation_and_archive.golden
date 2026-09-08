@@ -161,7 +161,7 @@ closed G1 (repaired)
 {"base_ingest":{"text":"## S2\n\nA claim sits under S2.\n\n## S4\n\nA claim sits under S4.\n"},"key":"blue-synthesize:base_ingest:#1","seat_id":"blue-synthesize","ts":1,"type":"EVENT_TYPE_BASE_INGEST"}
 {"key":"red-chair:register:#1","register":{"run_via":"flag","tool_version":"REVISION"},"seat_id":"red-chair","ts":2,"type":"EVENT_TYPE_REGISTER"}
 {"key":"red-chair:mint:G1","mint":{"acceptance_check":"refetch","check_kind":"CHECK_KIND_DOCUMENT","class":"citation-drift","class_new":false,"complexity_cost":"GRADE_MEDIUM","fix_basis":"proposed","gap_id":"G1","impact":"GRADE_HIGH","likelihood":"GRADE_HIGH","location":"","mint_key":"","problem":"source moved","required_fix":"","severity":"GRADE_HIGH"},"seat_id":"red-chair","ts":3,"type":"EVENT_TYPE_MINT"}
-{"close":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"DISPOSITION_REPAIRED","gap_id":"G1","prose":"refetched; the source now resolves and supports the claim"},"key":"red-chair:close:G1","seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_CLOSE"}
+{"close":{"anchor_seat":"L1","anchor_target":"https://example.invalid/spec#s3","anchor_tool":"WebFetch","closure_class":"DISPOSITION_REPAIRED","gap_id":"G1","prose":"refetched; the source now resolves and supports the claim"},"key":"red-chair:close:#1:G1","seat_id":"red-chair","ts":4,"type":"EVENT_TYPE_CLOSE"}
 
 ═══ RENDERS ═══
 -- debate

@@ -63,15 +63,12 @@ func TestDebateDispatchBindsToSeatClass(t *testing.T) {
 		t.Errorf("expected at least 10 dispatch sites in debate.js, found %d", n)
 	}
 
-	// Completeness: no dead SeatClass key — every mapped seat is actually dispatched.
-	//
-	// EXCEPT THE ARCHIVED ONES. A class is read off a transcript, and transcripts outlive the
-	// dispatch that produced them: `red-merge` is what every run before the chair rename holds,
-	// and dropping its row would make those runs classless rather than making the table tidy.
-	// Named individually rather than skipped by pattern, so a NEW dead key still fails here.
-	archived := map[string]bool{"red-merge": true}
+	// Completeness: no dead SeatClass key — every mapped seat is actually dispatched. Archived
+	// runs' transcripts still carry the heads of seats that no longer exist (`Red merge, round N`);
+	// they classify as `other`, which is the visible bucket, and the record they were migrated to
+	// (plans/roundless.md §III.A.5) is where their identity lives now — not in this table.
 	for s := range SeatClass {
-		if !seen[s] && !archived[s] {
+		if !seen[s] {
 			t.Errorf("SeatClass key %q is never dispatched in debate.js", s)
 		}
 	}

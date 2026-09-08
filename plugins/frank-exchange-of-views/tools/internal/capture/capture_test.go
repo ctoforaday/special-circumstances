@@ -402,15 +402,15 @@ func TestRecordParityAudit(t *testing.T) {
 
 func TestModelTierAudit(t *testing.T) {
 	run, tr := t.TempDir(), t.TempDir()
-	// A judgment seat (red-merge) running on haiku while configured for opus → dearer? No: haiku
+	// A judgment seat (red-chair) running on haiku while configured for opus → dearer? No: haiku
 	// cheaper than opus → WARN. Configure judgment=haiku, seat on fable → dearer → FAIL.
 	write(t, filepath.Join(run, "inputs", "run-config.json"), `{"model":"claude-haiku-4-5","judgmentModel":"claude-haiku-4-5"}`)
 	write(t, filepath.Join(tr, "agent-m.jsonl"),
 		`{"message":{"role":"assistant","model":"claude-fable-5","usage":{"input_tokens":10,"output_tokens":5}}}`+"\n"+
 			`{"message":{"role":"assistant","model":"claude-fable-5"}}`+"\n")
-	// The transcript head must classify to a tier-bound seat; prepend a red-merge marker.
+	// The transcript head must classify to a tier-bound seat; prepend a red-chair marker.
 	write(t, filepath.Join(tr, "agent-m.jsonl"),
-		`{"prompt":"Red merge, round 1"}`+"\n"+
+		`{"prompt":"Red chair, round 1"}`+"\n"+
 			`{"message":{"role":"assistant","model":"claude-fable-5","usage":{"input_tokens":10,"output_tokens":5}}}`+"\n")
 	got := ModelTierAudit(runtest.Open(t, run), tr, []string{"agent-m.jsonl"})
 	if got.Verdict != "FAIL" {

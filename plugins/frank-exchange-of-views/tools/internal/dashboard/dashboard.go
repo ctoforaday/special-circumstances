@@ -138,7 +138,7 @@ func projectCompletion(seats []Seat, nowMs float64) Eta {
 
 	// One more epoch costs one more pass of the debate seats: lenses, chair, blue's response.
 	epoch := struct{ lo, hi float64 }{}
-	for _, c := range []string{"red-lens", "red-chair", "red-merge", "blue-respond"} {
+	for _, c := range []string{"red-lens", "red-chair", "blue-respond"} {
 		if sp := spanOf(c); sp.ok {
 			epoch.lo += sp.lo
 			epoch.hi += sp.hi
