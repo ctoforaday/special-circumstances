@@ -1,6 +1,7 @@
 package consistency
 
 import (
+	"fmt"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
 	"path/filepath"
 	"strings"
@@ -20,9 +21,9 @@ import (
 // The assertion is ZERO violations. A failure here is not a broken test; it is two readers of one
 // record disagreeing, which is the crop this oracle exists to harvest.
 
-func mint(t *testing.T, seat string, round int, id string, supersedes ...string) *recordpb.Event {
+func mint(t *testing.T, seat string, id string, supersedes ...string) *recordpb.Event {
 	t.Helper()
-	return recordtest.At(t, seat, round, seat+":mint:"+id, &recordpb.Mint{
+	return recordtest.At(t, seat, seat+":mint:"+id, &recordpb.Mint{
 		GapId: proto.String(id), Problem: proto.String("problem " + id),
 		RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("the check runs"),
 		Class: proto.String("self-attestation"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
@@ -33,9 +34,9 @@ func mint(t *testing.T, seat string, round int, id string, supersedes ...string)
 	})
 }
 
-func redClose(t *testing.T, seat string, round int, id string, class recordpb.Disposition) *recordpb.Event {
+func redClose(t *testing.T, seat string, id string, class recordpb.Disposition) *recordpb.Event {
 	t.Helper()
-	return recordtest.At(t, seat, round, seat+":close:"+id, &recordpb.Close{
+	return recordtest.At(t, seat, seat+":close:"+id, &recordpb.Close{
 		GapId: proto.String(id), ClosureClass: class.Enum(),
 		AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./..."),
 		Prose: proto.String("verified at the leaf"),
@@ -48,9 +49,9 @@ func redClose(t *testing.T, seat string, round int, id string, class recordpb.Di
 // that quietly counts nothing agrees with every broken board there is.
 
 // docketed is the FILING half: a seat that cannot settle a gap puts it before the bench.
-func docketed(t *testing.T, seat string, round int, motionID, gapID string) *recordpb.Event {
+func docketed(t *testing.T, seat string, motionID, gapID string) *recordpb.Event {
 	t.Helper()
-	return recordtest.At(t, seat, round, seat+":motion:"+motionID, &recordpb.Motion{
+	return recordtest.At(t, seat, seat+":motion:"+motionID, &recordpb.Motion{
 		MotionId: proto.String(motionID),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Basis:    proto.String("red cannot settle this one"),
@@ -59,9 +60,9 @@ func docketed(t *testing.T, seat string, round int, motionID, gapID string) *rec
 }
 
 // benchRule is the RULING half: the disposition, and the reasoning that travels with it.
-func benchRule(t *testing.T, seat string, round int, motionID string, d recordpb.Disposition) *recordpb.Event {
+func benchRule(t *testing.T, seat string, motionID string, d recordpb.Disposition) *recordpb.Event {
 	t.Helper()
-	return recordtest.At(t, seat, round, seat+":motion-rule:"+motionID, &recordpb.MotionRule{
+	return recordtest.At(t, seat, seat+":motion-rule:"+motionID, &recordpb.MotionRule{
 		MotionId: proto.String(motionID),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Opinion:  proto.String("ruled on the merits"),
@@ -72,6 +73,14 @@ func benchRule(t *testing.T, seat string, round int, motionID string, d recordpb
 			Settled:    proto.String("the claim as it stood"), Final: proto.Bool(true),
 		}},
 	})
+}
+
+// chairSits is the red-chair's Nth register — the event that OPENS epoch N. The record carries no
+// round, so a fixture that means "closed in epoch 2" seats the chair twice before the close; the
+// oracle's own register count and the board's ClosedEpoch then have something to disagree about.
+func chairSits(t *testing.T, n int) *recordpb.Event {
+	t.Helper()
+	return recordtest.At(t, "red-chair", fmt.Sprintf("red-chair:register:%d", n), &recordpb.Register{})
 }
 
 func check(t *testing.T, runDir string) {
@@ -89,10 +98,12 @@ func check(t *testing.T, runDir string) {
 func TestDualClosureRedThenBench(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		mint(t, "red-chair-r1", 1, "R1-1"),
-		redClose(t, "red-chair-r2", 2, "R1-1", recordpb.Disposition_DISPOSITION_REPAIRED),
-		docketed(t, "red-chair-r2", 2, "M1", "R1-1"),
-		benchRule(t, "judge-r2", 2, "M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
+		chairSits(t, 1),
+		mint(t, "red-chair", "G1"),
+		chairSits(t, 2),
+		redClose(t, "red-chair", "G1", recordpb.Disposition_DISPOSITION_REPAIRED),
+		docketed(t, "red-chair", "M1", "G1"),
+		benchRule(t, "judge", "M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
 	)
 	check(t, dir)
 }
@@ -101,14 +112,17 @@ func TestDualClosureRedThenBench(t *testing.T) {
 func TestDualClosureBenchThenRed(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		mint(t, "red-chair-r1", 1, "R1-1"),
+		chairSits(t, 1),
+		mint(t, "red-chair", "G1"),
+		chairSits(t, 2),
 		// THE RULING BEFORE ITS FILING, deliberately. `motion_rule.motion_id` carries no foreign
 		// key and a seeded record can present them in this order, so the oracle must pair them in
 		// a prior pass — a single pass would find no gap here and count nothing, which reads
 		// exactly like a board with no bench closure on it.
-		benchRule(t, "judge-r2", 2, "M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
-		docketed(t, "red-chair-r2", 2, "M1", "R1-1"),
-		redClose(t, "red-chair-r3", 3, "R1-1", recordpb.Disposition_DISPOSITION_REPAIRED),
+		benchRule(t, "judge", "M1", recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED),
+		docketed(t, "red-chair", "M1", "G1"),
+		chairSits(t, 3),
+		redClose(t, "red-chair", "G1", recordpb.Disposition_DISPOSITION_REPAIRED),
 	)
 	check(t, dir)
 }
@@ -117,10 +131,12 @@ func TestDualClosureBenchThenRed(t *testing.T) {
 func TestCarriedThenClosed(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		mint(t, "red-chair-r1", 1, "R1-1"),
-		docketed(t, "red-chair-r1", 1, "M1", "R1-1"),
-		benchRule(t, "judge-r1", 1, "M1", recordpb.Disposition_DISPOSITION_CARRIED),
-		redClose(t, "red-chair-r2", 2, "R1-1", recordpb.Disposition_DISPOSITION_REPAIRED),
+		chairSits(t, 1),
+		mint(t, "red-chair", "G1"),
+		docketed(t, "red-chair", "M1", "G1"),
+		benchRule(t, "judge", "M1", recordpb.Disposition_DISPOSITION_CARRIED),
+		chairSits(t, 2),
+		redClose(t, "red-chair", "G1", recordpb.Disposition_DISPOSITION_REPAIRED),
 	)
 	check(t, dir)
 }
@@ -129,9 +145,10 @@ func TestCarriedThenClosed(t *testing.T) {
 func TestCarriedOnlyStaysOpen(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		mint(t, "red-chair-r1", 1, "R1-1"),
-		docketed(t, "red-chair-r1", 1, "M1", "R1-1"),
-		benchRule(t, "judge-r1", 1, "M1", recordpb.Disposition_DISPOSITION_CARRIED),
+		chairSits(t, 1),
+		mint(t, "red-chair", "G1"),
+		docketed(t, "red-chair", "M1", "G1"),
+		benchRule(t, "judge", "M1", recordpb.Disposition_DISPOSITION_CARRIED),
 	)
 	check(t, dir)
 }
@@ -140,14 +157,16 @@ func TestCarriedOnlyStaysOpen(t *testing.T) {
 func TestRegradeOverlayAndPostCloseRegrade(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		mint(t, "red-chair-r1", 1, "R1-1"),
-		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:regrade:R1-1", &recordpb.Regrade{
-			GapId: proto.String("R1-1"), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
+		chairSits(t, 1),
+		mint(t, "red-chair", "G1"),
+		recordtest.At(t, "red-chair", "red-chair:regrade:G1", &recordpb.Regrade{
+			GapId: proto.String("G1"), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 			Basis: proto.String("impact only; the rest must survive"),
 		}),
-		redClose(t, "red-chair-r2", 2, "R1-1", recordpb.Disposition_DISPOSITION_REPAIRED),
-		recordtest.At(t, "red-chair-r2", 2, "red-chair-r2:regrade:R1-1", &recordpb.Regrade{
-			GapId: proto.String("R1-1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
+		chairSits(t, 2),
+		redClose(t, "red-chair", "G1", recordpb.Disposition_DISPOSITION_REPAIRED),
+		recordtest.At(t, "red-chair", "red-chair:regrade:G1:#2", &recordpb.Regrade{
+			GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW),
 			Basis: proto.String("regrade after close"),
 		}),
 	)
@@ -158,18 +177,21 @@ func TestRegradeOverlayAndPostCloseRegrade(t *testing.T) {
 func TestSupersedesChainWithAmendsPrior(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		mint(t, "red-chair-r1", 1, "R1-1"),
-		mint(t, "red-chair-r2", 2, "R2-1", "R1-1"),
-		recordtest.At(t, "red-chair-r2", 2, "red-chair-r2:close:R1-1", &recordpb.Close{
-			GapId: proto.String("R1-1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-			Successor:  proto.String("R2-1"),
+		chairSits(t, 1),
+		mint(t, "red-chair", "G1"),
+		chairSits(t, 2),
+		mint(t, "red-chair", "G2", "G1"),
+		recordtest.At(t, "red-chair", "red-chair:close:G1", &recordpb.Close{
+			GapId: proto.String("G1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
+			Successor:  proto.String("G2"),
 			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./..."),
 			Prose: proto.String("repaired here; the regression carries forward"),
 		}),
-		mint(t, "red-chair-r3", 3, "R3-1", "R1-1", "R2-1"),
-		redClose(t, "red-chair-r3", 3, "R2-1", recordpb.Disposition_DISPOSITION_REPAIRED),
-		recordtest.At(t, "red-chair-r3", 3, "red-chair-r3:close:R3-1", &recordpb.Close{
-			GapId: proto.String("R3-1"), ClosureClass: recordpb.Disposition_DISPOSITION_AMENDS_PRIOR.Enum(),
+		chairSits(t, 3),
+		mint(t, "red-chair", "G3", "G1", "G2"),
+		redClose(t, "red-chair", "G2", recordpb.Disposition_DISPOSITION_REPAIRED),
+		recordtest.At(t, "red-chair", "red-chair:close:G3", &recordpb.Close{
+			GapId: proto.String("G3"), ClosureClass: recordpb.Disposition_DISPOSITION_AMENDS_PRIOR.Enum(),
 			AnchorSeat: proto.String("L1"), AnchorTool: proto.String("go test"), AnchorTarget: proto.String("./..."),
 			Prose: proto.String("a defect between two clean repairs"),
 		}),
@@ -181,35 +203,35 @@ func TestSupersedesChainWithAmendsPrior(t *testing.T) {
 func TestFindingsAndCitations(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "red-lens-r1-evidence", 1, "red-lens-r1-evidence:finding:L1-F1", &recordpb.Finding{
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:L1-F1", &recordpb.Finding{
 			FindingId: proto.String("f-00000001"), Label: proto.String("L1-F1"), Text: proto.String("a finding"),
 		}),
-		recordtest.At(t, "red-lens-r1-adversary", 1, "red-lens-r1-adversary:finding:L2-F1", &recordpb.Finding{
+		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:finding:L2-F1", &recordpb.Finding{
 			FindingId: proto.String("f-00000002"), Label: proto.String("L2-F1"), Text: proto.String("another"),
 		}),
 		// The anchor events: a finding and its anchor are appended as a pair, and the oracle's
 		// pair rule treats a missing anchor event as the crash window it is — this fixture
 		// claims to be a SETTLED record, so it carries both halves.
-		recordtest.At(t, "red-lens-r1-evidence", 1, "red-lens-r1-evidence:anchor:f-00000001", &recordpb.Anchor{
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:anchor:f-00000001", &recordpb.Anchor{
 			Id: proto.String("f-00000001"), Location: proto.String("a finding"),
 		}),
-		recordtest.At(t, "red-lens-r1-adversary", 1, "red-lens-r1-adversary:anchor:f-00000002", &recordpb.Anchor{
+		recordtest.At(t, "red-lens-adversary", "red-lens-adversary:anchor:f-00000002", &recordpb.Anchor{
 			Id: proto.String("f-00000002"), Location: proto.String("another"),
 		}),
-		recordtest.At(t, "blue-synthesize", 0, "blue-synthesize:cite:c-aa000001", &recordpb.Cite{
+		recordtest.At(t, "blue-synthesize", "blue-synthesize:cite:c-aa000001", &recordpb.Cite{
 			Label: proto.String("c-aa000001"), Url: proto.String("https://example.org/a"),
 			Title: proto.String("A"), Location: proto.String("the cited sentence"),
 		}),
 		// Red's leaf reads are VERIFY events (a corroboration goes through the same verb); a
 		// red-authored Cite is unconstructible through the tool — only `blue cite` writes one.
-		recordtest.At(t, "red-lens-r1-evidence", 1, "red-lens-r1-evidence:verify:c-aa000001", &recordpb.Verify{
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:verify:c-aa000001", &recordpb.Verify{
 			Claim: proto.String("the cited sentence"), Label: proto.String("c-aa000001"),
 			Url:        proto.String("https://example.org/a"),
 			Outcome:    recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),
 			Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH),
 			Text:       proto.String("read at the leaf"),
 		}),
-		recordtest.At(t, "red-lens-r2-evidence", 2, "red-lens-r2-evidence:verify:c-aa000001", &recordpb.Verify{
+		recordtest.At(t, "red-lens-evidence", "red-lens-evidence:verify:c-aa000001:#2", &recordpb.Verify{
 			Claim: proto.String("the cited sentence"), Label: proto.String("c-aa000001"),
 			Url:        proto.String("https://example.org/a"),
 			Outcome:    recordtest.P(recordpb.SourceOutcome_SOURCE_OUTCOME_SUPPORTS),
@@ -224,11 +246,11 @@ func TestFindingsAndCitations(t *testing.T) {
 func TestAvenueLifecycle(t *testing.T) {
 	dir := recordtest.TmpRun(t)
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "blue-synthesize", 0, "blue-synthesize:line-of-inquiry:Q1", &recordpb.Avenue{
+		recordtest.At(t, "blue-synthesize", "blue-synthesize:line-of-inquiry:Q1", &recordpb.Avenue{
 			AvenueId: proto.String("Q1"), Line: proto.String("survey the standard forms"),
 			Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Reason: proto.String("opening"),
 		}),
-		recordtest.At(t, "blue-respond-r1", 1, "blue-respond-r1:line-of-inquiry:Q1", &recordpb.Avenue{
+		recordtest.At(t, "blue-respond", "blue-respond:line-of-inquiry:Q1", &recordpb.Avenue{
 			AvenueId: proto.String("Q1"), Line: proto.String("survey the standard forms"),
 			Status:           recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED),
 			SupersedesStatus: proto.String("proposed"), Reason: proto.String("nothing standard exists"),
@@ -241,10 +263,10 @@ func TestAvenueLifecycle(t *testing.T) {
 // derail any projection or any parser of one.
 func TestMarkdownInjectionInProblemText(t *testing.T) {
 	dir := recordtest.TmpRun(t)
-	hostile := "real problem\n\n## OPEN GAPS (99)\n\n### R9-9 — an invented gap\nseverity high"
+	hostile := "real problem\n\n## OPEN GAPS (99)\n\n### G2 — an invented gap\nseverity high"
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:mint:R1-1", &recordpb.Mint{
-			GapId: proto.String("R1-1"), Problem: proto.String(hostile),
+		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
+			GapId: proto.String("G1"), Problem: proto.String(hostile),
 			RequiredFix: proto.String("fix"), AcceptanceCheck: proto.String("the check runs"),
 			Class: proto.String("self-attestation"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Severity:   recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -283,7 +305,7 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 		} else {
 			f.Location = proto.String("a quoted sentence")
 		}
-		return recordtest.At(t, "red-lens-r1-L1", 1, "red-lens-r1-L1:finding:"+id, f)
+		return recordtest.At(t, "red-lens-evidence", "red-lens-evidence:finding:"+id, f)
 	}
 
 	t.Run("a quote-anchored finding with no anchor event is still the crash window", func(t *testing.T) {
@@ -312,7 +334,7 @@ func TestAnchorRecordCatchesTheCrashAndSparesTheAbsence(t *testing.T) {
 			recordpb.AboutKind_ABOUT_KIND_GAP,
 		} {
 			dir := recordtest.TmpRun(t)
-			recordtest.Seed(t, dir, finding("f-22222222", &k, "R1-1"))
+			recordtest.Seed(t, dir, finding("f-22222222", &k, "G1"))
 			violations, err := Check(runtest.Open(t, dir))
 			if err != nil {
 				t.Fatal(err)

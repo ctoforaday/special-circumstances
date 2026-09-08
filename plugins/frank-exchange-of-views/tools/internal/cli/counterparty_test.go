@@ -23,7 +23,7 @@ import (
 func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	read := func(t *testing.T, runDir string) record.CounterpartyJSON {
 		t.Helper()
-		out, err := run(t, "show", "work", "--run", runDir, "--seat-id", "red-chair-r1")
+		out, err := run(t, "show", "work", "--run", runDir, "--seat-id", "red-chair")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -44,12 +44,12 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	// attributed to the party that performs them — and it is not what this test is about.
 	quiet := newRun(t)
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
-	for _, id := range []string{"red-chair-r1", "blue-respond-r1"} {
+	for _, id := range []string{"red-chair", "blue-respond"} {
 		if _, err := run(t, "register", "--run", quiet, "--seat-id", id); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := run(t, "mint", "--run", quiet, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "mint", "--run", quiet, "--seat-id", "red-chair",
 		"--key", "g1", "--class", "metric-conflation", "--problem", "two figures disagree",
 		"--fix", "reconcile them", "--check", "no section contradicts another", "--check-kind", "document",
 		"--severity", "low", "--likelihood", "low", "--impact", "low", "--complexity", "low",
@@ -59,7 +59,7 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	silent := read(t, quiet)
 
 	// The same run after blue records something substantive.
-	if _, err := run(t, "position", "--run", quiet, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "position", "--run", quiet, "--seat-id", "blue-respond",
 		"--reason", "I have read the board and am working the first gap"); err != nil {
 		t.Fatal(err)
 	}
@@ -71,8 +71,8 @@ func TestTheWorkListSeparatesNotYetFromNotComing(t *testing.T) {
 	if silent.Acts != 0 {
 		t.Errorf("a blue that recorded nothing shows %d act(s); registering is arriving, not acting", silent.Acts)
 	}
-	if active.Acts == 0 || active.ActsThisRound == 0 {
-		t.Errorf("a blue that recorded a position shows acts=%d this_round=%d", active.Acts, active.ActsThisRound)
+	if active.Acts == 0 || active.ActsThisEpoch == 0 {
+		t.Errorf("a blue that recorded a position shows acts=%d this_epoch=%d", active.Acts, active.ActsThisEpoch)
 	}
 	if !strings.Contains(silent.Reading, "NOTHING") {
 		t.Errorf("the silent reading does not say plainly that nothing was recorded: %q", silent.Reading)

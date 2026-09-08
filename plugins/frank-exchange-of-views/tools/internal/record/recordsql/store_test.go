@@ -31,10 +31,9 @@ func store(t *testing.T) *sql.DB {
 func event(t *testing.T, ord int32, typ recordpb.EventType, body proto.Message) *recordpb.Event {
 	t.Helper()
 	ev := &recordpb.Event{
-		SeatId: proto.String("red-chair-r1"),
-		Round:  proto.Int32(1),
+		SeatId: proto.String("red-chair"),
 		Ts:     proto.String("2026-01-01T00:00:00Z"),
-		Key:    proto.String(fmt.Sprintf("red-chair-r1:act:#%d", ord)),
+		Key:    proto.String(fmt.Sprintf("red-chair:act:#%d", ord)),
 	}
 	got, err := recordpb.SetBody(ev, body)
 	if err != nil {
@@ -55,14 +54,14 @@ func event(t *testing.T, ord int32, typ recordpb.EventType, body proto.Message) 
 func TestABodyIsWrittenAsColumns(t *testing.T) {
 	db := store(t)
 	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
-		GapId:           proto.String("R1-1"),
+		GapId:           proto.String("G3"),
 		Class:           proto.String("scope-creep"),
 		Problem:         proto.String("an absence of findings is reported as an absence of risk"),
 		AcceptanceCheck: proto.String("the claim names the search that produced it"),
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 		Impact:          recordpb.Grade_GRADE_HIGH.Enum(),
-		Supersedes:      []string{"R0-4", "R0-9"},
+		Supersedes:      []string{"G1", "G2"},
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -100,8 +99,8 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 		}
 		got = append(got, v)
 	}
-	if len(got) != 2 || got[0] != "R0-4" || got[1] != "R0-9" {
-		t.Errorf("supersedes = %v, want [R0-4 R0-9]", got)
+	if len(got) != 2 || got[0] != "G1" || got[1] != "G2" {
+		t.Errorf("supersedes = %v, want [G1 G2]", got)
 	}
 }
 
@@ -113,7 +112,7 @@ func TestABodyIsWrittenAsColumns(t *testing.T) {
 func TestAnAbsentFieldIsNull(t *testing.T) {
 	db := store(t)
 	id, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
-		GapId:           proto.String("R1-1"),
+		GapId:           proto.String("G1"),
 		Class:           proto.String("c"),
 		Problem:         proto.String("p"),
 		AcceptanceCheck: proto.String("a"),
@@ -161,12 +160,12 @@ func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
 	// Every gap named below, INCLUDING the successor: `close.successor` references mint.gap_id now,
 	// so "lineage never drops" no longer means "the field is non-empty". A successor naming a gap
 	// that does not exist carried the remainder forward to an id no board ever had.
-	for i, id := range []string{"R1-1", "R1-2", "R1-3", "R2-1"} {
+	for i, id := range []string{"G1", "G2", "G3", "G4"} {
 		mintGap(t, db, int32(10+i), id)
 	}
 	mk := func(seq int32) *recordpb.Event {
 		return event(t, seq, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-			GapId:        proto.String("R1-1"),
+			GapId:        proto.String("G1"),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
 			Prose:        proto.String("repaired, and the retry path broke"),
 		})
@@ -178,10 +177,10 @@ func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
 	}
 
 	ok := event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("R1-2"),
+		GapId:        proto.String("G2"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-		Successor:    proto.String("R2-1"),
-		Prose:        proto.String("repaired, and R2-1 carries the regression"),
+		Successor:    proto.String("G4"),
+		Prose:        proto.String("repaired, and G4 carries the regression"),
 	})
 	if _, err := Insert(db, ok); err != nil {
 		t.Fatalf("a regression closure that NAMES its successor was refused: %v", err)
@@ -189,7 +188,7 @@ func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
 
 	// And an ordinary closure still needs no successor, or the rule is a wall rather than a gate.
 	plain := event(t, 2, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("R1-3"),
+		GapId:        proto.String("G3"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		Prose:        proto.String("verified at the leaf"),
 	})
@@ -208,14 +207,14 @@ func TestARegressionClosureMustNameItsSuccessor(t *testing.T) {
 func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 	db := store(t)
 	original := &recordpb.Mint{
-		GapId:           proto.String("R1-1"),
+		GapId:           proto.String("G3"),
 		Class:           proto.String("scope-creep"),
 		Problem:         proto.String("an absence of findings is reported as an absence of risk"),
 		AcceptanceCheck: proto.String("the claim names the search that produced it"),
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 		Impact:          recordpb.Grade_GRADE_HIGH.Enum(),
-		Supersedes:      []string{"R0-4", "R0-9"},
+		Supersedes:      []string{"G1", "G2"},
 		// severity and complexity_cost are deliberately NOT set: the axes this gap was never
 		// graded on, which must come back ungraded.
 	}
@@ -253,7 +252,7 @@ func TestAnEventSurvivesTheRoundTripWithItsAbsencesIntact(t *testing.T) {
 // the ordering hazard. Here `id` is assigned at insert, so read order is record order.
 func TestEventsReadBackInRecordOrder(t *testing.T) {
 	db := store(t)
-	for i, seat := range []string{"blue-respond-r1", "red-chair-r1", "judge-r1"} {
+	for i, seat := range []string{"blue-respond", "red-chair", "judge"} {
 		ev := event(t, int32(i), recordpb.EventType_EVENT_TYPE_POSITION, &recordpb.Position{
 			Text: proto.String(seat + " speaks"),
 		})
@@ -273,7 +272,7 @@ func TestEventsReadBackInRecordOrder(t *testing.T) {
 	for _, e := range evs {
 		order = append(order, e.GetSeatId())
 	}
-	want := []string{"blue-respond-r1", "red-chair-r1", "judge-r1"}
+	want := []string{"blue-respond", "red-chair", "judge"}
 	for i := range want {
 		if i >= len(order) || order[i] != want[i] {
 			t.Fatalf("read order = %v, want %v — identical timestamps must not decide the sequence", order, want)
@@ -303,10 +302,10 @@ func TestTheBoardIsAQuery(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	mint(0, "R1-1")
-	mint(1, "R1-2")
+	mint(0, "G1")
+	mint(1, "G2")
 	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("R1-2"),
+		GapId:        proto.String("G2"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED.Enum(),
 		Prose:        proto.String("the fix costs more than the defect"),
 	})); err != nil {
@@ -327,7 +326,7 @@ func TestTheBoardIsAQuery(t *testing.T) {
 	if err := db.QueryRow(`
 		SELECT g."closure_class", v."means"
 		FROM "gap" g JOIN "enum_disposition" v ON v."value" = g."closure_class"
-		WHERE g."gap_id" = 'R1-2'`).Scan(&class, &why); err != nil {
+		WHERE g."gap_id" = 'G2'`).Scan(&class, &why); err != nil {
 		t.Fatalf("a closed gap does not join to why it closed: %v", err)
 	}
 	if class != "defect_accepted" || why == "" {
@@ -337,7 +336,7 @@ func TestTheBoardIsAQuery(t *testing.T) {
 	// And an open gap reports no closure rather than an empty one — the distinction a fold that
 	// defaults to "" cannot make.
 	var cc *string
-	if err := db.QueryRow(`SELECT "closure_class" FROM "gap" WHERE "gap_id" = 'R1-1'`).Scan(&cc); err != nil {
+	if err := db.QueryRow(`SELECT "closure_class" FROM "gap" WHERE "gap_id" = 'G1'`).Scan(&cc); err != nil {
 		t.Fatal(err)
 	}
 	if cc != nil {
@@ -351,8 +350,8 @@ func TestTheBoardIsAQuery(t *testing.T) {
 // folding the stream. Here it is a column, and the filing/ruling join comes with it.
 func TestAnUnruledMotionIsAColumn(t *testing.T) {
 	db := store(t)
-	mintGap(t, db, 10, "R1-1")
-	mintGap(t, db, 11, "R1-2")
+	mintGap(t, db, 10, "G1")
+	mintGap(t, db, 11, "G2")
 	file := func(seq int32, id, gap string) {
 		t.Helper()
 		if _, err := Insert(db, event(t, seq, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
@@ -363,8 +362,8 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	file(0, "M1", "R1-1")
-	file(1, "M2", "R1-2")
+	file(0, "M1", "G1")
+	file(1, "M2", "G2")
 	if _, err := Insert(db, event(t, 2, recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
 		Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
@@ -381,8 +380,8 @@ func TestAnUnruledMotionIsAColumn(t *testing.T) {
 	if err := db.QueryRow(`SELECT motion_id, gap_id FROM motion_state WHERE unruled`).Scan(&id, &gap); err != nil {
 		t.Fatalf("the unruled motion is not visible: %v", err)
 	}
-	if id != "M2" || gap != "R1-2" {
-		t.Errorf("unruled = (%q, %q), want (M2, R1-2)", id, gap)
+	if id != "M2" || gap != "G2" {
+		t.Errorf("unruled = (%q, %q), want (M2, G2)", id, gap)
 	}
 }
 
@@ -405,7 +404,7 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 		t.Run(recordpb.Word(c.as), func(t *testing.T) {
 			db := store(t)
 			if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
-				GapId:           proto.String("R1-1"),
+				GapId:           proto.String("G1"),
 				Class:           proto.String("c"),
 				Problem:         proto.String("p"),
 				AcceptanceCheck: proto.String("a"),
@@ -423,7 +422,7 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 				MotionId: proto.String("M1"),
 				Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 				Basis:    proto.String("red cannot settle this one"),
-				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}},
+				Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 			})); err != nil {
 				t.Fatalf("the record refused a docket motion: %v", err)
 			}
@@ -444,7 +443,7 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 			}
 
 			var open bool
-			if err := db.QueryRow(`SELECT "open" FROM "gap" WHERE "gap_id" = 'R1-1'`).Scan(&open); err != nil {
+			if err := db.QueryRow(`SELECT "open" FROM "gap" WHERE "gap_id" = 'G1'`).Scan(&open); err != nil {
 				t.Fatal(err)
 			}
 			if open != c.wantOpen {
@@ -466,9 +465,9 @@ func TestABenchDispositionClosesTheGapOnlyIfTheVocabularySaysSo(t *testing.T) {
 // drift: adding a second deferring disposition tightens the CHECK with nobody editing it.
 func TestAMergeCannotCloseAGapByCarryingIt(t *testing.T) {
 	db := store(t)
-	mintGap(t, db, 10, "R1-1")
+	mintGap(t, db, 10, "G1")
 	if _, err := Insert(db, event(t, 0, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("R1-1"),
+		GapId:        proto.String("G1"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_CARRIED.Enum(),
 		Prose:        proto.String("deferring, from the wrong seat"),
 	})); err == nil {
@@ -478,7 +477,7 @@ func TestAMergeCannotCloseAGapByCarryingIt(t *testing.T) {
 	// The same column still takes a word that DOES close, so the CHECK is not simply refusing
 	// everything — a constraint that admits nothing reads as strict and is broken.
 	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("R1-1"),
+		GapId:        proto.String("G1"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_DEFECT_ACCEPTED.Enum(),
 		Prose:        proto.String("the fix costs more than the defect"),
 	})); err != nil {
@@ -566,7 +565,7 @@ func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
 		typ  recordpb.EventType
 	}{
 		{"repaired", &recordpb.Close{
-			GapId:        proto.String("R9-9"),
+			GapId:        proto.String("G1"),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 			Prose:        proto.String("closing a gap nobody minted"),
 		}, recordpb.EventType_EVENT_TYPE_CLOSE},
@@ -577,12 +576,12 @@ func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
 			MotionId: proto.String("M1"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_DOCKET.Enum(),
 			Basis:    proto.String("escalating a gap nobody minted"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R9-9")}},
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 		}, recordpb.EventType_EVENT_TYPE_MOTION},
 		{"contested by a grade motion", &recordpb.Motion{
 			MotionId: proto.String("M1"),
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
-			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("R9-9")}},
+			Filing:   &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}},
 		}, recordpb.EventType_EVENT_TYPE_MOTION},
 	} {
 		t.Run(c.what, func(t *testing.T) {
@@ -596,9 +595,9 @@ func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
 
 	// And the same acts succeed once the gap is real, or the constraint is a wall rather than a gate.
 	db := store(t)
-	mintGap(t, db, 0, "R9-9")
+	mintGap(t, db, 0, "G1")
 	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("R9-9"),
+		GapId:        proto.String("G1"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		Prose:        proto.String("the repair was verified at the leaf"),
 	})); err != nil {
@@ -615,23 +614,23 @@ func TestAnUnmintedGapCannotBeActedOn(t *testing.T) {
 // what it names EXISTS.
 func TestASuccessorMustBeAGapThatExists(t *testing.T) {
 	db := store(t)
-	mintGap(t, db, 0, "R1-1")
+	mintGap(t, db, 0, "G1")
 
 	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("R1-1"),
+		GapId:        proto.String("G1"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-		Successor:    proto.String("R2-7"),
-		Prose:        proto.String("repaired, and R2-7 carries the regression"),
+		Successor:    proto.String("G2"),
+		Prose:        proto.String("repaired, and G2 carries the regression"),
 	})); err == nil {
-		t.Fatal("a closure named R2-7 as carrying its regression forward and no such gap exists — the CHECK is satisfied, the lineage is broken, and the repair_regression denominator counts a closure that resolved nothing")
+		t.Fatal("a closure named G2 as carrying its regression forward and no such gap exists — the CHECK is satisfied, the lineage is broken, and the repair_regression denominator counts a closure that resolved nothing")
 	}
 
-	mintGap(t, db, 2, "R2-7")
+	mintGap(t, db, 2, "G2")
 	if _, err := Insert(db, event(t, 3, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("R1-1"),
+		GapId:        proto.String("G1"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION.Enum(),
-		Successor:    proto.String("R2-7"),
-		Prose:        proto.String("repaired, and R2-7 carries the regression"),
+		Successor:    proto.String("G2"),
+		Prose:        proto.String("repaired, and G2 carries the regression"),
 	})); err != nil {
 		t.Fatalf("a closure naming a REAL successor was refused: %v", err)
 	}
@@ -649,9 +648,9 @@ func TestASuccessorMustBeAGapThatExists(t *testing.T) {
 // CLI half is TestAnAbsentFlagIsNotWrittenAsEmpty in internal/cli.
 func TestAnUnsetOptionalFieldIsNullNotEmpty(t *testing.T) {
 	db := store(t)
-	mintGap(t, db, 0, "R1-1")
+	mintGap(t, db, 0, "G1")
 	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId:        proto.String("R1-1"),
+		GapId:        proto.String("G1"),
 		ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		Prose:        proto.String("the repair was verified at the leaf"),
 	})); err != nil {
@@ -661,7 +660,7 @@ func TestAnUnsetOptionalFieldIsNullNotEmpty(t *testing.T) {
 	// NULL, not ''. A '' here would satisfy the foreign key only because SQLite skips the check on
 	// NULL — so the column reading '' is precisely the state that made every close fail.
 	var successor *string
-	if err := db.QueryRow(`SELECT "successor" FROM "close" WHERE "gap_id" = 'R1-1'`).Scan(&successor); err != nil {
+	if err := db.QueryRow(`SELECT "successor" FROM "close" WHERE "gap_id" = 'G1'`).Scan(&successor); err != nil {
 		t.Fatal(err)
 	}
 	if successor != nil {
@@ -738,33 +737,33 @@ func TestTheSqliteDriverIsRegistered(t *testing.T) {
 // SpotCheck.none, a bool with real presence. Derived where derivable, declared where claimed.
 func TestAGapsListsAreCountedByTheView(t *testing.T) {
 	db := store(t)
-	mintGap(t, db, 0, "R0-9")
+	mintGap(t, db, 0, "G1")
 	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{
-		GapId:           proto.String("R1-1"),
+		GapId:           proto.String("G2"),
 		Class:           proto.String("overclaim"),
 		Problem:         proto.String("p"),
 		AcceptanceCheck: proto.String("a"),
 		CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 		Likelihood:      recordpb.Grade_GRADE_MEDIUM.Enum(),
 		Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
-		Supersedes:      []string{"R0-9"},
+		Supersedes:      []string{"G1"},
 		FoundBy:         []string{"L1-F1", "L2-F3"},
 	})); err != nil {
 		t.Fatal(err)
 	}
 
 	var lineage, credits int
-	if err := db.QueryRow(`SELECT "supersedes_count", "found_by_count" FROM "gap" WHERE "gap_id" = 'R1-1'`).
+	if err := db.QueryRow(`SELECT "supersedes_count", "found_by_count" FROM "gap" WHERE "gap_id" = 'G2'`).
 		Scan(&lineage, &credits); err != nil {
 		t.Fatal(err)
 	}
 	if lineage != 1 || credits != 2 {
-		t.Errorf("gap R1-1 counts = (%d lineage, %d credits), want (1, 2)", lineage, credits)
+		t.Errorf("gap G2 counts = (%d lineage, %d credits), want (1, 2)", lineage, credits)
 	}
 
 	// And a gap with neither reads ZERO rather than NULL — the count is over rows that are simply
 	// not there, which is the honest answer and the one a reader can act on.
-	if err := db.QueryRow(`SELECT "supersedes_count", "found_by_count" FROM "gap" WHERE "gap_id" = 'R0-9'`).
+	if err := db.QueryRow(`SELECT "supersedes_count", "found_by_count" FROM "gap" WHERE "gap_id" = 'G1'`).
 		Scan(&lineage, &credits); err != nil {
 		t.Fatal(err)
 	}

@@ -30,7 +30,7 @@ func newSetup() *cobra.Command {
 	c := &cobra.Command{
 		Use:           "setup <runDir>",
 		Short:         "build a research run's blackboard: skeleton, pins, memory mirrors, and the .run-live marker (operator; writes files)",
-		Long:          "setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files are kept), pins the evidence base at HEAD, mirrors red's gap-pattern + law + scorecard memory into inputs/, writes the .run-live marker hook guards consult, and preflights the record binary. The four fail-fast gates (a runDir, both model tiers, valid cites, and — with --bin-dir — a matching record binary) run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-round.",
+		Long:          "setup creates <runDir>'s blackboard skeleton (idempotent — pre-staged files are kept), pins the evidence base at HEAD, mirrors red's gap-pattern + law + scorecard memory into inputs/, writes the .run-live marker hook guards consult, and preflights the record binary. The four fail-fast gates (a runDir, both model tiers, valid cites, and — with --bin-dir — a matching record binary) run BEFORE any state is created, so a bad launch costs a re-run, not a seat mid-sitting.",
 		Args:          cobra.ArbitraryArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -67,7 +67,7 @@ func newSetup() *cobra.Command {
 	f := c.Flags()
 	f.StringVar(&topic, flags.Topic, "", "the run's research topic (goes in every stub header)")
 	f.StringVar(&model, flags.Model, "", "the bulk tier (frontier, blue lanes, red lenses, blue responses)")
-	f.StringVar(&judgmentModel, flags.JudgmentModel, "", "the judgment tier (blue-synthesize, red-merge, judge, assemble)")
+	f.StringVar(&judgmentModel, flags.JudgmentModel, "", "the judgment tier (blue-synthesize, red-chair, judge, assemble)")
 	f.StringArrayVar(&cites, flags.Cite, nil, "a cited path, optionally pinned: <path>[@<commit>] (repeatable)")
 	f.StringVar(&maxRounds, flags.MaxRounds, "", "the round ceiling (recorded in run-config.json for post-hoc readers)")
 	f.StringVar(&lanes, flags.Lanes, "", "the frontier lane count (recorded in run-config.json)")

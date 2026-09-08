@@ -17,7 +17,7 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 	runDir := seatRun(t)
 	gap := mintGap(t, runDir, "motion-join", "motion-test")
 
-	out, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
+	out, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", gap, "--dimension", "severity", "--proposed", "low",
 		"--reason", "the consequence is bounded by the caller's own validation")
 	if err != nil {
@@ -26,11 +26,11 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 	if !strings.Contains(out, "M1") {
 		t.Fatalf("the tool must assign the id, got %q", out)
 	}
-	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "M1", "--as", "rejected", "--reason", "the bound does not hold across the retry path"); err != nil {
 		t.Fatalf("rule: %v", err)
 	}
-	if _, err := run(t, "motion", "grade", "appeal", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "appeal", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", "M1", "--reason", "the retry path is guarded upstream; taking it to the bench"); err != nil {
 		t.Fatalf("appeal: %v", err)
 	}
@@ -66,23 +66,23 @@ func TestAMotionJoinsItsAskToItsAnswerOnAnID(t *testing.T) {
 // capability for the run.
 func TestOnlyTheRulingSeatMayRule(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "motion", "petition", "file", "--run", runDir, "--seat-id", "red-chair",
 		"--class", "integrity", "--relief", "strike the demand",
 		"--reason", "the instruction would require asserting what I believe false"); err != nil {
 		t.Fatal(err)
 	}
 	// A petition is the BENCH's to rule. The merge filing it may not also decide it.
-	_, err := run(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "red-chair-r1",
+	_, err := run(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "M1", "--as", "granted", "--reason", "granting my own petition")
 	if err == nil {
 		t.Fatal("the merge seat ruled a petition; a motion is filed by any seat and ruled by ONE, and that asymmetry is the mechanism")
 	}
-	for _, want := range []string{"bench", "red-chair-r1"} {
+	for _, want := range []string{"bench", "red-chair"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("the refusal must name the seat that holds the gavel AND the one that asked; missing %q in %v", want, err)
 		}
 	}
-	if _, err := run(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "judge-r1",
+	if _, err := run(t, "motion", "petition", "rule", "--run", runDir, "--seat-id", "judge",
 		"--id", "M1", "--as", "granted", "--reason", "the objection is sound"); err != nil {
 		t.Fatalf("the bench must be able to rule a petition: %v", err)
 	}
@@ -91,10 +91,10 @@ func TestOnlyTheRulingSeatMayRule(t *testing.T) {
 // A PETITION HAS NO APPEAL, expressed by ABSENCE rather than a runtime refusal: it is heard
 // before the debate continues, so there is nothing to escalate to.
 func TestAPetitionHasNoAppealVerb(t *testing.T) {
-	if h := help(t, "motion", "petition", "--help", "--seat-id", "judge-r1"); strings.Contains(h, "appeal") {
+	if h := help(t, "motion", "petition", "--help", "--seat-id", "judge"); strings.Contains(h, "appeal") {
 		t.Error("a petition grew an appeal verb; it is heard BEFORE the debate continues, so there is nothing to appeal to")
 	}
-	if h := help(t, "motion", "grade", "--help", "--seat-id", "red-chair-r1"); !strings.Contains(h, "appeal") {
+	if h := help(t, "motion", "grade", "--help", "--seat-id", "red-chair"); !strings.Contains(h, "appeal") {
 		t.Error("a grade motion must be appealable — a rejected dispute goes to the bench")
 	}
 }
@@ -103,7 +103,7 @@ func TestAPetitionHasNoAppealVerb(t *testing.T) {
 // checked for, because it is accepted at write time and dropped at replay where nobody sees it.
 func TestARulingMustNameAMotionThatExists(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "M99", "--as", "accepted", "--reason", "ruling on nothing"); err == nil {
 		t.Fatal("a ruling naming a motion no filing created was accepted; it would be dropped at replay in silence")
 	}

@@ -81,17 +81,17 @@ func newClose() *cobra.Command {
 	// split `blue line-of-inquiry propose` makes for --reason, and for the same reason.
 	//
 	// `Close.prose` carried `required: true`, which refuses unconditionally and therefore refused
-	// a CARRY — a carry restates a closure an earlier round already argued. Making it conditional
+	// a CARRY — a carry restates a closure an earlier sitting already argued. Making it conditional
 	// fixed the carry and cost THIS verb both its cobra refusal and its REQUIRED marker.
 	// seat.ProseRequired restores the two together; separating them is how a parser ends up
 	// holding a rule the help does not state.
 	return seat.ProseRequired(c)
 }
 
-// carry: restate a closure made in an earlier round.
+// carry: restate a closure made in an earlier epoch.
 //
 // Not a mode of `close`. It carries no fresh verification because it makes no fresh claim — the
-// round it names already did, and the record is checked against that: a carry of a gap with no
+// epoch it names already did, and the record is checked against that: a carry of a gap with no
 // prior closure is refused, because otherwise it is a laundering path for exactly the seat that
 // could not produce a verification triple.
 func newCarry() *cobra.Command {
@@ -108,7 +108,7 @@ func newCarry() *cobra.Command {
 	}), "close")
 
 	closureFlags(c)
-	c.Flags().String(flags.CarriedFrom, "", "the round whose closure this restates")
+	c.Flags().String(flags.CarriedFrom, "", "the epoch (chair sitting) whose closure this restates")
 	_ = c.MarkFlagRequired(flags.CarriedFrom)
 	return seat.Prose(c)
 }

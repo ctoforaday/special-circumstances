@@ -25,5 +25,5 @@ var LensAreas = []string{"evidence", "logic", "dark-side", "voice", "computation
 // to arbitrary prose. A shape that loose turns any hyphenated word before a capital F and a digit
 // into a link to a finding that does not exist.
 func FindingLabelAlt() string {
-	return `(?:L\d+|` + strings.Join(LensAreas, "|") + `)-F\d+`
+	return `(?:` + strings.Join(LensAreas, "|") + `)-F\d+`
 }

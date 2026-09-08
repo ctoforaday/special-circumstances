@@ -30,7 +30,7 @@ func TestSchemaFlagPrintsTheEpochSetupCompares(t *testing.T) {
 	// trust still answers even when the argv would otherwise be refused. Driving cobra instead
 	// reaches the "you named no command" refusal and proves nothing about the real path.
 	var out, errOut bytes.Buffer
-	root := NewRootFor("red-merge-r1")
+	root := NewRootFor("red-chair")
 	root.SetOut(&out)
 	root.SetErr(&errOut)
 	saved := os.Args

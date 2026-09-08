@@ -40,7 +40,25 @@ import (
 // order, so the first refusal an interleaved read would have raised is the same refusal this one
 // raises.
 func Events(db *sql.DB) ([]*recordpb.Event, error) {
-	return eventsWhere(db, ``)
+	evs, _, err := eventsWhere(db, false, ``)
+	return evs, err
+}
+
+// Window is where an event sits on the record's two clocks (plans/roundless.md §III.A.0): the
+// EPOCH — how many times the chair had registered at or before this row — and the SITTING — how
+// many times this row's own seat had. Both are read off the events_w view, which derives them by
+// window function from "id"; neither is stamped on the row. The envelope's own history says why:
+// seq, nonce and round were each a derivation stored at the write, each cost the write a read,
+// and each was retired once the record could simply be asked.
+type Window struct {
+	Epoch   int
+	Sitting int
+}
+
+// EventsW is Events with each event's Window beside it, aligned by position. A reader that
+// buckets by epoch or labels by sitting takes this; one that only needs the sequence takes Events.
+func EventsW(db *sql.DB) ([]*recordpb.Event, []Window, error) {
+	return eventsWhere(db, true, ``)
 }
 
 // EventsOfTypes is Events narrowed to the named type words, in the same record order — for a
@@ -78,37 +96,42 @@ func EventsOfTypes(db *sql.DB, words ...string) ([]*recordpb.Event, error) {
 	for i, w := range words {
 		args[i] = w
 	}
-	return eventsWhere(db, ` WHERE type IN (`+marks+`)`, args...)
+	evs, _, err := eventsWhere(db, false, ` WHERE type IN (`+marks+`)`, args...)
+	return evs, err
 }
 
-func eventsWhere(db *sql.DB, where string, args ...any) ([]*recordpb.Event, error) {
-	rows, err := db.Query(`SELECT id, seat_id, round, ts, type, key FROM events`+where+` ORDER BY id`, args...)
+func eventsWhere(db *sql.DB, withWindows bool, where string, args ...any) ([]*recordpb.Event, []Window, error) {
+	cols, from := `id, seat_id, ts, type, key`, `events`
+	if withWindows {
+		cols, from = `id, seat_id, ts, type, key, epoch, sitting`, `events_w`
+	}
+	rows, err := db.Query(`SELECT `+cols+` FROM `+from+where+` ORDER BY id`, args...)
 	if err != nil {
-		return nil, fmt.Errorf("recordsql: reading the record: %w", err)
+		return nil, nil, fmt.Errorf("recordsql: reading the record: %w", err)
 	}
 	defer rows.Close()
 
 	var out []*recordpb.Event
+	var windows []Window
 	var ids []int64
 	for rows.Next() {
 		var id int64
 		var seatID, ts, typ string
-		var round int32
 		var key *string
-		if err := rows.Scan(&id, &seatID, &round, &ts, &typ, &key); err != nil {
-			return nil, err
+		var w Window
+		dst := []any{&id, &seatID, &ts, &typ, &key}
+		if withWindows {
+			dst = append(dst, &w.Epoch, &w.Sitting)
+		}
+		if err := rows.Scan(dst...); err != nil {
+			return nil, nil, err
 		}
 		t, ok := eventTypeOf(typ)
 		if !ok {
-			// A TYPE THE SCHEMA DOES NOT DECLARE IS NOT A ROW TO SKIP. `events.type` references
-			// `enum_event_type` now, so a word outside the vocabulary cannot be stored — reaching
-			// here means the record disagrees with its own schema, and folding that into the zero
-			// would replay the act as an event of no type at all.
-			return nil, fmt.Errorf("recordsql: event %d has type %q, which the schema does not declare", id, typ)
+			return nil, nil, fmt.Errorf("recordsql: event %d has type %q, which the schema does not declare", id, typ)
 		}
 		ev := &recordpb.Event{
 			SeatId: proto.String(seatID),
-			Round:  proto.Int32(round),
 			Ts:     proto.String(ts),
 			Type:   &t,
 		}
@@ -117,14 +140,17 @@ func eventsWhere(db *sql.DB, where string, args ...any) ([]*recordpb.Event, erro
 		}
 		out = append(out, ev)
 		ids = append(ids, id)
+		if withWindows {
+			windows = append(windows, w)
+		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := loadBodies(db, ids, out); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return out, nil
+	return out, windows, nil
 }
 
 // refuseUndeclaredTypes fails a record that spells its events in words this schema does not

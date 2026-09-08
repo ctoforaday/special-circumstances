@@ -34,7 +34,7 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 		}
 	}
 	originals := []proto.Message{
-		mint("R1-1", "R0-4", "R0-9"),
+		mint("G3", "G1", "G2"),
 		&recordpb.Position{Text: proto.String("red speaks")},
 		// A grade motion: the oneof arm WITH scalar columns, referencing the mint above.
 		&recordpb.Motion{
@@ -42,12 +42,12 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 			Subject:  recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 			Basis:    proto.String("severity is understated"),
 			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-				GapId:     proto.String("R1-1"),
+				GapId:     proto.String("G3"),
 				Dimension: recordpb.GradeDimension_GRADE_DIMENSION_SEVERITY.Enum(),
 				Proposed:  recordpb.Grade_GRADE_HIGH.Enum(),
 			}},
 		},
-		mint("R1-2"),
+		mint("G4"),
 		// A petition: the oneof arm whose row holds NO scalar values — the arm must still come
 		// back SET, because "filed a petition" and "filed nothing" are different acts.
 		&recordpb.Motion{
@@ -64,10 +64,9 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 	}
 	for i, body := range originals {
 		ev := &recordpb.Event{
-			SeatId: proto.String("red-chair-r1"),
-			Round:  proto.Int32(1),
+			SeatId: proto.String("red-chair"),
 			Ts:     proto.String("2026-01-01T00:00:00Z"),
-			Key:    proto.String(fmt.Sprintf("red-chair-r1:act:#%d", i)),
+			Key:    proto.String(fmt.Sprintf("red-chair:act:#%d", i)),
 		}
 		typ, err := recordpb.SetBody(ev, body)
 		if err != nil {
@@ -114,8 +113,8 @@ func TestAMixedRecordSurvivesTheRoundTrip(t *testing.T) {
 // a seat that did nothing.
 func TestAnEventRowWithNoBodyRowIsRefused(t *testing.T) {
 	db := store(t)
-	if _, err := db.Exec(`INSERT INTO "events" ("seat_id", "round", "ts", "type", "key")
-		VALUES ('red-chair-r1', 1, '2026-01-01T00:00:00Z', 'mint', 'red-chair-r1:act:#0')`); err != nil {
+	if _, err := db.Exec(`INSERT INTO "events" ("seat_id", "ts", "type", "key")
+		VALUES ('red-chair', '2026-01-01T00:00:00Z', 'mint', 'red-chair:act:#0')`); err != nil {
 		t.Fatal(err)
 	}
 	_, err := Events(db)
@@ -144,7 +143,7 @@ func BenchmarkEvents(b *testing.B) {
 				CheckKind:       recordpb.CheckKind_CHECK_KIND_DOCUMENT.Enum(),
 				Likelihood:      recordpb.Grade_GRADE_HIGH.Enum(),
 				Impact:          recordpb.Grade_GRADE_MEDIUM.Enum(),
-				Supersedes:      []string{"R0-1", "R0-2"},
+				Supersedes:      []string{"G1", "G2"},
 			},
 			&recordpb.Position{Text: proto.String("a position")},
 			&recordpb.Motion{
@@ -159,10 +158,9 @@ func BenchmarkEvents(b *testing.B) {
 		}
 		for j, body := range bodies {
 			ev := &recordpb.Event{
-				SeatId: proto.String("red-chair-r1"),
-				Round:  proto.Int32(1),
+				SeatId: proto.String("red-chair"),
 				Ts:     proto.String("2026-01-01T00:00:00Z"),
-				Key:    proto.String(fmt.Sprintf("red-chair-r1:act:#%d", i*len(bodies)+j)),
+				Key:    proto.String(fmt.Sprintf("red-chair:act:#%d", i*len(bodies)+j)),
 			}
 			typ, err := recordpb.SetBody(ev, body)
 			if err != nil {

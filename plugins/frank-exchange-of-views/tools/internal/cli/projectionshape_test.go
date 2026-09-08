@@ -42,7 +42,7 @@ func TestProjectionShapeMatchesEmittedKeys(t *testing.T) {
 		// that changes form is re-measured instead of re-agreeing with a stale list.
 		trimmed, found := "", false
 		for _, args := range [][]string{{view}, {view, "--json"}} {
-			out, err := run(t, append([]string{"show", "--run", runDir, "--seat-id", "red-chair-r1"}, args...)...)
+			out, err := run(t, append([]string{"show", "--run", runDir, "--seat-id", "red-chair"}, args...)...)
 			if err != nil {
 				continue // this seat cannot open it, or the form is refused — neither is evidence
 			}
@@ -60,7 +60,7 @@ func TestProjectionShapeMatchesEmittedKeys(t *testing.T) {
 			continue
 		}
 
-		help, herr := run(t, "show", view, "--seat-id", "red-chair-r1", "--help")
+		help, herr := run(t, "show", view, "--seat-id", "red-chair", "--help")
 		if herr != nil {
 			t.Errorf("show %s --help: %v", view, herr)
 			continue

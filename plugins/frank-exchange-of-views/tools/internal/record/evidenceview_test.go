@@ -22,7 +22,7 @@ func evidenceBoard(events ...*Event) []*Event { return events }
 // a proof, whose field is `proof_sha` and is the key the reproduce join is on.
 func evidenceEvent(t *testing.T, round int, seat string, body proto.Message) *Event {
 	t.Helper()
-	return recordtest.Event(t, seat, round, body)
+	return recordtest.Event(t, seat, body)
 }
 
 // THE ANCHOR RESOLVES. This is the whole reason the view exists: a seat holding the c- id it read

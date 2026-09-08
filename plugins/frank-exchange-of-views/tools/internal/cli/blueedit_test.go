@@ -69,7 +69,7 @@ func countType(t *testing.T, runDir string, typ recordpb.EventType) int {
 	return n
 }
 
-const blueSeat = "blue-respond-r2"
+const blueSeat = "blue-respond"
 
 func registerBlue(t *testing.T, runDir string) {
 	t.Helper()
@@ -197,7 +197,7 @@ func TestBlueEditReconcilesEventWithoutWrite(t *testing.T) {
 		New:     proto.String("climbing fast"),
 		Text:    proto.String("r"),
 	}
-	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: blueSeat, Round: record.RoundIn(runtest.Open(t, runDir))(blueSeat)}, intent); err != nil {
+	if _, err := record.Append(record.Identity{Run: runtest.Open(t, runDir), SeatID: blueSeat}, intent); err != nil {
 		t.Fatal(err)
 	}
 	// Retry with the same key → reconcile forward.
@@ -242,11 +242,11 @@ func TestBlueEditRefusesAnUnknownGap(t *testing.T) {
 
 	_, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
-		"--answers", "R9-99", "--reason", "why")
+		"--answers", "G99", "--reason", "why")
 	if err == nil {
 		t.Fatal("an edit answering a gap no mint created was accepted")
 	}
-	if !strings.Contains(err.Error(), "R9-99") {
+	if !strings.Contains(err.Error(), "G99") {
 		t.Errorf("the refusal must name the dangling id: %v", err)
 	}
 	if n := countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT); n != 0 {
@@ -289,7 +289,7 @@ func TestBlueEditAllowsProseThatNamesNoRealGap(t *testing.T) {
 
 	if _, err := run(t, "edit", "--run", runDir, "--seat-id", blueSeat,
 		"--key", "E1", "--quote", "text to change", "--new", "prose to revise",
-		"--reason", "tightened per R9-99 and section 3-2 of the style note"); err != nil {
+		"--reason", "tightened per G99 and section 3-2 of the style note"); err != nil {
 		t.Fatalf("prose naming no real gap was refused: %v", err)
 	}
 	if countType(t, runDir, recordpb.EventType_EVENT_TYPE_BLUE_EDIT) != 1 {
@@ -318,7 +318,7 @@ func TestBlueEditWithoutAnswersIsStillLegal(t *testing.T) {
 // The help IS the seat's contract (contract_test.go's premise). A flag whose description
 // drifts out of the help teaches nothing, and the seat's only teacher is what it can read.
 func TestBlueEditHelpTeachesTheProvenanceFlag(t *testing.T) {
-	h := help(t, "edit", "--help", "--seat-id", "blue-respond-r1")
+	h := help(t, "edit", "--help", "--seat-id", "blue-respond")
 	if !strings.Contains(h, "--answers ") {
 		t.Fatalf("blue edit --help never names --answers, so the join key is undiscoverable:\n%s", h)
 	}
@@ -349,7 +349,7 @@ func TestMintWithoutAConcreteProposalIsBasisProposed(t *testing.T) {
 func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", "G1", "--class", "overclaim",
 		"--quote", "Five independent verification approaches agree.", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims independence",
@@ -371,7 +371,7 @@ func TestConcreteProposalEarnsBasisVerified(t *testing.T) {
 func TestThereIsNoWayToClaimAVerifiedBasis(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSome text.\n")
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--likelihood", "medium", "--impact", "medium", "--fix-basis", "verified")
 	if err == nil {
@@ -393,7 +393,7 @@ func TestThereIsNoWayToClaimAVerifiedBasis(t *testing.T) {
 func TestAProposalAgainstTextThatIsNotThereIsRefused(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nFive independent verification approaches agree.\n")
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", "G1", "--class", "x", "--check-kind", "document", "--check", "c", "--problem", "p",
 		"--likelihood", "medium", "--impact", "medium",
 		"--quote", "a sentence the report never contained", "--new", "anything")
@@ -412,7 +412,7 @@ const prescribedText = "Five verification approaches agree, all sharing one defi
 // mintWithProposal mints a gap carrying a concrete proposal and returns its id.
 func mintWithProposal(t *testing.T, runDir, key, fixOld, fixNew string) string {
 	t.Helper()
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", key, "--class", "overclaim", "--problem", "the defect",
 		"--fix", "drop the independence claim", "--check-kind", "document", "--check", "the section no longer claims it",
 		"--likelihood", "medium", "--impact", "medium",
@@ -478,7 +478,7 @@ func TestEstoppelRefusesAFreshGapAgainstRedsOwnPrescription(t *testing.T) {
 	prior := seedProposalApplied(t, runDir)
 
 	before := countType(t, runDir, recordpb.EventType_EVENT_TYPE_MINT)
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r2",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "this sentence overclaims", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium")
@@ -505,7 +505,7 @@ func TestEstoppelLetsAnAmendmentThroughWhenLineageIsDeclared(t *testing.T) {
 	runDir := newRun(t)
 	prior := seedProposalApplied(t, runDir)
 
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r2",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", "G2", "--class", "overclaim", "--quote", prescribedText,
 		"--problem", "my own fix turned out to contradict §3", "--check-kind", "document", "--check", "c",
 		"--likelihood", "medium", "--impact", "medium",
@@ -519,7 +519,7 @@ func TestEstoppelDoesNotBlockAGapAgainstUnrelatedText(t *testing.T) {
 	runDir := newRun(t)
 	seedProposalApplied(t, runDir)
 
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r2",
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		// UNRELATED, but PRESENT. Since 0.63.0 a mint's --quote is matched against the report,
 		// so "text the guard should not cover" can no longer mean "text that does not exist".
 		"--key", "G2", "--class", "overclaim", "--quote", "Sieve costs grow with the bound.",

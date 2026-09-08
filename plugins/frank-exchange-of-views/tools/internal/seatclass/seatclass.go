@@ -12,14 +12,17 @@ package seatclass
 
 import (
 	"regexp"
-	"strconv"
 	"strings"
 )
 
-// Classification is the seat and round a transcript head resolves to.
+// Classification is the seat a transcript head resolves to.
 type Classification struct {
-	Seat  string
-	Round int
+	Seat string
+	// THERE IS NO ROUND HERE ANY MORE (plans/roundless.md §III.A.2). The head still carries one
+	// while debate.js still says "round N", and the needles below still match on it, but the
+	// number was read by nothing once cost and the dashboard took a seat's epoch and sitting from
+	// the record's registers — and a fact recovered from prompt wording that the record already
+	// holds is the shape this migration exists to remove.
 }
 
 // A seat is identified by the opening text of its prompt, so this table is coupled to
@@ -33,7 +36,6 @@ var rounded = []struct {
 	{regexp.MustCompile(`Red chair, round (\d+)`), "red-chair"},
 	// The heading an ARCHIVED transcript carries. A class read is a read of history as often as
 	// of a live run, and the two headings cannot collide.
-	{regexp.MustCompile(`Red merge, round (\d+)`), "red-merge"},
 	{regexp.MustCompile(`Blue response, round (\d+)`), "blue-respond"},
 	{regexp.MustCompile(`Adjudication, round (\d+)`), "judge"},
 }
@@ -50,21 +52,20 @@ var unrounded = []struct {
 	{"Final assembly", "assemble"},
 }
 
-// ClassifySeat resolves a prompt head to its seat and round. An unrecognized head is `other`
-// (round 0) — a visible bucket, never folded away, so a prompt-wording drift is spottable.
+// ClassifySeat resolves a prompt head to its seat. An unrecognized head is `other` —
+// a visible bucket, never folded away, so a prompt-wording drift is spottable.
 func ClassifySeat(head string) Classification {
 	for _, r := range rounded {
 		if m := r.re.FindStringSubmatch(head); m != nil {
-			n, _ := strconv.Atoi(m[1])
-			return Classification{Seat: r.seat, Round: n}
+			return Classification{Seat: r.seat}
 		}
 	}
 	for _, u := range unrounded {
 		if strings.Contains(head, u.needle) {
-			return Classification{Seat: u.seat, Round: 0}
+			return Classification{Seat: u.seat}
 		}
 	}
-	return Classification{Seat: "other", Round: 0}
+	return Classification{Seat: "other"}
 }
 
 // KnownSeats is every seat this table can name (rounded + unrounded + "other") — so a test
@@ -90,7 +91,6 @@ var SeatClass = map[string]string{
 	"blue-respond":    "bulk",
 	"blue-synthesize": "judgment",
 	"red-chair":       "judgment",
-	"red-merge":       "judgment", // archived runs
 	"judge":           "judgment",
 	"judge-petition":  "judgment",
 	"judge-terminal":  "judgment",

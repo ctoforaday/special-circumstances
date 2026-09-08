@@ -25,7 +25,7 @@ import (
 // — so idempotence is checked per variable rather than over the whole prefix. An all-or-nothing
 // version passes this fuzz and ships a seat with no identity whenever it has a run directory.
 func FuzzInjectEnv(f *testing.F) {
-	f.Add(`cd /x && "/c/bin/feov-record" blue manifest-row --id R1-3`, `/runs/2026-08-05_smoke`, `agent_017a`)
+	f.Add(`cd /x && "/c/bin/feov-record" blue manifest-row --id G1`, `/runs/2026-08-05_smoke`, `agent_017a`)
 	f.Add(`feov-record verify`, `/runs/it's here`, `agent_01`)
 	f.Add(`grep -rn "feov-record" plugins/`, `/runs/x`, `agent_01`)
 	f.Add("cd /tmp\nfeov-record blue register", `/runs/x`, `agent_01`)

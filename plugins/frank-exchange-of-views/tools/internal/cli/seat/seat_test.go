@@ -39,7 +39,7 @@ func TestAReadHonoursTheInjectedRunLikeAWrite(t *testing.T) {
 
 // A DISAGREEING --seat-id IS REFUSED, which Of's own comment claimed Begin did and nothing did.
 //
-// Measured before the fix: with an identity injected, a call passing --seat-id blue-respond-r9
+// Measured before the fix: with an identity injected, a call passing --seat-id blue-respond
 // was accepted and filed under r9 — a seat no dispatch created, carrying its own register event
 // and its own shard. Attribution is the one fact a seat must not be able to get wrong: found_by,
 // estoppel and every parity check read it.
@@ -52,14 +52,14 @@ func TestBeginRefusesASeatIdThatContradictsTheDispatch(t *testing.T) {
 	run := recordtest.TmpRun(t)
 	t.Setenv(seatenv.Var, run)
 	t.Setenv(seatenv.AgentVar, "agent_01")
-	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, run), SeatID: "blue-respond-r1", Round: 1}, ""); err != nil {
+	if _, _, err := record.RegisterSeat(record.Identity{Run: runtest.Open(t, run), SeatID: "blue-respond"}, ""); err != nil {
 		t.Fatal(err)
 	}
 
 	c := &cobra.Command{Use: "friction"}
 	c.Flags().String(flags.Run, "", "")
 	c.Flags().String(flags.SeatID, "", "")
-	if err := c.Flags().Set(flags.SeatID, "blue-respond-r9"); err != nil {
+	if err := c.Flags().Set(flags.SeatID, "red-chair"); err != nil {
 		t.Fatal(err)
 	}
 	_, err := Begin(c)
@@ -67,13 +67,13 @@ func TestBeginRefusesASeatIdThatContradictsTheDispatch(t *testing.T) {
 		t.Fatal("a --seat-id contradicting the injected identity was accepted — the event files " +
 			"under a seat no dispatch ever created, and every attribution downstream is wrong")
 	}
-	if !strings.Contains(err.Error(), "blue-respond-r1") || !strings.Contains(err.Error(), "blue-respond-r9") {
+	if !strings.Contains(err.Error(), "blue-respond") || !strings.Contains(err.Error(), "blue-respond") {
 		t.Errorf("the refusal must name BOTH ids so the seat can see which is which: %v", err)
 	}
 
 	// And agreeing (or omitting) must still pass — a refusal that fires on the correct case
 	// would push seats straight back to typing the flag.
-	if err := c.Flags().Set(flags.SeatID, "blue-respond-r1"); err != nil {
+	if err := c.Flags().Set(flags.SeatID, "blue-respond"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Begin(c); err != nil {

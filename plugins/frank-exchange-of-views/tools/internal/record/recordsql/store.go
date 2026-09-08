@@ -447,8 +447,8 @@ func Insert(db *sql.DB, ev *recordpb.Event) (int64, error) {
 // moment two processes shared one.
 func InsertTx(tx *sql.Tx, ev *recordpb.Event) (int64, error) {
 	res, err := tx.Exec(
-		`INSERT INTO events (seat_id, round, ts, type, key) VALUES (?, ?, ?, ?, ?)`,
-		ev.GetSeatId(), ev.GetRound(), ev.GetTs(),
+		`INSERT INTO events (seat_id, ts, type, key) VALUES (?, ?, ?, ?)`,
+		ev.GetSeatId(), ev.GetTs(),
 		recordpb.Word(ev.GetType()), nullable(ev.GetKey()),
 	)
 	if err != nil {

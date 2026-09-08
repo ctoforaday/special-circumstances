@@ -18,6 +18,10 @@ import (
 // and their oracle read it in place of BoardState.
 func GapStates(run Run) ([]*Gap, error) {
 	evs, err := EventsOf(run,
+		// REGISTER IS NOT READ FOR ITS BODY. The fold's Clock counts chair registers to place each
+		// closure in its epoch, and a slice filtered to the body types would leave every closure
+		// in epoch 0 — silently, which is how the parity test found it.
+		recordpb.EventType_EVENT_TYPE_REGISTER,
 		recordpb.EventType_EVENT_TYPE_MINT,
 		recordpb.EventType_EVENT_TYPE_REGRADE,
 		recordpb.EventType_EVENT_TYPE_CLOSE,
@@ -47,7 +51,7 @@ func GapStates(run Run) ([]*Gap, error) {
 	if err != nil || db == nil {
 		return nil, err
 	}
-	rows, err := db.Query(`SELECT "gap_id", "minted_round", "open",
+	rows, err := db.Query(`SELECT "gap_id", "minted_epoch", "open",
 	    "current_severity", "current_likelihood", "current_impact", "current_complexity_cost"
 	  FROM "gap" ORDER BY "minted_event"`)
 	if err != nil {
@@ -64,7 +68,7 @@ func GapStates(run Run) ([]*Gap, error) {
 			return nil, err
 		}
 		g := &Gap{
-			ID: id, Round: round, Open: open, Mint: mints[id],
+			ID: id, Epoch: round, Open: open, Mint: mints[id],
 			Regrades:       regrades[id],
 			Severity:       gradeOrZero(sev),
 			Likelihood:     gradeOrZero(lik),
@@ -72,7 +76,7 @@ func GapStates(run Run) ([]*Gap, error) {
 			ComplexityCost: gradeOrZero(cx),
 		}
 		if c := closures[id]; c != nil && c.hasClosed {
-			g.HasClosed, g.ClosedRound, g.ClosedByBench = true, c.closedRound, c.closedByBench
+			g.HasClosed, g.ClosedEpoch, g.ClosedByBench = true, c.closedEpoch, c.closedByBench
 			g.Closure, g.BenchClosure = c.lastClose, c.lastBenchClosure
 		}
 		out = append(out, g)

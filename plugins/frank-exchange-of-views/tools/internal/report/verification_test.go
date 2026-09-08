@@ -16,12 +16,12 @@ import (
 func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
-			recordtest.Event(t, "red-chair-r1", 0, &recordpb.Register{}),
-			recordtest.Event(t, "red-chair-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
+			recordtest.Event(t, "red-chair", &recordpb.Register{}),
+			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
 		},
-		GapOrder: []string{"R1-1"},
+		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
-			"R1-1": {ID: "R1-1", Open: false, Closure: &recordpb.Close{ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED)}},
+			"G1": {ID: "G1", Open: false, Closure: &recordpb.Close{ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED)}},
 		},
 	}
 	got := recordVerification(b.fam())
@@ -53,17 +53,17 @@ func TestRecordVerificationRendersEveryInvariantWithItsStatus(t *testing.T) {
 func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
-			recordtest.Event(t, "red-chair-r1", 0, &recordpb.Register{}),
-			recordtest.Event(t, "red-chair-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
+			recordtest.Event(t, "red-chair", &recordpb.Register{}),
+			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_PASS)}),
 		},
-		GapOrder: []string{"R1-1"},
-		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
+		GapOrder: []string{"G1"},
+		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
 	}
 	got := recordVerification(b.fam())
 	if !strings.Contains(got, "**FAIL**") {
 		t.Errorf("a PASS over an open gap must render as FAIL:\n%s", got)
 	}
-	if !strings.Contains(got, "R1-1") {
+	if !strings.Contains(got, "G1") {
 		t.Errorf("the offender must be named, not merely counted:\n%s", got)
 	}
 	if !strings.Contains(got, "1 violated") {
@@ -80,11 +80,11 @@ func TestRecordVerificationNamesAViolationAndItsOffender(t *testing.T) {
 func TestRecordVerificationDistinguishesNotApplicableFromHeld(t *testing.T) {
 	b := &boardT{
 		Events: []*record.Event{
-			recordtest.Event(t, "red-chair-r1", 0, &recordpb.Register{}),
-			recordtest.Event(t, "red-chair-r1", 1, &recordpb.RoundVerdict{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
+			recordtest.Event(t, "red-chair", &recordpb.Register{}),
+			recordtest.Event(t, "red-chair", &recordpb.Gate{Verdict: recordtest.P(recordpb.Verdict_VERDICT_FAIL)}),
 		},
-		GapOrder: []string{"R1-1"},
-		Gaps:     map[string]*record.Gap{"R1-1": {ID: "R1-1", Open: true}},
+		GapOrder: []string{"G1"},
+		Gaps:     map[string]*record.Gap{"G1": {ID: "G1", Open: true}},
 	}
 	got := recordVerification(b.fam())
 	if !strings.Contains(got, "**n/a**") {

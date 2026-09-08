@@ -150,7 +150,7 @@ func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			runDir := newRun(t)
-			_, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: tc.id, Round: RoundIn(mustRun(t, runDir))(tc.id)}, "")
+			_, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: tc.id}, "")
 			if err == nil {
 				t.Fatalf("RegisterSeat accepted %q — the id becomes a FILENAME", tc.id)
 			}
@@ -172,11 +172,11 @@ func TestRegisterSeatRejectsMalformedSeatIDs(t *testing.T) {
 
 func TestRegisterSeatAcceptsTheEngineAssignedShapes(t *testing.T) {
 	for _, id := range []string{
-		"red-lens-r1-evidence", "red-chair-r12", "blue-lane-3", "blue-respond-r2", "blue-synthesize",
-		"frontier", "judge-r1", "judge-terminal", "judge-petition-red-chair-r1", "assemble", "operator",
+		"red-lens-evidence", "red-chair", "blue-lane-3", "blue-respond", "blue-synthesize",
+		"frontier", "judge", "judge-terminal", "judge-petition-red-chair", "assemble", "operator",
 	} {
 		runDir := newRun(t)
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: id, Round: RoundIn(mustRun(t, runDir))(id)}, ""); err != nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: id}, ""); err != nil {
 			t.Errorf("RegisterSeat(%q) = %v, want accepted", id, err)
 		}
 	}
@@ -193,14 +193,14 @@ func TestRegisterSeatRefusesAnIdNoDispatchProduces(t *testing.T) {
 		"a",                             // the old contract: any safe string
 		"red-lens-banana",               // the prefix guard's blind spot
 		"red-lens-r1",                   // a lens with no lens index
-		"red-lens-r1-evidence-oops",     // a real id with something appended
+		"red-lens-evidence-oops",        // a real id with something appended
 		"blue-r1",                       // invented, and it was live in three fixtures
 		"judge-petition",                // the bare pre-#394 form: one shard for every sitting
 		"judge-petition-judge-petition", // there is no sitting about a sitting
 		"Red-Merge-R1",                  // the right shape in the wrong case
 	} {
 		runDir := newRun(t)
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: id, Round: 1}, ""); err == nil {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: id}, ""); err == nil {
 			t.Errorf("RegisterSeat(%q) was accepted; it binds for the whole run and no dispatch created it", id)
 		}
 	}
@@ -335,7 +335,7 @@ func TestConcurrentWriteAtomicNeverPublishesAPartialFile(t *testing.T) {
 func TestReleaseHeldLocksIsSafeWhenNothingIsHeld(t *testing.T) {
 	releaseHeldLocks()
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
 		t.Fatal(err)
 	}
 	releaseHeldLocks()

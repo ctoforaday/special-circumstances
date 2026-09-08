@@ -103,7 +103,7 @@ func TestTopAndLeafAnswerDifferentQuestions(t *testing.T) {
 // NO HELP AT ALL IS ZERO WITH ZERO BLOCKS — distinguishable from a run whose listings were all
 // rejected, which is the whole reason Blocks and Rejected are both carried.
 func TestASeatThatNeverOpenedHelpIsDistinguishableFromOneWhoseListingsWereRejected(t *testing.T) {
-	got, err := ReadSeen(trajectory(t, resultLine(t, "ok, minted R1-1")), lensActs())
+	got, err := ReadSeen(trajectory(t, resultLine(t, "ok, minted G1")), lensActs())
 	if err != nil {
 		t.Fatal(err)
 	}

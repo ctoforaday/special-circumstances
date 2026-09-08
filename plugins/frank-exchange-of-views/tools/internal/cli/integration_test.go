@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordtest"
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/runtest"
@@ -37,7 +38,7 @@ func seatRunReport(t *testing.T, body string) string {
 	t.Helper()
 	t.Setenv("CLAUDE_PROJECT_DIR", recordtest.TmpRun(t))
 	runDir := newRun(t)
-	for _, id := range []string{"red-lens-r1-evidence", "red-chair-r1", "blue-respond-r1", "judge-r1"} {
+	for _, id := range []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"} {
 		if _, err := run(t, "register", "--run", runDir, "--seat-id", id); err != nil {
 			t.Fatalf("register %s: %v", id, err)
 		}
@@ -58,7 +59,10 @@ func seatRunReport(t *testing.T, body string) string {
 // exercise it passes its own quote.
 func mintGap(t *testing.T, runDir, key, class string) string {
 	t.Helper()
-	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	// The chair sits before it mints. Gap ids are R<epoch>-<n> and the epoch is the count of chair
+	// registers, so a mint with no chair on the record is R0-<n> — every caller here names R1-<n>.
+	registerChairOnce(t, runDir)
+	out, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", key, "--class", class, "--problem", "the defect", "--fix", "the fix",
 		"--check-kind", "document", "--check", "the acceptance check red runs at re-audit",
 		"--severity", "medium", "--likelihood", "medium", "--impact", "medium", "--complexity", "low")
@@ -74,7 +78,7 @@ func mintGap(t *testing.T, runDir, key, class string) string {
 
 // gapID pulls the tool-assigned id out of a mint's output.
 func gapID(out string) string {
-	return regexp.MustCompile(`R\d+-\d+`).FindString(out)
+	return regexp.MustCompile(`G\d+`).FindString(out)
 }
 
 // readProjection returns a markdown projection computed on read from the record via the
@@ -90,9 +94,9 @@ func readProjection(t *testing.T, runDir, name string) string {
 
 // THE INDICTMENT. A bench closure must be visible to red's board.
 //
-// The 2026-07-18 run's red-chair-r3 reported: "the verdict render reports 9 open, 9
+// The 2026-07-18 run's red-chair reported: "the verdict render reports 9 open, 9
 // closed against the hand-written board's 3 open / 15 closed. The difference is exactly
-// the six gaps judge-r2 closed." Bench dispositions lived in the judge's event stream and
+// the six gaps judge closed." Bench dispositions lived in the judge's event stream and
 // nothing carried them into red's projection, so the board over-reported open gaps by the
 // number of bench closures after every sitting and diverged further each round.
 //
@@ -119,7 +123,7 @@ func TestBenchClosureIsVisibleToRedsBoard(t *testing.T) {
 	// readers of one artifact disagreeing is the defect class this whole tool exists to
 	// remove; the tests do not get an exemption from it.
 	if gapIsOpen(t, runDir, id) {
-		t.Errorf("gap %s is STILL IN THE OPEN SET after the bench closed it — the defect red-chair-r3 reported, where the board over-reports open gaps by exactly the number of bench closures and diverges further every round", id)
+		t.Errorf("gap %s is STILL IN THE OPEN SET after the bench closed it — the defect red-chair reported, where the board over-reports open gaps by exactly the number of bench closures and diverges further every round", id)
 	}
 }
 
@@ -129,12 +133,12 @@ func TestGradeDisputeIsVisibleToBothSides(t *testing.T) {
 	runDir := seatRun(t)
 	id := mintGap(t, runDir, "disputed-grade", "grade-dispute-visibility")
 
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
 		"--id", id, "--dimension", "severity", "--proposed", "low",
 		"--reason", "the consequence is bounded by the caller's own validation"); err != nil {
 		t.Fatalf("motion grade file: %v", err)
 	}
-	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "motion", "grade", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "M1", "--as", "accepted",
 		"--reason", "the bound holds; regrading"); err != nil {
 		t.Fatalf("motion grade rule: %v", err)
@@ -166,7 +170,7 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 	if err := os.WriteFile(prose, []byte("re-read the cited source; the digits match the arm the claim names"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
 		"--id", id, "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "git show", "--verified-against", "7bc501e:report.md",
 		"--reason-file", prose); err != nil {
@@ -191,13 +195,13 @@ func TestClosureCarriesItsAnchorIntoTheRecord(t *testing.T) {
 // were invisible to the others, every cross-seat duty in the protocol would be unverifiable.
 func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 	runDir := seatRun(t)
-	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-r1-evidence",
+	if _, err := run(t, "finding", "--run", runDir, "--seat-id", "red-lens-evidence",
 		"--key", "F1", "--quote", "§2", "--reason", "a finding",
 		"--severity", "low", "--likelihood", "low", "--impact", "low"); err != nil {
 		t.Fatal(err)
 	}
 	mintGap(t, runDir, "shared-record", "one-record")
-	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond-r1",
+	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "blue-respond",
 		"--reason", "considered rewriting the parser", "--as", "declined",
 		"--reason", "the input grammar is not stable enough to justify it this round"); err != nil {
 		t.Logf("blue line of inquiry shape rejected: %v", err)
@@ -207,9 +211,30 @@ func TestAllFourSeatsWriteIntoOneReadableRecord(t *testing.T) {
 	for _, e := range events(t, runDir) {
 		seats[e.GetSeatId()] = true
 	}
-	for _, want := range []string{"red-lens-r1-evidence", "red-chair-r1"} {
+	for _, want := range []string{"red-lens-evidence", "red-chair"} {
 		if !seats[want] {
 			t.Errorf("%s wrote nothing readable into the shared record (saw %v)", want, seats)
 		}
+	}
+}
+
+// registerChairOnce makes sure red-chair has registered on this run — ONCE, whatever path did it.
+// Gap ids are R<epoch>-<n> and the epoch is the count of chair registers, so a helper that minted
+// with no chair on the record produced R0-<n>, and one that registered blindly on a run whose staged
+// board had already seated the chair opened epoch 2 and produced R2-<n>. Both are wrong, and every
+// caller here names R1-<n>. The record is asked, not a Go map: the map cannot see a register the
+// board builder wrote.
+func registerChairOnce(t *testing.T, runDir string) {
+	t.Helper()
+	m, err := record.MergedEvents(runtest.Open(t, runDir))
+	if err == nil {
+		for _, e := range m.Events {
+			if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER && e.GetSeatId() == "red-chair" {
+				return
+			}
+		}
+	}
+	if _, err := run(t, "register", "--run", runDir, "--seat-id", "red-chair"); err != nil {
+		t.Fatalf("register red-chair: %v", err)
 	}
 }

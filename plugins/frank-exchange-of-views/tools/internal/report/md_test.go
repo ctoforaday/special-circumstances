@@ -84,10 +84,10 @@ func TestMarkupInProseIsEscaped(t *testing.T) {
 // link to it. This is the join a seven-file markdown set cannot express.
 func TestRecordIdsLinkToTheirDefinition(t *testing.T) {
 	anchor := anchors{}
-	docket := mdToHTML("### R4-3 — the gap\n\nsomething\n", FileDocket, anchor)
-	report := mdToHTML("The board still carries R4-3 at close.\n", FileReport, anchor)
+	docket := mdToHTML("### G1 — the gap\n\nsomething\n", FileDocket, anchor)
+	report := mdToHTML("The board still carries G1 at close.\n", FileReport, anchor)
 
-	if anchor["R4-3"] == "" {
+	if anchor["G1"] == "" {
 		t.Fatalf("the defining heading did not register an anchor: %v", anchor)
 	}
 	linkedReport := linkIDs(report, anchor, FileReport)
@@ -105,8 +105,8 @@ func TestRecordIdsLinkToTheirDefinition(t *testing.T) {
 // An id inside a code span or an existing link is left ALONE — a blind replace over rendered
 // HTML rewrites hrefs and produces a document that links every id to itself.
 func TestIdsInsideCodeAndLinksAreNotRewritten(t *testing.T) {
-	anchor := anchors{"R1-1": "docket.md#r1-1"}
-	got := linkIDs("<p><code>grep R1-1</code> and <a href=\"x\">R1-1</a></p>", anchor, FileReport)
+	anchor := anchors{"G1": "docket.md#r1-1"}
+	got := linkIDs("<p><code>grep G1</code> and <a href=\"x\">G1</a></p>", anchor, FileReport)
 	if strings.Count(got, "idref") != 0 {
 		t.Errorf("an id was rewritten inside code or an existing link:\n%s", got)
 	}

@@ -16,7 +16,7 @@
 // BYTE-IDENTITY NOTES:
 //   - `+(x).toFixed(2)` (round to 2 decimals, then Number→string dropping trailing zeros) is
 //     jsToFixed2Num.
-//   - The two OBJECT-valued rows (lines_of_inquiry byStatus; citation_yield_by_round) render via
+//   - The two OBJECT-valued rows (lines_of_inquiry byStatus; citation_yield_by_epoch) render via
 //     JSON.stringify in INSERTION order; Go maps sort, so they are built as literal JSON strings
 //     (objJSON) preserving first-seen order — never marshaled from a map.
 package scorecard
@@ -96,7 +96,7 @@ func isZero(v any) bool {
 // ---- telemetry + journal reads ----
 
 // ReadTelemetry returns the board telemetry series, computed on read from the
-// record via the shared view library; nil when the run has no rounds. The series
+// record via the shared view library; nil when the run has no epochs. The series
 // is never materialized to disk — the record is the source.
 func ReadTelemetry(run record.Run) []*recordpb.TelemetryLine {
 	rows, err := view.Telemetry(run)
@@ -180,7 +180,7 @@ var citeRe = regexp.MustCompile(`(?i)lead|judge|direction|carried`)
 // ComputeDirectionUptake counts LEAD sittings and blue sections referencing the bench direction
 // — the pure kernel over the debate JSON (JS computeDirectionUptake).
 func ComputeDirectionUptake(dj record.DebateJSON) (leadSections, blueCitesLead int) {
-	for _, r := range dj.Rounds {
+	for _, r := range dj.Epochs {
 		if len(r.Lead) > 0 {
 			leadSections++
 		}
@@ -210,16 +210,18 @@ func citationYieldByRole(fam *record.Family) (objJSON, bool) {
 	return BucketFindingsByRole(record.FindingsJSONOf(fam.Events).Findings)
 }
 
-// BucketFindingsByRole buckets findings per round by lens role-kind (citation L1-4, logic L5,
-// darkside L6) with per-seat yield, and returns the JSON object value in JS INSERTION order, or
-// ("", false) when there are no lens findings. The pure kernel (JS bucketFindingsByRole).
+// BucketFindingsByRole buckets findings per EPOCH (chair sitting — the record has no round) by
+// lens role-kind (citation L1-4, logic L5, darkside L6) with per-seat yield, and returns the JSON
+// object value in insertion order, or ("", false) when there are no lens findings. The pure
+// kernel (JS bucketFindingsByRole). The split stays: the W2i retune trigger compares per-seat
+// yield across chair sittings, which is exactly what the epoch buckets.
 func BucketFindingsByRole(findings []record.FindingJSON) (objJSON, bool) {
 	type bucket struct {
 		citation, logic, darkside int
 		seenC, seenL, seenD       map[string]bool
 	}
 	var order []string
-	byRound := map[string]*bucket{}
+	byEpoch := map[string]*bucket{}
 	for _, f := range findings {
 		m := lNum.FindStringSubmatch(f.Role)
 		if m == nil {
@@ -229,12 +231,12 @@ func BucketFindingsByRole(findings []record.FindingJSON) (objJSON, bool) {
 		if roleNum == 0 {
 			continue
 		}
-		round := strconv.Itoa(f.Round)
-		b := byRound[round]
+		epoch := strconv.Itoa(f.Epoch)
+		b := byEpoch[epoch]
 		if b == nil {
 			b = &bucket{seenC: map[string]bool{}, seenL: map[string]bool{}, seenD: map[string]bool{}}
-			byRound[round] = b
-			order = append(order, round)
+			byEpoch[epoch] = b
+			order = append(order, epoch)
 		}
 		switch {
 		case roleNum <= 4:
@@ -259,13 +261,13 @@ func BucketFindingsByRole(findings []record.FindingJSON) (objJSON, bool) {
 	}
 	var sb strings.Builder
 	sb.WriteByte('{')
-	for i, round := range order {
+	for i, epoch := range order {
 		if i > 0 {
 			sb.WriteByte(',')
 		}
-		b := byRound[round]
+		b := byEpoch[epoch]
 		sc, sl, sd := len(b.seenC), len(b.seenL), len(b.seenD)
-		sb.WriteString(strconv.Quote(round))
+		sb.WriteString(strconv.Quote(epoch))
 		sb.WriteString(`:{"citation":`)
 		sb.WriteString(strconv.Itoa(b.citation))
 		sb.WriteString(`,"logic":`)
@@ -298,9 +300,9 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 	// repair_regression_ratio
 	var ratios []float64
 	for _, t := range telemetry {
-		// ABSENT RATIO IS NOT ZERO. A round that closed nothing has no ratio to report, and the
+		// ABSENT RATIO IS NOT ZERO. An epoch that closed nothing has no ratio to report, and the
 		// message says so by leaving the field unset — averaging a 0.0 in its place would report
-		// perfect repair durability for a round that repaired nothing. The map read this replaces
+		// perfect repair durability for an epoch that repaired nothing. The map read this replaces
 		// got the same answer by a weaker route: a missing key failed the type assertion.
 		if rr := t.GetRepairRegression(); rr != nil && rr.Ratio != nil {
 			ratios = append(ratios, rr.GetRatio())
@@ -315,7 +317,7 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 			Value: sum / float64(len(ratios)),
 			Joint: "reads WITH red rigour: a low ratio under a lax adversary means nothing"})
 	} else {
-		rows = append(rows, Row{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark", Note: "no telemetry rounds with closures"})
+		rows = append(rows, Row{Clause: "Durable repairs", Metric: "repair_regression_ratio", Cls: "benchmark", Note: "no telemetry epochs with closures"})
 	}
 
 	// manifest_coverage — COUNTED FROM THE RECORD (#318).
@@ -404,11 +406,11 @@ func blueRows(run record.Run, results []map[string]any, telemetry []*recordpb.Te
 		lost := int(math.Max(0, drop-float64(retires)))
 		rows = append(rows, Row{Clause: "LOSS: additive violations", Metric: "unrecorded_claim_loss", Cls: "detector",
 			Value: lost,
-			Note:  strconv.Itoa(int(drop)) + " claim(s) lost across rounds, " + strconv.Itoa(retires) + " retired on the record",
+			Note:  strconv.Itoa(int(drop)) + " claim(s) lost across envelopes, " + strconv.Itoa(retires) + " retired on the record",
 			Joint: "a fall the retire events do not account for is substance leaving silently — the failure the old prose-level rule was written to stop"})
 	} else {
 		rows = append(rows, Row{Clause: "LOSS: additive violations", Metric: "unrecorded_claim_loss", Cls: "detector",
-			Note: "needs at least two rounds reporting claim_count"})
+			Note: "needs at least two envelopes reporting claim_count"})
 	}
 
 	// The dropped_finding_markers and unbacked_citations detectors lived here — they compared the
@@ -549,27 +551,27 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 				flags++
 			}
 		}
-		// NO ROUNDS MEANS NO VALUE, NOT A VALUE OF ZERO — and this is the one line where the
+		// NO EPOCHS MEANS NO VALUE, NOT A VALUE OF ZERO — and this is the one line where the
 		// repair could most easily undo itself. A Row carrying both a Value and a Note renders
 		// the VALUE, so emitting `0` alongside "nothing was verdicted" would print a bare 0 and
 		// reproduce the defect being fixed, in a metric that now looks computed. A run with
-		// nothing adjudicated gets prose; only a run with rounds to judge gets a number.
+		// nothing adjudicated gets prose; only a run with epochs to judge gets a number.
 		r := Row{Clause: "Never-hard-fail", Metric: "convergence_vs_verdict_flags", Cls: "detector"}
 		if len(conv) == 0 {
-			r.Note = "no round has been verdicted on the record yet — the detector has nothing to judge"
+			r.Note = "no epoch has been verdicted on the record yet — the detector has nothing to judge"
 		} else {
 			r.Value = flags
 		}
 		rows = append(rows, r)
 	}
 
-	// citation_yield_by_round (object value)
+	// citation_yield_by_epoch (object value)
 	if yield, ok := citationYieldByRole(fam); ok {
-		rows = append(rows, Row{Clause: "Lens economics (W2i assumption)", Metric: "citation_yield_by_round", Cls: "diagnostic",
+		rows = append(rows, Row{Clause: "Lens economics (W2i assumption)", Metric: "citation_yield_by_epoch", Cls: "diagnostic",
 			Value: yield,
-			Joint: "RETUNE TRIGGER: compare PER_SEAT yield across rounds, never the raw count — W2i dispatches fewer citation lenses later, so a raw comparison scores the cut as the collapse that justified it. If per-seat citation yield holds while another role collapses, the cap is aimed at the wrong lens"})
+			Joint: "RETUNE TRIGGER: compare PER_SEAT yield across epochs, never the raw count — W2i dispatches fewer citation lenses later, so a raw comparison scores the cut as the collapse that justified it. If per-seat citation yield holds while another role collapses, the cap is aimed at the wrong lens"})
 	} else {
-		rows = append(rows, Row{Clause: "Lens economics (W2i assumption)", Metric: "citation_yield_by_round", Cls: "diagnostic",
+		rows = append(rows, Row{Clause: "Lens economics (W2i assumption)", Metric: "citation_yield_by_epoch", Cls: "diagnostic",
 			Note: "no findings on the record yet (or the tool binary was not passed) — per-role yield needs the findings view"})
 	}
 

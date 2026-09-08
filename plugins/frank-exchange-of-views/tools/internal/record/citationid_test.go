@@ -51,15 +51,15 @@ func TestCitationID_DistinctFromFindingID(t *testing.T) {
 // distinction depend on the absence of a field, so a blue cite written without a label silently
 // rejoined red's count. #341 makes it structural: two acts, two EVENT TYPES, nothing inferred.
 func TestCiteProvenanceIsTwoEventTypes(t *testing.T) {
-	authored := recordtest.Event(t, "", 0, &recordpb.Cite{Label: proto.String("c-abc"), Url: proto.String("https://x"), Title: proto.String("T")})
-	verified := recordtest.Event(t, "", 0, &recordpb.Verify{Claim: proto.String("c"), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH)})
+	authored := recordtest.Event(t, "", &recordpb.Cite{Label: proto.String("c-abc"), Url: proto.String("https://x"), Title: proto.String("T")})
+	verified := recordtest.Event(t, "", &recordpb.Verify{Claim: proto.String("c"), Confidence: recordtest.P(recordpb.Confidence_CONFIDENCE_HIGH)})
 
 	if authored.Type == verified.Type {
 		t.Fatal("blue authoring a citation and red verifying one must not share an event type — that sharing is what made the count inflatable")
 	}
 	// The discriminator must not be recoverable from a payload field: a blue cite MISSING its
 	// label must still be a blue cite, which is exactly the case the old heuristic got wrong.
-	unlabelled := recordtest.Event(t, "", 0, &recordpb.Cite{Url: proto.String("https://x")})
+	unlabelled := recordtest.Event(t, "", &recordpb.Cite{Url: proto.String("https://x")})
 	if unlabelled.GetType() != recordpb.EventType_EVENT_TYPE_CITE {
 		t.Error("a cite without a label is still a cite — provenance is the type, not a field's emptiness")
 	}

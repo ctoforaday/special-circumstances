@@ -22,7 +22,7 @@ import (
 // It CHECKPOINTS the whole records/ directory (the append-only event log) to a
 // mirror outside the run. The run directory is untracked-by-design until
 // capture, and the 2026-07-17 incident showed how a stray git operation can
-// delete a live blackboard mid-round; a mirror keyed by the run path means the
+// delete a live blackboard mid-sitting; a mirror keyed by the run path means the
 // events survive the working tree. Projections are regenerated on read from the
 // mirror, so the frozen snapshot is the source, not a materialized cache.
 func newVerdict() *cobra.Command {
@@ -34,14 +34,14 @@ func newVerdict() *cobra.Command {
 		v, ok := record.VerdictOf(seat.Str(cmd, flags.As))
 		if !ok {
 			// THE REFUSAL NAMES WHAT WOULD HAVE WORKED. `%q is not a verdict` tells a seat it
-			// was wrong and not what to type — and this is the terminal act of the round, so
+			// was wrong and not what to type — and this is the terminal act of the sitting, so
 			// a seat that cannot get past it has nowhere to go. The set is rendered from the
 			// same declaration the help renders, so the two cannot say different things.
 			return nil, feov.Errorf(feov.Validation,
-				"merge verdict: --%s must be one of %s (got %q) — the verdict is the round's terminal act and every later reader switches on it",
+				"merge verdict: --%s must be one of %s (got %q) — the verdict is the chair sitting's terminal act and every later reader switches on it",
 				flags.As, record.MustEnum("verdict", "verdict").Spelling(), seat.Str(cmd, flags.As))
 		}
-		if _, err := record.Append(s.Identity(), &recordpb.RoundVerdict{Verdict: &v}); err != nil {
+		if _, err := record.Append(s.Identity(), &recordpb.Gate{Verdict: &v}); err != nil {
 			return nil, err
 		}
 		open, closed, err := view.Counts(run)

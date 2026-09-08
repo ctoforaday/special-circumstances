@@ -23,9 +23,12 @@ import (
 func runWithMintAtR1AndCloseAtR2(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
+	// The epoch is COUNTED from the chair's registers (plans/roundless.md §III.A.0): the mint
+	// is in epoch 1 because one chair register precedes it, the close in epoch 2 because two do.
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:mint:R1-1", &recordpb.Mint{
-			GapId:           proto.String("R1-1"),
+		recordtest.At(t, "red-chair", "red-chair:register:1", &recordpb.Register{}),
+		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
+			GapId:           proto.String("G1"),
 			Problem:         proto.String("p"),
 			RequiredFix:     proto.String("f"),
 			AcceptanceCheck: proto.String("the check runs"),
@@ -35,10 +38,11 @@ func runWithMintAtR1AndCloseAtR2(t *testing.T) string {
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
-		recordtest.At(t, "red-chair-r2", 2, "red-chair-r2:close:R1-1", &recordpb.Close{
-			GapId:        proto.String("R1-1"),
+		recordtest.At(t, "red-chair", "red-chair:register:2", &recordpb.Register{}),
+		recordtest.At(t, "red-chair", "red-chair:close:G1", &recordpb.Close{
+			GapId:        proto.String("G1"),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
-			AnchorSeat:   proto.String("red-chair-r2"),
+			AnchorSeat:   proto.String("red-chair"),
 			AnchorTool:   proto.String("go test"),
 			AnchorTarget: proto.String("./..."),
 			Prose:        proto.String("verified at the leaf"),
@@ -47,35 +51,35 @@ func runWithMintAtR1AndCloseAtR2(t *testing.T) string {
 	return dir
 }
 
-func TestTheConvergedRoundGetsATelemetryRow(t *testing.T) {
+func TestTheConvergedEpochGetsATelemetryRow(t *testing.T) {
 	rows, err := Telemetry(runtest.Open(t, runWithMintAtR1AndCloseAtR2(t)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	seen := map[string]bool{}
 	for _, r := range rows {
-		if r.Round != nil {
-			seen[strconv.Itoa(int(r.GetRound()))] = true
+		if r.Epoch != nil {
+			seen[strconv.Itoa(int(r.GetEpoch()))] = true
 		}
 	}
 	for _, want := range []string{"1", "2"} {
 		if !seen[want] {
-			t.Errorf("round %s has no telemetry row (rows: %d, rounds seen: %v).\n\n"+
-				"Round 2 minted nothing and closed the run's only gap. A round missing from the "+
-				"series reads exactly like a round that never happened.", want, len(rows), seen)
+			t.Errorf("epoch %s has no telemetry row (rows: %d, epochs seen: %v).\n\n"+
+				"Epoch 2 minted nothing and closed the run's only gap. An epoch missing from the "+
+				"series reads exactly like an epoch that never happened.", want, len(rows), seen)
 		}
 	}
 }
 
 // AND THE CLOSURE IS ACTUALLY IN THE ROW, not merely a row with the right number on it — the
-// round existing and the round carrying its work are different claims.
-func TestTheConvergedRoundsClosureReachesItsRow(t *testing.T) {
+// epoch existing and the epoch carrying its work are different claims.
+func TestTheConvergedEpochsClosureReachesItsRow(t *testing.T) {
 	rows, err := Telemetry(runtest.Open(t, runWithMintAtR1AndCloseAtR2(t)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, r := range rows {
-		if r.Round == nil || r.GetRound() != 2 {
+		if r.Epoch == nil || r.GetEpoch() != 2 {
 			continue
 		}
 		// repair_regression.closures is the field, and it is the one that matters: scorecard's
@@ -84,14 +88,14 @@ func TestTheConvergedRoundsClosureReachesItsRow(t *testing.T) {
 		rr := r.GetRepairRegression()
 		ok := rr != nil
 		if !ok {
-			t.Fatalf("round 2's row carries no repair_regression block: %v", r)
+			t.Fatalf("epoch 2's row carries no repair_regression block: %v", r)
 		}
 		if rr.GetClosures() != 1 {
-			t.Errorf("round 2 closed the run's only gap; its row says closures=%v.\n\n"+
-				"A round present in the series but empty of its own work is the same silence one "+
+			t.Errorf("epoch 2 closed the run's only gap; its row says closures=%v.\n\n"+
+				"An epoch present in the series but empty of its own work is the same silence one "+
 				"level in.", rr.GetClosures())
 		}
 		return
 	}
-	t.Fatal("no row for round 2 at all")
+	t.Fatal("no row for epoch 2 at all")
 }

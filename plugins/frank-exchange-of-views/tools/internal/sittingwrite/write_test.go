@@ -47,8 +47,11 @@ func TestTheSpanIsAttributedToTheHookAndCarriesTheAgent(t *testing.T) {
 		if got := e.GetSittingOpen().GetAgentId(); got != "agent_42" {
 			t.Errorf("agent_id = %q, want agent_42 — this is the join key the seat is recovered by", got)
 		}
-		if e.GetRound() != -1 {
-			t.Errorf("round = %d, want -1 (UNKNOWN) — a hook fires outside any seat's round, and 0 is a real round", e.GetRound())
+		// NOTHING ABOUT AN EPOCH IS STAMPED HERE (plans/roundless.md §III.A.2). A hook that fires
+		// before any chair has sat is in epoch 0 — a real answer the record derives from its own
+		// registers, not a field this write has to get right. The clock reads it back:
+		if got := record.CurrentEpochOf(m.Events); got != 0 {
+			t.Errorf("epoch = %d, want 0 — no chair has registered, so this is the base epoch", got)
 		}
 		return
 	}

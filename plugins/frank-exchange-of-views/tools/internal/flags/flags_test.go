@@ -169,12 +169,12 @@ func TestCSVSet(t *testing.T) {
 		in   string
 		want []string
 	}{
-		{"single", "R1-2", []string{"R1-2"}},
-		{"several", "R1-2,R1-7,R2-1", []string{"R1-2", "R1-7", "R2-1"}},
-		{"surrounding space per item is trimmed", " R1-2 , R1-7 ", []string{"R1-2", "R1-7"}},
-		{"empty items are dropped, not recorded as \"\"", "R1-2,,R1-7", []string{"R1-2", "R1-7"}},
-		{"trailing comma", "R1-2,", []string{"R1-2"}},
-		{"leading comma", ",R1-2", []string{"R1-2"}},
+		{"single", "G1", []string{"G1"}},
+		{"several", "G1,G2,G3", []string{"G1", "G2", "G3"}},
+		{"surrounding space per item is trimmed", " G1 , G2 ", []string{"G1", "G2"}},
+		{"empty items are dropped, not recorded as \"\"", "G1,,G2", []string{"G1", "G2"}},
+		{"trailing comma", "G1,", []string{"G1"}},
+		{"leading comma", ",G1", []string{"G1"}},
 		{"the empty string yields no items", "", nil},
 		{"only separators yield no items", ",,,", nil},
 		{"only whitespace yields no items", "  ,  ", nil},

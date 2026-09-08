@@ -194,32 +194,32 @@ func LivenessAudit(run record.Run, now time.Time) Audit {
 	}
 }
 
-// TelemetryAudit checks one telemetry round per red round. redRounds comes from the debate view
-// (rounds with a red sitting), read in-process. Telemetry is now DERIVED from the record via the
+// TelemetryAudit checks one telemetry line per red epoch. redEpochs comes from the debate view
+// (epochs with a red section), read in-process. Telemetry is now DERIVED from the record via the
 // shared view library (never a materialized file), so it cannot be "absent": the check is whether
-// the derived series covers every red round. SKIP when there were no red rounds.
-func TelemetryAudit(run record.Run, redRounds int) Audit {
-	if redRounds == 0 {
-		return Audit{Check: "telemetry", Verdict: "SKIP", Detail: "the debate record shows 0 red round(s)"}
+// the derived series covers every red epoch. SKIP when there were no red epochs.
+func TelemetryAudit(run record.Run, redEpochs int) Audit {
+	if redEpochs == 0 {
+		return Audit{Check: "telemetry", Verdict: "SKIP", Detail: "the debate record shows 0 red epoch(s)"}
 	}
 	lines, err := view.Telemetry(run)
 	if err != nil {
 		return Audit{Check: "telemetry", Verdict: "FAIL", Detail: fmt.Sprintf("telemetry could not be computed from the record: %v", err)}
 	}
-	// A ROW WITHOUT A ROUND IS NOT COUNTED, and with the row typed that is now the only way to
+	// A ROW WITHOUT AN EPOCH IS NOT COUNTED, and with the row typed that is now the only way to
 	// miss: the field is optional in the schema, so presence is the question, and a key that was
 	// never written can no longer masquerade as one that was absent.
-	rounds := map[int32]bool{}
+	epochs := map[int32]bool{}
 	for _, j := range lines {
-		if j.Round != nil {
-			rounds[j.GetRound()] = true
+		if j.Epoch != nil {
+			epochs[j.GetEpoch()] = true
 		}
 	}
 	v := "FAIL"
-	if len(rounds) >= redRounds {
+	if len(epochs) >= redEpochs {
 		v = "PASS"
 	}
-	return Audit{Check: "telemetry", Verdict: v, Detail: fmt.Sprintf("%d telemetry round(s) vs %d red round(s) on the record", len(rounds), redRounds)}
+	return Audit{Check: "telemetry", Verdict: v, Detail: fmt.Sprintf("%d telemetry epoch(s) vs %d red epoch(s) on the record", len(epochs), redEpochs)}
 }
 
 // AUDIT 2 IS GONE: "shard self-report vs files".
@@ -727,28 +727,29 @@ func StrayRecordsAudit(repoRoot, runDir string) Audit {
 		Detail: "no event shards outside a run directory"}
 }
 
-// RecordParityAudit checks each red round has a blue sitting and a blue ROUND RECORD, floor
-// redRounds-1. redRounds/blueBlocks come from the debate view, read in-process.
+// RecordParityAudit checks each red epoch has a blue section and a blue REVISION, floor
+// redEpochs-1. redEpochs/blueBlocks come from the debate view, read in-process. An epoch is a
+// chair sitting (record.Clock): the count of red-chair registers at or before the event.
 //
-// THE ROUND RECORD IS COUNTED FROM `revision` EVENTS, not from headings in blue/CHANGELOG.md.
+// THE REVISION IS COUNTED FROM `revision` EVENTS, not from headings in blue/CHANGELOG.md.
 // The file is authored by hand while the event is emitted by the tool, so counting the file
 // audited the seat's typing rather than the record — and the two disagree: the 2026-08-05 run
 // carried a 6,847-byte CHANGELOG and exactly ONE revision event, from one of three eligible
 // blue seats. The old regex pair (`^#+.*Round \d+` then `Round (\d+)`) read the plausible
 // number and passed; the record shows the round records were never filed. See #268.
-func RecordParityAudit(run record.Run, redRounds, blueBlocks int) Audit {
-	if redRounds == 0 {
-		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no red rounds on record"}
+func RecordParityAudit(run record.Run, redEpochs, blueBlocks int) Audit {
+	if redEpochs == 0 {
+		return Audit{Check: "record-parity", Verdict: "SKIP", Detail: "no red epochs on record"}
 	}
-	clRounds := record.RoundsWithRevision(run)
-	ok := blueBlocks >= redRounds-1 && clRounds >= redRounds-1
+	revised := record.EpochsWithRevision(run)
+	ok := blueBlocks >= redEpochs-1 && revised >= redEpochs-1
 	v := "FAIL"
 	if ok {
 		v = "PASS"
 	}
 	return Audit{Check: "record-parity", Verdict: v,
-		Detail: fmt.Sprintf("%d red round(s) vs %d blue sitting(s) and %d recorded round record(s) (floor: redRounds-1 — a PASS exit has no final blue response)",
-			redRounds, blueBlocks, clRounds)}
+		Detail: fmt.Sprintf("%d red epoch(s) vs %d blue epoch(s) and %d epoch(s) with a revision (floor: redEpochs-1 — a PASS exit has no final blue response)",
+			redEpochs, blueBlocks, revised)}
 }
 
 // ---- AUDIT 7: back-fill ----
@@ -913,8 +914,8 @@ func AttestationAudit(run record.Run, transcriptDir string, agentFiles []string,
 		if g.Closure == nil {
 			continue
 		}
-		// A CARRIED closure attests nothing — it is last round's verification restated, and
-		// holding a seat to a tool call it never made this round is a false finding.
+		// A CARRIED closure attests nothing — it is an earlier sitting's verification restated,
+		// and holding a seat to a tool call it never made in this sitting is a false finding.
 		if g.Closure.GetCarriedFrom() != "" {
 			continue
 		}
@@ -1157,13 +1158,20 @@ func ModelTierAudit(run record.Run, transcriptDir string, agentFiles []string) A
 	if model == "" && judgmentModel == "" {
 		return Audit{Check: "model-tier", Verdict: "SKIP", Detail: "no run-config models (pre-#111 run)"}
 	}
+	// THE EPOCH COMES FROM THE RECORD, per transcript: the agent id in the file name joins to the
+	// register that named the seat, and the register's window says which chair sitting it sat
+	// in. Without it every sitting of a seat folds into epoch 0 and DedupTierFindings reports one
+	// finding for what may be several.
+	bindings, _ := cost.SeatBindings(run)
 	var rows []cost.Row
 	for _, f := range agentFiles {
 		b, err := os.ReadFile(filepath.Join(transcriptDir, f))
 		if err != nil {
 			continue
 		}
-		rows = append(rows, cost.ScanTranscript(string(b)))
+		row := cost.ScanTranscript(string(b))
+		row.Epoch = bindings[cost.AgentIDOfTranscript(f)].Epoch
+		rows = append(rows, row)
 	}
 	findings := cost.DedupTierFindings(cost.TierMismatch(rows, model, judgmentModel))
 	fails, warns := 0, 0
@@ -1739,13 +1747,13 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 	if f, ferr := record.FamilyOf(run); ferr == nil {
 		fam = &f
 	}
-	redRounds, blueBlocks := 0, 0
+	redEpochs, blueBlocks := 0, 0
 	onRecord := []record.LogEntryJSON{}
 	if fam != nil {
 		dj := record.DebateJSONOfEvents(fam.Events)
-		for _, r := range dj.Rounds {
+		for _, r := range dj.Epochs {
 			if len(r.Red) > 0 {
-				redRounds++
+				redEpochs++
 			}
 			if len(r.Blue) > 0 {
 				blueBlocks++
@@ -1761,13 +1769,13 @@ func Run(run record.Run, transcriptDir string, now time.Time) (audits []Audit, r
 
 	audits = []Audit{
 		LivenessAudit(run, now),
-		TelemetryAudit(run, redRounds),
+		TelemetryAudit(run, redEpochs),
 		LogAudit(run, friction, onRecord),
 		ContextUse(transcriptDir, agentFiles),
 		AssemblyScreen(run),
 		FootnoteIntegrity(run),
 		StrayRecordsAudit(repoRootOf(run), run.Dir()),
-		RecordParityAudit(run, redRounds, blueBlocks),
+		RecordParityAudit(run, redEpochs, blueBlocks),
 		BackfillAudit(run),
 		AttestationAudit(run, transcriptDir, agentFiles, 5),
 		ModelTierAudit(run, transcriptDir, agentFiles),

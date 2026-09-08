@@ -33,7 +33,7 @@ func TestJSONByNameMarkMatchesWhatTheBareViewEmits(t *testing.T) {
 	}
 
 	for _, view := range seat.ViewNames() {
-		out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair-r1", view)
+		out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", view)
 		if err != nil {
 			// A view this seat's role cannot open says nothing about the mark.
 			continue
@@ -62,7 +62,7 @@ func TestJSONByNameMarkMatchesWhatTheBareViewEmits(t *testing.T) {
 // `ok` gets a well-formed object carrying none of the projection's keys.
 func TestTheJSONByNameRefusalIsShapedLikeTheDataItIsNot(t *testing.T) {
 	runDir := seatRun(t)
-	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair-r1", "work", "--json")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "work", "--json")
 	if err == nil {
 		t.Fatal("show work --json must refuse ([[one-way-no-aliases]])")
 	}

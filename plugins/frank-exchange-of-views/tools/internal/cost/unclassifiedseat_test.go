@@ -17,7 +17,7 @@ import (
 // prompt-wording drift is spottable". The precedent is in that doc: cost-audit once lacked the
 // terminal-disposition case and misattributed that seat's spend.
 func TestAnUnidentifiableSeatIsReportedRatherThanSkipped(t *testing.T) {
-	rows := []Row{{Seat: "other", Round: 0, T: "opus", Turns: 12}}
+	rows := []Row{{Seat: "other", Epoch: 0, T: "opus", Turns: 12}}
 	findings := TierMismatch(rows, "haiku", "sonnet")
 	if len(findings) == 0 {
 		t.Fatal("an unidentifiable seat produced NO finding — its spend went unchecked and the run reads as fully audited")
@@ -37,7 +37,7 @@ func TestAnUnidentifiableSeatIsReportedRatherThanSkipped(t *testing.T) {
 // AND A CLASSIFIED SEAT ON ITS CONFIGURED TIER STILL PASSES SILENTLY, so the new finding cannot
 // turn every clean run into a warning.
 func TestAMatchingTierStillProducesNoFinding(t *testing.T) {
-	rows := []Row{{Seat: "red-lens", Round: 1, T: "haiku", Turns: 5}}
+	rows := []Row{{Seat: "red-lens", Epoch: 1, T: "haiku", Turns: 5}}
 	if got := TierMismatch(rows, "haiku", "sonnet"); len(got) != 0 {
 		t.Errorf("a bulk seat on the configured bulk tier produced %d finding(s), want 0: %+v", len(got), got)
 	}

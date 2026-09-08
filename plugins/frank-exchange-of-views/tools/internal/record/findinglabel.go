@@ -6,19 +6,17 @@ import (
 	"regexp"
 )
 
-// A lens role segment in a seat id: "red-lens-r3-adversary" -> "L2". The role is the
-// stable identity of a lens across rounds — its AREA, which names what it audits — so a finding
+// A lens role segment in a seat id: "red-lens-adversary" -> "adversary". The role is the
+// stable identity of a lens across sittings — its AREA, which names what it audits — so a finding
 // label built from it stays comparable run-wide.
 //
-// TWO SHAPES, AND BOTH MUST READ. A live seat id carries the area name (`red-lens-r3-adversary`).
-// Records already on disk carry the numeric form the roster used while lenses were positions
-// rather than areas (`red-lens-r3-adversary`, labelled `L2-F1`), and those must keep rendering — a record
-// is permanent. The two cannot collide, because a number and a name are different shapes, which is
-// why the migration needs no renumbering and burns nothing.
-var roleRe = regexp.MustCompile(`-(L\d+|[a-z]+(?:-[a-z]+)*)$`)
+// ONE SHAPE. Records written while lenses were numbered positions (`red-lens-r3-L2`, labelled
+// `L2-F1`) are MIGRATED to this shape (migrate/remap.go, plans/roundless.md §III.A.5) and never
+// read live, so there is no second arm here for them.
+var roleRe = regexp.MustCompile(`^red-lens-([a-z]+(?:-[a-z]+)*)$`)
 
-// RoleOf extracts a lens role from a seat id ("red-lens-r3-adversary" -> "adversary", and the
-// archived "red-lens-r3-adversary" -> "L2"); empty if the seat id carries no role segment.
+// RoleOf extracts a lens role from a seat id ("red-lens-adversary" -> "adversary"); empty if the
+// seat id carries no role segment.
 func RoleOf(seatID string) string {
 	m := roleRe.FindStringSubmatch(seatID)
 	if m == nil {
@@ -36,7 +34,7 @@ func RoleOf(seatID string) string {
 func NextFindingLabel(run Run, seatID string) (string, error) {
 	role := RoleOf(seatID)
 	if role == "" {
-		return "", fmt.Errorf("finding label: seat id %q carries no lens role (expected …-L<n>)", seatID)
+		return "", fmt.Errorf("finding label: seat id %q carries no lens role (expected red-lens-<area>)", seatID)
 	}
 	// substr, not LIKE: a prefix compared byte-for-byte cannot be surprised by a metacharacter
 	// the way a pattern could, and HasPrefix was a byte compare.

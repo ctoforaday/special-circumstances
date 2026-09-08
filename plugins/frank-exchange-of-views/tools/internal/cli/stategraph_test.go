@@ -80,7 +80,7 @@ type entityProbe struct {
 
 // probeSeats are the seats each act is attempted under. Every role that can touch an entity is
 // here, because an act refused by one seat and allowed by another is allowed.
-var probeSeats = []string{"red-lens-r1-evidence", "red-chair-r1", "blue-respond-r1", "judge-r1"}
+var probeSeats = []string{"red-lens-evidence", "red-chair", "blue-respond", "judge"}
 
 // probeReason is what an ATTEMPTED act says, as distinct from what the SETUP said.
 //
@@ -236,7 +236,7 @@ func gapMint() probeAct {
 }
 
 func gapProbe(t *testing.T) entityProbe {
-	close := probeAct{"close", []string{"close", "--id", "R1-1", "--as", "repaired",
+	close := probeAct{"close", []string{"close", "--id", "G1", "--as", "repaired",
 		"--verified-by", "L1", "--verified-with", "go test", "--verified-against", "./x",
 		"--reason", "closed on the merits"}}
 	// THE BENCH CLOSES TOO, and by a different verb writing a different message: `close` writes a
@@ -244,7 +244,7 @@ func gapProbe(t *testing.T) entityProbe {
 	// both because "closed" arrives as one of two shapes. A gap probe that drove only the merge's
 	// verb would report a lifecycle with one exit where the record has two.
 	opinionArgs := func(as string) []string {
-		return []string{"opinion", "--id", "R1-1", "--as", as,
+		return []string{"opinion", "--id", "G1", "--as", as,
 			"--principle", "correctness first", "--tension", "correctness vs economy",
 			"--review-flag", "no", "--settled", "the grading stands as recorded",
 			"--reopens-on", "a reproduction on a clean tree",
@@ -258,14 +258,14 @@ func gapProbe(t *testing.T) entityProbe {
 			"--reason-file", writeTemp(t, "the rationale")}
 	}
 	return entityProbe{
-		name: "gap", id: "R1-1",
+		name: "gap", id: "G1",
 		states: []string{"unminted", "open", "closed"},
 		acts: []probeAct{
 			gapMint(),
 			close,
-			{"regrade", []string{"regrade", "--id", "R1-1", "--severity", "medium",
+			{"regrade", []string{"regrade", "--id", "G1", "--severity", "medium",
 				"--reason", "the consequence is narrower than first graded"}},
-			{"carry", []string{"carry", "--id", "R1-1", "--carried-from", "0", "--as", "repaired",
+			{"carry", []string{"carry", "--id", "G1", "--carried-from", "0", "--as", "repaired",
 				"--reason", "carried from the prior round"}},
 			{"opinion:carried", opinionArgs("carried")},
 			{"opinion:not_a_defect", opinionArgs("not_a_defect")},
@@ -273,7 +273,7 @@ func gapProbe(t *testing.T) entityProbe {
 			// the point: `carried` defers and leaves the gap OPEN, anything else ends it. A probe
 			// that drove only the closing word would report a lifecycle whose defer state the
 			// record can reach and the graph cannot see.
-			{"motion docket file", []string{"motion", "docket", "file", "--id", "R1-1",
+			{"motion docket file", []string{"motion", "docket", "file", "--id", "G1",
 				"--reason", "contested and not mine to close"}},
 			{"motion docket rule:carried", docketRuleArgs("carried")},
 			{"motion docket rule:not_a_defect", docketRuleArgs("not_a_defect")},
@@ -294,7 +294,7 @@ func gapProbe(t *testing.T) entityProbe {
 		},
 		read: func(t *testing.T, runDir string) string {
 			t.Helper()
-			g := gapOf(t, runDir, "R1-1")
+			g := gapOf(t, runDir, "G1")
 			switch {
 			case g == nil:
 				return "unminted"
@@ -306,7 +306,7 @@ func gapProbe(t *testing.T) entityProbe {
 		},
 		fields: func(t *testing.T, runDir string) map[string]string {
 			t.Helper()
-			g := gapOf(t, runDir, "R1-1")
+			g := gapOf(t, runDir, "G1")
 			if g == nil {
 				return map[string]string{}
 			}
@@ -467,7 +467,7 @@ func motionOf(t *testing.T, runDir, id string) *record.Motion {
 
 func gradeMotionProbe() entityProbe {
 	return motionProbe("grade", "M1", []probeAct{gapMint()}, []probeAct{
-		{"file", []string{"motion", "grade", "file", "--id", "R1-1", "--dimension", "severity",
+		{"file", []string{"motion", "grade", "file", "--id", "G1", "--dimension", "severity",
 			"--proposed", "low", "--reason", "the consequence is bounded by the caller's own validation"}},
 		{"rule", []string{"motion", "grade", "rule", "--id", "M1", "--as", "rejected",
 			"--reason", "the evidence does not reach it"}},

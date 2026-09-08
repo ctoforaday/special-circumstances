@@ -19,7 +19,7 @@ func writeScript(t *testing.T, runDir, name, body string) {
 //
 // Across six recorded runs no seat ever wrote a program to settle a question, and the
 // 2026-08-05 smoke shows why: it was never the invitation that was missing, it was the ASK.
-// All TEN of red's acceptance checks were document probes — R1-1 was literally "execute the
+// All TEN of red's acceptance checks were document probes — G1 was literally "execute the
 // assembly step" — so red could only ever ask whether the report SAYS something. Meanwhile
 // blue/frontier.md stated the divisor enumeration in executable terms and blue ran it zero
 // times.
@@ -29,7 +29,8 @@ func writeScript(t *testing.T, runDir, name, body string) {
 
 func mintComputation(t *testing.T, runDir, key string) {
 	t.Helper()
-	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	registerChairOnce(t, runDir) // the chair sits before it mints; ids are R<epoch>-<n>
+	if _, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", key, "--class", "unverified-arithmetic",
 		"--problem", "the primality claim is asserted, not computed",
 		"--check-kind", "computation", "--check", "trial division over 2..6 returns no divisor",
@@ -39,15 +40,15 @@ func mintComputation(t *testing.T, runDir, key string) {
 }
 
 // A computation check cannot be closed on prose. This is the round the smoke actually spent:
-// R1-2 asked blue to test a false claim, blue ASSERTED the test had happened, and red's R2-2
+// G1 asked blue to test a false claim, blue ASSERTED the test had happened, and red's G2
 // correctly refused it — a full round for something three lines settle.
 func TestAComputationCheckCannotBeClosedWithoutAProof(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintComputation(t, runDir, "G1")
 
-	_, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r2",
-		"--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
+	_, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
 		"--verified-against", "blue/report.md", "--reason", "blue says it checked; looks right to me")
 	if err == nil {
 		t.Fatal("a computation gap closed with no proof — red accepted the one kind of evidence it declared insufficient")
@@ -67,13 +68,13 @@ func TestAProofAnsweringTheGapClosesIt(t *testing.T) {
 	mintComputation(t, runDir, "G1")
 	writeScript(t, runDir, "seven.js", "console.log([2,3,4,5,6].filter(n=>7%n===0).length===0);")
 
-	if _, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--quote", "Seven is prime.", "--script", "seven.js", "--answers", "R1-1",
+	if _, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond",
+		"--quote", "Seven is prime.", "--script", "seven.js", "--answers", "G1",
 		"--reason", "trial division settles it"); err != nil {
 		t.Fatalf("prove refused: %v", err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r2",
-		"--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "lens reproduce",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "lens reproduce",
 		"--verified-against", "proofs/", "--reason", "re-ran the proof; same bytes"); err != nil {
 		t.Fatalf("a proved computation gap would not close: %v", err)
 	}
@@ -89,15 +90,15 @@ func TestAProofForAnotherGapDoesNotClose(t *testing.T) {
 	mintComputation(t, runDir, "G2")
 	writeScript(t, runDir, "nine.js", "console.log(9%3===0);")
 
-	if _, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--quote", "Nine is composite.", "--script", "nine.js", "--answers", "R1-2",
+	if _, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond",
+		"--quote", "Nine is composite.", "--script", "nine.js", "--answers", "G2",
 		"--reason", "settles the second claim"); err != nil {
 		t.Fatalf("prove refused: %v", err)
 	}
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r2",
-		"--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
 		"--verified-against", "x", "--reason", "there is a proof in this run"); err == nil {
-		t.Error("a proof answering R1-2 closed R1-1 — the --answers join is not being read")
+		t.Error("a proof answering G2 closed G1 — the --answers join is not being read")
 	}
 }
 
@@ -108,8 +109,8 @@ func TestADocumentCheckStillClosesOnProse(t *testing.T) {
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
 	mintGap(t, runDir, "G1", "overclaim")
 
-	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair-r2",
-		"--id", "R1-1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
+	if _, err := run(t, "close", "--run", runDir, "--seat-id", "red-chair",
+		"--id", "G1", "--as", "repaired", "--verified-by", "L1", "--verified-with", "read",
 		"--verified-against", "blue/report.md", "--reason", "the section no longer claims it"); err != nil {
 		t.Fatalf("a document check was blocked by the computation guard: %v", err)
 	}
@@ -123,8 +124,8 @@ func TestProveRefusesAnUnknownGap(t *testing.T) {
 	mintComputation(t, runDir, "G1")
 	writeScript(t, runDir, "seven.js", "console.log(true);")
 
-	if _, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--quote", "Seven is prime.", "--script", "seven.js", "--answers", "R9-9",
+	if _, err := run(t, "prove", "--run", runDir, "--seat-id", "blue-respond",
+		"--quote", "Seven is prime.", "--script", "seven.js", "--answers", "G99",
 		"--reason", "x"); err == nil {
 		t.Error("prove --answers accepted a gap no mint created")
 	}
@@ -135,7 +136,7 @@ func TestProveRefusesAnUnknownGap(t *testing.T) {
 func TestCheckKindIsEnforcedAsAnEnum(t *testing.T) {
 	runDir := newRun(t)
 	writeReport(t, runDir, "# H\n\nSeven is prime.\n")
-	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair-r1",
+	_, err := run(t, "mint", "--run", runDir, "--seat-id", "red-chair",
 		"--key", "G1", "--class", "x",
 		"--problem", "p",
 		"--check-kind", "compute", "--check", "c",

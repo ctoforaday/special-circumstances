@@ -248,7 +248,8 @@ type Motion struct {
 	ID      string
 	Subject string
 	Filer   string
-	Round   int
+	Epoch   int
+	Sitting int    // the filer's sitting ordinal, for a reader that names the filer beside it
 	Basis   string // the ask, in the filer's words
 	Relief  string // what the filer wants, stated so a seat can act on it without the argument
 
@@ -264,10 +265,11 @@ type Motion struct {
 	// and the compiler names the arm that was forgotten.
 	GapID string
 
-	Ruling      string
-	RulingBy    string
-	RulingRound int
-	Opinion     string
+	Ruling        string
+	RulingBy      string
+	RulingEpoch   int
+	RulingSitting int
+	Opinion       string
 
 	// Appeal is the filer pressing on after a ruling — blue pursuing a direction ruled
 	// out-of-scope, or re-disputing a rejected grade. `contests_ruling` was a bespoke field on
@@ -293,7 +295,8 @@ func MotionsOf(evs []*Event) []*Motion {
 	// not a motion (see the motion-rule arm).
 	type proposal struct {
 		filer, basis string
-		round        int
+		epoch        int
+		sitting      int
 	}
 	proposals := map[string]proposal{}
 
@@ -312,7 +315,9 @@ func MotionsOf(evs []*Event) []*Motion {
 	// rules it, so the two live in different shards and the ruling can replay first. Gathered
 	// inside pass 1 this map was read before it was filled, and a direction motion came out with
 	// no filer, no round and no ask — rendering as an answer to a question nobody asked.
+	var clk Clock
 	for _, e := range evs {
+		w := clk.Advance(e)
 		av, ok := recordpb.BodyAs[*recordpb.Avenue](e)
 		// A MOVE IS NOT A PROPOSAL, and the discriminator is PRESENCE. The schema states
 		// `supersedes_status` marks the event as a move, so a proposal does not carry the field at
@@ -322,11 +327,13 @@ func MotionsOf(evs []*Event) []*Motion {
 			continue
 		}
 		if a := av.GetAvenueId(); a != "" {
-			proposals[a] = proposal{filer: e.GetSeatId(), basis: av.GetLine(), round: int(e.GetRound())}
+			proposals[a] = proposal{filer: e.GetSeatId(), basis: av.GetLine(), epoch: w.Epoch, sitting: w.Sitting}
 		}
 	}
 
+	clk = Clock{}
 	for _, e := range evs {
+		w := clk.Advance(e)
 		body, ok := recordpb.Body(e)
 		if !ok {
 			// No body at all. Not an empty motion — an event this pass has nothing to read, and
@@ -347,7 +354,7 @@ func MotionsOf(evs []*Event) []*Motion {
 				byID[id] = m
 				order = append(order, id)
 			}
-			m.Subject, m.Filer, m.Round = motionSubjectWord(f.GetSubject()), e.GetSeatId(), int(e.GetRound())
+			m.Subject, m.Filer, m.Epoch, m.Sitting = motionSubjectWord(f.GetSubject()), e.GetSeatId(), w.Epoch, w.Sitting
 			m.Basis, m.Relief = f.GetBasis(), f.GetRelief()
 			// THE SUBJECT-SPECIFIC FIELDS COME OFF THE SUBJECT'S OWN MESSAGE, which is what the
 			// `filing` oneof buys: a grade motion cannot carry a petition's `class`, so the loop
@@ -420,7 +427,7 @@ func MotionsOf(evs []*Event) []*Motion {
 				// rather than a second model.
 				m := &Motion{ID: id, Subject: "inquiry", Fields: map[string]string{"inquiry_id": id}}
 				if p, ok := proposals[id]; ok {
-					m.Filer, m.Round, m.Basis = p.filer, p.round, p.basis
+					m.Filer, m.Epoch, m.Sitting, m.Basis = p.filer, p.epoch, p.sitting, p.basis
 				}
 				byID[id] = m
 				order = append(order, id)
@@ -435,7 +442,9 @@ func MotionsOf(evs []*Event) []*Motion {
 	// identifies what it is about — no gap id, no avenue id — so this lookup IS the attribution.
 	// Reading a ruling's subject matter from the ruling event alone would key every one of them on
 	// the empty string and report a board with no rulings on it.
+	clk = Clock{}
 	for _, e := range evs {
+		w := clk.Advance(e)
 		id, ok := motionIDOf(e)
 		if !ok || id == "" {
 			continue
@@ -450,7 +459,7 @@ func MotionsOf(evs []*Event) []*Motion {
 		}
 		switch f := body.(type) {
 		case *recordpb.MotionRule:
-			m.Ruling, m.RulingBy, m.RulingRound = motionRulingWord(f), e.GetSeatId(), int(e.GetRound())
+			m.Ruling, m.RulingBy, m.RulingEpoch, m.RulingSitting = motionRulingWord(f), e.GetSeatId(), w.Epoch, w.Sitting
 			m.Opinion = f.GetOpinion()
 		case *recordpb.MotionAppeal:
 			m.Appealed, m.AppealReason = true, f.GetReason()

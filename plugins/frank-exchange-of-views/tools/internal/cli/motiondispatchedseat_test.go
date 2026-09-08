@@ -33,7 +33,7 @@ func TestAMotionRequiresASeatTheEngineCreated(t *testing.T) {
 	}
 
 	_, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "totally-invented",
-		"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "an invented identity")
+		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "an invented identity")
 	if err == nil {
 		t.Fatal("a motion filed under an invented seat id was ACCEPTED — it is rendered in the report, ruled on, and joined to a gap, under an identity no dispatch created")
 	}
@@ -44,8 +44,8 @@ func TestAMotionRequiresASeatTheEngineCreated(t *testing.T) {
 	// AND THE LEGITIMATE PATH IS UNTOUCHED. A guard that also refused real filings would be
 	// caught by the suite, but the point of the asymmetry is that ANY seat may file — so blue
 	// filing a grade motion must still work, and that is the half worth asserting here.
-	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond-r1",
-		"--id", "R1-1", "--dimension", "severity", "--proposed", "low", "--reason", "a real filing"); err != nil {
+	if _, err := run(t, "motion", "grade", "file", "--run", runDir, "--seat-id", "blue-respond",
+		"--id", "G1", "--dimension", "severity", "--proposed", "low", "--reason", "a real filing"); err != nil {
 		t.Fatalf("blue could not file a grade motion: %v", err)
 	}
 }

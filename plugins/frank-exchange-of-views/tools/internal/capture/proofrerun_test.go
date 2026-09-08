@@ -36,7 +36,7 @@ func seedProofEvents(t *testing.T, runDir string, rs ...*proof.Result) {
 	t.Helper()
 	var evs []*recordpb.Event
 	for i, r := range rs {
-		evs = append(evs, recordtest.At(t, "blue-lane-1", 1, "blue-lane-1:proof:#"+itoa(i+1),
+		evs = append(evs, recordtest.At(t, "blue-lane-1", "blue-lane-1:proof:#"+itoa(i+1),
 			&recordpb.Proof{
 				ProofSha:   proto.String(r.SHA),
 				ProofBasis: proto.String(r.Basis),
@@ -164,7 +164,7 @@ func TestProofRerunSamplesTheUnauditedFirstAndSaysHowManyItRan(t *testing.T) {
 	}
 	seedProofEvents(t, run, rs...)
 	// One of them has been re-run by a seat already; it must be sampled LAST.
-	recordtest.Seed(t, run, recordtest.At(t, "red-lens-r1-evidence", 1, "red-lens-r1-evidence:reproduce:#1",
+	recordtest.Seed(t, run, recordtest.At(t, "red-lens-evidence", "red-lens-evidence:reproduce:#1",
 		&recordpb.Reproduce{ProofSha: proto.String(rs[0].SHA), Reproduced: proto.Bool(true)}))
 
 	got := ProofRerunAudit(runtest.Open(t, run), 2)

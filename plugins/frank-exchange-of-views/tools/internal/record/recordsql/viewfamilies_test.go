@@ -2,7 +2,6 @@ package recordsql
 
 import (
 	"database/sql"
-	"fmt"
 	"testing"
 
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordpb"
@@ -35,19 +34,19 @@ func mintRow(t *testing.T, db *sql.DB, ord int32, id string, kind recordpb.Check
 
 func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 	db := store(t)
-	mintRow(t, db, 0, "R1-1", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
-	mintRow(t, db, 1, "R1-2", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "R1-1")
-	mintRow(t, db, 2, "R1-3", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
-	// Two regrades on R1-1: impact moves twice (the LATEST wins), severity never touched
+	mintRow(t, db, 0, "G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
+	mintRow(t, db, 1, "G2", recordpb.CheckKind_CHECK_KIND_DOCUMENT, "G1")
+	mintRow(t, db, 2, "G3", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
+	// Two regrades on G1: impact moves twice (the LATEST wins), severity never touched
 	// (the mint's answer stands — here the mint carried none, so NULL stands).
 	for i, g := range []recordpb.Grade{recordpb.Grade_GRADE_HIGH, recordpb.Grade_GRADE_LOW} {
 		if _, err := Insert(db, event(t, int32(3+i), recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{
-			GapId: proto.String("R1-1"), Impact: g.Enum(), Basis: proto.String("moved")})); err != nil {
+			GapId: proto.String("G1"), Impact: g.Enum(), Basis: proto.String("moved")})); err != nil {
 			t.Fatal(err)
 		}
 	}
 	if _, err := Insert(db, event(t, 5, recordpb.EventType_EVENT_TYPE_PROOF, &recordpb.Proof{
-		Answers: proto.String("R1-3"), Text: proto.String("t"), Script: proto.String("s"), Exit: proto.Int32(0)})); err != nil {
+		Answers: proto.String("G3"), Text: proto.String("t"), Script: proto.String("s"), Exit: proto.Int32(0)})); err != nil {
 		t.Fatal(err)
 	}
 
@@ -68,7 +67,7 @@ func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 		return r
 	}
 
-	r1 := read("R1-1")
+	r1 := read("G1")
 	if r1.curImpact.String != "low" {
 		t.Errorf("current_impact = %q, want the LATEST regrade's word", r1.curImpact.String)
 	}
@@ -76,36 +75,36 @@ func TestTheGapViewAnswersTheGapFamilyAtOnce(t *testing.T) {
 		t.Errorf("current_likelihood = %q, want the mint's grade on an axis no regrade touched", r1.curLik.String)
 	}
 	if r1.proofAnswered || !r1.awaiting {
-		t.Errorf("R1-1 = (proof_answered=%v, awaiting=%v): an open computation gap with no proof is the debt", r1.proofAnswered, r1.awaiting)
+		t.Errorf("G1 = (proof_answered=%v, awaiting=%v): an open computation gap with no proof is the debt", r1.proofAnswered, r1.awaiting)
 	}
-	if r1.supersededBy.String != "R1-2" || !r1.stranded {
-		t.Errorf("R1-1 = (superseded_by=%q, stranded=%v): an open superseded ancestor is a broken promise", r1.supersededBy.String, r1.stranded)
+	if r1.supersededBy.String != "G2" || !r1.stranded {
+		t.Errorf("G1 = (superseded_by=%q, stranded=%v): an open superseded ancestor is a broken promise", r1.supersededBy.String, r1.stranded)
 	}
-	r3 := read("R1-3")
+	r3 := read("G3")
 	if !r3.proofAnswered || r3.awaiting {
-		t.Errorf("R1-3 = (proof_answered=%v, awaiting=%v): the recorded proof discharges the debt", r3.proofAnswered, r3.awaiting)
+		t.Errorf("G3 = (proof_answered=%v, awaiting=%v): the recorded proof discharges the debt", r3.proofAnswered, r3.awaiting)
 	}
-	if r2 := read("R1-2"); r2.awaiting {
+	if r2 := read("G2"); r2.awaiting {
 		t.Error("a document-check gap can never be awaiting proof")
 	}
 
 	// Closing the stranded ancestor keeps the lineage and drops the accusation.
 	if _, err := Insert(db, event(t, 6, recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{
-		GapId: proto.String("R1-1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
+		GapId: proto.String("G1"), ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
 		Prose: proto.String("closed")})); err != nil {
 		t.Fatal(err)
 	}
-	if r := read("R1-1"); r.stranded || r.awaiting {
+	if r := read("G1"); r.stranded || r.awaiting {
 		t.Errorf("after close: (stranded=%v, awaiting=%v) — a closed gap owes nothing", r.stranded, r.awaiting)
 	}
 }
 
 func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 	db := store(t)
-	mintRow(t, db, 0, "R1-1", recordpb.CheckKind_CHECK_KIND_DOCUMENT)
+	mintRow(t, db, 0, "G1", recordpb.CheckKind_CHECK_KIND_DOCUMENT)
 	if _, err := Insert(db, event(t, 1, recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 		MotionId: proto.String("M-1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
-		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("R1-1")}}})); err != nil {
+		Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{GapId: proto.String("G1")}}})); err != nil {
 		t.Fatal(err)
 	}
 	// TWO rulings — the state the write guard refuses and a legacy record can still hold.
@@ -113,7 +112,7 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 		ev := event(t, int32(2+i), recordpb.EventType_EVENT_TYPE_MOTION_RULE, &recordpb.MotionRule{
 			MotionId: proto.String("M-1"), Subject: recordpb.MotionSubject_MOTION_SUBJECT_GRADE.Enum(),
 			Opinion: proto.String("o"), Ruling: &recordpb.MotionRule_Grade{Grade: r}})
-		ev.SeatId = proto.String(fmt.Sprintf("judge-r%d", i+1))
+		ev.SeatId = proto.String("judge") // one bench, ruling twice — the second must not overturn the first
 		if _, err := Insert(db, ev); err != nil {
 			t.Fatal(err)
 		}
@@ -130,7 +129,7 @@ func TestMotionAnswersStatesFirstWinsOnce(t *testing.T) {
 		Scan(&ruling, &by); err != nil {
 		t.Fatal(err)
 	}
-	if ruling != "rejected" || by != "judge-r1" {
+	if ruling != "rejected" || by != "judge" {
 		t.Errorf("(ruling, ruled_by) = (%q, %q), want the FIRST ruling — the second does not overturn it", ruling, by)
 	}
 	// And motion_state, which reads this view, carries ONE row too.

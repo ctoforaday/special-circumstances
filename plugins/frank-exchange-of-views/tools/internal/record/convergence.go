@@ -2,13 +2,13 @@ package record
 
 import "fmt"
 
-// ConvergenceRound is one round's answer from the convergence_vs_verdict view.
+// ConvergenceEpoch is one round's answer from the convergence_vs_verdict view.
 //
 // The inputs travel with the verdict deliberately. A bare count of divergent rounds is the shape
 // that failed before — `0` with nothing behind it reads as a clean board — so a reader gets the
 // mass, the top severity and the fresh-mint count that produced the answer and can check it.
-type ConvergenceRound struct {
-	Round           int
+type ConvergenceEpoch struct {
+	Epoch           int
 	Verdict         string
 	Mass            float64
 	MaxSeverityMass float64
@@ -23,7 +23,7 @@ type ConvergenceRound struct {
 // a map key was missing — absence rendered as a measurement. Here a run with no verdicts yields
 // no rows (a real zero: nothing has been adjudicated), and a run that cannot be read yields an
 // error the caller must say something about.
-func ConvergenceVsVerdict(run Run) ([]ConvergenceRound, error) {
+func ConvergenceVsVerdict(run Run) ([]ConvergenceEpoch, error) {
 	db, err := openRunForRead(run)
 	if err != nil {
 		return nil, err
@@ -31,16 +31,16 @@ func ConvergenceVsVerdict(run Run) ([]ConvergenceRound, error) {
 	if db == nil {
 		return nil, nil
 	}
-	rows, err := db.Query(`SELECT "round", "verdict", "mass", "max_severity_mass", "fresh_mints", "divergent" ` +
-		`FROM "convergence_vs_verdict" ORDER BY "round"`)
+	rows, err := db.Query(`SELECT "epoch", "verdict", "mass", "max_severity_mass", "fresh_mints", "divergent" ` +
+		`FROM "convergence_vs_verdict" ORDER BY "epoch"`)
 	if err != nil {
 		return nil, fmt.Errorf("record: asking the record for convergence-vs-verdict: %w", err)
 	}
 	defer rows.Close()
-	var out []ConvergenceRound
+	var out []ConvergenceEpoch
 	for rows.Next() {
-		var c ConvergenceRound
-		if err := rows.Scan(&c.Round, &c.Verdict, &c.Mass, &c.MaxSeverityMass, &c.FreshMints, &c.Divergent); err != nil {
+		var c ConvergenceEpoch
+		if err := rows.Scan(&c.Epoch, &c.Verdict, &c.Mass, &c.MaxSeverityMass, &c.FreshMints, &c.Divergent); err != nil {
 			return nil, err
 		}
 		out = append(out, c)

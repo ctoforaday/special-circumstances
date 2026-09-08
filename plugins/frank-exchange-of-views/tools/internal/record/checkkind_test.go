@@ -20,7 +20,7 @@ import (
 // was satisfied. The answer was right, which is why nothing caught it.
 func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
 		t.Fatal(err)
 	}
 	// THE ID AND THE KIND ARE THE SUBJECT OF THIS TEST, and the earlier conversion dropped both
@@ -30,10 +30,10 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 		id   string
 		kind recordpb.CheckKind
 	}{
-		{"R1-1", recordpb.CheckKind_CHECK_KIND_COMPUTATION},
-		{"R1-2", recordpb.CheckKind_CHECK_KIND_DOCUMENT},
+		{"G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION},
+		{"G2", recordpb.CheckKind_CHECK_KIND_DOCUMENT},
 	} {
-		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, &recordpb.Mint{
+		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{
 			GapId:           proto.String(c.id),
 			Class:           proto.String("self-attestation"),
 			Problem:         proto.String("p"),
@@ -50,7 +50,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	for _, g := range mustBoardJSONT(t, mustRun(t, runDir)).Open {
 		got[g.ID] = g.CheckKind
 	}
-	if got["R1-1"] != "computation" || got["R1-2"] != "document" {
+	if got["G1"] != "computation" || got["G2"] != "document" {
 		t.Errorf("board view check_kind = %v — a seat cannot know which gaps demand a program", got)
 	}
 
@@ -60,7 +60,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 	for _, g := range mustWorkJSONT(t, mustRun(t, runDir)).Open {
 		got[g.ID] = g.CheckKind
 	}
-	if got["R1-1"] != "computation" || got["R1-2"] != "document" {
+	if got["G1"] != "computation" || got["G2"] != "document" {
 		t.Errorf("work check_kind = %v — the read a seat plans from cannot say which gaps prose will not close", got)
 	}
 }
@@ -68,7 +68,7 @@ func TestCheckKindReachesTheSeatThatMustSatisfyIt(t *testing.T) {
 // AN EMPTY FRICTION LOG IS TWO DIFFERENT RUNS, and only one of them is fine.
 func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, ""); err != nil {
 		t.Fatal(err)
 	}
 	b, err := FamilyOf(mustRun(t, runDir))
@@ -80,7 +80,7 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 		t.Fatalf("a silent run: total=%d attested=%d, want 0/0", j.Counts.Total, j.Counts.Attested)
 	}
 
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.Log{Text: proto.String("read the board and my verb list; every refusal was my own error"), Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Log{Text: proto.String("read the board and my verb list; every refusal was my own error"), Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}); err != nil {
 		t.Fatal(err)
 	}
 	b, _ = FamilyOf(mustRun(t, runDir))
@@ -94,7 +94,7 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 	if j.Counts.Attested != 1 || len(j.Log) != 1 {
 		t.Fatalf("the attestation did not reach the view: attested=%d entries=%d", j.Counts.Attested, len(j.Log))
 	}
-	if j.Log[0].SeatID != "blue-respond-r1" {
+	if j.Log[0].SeatID != "blue-respond" {
 		t.Error("the attestation must name the seat that made it — an unattributed one cannot be weighed")
 	}
 }
@@ -107,14 +107,14 @@ func TestTheLogViewSeparatesSilenceFromAnAttestation(t *testing.T) {
 // changes what the sitting produces.
 func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	runDir := newRun(t)
-	for _, s := range []string{"red-chair-r1", "blue-respond-r1"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s, Round: RoundIn(mustRun(t, runDir))(s)}, ""); err != nil {
+	for _, s := range []string{"red-chair", "blue-respond"} {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
 	mint := func(id string, kind recordpb.CheckKind) {
 		t.Helper()
-		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, &recordpb.Mint{
+		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{
 			GapId:           proto.String(id),
 			Class:           proto.String("self-attestation"),
 			Problem:         proto.String("p"),
@@ -127,17 +127,17 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	mint("R1-1", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
-	mint("R1-2", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
-	mint("R1-3", recordpb.CheckKind_CHECK_KIND_DOCUMENT)
+	mint("G1", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
+	mint("G2", recordpb.CheckKind_CHECK_KIND_COMPUTATION)
+	mint("G3", recordpb.CheckKind_CHECK_KIND_DOCUMENT)
 
 	owed := GapsAwaitingProof(mustRun(t, runDir))
-	if len(owed) != 2 || owed[0] != "R1-1" || owed[1] != "R1-2" {
+	if len(owed) != 2 || owed[0] != "G1" || owed[1] != "G2" {
 		t.Fatalf("owed = %v, want the two computation gaps in board order", owed)
 	}
 	// A document gap is never a proof debt — over-reporting would train seats to ignore it.
 	for _, id := range owed {
-		if id == "R1-3" {
+		if id == "G3" {
 			t.Error("a document-kind gap was reported as awaiting a computation")
 		}
 	}
@@ -145,14 +145,14 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	// THE PROOF ANSWERS A GAP, and the earlier conversion dropped `answers` — so the proof
 	// discharged nothing and the debt could not move. `answers` is the whole join this test is
 	// about: a proof that names no gap is a script that ran for no stated reason.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond-r1", Round: RoundIn(mustRun(t, runDir))("blue-respond-r1")}, &recordpb.Proof{
-		Answers: proto.String("R1-1"),
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "blue-respond"}, &recordpb.Proof{
+		Answers: proto.String("G1"),
 		Script:  proto.String("s.py"),
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if owed := GapsAwaitingProof(mustRun(t, runDir)); len(owed) != 1 || owed[0] != "R1-2" {
-		t.Fatalf("after proving R1-1, owed = %v, want [R1-2]", owed)
+	if owed := GapsAwaitingProof(mustRun(t, runDir)); len(owed) != 1 || owed[0] != "G2" {
+		t.Fatalf("after proving G1, owed = %v, want [G2]", owed)
 	}
 
 	// THE BOARD AND THE GATE MUST NOT DISAGREE about what is owed. They share one join and one
@@ -164,8 +164,8 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 			fromBoard[g.ID] = true
 		}
 	}
-	if len(fromBoard) != 1 || !fromBoard["R1-2"] {
-		t.Fatalf("board says %v awaits proof, the debt query says [R1-2]", fromBoard)
+	if len(fromBoard) != 1 || !fromBoard["G2"] {
+		t.Fatalf("board says %v awaits proof, the debt query says [G2]", fromBoard)
 	}
 	for _, g := range mustWorkJSONT(t, mustRun(t, runDir)).Open {
 		if g.AwaitingProof != fromBoard[g.ID] {
@@ -174,8 +174,8 @@ func TestAwaitingProofTracksTheDebtAndAgreesWithTheGate(t *testing.T) {
 	}
 
 	// A CLOSED gap owes nothing, whatever its kind: the debt is what blue can still act on.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, &recordpb.Close{
-		GapId:        proto.String("R1-2"),
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Close{
+		GapId:        proto.String("G2"),
 		AnchorSeat:   proto.String("L1"),
 		AnchorTool:   proto.String("Read"),
 		AnchorTarget: proto.String("x"),

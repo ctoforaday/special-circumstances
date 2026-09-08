@@ -55,8 +55,8 @@ func TestTitleLiftedOrFlagged(t *testing.T) {
 func TestRiskMatrixFromBoard(t *testing.T) {
 	longProblem := "Blue claims JSON float-loss above 2^53 causes H1 failure. Event logs serialize timestamps as ISO 8601 strings, so it does not manifest."
 	bj := record.BoardJSON{Open: []record.GapJSON{
-		{ID: "R1-1", Problem: "overclaims capture", Likelihood: "high", Impact: "medium", RequiredFix: "grep the sites"},
-		{ID: "R1-2", Problem: longProblem, Likelihood: "low", Impact: "low", RequiredFix: "verify serialization"},
+		{ID: "G1", Problem: "overclaims capture", Likelihood: "high", Impact: "medium", RequiredFix: "grep the sites"},
+		{ID: "G2", Problem: longProblem, Likelihood: "low", Impact: "low", RequiredFix: "verify serialization"},
 	}}
 	m := riskMatrix(bj)
 	if !strings.Contains(m, "| overclaims capture | high | medium | — | grep the sites |") {
@@ -116,9 +116,9 @@ func TestVerdictStampFromOutcomeEvent(t *testing.T) {
 
 func TestInquiriesSplitByFate(t *testing.T) {
 	board := record.NewFamily(nil, []*record.Event{
-		recordtest.Event(t, "blue-r1", 1, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("profile the hot path"), Method: proto.String("bench")}),
-		recordtest.Event(t, "blue-r1", 1, &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite in Rust"), Reason: proto.String("cost exceeds benefit")}),
-		recordtest.Event(t, "red-lens-r1", 1, &recordpb.Avenue{AvenueId: proto.String("Q3"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("third-party audit"), Reason: proto.String("out of scope")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("profile the hot path"), Method: proto.String("bench")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite in Rust"), Reason: proto.String("cost exceeds benefit")}),
+		recordtest.Event(t, "red-lens-r1", &recordpb.Avenue{AvenueId: proto.String("Q3"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_DECLINED), Line: proto.String("third-party audit"), Reason: proto.String("out of scope")}),
 	})
 	exp := inquiries(board, "Research areas", accepted)
 	if !strings.Contains(exp, "profile the hot path") || strings.Contains(exp, "rewrite in Rust") {
@@ -190,7 +190,7 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 			continue
 		}
 		board := record.NewFamily(nil, []*record.Event{
-			recordtest.Event(t, "blue-r1", 1, &recordpb.Avenue{
+			recordtest.Event(t, "blue-r1", &recordpb.Avenue{
 				AvenueId: proto.String("Q1"), Status: st.Enum(), Line: proto.String("the only line"),
 			}),
 		})
@@ -217,24 +217,28 @@ func TestEveryInquiryStatusLandsWhereItsFateSays(t *testing.T) {
 	}
 }
 
-// A MOVED LINE OF INQUIRY IS ONE LINE. Reading raw events rendered a line pursued at r0 and abandoned
-// at r2 under BOTH headings — as an expansion and as an alternative to itself.
+// A MOVED LINE OF INQUIRY IS ONE LINE. Reading raw events rendered a line pursued in epoch 0 and
+// abandoned in epoch 2 under BOTH headings — as an expansion and as an alternative to itself.
 func TestAMovedInquiryIsRenderedOnce(t *testing.T) {
 	board := record.NewFamily(nil, []*record.Event{
-		recordtest.Event(t, "blue-r0", 0, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("rewrite the parser")}),
-		recordtest.Event(t, "blue-r2", 2, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite the parser"), Reason: proto.String("the grammar moved under it")}),
+		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("rewrite the parser")}),
+		// Two chair sittings put the move in epoch 2 — the epoch is counted from the chair's
+		// registers, not read off the seat id.
+		recordtest.Event(t, "red-chair", &recordpb.Register{}),
+		recordtest.Event(t, "red-chair", &recordpb.Register{}),
+		recordtest.Event(t, "blue-r2", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED), Line: proto.String("rewrite the parser"), Reason: proto.String("the grammar moved under it")}),
 	})
 	exp := inquiries(board, "Research areas", accepted)
 	alt := inquiries(board, "Alternatives considered", rejected)
 	if strings.Contains(exp, "rewrite the parser") {
-		t.Errorf("a line of inquiry ABANDONED at r2 is not an expansion — its latest status decides:\n%s", exp)
+		t.Errorf("a line of inquiry ABANDONED in epoch 2 is not an expansion — its latest status decides:\n%s", exp)
 	}
 	if !strings.Contains(alt, "rewrite the parser") || !strings.Contains(alt, "the grammar moved under it") {
 		t.Errorf("the abandoned line of inquiry must carry its current reason:\n%s", alt)
 	}
 	// The substance came from the CREATION event and the reason from the MOVE — the history is
 	// the evidence of choosing, which is the whole point of giving a line of inquiry a lifecycle.
-	if !strings.Contains(alt, "r0 pursued → r2 abandoned") {
+	if !strings.Contains(alt, "e0 pursued → e2 abandoned") {
 		t.Errorf("the history that produced the status must be rendered:\n%s", alt)
 	}
 }
@@ -243,12 +247,12 @@ func TestAMovedInquiryIsRenderedOnce(t *testing.T) {
 // out-of-scope looked identical to blue pursuing one red endorsed.
 func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 	board := record.NewFamily(nil, []*record.Event{
-		recordtest.Event(t, "blue-r0", 0, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("survey the adjacent literature")}),
+		recordtest.Event(t, "blue-r0", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED), Line: proto.String("survey the adjacent literature")}),
 		// The LIVE vocabulary: red rules a direction through `motion inquiry rule`, whose motion_id
 		// IS the line's own id — the proposal is the filing, so there is no second identity. The
 		// fixture used to write the retired `avenue-rule` type, which nothing has written since
 		// the motion collapse and which no longer has a read arm.
-		recordtest.Event(t, "red-chair-r1", 1, &recordpb.MotionRule{
+		recordtest.Event(t, "red-chair", &recordpb.MotionRule{
 			MotionId: proto.String("Q1"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION),
 			Opinion:  proto.String("a real question, not THIS run's"),
@@ -256,8 +260,8 @@ func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 		}),
 		// Blue pursues it ANYWAY. `contests_ruling` was a payload key on the line; the defiance is
 		// its own act now — `motion direction appeal` — so what the report reads is the appeal.
-		recordtest.Event(t, "blue-r1", 1, &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("survey the adjacent literature")}),
-		recordtest.Event(t, "blue-r1", 1, &recordpb.MotionAppeal{
+		recordtest.Event(t, "blue-r1", &recordpb.Avenue{AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED), Line: proto.String("survey the adjacent literature")}),
+		recordtest.Event(t, "blue-r1", &recordpb.MotionAppeal{
 			MotionId: proto.String("Q1"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DIRECTION),
 			Reason:   proto.String("the adjacent literature is what the question turns on"),
@@ -277,20 +281,22 @@ func TestInquiryRulingAndContestReachTheReader(t *testing.T) {
 
 func TestDebateTranscriptFromEvents(t *testing.T) {
 	evs := []*record.Event{
-		recordtest.Event(t, "red-chair-r1", 1, &recordpb.Position{Text: proto.String("gap A stands")}),
-		recordtest.Event(t, "blue-r1", 1, &recordpb.Position{Text: proto.String("gap A repaired")}),
+		// The chair's register opens epoch 1; everything below sits in it.
+		recordtest.Event(t, "red-chair", &recordpb.Register{}),
+		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("gap A stands")}),
+		recordtest.Event(t, "blue-r1", &recordpb.Position{Text: proto.String("gap A repaired")}),
 		// The payload keys are the ones the VERBS write: dispute→evidence, dispute-respond→
 		// response+rationale, petition-rule→opinion. The prior fixture set basis/as (what the
 		// buggy reader looked for), which is how A1–A3 hid — the test encoded the bug.
-		// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and the transcript's "R1-1: carried"
+		// THE BENCH'S DISPOSITION IS A DOCKET MOTION'S RULING, and the transcript's "G1: carried"
 		// line is a JOIN across both events: the gap is on the filing, the word on the ruling.
-		recordtest.Event(t, "red-chair-r1", 1, &recordpb.Motion{
+		recordtest.Event(t, "red-chair", &recordpb.Motion{
 			MotionId: proto.String("M2"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-			Basis:    proto.String("red cannot settle R1-1"),
-			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}},
+			Basis:    proto.String("red cannot settle G1"),
+			Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 		}),
-		recordtest.Event(t, "judge-r1", 1, &recordpb.MotionRule{
+		recordtest.Event(t, "judge", &recordpb.MotionRule{
 			MotionId: proto.String("M2"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Opinion:  proto.String("needs a probe"),
@@ -304,20 +310,20 @@ func TestDebateTranscriptFromEvents(t *testing.T) {
 		}),
 		// A petition is a MOTION now — the retired `petition` event type has no arm in the schema,
 		// so the fixture could only ever have described a state nothing writes.
-		recordtest.Event(t, "blue-r1", 1, &recordpb.Motion{
+		recordtest.Event(t, "blue-r1", &recordpb.Motion{
 			MotionId: proto.String("M1"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 			Basis:    proto.String("the instruction would require asserting what I believe false"),
 			Relief:   proto.String("strike the demand from the docket"),
 			Filing:   &recordpb.Motion_Petition{Petition: &recordpb.PetitionMotion{Class: recordtest.P(recordpb.PetitionClass_PETITION_CLASS_INTEGRITY)}},
 		}),
-		recordtest.Event(t, "judge-terminal", 0, &recordpb.Halt{Opinion: proto.String("safety gate tripped")}),
-		recordtest.Event(t, "judge-terminal", 0, &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
+		recordtest.Event(t, "judge-terminal", &recordpb.Halt{Opinion: proto.String("safety gate tripped")}),
+		recordtest.Event(t, "judge-terminal", &recordpb.Certify{Statement: proto.String("re-examine the cost model")}),
 	}
 	d := debate((record.NewFamily(nil, evs)), evs)
 	for _, want := range []string{
-		"### Round 1", "### RED — NO VERDICT RECORDED THIS ROUND\ngap A stands", "### BLUE\ngap A repaired",
-		"R1-1: carried",
+		"### Epoch 1", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap A stands", "### BLUE\ngap A repaired",
+		"G1: carried",
 		// THE PETITION SECTION IS NOT HERE ANY MORE, and its absence is the point. It rendered
 		// both sides of a petition off the retired `petition`/`petition-rule` types — a second
 		// rendering of a dialectic that `## Motions` already shows with each ruling beside the ask
@@ -398,13 +404,21 @@ func TestFixBasisAndTheConcreteProposalReachTheReader(t *testing.T) {
 }
 
 // A PHANTOM RETIREMENT CANCELS REAL LOSS in the scorecard's additive-integrity detector, and
-// only the basis distinguishes one from an honest round-0 rewrite.
+// only the basis distinguishes one from an honest epoch-0 rewrite.
 func TestRemovalBasisReachesTheReader(t *testing.T) {
-	v := withdrawnClaims([]*record.Event{recordtest.Event(t, "blue-r2", 0, &recordpb.Retire{Claim: proto.String("the parser is linear"), Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalVerified)})})
+	v := withdrawnClaims([]*record.Event{
+		recordtest.Event(t, "blue-r2", &recordpb.Register{}),
+		recordtest.Event(t, "blue-r2", &recordpb.Retire{Claim: proto.String("the parser is linear"), Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalVerified)}),
+	})
 	if !strings.Contains(v, "**verified**") || !strings.Contains(v, "the record shows it leaving") {
 		t.Errorf("a verified removal must say the record can show it:\n%s", v)
 	}
-	a := withdrawnClaims([]*record.Event{recordtest.Event(t, "blue-r0", 0, &recordpb.Retire{Claim: proto.String("the parser is linear"), Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalAsserted)})})
+	// The seat is named beside the row, so its SITTING rides with it — the seat's own register
+	// count, not a number the seat stamped.
+	if !strings.Contains(v, "(blue-r2 #1)") {
+		t.Errorf("the retiring seat's sitting must render beside its name:\n%s", v)
+	}
+	a := withdrawnClaims([]*record.Event{recordtest.Event(t, "blue-r0", &recordpb.Retire{Claim: proto.String("the parser is linear"), Reason: proto.String("r"), RemovalBasis: proto.String(record.RemovalAsserted)})})
 	if !strings.Contains(a, "**asserted**") || !strings.Contains(a, "nothing on the record shows it was ever present") {
 		t.Errorf("an asserted removal must say the record cannot show it:\n%s", a)
 	}
@@ -418,7 +432,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 	// A PETITION IS A MOTION. This fixture used the retired `petition` type, so after the collapse
 	// the detector counted zero filings and could not fire — the warning it exists to raise was
 	// unreachable while this test went on passing.
-	filed := []*record.Event{recordtest.Event(t, "red-chair-r1", 1, &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Basis: proto.String("the demand would bury a hazard")})}
+	filed := []*record.Event{recordtest.Event(t, "red-chair", &recordpb.Motion{MotionId: proto.String("M1"), Subject: recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION), Basis: proto.String("the demand would bury a hazard")})}
 	d := debate((record.NewFamily(nil, filed)), filed)
 	if !strings.Contains(d, "1 petition(s) received no ruling") {
 		t.Errorf("a petition with no ruling must be reported, not silently absent:\n%s", d)
@@ -428,7 +442,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 	// apart. record.Motions pairs the answer to its ask exactly.
 	// The RULING ARM is what makes it answered: a motion-rule whose oneof is unset carried no
 	// ruling at all, which is the state the unanswered detector is looking for.
-	answered := append(filed, recordtest.Event(t, "judge-r1", 1, &recordpb.MotionRule{
+	answered := append(filed, recordtest.Event(t, "judge", &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_PETITION),
 		Opinion:  proto.String("the hazard is graded, not buried"),
@@ -445,7 +459,7 @@ func TestAnUnansweredPetitionIsReported(t *testing.T) {
 func TestWithdrawnClaimsReachTheReader(t *testing.T) {
 	// The body carries the facts the assertions read. It was left EMPTY by the earlier conversion,
 	// so the render had nothing to show and the test was asserting against a blank string.
-	evs := []*record.Event{recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Retire{
+	evs := []*record.Event{recordtest.Event(t, "blue-respond", &recordpb.Retire{
 		Claim:        proto.String("the parser is O(n) in the input size"),
 		Reason:       proto.String("refuted at the leaf"),
 		SupersededBy: proto.String("the parser is O(n) except on backtracking inputs"),
@@ -495,18 +509,18 @@ func TestBlueEmbedDropsLiftedAndFabricated(t *testing.T) {
 
 func TestOrientationRanksAndPromotesBench(t *testing.T) {
 	board := &boardT{
-		GapOrder: []string{"R1-1", "R1-2", "R1-3"},
+		GapOrder: []string{"G1", "G2", "G3"},
 		Gaps: map[string]*record.Gap{
-			"R1-1": {ID: "R1-1", Open: true, Severity: recordpb.Grade_GRADE_LOW, Impact: recordpb.Grade_GRADE_LOW, Likelihood: recordpb.Grade_GRADE_LOW,
+			"G1": {ID: "G1", Open: true, Severity: recordpb.Grade_GRADE_LOW, Impact: recordpb.Grade_GRADE_LOW, Likelihood: recordpb.Grade_GRADE_LOW,
 				Mint: &recordpb.Mint{Problem: proto.String("a minor nit."), RequiredFix: proto.String("tidy it")}},
-			"R1-2": {ID: "R1-2", Open: true, Severity: recordpb.Grade_GRADE_CERTAIN, Impact: recordpb.Grade_GRADE_HIGH, Likelihood: recordpb.Grade_GRADE_HIGH,
+			"G2": {ID: "G2", Open: true, Severity: recordpb.Grade_GRADE_CERTAIN, Impact: recordpb.Grade_GRADE_HIGH, Likelihood: recordpb.Grade_GRADE_HIGH,
 				Mint: &recordpb.Mint{Problem: proto.String("a load-bearing flaw."), RequiredFix: proto.String("fix the core")}},
-			"R1-3": {ID: "R1-3", Open: false, Severity: recordpb.Grade_GRADE_HIGH, // closed — must not appear
+			"G3": {ID: "G3", Open: false, Severity: recordpb.Grade_GRADE_HIGH, // closed — must not appear
 				Mint: &recordpb.Mint{Problem: proto.String("already closed.")}},
 		},
 	}
 	evs := []*record.Event{
-		recordtest.Event(t, "", 0, &recordpb.Certify{Statement: proto.String("re-examine the cost model before shipping")}),
+		recordtest.Event(t, "", &recordpb.Certify{Statement: proto.String("re-examine the cost model before shipping")}),
 	}
 	o := orientation(board.fam(), evs, "")
 	// The bench's certify is promoted to the top.
@@ -532,14 +546,14 @@ func TestOrientationRanksAndPromotesBench(t *testing.T) {
 
 func TestUnmintedFindingsSurfaced(t *testing.T) {
 	board := &boardT{
-		GapOrder: []string{"R1-1"},
+		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
-			"R1-1": {ID: "R1-1", Mint: &recordpb.Mint{FoundBy: []string{"L5-F1", "L6-F2"}}},
+			"G1": {ID: "G1", Mint: &recordpb.Mint{FoundBy: []string{"L5-F1", "L6-F2"}}},
 		},
 		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-r1-logic", 0, &recordpb.Finding{Label: proto.String("L5-F1"), Text: proto.String("minted — omit")}),
-			recordtest.Event(t, "red-lens-r1-dark-side", 0, &recordpb.Finding{Label: proto.String("L6-F2"), Text: proto.String("also minted — omit")}),
-			recordtest.Event(t, "red-lens-r1-logic", 0, &recordpb.Finding{Label: proto.String("L5-F3"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
+			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Label: proto.String("L5-F1"), Text: proto.String("minted — omit")}),
+			recordtest.Event(t, "red-lens-dark-side", &recordpb.Finding{Label: proto.String("L6-F2"), Text: proto.String("also minted — omit")}),
+			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{Label: proto.String("L5-F3"), Location: proto.String("§H1"), Text: proto.String("un-minted red reasoning kept for the record")}),
 		},
 	}
 	got := boardSection(board.fam())
@@ -580,19 +594,19 @@ func TestUnmintedFindingsSurfaced(t *testing.T) {
 // a restatement drift from its evidence with both in front of them.
 func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 	board := &boardT{
-		GapOrder: []string{"R1-1"},
+		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
 			// OPEN here; the CLOSED case is covered below. Scoping provenance to open gaps was
 			// the first answer and it was wrong: unmintedFindings skips anything a gap claimed,
 			// so a run where every finding was minted and every gap closed printed red's words
 			// nowhere at all. The fuzz found one.
-			"R1-1": {ID: "R1-1", Open: true, Mint: &recordpb.Mint{
+			"G1": {ID: "G1", Open: true, Mint: &recordpb.Mint{
 				Problem: proto.String("the merge's restatement"),
 				FoundBy: []string{"L5-F1", "L9-F9"},
 			}},
 		},
 		Events: []*record.Event{
-			recordtest.Event(t, "red-lens-r1-logic", 0, &recordpb.Finding{
+			recordtest.Event(t, "red-lens-logic", &recordpb.Finding{
 				Label:    proto.String("L5-F1"),
 				Location: proto.String("§H2"),
 				Text:     proto.String("what red actually observed at the leaf"),
@@ -620,9 +634,9 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 	// AND A CLOSED GAP CARRIES IT TOO. The closure says how the gap was settled; it does not
 	// restate what was observed, and an audit of a closure needs both.
 	closedBoard := &boardT{
-		GapOrder: []string{"R1-1"},
+		GapOrder: []string{"G1"},
 		Gaps: map[string]*record.Gap{
-			"R1-1": {ID: "R1-1", Open: false, Mint: &recordpb.Mint{
+			"G1": {ID: "G1", Open: false, Mint: &recordpb.Mint{
 				Problem: proto.String("the merge's restatement"),
 				FoundBy: []string{"L5-F1"},
 			}},
@@ -636,21 +650,21 @@ func TestAMintedFindingsEvidenceIsQuotedUnderItsGap(t *testing.T) {
 
 func TestLogSectionRendered(t *testing.T) {
 	evs := []*record.Event{
-		recordtest.Event(t, "red-chair-r1", 0, &recordpb.Log{Text: proto.String("the --cx flag is missing from help"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
-		recordtest.Event(t, "blue-respond-r2", 0, &recordpb.Log{Text: proto.String("manifest cap fights methodology gaps"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
+		recordtest.Event(t, "red-chair", &recordpb.Log{Text: proto.String("the --cx flag is missing from help"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
+		recordtest.Event(t, "blue-respond", &recordpb.Log{Text: proto.String("manifest cap fights methodology gaps"), Type: recordpb.LogType_LOG_TYPE_DEFECT.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
 		// A NOMINAL entry renders in its own section, not among the problems: an attestation is
 		// not a complaint, and the split is by TYPE now rather than by message.
-		recordtest.Event(t, "judge-r2", 0, &recordpb.Log{Text: proto.String("the surface met the work"), Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
-		recordtest.Event(t, "red-chair-r1", 0, &recordpb.Mint{Problem: proto.String("not a log entry")}),
+		recordtest.Event(t, "judge", &recordpb.Log{Text: proto.String("the surface met the work"), Type: recordpb.LogType_LOG_TYPE_NOMINAL.Enum(), Source: recordpb.LogSource_LOG_SOURCE_SEAT.Enum()}),
+		recordtest.Event(t, "red-chair", &recordpb.Mint{Problem: proto.String("not a log entry")}),
 	}
 	f := logSection(evs)
 	// THE TYPE RENDERS BESIDE THE SEAT, which is the whole point of the channel: an operator
 	// triages by reading the type, not by reading the prose to work out which kind it was.
 	for _, want := range []string{
 		"Log (what the run told the operator",
-		"**red-chair-r1** (defect): the --cx flag is missing",
-		"**blue-respond-r2** (defect): manifest cap fights",
-		"**judge-r2**: the surface met the work",
+		"**red-chair** (defect): the --cx flag is missing",
+		"**blue-respond** (defect): manifest cap fights",
+		"**judge**: the surface met the work",
 	} {
 		if !strings.Contains(f, want) {
 			t.Errorf("log section missing %q:\n%s", want, f)
@@ -671,20 +685,23 @@ func TestCellEscapesTableBreakers(t *testing.T) {
 }
 
 func TestRevisionHistoryFromEvents(t *testing.T) {
+	// Each revision follows a chair sitting, so the two land in epochs 1 and 2.
 	evs := []*record.Event{
-		recordtest.Event(t, "blue-respond-r1", 1, &recordpb.Revision{Text: proto.String("expanded the caching section; retired the stale figure")}),
-		recordtest.Event(t, "blue-respond-r2", 2, &recordpb.Revision{Text: proto.String("addressed R2-1 in the analysis")}),
-		recordtest.Event(t, "red-chair-r1", 1, &recordpb.Position{Text: proto.String("not a revision")}),
+		recordtest.Event(t, "red-chair", &recordpb.Register{}),
+		recordtest.Event(t, "blue-respond", &recordpb.Revision{Text: proto.String("expanded the caching section; retired the stale figure")}),
+		recordtest.Event(t, "red-chair", &recordpb.Register{}),
+		recordtest.Event(t, "blue-respond", &recordpb.Revision{Text: proto.String("addressed G1 in the analysis")}),
+		recordtest.Event(t, "red-chair", &recordpb.Position{Text: proto.String("not a revision")}),
 	}
 	got := revisionHistory(evs)
 	if !strings.Contains(got, "## Report revision history") {
 		t.Fatalf("missing heading:\n%s", got)
 	}
-	if !strings.Contains(got, "### Round 1 — blue-respond-r1") || !strings.Contains(got, "expanded the caching section") {
-		t.Errorf("round-1 revision not rendered:\n%s", got)
+	if !strings.Contains(got, "### Epoch 1 — blue-respond") || !strings.Contains(got, "expanded the caching section") {
+		t.Errorf("epoch-1 revision not rendered:\n%s", got)
 	}
-	if !strings.Contains(got, "### Round 2 — blue-respond-r2") {
-		t.Errorf("round-2 revision not rendered:\n%s", got)
+	if !strings.Contains(got, "### Epoch 2 — blue-respond") {
+		t.Errorf("epoch-2 revision not rendered:\n%s", got)
 	}
 	if strings.Contains(got, "not a revision") {
 		t.Errorf("a non-revision event leaked into the revision history:\n%s", got)
@@ -701,19 +718,19 @@ func TestRevisionHistoryFromEvents(t *testing.T) {
 // the report accused one party of skipping an audit another party never owed it.
 func TestTheBenchsOwnClosuresAreNotBluesUnauditedRepairs(t *testing.T) {
 	board := &boardT{
-		GapOrder: []string{"R1-1", "R1-2"},
+		GapOrder: []string{"G1", "G2"},
 		Gaps: map[string]*record.Gap{
 			// Blue repaired this one and filed no receipt: a real missing manifest row.
-			"R1-1": {ID: "R1-1", HasClosed: true, Closure: &recordpb.Close{}},
+			"G1": {ID: "G1", HasClosed: true, Closure: &recordpb.Close{}},
 			// The bench disposed of this one. Nobody repaired it, so no receipt is owed.
-			"R1-2": {ID: "R1-2", HasClosed: true, BenchClosure: &recordpb.DocketRuling{}, ClosedByBench: true},
+			"G2": {ID: "G2", HasClosed: true, BenchClosure: &recordpb.DocketRuling{}, ClosedByBench: true},
 		},
 	}
 	got := correctnessManifest(board.fam())
-	if !strings.Contains(got, "R1-1") {
+	if !strings.Contains(got, "G1") {
 		t.Errorf("blue's own unaudited repair left the list:\n%s", got)
 	}
-	if strings.Contains(got, "R1-2") {
+	if strings.Contains(got, "G2") {
 		t.Errorf("the report still charges blue for a gap the BENCH closed:\n%s", got)
 	}
 }
@@ -726,12 +743,12 @@ func TestTheBenchsOwnClosuresAreNotBluesUnauditedRepairs(t *testing.T) {
 // closure and the receipt is still genuinely missing. Keyed on the flag, this row vanishes from
 // the one section whose stated purpose is to report exactly this.
 func TestABlueRepairTheBenchLaterRuledOnIsStillCharged(t *testing.T) {
-	g := &record.Gap{ID: "R1-1", HasClosed: true, Closure: &recordpb.Close{}}
+	g := &record.Gap{ID: "G1", HasClosed: true, Closure: &recordpb.Close{}}
 	g.BenchClosure = &recordpb.DocketRuling{}
 	g.ClosedByBench = true
 
-	got := correctnessManifest((&boardT{GapOrder: []string{"R1-1"}, Gaps: map[string]*record.Gap{"R1-1": g}}).fam())
-	if !strings.Contains(got, "R1-1") {
+	got := correctnessManifest((&boardT{GapOrder: []string{"G1"}, Gaps: map[string]*record.Gap{"G1": g}}).fam())
+	if !strings.Contains(got, "G1") {
 		t.Errorf("a missing receipt disappeared because the bench later ruled on the gap:\n%s", got)
 	}
 }

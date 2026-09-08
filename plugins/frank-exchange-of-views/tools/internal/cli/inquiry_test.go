@@ -16,7 +16,7 @@ import (
 
 func inquirySeat(t *testing.T, runDir string) string {
 	t.Helper()
-	const seat = "blue-respond-r1"
+	const seat = "blue-respond"
 	if _, err := run(t, "register", "--run", runDir, "--seat-id", seat); err != nil {
 		t.Fatal(err)
 	}
@@ -50,6 +50,7 @@ func TestInquiryProposalIsAssignedAnIDAndStartsProposed(t *testing.T) {
 // THE MOVE IS THE POINT: a direction that dies mid-run can now say so.
 func TestInquiryStatusMovesAndKeepsItsSubstance(t *testing.T) {
 	runDir := newRun(t)
+	registerChairOnce(t, runDir) // the path below names r1; the chair sitting is what makes it epoch 1
 	seat := inquirySeat(t, runDir)
 	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat,
 		"--reason", "survey primality libraries", "--hypothesis", "implementations disagree at small n"); err != nil {
@@ -64,7 +65,7 @@ func TestInquiryStatusMovesAndKeepsItsSubstance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"Q1", "survey primality libraries", "implementations disagree", "the hypothesis is dead", "r1 proposed -> r1 abandoned"} {
+	for _, want := range []string{"Q1", "survey primality libraries", "implementations disagree", "the hypothesis is dead", "e1 proposed -> e1 abandoned"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the projection lost %q — the PATH is the evidence of choosing:\n%s", want, out)
 		}
@@ -124,12 +125,12 @@ func TestRedRulesOnAProposedInquiry(t *testing.T) {
 	}
 	// A direction motion joins on the LINE's own id: it has no `file` verb because the
 	// proposal IS the filing, which is why A1 works here and no M-number is minted.
-	if _, err := run(t, "motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "motion", "inquiry", "rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "Q1", "--as", "out_of_scope",
 		"--reason", "classical mathematics is the reference frame for this question"); err != nil {
 		t.Fatalf("rule: %v", err)
 	}
-	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair-r1", "lines-of-inquiry")
+	out, err := run(t, "show", "--run", runDir, "--seat-id", "red-chair", "lines-of-inquiry")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +146,7 @@ func TestRulingRequiresAReason(t *testing.T) {
 	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", seat, "--reason", "a line"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := run(t, "line-of-inquiry-rule", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "line-of-inquiry-rule", "--run", runDir, "--seat-id", "red-chair",
 		"--id", "Q1", "--ruling", "too_thin"); err == nil {
 		t.Fatal("an unreasoned ruling was accepted — blue cannot contest what has no stated basis")
 	}
@@ -154,7 +155,7 @@ func TestRulingRequiresAReason(t *testing.T) {
 // BLUE HAS NO BOARD VERBS AND RED HAS NO PROPOSAL VERB. The role boundary is the engine.
 func TestRedCannotProposeALineOfInquiry(t *testing.T) {
 	runDir := newRun(t)
-	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "red-chair-r1",
+	if _, err := run(t, "line-of-inquiry", "propose", "--run", runDir, "--seat-id", "red-chair",
 		"--reason", "red's own direction"); err == nil {
 		t.Fatal("red proposed a research direction; directing research is what a gap's required_fix does")
 	}

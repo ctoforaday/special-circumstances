@@ -26,7 +26,8 @@ import (
 //
 // Two forms, because they answer different questions:
 //
-//   - UNSCOPED — every recorded edit in round order. A navigation hint: what moved, who
+//   - UNSCOPED — every recorded edit in record order, grouped by the sitting that made it. A
+//     navigation hint: what moved, who
 //     moved it, and which gap each edit claims to answer.
 //   - SCOPED to a gap (--id) — the comparison. Red's required_fix and acceptance check
 //     above the edits blue recorded against them, with the exact old→new spans.
@@ -40,14 +41,23 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	out := []string{
 		"# blue changes — RENDERED PROJECTION (source of truth: records/ event log)",
 		"",
-		"Every recorded edit to `blue/report.md`, in round order. This is a navigation hint, not",
+		"Every recorded edit to `blue/report.md`, in record order, grouped by the sitting that made",
+		"it (`seat #N` is that seat's Nth sitting). This is a navigation hint, not",
 		"a substitute for reading the report: a diff decontextualizes research prose, which is why",
 		"the audit is a full re-read. To put red's required_fix and blue's actual change side by",
 		"side, scope it — `show changes --id <gap>`.",
 		"",
 	}
-	round, n, total := -1, 0, 0
+	// THE GROUP IS THE SITTING, not a round: the record carries no round column, and what a reader
+	// catching up wants is "since this seat's previous sitting" — so the heading changes when the
+	// editing seat or its sitting ordinal does. Both come from the Clock, counted over the events
+	// in order, never read off the envelope. Advance is the first statement of the loop body:
+	// the clock must see every event, not only the edits.
+	var clk record.Clock
+	var group string
+	n, total := 0, 0
 	for _, e := range in.Events {
+		w := clk.Advance(e)
 		// THE BODY IS THE TYPE. Matching the message cannot go stale against the enum the way
 		// `e.Type == "blue_edit"` could, and it is the same assertion the reader needs anyway.
 		ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e)
@@ -55,9 +65,9 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 			continue
 		}
 		total++
-		if r := int(e.GetRound()); r != round {
-			round, n = r, 0
-			out = append(out, fmt.Sprintf("## Round %d", r), "")
+		if g := fmt.Sprintf("`%s` #%d", e.GetSeatId(), w.Sitting); g != group {
+			group, n = g, 0
+			out = append(out, "## "+g, "")
 		}
 		n++
 		answers := "_no gap — blue's own_"
@@ -72,9 +82,9 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	}
 	if total == 0 {
 		// SAID, NOT IMPLIED. An empty section reads as "nothing to show"; on a run past
-		// round 0 it means blue changed the report through no recorded path, or did not
+		// epoch 0 it means blue changed the report through no recorded path, or did not
 		// respond at all. Both are findings, and neither should look like formatting.
-		out = append(out, "_No recorded edits. On a run past round 0 that is itself a finding:",
+		out = append(out, "_No recorded edits. On a run past epoch 0 that is itself a finding:",
 			"either blue answered nothing, or the report moved outside `blue edit`._", "")
 	} else {
 		out = append(out, "", fmt.Sprintf("_%d recorded edit(s)._", total), "")
@@ -83,7 +93,7 @@ func changesMD(in Input, gapID string) ([]byte, error) {
 	// THE TWO NUMBERS THAT FALSIFY THE DESIGN, in opposite directions (#267 stage 4).
 	//
 	// DECLINE RATE — blue may apply red's concrete proposal, counter-edit, or dispute.
-	// Applying is instant and free; a counter-edit costs a round and invites re-audit. The
+	// Applying is instant and free; a counter-edit costs an epoch and invites re-audit. The
 	// cheapest path is always compliance, so a run where blue NEVER declines is manufacturing
 	// agreement rather than earning it — the same pathology this axis exists to fix, inverted.
 	//
@@ -156,16 +166,20 @@ func changesForGap(in Input, gapID string) ([]byte, error) {
 		}
 	}
 
-	// The envelope carries the round and the seat, the body carries the spans — the render needs
-	// both, so the assertion is made ONCE here rather than repeated (and possibly ignored) below.
+	// The envelope carries the seat, the Clock counts its sitting, the body carries the spans —
+	// the render needs all three, so the assertion is made ONCE here rather than repeated (and
+	// possibly ignored) below.
 	type recordedEdit struct {
-		ev   *record.Event
-		body *recordpb.BlueEdit
+		ev      *record.Event
+		sitting int
+		body    *recordpb.BlueEdit
 	}
 	var edits []recordedEdit
+	var clk record.Clock
 	for _, e := range in.Events {
+		w := clk.Advance(e)
 		if ed, ok := recordpb.BodyAs[*recordpb.BlueEdit](e); ok && ed.GetAnswers() == gapID {
-			edits = append(edits, recordedEdit{ev: e, body: ed})
+			edits = append(edits, recordedEdit{ev: e, sitting: w.Sitting, body: ed})
 		}
 	}
 
@@ -182,7 +196,7 @@ func changesForGap(in Input, gapID string) ([]byte, error) {
 	out = append(out, fmt.Sprintf("## Edits blue recorded against it (%d)", len(edits)), "")
 	for i, e := range edits {
 		out = append(out,
-			fmt.Sprintf("### %d. Round %d · `%s` · %s", i+1, int(e.ev.GetRound()), e.ev.GetSeatId(), delta(e.body.GetOld(), e.body.GetNew())),
+			fmt.Sprintf("### %d. `%s` #%d · %s", i+1, e.ev.GetSeatId(), e.sitting, delta(e.body.GetOld(), e.body.GetNew())),
 			"",
 			"**Blue's reason**: "+e.body.GetText(),
 			"",

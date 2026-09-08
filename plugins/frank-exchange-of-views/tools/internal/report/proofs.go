@@ -139,13 +139,13 @@ func evidenceDoc(run record.Run, proofs []record.Proof, anchored map[string]bool
 			// credible and least useful.
 			switch {
 			case v.Reproduced && v.Sound:
-				fmt.Fprintf(&b, "- **audited by %s at r%d**: it REPRODUCES, and red read the script and accepts that it establishes the claim", v.SeatID, v.Round)
+				fmt.Fprintf(&b, "- **audited by %s #%d**: it REPRODUCES, and red read the script and accepts that it establishes the claim", v.SeatID, v.Sitting)
 			case v.Reproduced && !v.Sound:
-				fmt.Fprintf(&b, "- **audited by %s at r%d — REPRODUCES BUT DOES NOT PROVE THE CLAIM.** The script re-runs to the same output, and red read it and found it does not establish what it is anchored to. Re-running measures determinism, not validity", v.SeatID, v.Round)
+				fmt.Fprintf(&b, "- **audited by %s #%d — REPRODUCES BUT DOES NOT PROVE THE CLAIM.** The script re-runs to the same output, and red read it and found it does not establish what it is anchored to. Re-running measures determinism, not validity", v.SeatID, v.Sitting)
 			case !v.Reproduced && v.Sound:
-				fmt.Fprintf(&b, "- **audited by %s at r%d**: the method is sound but it DID NOT REPRODUCE — the script no longer produces the recorded output", v.SeatID, v.Round)
+				fmt.Fprintf(&b, "- **audited by %s #%d**: the method is sound but it DID NOT REPRODUCE — the script no longer produces the recorded output", v.SeatID, v.Sitting)
 			default:
-				fmt.Fprintf(&b, "- **audited by %s at r%d — it neither reproduces NOR establishes the claim**", v.SeatID, v.Round)
+				fmt.Fprintf(&b, "- **audited by %s #%d — it neither reproduces NOR establishes the claim**", v.SeatID, v.Sitting)
 			}
 			if v.Note != "" {
 				fmt.Fprintf(&b, " — %s", v.Note)

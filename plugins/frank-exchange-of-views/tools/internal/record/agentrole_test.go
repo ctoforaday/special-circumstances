@@ -97,11 +97,11 @@ func TestEveryAttestedRoleIsARealRole(t *testing.T) {
 }
 
 func TestTheAttestationRefusesASeatFromTheWrongFamily(t *testing.T) {
-	err := CheckAttestedRole("frank-exchange-of-views:lead-judge", "red-chair-r1")
+	err := CheckAttestedRole("frank-exchange-of-views:lead-judge", "red-chair")
 	if err == nil {
-		t.Fatal("a lead-judge agent registered as red-chair-r1 and nothing refused it")
+		t.Fatal("a lead-judge agent registered as red-chair and nothing refused it")
 	}
-	for _, want := range []string{"red-chair-r1", "merge", "lead-judge", "bench seats"} {
+	for _, want := range []string{"red-chair", "merge", "lead-judge", "bench seats"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal does not name %q — it must name both sides for the seat to act on it:\n%s", want, err)
 		}
@@ -113,7 +113,7 @@ func TestTheAttestationRefusesASeatFromTheWrongFamily(t *testing.T) {
 // failing it is because red-merge got its own configuration — at which point the table narrows and
 // this test states the new truth.
 func TestRedAuditorSeatsBothLensAndMerge(t *testing.T) {
-	for _, seat := range []string{"red-lens-r1-evidence", "red-chair-r1"} {
+	for _, seat := range []string{"red-lens-evidence", "red-chair"} {
 		if err := CheckAttestedRole("frank-exchange-of-views:red-auditor", seat); err != nil {
 			t.Errorf("red-auditor cannot seat %s, but debate.js dispatches it: %v", seat, err)
 		}
@@ -123,10 +123,10 @@ func TestRedAuditorSeatsBothLensAndMerge(t *testing.T) {
 // UNATTESTED AND UNKNOWN BOTH PASS, and both are load-bearing: an operator at a shell has no hook,
 // and a build that has not learned a new type must not refuse every seat of that kind.
 func TestUnattestedAndUnknownTypesArePermitted(t *testing.T) {
-	if err := CheckAttestedRole("", "red-chair-r1"); err != nil {
+	if err := CheckAttestedRole("", "red-chair"); err != nil {
 		t.Errorf("an unattested caller was refused, which demands a mechanism its environment lacks: %v", err)
 	}
-	if err := CheckAttestedRole("frank-exchange-of-views:some-future-seat", "red-chair-r1"); err != nil {
+	if err := CheckAttestedRole("frank-exchange-of-views:some-future-seat", "red-chair"); err != nil {
 		t.Errorf("an unknown agent type was refused, which would break every run adding one: %v", err)
 	}
 }

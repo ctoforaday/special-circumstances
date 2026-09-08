@@ -67,7 +67,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	seen := map[string]bool{}
 	add := func(seatID string, body proto.Message) {
 		t.Helper()
-		id := record.Identity{Run: runtest.Open(t, runDir), SeatID: seatID, Round: record.RoundIn(runtest.Open(t, runDir))(seatID)}
+		id := record.Identity{Run: runtest.Open(t, runDir), SeatID: seatID}
 		if !seen[seatID] {
 			if _, _, err := record.RegisterSeat(id, ""); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)
@@ -87,34 +87,34 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// Red mints a gap; the parties take positions; blue records one pursued line of inquiry (an
 	// expansion) and one abandoned line of inquiry (an alternative considered); the bench opines;
 	// the run's terminal verdict is recorded.
-	add("red-chair-r1", &recordpb.Mint{
-		GapId: proto.String("R1-1"), Problem: proto.String("eviction races the reader"),
+	add("red-chair", &recordpb.Mint{
+		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader"),
 		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		AcceptanceCheck: proto.String("race the eviction under -race"),
 		CheckKind:       recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
-	add("red-chair-r1", &recordpb.Position{Text: proto.String("gap R1-1 stands until the race is shown impossible")})
-	add("blue-respond-r1", &recordpb.Position{Text: proto.String("R1-1 is repaired by ordering the invalidation before the store")})
-	add("blue-respond-r1", &recordpb.Avenue{
+	add("red-chair", &recordpb.Position{Text: proto.String("gap G1 stands until the race is shown impossible")})
+	add("blue-respond", &recordpb.Position{Text: proto.String("G1 is repaired by ordering the invalidation before the store")})
+	add("blue-respond", &recordpb.Avenue{
 		AvenueId: proto.String("Q1"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_PURSUED),
 		Line: proto.String("model-check the two-writer interleaving"), Method: proto.String("TLA+"),
 	})
-	add("blue-respond-r1", &recordpb.Avenue{
+	add("blue-respond", &recordpb.Avenue{
 		AvenueId: proto.String("Q2"), Status: recordtest.P(recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED),
 		Line: proto.String("rewrite the cache lock-free"), Reason: proto.String("cost exceeds the benefit at this scale"),
 	})
 	// THE BENCH OPINES IN TWO ACTS, and through the production write path both are refusable:
 	// red DOCKETS the gap it cannot settle, and the bench RULES on that filing. The gap rides
 	// the filing, so the ruling alone would be a disposition of nothing.
-	add("red-chair-r1", &recordpb.Motion{
+	add("red-chair", &recordpb.Motion{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
-		Basis:    proto.String("red cannot settle R1-1 without the model-check"),
-		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("R1-1")}},
+		Basis:    proto.String("red cannot settle G1 without the model-check"),
+		Filing:   &recordpb.Motion_Docket{Docket: &recordpb.DocketMotion{GapId: proto.String("G1")}},
 	})
-	add("judge-r1", &recordpb.MotionRule{
+	add("judge", &recordpb.MotionRule{
 		MotionId: proto.String("M1"),
 		Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 		Opinion:  proto.String("a model-check is owed before this closes"),
@@ -165,7 +165,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 		"cost exceeds the benefit at this scale",
 		// The reviewer-facing orientation, composed from the board.
 		"## Read this first",
-		"(R1-1)",
+		"(G1)",
 		// The link bar: the current document named, its siblings linked.
 		"**Report** · [Board](docket.md)",
 	} {
@@ -177,7 +177,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// THE SPLIT IS THE POINT: the process record is in the set, and NOT in the research
 	// document. A reader who wants the transcript follows a link; one who wants the answer is
 	// not handed 70% of a run's telemetry to scroll past.
-	for _, want := range []string{"## The board", "R1-1 — eviction races the reader"} {
+	for _, want := range []string{"## The board", "G1 — eviction races the reader"} {
 		if !strings.Contains(docket, want) {
 			t.Errorf("docket.md missing %q\n---\n%s", want, docket)
 		}
@@ -185,7 +185,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 			t.Errorf("report.md still carries the docket (%q) — the split did not happen", want)
 		}
 	}
-	for _, want := range []string{"## The debate", "### RED — NO VERDICT RECORDED THIS ROUND\ngap R1-1 stands", "### BLUE\nR1-1 is repaired", "R1-1: carried"} {
+	for _, want := range []string{"## The debate", "### RED — NO VERDICT RECORDED THIS EPOCH\ngap G1 stands", "### BLUE\nG1 is repaired", "G1: carried"} {
 		if !strings.Contains(deb, want) {
 			t.Errorf("debate.md missing %q\n---\n%s", want, deb)
 		}
@@ -203,7 +203,7 @@ func TestAssembleEndToEnd(t *testing.T) {
 	// written. That inverts what this assertion used to say — the old fixture wrote a `bench
 	// opinion`, which was not a motion, so the judgments document was legitimately empty.
 	judgments := read(FileJudgments)
-	for _, want := range []string{"## Motions", "**M1** · docket R1-1", "**ruled carried** by judge-r1"} {
+	for _, want := range []string{"## Motions", "**M1** · docket G1", "**ruled carried** by judge"} {
 		if !strings.Contains(judgments, want) {
 			t.Errorf("judgments.md missing %q — the bench's disposition is a docket motion, and the "+
 				"section whose promise is \"an ask and its answer are one row\" must carry it\n---\n%s", want, judgments)
@@ -268,7 +268,7 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 	seen := map[string]bool{}
 	add := func(seatID string, body proto.Message) {
 		t.Helper()
-		id := record.Identity{Run: runtest.Open(t, runDir), SeatID: seatID, Round: record.RoundIn(runtest.Open(t, runDir))(seatID)}
+		id := record.Identity{Run: runtest.Open(t, runDir), SeatID: seatID}
 		if !seen[seatID] {
 			if _, _, err := record.RegisterSeat(id, ""); err != nil {
 				t.Fatalf("register %s: %v", seatID, err)
@@ -302,8 +302,8 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 		ProofBasis: proto.String("reproducible"), Script: proto.String("interleave.js"),
 		Text: proto.String("the model check settles the race"),
 	})
-	add("red-chair-r1", &recordpb.Mint{
-		GapId: proto.String("R1-1"), Problem: proto.String("eviction races the reader<!--cite:c-2-->"),
+	add("red-chair", &recordpb.Mint{
+		GapId: proto.String("G1"), Problem: proto.String("eviction races the reader<!--cite:c-2-->"),
 		Location: proto.String("cache.go:88"), Class: proto.String("correctness"),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_HIGH),
 		AcceptanceCheck: proto.String("race the eviction under -race"),
@@ -311,8 +311,8 @@ func TestNoDocumentInTheSetShipsADanglingFootnote(t *testing.T) {
 		RequiredFix:     proto.String("take the read lock in evict"),
 	})
 	// And a proof anchored from the transcript, so debate.md must define P1 for itself too.
-	add("blue-respond-r1", &recordpb.Position{
-		Text: proto.String("the interleaving is model-checked<!--proof:p-1--> and R1-1 does not stand"),
+	add("blue-respond", &recordpb.Position{
+		Text: proto.String("the interleaving is model-checked<!--proof:p-1--> and G1 does not stand"),
 	})
 	add("judge-terminal", &recordpb.Outcome{
 		Verdict: recordtest.P(recordpb.RunOutcome_RUN_OUTCOME_CEILING),

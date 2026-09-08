@@ -72,7 +72,7 @@ type EvidenceSourceJSON struct {
 	// verification below.
 	Location string `json:"location"`
 	SeatID   string `json:"seat_id"`
-	Round    int    `json:"round"`
+	Epoch    int    `json:"epoch"`
 
 	// Verified is every `lens verify` naming THIS anchor. An empty slice is the honest zero and
 	// it is rendered, not omitted: "nobody has checked this source" is what red reads to decide
@@ -97,7 +97,7 @@ type EvidenceProofJSON struct {
 	// meta.json; that file is gone and `Proof.drift` carries the sentence itself.
 	Drift  string `json:"drift"`
 	SeatID string `json:"seat_id"`
-	Round  int    `json:"round"`
+	Epoch  int    `json:"epoch"`
 
 	// THREE FIELDS ARE GONE FROM THIS ROW AND THAT IS A LOSS, NOT A TIDY-UP.
 	//
@@ -126,7 +126,7 @@ type EvidenceReproductionJSON struct {
 	Sound      bool   `json:"sound"`
 	Note       string `json:"note"`
 	SeatID     string `json:"seat_id"`
-	Round      int    `json:"round"`
+	Epoch      int    `json:"epoch"`
 }
 
 // EvidenceVerificationJSON is one `lens verify` — a claim red checked against a source.
@@ -156,7 +156,7 @@ type EvidenceVerificationJSON struct {
 	Title      string `json:"title"`
 	AccessDate string `json:"access_date"`
 	SeatID     string `json:"seat_id"`
-	Round      int    `json:"round"`
+	Epoch      int    `json:"epoch"`
 }
 
 // Refuted reports whether this verification found AGAINST the claim — the two outcomes that
@@ -222,7 +222,9 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 	// Red's verifications, split by whether they name a citation. The anchored ones are indexed
 	// so each source carries its own; the rest are corroboration and stand alone.
 	byAnchor := map[string][]EvidenceVerificationJSON{}
+	var clk Clock
 	for _, e := range evs {
+		w := clk.Advance(e)
 		// BodyAs returns false for BOTH no body and a body of another type. Neither is a
 		// verification, and neither is rendered as a check with every field blank.
 		vf, ok := recordpb.BodyAs[*recordpb.Verify](e)
@@ -251,7 +253,7 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 			Title:      vf.GetTitle(),
 			AccessDate: vf.GetAccessDate(),
 			SeatID:     e.GetSeatId(),
-			Round:      int(e.GetRound()),
+			Epoch:      w.Epoch,
 		}
 		out.Counts.Verifications++
 		// THE SPLIT IS STILL ON THE ANCHOR, not on `Verify.independent`, and the empty string is
@@ -267,7 +269,9 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 
 	// Red's re-runs, keyed by the proof sha they checked — the one join the record supports.
 	reruns := map[string]*EvidenceReproductionJSON{}
+	clk = Clock{}
 	for _, e := range evs {
+		w := clk.Advance(e)
 		r, ok := recordpb.BodyAs[*recordpb.Reproduce](e)
 		if !ok {
 			continue
@@ -280,11 +284,13 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 			Sound:      r.GetSoundness() == recordpb.Soundness_SOUNDNESS_SOUND,
 			Note:       r.GetNote(),
 			SeatID:     e.GetSeatId(),
-			Round:      int(e.GetRound()),
+			Epoch:      w.Epoch,
 		}
 	}
 
+	clk = Clock{}
 	for _, e := range evs {
+		w := clk.Advance(e)
 		// TWO ARMS, so this stays `Body` plus a type switch rather than two `BodyAs` passes:
 		// one walk of the events, and an event is a cite or a proof or neither.
 		body, ok := recordpb.Body(e)
@@ -317,7 +323,7 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 				AccessDate: bd.GetAccessDate(),
 				Location:   bd.GetLocation(),
 				SeatID:     e.GetSeatId(),
-				Round:      int(e.GetRound()),
+				Epoch:      w.Epoch,
 				Verified:   checks,
 			})
 		case *recordpb.Proof:
@@ -332,7 +338,7 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 				Cites:    bd.GetCites(),
 				Drift:    bd.GetDrift(),
 				SeatID:   e.GetSeatId(),
-				Round:    int(e.GetRound()),
+				Epoch:    w.Epoch,
 				Verified: reruns[sha],
 			})
 			// `verify` is handled in the indexing pass above — it has to be, because a source
@@ -365,6 +371,7 @@ func EvidenceJSONOf(evs []*Event) EvidenceJSON {
 // EvidenceJSONBytes renders the evidence view as indented JSON.
 func EvidenceJSONBytes(run Run) ([]byte, error) {
 	evs, err := EventsOf(run,
+		recordpb.EventType_EVENT_TYPE_REGISTER, // for the fold's Clock (see record.Clock)
 		recordpb.EventType_EVENT_TYPE_CITE,
 		recordpb.EventType_EVENT_TYPE_VERIFY,
 		recordpb.EventType_EVENT_TYPE_PROOF,

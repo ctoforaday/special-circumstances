@@ -15,7 +15,7 @@ func TestEnvWinsOverFlagAndInference(t *testing.T) {
 	}
 }
 
-// THE MEASURED FAILURE, refused. blue-respond-r1 typed `special circumstances` where the path
+// THE MEASURED FAILURE, refused. blue-respond typed `special circumstances` where the path
 // has a hyphen; the tool obeyed the flag, wrote nothing the run could see, and the seat
 // concluded the RULE was broken — abandoning five manifest receipts and filing a false bug.
 // Obeying a --run that contradicts the dispatch is what made that possible.

@@ -81,12 +81,12 @@ type Inquiry struct {
 	Method     string
 	Status     string
 	Reason     string   // the reason attached to the CURRENT status
-	Round      int      // the round the current status was set in
+	Epoch      int      // the epoch the current status was set in
 	History    []string // "r0 pursued", "r2 abandoned" …
 	SeatID     string   // who last moved it — attribution the one-line row has always carried
 	Ruling     string   // red's fate, if ruled
 	RulingWhy  string
-	RuledRound int
+	RuledEpoch int
 	// Contests was the ruling blue moved AGAINST, recorded by `blue line-of-inquiry` at the moment
 	// of the move. Read from the field rather than re-derived from (status, ruling): the write
 	// path already decided what counts as contesting, and a second derivation downstream is a
@@ -114,7 +114,9 @@ type Inquiry struct {
 func InquiriesOf(evs []*Event) []*Inquiry {
 	byID := map[string]*Inquiry{}
 	var order []string
+	var clk Clock
 	for _, e := range evs {
+		w := clk.Advance(e)
 		body, ok := recordpb.Body(e)
 		if !ok {
 			// NO BODY IS NOT AN EMPTY ONE. An event the schema carries no body for names no line
@@ -163,7 +165,7 @@ func InquiriesOf(evs []*Event) []*Inquiry {
 			// AvenueStatus needs no hyphen join: none of proposed/pursued/deferred/declined/
 			// abandoned carries an underscore. DirectionRuling below is the opposite case.
 			a.Status = recordpb.Word(t.GetStatus())
-			a.Reason, a.Round, a.SeatID = t.GetReason(), int(e.GetRound()), e.GetSeatId()
+			a.Reason, a.Epoch, a.SeatID = t.GetReason(), w.Epoch, e.GetSeatId()
 			// `contests_ruling` HAS NO FIELD, AND THAT IS THE SCHEMA'S DECISION, NOT THIS
 			// CONVERSION'S. It was set as a side effect of moving a line to `pursued` against an
 			// adverse ruling; #344 replaced it with `motion inquiry appeal`, blue/inquiry.go:109
@@ -173,7 +175,7 @@ func InquiriesOf(evs []*Event) []*Inquiry {
 			// empty. THE CONCEPT IS NOT DEAD: its post-#344 carrier is a `motion-appeal` event on
 			// this line's id, which this projection has never read. Wiring that is new behaviour,
 			// not a conversion, so it is reported rather than done here.
-			a.History = append(a.History, fmt.Sprintf("r%d %s", e.GetRound(), a.Status))
+			a.History = append(a.History, fmt.Sprintf("e%d %s", w.Epoch, a.Status))
 		case *recordpb.MotionRule:
 			// THE CURRENT SPELLING, and reading it here is not optional.
 			//
@@ -215,7 +217,7 @@ func InquiriesOf(evs []*Event) []*Inquiry {
 			}
 			// `reason` on the wire is `opinion` on the message — the ruler's argument, which is
 			// the field MotionRule carries and the only prose channel it has.
-			a.RulingWhy, a.RuledRound = t.GetOpinion(), int(e.GetRound())
+			a.RulingWhy, a.RuledEpoch = t.GetOpinion(), w.Epoch
 		case *recordpb.MotionAppeal:
 			// BLUE MOVING AGAINST A RULING, which is the post-#344 carrier of `contests_ruling`.
 			//
@@ -269,46 +271,16 @@ func RequireInquiryRef(run Run, id string) error {
 	return fmt.Errorf("record: --id names line of inquiry %s, which no line of inquiry event proposed — a dangling reference is accepted here and dropped at replay", id)
 }
 
-// CurrentRoundOf is CurrentRound over the events themselves.
-func CurrentRoundOf(evs []*Event) int {
-	max := 0
-	for _, e := range evs {
-		// A BARE DISPATCH IS NOT A ROUND. `register` is every seat's first act and says only that
-		// it was seated — it decides nothing and records no work — so counting it advances the
-		// board's idea of "now" past every earlier seat and leaves their round-scoped duties
-		// permanently unsatisfiable.
-		//
-		// MEASURED 2026-08-21, and it cost a seat its sitting. A round-1 merge discharged its
-		// round-1 duty, was told the act succeeded, and found the projection still demanding it.
-		// It retried ten to twelve times — different wording, different formatting, inline and
-		// from a file — then filed friction reporting that the tool returned success and nothing
-		// persisted. The events had persisted perfectly: CurrentRound was 2, and the only round-2
-		// event on that board was `judge-r2` calling `register`.
-		//
-		// The seat's own summary is the argument for this line: "A seat can't trust its own
-		// actions. I can't tell if the tool accepted my command or silently failed."
-		if e.GetType() == recordpb.EventType_EVENT_TYPE_REGISTER {
-			continue
-		}
-		// An event with no round reads as 0, which is what the old `int` field held when the key
-		// was absent — round 0 is a real round, so there is nothing here for presence to say.
-		if r := int(e.GetRound()); r > max {
-			max = r
-		}
-	}
-	return max
-}
-
 // StaleInquiriesOf is StaleInquiries over the events themselves.
 func StaleInquiriesOf(evs []*Event) []*Inquiry {
-	now := CurrentRoundOf(evs)
+	now := CurrentEpochOf(evs)
 	var out []*Inquiry
 	for _, a := range InquiriesOf(evs) {
 		switch a.Status {
 		case "proposed":
 			out = append(out, a)
 		case "pursued":
-			if a.Round < now {
+			if a.Epoch < now {
 				out = append(out, a)
 			}
 		}
@@ -341,13 +313,15 @@ func InquiryReviewDueOf(evs []*Event) bool {
 	if len(InquiriesOf(evs)) == 0 {
 		return false
 	}
-	now := CurrentRoundOf(evs)
+	now := CurrentEpochOf(evs)
+	var clk Clock
 	for _, e := range evs {
+		w := clk.Advance(e)
 		// THE BODY IS THE TYPE, as everywhere else in this file: a match on the message cannot go
 		// stale against the enum. No field is read — the event's existence in this round IS the
 		// fact — but the type test still goes through the body so a renamed enum value fails to
 		// compile rather than silently matching nothing.
-		if _, ok := recordpb.BodyAs[*recordpb.InquiryReview](e); ok && int(e.GetRound()) == now {
+		if _, ok := recordpb.BodyAs[*recordpb.InquiryReview](e); ok && w.Epoch == now {
 			return false
 		}
 	}

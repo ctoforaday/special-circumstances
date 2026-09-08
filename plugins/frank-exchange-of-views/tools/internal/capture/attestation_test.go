@@ -33,8 +33,8 @@ func attestRun(t *testing.T, anchorTool, anchorTarget string) string {
 	t.Helper()
 	dir := t.TempDir()
 	recordtest.Seed(t, dir,
-		recordtest.At(t, "red-chair-r1", 1, "red-chair-r1:mint:R1-1", &recordpb.Mint{
-			GapId:           proto.String("R1-1"),
+		recordtest.At(t, "red-chair", "red-chair:mint:G1", &recordpb.Mint{
+			GapId:           proto.String("G1"),
 			Problem:         proto.String("p"),
 			RequiredFix:     proto.String("f"),
 			AcceptanceCheck: proto.String("the check runs"),
@@ -44,10 +44,10 @@ func attestRun(t *testing.T, anchorTool, anchorTarget string) string {
 			Likelihood:      recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 			Impact:          recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 		}),
-		recordtest.At(t, "red-chair-r2", 2, "red-chair-r2:close:R1-1", &recordpb.Close{
-			GapId:        proto.String("R1-1"),
+		recordtest.At(t, "red-chair", "red-chair:close:G1", &recordpb.Close{
+			GapId:        proto.String("G1"),
 			ClosureClass: recordpb.Disposition_DISPOSITION_REPAIRED.Enum(),
-			AnchorSeat:   proto.String("red-chair-r2"),
+			AnchorSeat:   proto.String("red-chair"),
 			AnchorTool:   proto.String(anchorTool),
 			AnchorTarget: proto.String(anchorTarget),
 			Prose:        proto.String("verified at the leaf"),
@@ -75,7 +75,7 @@ func transcriptWith(t *testing.T, commands ...string) (string, []string) {
 // and named the id in the tool it ran. That must reconcile.
 func TestAPreciseAnchorWithShortWordsReconcilesByItsID(t *testing.T) {
 	run := attestRun(t, "show report --anchor f-0dd40334", "report text at line 103")
-	tr, files := transcriptWith(t, `feov-record red-chair-r2 show report --anchor f-0dd40334`)
+	tr, files := transcriptWith(t, `feov-record red-chair show report --anchor f-0dd40334`)
 	got := AttestationAudit(runtest.Open(t, run), tr, files, 3)
 	if got.Verdict != "PASS" {
 		t.Errorf("a closure citing an id the transcript carries must reconcile.\ngot %s: %s", got.Verdict, got.Detail)
@@ -85,7 +85,7 @@ func TestAPreciseAnchorWithShortWordsReconcilesByItsID(t *testing.T) {
 // AND THE DISHONEST CASE STILL FAILS, which is the half that makes the fix worth having.
 func TestAClosureCitingAnIDNobodyRanIsAFinding(t *testing.T) {
 	run := attestRun(t, "show report --anchor f-0dd40334", "report text at line 103")
-	tr, files := transcriptWith(t, `feov-record red-chair-r2 show board`)
+	tr, files := transcriptWith(t, `feov-record red-chair show board`)
 	got := AttestationAudit(runtest.Open(t, run), tr, files, 3)
 	if got.Verdict != "FAIL" {
 		t.Fatalf("an id in no tool call must be a finding; got %s: %s", got.Verdict, got.Detail)
@@ -98,7 +98,7 @@ func TestAClosureCitingAnIDNobodyRanIsAFinding(t *testing.T) {
 // NOT MEASURED IS NOT A FINDING, and it must say so where a reader will see it.
 func TestAnUnmeasurableAnchorIsReportedAsNotMeasuredRatherThanAsDishonesty(t *testing.T) {
 	run := attestRun(t, "show report", "report text at line 103")
-	tr, files := transcriptWith(t, `feov-record red-chair-r2 show report`)
+	tr, files := transcriptWith(t, `feov-record red-chair show report`)
 	got := AttestationAudit(runtest.Open(t, run), tr, files, 3)
 	if got.Verdict == "FAIL" {
 		t.Errorf("an anchor with nothing to join on is not evidence of a dishonest record.\ngot %s: %s", got.Verdict, got.Detail)
@@ -113,7 +113,7 @@ func TestAnUnmeasurableAnchorIsReportedAsNotMeasuredRatherThanAsDishonesty(t *te
 // the whole audit before, and it must not regress.
 func TestADistinctiveProseTargetStillReconciles(t *testing.T) {
 	run := attestRun(t, "show evidence", "evidence projection and report text")
-	tr, files := transcriptWith(t, `feov-record red-chair-r2 show evidence --projection full`)
+	tr, files := transcriptWith(t, `feov-record red-chair show evidence --projection full`)
 	if got := AttestationAudit(runtest.Open(t, run), tr, files, 3); got.Verdict != "PASS" {
 		t.Errorf("distinctive prose must still reconcile; got %s: %s", got.Verdict, got.Detail)
 	}

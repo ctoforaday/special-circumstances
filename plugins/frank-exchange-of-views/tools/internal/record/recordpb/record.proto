@@ -450,8 +450,17 @@ message Event {
   //
   // The ordinal is scoped to the seat now, so its keys are monotonic across dispatches and the
   // collision is unrepresentable. "Which dispatch was this" is still answerable — it is the count
-  // of that seat's register events at or before the row, which is what capture.go already does.
-  optional int32 round = 5;
+  // of that seat's register events at or before the row, which is what events_w."sitting" is.
+  //
+  // `round` WAS FIELD 5 AND IS GONE (plans/roundless.md §III.A.2). It was the third stamped
+  // derivation on this envelope, and the last: first recovered from the seat id by regex, then
+  // counted from chair registers in the write's own transaction. Both were a READ-BEFORE-WRITE
+  // to store a number the record could already answer, and the answer is a window function over
+  // this table — events_w."epoch" for the chair-sitting count, events_w."sitting" for the seat's
+  // own — computed when a reader wants it, exactly as seq's removal argued above. The debate no
+  // longer has rounds; the record has a sequence ("id") and two clocks derived from it.
+  reserved 5;
+  reserved "round";
 
   // role is the seat's ROLE as a field. Readers used to recover it with
   // strings.HasPrefix(seat_id, "red-merge") — including the branch deciding whether a position
@@ -472,7 +481,7 @@ message Event {
 
   oneof body {
     Register register = 20;
-    RoundVerdict verdict = 21;
+    Gate verdict = 21;
     Outcome outcome = 22;
     Position position = 23;
     Halt halt = 24;
@@ -523,13 +532,13 @@ message Event {
   reserved "opinion";
 }
 
-// TelemetryLine is the per-round projection, NOT a shard event.
+// TelemetryLine is the per-epoch projection, NOT a shard event.
 //
 // It is written by view.Telemetry and re-decoded by the dashboard, cost and scorecard as raw
 // JSON keys. It gets a message for the same reason events do: it was a nested *Payload of
 // *Payloads, and its consumers bind its keys as strings.
 message TelemetryLine {
-  optional int32 round = 1;
+  optional int32 epoch = 1;
   optional string mapping_version = 2;
   optional int32 open_count = 3;
 
@@ -1624,7 +1633,11 @@ message SittingClose {
   optional string agent_type = 2;
 }
 
-// RoundVerdict carries red's terminal gate on a round.
+// Gate carries red's terminal gate on the open board: PASS or FAIL as of this sitting.
+//
+// IT WAS `RoundVerdict`. The round left the record (plans/roundless.md §III.A.2) and a name that
+// carried it would have been the last live surface saying the debate is paced in rounds; the
+// table follows the message, so `round_verdict` is `gate` — named from the message it records.
 //
 // IT WAS `Verdict_`, with a trailing underscore, because `Verdict` is the enum and protoc-gen-go
 // would collide the two Go identifiers. That is a real constraint and it was solved in the wrong
@@ -1632,10 +1645,9 @@ message SittingClose {
 // then travelled all the way into the record as a table called `verdict_` — a Go artifact sitting
 // in the schema a human reads to understand the debate.
 //
-// `RoundVerdict` says what it is. The collision is gone because the name is different, not because
-// it was decorated, and the wire is unaffected either way: field numbers carry the format, names do
-// not.
-message RoundVerdict {
+// `Gate` says what it is. The collision is gone because the name is different, not because it was
+// decorated, and the wire is unaffected either way: field numbers carry the format, names do not.
+message Gate {
   optional Verdict verdict = 1;
 }
 

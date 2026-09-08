@@ -71,64 +71,6 @@ func TestMergedEventsOnAnEmptyOrAbsentRun(t *testing.T) {
 	}
 }
 
-// THE ROUND, AND WHETHER THE NAME ANSWERS IT AT ALL.
-//
-// This used to assert a bare int, so `assemble` and `judge-terminal` pinned to 0 — the same value
-// `red-lens-r0-evidence` pins to, and 0 is SYNTHESIS, a real round with real events. The two cases were
-// indistinguishable by construction, and that is #327: a bench closure at run END read as a
-// closure BEFORE round 1, put a phantom entry in the archive, and made the W1.8 spot-check floor
-// demand samples from rounds whose seats had done nothing wrong.
-//
-// The three answers are now distinct: a round the name states, round 0 stated by a seat that
-// genuinely runs in synthesis, and NOT ANSWERED.
-func TestRoundOf(t *testing.T) {
-	cases := []struct {
-		in    string
-		want  int
-		known bool
-	}{
-		// The name states it.
-		{"red-lens-r3-logic", 3, true},
-		{"red-chair-r12", 12, true},
-		{"judge-r1", 1, true},
-		{"blue-respond-r7", 7, true},
-		{"red-lens-r0-evidence", 0, true},
-		{"first-r2-then-r9", 2, true}, // the FIRST match wins, not the last
-		// A petition sitting is named for its petitioner, so it inherits that seat's round —
-		// which is why the bare `judge-petition` was retired (#394).
-		{"judge-petition-red-chair-r1", 1, true},
-		// Round 0 BY RULE rather than by accident: these are dispatched before the round loop
-		// (debate.js puts `let round = 0` after them), so synthesis is exactly where they act.
-		{"frontier", 0, true},
-		{"blue-synthesize", 0, true},
-		{"blue-lane-2", 0, true},
-		// The name cannot answer. These act AFTER the last round, and answering 0 said the
-		// opposite of the truth.
-		{"assemble", 0, false},
-		{"judge-terminal", 0, false},
-		// Not a debate seat, and not a seat id at all.
-		{"operator", 0, false},
-		{"", 0, false},
-		{"no-round-here", 0, false},
-		// The round marker is a HYPHEN-DELIMITED segment of an engine-assigned seat id, so a
-		// bare "r5" does not answer — there is no seat named that, and matching it would also
-		// make "frontier" round 0 by accident rather than by rule.
-		{"r5", 0, false},
-		{"red-lens-rX-L1", 0, false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.in, func(t *testing.T) {
-			got, known := RoundOf(tc.in)
-			if known != tc.known {
-				t.Fatalf("RoundOf(%q) known = %v, want %v — a name that cannot answer must say so, not answer 0", tc.in, known, tc.known)
-			}
-			if known && got != tc.want {
-				t.Errorf("RoundOf(%q) = %d, want %d", tc.in, got, tc.want)
-			}
-		})
-	}
-}
-
 func TestGapMassAndGradeStr(t *testing.T) {
 	cases := []struct {
 		likelihood, impact string
@@ -166,39 +108,40 @@ func TestGapMassAndGradeStr(t *testing.T) {
 	}
 }
 
-// Ids are minted tool-side and sequentially PER ROUND: the collision class that
-// produced four different "R5-1"s cannot recur.
-func TestMintGapIDIsSequentialPerRound(t *testing.T) {
+// Ids are minted tool-side and sequentially OVER THE RUN: one counter, one namespace. The
+// collision class that produced four different ids for one gap cannot recur, and the chair
+// sitting again does NOT restart the counter — there is no round left for it to restart in
+// (plans/roundless.md §III.A.3).
+func TestMintGapIDIsSequentialOverTheRun(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-chair-r1"
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID, Round: RoundIn(mustRun(t, runDir))(seatID)}, ""); err != nil {
+	seatID := "red-chair"
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, ""); err != nil {
 		t.Fatal(err)
 	}
 	for i := 1; i <= 3; i++ {
-		got, err := MintGapID(mustRun(t, runDir), 1)
+		got, err := MintGapID(mustRun(t, runDir))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if want := fmt.Sprintf("R1-%d", i); got != want {
+		if want := fmt.Sprintf("G%d", i); got != want {
 			t.Fatalf("MintGapID = %q, want %q", got, want)
 		}
 		// The MINTED id, not a fixed one: each pass records the gap it just reserved, which is
 		// what makes the ids sequential rather than one gap minted three times.
-		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seatID, Round: RoundIn(mustRun(t, runDir))(seatID)}, &recordpb.Mint{GapId: proto.String(got), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+		if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seatID}, &recordpb.Mint{GapId: proto.String(got), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	// A new round restarts the counter; the id namespace is per-round.
-	seat2 := "red-chair-r2"
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seat2, Round: RoundIn(mustRun(t, runDir))(seat2)}, ""); err != nil {
+	// The chair sits again. The counter continues; a fresh epoch is not a fresh namespace.
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, ""); err != nil {
 		t.Fatal(err)
 	}
-	got, err := MintGapID(mustRun(t, runDir), 2)
+	got, err := MintGapID(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "R2-1" {
-		t.Errorf("first mint of round 2 = %q, want R2-1", got)
+	if got != "G4" {
+		t.Errorf("first mint after the chair re-sat = %q, want G4 — the counter is run-global", got)
 	}
 }
 
@@ -206,11 +149,11 @@ func TestMintGapIDIsSequentialPerRound(t *testing.T) {
 // successful mint must get the EXISTING id, not a second gap.
 func TestExistingMintByKey(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-chair-r1"
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID, Round: RoundIn(mustRun(t, runDir))(seatID)}, ""); err != nil {
+	seatID := "red-chair"
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: seatID}, ""); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seatID, Round: RoundIn(mustRun(t, runDir))(seatID)}, &recordpb.Mint{GapId: proto.String("R1-1"), MintKey: proto.String("L1-F3"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: seatID}, &recordpb.Mint{GapId: proto.String("G1"), MintKey: proto.String("L1-F3"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -218,8 +161,8 @@ func TestExistingMintByKey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "R1-1" {
-		t.Errorf("ExistingMintByKey = %q, want R1-1", got)
+	if got != "G1" {
+		t.Errorf("ExistingMintByKey = %q, want G1", got)
 	}
 	// An empty key is not a lookup: it must never match a mint that had no key.
 	if got, err := ExistingMintByKey(mustRun(t, runDir), seatID, ""); err != nil || got != "" {
@@ -230,20 +173,21 @@ func TestExistingMintByKey(t *testing.T) {
 	if got, err := ExistingMintByKey(mustRun(t, runDir), seatID, "L9-F9"); err != nil || got != "" {
 		t.Errorf("unknown key = (%q,%v), want a miss", got, err)
 	}
-	if got, err := ExistingMintByKey(mustRun(t, runDir), "red-chair-r2", "L1-F3"); err != nil || got != "" {
+	if got, err := ExistingMintByKey(mustRun(t, runDir), "red-lens-evidence", "L1-F3"); err != nil || got != "" {
 		t.Errorf("another seat's key matched: %q — mint keys are per-seat", got)
 	}
 }
 
 func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-chair-r1"
+	seatID := "red-chair"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{GapId: proto.String("R1-1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
-		recordtest.At(t, seatID, 1, seatID+":mint:R1-2", &recordpb.Mint{GapId: proto.String("R1-2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p2"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
+		recordtest.At(t, seatID, seatID+":register:#1", &recordpb.Register{}),
+		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{GapId: proto.String("G1"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Problem: proto.String("p1"), Severity: recordtest.P(recordpb.Grade_GRADE_LOW), Likelihood: recordtest.P(recordpb.Grade_GRADE_LOW), Impact: recordtest.P(recordpb.Grade_GRADE_LOW)}),
+		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{GapId: proto.String("G2"), Class: proto.String("overclaim"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p2"), Severity: recordtest.P(recordpb.Grade_GRADE_HIGH)}),
 		// A regrade moves ONLY the keys it carries.
-		recordtest.At(t, seatID, 1, seatID+":regrade:R1-1", &recordpb.Regrade{GapId: proto.String("R1-1"), Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), Basis: proto.String("new evidence")}),
-		recordtest.At(t, seatID, 1, seatID+":close:R1-2", &recordpb.Close{GapId: proto.String("R1-2"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")}),
+		recordtest.At(t, seatID, seatID+":regrade:G1", &recordpb.Regrade{GapId: proto.String("G1"), Severity: recordtest.P(recordpb.Grade_GRADE_CERTAIN), Basis: proto.String("new evidence")}),
+		recordtest.At(t, seatID, seatID+":close:G2", &recordpb.Close{GapId: proto.String("G2"), ClosureClass: recordtest.P(recordpb.Disposition_DISPOSITION_REPAIRED), Prose: proto.String("verified at the leaf")}),
 		// A REGRADE AND A CLOSE OF AN UNKNOWN GAP USED TO BE SEEDED HERE, and the assertion was
 		// that the replay IGNORED them rather than failing. Both are foreign keys onto the mint
 		// now, so neither row can be written — the state is unrepresentable, and the replay's arm
@@ -254,12 +198,12 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(b.Gaps) != 2 || b.Gaps[0].ID != "R1-1" {
-		t.Fatalf("family order = %v, want mint order [R1-1 R1-2]", b.Gaps)
+	if len(b.Gaps) != 2 || b.Gaps[0].ID != "G1" {
+		t.Fatalf("family order = %v, want mint order [G1 G2]", b.Gaps)
 	}
-	g1 := b.Gap("R1-1")
+	g1 := b.Gap("G1")
 	if !g1.Open {
-		t.Error("R1-1 should still be open")
+		t.Error("G1 should still be open")
 	}
 	if g1.Severity != recordpb.Grade_GRADE_CERTAIN {
 		t.Errorf("regrade did not move severity: %v", g1.Severity)
@@ -271,17 +215,17 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 	if len(g1.Regrades) != 1 {
 		t.Errorf("regrade history not kept: %d entries", len(g1.Regrades))
 	}
-	g2 := b.Gap("R1-2")
-	if g2.Open || !g2.HasClosed || g2.ClosedRound != 1 {
-		t.Errorf("R1-2 closure not replayed: %+v", g2)
+	g2 := b.Gap("G2")
+	if g2.Open || !g2.HasClosed || g2.ClosedEpoch != 1 {
+		t.Errorf("G2 closure not replayed: %+v", g2)
 	}
 	// Absence is renderable: a gap minted without --cx keeps nil, not "".
 	if g2.ComplexityCost != recordpb.Grade_GRADE_UNSPECIFIED {
 		t.Errorf("an unpassed grade became %v, want nil (it renders as \"undefined\")", g2.ComplexityCost)
 	}
-	// R9-9 was never minted, so it is not on the board — which is now true by construction rather
+	// G3 was never minted, so it is not on the board — which is now true by construction rather
 	// than by the replay choosing to skip it.
-	if b.Gap("R9-9") != nil {
+	if b.Gap("G3") != nil {
 		t.Error("an event about an unknown gap created one")
 	}
 }
@@ -295,10 +239,10 @@ func TestBoardStateReplaysGapLifecycle(t *testing.T) {
 // the credit join is keyed on exactly that.
 func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 	runDir := newRun(t)
-	lens := "red-lens-r1-evidence"
+	lens := "red-lens-evidence"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, lens, 1, lens+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("first")}),
-		recordtest.At(t, lens, 1, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("second")}),
+		recordtest.At(t, lens, lens+":finding:F1", &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("first")}),
+		recordtest.At(t, lens, lens+":finding:F2", &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("second")}),
 	})
 	b, err := FamilyOf(mustRun(t, runDir))
 	if err != nil {
@@ -333,7 +277,7 @@ func TestBoardStateReplaysFindingsWithTheirLabels(t *testing.T) {
 // UNSPECIFIED zero), so it is still asserted — and the canonical set is checked against the schema
 // in enums_test rather than by writing every value through validate.
 func TestAnAbsentGradeIsAccepted(t *testing.T) {
-	if err := validate(mustRun(t, recordtest.TmpRun(t)), "red-chair-r1", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Basis: proto.String("b")}); err != nil {
+	if err := validate(mustRun(t, recordtest.TmpRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{Basis: proto.String("b")}); err != nil {
 		t.Errorf("absent grades were refused: %v", err)
 	}
 }
@@ -352,10 +296,10 @@ type validateContract struct {
 // that quietly stopped covering half the verbs.
 func validateContractCases() []validateContract {
 	return []validateContract{
-		{"mint without --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("x")}, "mint requires --check"},
-		{"mint with an empty --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("x"), AcceptanceCheck: proto.String("")}, "mint requires --check"},
-		{"mint without --class", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT)}, "mint requires --class"},
-		{"mint complete", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}, ""},
+		{"mint without --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("x")}, "mint requires --check"},
+		{"mint with an empty --check", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("x"), AcceptanceCheck: proto.String("")}, "mint requires --check"},
+		{"mint without --class", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT)}, "mint requires --class"},
+		{"mint complete", recordpb.EventType_EVENT_TYPE_MINT, &recordpb.Mint{GapId: proto.String("G1"), AcceptanceCheck: proto.String("c"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}, ""},
 
 		{"close without --id", recordpb.EventType_EVENT_TYPE_CLOSE, &recordpb.Close{}, "close requires --id"},
 		{"regrade without --basis", recordpb.EventType_EVENT_TYPE_REGRADE, &recordpb.Regrade{}, "regrade requires --reason"},
@@ -398,7 +342,7 @@ func validateContractCases() []validateContract {
 func TestValidateVerbContracts(t *testing.T) {
 	for _, tc := range validateContractCases() {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validate(mustRun(t, newRun(t)), "red-chair-r1", tc.typ, tc.p)
+			err := validate(mustRun(t, newRun(t)), "red-chair", tc.typ, tc.p)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validate = %v, want accepted", err)
@@ -415,7 +359,7 @@ func TestValidateVerbContracts(t *testing.T) {
 	}
 }
 
-// docketRunDir is a run in which R1-1 exists AND motion M1 has been docketed against it, so a
+// docketRunDir is a run in which G1 exists AND motion M1 has been docketed against it, so a
 // bench ruling's references both resolve and the test can be about the missing FIELD rather than
 // the missing gap or the missing filing.
 //
@@ -425,14 +369,14 @@ func TestValidateVerbContracts(t *testing.T) {
 func docketRunDir(t *testing.T) string {
 	t.Helper()
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
 		t.Fatal(err)
 	}
-	id, err := MintGapID(mustRun(t, runDir), 1)
+	id, err := MintGapID(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	redID := Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: RoundIn(mustRun(t, runDir))("red-chair-r1")}
+	redID := Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}
 	if _, err := Append(redID, &recordpb.Mint{AcceptanceCheck: proto.String("the check runs"), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String(id), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Class: proto.String("x"), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Problem: proto.String("p")}); err != nil {
 		t.Fatal(err)
 	}
@@ -497,7 +441,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		t.Run("missing "+c.field, func(t *testing.T) {
 			o := complete()
 			c.clear(o)
-			err := validate(mustRun(t, docketRunDir(t)), "judge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o)
+			err := validate(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o)
 			if err == nil {
 				t.Fatalf("a docket ruling was accepted without %s", c.field)
 			}
@@ -509,7 +453,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 
 	// THE FILING OWNS THE GAP, so its own omission is asserted on the filing.
 	t.Run("a docket filing missing the gap", func(t *testing.T) {
-		err := validate(mustRun(t, docketRunDir(t)), "red-chair-r1", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+		err := validate(mustRun(t, docketRunDir(t)), "red-chair", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 			MotionId: proto.String("M2"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_DOCKET),
 			Basis:    proto.String("put it to the bench"),
@@ -523,7 +467,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 		}
 	})
 
-	if err := validate(mustRun(t, docketRunDir(t)), "judge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
+	if err := validate(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, complete()); err != nil {
 		t.Errorf("a complete docket ruling was refused: %v", err)
 	}
 
@@ -541,7 +485,7 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 	empty.GetDocket().Tension = proto.String("")
 	empty.GetDocket().ReviewFlag = proto.String("")
 	empty.GetDocket().Settled = proto.String("")
-	if err := validate(mustRun(t, docketRunDir(t)), "judge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
+	if err := validate(mustRun(t, docketRunDir(t)), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty); err != nil {
 		t.Errorf("docket ruling fields present-but-empty were refused: %v", err)
 	}
 }
@@ -550,13 +494,13 @@ func TestValidateDocketRulingNamesEachMissingField(t *testing.T) {
 // refused, because the supersedes chain is what the whole analysis reads.
 func TestValidateRefusesDanglingLineage(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-chair-r1"
+	seatID := "red-chair"
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("R1-1")}),
+		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1")}),
 	})
 	base := func(supersedes ...string) *recordpb.Mint {
 		return &recordpb.Mint{
-			GapId: proto.String("R1-2"), AcceptanceCheck: proto.String("c"),
+			GapId: proto.String("G2"), AcceptanceCheck: proto.String("c"),
 			CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 			Class:     proto.String("x"), Problem: proto.String("p"),
 			Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
@@ -565,35 +509,35 @@ func TestValidateRefusesDanglingLineage(t *testing.T) {
 		}
 	}
 
-	if err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_MINT, base("R1-1")); err != nil {
+	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G1")); err != nil {
 		t.Errorf("a real ancestor was refused: %v", err)
 	}
-	err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_MINT, base("R1-1", "R9-9"))
+	err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base("G1", "G3"))
 	if err == nil {
 		t.Fatal("a dangling ancestor was accepted")
 	}
-	if !strings.Contains(err.Error(), "R9-9") || !strings.Contains(err.Error(), "dangling lineage refused") {
+	if !strings.Contains(err.Error(), "G3") || !strings.Contains(err.Error(), "dangling lineage refused") {
 		t.Errorf("error must name the dangling id: %v", err)
 	}
 	// An empty lineage is not a dangling one.
-	if err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_MINT, base()); err != nil {
+	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, base()); err != nil {
 		t.Errorf("an empty lineage was refused: %v", err)
 	}
 }
 
 func TestValidateCloseAnchorContract(t *testing.T) {
 	runDir := newRun(t)
-	seatID := "red-chair-r1"
-	// BOTH gaps are minted: R1-1 is the one being closed, R2-1 the successor a
+	seatID := "red-chair"
+	// BOTH gaps are minted: G1 is the one being closed, G2 the successor a
 	// repaired_with_regression names. A successor is a reference like any other and is
 	// now checked, so a fixture that names one has to create it.
 	writeShard(t, runDir, []*Event{
-		recordtest.At(t, seatID, 1, seatID+":mint:R1-1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("R1-1")}),
-		recordtest.At(t, seatID, 2, seatID+":mint:R2-1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("R2-1")}),
+		recordtest.At(t, seatID, seatID+":mint:G1", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G1")}),
+		recordtest.At(t, seatID, seatID+":mint:G2", &recordpb.Mint{Class: proto.String("overclaim"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), GapId: proto.String("G2")}),
 	})
 	anchored := func() *recordpb.Close {
 		return &recordpb.Close{
-			GapId: proto.String("R1-1"), AnchorSeat: proto.String("L1"),
+			GapId: proto.String("G1"), AnchorSeat: proto.String("L1"),
 			AnchorTool: proto.String("git show"), AnchorTarget: proto.String("7bc501e:path"),
 			Prose: proto.String("verified against the ref; the claim now holds"),
 		}
@@ -616,10 +560,10 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		// field. A fixture omitting --reason would be refused for that and never reach the rule
 		// it names. The ordering is a deliberate change: the old code ran requiredness LAST so
 		// the more specific refusal led, and this reverses it.
-		{"unknown gap", &recordpb.Close{GapId: proto.String("R9-9"), Prose: proto.String("verified")}, "close of unknown gap"},
-		{"no anchor at all", &recordpb.Close{GapId: proto.String("R1-1"), Prose: proto.String("verified")}, "requires the verification triple"},
-		{"a PARTIAL anchor is not an anchor", &recordpb.Close{GapId: proto.String("R1-1"), Prose: proto.String("verified"), AnchorSeat: proto.String("L1")}, "requires the verification triple"},
-		{"anchor missing its target", &recordpb.Close{GapId: proto.String("R1-1"), Prose: proto.String("verified"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show")}, "requires the verification triple"},
+		{"unknown gap", &recordpb.Close{GapId: proto.String("G3"), Prose: proto.String("verified")}, "close of unknown gap"},
+		{"no anchor at all", &recordpb.Close{GapId: proto.String("G1"), Prose: proto.String("verified")}, "requires the verification triple"},
+		{"a PARTIAL anchor is not an anchor", &recordpb.Close{GapId: proto.String("G1"), Prose: proto.String("verified"), AnchorSeat: proto.String("L1")}, "requires the verification triple"},
+		{"anchor missing its target", &recordpb.Close{GapId: proto.String("G1"), Prose: proto.String("verified"), AnchorSeat: proto.String("L1"), AnchorTool: proto.String("git show")}, "requires the verification triple"},
 		{"a full anchor", anchored(), ""},
 		// --carried-from remains the honest alternative to re-verifying, but it is a
 		// CLAIM ABOUT THE RECORD and is now checked like one. This gap has never been
@@ -627,13 +571,13 @@ func TestValidateCloseAnchorContract(t *testing.T) {
 		// laundering path: an unanchored first closure that scores as closed, which is
 		// exactly what anchored_closures_pct exists to detect. The genuine case (close
 		// with an anchor, then restate) is covered in required_test.go.
-		{"--carried-from cannot invent an earlier closure", &recordpb.Close{GapId: proto.String("R1-1"), Prose: proto.String("verified"), CarriedFrom: proto.String("2")}, "no closure of it exists in the record"},
+		{"--carried-from cannot invent an earlier closure", &recordpb.Close{GapId: proto.String("G1"), Prose: proto.String("verified"), CarriedFrom: proto.String("2")}, "no closure of it exists in the record"},
 		{"closed_with_regression needs a successor", withClass(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION, ""), "requires --superseded-by"},
-		{"closed_with_regression with a successor", withClass(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION, "R2-1"), ""},
+		{"closed_with_regression with a successor", withClass(recordpb.Disposition_DISPOSITION_REPAIRED_WITH_REGRESSION, "G2"), ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_CLOSE, tc.p)
+			err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, tc.p)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("validate = %v, want accepted", err)
@@ -684,7 +628,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	// corpus is indexed by. The corpus was built, the index was written, and the join never once
 	// delivered a pattern.
 	t.Run("no registry staged is refused, not waved through", func(t *testing.T) {
-		err := validate(mustRun(t, recordtest.TmpRun(t)), "red-chair-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
+		err := validate(mustRun(t, recordtest.TmpRun(t)), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
 		if err == nil {
 			t.Fatal("a run with no staged registry accepted an arbitrary class — every --class passes, and the board ships a vocabulary nothing recognises")
 		}
@@ -705,7 +649,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an unparseable registry is refused, not waved through", func(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, "{not json")
-		err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
+		err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("anything-at-all")}))
 		if err == nil {
 			t.Fatal("a corrupt registry accepted an arbitrary class — every --class passes while it stays that way, and the run reads as validated")
 		}
@@ -717,7 +661,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a known slug passes", func(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, registry)
-		if err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("scope-creep")})); err != nil {
+		if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("scope-creep")})); err != nil {
 			t.Errorf("a registry slug was refused: %v", err)
 		}
 	})
@@ -725,7 +669,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an unknown slug is refused with a hint", func(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, registry)
-		err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
+		err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
 		if err == nil {
 			t.Fatal("an unknown class was accepted")
 		}
@@ -756,7 +700,7 @@ func TestValidateClassRegistry(t *testing.T) {
 			missing := c.field
 			n := complete()
 			c.clear(n)
-			err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_CLASS_NEW, n)
+			err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLASS_NEW, n)
 			if err == nil {
 				t.Errorf("a coining was accepted without --%s", missing)
 				continue
@@ -774,7 +718,7 @@ func TestValidateClassRegistry(t *testing.T) {
 			Slug: proto.String("brand-new"), Definition: proto.String("d"),
 			Neighbor: proto.String("not-a-class"), Distinguisher: proto.String("q"),
 		}
-		err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_CLASS_NEW, n)
+		err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLASS_NEW, n)
 		if err == nil {
 			t.Fatal("an invented neighbor was accepted")
 		}
@@ -786,11 +730,11 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a class minted earlier in the run extends the registry", func(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, registry)
-		seatID := "red-chair-r1"
+		seatID := "red-chair"
 		writeShard(t, runDir, []*Event{
-			recordtest.At(t, seatID, 1, seatID+":class-new:x", &recordpb.ClassNew{Slug: proto.String("run-local-class")}),
+			recordtest.At(t, seatID, seatID+":class-new:x", &recordpb.ClassNew{Slug: proto.String("run-local-class")}),
 		})
-		if err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("run-local-class")})); err != nil {
+		if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("run-local-class")})); err != nil {
 			t.Errorf("a class minted in this run was refused: %v", err)
 		}
 		// And it is a valid neighbor for a further new class.
@@ -798,7 +742,7 @@ func TestValidateClassRegistry(t *testing.T) {
 			Slug: proto.String("another"), Definition: proto.String("d"),
 			Neighbor: proto.String("run-local-class"), Distinguisher: proto.String("q"),
 		}
-		if err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_CLASS_NEW, n); err != nil {
+		if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLASS_NEW, n); err != nil {
 			t.Errorf("a run-local class was not a valid neighbor: %v", err)
 		}
 	})
@@ -806,7 +750,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("a registry with fewer than six slugs does not slice out of range", func(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, `{"classes":[{"slug":"only-one"}]}`)
-		err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
+		err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")}))
 		if err == nil {
 			t.Fatal("expected a refusal")
 		}
@@ -818,7 +762,7 @@ func TestValidateClassRegistry(t *testing.T) {
 	t.Run("an EMPTY registry is still strict and does not panic", func(t *testing.T) {
 		runDir := newRun(t)
 		writeRegistry(t, runDir, `{"classes":[]}`)
-		if err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("R1-1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")})); err == nil {
+		if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_MINT, mint(&recordpb.Mint{GapId: proto.String("G1"), Problem: proto.String("p"), AcceptanceCheck: proto.String("the check runs"), CheckKind: recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT), Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Class: proto.String("invented")})); err == nil {
 			t.Error("an empty registry accepted an invented class")
 		}
 	})
@@ -842,7 +786,7 @@ func TestTheKeyLabelIsTheFirstFieldTheBodyCarries(t *testing.T) {
 		body proto.Message
 		want string
 	}{
-		{"gap_id is the first label consulted", &recordpb.Close{GapId: proto.String("R1-1")}, "R1-1"},
+		{"gap_id is the first label consulted", &recordpb.Close{GapId: proto.String("G1")}, "G1"},
 		{"label when there is no gap_id", &recordpb.Finding{Label: proto.String("F1")}, "F1"},
 		{"url is a label too", &recordpb.Cite{Url: proto.String("https://x")}, "https://x"},
 		{"an empty label is not a label", &recordpb.Finding{Label: proto.String("")}, ""},
@@ -877,36 +821,43 @@ func TestSingletonVerbsAreDeclaredForTheVerbsThatAreOnce(t *testing.T) {
 	}
 }
 
-// THE SAME LABEL IN A LATER ROUND IS NOT A COLLISION: the key carries the seat id, and the seat id
-// carries the round.
-//
-// Driven through the WRITE PATH rather than through deriveKey, because deriveKey now counts inside
-// the writing transaction and has no pure form. That is the better test anyway: `events.key` is
-// UNIQUE, so a collision is not a wrong string — it is a refused act, and this asserts that both
-// findings land.
-func TestTheSameLabelInALaterRoundIsNotACollision(t *testing.T) {
+// THE SAME LABEL IN A LATER SITTING IS A COLLISION, AND THAT IS CORRECT. This test used to assert
+// the opposite: `red-lens-r1-evidence` and `red-lens-r2-evidence` were two seats, so `F1` under each
+// was two keys. Roundless they are ONE seat sitting twice, and a lens's finding labels are
+// run-unique per lens — NextFindingLabel assigns them, and a seat re-using a label it already spent
+// is repeating an act, not filing a new finding. `events.key` is UNIQUE, so the repeat is a refused
+// act rather than a wrong string; the next label lands.
+func TestTheSameLabelInALaterSittingIsRefusedAndTheNextLands(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	for _, seat := range []string{"red-lens-r1-evidence", "red-lens-r2-evidence"} {
-		id := Identity{Run: mustRun(t, runDir), SeatID: seat, Round: RoundIn(mustRun(t, runDir))(seat)}
-		if _, _, err := RegisterSeat(id, ""); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := Append(id, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("x")}); err != nil {
-			t.Fatalf("%s: the same label in a later round was refused: %v", seat, err)
-		}
+	id := Identity{Run: mustRun(t, runDir), SeatID: "red-lens-evidence"}
+	if _, _, err := RegisterSeat(id, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(id, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("x")}); err != nil {
+		t.Fatal(err)
+	}
+	// A second sitting of the same seat.
+	if _, _, err := RegisterSeat(id, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Append(id, &recordpb.Finding{Label: proto.String("F1"), Text: proto.String("y")}); err == nil {
+		t.Fatal("F1 landed twice for one lens — a finding label is run-unique per lens, and the second is a repeated act")
+	}
+	if _, err := Append(id, &recordpb.Finding{Label: proto.String("F2"), Text: proto.String("y")}); err != nil {
+		t.Fatalf("the NEXT label was refused in the later sitting: %v", err)
 	}
 	m, err := MergedEvents(mustRun(t, runDir))
 	if err != nil {
 		t.Fatal(err)
 	}
-	findings := 0
+	n := 0
 	for _, e := range m.Events {
 		if e.GetType() == recordpb.EventType_EVENT_TYPE_FINDING {
-			findings++
+			n++
 		}
 	}
-	if findings != 2 {
-		t.Errorf("%d findings landed, want 2 — the second was dedup'd away by a key that does not carry the round", findings)
+	if n != 2 {
+		t.Errorf("%d findings on the record, want 2 (F1 once, F2 once)", n)
 	}
 }
 
@@ -1027,7 +978,7 @@ func TestNoRecordRefusalNamesAFlagASeatCannotType(t *testing.T) {
 		if !ok {
 			continue
 		}
-		if inspect(word+" (empty body)", validate(mustRun(t, recordtest.TmpRun(t)), "red-chair-r1", typ, emptyBodyFor(t, md))) {
+		if inspect(word+" (empty body)", validate(mustRun(t, recordtest.TmpRun(t)), "red-chair", typ, emptyBodyFor(t, md))) {
 			seen++
 		}
 	}
@@ -1037,7 +988,7 @@ func TestNoRecordRefusalNamesAFlagASeatCannotType(t *testing.T) {
 		if tc.wantErr == "" {
 			continue
 		}
-		if inspect(tc.name, validate(mustRun(t, recordtest.TmpRun(t)), "red-chair-r1", tc.typ, tc.p)) {
+		if inspect(tc.name, validate(mustRun(t, recordtest.TmpRun(t)), "red-chair", tc.typ, tc.p)) {
 			seen++
 		}
 	}
@@ -1066,44 +1017,44 @@ func emptyBodyFor(t *testing.T, md protoreflect.MessageDescriptor) proto.Message
 // `merge carry` restates a closure an earlier round already argued, so demanding the argument
 // again asks the same thing twice — validate says so and exempts it. `Close.prose` was then
 // annotated `required: true`, which refuses UNCONDITIONALLY and runs BEFORE the switch, so the
-// exemption could not execute: `merge carry --id R2-3 --carried-from 2`, the invocation the
+// exemption could not execute: `merge carry --id G1 --carried-from 2`, the invocation the
 // verb's own help documents with --reason listed nowhere in it, was refused outright.
 //
 // The code read as live the whole time — present, commented, explaining itself, and unreachable.
 // That is the failure mode this test exists for, not the refusal itself.
 func TestACarryIsExemptFromTheClosureArgument(t *testing.T) {
 	carry := &recordpb.Close{
-		GapId:        proto.String("R1-1"),
+		GapId:        proto.String("G1"),
 		CarriedFrom:  proto.String("1"),
 		AnchorSeat:   proto.String("L1"),
 		AnchorTool:   proto.String("Read"),
 		AnchorTarget: proto.String("blue/report.md"),
 	}
 	runDir := newRun(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: 1}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, ""); err != nil {
 		t.Fatal(err)
 	}
 	// A real gap on the record, so the reference check passes and the ARGUMENT rule is what answers.
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: 1}, &recordpb.Mint{
-		GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"),
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{
+		GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"),
 		Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Likelihood: recordtest.P(recordpb.Grade_GRADE_MEDIUM), Impact: recordtest.P(recordpb.Grade_GRADE_MEDIUM),
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_CLOSE, carry); err != nil &&
+	if err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, carry); err != nil &&
 		strings.Contains(err.Error(), "requires --reason") {
 		t.Errorf("a carry was refused for the argument it explicitly does not owe: %v", err)
 	}
 	// And an ORDINARY closure still owes one — the exemption is for the carry, not a hole.
 	ordinary := &recordpb.Close{
-		GapId:        proto.String("R1-1"),
+		GapId:        proto.String("G1"),
 		AnchorSeat:   proto.String("L1"),
 		AnchorTool:   proto.String("Read"),
 		AnchorTarget: proto.String("blue/report.md"),
 	}
-	err := validate(mustRun(t, runDir), "red-chair-r1", recordpb.EventType_EVENT_TYPE_CLOSE, ordinary)
+	err := validate(mustRun(t, runDir), "red-chair", recordpb.EventType_EVENT_TYPE_CLOSE, ordinary)
 	if err == nil || !strings.Contains(err.Error(), "requires --reason") {
 		t.Errorf("a closure with no argument was accepted; the exemption widened into a hole: %v", err)
 	}
@@ -1139,14 +1090,14 @@ func TestTheBenchDemandsARuleButNotAnInventedTension(t *testing.T) {
 	// A REAL GAP AND A REAL FILING on the record, so the reference checks pass and the FIELD
 	// rules are what answer.
 	runDir := docketRunDir(t)
-	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge-r1", Round: 1}, ""); err != nil {
+	if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: "judge"}, ""); err != nil {
 		t.Fatal(err)
 	}
 
 	// EMPTY, not absent: the point is that presence alone does not satisfy `principle`.
 	empty := full()
 	empty.GetDocket().Principle = proto.String("")
-	err := validate(mustRun(t, runDir), "judge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty)
+	err := validate(mustRun(t, runDir), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, empty)
 	if err == nil {
 		t.Error("a docket ruling with an EMPTY principle was accepted — a ruling with no stated rule is indistinguishable from a default, which is what this verb exists to prevent")
 	} else if !strings.Contains(err.Error(), "principle") {
@@ -1163,7 +1114,7 @@ func TestTheBenchDemandsARuleButNotAnInventedTension(t *testing.T) {
 	} {
 		o := full()
 		tc.set(o)
-		if err := validate(mustRun(t, runDir), "judge-r1", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
+		if err := validate(mustRun(t, runDir), "judge", recordpb.EventType_EVENT_TYPE_MOTION_RULE, o); err != nil {
 			t.Errorf("an empty %s was refused: %v\nNot every ruling has two values in conflict, and most need no human to look — demanding these produces invented tension and pro-forma flags, which read as reasoning", tc.name, err)
 		}
 	}
@@ -1177,13 +1128,13 @@ func TestTheBenchDemandsARuleButNotAnInventedTension(t *testing.T) {
 // `high`, `--dimension severity --proposed high` filed cleanly.
 func TestAGradeMotionThatMovesNothingIsRefused(t *testing.T) {
 	runDir := newRun(t)
-	for _, s := range []string{"red-chair-r1", "blue-respond-r1"} {
-		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s, Round: 1}, ""); err != nil {
+	for _, s := range []string{"red-chair", "blue-respond"} {
+		if _, _, err := RegisterSeat(Identity{Run: mustRun(t, runDir), SeatID: s}, ""); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair-r1", Round: 1}, &recordpb.Mint{
-		GapId: proto.String("R1-1"), AcceptanceCheck: proto.String("the check runs"),
+	if _, err := Append(Identity{Run: mustRun(t, runDir), SeatID: "red-chair"}, &recordpb.Mint{
+		GapId: proto.String("G1"), AcceptanceCheck: proto.String("the check runs"),
 		Class: proto.String("self-attestation"), Problem: proto.String("p"), RequiredFix: proto.String("f"),
 		CheckKind:  recordtest.P(recordpb.CheckKind_CHECK_KIND_DOCUMENT),
 		Severity:   recordtest.P(recordpb.Grade_GRADE_HIGH),
@@ -1193,12 +1144,12 @@ func TestAGradeMotionThatMovesNothingIsRefused(t *testing.T) {
 	}
 
 	file := func(dim recordpb.GradeDimension, proposed recordpb.Grade) error {
-		return validate(mustRun(t, runDir), "blue-respond-r1", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
+		return validate(mustRun(t, runDir), "blue-respond", recordpb.EventType_EVENT_TYPE_MOTION, &recordpb.Motion{
 			MotionId: proto.String("M1"),
 			Subject:  recordtest.P(recordpb.MotionSubject_MOTION_SUBJECT_GRADE),
 			Basis:    proto.String("the grade overstates it"),
 			Filing: &recordpb.Motion_Grade{Grade: &recordpb.GradeMotion{
-				GapId: proto.String("R1-1"), Dimension: &dim, Proposed: &proposed,
+				GapId: proto.String("G1"), Dimension: &dim, Proposed: &proposed,
 			}},
 		})
 	}
@@ -1260,13 +1211,13 @@ func TestBoardPublishesEventsInTheOrderItReducedIn(t *testing.T) {
 	runDir := newRun(t)
 	// zulu proposes FIRST in wall-clock; alpha moves it SECOND. Alphabetically alpha < zulu.
 	writeShard(t, runDir, []*Event{
-		recordtest.Stamped(recordtest.At(t, "zulu", 1, "zulu:line-of-inquiry:#1", &recordpb.Avenue{
+		recordtest.Stamped(recordtest.At(t, "zulu", "zulu:line-of-inquiry:#1", &recordpb.Avenue{
 			AvenueId: proto.String("Q1"),
 			Status:   recordpb.AvenueStatus_AVENUE_STATUS_PROPOSED.Enum(),
 			Line:     proto.String("opened"),
 			Reason:   proto.String("opened"),
 		}), "2026-08-22T10:00:00.000000000Z"),
-		recordtest.Stamped(recordtest.At(t, "alpha", 1, "alpha:line-of-inquiry:#1", &recordpb.Avenue{
+		recordtest.Stamped(recordtest.At(t, "alpha", "alpha:line-of-inquiry:#1", &recordpb.Avenue{
 			AvenueId:         proto.String("Q1"),
 			Status:           recordpb.AvenueStatus_AVENUE_STATUS_ABANDONED.Enum(),
 			SupersedesStatus: proto.String("proposed"),

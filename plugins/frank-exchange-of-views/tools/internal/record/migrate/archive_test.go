@@ -85,6 +85,13 @@ func TestQuadraticFormulaArchive(t *testing.T) {
 	if len(fam.Events) != 830 {
 		t.Errorf("family holds %d events, want 830", len(fam.Events))
 	}
+	assertRoundless(t, fam)
+	if len(res.GapIDs) != 26 || res.GapIDs["R1-1"] != "G1" || res.GapIDs["R2-1"] != "G10" {
+		t.Errorf("the manifest's gap-id table: %d entries, R1-1=%q R2-1=%q — want 26, G1, G10 (nine gaps minted in round 1)", len(res.GapIDs), res.GapIDs["R1-1"], res.GapIDs["R2-1"])
+	}
+	if res.Serialized["red-lens-r3-L2"] != 25 {
+		t.Errorf("serialized instances: %v — the round-3 second citation instance has 25 events", res.Serialized)
+	}
 	checks := verify.Run(fam)
 	for _, c := range checks {
 		if !c.OK {

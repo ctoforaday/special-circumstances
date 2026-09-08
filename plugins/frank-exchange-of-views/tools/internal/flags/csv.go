@@ -2,8 +2,8 @@ package flags
 
 import "strings"
 
-// CSV is a comma-separated list flag: --supersedes R1-2,R1-7 and --found-by
-// L5-F3,L6-F2 and --ids R1-4,R2-7.
+// CSV is a comma-separated list flag: --supersedes G2,G7 and --found-by
+// L5-F3,L6-F2 and --ids G4,G7.
 //
 // It is a type rather than a strings.Split at each call site because the record
 // format has an opinion the split does not: these fields are ALWAYS present in

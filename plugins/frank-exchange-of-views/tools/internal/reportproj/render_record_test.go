@@ -14,12 +14,12 @@ import (
 func ident(t *testing.T, runDir, seat string) record.Identity {
 	t.Helper()
 	run := runtest.Open(t, runDir)
-	return record.Identity{Run: run, SeatID: seat, Round: record.RoundIn(run)(seat)}
+	return record.Identity{Run: run, SeatID: seat}
 }
 
 func TestRenderFromRecordFoldsBasePlusDiffStack(t *testing.T) {
 	runDir := recordtest.TmpRun(t)
-	for _, s := range []string{"blue-synthesize", "blue-respond-r1"} {
+	for _, s := range []string{"blue-synthesize", "blue-respond"} {
 		if _, _, err := record.RegisterSeat(ident(t, runDir, s), ""); err != nil {
 			t.Fatalf("register %s: %v", s, err)
 		}
@@ -34,7 +34,7 @@ func TestRenderFromRecordFoldsBasePlusDiffStack(t *testing.T) {
 	}
 	for _, e := range edits {
 		be := &recordpb.BlueEdit{Old: proto.String(e.Old), New: proto.String(e.New)}
-		if _, err := record.Append(ident(t, runDir, "blue-respond-r1"), be); err != nil {
+		if _, err := record.Append(ident(t, runDir, "blue-respond"), be); err != nil {
 			t.Fatalf("append edit %q: %v", e.Old, err)
 		}
 	}

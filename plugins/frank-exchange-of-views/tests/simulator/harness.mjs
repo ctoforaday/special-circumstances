@@ -63,14 +63,14 @@ export function makeWorld(respond) {
 // Canned envelopes, schema-shaped.
 export const blueEnv = (over = {}) => ({
   path: 'blue/report.md', tldr: 'tldr', claim_count: 40, saturation_reached: true, round_record_appended: true,
-  manifest: [{ gap_id: 'R1-1', row: 'figures recomputed; acceptance check run: pass' }],
+  manifest: [{ gap_id: 'G1', row: 'figures recomputed; acceptance check run: pass' }],
   open_questions: [], log: [], ...over,
 })
 export const redEnv = (over = {}) => ({
   verdict: 'FAIL', gaps: [], citations_checked: 10, notes: '', log: [],
   // Sharding observables (run-4 §4.5 conds 5+7): a healthy merge samples the archive from
   // round 2 and reports self-consistent shard counts.
-  archive_spot_checks: ['R1-1'], ledger_closure_lines: 0, archive_blocks: 0, ...over,
+  archive_spot_checks: ['G1'], ledger_closure_lines: 0, archive_blocks: 0, ...over,
 })
 export const gap = (id, over = {}) => ({
   id, location: 'loc', problem: 'p', required_fix: 'f', acceptance_check: 'grep the corrected figure at the anchor', existence: 'verified',
