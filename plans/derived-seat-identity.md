@@ -1,7 +1,9 @@
 # Derived seat identity — the last facts a seat asserts about itself
 
 > STATUS 2026-09-08: **required pre-v2.0.0** (gblock). Blocks the three `--v2.0.0` tags and #785.
-> Board: #792. §III.1 and §III.4 are SHIPPED (#831); §III.2 and §III.3 are the remaining work.
+> Board: #792. §III.1 and §III.4 are SHIPPED (#831) — with #846, the half-state the rename left,
+> corrected under `plans/roundless.md` §III.B.3. §III.3 is the remaining work here; §III.2, the
+> round, moved to roundless entire.
 >
 > Rewritten 2026-09-08 after two `/plan-audit` FAILs. **The ROUND is no longer in this plan** —
 > gblock ruled it roundless and it moved to `plans/roundless.md`, which owns #753 entire. This
@@ -75,8 +77,7 @@ ruled the change pre-v2.0.0, and because the binary that reads both vocabularies
 - **Not the deletion of `seat_id`.** It stays the key namespace; `deriveKey` scopes the per-seat
   ordinal to it and every SQL projection groups on it.
 - **Not roundless orchestration.** #753's scheduling half is untouched.
-- **Not the removal of `event.round`.** The field stays; its VALUE changes source (§III.2).
-- **Not a change to gap ids.** `R<round>-N` still carries a round; #753 owns that.
+- `event.round` and `R<round>-N` are `plans/roundless.md`'s; both go there.
 
 ## II. Technical Context
 
@@ -196,8 +197,9 @@ When `agent_type` is absent — an operator at a shell, CI, the Go suite, the si
 
 1. **The run's CAST, as a closed list.** Not a shape: `red-lens-evidence` is refused for a run
    whose cast does not include it. The cast is computed at setup from the selected areas and the
-   lane count and **written to the record**, rather than recomputed per call — which is what makes
-   it a record fact rather than a Go copy of a JavaScript default. (The previous draft said "the
+   lane count and **written to the record** as `EVENT_TYPE_CAST`, once, by `setup` under seat
+   `harness` before any seat registers — specified in `plans/roundless.md` §III.B.1, which the
+   dispatch verb reads too. A record fact, not a Go copy of a JavaScript default. (The previous draft said "the
    record carries it" while the lane count lived only in a nullable JSON field with its default in
    `debate.js`. Writing the cast fixes that, and is what #752 asks for.)
 2. **No conflict with the record's binding** for this `agent_id` — `ResolveSeat`'s existing
