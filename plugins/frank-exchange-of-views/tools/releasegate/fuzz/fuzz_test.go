@@ -3410,6 +3410,13 @@ func TestFuzzDebate(t *testing.T) {
 		if un := unreachedEnumValues(); len(un) > 0 {
 			t.Errorf("%d enum value(s) were never driven:\n  %s", len(un), strings.Join(un, "\n  "))
 		}
+		// AND THE FLAGS INHERITED ONTO EVERY COMMAND, which this gate could not see at all until
+		// PersistentFlagNames existed: CommandFlags reports local flags only, so `--json`,
+		// `--run`, `--schema` and `--seat-id` were never in the denominator above.
+		if un := unreachedPersistentFlags(); len(un) > 0 {
+			t.Errorf("%d persistent flag(s) — inherited onto every command — were never passed and "+
+				"carry no exemption:\n  %s", len(un), strings.Join(un, "\n  "))
+		}
 	}
 	// AT EVERY SIZE, both of these. The tally is the sweep's own trajectory and costs nothing to
 	// print; withholding it under quorum hid the evidence for the gate below on exactly the runs
