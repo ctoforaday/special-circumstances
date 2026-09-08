@@ -113,8 +113,10 @@ negative.** That draft said transcript assistant records "carry `uuid`, `request
 `parentUuid` and **no `prompt_id`**", and built a byte-positional rule on it. True of an assistant
 record read alone; false of the transcript as a graph. Re-measured over the 40 most recently
 modified transcripts: `promptId` is carried by **`user`** records (8,664 of them), and
-**15,675 of 15,675 assistant records — 100.000% — reach one by walking `parentUuid` to the nearest
-ancestor that has it.** Zero unresolved. So the transcript side yields the same key the payload
+**46,043 of 46,046 assistant records — 99.9935% — reach one by walking `parentUuid` to the nearest
+ancestor that has it**, measured over the whole corpus (414 files). The 3 that do not are handled by
+rule 6; an earlier draft said "15,675 of 15,675, 100.000%" from a 40-file sample that happened to
+contain none of them. So the transcript side yields the same key the payload
 carries, and the positional rule is withdrawn.
 
 The rule. **An earlier draft called this "a total function" and it was not** — three measured
@@ -146,7 +148,7 @@ So the rule is:
    "(a) is sufficient alone" look unsupported: it argued the write and not the visibility.
 
 4. **A provisional is NOT deleted on first sight of a sibling text.** It is retained until its
-   turn is known closed, by any of **three** triggers: a later `prompt_id` ingested for that same
+   turn is known closed, by any of **four** triggers: a later `prompt_id` ingested for that same
    `(session, agent_id)`; `SessionEnd`; or — the one that cannot be missed — **the session no
    longer being live**, per the `~/.claude/sessions/<pid>.json` check §II already specifies for
    liveness; and a **fourth, age** — the day-rollover sweep promotes any provisional older than the
