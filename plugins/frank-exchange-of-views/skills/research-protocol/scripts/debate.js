@@ -906,10 +906,22 @@ while (!halted) {
   }
 }
 
-const verdict = halted ? 'HALTED'
-  : (chairEnv && chairEnv.verdict === 'PASS') ? 'VERIFIED'
-  : (lastPlan && lastPlan.ceiling) ? 'CEILING'
-  : 'UNVERIFIED'
+// THE RUN'S TERMINAL WORD IS A RECORD VOCABULARY, so it is declared as an enum rather than spelled
+// inline. The word travels into the assembly seat's prompt ("Record it as the run's outcome —
+// ${verdict}") and is typed straight at `bench outcome --as`, so a word the record refuses arrives
+// as an INSTRUCTION and the engine carries on as though it had been written. The declaration is
+// what the envelope-enum gate binds — that gate scans `enum: [...]`, and a vocabulary spelled as
+// bare literals is out of its reach entirely — and outcomeWord makes a misspelling throw here.
+const RUN_OUTCOME = { type: 'string', enum: ['VERIFIED', 'CEILING', 'HALTED', 'UNVERIFIED'] }
+const outcomeWord = (w) => {
+  if (!RUN_OUTCOME.enum.includes(w)) throw new Error(`not a run outcome: ${w} (have ${RUN_OUTCOME.enum.join('|')})`)
+  return w
+}
+
+const verdict = halted ? outcomeWord('HALTED')
+  : (chairEnv && chairEnv.verdict === 'PASS') ? outcomeWord('VERIFIED')
+  : (lastPlan && lastPlan.ceiling) ? outcomeWord('CEILING')
+  : outcomeWord('UNVERIFIED')
 const terminationWhy = halted ? 'judicial halt'
   : verdict === 'VERIFIED' ? 'the chair recorded PASS with the board permitting it'
   : verdict === 'CEILING' ? 'every open material gap is at its limit, ruled by the bench and carried'

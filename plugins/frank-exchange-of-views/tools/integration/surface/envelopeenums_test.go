@@ -89,14 +89,36 @@ var envelopeEnumBinding = map[string]enumBind{
 	// `grade_adjusted` left, because it is a GRADE MOTION's outcome and this envelope already
 	// carries grade_disputes for that; `unresolved` left as a duplicate of `carried`.
 	"JUDGE_ENVELOPE.resolution": {typ: "motion:docket", key: "ruling"},
+
+	// BOTH OF THESE WERE EXEMPT, AND NEITHER HAD NO RECORD COUNTERPART (#847 sibling sweep).
+	//
+	// Each exemption's stated reason was true about the value a seat RETURNS and said nothing
+	// about the set a seat is OFFERED, which is what this gate measures. `CHAIR_ENVELOPE.verdict`
+	// is "the script's loop condition, not a payload" — true, and the `verdict` event carries the
+	// same two words, so there was a counterpart all along. `GRADE.<self>` is "validated at the
+	// record's write path against record.MASS" — true of a returned word, and no help at all if
+	// the envelope stops OFFERING one: a grade dropped from this list is a grade no seat is ever
+	// invited to use, and the write path never sees the value it would have refused.
+	//
+	// That is the same shape as JUDGE_ENVELOPE.resolution above: an exemption whose reason is
+	// true, protecting a direction nobody was checking.
+	"CHAIR_ENVELOPE.verdict": {typ: "verdict", key: "verdict"},
+	"GRADE.<self>":           {typ: "grade", key: "<self>"},
+
+	// The run's terminal word, which was four bare string literals in a ternary until this sweep
+	// — out of this scanner's reach entirely, while travelling into the assembly seat's prompt and
+	// straight on to `bench outcome --as`. An enum a gate cannot SEE is not an exempt one; it is an
+	// unchecked one that leaves no trace of being unchecked.
+	"RUN_OUTCOME.<self>": {typ: "outcome", key: "verdict"},
 }
 
 // envelopeEnumExempt are envelope enums with no record counterpart, each with its reason. These
 // are ENGINE vocabularies — values the script routes on that never become a payload field.
-var envelopeEnumExempt = map[string]string{
-	"CHAIR_ENVELOPE.verdict": "the chair's PASS|FAIL to the engine, restated — the `verdict` event carries the same two values and is the original; this field is the script's loop condition and is not written as a payload",
-	"GRADE.<self>":           "the grade scale, shared by every graded axis and validated at the record's write path against record.MASS rather than by a per-field enum",
-}
+//
+// IT IS EMPTY, AND THAT IS THE POINT: every vocabulary a seat-facing envelope declares is now
+// bound to the record's own. An entry here is a claim that some enum has no counterpart at all,
+// and the two that used to be here were both wrong about that.
+var envelopeEnumExempt = map[string]string{}
 
 func TestEveryEnvelopeEnumAgreesWithTheRecord(t *testing.T) {
 	path, err := repotree.DebateJS()
@@ -199,6 +221,19 @@ func recordEnumValues(t *testing.T, typ, key string) []string {
 		sort.Strings(out)
 		return out
 	}
+	// `grade` is the scale itself rather than a field on an event: every graded axis shares it,
+	// and its authority is the Grade enum in record.proto, reaching Go as MASS's keys.
+	if typ == "grade" {
+		var out []string
+		for k := range record.MASS {
+			out = append(out, k)
+		}
+		if len(out) == 0 {
+			t.Fatal("record.MASS is empty — an empty want compares equal to nothing and would report a pass")
+		}
+		sort.Strings(out)
+		return out
+	}
 	for _, e := range record.EnumFields[typ] {
 		if e.Key == key {
 			out := record.Names(e.Values)
@@ -249,4 +284,58 @@ func missing(got, allowed []string) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// reDutyMap and reDutyKey read the KEYS of debate.js's BLUE_DUTY_BY_RESOLUTION.
+var (
+	reDutyMap = regexp.MustCompile(`(?s)const BLUE_DUTY_BY_RESOLUTION = \{(.*?)\n\}`)
+	reDutyKey = regexp.MustCompile(`(?m)^\s+(\w+):\s*'`)
+)
+
+// TestEveryRulingFateHandsBlueADuty closes the half the enum binding above cannot see.
+//
+// Agreeing on the WORDS is not agreeing on the CONSEQUENCE. The binding proves every disposition
+// the record accepts has a matching word in the judge envelope; it says nothing about whether the
+// engine knows what that word obliges of blue. The duty lookup falls through to `UNMAPPED FATE
+// <word> — read the opinion on the record before acting on it`, which is deliberately loud and is
+// still a seat being told to go and find its own instruction: the ruling reaches blue with no
+// duty on it, on a run nobody is watching.
+//
+// MEASURED AS A NEAR MISS (#847). Adding `moot` to the record required adding it to the envelope
+// enum — this gate's binding forced that — and required NOTHING of the duty map. The key went in
+// because the author happened to be reading that line. Nothing would have failed.
+func TestEveryRulingFateHandsBlueADuty(t *testing.T) {
+	path, err := repotree.DebateJS()
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("cannot read the engine script: %v", err)
+	}
+	m := reDutyMap.FindSubmatch(b)
+	if m == nil {
+		t.Fatal("no `const BLUE_DUTY_BY_RESOLUTION = { ... }` in debate.js — the map was renamed or reshaped and this gate is measuring nothing, which reads exactly like a pass")
+	}
+	var got []string
+	for _, k := range reDutyKey.FindAllSubmatch(m[1], -1) {
+		got = append(got, string(k[1]))
+	}
+	if len(got) == 0 {
+		t.Fatal("BLUE_DUTY_BY_RESOLUTION parsed to ZERO keys — an empty set is missing from nothing and would report a pass")
+	}
+	sort.Strings(got)
+
+	want := recordEnumValues(t, "motion:docket", "ruling")
+	if absent := missing(want, got); len(absent) > 0 {
+		t.Errorf("the bench can rule %v with no entry in BLUE_DUTY_BY_RESOLUTION.\n"+
+			"Blue is handed the UNMAPPED FATE default for these — a sentence telling it to go read the\n"+
+			"record instead of the duty the fate actually carries. Two of these fates are blue WINS, and\n"+
+			"under a bare fallthrough they read like the ones that are not.", absent)
+	}
+	if extra := missing(got, want); len(extra) > 0 {
+		t.Errorf("BLUE_DUTY_BY_RESOLUTION carries a duty for %v, which the record's motion:docket.ruling\n"+
+			"does not accept. A duty for a fate no bench can rule is checked coverage of nothing, and it\n"+
+			"reads as the map being complete.", extra)
+	}
 }
