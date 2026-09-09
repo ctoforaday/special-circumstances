@@ -114,10 +114,15 @@ What it can do today:
 | `/gray-area:audit-repetition` | What was done more than once, and what was repeated three times back to back? |
 | `/gray-area:audit-seat-coverage` | Does the record name every subagent transcript that exists? |
 | `gray-area tools` | What did a given agent actually invoke? (command line) |
+| `gray-area agents` | Which agents are running on this box, and what is each doing? |
+| `gray-area touched` | Is anyone else acting on this file? |
+| `gray-area session` | One session's shape: calls and errors by tool |
+| `gray-area find` | Search every local transcript, joined back to who and when |
+| `gray-area sql` | Read-only SQL over the catalogue's published views |
 
 Each row cites both documents — the claim and the evidence — so a reader can check it rather than trust it. Verdicts are deliberately weak where the record is weak: `NO-EVIDENCE` means *nothing matched*, printed with the tokens searched, never *it did not happen*.
 
-Reading transcripts is a surveillance capability, and the plugin is scoped accordingly: the manifest is an index of where trajectories are, never a copy of their contents, and nothing leaves the box.
+Reading transcripts is a surveillance capability, and the plugin is scoped accordingly. The **manifest** is an index of where trajectories are, never a copy of their contents. The **catalogue** — the host-wide store the switchboard verbs read — does copy the signal: tool names and their outcomes, assistant and user text, and reasoning summaries where they were captured. It never copies tool *results*, which are 96% of a transcript's bytes. It lives outside any repository, at `~/.local/state/special-circumstances/`, keeps a month, and nothing leaves the box.
 
 ### sleeper-service — autonomous self-improvement
 
