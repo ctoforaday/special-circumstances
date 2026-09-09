@@ -80,9 +80,17 @@ func (h *harness) run(t *testing.T, args ...string) (stdout, stderr string, code
 // contains a backslash of its own — if that stops being true, this line starts corrupting the
 // comparison rather than stabilising it.
 func (h *harness) scrub(s string) string {
-	s = strings.ReplaceAll(s, h.projects, "<CORPUS>")
-	s = strings.ReplaceAll(s, h.sessions, "<SESSIONS>")
-	s = strings.ReplaceAll(s, h.store, "<STORE>")
+	for _, sub := range []struct{ path, name string }{
+		{h.projects, "<CORPUS>"}, {h.sessions, "<SESSIONS>"}, {h.store, "<STORE>"},
+	} {
+		// The %q-ESCAPED form first. Anything cobra renders through %q — a flag default, a
+		// quoted argument in an error — arrives with its separators doubled on Windows, so it
+		// does not match the plain path and survives to the line below, which turns `\` into
+		// `//` and produces a diff nobody can read. Replacing the escaped form first is what
+		// stops that; it is a no-op everywhere the separator is already a slash.
+		s = strings.ReplaceAll(s, strings.ReplaceAll(sub.path, "\\", "\\\\"), sub.name)
+		s = strings.ReplaceAll(s, sub.path, sub.name)
+	}
 	return strings.ReplaceAll(s, "\\", "/")
 }
 

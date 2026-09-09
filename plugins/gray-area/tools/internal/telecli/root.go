@@ -109,6 +109,22 @@ func NewRoot(env Env) *cobra.Command {
 	root.PersistentFlags().StringVar(&env.SessionsDir, "sessions", env.SessionsDir,
 		"where the client advertises live sessions, which is the only source of liveness")
 
+	// THE HELP STATES THE RULE, NOT THIS MACHINE'S ANSWER TO IT.
+	//
+	// pflag prints each flag's resolved default, so `--help` carried three absolute paths out of
+	// the caller's own home directory — different on every machine, and quoted with %q, so on
+	// Windows they arrived with escaped separators. Help that varies per machine cannot be a
+	// contract, and the resolved value is not the useful half anyway: a reader wants to know WHERE
+	// the tool looks, and a caller who needs the literal path gets it from the error that names it
+	// ("no store at ..."). DefValue is display only; the values above are the actual defaults.
+	for flag, rule := range map[string]string{
+		"store":    "$XDG_STATE_HOME/special-circumstances/catalogue/catalogue.db",
+		"projects": "~/.claude/projects",
+		"sessions": "~/.claude/sessions",
+	} {
+		root.PersistentFlags().Lookup(flag).DefValue = rule
+	}
+
 	root.AddCommand(
 		newAgentsCmd(&env),
 		newSessionCmd(&env),

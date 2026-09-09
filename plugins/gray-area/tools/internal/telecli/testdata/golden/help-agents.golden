@@ -12,6 +12,6 @@ Flags:
   -h, --help   help for agents
 
 Global Flags:
-      --projects string   the transcript root, which this reads and never writes (default "<CORPUS>")
-      --sessions string   where the client advertises live sessions, which is the only source of liveness (default "<SESSIONS>")
-      --store string      the catalogue database the hooks write and every read verb queries (default "<STORE>")
+      --projects string   the transcript root, which this reads and never writes (default "~/.claude/projects")
+      --sessions string   where the client advertises live sessions, which is the only source of liveness (default "~/.claude/sessions")
+      --store string      the catalogue database the hooks write and every read verb queries (default "$XDG_STATE_HOME/special-circumstances/catalogue/catalogue.db")

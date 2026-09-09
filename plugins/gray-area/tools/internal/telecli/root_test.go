@@ -277,3 +277,26 @@ func TestExitCodeMapping(t *testing.T) {
 		}
 	}
 }
+
+// THE HELP OVERRIDE IS DISPLAY ONLY.
+//
+// The three shared flags print the RULE they resolve by rather than this machine's answer to it,
+// because a help text carrying absolute paths out of the caller's home directory cannot be a
+// contract. That is done by rewriting pflag's DefValue, which is one field away from the value the
+// flag actually starts with — and if it ever became the real default, the tool would look for its
+// store at a literal path called "$XDG_STATE_HOME/..." and report an empty catalogue on a machine
+// that has one.
+func TestTheDefaultShownIsNotTheDefaultUsed(t *testing.T) {
+	env := Defaults()
+	root := NewRoot(env)
+	shown := root.PersistentFlags().Lookup("store").DefValue
+	if !strings.Contains(shown, "$XDG_STATE_HOME") {
+		t.Errorf("--store no longer documents the rule it resolves by: %q", shown)
+	}
+	if env.Store == "" || strings.Contains(env.Store, "$") {
+		t.Fatalf("the resolved store path is %q — the display override reached the real value", env.Store)
+	}
+	if !filepath.IsAbs(env.Store) {
+		t.Errorf("the resolved store path is not absolute: %q", env.Store)
+	}
+}
