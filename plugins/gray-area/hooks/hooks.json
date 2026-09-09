@@ -1,12 +1,12 @@
 {
-  "_comment": "Every command is wrapped in the bootstrap guard prosthetic-conscience established: a fresh plugin-cache version ships from git WITHOUT binaries (they arrive via doctor --fix), and an unguarded hook crash-storms every tool call in that window. The guard degrades to ONE stderr line pointing at the fix. SessionStart records where the MAIN session's transcript is \u2014 SubagentStop only ever hands over a SEAT's, so without this row a consumer has no non-guessing way to find the session's own trajectory (plans/gray-area.md \u00a711.2). The event is passed with -event rather than inferred from the payload: the wiring already knows which hook it registered for.",
+  "_comment": "Every command is wrapped in the bootstrap guard prosthetic-conscience established: a fresh plugin-cache version ships from git WITHOUT binaries (they arrive via doctor --fix), and an unguarded hook crash-storms every tool call in that window. The guard degrades to ONE stderr line pointing at the fix. SessionStart records where the MAIN session's transcript is — SubagentStop only ever hands over a SEAT's, so without this row a consumer has no non-guessing way to find the session's own trajectory (plans/gray-area.md §11.2). The event is passed with -event rather than inferred from the payload: the wiring already knows which hook it registered for. Stop and SessionEnd feed the CATALOGUE and write no manifest row: Stop is the turn boundary, where a session's own transcript has just grown, and SessionEnd is the last chance to read it before the session is gone. Their cost is the read of one file's tail, not a reprojection.",
   "hooks": {
     "SubagentStop": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SubagentStop; fi; echo 'gray-area: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SubagentStop; fi; echo 'gray-area: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }
@@ -16,7 +16,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SessionStart; fi; echo 'gray-area: hook binaries missing (new plugin version?) \u2014 run /prosthetic-conscience:doctor --fix' >&2"
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SessionStart; fi; echo 'gray-area: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event Stop; fi; echo 'gray-area: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "B=\"${CLAUDE_PLUGIN_ROOT}/bin/gray-area-capture\"; if [ -x \"$B\" ] || [ -x \"$B.exe\" ]; then exec \"$B\" -event SessionEnd; fi; echo 'gray-area: hook binaries missing (new plugin version?) — run /prosthetic-conscience:doctor --fix' >&2"
           }
         ]
       }

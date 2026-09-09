@@ -519,7 +519,21 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, projectDir st
 		return 0
 	}
 
+	// Stop and SessionEnd exist for the CATALOGUE and write NO manifest row. They are explicit
+	// branches, not additions to the fall-through below: that line writes a seat row, and a turn
+	// boundary is not a seat. Binding them without returning here would add one row per turn to
+	// every manifest.
+	if *event == "Stop" || *event == "SessionEnd" {
+		ingestForSession(in.SessionID, stderr)
+		return 0
+	}
+
 	if *event == "SessionStart" {
+		// The sweep is about OTHER sessions' tails and about age, so it runs before the alarm
+		// below — a missing transcript_path is a reason not to write this session's row, not a
+		// reason to stop maintaining the store.
+		sweep(stderr)
+
 		// THE ALARM (plan §11.3). hook-surface-spike.md §3 states every event carries
 		// transcript_path, but that was not re-measured for SessionStart, and a
 		// running session cannot fire one to check. So an absent field writes NO ROW

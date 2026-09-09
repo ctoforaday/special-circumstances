@@ -94,6 +94,10 @@ CREATE TABLE IF NOT EXISTS provisional_skip (
     at         INTEGER NOT NULL
 );
 
+-- Internal bookkeeping, deliberately behind no view: it is the store's own state, not a fact
+-- about any agent, and putting it on the published contract would invite queries against it.
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+
 CREATE INDEX IF NOT EXISTS act_target ON act (target);
 CREATE INDEX IF NOT EXISTS act_ts     ON act (ts);
 
