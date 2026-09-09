@@ -219,15 +219,33 @@ So the rule is:
 
    - The population counted every `agent-*.jsonl` as non-live, because an agent file's basename never
      equals a live `sessionId` — **the parent/subagent conflation rule 1 exists to prevent, for the
-     third time in this plan.** Attributing files by the vendor's layout (`<project>/<sid>.jsonl`
-     plus `<project>/<sid>/subagents/`): **live = 244 files / 217.3 MB, non-live = 177 files /
-     85.5 MB**, across 94 sessions.
+     third time in this plan.** Attributing files by the vendor's layout, which has **three** tiers and not two —
+     `<project>/<sid>.jsonl`, `<project>/<sid>/subagents/agent-*.jsonl`, **and
+     `<project>/<sid>/subagents/workflows/<wf_id>/agent-*.jsonl`**: live = **245 files / 217.7 MB**,
+     non-live = **177 files / 85.5 MB**, across 94 sessions.
+
+     **The third tier is a fourth instance of the same conflation, and it hid inside a correct
+     total.** An earlier draft's rule named only the first two patterns while its *measurement* used
+     a `**` glob that swept all three, so the number looked right and the rule an implementer would
+     write does not: measured, the two-pattern rule attributes 189 files / 181.8 MB and leaves **56
+     files unattributed**, every one of them presently under live session `5627f39a`. When that
+     session ends those 56 enter the non-live population, an implementation built to the stated rule
+     never enumerates them, their final turns go uncatalogued, and the pending queue reads empty —
+     the plausible zero, produced by a rule that disagreed with the glob that validated it. The
+     pending-queue enumeration walks all three tiers.
    - A session is not the unit that costs. Offsets are per **file** (line 182), and the largest
      non-live session here holds **25 files**; the 8 largest hold **94 files / 57.0 MB ≈ 226 ms**,
      4.5× the 50 ms budget. Capping sessions bounds nothing.
 
-   So the cap is on **the unit that costs: at most 16 file-tails or 4 MB read per invocation,
-   whichever binds first**, remainder deferred. Plus the two bounds that keep the queue finite: only
+   So the cap is on **the unit that costs: at most 12 file-tails or 4 MB read per invocation,
+   whichever binds first**, remainder deferred. **Derived, on one named model, and marked as the
+   estimate it is:** the per-tail figure (2.4 ms, §II:189) is dominated by open/seek/parse rather
+   than bytes, so the worst invocation is 12 × 2.4 ms ≈ **29 ms**, plus 4 MB at the 335 MB/s
+   partial-parse rate ≈ 12 ms only if the tails are large — the two halves are alternatives, not
+   addends, so the bound is ~29 ms against the 50 ms budget, leaving ~21 ms for the promotion writes
+   and the queue query. An earlier draft said 16 tails, which is 38.4 ms and leaves 11.6 ms — too
+   little for the writes it does not price. **ESTIMATED**: the combined worst case has not been run,
+   and §V.2 is the check that runs it. Plus the two bounds that keep the queue finite: only
    sessions the catalogue already holds an offset record for (one it never ingested is `backfill`'s
    job — the pre-hook sessions), and each session closed once and never revisited.
 
@@ -330,6 +348,15 @@ So the rule is:
      **adopts the transcript block's `block_seq`**. Stating both halves is what gives §V.15's
      promoted-then-replaced assertion a defined pre-state; without them a mismatched ordinal makes
      the next `backfill` insert beside the row instead of finding it. Without both halves the same text double-stores.
+   - **`backfill` writes an offset record and leaves `closed_at` NULL** — stating this is what makes
+     §V.3 and §V.18 consistent, and an earlier draft left it out so both readings broke something.
+     Because it writes the offset, a backfilled session becomes eligible for closure and is drained
+     by the queue at the capped rate (177 non-live file-tails ≈ 15 invocations at 12 per run), so
+     §V.3's pre-hook exclusion applies only *until* that drain completes and §V.18's month window has
+     rows to read. And because `closed_at` stays NULL, backfill never asserts a session is settled
+     when it has only been read once — the settling is closure's judgement, made against liveness.
+     §II's "steady state is normally zero or one" is therefore true only **after** the initial drain,
+     which is stated here rather than implied.
    - **Closure's own state is bound too, rather than invented as the last two were:**
      `session.closed_at` (`NULL` = not closed) is the marker, and **the pending queue is a query, not
      a table** — non-live sessions holding an offset record with `closed_at IS NULL`, oldest first. So
@@ -851,11 +878,15 @@ Written before implementation. **Re-arms on:** any change under `internal/catalo
    `go test -run TestIngestBudget ./internal/catalogue/` — **execs the BUILT
    `gray-area-capture` binary** rather than benchmarking library work in-process, because the
    budget is stated as spawn floor plus ingest and an in-process benchmark cannot measure a spawn.
-   Three cases are forced rather than waited for: the day-rollover (seed a row dated outside the
+   Four cases are forced rather than waited for: the day-rollover (seed a row dated outside the
    window), a **closure with an outstanding provisional and a nonempty unread tail** (the new work
    goal 2 previously had no case that could see — assert against the 50 ms steady-state budget), a
-   **backlog of 20 non-live sessions** (asserts the 8-per-run cap holds the invocation inside 50 ms
-   and that the remainder is deferred, not dropped), and the two coinciding (assert against 500 ms). —
+   **backlog exceeding both halves of the cap** — ≥40 non-live file-tails totalling ≥10 MB unread —
+   asserting exactly **≤12 tails and ≤4 MB read per invocation**, the invocation inside 50 ms, and the
+   remainder still queued rather than dropped; and **closure coinciding with the day-rollover sweep**
+   (assert against 500 ms). An earlier draft asserted "the 8-per-run cap" over "20 non-live sessions"
+   — the cap this section repudiated, in the unit it says bounds nothing, and a case an
+   implementation with no cap at all would pass. —
    **goal 2, measured**: the `Stop` path stays under **20 ms per turn** (4.33 ms spawn floor +
    ingest); `SessionStart` under **50 ms** steady-state and under **500 ms** on the forced
    day-rollover run that performs the 325 ms sweep; **`SessionEnd` under 500 ms**, a third of the
