@@ -46,29 +46,68 @@ var constEnum = regexp.MustCompile(`^const ([A-Z_]+) = \{[^}]*enum:\s*\[([^\]]*)
 // Keyed by its schema, not by the bare field name: `class` means the petition class in one schema
 // and the closure class in another, and a name-only key silently bound the first to the second —
 // this gate's own first draft did exactly that, which is the same collision it exists to catch.
-var envelopeEnumBinding = map[string]struct{ typ, key string }{
+// engineOnly and recordOnly are the DECLARED asymmetries: values one side legitimately has and
+// the other does not. Both are named rather than exempted wholesale, so a fourth of either kind
+// fails this gate until someone says what it is. See JUDGE_ENVELOPE.resolution for the case that
+// forced them.
+type enumBind struct {
+	typ, key   string
+	engineOnly []string // in the envelope, deliberately not a record value
+	recordOnly []string // in the record, with no envelope word — a KNOWN gap, not a blessing
+}
+
+var envelopeEnumBinding = map[string]enumBind{
 	// After #344 the adjudication vocabularies are keyed on (SUBJECT, key) rather than by event
 	// type, so these bind to a motion SUBJECT. The `typ` field carries `motion:<subject>` for
 	// those, which recordEnumValues resolves against record.MotionVerdicts / record.MotionFields.
 	// The envelope still speaks in per-exchange schemas — PETITIONS, PETITION_RULING,
 	// DISPUTE_DIMENSION — because the ENGINE routes them separately; what collapsed is the
 	// RECORD's vocabulary, and this gate is precisely the check that the two still agree.
-	"PETITIONS.class":        {"motion:petition", "class"},
-	"PETITION_RULING.ruling": {"motion:petition", "ruling"},
+	"PETITIONS.class":        {typ: "motion:petition", key: "class"},
+	"PETITION_RULING.ruling": {typ: "motion:petition", key: "ruling"},
 	// WHO GRANTED RELIEF BINDS. The engine routes the relief into that party's prompt, and the
 	// record stores the same word on the ruling — so a value the record would refuse must not be
 	// one the schema invites. This binding is the reason `binds` was added to MotionFields rather
 	// than left as a free string the engine alone understood.
-	"PETITION_RULING.binds":    {"motion:petition", "binds"},
-	"DISPUTE_DIMENSION.<self>": {"motion:grade", "dimension"},
+	"PETITION_RULING.binds":    {typ: "motion:petition", key: "binds"},
+	"DISPUTE_DIMENSION.<self>": {typ: "motion:grade", key: "dimension"},
+
+	// THE BENCH'S DISPOSITION, BOUND WITH BOTH ASYMMETRIES NAMED (#847).
+	//
+	// This was exempt — "engine vocabulary, the recorded form is checked at its own write path" —
+	// which is TRUE and is why nobody looked. Exempting the whole field meant nothing checked
+	// what the exemption was protecting, and the two vocabularies drifted to five words of ten
+	// disagreeing with no signal.
+	//
+	// Bound now, with each direction declared:
+	//
+	//   engineOnly — deliberate, documented at debate.js:499-507, each carrying a
+	//   BLUE_DUTY_BY_RESOLUTION instruction that reaches a seat. They are NOT drift and must not
+	//   be "fixed" by deleting them.
+	//
+	//   recordOnly — a KNOWN GAP and not a blessing. A bench recording one of these has no
+	//   envelope word for it, so blue gets another fate's duty or the UNMAPPED FATE default.
+	//   Listed so it is visible and so a THIRD one cannot appear silently; the mapping itself is
+	//   an adjudication decision and is not made here.
+	"JUDGE_ENVELOPE.resolution": {
+		typ: "motion:docket", key: "ruling",
+		engineOnly: []string{
+			"unresolved",     // the bench could not settle it on this record
+			"grade_adjusted", // run-4 §3.3: gap real, grade wrong; the next chair applies the delta
+			"moot",           // the gap's predicate expired — the claim it attached to is gone
+		},
+		recordOnly: []string{
+			"repaired_with_regression", // REQUIRES a successor naming the regression
+			"amends_prior",             // REQUIRES supersedes, so the lineage is explicit
+		},
+	},
 }
 
 // envelopeEnumExempt are envelope enums with no record counterpart, each with its reason. These
 // are ENGINE vocabularies — values the script routes on that never become a payload field.
 var envelopeEnumExempt = map[string]string{
-	"CHAIR_ENVELOPE.verdict":    "the chair's PASS|FAIL to the engine, restated — the `verdict` event carries the same two values and is the original; this field is the script's loop condition and is not written as a payload",
-	"JUDGE_ENVELOPE.resolution": "the bench's per-item disposition to the ENGINE, which routes the docket; the recorded form is a docket motion's ruling (`MotionRule.ruling.docket.disposition`), checked at its own write path",
-	"GRADE.<self>":              "the grade scale, shared by every graded axis and validated at the record's write path against record.MASS rather than by a per-field enum",
+	"CHAIR_ENVELOPE.verdict": "the chair's PASS|FAIL to the engine, restated — the `verdict` event carries the same two values and is the original; this field is the script's loop condition and is not written as a payload",
+	"GRADE.<self>":           "the grade scale, shared by every graded axis and validated at the record's write path against record.MASS rather than by a per-field enum",
 }
 
 func TestEveryEnvelopeEnumAgreesWithTheRecord(t *testing.T) {
@@ -117,11 +156,21 @@ func TestEveryEnvelopeEnumAgreesWithTheRecord(t *testing.T) {
 		}
 		want := recordEnumValues(t, bind.typ, bind.key)
 		got := parseJSValues(raw)
-		if !equalSets(got, want) {
-			t.Errorf("envelope enum %q declares %v but the record's %s.%s accepts %v.\n"+
-				"A seat told it may return a value the tool refuses writes NOTHING when it tries — and the engine,\n"+
-				"reading the envelope, carries on as though it had. That is #329: the halt that could not be recorded.",
-				key, got, bind.typ, bind.key, want)
+		// EACH ASYMMETRY MUST BE DECLARED. A value the envelope has and the record does not is
+		// legal only if named in engineOnly; a value the record has and the envelope does not is
+		// legal only if named in recordOnly. Anything else is drift, and the message says which
+		// direction it went so the reader is not left diffing two lists by eye.
+		if extra := missing(got, append(append([]string{}, want...), bind.engineOnly...)); len(extra) > 0 {
+			t.Errorf("envelope enum %q offers %v, which the record's %s.%s does not accept and which is\n"+
+				"not declared in engineOnly. A seat told it may return a value the tool refuses writes NOTHING\n"+
+				"when it tries — and the engine, reading the envelope, carries on as though it had (#329).",
+				key, extra, bind.typ, bind.key)
+		}
+		if absent := missing(want, append(append([]string{}, got...), bind.recordOnly...)); len(absent) > 0 {
+			t.Errorf("the record's %s.%s accepts %v, which envelope enum %q does not offer and which is not\n"+
+				"declared in recordOnly. A bench recording one of these has no envelope word for it, so the\n"+
+				"other party is handed a different fate's duty or the UNMAPPED FATE default.",
+				bind.typ, bind.key, absent, key)
 		}
 	}
 	// AN ENTRY FOR AN ENUM THAT NO LONGER EXISTS IS A CLAIM ABOUT NOTHING, and it reads exactly
@@ -194,4 +243,22 @@ func equalSets(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+// missing returns the members of got that allowed does not contain — the one direction of a set
+// difference, so each side of an asymmetry is reported in its own words rather than as two lists
+// for the reader to diff by eye.
+func missing(got, allowed []string) []string {
+	have := map[string]bool{}
+	for _, a := range allowed {
+		have[a] = true
+	}
+	var out []string
+	for _, g := range got {
+		if !have[g] {
+			out = append(out, g)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
