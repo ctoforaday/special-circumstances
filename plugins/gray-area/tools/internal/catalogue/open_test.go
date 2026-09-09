@@ -73,14 +73,14 @@ func TestViewColumnsAreTheContract(t *testing.T) {
 // refuse every mutation.
 func TestWritesAreRefusedOnTheQueryPath(t *testing.T) {
 	p, db := newStore(t)
-	db.Exec(`INSERT INTO session(session_id,project_dir,first_seen,last_seen) VALUES('S','/p',1,1)`)
+	db.Exec(`INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('S','/p',1,1)`)
 	ro, err := OpenRead(p)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ro.Close()
 	for _, q := range []string{
-		`INSERT INTO session(session_id,project_dir,first_seen,last_seen) VALUES('X','/p',1,1)`,
+		`INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('X','/p',1,1)`,
 		`UPDATE session SET project_dir='zzz'`,
 		`DELETE FROM session`,
 		`DROP TABLE session`,
@@ -102,7 +102,7 @@ func TestWritesAreRefusedOnTheQueryPath(t *testing.T) {
 // passes against an implementation that then queries through the pool.
 func TestAttachIsRefusedOnThePinnedConnection(t *testing.T) {
 	p, db := newStore(t)
-	db.Exec(`INSERT INTO session(session_id,project_dir,first_seen,last_seen) VALUES('S','/p',1,1)`)
+	db.Exec(`INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('S','/p',1,1)`)
 	ro, err := OpenRead(p)
 	if err != nil {
 		t.Fatal(err)

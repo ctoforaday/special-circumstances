@@ -89,9 +89,13 @@ func headSHA(f *os.File, n int64) (string, error) {
 // IngestResult reports what one file's pass did.
 type IngestResult struct {
 	Acts, Words, Thoughts int
-	Unparsed              int
-	Reprojected           bool // the head changed, so the file was read from zero
-	BytesRead             int64
+	// Skipped counts records seen and not stored — today, thinking blocks that carried no text.
+	// Reported alongside the rest because a projection that drops the majority of one tier in
+	// silence is indistinguishable from a corpus that never had it.
+	Skipped     int
+	Unparsed    int
+	Reprojected bool // the head changed, so the file was read from zero
+	BytesRead   int64
 }
 
 // IngestFile brings one transcript file up to date, resuming from its stored offset.
@@ -149,6 +153,7 @@ func IngestFile(db *sql.DB, tf TranscriptFile) (IngestResult, error) {
 
 	p := Project(f, startSeq)
 	res.Acts, res.Words, res.Thoughts, res.Unparsed = len(p.Acts), len(p.Words), len(p.Thoughts), p.Unparsed
+	res.Skipped = len(p.Skips)
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -161,6 +166,7 @@ func IngestFile(db *sql.DB, tf TranscriptFile) (IngestResult, error) {
 			`DELETE FROM act WHERE session_id=? AND agent_id=?`,
 			`DELETE FROM word WHERE session_id=? AND agent_id=? AND source='transcript'`,
 			`DELETE FROM thought WHERE session_id=? AND agent_id=?`,
+			`DELETE FROM skip WHERE session_id=? AND agent_id=?`,
 		} {
 			if _, err := tx.Exec(q, tf.SessionID, tf.AgentID); err != nil {
 				return res, fmt.Errorf("catalogue: clearing for reprojection: %w", err)
@@ -189,6 +195,13 @@ func IngestFile(db *sql.DB, tf TranscriptFile) (IngestResult, error) {
 			return res, fmt.Errorf("catalogue: thought: %w", err)
 		}
 	}
+	for _, sk := range p.Skips {
+		if _, err := tx.Exec(
+			`INSERT INTO skip(session_id,agent_id,prompt_id,reason,at) VALUES(?,?,?,?,?)`,
+			tf.SessionID, tf.AgentID, nullable(sk.PromptID), sk.Reason, sk.At); err != nil {
+			return res, fmt.Errorf("catalogue: skip: %w", err)
+		}
+	}
 	if _, err := tx.Exec(
 		`INSERT INTO file_offset(path,session_id,agent_id,offset,size,head_sha) VALUES(?,?,?,?,?,?)
 		 ON CONFLICT(path) DO UPDATE SET offset=excluded.offset, size=excluded.size, head_sha=excluded.head_sha`,
@@ -205,8 +218,8 @@ func IngestFile(db *sql.DB, tf TranscriptFile) (IngestResult, error) {
 		dir = filepath.Dir(tf.Path)
 	}
 	if _, err := tx.Exec(
-		`INSERT INTO session(session_id,project_dir,first_seen,last_seen) VALUES(?,?,?,?)
-		 ON CONFLICT(session_id) DO UPDATE SET last_seen=excluded.last_seen,
+		`INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES(?,?,?,?)
+		 ON CONFLICT(session_id) DO UPDATE SET ingested_last=excluded.ingested_last,
 		     project_dir=CASE WHEN excluded.project_dir != '' THEN excluded.project_dir ELSE session.project_dir END`,
 		tf.SessionID, dir, now, now); err != nil {
 		return res, fmt.Errorf("catalogue: session: %w", err)

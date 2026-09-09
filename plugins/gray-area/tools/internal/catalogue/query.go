@@ -12,7 +12,6 @@ type Agent struct {
 	SessionID string
 	CWD       string
 	Liveness  Liveness
-	LastSeen  int64
 	Acts      int
 	LastTool  string
 	LastAt    int64
@@ -34,7 +33,6 @@ func Agents(ctx context.Context, db *sql.DB, sessionDir string) ([]Agent, error)
 		db.QueryRowContext(ctx,
 			`SELECT tool, ts FROM v_action WHERE session_id = ? ORDER BY ts DESC, seq DESC LIMIT 1`,
 			sf.SessionID).Scan(&a.LastTool, &a.LastAt)
-		db.QueryRowContext(ctx, `SELECT last_seen FROM v_session WHERE session_id = ?`, sf.SessionID).Scan(&a.LastSeen)
 		out = append(out, a)
 	}
 	return out, nil
@@ -93,11 +91,15 @@ type SessionShape struct {
 	Failures   map[string]int
 	Words      int
 	Thoughts   int
+	// Skipped counts, by reason, what the projection SAW and did not store. A session showing 0
+	// thoughts and 300 thinking-empty skips is a different fact from one showing 0 and 0, and the
+	// verb that prints them has to be able to tell a reader which it is looking at.
+	Skipped map[string]int
 }
 
 // Shape summarises a single session.
 func Shape(ctx context.Context, db *sql.DB, sessionID string) (SessionShape, error) {
-	s := SessionShape{SessionID: sessionID, ByTool: map[string]int{}, Failures: map[string]int{}}
+	s := SessionShape{SessionID: sessionID, ByTool: map[string]int{}, Failures: map[string]int{}, Skipped: map[string]int{}}
 	if err := db.QueryRowContext(ctx,
 		`SELECT project_dir, closed_at FROM v_session WHERE session_id = ?`, sessionID).
 		Scan(&s.ProjectDir, &s.ClosedAt); err != nil {
@@ -124,6 +126,17 @@ func Shape(ctx context.Context, db *sql.DB, sessionID string) (SessionShape, err
 	rows.Close()
 	db.QueryRowContext(ctx, `SELECT count(*) FROM v_word WHERE session_id = ?`, sessionID).Scan(&s.Words)
 	db.QueryRowContext(ctx, `SELECT count(*) FROM v_thought WHERE session_id = ?`, sessionID).Scan(&s.Thoughts)
+	if srows, err := db.QueryContext(ctx,
+		`SELECT reason, count(*) FROM v_skip WHERE session_id = ? GROUP BY reason`, sessionID); err == nil {
+		for srows.Next() {
+			var reason string
+			var n int
+			if srows.Scan(&reason, &n) == nil {
+				s.Skipped[reason] += n
+			}
+		}
+		srows.Close()
+	}
 	return s, nil
 }
 

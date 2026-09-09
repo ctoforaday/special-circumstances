@@ -112,8 +112,8 @@ func TestRetentionDeletesOnlyPastTheWindow(t *testing.T) {
 	now := time.Now()
 	old := now.Add(-40 * 24 * time.Hour).Unix()
 	fresh := now.Add(-1 * time.Hour).Unix()
-	db.Exec(`INSERT INTO session(session_id,project_dir,first_seen,last_seen) VALUES('OLD','/p',?,?)`, old, old)
-	db.Exec(`INSERT INTO session(session_id,project_dir,first_seen,last_seen) VALUES('NEW','/p',?,?)`, fresh, fresh)
+	db.Exec(`INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('OLD','/p',?,?)`, old, old)
+	db.Exec(`INSERT INTO session(session_id,project_dir,ingested_first,ingested_last) VALUES('NEW','/p',?,?)`, fresh, fresh)
 	db.Exec(`INSERT INTO act(session_id,seq,ts,tool,outcome) VALUES('OLD',0,?,'Bash','ok')`, old)
 	db.Exec(`INSERT INTO act(session_id,seq,ts,tool,outcome) VALUES('NEW',0,?,'Bash','ok')`, fresh)
 

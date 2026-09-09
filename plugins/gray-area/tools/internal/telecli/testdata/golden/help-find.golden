@@ -1,5 +1,24 @@
-Searches the raw transcripts the store names, and joins each hit back to whose
-session it was.
+Searches the raw transcripts the store names, and reports each session's most
+recent hit with the text around it.
+
+One row per session and agent, newest first, because the question behind almost
+every search here is "who is working on this NOW" — and a list of file paths
+ordered by path answers that only after several more queries.
+
+  HITS     matching records in that transcript
+  WHEN     the timestamp of the most recent one
+  IN       where it landed: assistant, user, thinking, tool_use, result, or ?
+
+IN matters more than it looks, and --in filters on it. This searches the WHOLE
+transcript, while the store's word and thought tiers hold only speech and
+reasoning — so a hit can be a tool result, a task notification or a file path. A
+match in a pasted log is not somebody saying something, and on a term that
+appears in a seat prompt most rows will be exactly that:
+
+  telepathy find 'bench rul' --in assistant   what agents SAID about it
+
+A filtered row still reports the unfiltered HITS count, so narrowing the view
+never quietly shrinks the number beside it.
 
 No full-text index is built. A whole-corpus search measures tens of milliseconds
 against a corpus of hundreds of megabytes, where an index would cost gigabytes and
@@ -20,8 +39,10 @@ Usage:
   telepathy find <term> [flags]
 
 Flags:
-  -h, --help    help for find
-      --regex   treat the term as a regular expression rather than a literal (needed for /b word boundaries)
+  -h, --help        help for find
+      --in string   keep only rows whose most recent hit is in this channel: assistant, user, thinking, tool_use, result
+      --paths       print the transcript path under each row, for citing the record rather than summarising it
+      --regex       treat the term as a regular expression rather than a literal (needed for /b word boundaries)
 
 Global Flags:
       --projects string   the transcript root, which this reads and never writes (default "~/.claude/projects")

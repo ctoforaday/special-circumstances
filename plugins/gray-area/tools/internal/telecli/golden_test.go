@@ -152,6 +152,14 @@ func TestGoldenOutput(t *testing.T) {
 		{"sql-tools", []string{"sql", "SELECT tool, outcome, count(*) n FROM v_action GROUP BY 1,2 ORDER BY 1,2"}},
 		{"sql-thoughts", []string{"sql", "SELECT agent_id, text FROM v_thought ORDER BY block_seq"}},
 		{"sql-null-renders-as-the-word", []string{"sql", "SELECT session_id, closed_at FROM v_session ORDER BY 1"}},
+		// first_act/last_act come from the ACTS and are what a reader wanted from the old
+		// first_seen/last_seen; ingested_* are the store's own bookkeeping and are now named as
+		// such. A session with no acts reports NULL for the pair, which is a real state.
+		{"sql-session-span-vs-ingest", []string{"sql",
+			"SELECT substr(session_id,1,8) sid, first_act, last_act, (ingested_first = ingested_last) same_pass FROM v_session ORDER BY 1"}},
+		// The population that used to be invisible: reasoning the client withheld.
+		{"sql-withheld-reasoning", []string{"sql",
+			"SELECT reason, count(*) n FROM v_skip GROUP BY 1"}},
 		// seq is per-FILE, so `ORDER BY seq` alone leaves ties for SQLite to break however it
 		// likes and the golden would be recording an accident of the scan order.
 		{"sql-limit-reports-truncation", []string{"sql", "--limit", "2",
@@ -204,6 +212,39 @@ func TestGoldenFind(t *testing.T) {
 		t.Fatalf("exit %d, stderr:\n%s", code, errOut)
 	}
 	assertGolden(t, "find-hit", out)
+
+	// --in narrows to one channel, and the fixture's mint.go hits are all tool arguments, so
+	// filtering to what an agent SAID must come back empty — worded, and counted in transcripts.
+	out, _, code = h.run(t, "find", "mint.go", "--in", "assistant")
+	if code != 0 {
+		t.Fatalf("--in exited %d", code)
+	}
+	assertGolden(t, "find-in-channel", out)
+
+	// EVERY CHANNEL THE DECODER CAN PRODUCE NEEDS A ROW SOMEWHERE, or the branch that produces it
+	// is untested. The mint.go hits above are all tool arguments; these three reach the others,
+	// and without them a mutation that classified all assistant text as unknown survived the
+	// whole suite.
+	for _, tc := range []struct{ name, term string }{
+		{"find-channel-assistant", "carriers"},  // "Widening the four carriers." — the agent speaking
+		{"find-channel-user", "widen the gap"},  // the human's prompt
+		{"find-channel-thinking", "four sites"}, // the one thought that carried text
+	} {
+		out, _, code := h.run(t, "find", tc.term)
+		if code != 0 {
+			t.Fatalf("%s exited %d", tc.name, code)
+		}
+		assertGolden(t, tc.name, out)
+	}
+
+	// A channel that cannot exist is a typo, and must be refused rather than filtered to nothing.
+	_, errOut, code = h.run(t, "find", "mint.go", "--in", "asistant")
+	if code != 2 {
+		t.Errorf("an unknown channel exited %d, want 2 (a typo is an argv error)", code)
+	}
+	if !strings.Contains(errOut, "is not a channel") {
+		t.Errorf("the refusal does not name the problem: %q", errOut)
+	}
 
 	out, _, code = h.run(t, "find", "a phrase that appears in no transcript")
 	if code != 0 {

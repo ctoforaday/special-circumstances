@@ -33,10 +33,18 @@ telepathy sql '<SELECT …>'       anything else
 telepathy backfill               read the existing corpus into the store (explicit, safe to repeat)
 ```
 
-`find` takes a **literal** by default; pass `--regex` for a pattern. Use it for word boundaries —
-searching `roving` rather than `\broving\b` returns every occurrence of "p*roving*", which is how
-this rule was earned. A substring match is the default failure mode of every search here,
-including `touched` and `sql`'s `LIKE`.
+`find` answers in one query: one row per session and agent, **newest first**, with the hit count,
+the time of the most recent hit, the channel it landed in, and the text around it. `--in assistant`
+keeps only what agents *said*; `--paths` adds the transcript path for citation.
+
+- AFTER a `find`, YOU MUST read the **IN** column before quoting anything. `find` searches the
+  whole transcript, so a hit may be a tool result, a task notification or a seat prompt — on
+  `bench rul` across this box, 9 of the first 11 rows were prompt boilerplate. Quoting a `result`
+  row back to a session as its own words is the mistake this column exists to prevent.
+- `find` takes a **literal** by default; pass `--regex` for a pattern. Use it for word boundaries —
+  searching `roving` rather than `\broving\b` returns every occurrence of "p*roving*", which is how
+  this rule was earned. A substring match is the default failure mode of every search here,
+  including `touched` and `sql`'s `LIKE`.
 
 Every verb takes `--help`, and each one's help states what that verb cannot tell you. `sql` takes
 `--limit` (default 200) and prints a line when it truncates, so a capped result is never mistaken
@@ -61,12 +69,13 @@ telepathy sql "SELECT tool, target FROM v_action WHERE session_id LIKE '5627%' A
   another pid namespace is not ours to judge. YOU MUST NOT read `unknown` as "gone".
 - **A session's final turn may be missing** when its transcript lagged the last hook and no
   closure pass read it. Measured residue, deliberately not engineered around.
-- **`v_thought` is near-dead, and that is a fact about the CLIENT, not the agents.** Measured on
-  this box 2026-09-09: one transcript carried 911 thinking blocks and 79 with any text, all of
-  those before 2026-09-08; since then, zero. Across 106 sessions only 8 hold a single thought.
-  `showThinkingSummaries` was ON throughout. YOU MUST NOT read an empty `v_thought` as evidence
-  an agent did not reason, and YOU MUST NOT cite thought counts as a measure of anything until
-  this changes.
+- **Reasoning is mostly WITHHELD, and `v_skip` is where that fact lives.** The client emits
+  thinking blocks carrying a signature and no text. Measured on this box 2026-09-09: **15,503
+  such blocks across 99 sessions, against 248 thoughts actually stored**, and none with text at
+  all since 2026-09-08. Those blocks are now recorded as `thinking-empty` skips rather than
+  dropped, so the two states are finally distinguishable. YOU MUST check `v_skip` before reading
+  an empty `v_thought` as evidence an agent did not reason — for most sessions on this box it is
+  evidence of nothing but the client's settings.
 - **A session that predates capture contributes nothing** until `backfill` has read it. Absence of
   rows is not absence of work.
 - **`touched` sees a path only where the record NAMES it.** For `Read`/`Edit`/`Write` that is the

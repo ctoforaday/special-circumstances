@@ -19,7 +19,9 @@ import (
 //   - all three transcript tiers, including a seat inside a WORKFLOW (the tier that left 56 files
 //     unattributed when it was missed),
 //   - a tool call that FAILED and one whose result never arrived (outcome `unresolved`),
-//   - a session with reasoning captured and a session with NONE, which must read differently,
+//   - all THREE reasoning states, which must read differently: text stored, a block that arrived
+//     EMPTY (the client withholding it — 15,503 such blocks on the measured corpus against 248
+//     stored), and no thinking block at all,
 //   - a line that is not JSON, which must be counted rather than skipped in silence.
 
 // frozen is the clock every golden is rendered against. All fixture timestamps are relative to it,
@@ -119,6 +121,16 @@ func corpus() []corpusFile {
 				assistantLine("a3", "u1", alphaID, alphaCWD, 3*time.Hour+30*time.Minute,
 					toolUse("t4", "Write", map[string]any{"file_path": "/work/alpha/view.go"}),
 				),
+				// REASONING WITHHELD. A signature and no text is what the client emits, and
+				// dropping it silently made this indistinguishable from an agent that did not
+				// think. Two of them, so the count in the output cannot be confused with a
+				// boolean.
+				assistantLine("a4", "u1", alphaID, alphaCWD, 3*time.Hour+20*time.Minute,
+					map[string]any{"type": "thinking", "thinking": "", "signature": "abc123"},
+				),
+				assistantLine("a5", "u1", alphaID, alphaCWD, 3*time.Hour+10*time.Minute,
+					map[string]any{"type": "thinking", "thinking": "   ", "signature": "def456"},
+				),
 				// Not JSON. Counted as unparsed, never silently dropped.
 				`{"uuid":"torn","sessionId":`,
 			},
@@ -147,8 +159,8 @@ func corpus() []corpusFile {
 			},
 		},
 		{
-			// NO REASONING AT ALL. Not because it thought nothing — because
-			// showThinkingSummaries was off. The session verb must say which.
+			// NO THINKING BLOCK AT ALL, which is the third state and not the same as the two
+			// empty ones above: nothing was withheld here, the transcript simply has none.
 			rel: filepath.Join("-work-beta", betaID+".jsonl"),
 			lines: []string{
 				userLine("bu1", "q1", betaID, betaCWD, "bump the pin", 30*time.Minute),

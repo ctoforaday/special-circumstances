@@ -22,8 +22,13 @@ CREATE TABLE IF NOT EXISTS session (
     session_id    TEXT PRIMARY KEY,
     project_dir   TEXT NOT NULL,
     cwd           TEXT NOT NULL DEFAULT '',
-    first_seen    INTEGER NOT NULL,
-    last_seen     INTEGER NOT NULL,
+    -- WHEN THE CATALOGUE SAW THIS SESSION, which is not when the session ran. These were called
+    -- first_seen/last_seen and read as the session's lifetime; every session backfilled in one
+    -- pass carries the same pair of timestamps, and the author of this store misread his own
+    -- column that way inside a week. The session's actual span is first_act/last_act on the view,
+    -- derived from the acts.
+    ingested_first INTEGER NOT NULL,
+    ingested_last  INTEGER NOT NULL,
     -- closed_at is closure's marker: NULL means not yet closed, which is the safe reading
     -- because it means the session is still eligible for the pending queue. Nothing else
     -- records it; the queue itself is a QUERY over this column, not a table.
@@ -84,15 +89,26 @@ CREATE TABLE IF NOT EXISTS thought (
 );
 CREATE INDEX IF NOT EXISTS thought_key ON thought (session_id, agent_id, prompt_id);
 
--- A skipped turn is a fact a reader needs as much as a stored one: without this, a turn that
--- carried no prompt_id and a turn that was never seen produce the same silence.
-CREATE TABLE IF NOT EXISTS provisional_skip (
+-- WHAT WE SAW AND DID NOT STORE. Without this, a record the projection dropped and a record that
+-- never existed produce the same silence — and the biggest such population is invisible without
+-- it: 911 thinking blocks in one measured transcript, 79 ever carrying text, none since
+-- 2026-09-08. v_thought reports 0 for that session, identically to a session that emitted no
+-- thinking blocks at all. One is the client withholding reasoning; the other is an agent that did
+-- not reason, and gray-area exists to refuse exactly that conflation.
+--
+-- The table was provisional_skip, serving the payload-recovery machinery that was ruled out
+-- before it was built, and nothing ever wrote a row. Dropped rather than left on the contract as a
+-- view that returns zero for all time.
+DROP VIEW IF EXISTS v_skip;
+DROP TABLE IF EXISTS provisional_skip;
+CREATE TABLE IF NOT EXISTS skip (
     session_id TEXT NOT NULL,
     agent_id   TEXT NOT NULL DEFAULT '',
     prompt_id  TEXT,
-    reason     TEXT NOT NULL,           -- no-prompt-id | no-last-assistant-message
+    reason     TEXT NOT NULL,           -- see the Skip* constants; a closed set, so it counts
     at         INTEGER NOT NULL
 );
+CREATE INDEX IF NOT EXISTS skip_key ON skip (session_id, agent_id);
 
 -- Internal bookkeeping, deliberately behind no view: it is the store's own state, not a fact
 -- about any agent, and putting it on the published contract would invite queries against it.
@@ -100,11 +116,19 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 
 CREATE INDEX IF NOT EXISTS act_target ON act (target);
 CREATE INDEX IF NOT EXISTS act_ts     ON act (ts);
+-- first_act/last_act on v_session are min/max per session; without this they are a scan per row.
+CREATE INDEX IF NOT EXISTS act_session_ts ON act (session_id, ts);
 
 -- THE PUBLISHED CONTRACT. Callers query these, never the tables above.
+-- first_act/last_act are NULL for a session with no acts — a real state (a session that only
+-- spoke), and distinct from a session whose acts are simply old.
+DROP VIEW IF EXISTS v_session;
 CREATE VIEW IF NOT EXISTS v_session AS
-    SELECT session_id, project_dir, cwd, first_seen, last_seen, closed_at, capture_build
-    FROM session;
+    SELECT s.session_id, s.project_dir, s.cwd,
+           (SELECT min(ts) FROM act WHERE act.session_id = s.session_id) AS first_act,
+           (SELECT max(ts) FROM act WHERE act.session_id = s.session_id) AS last_act,
+           s.ingested_first, s.ingested_last, s.closed_at, s.capture_build
+    FROM session s;
 CREATE VIEW IF NOT EXISTS v_action AS
     SELECT session_id, agent_id, seq, ts, tool, target, outcome FROM act;
 CREATE VIEW IF NOT EXISTS v_word AS
@@ -114,19 +138,19 @@ CREATE VIEW IF NOT EXISTS v_word AS
 CREATE VIEW IF NOT EXISTS v_thought AS
     SELECT session_id, agent_id, prompt_id, block_seq, ts, text FROM thought;
 CREATE VIEW IF NOT EXISTS v_skip AS
-    SELECT session_id, agent_id, prompt_id, reason, at FROM provisional_skip;
+    SELECT session_id, agent_id, prompt_id, reason, at FROM skip;
 `
 
 // UserVersion is the shape this binary writes. Open refuses a database written by a NEWER one:
 // reading an unknown shape as though it were this one is how a store starts answering questions
 // it cannot actually answer, and the store is derived, so refusing costs a reprojection and
 // nothing else.
-const UserVersion = 1
+const UserVersion = 2
 
 // ViewColumns is the contract §V.6 pins, restated here so a test can compare against a
 // declaration rather than against the DDL it is testing.
 var ViewColumns = map[string][]string{
-	"v_session": {"session_id", "project_dir", "cwd", "first_seen", "last_seen", "closed_at", "capture_build"},
+	"v_session": {"session_id", "project_dir", "cwd", "first_act", "last_act", "ingested_first", "ingested_last", "closed_at", "capture_build"},
 	"v_action":  {"session_id", "agent_id", "seq", "ts", "tool", "target", "outcome"},
 	"v_word":    {"session_id", "agent_id", "prompt_id", "block_seq", "ts", "role", "text", "source", "provisional", "attribution"},
 	"v_thought": {"session_id", "agent_id", "prompt_id", "block_seq", "ts", "text"},
@@ -140,9 +164,13 @@ const (
 	OutcomeUnresolved = "unresolved"
 )
 
-// Skip reasons for provisional_skip.reason. Closed set: a counter downstream needs to separate
-// the populations, and prose cannot be counted.
+// Skip reasons. A CLOSED SET, and deliberately only the reasons something actually writes: a
+// constant nothing can produce is a population that always counts zero, which reads as a clean
+// board forever. The two that used to live here — no-prompt-id, no-last-assistant-message —
+// belonged to machinery that was ruled out before it was built.
 const (
-	SkipNoPromptID    = "no-prompt-id"
-	SkipNoLastAsstMsg = "no-last-assistant-message"
+	// SkipThinkingEmpty: the record carried a thinking block whose text was empty. The client
+	// emits these with a signature and no content; they are the difference between "this agent
+	// did not reason" and "its reasoning was withheld from the transcript".
+	SkipThinkingEmpty = "thinking-empty"
 )

@@ -49,6 +49,9 @@ type Projection struct {
 	Acts     []Act
 	Words    []Word
 	Thoughts []Thought
+	// Skips are records we SAW and stored nothing from. Without them a dropped record and a
+	// record that never existed leave the same hole.
+	Skips []Skip
 	// Unparsed counts lines that are not JSON. Reported, never skipped in silence: a torn line
 	// and an absent line produce the same missing row, and only this count separates them.
 	Unparsed int
@@ -80,6 +83,12 @@ type Thought struct {
 	BlockSeq int
 	TS       int64
 	Text     string
+}
+
+type Skip struct {
+	PromptID string
+	Reason   string
+	At       int64
 }
 
 // Project reads a transcript from r and extracts the three tiers.
@@ -158,7 +167,12 @@ func Project(r io.Reader, startSeq int) Projection {
 				blockSeq++
 			case "thinking":
 				if strings.TrimSpace(b.Thinking) == "" {
-					continue // an empty block with a signature is capture being off, not a thought
+					// COUNTED, NOT DROPPED. The client emits thinking blocks carrying a signature
+					// and no text — measured, 832 of 911 in one transcript and every one since
+					// 2026-09-08. Skipping them silently made "reasoning withheld" and "did not
+					// reason" the same zero, at the one field this miner exists to read.
+					p.Skips = append(p.Skips, Skip{PromptID: pid, Reason: SkipThinkingEmpty, At: ts})
+					continue
 				}
 				p.Thoughts = append(p.Thoughts, Thought{PromptID: pid, BlockSeq: blockSeq, TS: ts, Text: b.Thinking})
 				blockSeq++

@@ -49,17 +49,23 @@ or query v_session for the ones that have ended.`,
 				fmt.Fprintf(out, "  %-16s %7d %7d\n", tl, s.ByTool[tl], s.Failures[tl])
 			}
 			fmt.Fprintf(out, "\n  %d words, %d thoughts\n", s.Words, s.Thoughts)
-			if s.Thoughts == 0 && s.Words > 0 {
+			// THE SKIPS ARE THE HALF THAT USED TO BE INVISIBLE. "0 thoughts" and "0 thoughts, 300
+			// of them arrived empty" are different facts about different subjects — the second is
+			// about the CLIENT — and only one of them says anything about the agent.
+			if n := s.Skipped[catalogue.SkipThinkingEmpty]; n > 0 {
+				fmt.Fprintf(out, "  %d thinking block(s) carried NO TEXT and were not stored — "+
+					"reasoning was withheld from the transcript, not absent from the agent\n", n)
+			}
+			if s.Thoughts == 0 && s.Skipped[catalogue.SkipThinkingEmpty] == 0 && s.Words > 0 {
 				// NAME THE CAUSE THAT IS ACTUALLY LIKELY. This used to send the reader to check
 				// `showThinkingSummaries`, and then measurement said otherwise: on this box the
 				// setting is ON and reasoning text still arrives EMPTY — 911 thinking blocks in
 				// one transcript, 0 carrying text, and none anywhere since 2026-09-08. Pointing a
 				// reader at a setting that is already correct costs them the trip and teaches them
 				// the wrong model of why the column is empty.
-				fmt.Fprintln(out, "  ^ no reasoning stored for this session, which does NOT mean it did not reason. "+
-					"The client emits thinking blocks whose text is empty in most cases and, since 2026-09-08, "+
-					"in all of them — so this column is currently near-dead for every session. Check "+
-					"`showThinkingSummaries` by all means, but do not read a zero here as a fact about the agent.")
+				fmt.Fprintln(out, "  ^ no thinking blocks at all in this session's transcript — not even "+
+					"empty ones, which is a different state from reasoning that was withheld. Check "+
+					"`showThinkingSummaries`; and do not read this zero as a fact about the agent.")
 			}
 			return nil
 		},

@@ -51,7 +51,7 @@ every agent on the box — Gray Area is the ship, and telepathy is what it does:
 telepathy agents              who is running, in which worktree, doing what
 telepathy touched <path>      is anyone else acting on this file
 telepathy session <id>        one session's calls and errors, by tool
-telepathy find <term>         search every local transcript (ripgrep, no index)
+telepathy find <term>         search every local transcript: who, when, where, and the text
 telepathy sql '<SELECT …>'    read-only, over v_session / v_action / v_word / v_thought / v_skip
 telepathy backfill            read the existing corpus in; safe to repeat
 ```
@@ -86,6 +86,23 @@ edited through the shell is named in the *middle* of a `Bash` command — under 
 such edit reported nothing, which is the plausible zero this plugin exists to refuse. The residue
 is stated rather than papered over: targets are truncated at 200 characters, so a path buried past
 that in a long command is still invisible, and `find` is the fallback that reads the transcripts.
+
+**Search answers in one query.** `find` returns one row per session and agent, newest first, with
+the hit count, the time of the most recent hit, the **channel** it landed in — assistant, user,
+thinking, tool_use, result — and the text around it. The channel is not decoration: `find` reads
+the whole transcript while the store's word tier holds only speech, so a hit can be a tool result
+or a seat prompt. Searching `bench rul` across this box returned 11 rows of which 9 were prompt
+boilerplate; `--in assistant` cut it to the five sessions that had actually discussed it. A zero
+is reported with the size of the corpus it searched, because a zero you cannot size is not a
+measurement.
+
+**Reasoning is mostly withheld, and the store says so.** The client emits thinking blocks with a
+signature and no text — 15,503 of them across 99 sessions here, against 248 thoughts stored, and
+none with text since 2026-09-08. They are recorded as `thinking-empty` skips rather than dropped,
+so "reasoning withheld" and "did not reason" stop being the same zero. `v_session` likewise now
+separates `first_act`/`last_act`, which is the session's own span, from `ingested_first`/
+`ingested_last`, which is only when this store saw it — the old `first_seen`/`last_seen` invited
+exactly that confusion and got it.
 
 **Absence is always worded.** No store, no rows for a path, no sessions running and no reasoning
 captured are four different facts, and each says which it is. `find` refuses outright when ripgrep
