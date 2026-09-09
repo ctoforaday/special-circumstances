@@ -14,7 +14,7 @@
 // rows) are still what the renderer emits.
 //
 // BYTE-IDENTITY NOTES:
-//   - `+(x).toFixed(2)` (round to 2 decimals, then Number→string dropping trailing zeros) is
+//   - `+(x).toFixed(2)` (epoch to 2 decimals, then Number→string dropping trailing zeros) is
 //     jsToFixed2Num.
 //   - The two OBJECT-valued rows (lines_of_inquiry byStatus; citation_yield_by_epoch) render via
 //     JSON.stringify in INSERTION order; Go maps sort, so they are built as literal JSON strings
@@ -210,7 +210,7 @@ func citationYieldByRole(fam *record.Family) (objJSON, bool) {
 	return BucketFindingsByRole(record.FindingsJSONOf(fam.Events).Findings)
 }
 
-// BucketFindingsByRole buckets findings per EPOCH (chair sitting — the record has no round) by
+// BucketFindingsByRole buckets findings per EPOCH (chair sitting — the record has no epoch) by
 // lens role-kind (citation L1-4, logic L5, darkside L6) with per-seat yield, and returns the JSON
 // object value in insertion order, or ("", false) when there are no lens findings. The pure
 // kernel (JS bucketFindingsByRole). The split stays: the W2i retune trigger compares per-seat
@@ -530,7 +530,7 @@ func redRows(run record.Run, results []map[string]any, telemetry []*recordpb.Tel
 	// convergence_vs_verdict_flags — DERIVED FROM THE RECORD, not read off a key.
 	//
 	// This counted telemetry rows whose `convergence_vs_verdict_flag` was truthy. NOTHING EVER
-	// WROTE THAT KEY: debate.js computes the detector each round and writes it to a LOG LINE, so
+	// WROTE THAT KEY: debate.js computes the detector each epoch and writes it to a LOG LINE, so
 	// the lookup missed on every row and the metric reported 0 for seven captured runs — "no soft
 	// fails" in the words it would use for "never measured".
 	//

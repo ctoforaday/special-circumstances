@@ -93,8 +93,8 @@ func MintCheckKind(run Run, gapID string) (recordpb.CheckKind, error) {
 	return recordpb.CheckKind(vd.Number()), nil
 }
 
-// RoundsWithRevision counts the distinct rounds that filed a round record. Errors fold into 0,
-// as the audit that reads it always treated an unreadable record: zero rounds it can vouch for.
+// EpochsWithRevision counts the distinct epochs that filed a sitting record. Errors fold into 0,
+// as the audit that reads it always treated an unreadable record: zero epochs it can vouch for.
 func EpochsWithRevision(run Run) int {
 	var n int
 	if _, err := queryRow(run, []any{&n},
@@ -124,9 +124,9 @@ func EventsOf(run Run, types ...recordpb.EventType) ([]*Event, error) {
 	return recordsql.EventsOfTypes(db, words...)
 }
 
-// Rounds lists every round the record touched, ascending — the skeleton a per-round
-// projection hangs on, INCLUDING rounds whose only acts are outside that projection's
-// families (a round of nothing but mints still renders as an empty debate round).
+// Epochs lists every epoch the record touched, ascending — the skeleton a per-epoch
+// projection hangs on, INCLUDING epochs whose only acts are outside that projection's
+// families (an epoch of nothing but mints still renders as an empty debate epoch).
 func Epochs(run Run) ([]int, error) {
 	db, err := openRunForRead(run)
 	if err != nil {

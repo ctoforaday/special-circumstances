@@ -14,7 +14,7 @@ import (
 // verify/graph it is not a seat verb: no debating role runs it, so it lives at the
 // root. It writes files (skeleton, pins, mirrors, the .run-live marker) and preflights
 // the record binary BEFORE any run state exists, so a model-less or bad-cite
-// launch fails here rather than mid-round.
+// launch fails here rather than mid-run.
 //
 // It owns its exit codes (no runDir → 1; a refused gate → 2), so it runs setup.Run and
 // exits directly rather than returning an error through the root's uniform exit-2 path.

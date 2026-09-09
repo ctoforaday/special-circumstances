@@ -62,7 +62,7 @@ func availableOf(evs []*Event, gaps []WorkGapState, role, seatID string) []Item 
 		//
 		// THE PREDICATE IS StaleInquiries, NOT A SECOND COPY OF IT. This block used to inline
 		// `Status == "proposed" || Status == "pursued"`, which is what StaleInquiries also said,
-		// so the two drifted together and were wrong together: neither read the round, though
+		// so the two drifted together and were wrong together: neither read the epoch, though
 		// both texts promised one. The `How` also named a status set that excluded `pursued`,
 		// which is where a followed line comes to REST — so a seat that did the right thing
 		// was told to abandon or defer it. Both are fixed at the single predicate now.

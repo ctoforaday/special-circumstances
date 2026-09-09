@@ -2,9 +2,9 @@ package record
 
 import "fmt"
 
-// ConvergenceEpoch is one round's answer from the convergence_vs_verdict view.
+// ConvergenceEpoch is one epoch's answer from the convergence_vs_verdict view.
 //
-// The inputs travel with the verdict deliberately. A bare count of divergent rounds is the shape
+// The inputs travel with the verdict deliberately. A bare count of divergent epochs is the shape
 // that failed before — `0` with nothing behind it reads as a clean board — so a reader gets the
 // mass, the top severity and the fresh-mint count that produced the answer and can check it.
 type ConvergenceEpoch struct {
@@ -16,7 +16,7 @@ type ConvergenceEpoch struct {
 	Divergent       bool
 }
 
-// ConvergenceVsVerdict asks the record which rounds diverged.
+// ConvergenceVsVerdict asks the record which epochs diverged.
 //
 // IT RETURNS AN ERROR RATHER THAN AN EMPTY SLICE when it cannot ask, and the distinction is the
 // whole point of this function existing. The metric it serves spent seven runs reporting 0 because

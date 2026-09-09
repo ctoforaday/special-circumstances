@@ -10,7 +10,7 @@ import (
 // Findings were identified by a label the LENS invented: L5-F1, L6-F7. Measured on the
 // 2026-07-18 run, that failed in three separate ways at once:
 //
-//	15 labels were used by MORE THAN ONE seat — L5-F1 exists in rounds 1, 2 and 3, so
+//	15 labels were used by MORE THAN ONE seat — L5-F1 exists in epochs 1, 2 and 3, so
 //	   39 of 60 disposals named something that matched several findings
 //	13 labels were disposed that NO event ever created — L6-F8 through L6-F16, a
 //	   contiguous run
@@ -26,7 +26,7 @@ import (
 // lists what exists (`show --view findings`) and uses what it is given, the same way gap
 // ids have been tool-assigned since the four-different-R5-1s collision.
 //
-// The LABEL is now TOOL-assigned too (L{role}-F{N}, the sequence spanning rounds, the role
+// The LABEL is now TOOL-assigned too (L{role}-F{N}, the sequence spanning epochs, the role
 // read from the seat id — see findinglabel.go). That closes the first two failures at the
 // source: a lens can no longer invent a label, and two lenses cannot collide (L1-F1 and
 // L2-F1 are distinct BY the label), so the shared-label ambiguity is impossible rather than

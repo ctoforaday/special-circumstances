@@ -19,7 +19,7 @@ import (
 //   - ConvergenceFraction: the board-mass fraction of the run's peak below which a FAIL over a
 //     board with nothing material is refused (§III.B.2.1).
 //
-// A smoke run is M = 1, KMax = 2 — tighter than two rounds were, and shaped like a run.
+// A smoke run is M = 1, KMax = 2 — tighter than the old two-round smoke, and shaped like a run.
 type Params struct {
 	K                   int     `json:"k"`
 	KMax                int     `json:"kMax"`

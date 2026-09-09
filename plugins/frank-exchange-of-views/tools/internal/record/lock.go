@@ -34,7 +34,7 @@ import (
 // robbed. LockFileEx on Windows, flock(2) on Unix, one dependency, no heuristic
 // to tune. The wait stays BOUNDED — a seat that cannot acquire in time proceeds
 // rather than deadlocking, because a lost render self-heals on the next mutation
-// while a hung seat costs the round.
+// while a hung seat costs the epoch.
 const lockWait = 5 * time.Second
 
 // heldFlocks lets the signal guard release locks on an interrupted seat. The

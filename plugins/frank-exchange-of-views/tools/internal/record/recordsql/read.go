@@ -48,7 +48,7 @@ func Events(db *sql.DB) ([]*recordpb.Event, error) {
 // EPOCH — how many times the chair had registered at or before this row — and the SITTING — how
 // many times this row's own seat had. Both are read off the events_w view, which derives them by
 // window function from "id"; neither is stamped on the row. The envelope's own history says why:
-// seq, nonce and round were each a derivation stored at the write, each cost the write a read,
+// seq, nonce and epoch were each a derivation stored at the write, each cost the write a read,
 // and each was retired once the record could simply be asked.
 type Window struct {
 	Epoch   int

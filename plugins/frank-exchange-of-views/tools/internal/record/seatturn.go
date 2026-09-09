@@ -6,7 +6,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/seatturn"
 )
 
-// AppendSeatTurns records a seat's per-turn measurements: what each API round cost and what kind
+// AppendSeatTurns records a seat's per-turn measurements: what each API round trip cost and what kind
 // of turn it was. Returns how many rows were newly written.
 //
 // # It is telemetry, and it is kept apart from the log for that reason

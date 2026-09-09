@@ -28,7 +28,7 @@ import (
 	"github.com/ctoforaday/special-circumstances/plugins/frank-exchange-of-views/tools/internal/record/recordsql"
 )
 
-// Event is the common fixture: a seat, a round, and what it recorded.
+// Event is the common fixture: a seat, an epoch, and what it recorded.
 //
 // It takes *testing.T and fails rather than returning an error. A fixture that could not be built
 // is not a test condition — it is a broken test, and returning an error here would let a caller

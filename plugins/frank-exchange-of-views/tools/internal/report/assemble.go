@@ -8,7 +8,7 @@
 //     and a synthesis surface authored at assembly is authored AFTER red's last audit — the
 //     run-5 catechism defect (6/7 answers regressed) and, unfixed until now, the TL;DR that
 //     nothing ever checked. They live inside blue/report.md, which red re-reads in full every
-//     round, so moving them there makes them audited. The assembler copies them; it never
+//     epoch, so moving them there makes them audited. The assembler copies them; it never
 //     writes them. A missing one is FLAGGED, never filled in.
 //
 //   - TOOL-COMPOSED FROM THE RECORD: the verdict (the terminal `outcome` event), the risk
@@ -645,7 +645,7 @@ func inquiries(fam record.Family, heading string, want func(string) bool) string
 			row += fmt.Sprintf("\n  - history: %s", strings.Join(a.History, " → "))
 		}
 		// THERE IS NO PER-LINE SUPPORT ROW, AND THE ABSENCE IS A RULING RATHER THAN A DROPPED
-		// FEATURE. This rendered red's per-round `supported`/`weakened`/`unsupported`/`absent`
+		// FEATURE. This rendered red's per-epoch `supported`/`weakened`/`unsupported`/`absent`
 		// verdict on each line — a vocabulary that made PRESENCE the question. Presence is not a
 		// question: the lines reach the report on the WORKLIST generated from this projection, so
 		// blue cannot cut them, and what remains (did blue's body deliver the research) is an
@@ -1090,7 +1090,7 @@ func unmintedFindings(fam record.Family) string {
 		// declining to mint writes nothing. Measured (#747): across one run three findings
 		// reached this section with no recorded reason, and one of them — a medium-severity
 		// allegation, with a reproducible `grep -ic` behind it, that blue had fabricated a
-		// verbatim quote — was dropped in the same round the merge closed the gap that very text
+		// verbatim quote — was dropped in the same epoch the merge closed the gap that very text
 		// was repairing. Rendering that as "weighed and declined" is the sentence that makes a
 		// silent drop read as a considered decision, which is the whole of the harm.
 		//
@@ -1151,7 +1151,7 @@ func debate(fam record.Family, evs []*record.Event) string {
 		// A seat's position is prose, and prose can say "my verdict is PASS" while the epoch's
 		// STRUCTURED verdict — the one the board and every audit read — says fail. That is not
 		// hypothetical: in research/2026-09-02_quadratic-formula red's round-5 position says
-		// exactly that, `round_verdict` holds fail for all five rounds, and this document rendered
+		// exactly that, `round_verdict` holds fail for all five epochs, and this document rendered
 		// only the sentence. A reader of debate.md alone concluded the opposite of the record.
 		//
 		// The fix is not to detect the contradiction — that would be a string match on prose, and

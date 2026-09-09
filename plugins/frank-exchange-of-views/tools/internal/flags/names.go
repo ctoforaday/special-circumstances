@@ -75,7 +75,7 @@ const (
 	// Window sizes `show report --quote`'s sibling read `--anchor <id> --window N`: how many
 	// paragraphs of content either side of the anchor a live read carries.
 	//
-	// The address is --anchor, never a line number: the report is edited every round, so a
+	// The address is --anchor, never a line number: the report is edited every epoch, so a
 	// line captured in round 2 points at different text in round 3. Line numbers come back
 	// as OUTPUT, for saying what you read.
 	Window = "window"

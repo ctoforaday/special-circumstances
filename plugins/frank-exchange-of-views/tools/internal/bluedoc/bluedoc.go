@@ -214,7 +214,7 @@ func (e *ErrAnchorIntroduced) Error() string {
 // Red may propose exact text for a TEXTUAL defect — an overclaim, a wrong figure, a
 // contradiction — where compliance genuinely is the right answer and costs blue nothing.
 // The moment red may hand over concrete text for a SUBSTANTIVE addition, blue becomes a
-// typist by incentive: applying is instant and free, while a counter-edit costs a round and
+// typist by incentive: applying is instant and free, while a counter-edit costs an epoch and
 // invites re-audit. The seat contract inverts, quietly, and the record still looks healthy.
 //
 // The number is measured, not chosen. Across the 2026-08-04 smoke's 26 recorded edits, every

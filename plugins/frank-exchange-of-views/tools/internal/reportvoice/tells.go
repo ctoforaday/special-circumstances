@@ -2,7 +2,7 @@
 //
 // The research report is addressed to a reader of its SUBJECT. Measured on the 2026-09-02
 // quadratic-formula run, a 487-line report on a 4,000-year-old algebra question instead narrated
-// its own construction: 161 "this run / this round / the debate", 24 inline lane-attribution tags
+// its own construction: 161 "this run / this epoch / the debate", 24 inline lane-attribution tags
 // in the research prose, 13 inlined access limits, 9 narrations of its own draft history, 2
 // intrusions of its own verification apparatus. The report had, in its own words, "an account of
 // itself" as a co-equal subject.
@@ -13,7 +13,7 @@
 // tidiness: `flags.All()` is the precedent, enumerated once and read by the gate.
 //
 // WHAT THIS IS NOT. It is not a censor. Matching a tell is not proof of a leak: a quoted source
-// may legitimately say "this round", and prose written for a human reader is never the violation.
+// may legitimately say "this epoch", and prose written for a human reader is never the violation.
 // The advisory does not block, and the lens argues rather than enforces — a tell is where to LOOK.
 package reportvoice
 

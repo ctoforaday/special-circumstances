@@ -74,7 +74,7 @@ func AvenueStatusOf(word string) (recordpb.AvenueStatus, bool) {
 	return enumOf[recordpb.AvenueStatus](recordpb.AvenueStatus(0).Descriptor(), word)
 }
 
-// VerdictOf resolves red's round verdict. PASS is checked against the open board by exact match,
+// VerdictOf resolves red's epoch verdict. PASS is checked against the open board by exact match,
 // so any other spelling would skip the check entirely and record an unadjudicated pass — which is
 // why this refuses rather than returning the zero.
 func VerdictOf(word string) (recordpb.Verdict, bool) {

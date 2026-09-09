@@ -19,7 +19,7 @@ import (
 // once. It stopped run 3's real failure — blue quietly dropping content under
 // repair pressure — but it also forbade rewriting, so the report could only grow:
 // 1178 to 1668 lines in a single run, and every audit seat paid to re-read all of
-// it, every round.
+// it, every epoch.
 //
 // Splitting the two jobs: prose may now be compacted, merged and reorganized
 // freely, because a claim can only LEAVE through this verb. Deletion stops being

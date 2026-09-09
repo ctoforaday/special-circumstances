@@ -61,7 +61,7 @@ const VarWrapper = "FEOV_RUN_FROM_WRAPPER"
 //
 // The DISAGREEMENT is the whole point. When both are present and differ, neither is trusted:
 // obeying the flag reinstates the typo, and silently overriding it would make a seat's own
-// argument disappear without a word — the failure mode where a seat spends a round arguing
+// argument disappear without a word — the failure mode where a seat spends an epoch arguing
 // with a run directory it never chose. Both values are named, so the operator reading the
 // error can see which is the typo.
 //

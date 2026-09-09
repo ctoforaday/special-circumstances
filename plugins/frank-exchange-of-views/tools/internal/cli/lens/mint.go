@@ -42,7 +42,7 @@ func newMint() *cobra.Command {
 			return mintResult{GapID: prior, Idempotent: true}, nil
 		}
 		// The gap id is G<n>, the position in the run's mint order, read by MintGapID from the
-		// record itself. It used to carry a round: handed in from the seat's context, and before
+		// record itself. It used to carry an epoch: handed in from the seat's context, and before
 		// that recovered from the seat id by regex (#348). A gap id is the run's primary public
 		// identifier, printed in the report and referenced by --supersedes, --id and found_by, so
 		// it is minted from a fact the record holds, never from the shape of a string a seat

@@ -9,7 +9,7 @@ import (
 //
 // # Why the anchor is the address and the line number is not
 //
-// The report is edited every round. Blue inserting a paragraph shifts every line below it, so a
+// The report is edited every epoch. Blue inserting a paragraph shifts every line below it, so a
 // line number captured in round 2 points at different text in round 3 — an address derived from a
 // rendering, which is the defect class this suite keeps finding in its own surfaces.
 //

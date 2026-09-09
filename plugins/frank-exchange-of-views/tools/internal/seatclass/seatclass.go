@@ -44,7 +44,7 @@ var needles = []struct {
 	{"Blue lane", "blue-lane"},
 	{"frontier hypotheses", "frontier"},
 	{"Final assembly", "assemble"},
-	// The heads the round-shaped engine wrote, kept for the archive.
+	// The heads the epoch-shaped engine wrote, kept for the archive.
 	{"Red audit, round", "red-lens"},
 	{"Red chair, round", "red-chair"},
 	{"Blue response, round", "blue-respond"},

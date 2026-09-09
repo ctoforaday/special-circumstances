@@ -416,7 +416,7 @@ func sameWord(a, b string) bool {
 // `Opinion.disposition` WAS THE SECOND, AND THE REASON GIVEN FOR IT DID NOT SURVIVE READING.
 //
 // It was listed here as "kept open on the operator's decision (plan §II.3): closing it means a
-// legitimate bench ruling fails HARD mid-round, and a bench that cannot rule is worse than a
+// legitimate bench ruling fails HARD mid-run, and a bench that cannot rule is worse than a
 // vocabulary that drifts." Two things were wrong with that. The cited section is in no plan in
 // `plans/`. And the behaviour it described as the cost of closing the set was what this function
 // ALREADY DID: the arm below refused any word outside `benchDispositions`, from record.go:1131, on

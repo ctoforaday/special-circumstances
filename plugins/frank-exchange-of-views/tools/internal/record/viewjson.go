@@ -63,7 +63,7 @@ type CountsJSON struct {
 	// for every release since: the implementation counts verify EVENTS, one per verification,
 	// and blue's authored cites are CitationsAuthored below. The consistency oracle found the
 	// disagreement by implementing the doc and diverging from the code. Note what the counter
-	// therefore is NOT: distinct — a source re-verified in a later round counts once per read.
+	// therefore is NOT: distinct — a source re-verified in a later epoch counts once per read.
 	Citations int `json:"citations"`
 	// CitationsAuthored is blue's tool-inserted citations (#256). Kept SEPARATE from Citations:
 	// counting them together inflated red's audit-volume metric by 43% on the 2026-08-04 smoke.
@@ -116,7 +116,7 @@ type GapJSON struct {
 	// boards built to demand it. The arithmetic board's seat summed twelve integers in its own
 	// reasoning, wrote the answer into the report, and was satisfied — the exact failure the
 	// verb exists to prevent. The gate DID fire, correctly and with a good message, at the
-	// merge's close in the following round, by which time blue's sitting was over.
+	// merge's close in the following epoch, by which time blue's sitting was over.
 	CheckKind string `json:"check_kind"`
 	// AwaitingProof is check_kind stated as a DEBT rather than as a property.
 	//
@@ -572,7 +572,7 @@ func listValuesByEvent(db *sql.DB, table string) (map[int64][]string, error) {
 // screen has ids and locations to hit without carrying every closed gap's full prose.
 //
 // It exists because the full board JSON grows monotonically (every closed gap stays, with
-// all its prose), and the merge re-read that whole thing every round only to act on the
+// all its prose), and the merge re-read that whole thing every epoch only to act on the
 // open few. The work list is the once-per-turn read: open gaps carry their grades + a
 // TRUNCATED problem synopsis (enough to recognise, not the whole record — the ledger/board
 // views still serve the full prose when a seat needs it), and closed gaps collapse to
@@ -611,11 +611,11 @@ type CounterpartyJSON struct {
 	// Role is whose activity this describes: the party this seat is waiting on or disposing of.
 	Role string `json:"role"`
 	// Acts is how many substantive events that party has recorded in the whole run, and
-	// ActsThisEpoch how many in the round this seat is sitting in. Zero for both is "has not
-	// started"; zero this round with a positive total is "worked earlier, not yet here".
+	// ActsThisEpoch how many in the epoch this seat is sitting in. Zero for both is "has not
+	// started"; zero this epoch with a positive total is "worked earlier, not yet here".
 	Acts          int `json:"acts"`
 	ActsThisEpoch int `json:"acts_this_epoch"`
-	// LastEpoch is the last round that party recorded anything in, or 0 if never.
+	// LastEpoch is the last epoch that party recorded anything in, or 0 if never.
 	LastEpoch int `json:"last_epoch"`
 	// Reading states, in words, which of the situations this is — because a reader that has to
 	// derive it from three integers will derive it differently each time.
@@ -639,7 +639,7 @@ type WorkGapJSON struct {
 	// when the where is a quote.
 	AboutKind string `json:"about_kind,omitempty"`
 	AboutRef  string `json:"about_ref,omitempty"`
-	// EditedSince is every edit that moved this gap's sentence SINCE THE READER'S LAST ROUND —
+	// EditedSince is every edit that moved this gap's sentence SINCE THE READER'S LAST EPOCH —
 	// the change history red would otherwise have to reconstruct by diffing the report against a
 	// memory of it. A gap whose text blue rewrote is the commonest thing red re-audits, and
 	// before this the work list showed the sentence as minted and said nothing about the rewrite.
@@ -804,10 +804,10 @@ func workGapStatesOfRun(run Run, evs []*Event) ([]WorkGapState, error) {
 
 // workJSONOfGaps assembles the lean shapes from the gap states — the same rows, the same order,
 // the same synopsis truncation the fold applied.
-// since is the round from which an edit counts as NEW TO THIS READER: the one before the seat's
+// since is the epoch from which an edit counts as NEW TO THIS READER: the one before the seat's
 // own, so a seat sitting in epoch 3 sees what happened in epoch 2 — the epoch it was not present
-// for. Zero means "no round known", and then every edit is shown rather than none: a reader whose
-// round could not be determined is better handed the whole history than silently handed none.
+// for. Zero means "no epoch known", and then every edit is shown rather than none: a reader whose
+// epoch could not be determined is better handed the whole history than silently handed none.
 func workJSONOfGaps(gaps []WorkGapState, since int) WorkJSON {
 	out := WorkJSON{Open: []WorkGapJSON{}, ClosedIndex: []ClosedIndexJSON{}}
 	for _, g := range gaps {
@@ -900,7 +900,7 @@ func counterpartyOf(evs []*Event, role string, epoch int) CounterpartyJSON {
 	return c
 }
 
-// roundOfSeatOnBoard is the round this seat is sitting in, taken from its own latest event.
+// roundOfSeatOnBoard is the epoch this seat is sitting in, taken from its own latest event.
 func epochOfSeatOnBoard(evs []*Event, seatID string) int {
 	r := 0
 	var clk Clock
@@ -934,7 +934,7 @@ func WorkJSONBytes(run Run, role, seatID string) ([]byte, error) {
 }
 
 // FindingJSON is one lens finding, in the form the merge coalesces on and scorecards
-// attribute per role/round from. It replaces the red/candidates/*.md file the merge used
+// attribute per role/epoch from. It replaces the red/candidates/*.md file the merge used
 // to `cat` and hand-transcribe — the finding is now a record event, read structured.
 type FindingJSON struct {
 	Label string `json:"label"`
@@ -989,7 +989,7 @@ type FindingJSON struct {
 
 // FindingsJSON is the seat-facing findings view: every lens finding on the record, in
 // event order. The merge reads it to coalesce findings into gaps (naming labels in
-// found_by); scorecards counts it per role/round for citation-yield.
+// found_by); scorecards counts it per role/epoch for citation-yield.
 type FindingsJSON struct {
 	Findings []FindingJSON `json:"findings"`
 	Counts   struct {
@@ -1169,7 +1169,7 @@ func LogJSONBytes(run Run) ([]byte, error) {
 	return append(out, '\n'), nil
 }
 
-// DebateJSON is the seat-facing STRUCTURED debate: the same round-by-round transcript
+// DebateJSON is the seat-facing STRUCTURED debate: the same epoch-by-epoch transcript
 // render.go writes to debate.md, but as data instead of prose. It exists because the
 // operator-side audits (telemetry, record-parity) counted `### RED`/`### BLUE` sections by
 // regex over the markdown — a second reader of a projection, the exact defect class the
@@ -1183,14 +1183,14 @@ type DebateJSON struct {
 }
 
 // DebateEpochJSON mirrors one `## Epoch N` block of render.go. Red/Blue/Lead are always
-// present (possibly empty) arrays — a consumer counts `red.length` for the round's red
+// present (possibly empty) arrays — a consumer counts `red.length` for the epoch's red
 // sitting, and a null would make that count throw. The richer sections omit when empty.
 type DebateEpochJSON struct {
 	Epoch int `json:"epoch"`
-	// Verdict is the round's RECORDED verdict, and it is here because `red` is PROSE. A position
+	// Verdict is the epoch's RECORDED verdict, and it is here because `red` is PROSE. A position
 	// may say "my verdict is PASS" while round_verdict holds fail — measured in
 	// research/2026-09-02_quadratic-formula, where a reader of the debate projection alone
-	// concluded the opposite of the record. Empty means no verdict was recorded for this round,
+	// concluded the opposite of the record. Empty means no verdict was recorded for this epoch,
 	// which is a different fact from a verdict of fail and must not read as one.
 	Verdict      string              `json:"verdict"`
 	Red          []string            `json:"red"`
@@ -1214,11 +1214,11 @@ type DebateOpinionJSON struct {
 	Rationale   string `json:"rationale"`
 }
 
-// DebateJSONOf groups the record's events by round exactly as render.go's debate loop does:
+// DebateJSONOf groups the record's events by epoch exactly as render.go's debate loop does:
 // position(red-chair)→Red, position(blue)→Blue, closing→RedClosings/BlueClosings,
 // dispute/dispute-respond→Disputes, a docket motion's ruling→Lead. The grouping is
 // the single source these two renderings share; if it moves, both move together.
-// DebateJSONOf projects the debate prose per round. It takes the ROUND SKELETON separately from
+// DebateJSONOf projects the debate prose per epoch. It takes the EPOCH SKELETON separately from
 // the events, because the epochs come from the WHOLE record — an epoch whose only acts are mints
 // still renders, empty, exactly as it always has — while the events it renders are only the
 // position, closing, motion and motion-rule families. A caller holding merged events uses
@@ -1306,7 +1306,7 @@ func DebateJSONOf(epochs []int, evs []*Event) DebateJSON {
 }
 
 // DebateJSONOfEvents is DebateJSONOf for a caller holding the WHOLE stream (a board's events, the
-// oracle's walk): the round skeleton derives from every event, exactly as the board-shaped
+// oracle's walk): the epoch skeleton derives from every event, exactly as the board-shaped
 // signature derived it.
 func DebateJSONOfEvents(evs []*Event) DebateJSON {
 	var epochs []int
@@ -1359,7 +1359,7 @@ func mintedIfMoved(minted string, edits []GapEdit) string {
 // editsSince narrows a gap's change history to what the reader has not already seen.
 //
 // A seat sitting in epoch 3 is shown epoch 2 onward: the epochs it was not present for. Passing 0
-// shows everything, which is what a caller with no round context gets — handing back nothing there
+// shows everything, which is what a caller with no epoch context gets — handing back nothing there
 // would be the plausible zero this whole field exists to remove.
 func editsSince(edits []GapEdit, since int) []GapEdit {
 	if len(edits) == 0 {

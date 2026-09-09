@@ -27,7 +27,7 @@ import (
 //
 // Nothing here invents an obligation. Each one is either refused at a write path (open gaps and
 // unruled motions block `verdict`; a computation gap cannot be closed on prose) or is a stated
-// round-record requirement (W1.7's revision, the bench's terminal outcome). Inventing a duty here
+// epoch-record requirement (W1.7's revision, the bench's terminal outcome). Inventing a duty here
 // would make this view disagree with the gates, and a seat told it was finished by one surface
 // and refused by another learns to trust neither.
 
@@ -103,7 +103,7 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 	switch role {
 	case "blue":
 		// A computation demand prose cannot answer. The merge is REFUSED if it tries to close
-		// one unproved, so an unanswered demand does not settle — it carries into the next round.
+		// one unproved, so an unanswered demand does not settle — it carries into the next epoch.
 		for _, g := range gaps {
 			if !g.AwaitingProof {
 				continue
@@ -155,12 +155,12 @@ func SittingOf(evs []*Event, gaps []WorkGapState, role, seatID string) SittingJS
 				add("motion " + m.ID + " (" + phrase + ") was filed and never ruled — PASS is refused while it stands")
 			}
 		}
-		// THE LINES OF INQUIRY ARE READ ONCE, EVERY ROUND.
+		// THE LINES OF INQUIRY ARE READ ONCE, EVERY EPOCH.
 		//
-		// One statement per round, not one per line: presence is not the question, because the
+		// One statement per epoch, not one per line: presence is not the question, because the
 		// lines are generated onto the page from the record. What the read owes is a judgement on
 		// whether the BODY delivered them, and where it did not, a gap. The report is regenerated
-		// each round, so a review recorded before this round's edits answers a question about a
+		// each epoch, so a review recorded before this epoch's edits answers a question about a
 		// document that no longer exists.
 		if InquiryReviewDueOf(evs) {
 			add("the report's account of its own research has not been read this round — PASS is refused until one `inquiry-review` says what the read found (and any shortfall is minted as a gap)")

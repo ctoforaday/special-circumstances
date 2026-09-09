@@ -116,9 +116,9 @@ type Context struct {
 	runDir string
 	SeatID string
 	Role   string
-	// There is no round here. The epoch (chair sittings) and the sitting ordinal are windows the
+	// There is no epoch here. The epoch (chair sittings) and the sitting ordinal are windows the
 	// record computes over the events at read time (record.Clock, events_w); a seat never carries
-	// or stamps either. The round was once injected by the dispatcher and before that recovered
+	// or stamps either. The epoch was once injected by the dispatcher and before that recovered
 	// from the seat id by regex (#348).
 	// RunVia says which of the three paths supplied the run — the hook's injection, the seat's
 	// own --run, or the tool's inference from the marker. `register` records it, because a run
@@ -254,7 +254,7 @@ func Of(cmd *cobra.Command) Context {
 	}
 	runDir = resolved
 	// Identity resolves the same way (#348): injected wins, a disagreeing flag is refused by
-	// Begin. There is no round here: the record computes the epoch at each write.
+	// Begin. There is no epoch here: the record computes the epoch at each write.
 	seatID, _ := cmd.Flags().GetString(flags.SeatID)
 	// NewRun, not OpenRun: Of() must hand back a Context even for a run that is not on disk —
 	// these two are best-effort reads whose errors are already discarded, and the existence
@@ -715,7 +715,7 @@ func Prose(c *cobra.Command) *cobra.Command {
 // unconditional even though the FIELD's is not.
 //
 // `merge close` is the case. `Close.prose` cannot carry `required: true` — that refuses before
-// validate runs and so refused a CARRY, which restates an argument an earlier round already made.
+// validate runs and so refused a CARRY, which restates an argument an earlier epoch already made.
 // Dropping the annotation fixed the carry and silently unmarked close: cobra stopped refusing and
 // the help stopped saying REQUIRED, on a verb whose argument is the whole point. Marking it by
 // hand at the verb restored the refusal and NOT the marker, which is worse than either — a

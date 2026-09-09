@@ -216,7 +216,7 @@ func (l Liveness) Says() string {
 // assumed:
 //
 //	2  carry an `outcome` event — the record answers
-//	1  carries a round `verdict` event and no terminal act
+//	1  carries an epoch `verdict` event and no terminal act
 //	5  carry NO terminal act at all, and their reports say "UNVERIFIED"
 //	1  has no verdict in the report either
 //
@@ -227,7 +227,7 @@ func (l Liveness) Says() string {
 // finding it written down.
 //
 // The honest answer when the record cannot say is that the record cannot say, and the renderer
-// already says it well: an empty terminal verdict falls through to the round verdict off the
+// already says it well: an empty terminal verdict falls through to the epoch verdict off the
 // record and is RELABELLED from "final verdict" to "latest verdict (rN)". The operator sees a
 // different claim rather than the same claim from a worse source.
 // It is exported for every caller that needs to know whether the bench recorded an outcome —

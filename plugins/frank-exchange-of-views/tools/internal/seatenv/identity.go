@@ -9,17 +9,17 @@ import (
 
 // IDENTITY ARRIVES AS FIELDS, NOT AS A STRING TO PARSE (#348).
 //
-// THE MEASURED FAILURE. Every event's `Round` was computed by running a regex over the seat id
+// THE MEASURED FAILURE. Every event's `Epoch` was computed by running a regex over the seat id
 // at the append path:
 //
-//	Seq: len(events), TS: nextStamp(runDir), SeatID: seatID, Nonce: nonce, Round: <regex over seatID>,
+//	Seq: len(events), TS: nextStamp(runDir), SeatID: seatID, Nonce: nonce, Epoch: <regex over seatID>,
 //
 // That is the hottest recovered-from-a-string fact in the tool, and it has already failed:
-// `judge-terminal` carries no round, so the regex returned 0, so a bench closure at run END looked
-// like a closure BEFORE ROUND 1. It put a phantom entry in the archive and made the W1.8
-// spot-check floor demand samples from rounds whose seats had done nothing wrong. It surfaced at
+// `judge-terminal` carries no epoch, so the regex returned 0, so a bench closure at run END looked
+// like a closure BEFORE EPOCH 1. It put a phantom entry in the archive and made the W1.8
+// spot-check floor demand samples from epochs whose seats had done nothing wrong. It surfaced at
 // 1 seed in 60 during #327, entirely by luck; a live run would have failed verify while naming
-// innocent rounds.
+// innocent epochs.
 //
 // Role was recovered the same way — `strings.HasPrefix(e.SeatID, "red-merge")` — including in
 // the branch deciding whether a position renders as RED or BLUE in the report.
@@ -39,7 +39,7 @@ import (
 // AND THE PART THAT WAS NOT TRUE, which this file's presence made easy to misread: nothing set
 // FEOV_SEAT or FEOV_ROUND anywhere in this repository. Both had readers and no writer, so both
 // branches were scenery — and both are now gone. The seat is bound at `register` and read from the
-// record; the round is derived from a seat id whose shape the roster gate validates, and it answers
+// record; the epoch is derived from a seat id whose shape the roster gate validates, and it answers
 // NOT-KNOWN rather than 0 where the name carries no round (#327/#396).
 //
 // WHAT THIS DELIBERATELY DOES NOT TOUCH. The seat id remains the SHARD KEY and the concurrency
@@ -140,11 +140,11 @@ func ResolveSeat(flagSeatID string, bound func() (string, error)) (Seat, error) 
 		return Seat{}, nil
 	}
 
-	// THE ROUND IS DERIVED, AND THAT STOPPED BEING A GUESS. FEOV_ROUND used to be read here
+	// THE EPOCH IS DERIVED, AND THAT STOPPED BEING A GUESS. FEOV_ROUND used to be read here
 	// first, as "a FACT the dispatcher knows" — and the dispatcher never knew it: nothing in
 	// production ever set the variable, so the branch was scenery and the derivation below was
 	// always the only path.
-	// THE ROUND IS NOT RESOLVED HERE, or anywhere a seat can reach. It used to be read out of the
+	// THE EPOCH IS NOT RESOLVED HERE, or anywhere a seat can reach. It used to be read out of the
 	// id by a regex and returned beside it; the id no longer carries one, and the epoch is
 	// derived by the record at each read (events_w."epoch"). A seat's identity is its id, bound at
 	// register and read back — nothing else.

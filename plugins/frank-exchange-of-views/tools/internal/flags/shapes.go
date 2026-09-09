@@ -36,7 +36,7 @@ import (
 // checked against the record — because a shape check that looked like a reference check would be
 // the more dangerous half-measure.
 
-// gapIDShape is G<n>, the id `MintGapID` assigns — run-global, no round in it.
+// gapIDShape is G<n>, the id `MintGapID` assigns — run-global, no epoch in it.
 var gapIDShape = regexp.MustCompile(`^G\d+$`)
 
 // anchorShape is the tool-inserted anchor id: f- a finding, c- a source, p- a computation. The
@@ -182,7 +182,7 @@ func SHA() *ShapedValue {
 // DateValue refuses a date that is not YYYY-MM-DD, and one that is not a real day.
 //
 // `--access-date` drives the staleness re-fetch trigger: a claim verified at high confidence
-// stays verified unless more than two rounds have elapsed or the recorded date suggests drift. A
+// stays verified unless more than two epochs have elapsed or the recorded date suggests drift. A
 // date nothing can parse silently disables that trigger for the row, which is the quiet failure
 // this whole sweep is about — the reader gets a value, believes it, and computes nothing.
 type DateValue struct {

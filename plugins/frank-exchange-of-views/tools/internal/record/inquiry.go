@@ -55,8 +55,8 @@ var InquiryRulings = []EnumValue{
 
 // MintInquiryID assigns the next run-unique line-of-inquiry id (Q1, Q2 …).
 //
-// Run-unique rather than round-scoped, unlike a gap: a line of inquiry OUTLIVES the round that
-// proposed it — that is the whole point of giving it a lifecycle — so a round-scoped id
+// Run-unique rather than epoch-scoped, unlike a gap: a line of inquiry OUTLIVES the epoch that
+// proposed it — that is the whole point of giving it a lifecycle — so an epoch-scoped id
 // would have to be re-minted to survive, which is the bug this replaces.
 func MintInquiryID(run Run) (string, error) {
 	// A PROPOSAL, NOT A MOVE. `supersedes_status` is PRESENT on a move and absent on a
@@ -102,11 +102,11 @@ type Inquiry struct {
 	// Wiring that is new behaviour rather than a conversion, so it is reported, not done here.
 	Contests string
 	// THERE IS NO PER-LINE SUPPORT VERDICT, AND ITS ABSENCE IS A RULING RATHER THAN AN OMISSION.
-	// Three fields here — Support, SupportWhy, SupportRound — carried red's per-round answer to
+	// Three fields here — Support, SupportWhy, SupportRound — carried red's per-epoch answer to
 	// "does the report still CARRY this line". That made presence the question. Presence is not a
 	// question: the lines reach the report on the WORKLIST, generated from this projection, so
 	// blue cannot cut them. What remains — did blue's body deliver the research — is an ordinary
-	// GAP, minted and closed like any other, and the per-round statement that the read HAPPENED is
+	// GAP, minted and closed like any other, and the per-epoch statement that the read HAPPENED is
 	// InquiryReviewDue's business, not this struct's.
 }
 
@@ -240,7 +240,7 @@ func InquiriesOf(evs []*Event) []*Inquiry {
 			}
 			a.Contests = a.Ruling
 			// THERE IS NO InquiryReview ARM, AND THAT IS THE SHAPE RATHER THAN A GAP IN IT. The
-			// review is ONE event per round about the report as a whole; it names no line, so there
+			// review is ONE event per epoch about the report as a whole; it names no line, so there
 			// is nothing here for it to join to. Its reader is InquiryReviewDue.
 		}
 	}
@@ -318,7 +318,7 @@ func InquiryReviewDueOf(evs []*Event) bool {
 	for _, e := range evs {
 		w := clk.Advance(e)
 		// THE BODY IS THE TYPE, as everywhere else in this file: a match on the message cannot go
-		// stale against the enum. No field is read — the event's existence in this round IS the
+		// stale against the enum. No field is read — the event's existence in this epoch IS the
 		// fact — but the type test still goes through the body so a renamed enum value fails to
 		// compile rather than silently matching nothing.
 		if _, ok := recordpb.BodyAs[*recordpb.InquiryReview](e); ok && w.Epoch == now {

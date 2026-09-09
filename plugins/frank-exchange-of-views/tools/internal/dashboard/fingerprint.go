@@ -35,7 +35,7 @@ import (
 //
 // # How often it actually skips
 //
-// A fair objection: any write inside a 15s window moves the digest, and during a live round the
+// A fair objection: any write inside a 15s window moves the digest, and during a live epoch the
 // seats are writing constantly — so does this ever fire? Measured across ten real sessions, by
 // bucketing every seat message into 15s windows and counting the ones that carried a write:
 //

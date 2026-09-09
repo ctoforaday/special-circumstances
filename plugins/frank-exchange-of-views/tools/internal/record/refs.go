@@ -18,7 +18,7 @@ import (
 // That is not a hypothetical. It is the mechanism behind the 2026-07-18 run's worst
 // damage: eight judicial closures were `opinion --id` events ACCEPTED AT WRITE TIME and
 // then silently DROPPED at replay, because replay checks what the write path did not. The
-// board was wrong by six gaps for three rounds and nothing on the surface said so.
+// board was wrong by six gaps for three epochs and nothing on the surface said so.
 //
 // The split is the defect. A reference that replay will refuse must be refused when it is
 // written, while the seat is still there to fix it — an event accepted into the log and

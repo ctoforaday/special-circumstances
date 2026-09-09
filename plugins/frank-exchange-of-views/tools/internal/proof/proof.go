@@ -8,7 +8,7 @@
 // The cost is measured. In the 2026-08-04 smoke red raised R1-2 — "protocol validation uses
 // ground truth to validate itself; test it on a false claim, e.g. is 9 prime" — blue answered
 // with PROSE asserting the test had happened, and red's R2-2 correctly refused it: "no
-// evidence shown". A full round, for something three lines of trial division settle outright
+// evidence shown". A full epoch, for something three lines of trial division settle outright
 // while leaving an artifact the auditor can re-run.
 //
 // RISK POSTURE, and it is the one fetchcache already states: a seat could already run this by

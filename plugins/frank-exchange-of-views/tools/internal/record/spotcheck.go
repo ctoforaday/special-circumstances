@@ -10,17 +10,17 @@ import (
 
 // THE W1.8 ARCHIVE SPOT-CHECK FLOOR, COMPUTED FROM THE BOARD.
 //
-// The duty: re-verify sampled archived closures every round, because a closure index is only as
+// The duty: re-verify sampled archived closures every epoch, because a closure index is only as
 // good as the last time anyone looked. It was born from a real defect — run 5's round-2 merge
 // reported that the spot-check "had degraded to same-seat self-attestation", the seat vouching
 // for blocks it was about to write itself.
 //
-// W1.8 specified the repair as an ENFORCEMENT: key the floor on the archive's state at round
+// W1.8 specified the repair as an ENFORCEMENT: key the floor on the archive's state at epoch
 // START, so the obligation exists exactly when there is something to sample. What shipped was an
 // envelope self-report — the merge wrote `archive_spot_checks[]` and the script compared it
 // against `prevArchiveBlocks`, ANOTHER NUMBER THE MERGE REPORTED. That gate was deleted on
 // 2026-07-19, correctly, with its own epitaph: "they compared numbers the merge made up (a haiku
-// smoke self-reported archive_blocks:22 in a round where the true archived count was 0). The tool
+// smoke self-reported archive_blocks:22 in an epoch where the true archived count was 0). The tool
 // board is the count authority; capture audits the truth from disk."
 //
 // Neither replacement authority was built. The `merge spot-check` verb was created to carry the
@@ -28,12 +28,12 @@ import (
 // validation switch permitting it to be written. So the fix for a self-attestation defect was, in
 // net effect, a better place to write the self-attestation.
 //
-// This is the floor W1.8 asked for. The archive's size at the start of round R is REPLAYED from
-// the board — a number no seat can author — and two things are checked against it: a round that
-// owed a sample and recorded none, and a round that claimed an empty archive the board says was
+// This is the floor W1.8 asked for. The archive's size at the start of epoch R is REPLAYED from
+// the board — a number no seat can author — and two things are checked against it: an epoch that
+// owed a sample and recorded none, and an epoch that claimed an empty archive the board says was
 // not empty. The second is the direct heir of the run-5 degeneracy.
 
-// SpotCheck is one round's discharge of the duty, joined to what the board says was actually
+// SpotCheck is one epoch's discharge of the duty, joined to what the board says was actually
 // available to sample.
 type SpotCheck struct {
 	Epoch   int
@@ -48,12 +48,12 @@ type SpotCheck struct {
 	// None is a claim that there was nothing to sample.
 	None       bool
 	NoneReason string
-	// Archived is the board's count of closures available at the START of this round — the
+	// Archived is the board's count of closures available at the START of this epoch — the
 	// authority the claim is checked against.
 	Archived int
 }
 
-// SpotCheckAudit replays the floor: the discharges recorded, the rounds that owed one and
+// SpotCheckAudit replays the floor: the discharges recorded, the epochs that owed one and
 // recorded nothing, and the discharges whose emptiness claim the board contradicts.
 //
 // ONE COMPUTATION, TWO READERS. verify enforces it and the report renders it; deriving the floor
@@ -63,19 +63,19 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 	if len(f.Gaps) == 0 && len(f.Events) == 0 {
 		return nil, nil, nil
 	}
-	// The archive at the START of round R: every gap closed in a round strictly before R.
+	// The archive at the START of epoch R: every gap closed in an epoch strictly before R.
 	// Replayed state, not a reported count.
-	// A CLOSURE WITH NO ROUND IS NOT AN EARLY CLOSURE. ClosedEpoch is derived from the closing
-	// seat's ID, and the terminal seats carry no round in their name — `judge-terminal` yields 0.
-	// Round 0 is synthesis, when no gap exists to close, so 0 here means UNKNOWN, not FIRST.
+	// A CLOSURE WITH NO EPOCH IS NOT AN EARLY CLOSURE. ClosedEpoch is derived from the closing
+	// seat's ID, and the terminal seats carry no epoch in their name — `judge-terminal` yields 0.
+	// Synthesis is synthesis, when no gap exists to close, so 0 here means UNKNOWN, not FIRST.
 	//
 	// Reading it as "before everything" put a phantom closure in the archive at the start of
 	// round 1 and demanded samples for rounds that could not have taken them — the bench's
-	// terminal opinion happens after the last round ends. Measured at 1 seed in 60 by the sweep,
+	// terminal opinion happens after the last epoch ends. Measured at 1 seed in 60 by the sweep,
 	// which is the only reason it was seen at all: a live run would have failed verify with a
-	// message naming rounds whose seats had done nothing wrong.
+	// message naming epochs whose seats had done nothing wrong.
 	//
-	// This is the string-derived-fact hazard in miniature (facts-are-fields): the round is
+	// This is the string-derived-fact hazard in miniature (facts-are-fields): the epoch is
 	// recovered from a seat-id by shape, and the miss returns a plausible number rather than an
 	// error.
 	archivedBefore := func(epoch int) int {
@@ -88,16 +88,16 @@ func SpotCheckAudit(f Family) (checks []SpotCheck, debt []int, falseEmpty []Spot
 		return n
 	}
 
-	// A round is only OWED a sample if the merge actually sat in it. Demanding one from a round
+	// An epoch is only OWED a sample if the merge actually sat in it. Demanding one from an epoch
 	// the merge never entered would fail a run for a duty nobody was there to discharge — the
-	// round-number keying W1.8 replaced, in a new spelling.
+	// epoch-number keying W1.8 replaced, in a new spelling.
 	mergeSat := map[int]bool{}
 	discharged := map[int]bool{}
 	var clk Clock
 	for _, e := range f.Events {
 		w := clk.Advance(e)
 		// REGISTERING IS NOT SITTING. A seat announces itself before it does anything, and a
-		// round where the merge registered and then the run ended — a ceiling hit, a PASS, a
+		// epoch where the merge registered and then the run ended — a ceiling hit, a PASS, a
 		// halt between the two — owed a sample it never had the chance to take. The floor is
 		// about work the merge DID, so the announcement does not count as work.
 		//

@@ -118,15 +118,15 @@ func isGrade(s string) bool { return flags.IsGrade(s) }
 // absent grade contributes zero rather than erroring.
 func GapMass(likelihood, impact string) float64 { return MASS[likelihood] * MASS[impact] }
 
-// THE ROUND IS NOT A FACT A SEAT SUPPLIES. It used to be read out of the seat id by regex at
-// register and stamped on every event forever (round.go, deleted). It is now the EPOCH at the
-// the record itself — events_w."epoch", derived from the chair's registers — and a seat id carries no round at all.
+// THE EPOCH IS NOT A FACT A SEAT SUPPLIES. It used to be read out of the seat id by regex at
+// register and stamped on every event forever (epoch.go, deleted). It is now the EPOCH at the
+// the record itself — events_w."epoch", derived from the chair's registers — and a seat id carries no epoch at all.
 //
 // What stood here returned a bare int and read FEOV_ROUND first — an injected branch nothing in
 // the repository ever set, so in production the regex was not a fallback but the only path, and
 // `judge-terminal` stamped round 0 on every append (#396). round.go answers the question the regex
-// structurally cannot: a terminal seat's round is derived from the RECORD (the highest round any
-// seat stamped), and "this name says nothing about a round" is a second return value rather than a
+// structurally cannot: a terminal seat's epoch is derived from the RECORD (the highest epoch any
+// seat stamped), and "this name says nothing about an epoch" is a second return value rather than a
 // zero indistinguishable from round 0.
 
 var seatIDRe = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9-]*$`)
@@ -147,7 +147,7 @@ type Event = recordpb.Event
 
 // Identity is WHO IS WRITING, carried to the write instead of recovered at it.
 //
-// Round is CARRIED, never re-derived by regex over the seat id: the caller has already resolved
+// Epoch is CARRIED, never re-derived by regex over the seat id: the caller has already resolved
 // it as a field on seat.Context, and re-deriving would return 0 on a miss — indistinguishable
 // from round 0. Carrying it puts the fact ON THE SEAM, so a dispatcher-injected round arrives
 // once here rather than at 32 call sites.
@@ -1198,7 +1198,7 @@ func validate(run Run, seatID string, typ recordpb.EventType, body proto.Message
 			}
 			return fmt.Errorf("record: a %s line of inquiry requires --reason (why it was not taken, or what killed it — the part a future run actually needs; a bare list of roads not taken is decoration)", recordpb.Word(st))
 		}
-	// THE PER-ROUND READ OF THE REPORT AGAINST THE RECORD'S LINES OF INQUIRY.
+	// THE PER-EPOCH READ OF THE REPORT AGAINST THE RECORD'S LINES OF INQUIRY.
 	//
 	// The retired `inquiry-support` carried three checks; ONE survives and the other two retired
 	// with the shape rather than being dropped. `--id must be present` and `--id must name a line

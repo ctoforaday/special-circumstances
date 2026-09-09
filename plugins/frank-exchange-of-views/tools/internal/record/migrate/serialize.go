@@ -9,7 +9,7 @@ import (
 // serializeInstances puts an archived run's concurrent lens INSTANCES one after another.
 //
 // In the W2i era (run-archive/, 2026-08-22 .. 2026-09-02) the citation lens could sit as two
-// instances in one round — `red-lens-r3-L1` and `red-lens-r3-L2`, dividing the report between
+// instances in one epoch — `red-lens-r3-L1` and `red-lens-r3-L2`, dividing the report between
 // them — and their events interleave almost completely (the quadratic run: L1 at rows 466-510,
 // L2 at 467-509). The roundless record has no concurrent instances of one seat: both are
 // `red-lens-evidence`, and a seat's acts belong to its SITTING, which is the count of its
@@ -17,7 +17,7 @@ import (
 // 2 (L2 had registered by then) and collide with L2's on the once-per-sitting key — 53 refusals
 // on the quadratic run, and a wrong attribution for every act that was not refused.
 //
-// So within each round, instance 2's events (then 3's, 4's) are moved to just after instance 1's
+// So within each epoch, instance 2's events (then 3's, 4's) are moved to just after instance 1's
 // last event. Nothing else moves: the chair, blue and the other lenses keep their places, and
 // each instance keeps its own order. The migrated record then reads as what a roundless run
 // would have done — the evidence lens sat twice in that epoch — and the manifest says how many
